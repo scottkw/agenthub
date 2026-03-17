@@ -1,0 +1,15 @@
+{
+  "milestone_version": "v1.0",
+  "milestone_name": "MVP",
+  "workflow": {
+    "research": true
+  },
+  "models": {
+    "executor": "sonnet",
+    "planner": "inherit",
+    "researcher": "sonnet",
+    "synthesizer": "sonnet",
+    "roadmapper": "sonnet"
+  },
+  "commit_docs": true
+}
