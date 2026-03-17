@@ -31,7 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Closing the session sends SIGHUP and kills the entire process group — no orphan CLI processes remain after session close
   4. App startup scans PATH and identifies which of Claude Code, Codex, Gemini CLI, OpenCode are available
   5. Session state persists in memory (Go-native PTY backend) — process continues running after the conceptual "window close" event is triggered in test code
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Scaffold Go module, define interfaces, implement CLI detection and session registry
+- [ ] 01-02-PLAN.md — Implement NativePTYBackend (spawn, resize, kill), win32-input parser, smoke-test binary
 
 ### Phase 2: Session Registry + WebSocket Relay
 **Goal**: An in-memory SessionRegistry tracks all sessions; a WebSocket fan-out hub broadcasts PTY output to N connected clients; the binary framing protocol is defined and tested; connection lifecycle (connect, disconnect, reconnect) is handled correctly.
@@ -94,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. PTY Foundation | 0/? | Not started | - |
+| 1. PTY Foundation | 0/2 | Planning complete | - |
 | 2. Session Registry + WebSocket Relay | 0/? | Not started | - |
 | 3. Wails Desktop UI | 0/? | Not started | - |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |
