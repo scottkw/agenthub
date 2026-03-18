@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/coder/websocket v1.8.14 // indirect
 	github.com/creack/pty v1.1.21 // indirect
 	github.com/u-root/u-root v0.11.0 // indirect
 	golang.org/x/crypto v0.17.0 // indirect
