@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Session Registry + WebSocket Relay** - In-memory session state, fan-out hub, WebSocket protocol
 - [x] **Phase 3: Wails Desktop UI** - Tabbed xterm.js terminal, session naming, system tray, full local UX (completed 2026-03-18)
 - [x] **Phase 4: Web Serving + TLS + Auth** - Embedded HTTPS server, self-signed TLS, dashboard, token auth, VPN binding (completed 2026-03-18)
-- [x] **Phase 5: QR Codes + Status Indicators** - QR code generation, session status heuristics, per-session URL display (completed 2026-03-18)
+- [ ] **Phase 5: QR Codes + Status Indicators** - QR code generation, session status heuristics, per-session URL display (gap closure in progress)
 - [ ] **Phase 6: Distribution + Cross-Platform** - GitHub Actions CI matrix, macOS notarization, Linux/Windows build validation
 
 ## Phase Details
@@ -93,12 +93,15 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When a session has web serving enabled, a QR code appears in the desktop UI and on the web dashboard — scanning it with a phone opens the session URL
   2. Each tab in the desktop app shows a status badge that updates without manual refresh: "running" when the CLI is actively producing output, "waiting" when it has shown a prompt and is idle, and "errored" when the process has exited non-zero
-**Plans:** 3/3 plans complete
+**Plans:** 6 plans (3 original + 3 gap closure)
 
 Plans:
 - [ ] 05-01-PLAN.md — QR code generation (Go backend + web dashboard endpoint)
 - [ ] 05-02-PLAN.md — Status detector engine (internal/status package + App wiring)
 - [ ] 05-03-PLAN.md — Frontend integration (QR modal, status badges, event subscription)
+- [ ] 05-04-PLAN.md — Gap: Fix Watch() relay frame stripping + extend reANSI for OSC sequences
+- [ ] 05-05-PLAN.md — Gap: Fix xterm.js terminal height (defer fit(), ResizeObserver, CSS)
+- [ ] 05-06-PLAN.md — Gap: Serve GET /dashboard without auth (fix circular login dependency)
 
 ### Phase 6: Distribution + Cross-Platform
 **Goal**: AgentHub builds cleanly on macOS, Linux, and Windows via a GitHub Actions CI matrix; macOS builds are signed and notarized; Linux builds handle WebKitGTK version variants; Windows builds produce a usable installer. Each platform produces a working binary that passes the Phase 3 and Phase 4 success criteria on that platform.
@@ -122,5 +125,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
 | 4. Web Serving + TLS + Auth | 4/4 | Complete   | 2026-03-18 |
-| 5. QR Codes + Status Indicators | 3/3 | Complete   | 2026-03-18 |
+| 5. QR Codes + Status Indicators | 3/6 | Gap closure | 2026-03-18 |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
