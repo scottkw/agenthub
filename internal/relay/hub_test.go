@@ -12,7 +12,7 @@ import (
 func makeTestHub(t *testing.T) (*Hub, *io.PipeWriter) {
 	t.Helper()
 	r, w := io.Pipe()
-	hub := NewHub("test-session", r, w, DefaultScrollbackBytes)
+	hub := NewHub("test-session", r, w, DefaultScrollbackBytes, nil)
 	return hub, w
 }
 
@@ -196,18 +196,18 @@ func TestHubDoneChannel(t *testing.T) {
 
 func TestHubWriteInput(t *testing.T) {
 	r, w := io.Pipe()
-	hub := NewHub("test-write", r, w, DefaultScrollbackBytes)
+	hub := NewHub("test-write", r, w, DefaultScrollbackBytes, nil)
 
 	// Read what WriteInput produces from the writer end (w writes to itself here).
 	// Use a separate pipe for the writer to capture what WriteInput sends.
 	rIn, wIn := io.Pipe()
-	hub2 := NewHub("test-write-in", r, wIn, DefaultScrollbackBytes)
+	hub2 := NewHub("test-write-in", r, wIn, DefaultScrollbackBytes, nil)
 	_ = hub2
 
 	// Simpler: just verify WriteInput writes to the writer without error.
 	// We'll use a bytes-based approach: create a pipe and read from the read end.
 	pr, pw := io.Pipe()
-	hub3 := NewHub("test-wi", pr, pw, DefaultScrollbackBytes)
+	hub3 := NewHub("test-wi", pr, pw, DefaultScrollbackBytes, nil)
 
 	readDone := make(chan []byte, 1)
 	go func() {

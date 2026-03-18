@@ -21,6 +21,7 @@ type Hub struct {
 	reader     io.Reader
 	writer     io.Writer
 	scrollback *Scrollback
+	resizeFn   func(cols, rows int) error
 
 	mu          sync.Mutex
 	subscribers map[*Subscriber]struct{}
@@ -31,15 +32,26 @@ type Hub struct {
 
 // NewHub constructs a Hub for the given session.
 // scrollbackBytes controls the scrollback buffer capacity.
-func NewHub(sessionID string, reader io.Reader, writer io.Writer, scrollbackBytes int) *Hub {
+// resizeFn is called when a resize event is received; may be nil.
+func NewHub(sessionID string, reader io.Reader, writer io.Writer, scrollbackBytes int, resizeFn func(cols, rows int) error) *Hub {
 	return &Hub{
 		sessionID:   sessionID,
 		reader:      reader,
 		writer:      writer,
 		scrollback:  NewScrollback(scrollbackBytes),
+		resizeFn:    resizeFn,
 		subscribers: make(map[*Subscriber]struct{}),
 		done:        make(chan struct{}),
 	}
+}
+
+// Resize calls the resize callback registered at construction time.
+// If no callback was provided it is a no-op.
+func (h *Hub) Resize(cols, rows int) error {
+	if h.resizeFn != nil {
+		return h.resizeFn(cols, rows)
+	}
+	return nil
 }
 
 // Subscribe adds a subscriber to receive future frames.

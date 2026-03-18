@@ -28,9 +28,9 @@ func setupTestServer(t *testing.T) (*httptest.Server, *HubManager, *io.PipeWrite
 
 	const sessionID = "test-session"
 	manager := NewHubManager()
-	manager.Create(sessionID, ptyOutputR, inputCaptureW)
+	manager.Create(sessionID, ptyOutputR, inputCaptureW, nil)
 
-	srv := httptest.NewServer(NewServer(manager))
+	srv := httptest.NewServer(NewServer(manager, nil))
 	t.Cleanup(func() {
 		srv.Close()
 		manager.Shutdown()

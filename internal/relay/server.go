@@ -4,19 +4,24 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/coder/websocket"
 )
 
 // Server is an HTTP handler that exposes relay sessions over WebSocket.
 type Server struct {
 	manager *HubManager
+	backend pty.SessionBackend
 	mux     *http.ServeMux
 }
 
-// NewServer creates a Server backed by the given HubManager and registers routes.
-func NewServer(manager *HubManager) *Server {
+// NewServer creates a Server backed by the given HubManager and SessionBackend
+// and registers routes. backend is used to forward resize events from connected
+// WebSocket clients to the underlying PTY.
+func NewServer(manager *HubManager, backend pty.SessionBackend) *Server {
 	s := &Server{
 		manager: manager,
+		backend: backend,
 		mux:     http.NewServeMux(),
 	}
 	s.mux.HandleFunc("GET /sessions/{id}/ws", s.handleSession)
@@ -94,8 +99,11 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 			case MsgInput:
 				_ = hub.WriteInput(payload)
 			case MsgResize2:
-				// Phase 3 will call backend.Resize(cols, rows) here.
-				// For now we accept and discard the resize frame.
+				if len(payload) >= 4 {
+					cols := uint16(payload[0])<<8 | uint16(payload[1])
+					rows := uint16(payload[2])<<8 | uint16(payload[3])
+					_ = hub.Resize(int(cols), int(rows))
+				}
 			case MsgPing:
 				// Keep-alive — no-op.
 			}

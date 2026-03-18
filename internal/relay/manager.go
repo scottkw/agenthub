@@ -22,7 +22,8 @@ func NewHubManager() *HubManager {
 // Create instantiates a Hub for the given session ID, stores it, and starts
 // its Run goroutine. If a hub already exists for sessionID it is returned as-is
 // (callers should call Get first to avoid unintentional re-creation).
-func (m *HubManager) Create(sessionID string, reader io.Reader, writer io.Writer) *Hub {
+// resizeFn is forwarded to NewHub and may be nil.
+func (m *HubManager) Create(sessionID string, reader io.Reader, writer io.Writer, resizeFn func(cols, rows int) error) *Hub {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -30,7 +31,7 @@ func (m *HubManager) Create(sessionID string, reader io.Reader, writer io.Writer
 		return existing
 	}
 
-	hub := NewHub(sessionID, reader, writer, DefaultScrollbackBytes)
+	hub := NewHub(sessionID, reader, writer, DefaultScrollbackBytes, resizeFn)
 	m.hubs[sessionID] = hub
 	go hub.Run()
 	return hub
