@@ -25,9 +25,11 @@ const (
 	StatusErrored SessionStatus = "errored"
 )
 
-// reANSI matches CSI escape sequences and a subset of other common ANSI codes.
+// reANSI matches CSI escape sequences, a subset of other common ANSI codes,
+// and OSC sequences (\x1b]...\x07 or \x1b]...\x1b\) that Claude Code emits
+// for window title updates before the prompt.
 // Compiled once at init; safe for concurrent use.
-var reANSI = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b[()][AB012]|\x1b[=>]`)
+var reANSI = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]|\x1b[()][AB012]|\x1b[=>]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)`)
 
 // StripANSI removes ANSI/VT escape sequences from b and returns the cleaned bytes.
 // The original slice is not modified.
@@ -202,7 +204,13 @@ func Watch(hub HubLike, sessionID, cli string, onTransit func(string, SessionSta
 	hub.Subscribe(sub)
 
 	// Feed existing scrollback so initial status is accurate.
+	// The scrollback stores concatenated MakeOutputFrame bytes (each prefixed
+	// with 0x01). Strip the leading MsgOutput byte before feeding the detector
+	// so binary framing does not pollute the rolling tail.
 	if snap := hub.ScrollbackSnapshot(); len(snap) > 0 {
+		if snap[0] == relay.MsgOutput {
+			snap = snap[1:]
+		}
 		detector.Feed(snap)
 	}
 
@@ -215,7 +223,11 @@ func Watch(hub HubLike, sessionID, cli string, onTransit func(string, SessionSta
 	for {
 		select {
 		case frame := <-sub.Msgs:
-			detector.Feed(frame)
+			msgType, payload, err := relay.ParseFrame(frame)
+			if err != nil || msgType != relay.MsgOutput {
+				continue
+			}
+			detector.Feed(payload)
 		case <-hub.Done():
 			return
 		}

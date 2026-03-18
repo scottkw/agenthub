@@ -226,6 +226,102 @@ func TestDetector_RollingTail(t *testing.T) {
 	}
 }
 
+// --- TestWatch_IdleTransition ---
+
+// TestWatch_IdleTransition verifies that a framed MsgOutput message containing
+// the Claude Code prompt triggers a transition to StatusIdle.
+func TestWatch_IdleTransition(t *testing.T) {
+	hub := newMockHub()
+
+	var (
+		mu  sync.Mutex
+		got status.SessionStatus
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		status.Watch(hub, "test-session", "claude", func(id string, s status.SessionStatus) {
+			mu.Lock()
+			got = s
+			mu.Unlock()
+		})
+	}()
+
+	// Give Watch time to start and subscribe.
+	time.Sleep(10 * time.Millisecond)
+
+	// Send a framed MsgOutput containing the Claude Code idle prompt.
+	prompt := relay.MakeOutputFrame([]byte("❯ "))
+	hub.send(prompt)
+
+	// Give detector time to process.
+	time.Sleep(20 * time.Millisecond)
+
+	// Close hub so Watch exits.
+	hub.close()
+	wg.Wait()
+
+	mu.Lock()
+	result := got
+	mu.Unlock()
+
+	if result != status.StatusIdle {
+		t.Errorf("expected StatusIdle after framed prompt, got %q", result)
+	}
+}
+
+// TestWatch_NonOutputFrameIgnored verifies that MsgResize frames are not fed
+// to the detector (do not change status beyond initial seed).
+func TestWatch_NonOutputFrameIgnored(t *testing.T) {
+	hub := newMockHub()
+
+	var (
+		mu          sync.Mutex
+		transitions int
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		status.Watch(hub, "test-session", "claude", func(id string, s status.SessionStatus) {
+			mu.Lock()
+			transitions++
+			mu.Unlock()
+		})
+	}()
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Send a resize frame — should not trigger additional transitions.
+	resize := relay.MakeResizeFrame(80, 24)
+	hub.send(resize)
+
+	time.Sleep(20 * time.Millisecond)
+	hub.close()
+	wg.Wait()
+
+	mu.Lock()
+	count := transitions
+	mu.Unlock()
+
+	// Only the initial transition (from empty sentinel) should fire.
+	if count > 1 {
+		t.Errorf("expected at most 1 transition, got %d", count)
+	}
+}
+
+// TestStripANSI_OSC verifies that OSC sequences are stripped by StripANSI.
+func TestStripANSI_OSC(t *testing.T) {
+	input := []byte("\x1b]0;Claude Code\x07❯ ")
+	got := status.StripANSI(input)
+	if string(got) != "❯ " {
+		t.Errorf("StripANSI OSC: expected %q, got %q", "❯ ", string(got))
+	}
+}
+
 // --- TestDetectorShutdown ---
 
 func TestDetectorShutdown(t *testing.T) {
