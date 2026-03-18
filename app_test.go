@@ -307,3 +307,50 @@ func TestGetSessionQRCode_NoServer(t *testing.T) {
 		t.Error("expected GetSessionQRCode to return error when web server is not running")
 	}
 }
+
+func TestGetSessionStatus(t *testing.T) {
+	app := testApp(t)
+
+	id, err := app.CreateSession("cat", "status-test-tab")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// GetSessionStatus should return a valid non-empty status string.
+	s := app.GetSessionStatus(id)
+	if s == "" {
+		t.Error("GetSessionStatus returned empty string for active session")
+	}
+
+	// Valid status values.
+	valid := map[string]bool{"running": true, "waiting": true, "idle": true, "errored": true}
+	if !valid[s] {
+		t.Errorf("GetSessionStatus returned invalid status %q", s)
+	}
+}
+
+func TestStatusMap(t *testing.T) {
+	app := testApp(t)
+
+	id1, err := app.CreateSession("cat", "tab-1")
+	if err != nil {
+		t.Fatalf("CreateSession tab-1: %v", err)
+	}
+	id2, err := app.CreateSession("cat", "tab-2")
+	if err != nil {
+		t.Fatalf("CreateSession tab-2: %v", err)
+	}
+
+	s1 := app.GetSessionStatus(id1)
+	s2 := app.GetSessionStatus(id2)
+
+	if s1 == "" || s2 == "" {
+		t.Errorf("expected non-empty statuses; s1=%q s2=%q", s1, s2)
+	}
+
+	// Unknown session returns "running" default.
+	sUnknown := app.GetSessionStatus("nonexistent-id")
+	if sUnknown != "running" {
+		t.Errorf("unknown session status: got %q, want %q", sUnknown, "running")
+	}
+}
