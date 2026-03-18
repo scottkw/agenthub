@@ -66,15 +66,18 @@ func login(t *testing.T, client *http.Client, baseURL, password string) string {
 	return ""
 }
 
-func TestWebServerDashboardRequiresAuth(t *testing.T) {
+// TestWebServerDashboardNoAuthRequired verifies that GET /dashboard is publicly
+// accessible (the HTML JS handles login state client-side). This replaces the
+// old "RequiresAuth" check which reflected the pre-fix broken behaviour.
+func TestWebServerDashboardNoAuthRequired(t *testing.T) {
 	ws, client := testServer(t)
 	resp, err := client.Get(ws.BaseURL() + "/dashboard")
 	if err != nil {
 		t.Fatalf("GET /dashboard: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 }
 

@@ -230,8 +230,8 @@ func (ws *WebServer) setupRoutes() {
 		http.NotFound(w, r)
 	})
 
-	// GET /dashboard — requires dashboard auth
-	mux.HandleFunc("GET /dashboard", ws.dashboardAuth(ws.handleDashboard))
+	// GET /dashboard — no auth required; the HTML's JS handles login state internally
+	mux.HandleFunc("GET /dashboard", ws.handleDashboard)
 
 	// POST /login — JSON {"password": "..."}
 	mux.HandleFunc("POST /login", ws.handleLogin)
