@@ -13,8 +13,11 @@ import {
   GenerateSessionToken,
   GetWebServerURL,
   IsWebServerRunning,
+  GetSessionStatus,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI } from './wailsjs/go/main/App'
+import { EventsOn } from './wailsjs/wailsjs/runtime/runtime'
+import { QRModal } from './components/QRModal'
 
 /**
  * App is the root component — it owns all tab state and wires
@@ -35,6 +38,10 @@ function App(): React.ReactElement {
   const [sessionURLs, setSessionURLs] = useState<Record<string, string>>({})
   // Track web server running state
   const [webServerRunning, setWebServerRunning] = useState(false)
+  // Track live status per session: sessionId -> status string
+  const [sessionStatuses, setSessionStatuses] = useState<Record<string, string>>({})
+  // Track which session's QR modal is open (null = none)
+  const [qrSessionId, setQrSessionId] = useState<string | null>(null)
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
@@ -60,12 +67,33 @@ function App(): React.ReactElement {
           }))
           setTabs(restoredTabs)
           setActiveId(restoredTabs[0].id)
+
+          // Seed initial status for each restored session.
+          sessions.forEach((s) => {
+            GetSessionStatus(s.id)
+              .then((st) => {
+                setSessionStatuses((prev) => ({ ...prev, [s.id]: st }))
+              })
+              .catch(() => { /* status unavailable — leave unset */ })
+          })
         }
       } catch (err) {
         console.error('[App] init failed:', err)
       }
     }
     void init()
+
+    // Subscribe to live session:status events from the Go backend.
+    const offStatus = EventsOn(
+      'session:status',
+      (data: { sessionId: string; status: string }) => {
+        setSessionStatuses((prev) => ({ ...prev, [data.sessionId]: data.status }))
+      },
+    )
+
+    return () => {
+      offStatus()
+    }
   }, [])
 
   const createTab = useCallback(async (cliName: string) => {
@@ -128,6 +156,10 @@ function App(): React.ReactElement {
       }
       return remaining
     })
+    // Clean up session status for the closed session.
+    setSessionStatuses((prev) => { const n = { ...prev }; delete n[id]; return n })
+    // Close QR modal if it was open for this session.
+    setQrSessionId((prev) => (prev === id ? null : prev))
   }, [activeId, webEnabled])
 
   const handleRenameTab = useCallback(async (id: string, name: string) => {
@@ -190,6 +222,7 @@ function App(): React.ReactElement {
         onRename={handleRenameTab}
         onAdd={handleAddTab}
         onSettings={() => setShowSettings(true)}
+        sessionStatuses={sessionStatuses}
       />
 
       <div className="terminal-container">
@@ -223,6 +256,13 @@ function App(): React.ReactElement {
                     >
                       Copy Token Link
                     </button>
+                    <button
+                      className="qr-btn"
+                      onClick={() => setQrSessionId(tab.sessionId)}
+                      title="Show QR code for this session"
+                    >
+                      QR
+                    </button>
                   </>
                 )}
               </div>
@@ -251,6 +291,14 @@ function App(): React.ReactElement {
             ))}
           </div>
         </div>
+      )}
+
+      {qrSessionId !== null && (
+        <QRModal
+          sessionId={qrSessionId}
+          sessionURL={sessionURLs[qrSessionId]}
+          onClose={() => setQrSessionId(null)}
+        />
       )}
 
       <SettingsPanel

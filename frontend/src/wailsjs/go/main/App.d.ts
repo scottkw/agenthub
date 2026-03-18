@@ -39,3 +39,7 @@ export function GenerateSessionToken(sessionID: string): Promise<string>
 export function GetWebServerURL(): Promise<string>
 export function GetCACertPath(): Promise<string>
 export function IsWebServerRunning(): Promise<boolean>
+
+// QR code and status bound methods
+export function GetSessionQRCode(sessionID: string): Promise<string>
+export function GetSessionStatus(sessionID: string): Promise<string>

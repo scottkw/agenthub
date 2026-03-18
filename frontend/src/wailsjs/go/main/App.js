@@ -23,3 +23,7 @@ export const GenerateSessionToken = (sessionID)             => Call('main.App.Ge
 export const GetWebServerURL      = ()                      => Call('main.App.GetWebServerURL', [])
 export const GetCACertPath        = ()                      => Call('main.App.GetCACertPath', [])
 export const IsWebServerRunning   = ()                      => Call('main.App.IsWebServerRunning', [])
+
+// QR code and status bound methods
+export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
+export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])

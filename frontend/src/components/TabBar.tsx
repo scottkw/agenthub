@@ -15,6 +15,7 @@ interface TabBarProps {
   onRename: (id: string, name: string) => void
   onAdd: () => void
   onSettings: () => void
+  sessionStatuses?: Record<string, string>
 }
 
 /**
@@ -29,6 +30,7 @@ export function TabBar({
   onRename,
   onAdd,
   onSettings,
+  sessionStatuses,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -76,6 +78,10 @@ export function TabBar({
             className={`tab${tab.id === activeId ? ' tab--active' : ''}`}
             onClick={() => onSelect(tab.id)}
           >
+            <span
+              className={`tab__status tab__status--${sessionStatuses?.[tab.sessionId] || 'running'}`}
+              title={sessionStatuses?.[tab.sessionId] || 'running'}
+            />
             {editingId === tab.id ? (
               <input
                 ref={inputRef}
