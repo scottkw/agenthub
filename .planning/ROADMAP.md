@@ -12,7 +12,7 @@ AgentHub is built from the inside out: PTY process management first, then the se
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: PTY Foundation** - Cross-platform PTY process management, CLI detection, session lifecycle
+- [x] **Phase 1: PTY Foundation** - Cross-platform PTY process management, CLI detection, session lifecycle (completed 2026-03-18)
 - [ ] **Phase 2: Session Registry + WebSocket Relay** - In-memory session state, fan-out hub, WebSocket protocol
 - [ ] **Phase 3: Wails Desktop UI** - Tabbed xterm.js terminal, session naming, system tray, full local UX
 - [ ] **Phase 4: Web Serving + TLS + Auth** - Embedded HTTPS server, self-signed TLS, dashboard, token auth, VPN binding
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Closing the session sends SIGHUP and kills the entire process group — no orphan CLI processes remain after session close
   4. App startup scans PATH and identifies which of Claude Code, Codex, Gemini CLI, OpenCode are available
   5. Session state persists in memory (Go-native PTY backend) — process continues running after the conceptual "window close" event is triggered in test code
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Scaffold Go module, define interfaces, implement CLI detection and session registry
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. PTY Foundation | 1/2 | In Progress|  |
+| 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 0/? | Not started | - |
 | 3. Wails Desktop UI | 0/? | Not started | - |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |

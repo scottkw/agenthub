@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 01-pty-foundation-01-PLAN.md
-last_updated: "2026-03-18T00:10:26.927Z"
-last_activity: 2026-03-17 — Roadmap created, requirements mapped to 6 phases
+status: executing
+stopped_at: Completed 01-pty-foundation-02-PLAN.md
+last_updated: "2026-03-18T00:23:05.906Z"
+last_activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Progress: [█████░░░░░] 50%
 | 01-pty-foundation | 1 of 2 | 2 min | 2 min |
 
 *Updated after each plan completion*
+| Phase 01-pty-foundation P02 | 10min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,10 @@ Recent decisions affecting current work:
 - [Phase 01-pty-foundation]: SessionBackend is an interface so Plan 02 provides the platform implementation without touching Plan 01 types
 - [Phase 01-pty-foundation]: DetectCLIs returns make([]DetectedCLI, 0) not nil — callers can range safely without nil check
 - [Phase 01-pty-foundation]: Registry owns session lifetime: context cancellation does NOT remove sessions from registry
+- [Phase 01-pty-foundation]: Do not combine Setpgid:true with go-pty — Setsid already creates new session (PGID==PID); combining causes EPERM on macOS
+- [Phase 01-pty-foundation]: Close PTY master before cmd.Wait in killSession — prevents indefinite block when PTY slave is still referenced after child exits
+- [Phase 01-pty-foundation]: win32input_parse.go has no build tag — stateless chunk parser compiles everywhere so unit tests run on all platforms
+- [Phase 01-pty-foundation]: session.job stored as any — avoids Windows build tags in session.go; type assertion done in cleanup_windows.go
 
 ### Pending Todos
 
@@ -74,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T00:10:26.925Z
-Stopped at: Completed 01-pty-foundation-01-PLAN.md
+Last session: 2026-03-18T00:23:05.904Z
+Stopped at: Completed 01-pty-foundation-02-PLAN.md
 Resume file: None

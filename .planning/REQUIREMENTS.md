@@ -14,13 +14,13 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **TERM-03**: Terminal renders full ANSI color and Unicode/emoji output correctly
 - [ ] **TERM-04**: Terminal provides 10K+ line scrollback buffer
 - [ ] **TERM-05**: User can copy/paste text from terminal sessions
-- [ ] **TERM-06**: Terminal resizes correctly when window is resized (SIGWINCH propagation)
-- [ ] **TERM-07**: User can close/kill a session cleanly (process group cleanup)
+- [x] **TERM-06**: Terminal resizes correctly when window is resized (SIGWINCH propagation)
+- [x] **TERM-07**: User can close/kill a session cleanly (process group cleanup)
 
 ### CLI
 
 - [x] **CLI-01**: App detects installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) via PATH
-- [ ] **CLI-02**: User can launch a new session by selecting from detected CLIs
+- [x] **CLI-02**: User can launch a new session by selecting from detected CLIs
 - [ ] **CLI-03**: User can configure custom CLI paths in app settings
 
 ### Session
@@ -101,10 +101,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-03 | Phase 3 | Pending |
 | TERM-04 | Phase 3 | Pending |
 | TERM-05 | Phase 3 | Pending |
-| TERM-06 | Phase 1 | Pending |
-| TERM-07 | Phase 1 | Pending |
+| TERM-06 | Phase 1 | Complete |
+| TERM-07 | Phase 1 | Complete |
 | CLI-01 | Phase 1 | Complete |
-| CLI-02 | Phase 1 | Pending |
+| CLI-02 | Phase 1 | Complete |
 | CLI-03 | Phase 3 | Pending |
 | SESS-01 | Phase 1 | Complete |
 | SESS-02 | Phase 3 | Pending |
