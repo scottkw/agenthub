@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-qr-codes-status-indicators-01-PLAN.md
-last_updated: "2026-03-18T19:47:01.804Z"
-last_activity: 2026-03-18 — Plan 04-01 complete (TLS CA infrastructure, leaf cert generation, network interface enumeration)
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-18T20:20:00.000Z"
+last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge frontend integration)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 14
-  completed_plans: 13
-  percent: 82
+  completed_plans: 14
+  percent: 93
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 4 of 6 (Web Serving TLS Auth)
-Plan: 1 of 4 in current phase
+Phase: 5 of 6 (QR Codes + Status Indicators)
+Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-18 — Plan 04-01 complete (TLS CA infrastructure, leaf cert generation, network interface enumeration)
+Last activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████████░░] 82%
 | Phase 04-web-serving-tls-auth P04 | 30 | 3 tasks | 6 files |
 | Phase 05-qr-codes-status-indicators P02 | 8min | 2 tasks | 4 files |
 | Phase 05-qr-codes-status-indicators P01 | 15min | 2 tasks | 7 files |
+| Phase 05-qr-codes-status-indicators P03 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,9 @@ Recent decisions affecting current work:
 - [Phase 05-qr-codes-status-indicators]: dashboardAuth protects the QR endpoint — consistent with /api/sessions auth level
 - [Phase 05-qr-codes-status-indicators]: QR endpoint returns 404 for non-enabled sessions — consistent with session auth behavior
 - [Phase 05-qr-codes-status-indicators]: Dashboard QR overlay implemented with pure CSS/JS — no external library required
+- [Phase 05-qr-codes-status-indicators]: QR button visibility gated on both webEnabled[sessionId] and webServerRunning — prevents GetSessionQRCode calls when server is down
+- [Phase 05-qr-codes-status-indicators]: Initial status seeded via GetSessionStatus per restored session — avoids blank dots on app reopen
+- [Phase 05-qr-codes-status-indicators]: sessionStatuses cleaned up on tab close — prevents unbounded map growth
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T19:47:01.792Z
-Stopped at: Completed 05-qr-codes-status-indicators-01-PLAN.md
+Last session: 2026-03-18T20:20:00.000Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
