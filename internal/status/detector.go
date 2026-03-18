@@ -125,29 +125,48 @@ func (d *Detector) Feed(raw []byte) {
 	}
 }
 
+// tailSuffix is the number of bytes from the end of the tail used for
+// recency-sensitive pattern matching (idle, waiting).  Patterns that indicate
+// "what the CLI is doing right now" should match near the end of the output,
+// not deep in scrollback history.
+const tailSuffix = 256
+
 // classify determines the current status from the tail contents.
-// Priority: Waiting > Working (Running) > Idle > default Running.
+// Recency-aware priority: patterns that match the last tailSuffix bytes of
+// output take precedence, because they reflect the CLI's current state rather
+// than stale output still sitting in the scrollback buffer.
+//
+// Order: Waiting (end) > Idle (end) > Working (full tail) > default Running.
 func (d *Detector) classify() SessionStatus {
 	tail := string(d.tail)
 
-	// Highest priority: waiting for user confirmation.
+	// Extract the suffix for recency-sensitive checks.
+	suffix := tail
+	if len(suffix) > tailSuffix {
+		suffix = suffix[len(suffix)-tailSuffix:]
+	}
+
+	// Highest priority: waiting for user confirmation (checked against suffix).
 	for _, re := range d.patterns.Waiting {
-		if re.MatchString(tail) {
+		if re.MatchString(suffix) {
 			return StatusWaiting
 		}
 	}
 
-	// Second: actively working.
-	for _, re := range d.patterns.Working {
-		if re.MatchString(tail) {
-			return StatusRunning
+	// Second: idle prompt visible at end of output — CLI is done and waiting
+	// for a new command.  This must beat Working because "ctrl+c to interrupt"
+	// lingers in scrollback long after the CLI has returned to idle.
+	for _, re := range d.patterns.Idle {
+		if re.MatchString(suffix) {
+			return StatusIdle
 		}
 	}
 
-	// Third: idle prompt visible.
-	for _, re := range d.patterns.Idle {
+	// Third: actively working (checked against full tail — working indicators
+	// like spinner frames may appear anywhere in recent output).
+	for _, re := range d.patterns.Working {
 		if re.MatchString(tail) {
-			return StatusIdle
+			return StatusRunning
 		}
 	}
 

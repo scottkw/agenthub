@@ -227,52 +227,60 @@ function App(): React.ReactElement {
 
       <div className="terminal-container">
         {relayPort !== null &&
-          tabs.map((tab) => (
-            <div key={tab.sessionId} className="terminal-wrapper">
-              {/* Per-tab web serving controls */}
-              <div className="web-serving-bar">
-                <button
-                  className={`web-toggle-btn${webEnabled[tab.sessionId] ? ' web-toggle-btn--active' : ''}`}
-                  onClick={() => void handleToggleWeb(tab.sessionId)}
-                  disabled={!webServerRunning}
-                  title={webServerRunning ? (webEnabled[tab.sessionId] ? 'Disable web serving' : 'Enable web serving') : 'Start web server in Settings first'}
-                >
-                  {webEnabled[tab.sessionId] ? 'Web On' : 'Web Off'}
-                </button>
-                {webEnabled[tab.sessionId] && sessionURLs[tab.sessionId] && (
-                  <>
-                    <a
-                      className="web-session-url"
-                      href={sessionURLs[tab.sessionId]}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {sessionURLs[tab.sessionId]}
-                    </a>
+          tabs.map((tab) => {
+            const isActive = tab.id === activeId
+            return (
+              <div
+                key={tab.sessionId}
+                className="terminal-wrapper"
+                style={{ display: isActive ? 'flex' : 'none' }}
+              >
+                {/* Per-tab web serving controls — only shown when web server is running */}
+                {webServerRunning && (
+                  <div className="web-serving-bar">
                     <button
-                      className="copy-token-btn"
-                      onClick={() => void handleCopyTokenLink(tab.sessionId)}
-                      title="Copy shareable token link"
+                      className={`web-toggle-btn${webEnabled[tab.sessionId] ? ' web-toggle-btn--active' : ''}`}
+                      onClick={() => void handleToggleWeb(tab.sessionId)}
+                      title={webEnabled[tab.sessionId] ? 'Disable web serving' : 'Enable web serving'}
                     >
-                      Copy Token Link
+                      {webEnabled[tab.sessionId] ? 'Web On' : 'Web Off'}
                     </button>
-                    <button
-                      className="qr-btn"
-                      onClick={() => setQrSessionId(tab.sessionId)}
-                      title="Show QR code for this session"
-                    >
-                      QR
-                    </button>
-                  </>
+                    {webEnabled[tab.sessionId] && sessionURLs[tab.sessionId] && (
+                      <>
+                        <a
+                          className="web-session-url"
+                          href={sessionURLs[tab.sessionId]}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {sessionURLs[tab.sessionId]}
+                        </a>
+                        <button
+                          className="copy-token-btn"
+                          onClick={() => void handleCopyTokenLink(tab.sessionId)}
+                          title="Copy shareable token link"
+                        >
+                          Copy Token Link
+                        </button>
+                        <button
+                          className="qr-btn"
+                          onClick={() => setQrSessionId(tab.sessionId)}
+                          title="Show QR code for this session"
+                        >
+                          QR
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
+                <TerminalPanel
+                  sessionId={tab.sessionId}
+                  isActive={isActive}
+                  relayPort={relayPort}
+                />
               </div>
-              <TerminalPanel
-                sessionId={tab.sessionId}
-                isActive={tab.id === activeId}
-                relayPort={relayPort}
-              />
-            </div>
-          ))}
+            )
+          })}
       </div>
 
       {/* CLI picker dropdown — shown when multiple CLIs are detected */}

@@ -183,6 +183,22 @@ func TestDetector_TransitionCallback(t *testing.T) {
 	}
 }
 
+func TestDetector_IdleOverridesStaleWorking(t *testing.T) {
+	// Real scenario: "ctrl+c to interrupt" lingers in scrollback from the
+	// welcome banner, but the prompt "❯" appears at the end.  The idle prompt
+	// at the tail end should win over the stale working indicator.
+	var got status.SessionStatus
+	d := newClaudeDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+	d.Feed([]byte("Welcome to Claude Code\nctrl+c to interrupt\n"))
+	if got != status.StatusRunning {
+		t.Fatalf("setup: expected StatusRunning, got %q", got)
+	}
+	d.Feed([]byte("some output...\n❯ "))
+	if got != status.StatusIdle {
+		t.Errorf("expected StatusIdle (prompt at end overrides stale working), got %q", got)
+	}
+}
+
 func TestDetector_ANSIInPrompt(t *testing.T) {
 	// ANSI-wrapped prompt should still be classified as idle
 	var got status.SessionStatus

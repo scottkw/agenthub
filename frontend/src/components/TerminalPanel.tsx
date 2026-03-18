@@ -108,9 +108,9 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
     <div
       ref={containerRef}
       style={{
-        display: isActive ? 'block' : 'none',
+        flex: 1,
         width: '100%',
-        height: '100%',
+        minHeight: 0,
       }}
     />
   )
