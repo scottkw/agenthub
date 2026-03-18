@@ -51,8 +51,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Status
 
-- [ ] **STAT-01**: Each tab shows session status: running, waiting for input, idle, or errored
-- [ ] **STAT-02**: Status detection uses heuristic parsing of CLI output patterns
+- [x] **STAT-01**: Each tab shows session status: running, waiting for input, idle, or errored
+- [x] **STAT-02**: Status detection uses heuristic parsing of CLI output patterns
 
 ### Platform
 
@@ -120,8 +120,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NET-03 | Phase 4 | Complete |
 | QR-01 | Phase 5 | Pending |
 | QR-02 | Phase 5 | Pending |
-| STAT-01 | Phase 5 | Pending |
-| STAT-02 | Phase 5 | Pending |
+| STAT-01 | Phase 5 | Complete |
+| STAT-02 | Phase 5 | Complete |
 | PLAT-01 | Phase 6 | Pending |
 | PLAT-02 | Phase 6 | Pending |
 | PLAT-03 | Phase 6 | Pending |
