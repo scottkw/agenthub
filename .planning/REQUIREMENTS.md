@@ -26,7 +26,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Session
 
 - [x] **SESS-01**: Sessions persist when the app window is closed (Go-native PTY backend)
-- [ ] **SESS-02**: App runs in system tray when window is closed, keeping sessions alive
+- [x] **SESS-02**: App runs in system tray when window is closed, keeping sessions alive
 - [x] **SESS-03**: User can reattach to a running session after reopening the window
 
 ### Web Serving
@@ -107,7 +107,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-02 | Phase 1 | Complete |
 | CLI-03 | Phase 3 | Complete |
 | SESS-01 | Phase 1 | Complete |
-| SESS-02 | Phase 3 | Pending |
+| SESS-02 | Phase 3 | Complete |
 | SESS-03 | Phase 2 | Complete |
 | WEB-01 | Phase 4 | Pending |
 | WEB-02 | Phase 4 | Pending |

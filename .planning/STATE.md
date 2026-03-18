@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-wails-desktop-ui-02-PLAN.md
-last_updated: "2026-03-18T14:54:34.561Z"
+stopped_at: Completed 03-wails-desktop-ui-03-PLAN.md
+last_updated: "2026-03-18T16:04:03.463Z"
 last_activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 71
 ---
 
@@ -51,6 +51,7 @@ Progress: [███████░░░] 71%
 | Phase 02-session-registry-websocket-relay P02 | 3min | 2 tasks | 5 files |
 | Phase 03-wails-desktop-ui P01 | 13min | 2 tasks | 20 files |
 | Phase 03-wails-desktop-ui P02 | 5min | 2 tasks | 10 files |
+| Phase 03-wails-desktop-ui P03 | 90min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 03-wails-desktop-ui]: Wails TypeScript stubs in wailsjs/ allow tsc compilation without running Go backend; wails dev regenerates them at runtime
 - [Phase 03-wails-desktop-ui]: display:none for inactive TerminalPanel divs preserves xterm.js scrollback buffer — unmounting destroys it
 - [Phase 03-wails-desktop-ui]: fitAddon.fit() only called on active terminal — hidden terminals return 0x0 sizing causing malformed resize frames
+- [Phase 03-wails-desktop-ui]: Replaced fyne.io/systray with native macOS cgo NSStatusBar — fyne defines AppDelegate which conflicts with Wails AppDelegate (duplicate symbol linker error)
+- [Phase 03-wails-desktop-ui]: Moved all Go files from cmd/agenthub/ to project root — Wails v2 requires main package co-located with wails.json
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T14:54:34.558Z
-Stopped at: Completed 03-wails-desktop-ui-02-PLAN.md
+Last session: 2026-03-18T16:04:03.459Z
+Stopped at: Completed 03-wails-desktop-ui-03-PLAN.md
 Resume file: None

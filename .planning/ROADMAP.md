@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: PTY Foundation** - Cross-platform PTY process management, CLI detection, session lifecycle (completed 2026-03-18)
 - [ ] **Phase 2: Session Registry + WebSocket Relay** - In-memory session state, fan-out hub, WebSocket protocol
-- [ ] **Phase 3: Wails Desktop UI** - Tabbed xterm.js terminal, session naming, system tray, full local UX
+- [x] **Phase 3: Wails Desktop UI** - Tabbed xterm.js terminal, session naming, system tray, full local UX (completed 2026-03-18)
 - [ ] **Phase 4: Web Serving + TLS + Auth** - Embedded HTTPS server, self-signed TLS, dashboard, token auth, VPN binding
 - [ ] **Phase 5: QR Codes + Status Indicators** - QR code generation, session status heuristics, per-session URL display
 - [ ] **Phase 6: Distribution + Cross-Platform** - GitHub Actions CI matrix, macOS notarization, Linux/Windows build validation
@@ -61,7 +61,7 @@ Plans:
   3. Terminal renders Claude Code's full color UI output (ANSI 256-color, emoji, box-drawing characters) without corruption
   4. User can scroll back through 10,000+ lines of output using the scrollbar or keyboard shortcuts
   5. User can copy text from the terminal and paste it back in; the app window can be closed to the system tray and sessions remain alive, resumable on reopen
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — Wails scaffold, Go App struct with bound methods, relay resize wiring, React frontend skeleton
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
-| 3. Wails Desktop UI | 2/3 | In Progress|  |
+| 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
