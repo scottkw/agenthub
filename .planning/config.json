@@ -2,7 +2,8 @@
   "milestone_version": "v1.0",
   "milestone_name": "MVP",
   "workflow": {
-    "research": true
+    "research": true,
+    "_auto_chain_active": false
   },
   "models": {
     "executor": "sonnet",
