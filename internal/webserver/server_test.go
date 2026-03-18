@@ -432,6 +432,33 @@ func TestQREndpointNotEnabled(t *testing.T) {
 	}
 }
 
+// TestDashboardNoAuthReturns200 verifies that GET /dashboard is accessible
+// without authentication — required for the login form to be reachable.
+func TestDashboardNoAuthReturns200(t *testing.T) {
+	ws, client := testServer(t)
+	resp, err := client.Get(ws.BaseURL() + "/dashboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+// TestAPISessionsStillRequiresAuth verifies that /api/sessions is still protected.
+func TestAPISessionsStillRequiresAuth(t *testing.T) {
+	ws, client := testServer(t)
+	resp, err := client.Get(ws.BaseURL() + "/api/sessions")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
 // mustParseURL is a test helper.
 func mustParseURL(rawURL string) *url.URL {
 	u, err := url.Parse(rawURL)
