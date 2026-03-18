@@ -93,7 +93,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When a session has web serving enabled, a QR code appears in the desktop UI and on the web dashboard — scanning it with a phone opens the session URL
   2. Each tab in the desktop app shows a status badge that updates without manual refresh: "running" when the CLI is actively producing output, "waiting" when it has shown a prompt and is idle, and "errored" when the process has exited non-zero
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — QR code generation (Go backend + web dashboard endpoint)
+- [ ] 05-02-PLAN.md — Status detector engine (internal/status package + App wiring)
+- [ ] 05-03-PLAN.md — Frontend integration (QR modal, status badges, event subscription)
 
 ### Phase 6: Distribution + Cross-Platform
 **Goal**: AgentHub builds cleanly on macOS, Linux, and Windows via a GitHub Actions CI matrix; macOS builds are signed and notarized; Linux builds handle WebKitGTK version variants; Windows builds produce a usable installer. Each platform produces a working binary that passes the Phase 3 and Phase 4 success criteria on that platform.
@@ -117,5 +122,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
 | 4. Web Serving + TLS + Auth | 4/4 | Complete   | 2026-03-18 |
-| 5. QR Codes + Status Indicators | 0/? | Not started | - |
+| 5. QR Codes + Status Indicators | 0/3 | Planned | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
