@@ -45,7 +45,11 @@ Plans:
   1. Two WebSocket clients connected to the same session both receive the same PTY output simultaneously without data loss or corruption
   2. A client that disconnects and reconnects receives the current session state and resumes receiving output without restarting the PTY process
   3. Input sent from any connected client reaches the PTY process and produces the expected output visible to all clients
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Binary framing protocol, bounded scrollback buffer, per-session fan-out Hub
+- [ ] 02-02-PLAN.md — HubManager, HTTP/WebSocket server, integration tests proving SESS-03
 
 ### Phase 3: Wails Desktop UI
 **Goal**: Users can open the AgentHub desktop app, launch AI coding CLI sessions in named tabs, interact with them via a fully-functional xterm.js terminal (ANSI color, Unicode, scrollback, copy/paste, resize), and close the window without killing their sessions.
@@ -94,12 +98,12 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
-| 2. Session Registry + WebSocket Relay | 0/? | Not started | - |
+| 2. Session Registry + WebSocket Relay | 0/2 | Not started | - |
 | 3. Wails Desktop UI | 0/? | Not started | - |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
