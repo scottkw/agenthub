@@ -45,7 +45,7 @@ Plans:
   1. Two WebSocket clients connected to the same session both receive the same PTY output simultaneously without data loss or corruption
   2. A client that disconnects and reconnects receives the current session state and resumes receiving output without restarting the PTY process
   3. Input sent from any connected client reaches the PTY process and produces the expected output visible to all clients
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — Binary framing protocol, bounded scrollback buffer, per-session fan-out Hub
@@ -61,7 +61,12 @@ Plans:
   3. Terminal renders Claude Code's full color UI output (ANSI 256-color, emoji, box-drawing characters) without corruption
   4. User can scroll back through 10,000+ lines of output using the scrollbar or keyboard shortcuts
   5. User can copy text from the terminal and paste it back in; the app window can be closed to the system tray and sessions remain alive, resumable on reopen
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Wails scaffold, Go App struct with bound methods, relay resize wiring, React frontend skeleton
+- [ ] 03-02-PLAN.md — React frontend: xterm.js terminal, relay client, tab management, settings panel
+- [ ] 03-03-PLAN.md — System tray integration, build verification, visual checkpoint
 
 ### Phase 4: Web Serving + TLS + Auth
 **Goal**: Users can toggle web serving on any session, access it from a remote browser over HTTPS (with TLS that the browser trusts), authenticate via a dashboard password, share per-session token links, and bind the web server to a specific network interface including auto-detected Tailscale.
@@ -103,8 +108,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
-| 2. Session Registry + WebSocket Relay | 1/2 | In Progress|  |
-| 3. Wails Desktop UI | 0/? | Not started | - |
+| 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
+| 3. Wails Desktop UI | 0/3 | Not started | - |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
