@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-web-serving-tls-auth-02-PLAN.md
-last_updated: "2026-03-18T18:02:48.632Z"
+stopped_at: Completed 04-web-serving-tls-auth-01-PLAN.md
+last_updated: "2026-03-18T18:03:09.654Z"
 last_activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 71
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 3 of 6 (Wails Desktop UI)
-Plan: 1 of 3 in current phase
+Phase: 4 of 6 (Web Serving TLS Auth)
+Plan: 1 of 4 in current phase
 Status: In progress
-Last activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
+Last activity: 2026-03-18 — Plan 04-01 complete (TLS CA infrastructure, leaf cert generation, network interface enumeration)
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███████░░░] 71%
 | Phase 03-wails-desktop-ui P02 | 5min | 2 tasks | 10 files |
 | Phase 03-wails-desktop-ui P03 | 90min | 2 tasks | 12 files |
 | Phase 04-web-serving-tls-auth P02 | 3min | 2 tasks | 4 files |
+| Phase 04-web-serving-tls-auth P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,9 @@ Recent decisions affecting current work:
 - [Phase 03-wails-desktop-ui]: Moved all Go files from cmd/agenthub/ to project root — Wails v2 requires main package co-located with wails.json
 - [Phase 04-web-serving-tls-auth]: AuthManager sessions map uses string->time.Time for future expiry support
 - [Phase 04-web-serving-tls-auth]: TokenStore uses bidirectional maps (tokenToSession + sessionToTokens) for O(1) lookup and O(n) bulk revocation
+- [Phase 04-web-serving-tls-auth]: Leaf key never written to disk — CA key on disk is already a risk; leaf generated in-memory each launch
+- [Phase 04-web-serving-tls-auth]: IPv4-only in ListInterfaces — VPN/Tailscale interfaces are always IPv4; keeps dropdown clean
+- [Phase 04-web-serving-tls-auth]: clock skew buffer NotBefore=time.Now().Add(-time.Minute) prevents immediate rejection on machines with slight clock drift
 
 ### Pending Todos
 

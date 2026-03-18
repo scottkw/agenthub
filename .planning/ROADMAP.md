@@ -78,7 +78,7 @@ Plans:
   3. A per-session token link works without dashboard login — the token grants access to exactly that one session
   4. Remote browser interaction with the session is fully bidirectional — the remote user can type commands and see output, not just observe
   5. User can select a specific network interface (or let Tailscale auto-detect) from the desktop app, and the web server binds to that interface's IP only
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — TLS certificate generation (CA + leaf) and network interface enumeration
@@ -116,6 +116,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
-| 4. Web Serving + TLS + Auth | 1/4 | In Progress|  |
+| 4. Web Serving + TLS + Auth | 2/4 | In Progress|  |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
