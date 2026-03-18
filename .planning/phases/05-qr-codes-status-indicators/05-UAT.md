@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: resolved
 phase: 05-qr-codes-status-indicators
 source: [05-01-SUMMARY.md, 05-02-SUMMARY.md, 05-03-SUMMARY.md]
 started: 2026-03-18T20:30:00Z
-updated: 2026-03-18T21:20:00Z
+updated: 2026-03-18T22:00:00Z
 ---
 
 ## Current Test
@@ -62,7 +62,7 @@ skipped: 1
 ## Gaps
 
 - truth: "Status dot changes from blue (running) to green (idle) when CLI returns to prompt"
-  status: failed
+  status: resolved
   reason: "User reported: the dot stays blue the whole time"
   severity: major
   test: 2
@@ -79,7 +79,7 @@ skipped: 1
     - "Add TestWatch_IdleTransition that feeds framed output through mock hub"
   debug_session: ".planning/debug/status-dot-stays-blue.md"
 - truth: "Terminal fills full available height below tab bar with no wasted whitespace"
-  status: failed
+  status: resolved
   reason: "User reported: terminal output is not filling the window, large blank area below terminal content"
   severity: major
   test: 3
@@ -100,7 +100,7 @@ skipped: 1
     - "Add .web-serving-bar { flex-shrink: 0 } CSS rule"
   debug_session: ".planning/debug/xterm-height-not-filling.md"
 - truth: "Web dashboard loads in browser when navigating to server URL"
-  status: failed
+  status: resolved
   reason: "User reported: When I open the link, all I get is Unauthorized."
   severity: major
   test: 7
