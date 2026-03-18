@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-03-18T21:39:04.237Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-03-18T21:40:33.978Z"
 last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 15
+  completed_plans: 17
   percent: 93
 ---
 
@@ -60,6 +60,8 @@ Progress: [█████████░] 93%
 | Phase 05-qr-codes-status-indicators P01 | 15min | 2 tasks | 7 files |
 | Phase 05-qr-codes-status-indicators P03 | 20min | 2 tasks | 4 files |
 | Phase 05-qr-codes-status-indicators P05 | 5min | 1 tasks | 2 files |
+| Phase 05-qr-codes-status-indicators P04 | 8 | 1 tasks | 2 files |
+| Phase 05-qr-codes-status-indicators P06 | 5min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -114,6 +116,9 @@ Recent decisions affecting current work:
 - [Phase 05-qr-codes-status-indicators]: sessionStatuses cleaned up on tab close — prevents unbounded map growth
 - [Phase 05-qr-codes-status-indicators]: requestAnimationFrame defers fit() until browser layout completes — containerRef.clientHeight non-zero before measuring
 - [Phase 05-qr-codes-status-indicators]: ResizeObserver on containerRef replaces window resize listener — handles any layout change not just window resize
+- [Phase 05-qr-codes-status-indicators]: Watch() uses relay.ParseFrame() guard to skip non-MsgOutput frames before feeding detector
+- [Phase 05-qr-codes-status-indicators]: reANSI extended with OSC alternation [^\x07\x1b]*(?:\x07|\x1b\\) to strip Claude Code window title sequences before prompt matching
+- [Phase 05-qr-codes-status-indicators]: GET /dashboard serves HTML without dashboardAuth wrapper — dashboard.html JS detects auth state by probing /api/sessions; HTML shell must be publicly accessible for login form to render
 
 ### Pending Todos
 
@@ -127,6 +132,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:39:04.225Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-03-18T21:40:33.974Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None
