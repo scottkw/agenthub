@@ -31,12 +31,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Web Serving
 
-- [ ] **WEB-01**: User can toggle web serving on/off per session
+- [x] **WEB-01**: User can toggle web serving on/off per session
 - [x] **WEB-02**: Web-served sessions use self-signed TLS with local CA cert pattern
-- [ ] **WEB-03**: App provides in-app guidance for installing CA cert in OS trust store
+- [x] **WEB-03**: App provides in-app guidance for installing CA cert in OS trust store
 - [x] **WEB-04**: Web dashboard lists all web-served sessions with password authentication
 - [x] **WEB-05**: User can generate shareable token links for specific sessions
-- [ ] **WEB-06**: Remote browser connects to session via xterm.js over WebSocket (full interaction, not read-only)
+- [x] **WEB-06**: Remote browser connects to session via xterm.js over WebSocket (full interaction, not read-only)
 
 ### Network
 
@@ -109,12 +109,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SESS-01 | Phase 1 | Complete |
 | SESS-02 | Phase 3 | Complete |
 | SESS-03 | Phase 2 | Complete |
-| WEB-01 | Phase 4 | Pending |
+| WEB-01 | Phase 4 | Complete |
 | WEB-02 | Phase 4 | Complete |
-| WEB-03 | Phase 4 | Pending |
+| WEB-03 | Phase 4 | Complete |
 | WEB-04 | Phase 4 | Complete |
 | WEB-05 | Phase 4 | Complete |
-| WEB-06 | Phase 4 | Pending |
+| WEB-06 | Phase 4 | Complete |
 | NET-01 | Phase 4 | Complete |
 | NET-02 | Phase 4 | Complete |
 | NET-03 | Phase 4 | Complete |

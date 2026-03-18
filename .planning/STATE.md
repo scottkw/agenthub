@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-web-serving-tls-auth-01-PLAN.md
-last_updated: "2026-03-18T18:03:09.654Z"
-last_activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
+stopped_at: Completed 04-web-serving-tls-auth-03-PLAN.md
+last_updated: "2026-03-18T18:10:00.905Z"
+last_activity: 2026-03-18 — Plan 04-01 complete (TLS CA infrastructure, leaf cert generation, network interface enumeration)
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 11
-  completed_plans: 9
-  percent: 71
+  completed_plans: 10
+  percent: 82
 ---
 
 # Project State
@@ -54,6 +54,7 @@ Progress: [████████░░] 82%
 | Phase 03-wails-desktop-ui P03 | 90min | 2 tasks | 12 files |
 | Phase 04-web-serving-tls-auth P02 | 3min | 2 tasks | 4 files |
 | Phase 04-web-serving-tls-auth P01 | 15min | 2 tasks | 4 files |
+| Phase 04-web-serving-tls-auth P03 | 4min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,8 @@ Recent decisions affecting current work:
 - [Phase 04-web-serving-tls-auth]: Leaf key never written to disk — CA key on disk is already a risk; leaf generated in-memory each launch
 - [Phase 04-web-serving-tls-auth]: IPv4-only in ListInterfaces — VPN/Tailscale interfaces are always IPv4; keeps dropdown clean
 - [Phase 04-web-serving-tls-auth]: clock skew buffer NotBefore=time.Now().Add(-time.Minute) prevents immediate rejection on machines with slight clock drift
+- [Phase 04-web-serving-tls-auth]: OriginPatterns: ['*'] in websocket.Accept — sessionAuth middleware already validated the request
+- [Phase 04-web-serving-tls-auth]: webEnabled map controls /sessions/{id} route separately from HubManager — session can be enabled before hub is created
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T18:02:48.630Z
-Stopped at: Completed 04-web-serving-tls-auth-02-PLAN.md
+Last session: 2026-03-18T18:10:00.903Z
+Stopped at: Completed 04-web-serving-tls-auth-03-PLAN.md
 Resume file: None
