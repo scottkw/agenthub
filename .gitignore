@@ -16,6 +16,12 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 
+# Wails build artifacts
+build/bin/
+build/darwin/
+frontend/package.json.md5
+frontend/src/wailsjs/wailsjs/
+
 # Test artifacts
 *.test
 *.out
