@@ -30,7 +30,7 @@ type App struct {
 	manager  *relay.HubManager
 	server   *relay.Server
 	listener net.Listener
-	trayEnd  func() // cleanup function returned by systray.RunWithExternalLoop
+	trayInit bool // true once initTray has been called
 
 	mu       sync.RWMutex
 	tabNames map[string]string // sessionID -> display name
@@ -67,15 +67,16 @@ func (a *App) startup(ctx context.Context) {
 	a.listener = ln
 	go func() { _ = http.Serve(ln, a.server) }()
 
-	// Start system tray (non-blocking via RunWithExternalLoop).
+	// Start system tray icon (non-blocking, macOS NSStatusBar).
 	a.initTray()
+	a.trayInit = true
 }
 
 // shutdown is called when the Wails app is about to exit.
 func (a *App) shutdown(_ context.Context) {
-	// Stop the system tray loop before cleaning up other resources.
-	if a.trayEnd != nil {
-		a.trayEnd()
+	// Remove the system tray icon before cleaning up other resources.
+	if a.trayInit {
+		a.cleanupTray()
 	}
 	a.manager.Shutdown()
 	if a.listener != nil {
