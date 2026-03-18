@@ -6,10 +6,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/agenthub/agenthub/internal/relay"
+	"github.com/agenthub/agenthub/internal/webserver"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -32,9 +34,10 @@ type App struct {
 	listener net.Listener
 	trayInit bool // true once initTray has been called
 
-	mu       sync.RWMutex
-	tabNames map[string]string // sessionID -> display name
-	cliPaths map[string]string // cli name -> custom path override
+	mu        sync.RWMutex
+	tabNames  map[string]string // sessionID -> display name
+	cliPaths  map[string]string // cli name -> custom path override
+	webServer *webserver.WebServer
 }
 
 // NewApp creates a new App with all subsystems initialised but not yet started.
@@ -81,6 +84,12 @@ func (a *App) shutdown(_ context.Context) {
 	a.manager.Shutdown()
 	if a.listener != nil {
 		_ = a.listener.Close()
+	}
+	a.mu.Lock()
+	ws := a.webServer
+	a.mu.Unlock()
+	if ws != nil {
+		_ = ws.Stop()
 	}
 }
 
@@ -214,4 +223,199 @@ func (a *App) resolveCLI(name string) string {
 		return path
 	}
 	return name
+}
+
+// configDir returns the path to the agenthub config directory (~/.config/agenthub).
+// Creates the directory if it does not exist.
+func configDir() string {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		base = os.TempDir()
+	}
+	dir := filepath.Join(base, "agenthub")
+	_ = os.MkdirAll(dir, 0700)
+	return dir
+}
+
+// webPasswordPath returns the path to the persisted web password hash file.
+func webPasswordPath() string {
+	return filepath.Join(configDir(), "web_password")
+}
+
+// SetWebPassword sets the dashboard password for web serving. The bcrypt hash
+// is persisted to disk so it survives restarts. Lazily initialises the WebServer
+// if it has not been created yet (needed for password setup before server start).
+func (a *App) SetWebPassword(password string) error {
+	a.mu.Lock()
+	ws := a.webServer
+	a.mu.Unlock()
+
+	if ws == nil {
+		// Create lazily so password can be set before StartWebServer is called.
+		newWS, err := webserver.NewWebServer(webserver.Config{
+			BindIP:    "127.0.0.1",
+			Port:      7443,
+			ConfigDir: configDir(),
+		}, a.manager)
+		if err != nil {
+			return fmt.Errorf("SetWebPassword: init server: %w", err)
+		}
+		a.mu.Lock()
+		a.webServer = newWS
+		a.mu.Unlock()
+		ws = newWS
+	}
+
+	if err := ws.SetPassword(password); err != nil {
+		return fmt.Errorf("SetWebPassword: %w", err)
+	}
+
+	// Persist the bcrypt hash to disk.
+	hash, err := webserver.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("SetWebPassword: hash: %w", err)
+	}
+	if err := os.WriteFile(webPasswordPath(), hash, 0600); err != nil {
+		return fmt.Errorf("SetWebPassword: persist: %w", err)
+	}
+	return nil
+}
+
+// IsWebPasswordSet returns true if a web serving password has been configured
+// (either in memory or via the persisted hash on disk).
+func (a *App) IsWebPasswordSet() bool {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws != nil && ws.IsPasswordSet() {
+		return true
+	}
+	_, err := os.Stat(webPasswordPath())
+	return err == nil
+}
+
+// GetNetworkInterfaces returns all active non-loopback IPv4 network interfaces,
+// including Tailscale detection. Used to populate the interface dropdown in Settings.
+func (a *App) GetNetworkInterfaces() []webserver.NetworkInterface {
+	ifaces, err := webserver.ListInterfaces()
+	if err != nil {
+		return []webserver.NetworkInterface{}
+	}
+	return ifaces
+}
+
+// StartWebServer creates (or re-creates) the WebServer bound to bindIP:port,
+// loads the persisted password hash, and begins serving. Returns an error if no
+// password has been set (web serving is gated behind password setup).
+func (a *App) StartWebServer(bindIP string, port int) error {
+	if !a.IsWebPasswordSet() {
+		return fmt.Errorf("web serving requires a password — set one in Settings first")
+	}
+
+	// Stop any running server before creating a new one.
+	a.mu.Lock()
+	oldWS := a.webServer
+	a.mu.Unlock()
+	if oldWS != nil {
+		_ = oldWS.Stop()
+	}
+
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    bindIP,
+		Port:      port,
+		ConfigDir: configDir(),
+	}, a.manager)
+	if err != nil {
+		return fmt.Errorf("StartWebServer: create: %w", err)
+	}
+
+	// Load persisted password hash.
+	if hash, err := os.ReadFile(webPasswordPath()); err == nil {
+		ws.LoadPasswordHash(hash)
+	}
+
+	if err := ws.Start(); err != nil {
+		return fmt.Errorf("StartWebServer: start: %w", err)
+	}
+
+	a.mu.Lock()
+	a.webServer = ws
+	a.mu.Unlock()
+	return nil
+}
+
+// StopWebServer stops the web server and clears the webServer field.
+func (a *App) StopWebServer() error {
+	a.mu.Lock()
+	ws := a.webServer
+	a.webServer = nil
+	a.mu.Unlock()
+	if ws == nil {
+		return nil
+	}
+	return ws.Stop()
+}
+
+// ToggleWebServing enables or disables web serving for a specific session.
+// Returns an error if the web server is not running.
+func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return fmt.Errorf("web server is not running — start it in Settings first")
+	}
+	if enabled {
+		ws.EnableSession(sessionID)
+	} else {
+		ws.DisableSession(sessionID)
+	}
+	return nil
+}
+
+// GenerateSessionToken generates a one-time token for the session and returns
+// the full shareable URL (https://bindIP:port/sessions/{id}?token=xxx).
+func (a *App) GenerateSessionToken(sessionID string) (string, error) {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return "", fmt.Errorf("web server is not running")
+	}
+	tok, err := ws.CreateToken(sessionID)
+	if err != nil {
+		return "", fmt.Errorf("GenerateSessionToken: %w", err)
+	}
+	baseURL := ws.BaseURL()
+	return fmt.Sprintf("%s/sessions/%s?token=%s", baseURL, sessionID, tok), nil
+}
+
+// GetWebServerURL returns the base HTTPS URL of the running web server,
+// or an empty string if the server is not running.
+func (a *App) GetWebServerURL() string {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return ""
+	}
+	return ws.BaseURL()
+}
+
+// GetCACertPath returns the file path to the CA certificate used by the web server.
+// This path is shown in Settings so users can install it in their OS trust store.
+func (a *App) GetCACertPath() string {
+	return webserver.ExportCACertPath(configDir())
+}
+
+// IsWebServerRunning returns true if the web server has been started and its
+// listener is active.
+func (a *App) IsWebServerRunning() bool {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return false
+	}
+	return ws.Addr() != ""
 }

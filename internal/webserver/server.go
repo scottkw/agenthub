@@ -74,6 +74,22 @@ func (ws *WebServer) SetPassword(plaintext string) error {
 	return ws.auth.SetPassword(plaintext)
 }
 
+// LoadPasswordHash loads a pre-existing bcrypt hash into the auth manager.
+// Used when restoring a persisted password hash on startup.
+func (ws *WebServer) LoadPasswordHash(hash []byte) {
+	ws.auth.LoadPasswordHash(hash)
+}
+
+// IsPasswordSet returns true if a password hash has been set.
+func (ws *WebServer) IsPasswordSet() bool {
+	return ws.auth.IsPasswordSet()
+}
+
+// CreateToken creates a one-time shareable token for the given session.
+func (ws *WebServer) CreateToken(sessionID string) (string, error) {
+	return ws.tokens.Create(sessionID)
+}
+
 // EnableSession marks a session as web-served (WEB-01 toggle).
 func (ws *WebServer) EnableSession(sessionID string) {
 	ws.mu.Lock()
