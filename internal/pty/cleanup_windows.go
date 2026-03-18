@@ -10,7 +10,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const jobObjectLimitKillOnJobClose = 0x00002000
+const (
+	jobObjectLimitKillOnJobClose = 0x00002000
+	// processAccessForJob is the access rights needed to assign a process to a
+	// Job Object.
+	processAccessForJob = windows.PROCESS_TERMINATE | windows.SYNCHRONIZE | windows.PROCESS_DUP_HANDLE
+)
 
 // jobObject wraps a Windows Job Object handle.
 // When the handle is closed, all assigned processes are terminated.
@@ -33,12 +38,13 @@ func newJobObject() (*jobObject, error) {
 		BasicLimitInformation: info,
 	}
 
-	if err := windows.SetInformationJobObject(
+	_, err = windows.SetInformationJobObject(
 		h,
 		windows.JobObjectExtendedLimitInformation,
 		uintptr(unsafe.Pointer(&extInfo)),
 		uint32(unsafe.Sizeof(extInfo)),
-	); err != nil {
+	)
+	if err != nil {
 		_ = windows.CloseHandle(h)
 		return nil, fmt.Errorf("SetInformationJobObject: %w", err)
 	}
@@ -49,7 +55,7 @@ func newJobObject() (*jobObject, error) {
 // Assign adds a process to the job object.
 func (j *jobObject) Assign(p *os.Process) error {
 	handle, err := windows.OpenProcess(
-		windows.PROCESS_ALL_ACCESS,
+		processAccessForJob,
 		false,
 		uint32(p.Pid),
 	)
@@ -79,7 +85,9 @@ func (j *jobObject) Close() error {
 func killSession(s *Session) error {
 	// Close the job object — triggers kill of all assigned processes.
 	if s.job != nil {
-		_ = s.job.(*jobObject).Close()
+		if jo, ok := s.job.(*jobObject); ok {
+			_ = jo.Close()
+		}
 	}
 
 	// Close the PTY.
