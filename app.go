@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/agenthub/agenthub/internal/relay"
 	"github.com/agenthub/agenthub/internal/webserver"
+	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -418,4 +420,23 @@ func (a *App) IsWebServerRunning() bool {
 		return false
 	}
 	return ws.Addr() != ""
+}
+
+// GetSessionQRCode generates a QR code for the web-served session URL and
+// returns it as a base64-encoded PNG string. The QR encodes the session URL
+// (https://bindIP:port/sessions/{id}). Returns an error if the web server is
+// not running.
+func (a *App) GetSessionQRCode(sessionID string) (string, error) {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return "", fmt.Errorf("web server not running")
+	}
+	url := fmt.Sprintf("%s/sessions/%s", ws.BaseURL(), sessionID)
+	png, err := qrcode.Encode(url, qrcode.Medium, 256)
+	if err != nil {
+		return "", fmt.Errorf("GetSessionQRCode: encode: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(png), nil
 }

@@ -15,6 +15,7 @@ import (
 
 	"github.com/agenthub/agenthub/internal/relay"
 	webfs "github.com/agenthub/agenthub/web"
+	qrcode "github.com/skip2/go-qrcode"
 	"github.com/coder/websocket"
 )
 
@@ -247,6 +248,9 @@ func (ws *WebServer) setupRoutes() {
 	// POST /api/sessions/{id}/token — requires dashboard auth
 	mux.HandleFunc("POST /api/sessions/{id}/token", ws.dashboardAuth(ws.handleCreateToken))
 
+	// GET /api/sessions/{id}/qr — requires dashboard auth; serves QR code PNG
+	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.dashboardAuth(ws.handleSessionQR))
+
 	// GET /ca.crt — no auth required; CA cert is public
 	mux.HandleFunc("GET /ca.crt", ws.handleCACert)
 }
@@ -365,6 +369,25 @@ func (ws *WebServer) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		"token": tok,
 		"url":   url,
 	})
+}
+
+// handleSessionQR handles GET /api/sessions/{id}/qr.
+// Returns a QR code PNG for the session URL. Returns 404 if the session is not
+// web-enabled.
+func (ws *WebServer) handleSessionQR(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("id")
+	if !ws.isSessionEnabled(sessionID) {
+		http.NotFound(w, r)
+		return
+	}
+	sessionURL := fmt.Sprintf("%s/sessions/%s", ws.BaseURL(), sessionID)
+	png, err := qrcode.Encode(sessionURL, qrcode.Medium, 256)
+	if err != nil {
+		http.Error(w, "failed to generate QR code", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(png) //nolint:errcheck
 }
 
 // handleCACert serves the CA certificate in PEM format. No auth required.
