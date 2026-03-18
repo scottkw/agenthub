@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"net"
 	"os"
 	"path/filepath"
@@ -253,5 +254,56 @@ func TestIsWebServerRunning(t *testing.T) {
 	app := testApp(t)
 	if app.IsWebServerRunning() {
 		t.Error("expected IsWebServerRunning to be false before StartWebServer")
+	}
+}
+
+func TestGetSessionQRCode(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	app := testApp(t)
+
+	// Start the web server with a password.
+	if err := app.SetWebPassword("testpass"); err != nil {
+		t.Fatalf("SetWebPassword: %v", err)
+	}
+	if err := app.StartWebServer("127.0.0.1", 0); err != nil {
+		t.Fatalf("StartWebServer: %v", err)
+	}
+	t.Cleanup(func() { _ = app.StopWebServer() })
+
+	// Enable a session in the web server.
+	if err := app.ToggleWebServing("test-session-id", true); err != nil {
+		t.Fatalf("ToggleWebServing: %v", err)
+	}
+
+	// GetSessionQRCode should return a non-empty base64 string.
+	b64, err := app.GetSessionQRCode("test-session-id")
+	if err != nil {
+		t.Fatalf("GetSessionQRCode: %v", err)
+	}
+	if b64 == "" {
+		t.Fatal("GetSessionQRCode returned empty string")
+	}
+
+	// Decode base64 and verify PNG magic bytes (\x89PNG).
+	pngBytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		t.Fatalf("base64 decode: %v", err)
+	}
+	if len(pngBytes) < 4 {
+		t.Fatalf("decoded PNG too short: %d bytes", len(pngBytes))
+	}
+	if pngBytes[0] != 0x89 || pngBytes[1] != 'P' || pngBytes[2] != 'N' || pngBytes[3] != 'G' {
+		t.Errorf("expected PNG magic bytes, got %v", pngBytes[:4])
+	}
+}
+
+func TestGetSessionQRCode_NoServer(t *testing.T) {
+	app := testApp(t)
+	// webServer is nil — should return an error.
+	_, err := app.GetSessionQRCode("any-id")
+	if err == nil {
+		t.Error("expected GetSessionQRCode to return error when web server is not running")
 	}
 }
