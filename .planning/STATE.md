@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-wails-desktop-ui-01-PLAN.md
-last_updated: "2026-03-18T14:46:55.467Z"
-last_activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
+stopped_at: Completed 03-wails-desktop-ui-02-PLAN.md
+last_updated: "2026-03-18T14:54:34.561Z"
+last_activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 71
 ---
 
 # Project State
@@ -50,6 +50,7 @@ Progress: [███████░░░] 71%
 | Phase 02-session-registry-websocket-relay P01 | 3min | 2 tasks | 6 files |
 | Phase 02-session-registry-websocket-relay P02 | 3min | 2 tasks | 5 files |
 | Phase 03-wails-desktop-ui P01 | 13min | 2 tasks | 20 files |
+| Phase 03-wails-desktop-ui P02 | 5min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Recent decisions affecting current work:
 - [Phase 03-wails-desktop-ui]: resizeFn callback injected into Hub at construction time — keeps relay package free of pty import cycle
 - [Phase 03-wails-desktop-ui]: HubManager.Create accepts resizeFn parameter — App.CreateSession wires per-session resize to backend.Resize via closure
 - [Phase 03-wails-desktop-ui]: App.ctx set to context.Background() in testApp helper — startup() not called in tests but backend.Create requires non-nil context
+- [Phase 03-wails-desktop-ui]: Wails TypeScript stubs in wailsjs/ allow tsc compilation without running Go backend; wails dev regenerates them at runtime
+- [Phase 03-wails-desktop-ui]: display:none for inactive TerminalPanel divs preserves xterm.js scrollback buffer — unmounting destroys it
+- [Phase 03-wails-desktop-ui]: fitAddon.fit() only called on active terminal — hidden terminals return 0x0 sizing causing malformed resize frames
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T14:46:55.463Z
-Stopped at: Completed 03-wails-desktop-ui-01-PLAN.md
+Last session: 2026-03-18T14:54:34.558Z
+Stopped at: Completed 03-wails-desktop-ui-02-PLAN.md
 Resume file: None

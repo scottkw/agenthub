@@ -11,9 +11,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **TERM-01**: User can open multiple terminal tabs, each running an independent session
 - [x] **TERM-02**: User can name/rename terminal tabs for identification
-- [ ] **TERM-03**: Terminal renders full ANSI color and Unicode/emoji output correctly
-- [ ] **TERM-04**: Terminal provides 10K+ line scrollback buffer
-- [ ] **TERM-05**: User can copy/paste text from terminal sessions
+- [x] **TERM-03**: Terminal renders full ANSI color and Unicode/emoji output correctly
+- [x] **TERM-04**: Terminal provides 10K+ line scrollback buffer
+- [x] **TERM-05**: User can copy/paste text from terminal sessions
 - [x] **TERM-06**: Terminal resizes correctly when window is resized (SIGWINCH propagation)
 - [x] **TERM-07**: User can close/kill a session cleanly (process group cleanup)
 
@@ -98,9 +98,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | TERM-01 | Phase 3 | Complete |
 | TERM-02 | Phase 3 | Complete |
-| TERM-03 | Phase 3 | Pending |
-| TERM-04 | Phase 3 | Pending |
-| TERM-05 | Phase 3 | Pending |
+| TERM-03 | Phase 3 | Complete |
+| TERM-04 | Phase 3 | Complete |
+| TERM-05 | Phase 3 | Complete |
 | TERM-06 | Phase 1 | Complete |
 | TERM-07 | Phase 1 | Complete |
 | CLI-01 | Phase 1 | Complete |

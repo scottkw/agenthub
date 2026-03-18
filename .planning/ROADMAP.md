@@ -61,7 +61,7 @@ Plans:
   3. Terminal renders Claude Code's full color UI output (ANSI 256-color, emoji, box-drawing characters) without corruption
   4. User can scroll back through 10,000+ lines of output using the scrollbar or keyboard shortcuts
   5. User can copy text from the terminal and paste it back in; the app window can be closed to the system tray and sessions remain alive, resumable on reopen
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 03-01-PLAN.md — Wails scaffold, Go App struct with bound methods, relay resize wiring, React frontend skeleton
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
-| 3. Wails Desktop UI | 1/3 | In Progress|  |
+| 3. Wails Desktop UI | 2/3 | In Progress|  |
 | 4. Web Serving + TLS + Auth | 0/? | Not started | - |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
