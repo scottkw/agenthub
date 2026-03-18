@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentHub Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1e1e1e; color: #ccc; min-height: 100vh; padding: 2rem; }
+    h1 { color: #fff; font-size: 1.5rem; margin-bottom: 1.5rem; }
+    h2 { color: #aaa; font-size: 1.1rem; margin-bottom: 1rem; }
+    h3 { color: #aaa; font-size: 1rem; margin-bottom: 0.75rem; }
+    section { margin-bottom: 2rem; }
+    #login-section { max-width: 360px; }
+    label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; color: #aaa; }
+    input[type="password"] { width: 100%; padding: 0.6rem 0.75rem; background: #2d2d2d; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 1rem; outline: none; }
+    input[type="password"]:focus { border-color: #666; }
+    button { padding: 0.6rem 1.2rem; background: #0e639c; border: none; border-radius: 4px; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    button:hover { background: #1177bb; }
+    button.secondary { background: #3a3a3a; }
+    button.secondary:hover { background: #4a4a4a; }
+    #login-error { color: #f48771; font-size: 0.85rem; margin-top: 0.5rem; display: none; }
+    #dashboard-section { display: none; }
+    #session-list { list-style: none; }
+    #session-list li { background: #2d2d2d; border: 1px solid #444; border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 1rem; }
+    #session-list .session-name { flex: 1; font-weight: 500; color: #fff; }
+    #session-list .session-cli { color: #888; font-size: 0.85rem; }
+    #session-list a { color: #4fc3f7; text-decoration: none; font-size: 0.9rem; }
+    #session-list a:hover { text-decoration: underline; }
+    #no-sessions { color: #888; font-style: italic; }
+    .ca-section { background: #2d2d2d; border: 1px solid #444; border-radius: 4px; padding: 1rem 1.25rem; }
+    .ca-section p { margin-bottom: 0.75rem; font-size: 0.9rem; line-height: 1.5; }
+    .ca-section code { background: #1a1a1a; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; font-size: 0.85rem; color: #ce9178; }
+    .ca-section pre { background: #1a1a1a; padding: 0.75rem; border-radius: 4px; font-size: 0.82rem; color: #ce9178; overflow-x: auto; margin-bottom: 0.75rem; line-height: 1.5; }
+    .platform-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .platform-tab { padding: 0.3rem 0.75rem; background: #3a3a3a; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+    .platform-tab.active { background: #0e639c; border-color: #0e639c; color: #fff; }
+    .platform-content { display: none; }
+    .platform-content.active { display: block; }
+    #copy-token-result { font-size: 0.8rem; color: #4fc3f7; margin-top: 0.25rem; display: none; }
+  </style>
+</head>
+<body>
+  <h1>AgentHub Dashboard</h1>
+
+  <!-- Login Section -->
+  <section id="login-section">
+    <h2>Sign In</h2>
+    <div>
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter dashboard password" autocomplete="current-password">
+      <div id="login-error">Invalid password. Please try again.</div>
+      <br>
+      <button id="login-btn" onclick="doLogin()">Sign In</button>
+    </div>
+  </section>
+
+  <!-- Dashboard Section (shown after login) -->
+  <section id="dashboard-section">
+    <h2>Active Sessions</h2>
+    <ul id="session-list"></ul>
+    <p id="no-sessions" style="display:none;">No web-enabled sessions active.</p>
+    <br>
+    <button class="secondary" onclick="refreshSessions()">Refresh</button>
+  </section>
+
+  <!-- CA Certificate Installation Guidance -->
+  <section id="ca-section">
+    <h2>CA Certificate Installation</h2>
+    <div class="ca-section">
+      <p>To avoid browser TLS warnings, install the AgentHub CA certificate into your OS trust store.
+         <a href="/ca.crt" style="color:#4fc3f7;">Download CA Certificate</a>
+      </p>
+      <div class="platform-tabs">
+        <div class="platform-tab active" onclick="showPlatform('macos')">macOS</div>
+        <div class="platform-tab" onclick="showPlatform('linux')">Linux</div>
+        <div class="platform-tab" onclick="showPlatform('windows')">Windows</div>
+      </div>
+      <div id="platform-macos" class="platform-content active">
+        <p>Open <strong>Keychain Access</strong> and drag the downloaded <code>ca.crt</code> file into the <em>System</em> keychain. Then double-click it, expand <em>Trust</em>, and set <em>When using this certificate</em> to <strong>Always Trust</strong>.</p>
+        <p>Alternatively, run in Terminal:</p>
+        <pre>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.crt</pre>
+      </div>
+      <div id="platform-linux" class="platform-content">
+        <p>Copy the certificate to the system CA bundle and update:</p>
+        <pre># Debian / Ubuntu
+sudo cp ca.crt /usr/local/share/ca-certificates/agenthub.crt
+sudo update-ca-certificates
+
+# RHEL / Fedora / CentOS
+sudo cp ca.crt /etc/pki/ca-trust/source/anchors/agenthub.crt
+sudo update-ca-trust</pre>
+        <p>For Firefox on Linux, import via <em>Settings &rarr; Privacy &amp; Security &rarr; Certificates &rarr; Import</em>.</p>
+      </div>
+      <div id="platform-windows" class="platform-content">
+        <p>Run in an <strong>Administrator</strong> Command Prompt:</p>
+        <pre>certutil -addstore -f "ROOT" ca.crt</pre>
+        <p>Or open <em>Manage User Certificates</em> (certmgr.msc) and import into <em>Trusted Root Certification Authorities</em>.</p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // Platform tab switching
+    function showPlatform(name) {
+      document.querySelectorAll('.platform-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.platform-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('platform-' + name).classList.add('active');
+    }
+
+    // Allow Enter key to submit login
+    document.getElementById('password').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    async function doLogin() {
+      const pw = document.getElementById('password').value;
+      const err = document.getElementById('login-error');
+      err.style.display = 'none';
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        });
+        if (res.ok) {
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('dashboard-section').style.display = 'block';
+          refreshSessions();
+        } else {
+          err.style.display = 'block';
+        }
+      } catch (e) {
+        err.textContent = 'Network error: ' + e.message;
+        err.style.display = 'block';
+      }
+    }
+
+    async function refreshSessions() {
+      try {
+        const res = await fetch('/api/sessions');
+        if (!res.ok) {
+          if (res.status === 401) {
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('dashboard-section').style.display = 'none';
+          }
+          return;
+        }
+        const sessions = await res.json();
+        renderSessions(sessions);
+      } catch (e) {
+        console.error('Failed to fetch sessions:', e);
+      }
+    }
+
+    function renderSessions(sessions) {
+      const list = document.getElementById('session-list');
+      const empty = document.getElementById('no-sessions');
+      list.innerHTML = '';
+
+      if (!sessions || sessions.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      sessions.forEach(s => {
+        const li = document.createElement('li');
+        const id = typeof s === 'string' ? s : s.id;
+        const name = (typeof s === 'object' && s.name) ? s.name : id;
+        const cli = (typeof s === 'object' && s.cli_type) ? s.cli_type : '';
+
+        li.innerHTML = `
+          <span class="session-name">${escHtml(name)}</span>
+          ${cli ? '<span class="session-cli">' + escHtml(cli) + '</span>' : ''}
+          <a href="/sessions/${escHtml(id)}" target="_blank">Open</a>
+          <button class="secondary" onclick="copyTokenLink('${escHtml(id)}', this)" style="font-size:0.8rem;padding:0.35rem 0.7rem;">Copy Token Link</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    async function copyTokenLink(sessionID, btn) {
+      try {
+        const res = await fetch('/api/sessions/' + encodeURIComponent(sessionID) + '/token', { method: 'POST' });
+        if (!res.ok) { alert('Failed to create token'); return; }
+        const data = await res.json();
+        await navigator.clipboard.writeText(data.url);
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 2000);
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.appendChild(document.createTextNode(str));
+      return d.innerHTML;
+    }
+
+    // Auto-check if already logged in on page load
+    (async function() {
+      try {
+        const res = await fetch('/api/sessions');
+        if (res.ok) {
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('dashboard-section').style.display = 'block';
+          const sessions = await res.json();
+          renderSessions(sessions);
+        }
+      } catch (_) {}
+    })();
+  </script>
+</body>
+</html>

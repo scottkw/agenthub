@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentHub Terminal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6/css/xterm.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #1e1e1e; overflow: hidden; }
+    #terminal { width: 100%; height: 100%; }
+    #status { position: fixed; top: 0; left: 0; right: 0; background: rgba(30,30,30,0.9); color: #888; font-family: monospace; font-size: 0.8rem; padding: 0.3rem 0.75rem; text-align: center; display: none; z-index: 100; }
+  </style>
+</head>
+<body>
+  <div id="status"></div>
+  <div id="terminal"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@6/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11/lib/addon-fit.js"></script>
+  <script>
+    // Binary framing protocol constants (must match relay/protocol.go)
+    const MsgOutput  = 0x01;
+    const MsgInput   = 0x10;
+    const MsgResize2 = 0x11;
+    const MsgPing    = 0x12;
+
+    function makeFrame(type, payload) {
+      const frame = new Uint8Array(1 + payload.length);
+      frame[0] = type;
+      frame.set(payload, 1);
+      return frame;
+    }
+
+    function makeInputFrame(text) {
+      const enc = new TextEncoder().encode(text);
+      return makeFrame(MsgInput, enc);
+    }
+
+    function makeResizeFrame(cols, rows) {
+      const payload = new Uint8Array(4);
+      payload[0] = (cols >> 8) & 0xff;
+      payload[1] = cols & 0xff;
+      payload[2] = (rows >> 8) & 0xff;
+      payload[3] = rows & 0xff;
+      return makeFrame(MsgResize2, payload);
+    }
+
+    // Extract session ID from URL path: /sessions/{id}
+    const pathParts = location.pathname.split('/');
+    const sessionID = pathParts[pathParts.indexOf('sessions') + 1] || '';
+
+    // Extract optional token from query params
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token') || '';
+
+    // Build WSS URL
+    const wsURL = 'wss://' + location.host + '/sessions/' + encodeURIComponent(sessionID) + '/ws' + (token ? '?token=' + encodeURIComponent(token) : '');
+
+    // Initialize xterm.js
+    const term = new Terminal({
+      cursorBlink: true,
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#cccccc',
+        cursor: '#cccccc',
+      },
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontSize: 14,
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(document.getElementById('terminal'));
+    fitAddon.fit();
+
+    const statusEl = document.getElementById('status');
+    function showStatus(msg) {
+      statusEl.textContent = msg;
+      statusEl.style.display = 'block';
+    }
+    function hideStatus() {
+      statusEl.style.display = 'none';
+    }
+
+    // Open WebSocket connection
+    let ws = null;
+    let connected = false;
+
+    function connect() {
+      ws = new WebSocket(wsURL);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = function() {
+        connected = true;
+        hideStatus();
+        // Send initial resize
+        if (term.cols && term.rows) {
+          ws.send(makeResizeFrame(term.cols, term.rows));
+        }
+      };
+
+      ws.onmessage = function(evt) {
+        const data = new Uint8Array(evt.data);
+        if (data.length === 0) return;
+
+        const msgType = data[0];
+        const payload = data.slice(1);
+
+        if (msgType === MsgOutput) {
+          const text = new TextDecoder().decode(payload);
+          term.write(text);
+        }
+        // Other message types from server are ignored in browser client
+      };
+
+      ws.onclose = function(evt) {
+        connected = false;
+        showStatus('Disconnected (code ' + evt.code + '). Refresh to reconnect.');
+      };
+
+      ws.onerror = function() {
+        connected = false;
+        showStatus('Connection error. Check that the server is running and the CA cert is trusted.');
+      };
+    }
+
+    // Terminal input -> send MsgInput frame
+    term.onData(function(data) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(makeInputFrame(data));
+      }
+    });
+
+    // Terminal resize -> send MsgResize2 frame
+    term.onResize(function(size) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(makeResizeFrame(size.cols, size.rows));
+      }
+    });
+
+    // Window resize -> fit terminal
+    window.addEventListener('resize', function() {
+      fitAddon.fit();
+    });
+
+    connect();
+  </script>
+</body>
+</html>
