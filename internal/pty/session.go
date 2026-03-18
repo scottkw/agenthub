@@ -44,6 +44,10 @@ type Session struct {
 	// cancel stops the context that was used to start the process.
 	cancel context.CancelFunc
 
+	// job holds a platform-specific cleanup handle (Windows: *jobObject, POSIX: nil).
+	// Stored as any to avoid build-tag spread across files.
+	job any
+
 	// mu protects concurrent access to mutable fields (State, pty).
 	mu sync.Mutex
 }
