@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-18T20:20:00.000Z"
-last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge frontend integration)
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-03-18T21:39:04.237Z"
+last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  completed_phases: 4
+  total_plans: 17
+  completed_plans: 15
   percent: 93
 ---
 
@@ -59,6 +59,7 @@ Progress: [█████████░] 93%
 | Phase 05-qr-codes-status-indicators P02 | 8min | 2 tasks | 4 files |
 | Phase 05-qr-codes-status-indicators P01 | 15min | 2 tasks | 7 files |
 | Phase 05-qr-codes-status-indicators P03 | 20min | 2 tasks | 4 files |
+| Phase 05-qr-codes-status-indicators P05 | 5min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Recent decisions affecting current work:
 - [Phase 05-qr-codes-status-indicators]: QR button visibility gated on both webEnabled[sessionId] and webServerRunning — prevents GetSessionQRCode calls when server is down
 - [Phase 05-qr-codes-status-indicators]: Initial status seeded via GetSessionStatus per restored session — avoids blank dots on app reopen
 - [Phase 05-qr-codes-status-indicators]: sessionStatuses cleaned up on tab close — prevents unbounded map growth
+- [Phase 05-qr-codes-status-indicators]: requestAnimationFrame defers fit() until browser layout completes — containerRef.clientHeight non-zero before measuring
+- [Phase 05-qr-codes-status-indicators]: ResizeObserver on containerRef replaces window resize listener — handles any layout change not just window resize
 
 ### Pending Todos
 
@@ -124,6 +127,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T20:20:00.000Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-03-18T21:39:04.225Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None
