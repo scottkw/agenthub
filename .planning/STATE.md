@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-session-registry-websocket-relay-01-PLAN.md
-last_updated: "2026-03-18T13:41:04.961Z"
+stopped_at: Completed 02-session-registry-websocket-relay-02-PLAN.md
+last_updated: "2026-03-18T13:45:55.165Z"
 last_activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 50
 ---
 
@@ -48,6 +48,7 @@ Progress: [█████░░░░░] 50%
 *Updated after each plan completion*
 | Phase 01-pty-foundation P02 | 10min | 3 tasks | 14 files |
 | Phase 02-session-registry-websocket-relay P01 | 3min | 2 tasks | 6 files |
+| Phase 02-session-registry-websocket-relay P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Recent decisions affecting current work:
 - [Phase 02-session-registry-websocket-relay]: Hub stores scrollback as framed bytes (MakeOutputFrame wrapped) so WebSocket clients receive identical bytes from live stream and replay without re-framing
 - [Phase 02-session-registry-websocket-relay]: Scrollback.Append uses in-place copy-left on overflow (no extra allocation) to reduce GC pressure under high-throughput PTY output
 - [Phase 02-session-registry-websocket-relay]: Hub.Shutdown uses sync.Once — allows Run to call it on return and external callers to call it safely without panic
+- [Phase 02-session-registry-websocket-relay]: HubManager.Create is idempotent — returns existing hub if session already exists, preventing double-Run goroutines
+- [Phase 02-session-registry-websocket-relay]: websocket.Accept uses InsecureSkipVerify:true — origin validation deferred to Phase 4 where CORS policy will be defined with known Electron origin
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T13:41:04.957Z
-Stopped at: Completed 02-session-registry-websocket-relay-01-PLAN.md
+Last session: 2026-03-18T13:45:55.162Z
+Stopped at: Completed 02-session-registry-websocket-relay-02-PLAN.md
 Resume file: None
