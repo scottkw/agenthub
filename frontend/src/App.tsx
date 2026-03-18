@@ -9,6 +9,10 @@ import {
   RenameSession,
   DetectCLIs,
   GetRelayPort,
+  ToggleWebServing,
+  GenerateSessionToken,
+  GetWebServerURL,
+  IsWebServerRunning,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI } from './wailsjs/go/main/App'
 
@@ -25,18 +29,26 @@ function App(): React.ReactElement {
   const [tabCounter, setTabCounter] = useState(1)
   // Track if CLI picker dropdown is open (multiple CLIs)
   const [showCLIPicker, setShowCLIPicker] = useState(false)
+  // Track web serving state per session: sessionId -> enabled
+  const [webEnabled, setWebEnabled] = useState<Record<string, boolean>>({})
+  // Track per-session web URLs (populated when web serving is enabled)
+  const [sessionURLs, setSessionURLs] = useState<Record<string, string>>({})
+  // Track web server running state
+  const [webServerRunning, setWebServerRunning] = useState(false)
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
     async function init() {
       try {
-        const [port, clis, sessions] = await Promise.all([
+        const [port, clis, sessions, running] = await Promise.all([
           GetRelayPort(),
           DetectCLIs(),
           ListSessions(),
+          IsWebServerRunning(),
         ])
         setRelayPort(port)
         setDetectedCLIs(clis)
+        setWebServerRunning(running)
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -95,6 +107,12 @@ function App(): React.ReactElement {
   }, [createTab])
 
   const handleCloseTab = useCallback(async (id: string) => {
+    // Disable web serving for this session before closing.
+    if (webEnabled[id]) {
+      try { await ToggleWebServing(id, false) } catch (_) { /* ignore */ }
+      setWebEnabled((prev) => { const n = { ...prev }; delete n[id]; return n })
+      setSessionURLs((prev) => { const n = { ...prev }; delete n[id]; return n })
+    }
     try {
       await KillSession(id)
     } catch (err) {
@@ -110,7 +128,7 @@ function App(): React.ReactElement {
       }
       return remaining
     })
-  }, [activeId])
+  }, [activeId, webEnabled])
 
   const handleRenameTab = useCallback(async (id: string, name: string) => {
     try {
@@ -121,6 +139,45 @@ function App(): React.ReactElement {
     setTabs((prev) =>
       prev.map((t) => (t.id === id ? { ...t, name } : t))
     )
+  }, [])
+
+  const handleToggleWeb = useCallback(async (sessionId: string) => {
+    const nowEnabled = !webEnabled[sessionId]
+    try {
+      await ToggleWebServing(sessionId, nowEnabled)
+      setWebEnabled((prev) => ({ ...prev, [sessionId]: nowEnabled }))
+      if (nowEnabled) {
+        const url = await GetWebServerURL()
+        if (url) {
+          setSessionURLs((prev) => ({
+            ...prev,
+            [sessionId]: `${url}/sessions/${sessionId}`,
+          }))
+        }
+      } else {
+        setSessionURLs((prev) => { const n = { ...prev }; delete n[sessionId]; return n })
+      }
+    } catch (err) {
+      console.warn('[App] ToggleWebServing failed:', err)
+    }
+  }, [webEnabled])
+
+  const handleCopyTokenLink = useCallback(async (sessionId: string) => {
+    try {
+      const tokenURL = await GenerateSessionToken(sessionId)
+      await navigator.clipboard.writeText(tokenURL)
+    } catch (err) {
+      console.warn('[App] GenerateSessionToken/clipboard failed:', err)
+    }
+  }, [])
+
+  // Re-check server running state when settings panel closes (user may have started/stopped server).
+  const handleSettingsClose = useCallback(async () => {
+    setShowSettings(false)
+    try {
+      const running = await IsWebServerRunning()
+      setWebServerRunning(running)
+    } catch (_) { /* ignore */ }
   }, [])
 
   return (
@@ -138,12 +195,43 @@ function App(): React.ReactElement {
       <div className="terminal-container">
         {relayPort !== null &&
           tabs.map((tab) => (
-            <TerminalPanel
-              key={tab.sessionId}
-              sessionId={tab.sessionId}
-              isActive={tab.id === activeId}
-              relayPort={relayPort}
-            />
+            <div key={tab.sessionId} className="terminal-wrapper">
+              {/* Per-tab web serving controls */}
+              <div className="web-serving-bar">
+                <button
+                  className={`web-toggle-btn${webEnabled[tab.sessionId] ? ' web-toggle-btn--active' : ''}`}
+                  onClick={() => void handleToggleWeb(tab.sessionId)}
+                  disabled={!webServerRunning}
+                  title={webServerRunning ? (webEnabled[tab.sessionId] ? 'Disable web serving' : 'Enable web serving') : 'Start web server in Settings first'}
+                >
+                  {webEnabled[tab.sessionId] ? 'Web On' : 'Web Off'}
+                </button>
+                {webEnabled[tab.sessionId] && sessionURLs[tab.sessionId] && (
+                  <>
+                    <a
+                      className="web-session-url"
+                      href={sessionURLs[tab.sessionId]}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {sessionURLs[tab.sessionId]}
+                    </a>
+                    <button
+                      className="copy-token-btn"
+                      onClick={() => void handleCopyTokenLink(tab.sessionId)}
+                      title="Copy shareable token link"
+                    >
+                      Copy Token Link
+                    </button>
+                  </>
+                )}
+              </div>
+              <TerminalPanel
+                sessionId={tab.sessionId}
+                isActive={tab.id === activeId}
+                relayPort={relayPort}
+              />
+            </div>
           ))}
       </div>
 
@@ -167,7 +255,7 @@ function App(): React.ReactElement {
 
       <SettingsPanel
         isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
+        onClose={handleSettingsClose}
         clis={detectedCLIs}
       />
     </div>
