@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: MVP
-status: ready_to_plan
-stopped_at: null
-last_updated: "2026-03-17T20:00:00.000Z"
-last_activity: 2026-03-17 — Roadmap created, 29 requirements mapped to 6 phases
+milestone_name: milestone
+status: planning
+stopped_at: Completed 01-pty-foundation-01-PLAN.md
+last_updated: "2026-03-18T00:10:26.927Z"
+last_activity: 2026-03-17 — Roadmap created, requirements mapped to 6 phases
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 ## Current Position
 
 Phase: 1 of 6 (PTY Foundation)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-03-17 — Roadmap created, requirements mapped to 6 phases
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 2 min
+- Total execution time: 2 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-pty-foundation | 1 of 2 | 2 min | 2 min |
 
 *Updated after each plan completion*
 
@@ -58,6 +58,9 @@ Recent decisions affecting current work:
 - [Roadmap]: win32-input-mode state-machine parser needed in Phase 1 — cannot be retrofitted
 - [Roadmap]: CA cert pattern (not bare self-signed leaf) required for WSS — browsers silently reject untrusted wss://
 - [Roadmap]: PLAT-01/02/03 assigned to Phase 6 but cross-platform validation is incremental each phase
+- [Phase 01-pty-foundation]: SessionBackend is an interface so Plan 02 provides the platform implementation without touching Plan 01 types
+- [Phase 01-pty-foundation]: DetectCLIs returns make([]DetectedCLI, 0) not nil — callers can range safely without nil check
+- [Phase 01-pty-foundation]: Registry owns session lifetime: context cancellation does NOT remove sessions from registry
 
 ### Pending Todos
 
@@ -71,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17
-Stopped at: Roadmap created. ROADMAP.md written (6 phases, 29 requirements mapped). STATE.md and REQUIREMENTS.md traceability updated. Ready for /gsd:plan-phase 1.
+Last session: 2026-03-18T00:10:26.925Z
+Stopped at: Completed 01-pty-foundation-01-PLAN.md
 Resume file: None

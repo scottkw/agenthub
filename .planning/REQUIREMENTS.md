@@ -19,13 +19,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### CLI
 
-- [ ] **CLI-01**: App detects installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) via PATH
+- [x] **CLI-01**: App detects installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) via PATH
 - [ ] **CLI-02**: User can launch a new session by selecting from detected CLIs
 - [ ] **CLI-03**: User can configure custom CLI paths in app settings
 
 ### Session
 
-- [ ] **SESS-01**: Sessions persist when the app window is closed (Go-native PTY backend)
+- [x] **SESS-01**: Sessions persist when the app window is closed (Go-native PTY backend)
 - [ ] **SESS-02**: App runs in system tray when window is closed, keeping sessions alive
 - [ ] **SESS-03**: User can reattach to a running session after reopening the window
 
@@ -103,10 +103,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-05 | Phase 3 | Pending |
 | TERM-06 | Phase 1 | Pending |
 | TERM-07 | Phase 1 | Pending |
-| CLI-01 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Complete |
 | CLI-02 | Phase 1 | Pending |
 | CLI-03 | Phase 3 | Pending |
-| SESS-01 | Phase 1 | Pending |
+| SESS-01 | Phase 1 | Complete |
 | SESS-02 | Phase 3 | Pending |
 | SESS-03 | Phase 2 | Pending |
 | WEB-01 | Phase 4 | Pending |
