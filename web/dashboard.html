@@ -38,6 +38,10 @@
     .platform-content { display: none; }
     .platform-content.active { display: block; }
     #copy-token-result { font-size: 0.8rem; color: #4fc3f7; margin-top: 0.25rem; display: none; }
+    .qr-thumb { cursor:pointer; vertical-align:middle; margin-left:8px; border-radius:4px; }
+    .qr-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
+    .qr-overlay img { border-radius:8px; }
+    .qr-overlay-url { margin-top:0.75rem; color:#ccc; font-size:0.85rem; font-family:monospace; word-break:break-all; max-width:320px; text-align:center; }
   </style>
 </head>
 <body>
@@ -171,14 +175,24 @@ sudo update-ca-trust</pre>
         const id = typeof s === 'string' ? s : s.id;
         const name = (typeof s === 'object' && s.name) ? s.name : id;
         const cli = (typeof s === 'object' && s.cli_type) ? s.cli_type : '';
+        const qrSrc = '/api/sessions/' + encodeURIComponent(id) + '/qr';
+        const sessionURL = window.location.origin + '/sessions/' + encodeURIComponent(id);
 
         li.innerHTML = `
           <span class="session-name">${escHtml(name)}</span>
           ${cli ? '<span class="session-cli">' + escHtml(cli) + '</span>' : ''}
+          <img src="${qrSrc}" width="64" height="64" alt="QR code" class="qr-thumb" title="Click to enlarge QR code" data-session-id="${escHtml(id)}" data-session-url="${escHtml(sessionURL)}">
           <a href="/sessions/${escHtml(id)}" target="_blank">Open</a>
           <button class="secondary" onclick="copyTokenLink('${escHtml(id)}', this)" style="font-size:0.8rem;padding:0.35rem 0.7rem;">Copy Token Link</button>
         `;
         list.appendChild(li);
+      });
+
+      // Attach click handlers for QR thumbnails
+      list.querySelectorAll('.qr-thumb').forEach(img => {
+        img.addEventListener('click', function() {
+          showQROverlay(this.dataset.sessionId, this.dataset.sessionUrl);
+        });
       });
     }
 
@@ -201,6 +215,36 @@ sudo update-ca-trust</pre>
       d.appendChild(document.createTextNode(str));
       return d.innerHTML;
     }
+
+    function showQROverlay(sessionId, sessionURL) {
+      const existing = document.getElementById('qr-overlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'qr-overlay';
+      overlay.className = 'qr-overlay';
+
+      const qrSrc = '/api/sessions/' + encodeURIComponent(sessionId) + '/qr';
+      overlay.innerHTML = `
+        <img src="${qrSrc}" width="256" height="256" alt="QR code for session ${escHtml(sessionId)}">
+        <div class="qr-overlay-url">${escHtml(sessionURL)}</div>
+      `;
+
+      // Close on click outside (the overlay background)
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+      });
+
+      document.body.appendChild(overlay);
+    }
+
+    // Close QR overlay on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        const overlay = document.getElementById('qr-overlay');
+        if (overlay) overlay.remove();
+      }
+    });
 
     // Auto-check if already logged in on page load
     (async function() {
