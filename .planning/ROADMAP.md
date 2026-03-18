@@ -78,7 +78,13 @@ Plans:
   3. A per-session token link works without dashboard login — the token grants access to exactly that one session
   4. Remote browser interaction with the session is fully bidirectional — the remote user can type commands and see output, not just observe
   5. User can select a specific network interface (or let Tailscale auto-detect) from the desktop app, and the web server binds to that interface's IP only
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — TLS certificate generation (CA + leaf) and network interface enumeration
+- [ ] 04-02-PLAN.md — Password auth (bcrypt + cookie sessions) and opaque token generation
+- [ ] 04-03-PLAN.md — HTTPS WebServer with embedded dashboard/terminal HTML, routes, auth middleware, WSS relay
+- [ ] 04-04-PLAN.md — Wails App integration + React frontend web serving controls + visual verification
 
 ### Phase 5: QR Codes + Status Indicators
 **Goal**: Every web-served session has a QR code visible in the desktop app and on the web dashboard; each tab shows a live status indicator (running, waiting for input, idle, errored) based on heuristic output parsing.
@@ -110,6 +116,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
-| 4. Web Serving + TLS + Auth | 0/? | Not started | - |
+| 4. Web Serving + TLS + Auth | 0/4 | Not started | - |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
