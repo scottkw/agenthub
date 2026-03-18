@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-web-serving-tls-auth-03-PLAN.md
-last_updated: "2026-03-18T18:10:00.905Z"
+stopped_at: Completed 04-web-serving-tls-auth-04-PLAN.md
+last_updated: "2026-03-18T18:28:04.143Z"
 last_activity: 2026-03-18 — Plan 04-01 complete (TLS CA infrastructure, leaf cert generation, network interface enumeration)
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 82
 ---
 
@@ -55,6 +55,7 @@ Progress: [████████░░] 82%
 | Phase 04-web-serving-tls-auth P02 | 3min | 2 tasks | 4 files |
 | Phase 04-web-serving-tls-auth P01 | 15min | 2 tasks | 4 files |
 | Phase 04-web-serving-tls-auth P03 | 4min | 2 tasks | 5 files |
+| Phase 04-web-serving-tls-auth P04 | 30 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [Phase 04-web-serving-tls-auth]: clock skew buffer NotBefore=time.Now().Add(-time.Minute) prevents immediate rejection on machines with slight clock drift
 - [Phase 04-web-serving-tls-auth]: OriginPatterns: ['*'] in websocket.Accept — sessionAuth middleware already validated the request
 - [Phase 04-web-serving-tls-auth]: webEnabled map controls /sessions/{id} route separately from HubManager — session can be enabled before hub is created
+- [Phase 04-web-serving-tls-auth]: Lazy WebServer init in App — webServer field starts nil; created on first call requiring it, avoids startup ordering issues
+- [Phase 04-web-serving-tls-auth]: Password persisted as bcrypt hash to ~/.config/agenthub/web_password — survives restarts without storing plaintext
+- [Phase 04-web-serving-tls-auth]: StartWebServer gates on IsWebPasswordSet() — cannot start web server without password set first
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T18:10:00.903Z
-Stopped at: Completed 04-web-serving-tls-auth-03-PLAN.md
+Last session: 2026-03-18T18:28:04.139Z
+Stopped at: Completed 04-web-serving-tls-auth-04-PLAN.md
 Resume file: None

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: PTY Foundation** - Cross-platform PTY process management, CLI detection, session lifecycle (completed 2026-03-18)
 - [ ] **Phase 2: Session Registry + WebSocket Relay** - In-memory session state, fan-out hub, WebSocket protocol
 - [x] **Phase 3: Wails Desktop UI** - Tabbed xterm.js terminal, session naming, system tray, full local UX (completed 2026-03-18)
-- [ ] **Phase 4: Web Serving + TLS + Auth** - Embedded HTTPS server, self-signed TLS, dashboard, token auth, VPN binding
+- [x] **Phase 4: Web Serving + TLS + Auth** - Embedded HTTPS server, self-signed TLS, dashboard, token auth, VPN binding (completed 2026-03-18)
 - [ ] **Phase 5: QR Codes + Status Indicators** - QR code generation, session status heuristics, per-session URL display
 - [ ] **Phase 6: Distribution + Cross-Platform** - GitHub Actions CI matrix, macOS notarization, Linux/Windows build validation
 
@@ -78,7 +78,7 @@ Plans:
   3. A per-session token link works without dashboard login — the token grants access to exactly that one session
   4. Remote browser interaction with the session is fully bidirectional — the remote user can type commands and see output, not just observe
   5. User can select a specific network interface (or let Tailscale auto-detect) from the desktop app, and the web server binds to that interface's IP only
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 04-01-PLAN.md — TLS certificate generation (CA + leaf) and network interface enumeration
@@ -116,6 +116,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. PTY Foundation | 2/2 | Complete   | 2026-03-18 |
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
-| 4. Web Serving + TLS + Auth | 3/4 | In Progress|  |
+| 4. Web Serving + TLS + Auth | 4/4 | Complete   | 2026-03-18 |
 | 5. QR Codes + Status Indicators | 0/? | Not started | - |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |
