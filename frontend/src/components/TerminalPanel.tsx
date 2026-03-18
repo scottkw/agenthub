@@ -54,7 +54,10 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
     }
 
     term.open(containerRef.current)
-    fitAddon.fit()
+    // Defer fit() so the browser has completed layout before we measure.
+    requestAnimationFrame(() => {
+      fitAddon.fit()
+    })
 
     termRef.current = term
     fitAddonRef.current = fitAddon
@@ -87,20 +90,27 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  // Window resize: only fit the ACTIVE terminal (avoids hidden terminal sizing issues).
+  // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive || !containerRef.current) return
 
-    const handleResize = () => {
+    const container = containerRef.current
+
+    // Defer initial fit to ensure layout is complete after display:none → display:flex transition.
+    const rafId = requestAnimationFrame(() => {
       fitAddonRef.current?.fit()
-    }
+    })
 
-    window.addEventListener('resize', handleResize)
-    // Fit immediately when this panel becomes active.
-    fitAddonRef.current?.fit()
+    // ResizeObserver fires whenever the container dimensions change (window resize,
+    // sidebar open/close, etc.).
+    const ro = new ResizeObserver(() => {
+      fitAddonRef.current?.fit()
+    })
+    ro.observe(container)
 
     return () => {
-      window.removeEventListener('resize', handleResize)
+      cancelAnimationFrame(rafId)
+      ro.disconnect()
     }
   }, [isActive])
 
