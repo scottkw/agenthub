@@ -9,8 +9,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Terminal
 
-- [ ] **TERM-01**: User can open multiple terminal tabs, each running an independent session
-- [ ] **TERM-02**: User can name/rename terminal tabs for identification
+- [x] **TERM-01**: User can open multiple terminal tabs, each running an independent session
+- [x] **TERM-02**: User can name/rename terminal tabs for identification
 - [ ] **TERM-03**: Terminal renders full ANSI color and Unicode/emoji output correctly
 - [ ] **TERM-04**: Terminal provides 10K+ line scrollback buffer
 - [ ] **TERM-05**: User can copy/paste text from terminal sessions
@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **CLI-01**: App detects installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) via PATH
 - [x] **CLI-02**: User can launch a new session by selecting from detected CLIs
-- [ ] **CLI-03**: User can configure custom CLI paths in app settings
+- [x] **CLI-03**: User can configure custom CLI paths in app settings
 
 ### Session
 
@@ -96,8 +96,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | Phase 3 | Pending |
-| TERM-02 | Phase 3 | Pending |
+| TERM-01 | Phase 3 | Complete |
+| TERM-02 | Phase 3 | Complete |
 | TERM-03 | Phase 3 | Pending |
 | TERM-04 | Phase 3 | Pending |
 | TERM-05 | Phase 3 | Pending |
@@ -105,7 +105,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-07 | Phase 1 | Complete |
 | CLI-01 | Phase 1 | Complete |
 | CLI-02 | Phase 1 | Complete |
-| CLI-03 | Phase 3 | Pending |
+| CLI-03 | Phase 3 | Complete |
 | SESS-01 | Phase 1 | Complete |
 | SESS-02 | Phase 3 | Pending |
 | SESS-03 | Phase 2 | Complete |

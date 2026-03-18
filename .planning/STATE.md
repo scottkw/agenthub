@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-session-registry-websocket-relay-02-PLAN.md
-last_updated: "2026-03-18T13:48:27.189Z"
+stopped_at: Completed 03-wails-desktop-ui-01-PLAN.md
+last_updated: "2026-03-18T14:46:55.467Z"
 last_activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 50
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-17)
 
 ## Current Position
 
-Phase: 1 of 6 (PTY Foundation)
-Plan: 1 of 2 in current phase
+Phase: 3 of 6 (Wails Desktop UI)
+Plan: 1 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-18 — Plan 01-01 complete (Go module, PTY interfaces, CLI detection, session registry)
+Last activity: 2026-03-18 — Plan 03-01 complete (Wails scaffold, App struct, relay resize wiring, React frontend)
 
-Progress: [█████░░░░░] 50%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-pty-foundation P02 | 10min | 3 tasks | 14 files |
 | Phase 02-session-registry-websocket-relay P01 | 3min | 2 tasks | 6 files |
 | Phase 02-session-registry-websocket-relay P02 | 3min | 2 tasks | 5 files |
+| Phase 03-wails-desktop-ui P01 | 13min | 2 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,10 @@ Recent decisions affecting current work:
 - [Phase 02-session-registry-websocket-relay]: Hub.Shutdown uses sync.Once — allows Run to call it on return and external callers to call it safely without panic
 - [Phase 02-session-registry-websocket-relay]: HubManager.Create is idempotent — returns existing hub if session already exists, preventing double-Run goroutines
 - [Phase 02-session-registry-websocket-relay]: websocket.Accept uses InsecureSkipVerify:true — origin validation deferred to Phase 4 where CORS policy will be defined with known Electron origin
+- [Phase 03-wails-desktop-ui]: os.DirFS stub (build tag !wailsassets) used instead of //go:embed — Go embed prohibits .. paths and does not follow symlinks; frontend/ is at repo root, cmd/agenthub/main.go can't reach it directly
+- [Phase 03-wails-desktop-ui]: resizeFn callback injected into Hub at construction time — keeps relay package free of pty import cycle
+- [Phase 03-wails-desktop-ui]: HubManager.Create accepts resizeFn parameter — App.CreateSession wires per-session resize to backend.Resize via closure
+- [Phase 03-wails-desktop-ui]: App.ctx set to context.Background() in testApp helper — startup() not called in tests but backend.Create requires non-nil context
 
 ### Pending Todos
 
@@ -86,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T13:45:55.162Z
-Stopped at: Completed 02-session-registry-websocket-relay-02-PLAN.md
+Last session: 2026-03-18T14:46:55.463Z
+Stopped at: Completed 03-wails-desktop-ui-01-PLAN.md
 Resume file: None
