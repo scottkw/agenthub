@@ -30,6 +30,7 @@ type App struct {
 	manager  *relay.HubManager
 	server   *relay.Server
 	listener net.Listener
+	trayEnd  func() // cleanup function returned by systray.RunWithExternalLoop
 
 	mu       sync.RWMutex
 	tabNames map[string]string // sessionID -> display name
@@ -65,10 +66,17 @@ func (a *App) startup(ctx context.Context) {
 	}
 	a.listener = ln
 	go func() { _ = http.Serve(ln, a.server) }()
+
+	// Start system tray (non-blocking via RunWithExternalLoop).
+	a.initTray()
 }
 
 // shutdown is called when the Wails app is about to exit.
 func (a *App) shutdown(_ context.Context) {
+	// Stop the system tray loop before cleaning up other resources.
+	if a.trayEnd != nil {
+		a.trayEnd()
+	}
 	a.manager.Shutdown()
 	if a.listener != nil {
 		_ = a.listener.Close()
@@ -76,9 +84,15 @@ func (a *App) shutdown(_ context.Context) {
 }
 
 // beforeClose hides the window instead of quitting so the app stays alive in
-// the system tray (Plan 03 adds the tray icon and Quit menu item).
+// the system tray (tray.go provides the tray icon and Quit menu item).
+// When called outside a Wails context (e.g., in unit tests), the window hide
+// is skipped safely — sessions are unaffected in both cases.
 func (a *App) beforeClose(ctx context.Context) bool {
-	runtime.WindowHide(ctx)
+	// Wails stores the frontend under the "frontend" key; skip the call when
+	// running outside the Wails event loop (tests, CLI helpers).
+	if ctx.Value("frontend") != nil {
+		runtime.WindowHide(ctx)
+	}
 	return true // prevent the default quit behaviour
 }
 

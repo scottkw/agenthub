@@ -3,13 +3,15 @@ module github.com/agenthub/agenthub
 go 1.26.1
 
 require (
+	fyne.io/systray v1.11.0
 	github.com/aymanbagabas/go-pty v0.2.2
+	github.com/coder/websocket v1.8.14
+	github.com/wailsapp/wails/v2 v2.11.0
 	golang.org/x/sys v0.30.0
 )
 
 require (
 	github.com/bep/debounce v1.2.1 // indirect
-	github.com/coder/websocket v1.8.14 // indirect
 	github.com/creack/pty v1.1.21 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
@@ -34,7 +36,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
 	github.com/wailsapp/mimetype v1.4.1 // indirect
-	github.com/wailsapp/wails/v2 v2.11.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
