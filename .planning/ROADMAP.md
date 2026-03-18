@@ -93,7 +93,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When a session has web serving enabled, a QR code appears in the desktop UI and on the web dashboard — scanning it with a phone opens the session URL
   2. Each tab in the desktop app shows a status badge that updates without manual refresh: "running" when the CLI is actively producing output, "waiting" when it has shown a prompt and is idle, and "errored" when the process has exited non-zero
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — QR code generation (Go backend + web dashboard endpoint)
@@ -122,5 +122,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Session Registry + WebSocket Relay | 2/2 | Complete |  2026-03-18 |
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
 | 4. Web Serving + TLS + Auth | 4/4 | Complete   | 2026-03-18 |
-| 5. QR Codes + Status Indicators | 1/3 | In Progress|  |
+| 5. QR Codes + Status Indicators | 2/3 | In Progress|  |
 | 6. Distribution + Cross-Platform | 0/? | Not started | - |

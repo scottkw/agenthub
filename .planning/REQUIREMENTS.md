@@ -46,8 +46,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### QR
 
-- [ ] **QR-01**: App generates QR codes for all web-served session URLs
-- [ ] **QR-02**: QR codes are displayed in the desktop app and on the web dashboard
+- [x] **QR-01**: App generates QR codes for all web-served session URLs
+- [x] **QR-02**: QR codes are displayed in the desktop app and on the web dashboard
 
 ### Status
 
@@ -118,8 +118,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NET-01 | Phase 4 | Complete |
 | NET-02 | Phase 4 | Complete |
 | NET-03 | Phase 4 | Complete |
-| QR-01 | Phase 5 | Pending |
-| QR-02 | Phase 5 | Pending |
+| QR-01 | Phase 5 | Complete |
+| QR-02 | Phase 5 | Complete |
 | STAT-01 | Phase 5 | Complete |
 | STAT-02 | Phase 5 | Complete |
 | PLAT-01 | Phase 6 | Pending |
