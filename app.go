@@ -12,6 +12,7 @@ import (
 
 	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/agenthub/agenthub/internal/relay"
+	"github.com/agenthub/agenthub/internal/status"
 	"github.com/agenthub/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -40,6 +41,9 @@ type App struct {
 	tabNames  map[string]string // sessionID -> display name
 	cliPaths  map[string]string // cli name -> custom path override
 	webServer *webserver.WebServer
+
+	statusMu        sync.RWMutex
+	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
 }
 
 // NewApp creates a new App with all subsystems initialised but not yet started.
@@ -50,12 +54,13 @@ func NewApp() *App {
 	server := relay.NewServer(manager, backend)
 
 	return &App{
-		registry: registry,
-		backend:  backend,
-		manager:  manager,
-		server:   server,
-		tabNames: make(map[string]string),
-		cliPaths: make(map[string]string),
+		registry:        registry,
+		backend:         backend,
+		manager:         manager,
+		server:          server,
+		tabNames:        make(map[string]string),
+		cliPaths:        make(map[string]string),
+		sessionStatuses: make(map[string]status.SessionStatus),
 	}
 }
 
@@ -131,11 +136,30 @@ func (a *App) CreateSession(cli, name string) (string, error) {
 	resizeFn := func(cols, rows int) error {
 		return a.backend.Resize(id, cols, rows)
 	}
-	a.manager.Create(id, sess, sess, resizeFn)
+	hub := a.manager.Create(id, sess, sess, resizeFn)
 
 	a.mu.Lock()
 	a.tabNames[id] = name
 	a.mu.Unlock()
+
+	// Start the status detector goroutine alongside the hub.
+	// The detector subscribes to hub output and pushes status transitions via
+	// EventsEmit so the frontend receives live updates without polling.
+	go status.Watch(hub, id, cli, func(sid string, s status.SessionStatus) {
+		a.statusMu.Lock()
+		a.sessionStatuses[sid] = s
+		a.statusMu.Unlock()
+		// Only emit events when running inside the Wails event loop.
+		// context.Background() is used in tests — the Wails runtime panics on
+		// non-Wails contexts, so guard with the "frontend" key check (same
+		// pattern as beforeClose).
+		if a.ctx != nil && a.ctx.Value("frontend") != nil {
+			runtime.EventsEmit(a.ctx, "session:status", map[string]string{
+				"sessionId": sid,
+				"status":    string(s),
+			})
+		}
+	})
 
 	return id, nil
 }
@@ -187,7 +211,35 @@ func (a *App) KillSession(id string) error {
 	a.mu.Lock()
 	delete(a.tabNames, id)
 	a.mu.Unlock()
+
+	// Mark the session as errored and emit the transition before cleaning up.
+	a.statusMu.Lock()
+	a.sessionStatuses[id] = status.StatusErrored
+	a.statusMu.Unlock()
+	if a.ctx != nil && a.ctx.Value("frontend") != nil {
+		runtime.EventsEmit(a.ctx, "session:status", map[string]string{
+			"sessionId": id,
+			"status":    string(status.StatusErrored),
+		})
+	}
+	a.statusMu.Lock()
+	delete(a.sessionStatuses, id)
+	a.statusMu.Unlock()
+
 	return nil
+}
+
+// GetSessionStatus returns the current heuristic status of the session as a
+// string ("running", "waiting", "idle", or "errored").
+// Returns "running" if the session is not found (conservative default).
+func (a *App) GetSessionStatus(sessionID string) string {
+	a.statusMu.RLock()
+	s, ok := a.sessionStatuses[sessionID]
+	a.statusMu.RUnlock()
+	if !ok {
+		return string(status.StatusRunning)
+	}
+	return string(s)
 }
 
 // DetectCLIs returns the list of supported AI coding CLIs found on PATH.
