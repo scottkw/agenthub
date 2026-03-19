@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
-status: completed
-stopped_at: v1.0 milestone archived
+milestone: v1.1
+milestone_name: Polish & Build
+status: active
+stopped_at: null
 last_updated: "2026-03-19"
-last_activity: 2026-03-19 — v1.0 MVP milestone completed and archived
+last_activity: 2026-03-19 — Milestone v1.1 started
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,12 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.1
 
 ## Current Position
 
-Milestone: v1.0 MVP — SHIPPED 2026-03-19
-Next: `/gsd:new-milestone` to begin v1.1 planning
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-19 — Milestone v1.1 started
 
 ## Accumulated Context
 
@@ -40,10 +42,10 @@ None.
 
 ### Blockers/Concerns
 
-None — milestone shipped.
+None.
 
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: v1.0 milestone archived
+Stopped at: Milestone v1.1 initialization
 Resume file: None

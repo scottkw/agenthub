@@ -29,12 +29,14 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-- [ ] Configurable session backend: real tmux (when available) or Go-native PTY multiplexer
-- [ ] Real tmux mode: sessions attachable from any external terminal via `tmux attach`
-- [ ] Per-session token expiry and revocation
-- [ ] Tab color coding per CLI type
-- [ ] Font and theme customization for terminal sessions
-- [ ] Status heuristic patterns for non-Claude CLIs (Codex, Gemini CLI, OpenCode)
+- [ ] Build script (`build.sh`) for per-platform and all-platform compilation with macOS signing support
+- [ ] UI/UX overhaul: settings modal declutter/restyle, web dashboard visual refresh
+- [ ] Per-tab status bar replacing header overlay for web status/URL/controls
+- [ ] Tab renaming with name propagation to web dashboard session names
+- [ ] Larger toolbar buttons (current ones are too small)
+- [ ] New-session modal with agent picker + folder browser (remembers last folder)
+- [ ] Per-tab SHIFT+/SHIFT- font size adjustment
+- [ ] Terminal fill: fix terminals not using full available space
 
 ### Out of Scope
 
@@ -47,6 +49,21 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - Plugin system for adding new CLIs — initial set is hardcoded, extensibility is future scope
 - Session output search / replay — tools like agent-sessions serve this niche
 - Split panes / tiling within a tab — each AI session gets its own tab
+- Configurable session backend (tmux vs Go-native) — deferred to future milestone
+- Real tmux mode with `tmux attach` — deferred to future milestone
+- Per-session token expiry and revocation — deferred to future milestone
+- Tab color coding per CLI type — deferred to future milestone
+- Status heuristic patterns for non-Claude CLIs — deferred to future milestone
+
+## Current Milestone: v1.1 Polish & Build
+
+**Goal:** Improve UI/UX across desktop and web, fix terminal sizing, and add a build script for cross-platform compilation with signing.
+
+**Target features:**
+- Build script with per-platform compilation and macOS signing
+- UI/UX overhaul (settings modal, web dashboard, toolbar, new-session modal)
+- Per-tab status bar, tab renaming, font size shortcuts
+- Terminal full-window fill fix
 
 ## Context
 
@@ -80,4 +97,4 @@ Spiritual successor to ccrs (Claude Code Remote Sessions) — a zsh script proje
 | ResizeObserver + requestAnimationFrame for fit() | Handles all layout changes, not just window resize | ✓ Good — fixed terminal height issues |
 
 ---
-*Last updated: 2026-03-19 after v1.0 milestone*
+*Last updated: 2026-03-19 after v1.1 milestone started*
