@@ -102,6 +102,10 @@ describe('SettingsPanel', () => {
     // Password not present (that's Security tab)
     const passwordInputs = container.querySelectorAll('input[type="password"]')
     expect(passwordInputs.length).toBe(0)
+    // CA certificate section not present (that's Security tab)
+    const certLabels = container.querySelectorAll('.settings-panel__label')
+    const caCertLabel = Array.from(certLabels).find((l) => l.textContent?.includes('CA Certificate'))
+    expect(caCertLabel).toBeUndefined()
   })
 
   it('clicking Security tab shows password field and hides Web Server and CLI content', () => {
