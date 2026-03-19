@@ -83,34 +83,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
-| BUILD-04 | — | Pending |
-| BUILD-05 | — | Pending |
-| TERM-01 | — | Pending |
-| TERM-02 | — | Pending |
-| TERM-03 | — | Pending |
-| TERM-04 | — | Pending |
-| UILAY-01 | — | Pending |
-| UILAY-02 | — | Pending |
-| UILAY-03 | — | Pending |
-| UILAY-04 | — | Pending |
-| UILAY-05 | — | Pending |
-| SESS-01 | — | Pending |
-| SESS-02 | — | Pending |
-| SESS-03 | — | Pending |
-| SESS-04 | — | Pending |
-| WEBUI-01 | — | Pending |
-| WEBUI-02 | — | Pending |
-| SETT-01 | — | Pending |
-| SETT-02 | — | Pending |
+| BUILD-01 | Phase 13 | Pending |
+| BUILD-02 | Phase 13 | Pending |
+| BUILD-03 | Phase 13 | Pending |
+| BUILD-04 | Phase 13 | Pending |
+| BUILD-05 | Phase 13 | Pending |
+| TERM-01 | Phase 7 | Pending |
+| TERM-02 | Phase 10 | Pending |
+| TERM-03 | Phase 10 | Pending |
+| TERM-04 | Phase 10 | Pending |
+| UILAY-01 | Phase 7 | Pending |
+| UILAY-02 | Phase 8 | Pending |
+| UILAY-03 | Phase 8 | Pending |
+| UILAY-04 | Phase 12 | Pending |
+| UILAY-05 | Phase 12 | Pending |
+| SESS-01 | Phase 11 | Pending |
+| SESS-02 | Phase 11 | Pending |
+| SESS-03 | Phase 11 | Pending |
+| SESS-04 | Phase 11 | Pending |
+| WEBUI-01 | Phase 12 | Pending |
+| WEBUI-02 | Phase 12 | Pending |
+| SETT-01 | Phase 9 | Pending |
+| SETT-02 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after roadmap creation*
