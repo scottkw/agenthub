@@ -50,7 +50,7 @@ completed: 2026-03-19
 - **Duration:** 5 min
 - **Started:** 2026-03-19T12:20:00Z
 - **Completed:** 2026-03-19T12:21:30Z
-- **Tasks:** 2 of 3 (Task 3 is a human-verify checkpoint)
+- **Tasks:** 3 of 3
 - **Files modified:** 2
 
 ## Accomplishments
@@ -64,8 +64,7 @@ Each task was committed atomically:
 
 1. **Task 1: Wire StatusBar into App.tsx and remove old overlay** - `73ff9d8` (feat)
 2. **Task 2: Remove deprecated CSS rules from style.css** - `bc37647` (feat)
-
-_Task 3 is a human-verify checkpoint — awaiting visual confirmation._
+3. **Task 3: Visual verification of status bar layout** - Human-approved checkpoint
 
 ## Files Created/Modified
 - `frontend/src/App.tsx` - Added StatusBar import, replaced web-serving-bar block with unconditional <StatusBar> after <TerminalPanel>
@@ -85,9 +84,9 @@ None.
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Tasks 1 and 2 complete; awaiting human visual verification (Task 3 checkpoint) before plan can be fully signed off
+- Plan fully complete — all 3 tasks done including visual verification
 - All 27 frontend unit tests pass
-- App compiles with StatusBar integrated; visual confirmation needed to validate layout at runtime
+- StatusBar integrated and visually verified: correct layout at runtime, no dead space, old overlay gone, per-tab state preserved
 
 ## Self-Check: PASSED
 

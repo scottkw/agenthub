@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: "Checkpoint: Task 3 human-verify for 08-02-PLAN.md"
-last_updated: "2026-03-19T17:22:19.511Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-19T17:27:33.717Z"
 progress:
   total_phases: 7
   completed_phases: 2
@@ -62,6 +62,7 @@ Recent decisions for v1.1:
 - [Phase 08-per-tab-status-bar]: StatusBar root div always rendered unconditionally for 32px height stability
 - [Phase 08-per-tab-status-bar]: Three states via JSX conditionals, not CSS display toggling
 - [Phase 08]: StatusBar rendered unconditionally in App.tsx — not inside webServerRunning guard
+- [Phase 08-per-tab-status-bar]: StatusBar rendered unconditionally in App.tsx — not inside webServerRunning guard; old web-serving-bar block fully removed along with all child elements
 
 ### Pending Todos
 
@@ -74,6 +75,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T17:22:19.503Z
-Stopped at: Checkpoint: Task 3 human-verify for 08-02-PLAN.md
+Last session: 2026-03-19T17:27:22.300Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
