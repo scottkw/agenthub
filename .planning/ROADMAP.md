@@ -41,7 +41,9 @@
   1. Terminal content fills the full available vertical height in every tab with no blank dead space below the output
   2. Toolbar buttons are visually larger (36-44px hit target) and comfortable to click without precise aim
   3. Adding a new tab or switching tabs does not cause layout collapse or incorrect terminal sizing
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 07-01-PLAN.md — Fix terminal flex chain, enlarge toolbar buttons, add test stubs
 
 ### Phase 8: Per-Tab Status Bar
 **Goal**: Each tab has a permanent status strip at the bottom replacing the floating header overlay
@@ -120,7 +122,7 @@
 | 4. Web Serving + TLS + Auth | v1.0 | 4/4 | Complete | 2026-03-18 |
 | 5. QR Codes + Status Indicators | v1.0 | 6/6 | Complete | 2026-03-18 |
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
-| 7. Layout Baseline | v1.1 | 0/? | Not started | - |
+| 7. Layout Baseline | v1.1 | 0/1 | Planning | - |
 | 8. Per-Tab Status Bar | v1.1 | 0/? | Not started | - |
 | 9. Settings Modal Overhaul | v1.1 | 0/? | Not started | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
