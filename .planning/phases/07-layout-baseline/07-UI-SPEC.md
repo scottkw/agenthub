@@ -1,7 +1,8 @@
 ---
 phase: 7
 slug: layout-baseline
-status: draft
+status: approved
+reviewed_at: 2026-03-19
 shadcn_initialized: false
 preset: none
 created: 2026-03-19
@@ -44,6 +45,7 @@ Declared values (must be multiples of 4):
 Exceptions:
 - `.tab-bar` height: 42px (non-scale value dictated by button target size requirement — accommodates 38px buttons with 2px clearance top/bottom; source: RESEARCH.md Pattern 3)
 - `.tab-bar__btn` dimensions: 38x38px (minimum hit target per UILAY-01; Apple HIG 44pt, Material 40dp minimum; source: RESEARCH.md)
+- `.cli-picker-overlay` padding-top: 42px (derived from tab bar height exception — must track tab bar height value)
 - `.terminal-container` uses `flex: 1` with no fixed pixel height (intentional — must never have a hardcoded height)
 
 ---
@@ -176,7 +178,7 @@ No new dependencies. Zero npm packages added in Phase 7. All changes are CSS and
 - [ ] Dimension 2 Visuals: PASS
 - [ ] Dimension 3 Color: PASS
 - [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
+- [x] Dimension 5 Spacing: FLAG (non-blocking — resolved: added .cli-picker-overlay to exceptions)
 - [ ] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-03-19
