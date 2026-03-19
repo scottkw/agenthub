@@ -18,9 +18,9 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 ### Terminal Core
 
 - [x] **TERM-01**: Terminal content fills all available space in each tab with no dead space
-- [ ] **TERM-02**: User can press SHIFT+ to increase font size in the active terminal tab
-- [ ] **TERM-03**: User can press SHIFT- to decrease font size in the active terminal tab
-- [ ] **TERM-04**: Font size changes persist per tab and do not leak characters to the PTY
+- [x] **TERM-02**: User can press SHIFT+ to increase font size in the active terminal tab
+- [x] **TERM-03**: User can press SHIFT- to decrease font size in the active terminal tab
+- [x] **TERM-04**: Font size changes persist per tab and do not leak characters to the PTY
 
 ### UI Layout
 
@@ -89,9 +89,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUILD-04 | Phase 13 | Pending |
 | BUILD-05 | Phase 13 | Pending |
 | TERM-01 | Phase 7 | Complete |
-| TERM-02 | Phase 10 | Pending |
-| TERM-03 | Phase 10 | Pending |
-| TERM-04 | Phase 10 | Pending |
+| TERM-02 | Phase 10 | Complete |
+| TERM-03 | Phase 10 | Complete |
+| TERM-04 | Phase 10 | Complete |
 | UILAY-01 | Phase 7 | Complete |
 | UILAY-02 | Phase 8 | Complete |
 | UILAY-03 | Phase 8 | Complete |

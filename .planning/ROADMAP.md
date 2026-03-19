@@ -26,7 +26,7 @@
 - [x] **Phase 7: Layout Baseline** — Terminal fill and toolbar sizing foundation for all subsequent UI work (completed 2026-03-19)
 - [x] **Phase 8: Per-Tab Status Bar** — Permanent status strip replaces floating web-serving overlay (completed 2026-03-19)
 - [x] **Phase 9: Settings Modal Overhaul** — Tabbed layout declutters and reorganizes settings (completed 2026-03-19)
-- [ ] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab
+- [x] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab (completed 2026-03-19)
 - [ ] **Phase 11: New-Session Modal** — Agent picker and native folder browser replace bare CLI picker
 - [ ] **Phase 12: Tab Rename + Web Dashboard** — Tab renames propagate to web dashboard; dashboard visual refresh
 - [ ] **Phase 13: Build Script** — One-command cross-platform compilation with macOS signing and notarization
@@ -81,7 +81,7 @@ Plans:
   3. Holding SHIFT+= for several seconds does not inject plus characters into the terminal shell session
   4. After a font size change, the terminal correctly reflows to fill its container with no garbled or clipped output
   5. Each tab retains its own font size independently when switching between tabs
-**Plans:** 1 plans
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 10-01-PLAN.md — TDD: source-inspection tests + implement per-tab font size with key handler and state
 
@@ -132,7 +132,7 @@ Plans:
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
-| 10. Per-Tab Font Size | v1.1 | 0/1 | Planning | - |
+| 10. Per-Tab Font Size | 1/1 | Complete   | 2026-03-19 | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |

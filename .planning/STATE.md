@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-19T19:08:07.361Z"
+stopped_at: Completed 10-per-tab-font-size-01-PLAN.md
+last_updated: "2026-03-19T20:44:33.919Z"
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 09 — settings-modal-overhaul
+**Current focus:** Phase 10 — per-tab-font-size
 
 ## Current Position
 
-Phase: 09 (settings-modal-overhaul) — EXECUTING
+Phase: 10 (per-tab-font-size) — EXECUTING
 Plan: 1 of 1
 
 ## Performance Metrics
@@ -45,6 +45,7 @@ Plan: 1 of 1
 | Phase 08-per-tab-status-bar P01 | 2 | 2 tasks | 3 files |
 | Phase 08 P02 | 5 | 2 tasks | 2 files |
 | Phase 09-settings-modal-overhaul P01 | 3 | 2 tasks | 3 files |
+| Phase 10-per-tab-font-size P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions for v1.1:
 - [Phase 09-settings-modal-overhaul]: JSX conditionals for tab content, not CSS display toggle — consistent with Phase 8 pattern
 - [Phase 09-settings-modal-overhaul]: Save Paths does not close modal — user stays on CLI Paths tab after saving paths
 - [Phase 09-settings-modal-overhaul]: Footer reduced to single Close button; Save button moved inline to CLI Paths tab
+- [Phase 10-per-tab-font-size]: onFontSizeChange omitted from [sessionId] effect deps — stable callback captured once per session, avoids re-running full terminal setup on font change
+- [Phase 10-per-tab-font-size]: ev.key === '=' not '+': SHIFT+= reports ev.key='=' (physical key), not '+' (shifted character)
+- [Phase 10-per-tab-font-size]: Separate useEffect([fontSize]) applies options.fontSize + fit() independently of terminal setup effect
 
 ### Pending Todos
 
@@ -79,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T19:05:47.301Z
-Stopped at: Completed 09-01-PLAN.md
+Last session: 2026-03-19T20:44:33.916Z
+Stopped at: Completed 10-per-tab-font-size-01-PLAN.md
 Resume file: None
