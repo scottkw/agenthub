@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: "07-01 checkpoint:human-verify — awaiting visual verification"
-last_updated: "2026-03-19T14:56:06.748Z"
+stopped_at: Completed 07-01-PLAN.md — layout-baseline plan 01 done
+last_updated: "2026-03-19T16:13:57.707Z"
 progress:
   total_phases: 7
   completed_phases: 1
@@ -41,6 +41,7 @@ Plan: 1 of 1
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 07-layout-baseline P01 | 60 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,8 @@ Recent decisions for v1.1:
 - Build script last (Phase 13) — developer artifact, not a product feature; validates against final stable binary
 - [Phase 07-layout-baseline]: Use ?raw import for TerminalPanel tests to avoid xterm canvas in jsdom
 - [Phase 07-layout-baseline]: min-height: 0 on parent .terminal-container (not just inner div) is the root cause fix for TERM-01
+- [Phase 07-layout-baseline]: Terminal initial-fill timing issue tabled — xterm FitAddon races layout paint on first render; multiple fix attempts unsuccessful; tabled by user
+- [Phase 07-layout-baseline]: vite-env.d.ts ?raw module declaration required for TypeScript to accept Vite raw imports in tests
 
 ### Pending Todos
 
@@ -66,6 +69,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T14:56:02.309Z
-Stopped at: 07-01 checkpoint:human-verify — awaiting visual verification
+Last session: 2026-03-19T16:13:57.702Z
+Stopped at: Completed 07-01-PLAN.md — layout-baseline plan 01 done
 Resume file: None
