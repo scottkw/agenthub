@@ -54,7 +54,7 @@ Plans:
   2. The floating web-status header overlay is absent from the terminal content area
   3. The terminal content area fills the remaining space above the status bar with no dead space
   4. Status bar layout is correct on macOS, Linux, and Windows (WebView2)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 08-01-PLAN.md — Create StatusBar component, unit tests, and CSS rules
 - [ ] 08-02-PLAN.md — Wire StatusBar into App.tsx, remove old overlay, clean up CSS
@@ -126,7 +126,7 @@ Plans:
 | 5. QR Codes + Status Indicators | v1.0 | 6/6 | Complete | 2026-03-18 |
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
-| 8. Per-Tab Status Bar | v1.1 | 0/2 | Planned | - |
+| 8. Per-Tab Status Bar | 1/2 | In Progress|  | - |
 | 9. Settings Modal Overhaul | v1.1 | 0/? | Not started | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |

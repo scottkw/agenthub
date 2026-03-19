@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 07-01-PLAN.md — layout-baseline plan 01 done
-last_updated: "2026-03-19T16:21:20.595Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-19T17:18:52.799Z"
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 07 — layout-baseline
+**Current focus:** Phase 08 — per-tab-status-bar
 
 ## Current Position
 
-Phase: 07 (layout-baseline) — EXECUTING
-Plan: 1 of 1
+Phase: 08 (per-tab-status-bar) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Plan: 1 of 1
 
 *Updated after each plan completion*
 | Phase 07-layout-baseline P01 | 60 | 3 tasks | 5 files |
+| Phase 08-per-tab-status-bar P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,8 @@ Recent decisions for v1.1:
 - [Phase 07-layout-baseline]: min-height: 0 on parent .terminal-container (not just inner div) is the root cause fix for TERM-01
 - [Phase 07-layout-baseline]: Terminal initial-fill timing issue tabled — xterm FitAddon races layout paint on first render; multiple fix attempts unsuccessful; tabled by user
 - [Phase 07-layout-baseline]: vite-env.d.ts ?raw module declaration required for TypeScript to accept Vite raw imports in tests
+- [Phase 08-per-tab-status-bar]: StatusBar root div always rendered unconditionally for 32px height stability
+- [Phase 08-per-tab-status-bar]: Three states via JSX conditionals, not CSS display toggling
 
 ### Pending Todos
 
@@ -69,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T16:13:57.702Z
-Stopped at: Completed 07-01-PLAN.md — layout-baseline plan 01 done
+Last session: 2026-03-19T17:18:52.788Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
