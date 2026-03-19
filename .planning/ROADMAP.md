@@ -81,7 +81,9 @@ Plans:
   3. Holding SHIFT+= for several seconds does not inject plus characters into the terminal shell session
   4. After a font size change, the terminal correctly reflows to fill its container with no garbled or clipped output
   5. Each tab retains its own font size independently when switching between tabs
-**Plans**: TBD
+**Plans:** 1 plans
+Plans:
+- [ ] 10-01-PLAN.md — TDD: source-inspection tests + implement per-tab font size with key handler and state
 
 ### Phase 11: New-Session Modal
 **Goal**: Creating a new session opens a full modal with agent picker, folder browser, and last-folder memory
@@ -130,7 +132,7 @@ Plans:
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
-| 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
+| 10. Per-Tab Font Size | v1.1 | 0/1 | Planning | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |
