@@ -25,6 +25,8 @@ created: 2026-03-19
 
 No shadcn or Tailwind detected. Project uses handwritten CSS with a Tokyo Night dark color palette. This phase adds one new CSS block (`.tab-status-bar`) consistent with existing BEM-like naming.
 
+**Primary visual anchor:** The state badge (`.tab-status-bar__state`) is the focal point of the status bar. Its uppercase text, semibold weight, and semantic color (green / muted / dimmed) communicate the tab's web-serving state at a glance before the user reads any button labels.
+
 ---
 
 ## Spacing Scale
@@ -42,10 +44,10 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Status bar horizontal padding: 10px (inherits from tab bar pattern; matches `.tab` padding: `0 10px`)
-- Status bar height: 32px (fixed; not an 8-point multiple — required for content fit at 11px font with 2px vertical padding on buttons; matches VS Code status bar standard)
+- Status bar horizontal padding: `0 8px` (sm token — aligns with 8-point scale; previous 10px value corrected)
+- Status bar height: 32px (fixed; not an 8-point multiple — required for content fit at 11px font with 4px vertical padding on buttons; matches VS Code status bar standard)
 - Tab bar height: 42px (pre-existing; not modified by this phase)
-- Button padding within status bar: `2px 8px` (4px vertical rounds to 4px; 8px horizontal = sm token)
+- Button padding within status bar: `4px 8px` (4px vertical = xs token; 8px horizontal = sm token)
 
 Source: style.css direct inspection.
 
@@ -123,8 +125,8 @@ interface StatusBarProps {
 | State | Condition | Visible elements |
 |-------|-----------|-----------------|
 | Inactive | `webServerRunning === false` | State badge "WEB SERVER NOT RUNNING" in `--inactive` color only |
-| Off | `webServerRunning && !webEnabled` | State badge "WEB OFF" in `--off` color + Enable button |
-| On | `webServerRunning && webEnabled` | State badge "WEB ON" in `--on` color + URL link (truncated) + Disable button + Copy Link button + QR button |
+| Off | `webServerRunning && !webEnabled` | State badge "WEB OFF" in `--off` color + Enable Web button |
+| On | `webServerRunning && webEnabled` | State badge "WEB ON" in `--on` color + URL link (truncated) + Disable Web button + Copy Link button + QR button |
 
 **Root element:** `<div className="tab-status-bar">` — always rendered, never conditionally mounted.
 
@@ -163,7 +165,7 @@ All new rules belong to the `.tab-status-bar` namespace. No existing rules are m
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
+  padding: 0 8px;
   background-color: #16161e;
   border-top: 1px solid #292e42;
   overflow: hidden;
@@ -211,7 +213,7 @@ All new rules belong to the `.tab-status-bar` namespace. No existing rules are m
 ```css
 .tab-status-bar__btn {
   flex-shrink: 0;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   border: 1px solid #292e42;
   background: transparent;
@@ -240,8 +242,8 @@ All new rules belong to the `.tab-status-bar` namespace. No existing rules are m
 | State badge — server not running | "WEB SERVER NOT RUNNING" |
 | State badge — web off | "WEB OFF" |
 | State badge — web on | "WEB ON" |
-| Enable button | "Enable" |
-| Disable button | "Disable" |
+| Enable button | "Enable Web" |
+| Disable button | "Disable Web" |
 | Copy link button | "Copy Link" |
 | QR button | "QR" |
 | URL link title attribute | "Open session in browser" |
@@ -262,12 +264,12 @@ Destructive actions: None. Disabling web serving is a reversible toggle, not a d
 
 | Interaction | Behavior |
 |-------------|----------|
-| Click "Enable" | Calls `onToggleWeb()`; state transitions from Off to On; URL appears; Disable + Copy Link + QR buttons appear |
-| Click "Disable" | Calls `onToggleWeb()`; state transitions from On to Off; URL disappears; only Enable button shown |
+| Click "Enable Web" | Calls `onToggleWeb()`; state transitions from Off to On; URL appears; Disable Web + Copy Link + QR buttons appear |
+| Click "Disable Web" | Calls `onToggleWeb()`; state transitions from On to Off; URL disappears; only Enable Web button shown |
 | Click URL link | Opens session URL in new browser tab (`target="_blank"`) |
 | Click "Copy Link" | Calls `onCopyTokenLink()`; writes token URL to clipboard; no visual feedback in status bar (pre-existing behavior) |
 | Click "QR" | Calls `onShowQR()`; opens QR modal overlay (QRModal component, unchanged) |
-| Web server starts | `webServerRunning` becomes `true`; Inactive badge replaced by Off badge; Enable button appears |
+| Web server starts | `webServerRunning` becomes `true`; Inactive badge replaced by Off badge; Enable Web button appears |
 | Web server stops | `webServerRunning` becomes `false`; Off or On state transitions to Inactive badge; all buttons disappear |
 | Tab switch | Status bar inside inactive `.terminal-wrapper` is hidden via `display: none` on wrapper; no special handling needed |
 
