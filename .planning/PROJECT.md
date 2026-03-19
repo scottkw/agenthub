@@ -30,7 +30,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 ### Active
 
 - [ ] Build script (`build.sh`) for per-platform and all-platform compilation with macOS signing support
-- [ ] UI/UX overhaul: settings modal declutter/restyle, web dashboard visual refresh
+- ⊘ UI/UX overhaul: settings modal declutter/restyle (✓ Phase 9), web dashboard visual refresh (pending)
 - ✓ Per-tab status bar replacing header overlay for web status/URL/controls — Phase 8
 - [ ] Tab renaming with name propagation to web dashboard session names
 - ✓ Larger toolbar buttons (38x38px, comfortable to click) — Phase 7
