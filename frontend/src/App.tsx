@@ -19,6 +19,7 @@ import type { DetectedCLI } from './wailsjs/go/main/App'
 import { EventsOn } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
+import { NewSessionModal } from './components/NewSessionModal'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -33,8 +34,7 @@ function App(): React.ReactElement {
   const [showSettings, setShowSettings] = useState(false)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
   const [tabCounter, setTabCounter] = useState(1)
-  // Track if CLI picker dropdown is open (multiple CLIs)
-  const [showCLIPicker, setShowCLIPicker] = useState(false)
+  const [showNewSessionModal, setShowNewSessionModal] = useState(false)
   // Track web serving state per session: sessionId -> enabled
   const [webEnabled, setWebEnabled] = useState<Record<string, boolean>>({})
   // Track per-session web URLs (populated when web serving is enabled)
@@ -101,11 +101,11 @@ function App(): React.ReactElement {
     }
   }, [])
 
-  const createTab = useCallback(async (cliName: string) => {
+  const createTab = useCallback(async (cliName: string, workDir: string) => {
     const defaultName = `${cliName} ${tabCounter}`
     setTabCounter((n) => n + 1)
     try {
-      const sessionId = await CreateSession(cliName, defaultName, '')
+      const sessionId = await CreateSession(cliName, defaultName, workDir)
       const tab: Tab = {
         id: sessionId,
         name: defaultName,
@@ -125,19 +125,8 @@ function App(): React.ReactElement {
       setShowSettings(true)
       return
     }
-    if (detectedCLIs.length === 1) {
-      // Only one CLI available: create immediately.
-      void createTab(detectedCLIs[0].Name)
-    } else {
-      // Multiple CLIs: show a picker.
-      setShowCLIPicker(true)
-    }
-  }, [detectedCLIs, createTab])
-
-  const handleSelectCLI = useCallback((cliName: string) => {
-    setShowCLIPicker(false)
-    void createTab(cliName)
-  }, [createTab])
+    setShowNewSessionModal(true)
+  }, [detectedCLIs])
 
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
@@ -271,22 +260,16 @@ function App(): React.ReactElement {
           })}
       </div>
 
-      {/* CLI picker dropdown — shown when multiple CLIs are detected */}
-      {showCLIPicker && (
-        <div className="cli-picker-overlay" onClick={() => setShowCLIPicker(false)}>
-          <div className="cli-picker" onClick={(e) => e.stopPropagation()}>
-            <p className="cli-picker__label">Choose a CLI:</p>
-            {detectedCLIs.map((cli) => (
-              <button
-                key={cli.Name}
-                className="cli-picker__btn"
-                onClick={() => handleSelectCLI(cli.Name)}
-              >
-                {cli.Name}
-              </button>
-            ))}
-          </div>
-        </div>
+      {showNewSessionModal && (
+        <NewSessionModal
+          isOpen={showNewSessionModal}
+          clis={detectedCLIs}
+          onConfirm={(cli, workDir) => {
+            setShowNewSessionModal(false)
+            void createTab(cli, workDir)
+          }}
+          onClose={() => setShowNewSessionModal(false)}
+        />
       )}
 
       {qrSessionId !== null && (
