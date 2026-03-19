@@ -33,10 +33,10 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - [ ] UI/UX overhaul: settings modal declutter/restyle, web dashboard visual refresh
 - [ ] Per-tab status bar replacing header overlay for web status/URL/controls
 - [ ] Tab renaming with name propagation to web dashboard session names
-- [ ] Larger toolbar buttons (current ones are too small)
+- ✓ Larger toolbar buttons (38x38px, comfortable to click) — Phase 7
 - [ ] New-session modal with agent picker + folder browser (remembers last folder)
 - [ ] Per-tab SHIFT+/SHIFT- font size adjustment
-- [ ] Terminal fill: fix terminals not using full available space
+- ⚠️ Terminal fill: CSS flex chain fixed, fills after resize — initial-paint timing gap remains (tabled, Phase 7)
 
 ### Out of Scope
 
@@ -97,4 +97,4 @@ Spiritual successor to ccrs (Claude Code Remote Sessions) — a zsh script proje
 | ResizeObserver + requestAnimationFrame for fit() | Handles all layout changes, not just window resize | ✓ Good — fixed terminal height issues |
 
 ---
-*Last updated: 2026-03-19 after v1.1 milestone started*
+*Last updated: 2026-03-19 — Phase 7 complete (layout baseline)*
