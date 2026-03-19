@@ -36,12 +36,15 @@ Declared values (multiples of 4):
 | xs | 4px | Icon gaps, tight inline padding |
 | sm | 8px | Compact element spacing, input padding, status bar gaps |
 | md | 16px | Default element spacing, header padding vertical, body padding |
-| lg | 20px | Modal header/footer/body horizontal padding (matches SettingsPanel) |
-| xl | 24px | Section breaks inside modal body |
-| 2xl | 32px | Not used in this phase |
+| lg | 24px | Section breaks inside modal body |
+| xl | 32px | Not used in this phase |
+| 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: 6px gap used in tab items (existing convention, not overridden in modal); 12px used for label-to-input margin — both inherited from existing SettingsPanel patterns and carried forward for consistency.
+Exceptions:
+- **20px** — modal header/footer/body horizontal padding. Matches SettingsPanel modal padding — existing codebase convention inherited for visual consistency. Not in the standard set; justified as an inherited pattern only.
+- **6px** — gap used in tab items (existing convention, not overridden in modal).
+- **12px** — label-to-input margin (inherited from existing SettingsPanel patterns).
 
 ---
 
@@ -83,6 +86,8 @@ Accent (`#7aa2f7`) reserved for:
 
 Source: all values extracted from style.css.
 
+**Focal point:** The "Create Session" button is the primary visual anchor — it is the only element using the accent fill color (`#7aa2f7` background) in the modal, drawing the eye to the intended confirmation action.
+
 ---
 
 ## Component Inventory
@@ -107,7 +112,7 @@ The modal is a new component that mirrors the SettingsPanel modal pattern. All C
           .new-session-modal__folder-display  read-only path text, flex: 1
           .new-session-modal__browse-btn      "Browse…" button
     .new-session-modal__footer    flex row justify-end, gap 8px, border-top
-      cancel button (.new-session-modal__btn--cancel)
+      close button (.new-session-modal__btn--close)
       create button (.new-session-modal__btn--create)
 ```
 
@@ -143,14 +148,15 @@ Create button:
 - Hover: `background: #89b4fa`
 - Disabled (no CLI selected): `opacity: 0.5`, `cursor: not-allowed`
 
-Cancel button:
-- Label: "Cancel"
+Close button (footer):
+- Label: "Close"
 - Style: `background: transparent`, `border: 1px solid #292e42`, `color: #565f89`, `padding: 6px 16px`, `border-radius: 4px`, `font-size: 13px`
 - Hover: `color: #c0caf5`, `border-color: #3b4261`
 
 ### Close button (header)
 
 - Symbol: `×`
+- aria-label: "Close"
 - Style: same as `.settings-panel__close` — `background: transparent`, `border: none`, `color: #565f89`, `font-size: 20px`, `padding: 2px 6px`, `border-radius: 4px`
 - Hover: `color: #f7768e`, `background: #3b4261`
 
@@ -180,10 +186,10 @@ Cancel button:
 - On return with `''` (user cancelled): no state change — keep existing displayed path
 - Folder path is never validated client-side (RESEARCH.md Open Question 2: let it fail naturally)
 
-### Confirm / Cancel
+### Confirm / Close
 
 - "Create Session": calls `onConfirm(selectedCLI, selectedDir)` → parent calls `createTab(cli, workDir)` → closes modal
-- "Cancel" or overlay click or `×` button: calls `onClose()` → modal unmounts
+- "Close" footer button or overlay click or `×` header button: calls `onClose()` → modal unmounts
 - ESC key: not required for v1.1 (no keyboard trap requirement in SESS-01 through SESS-04)
 
 ### Loading states
@@ -211,8 +217,8 @@ Cancel button:
 | Browse button | "Browse…" |
 | Browse button loading | "Browsing…" |
 | Create button loading | "Creating…" |
-| Cancel button | "Cancel" |
-| Close button aria-label | "Close" |
+| Footer close button | "Close" |
+| Close button aria-label (header ×) | "Close" |
 | Error state (createTab failure) | Not shown in modal — error propagates to console log; no inline error display in v1.1 (out of scope) |
 
 No destructive actions in this phase. No confirmation dialog required.
@@ -245,6 +251,8 @@ No external component registry. All components are hand-rolled CSS.
 6. **z-index**: `z-index: 1000` — same as `.settings-overlay` and `.qr-modal-overlay`.
 
 7. **Backdrop**: `background-color: rgba(0, 0, 0, 0.6)` — matches existing modal overlays exactly.
+
+8. **Footer close button class**: Use `.new-session-modal__btn--close` (not `--cancel`) to match the updated label "Close".
 
 ---
 
