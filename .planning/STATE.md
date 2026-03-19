@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 10-per-tab-font-size-01-PLAN.md
-last_updated: "2026-03-19T20:48:21.874Z"
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-03-19T21:46:53.982Z"
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 10 — per-tab-font-size
+**Current focus:** Phase 11 — new-session-modal
 
 ## Current Position
 
-Phase: 10 (per-tab-font-size) — EXECUTING
-Plan: 1 of 1
+Phase: 11 (new-session-modal) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Plan: 1 of 1
 | Phase 08 P02 | 5 | 2 tasks | 2 files |
 | Phase 09-settings-modal-overhaul P01 | 3 | 2 tasks | 3 files |
 | Phase 10-per-tab-font-size P01 | 2 | 2 tasks | 4 files |
+| Phase 11-new-session-modal P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions for v1.1:
 - [Phase 10-per-tab-font-size]: onFontSizeChange omitted from [sessionId] effect deps — stable callback captured once per session, avoids re-running full terminal setup on font change
 - [Phase 10-per-tab-font-size]: ev.key === '=' not '+': SHIFT+= reports ev.key='=' (physical key), not '+' (shifted character)
 - [Phase 10-per-tab-font-size]: Separate useEffect([fontSize]) applies options.fontSize + fit() independently of terminal setup effect
+- [Phase 11-new-session-modal]: DetectedCLI redeclared locally with optional DisplayName to avoid circular import from App.d.ts
+- [Phase 11-new-session-modal]: localStorage.getItem(LAST_DIR_KEY) ?? '' converts null to empty string; if (path !== '') guards against OS dialog cancel
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T20:44:33.916Z
-Stopped at: Completed 10-per-tab-font-size-01-PLAN.md
+Last session: 2026-03-19T21:46:47.852Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None

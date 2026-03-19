@@ -32,10 +32,10 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 
 ### Session Management
 
-- [ ] **SESS-01**: Clicking + opens a modal (not a dropdown) for creating a new session
-- [ ] **SESS-02**: New-session modal includes an agent picker showing available CLIs
-- [ ] **SESS-03**: New-session modal includes a native folder browser for selecting the working directory
-- [ ] **SESS-04**: Folder browser defaults to home directory, or last-used folder if one exists
+- [x] **SESS-01**: Clicking + opens a modal (not a dropdown) for creating a new session
+- [x] **SESS-02**: New-session modal includes an agent picker showing available CLIs
+- [x] **SESS-03**: New-session modal includes a native folder browser for selecting the working directory
+- [x] **SESS-04**: Folder browser defaults to home directory, or last-used folder if one exists
 
 ### Web Dashboard
 
@@ -97,10 +97,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UILAY-03 | Phase 8 | Complete |
 | UILAY-04 | Phase 12 | Pending |
 | UILAY-05 | Phase 12 | Pending |
-| SESS-01 | Phase 11 | Pending |
-| SESS-02 | Phase 11 | Pending |
-| SESS-03 | Phase 11 | Pending |
-| SESS-04 | Phase 11 | Pending |
+| SESS-01 | Phase 11 | Complete |
+| SESS-02 | Phase 11 | Complete |
+| SESS-03 | Phase 11 | Complete |
+| SESS-04 | Phase 11 | Complete |
 | WEBUI-01 | Phase 12 | Pending |
 | WEBUI-02 | Phase 12 | Pending |
 | SETT-01 | Phase 9 | Complete |
