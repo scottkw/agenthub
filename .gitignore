@@ -18,7 +18,10 @@ Thumbs.db
 
 # Wails build artifacts
 build/bin/
-build/darwin/
+# Untrack darwin build outputs but track config plists needed for distribution
+build/darwin/*
+!build/darwin/Info.plist
+!build/darwin/Info.dev.plist
 frontend/package.json.md5
 frontend/src/wailsjs/wailsjs/
 
