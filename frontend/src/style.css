@@ -166,10 +166,6 @@ body {
   height: 100%;
 }
 
-.web-serving-bar {
-  flex-shrink: 0;
-}
-
 /* --- Per-tab status bar (Phase 8) ---------------------------------- */
 .tab-status-bar {
   flex-shrink: 0;
@@ -508,17 +504,3 @@ body {
   color: #f38ba8;
 }
 
-/* ─── QR button in web-serving-bar ──────────────────────────────── */
-.qr-btn {
-  padding: 4px 10px;
-  border-radius: 4px;
-  border: 1px solid #45475a;
-  background: transparent;
-  color: #cdd6f4;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-}
-.qr-btn:hover {
-  background: #45475a;
-}
