@@ -54,10 +54,8 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
     }
 
     term.open(containerRef.current)
-    // Defer fit() so the browser has completed layout before we measure.
-    requestAnimationFrame(() => {
-      fitAddon.fit()
-    })
+    // Don't fit here — hidden panels have zero dimensions.
+    // The isActive effect handles fitting when a panel becomes visible.
 
     termRef.current = term
     fitAddonRef.current = fitAddon
@@ -96,24 +94,21 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
 
     const container = containerRef.current
 
-    // Double-RAF: first RAF fires after the current paint, second fires after the
-    // NEXT paint — by which time the browser has fully reflowed display:none → flex.
-    const rafIds = [0, 0]
-    rafIds[0] = requestAnimationFrame(() => {
-      rafIds[1] = requestAnimationFrame(() => {
-        fitAddonRef.current?.fit()
-      })
-    })
+    // setTimeout runs after pending microtasks and rendering, giving the browser
+    // time to fully reflow after display:none → flex. RAF alone fires too early
+    // on initial page load when fonts/CSS are still settling.
+    const timerId = setTimeout(() => {
+      fitAddonRef.current?.fit()
+    }, 50)
 
-    // ResizeObserver fires whenever the container dimensions change (window resize,
-    // sidebar open/close, etc.).
+    // ResizeObserver handles ongoing resize (window drag, sidebar toggle, etc.).
     const ro = new ResizeObserver(() => {
       fitAddonRef.current?.fit()
     })
     ro.observe(container)
 
     return () => {
-      rafIds.forEach(cancelAnimationFrame)
+      clearTimeout(timerId)
       ro.disconnect()
     }
   }, [isActive])
