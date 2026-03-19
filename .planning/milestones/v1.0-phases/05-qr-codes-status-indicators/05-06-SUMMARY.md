@@ -91,3 +91,10 @@ None. Single-line change with clear intent.
 ---
 *Phase: 05-qr-codes-status-indicators*
 *Completed: 2026-03-18*
+
+## Self-Check: PASSED
+
+- `internal/webserver/server.go` — FOUND
+- `internal/webserver/server_test.go` — FOUND
+- `.planning/phases/05-qr-codes-status-indicators/05-06-SUMMARY.md` — FOUND
+- Commits `bc8f38f` (test RED), `2abd124` (feat GREEN), `eaf60dc` (docs metadata) — all present in git log
