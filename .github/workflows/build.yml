@@ -1,0 +1,138 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - name: agenthub
+            platform: darwin/universal
+            os: macos-latest
+
+          - name: agenthub
+            platform: linux/amd64
+            os: ubuntu-latest
+            webkit_tag: webkit2_41
+            webkit_pkg: libwebkit2gtk-4.1-dev
+
+          - name: agenthub
+            platform: linux/amd64
+            os: ubuntu-22.04
+            webkit_pkg: libwebkit2gtk-4.0-dev
+
+          - name: agenthub
+            platform: windows/amd64
+            os: windows-latest
+
+    runs-on: ${{ matrix.build.os }}
+
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+      MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+      MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
+      MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev ${{ matrix.build.webkit_pkg }}
+
+      - name: Run Go tests
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+        # Setup Go first so we can run tests
+
+      - name: Run Go tests (all platforms)
+        run: go test ./...
+
+      - name: Build with Wails
+        uses: dAppServer/wails-build-action@main
+        with:
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          build-flags: ${{ matrix.build.webkit_tag && format('-tags {0}', matrix.build.webkit_tag) || '' }}
+          build-webview2: embed
+          nsis: ${{ matrix.build.os == 'windows-latest' }}
+
+      - name: Import macOS certificate
+        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+
+      - name: Sign macOS app with hardened runtime
+        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
+        run: |
+          /usr/bin/codesign --force -s "$MACOS_CERTIFICATE_NAME" \
+            --options runtime \
+            --entitlements build/entitlements.plist \
+            build/bin/agenthub.app -v
+
+      - name: Notarize macOS app
+        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
+        run: |
+          xcrun notarytool store-credentials "notarytool-profile" \
+            --apple-id "$MACOS_NOTARIZATION_APPLE_ID" \
+            --team-id "$MACOS_NOTARIZATION_TEAM_ID" \
+            --password "$MACOS_NOTARIZATION_PWD"
+          ditto -c -k --keepParent build/bin/agenthub.app notarization.zip
+          xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
+          xcrun stapler staple build/bin/agenthub.app
+
+      - name: Cleanup macOS keychain and certificate
+        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != '' && always()
+        run: |
+          security delete-keychain build.keychain || true
+          rm -f certificate.p12 notarization.zip
+
+      - name: Upload macOS artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenthub-darwin-universal
+          path: build/bin/agenthub.app
+          if-no-files-found: error
+
+      - name: Upload Linux artifact
+        if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenthub-linux-amd64-ubuntu24
+          path: build/bin/agenthub
+          if-no-files-found: error
+
+      - name: Upload Linux 22.04 artifact
+        if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenthub-linux-amd64-ubuntu22
+          path: build/bin/agenthub
+          if-no-files-found: error
+
+      - name: Upload Windows artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenthub-windows-amd64
+          path: |
+            build/bin/agenthub-amd64-installer.exe
+            build/bin/agenthub.exe
+          if-no-files-found: error
