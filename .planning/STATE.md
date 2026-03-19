@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
-status: unknown
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-19T21:48:25.978Z"
+status: complete
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-03-19T21:53:15.000Z"
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Current Position
 
-Phase: 11 (new-session-modal) — EXECUTING
-Plan: 2 of 3
+Phase: 11 (new-session-modal) — COMPLETE
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: 2 of 3
 | Phase 10-per-tab-font-size P01 | 2 | 2 tasks | 4 files |
 | Phase 11-new-session-modal P02 | 2 | 2 tasks | 3 files |
 | Phase 11-new-session-modal P01 | 3 | 2 tasks | 7 files |
+| Phase 11 P03 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions for v1.1:
 - [Phase 11-new-session-modal]: localStorage.getItem(LAST_DIR_KEY) ?? '' converts null to empty string; if (path !== '') guards against OS dialog cancel
 - [Phase 11-new-session-modal]: cmd.Dir assigned before cmd.Env — critical for Windows ConPTY reading Dir during Start()
 - [Phase 11-new-session-modal]: App.tsx uses workDir='' placeholder — real value supplied by NewSessionModal in plan 11-02
+- [Phase 11]: handleAddTab always opens NewSessionModal regardless of CLI count — single-CLI fast-path removed
+- [Phase 11]: createTab removed from handleAddTab deps since modal onConfirm calls createTab directly
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:48:25.974Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-03-19T21:53:14.996Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
