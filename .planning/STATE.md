@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-03-18T21:40:33.978Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-19T13:02:19.240Z"
 last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 19
+  completed_plans: 18
   percent: 93
 ---
 
@@ -62,6 +62,7 @@ Progress: [█████████░] 93%
 | Phase 05-qr-codes-status-indicators P05 | 5min | 1 tasks | 2 files |
 | Phase 05-qr-codes-status-indicators P04 | 8 | 1 tasks | 2 files |
 | Phase 05-qr-codes-status-indicators P06 | 5min | 1 tasks | 2 files |
+| Phase 06-distribution-cross-platform P01 | 10min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,8 @@ Recent decisions affecting current work:
 - [Phase 05-qr-codes-status-indicators]: Watch() uses relay.ParseFrame() guard to skip non-MsgOutput frames before feeding detector
 - [Phase 05-qr-codes-status-indicators]: reANSI extended with OSC alternation [^\x07\x1b]*(?:\x07|\x1b\\) to strip Claude Code window title sequences before prompt matching
 - [Phase 05-qr-codes-status-indicators]: GET /dashboard serves HTML without dashboardAuth wrapper — dashboard.html JS detects auth state by probing /api/sessions; HTML shell must be publicly accessible for login form to render
+- [Phase 06-distribution-cross-platform]: build/darwin/ gitignore negation: use build/darwin/* + !Info.plist pattern to track plists while ignoring binary outputs
+- [Phase 06-distribution-cross-platform]: entitlements.plist: network.client + network.server only — no get-task-allow (Apple rejects notarization with it)
 
 ### Pending Todos
 
@@ -132,6 +135,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:40:33.974Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-03-19T13:02:19.226Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None

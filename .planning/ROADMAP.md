@@ -112,7 +112,7 @@ Plans:
   2. macOS build is signed and notarized — Gatekeeper allows it to open without a warning dialog
   3. Linux build runs on Ubuntu 22.04 and 24.04 (WebKitGTK 4.0 and 4.1 variants both tested)
   4. Windows build produces an installer; the app launches, PTY sessions work with correct keyboard input (win32-input-mode handled), and self-signed TLS certs can be installed in the Windows cert store
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — Platform build prerequisites (tray stubs, build tags, wails.json Info, production plist, entitlements)
@@ -130,4 +130,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Wails Desktop UI | 3/3 | Complete   | 2026-03-18 |
 | 4. Web Serving + TLS + Auth | 4/4 | Complete   | 2026-03-18 |
 | 5. QR Codes + Status Indicators | 6/6 | Complete   | 2026-03-18 |
-| 6. Distribution + Cross-Platform | 0/2 | Not started | - |
+| 6. Distribution + Cross-Platform | 1/2 | In Progress|  |

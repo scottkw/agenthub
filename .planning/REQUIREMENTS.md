@@ -56,9 +56,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Platform
 
-- [ ] **PLAT-01**: App builds and runs on macOS
-- [ ] **PLAT-02**: App builds and runs on Linux
-- [ ] **PLAT-03**: App builds and runs on Windows
+- [x] **PLAT-01**: App builds and runs on macOS
+- [x] **PLAT-02**: App builds and runs on Linux
+- [x] **PLAT-03**: App builds and runs on Windows
 
 ## v2 Requirements
 
@@ -122,9 +122,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QR-02 | Phase 5 | Complete |
 | STAT-01 | Phase 5 | Complete |
 | STAT-02 | Phase 5 | Complete |
-| PLAT-01 | Phase 6 | Pending |
-| PLAT-02 | Phase 6 | Pending |
-| PLAT-03 | Phase 6 | Pending |
+| PLAT-01 | Phase 6 | Complete |
+| PLAT-02 | Phase 6 | Complete |
+| PLAT-03 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 29 total
