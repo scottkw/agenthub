@@ -20,11 +20,12 @@ interface SettingsPanelProps {
 
 /**
  * Modal settings panel for configuring custom CLI executable paths and web serving.
- * Lists all detected CLIs with an input field for path overrides, plus a Web Serving
- * section for password setup, network interface selection, and server start/stop.
+ * Lists all detected CLIs with an input field for path overrides, plus a Web Server
+ * section for network interface selection and server start/stop, and a Security
+ * section for password setup and CA certificate guidance.
  */
 export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): React.ReactElement | null {
-  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-serving'>('cli-paths')
+  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server' | 'security'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -175,12 +176,20 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
             CLI Paths
           </button>
           <button
-            className={`settings-panel__tab-btn ${activeTab === 'web-serving' ? 'settings-panel__tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('web-serving')}
+            className={`settings-panel__tab-btn ${activeTab === 'web-server' ? 'settings-panel__tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('web-server')}
             role="tab"
-            aria-selected={activeTab === 'web-serving'}
+            aria-selected={activeTab === 'web-server'}
           >
-            Web Serving
+            Web Server
+          </button>
+          <button
+            className={`settings-panel__tab-btn ${activeTab === 'security' ? 'settings-panel__tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('security')}
+            role="tab"
+            aria-selected={activeTab === 'security'}
+          >
+            Security
           </button>
         </div>
 
@@ -188,7 +197,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
           {activeTab === 'cli-paths' && (
             <>
               {/* CLI Paths Section */}
-              <h3>CLI Paths</h3>
               {clis.length === 0 ? (
                 <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
               ) : (
@@ -234,41 +242,11 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
             </>
           )}
 
-          {activeTab === 'web-serving' && (
+          {activeTab === 'web-server' && (
             <>
-              {/* Web Serving Section */}
-              <h3>Web Serving</h3>
               <p className="settings-panel__description">
                 Enable HTTPS access to terminal sessions from remote browsers.
               </p>
-
-              {/* Password Setup */}
-              <div className="settings-panel__field-group">
-                <label className="settings-panel__label">
-                  Dashboard Password
-                  {isPasswordSet && (
-                    <span className="settings-panel__check" title="Password is set"> ✓</span>
-                  )}
-                </label>
-                <div className="settings-panel__row">
-                  <input
-                    className="settings-panel__path-input"
-                    type="password"
-                    value={webPassword}
-                    onChange={(e) => setWebPassword(e.target.value)}
-                    placeholder={isPasswordSet ? 'Change password…' : 'Set a password to enable web serving'}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
-                  />
-                  <button
-                    className="settings-panel__btn settings-panel__btn--save"
-                    onClick={handleSetPassword}
-                    disabled={passwordSaving || !webPassword.trim()}
-                  >
-                    {passwordSaving ? 'Saving…' : 'Set Password'}
-                  </button>
-                </div>
-                {passwordError && <p className="settings-panel__error">{passwordError}</p>}
-              </div>
 
               {/* Network Interface Selector */}
               <div className="settings-panel__field-group">
@@ -311,7 +289,7 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                   className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
                   onClick={handleToggleServer}
                   disabled={serverLoading || (!isServerRunning && !isPasswordSet)}
-                  title={!isPasswordSet && !isServerRunning ? 'Set a password first' : undefined}
+                  title={!isPasswordSet && !isServerRunning ? 'Set a password in the Security tab first' : undefined}
                 >
                   {serverLoading
                     ? (isServerRunning ? 'Stopping…' : 'Starting…')
@@ -324,28 +302,64 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                   </p>
                 )}
               </div>
+            </>
+          )}
+
+          {activeTab === 'security' && (
+            <>
+              {/* Password Setup */}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">
+                  Dashboard Password
+                  {isPasswordSet && (
+                    <span className="settings-panel__check" title="Password is set"> ✓</span>
+                  )}
+                </label>
+                <div className="settings-panel__row">
+                  <input
+                    className="settings-panel__path-input"
+                    type="password"
+                    value={webPassword}
+                    onChange={(e) => setWebPassword(e.target.value)}
+                    placeholder={isPasswordSet ? 'Change password…' : 'Set a password to enable web serving'}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
+                  />
+                  <button
+                    className="settings-panel__btn settings-panel__btn--save"
+                    onClick={handleSetPassword}
+                    disabled={passwordSaving || !webPassword.trim()}
+                  >
+                    {passwordSaving ? 'Saving…' : 'Set Password'}
+                  </button>
+                </div>
+                {passwordError && <p className="settings-panel__error">{passwordError}</p>}
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid #292e42', margin: '20px 0' }} />
 
               {/* CA Certificate Guidance */}
-              {caCertPath && (
-                <div className="settings-panel__field-group">
-                  <label className="settings-panel__label">CA Certificate</label>
-                  <p className="settings-panel__description">
-                    To avoid browser security warnings, install the local CA cert:
-                  </p>
-                  <code className="settings-panel__code">{caCertPath}</code>
-                  <details className="settings-panel__details">
-                    <summary>Installation instructions</summary>
-                    <pre className="settings-panel__code settings-panel__code--block">
-                      {getCACertInstructions()}
-                    </pre>
-                    <p className="settings-panel__description">
-                      After installation, restart your browser and refresh the page.
-                      The CA cert can also be downloaded directly from the server at{' '}
-                      <code>/ca.crt</code>.
-                    </p>
-                  </details>
-                </div>
-              )}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">CA Certificate</label>
+                <p className="settings-panel__description">
+                  To avoid browser security warnings, install the local CA cert into your system trust store.
+                  The cert can also be downloaded from the running server at{' '}
+                  <code className="settings-panel__code">/ca.crt</code>.
+                </p>
+                {caCertPath && (
+                  <>
+                    <code className="settings-panel__code">{caCertPath}</code>
+                    <details className="settings-panel__details">
+                      <summary>Installation instructions</summary>
+                      <pre className="settings-panel__code settings-panel__code--block">
+                        {getCACertInstructions()}
+                      </pre>
+                      <p className="settings-panel__description">
+                        After installation, restart your browser and refresh the page.
+                      </p>
+                    </details>
+                  </>
+                )}
+              </div>
             </>
           )}
         </div>
