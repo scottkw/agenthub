@@ -498,50 +498,6 @@ body {
   color: #89b4fa;
 }
 
-/* ─── CLI picker dropdown ─────────────────────────────────────────── */
-.cli-picker-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 900;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding-top: 42px; /* offset below tab bar */
-}
-
-.cli-picker {
-  background-color: #1e2030;
-  border: 1px solid #292e42;
-  border-radius: 6px;
-  padding: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  min-width: 140px;
-  margin-left: 8px;
-}
-.cli-picker__label {
-  font-size: 11px;
-  color: #565f89;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 4px 8px;
-}
-.cli-picker__btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: #c0caf5;
-  font-size: 13px;
-  padding: 6px 10px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-family: inherit;
-}
-.cli-picker__btn:hover {
-  background-color: #292e42;
-}
-
 /* --- New Session Modal -------------------------------------------------- */
 .new-session-overlay {
   position: fixed;
