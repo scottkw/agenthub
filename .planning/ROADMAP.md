@@ -132,7 +132,7 @@ Plans:
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
-| 10. Per-Tab Font Size | 1/1 | Complete   | 2026-03-19 | - |
+| 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |
