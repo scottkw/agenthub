@@ -18,6 +18,7 @@ import {
 import type { DetectedCLI } from './wailsjs/go/main/App'
 import { EventsOn } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
+import { StatusBar } from './components/StatusBar'
 
 /**
  * App is the root component — it owns all tab state and wires
@@ -235,48 +236,19 @@ function App(): React.ReactElement {
                 className="terminal-wrapper"
                 style={{ display: isActive ? 'flex' : 'none' }}
               >
-                {/* Per-tab web serving controls — only shown when web server is running */}
-                {webServerRunning && (
-                  <div className="web-serving-bar">
-                    <button
-                      className={`web-toggle-btn${webEnabled[tab.sessionId] ? ' web-toggle-btn--active' : ''}`}
-                      onClick={() => void handleToggleWeb(tab.sessionId)}
-                      title={webEnabled[tab.sessionId] ? 'Disable web serving' : 'Enable web serving'}
-                    >
-                      {webEnabled[tab.sessionId] ? 'Web On' : 'Web Off'}
-                    </button>
-                    {webEnabled[tab.sessionId] && sessionURLs[tab.sessionId] && (
-                      <>
-                        <a
-                          className="web-session-url"
-                          href={sessionURLs[tab.sessionId]}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {sessionURLs[tab.sessionId]}
-                        </a>
-                        <button
-                          className="copy-token-btn"
-                          onClick={() => void handleCopyTokenLink(tab.sessionId)}
-                          title="Copy shareable token link"
-                        >
-                          Copy Token Link
-                        </button>
-                        <button
-                          className="qr-btn"
-                          onClick={() => setQrSessionId(tab.sessionId)}
-                          title="Show QR code for this session"
-                        >
-                          QR
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
                 <TerminalPanel
                   sessionId={tab.sessionId}
                   isActive={isActive}
                   relayPort={relayPort}
+                />
+                <StatusBar
+                  sessionId={tab.sessionId}
+                  webServerRunning={webServerRunning}
+                  webEnabled={!!webEnabled[tab.sessionId]}
+                  sessionURL={sessionURLs[tab.sessionId]}
+                  onToggleWeb={() => void handleToggleWeb(tab.sessionId)}
+                  onCopyTokenLink={() => void handleCopyTokenLink(tab.sessionId)}
+                  onShowQR={() => setQrSessionId(tab.sessionId)}
                 />
               </div>
             )
