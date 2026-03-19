@@ -1,329 +1,369 @@
-# Domain Pitfalls
+# Pitfalls Research
 
-**Domain:** Cross-platform desktop terminal multiplexer (Go/Wails/xterm.js)
-**Researched:** 2026-03-17
-**Overall confidence:** HIGH (most pitfalls verified against official issues and docs)
+**Domain:** Wails v2 / React / xterm.js desktop app — v1.1 feature additions
+**Researched:** 2026-03-19
+**Confidence:** HIGH (all critical pitfalls verified against official issues, docs, and codebase inspection)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites or major architectural rethink.
+Mistakes that force rewrites, break existing functionality, or ship broken features silently.
 
 ---
 
-### Pitfall 1: creack/pty Has No Stable Windows Support
+### Pitfall 1: xterm.js Font Size Change Without Subsequent fit() Leaves Terminal Garbled
 
-**What goes wrong:** `creack/pty` — the most common Go PTY library — does not have merged, production-ready Windows support. Multiple PRs (#109, #155) attempted ConPTY integration but the Windows support issue remains open. Windows uses `ConPTY` (available since Windows 10 build 1903), which requires a fundamentally different API: user-provided I/O streams rather than a file descriptor pair. Code that compiles and works on macOS/Linux will fail or behave incorrectly on Windows at runtime.
+**What goes wrong:**
+Setting `terminal.options.fontSize = newSize` resizes each character cell, which changes the number of columns and rows that fit in the container. If `fitAddon.fit()` is NOT called immediately after, the terminal continues to think it has the old dimensions. The PTY receives incorrect `cols`/`rows` via the resize message, causing AI CLI output to wrap at the wrong column width — the terminal renders correctly visually but the underlying data model is wrong. Issue #4886 on the xterm.js GitHub documents "abnormal display" after fontSize change.
 
-**Why it happens:** POSIX PTY uses `/dev/pts` file descriptors — straightforward `io.ReadWriteCloser`. Windows ConPTY uses `CreatePseudoConsole()` with separate pipe handles and a special process attribute set via `UpdateProcThreadAttribute`. These APIs cannot be abstracted behind the same interface without platform-specific build tags.
+**Why it happens:**
+`terminal.options.fontSize` is a pure render-side option — it changes cell height/width but does NOT trigger the FitAddon's ResizeObserver. The FitAddon only fires on container *pixel* dimension changes, not on logical character dimension changes. A 14px→18px font change with the same container pixel size still requires a re-fit because cols/rows must shrink to fit.
 
-**Consequences:** Windows users get no terminal, or a terminal that appears to work but drops input/output. Go's `os/exec` does not support setting the ConPTY process attribute (Go issues #62708, #6271), making the standard library insufficient for this on Windows.
+**How to avoid:**
+After every font size change: `terminal.options.fontSize = newSize; requestAnimationFrame(() => fitAddonRef.current?.fit())`. The `requestAnimationFrame` defers until after the browser has applied the new glyph metrics. Without the defer, `fit()` reads stale cell dimensions and computes wrong cols/rows. The existing codebase already uses this pattern for other triggers (line 58-60, line 100-102 in TerminalPanel.tsx) — apply it consistently here too.
 
-**Prevention:** Use `github.com/aymanbagabas/go-pty` (Charm's cross-platform PTY library) or `github.com/UserExistsError/conpty` as the Windows ConPTY implementation. These libraries handle the `CreatePseudoConsole` / `os/exec` gap explicitly. Structure PTY code with build tags from day one (`//go:build !windows` vs `//go:build windows`) — do not add Windows support as an afterthought.
+**Warning signs:**
+- Terminal text wraps mid-word at incorrect column position after font size change
+- `onResize` fires with the correct new pixel dimensions but wrong cols/rows
+- AI CLI output re-wraps when pressing Enter after a font change (shell redraws at the old width)
 
-**Detection:** The app builds for Windows but terminal sessions produce no output, or `os/exec` panics on process start. Test Windows PTY in Phase 1 before any other feature.
-
-**Phase:** Phase 1 (PTY core) — must be resolved before any further terminal work.
-
----
-
-### Pitfall 2: win32-input-mode Escape Sequences Corrupt Input on Windows
-
-**What goes wrong:** Windows Terminal enables `win32-input-mode` when output is written to the ConPTY's stdout. In this mode, keystrokes are sent as `\x1b[?9001h` VT sequences rather than raw ASCII or standard VT100. Applications that don't parse this extended format receive garbled input. The sequence to disable win32-input-mode (`\x1b[?9001l`) is unreliable — Windows Terminal continues sending win32-input-mode sequences in many scenarios even after the disable sequence is sent.
-
-**Why it happens:** win32-input-mode was designed to give ConPTY applications richer keyboard input (modifiers, function keys). But it changes the encoding of ALL keystrokes, including simple characters. A terminal multiplexer sitting between Windows Terminal and a hosted process must either forward or translate these sequences.
-
-**Consequences:** AI coding CLIs receive corrupted input. Ctrl+C doesn't interrupt. Arrow keys produce garbage. Claude Code, Gemini CLI, etc. become unusable or unstable.
-
-**Prevention:** Implement a win32-input-mode parser on the Go side using a state machine (a Go 1.23+ iterator-based parser was documented as a working solution in December 2025). Do NOT rely on the disable sequence working. Test input handling with Windows Terminal specifically, not just PowerShell or cmd.exe.
-
-**Detection:** On Windows, typing simple text in the terminal produces garbled output, or Ctrl+C fails to interrupt running processes.
-
-**Phase:** Phase 1 (PTY core / Windows path) — address alongside ConPTY library selection.
+**Phase to address:**
+Font size shortcut implementation phase — verify fit() is called in the same handler that sets fontSize, not as a separate follow-up.
 
 ---
 
-### Pitfall 3: Self-Signed TLS Certs Are Silently Rejected by Browsers for WebSocket (wss://)
+### Pitfall 2: SHIFT+= and SHIFT+- Key Events Are Consumed by xterm.js Before the App Can Handle Them
 
-**What goes wrong:** HTTPS pages must use `wss://` — browsers block `ws://` from secure contexts as mixed content (enforced since Chrome 61, now universal across Chrome, Firefox, Safari, Edge). But browsers do NOT show a "click to proceed" dialog for untrusted certificates on WebSocket upgrades. The connection fails silently with a generic error. Users accessing the web terminal from an external browser will see a broken terminal with no actionable error message.
+**What goes wrong:**
+`SHIFT+=` produces `+` in most keyboard layouts. Inside an xterm.js terminal, typing `+` or `-` is valid terminal input and xterm.js passes it directly to the PTY. If the font size shortcut handler uses `onKey` (which fires after xterm.js processes the key), the character has already been sent to the shell. The user sees their font size change AND a `+` character inserted into the shell prompt simultaneously.
 
-**Why it happens:** Browser security model treats WebSocket certificate rejection as a non-recoverable error. Unlike visiting an HTTPS page where users can click "Advanced > Proceed anyway", there is no equivalent for WebSocket connections.
+**Why it happens:**
+xterm.js has two key event layers: `attachCustomKeyEventHandler` (runs first, can return `false` to cancel PTY delivery) and `onKey` (runs after, PTY already received the input). Font size shortcuts must use `attachCustomKeyEventHandler`, not `onKey` or `onData`, and must return `false` to suppress PTY delivery. Note: `attachCustomKeyEventHandler` only registers ONE handler at a time — registering it again overwrites the previous one, which is a pitfall if other handlers (copy/paste shortcuts) are already registered.
 
-**Consequences:** The entire web-served terminal feature is broken for any user who hasn't installed the certificate in their OS trust store first. Self-signed certs that work for the desktop app's embedded WebView will not work for external browser access without explicit trust installation.
+**How to avoid:**
+Use a single `attachCustomKeyEventHandler` registration that handles all custom shortcuts in one function. Check `ev.type === 'keydown'` (not keyup/keypress), `ev.shiftKey === true`, and `ev.key === '=' || ev.key === '+'` for increase, `ev.key === '-' || ev.key === '_'` for decrease. Return `false` from the handler to prevent PTY delivery. Register this handler inside the session-creation `useEffect` (alongside `term.onData` and `term.onResize`), so it is cleaned up on session close.
 
-**Prevention:** Two-pronged approach:
-1. Generate certs using the CA pattern (create a local CA cert, sign the server cert with it). Ship the CA cert for user installation. Provide in-app instructions to install it per OS.
-2. Consider using `mkcert` as a model — it automates local CA creation and trust store installation. Consider bundling this workflow in the app's first-run setup.
+**Warning signs:**
+- Font size changes but `+` or `-` characters appear in the terminal prompt
+- Only the last-registered custom key handler fires (previous handlers silently replaced)
+- Key events fire twice on some browsers (keydown + keypress)
 
-On the serving side: ensure the Go TLS server presents the full chain (server cert + CA cert) not just the leaf cert. Browsers reject incomplete chains.
-
-**Detection:** External browser shows "WebSocket connection failed" or mixed content error. The terminal is blank. Adding the cert to the system trust store and restarting the browser resolves it.
-
-**Phase:** Phase 2 (TLS + web serving) — design the cert generation and trust-installation flow here, not as a Phase 1 afterthought.
-
----
-
-### Pitfall 4: tmux Does Not Exist on Windows — Feature Parity Gap Is Larger Than Expected
-
-**What goes wrong:** tmux is a POSIX application. It does not run natively on Windows. Options for Windows include Cygwin/MSYS2 bundles (fragile, large), WSL (requires WSL enabled, adds complexity), or skipping tmux entirely. The project already plans a "Go-native PTY mode" as a fallback, but if tmux mode is treated as the primary feature and Go-native PTY as a secondary fallback, Windows ships as a degraded experience.
-
-**Why it happens:** tmux uses POSIX APIs (`socketpair`, `fork/exec`, `sigwinch`, `/tmp` socket paths) that have no direct Windows equivalents.
-
-**Consequences:** If the codebase assumes tmux is available for session management (e.g., `tmux new-session` in the session lifecycle), all of that code is dead on Windows. Session attach/detach from external terminal (`tmux attach`) is a documented feature that is entirely unavailable on Windows without WSL.
-
-**Prevention:** Treat Go-native PTY mode as the primary implementation and tmux mode as an enhancement available when tmux is detected. Code the session lifecycle interface (create, list, attach, resize, kill) as an abstraction layer with two implementations: `TmuxBackend` and `NativePTYBackend`. Both satisfy the same `SessionBackend` interface. Windows uses `NativePTYBackend` unconditionally. macOS/Linux choose based on tmux availability and user preference.
-
-**Detection:** On Windows, any code path that shells out to `tmux` will fail with "executable not found". The symptom is session creation failure at startup.
-
-**Phase:** Phase 1 (session backend design) — the abstraction layer must exist from the start.
+**Phase to address:**
+Font size shortcut implementation phase — verify with manual input testing that no characters leak to the PTY.
 
 ---
 
-### Pitfall 5: Wails v3 Is Still Alpha — API Stability Is Not Guaranteed
+### Pitfall 3: Wails OpenDirectoryDialog Panics on Windows If DefaultDirectory Does Not Exist
 
-**What goes wrong:** Wails v3 is in alpha as of 2026-03. The API is described as "reasonably stable" but there is no release date, no SLA, and known issues remain. The v2 to v3 migration path exists but is not trivial. Choosing v3 now means building on an alpha framework.
+**What goes wrong:**
+`runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{DefaultDirectory: lastPath})` panics on Windows 10 when `lastPath` points to a directory that has since been deleted or is otherwise invalid. This was reported as Issue #1052 and tracked in Issue #1381 in the Wails repo. The fix (validate with `fs.DirExists()` before passing) exists in recent Wails v2 builds, but the application still needs to guard on the Go side.
 
-**Why it happens:** Wails v3 is a significant rewrite with a new multi-window architecture and plugin system. The team adopted a daily release strategy to push through to Beta.
+**Why it happens:**
+The underlying Windows file dialog API (`SHBrowseForFolder` / `IFileOpenDialog`) does not gracefully handle invalid `DefaultDirectory` values — it passes the invalid path directly to Windows API without sanitization, causing an unrecoverable OS-level error that propagates as a Go panic.
 
-**Consequences:** API changes mid-build can break the application. Debugging issues requires reading GitHub issues rather than stable documentation. Some features documented in v3 may change or be removed before release.
-
-**Prevention:** Default to Wails v2 (latest stable release) unless a specific v3 feature is required. v2 is production-proven, has stable documentation, and the core Wails IPC + WebView embedding model is identical to what v3 will be. Re-evaluate v3 migration when it reaches stable release.
-
-**Detection:** Build errors on framework upgrade, or Wails IPC method signatures changing unexpectedly.
-
-**Phase:** Phase 1 (project scaffolding) — make the v2 vs v3 decision explicitly before writing any Wails-specific code.
-
----
-
-## Moderate Pitfalls
-
----
-
-### Pitfall 6: xterm.js Flow Control — Fast Producers Overflow Buffers
-
-**What goes wrong:** xterm.js `write()` is non-blocking and buffers up to 50MB. AI coding CLIs can produce large output bursts (build logs, file scans, `find` results). Without flow control, fast PTY output fills the 50MB buffer, data is silently discarded, and the browser tab may become unresponsive.
-
-**Why it happens:** The WebSocket transport between Go backend and xterm.js has no built-in back-pressure mechanism. The PTY can write faster than xterm.js can render.
-
-**Consequences:** Missing output (silently dropped), browser tab freezing under heavy load, perceived as a broken terminal.
-
-**Prevention:** Implement watermark-based flow control. Use xterm.js's write callback:
-```javascript
-pty.onData(chunk => {
-  pty.pause();
-  term.write(chunk, () => { pty.resume(); });
-});
+**How to avoid:**
+Before calling `OpenDirectoryDialog`, validate the `DefaultDirectory` path on the Go backend:
+```go
+func (a *App) BrowseFolder(defaultDir string) (string, error) {
+    if defaultDir != "" {
+        if _, err := os.Stat(defaultDir); err != nil {
+            defaultDir = "" // fall back to OS default
+        }
+    }
+    return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+        DefaultDirectory: defaultDir,
+        Title: "Choose project folder",
+    })
+}
 ```
-For WebSocket transport, implement an ACK-based flow control protocol: the client sends back an ACK message after each chunk is processed. The Go server waits for ACK before sending the next chunk. This spans the back-pressure accounting across the WebSocket boundary where direct pause/resume semantics are unavailable.
+Also guard the persisted "last folder" value on load — if the file exists but the stored path no longer exists on disk, clear it before passing to the dialog.
 
-**Detection:** Under heavy output (e.g., `find /` or a large build), the terminal stops updating partway through, or output appears truncated.
+**Warning signs:**
+- App crashes on Windows when opening the new-session modal for the first time after a folder has been moved or deleted
+- No crash on macOS (different underlying dialog implementation is more tolerant)
 
-**Phase:** Phase 2 (xterm.js WebSocket integration) — design the flow control protocol before wiring up the first terminal.
-
----
-
-### Pitfall 7: Terminal Resize Race Condition (SIGWINCH / ConPTY Resize)
-
-**What goes wrong:** When the user resizes the xterm.js terminal pane, the new dimensions must propagate: browser → WebSocket → Go backend → PTY resize (`ioctl(TIOCSWINSZ)` on POSIX, `ResizePseudoConsole()` on Windows). If resize events arrive before the PTY process has started, or are processed out of order, the process never gets the correct window size. On ConPTY, resizing near client attach/detach events can be silently ignored.
-
-**Why it happens:** Browser resize events are frequent. The WebSocket introduces latency. PTY resize and process start are not synchronized.
-
-**Consequences:** AI coding CLIs (Claude Code, Gemini CLI) use the terminal dimensions for their TUI layout. Incorrect dimensions cause wrapping artifacts, truncated lines, or UI elements outside the viewport.
-
-**Prevention:** Debounce resize events in the browser (100-200ms). Send dimensions as part of the initial WebSocket handshake so the PTY is created with the correct size from the start. On Windows, test ConPTY resize specifically — there is a documented bug where resize calls near client attach are silently ignored.
-
-**Detection:** TUI-based CLIs (Claude Code, OpenCode) show incorrect line wrapping immediately after launch, or after window resize.
-
-**Phase:** Phase 2 (PTY + xterm.js wiring) — handle resize protocol in the same pass as initial terminal setup.
+**Phase to address:**
+New-session modal / folder browser implementation phase — handle the "last folder" loading path defensively from day one.
 
 ---
 
-### Pitfall 8: Wails WebView + Custom HTTP Server CORS Conflicts
+### Pitfall 4: Terminal Not Filling Available Height — The Flex `min-height: 0` Trap
 
-**What goes wrong:** The Wails frontend runs at the `wails://wails` or `http://wails.localhost` origin (platform-dependent). When the same Go process also serves an HTTP/WebSocket server on a real port for external browser access, cross-origin requests from the embedded WebView to the local server are blocked by CORS. In Wails v3 specifically, sending large payloads (2MB+) via service calls can fail with a CORS policy error.
+**What goes wrong:**
+When a new per-tab status bar is added above the `TerminalPanel`, the terminal container stops filling the remaining space. The flex child with `flex: 1` stops expanding because its parent doesn't have `min-height: 0`. This is a well-known CSS flexbox bug: flex items have `min-height: auto` by default, which prevents them from shrinking below their content size even when `flex: 1` is set. The xterm.js FitAddon then measures a container with a non-zero height remainder and computes incorrect terminal dimensions.
 
-**Why it happens:** The WebView origin and the Go HTTP server origin are different even though they're in the same process. The browser's same-origin policy applies regardless.
+**Why it happens:**
+The existing `.terminal-wrapper` already has `display: flex; flex-direction: column; width: 100%; height: 100%`. Adding a new `<div className="status-bar">` with `flex-shrink: 0` inside it creates a new flex child above `TerminalPanel`. The `TerminalPanel`'s outer div has `flex: 1` but without `min-height: 0` on either the wrapper or the panel div, the browser calculates the available height incorrectly. This is confirmed by the existing `min-height: 0` in `.terminal-container` in style.css — the same fix is needed at every flex level in the chain.
 
-**Consequences:** The embedded desktop UI cannot talk to the same Go server that serves external browser sessions. The Wails IPC bridge and the web-serving HTTP server must be carefully isolated so they don't conflict.
+**How to avoid:**
+Every flex container in the vertical chain that uses `flex: 1` must also have `min-height: 0`. Check all ancestors of the `TerminalPanel` container:
+- `.app` (already: `display: flex; flex-direction: column; height: 100%`)
+- `.terminal-container` (already: `flex: 1; overflow: hidden` — add `min-height: 0` if not present)
+- `.terminal-wrapper` (add `min-height: 0`)
+- The `TerminalPanel` outer div (`flex: 1; min-height: 0`)
 
-**Prevention:** Route all desktop app communication through Wails IPC (Go method bindings), never via direct HTTP to the local server. The web-serving HTTP server is for external browsers only. Add proper CORS headers to the Go HTTP server for the cases where the WebView legitimately needs to call it. Explicitly add `Access-Control-Allow-Origin` for the Wails origin.
+Also: the per-tab status bar must use `flex-shrink: 0` (not `flex: 1`) so only the terminal grows to fill remaining space.
 
-**Detection:** Console shows "has been blocked by CORS policy" when desktop UI calls the Go server directly. Or large IPC payloads fail silently.
+**Warning signs:**
+- Terminal only fills part of the window vertically, with a gray or empty strip at the bottom
+- FitAddon reports fewer rows than expected (e.g., 20 rows when 40 would fit)
+- Issue appears or disappears based on whether the status bar has rendered content
 
-**Phase:** Phase 2 (architecture of desktop IPC vs. web server paths) — separate the concerns before building any frontend features.
-
----
-
-### Pitfall 9: macOS Notarization Requires Paid Developer Account and Correct Tooling
-
-**What goes wrong:** The Wails documentation references `gon` for notarization, which uses the deprecated `altool` API. Apple has migrated to `notarytool`. Additionally, notarization requires a paid Apple Developer account ($99/year). Free accounts cannot notarize, and macOS Gatekeeper will show "unverified developer" warnings that most users will not know how to bypass.
-
-**Why it happens:** Apple requires all distributed macOS apps to be signed and notarized to avoid Gatekeeper warnings. The toolchain for this has changed and documentation hasn't fully caught up.
-
-**Consequences:** macOS users downloading the app see "Apple could not verify this app is free from malware" and many will refuse to open it. This significantly harms adoption.
-
-**Prevention:** Use `notarytool` (not `altool`) in the CI/CD pipeline. Create the notarization zip with `ditto -c -k --keepParent` (not `zip -r` which causes invalid signature errors). Validate `notarytool` output in CI — it exits with status 0 even on failure, so parse stdout for errors. Budget for the Apple Developer account cost.
-
-**Detection:** `notarytool` exits 0 but the output contains "Invalid" or "rejected". Or macOS shows Gatekeeper warning on first launch.
-
-**Phase:** Phase 5 (distribution/packaging) — plan for this in advance, not as a last-minute issue.
+**Phase to address:**
+Per-tab status bar implementation phase — test terminal fill explicitly after adding the status bar, before considering the feature done.
 
 ---
 
-### Pitfall 10: AI Coding CLIs Require a Proper PTY (Not Just a Pipe)
+### Pitfall 5: Tab Rename Does Not Propagate to Web Dashboard Session Names
 
-**What goes wrong:** Claude Code, Gemini CLI, and OpenCode are interactive TUI applications built with libraries like Bubble Tea or Ink. These libraries check `isatty()` on stdin/stdout and switch to a simplified non-interactive mode (or refuse to run) if PTY is not detected. Running them via a plain `exec.Cmd` with piped stdin/stdout will not produce a functional interactive terminal.
+**What goes wrong:**
+`RenameSession` in app.go updates `a.tabNames[id]` in memory and the React state in the desktop frontend. But the web dashboard (served to external browsers) fetches session names from `ListSessions()`, which reads `a.tabNames`. The problem: external browser clients have no mechanism to know when a rename happened — they don't receive Wails events (`EventsEmit` only reaches the embedded WebView, not WebSocket clients). Web dashboard session names go stale immediately after any rename.
 
-**Why it happens:** TUI libraries use ANSI escape codes for cursor positioning, color, and dynamic rendering. These rely on terminal capabilities reported via `TERM` environment variable and `isatty()`. Pipes don't support these.
+**Why it happens:**
+There are two independent display surfaces (desktop WebView, external browsers) sharing the same session state but with different update mechanisms. Wails `EventsEmit` only reaches the embedded frontend via the IPC bridge — it does not reach WebSocket-connected external clients. The web dashboard currently has no rename notification channel.
 
-**Consequences:** Claude Code launched without a PTY shows degraded output or exits immediately. Gemini CLI's PTY support for interactive subcommands (like `vim`) was explicitly added as a feature — it requires PTY to work at all.
+**How to avoid:**
+One of two approaches:
+1. **Polling (simpler):** The web dashboard polls `GET /api/sessions` on a short interval (e.g., every 3-5 seconds). The Go handler for this endpoint reads `a.tabNames` and returns current names. No new infrastructure needed, slightly stale data acceptable.
+2. **SSE or WebSocket push (real-time):** Add a Server-Sent Events endpoint to the web server. On `RenameSession`, publish a `session_renamed` event. Web dashboard subscribes and updates the name. More complex but correct latency.
 
-**Prevention:** Always spawn AI coding CLIs inside a properly allocated PTY. Set the `TERM=xterm-256color` environment variable. Do not assume the inherited environment from the Wails process will have a correct `TERM` setting (the WebView process environment may not).
+For v1.1, polling is sufficient. The key is to NOT consider rename "done" until the web dashboard reflects the change.
 
-**Detection:** Claude Code starts but shows no TUI, or outputs "not a TTY" and exits. Gemini CLI's interactive commands fail silently.
+**Warning signs:**
+- Renaming a tab in the desktop app does not update the session name shown on the web dashboard until page reload
+- Web dashboard shows original CLI name (e.g., "claude") instead of user-assigned name (e.g., "auth-refactor") after rename
 
-**Phase:** Phase 1 (PTY session launch) — test with Claude Code and Gemini CLI as integration tests for the PTY implementation.
-
----
-
-### Pitfall 11: VPN Interface Detection Is Platform-Specific and Fragile
-
-**What goes wrong:** Binding the Go HTTP server to a specific VPN interface IP (e.g., Tailscale's `100.x.y.z` address) requires detecting that interface reliably. On macOS, Tailscale uses a `utun` interface. On Linux, it uses `tailscale0`. On Windows, it uses a WireGuard virtual adapter with a non-deterministic name. Interface names change. The interface may not exist yet when the app starts (if Tailscale isn't connected).
-
-**Why it happens:** `net.Interfaces()` returns all interfaces, but none have stable, cross-platform names. Tailscale's IP range (`100.64.0.0/10`) is more reliable than interface names for detection, but address assignment is also not instant.
-
-**Consequences:** If the app tries to bind to a VPN interface that doesn't exist yet, `net.Listen()` returns an error and web serving fails. If interface detection uses interface names, it fails on any platform other than the one it was tested on.
-
-**Prevention:** Use IP range heuristics (`100.64.0.0/10` for Tailscale) rather than interface names for detection. Poll `net.Interfaces()` on a short interval at startup, with a timeout and graceful fallback to `0.0.0.0`. For Tailscale specifically, the `tailscale.com/net/netns` package provides `SetBindToInterfaceByRoute` — but be aware it currently only affects behavior on macOS and Windows. On Linux, binding is handled differently. Expose the detected VPN IP in the UI and allow manual override.
-
-**Detection:** App starts but web serving reports "bind: cannot assign requested address". Tailscale indicator in UI shows "not connected" even when Tailscale is running.
-
-**Phase:** Phase 3 (VPN binding feature) — prototype interface detection on all three platforms before committing to an architecture.
+**Phase to address:**
+Tab renaming phase — explicitly verify web dashboard reflects rename before marking the task complete.
 
 ---
 
-### Pitfall 12: PTY Process Orphans on App Close or Session Disconnect
+### Pitfall 6: macOS Signing: `--deep` Flag Breaks Code Signature Integrity
 
-**What goes wrong:** When the Wails app window is closed, the Go process receives a shutdown signal. If PTY child processes (Claude Code, etc.) are not explicitly terminated, they become orphans with PPID=1 and continue running, consuming memory and CPU indefinitely. This is a documented real-world issue in both OpenCode (GitHub issue #12913) and Gemini CLI (issue #20941 — nested background processes survive PTY abort).
+**What goes wrong:**
+Using `codesign --deep` to sign the Wails `.app` bundle appears to sign all nested binaries recursively, but it does NOT correctly sign them in the required bottom-up order. Go-built binaries embedded in the app bundle are signed incorrectly with `--deep`, and Apple's notarization service rejects the submission with "The signature of the binary is invalid." The `--deep` flag is documented as unreliable for production signing in Apple's own documentation and in community post-mortems.
 
-**Why it happens:** Go's `os/exec` does not automatically kill child processes when the parent exits. PTY-based processes are not in the same process group by default on all platforms, so `cmd.Process.Kill()` may not kill child subprocesses spawned by the AI CLI.
+**Why it happens:**
+Correct macOS code signing requires signing all nested components first (bottom-up), then signing the outer bundle last. `--deep` attempts this automatically but fails for Go-compiled Mach-O binaries that have specific entitlement requirements or when the binary is in a non-standard location within the bundle. The Wails `.app` has the main binary at `Contents/MacOS/agenthub` — it must be signed before `Contents` is signed, before the `.app` is signed.
 
-**Consequences:** Multiple forgotten AI coding CLI sessions silently consume RAM. On resource-constrained machines, this can cause OOM within hours. Users report the app "leaking" processes.
+**How to avoid:**
+Sign explicitly, bottom-up, without `--deep`:
+```bash
+codesign --force --options runtime \
+  --entitlements build/entitlements.plist \
+  --sign "Developer ID Application: <name> (<team-id>)" \
+  --timestamp \
+  "agenthub.app/Contents/MacOS/agenthub"
 
-**Prevention:**
-- Use process groups: start PTY processes with `SysProcAttr{Setpgid: true}` on POSIX. Kill the entire group with `syscall.Kill(-pgid, syscall.SIGKILL)` on shutdown.
-- On Windows, use a Job Object to ensure child process termination when the parent exits.
-- Register a `signal.NotifyContext` shutdown handler in the Go process that iterates all active sessions and terminates them before exiting.
-- Implement a session registry that tracks all live PTY processes.
+codesign --force --options runtime \
+  --entitlements build/entitlements.plist \
+  --sign "Developer ID Application: <name> (<team-id>)" \
+  --timestamp \
+  "agenthub.app"
+```
+Use `notarytool` (not the deprecated `altool`) to submit. Create the notarization zip with `ditto -c -k --keepParent agenthub.app agenthub.zip` (NOT `zip -r` — zip does not preserve extended attributes needed for code signing integrity).
 
-**Detection:** `ps aux | grep claude` (or equivalent) shows multiple `claude` processes after closing the app. Memory usage grows across app restarts.
+**Warning signs:**
+- `codesign --verify --deep --strict agenthub.app` exits non-zero after signing with `--deep`
+- `xcrun notarytool submit` returns status "Invalid" even though `codesign` exits 0
+- `spctl --assess --type execute agenthub.app` outputs "rejected"
 
-**Phase:** Phase 1 (session lifecycle) — build the session registry and shutdown handler before shipping any session management.
-
----
-
-## Minor Pitfalls
-
----
-
-### Pitfall 13: Wails WebView2 (Windows) Lacks Cookie Support
-
-**What goes wrong:** Microsoft WebView2 on Windows has limited cookie support from the perspective of Wails-served content. This can affect session auth token storage if the frontend uses `document.cookie`. WebView2 uses Blink/Edge rendering which behaves differently from macOS WebKit and Linux WebKitGTK.
-
-**Prevention:** Use `localStorage` or `sessionStorage` instead of cookies for auth token persistence in the embedded desktop UI. Do not rely on browser cookies for the Wails IPC layer. For the external web interface (served to external browsers), cookies work normally.
-
-**Phase:** Phase 2 (auth implementation for web dashboard).
-
----
-
-### Pitfall 14: Linux WebKitGTK Version Fragmentation
-
-**What goes wrong:** Different Linux distributions ship different versions of WebKitGTK. Wails has had to update its dependency from `webkit2gtk-4.0` to `webkit2gtk-4.1` for Ubuntu 24.04 LTS. The NVIDIA/Wayland combination triggers a DMA-BUF renderer crash (Error 71, Protocol error) that requires auto-detection and fallback.
-
-**Prevention:** Test on Ubuntu 22.04, Ubuntu 24.04, Fedora latest, and Arch. Set `WEBKIT_DISABLE_COMPOSITING_MODE=1` as an environment variable fallback for Wayland/NVIDIA. Wails v2 has added auto-detection for this — verify the installed version handles it. Document minimum WebKitGTK version in system requirements.
-
-**Phase:** Phase 5 (packaging and distribution) — define minimum Linux requirements explicitly.
+**Phase to address:**
+Build script implementation phase — test the full sign + notarize + staple pipeline end-to-end before declaring the build script complete.
 
 ---
 
-### Pitfall 15: xterm.js Blob Message Ordering (Attach Addon)
+### Pitfall 7: `notarytool` Exits 0 Even on Failure — CI Silently Ships Unsigned Binaries
 
-**What goes wrong:** The `@xterm/addon-attach` uses `FileReader.readAsArrayBuffer` for Blob messages, which is asynchronous. If the server sends multiple WebSocket frames in quick succession and some are Blobs, they can be processed out of order — later text messages render before earlier Blob messages complete.
+**What goes wrong:**
+`xcrun notarytool submit app.zip --wait` exits with status 0 even when notarization fails (e.g., "Invalid" or "Rejected" status). A CI pipeline that checks only `$?` will proceed to staple and release a binary that Gatekeeper will block. The failure is only visible by parsing stdout for the status string.
 
-**Prevention:** Use `ArrayBuffer` instead of `Blob` as the WebSocket binary type (`ws.binaryType = 'arraybuffer'`). This makes all binary messages synchronous in the message handler. Do not rely on the attach addon's default Blob handling.
+**Why it happens:**
+`notarytool` considers "submission received and processed" to be a success (exit 0), regardless of whether Apple approved or rejected the submission. This is by design but is a pitfall for naive CI scripts.
 
-**Phase:** Phase 2 (xterm.js WebSocket integration) — set the binary type explicitly in the WebSocket setup.
+**How to avoid:**
+Parse notarytool output explicitly:
+```bash
+RESULT=$(xcrun notarytool submit agenthub.zip \
+  --apple-id "$APPLE_ID" \
+  --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+  --wait --output-format json)
+
+STATUS=$(echo "$RESULT" | jq -r '.status')
+if [ "$STATUS" != "Accepted" ]; then
+  echo "Notarization failed: $STATUS"
+  echo "$RESULT" | jq .
+  exit 1
+fi
+xcrun stapler staple agenthub.app
+```
+Store Apple credentials as GitHub Actions secrets. Use an app-specific password (not the account password). CI must run on a macOS runner — notarization requires network access to Apple's servers and a macOS-signed submission binary.
+
+**Warning signs:**
+- CI build passes but macOS users report "cannot be opened because Apple cannot check it for malicious software"
+- notarytool output contains "status: Invalid" but CI reported success
+
+**Phase to address:**
+Build script implementation phase — the CI notarization check must be explicit from day one.
 
 ---
 
-### Pitfall 16: WebSocket Heartbeat / Tab Visibility
+### Pitfall 8: UI Refactor Breaks Wails Binding Imports — TypeScript Types Silently Stale
 
-**What goes wrong:** When the browser tab is in the background or the user switches windows, the browser throttles JavaScript execution. The xterm.js WebSocket connection can appear to hang — the backend process continues writing but the frontend stops processing messages. The connection doesn't technically drop, but it appears frozen.
+**What goes wrong:**
+Wails generates TypeScript bindings in `frontend/src/wailsjs/go/main/App.ts` by introspecting the exported Go methods on `App`. When new Go methods are added (e.g., `BrowseFolder`, `GetLastFolder`) or signatures change, running `wails build` or `wails dev` regenerates these bindings. If the frontend is modified without regenerating (e.g., editing `.tsx` files while `wails dev` is NOT running), the TypeScript types become stale. The code compiles and type-checks against the old bindings, but at runtime calls to new methods silently return undefined or throw "method not found" errors.
 
-**Prevention:** Implement WebSocket ping/pong at the Go server level (not just relying on the browser). Use the gorilla/websocket `SetPongHandler` and send periodic `WriteControl(PingMessage)`. Detect dead connections server-side and clean up. Client-side, the WebSocket reconnection logic should handle tab resume transparently without requiring a page reload.
+**Why it happens:**
+The `wailsjs/` directory is auto-generated and gitignored (or included but only updated on `wails build`/`wails dev`). Frontend developers refactoring components may not realize that new Wails-bound methods require a rebuild to update the bindings file. TypeScript compiles against the local `.ts` file, which is stale.
 
-**Phase:** Phase 2 (WebSocket infrastructure) — add heartbeat in the same pass as WebSocket setup.
+**How to avoid:**
+- Always run `wails dev` (not `pnpm dev`) when working on features that touch Go-backend interfaces
+- After adding any new Go method to `App`, verify the binding is regenerated in `wailsjs/go/main/App.ts` before writing frontend code that calls it
+- Add a note in the build script that regenerating bindings is a prerequisite when Go method signatures change
+
+**Warning signs:**
+- TypeScript compiles cleanly but runtime throws "method not bound" or function returns undefined
+- `frontend/src/wailsjs/go/main/App.ts` does not list the new method you just added in Go
+- Feature works in Wails dev mode but not in production build (or vice versa)
+
+**Phase to address:**
+Every phase that adds new Go methods — regenerate bindings as part of the definition of "done" for backend work.
 
 ---
 
-### Pitfall 17: HTTP/2 and WebSocket Upgrade Conflict
+## Technical Debt Patterns
 
-**What goes wrong:** Go's `net/http` package automatically enables HTTP/2 when serving with TLS. HTTP/2 uses multiplexed streams over a single connection — WebSocket upgrades (`Connection: Upgrade`) are not compatible with HTTP/2 framing. Gorilla WebSocket explicitly does not support HTTP/2.
+Shortcuts that seem reasonable but create long-term problems.
 
-**Why it happens:** HTTP/2 spec (RFC 7540) does not define how to do a WebSocket upgrade over HTTP/2 (that's HTTP/3's territory via WebTransport). Gorilla WebSocket falls back gracefully, but only if the server properly negotiates HTTP/1.1 for WebSocket endpoints.
-
-**Prevention:** Explicitly configure the TLS server to negotiate HTTP/1.1 for WebSocket paths. In Go, this means setting `TLSNextProto` to an empty map for the WebSocket handler's HTTP server, or using a different listener configuration for WebSocket vs non-WebSocket routes.
-
-**Detection:** WebSocket connections fail with `bad handshake` or `protocol error` when TLS is enabled. Works over plain HTTP but not HTTPS.
-
-**Phase:** Phase 2 (TLS + WebSocket serving) — test WebSocket over TLS explicitly, not just over plain HTTP.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Store "last folder" in React state only (not persisted) | No persistence code needed | User loses last folder on restart | Never — persistence was an explicit requirement |
+| Per-terminal fontSize stored in xterm options only | Simple state | Lost on terminal re-mount / session restore | Only if per-session font size is not a v1.1 requirement |
+| Web dashboard rename propagation via full-page reload only | No SSE/polling needed | Confusing UX for remote users watching a renamed session | Acceptable for v1.1 if polling is added later; not acceptable if web dashboard is primary UI |
+| Build script that only signs on CI (not locally) | Simpler local dev | Cannot test notarization locally, CI failures are slow to iterate | Acceptable temporarily; add local signing path before release |
+| Hardcoding `build/entitlements.plist` path in build script | Works today | Breaks if build structure changes | Acceptable; document the assumption clearly |
 
 ---
 
-## Phase-Specific Warnings
+## Integration Gotchas
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Phase 1: PTY core | creack/pty has no Windows support | Use aymanbagabas/go-pty from day one |
-| Phase 1: PTY core | AI CLIs need proper PTY, not a pipe | Test Claude Code launch in Phase 1 |
-| Phase 1: Session lifecycle | Orphan processes on app close | Build session registry + shutdown handler before first demo |
-| Phase 1: Windows PTY | win32-input-mode corrupts input | Write win32-input-mode parser or use existing solution |
-| Phase 1: Session backend | tmux unavailable on Windows | Abstract SessionBackend interface from day one |
-| Phase 2: xterm.js integration | Flow control / buffer overflow | Design ACK protocol before wiring WebSocket |
-| Phase 2: xterm.js integration | Blob message ordering | Set `binaryType = 'arraybuffer'` immediately |
-| Phase 2: xterm.js integration | Tab visibility / WebSocket freeze | Add gorilla/websocket ping/pong in same pass |
-| Phase 2: Wails + HTTP server | CORS conflicts between WebView and HTTP server | Route desktop UI through Wails IPC only |
-| Phase 2: TLS + WebSocket | HTTP/2 breaks WebSocket upgrade | Configure HTTP/1.1 for WebSocket endpoints |
-| Phase 2: TLS design | Self-signed certs rejected silently for wss:// | Design CA + cert installation flow, not just cert generation |
-| Phase 3: VPN binding | Interface detection fragile and platform-specific | Use IP range heuristics, poll with timeout, manual override |
-| Phase 3: Terminal resize | SIGWINCH race on Windows ConPTY | Debounce + send dimensions in initial handshake |
-| Phase 5: macOS distribution | notarytool vs altool, paid account required | Use notarytool, budget for Apple Developer account |
-| Phase 5: Linux distribution | WebKitGTK version fragmentation | Test Ubuntu 22.04, 24.04, Fedora, Arch; document minimums |
+Common mistakes when connecting the new features to existing systems.
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| xterm.js fontSize + FitAddon | Set fontSize, forget to call fit() | Always `requestAnimationFrame(() => fitAddon.fit())` after setting fontSize |
+| xterm.js key handler + PTY input | Use onKey (after PTY delivery) for font shortcuts | Use `attachCustomKeyEventHandler` (before PTY delivery), return false |
+| Wails OpenDirectoryDialog + last path persistence | Pass stale/deleted path as DefaultDirectory | Validate path existence before passing; fall back to "" |
+| macOS codesign + notarytool | Sign with --deep; use altool; check only exit code | Sign bottom-up without --deep; use notarytool; parse output for "Accepted" |
+| Tab rename + web dashboard | Only update React state | Also verify web dashboard reflects rename via ListSessions |
+| Per-tab status bar + terminal fill | Status bar added but no min-height: 0 on flex ancestors | Check entire flex chain for min-height: 0 at every column flex level |
+| Wails binding regeneration | Edit frontend without running wails dev | Always run wails dev when Go method signatures change |
+
+---
+
+## Performance Traps
+
+Patterns that work at small scale but fail as usage grows.
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Font size change triggers rapid SHIFT+hold | Continuous fit() calls, WebSocket resize storm | Debounce font size changes (50-100ms) before calling fit() and sending PTY resize | When user holds SHIFT+= |
+| Web dashboard polling for renames at 1-second interval | Unnecessary load on Go server with many open sessions | Poll at 3-5 second interval; only poll when dashboard tab is visible | >10 sessions with aggressive polling |
+| ResizeObserver firing on every status bar content change | Spurious terminal re-fits | Status bar content changes must not change the container pixel height | Status bar with variable-height content (errors, long URLs) |
+
+---
+
+## Security Mistakes
+
+Domain-specific security issues for the new features.
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Storing Apple signing certificate as plaintext in build script or repo | Certificate theft, unauthorized app distribution | Store as base64-encoded GitHub Actions secret; decode to temp file; delete after signing |
+| Using account password instead of app-specific password for notarytool | Full Apple account compromise if CI secret leaks | Always use app-specific passwords from appleid.apple.com |
+| Allowing BrowseFolder to return paths outside the user's home directory | Path traversal if the returned path is used to construct shell commands | Validate returned folder path before using it in session creation; use it only as working directory, not in shell command strings |
+
+---
+
+## UX Pitfalls
+
+Common user experience mistakes in these specific features.
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Font size shortcut changes font but doesn't update other tabs | Confusing — different tabs have different font sizes unexpectedly | Decide up front: per-tab or global font size. If per-tab, make that obvious; if global, store in app-level state and apply to all terminals |
+| New-session modal requires clicking into folder browser every time | Friction for power users creating multiple sessions in same folder | Default to "last used folder"; only show browser if user clicks the folder field |
+| Folder browser shows hidden files by default | Confusing on macOS where most project dirs are visible | Default ShowHiddenFiles: false; consider adding a toggle |
+| Status bar added per tab but shows nothing when web server is off | Wasted vertical space; terminal area shrinks for no reason | Conditionally render status bar (only when web server is running, matching existing pattern in web-serving-bar) |
+| Tab rename input doesn't trim whitespace | User creates tab named " " or "  " which looks empty | Already handled in TabBar.tsx (trimmed.length > 0 check) — maintain this in any rename refactor |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **Font size shortcut:** Key handler prevents PTY delivery AND calls fit() AND sends PTY resize — verify all three, not just the visual font change
+- [ ] **Folder browser:** Persists last path across app restarts (not just within a session) — verify with app restart
+- [ ] **Tab rename:** Web dashboard session list reflects new name — verify in browser, not just in desktop UI
+- [ ] **macOS build script:** Signed AND notarized AND stapled AND verified with `spctl --assess` — not just codesigned
+- [ ] **Terminal fill fix:** Status bar added but terminal still fills remaining space — verify with both short and tall status bar content
+- [ ] **Per-tab status bar:** Renders correctly on all three platforms — macOS, Linux, Windows (flexbox rendering differs slightly in WebKit vs WebView2)
+- [ ] **Build script:** Works locally (not just CI) — test `./build.sh darwin` on a dev machine with signing certs available
+
+---
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Garbled terminal after font size change | LOW | Add `requestAnimationFrame(() => fitAddon.fit())` after fontSize set; regression test |
+| Key handler leaks + to PTY | LOW | Replace onKey with attachCustomKeyEventHandler, return false; test input |
+| OpenDirectoryDialog panic on Windows | LOW | Add os.Stat validation before passing DefaultDirectory; deploy patch build |
+| Terminal not filling height | LOW-MEDIUM | Audit flex chain for missing min-height: 0; CSS-only fix |
+| Rename not on web dashboard | MEDIUM | Add polling to web dashboard or SSE endpoint; frontend-only if polling chosen |
+| Notarization accepted by CI but rejected by Gatekeeper | MEDIUM | Re-sign from scratch bottom-up; renotarize; update CI to parse notarytool output |
+| Wails bindings stale | LOW | Run wails dev to regenerate; delete wailsjs/ and rebuild |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Font size without fit() | Font size shortcuts phase | Hold SHIFT+= for 2 seconds; verify terminal wraps correctly |
+| Key handler leaks to PTY | Font size shortcuts phase | Type + and - normally in terminal after implementing shortcuts; verify no regression |
+| OpenDirectoryDialog panic | New-session modal phase | Test on Windows with a deleted "last folder" path |
+| Terminal fill with status bar | Per-tab status bar phase | Add status bar; verify terminal occupies all remaining space |
+| Tab rename not on web dashboard | Tab renaming phase | Rename a tab; reload web dashboard; verify name matches |
+| codesign --deep | Build script phase | Run `codesign --verify --deep --strict` after signing |
+| notarytool exit-0 on failure | Build script phase | Parse notarytool JSON output; fail CI if status != Accepted |
+| Stale Wails bindings | Any phase adding Go methods | Check wailsjs/go/main/App.ts for new method before writing frontend code |
 
 ---
 
 ## Sources
 
-- [creack/pty Windows support issue #95](https://github.com/creack/pty/issues/95) — open since 2020, Windows support unmerged
-- [go-pty cross-platform library (aymanbagabas)](https://github.com/aymanbagabas/go-pty) — Charm's cross-platform PTY with ConPTY support
-- [Win32-input-mode ConPTY Go application (DEV, Dec 2025)](https://dev.to/andylbrummer/taming-windows-terminals-win32-input-mode-in-go-conpty-applications-7gg) — win32-input-mode parser implementation
-- [ConPTY resize bug near client attach](https://github.com/microsoft/terminal/issues/10400) — ConPTY resize silently ignored
-- [ConPTY modifies escape sequences](https://github.com/microsoft/terminal/issues/12166) — escape sequence passthrough issue
-- [xterm.js Flow Control Guide](https://xtermjs.org/docs/guides/flowcontrol/) — official watermark strategy documentation
-- [xterm.js 50MB buffer limit / flow control issue #2077](https://github.com/xtermjs/xterm.js/issues/2077) — buffer overflow documented
-- [xterm.js Blob message ordering issue #1893](https://github.com/xtermjs/xterm.js/issues/1893) — async Blob reordering
-- [Wails CORS issue #1642](https://github.com/wailsapp/wails/issues/1642) — wails:// origin blocked
-- [Wails v3 large payload CORS issue #4428](https://github.com/wailsapp/wails/issues/4428) — 2MB+ CORS failure
-- [Wails WebSocket message truncation fix PR #4215](https://github.com/wailsapp/wails/pull/4215) — websocket fragmentation bug
-- [Wails v3 release status discussion #4447](https://github.com/wailsapp/wails/discussions/4447) — alpha, no release date
-- [Wails macOS notarization issue #3290](https://github.com/wailsapp/wails/issues/3290) — notarization failures
-- [Wails Ubuntu 24.04 WebKitGTK issue #3581](https://github.com/wailsapp/wails/issues/3581) — webkit2gtk-4.1 dependency
-- [Wails Linux distribution support guide](https://wails.io/docs/guides/linux-distro-support/) — official distro support docs
-- [Wails code signing guide](https://wails.io/docs/guides/signing/) — macOS signing documentation
-- [OpenCode orphan process issue #12913](https://github.com/anomalyco/opencode/issues/12913) — process leak on disconnect
-- [Gemini CLI PTY process group issue #20941](https://github.com/google-gemini/gemini-cli/issues/20941) — nested process tree not killed
-- [Gemini CLI PTY support for interactive commands](https://developers.google.com/gemini-code-assist/docs/gemini-cli) — PTY required for vim/interactive subcommands
-- [Chrome self-signed cert for WSS — CodeLessGenie](https://www.codelessgenie.com/blog/can-t-connect-to-local-node-js-secure-websocketserver/) — WSS with self-signed certs silently rejected
-- [HTTP/2 WebSocket proposal golang/go #53209](https://github.com/golang/go/issues/53209) — WebSocket over HTTP/2 not supported
-- [Gorilla WebSocket](https://pkg.go.dev/github.com/gorilla/websocket) — standard Go WebSocket library
+- [xterm.js Issue #4886 — Set fontSize causes abnormal display](https://github.com/xtermjs/xterm.js/issues/4886) — confirmed: fontSize change requires fit() call
+- [xterm.js ITerminalOptions — fontSize](https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/) — authoritative option documentation
+- [xterm.js Terminal.attachCustomKeyEventHandler](https://xtermjs.org/docs/api/terminal/classes/terminal/) — key handler API
+- [xterm.js FitAddon resize issues #4841](https://github.com/xtermjs/xterm.js/issues/4841) — FitAddon resizes incorrectly when called with stale dimensions
+- [Wails OpenDirectoryDialog panic Issue #1052](https://github.com/wailsapp/wails/issues/1052) — DefaultDirectory panic on Windows
+- [Wails OpenDirectoryDialog invalid path Issue #1381](https://github.com/wailsapp/wails/issues/1381) — fix: validate DefaultDirectory before passing
+- [Wails Dialog reference](https://wails.io/docs/reference/runtime/dialog/) — OpenDirectoryDialog API
+- [Apple notarization with notarytool — Automatic CI setup (federicoterzi.com)](https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/) — notarytool pipeline, exit-0 trap documented
+- [macOS code signing gist (rsms)](https://gist.github.com/rsms/929c9c2fec231f0cf843a1a746a416f5) — bottom-up signing, --deep pitfall
+- [ddev signing_tools](https://github.com/ddev/signing_tools) — reference implementation for CI signing
+- [Wails cross-platform build guide](https://wails.io/docs/guides/crossplatform-build/) — macOS must build on macOS runner (CGO)
+- [Wails code signing guide](https://wails.io/docs/guides/signing/) — official Wails signing documentation
+- [xterm.js CSS flex min-height:0 fix — Issue #3346](https://github.com/xtermjs/xterm.js/issues/3346) — FitAddon height zero when flex container lacks min-height: 0
+
+---
+*Pitfalls research for: Wails/React/xterm.js v1.1 — build script, UI refactor, folder browser, font resize, terminal fill, tab rename*
+*Researched: 2026-03-19*

@@ -1,238 +1,189 @@
 # Project Research Summary
 
-**Project:** AgentHub
-**Domain:** Cross-platform desktop terminal multiplexer with remote web serving for AI coding CLIs
-**Researched:** 2026-03-17
-**Confidence:** MEDIUM-HIGH
+**Project:** AgentHub v1.1 Polish & Build
+**Domain:** Cross-platform desktop terminal multiplexer (Go/Wails + React/xterm.js) for AI coding CLIs
+**Researched:** 2026-03-19
+**Confidence:** HIGH
 
 ## Executive Summary
 
-AgentHub is a niche but well-defined product: a desktop app that hosts multiple AI coding CLI sessions (Claude Code, Codex, Gemini CLI, OpenCode) in a tabbed terminal UI and exposes each session to remote browsers over a self-hosted, VPN-scoped HTTPS connection. The closest prior art is ttyd/GoTTY for web terminal serving and agent-deck for AI CLI session management — AgentHub combines both with a better UX story (QR codes, session toggles, single app). The right approach is a single Go process using Wails v2 for the desktop shell, go-pty for cross-platform PTY management, xterm.js for terminal rendering, and a standard `net/http` server with self-signed TLS for the remote web serving surface. The stack is minimal, stdlib-heavy, and validated against production tools (VS Code uses xterm.js; Coder uses the same websocket library).
+AgentHub v1.1 is a polish-and-build milestone on top of a fully functional v1.0. The app is a Wails v2 desktop app (Go backend + React/xterm.js frontend) that multiplexes AI coding CLI sessions with optional web serving for remote access. All v1.1 features are incremental improvements to the existing architecture — zero new dependencies are required. Every stack decision has been verified against local binaries and official documentation, and every architecture integration point has been confirmed through direct codebase inspection of all affected files.
 
-The architecture is naturally three layers: PTY management in Go (session lifecycle, process groups, fan-out broadcast), a Wails shell layer (React tabbed UI, Wails IPC for control-plane calls, local WebSocket for terminal I/O), and an embedded HTTPS server (VPN-bound, handles remote browser access and web dashboard). All three layers share one in-memory SessionRegistry — no database, no sync needed. This clean separation also defines the correct build order: PTY core first, session registry and WebSocket relay second, then the Wails frontend, then web serving and TLS, with tmux support and polish deferred.
+The recommended approach is to work inside the existing architecture without introducing new abstractions. The 8 v1.1 features fall into three natural groups: pure CSS/layout fixes (terminal fill, toolbar sizing, status bar, settings modal), React component additions with no backend changes (per-tab font size, new-session modal frontend), and backend-touching changes (new-session modal Go binding, tab rename web propagation, build script). This ordering matters — layout fixes must come first because the status bar and font size features depend on a stable, correctly filling terminal container. The `min-height: 0` flex trap is the single most likely cause of failed integration tests if the build sequence is violated.
 
-The primary risks are Windows-specific: PTY library choice (creack/pty has no Windows ConPTY support — must use go-pty from day one), win32-input-mode keyboard encoding (requires a state-machine parser on the Go side), and self-signed TLS certificate trust (browsers silently reject wss:// connections to untrusted certs — requires a CA-signed cert flow, not just a leaf cert). These are not insurmountable, but they are hard to retrofit. Address all three in Phase 1 and Phase 2 before building any user-facing features.
+The primary risks are concentrated in two areas: the macOS signing pipeline (notarytool exit-0 trap, `--deep` flag producing invalid signatures that silently pass local verification) and per-tab font size key event handling (xterm.js consuming SHIFT+= before the app handler fires, and the mandatory `requestAnimationFrame(() => fitAddon.fit())` call after every font size change). Both risks are well-understood with specific mitigations documented in PITFALLS.md. The build script is the only feature with HIGH integration risk; all UI features are LOW to MEDIUM risk.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is deliberately minimal. Go handles everything on the backend — PTY management, WebSocket relay, TLS, VPN detection, QR code generation, and auth. The frontend is React 19 + TypeScript in a Wails v2 webview, with xterm.js 5.x for terminal rendering and `@xterm/addon-attach` connecting xterm.js to Go via WebSocket. No React state libraries, no CSS frameworks beyond what Wails ships — the session count is small and the UI is terminal-focused.
-
-Wails v2 (not v3) is the correct choice: v3 is in active alpha as of March 2026 (alpha.74), with no stable release date and incomplete documentation. The entire stack avoids archived libraries: `coder/websocket` replaces the archived `gorilla/websocket`, direct `useEffect`-based xterm.js instantiation replaces unmaintained React wrappers, and `go-pty` replaces `creack/pty` (which has no merged Windows ConPTY support).
+The v1.1 stack is the v1.0 stack with zero additions. No new npm packages and no new Go modules are required. All new capabilities (native OS folder picker, per-tab font size, local build/sign automation) are built with APIs already present in the installed dependencies: `runtime.OpenDirectoryDialog` from `github.com/wailsapp/wails/v2` (already in `go.mod`), `terminal.options.fontSize` and `fitAddon.fit()` from `@xterm/xterm` and `@xterm/addon-fit` (already installed), and `wails build` CLI with macOS system tools (`codesign`, `xcrun notarytool`, `ditto`, `xcrun stapler`) available on any macOS dev machine with Xcode.
 
 **Core technologies:**
-- Go 1.22+ with Wails v2.11.0: desktop shell, PTY management, web server — single binary output
-- `github.com/aymanbagabas/go-pty` v0.2.2: cross-platform PTY (macOS, Linux, Windows ConPTY) — the only option with real Windows support
-- `github.com/coder/websocket` v1.8.x: WebSocket relay — actively maintained successor to archived gorilla/websocket
-- xterm.js `@xterm/xterm` 5.x + `@xterm/addon-attach`, `@xterm/addon-fit`, `@xterm/addon-webgl`: terminal rendering — same library VS Code uses
-- React 19 + TypeScript + Vite: frontend UI — ships in Wails react-ts template
-- `golang.org/x/crypto` (bcrypt): password hashing — only non-stdlib auth dependency
-- `github.com/skip2/go-qrcode`: QR code generation — simple API, PNG to base64 for IPC passthrough
-- `crypto/tls` stdlib: self-signed ECDSA P-256 cert generation — no external CA tooling needed
+- **Go 1.26.1 + Wails v2.10.2:** Desktop app host — all new backend methods go on the `App` struct in `app.go`; `runtime.OpenDirectoryDialog` already available for folder browser; no version change
+- **React 19 + TypeScript 5.9:** Frontend — two new components (`StatusBar`, `NewSessionModal`) replace inline JSX; `App.tsx` stays as thin state hub; no new libraries
+- **@xterm/xterm 6 + @xterm/addon-fit:** Terminal rendering — `terminal.options.fontSize` is a live-mutable property; `fitAddon.fit()` is mandatory after every font size change; `@xterm/addon-fit ^0.11.0` must match xterm 6.x
+- **Bash + Xcode CLI tools:** Build script — `wails build -platform <target>` + bottom-up `codesign` (no `--deep`) + `xcrun notarytool` with explicit JSON status parsing
 
 ### Expected Features
 
-The must-have feature set for v1 is well-defined and modest. The app must validate one core proposition: "one app, multiple AI agents, accessible from anywhere over VPN." All v1 features are in service of that claim.
+**Must have (table stakes) — all P1:**
+- `build.sh` — one-command local cross-platform build with macOS signing; env-gated so unsigned local builds work without certs
+- Terminal full-fill fix — CSS `min-height: 0` at every flex level in the column chain; prerequisite for status bar and font size features
+- Per-tab status bar — fixed-height strip replacing the `web-serving-bar` overlay; always rendered; shows web controls + session status indicator
+- Larger toolbar buttons — 36–44px hit targets; CSS only
+- Settings modal declutter — tabbed "CLI Paths" / "Web Serving" sections; single "Close" footer
+- Tab renaming propagation to web dashboard — `GET /api/sessions` must return `[]SessionSummary{id, name, cli_type}` not `[]string`
+- New-session modal with agent picker + folder browser — replaces bare CLI picker overlay; remembers last folder via `localStorage`
+- Per-tab SHIFT+/SHIFT- font size — 8–32px bounds; `attachCustomKeyEventHandler` to intercept before PTY delivery; `requestAnimationFrame(() => fitAddon.fit())` after each change
 
-**Must have (table stakes):**
-- Tabbed xterm.js terminal with session naming, ANSI/Unicode rendering, scrollback (10K+ lines)
-- Launch sessions for Claude Code, Codex, Gemini CLI, OpenCode (PATH detection at startup)
-- Go-native PTY backend with session persistence across window close
-- SIGWINCH propagation (PTY resize when terminal pane is resized)
-- Kill/close a session cleanly (SIGHUP + process group kill)
-- System tray presence to keep sessions alive when main window is closed
+**Should have (stretch goal for v1.1):**
+- Web dashboard visual refresh — card layout, status color dots, CLI badge; coordinated with `GET /api/sessions` shape change (P2)
 
-**Should have (competitive differentiators):**
-- Per-session web serving toggle with self-signed TLS over VPN interface
-- Web dashboard with bcrypt password auth and per-session shareable token links
-- QR code generation for web session URLs (validated pattern from predecessor project ccrs)
-- VPN interface selection with Tailscale auto-detection (100.64.0.0/10 CGNAT heuristic)
-
-**Defer to v2+:**
-- Real tmux backend (Go-native PTY covers the use case; tmux adds complexity and is unavailable on Windows)
-- Multi-CLI status indicators (heuristic output parsing is fragile — ship once core is stable)
-- Per-session token expiry/revocation (long-lived tokens are acceptable for v1)
-- Tab color coding and font/theme customization (polish layer)
-
-**Never build (anti-features):**
-- CLI installation/management, VPN/Tailscale setup, Let's Encrypt/ACME, user accounts/registration, cloud SaaS mode, plugin system, session replay/search, MCP server management, split panes.
+**Defer (v1.2+):**
+- Tab color coding per CLI type
+- Status heuristics for non-Claude CLIs
+- Font size persistence via backend (localStorage is sufficient)
 
 ### Architecture Approach
 
-The architecture is a single Go process with three communication surfaces sharing one in-memory SessionRegistry. The Wails shell hosts the desktop React UI and exposes Go methods via auto-generated TypeScript bindings (Wails IPC) for control-plane operations only. Terminal I/O flows through a separate WebSocket relay on localhost (plain HTTP — no TLS needed for loopback) to avoid saturating the Wails IPC bridge with binary streaming data. An embedded HTTPS server bound to the VPN interface serves remote browser access using the same WebSocket relay endpoints and a static xterm.js bundle embedded via `embed.FS`. The critical architectural constraint is that PTY reads must happen in exactly one goroutine per session, with a fan-out hub broadcasting to all connected WebSocket clients — never multiple goroutines reading the same PTY fd.
+All 8 features integrate cleanly into the existing Wails IPC architecture (App struct methods → TypeScript bindings → React components) without restructuring. Two new React components (`StatusBar`, `NewSessionModal`) replace inline JSX blocks in `App.tsx`. Two new Go methods (`BrowseFolder`, updated `CreateSession` with `workDir`) extend `app.go`. One internal package change propagates `workDir` through `CreateRequest` to `cmd.Dir` at PTY spawn. One webserver change (`handleListSessions` returning `[]SessionSummary` via a `NameFunc` callback) avoids a circular import while enabling web dashboard name propagation.
 
-**Major components:**
-1. **PTYManager** — create/resize/destroy PTY processes, single read goroutine per session, fan-out broadcast via SessionHub
-2. **SessionRegistry** — authoritative in-memory session state (id, name, PTY ref, connected clients, web serving toggle)
-3. **Wails Shell + React Frontend** — tabbed UI, xterm.js rendering, Wails IPC for control-plane, local WS for terminal I/O
-4. **WebSocket Relay / SessionHub** — fan-out PTY output to N clients; serialize client input to PTY; binary framing with 1-byte type prefix
-5. **Embedded HTTPS Server** — VPN-bound TLS listener, web dashboard, per-session WS endpoints, static xterm.js bundle
-6. **TLSManager** — ECDSA P-256 self-signed cert with VPN IP as SAN; generated at startup
-7. **NetworkProbe** — enumerate `net.Interfaces()`, detect Tailscale via CGNAT heuristic, expose manual override
-8. **AuthManager** — bcrypt dashboard password; HMAC-SHA256 session tokens (process-lifetime, no DB needed)
+**Major components and their v1.1 changes:**
+1. **`App.tsx`** — adds `tabFontSizes` state, `showNewSessionModal` state, window-level `keydown` handler for font size, replaces inline CLI picker JSX with `<NewSessionModal>`, wires `StatusBar` props
+2. **`StatusBar.tsx` (NEW)** — fixed-height per-tab bar with web controls + session status indicator; always rendered; `flex-shrink: 0`
+3. **`NewSessionModal.tsx` (NEW)** — agent picker + folder browser + session name input; calls `BrowseFolder()` Go binding; persists last folder in `localStorage`
+4. **`TerminalPanel.tsx`** — adds `fontSize` prop; `useEffect([fontSize])` mutates `term.options.fontSize` + calls `fitAddon.fit()`
+5. **`app.go`** — adds `BrowseFolder()` method, updates `CreateSession` signature with `workDir string`, adds `getTabName()` helper, wires `NameFunc` into webserver config
+6. **`internal/webserver/server.go`** — `handleListSessions` returns `[]SessionSummary`; `Config` gains `NameFunc` callback to avoid circular import
+7. **`internal/pty/backend.go` + `native.go`** — `CreateRequest.WorkDir` field added; `cmd.Dir = req.WorkDir` at PTY spawn
+8. **`build.sh` (NEW)** — local wrapper for `wails build`; explicit bottom-up codesign; `notarytool` JSON output parsed for `"Accepted"` status
 
 ### Critical Pitfalls
 
-1. **creack/pty has no merged Windows ConPTY support** — use `github.com/aymanbagabas/go-pty` from day one; test Windows PTY in Phase 1 before any other work.
+1. **Font size change without fit() leaves terminal garbled** — always call `requestAnimationFrame(() => fitAddonRef.current?.fit())` after setting `terminal.options.fontSize`; without the RAF defer, `fit()` reads stale glyph metrics and computes wrong cols/rows; PTY receives incorrect terminal dimensions (xterm.js issue #4886)
 
-2. **win32-input-mode corrupts all keyboard input on Windows** — Windows Terminal sends `\x1b[?9001h` mode sequences instead of raw ASCII; implement a state-machine parser in Go for this encoding. The disable sequence is unreliable — do not depend on it.
+2. **SHIFT+= consumed by xterm.js before app handler fires** — use `term.attachCustomKeyEventHandler()` which runs before PTY delivery; return `false` to suppress PTY delivery; do NOT use `onKey` or `window.addEventListener` for this specific handler; register all custom shortcuts in a single function since `attachCustomKeyEventHandler` overwrites any previous registration
 
-3. **Self-signed TLS certs are silently rejected for wss:// connections** — browsers show no "proceed anyway" dialog for WebSocket cert errors; must use a local CA pattern (generate CA cert, sign server cert with it, provide in-app cert installation flow) not just a bare self-signed leaf cert.
+3. **macOS `codesign --deep` produces invalid signatures** — sign bottom-up explicitly (binary first, then app bundle) without `--deep`; use `ditto -c -k --keepParent` (not `zip -r`) for notarization archive; parse `notarytool` JSON output for `"status": "Accepted"` since exit code is always 0 even on rejection
 
-4. **PTY process orphans on app close** — AI coding CLIs spawn child processes; use `SysProcAttr{Setpgid: true}` + `syscall.Kill(-pgid, SIGKILL)` on POSIX, Job Objects on Windows; register a signal shutdown handler that iterates all sessions. Do this in Phase 1.
+4. **Wails `OpenDirectoryDialog` panics on Windows with deleted DefaultDirectory** — validate path with `os.Stat()` before passing; fall back to `""` if path no longer exists (Wails issues #1052, #1381)
 
-5. **AI CLIs require a proper PTY, not a pipe** — Claude Code, Gemini CLI, and OpenCode check `isatty()` and degrade or exit without a real PTY; always set `TERM=xterm-256color` in the spawned environment; test with actual CLI binaries in Phase 1.
+5. **Flex `min-height: 0` trap** — every flex column container in the ancestor chain (`.app`, `.terminal-container`, `.terminal-wrapper`, `TerminalPanel` outer div) must have `min-height: 0`; adding the status bar changes the flex hierarchy and can cause terminals to stop filling remaining height
+
+6. **Stale Wails TypeScript bindings** — after adding any new Go method to `App`, run `wails dev` to regenerate `wailsjs/go/main/App.ts` before writing frontend code that calls it; stale bindings compile cleanly but fail silently at runtime
 
 ## Implications for Roadmap
 
-Based on combined research, the architecture's own build-order dependency graph maps cleanly to a 6-phase roadmap. The critical insight: PTY correctness on all three platforms (especially Windows) must be validated before any user-facing UI work begins, because retrofitting the PTY library or adding win32-input-mode support after the fact is high cost.
+Based on combined research, the recommended 7-phase build sequence follows the dependency graph established in ARCHITECTURE.md and explicitly addresses pitfall prevention ordering.
 
-### Phase 1: PTY Foundation + Session Lifecycle
+### Phase 1: Layout Baseline (Terminal Fill + Toolbar Sizing)
 
-**Rationale:** Every other feature depends on a working PTY. Windows PTY correctness (go-pty + win32-input-mode parser) is the highest-risk item in the whole project and must be de-risked first. The session registry and process-group shutdown handler must also exist here — orphan processes are a Phase 1 bug, not a polish item.
+**Rationale:** All subsequent UI features depend on the terminal correctly filling its container. The flex `min-height: 0` trap (Pitfall 5) must be resolved before the status bar is added, or every layout test will be unreliable. This is pure CSS — fastest to verify, zero regression risk to existing functionality.
+**Delivers:** Terminals fill all available vertical space on all tabs; toolbar buttons meet 36–44px hit target
+**Addresses:** Terminal full-fill fix, larger toolbar buttons (both P1 table stakes)
+**Avoids:** Flex min-height trap; establishes stable layout baseline for Phases 2–4
 
-**Delivers:** A Go binary that can spawn Claude Code / Gemini CLI in a proper PTY on macOS, Linux, and Windows; read/write PTY I/O; resize correctly; and kill cleanly on shutdown. No UI yet.
+### Phase 2: Per-Tab Status Bar
 
-**Addresses features:** Session creation, session kill/close, session persistence foundation, CLI detection via PATH
+**Rationale:** Depends on Phase 1 (stable container height). Extracting the existing inline `web-serving-bar` JSX into a proper `StatusBar` component is prerequisite for the Phase 3 font size feature, since font size changes trigger `fitAddon.fit()` and the status bar height must be stable first. StatusBar is always rendered — terminal height is now deterministic.
+**Delivers:** Permanent single-line status strip below tab bar; web controls always accessible; session status indicator always visible
+**Addresses:** Per-tab status bar (P1 table stake)
+**Avoids:** Flex min-height trap at each new flex level in the StatusBar chain; StatusBar must use `flex-shrink: 0`
 
-**Avoids pitfalls:** Pitfall 1 (creack/pty Windows), Pitfall 2 (win32-input-mode), Pitfall 4 (PTY orphans), Pitfall 5 (AI CLIs need real PTY), Pitfall 4 (tmux abstraction layer — SessionBackend interface)
+### Phase 3: Settings Modal Overhaul
 
-**Research flag:** None needed — go-pty is well-documented and the win32-input-mode parser approach is documented (DEV.to article, Dec 2025).
+**Rationale:** Isolated frontend refactor with no dependencies on Phases 1–2 and no backend changes. Best done early before adding more settings (new-session modal, font size). Reduces cognitive load on SettingsPanel before touching it again in later phases.
+**Delivers:** Tabbed settings modal (CLI Paths / Web Serving); single "Close" footer; no API surface changes
+**Addresses:** Settings modal declutter (P1 table stake)
+**Avoids:** No significant pitfalls; pure layout work; all existing Wails bindings unchanged
 
-### Phase 2: Session Registry + WebSocket Relay
+### Phase 4: Per-Tab Font Size (SHIFT+/SHIFT-)
 
-**Rationale:** The fan-out WebSocket hub is the architectural linchpin that both the local desktop UI and remote browser access share. Getting the protocol right (binary framing, flow control, connection lifecycle) here prevents rewrites later. CORS concerns between Wails WebView and the HTTP server must also be resolved here.
+**Rationale:** Depends on Phase 1 (stable container) and Phase 2 (stable status bar height). The font size change → fit() call cycle requires a correct container to measure accurately. This phase has two non-trivial interlocking pitfalls (Pitfalls 1 and 2) that require explicit manual verification.
+**Delivers:** Per-tab font size adjustment via keyboard; bounds 8–32px; persisted in `localStorage` per sessionId; terminal cols/rows correctly updated after each change
+**Addresses:** Per-tab SHIFT+/SHIFT- font size (P1 table stake)
+**Avoids:** Pitfall 1 (always `requestAnimationFrame(() => fitAddon.fit())` after fontSize); Pitfall 2 (use `attachCustomKeyEventHandler`, return `false`, single handler)
 
-**Delivers:** SessionRegistry with in-memory session state; WebSocket hub with fan-out broadcast; binary message protocol (0x00 input, 0x01 output, 0x02 resize, 0x03 control, 0x04 ping); flow control via write callback or ACK protocol; heartbeat/ping-pong; `binaryType = 'arraybuffer'` set in WebSocket client.
+### Phase 5: New-Session Modal + Folder Browser
 
-**Uses stack:** `coder/websocket`, `net/http` on localhost, SessionHub pattern (single drainPTY goroutine per session)
+**Rationale:** Largest scope — requires both Go backend changes (`BrowseFolder` method, `CreateSession` workDir param, PTY struct and spawn changes) and a new React component. Placed after frontend patterns are stable. Wails binding regeneration is a required step when Go signatures change (Pitfall 6).
+**Delivers:** Full new-session modal with agent picker, folder browser (native OS dialog), session naming; remembers last folder across restarts
+**Addresses:** New-session modal with agent picker + folder browser (P1 differentiator)
+**Avoids:** Pitfall 4 (validate DefaultDirectory with `os.Stat` before `OpenDirectoryDialog`); Pitfall 6 (regenerate Wails bindings via `wails dev` after adding `BrowseFolder`)
 
-**Avoids pitfalls:** Pitfall 6 (xterm.js flow control buffer overflow), Pitfall 7 (terminal resize race), Pitfall 8 (Wails CORS), Pitfall 15 (Blob message ordering), Pitfall 16 (tab visibility WebSocket freeze), Pitfall 17 (HTTP/2 WebSocket conflict)
+### Phase 6: Tab Rename Web Propagation + Dashboard Refresh
 
-**Research flag:** None needed — standard patterns with official documentation.
+**Rationale:** Requires webserver API shape change (`[]string` → `[]SessionSummary`) and `NameFunc` callback wiring. Dashboard visual refresh is coordinated with this change — they touch the same file (`dashboard.html`) and the same API response shape. Must be deployed together to avoid version mismatch between API and dashboard renderer.
+**Delivers:** Web dashboard reflects desktop tab renames; card-based dashboard layout with status color dots and CLI badge
+**Addresses:** Tab renaming propagation to web dashboard (P1); web dashboard visual refresh (P2 stretch goal)
+**Avoids:** Pitfall 5 (verify web dashboard shows renamed session name — not just React state); backward-compatible response shape since `dashboard.html` already handles `s.name` for both string and object array
 
-### Phase 3: Wails Shell + React Frontend (Local Desktop UI)
+### Phase 7: Build Script
 
-**Rationale:** First user-visible milestone. Wails IPC handles all control-plane calls; local WebSocket handles terminal I/O. Validates the full local stack. React state is kept minimal — Go is source of truth, React calls `ListSessions()` on mount and subscribes to events.
-
-**Delivers:** Working desktop app with tabbed xterm.js terminal, session naming, ANSI/Unicode rendering, scrollback, copy/paste, resize, system tray presence. Connect xterm.js via `@xterm/addon-attach` to the local WebSocket. No web serving yet.
-
-**Uses stack:** Wails v2.11.0 react-ts template, React 19, xterm.js 5.x with webgl/fit/web-links addons, direct `useEffect` Terminal instantiation (no React wrapper libraries)
-
-**Addresses features:** All table stakes features (tabs, ANSI, Unicode, scrollback, resize, copy/paste, system tray)
-
-**Avoids pitfalls:** Anti-Pattern 2 (Wails IPC for terminal I/O), Anti-Pattern 4 (React as session state source of truth)
-
-**Research flag:** Linux WebKitGTK build tags (`webkit2_41` for Ubuntu 24.04) need explicit testing — flag for phase planning.
-
-### Phase 4: Web Serving + TLS + Auth
-
-**Rationale:** The remote access feature is the primary differentiator. TLS cert strategy must be planned holistically here — the CA + server cert pattern (not just a bare self-signed cert) is required for WSS to work in external browsers. Auth (bcrypt password + HMAC tokens) is also implemented here.
-
-**Delivers:** Embedded HTTPS server bound to VPN interface; CA + server cert generation via `crypto/tls` stdlib; per-session web serving toggle; web dashboard with password auth; per-session shareable HMAC tokens; static xterm.js bundle served via `embed.FS`; remote browser connects to same WebSocket relay.
-
-**Uses stack:** `net/http`, `crypto/tls`, `golang.org/x/crypto/bcrypt`, `embed.FS`, NetworkProbe (CGNAT heuristic for Tailscale detection)
-
-**Addresses features:** Per-session web toggle, self-signed TLS, VPN interface binding, web dashboard, per-session tokens
-
-**Avoids pitfalls:** Pitfall 3 (WSS with self-signed certs — CA pattern required), Anti-Pattern 3 (separate TLS port from loopback port), Pitfall 11 (VPN interface detection fragility — IP range heuristics + manual override + poll with timeout)
-
-**Research flag:** The CA cert + in-app trust installation UX is underspecified in research — needs dedicated research during planning to determine per-OS trust store installation approach (macOS Keychain, Linux NSS, Windows cert store).
-
-### Phase 5: QR Codes + VPN UI + Polish
-
-**Rationale:** With the web serving infrastructure in place, QR code generation and VPN interface selection UI are low-complexity features that complete the "walk away" workflow. This phase is mostly wiring existing Go functionality into the React UI.
-
-**Delivers:** QR code generation (`skip2/go-qrcode` → base64 PNG → React `<img>`); VPN interface selection dropdown; Tailscale auto-detection in UI; per-session URL display; basic session status indicators (running/waiting heuristic based on output patterns).
-
-**Uses stack:** `github.com/skip2/go-qrcode`, NetworkProbe, Wails IPC (`GetQRCode`, `GetNetworkInterfaces`, `SetBindInterface`)
-
-**Addresses features:** QR code generation, VPN interface selection, working directory context per tab, session status indicators (basic heuristic)
-
-**Research flag:** Status indicator output pattern heuristics for each CLI (Claude Code, Codex, Gemini CLI, OpenCode) are not well-documented — needs targeted research during planning.
-
-### Phase 6: Distribution + macOS Notarization + Cross-Platform Testing
-
-**Rationale:** Cross-platform builds cannot be cross-compiled for macOS (requires macOS runner). Notarization requires specific tooling (`notarytool`, not `altool`) and a paid Apple Developer account. Linux requires explicit WebKitGTK version handling. This phase must be planned before Phase 1 begins (account setup, CI matrix) even though the work happens last.
-
-**Delivers:** GitHub Actions CI matrix (macOS-latest, ubuntu-latest, windows-latest); macOS signing + notarization via `notarytool`; Linux WebKitGTK 4.0/4.1 build variants; Windows installer.
-
-**Avoids pitfalls:** Pitfall 9 (macOS notarization — notarytool, `ditto` zip, paid account), Pitfall 14 (Linux WebKitGTK fragmentation), Pitfall 13 (WebView2 cookies on Windows — use localStorage)
-
-**Research flag:** Windows code signing (Authenticode) is not covered in research — flag for planning if Windows Defender SmartScreen warnings are a distribution concern.
+**Rationale:** Written last against a stable, fully-featured binary. Build script complexity (macOS signing, notarization) is independent of all code changes and is best validated after the binary is final. macOS signing pitfalls (Pitfalls 3 and the notarytool exit-0 trap) are highest-risk and require end-to-end testing with real Apple Developer credentials.
+**Delivers:** `build.sh` with per-platform and all-platform modes; macOS signing + notarization + staple; env-gated for unsigned local builds; verified with `spctl --assess`
+**Addresses:** `build.sh` (P1 table stake)
+**Avoids:** Invalid signatures from `--deep` (sign bottom-up explicitly); silent CI shipping of unnotarized builds (parse `notarytool` JSON, fail if `status != "Accepted"`)
 
 ### Phase Ordering Rationale
 
-- **PTY before UI:** Windows PTY correctness is the most technically risky item. It must be validated in isolation before investing in UI work that assumes it works.
-- **Session Registry before everything:** The fan-out hub is shared by local and remote paths. Getting the protocol right once prevents two separate implementations.
-- **Local UI before remote:** Remote access requires TLS and auth complexity; validate the core terminal UX first.
-- **Web serving as a feature, not infrastructure:** The embedded HTTPS server is isolated from the core terminal loop — it can be added without touching Phase 1-3 code.
-- **Notarization planning in Phase 1:** Apple Developer account registration and CI matrix setup takes time; start early even if distribution work is Phase 6.
+- **Layout first, then features:** Phases 1–2 establish the CSS foundation that all interactive features require. Skipping this order risks false-positive testing — font size may look correct visually but terminal cols/rows are wrong.
+- **Frontend before backend:** Phases 3–4 are pure frontend and can be verified immediately in `wails dev`. Phase 5 introduces Go changes requiring binary rebuild and binding regeneration — fewer moving parts until patterns are proven.
+- **Coordinated backend changes sequentially:** Phases 5 and 6 each require Go changes; placing them sequentially avoids merge conflicts in `app.go`.
+- **Build script last:** It is a developer artifact, not a product feature. It validates against the final binary and is the one feature with HIGH integration risk that benefits from a stable compilation target.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3:** Linux WebKitGTK version fragmentation — which build tags are needed for Ubuntu 22.04 vs 24.04; Wayland/NVIDIA `WEBKIT_DISABLE_COMPOSITING_MODE` flag
-- **Phase 4:** Per-OS TLS cert trust installation UX — macOS Keychain, Linux NSS/p11-kit, Windows certutil; how to surface this in the app's first-run setup without requiring admin rights
-- **Phase 5:** Per-CLI status indicator output patterns — what Claude Code, Codex, Gemini CLI, and OpenCode actually print when waiting for user input vs. running vs. idle
-- **Phase 6:** Windows Authenticode signing for SmartScreen warnings (if distribution at scale)
+Phases that need explicit manual verification during execution (implementation guidance is complete — no additional research needed):
+- **Phase 4 (Font size):** Two interlocking pitfalls require explicit manual verification: hold SHIFT+= for 2 seconds and verify no `+` characters appear in the shell prompt; check `term.cols` value via browser console after resize to confirm fit() computed correct dimensions
+- **Phase 5 (New-session modal):** Cross-platform `OpenDirectoryDialog` behavior on Windows with a deleted "last folder" path; Wails binding regeneration step is easy to miss — verify `wailsjs/go/main/App.ts` lists `BrowseFolder` before writing the React caller
+- **Phase 7 (Build script):** Full sign + notarize + staple + `spctl --assess` pipeline requires Apple Developer credentials and real-world test; the notarytool exit-0 trap cannot be detected without running actual notarization
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** PTY patterns with go-pty are documented; win32-input-mode parser has a Dec 2025 reference implementation
-- **Phase 2:** WebSocket relay fan-out hub is a standard Go pattern; ttyd/GoTTY serve as reference implementations
-- **Phase 4 (auth):** bcrypt + HMAC token pattern is well-established; no research needed
+Phases with standard, well-documented patterns (execution is straightforward):
+- **Phase 1:** Pure CSS flexbox; min-height:0 pattern is well-established
+- **Phase 2:** Extracting existing inline JSX into a component; no new data flows
+- **Phase 3:** Pure layout refactor; all existing Wails bindings unchanged
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core choices (Wails v2, go-pty, coder/websocket, xterm.js 5.x) verified against official sources; alternatives explicitly ruled out with documented rationale |
-| Features | HIGH | Table stakes validated against ttyd, GoTTY, agent-deck; differentiators validated against Claude Code Remote Control (Anthropic, Feb 2026); anti-features have concrete rationale |
-| Architecture | HIGH | Component boundaries and data flow patterns derived from ttyd/GoTTY reference implementations and official Wails docs; WebSocket protocol is industry-standard |
-| Pitfalls | HIGH | Most pitfalls traced to official GitHub issues (creack/pty #95, xterm.js #2077, Wails #1642, Microsoft Terminal #10400); win32-input-mode solution has working Dec 2025 reference |
+| Stack | HIGH | All flags verified against local `wails v2.10.2` binary and official docs; zero new dependencies confirmed by exhaustive search through each feature's requirements |
+| Features | HIGH | v1.0 codebase read directly; all feature gaps identified by code inspection, not inference; dependency graph verified against actual source files |
+| Architecture | HIGH | Integration points confirmed by direct inspection of all affected files (`app.go`, `App.tsx`, `TerminalPanel.tsx`, `internal/webserver/server.go`, etc.); data flows traced end-to-end |
+| Pitfalls | HIGH | Critical pitfalls sourced from official xterm.js GitHub issues (#4886, #4841), Wails issues (#1052, #1381), and Apple notarization post-mortems with documented recovery steps; all verified against the actual codebase structure |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **CA cert trust installation flow:** Research identifies that bare self-signed certs fail silently for WSS, and recommends a CA pattern, but does not specify the in-app UX or per-OS commands for installing the CA cert. This needs a dedicated design pass before Phase 4 implementation.
+- **OpenDirectoryDialog on Linux (GTK file chooser):** The `os.Stat` guard prevents the Windows panic, but dialog UX and behavior on Linux (GTK file chooser) has not been explicitly verified. Test on Linux runner during Phase 5 verification.
 
-- **tailutils library confidence:** `github.com/Tailsecurity/tailutils` was identified via web search but not Context7-verified. The fallback (using `net.Interfaces()` with the CGNAT 100.64.0.0/10 heuristic directly) is well-validated and should be the primary approach. tailutils is a thin convenience wrapper.
+- **Font size `localStorage` persistence vs. session ID stability:** Research recommends `localStorage` keyed by `sessionId`. If session IDs are regenerated on each app launch, font size preferences will be lost on restart. Verify session ID lifecycle (persistent UUID vs. ephemeral) before implementing persistence in Phase 4.
 
-- **win32-input-mode parser completeness:** The Dec 2025 reference article describes a working approach, but the exact state machine has not been code-reviewed. Plan a Phase 1 spike to validate before committing to the design.
-
-- **Status indicator heuristics:** No documentation exists for reliable "waiting for input" output patterns across all four CLIs. This is intentionally deferred to v2 for the full feature, but even a basic heuristic for Claude Code (most common) needs empirical testing.
+- **Status bar rendering on Windows WebView2:** Flex rendering differences between WebKit (macOS) and WebView2 (Windows) can produce subtle layout bugs. PITFALLS.md explicitly flags this. Test on all three platforms during Phase 2 verification before proceeding to Phase 3.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Wails v2.11.0 + v3 alpha status](https://wails.io/) — framework version selection rationale
-- [Wails — How does it work?](https://wails.io/docs/howdoesitwork/) — Wails IPC binding mechanism
-- [xterm.js releases](https://github.com/xtermjs/xterm.js/releases) — v5.x API, addon compatibility
-- [xterm.js Flow Control Guide](https://xtermjs.org/docs/guides/flowcontrol/) — buffer overflow prevention
-- [go-pty cross-platform PTY](https://github.com/aymanbagabas/go-pty) — Windows ConPTY support
-- [coder/websocket](https://github.com/coder/websocket) — gorilla/websocket successor
-- [creack/pty Windows PR #155 unmerged](https://github.com/creack/pty/issues/95) — Windows limitation confirmed
-- [Claude Code Remote Control docs](https://code.claude.com/docs/en/remote-control) — QR code + remote access UX validated
-- [Go crypto/tls generate_cert.go](https://go.dev/src/crypto/tls/generate_cert.go) — self-signed cert generation
-- [Tailscale IP Addresses](https://tailscale.com/docs/concepts/tailscale-ip-addresses) — CGNAT 100.64.0.0/10 confirmed
-- [OpenCode orphan process issue #12913](https://github.com/anomalyco/opencode/issues/12913) — process leak documented
-- [Gemini CLI PTY issue #20941](https://github.com/google-gemini/gemini-cli/issues/20941) — nested process tree not killed
+- `wails build --help` (local binary, v2.10.2) — all build flags verified against installed binary
+- [Wails runtime OpenDirectoryDialog](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/runtime) — official Go pkg.go.dev documentation
+- [Wails OpenDialogOptions struct](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/options/dialog) — all struct fields verified
+- [xterm.js Terminal.options API](https://xtermjs.org/docs/api/terminal/classes/terminal/) — `fontSize` read-write, `attachCustomKeyEventHandler` documented
+- [xterm.js Issue #4886](https://github.com/xtermjs/xterm.js/issues/4886) — fontSize without fit() causes abnormal display
+- [xterm.js Issue #3346](https://github.com/xtermjs/xterm.js/issues/3346) — FitAddon height zero when flex container lacks min-height: 0
+- [Wails Issue #1052](https://github.com/wailsapp/wails/issues/1052) + [#1381](https://github.com/wailsapp/wails/issues/1381) — OpenDirectoryDialog panic on Windows with invalid DefaultDirectory
+- Direct codebase inspection: `app.go`, `App.tsx`, `TerminalPanel.tsx`, `TabBar.tsx`, `SettingsPanel.tsx`, `style.css`, `relayClient.ts`, `internal/relay/hub.go`, `internal/webserver/server.go`, `web/dashboard.html`, `.github/workflows/build.yml`, `wails.json`
 
 ### Secondary (MEDIUM confidence)
-- [Win32-input-mode ConPTY Go parser (DEV.to, Dec 2025)](https://dev.to/andylbrummer/taming-windows-terminals-win32-input-mode-in-go-conpty-applications-7gg) — working parser approach
-- [GoTTY](https://github.com/yudai/gotty) — WebSocket terminal architecture reference
-- [ttyd](https://github.com/tsl0922/ttyd) — binary message framing reference
-- [agent-deck README](https://github.com/asheshgoplani/agent-deck) — AI CLI session manager feature comparison
-- [Wails Ubuntu 24.04 WebKitGTK issue #3581](https://github.com/wailsapp/wails/issues/3581) — webkit2gtk-4.1 required
-- [Wails CORS issue #1642](https://github.com/wailsapp/wails/issues/1642) — WebView origin CORS behavior
-- [Vite 5 + Wails HMR configuration](https://github.com/wailsapp/wails/issues/3845) — community issue thread
-- [tailutils Tailscale IP detection](https://github.com/Tailsecurity/tailutils) — WebSearch only, not Context7 verified
-
-### Tertiary (needs validation)
-- [tailutils library](https://github.com/Tailsecurity/tailutils) — thin wrapper; fall back to stdlib `net.Interfaces()` if unresponsive
+- [Wails code signing guide](https://wails.io/docs/guides/signing/) — official but terse; supplemented by community post-mortems
+- [macOS code signing gist (rsms)](https://gist.github.com/rsms/929c9c2fec231f0cf843a1a746a416f5) — bottom-up signing rationale, `--deep` pitfall documented
+- [Federico Terzi notarytool CI post](https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/) — exit-0 trap documented with fix pattern
+- [ddev signing_tools](https://github.com/ddev/signing_tools) — reference implementation for CI signing
+- [Wails cross-platform build guide](https://wails.io/docs/guides/crossplatform-build/) — macOS CGo cross-compile constraint confirmed
+- [CSS-Tricks flex fill height](https://css-tricks.com/boxes-fill-height-dont-squish/) — min-height: 0 pattern
 
 ---
-*Research completed: 2026-03-17*
+*Research completed: 2026-03-19*
 *Ready for roadmap: yes*

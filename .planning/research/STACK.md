@@ -1,221 +1,298 @@
 # Technology Stack
 
 **Project:** AgentHub
-**Researched:** 2026-03-17
-**Confidence:** MEDIUM-HIGH (core Go/Wails/xterm.js verified; some integration patterns inferred from multiple sources)
+**Milestone:** v1.1 Polish & Build
+**Researched:** 2026-03-19
+**Confidence:** HIGH (all core claims verified against official docs or local binary)
+
+---
+
+## Scope of This Document
+
+This is a **delta document** for v1.1. It covers only what is NEW or CHANGED relative to the validated v1.0 stack. The existing stack (Go/Wails v2, React 19, xterm.js 6, go-pty, coder/websocket, skip2/go-qrcode) is unchanged and already installed.
+
+The new features requiring stack decisions:
+1. Build script (`build.sh`) — local cross-platform compilation with macOS signing
+2. Settings modal / UI redesign — styling only, no new libraries
+3. New-session modal with folder browser — native directory picker via Wails runtime
+4. Per-tab status bar — layout/CSS only, no new libraries
+5. Tab renaming — already wired in v1.0 (`RenameSession` Wails binding exists)
+6. Per-tab SHIFT+/SHIFT- font size adjustment — xterm.js `terminal.options.fontSize` + `fitAddon.fit()`
+7. Terminal full-fill fix — CSS flexbox correction + `fitAddon.fit()` timing
 
 ---
 
 ## Recommended Stack
 
-### Desktop Shell
+### Core Technologies (Unchanged)
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| Go | 1.22+ | Backend language | PTY management, net/http, crypto/tls, embed.FS — all stdlib. Single binary output. |
-| Wails v2 | v2.11.0 | Desktop window + Go<->JS bridge | Stable, production-grade, React templates built-in. v3 is still alpha as of March 2026. |
-| Wails CLI | latest | Build tooling | `wails build` produces signed distributable per platform. |
+Already installed. No version changes required.
 
-**Why Wails v2 not v3:** v3 is in active alpha (v3.0.0-alpha.74 as of March 2026). API is "reasonably stable" per the team but documentation and tooling are unfinished. v2.11.0 is stable, has a React+TypeScript+Vite template, and is battle-tested for cross-platform distribution. Migrate to v3 after it stabilizes — the API gap is manageable.
+| Technology | Current Version | Status |
+|------------|----------------|--------|
+| Go | 1.26.1 | No change |
+| Wails v2 | v2.10.2 | No change |
+| React | ^19.2.4 | No change |
+| TypeScript | ^5.9.3 | No change |
+| @xterm/xterm | ^6.0.0 | No change |
+| @xterm/addon-fit | ^0.11.0 | No change (critical for font size fix) |
 
-### Frontend Framework
+### New Capabilities and Their Stack Implications
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| React | 19.x (^19.2) | UI framework | Wails ships a `react-ts` template out of the box. Component model maps cleanly to tabbed terminal sessions. |
-| TypeScript | 5.6+ | Type safety | Catches xterm.js API misuse at compile time. Wails generates typed bindings for Go functions. |
-| Vite | 5.x | Dev server + bundler | Default bundler in Wails react-ts template. HMR works with `wails dev` via `hmr: { host: "localhost", protocol: "ws" }` config. |
+#### 1. Build Script — `build.sh`
 
-### Terminal Rendering
+**What it does:** Local developer script that wraps `wails build` for per-platform and all-platform compilation. Handles the macOS signing + notarization sequence already proven in CI.
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| xterm.js | 5.x (`@xterm/xterm`) | Terminal emulator in browser/webview | Industry standard. Used by VS Code terminal. xterm.js 5.x is the stable API; 6.x exists but is a major breaking change — verify addon compatibility before adopting. |
-| @xterm/addon-attach | 0.9.x | Attach terminal to WebSocket | Official addon. Maps WebSocket binary/text frames to terminal I/O bidirectionally. |
-| @xterm/addon-fit | 0.10.x | Resize terminal to container | Required to track container size changes; must fire on every layout change. |
-| @xterm/addon-web-links | 0.11.x | Clickable URLs in terminal output | Table stakes for AI CLI output which frequently prints URLs. |
-| @xterm/addon-webgl | 0.18.x | GPU-accelerated rendering | Dramatically better perf for high-throughput AI CLI output. Falls back to canvas automatically on unsupported GPUs. |
+**Stack decision:** Pure bash script using `wails build` CLI directly. No new Go or npm dependencies.
 
-**Note on xterm.js versioning:** The npm package was renamed from `xterm` to `@xterm/xterm` in v5. The `@xterm/addon-attach` replaces the old `xterm-addon-attach`. Use the `@xterm/` scoped packages exclusively — the un-scoped legacy packages are abandoned.
+`wails build` flags used (verified against local `wails v2.10.2`):
 
-**Note on React wrappers:** All React wrapper libraries (`react-xtermjs`, `xterm-for-react`, `@pablo-lion/xterm-react`) are unmaintained or last updated 2+ years ago. Do NOT use them. Instantiate `Terminal` directly in a `useEffect` hook with a `ref` to a container div. This is the correct idiomatic pattern and avoids the stale-wrapper problem.
+| Flag | Purpose |
+|------|---------|
+| `-platform darwin/universal` | macOS universal binary (arm64 + amd64) |
+| `-platform linux/amd64` | Linux 64-bit |
+| `-platform windows/amd64` | Windows 64-bit |
+| `-nsis` | Windows NSIS installer (requires NSIS installed) |
+| `-clean` | Delete bin dir before build (prevents stale artifact confusion) |
+| `-ldflags "-s -w"` | Strip debug symbols for smaller binary |
 
-### PTY Management
+**macOS signing sequence** (bash, runs on macOS only):
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| github.com/aymanbagabas/go-pty | v0.2.2 | Cross-platform PTY spawning | Explicitly supports macOS, Linux (Unix PTYs) AND Windows via ConPty. `creack/pty` does NOT have merged Windows ConPty support — its PR #155 remains unmerged. go-pty is the only pure-Go option with real Windows support. |
+```bash
+# Already proven in .github/workflows/build.yml — same commands for local use
+codesign --force -s "$DEVELOPER_ID" --options runtime \
+  --entitlements build/entitlements.plist \
+  build/bin/agenthub.app
 
-**tmux mode:** For real tmux sessions, spawn tmux via `go-pty` (or `exec.Command` with PTY attached). The "attach from external terminal" requirement means tmux does the multiplexing — go-pty just handles the PTY wrapper for the Wails side. Detect tmux availability with `exec.LookPath("tmux")`.
+# Notarization (requires Apple ID credentials in environment)
+ditto -c -k --keepParent build/bin/agenthub.app notarization.zip
+xcrun notarytool submit notarization.zip \
+  --apple-id "$APPLE_ID" \
+  --team-id "$APPLE_TEAM_ID" \
+  --password "$APPLE_APP_PASSWORD" \
+  --wait
+xcrun stapler staple build/bin/agenthub.app
+```
 
-**Go-native PTY mode:** For the built-in session persistence mode, go-pty spawns the AI CLI directly. Session state lives in Go (in-memory ring buffer or scrollback). No external dependencies required.
+**No new Go dependencies.** No new npm dependencies. The signing tools (`codesign`, `xcrun notarytool`, `ditto`, `xcrun stapler`) are Xcode CLI tools already present on any macOS dev machine with Xcode installed.
 
-### WebSocket + Web Serving
+**Linux cross-compile note:** Linux builds require native Linux runners (`gtk`, `webkit2gtk`). The build script should detect the OS and skip Linux builds when run on macOS, or use Docker if cross-compile is needed. Simplest: build.sh builds current platform by default, with `--all` flag documented as "requires running per platform."
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| net/http (stdlib) | Go stdlib | HTTP/HTTPS server | Zero deps. Handles both desktop RPC and the web-served terminal sessions on the same process. |
-| github.com/coder/websocket | v1.8.x | WebSocket upgrade + I/O | `gorilla/websocket` is archived since 2022. `coder/websocket` (formerly `nhooyr/websocket`) is the actively maintained successor. Uses `context.Context`, handles concurrent writes safely, 2200 LOC vs 3500. |
-| crypto/tls (stdlib) | Go stdlib | Self-signed TLS cert generation | Generate ECDSA P-256 cert + key in memory at startup. No cert files to manage, no user setup. |
-| embed.FS (stdlib) | Go stdlib | Serve web terminal HTML/JS | Bundle the web terminal UI (xterm.js page) into the binary with `//go:embed`. |
+#### 2. Folder Browser (New-Session Modal)
 
-**Architecture note:** The Go process runs two surfaces:
-1. Wails IPC bridge — for the desktop UI (React in webview)
-2. net/http server bound to VPN/local interface — for browser-accessible web terminals
+**What it does:** Opens a native OS folder picker dialog when user clicks "Browse" in the new-session modal. Returns the selected directory path to the frontend.
 
-Both share the same session state. The web terminal HTML page is a minimal xterm.js page embedded via `embed.FS`, served over TLS, with `@xterm/addon-attach` connecting over WSS.
+**Stack decision:** Wails v2 runtime `OpenDirectoryDialog` — already available in the Wails runtime, no new dependency.
 
-### TLS Strategy
+Go backend binding (verified against `pkg.go.dev/github.com/wailsapp/wails/v2/pkg/runtime`):
 
-Use `crypto/tls` stdlib to generate self-signed ECDSA P-256 cert + key at first launch, persist to app data dir. On subsequent launches, load from disk. No external CA, no external deps. Browser will warn (expected for local/VPN use). For Tailscale, users can optionally accept the cert — the network-level security from Tailscale is the primary trust boundary.
+```go
+import "github.com/wailsapp/wails/v2/pkg/runtime"
 
-**Do NOT use mkcert or certmagic** — mkcert requires user interaction and system trust store modification; certmagic is for Let's Encrypt which requires a domain name. Both are wrong for this use case.
+func (a *App) BrowseDirectory(defaultDir string) (string, error) {
+    return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+        DefaultDirectory: defaultDir,
+        Title:            "Choose working directory",
+    })
+}
+```
 
-### QR Code Generation
+`OpenDialogOptions` struct fields (verified via `pkg.go.dev/github.com/wailsapp/wails/v2/pkg/options/dialog`):
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| github.com/skip2/go-qrcode | v0.0.0-latest | QR code PNG generation | Most widely used Go QR library. Generates PNG to `[]byte`. Encode as base64 and return to frontend. Simple API: `qrcode.Encode(url, qrcode.Medium, 256)`. |
+| Field | Type | Use |
+|-------|------|-----|
+| `DefaultDirectory` | `string` | Pre-open to this path (use last remembered folder) |
+| `Title` | `string` | Dialog window title |
+| `AllowFiles` | `bool` | Set `false` — directories only |
+| `AllowDirectories` | `bool` | Set `true` |
+| `ShowHiddenFiles` | `bool` | Optional, default `false` |
+| `CanCreateDirectories` | `bool` | Allow user to create new dirs in dialog |
 
-**Alternative:** `yeqown/go-qrcode` for styled QR codes with logo overlays. Not needed for this project — plain QR is sufficient.
+**Wails JS runtime note:** Dialog is NOT callable from the JS runtime. Must be exposed as a Go-bound method via `//go:bind` pattern (standard Wails App struct method). The frontend calls `BrowseDirectory(lastDir)` via the generated Wails binding.
 
-### VPN / Network Interface Detection
+**Last-folder persistence:** Store in-memory in the Go App struct (for session lifetime) OR persist to a config file using `os.UserConfigDir()` + JSON marshal. No external config library needed — encoding/json stdlib.
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| github.com/Tailsecurity/tailutils | latest | Tailscale IP detection | `HasTailscaleIP()`, `GetTailscaleIP()`, `GetInterfaceName()`. Thin wrapper, does what we need without pulling in the full Tailscale SDK. |
-| net (stdlib) | Go stdlib | Non-Tailscale VPN interface enumeration | `net.Interfaces()` for listing all network interfaces. User can select any VPN interface by name/IP as fallback when Tailscale not present. |
+**No new dependencies.** `runtime.OpenDirectoryDialog` is in `github.com/wailsapp/wails/v2` which is already in `go.mod`.
 
-**Do NOT use `tailscale.com/tsnet`** — tsnet embeds a full Tailscale node in your process. We only need to detect the Tailscale interface IP, not run Tailscale ourselves. Pulling in tsnet would add massive binary size and require Tailscale auth in-process.
+#### 3. Per-Tab Font Size (SHIFT+/SHIFT-)
 
-### Authentication
+**What it does:** Each tab has an independent font size. SHIFT+= (alias SHIFT+Plus) increases font size, SHIFT+Minus decreases. The terminal reflows after the change.
 
-No external library needed. Implement in stdlib:
-- Dashboard password: bcrypt hash stored in app config. Use `golang.org/x/crypto/bcrypt`.
-- Session tokens: `crypto/rand` for 32-byte random tokens, hex-encoded. Store in memory map with session ID.
+**Stack decision:** xterm.js `terminal.options.fontSize` is a writable property at runtime (verified against official xterm.js API docs). After changing `fontSize`, call `fitAddon.fit()` to reflow cols/rows for the new character dimensions.
 
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| golang.org/x/crypto | latest | bcrypt for password hashing | The only non-stdlib dep for auth. Standard Go extended crypto library. |
+Implementation pattern (no new library needed):
 
-### Frontend State Management
+```typescript
+// In TerminalPanel component — expose a changeFontSize(delta: number) method
+// called by the parent via a ref or a prop
 
-No Redux, no Zustand, no Jotai. Use React 19 built-in state (`useState`, `useReducer`, `useContext`) for:
-- Session list (tab state)
-- Per-session WebSocket connection state
-- UI preferences
+function changeFontSize(delta: number) {
+  if (!termRef.current || !fitAddonRef.current) return
+  const current = termRef.current.options.fontSize ?? 14
+  const next = Math.max(8, Math.min(32, current + delta))
+  termRef.current.options.fontSize = next
+  // Must call fit() after font size change so cols/rows recalculate
+  // Defer one frame so the browser has painted the new char dimensions
+  requestAnimationFrame(() => {
+    fitAddonRef.current?.fit()
+  })
+}
+```
 
-The session count will be small (single digits for typical use). Global state managers add complexity without benefit here.
+**Keyboard event handling:** Listen for `keydown` on the active terminal's container div (or document), filter for `shiftKey + Key=` and `shiftKey + Minus`. Use the browser's `KeyboardEvent.key` values: `"+"` (shift+=) and `"_"` (shift+-). Note that xterm.js captures all key events inside the terminal viewport — use a `keydown` listener on the outer wrapper div BEFORE xterm.js receives the event, or use `term.attachCustomKeyEventHandler()` which runs before xterm processes the key.
+
+The recommended approach is `term.attachCustomKeyEventHandler()`:
+
+```typescript
+term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+  if (event.type !== 'keydown') return false
+  if (event.shiftKey && event.key === '+') {
+    changeFontSize(+1)
+    return false  // prevent xterm from also processing the key
+  }
+  if (event.shiftKey && event.key === '_') {
+    changeFontSize(-1)
+    return false
+  }
+  return true  // let xterm handle everything else
+})
+```
+
+**Per-tab state:** Store `fontSize` per tab in the App component state (`Record<string, number>`) and pass it down to `TerminalPanel` as a prop. Or let each `TerminalPanel` own its font size in local state and expose a ref-based imperative handle. Both work; local state in `TerminalPanel` is simpler since font size doesn't need to be shared.
+
+**No new dependencies.**
+
+#### 4. Terminal Full-Fill Fix
+
+**What it does:** Fix terminals not expanding to fill the full available container space.
+
+**Root cause** (diagnosed from existing code): The `terminal-container` uses `flex: 1` and `terminal-wrapper` uses `height: 100%`, which requires all ancestors to have explicit heights in a flex column. The current layout chain is:
+
+```
+.app (flex column, height: 100%)
+  .tab-bar (flex-shrink: 0, height: 36px)
+  .terminal-container (flex: 1, overflow: hidden)
+    .terminal-wrapper (display: flex, flex-direction: column, width: 100%, height: 100%)
+      .web-serving-bar (flex-shrink: 0) -- optional
+      TerminalPanel div (flex: 1, width: 100%, minHeight: 0)
+```
+
+The `xterm.js` viewport div inside the TerminalPanel container has `position: relative` and the xterm canvas is absolutely positioned. The fit addon measures `containerElement.clientWidth / clientHeight` to calculate cols/rows. If the container's height is 0 at the time `fit()` runs (e.g., before the display:none→flex transition completes), the terminal renders with 0 rows.
+
+**Fix:** The `requestAnimationFrame(() => fitAddonRef.current?.fit())` pattern already exists in the code and is the correct approach. The remaining issue is likely that the `terminal-wrapper` with `height: 100%` inside a `flex: 1` parent requires `min-height: 0` on the flex container to prevent overflow. Add `min-height: 0` to `.terminal-container`.
+
+**CSS fix (no new library):**
+
+```css
+.terminal-container {
+  flex: 1;
+  min-height: 0;  /* CRITICAL: prevents flex overflow in column layout */
+  overflow: hidden;
+  position: relative;
+}
+
+.terminal-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;  /* Also needed here for nested flex */
+}
+```
+
+**No new dependencies.**
+
+#### 5. Per-Tab Status Bar
+
+**What it does:** Replace the `web-serving-bar` floating overlay with a proper status bar docked below the tab bar (or above the terminal). Shows web status, URL, and controls per active tab.
+
+**Stack decision:** CSS layout only. Move the existing `web-serving-bar` content from `App.tsx` into a dedicated `StatusBar` React component. Render it between the tab bar and the terminal. No new library needed.
+
+```css
+.status-bar {
+  flex-shrink: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 8px;
+  background-color: #16161e;
+  border-bottom: 1px solid #292e42;
+  font-size: 12px;
+}
+```
+
+**No new dependencies.**
+
+#### 6. UI/UX Overhaul (Settings Modal, Toolbar, New-Session Modal)
+
+**What it does:** Visual redesign of existing components. Larger toolbar buttons, cleaner settings modal layout, new-session modal replacing the CLI picker dropdown.
+
+**Stack decision:** CSS-only changes. No new UI component library needed. The existing custom CSS approach (plain CSS classes in `style.css`) is sufficient for this scale of UI. The existing modal pattern (`settings-overlay` + `settings-panel`) works well and just needs visual polish.
+
+**No new dependencies.**
+
+---
+
+## Supporting Libraries — Summary for v1.1
+
+| Library | Status | Why |
+|---------|--------|-----|
+| `wails/v2/pkg/runtime` | Already in `go.mod` | `OpenDirectoryDialog` for folder browser |
+| `@xterm/addon-fit` | Already installed | `fit()` after font size changes |
+| bash / xcrun / codesign | macOS system tools | Build script signing — no install needed |
+
+**Zero new npm packages.** **Zero new Go modules.**
 
 ---
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Desktop shell | Wails v2 | Electron | Electron adds ~150MB binary, Node.js runtime, separate npm security surface. Wails produces ~10-20MB binary with Go stdlib. |
-| Desktop shell | Wails v2 | Wails v3 | v3 is alpha as of March 2026. Alpha.74 is not production-ready. Migrate later. |
-| PTY library | go-pty | creack/pty | creack/pty has no merged Windows ConPty support. Windows is a first-class target. |
-| WebSocket | coder/websocket | gorilla/websocket | gorilla is archived since 2022. Do not start new projects on archived deps. |
-| React wrappers | Direct Terminal instantiation | react-xtermjs / xterm-for-react | All React xterm wrappers are unmaintained. Direct useEffect approach is idiomatic and future-proof. |
-| TLS | stdlib crypto/tls | certmagic / Let's Encrypt | Requires domain name. This is local-first. |
-| TLS | stdlib crypto/tls | mkcert | Requires user interaction + system trust store modification. |
-| VPN detection | tailutils | tsnet | tsnet embeds a full Tailscale node. Overkill — we only need IP detection. |
-| State management | React built-in | Zustand/Redux | Session count is small, no complex cross-component state flows warranting a store. |
-| QR codes | skip2/go-qrcode | JS-side QR generation | Go side generates PNG → base64 → React. Keeps QR generation out of frontend bundle. |
+| Feature | Recommended | Alternative | Why Not |
+|---------|-------------|-------------|---------|
+| Folder browser | Wails `OpenDirectoryDialog` | Custom JS file picker (html `<input type="file" webkitdirectory>`) | Wails webview may not support `webkitdirectory` reliably across platforms. Native dialog is the correct Wails pattern. |
+| Font size shortcuts | `term.attachCustomKeyEventHandler()` | `document.addEventListener('keydown')` on parent | xterm.js captures all keyboard events inside its viewport. `attachCustomKeyEventHandler` runs BEFORE xterm processes the key, enabling clean interception without event propagation fights. |
+| Font size state | Local state in `TerminalPanel` | Global state in `App` | Font size is per-terminal, not shared — local state avoids prop drilling and is cleaner. |
+| Build script | bash `build.sh` | Go-based build tool (Mage/Task) | The signing/notarization commands are macOS CLI tools invoked via shell. Bash is the natural fit. The CI already uses these commands in YAML; `build.sh` is a local mirror of that. |
+| Config persistence (last folder) | `os.UserConfigDir()` + JSON | SQLite / BoltDB | JSON config file is sufficient for a handful of preference values. No query needs; no reason for a database. |
 
 ---
 
-## Installation
-
-```bash
-# Install Wails CLI
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-# Initialize project with React+TS template
-wails init -n agenthub -t react-ts
-
-# Go dependencies (add to go.mod)
-go get github.com/wailsapp/wails/v2@v2.11.0
-go get github.com/aymanbagabas/go-pty@v0.2.2
-go get github.com/coder/websocket@latest
-go get github.com/skip2/go-qrcode@latest
-go get github.com/Tailsecurity/tailutils@latest
-go get golang.org/x/crypto@latest
-
-# Frontend dependencies (from frontend/ dir)
-pnpm add @xterm/xterm @xterm/addon-attach @xterm/addon-fit @xterm/addon-web-links @xterm/addon-webgl
-```
-
-### Platform Build Requirements
-
-| Platform | Build Machine Required | System Dependencies |
-|----------|----------------------|---------------------|
-| macOS | macOS runner (no cross-compile) | Xcode CLI tools |
-| Linux | Linux runner | `libgtk-3-dev`, `libwebkit2gtk-4.0-dev` (Ubuntu ≤23) or `libwebkit2gtk-4.1-dev` (Ubuntu 24+). Build with `-tags webkit2_41` for Ubuntu 24.04+. |
-| Windows | Windows runner (or cross-compile from Linux with MSVC toolchain) | No CGO required (Wails v2 removed CGO for Windows) |
-
-**Cross-platform CI:** Use GitHub Actions matrix with `macos-latest`, `ubuntu-latest`, `windows-latest` runners. macOS CANNOT be cross-compiled from Linux — requires native macOS runner. Use `dAppServer/wails-build-action` community action or write the matrix manually.
-
----
-
-## Key Integration Points
-
-### 1. Desktop Terminal: Wails IPC → WebSocket → xterm.js
-
-The Wails frontend (React in a WebView) cannot use a raw OS socket. Instead:
-
-1. Go process starts a local WebSocket endpoint per terminal session (e.g., `ws://localhost:{port}/session/{id}`)
-2. React connects xterm.js to that WebSocket using `@xterm/addon-attach`
-3. Go bridges the WebSocket to the PTY via `go-pty`
-
-This pattern decouples the terminal protocol from Wails' IPC binding layer, which is designed for structured JSON calls — not binary streaming. The WebSocket bridge handles the streaming; Wails IPC handles session management commands (new tab, close tab, resize).
-
-### 2. Web Terminal: Same Go WebSocket Endpoints, External TLS
-
-The same WebSocket endpoints the desktop uses are exposed externally (on the VPN interface) over TLS. A thin HTML page with xterm.js (served via `embed.FS`) connects the same way a browser would. No separate web server process — same Go `net/http` server, same WebSocket handlers, different `http.ListenAndServeTLS` listener bound to the VPN IP.
-
-### 3. PTY Resize: Frontend → Go → PTY
-
-When xterm.js fires `onResize`, send the new columns/rows via Wails IPC (`window.go.App.ResizeSession(id, cols, rows)`). Go calls `go-pty`'s resize method. This keeps the PTY and terminal display in sync.
-
-### 4. QR Code Flow
-
-```
-Go: url → qrcode.Encode() → []byte PNG → base64 string
-Wails IPC: GetSessionQR(id) → base64 string
-React: <img src={`data:image/png;base64,${qr}`} />
-```
-
-No frontend QR library needed. The PNG is small enough to pass over IPC without performance concern.
-
----
-
-## What NOT to Add (Over-Engineering Risks)
+## What NOT to Add
 
 | Temptation | Why to Resist |
 |------------|--------------|
-| Redis / SQLite for session state | Sessions live in process memory. Persistence across app restart is out of scope. In-memory map is sufficient. |
-| gRPC instead of Wails IPC + WebSocket | Two protocols already (IPC + WS). Adding gRPC is a third with no benefit. |
-| JWT for web session tokens | Random 32-byte hex tokens are simpler, equally secure for this use case. JWT adds parsing complexity with no benefit when there's no claims structure needed. |
-| React Query / SWR | No REST API — data comes via IPC or WebSocket push. React Query targets REST/GraphQL; wrong tool here. |
-| Tailwind CSS | No strong reason for or against — but Wails default templates don't include it and adding it mid-project increases config complexity. CSS Modules or plain CSS is sufficient for a terminal-focused UI. |
-| Plugin system / dynamic loading | Out of scope per PROJECT.md. Initial CLI set is hardcoded. |
-| tsnet (embedded Tailscale) | We detect the Tailscale interface, we don't run it. |
+| A UI component library (Radix, shadcn, MUI) | Scope is UI polish on existing components, not a full redesign. Adding a component library mid-project requires migrating existing components and resolving style conflicts. The current custom CSS is intentional and sufficient. |
+| electron-builder or tauri for packaging | Already using Wails. Do not introduce a second desktop framework. |
+| A cross-platform build tool (GoReleaser, Mage) | The `wails build` CLI handles the Go+JS compilation. GoReleaser is for Go-only binaries — it doesn't know how to invoke the frontend Vite build. A simple `build.sh` that shells out to `wails build` is the right scope. |
+| Font size stored in localStorage | The Wails webview is a webview, not a persistent browser context. `localStorage` may work but its persistence across app restarts on Wails webview is not guaranteed cross-platform. Prefer Go-side config if persistence is required. |
+| `@xterm/addon-search` | Not requested in this milestone. Defer. |
+| React portals for modals | The existing `position: fixed` modal pattern works correctly in a Wails webview (no parent overflow clip issues). Portals add complexity with no benefit here. |
+
+---
+
+## Version Compatibility
+
+| Package | Version | Compatible With | Notes |
+|---------|---------|----------------|-------|
+| `@xterm/addon-fit` | ^0.11.0 | `@xterm/xterm ^6.0.0` | Must use matching major version. 0.11.x is the addon version for xterm 6.x. |
+| `wails/v2/pkg/runtime` | v2.10.2 | Go 1.26.1 | `OpenDirectoryDialog` available since Wails v2.0. No version concern. |
+| `wails build` CLI | v2.10.2 | Verified locally | All flags documented above verified against `wails build --help` on v2.10.2. |
 
 ---
 
 ## Sources
 
-- [Wails v2.11.0 release](https://github.com/wailsapp/wails/releases) — MEDIUM confidence (release page confirmed)
-- [Wails v3 alpha status](https://v3alpha.wails.io/) — HIGH confidence (official site)
-- [Wails cross-platform build guide](https://wails.io/docs/guides/crossplatform-build/) — HIGH confidence (official docs)
-- [Wails Linux webkit2gtk issues](https://github.com/wailsapp/wails/issues/3513) — HIGH confidence (official issue tracker)
-- [xterm.js releases](https://github.com/xtermjs/xterm.js/releases) — HIGH confidence (official releases)
-- [coder/websocket (formerly nhooyr/websocket)](https://github.com/coder/websocket) — HIGH confidence (official repo)
-- [go-pty cross-platform PTY](https://github.com/aymanbagabas/go-pty) — MEDIUM confidence (v0.2.2, last release Jan 2024)
-- [creack/pty Windows ConPty PR unmerged](https://github.com/creack/pty/pull/155) — HIGH confidence (PR status verified)
-- [tailutils Tailscale IP detection](https://github.com/Tailsecurity/tailutils) — MEDIUM confidence (WebSearch only, not Context7 verified)
-- [skip2/go-qrcode](https://pkg.go.dev/github.com/skip2/go-qrcode) — HIGH confidence (well-established library)
-- [React 19.2 stable](https://react.dev/versions) — HIGH confidence (official React site)
-- [Vite 5 + Wails configuration](https://github.com/wailsapp/wails/issues/3845) — MEDIUM confidence (community issue thread)
+- `wails build --help` (local) — HIGH confidence. All build flags verified against Wails v2.10.2 installed locally.
+- [Wails runtime OpenDirectoryDialog](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/runtime) — HIGH confidence. Official pkg.go.dev documentation.
+- [Wails OpenDialogOptions struct](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/options/dialog) — HIGH confidence. Official pkg.go.dev documentation showing all struct fields.
+- [xterm.js Terminal.options (readable/writable)](https://xtermjs.org/docs/api/terminal/classes/terminal/) — HIGH confidence. Official xterm.js API docs confirm `options` is a read-write property. `terminal.options.fontSize = N` is the documented API.
+- [xterm.js 6.0.0 release notes](https://github.com/xtermjs/xterm.js/releases) — HIGH confidence. fontSize API is unchanged in v6 (breaking changes were windowsMode, canvas renderer, overviewRulerWidth only).
+- [xterm.js attachCustomKeyEventHandler](https://xtermjs.org/docs/api/terminal/classes/terminal/) — HIGH confidence. Official docs show this method runs before xterm's own key handler.
+- [CSS flex min-height: 0 pattern](https://css-tricks.com/boxes-fill-height-dont-squish/) — HIGH confidence. Well-established CSS flexbox behavior, not a library-specific concern.
+- [Wails Dialog JS unsupported](https://wails.io/docs/reference/runtime/dialog/) — MEDIUM confidence. Confirmed via search results that dialog must be called from Go side.
+
+---
+
+*Stack research for: AgentHub v1.1 Polish & Build milestone*
+*Researched: 2026-03-19*
