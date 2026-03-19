@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-03-19T18:28:41.765Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-19T19:05:47.304Z"
 progress:
   total_phases: 7
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 08 — per-tab-status-bar
+**Current focus:** Phase 09 — settings-modal-overhaul
 
 ## Current Position
 
-Phase: 08 (per-tab-status-bar) — EXECUTING
-Plan: 1 of 2
+Phase: 09 (settings-modal-overhaul) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Plan: 1 of 2
 | Phase 07-layout-baseline P01 | 60 | 3 tasks | 5 files |
 | Phase 08-per-tab-status-bar P01 | 2 | 2 tasks | 3 files |
 | Phase 08 P02 | 5 | 2 tasks | 2 files |
+| Phase 09-settings-modal-overhaul P01 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Recent decisions for v1.1:
 - [Phase 08-per-tab-status-bar]: Three states via JSX conditionals, not CSS display toggling
 - [Phase 08]: StatusBar rendered unconditionally in App.tsx — not inside webServerRunning guard
 - [Phase 08-per-tab-status-bar]: StatusBar rendered unconditionally in App.tsx — not inside webServerRunning guard; old web-serving-bar block fully removed along with all child elements
+- [Phase 09-settings-modal-overhaul]: JSX conditionals for tab content, not CSS display toggle — consistent with Phase 8 pattern
+- [Phase 09-settings-modal-overhaul]: Save Paths does not close modal — user stays on CLI Paths tab after saving paths
+- [Phase 09-settings-modal-overhaul]: Footer reduced to single Close button; Save button moved inline to CLI Paths tab
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T17:27:22.300Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-03-19T19:05:47.301Z
+Stopped at: Completed 09-01-PLAN.md
 Resume file: None

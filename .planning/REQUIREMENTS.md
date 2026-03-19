@@ -44,8 +44,8 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 
 ### Settings
 
-- [ ] **SETT-01**: Settings modal uses a tabbed layout to reduce crowding (e.g., CLI Paths | Web Serving)
-- [ ] **SETT-02**: Settings modal has improved styling and visual organization
+- [x] **SETT-01**: Settings modal uses a tabbed layout to reduce crowding (e.g., CLI Paths | Web Serving)
+- [x] **SETT-02**: Settings modal has improved styling and visual organization
 
 ## Future Requirements
 
@@ -103,8 +103,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SESS-04 | Phase 11 | Pending |
 | WEBUI-01 | Phase 12 | Pending |
 | WEBUI-02 | Phase 12 | Pending |
-| SETT-01 | Phase 9 | Pending |
-| SETT-02 | Phase 9 | Pending |
+| SETT-01 | Phase 9 | Complete |
+| SETT-02 | Phase 9 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 22 total

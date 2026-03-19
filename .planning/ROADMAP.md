@@ -25,7 +25,7 @@
 
 - [x] **Phase 7: Layout Baseline** — Terminal fill and toolbar sizing foundation for all subsequent UI work (completed 2026-03-19)
 - [x] **Phase 8: Per-Tab Status Bar** — Permanent status strip replaces floating web-serving overlay (completed 2026-03-19)
-- [ ] **Phase 9: Settings Modal Overhaul** — Tabbed layout declutters and reorganizes settings
+- [x] **Phase 9: Settings Modal Overhaul** — Tabbed layout declutters and reorganizes settings (completed 2026-03-19)
 - [ ] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab
 - [ ] **Phase 11: New-Session Modal** — Agent picker and native folder browser replace bare CLI picker
 - [ ] **Phase 12: Tab Rename + Web Dashboard** — Tab renames propagate to web dashboard; dashboard visual refresh
@@ -67,7 +67,7 @@ Plans:
   1. Settings modal displays tabs (e.g., "CLI Paths" and "Web Serving") that switch between distinct option groups
   2. Each tab shows only its own settings — no options from other tabs are visible at the same time
   3. Modal has a single "Close" footer with improved visual styling and spacing
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 09-01-PLAN.md — Add tab bar, conditional tab rendering, inline Save Paths, single Close footer
 
@@ -129,7 +129,7 @@ Plans:
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
-| 9. Settings Modal Overhaul | v1.1 | 0/1 | Not started | - |
+| 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
