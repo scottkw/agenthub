@@ -96,9 +96,13 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
 
     const container = containerRef.current
 
-    // Defer initial fit to ensure layout is complete after display:none → display:flex transition.
-    const rafId = requestAnimationFrame(() => {
-      fitAddonRef.current?.fit()
+    // Double-RAF: first RAF fires after the current paint, second fires after the
+    // NEXT paint — by which time the browser has fully reflowed display:none → flex.
+    const rafIds = [0, 0]
+    rafIds[0] = requestAnimationFrame(() => {
+      rafIds[1] = requestAnimationFrame(() => {
+        fitAddonRef.current?.fit()
+      })
     })
 
     // ResizeObserver fires whenever the container dimensions change (window resize,
@@ -109,7 +113,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
     ro.observe(container)
 
     return () => {
-      cancelAnimationFrame(rafId)
+      rafIds.forEach(cancelAnimationFrame)
       ro.disconnect()
     }
   }, [isActive])
