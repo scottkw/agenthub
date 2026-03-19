@@ -67,7 +67,9 @@ Plans:
   1. Settings modal displays tabs (e.g., "CLI Paths" and "Web Serving") that switch between distinct option groups
   2. Each tab shows only its own settings — no options from other tabs are visible at the same time
   3. Modal has a single "Close" footer with improved visual styling and spacing
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 09-01-PLAN.md — Add tab bar, conditional tab rendering, inline Save Paths, single Close footer
 
 ### Phase 10: Per-Tab Font Size
 **Goal**: Users can adjust font size in any terminal tab using keyboard shortcuts, with size persisted per tab
@@ -127,7 +129,7 @@ Plans:
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
-| 9. Settings Modal Overhaul | v1.1 | 0/? | Not started | - |
+| 9. Settings Modal Overhaul | v1.1 | 0/1 | Not started | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
