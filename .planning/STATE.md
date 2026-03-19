@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-19T13:02:19.240Z"
+stopped_at: "Completed 06-02-PLAN.md (Task 2 checkpoint: push to GitHub to verify CI)"
+last_updated: "2026-03-19T13:05:45.552Z"
 last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 93
 ---
 
@@ -63,6 +63,7 @@ Progress: [█████████░] 93%
 | Phase 05-qr-codes-status-indicators P04 | 8 | 1 tasks | 2 files |
 | Phase 05-qr-codes-status-indicators P06 | 5min | 1 tasks | 2 files |
 | Phase 06-distribution-cross-platform P01 | 10min | 3 tasks | 7 files |
+| Phase 06-distribution-cross-platform P02 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ Recent decisions affecting current work:
 - [Phase 05-qr-codes-status-indicators]: GET /dashboard serves HTML without dashboardAuth wrapper — dashboard.html JS detects auth state by probing /api/sessions; HTML shell must be publicly accessible for login form to render
 - [Phase 06-distribution-cross-platform]: build/darwin/ gitignore negation: use build/darwin/* + !Info.plist pattern to track plists while ignoring binary outputs
 - [Phase 06-distribution-cross-platform]: entitlements.plist: network.client + network.server only — no get-task-allow (Apple rejects notarization with it)
+- [Phase 06-distribution-cross-platform]: CI matrix: dAppServer/wails-build-action@main with fail-fast:false for 4-runner matrix (macos-latest, ubuntu-latest, ubuntu-22.04, windows-latest)
+- [Phase 06-distribution-cross-platform]: macOS signing conditional on MACOS_CERTIFICATE secret — CI builds successfully without secrets, signing/notarization skipped when unconfigured
+- [Phase 06-distribution-cross-platform]: always() on macOS cleanup step — ephemeral CI keychain deleted regardless of signing success to prevent keychain accumulation
 
 ### Pending Todos
 
@@ -135,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:02:19.226Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-03-19T13:05:45.546Z
+Stopped at: Completed 06-02-PLAN.md (Task 2 checkpoint: push to GitHub to verify CI)
 Resume file: None
