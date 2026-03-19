@@ -94,7 +94,11 @@ Plans:
   2. The modal lists available AI coding CLIs for selection as the agent
   3. The modal includes a button that opens a native OS folder browser to select the working directory
   4. The folder browser defaults to the last-used folder on subsequent opens, or home directory on first use
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Go backend: OpenDirectoryDialog method, WorkDir in CreateRequest, updated CreateSession signature + TS stubs
+- [ ] 11-02-PLAN.md — NewSessionModal component, source-inspection tests, and CSS rules
+- [ ] 11-03-PLAN.md — Wire modal into App.tsx, remove old CLI picker code and CSS
 
 ### Phase 12: Tab Rename + Web Dashboard
 **Goal**: Tab renames propagate to the web dashboard session list, and the web dashboard has a refreshed visual design
@@ -133,7 +137,7 @@ Plans:
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
-| 11. New-Session Modal | v1.1 | 0/? | Not started | - |
+| 11. New-Session Modal | v1.1 | 0/3 | Planned | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |
 
