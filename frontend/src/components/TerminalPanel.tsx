@@ -9,6 +9,8 @@ interface TerminalPanelProps {
   sessionId: string
   isActive: boolean
   relayPort: number
+  fontSize: number
+  onFontSizeChange: (delta: number) => void
 }
 
 /**
@@ -16,7 +18,7 @@ interface TerminalPanelProps {
  * All panels render simultaneously; inactive ones are hidden via display:none
  * to preserve the terminal buffer state without destroying the DOM node.
  */
-export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelProps): React.ReactElement {
+export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange }: TerminalPanelProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -31,7 +33,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
       allowProposedApi: true,    // required for unicode11
       cursorBlink: true,
       fontFamily: '"Cascadia Code", "MesloLGS NF", "Fira Code", monospace',
-      fontSize: 14,
+      fontSize,
       theme: { background: '#1a1b26' },
     })
 
@@ -56,6 +58,14 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
     term.open(containerRef.current)
     // Don't fit here — hidden panels have zero dimensions.
     // The isActive effect handles fitting when a panel becomes visible.
+
+    // Intercept SHIFT+= and SHIFT+- for font size control; return false to suppress PTY injection.
+    term.attachCustomKeyEventHandler((ev: KeyboardEvent): boolean => {
+      if (ev.type !== 'keydown') return true
+      if (ev.shiftKey && ev.key === '=') { onFontSizeChange(+1); return false }
+      if (ev.shiftKey && ev.key === '-') { onFontSizeChange(-1); return false }
+      return true
+    })
 
     termRef.current = term
     fitAddonRef.current = fitAddon
@@ -86,6 +96,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
       clientRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // onFontSizeChange intentionally omitted: stable callback captured once per session
   }, [sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
@@ -115,6 +126,13 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
       ro.disconnect()
     }
   }, [isActive])
+
+  // Apply font size changes from the controlled prop.
+  useEffect(() => {
+    if (!termRef.current || !fitAddonRef.current) return
+    termRef.current.options.fontSize = fontSize
+    fitAddonRef.current.fit()
+  }, [fontSize])
 
   return (
     <div

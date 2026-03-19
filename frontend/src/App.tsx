@@ -20,6 +20,8 @@ import { EventsOn } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 
+const DEFAULT_FONT_SIZE = 14
+
 /**
  * App is the root component — it owns all tab state and wires
  * the Wails-generated TypeScript bindings to the child components.
@@ -43,6 +45,8 @@ function App(): React.ReactElement {
   const [sessionStatuses, setSessionStatuses] = useState<Record<string, string>>({})
   // Track which session's QR modal is open (null = none)
   const [qrSessionId, setQrSessionId] = useState<string | null>(null)
+  // Track font size per session: sessionId -> fontSize (pixels)
+  const [fontSizes, setFontSizes] = useState<Record<string, number>>({})
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
@@ -159,6 +163,8 @@ function App(): React.ReactElement {
     })
     // Clean up session status for the closed session.
     setSessionStatuses((prev) => { const n = { ...prev }; delete n[id]; return n })
+    // Clean up font size for the closed session.
+    setFontSizes((prev) => { const n = { ...prev }; delete n[id]; return n })
     // Close QR modal if it was open for this session.
     setQrSessionId((prev) => (prev === id ? null : prev))
   }, [activeId, webEnabled])
@@ -213,6 +219,14 @@ function App(): React.ReactElement {
     } catch (_) { /* ignore */ }
   }, [])
 
+  const handleFontSizeChange = useCallback((sessionId: string, delta: number) => {
+    setFontSizes((prev) => {
+      const current = prev[sessionId] ?? DEFAULT_FONT_SIZE
+      const next = Math.max(6, Math.min(32, current + delta))
+      return { ...prev, [sessionId]: next }
+    })
+  }, [])
+
   return (
     <div className="app">
       <TabBar
@@ -240,6 +254,8 @@ function App(): React.ReactElement {
                   sessionId={tab.sessionId}
                   isActive={isActive}
                   relayPort={relayPort}
+                  fontSize={fontSizes[tab.sessionId] ?? DEFAULT_FONT_SIZE}
+                  onFontSizeChange={(delta) => handleFontSizeChange(tab.sessionId, delta)}
                 />
                 <StatusBar
                   sessionId={tab.sessionId}
