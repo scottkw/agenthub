@@ -20,7 +20,7 @@ export interface NetworkInterface {
   IsTailscale: boolean
 }
 
-export function CreateSession(cli: string, name: string): Promise<string>
+export function CreateSession(cli: string, name: string, workDir: string): Promise<string>
 export function ListSessions(): Promise<SessionInfo[]>
 export function RenameSession(id: string, name: string): Promise<void>
 export function KillSession(id: string): Promise<void>
@@ -43,3 +43,6 @@ export function IsWebServerRunning(): Promise<boolean>
 // QR code and status bound methods
 export function GetSessionQRCode(sessionID: string): Promise<string>
 export function GetSessionStatus(sessionID: string): Promise<string>
+
+// Directory dialog bound method
+export function OpenDirectoryDialog(defaultDir: string): Promise<string>

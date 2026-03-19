@@ -4,7 +4,7 @@
 
 import { Call } from '../../runtime/runtime.js'
 
-export const CreateSession  = (cli, name)    => Call('main.App.CreateSession', [cli, name])
+export const CreateSession  = (cli, name, workDir) => Call('main.App.CreateSession', [cli, name, workDir])
 export const ListSessions   = ()             => Call('main.App.ListSessions', [])
 export const RenameSession  = (id, name)     => Call('main.App.RenameSession', [id, name])
 export const KillSession    = (id)           => Call('main.App.KillSession', [id])
@@ -27,3 +27,6 @@ export const IsWebServerRunning   = ()                      => Call('main.App.Is
 // QR code and status bound methods
 export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
 export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])
+
+// Directory dialog bound method
+export const OpenDirectoryDialog  = (defaultDir)            => Call('main.App.OpenDirectoryDialog', [defaultDir])

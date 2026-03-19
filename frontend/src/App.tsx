@@ -105,7 +105,7 @@ function App(): React.ReactElement {
     const defaultName = `${cliName} ${tabCounter}`
     setTabCounter((n) => n + 1)
     try {
-      const sessionId = await CreateSession(cliName, defaultName)
+      const sessionId = await CreateSession(cliName, defaultName, '')
       const tab: Tab = {
         id: sessionId,
         name: defaultName,

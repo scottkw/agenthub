@@ -116,14 +116,15 @@ func (a *App) beforeClose(ctx context.Context) bool {
 // --- Wails-bound methods ---
 
 // CreateSession spawns a new CLI session and returns its ID.
-func (a *App) CreateSession(cli, name string) (string, error) {
+func (a *App) CreateSession(cli, name, workDir string) (string, error) {
 	// Resolve CLI path: custom override → PATH lookup.
 	cliPath := a.resolveCLI(cli)
 
 	sess, err := a.backend.Create(a.ctx, pty.CreateRequest{
-		CLI:  cliPath,
-		Cols: 80,
-		Rows: 24,
+		CLI:     cliPath,
+		Cols:    80,
+		Rows:    24,
+		WorkDir: workDir,
 	})
 	if err != nil {
 		return "", fmt.Errorf("create session: %w", err)
@@ -491,4 +492,19 @@ func (a *App) GetSessionQRCode(sessionID string) (string, error) {
 		return "", fmt.Errorf("GetSessionQRCode: encode: %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(png), nil
+}
+
+// OpenDirectoryDialog opens a native OS folder picker and returns the selected path.
+// Returns "" if the user cancels. Falls back to the user's home directory when
+// defaultDir is empty.
+func (a *App) OpenDirectoryDialog(defaultDir string) (string, error) {
+	if defaultDir == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			defaultDir = home
+		}
+	}
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            "Select Working Directory",
+		DefaultDirectory: defaultDir,
+	})
 }

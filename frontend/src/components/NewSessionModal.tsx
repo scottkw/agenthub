@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { OpenDirectoryDialog } from '../wailsjs/go/main/App'
 
 const LAST_DIR_KEY = 'agenthub:lastWorkDir'
