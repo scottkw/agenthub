@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed 06-02-PLAN.md (Task 2 checkpoint: push to GitHub to verify CI)"
-last_updated: "2026-03-19T13:05:45.552Z"
+status: complete
+stopped_at: Completed 06-02-PLAN.md — CI matrix workflow complete, all 4 platform targets verified
+last_updated: "2026-03-19T13:09:23.754Z"
 last_activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 19
   completed_plans: 19
-  percent: 93
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: 3 of 3 in current phase
 Status: In progress
 Last activity: 2026-03-18 — Plan 05-03 complete (QR modal + status badge dots wired into React desktop UI)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -63,7 +63,7 @@ Progress: [█████████░] 93%
 | Phase 05-qr-codes-status-indicators P04 | 8 | 1 tasks | 2 files |
 | Phase 05-qr-codes-status-indicators P06 | 5min | 1 tasks | 2 files |
 | Phase 06-distribution-cross-platform P01 | 10min | 3 tasks | 7 files |
-| Phase 06-distribution-cross-platform P02 | 5 | 1 tasks | 1 files |
+| Phase 06-distribution-cross-platform P02 | 10min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -126,6 +126,7 @@ Recent decisions affecting current work:
 - [Phase 06-distribution-cross-platform]: CI matrix: dAppServer/wails-build-action@main with fail-fast:false for 4-runner matrix (macos-latest, ubuntu-latest, ubuntu-22.04, windows-latest)
 - [Phase 06-distribution-cross-platform]: macOS signing conditional on MACOS_CERTIFICATE secret — CI builds successfully without secrets, signing/notarization skipped when unconfigured
 - [Phase 06-distribution-cross-platform]: always() on macOS cleanup step — ephemeral CI keychain deleted regardless of signing success to prevent keychain accumulation
+- [Phase 06-distribution-cross-platform]: wails-build-action@main (not @v3): uses @main for latest webkit2_41 support per research
 
 ### Pending Todos
 
@@ -139,6 +140,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-19T13:05:45.546Z
-Stopped at: Completed 06-02-PLAN.md (Task 2 checkpoint: push to GitHub to verify CI)
+Last session: 2026-03-19T13:09:23.751Z
+Stopped at: Completed 06-02-PLAN.md — CI matrix workflow complete, all 4 platform targets verified
 Resume file: None
