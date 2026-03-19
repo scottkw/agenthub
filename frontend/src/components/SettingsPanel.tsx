@@ -24,6 +24,7 @@ interface SettingsPanelProps {
  * section for password setup, network interface selection, and server start/stop.
  */
 export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): React.ReactElement | null {
+  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-serving'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -96,7 +97,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
           await UpdateCLIPath(cli.Name, path.trim())
         }
       }
-      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -165,166 +165,194 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
           </button>
         </div>
 
+        <div className="settings-panel__tabs" role="tablist">
+          <button
+            className={`settings-panel__tab-btn ${activeTab === 'cli-paths' ? 'settings-panel__tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('cli-paths')}
+            role="tab"
+            aria-selected={activeTab === 'cli-paths'}
+          >
+            CLI Paths
+          </button>
+          <button
+            className={`settings-panel__tab-btn ${activeTab === 'web-serving' ? 'settings-panel__tab-btn--active' : ''}`}
+            onClick={() => setActiveTab('web-serving')}
+            role="tab"
+            aria-selected={activeTab === 'web-serving'}
+          >
+            Web Serving
+          </button>
+        </div>
+
         <div className="settings-panel__body">
-          {/* CLI Paths Section */}
-          <h3>CLI Paths</h3>
-          {clis.length === 0 ? (
-            <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
-          ) : (
-            <table className="settings-panel__table">
-              <thead>
-                <tr>
-                  <th>CLI</th>
-                  <th>Path</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clis.map((cli) => (
-                  <tr key={cli.Name}>
-                    <td className="settings-panel__cli-name">{cli.Name}</td>
-                    <td>
-                      <input
-                        className="settings-panel__path-input"
-                        type="text"
-                        value={customPaths[cli.Name] ?? cli.Path}
-                        onChange={(e) =>
-                          setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
-                        }
-                        placeholder={cli.Path || `Path to ${cli.Name}`}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {activeTab === 'cli-paths' && (
+            <>
+              {/* CLI Paths Section */}
+              <h3>CLI Paths</h3>
+              {clis.length === 0 ? (
+                <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
+              ) : (
+                <table className="settings-panel__table">
+                  <thead>
+                    <tr>
+                      <th>CLI</th>
+                      <th>Path</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clis.map((cli) => (
+                      <tr key={cli.Name}>
+                        <td className="settings-panel__cli-name">{cli.Name}</td>
+                        <td>
+                          <input
+                            className="settings-panel__path-input"
+                            type="text"
+                            value={customPaths[cli.Name] ?? cli.Path}
+                            onChange={(e) =>
+                              setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
+                            }
+                            placeholder={cli.Path || `Path to ${cli.Name}`}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {error && <p className="settings-panel__error">{error}</p>}
+
+              <div className="settings-panel__save-paths-row">
+                <button
+                  className="settings-panel__btn settings-panel__btn--save"
+                  onClick={handleSaveCLIPaths}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving…' : 'Save Paths'}
+                </button>
+              </div>
+            </>
           )}
 
-          {error && <p className="settings-panel__error">{error}</p>}
-
-          <hr className="settings-panel__divider" />
-
-          {/* Web Serving Section */}
-          <h3>Web Serving</h3>
-          <p className="settings-panel__description">
-            Enable HTTPS access to terminal sessions from remote browsers.
-          </p>
-
-          {/* Password Setup */}
-          <div className="settings-panel__field-group">
-            <label className="settings-panel__label">
-              Dashboard Password
-              {isPasswordSet && (
-                <span className="settings-panel__check" title="Password is set"> ✓</span>
-              )}
-            </label>
-            <div className="settings-panel__row">
-              <input
-                className="settings-panel__path-input"
-                type="password"
-                value={webPassword}
-                onChange={(e) => setWebPassword(e.target.value)}
-                placeholder={isPasswordSet ? 'Change password…' : 'Set a password to enable web serving'}
-                onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
-              />
-              <button
-                className="settings-panel__btn settings-panel__btn--save"
-                onClick={handleSetPassword}
-                disabled={passwordSaving || !webPassword.trim()}
-              >
-                {passwordSaving ? 'Saving…' : 'Set Password'}
-              </button>
-            </div>
-            {passwordError && <p className="settings-panel__error">{passwordError}</p>}
-          </div>
-
-          {/* Network Interface Selector */}
-          <div className="settings-panel__field-group">
-            <label className="settings-panel__label">Network Interface</label>
-            {networkInterfaces.length === 0 ? (
-              <p className="settings-panel__empty">No non-loopback interfaces found.</p>
-            ) : (
-              <select
-                className="settings-panel__select"
-                value={selectedInterface}
-                onChange={(e) => setSelectedInterface(e.target.value)}
-                disabled={isServerRunning}
-              >
-                {networkInterfaces.map((iface) => (
-                  <option key={`${iface.Name}-${iface.IP}`} value={iface.IP}>
-                    {iface.Name} ({iface.IP}){iface.IsTailscale ? ' — Tailscale' : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          {/* Port */}
-          <div className="settings-panel__field-group">
-            <label className="settings-panel__label">Port</label>
-            <input
-              className="settings-panel__path-input settings-panel__port-input"
-              type="number"
-              value={selectedPort}
-              onChange={(e) => setSelectedPort(Number(e.target.value))}
-              disabled={isServerRunning}
-              min={1}
-              max={65535}
-            />
-          </div>
-
-          {/* Start/Stop Server */}
-          <div className="settings-panel__field-group">
-            <button
-              className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
-              onClick={handleToggleServer}
-              disabled={serverLoading || (!isServerRunning && !isPasswordSet)}
-              title={!isPasswordSet && !isServerRunning ? 'Set a password first' : undefined}
-            >
-              {serverLoading
-                ? (isServerRunning ? 'Stopping…' : 'Starting…')
-                : (isServerRunning ? 'Stop Web Server' : 'Start Web Server')}
-            </button>
-            {serverError && <p className="settings-panel__error">{serverError}</p>}
-            {isServerRunning && serverURL && (
-              <p className="settings-panel__url">
-                Server running at: <a href={serverURL} target="_blank" rel="noreferrer">{serverURL}</a>
-              </p>
-            )}
-          </div>
-
-          {/* CA Certificate Guidance */}
-          {caCertPath && (
-            <div className="settings-panel__field-group">
-              <label className="settings-panel__label">CA Certificate</label>
+          {activeTab === 'web-serving' && (
+            <>
+              {/* Web Serving Section */}
+              <h3>Web Serving</h3>
               <p className="settings-panel__description">
-                To avoid browser security warnings, install the local CA cert:
+                Enable HTTPS access to terminal sessions from remote browsers.
               </p>
-              <code className="settings-panel__code">{caCertPath}</code>
-              <details className="settings-panel__details">
-                <summary>Installation instructions</summary>
-                <pre className="settings-panel__code settings-panel__code--block">
-                  {getCACertInstructions()}
-                </pre>
-                <p className="settings-panel__description">
-                  After installation, restart your browser and refresh the page.
-                  The CA cert can also be downloaded directly from the server at{' '}
-                  <code>/ca.crt</code>.
-                </p>
-              </details>
-            </div>
+
+              {/* Password Setup */}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">
+                  Dashboard Password
+                  {isPasswordSet && (
+                    <span className="settings-panel__check" title="Password is set"> ✓</span>
+                  )}
+                </label>
+                <div className="settings-panel__row">
+                  <input
+                    className="settings-panel__path-input"
+                    type="password"
+                    value={webPassword}
+                    onChange={(e) => setWebPassword(e.target.value)}
+                    placeholder={isPasswordSet ? 'Change password…' : 'Set a password to enable web serving'}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
+                  />
+                  <button
+                    className="settings-panel__btn settings-panel__btn--save"
+                    onClick={handleSetPassword}
+                    disabled={passwordSaving || !webPassword.trim()}
+                  >
+                    {passwordSaving ? 'Saving…' : 'Set Password'}
+                  </button>
+                </div>
+                {passwordError && <p className="settings-panel__error">{passwordError}</p>}
+              </div>
+
+              {/* Network Interface Selector */}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">Network Interface</label>
+                {networkInterfaces.length === 0 ? (
+                  <p className="settings-panel__empty">No non-loopback interfaces found.</p>
+                ) : (
+                  <select
+                    className="settings-panel__select"
+                    value={selectedInterface}
+                    onChange={(e) => setSelectedInterface(e.target.value)}
+                    disabled={isServerRunning}
+                  >
+                    {networkInterfaces.map((iface) => (
+                      <option key={`${iface.Name}-${iface.IP}`} value={iface.IP}>
+                        {iface.Name} ({iface.IP}){iface.IsTailscale ? ' — Tailscale' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Port */}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">Port</label>
+                <input
+                  className="settings-panel__path-input settings-panel__port-input"
+                  type="number"
+                  value={selectedPort}
+                  onChange={(e) => setSelectedPort(Number(e.target.value))}
+                  disabled={isServerRunning}
+                  min={1}
+                  max={65535}
+                />
+              </div>
+
+              {/* Start/Stop Server */}
+              <div className="settings-panel__field-group">
+                <button
+                  className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
+                  onClick={handleToggleServer}
+                  disabled={serverLoading || (!isServerRunning && !isPasswordSet)}
+                  title={!isPasswordSet && !isServerRunning ? 'Set a password first' : undefined}
+                >
+                  {serverLoading
+                    ? (isServerRunning ? 'Stopping…' : 'Starting…')
+                    : (isServerRunning ? 'Stop Web Server' : 'Start Web Server')}
+                </button>
+                {serverError && <p className="settings-panel__error">{serverError}</p>}
+                {isServerRunning && serverURL && (
+                  <p className="settings-panel__url">
+                    Server running at: <a href={serverURL} target="_blank" rel="noreferrer">{serverURL}</a>
+                  </p>
+                )}
+              </div>
+
+              {/* CA Certificate Guidance */}
+              {caCertPath && (
+                <div className="settings-panel__field-group">
+                  <label className="settings-panel__label">CA Certificate</label>
+                  <p className="settings-panel__description">
+                    To avoid browser security warnings, install the local CA cert:
+                  </p>
+                  <code className="settings-panel__code">{caCertPath}</code>
+                  <details className="settings-panel__details">
+                    <summary>Installation instructions</summary>
+                    <pre className="settings-panel__code settings-panel__code--block">
+                      {getCACertInstructions()}
+                    </pre>
+                    <p className="settings-panel__description">
+                      After installation, restart your browser and refresh the page.
+                      The CA cert can also be downloaded directly from the server at{' '}
+                      <code>/ca.crt</code>.
+                    </p>
+                  </details>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div className="settings-panel__footer">
           <button className="settings-panel__btn settings-panel__btn--cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="settings-panel__btn settings-panel__btn--save"
-            onClick={handleSaveCLIPaths}
-            disabled={saving}
-          >
-            {saving ? 'Saving…' : 'Save'}
+            Close
           </button>
         </div>
       </div>

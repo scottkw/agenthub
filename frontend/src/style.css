@@ -278,6 +278,37 @@ body {
   background-color: #3b4261;
 }
 
+.settings-panel__tabs {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid #292e42;
+  padding: 0 20px;
+  gap: 0;
+  flex-shrink: 0;
+  background-color: #16161e;
+}
+
+.settings-panel__tab-btn {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #565f89;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.settings-panel__tab-btn:hover {
+  color: #a9b1d6;
+}
+
+.settings-panel__tab-btn--active {
+  color: #c0caf5;
+  border-bottom-color: #7aa2f7;
+}
+
 .settings-panel__body {
   flex: 1;
   overflow-y: auto;
@@ -337,10 +368,15 @@ body {
   font-size: 12px;
 }
 
+.settings-panel__save-paths-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 .settings-panel__footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
   padding: 12px 20px;
   border-top: 1px solid #292e42;
 }
