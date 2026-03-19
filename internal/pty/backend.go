@@ -10,11 +10,12 @@ var ErrSessionNotFound = errors.New("session not found")
 
 // CreateRequest describes what CLI to launch and the initial terminal dimensions.
 type CreateRequest struct {
-	CLI  string
-	Args []string
-	Env  []string
-	Cols int
-	Rows int
+	CLI     string
+	Args    []string
+	Env     []string
+	Cols    int
+	Rows    int
+	WorkDir string
 }
 
 // SessionBackend is the interface that a PTY backend must implement.

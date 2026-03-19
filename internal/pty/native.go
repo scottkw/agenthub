@@ -39,6 +39,7 @@ func (b *NativePTYBackend) Create(ctx context.Context, req CreateRequest) (*Sess
 
 	childCtx, cancel := context.WithCancel(ctx)
 	cmd := p.CommandContext(childCtx, req.CLI, req.Args...)
+	cmd.Dir = req.WorkDir
 
 	// Merge environment: inherit from current process, apply caller extras, enforce
 	// required terminal vars.
