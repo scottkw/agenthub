@@ -23,7 +23,7 @@
 
 **Milestone Goal:** Improve UI/UX across desktop and web, fix terminal sizing, and add a build script for cross-platform compilation with signing.
 
-- [ ] **Phase 7: Layout Baseline** — Terminal fill and toolbar sizing foundation for all subsequent UI work
+- [x] **Phase 7: Layout Baseline** — Terminal fill and toolbar sizing foundation for all subsequent UI work (completed 2026-03-19)
 - [ ] **Phase 8: Per-Tab Status Bar** — Permanent status strip replaces floating web-serving overlay
 - [ ] **Phase 9: Settings Modal Overhaul** — Tabbed layout declutters and reorganizes settings
 - [ ] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab
@@ -41,7 +41,7 @@
   1. Terminal content fills the full available vertical height in every tab with no blank dead space below the output
   2. Toolbar buttons are visually larger (36-44px hit target) and comfortable to click without precise aim
   3. Adding a new tab or switching tabs does not cause layout collapse or incorrect terminal sizing
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 07-01-PLAN.md — Fix terminal flex chain, enlarge toolbar buttons, add test stubs
 
@@ -122,7 +122,7 @@ Plans:
 | 4. Web Serving + TLS + Auth | v1.0 | 4/4 | Complete | 2026-03-18 |
 | 5. QR Codes + Status Indicators | v1.0 | 6/6 | Complete | 2026-03-18 |
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
-| 7. Layout Baseline | v1.1 | 0/1 | Planning | - |
+| 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
 | 8. Per-Tab Status Bar | v1.1 | 0/? | Not started | - |
 | 9. Settings Modal Overhaul | v1.1 | 0/? | Not started | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
