@@ -94,21 +94,24 @@ export function TerminalPanel({ sessionId, isActive, relayPort }: TerminalPanelP
 
     const container = containerRef.current
 
-    // setTimeout runs after pending microtasks and rendering, giving the browser
-    // time to fully reflow after display:none → flex. RAF alone fires too early
-    // on initial page load when fonts/CSS are still settling.
-    const timerId = setTimeout(() => {
-      fitAddonRef.current?.fit()
-    }, 50)
+    const fit = () => fitAddonRef.current?.fit()
 
-    // ResizeObserver handles ongoing resize (window drag, sidebar toggle, etc.).
-    const ro = new ResizeObserver(() => {
-      fitAddonRef.current?.fit()
+    // FitAddon measures character cell size using the active font. If the font
+    // hasn't resolved yet (system font enumeration, @font-face load), the
+    // measurement uses a fallback and calculates wrong cols/rows.
+    // document.fonts.ready resolves when all font faces in the document are loaded.
+    let cancelled = false
+    document.fonts.ready.then(() => {
+      if (!cancelled) fit()
     })
+
+    // ResizeObserver fires on initial observation AND on dimension changes
+    // (window resize, display:none → flex transitions, sidebar toggle, etc.).
+    const ro = new ResizeObserver(fit)
     ro.observe(container)
 
     return () => {
-      clearTimeout(timerId)
+      cancelled = true
       ro.disconnect()
     }
   }, [isActive])
