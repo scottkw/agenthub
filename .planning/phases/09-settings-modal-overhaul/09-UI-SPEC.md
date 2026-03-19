@@ -46,10 +46,10 @@ Declared values (must be multiples of 4):
 Exceptions:
 - Header padding: `16px 20px` — vertical 16px, horizontal 20px (existing value, keep as-is)
 - Body padding: `20px` all sides (existing value, keep as-is)
-- Footer padding: `12px 20px` — vertical 12px, horizontal 20px (existing value, keep as-is)
+- Footer padding: `12px 20px` — vertical 12px, horizontal 20px (existing value, keep as-is; 12px is a legacy value on an existing container, not a new spacing decision)
 - Tab bar row: `padding: 0 20px` — aligns with header and body horizontal rhythm
-- Tab button padding: `10px 16px` — vertical 10px, horizontal 16px (from RESEARCH.md CSS example)
-- Field group vertical gap: `12px` between field groups within a tab panel
+- Tab button padding: `8px 16px` — vertical 8px, horizontal 16px (fixed from 10px to conform to 4-point scale)
+- Field group vertical gap: `16px` between field groups within a tab panel (fixed from 12px to conform to 4-point scale)
 - Table cell padding: `8px 8px` body cells, `4px 8px` header cells (existing values, keep as-is)
 
 Source: Direct read of `frontend/src/style.css` `.settings-panel__*` rules.
@@ -70,6 +70,7 @@ Notes:
 - Tab button labels use 13px regular (matching body), not uppercase — standard tab affordance.
 - "Save Paths" inline button label: 13px regular (matches `settings-panel__btn`).
 - Font family: inherited from `body` — `"Cascadia Code", "MesloLGS NF", "Fira Code", monospace`.
+- 13px (body/labels) vs 12px (small/error) are 1px apart. Color is the primary differentiator: 13px body uses `--text-hi` (#c0caf5) or `--text-mid` (#a9b1d6); 12px small uses `--text-dim` (#565f89) or `--red` (#f7768e). Size alone does not distinguish these roles — color and context do.
 
 Source: Direct read of `frontend/src/style.css` `.settings-panel__header h2`, `.settings-panel__body h3`, `.settings-panel__btn`, `.settings-panel__path-input`.
 
@@ -118,11 +119,11 @@ Components and CSS classes added or modified this phase:
 | Class | Description |
 |-------|-------------|
 | `.settings-panel__tabs` | Tab bar row below header: `display: flex; flex-direction: row; border-bottom: 1px solid #292e42; padding: 0 20px; flex-shrink: 0;` |
-| `.settings-panel__tab-btn` | Individual tab button: `padding: 10px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: #565f89; font-size: 13px; cursor: pointer; margin-bottom: -1px;` |
+| `.settings-panel__tab-btn` | Individual tab button: `padding: 8px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: #565f89; font-size: 13px; cursor: pointer; margin-bottom: -1px;` |
 | `.settings-panel__tab-btn:hover` | Hover: `color: #a9b1d6;` |
 | `.settings-panel__tab-btn--active` | Active state: `color: #c0caf5; border-bottom-color: #7aa2f7;` |
 | `.settings-panel__tab-panel` | Content wrapper for each tab section: `display: contents;` (or just remove wrapper — sections render directly in body) |
-| `.settings-panel__save-paths-row` | Row containing the inline "Save Paths" button at bottom of CLI Paths tab: `display: flex; justify-content: flex-end; margin-top: 12px;` |
+| `.settings-panel__save-paths-row` | Row containing the inline "Save Paths" button at bottom of CLI Paths tab: `display: flex; justify-content: flex-end; margin-top: 16px;` |
 
 ### Modified CSS classes (`frontend/src/style.css`)
 
@@ -141,12 +142,17 @@ Components and CSS classes added or modified this phase:
 | Move "Save Paths" button | From footer into CLI Paths tab panel below the table as `settings-panel__btn--save` inline button |
 | Remove `onClose()` from `handleSaveCLIPaths` | After inline save, stay on tab — show success state or clear silently |
 | Footer becomes single "Close" button | Styled as `settings-panel__btn--cancel` (ghost/border) — no primary action in footer |
+| Close button (×) aria-label | Header × button must have `aria-label="Close settings"` — it is icon-only (Unicode glyph, no visible text label) |
 
 Source: RESEARCH.md Architecture Patterns (Pattern 1, 2, 3) + Anti-Patterns section.
 
 ---
 
 ## Interaction Contract
+
+### Primary Visual Anchor
+
+The primary visual anchor is the **tab bar navigation row** (`.settings-panel__tabs`). It is the first interactive element below the header and establishes which content pane is active. The active tab underline (`#7aa2f7`) is the only accent-color element in the modal chrome, drawing the eye to current context before body content.
 
 ### Tab Switching
 
@@ -168,7 +174,7 @@ Source: RESEARCH.md Architecture Patterns (Pattern 1, 2, 3) + Anti-Patterns sect
 
 - Single "Close" button, styled as `settings-panel__btn--cancel` (ghost with border)
 - Calls `onClose()` immediately — no confirmation dialog (no destructive action in footer)
-- Label: "Close" (not "Cancel", not "Done")
+- Label: "Close" — intentional single-word label; verb-noun convention is not applicable here because there is no object being acted upon (the action is modal dismissal, not a data operation). This matches standard modal close affordance.
 
 ### Web Serving tab (unchanged interactions)
 
@@ -193,7 +199,7 @@ Source: RESEARCH.md Pitfall 2 (Save Paths), Pitfall 4 (Close button style), Open
 | Primary CTA (Web Serving tab — set password) | "Set Password" |
 | Primary CTA (Web Serving tab — server toggle start) | "Start Web Server" |
 | Primary CTA (Web Serving tab — server toggle stop) | "Stop Web Server" |
-| Footer close button | "Close" |
+| Footer close button | "Close" (single-word; intentional — dismissal action, no data object) |
 | Tab label 1 | "CLI Paths" |
 | Tab label 2 | "Web Serving" |
 | Loading: saving paths | "Saving…" |
@@ -201,7 +207,7 @@ Source: RESEARCH.md Pitfall 2 (Save Paths), Pitfall 4 (Close button style), Open
 | Loading: starting server | "Starting…" |
 | Loading: stopping server | "Stopping…" |
 | Empty state (CLI Paths — no CLIs detected) | "No CLIs detected. Install an AI coding CLI and restart the app." |
-| Empty state (Network Interfaces — none found) | "No non-loopback interfaces found." |
+| Empty state (Network Interfaces — none found) | "No non-loopback network interfaces found. Check that your network adapter is enabled, then reopen Settings." |
 | Error state (CLI path save fail) | "{error message from backend}" — displayed below "Save Paths" button as `.settings-panel__error` |
 | Error state (password save fail) | "{error message from backend}" — displayed below "Set Password" button |
 | Error state (server toggle fail) | "{error message from backend}" — displayed below server toggle button |
@@ -217,14 +223,14 @@ Source: Direct read of `frontend/src/components/SettingsPanel.tsx` existing copy
 
 ```
 ┌─────────────────────────────────┐
-│  Settings                    ×  │  ← .settings-panel__header (16px 20px padding)
+│  Settings                    ×  │  ← .settings-panel__header (16px 20px padding); × has aria-label="Close settings"
 ├─────────────────────────────────│
-│  [CLI Paths]  [Web Serving]     │  ← .settings-panel__tabs (0 20px padding)
+│  [CLI Paths]  [Web Serving]     │  ← .settings-panel__tabs (0 20px padding) — PRIMARY VISUAL ANCHOR
 ├─────────────────────────────────│
 │  <scrollable body>              │  ← .settings-panel__body (20px padding, flex: 1)
 │    h3 section heading           │
 │    table / field groups         │
-│    [Save Paths] ← inline btn    │  (CLI Paths tab only, right-aligned)
+│    [Save Paths] ← inline btn    │  (CLI Paths tab only, right-aligned, margin-top: 16px)
 ├─────────────────────────────────│
 │                       [Close]   │  ← .settings-panel__footer (12px 20px padding)
 └─────────────────────────────────┘
@@ -263,6 +269,7 @@ Source: RESEARCH.md "Installation: No new packages required."
 | frontend/src/components/SettingsPanel.tsx | 6 (state variables, handler names, existing copy strings, footer structure) |
 | STATE.md decisions | 1 (JSX conditionals, not CSS display toggling — Phase 8 decision) |
 | User input this session | 0 — all answered by upstream artifacts |
+| Checker revision (2026-03-19) | 6 (tab padding 10px→8px, field gap 12px→16px, Close label note, network empty state solution path, focal point declaration, close button aria-label) |
 
 ---
 
