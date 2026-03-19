@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-19T17:18:52.799Z"
+stopped_at: "Checkpoint: Task 3 human-verify for 08-02-PLAN.md"
+last_updated: "2026-03-19T17:22:19.511Z"
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -43,6 +43,7 @@ Plan: 1 of 2
 *Updated after each plan completion*
 | Phase 07-layout-baseline P01 | 60 | 3 tasks | 5 files |
 | Phase 08-per-tab-status-bar P01 | 2 | 2 tasks | 3 files |
+| Phase 08 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,7 @@ Recent decisions for v1.1:
 - [Phase 07-layout-baseline]: vite-env.d.ts ?raw module declaration required for TypeScript to accept Vite raw imports in tests
 - [Phase 08-per-tab-status-bar]: StatusBar root div always rendered unconditionally for 32px height stability
 - [Phase 08-per-tab-status-bar]: Three states via JSX conditionals, not CSS display toggling
+- [Phase 08]: StatusBar rendered unconditionally in App.tsx — not inside webServerRunning guard
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T17:18:52.788Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-03-19T17:22:19.503Z
+Stopped at: Checkpoint: Task 3 human-verify for 08-02-PLAN.md
 Resume file: None

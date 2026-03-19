@@ -26,7 +26,7 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 
 - [x] **UILAY-01**: Toolbar buttons are visually larger and easy to click
 - [x] **UILAY-02**: Each tab displays a status bar at the bottom showing web serving state, URL, and controls
-- [ ] **UILAY-03**: Web status/URL header overlay is removed from tab content area
+- [x] **UILAY-03**: Web status/URL header overlay is removed from tab content area
 - [ ] **UILAY-04**: User can rename a tab by double-clicking or right-clicking the tab label
 - [ ] **UILAY-05**: Renamed tab name is used as the session name in the web dashboard
 
@@ -94,7 +94,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TERM-04 | Phase 10 | Pending |
 | UILAY-01 | Phase 7 | Complete |
 | UILAY-02 | Phase 8 | Complete |
-| UILAY-03 | Phase 8 | Pending |
+| UILAY-03 | Phase 8 | Complete |
 | UILAY-04 | Phase 12 | Pending |
 | UILAY-05 | Phase 12 | Pending |
 | SESS-01 | Phase 11 | Pending |

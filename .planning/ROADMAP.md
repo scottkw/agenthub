@@ -24,7 +24,7 @@
 **Milestone Goal:** Improve UI/UX across desktop and web, fix terminal sizing, and add a build script for cross-platform compilation with signing.
 
 - [x] **Phase 7: Layout Baseline** — Terminal fill and toolbar sizing foundation for all subsequent UI work (completed 2026-03-19)
-- [ ] **Phase 8: Per-Tab Status Bar** — Permanent status strip replaces floating web-serving overlay
+- [x] **Phase 8: Per-Tab Status Bar** — Permanent status strip replaces floating web-serving overlay (completed 2026-03-19)
 - [ ] **Phase 9: Settings Modal Overhaul** — Tabbed layout declutters and reorganizes settings
 - [ ] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab
 - [ ] **Phase 11: New-Session Modal** — Agent picker and native folder browser replace bare CLI picker
@@ -54,7 +54,7 @@ Plans:
   2. The floating web-status header overlay is absent from the terminal content area
   3. The terminal content area fills the remaining space above the status bar with no dead space
   4. Status bar layout is correct on macOS, Linux, and Windows (WebView2)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 08-01-PLAN.md — Create StatusBar component, unit tests, and CSS rules
 - [ ] 08-02-PLAN.md — Wire StatusBar into App.tsx, remove old overlay, clean up CSS
@@ -126,7 +126,7 @@ Plans:
 | 5. QR Codes + Status Indicators | v1.0 | 6/6 | Complete | 2026-03-18 |
 | 6. Distribution + Cross-Platform | v1.0 | 2/2 | Complete | 2026-03-19 |
 | 7. Layout Baseline | 1/1 | Complete   | 2026-03-19 | - |
-| 8. Per-Tab Status Bar | 1/2 | In Progress|  | - |
+| 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | v1.1 | 0/? | Not started | - |
 | 10. Per-Tab Font Size | v1.1 | 0/? | Not started | - |
 | 11. New-Session Modal | v1.1 | 0/? | Not started | - |
