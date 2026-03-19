@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-03-19T21:46:53.982Z"
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-19T21:48:25.978Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -47,6 +47,7 @@ Plan: 2 of 3
 | Phase 09-settings-modal-overhaul P01 | 3 | 2 tasks | 3 files |
 | Phase 10-per-tab-font-size P01 | 2 | 2 tasks | 4 files |
 | Phase 11-new-session-modal P02 | 2 | 2 tasks | 3 files |
+| Phase 11-new-session-modal P01 | 3 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions for v1.1:
 - [Phase 10-per-tab-font-size]: Separate useEffect([fontSize]) applies options.fontSize + fit() independently of terminal setup effect
 - [Phase 11-new-session-modal]: DetectedCLI redeclared locally with optional DisplayName to avoid circular import from App.d.ts
 - [Phase 11-new-session-modal]: localStorage.getItem(LAST_DIR_KEY) ?? '' converts null to empty string; if (path !== '') guards against OS dialog cancel
+- [Phase 11-new-session-modal]: cmd.Dir assigned before cmd.Env — critical for Windows ConPTY reading Dir during Start()
+- [Phase 11-new-session-modal]: App.tsx uses workDir='' placeholder — real value supplied by NewSessionModal in plan 11-02
 
 ### Pending Todos
 
@@ -86,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:46:47.852Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-03-19T21:48:25.974Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None

@@ -94,7 +94,7 @@ Plans:
   2. The modal lists available AI coding CLIs for selection as the agent
   3. The modal includes a button that opens a native OS folder browser to select the working directory
   4. The folder browser defaults to the last-used folder on subsequent opens, or home directory on first use
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 11-01-PLAN.md — Go backend: OpenDirectoryDialog method, WorkDir in CreateRequest, updated CreateSession signature + TS stubs
 - [ ] 11-02-PLAN.md — NewSessionModal component, source-inspection tests, and CSS rules
@@ -137,7 +137,7 @@ Plans:
 | 8. Per-Tab Status Bar | 2/2 | Complete   | 2026-03-19 | - |
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
-| 11. New-Session Modal | 1/3 | In Progress|  | - |
+| 11. New-Session Modal | 2/3 | In Progress|  | - |
 | 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |
 
