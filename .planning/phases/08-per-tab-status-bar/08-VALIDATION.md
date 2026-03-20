@@ -1,10 +1,11 @@
 ---
 phase: 8
 slug: per-tab-status-bar
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-19
+updated: 2026-03-20
 ---
 
 # Phase 8 — Validation Strategy
@@ -21,7 +22,7 @@ created: 2026-03-19
 | **Config file** | `frontend/vite.config.ts` (vitest configured inline) |
 | **Quick run command** | `cd frontend && pnpm test` |
 | **Full suite command** | `cd frontend && pnpm test` |
-| **Estimated runtime** | ~5 seconds |
+| **Estimated runtime** | ~1.2 seconds |
 
 ---
 
@@ -38,23 +39,38 @@ created: 2026-03-19
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 8-01-01 | 01 | 1 | UILAY-02 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ❌ W0 | ⬜ pending |
-| 8-01-02 | 01 | 1 | UILAY-02 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ❌ W0 | ⬜ pending |
-| 8-01-03 | 01 | 1 | UILAY-02 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ❌ W0 | ⬜ pending |
-| 8-02-01 | 02 | 1 | UILAY-03 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ❌ W0 | ⬜ pending |
-| 8-02-02 | 02 | 1 | UILAY-02 | manual | Visual inspection | N/A | ⬜ pending |
-| 8-02-03 | 02 | 1 | UILAY-03 | manual | Visual inspection | N/A | ⬜ pending |
+| 8-01-01 | 01 | 1 | UILAY-02 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ✅ StatusBar.test.tsx | ✅ green |
+| 8-01-02 | 01 | 1 | UILAY-02 | unit | `cd frontend && pnpm test -- --reporter=verbose` | ✅ StatusBar.test.tsx | ✅ green |
+| 8-02-01 | 02 | 1 | UILAY-02 | source-inspection | `cd frontend && pnpm test -- --reporter=verbose` | ✅ App.test.tsx | ✅ green |
+| 8-02-02 | 02 | 1 | UILAY-03 | source-inspection | `cd frontend && pnpm test -- --reporter=verbose` | ✅ App.test.tsx | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 
-## Wave 0 Requirements
+## Automated Test Coverage
 
-- [ ] `frontend/src/components/__tests__/StatusBar.test.tsx` — stubs for UILAY-02 (rendering, state variants)
-- [ ] `frontend/src/components/StatusBar.tsx` — component extracted from App.tsx
+### UILAY-02 — StatusBar component (9 tests in StatusBar.test.tsx)
+- renders .tab-status-bar root element
+- shows inactive state with "WEB SERVER NOT RUNNING" when webServerRunning=false
+- shows off state with "WEB OFF" when webServerRunning=true, webEnabled=false
+- shows "Enable Web" button in off state
+- shows on state with "WEB ON" when web enabled
+- shows URL link with .tab-status-bar__url
+- shows "Disable Web", "Copy Link", and "QR" buttons when web enabled
+- calls onToggleWeb when Enable Web button clicked
+- calls onToggleWeb when Disable Web button clicked
 
-*Existing vitest infrastructure covers all tooling needs — only new source + test files are missing.*
+### UILAY-02 — App.tsx integration (3 tests in App.test.tsx)
+- imports StatusBar from components/StatusBar
+- renders `<StatusBar` inside terminal-wrapper
+- passes required props to StatusBar (webServerRunning, webEnabled, sessionURL)
+
+### UILAY-03 — Old overlay removed (4 tests in App.test.tsx)
+- does not contain web-serving-bar class
+- does not contain web-toggle-btn class
+- does not contain web-session-url class
+- does not contain copy-token-btn class
 
 ---
 
@@ -70,11 +86,21 @@ created: 2026-03-19
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-03-20
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 2 |
+| Resolved | 2 |
+| Escalated | 0 |
