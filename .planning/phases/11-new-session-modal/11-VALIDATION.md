@@ -1,10 +1,11 @@
 ---
 phase: 11
 slug: new-session-modal
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-19
+validated: 2026-03-20
 ---
 
 # Phase 11 — Validation Strategy
@@ -38,10 +39,10 @@ created: 2026-03-19
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 11-01-01 | 01 | 0 | SESS-01, SESS-02, SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ❌ W0 | ⬜ pending |
-| 11-02-01 | 02 | 1 | SESS-03 | source-inspection | `pnpm test -- NewSessionModal` | ❌ W0 | ⬜ pending |
-| 11-02-02 | 02 | 1 | SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ❌ W0 | ⬜ pending |
-| 11-03-01 | 03 | 1 | SESS-01, SESS-02, SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ❌ W0 | ⬜ pending |
+| 11-01-01 | 01 | 0 | SESS-01, SESS-02, SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ✅ | ✅ green |
+| 11-02-01 | 02 | 1 | SESS-03 | source-inspection | `pnpm test -- NewSessionModal` | ✅ | ✅ green |
+| 11-02-02 | 02 | 1 | SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ✅ | ✅ green |
+| 11-03-01 | 03 | 1 | SESS-01, SESS-02, SESS-03, SESS-04 | source-inspection | `pnpm test -- NewSessionModal` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,7 +50,7 @@ created: 2026-03-19
 
 ## Wave 0 Requirements
 
-- [ ] `frontend/src/components/__tests__/NewSessionModal.test.tsx` — stubs for SESS-01, SESS-02, SESS-03, SESS-04
+- [x] `frontend/src/components/__tests__/NewSessionModal.test.tsx` — 13 tests covering SESS-01, SESS-02, SESS-03, SESS-04
 
 *All tests follow the project's source-inspection pattern (import file as `?raw`, assert text presence).*
 
@@ -66,11 +67,21 @@ created: 2026-03-19
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-03-20
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
