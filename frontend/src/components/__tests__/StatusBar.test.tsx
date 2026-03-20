@@ -11,7 +11,6 @@ function renderStatusBar(props: Partial<StatusBarProps> = {}) {
     webEnabled: false,
     sessionURL: undefined,
     onToggleWeb: vi.fn(),
-    onCopyTokenLink: vi.fn(),
     onShowQR: vi.fn(),
   }
   const merged = { ...defaults, ...props }
@@ -81,7 +80,7 @@ describe('StatusBar', () => {
     expect(link?.textContent).toBe('https://example.com/session')
   })
 
-  it('shows "Disable Web", "Copy Link", and "QR" buttons when web enabled', () => {
+  it('shows "Disable Web" and "QR" buttons (no "Copy Link") when web enabled', () => {
     ;({ container, root } = renderStatusBar({
       webServerRunning: true,
       webEnabled: true,
@@ -90,7 +89,7 @@ describe('StatusBar', () => {
     const buttons = container.querySelectorAll('button')
     const buttonTexts = Array.from(buttons).map((b) => b.textContent)
     expect(buttonTexts).toContain('Disable Web')
-    expect(buttonTexts).toContain('Copy Link')
+    expect(buttonTexts).not.toContain('Copy Link')
     expect(buttonTexts).toContain('QR')
   })
 

@@ -6,14 +6,13 @@ import { SettingsPanel } from '../SettingsPanel'
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   UpdateCLIPath: vi.fn(),
-  SetWebPassword: vi.fn(),
-  IsWebPasswordSet: vi.fn().mockResolvedValue(false),
   GetNetworkInterfaces: vi.fn().mockResolvedValue([]),
   StartWebServer: vi.fn(),
   StopWebServer: vi.fn(),
   GetWebServerURL: vi.fn().mockResolvedValue(''),
-  GetCACertPath: vi.fn().mockResolvedValue('/fake/ca.crt'),
   IsWebServerRunning: vi.fn().mockResolvedValue(false),
+  HasCTDisclosure: vi.fn().mockResolvedValue(false),
+  AcknowledgeCTDisclosure: vi.fn(),
 }))
 
 interface SettingsPanelProps {
@@ -56,12 +55,12 @@ describe('SettingsPanel', () => {
     container.remove()
   })
 
-  it('renders three tab buttons: "CLI Paths", "Web Server", "Security"', () => {
+  it('renders exactly two tab buttons: "CLI Paths" and "Web Server"', () => {
     ;({ container, root } = renderSettingsPanel())
     const tabs = container.querySelectorAll('.settings-panel__tab-btn')
-    expect(tabs.length).toBe(3)
+    expect(tabs.length).toBe(2)
     const tabTexts = Array.from(tabs).map((t) => t.textContent?.trim())
-    expect(tabTexts).toEqual(['CLI Paths', 'Web Server', 'Security'])
+    expect(tabTexts).toEqual(['CLI Paths', 'Web Server'])
   })
 
   it('CLI Paths tab button has active class on initial render', () => {
@@ -84,7 +83,14 @@ describe('SettingsPanel', () => {
     expect(selects.length).toBe(0)
   })
 
-  it('Security content is NOT in the DOM on initial render', () => {
+  it('Security tab does not exist', () => {
+    ;({ container, root } = renderSettingsPanel())
+    const tabs = container.querySelectorAll('.settings-panel__tab-btn')
+    const securityTab = Array.from(tabs).find((t) => t.textContent?.trim() === 'Security')
+    expect(securityTab).toBeUndefined()
+  })
+
+  it('no password input rendered (Security tab removed)', () => {
     ;({ container, root } = renderSettingsPanel())
     const passwordInputs = container.querySelectorAll('input[type="password"]')
     expect(passwordInputs.length).toBe(0)
@@ -99,38 +105,22 @@ describe('SettingsPanel', () => {
     // CLI Paths content gone
     const table = container.querySelector('.settings-panel__table')
     expect(table).toBeNull()
-    // Password not present (that's Security tab)
+    // Password not present (Security tab removed)
     const passwordInputs = container.querySelectorAll('input[type="password"]')
     expect(passwordInputs.length).toBe(0)
-    // CA certificate section not present (that's Security tab)
+    // CA certificate section not present (Security tab removed)
     const certLabels = container.querySelectorAll('.settings-panel__label')
     const caCertLabel = Array.from(certLabels).find((l) => l.textContent?.includes('CA Certificate'))
     expect(caCertLabel).toBeUndefined()
   })
 
-  it('clicking Security tab shows password field and hides Web Server and CLI content', () => {
+  it('Start Web Server button is disabled when CT not disclosed', () => {
     ;({ container, root } = renderSettingsPanel())
-    clickTabByText(container, 'Security')
-    // Password field present
-    const passwordInputs = container.querySelectorAll('input[type="password"]')
-    expect(passwordInputs.length).toBe(1)
-    // CLI table gone
-    const table = container.querySelector('.settings-panel__table')
-    expect(table).toBeNull()
-    // Network select gone
-    const selects = container.querySelectorAll('.settings-panel__select')
-    expect(selects.length).toBe(0)
-  })
-
-  it('Security tab button has aria-selected="true" when active', () => {
-    ;({ container, root } = renderSettingsPanel())
-    clickTabByText(container, 'Security')
-    const tabs = container.querySelectorAll('.settings-panel__tab-btn')
-    const securityTab = Array.from(tabs).find((t) => t.textContent?.trim() === 'Security')
-    expect(securityTab?.getAttribute('aria-selected')).toBe('true')
-    // Other tabs should not be selected
-    const cliTab = Array.from(tabs).find((t) => t.textContent?.trim() === 'CLI Paths')
-    expect(cliTab?.getAttribute('aria-selected')).toBe('false')
+    clickTabByText(container, 'Web Server')
+    const buttons = container.querySelectorAll('button')
+    const startBtn = Array.from(buttons).find((b) => b.textContent?.includes('Start Web Server'))
+    expect(startBtn).not.toBeUndefined()
+    expect((startBtn as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('footer contains exactly one button with text "Close"', () => {
@@ -157,13 +147,5 @@ describe('SettingsPanel', () => {
     expect(footerBtnTexts).not.toContain('Save Paths')
     const savePathsBtn = Array.from(body!.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Save Paths')
     expect(savePathsBtn).not.toBeUndefined()
-  })
-
-  it('Security tab shows CA certificate path', () => {
-    ;({ container, root } = renderSettingsPanel())
-    clickTabByText(container, 'Security')
-    const codeBlocks = container.querySelectorAll('.settings-panel__code')
-    const certCode = Array.from(codeBlocks).find((c) => c.textContent?.includes('ca.crt'))
-    expect(certCode).not.toBeUndefined()
   })
 })
