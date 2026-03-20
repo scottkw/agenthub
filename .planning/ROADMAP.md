@@ -41,7 +41,7 @@
 
 - [x] **Phase 14: Tailscale Health Check Infrastructure** — Backend health check logic and Wails binding; zero regression risk; unblocks every subsequent phase (completed 2026-03-20)
 - [x] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP (completed 2026-03-20)
-- [ ] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding
+- [x] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding (completed 2026-03-20)
 - [ ] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase
 - [ ] **Phase 18: Frontend Health Modal + Status UI** — Instructional health modal with three-state guidance, CT disclosure, and Tailscale status indicator replacing interface picker
 
@@ -127,7 +127,7 @@ Plans:
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
-| 15. Tailscale TLS + Interface Binding | 2/2 | Complete   | 2026-03-20 | - |
+| 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
