@@ -123,7 +123,7 @@ Plans:
 | 11. New-Session Modal | v1.1 | 3/3 | Complete | 2026-03-19 |
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
-| 14. Tailscale Health Check Infrastructure | 2/2 | Complete   | 2026-03-20 | - |
+| 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | v1.2 | 0/? | Not started | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
