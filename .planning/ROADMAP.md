@@ -98,7 +98,10 @@ Plans:
   1. `go build ./...` passes with zero errors after the deletions
   2. No generic VPN interface picker, password field, or token UI remains in the settings panel
   3. Auth middleware, token generation routes, and VPN interface code are absent from the compiled binary (confirmed by source inspection)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 17-01-PLAN.md — Backend Go dead code deletion (network.go, GetNetworkInterfaces)
+- [ ] 17-02-PLAN.md — Frontend Wails binding cleanup (GetNetworkInterfaces exports, NetworkInterface type)
 
 ### Phase 18: Frontend Health Modal + Status UI
 **Goal**: Users see clear, platform-specific instructional guidance when any Tailscale health check fails, and the settings panel shows Tailscale connection status in place of the removed interface picker
@@ -110,7 +113,10 @@ Plans:
   3. When Tailscale is connected but certs are not enabled, the modal shows cert-enablement instructions with a "Check Again" button
   4. The Certificate Transparency disclosure is visible in the modal before any cert provisioning attempt
   5. Settings panel shows a Tailscale connection status indicator where the VPN interface picker used to be
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 17-01-PLAN.md — Backend Go dead code deletion (network.go, GetNetworkInterfaces)
+- [ ] 17-02-PLAN.md — Frontend Wails binding cleanup (GetNetworkInterfaces exports, NetworkInterface type)
 
 ## Progress
 
