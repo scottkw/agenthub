@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-20T19:54:00.330Z"
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-20T21:04:42.934Z"
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 15 — tailscale-tls-interface-binding
+**Current focus:** Phase 16 — auth-layer-removal
 
 ## Current Position
 
-Phase: 15 (tailscale-tls-interface-binding) — EXECUTING
-Plan: 2 of 2
+Phase: 16 (auth-layer-removal) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Plan: 2 of 2
 | Phase 14-tailscale-health-check-infrastructure P02 | 10 | 2 tasks | 2 files |
 | Phase 15-tailscale-tls-interface-binding P01 | 215 | 2 tasks | 4 files |
 | Phase 15 P02 | 480 | 2 tasks | 7 files |
+| Phase 16-auth-layer-removal P01 | 445s | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Key v1.2 constraints affecting all phases:
 - [Phase 15-02]: StartWebServer(port int) gates on Tailscale health — IP and FQDN derived from daemon, not user config
 - [Phase 15-02]: CT disclosure persisted as sentinel file ct_disclosed; HasCTDisclosure reads os.Stat
 - [Phase 15-02]: TestGetSessionQRCode bypasses StartWebServer Tailscale gate via direct WebServer construction with in-memory TLS
+- [Phase 16-auth-layer-removal]: Auth removal: All app-layer auth removed; Tailscale provides network-level access control
 
 ### Pending Todos
 
@@ -80,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:48:49.424Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-03-20T21:04:42.931Z
+Stopped at: Completed 16-01-PLAN.md
 Resume file: None

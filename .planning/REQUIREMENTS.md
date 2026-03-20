@@ -26,9 +26,9 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 
 ### Auth Removal
 
-- [ ] **AUTH-01**: Password authentication is removed from the web dashboard
-- [ ] **AUTH-02**: Per-session shareable tokens and links are removed
-- [ ] **AUTH-03**: Web dashboard is accessible without authentication to any tailnet member
+- [x] **AUTH-01**: Password authentication is removed from the web dashboard
+- [x] **AUTH-02**: Per-session shareable tokens and links are removed
+- [x] **AUTH-03**: Web dashboard is accessible without authentication to any tailnet member
 
 ### Cleanup
 
@@ -70,9 +70,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TLS-03 | Phase 15 | Complete |
 | TLS-04 | Phase 15 | Complete |
 | TLS-05 | Phase 15 | Complete |
-| AUTH-01 | Phase 16 | Pending |
-| AUTH-02 | Phase 16 | Pending |
-| AUTH-03 | Phase 16 | Pending |
+| AUTH-01 | Phase 16 | Complete |
+| AUTH-02 | Phase 16 | Complete |
+| AUTH-03 | Phase 16 | Complete |
 | CLEAN-01 | Phase 17 | Pending |
 | CLEAN-02 | Phase 17 | Pending |
 | CLEAN-03 | Phase 17 | Pending |

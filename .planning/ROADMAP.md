@@ -85,7 +85,7 @@ Plans:
   1. A tailnet member can open the web dashboard URL directly without being prompted for a password
   2. Session stream URLs no longer contain tokens and open directly for any tailnet member
   3. No login route, no token-generation route, and no auth middleware exists in the running server
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 16-01-PLAN.md — Backend auth removal: delete auth.go/tokens.go, strip middleware, update app.go and Go tests
 - [ ] 16-02-PLAN.md — Frontend auth removal: SettingsPanel Security tab, StatusBar Copy Link, dashboard.html login/CA sections, Wails bindings
@@ -131,7 +131,7 @@ Plans:
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
-| 16. Auth Layer Removal | v1.2 | 0/2 | Planned | - |
+| 16. Auth Layer Removal | 1/2 | In Progress|  | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
 
