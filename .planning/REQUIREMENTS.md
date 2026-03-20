@@ -20,8 +20,8 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 
 - [x] **TLS-01**: Web server uses Let's Encrypt certificates provisioned via Tailscale daemon
 - [x] **TLS-02**: Machine FQDN is derived from Tailscale daemon, not hardcoded
-- [ ] **TLS-03**: Web server binds exclusively to the Tailscale network interface IP
-- [ ] **TLS-04**: User is warned about Certificate Transparency log exposure before first cert provisioning
+- [x] **TLS-03**: Web server binds exclusively to the Tailscale network interface IP
+- [x] **TLS-04**: User is warned about Certificate Transparency log exposure before first cert provisioning
 - [x] **TLS-05**: Self-signed certificate infrastructure is removed (CA+leaf generation, cert files)
 
 ### Auth Removal
@@ -67,8 +67,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HEALTH-06 | Phase 14 | Complete |
 | TLS-01 | Phase 15 | Complete |
 | TLS-02 | Phase 15 | Complete |
-| TLS-03 | Phase 15 | Pending |
-| TLS-04 | Phase 15 | Pending |
+| TLS-03 | Phase 15 | Complete |
+| TLS-04 | Phase 15 | Complete |
 | TLS-05 | Phase 15 | Complete |
 | AUTH-01 | Phase 16 | Pending |
 | AUTH-02 | Phase 16 | Pending |

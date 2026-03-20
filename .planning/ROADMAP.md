@@ -40,7 +40,7 @@
 **Phase Summary:**
 
 - [x] **Phase 14: Tailscale Health Check Infrastructure** — Backend health check logic and Wails binding; zero regression risk; unblocks every subsequent phase (completed 2026-03-20)
-- [ ] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP
+- [x] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP (completed 2026-03-20)
 - [ ] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding
 - [ ] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase
 - [ ] **Phase 18: Frontend Health Modal + Status UI** — Instructional health modal with three-state guidance, CT disclosure, and Tailscale status indicator replacing interface picker
@@ -72,7 +72,7 @@ Plans:
   3. The FQDN shown in the app and QR codes is derived from the Tailscale daemon, not any hardcoded value
   4. User sees a Certificate Transparency disclosure before the first cert is provisioned
   5. Self-signed certificate generation code is gone and no cert files are written to disk
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 15-01-PLAN.md — WebServer TLS swap: GetCertificate hook, FQDN BaseURL, delete tls.go, update tests
 - [ ] 15-02-PLAN.md — App layer + frontend: StartWebServer(port), CT disclosure, SettingsPanel update
@@ -127,7 +127,7 @@ Plans:
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
-| 15. Tailscale TLS + Interface Binding | 1/2 | In Progress|  | - |
+| 15. Tailscale TLS + Interface Binding | 2/2 | Complete   | 2026-03-20 | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
