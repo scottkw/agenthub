@@ -21,7 +21,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Web dashboard to browse all served sessions — v1.0 (password auth removed in v1.2 Phase 16)
 - ✓ Per-session QR/URL access — v1.0 (shareable tokens removed in v1.2 Phase 16)
 - ✓ QR code generation for all web-served sessions — v1.0
-- ✓ VPN interface binding — Tailscale-first, with support for other VPN interfaces — v1.0
+- ✓ VPN interface binding — Tailscale-only (generic VPN picker removed in v1.2 Phase 17) — v1.0
 - ✓ Multi-platform: macOS, Linux, Windows — v1.0 (CI matrix, signing/notarization)
 - ✓ Wails desktop shell with React frontend — v1.0
 - ✓ Go backend serving both the desktop app and web interface on the same process — v1.0
@@ -43,7 +43,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 **Goal:** Simplify networking to Tailscale-only — use its Let's Encrypt certs, remove self-signed TLS and password/token auth, add health checks with user-friendly guidance.
 
 **Target features:**
-- Tailscale-only networking (remove generic VPN interface support)
+- Tailscale-only networking (remove generic VPN interface support) — Phase 17 complete: dead code removed
 - Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events
 - Let's Encrypt certs via Tailscale for web server and remote sessions — Phase 15 complete: GetCertificate hook, FQDN-based URLs, CT disclosure
 - Remove password auth, per-session tokens, and self-signed cert infrastructure — Phase 16 complete: all auth deleted, dashboard/sessions open to tailnet members
@@ -102,4 +102,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | ditto (not zip) for notarization archive | Preserves macOS extended attributes required by notarytool | ✓ Good — correct signing pipeline |
 
 ---
-*Last updated: 2026-03-20 after Phase 16 (Auth Layer Removal)*
+*Last updated: 2026-03-20 after Phase 17 (Dead Code Cleanup)*
