@@ -138,7 +138,7 @@ Plans:
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | 2/2 | Complete    | 2026-03-20 | - |
-| 17. Dead Code Cleanup | 2/2 | Complete   | 2026-03-20 | - |
+| 17. Dead Code Cleanup | 2/2 | Complete    | 2026-03-20 | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
 
 ---
