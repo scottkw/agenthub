@@ -125,7 +125,10 @@ Plans:
   3. Running `build.sh --platform windows` produces a Windows binary without errors
   4. Running `build.sh --all` produces binaries for all three platforms sequentially
   5. Running `build.sh --platform macos --sign` produces a code-signed, notarized macOS build that passes `spctl --assess` verification
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 13-01-PLAN.md — Create build.sh with argument parsing and platform build functions (macOS/Windows/Linux)
+- [ ] 13-02-PLAN.md — Implement macOS code signing and notarization pipeline (sign_and_notarize)
 
 ## Progress
 
@@ -143,7 +146,7 @@ Plans:
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
 | 11. New-Session Modal | 3/3 | Complete    | 2026-03-19 | - |
 | 12. Tab Rename + Web Dashboard | 3/3 | Complete   | 2026-03-20 | - |
-| 13. Build Script | v1.1 | 0/? | Not started | - |
+| 13. Build Script | v1.1 | 0/2 | Planning complete | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
