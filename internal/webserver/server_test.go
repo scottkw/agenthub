@@ -3,13 +3,22 @@ package webserver_test
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,15 +27,102 @@ import (
 	"github.com/coder/websocket"
 )
 
-// testServer creates a WebServer in test mode with an in-memory CA.
+// selfSignedTLSForTest generates an in-memory self-signed CA and leaf cert for
+// 127.0.0.1. Returns a server TLS config and an HTTP client that trusts the CA.
+func selfSignedTLSForTest(t *testing.T) (*tls.Config, *http.Client) {
+	t.Helper()
+	// Generate CA
+	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caTmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{Organization: []string{"Test CA"}},
+		NotBefore:             time.Now().Add(-time.Minute),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	caDER, err := x509.CreateCertificate(rand.Reader, caTmpl, caTmpl, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Generate leaf for 127.0.0.1
+	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafTmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "127.0.0.1"},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+		NotBefore:    time.Now().Add(-time.Minute),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leafTmpl, caCert, &leafKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leafCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: leafDER})
+	leafKeyDER, _ := x509.MarshalECPrivateKey(leafKey)
+	leafKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: leafKeyDER})
+	tlsCert, err := tls.X509KeyPair(leafCertPEM, leafKeyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverTLS := &tls.Config{
+		Certificates: []tls.Certificate{tlsCert},
+		MinVersion:   tls.VersionTLS12,
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(caCert)
+	client := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: pool},
+	}}
+	return serverTLS, client
+}
+
+// testCookieJar is a minimal CookieJar for tests (external package equivalent of simpleCookieJar).
+type testCookieJar struct {
+	mu      sync.Mutex
+	cookies map[string][]*http.Cookie
+}
+
+func newTestCookieJar() *testCookieJar {
+	return &testCookieJar{cookies: make(map[string][]*http.Cookie)}
+}
+
+func (j *testCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.cookies[u.Host] = append(j.cookies[u.Host], cookies...)
+}
+
+func (j *testCookieJar) Cookies(u *url.URL) []*http.Cookie {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.cookies[u.Host]
+}
+
+// testServer creates a WebServer in test mode using the TLSConfig override.
 // It returns the server and a TLS-enabled HTTP client for making requests.
 func testServer(t *testing.T) (*webserver.WebServer, *http.Client) {
 	t.Helper()
 	manager := relay.NewHubManager()
+	tlsCfg, client := selfSignedTLSForTest(t)
 	cfg := webserver.Config{
 		BindIP:    "127.0.0.1",
-		Port:      0, // random port
-		ConfigDir: t.TempDir(),
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: tlsCfg,
 	}
 	ws, err := webserver.NewWebServer(cfg, manager)
 	if err != nil {
@@ -40,7 +136,8 @@ func testServer(t *testing.T) (*webserver.WebServer, *http.Client) {
 	}
 	t.Cleanup(func() { _ = ws.Stop() })
 
-	client := ws.TestClient()
+	jar := newTestCookieJar()
+	client.Jar = jar
 	return ws, client
 }
 
@@ -258,8 +355,11 @@ func TestWebServerTokenAccess(t *testing.T) {
 		t.Errorf("URL should contain token param, got %s", tokenResp.URL)
 	}
 
-	// Now access /sessions/sess1 with the token WITHOUT a session cookie (use fresh client)
-	freshClient := ws.TestClient()
+	// Now access /sessions/sess1 with the token WITHOUT a session cookie (use fresh client).
+	// Uses InsecureSkipVerify since we only care about token auth, not TLS trust here.
+	freshClient := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	}}
 	// Don't login with freshClient
 	tokenURL := fmt.Sprintf("%s/sessions/sess1?token=%s", baseURL, tokenResp.Token)
 	resp2, err := freshClient.Get(tokenURL)
@@ -274,11 +374,13 @@ func TestWebServerTokenAccess(t *testing.T) {
 }
 
 func TestWebServerTokenAccessInvalid(t *testing.T) {
-	ws, client := testServer(t)
-	_ = client
+	ws, _ := testServer(t)
 	ws.EnableSession("sess1")
 
-	freshClient := ws.TestClient()
+	// Uses InsecureSkipVerify since we only care about token auth, not TLS trust here.
+	freshClient := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	}}
 	resp, err := freshClient.Get(ws.BaseURL() + "/sessions/sess1?token=invalidtoken")
 	if err != nil {
 		t.Fatalf("GET session with invalid token: %v", err)
@@ -289,33 +391,14 @@ func TestWebServerTokenAccessInvalid(t *testing.T) {
 	}
 }
 
-func TestWebServerCACertDownload(t *testing.T) {
-	ws, client := testServer(t)
-	resp, err := client.Get(ws.BaseURL() + "/ca.crt")
-	if err != nil {
-		t.Fatalf("GET /ca.crt: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected 200, got %d", resp.StatusCode)
-	}
-	ct := resp.Header.Get("Content-Type")
-	if !strings.Contains(ct, "pem") && !strings.Contains(ct, "x-pem-file") {
-		t.Errorf("expected PEM content-type, got %s", ct)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	block, _ := pem.Decode(body)
-	if block == nil {
-		t.Error("CA cert response is not valid PEM")
-	}
-}
-
 func TestWebServerWSS(t *testing.T) {
 	mgr := relay.NewHubManager()
+	tlsCfg, client := selfSignedTLSForTest(t)
 	cfg := webserver.Config{
 		BindIP:    "127.0.0.1",
 		Port:      0,
-		ConfigDir: t.TempDir(),
+		FQDN:      "127.0.0.1",
+		TLSConfig: tlsCfg,
 	}
 	ws, err := webserver.NewWebServer(cfg, mgr)
 	if err != nil {
@@ -329,14 +412,15 @@ func TestWebServerWSS(t *testing.T) {
 	}
 	defer ws.Stop()
 
+	jar := newTestCookieJar()
+	client.Jar = jar
+
 	// Create a hub with a pipe so we can send output
 	pr, pw := io.Pipe()
 	hub := mgr.Create("sess1", pr, io.Discard, nil)
 	_ = hub
 	ws.EnableSession("sess1")
 
-	// Use a TLS client that trusts the CA
-	client := ws.TestClient()
 	baseURL := ws.BaseURL()
 
 	// Login to get session cookie
@@ -348,7 +432,6 @@ func TestWebServerWSS(t *testing.T) {
 	defer cancel()
 
 	// Build http.Header with the session cookie
-	jar := client.Jar
 	cookies := jar.Cookies(mustParseURL(baseURL))
 	headers := http.Header{}
 	for _, c := range cookies {
@@ -389,10 +472,12 @@ func TestWebServerWSS(t *testing.T) {
 
 func TestWebServerToggle(t *testing.T) {
 	mgr := relay.NewHubManager()
+	tlsCfg, client := selfSignedTLSForTest(t)
 	cfg := webserver.Config{
 		BindIP:    "127.0.0.1",
 		Port:      0,
-		ConfigDir: t.TempDir(),
+		FQDN:      "127.0.0.1",
+		TLSConfig: tlsCfg,
 	}
 	ws, err := webserver.NewWebServer(cfg, mgr)
 	if err != nil {
@@ -406,7 +491,8 @@ func TestWebServerToggle(t *testing.T) {
 	}
 	defer ws.Stop()
 
-	client := ws.TestClient()
+	jar := newTestCookieJar()
+	client.Jar = jar
 	baseURL := ws.BaseURL()
 
 	// Enable sess1, login, access terminal page
@@ -511,6 +597,29 @@ func TestAPISessionsStillRequiresAuth(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", resp.StatusCode)
+	}
+}
+
+// TestBaseURL_UsesFQDN verifies that BaseURL() uses the configured FQDN, not the bind IP.
+func TestBaseURL_UsesFQDN(t *testing.T) {
+	tlsCfg, _ := selfSignedTLSForTest(t)
+	cfg := webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "myhost.example.ts.net",
+		TLSConfig: tlsCfg,
+	}
+	ws, err := webserver.NewWebServer(cfg, relay.NewHubManager())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Stop()
+	base := ws.BaseURL()
+	if !strings.HasPrefix(base, "https://myhost.example.ts.net:") {
+		t.Errorf("BaseURL should use FQDN, got %q", base)
 	}
 }
 
