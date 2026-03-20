@@ -29,6 +29,14 @@ type Config struct {
 	ConfigDir string
 }
 
+// sessionListItem is the JSON shape returned by GET /api/sessions.
+type sessionListItem struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	CLIType string `json:"cli_type"`
+	Status  string `json:"status"`
+}
+
 // WebServer serves the AgentHub dashboard, handles authentication, and relays
 // terminal I/O over WSS to remote browser clients.
 type WebServer struct {
@@ -45,6 +53,9 @@ type WebServer struct {
 	caCert      *x509.Certificate
 	caDER       []byte
 	tlsCfg      *tls.Config
+
+	// sessionResolver is set once before Start() and is not mutex-protected.
+	sessionResolver func(sessionID string) (name, cliType, status string)
 }
 
 // NewWebServer creates a WebServer, loads or generates the CA cert, and sets up routes.
@@ -73,6 +84,12 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 // SetPassword sets the dashboard login password.
 func (ws *WebServer) SetPassword(plaintext string) error {
 	return ws.auth.SetPassword(plaintext)
+}
+
+// SetSessionResolver sets the callback used by handleListSessions to resolve
+// session metadata (name, CLI type, status). Must be called before Start().
+func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string)) {
+	ws.sessionResolver = fn
 }
 
 // LoadPasswordHash loads a pre-existing bcrypt hash into the auth manager.
@@ -334,11 +351,19 @@ func (ws *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 // handleListSessions handles GET /api/sessions.
 func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	ids := ws.webEnabledSessions()
-	if ids == nil {
-		ids = []string{}
+	items := make([]sessionListItem, 0, len(ids))
+	for _, id := range ids {
+		name, cliType, st := "", "", ""
+		if ws.sessionResolver != nil {
+			name, cliType, st = ws.sessionResolver(id)
+		}
+		if name == "" {
+			name = id
+		}
+		items = append(items, sessionListItem{ID: id, Name: name, CLIType: cliType, Status: st})
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ids) //nolint:errcheck
+	json.NewEncoder(w).Encode(items) //nolint:errcheck
 }
 
 // handleTerminalPage serves the embedded terminal.html.

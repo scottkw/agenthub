@@ -157,19 +157,71 @@ func TestWebServerSessionListAPI(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
-	var sessions []string
-	if err := json.NewDecoder(resp.Body).Decode(&sessions); err != nil {
+	var items []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
 	// sess1 is enabled but not in the hub manager — it should still appear
 	found := false
-	for _, s := range sessions {
-		if s == "sess1" {
+	for _, item := range items {
+		if item.ID == "sess1" {
 			found = true
+			// Name falls back to session ID when no resolver is set
+			if item.Name != "sess1" {
+				t.Errorf("expected name fallback to 'sess1', got %q", item.Name)
+			}
 		}
 	}
 	if !found {
-		t.Errorf("expected sess1 in sessions, got %v", sessions)
+		t.Errorf("expected sess1 in sessions, got %v", items)
+	}
+}
+
+func TestWebServerSessionListAPIWithResolver(t *testing.T) {
+	ws, client := testServer(t)
+	baseURL := ws.BaseURL()
+
+	ws.SetSessionResolver(func(id string) (string, string, string) {
+		if id == "sess1" {
+			return "My Session", "claude", "running"
+		}
+		return "", "", ""
+	})
+	ws.EnableSession("sess1")
+
+	login(t, client, baseURL, "testpass")
+
+	resp, err := client.Get(baseURL + "/api/sessions")
+	if err != nil {
+		t.Fatalf("GET /api/sessions: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	var items []struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		CLIType string `json:"cli_type"`
+		Status  string `json:"status"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(items))
+	}
+	if items[0].Name != "My Session" {
+		t.Errorf("expected name 'My Session', got %q", items[0].Name)
+	}
+	if items[0].CLIType != "claude" {
+		t.Errorf("expected cli_type 'claude', got %q", items[0].CLIType)
+	}
+	if items[0].Status != "running" {
+		t.Errorf("expected status 'running', got %q", items[0].Status)
 	}
 }
 
