@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-03-19T21:57:33.334Z"
+stopped_at: Completed 12-tab-rename-web-dashboard plan 03
+last_updated: "2026-03-20T12:18:51.585Z"
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 8
-  completed_plans: 8
+  completed_phases: 6
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 11 — new-session-modal
+**Current focus:** Phase 12 — tab-rename-web-dashboard
 
 ## Current Position
 
-Phase: 11 (new-session-modal) — COMPLETE
-Plan: 3 of 3
+Phase: 12 (tab-rename-web-dashboard) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -49,6 +49,8 @@ Plan: 3 of 3
 | Phase 11-new-session-modal P02 | 2 | 2 tasks | 3 files |
 | Phase 11-new-session-modal P01 | 3 | 2 tasks | 7 files |
 | Phase 11 P03 | 8 | 2 tasks | 2 files |
+| Phase 12-tab-rename-web-dashboard P01 | 2 | 2 tasks | 3 files |
+| Phase 12-tab-rename-web-dashboard P03 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -80,6 +82,10 @@ Recent decisions for v1.1:
 - [Phase 11-new-session-modal]: App.tsx uses workDir='' placeholder — real value supplied by NewSessionModal in plan 11-02
 - [Phase 11]: handleAddTab always opens NewSessionModal regardless of CLI count — single-CLI fast-path removed
 - [Phase 11]: createTab removed from handleAddTab deps since modal onConfirm calls createTab directly
+- [Phase 12-tab-rename-web-dashboard]: sessionResolver not mutex-protected — set once before Start(), never mutated after that point
+- [Phase 12-tab-rename-web-dashboard]: app.go uses separate a.mu and a.statusMu locks matching existing App mutex discipline
+- [Phase 12-tab-rename-web-dashboard]: Name fallback to session ID handled server-side in handleListSessions, not in resolver closure
+- [Phase 12-tab-rename-web-dashboard]: Dashboard redesign: QR thumb reduced 64px->48px for card proportion; empty state changed to div with two p elements; status dot defaults to running when API omits field
 
 ### Pending Todos
 
@@ -92,6 +98,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:53:14.996Z
-Stopped at: Completed 11-03-PLAN.md
+Last session: 2026-03-20T12:18:51.583Z
+Stopped at: Completed 12-tab-rename-web-dashboard plan 03
 Resume file: None
