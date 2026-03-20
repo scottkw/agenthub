@@ -14,12 +14,6 @@ export interface DetectedCLI {
   Path: string
 }
 
-export interface NetworkInterface {
-  Name: string
-  IP: string
-  IsTailscale: boolean
-}
-
 export function CreateSession(cli: string, name: string, workDir: string): Promise<string>
 export function ListSessions(): Promise<SessionInfo[]>
 export function RenameSession(id: string, name: string): Promise<void>
@@ -29,7 +23,6 @@ export function GetRelayPort(): Promise<number>
 export function UpdateCLIPath(name: string, path: string): Promise<void>
 
 // Web serving bound methods
-export function GetNetworkInterfaces(): Promise<NetworkInterface[]>
 export function StartWebServer(port: number): Promise<void>
 export function StopWebServer(): Promise<void>
 export function ToggleWebServing(sessionID: string, enabled: boolean): Promise<void>
