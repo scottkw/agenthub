@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-20T21:04:42.934Z"
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-03-20T21:15:17.085Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Plan: 1 of 2
 | Phase 15-tailscale-tls-interface-binding P01 | 215 | 2 tasks | 4 files |
 | Phase 15 P02 | 480 | 2 tasks | 7 files |
 | Phase 16-auth-layer-removal P01 | 445s | 2 tasks | 9 files |
+| Phase 16-auth-layer-removal P02 | 480 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Key v1.2 constraints affecting all phases:
 - [Phase 15-02]: CT disclosure persisted as sentinel file ct_disclosed; HasCTDisclosure reads os.Stat
 - [Phase 15-02]: TestGetSessionQRCode bypasses StartWebServer Tailscale gate via direct WebServer construction with in-memory TLS
 - [Phase 16-auth-layer-removal]: Auth removal: All app-layer auth removed; Tailscale provides network-level access control
+- [Phase 16-auth-layer-removal]: SettingsPanel reduced to 2 tabs; Security tab and password state fully removed
+- [Phase 16-auth-layer-removal]: Dashboard HTML renders session list directly on load with no login gate or CA section
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:04:42.931Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-03-20T21:15:17.082Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
