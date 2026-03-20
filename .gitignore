@@ -29,3 +29,4 @@ frontend/src/wailsjs/wailsjs/
 *.test
 *.out
 coverage.html
+.superpowers/

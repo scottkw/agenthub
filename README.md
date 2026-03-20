@@ -6,13 +6,20 @@ A cross-platform desktop app for running AI coding CLIs — Claude Code, Codex, 
 
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback)
 - **CLI auto-detection** — Scans PATH for Claude Code, Codex, Gemini CLI, and OpenCode on startup; supports custom CLI paths
+- **New session modal** — Select a CLI and pick a working directory when creating a session; remembers your last-used directory
 - **Session persistence** — Close the window to the system tray; sessions keep running. Reopen and reattach instantly with full scrollback replay
+- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` keyboard shortcuts
+- **Tab management** — Rename tabs by double-clicking or right-click context menu; close with the `×` button
 - **Web serving** — Toggle any session to be accessible from a remote browser over HTTPS. Self-signed TLS with a local CA cert pattern so browsers trust the connection
+- **Web dashboard** — Dark-themed dashboard with session cards showing live status dots, CLI type badges, and direct connect links
 - **Authentication** — Password-protected dashboard lists all shared sessions. Per-session token links grant access without the dashboard password
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and on the web dashboard
 - **Live status indicators** — Each tab shows a colored dot: running (green), waiting for input (yellow), idle (gray), or errored (red). Status detection uses heuristic output parsing
+- **Per-tab status bar** — Shows web-serving state for each session with toggle, copy token link, and QR code buttons
+- **Tabbed settings** — Settings organized into CLI Paths, Web Server, and Security tabs
 - **VPN binding** — Bind the web server to a specific network interface. Auto-detects Tailscale via CGNAT range; supports any VPN interface
 - **Cross-platform** — Builds for macOS (universal, signed + notarized), Linux (Ubuntu 22.04 + 24.04), and Windows (NSIS installer)
+- **Build script** — `build.sh` for local cross-platform builds with optional macOS code signing and notarization
 
 ## Architecture
 
@@ -56,9 +63,11 @@ A cross-platform desktop app for running AI coding CLIs — Claude Code, Codex, 
 | Component | Purpose |
 |-----------|---------|
 | `App.tsx` | Root layout, session management, event wiring |
-| `TabBar.tsx` | Tab strip with status dots, rename, close |
-| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay client |
-| `SettingsPanel.tsx` | CLI paths, web serving controls, network interface selection |
+| `TabBar.tsx` | Tab strip with status dots, rename (double-click or right-click), close |
+| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay client, per-tab font size |
+| `NewSessionModal.tsx` | CLI selector + working directory picker for new sessions |
+| `StatusBar.tsx` | Per-tab web-serving status bar with toggle, token link, and QR buttons |
+| `SettingsPanel.tsx` | Tabbed settings (CLI Paths, Web Server, Security) |
 | `QRModal.tsx` | QR code display modal for web-served sessions |
 
 ## Prerequisites
@@ -113,7 +122,26 @@ cd frontend && pnpm test
 
 ## Building
 
-### Local build (current platform)
+### Using `build.sh` (recommended)
+
+The included build script handles cross-platform builds, including Docker-based Linux builds and cross-compilation for Windows from macOS:
+
+```bash
+# Build for the current platform
+./build.sh --platform macos    # macOS universal binary (.app)
+./build.sh --platform linux    # Linux amd64 via Docker
+./build.sh --platform windows  # Windows amd64 via cross-compile
+
+# Build all platforms
+./build.sh --all
+
+# Build + sign and notarize macOS (requires Apple Developer credentials)
+./build.sh --platform macos --sign
+```
+
+### Manual builds
+
+#### Local build (current platform)
 
 ```bash
 wails build
@@ -121,13 +149,13 @@ wails build
 
 Output: `build/bin/agenthub` (or `agenthub.exe` on Windows, `agenthub.app` on macOS)
 
-### macOS (universal binary)
+#### macOS (universal binary)
 
 ```bash
 wails build -platform darwin/universal
 ```
 
-**Signing and notarization** (requires Apple Developer account):
+**Manual signing and notarization** (requires Apple Developer account):
 
 ```bash
 # Sign
@@ -146,7 +174,7 @@ xcrun notarytool submit notarization.zip \
 xcrun stapler staple build/bin/agenthub.app
 ```
 
-### Linux
+#### Linux
 
 ```bash
 # Ubuntu 24.04 (WebKitGTK 4.1)
@@ -156,7 +184,7 @@ wails build -tags webkit2_41
 wails build
 ```
 
-### Windows
+#### Windows
 
 ```bash
 # Standard build
@@ -198,13 +226,14 @@ Build artifacts are uploaded as GitHub Actions artifacts.
 ### First launch
 
 1. **Launch AgentHub** — the app scans your PATH for installed AI coding CLIs
-2. **Create a session** — click the `+` button and select a detected CLI (or configure custom CLI paths in Settings)
+2. **Create a session** — click the `+` button to open the new session modal. Select a CLI and choose a working directory
 3. **Use the terminal** — full interactive terminal with the selected CLI. Resize, scroll, copy/paste all work as expected
 
 ### Managing sessions
 
 - **Multiple tabs** — open as many sessions as you need; each runs independently
-- **Rename tabs** — double-click a tab name to rename it
+- **Rename tabs** — double-click a tab name or right-click for a context menu
+- **Font size** — press `Shift+=` to zoom in or `Shift+-` to zoom out per tab
 - **Close sessions** — click the `×` on a tab to kill the session and its process
 - **System tray** — close the window and sessions keep running in the background. Click the tray icon to reopen
 

@@ -40,7 +40,7 @@ function renderSettingsPanel(props: Partial<SettingsPanelProps> = {}) {
 
 function clickTabByText(container: HTMLElement, text: string) {
   const buttons = container.querySelectorAll('.settings-panel__tab-btn')
-  const btn = Array.from(buttons).find((b) => b.textContent?.trim() === text)
+  const btn = Array.from(buttons).find((b) => b.textContent?.trim() === text) as HTMLElement | undefined
   expect(btn).not.toBeUndefined()
   flushSync(() => {
     btn!.click()
