@@ -13,7 +13,7 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 - [x] **BUILD-02**: User can run `build.sh --platform linux` to compile for Linux only
 - [x] **BUILD-03**: User can run `build.sh --platform windows` to compile for Windows only
 - [x] **BUILD-04**: User can run `build.sh --all` to compile for all platforms
-- [ ] **BUILD-05**: User can run `build.sh --platform macos --sign` to code-sign and notarize the macOS build
+- [x] **BUILD-05**: User can run `build.sh --platform macos --sign` to code-sign and notarize the macOS build
 
 ### Terminal Core
 
@@ -87,7 +87,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUILD-02 | Phase 13 | Complete |
 | BUILD-03 | Phase 13 | Complete |
 | BUILD-04 | Phase 13 | Complete |
-| BUILD-05 | Phase 13 | Pending |
+| BUILD-05 | Phase 13 | Complete |
 | TERM-01 | Phase 7 | Complete |
 | TERM-02 | Phase 10 | Complete |
 | TERM-03 | Phase 10 | Complete |

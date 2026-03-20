@@ -29,7 +29,7 @@
 - [x] **Phase 10: Per-Tab Font Size** — Keyboard shortcuts to adjust font size per terminal tab (completed 2026-03-19)
 - [x] **Phase 11: New-Session Modal** — Agent picker and native folder browser replace bare CLI picker (completed 2026-03-19)
 - [x] **Phase 12: Tab Rename + Web Dashboard** — Tab renames propagate to web dashboard; dashboard visual refresh (completed 2026-03-20)
-- [ ] **Phase 13: Build Script** — One-command cross-platform compilation with macOS signing and notarization
+- [x] **Phase 13: Build Script** — One-command cross-platform compilation with macOS signing and notarization (completed 2026-03-20)
 
 ## Phase Details
 
@@ -125,7 +125,7 @@ Plans:
   3. Running `build.sh --platform windows` produces a Windows binary without errors
   4. Running `build.sh --all` produces binaries for all three platforms sequentially
   5. Running `build.sh --platform macos --sign` produces a code-signed, notarized macOS build that passes `spctl --assess` verification
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 13-01-PLAN.md — Create build.sh with argument parsing and platform build functions (macOS/Windows/Linux)
 - [ ] 13-02-PLAN.md — Implement macOS code signing and notarization pipeline (sign_and_notarize)
@@ -146,7 +146,7 @@ Plans:
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
 | 11. New-Session Modal | 3/3 | Complete    | 2026-03-19 | - |
 | 12. Tab Rename + Web Dashboard | 3/3 | Complete   | 2026-03-20 | - |
-| 13. Build Script | 1/2 | In Progress|  | - |
+| 13. Build Script | 2/2 | Complete   | 2026-03-20 | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
 status: unknown
-stopped_at: Completed 13-build-script plan 01
-last_updated: "2026-03-20T13:30:12.971Z"
+stopped_at: Completed 13-build-script plan 02
+last_updated: "2026-03-20T14:00:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-19)
 
 ## Current Position
 
-Phase: 13 (build-script) — EXECUTING
-Plan: 1 of 2
+Phase: 13 (build-script) — COMPLETE
+Plan: 2 of 2 (ALL PLANS COMPLETE)
 
 ## Performance Metrics
 
@@ -93,6 +93,9 @@ Recent decisions for v1.1:
 - [Phase 12-tab-rename-web-dashboard]: [Phase 12-02]: onMouseDown stopPropagation on menu div prevents document mousedown listener from self-closing the menu
 - [Phase 13-build-script]: sign_and_notarize() left as stub exiting 1 — Plan 02 implements real signing pipeline
 - [Phase 13-build-script]: Dispatch order in --all: macos first (native/fastest), then windows, then linux (Docker/slowest)
+- [Phase 13-build-script P02]: ditto -c -k --keepParent used (NOT zip -r) — preserves macOS extended attributes required by notarytool
+- [Phase 13-build-script P02]: notarytool submit --wait is mandatory — without it exit 0 does not mean notarization succeeded
+- [Phase 13-build-script P02]: All four Apple env vars checked upfront with clear setup instructions before any signing begins
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T13:30:12.967Z
-Stopped at: Completed 13-build-script plan 01
+Last session: 2026-03-20T14:00:00.000Z
+Stopped at: Completed 13-build-script plan 02 (Phase 13 COMPLETE — all v1.1 plans done)
 Resume file: None
