@@ -33,7 +33,7 @@
 
 </details>
 
-### 🚧 v1.2 Tailscale-Only Networking (In Progress)
+### v1.2 Tailscale-Only Networking (In Progress)
 
 **Milestone Goal:** Simplify networking to Tailscale-only — Let's Encrypt certs from the Tailscale daemon, Tailscale IP binding, health checks with instructional modal, and complete removal of self-signed TLS, password auth, and generic VPN interface support.
 
@@ -85,7 +85,10 @@ Plans:
   1. A tailnet member can open the web dashboard URL directly without being prompted for a password
   2. Session stream URLs no longer contain tokens and open directly for any tailnet member
   3. No login route, no token-generation route, and no auth middleware exists in the running server
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 16-01-PLAN.md — Backend auth removal: delete auth.go/tokens.go, strip middleware, update app.go and Go tests
+- [ ] 16-02-PLAN.md — Frontend auth removal: SettingsPanel Security tab, StatusBar Copy Link, dashboard.html login/CA sections, Wails bindings
 
 ### Phase 17: Dead Code Cleanup
 **Goal**: All code that existed solely to support generic VPN interface selection, auth middleware, or token infrastructure is deleted; the codebase builds cleanly with no dead paths
@@ -128,7 +131,7 @@ Plans:
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
-| 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
+| 16. Auth Layer Removal | v1.2 | 0/2 | Planned | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
 
