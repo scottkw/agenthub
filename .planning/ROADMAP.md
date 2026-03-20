@@ -146,7 +146,7 @@ Plans:
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
 | 11. New-Session Modal | 3/3 | Complete    | 2026-03-19 | - |
 | 12. Tab Rename + Web Dashboard | 3/3 | Complete   | 2026-03-20 | - |
-| 13. Build Script | 2/2 | Complete   | 2026-03-20 | - |
+| 13. Build Script | 2/2 | Complete    | 2026-03-20 | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
