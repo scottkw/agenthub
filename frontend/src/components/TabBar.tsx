@@ -20,7 +20,7 @@ interface TabBarProps {
 
 /**
  * Horizontal tab bar with add/rename/close controls.
- * Double-clicking a tab name enables inline editing.
+ * Double-clicking or right-clicking a tab name enables inline editing.
  */
 export function TabBar({
   tabs,
@@ -35,6 +35,7 @@ export function TabBar({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const [contextMenu, setContextMenu] = useState<{ tabId: string; x: number; y: number } | null>(null)
 
   // Focus the rename input as soon as it appears.
   useEffect(() => {
@@ -44,10 +45,35 @@ export function TabBar({
     }
   }, [editingId])
 
+  // Dismiss context menu on outside click or Escape.
+  useEffect(() => {
+    if (contextMenu === null) return
+    function handleOutsideClick(_e: MouseEvent) {
+      setContextMenu(null)
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [contextMenu])
+
   function startEdit(tab: Tab, e: React.MouseEvent) {
     e.stopPropagation()
     setEditingId(tab.id)
     setEditValue(tab.name)
+  }
+
+  function startEditById(tabId: string) {
+    const tab = tabs.find(t => t.id === tabId)
+    if (tab) {
+      setEditingId(tab.id)
+      setEditValue(tab.name)
+    }
   }
 
   function commitEdit() {
@@ -96,7 +122,12 @@ export function TabBar({
               <span
                 className="tab__name"
                 onDoubleClick={(e) => startEdit(tab, e)}
-                title="Double-click to rename"
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setContextMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
+                }}
+                title="Double-click or right-click to rename"
               >
                 {tab.name}
               </span>
@@ -134,6 +165,26 @@ export function TabBar({
           &#9881;{/* gear icon */}
         </button>
       </div>
+
+      {contextMenu && tabs.some(t => t.id === contextMenu.tabId) && (
+        <div
+          className="tab__context-menu"
+          role="menu"
+          style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            role="menuitem"
+            className="tab__context-menu__item"
+            onClick={() => {
+              startEditById(contextMenu.tabId)
+              setContextMenu(null)
+            }}
+          >
+            Rename
+          </button>
+        </div>
+      )}
     </div>
   )
 }

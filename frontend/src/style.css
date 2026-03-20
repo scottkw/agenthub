@@ -674,6 +674,36 @@ body {
   cursor: not-allowed;
 }
 
+/* ─── Tab context menu ─────────────────────────────────────────── */
+.tab__context-menu {
+  background: #1e2030;
+  border: 1px solid #292e42;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  min-width: 120px;
+  z-index: 500;
+  padding: 4px 0;
+}
+
+.tab__context-menu__item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #a9b1d6;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tab__context-menu__item:hover {
+  color: #c0caf5;
+  background: #292e42;
+}
+
 /* ─── Tab status dots ────────────────────────────────────────────── */
 .tab__status {
   display: inline-block;
