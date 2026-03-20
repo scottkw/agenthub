@@ -59,29 +59,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HEALTH-01 | — | Pending |
-| HEALTH-02 | — | Pending |
-| HEALTH-03 | — | Pending |
-| HEALTH-04 | — | Pending |
-| HEALTH-05 | — | Pending |
-| HEALTH-06 | — | Pending |
-| TLS-01 | — | Pending |
-| TLS-02 | — | Pending |
-| TLS-03 | — | Pending |
-| TLS-04 | — | Pending |
-| TLS-05 | — | Pending |
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| CLEAN-01 | — | Pending |
-| CLEAN-02 | — | Pending |
-| CLEAN-03 | — | Pending |
+| HEALTH-01 | Phase 14 | Pending |
+| HEALTH-02 | Phase 14 | Pending |
+| HEALTH-03 | Phase 14 | Pending |
+| HEALTH-04 | Phase 18 | Pending |
+| HEALTH-05 | Phase 18 | Pending |
+| HEALTH-06 | Phase 14 | Pending |
+| TLS-01 | Phase 15 | Pending |
+| TLS-02 | Phase 15 | Pending |
+| TLS-03 | Phase 15 | Pending |
+| TLS-04 | Phase 15 | Pending |
+| TLS-05 | Phase 15 | Pending |
+| AUTH-01 | Phase 16 | Pending |
+| AUTH-02 | Phase 16 | Pending |
+| AUTH-03 | Phase 16 | Pending |
+| CLEAN-01 | Phase 17 | Pending |
+| CLEAN-02 | Phase 17 | Pending |
+| CLEAN-03 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-20*
-*Last updated: 2026-03-20 after initial definition*
+*Last updated: 2026-03-20 — traceability complete after roadmap creation*
