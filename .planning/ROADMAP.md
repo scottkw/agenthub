@@ -57,7 +57,7 @@
   3. App correctly detects when Tailscale is connected but HTTPS certs are not enabled
   4. App correctly detects when all three health conditions are satisfied
   5. Health checks run on a background goroutine and the frontend receives updated state automatically without a restart
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 14-01-PLAN.md — TailscaleHealth struct + CheckHealth function with TDD tests
 - [ ] 14-02-PLAN.md — Wails GetTailscaleStatus binding + background health poller
@@ -123,7 +123,7 @@ Plans:
 | 11. New-Session Modal | v1.1 | 3/3 | Complete | 2026-03-19 |
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
-| 14. Tailscale Health Check Infrastructure | v1.2 | 0/2 | Not started | - |
+| 14. Tailscale Health Check Infrastructure | 1/2 | In Progress|  | - |
 | 15. Tailscale TLS + Interface Binding | v1.2 | 0/? | Not started | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |

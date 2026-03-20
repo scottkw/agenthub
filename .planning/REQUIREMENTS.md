@@ -9,9 +9,9 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 
 ### Tailscale Health
 
-- [ ] **HEALTH-01**: App detects whether Tailscale is installed on the system
-- [ ] **HEALTH-02**: App detects whether Tailscale is connected to a tailnet
-- [ ] **HEALTH-03**: App detects whether HTTPS certificates are enabled in the tailnet
+- [x] **HEALTH-01**: App detects whether Tailscale is installed on the system
+- [x] **HEALTH-02**: App detects whether Tailscale is connected to a tailnet
+- [x] **HEALTH-03**: App detects whether HTTPS certificates are enabled in the tailnet
 - [ ] **HEALTH-04**: User sees a modal with clear, actionable instructions when any health check fails
 - [ ] **HEALTH-05**: Modal instructions are platform-specific (macOS, Linux, Windows)
 - [ ] **HEALTH-06**: Health checks run periodically in background; modal updates automatically when user resolves issues
@@ -59,9 +59,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HEALTH-01 | Phase 14 | Pending |
-| HEALTH-02 | Phase 14 | Pending |
-| HEALTH-03 | Phase 14 | Pending |
+| HEALTH-01 | Phase 14 | Complete |
+| HEALTH-02 | Phase 14 | Complete |
+| HEALTH-03 | Phase 14 | Complete |
 | HEALTH-04 | Phase 18 | Pending |
 | HEALTH-05 | Phase 18 | Pending |
 | HEALTH-06 | Phase 14 | Pending |
