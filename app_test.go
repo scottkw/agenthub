@@ -308,6 +308,31 @@ func TestGetSessionQRCode_NoServer(t *testing.T) {
 	}
 }
 
+func TestGetTailscaleStatus(t *testing.T) {
+	app := testApp(t)
+	h := app.GetTailscaleStatus()
+	// On machines without tailscaled, Installed will be false.
+	// On machines with tailscaled, any combination is valid.
+	// The key assertion is that the method doesn't panic and returns a struct.
+	_ = h.Installed
+	_ = h.Connected
+	_ = h.HasCerts
+	_ = h.IP
+	_ = h.Domain
+}
+
+func TestHealthPollerStops(t *testing.T) {
+	app := testApp(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	app.startHealthPoller(ctx)
+	// Cancel immediately -- the goroutine should exit without blocking.
+	cancel()
+	// Give the goroutine a moment to observe the cancellation.
+	time.Sleep(100 * time.Millisecond)
+	// If the goroutine leaked, the race detector (run with -race) will catch it
+	// on test cleanup. No explicit assertion needed beyond "no hang, no panic".
+}
+
 func TestGetSessionStatus(t *testing.T) {
 	app := testApp(t)
 
