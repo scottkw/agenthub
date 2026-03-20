@@ -1,11 +1,8 @@
 package webserver
 
 import (
-	"crypto/ecdsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
@@ -15,18 +12,21 @@ import (
 
 	"github.com/agenthub/agenthub/internal/relay"
 	webfs "github.com/agenthub/agenthub/web"
-	qrcode "github.com/skip2/go-qrcode"
 	"github.com/coder/websocket"
+	qrcode "github.com/skip2/go-qrcode"
+	"tailscale.com/client/local"
 )
 
 // Config holds configuration for the WebServer.
 type Config struct {
-	// BindIP is the IP address to bind the HTTPS listener on.
+	// BindIP is the IP address to bind the HTTPS listener on (Tailscale IP, e.g. 100.x.x.x).
 	BindIP string
 	// Port is the preferred HTTPS port. If 0 or unavailable, a random port is used.
 	Port int
-	// ConfigDir is the directory used for CA cert persistence (e.g. ~/.config/agenthub).
-	ConfigDir string
+	// FQDN is the Tailscale MagicDNS hostname (from CertDomains[0]), used in BaseURL.
+	FQDN string
+	// TLSConfig is an override for tests; nil in production (uses lc.GetCertificate).
+	TLSConfig *tls.Config
 }
 
 // sessionListItem is the JSON shape returned by GET /api/sessions.
@@ -49,32 +49,20 @@ type WebServer struct {
 	webEnabled  map[string]bool // sessionID -> enabled (WEB-01 toggle)
 	listener    net.Listener
 	mux         *http.ServeMux
-	caKey       *ecdsa.PrivateKey
-	caCert      *x509.Certificate
-	caDER       []byte
-	tlsCfg      *tls.Config
 
 	// sessionResolver is set once before Start() and is not mutex-protected.
 	sessionResolver func(sessionID string) (name, cliType, status string)
 }
 
-// NewWebServer creates a WebServer, loads or generates the CA cert, and sets up routes.
+// NewWebServer creates a WebServer and sets up routes.
 // Does NOT start the listener — call Start() to begin serving.
 func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
-	caKey, caCert, caDER, err := LoadOrCreateCA(cfg.ConfigDir)
-	if err != nil {
-		return nil, fmt.Errorf("webserver: load CA: %w", err)
-	}
-
 	ws := &WebServer{
 		config:     cfg,
 		auth:       NewAuthManager(),
 		tokens:     NewTokenStore(),
 		manager:    manager,
 		webEnabled: make(map[string]bool),
-		caKey:      caKey,
-		caCert:     caCert,
-		caDER:      caDER,
 		mux:        http.NewServeMux(),
 	}
 	ws.setupRoutes()
@@ -143,20 +131,19 @@ func (ws *WebServer) webEnabledSessions() []string {
 	return ids
 }
 
-// Start generates a leaf cert for the bind IP, opens the TLS listener, and begins serving.
+// Start opens the TLS listener and begins serving.
+// In production, uses Tailscale's lc.GetCertificate hook.
+// In tests, uses the TLSConfig override from Config.
 // If config.Port is taken, falls back to a random port.
 func (ws *WebServer) Start() error {
-	bindIP := net.ParseIP(ws.config.BindIP)
-	if bindIP == nil {
-		bindIP = net.ParseIP("127.0.0.1")
+	tlsCfg := ws.config.TLSConfig
+	if tlsCfg == nil {
+		var lc local.Client
+		tlsCfg = &tls.Config{
+			GetCertificate: lc.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		}
 	}
-
-	leafCert, err := GenerateLeafCert(ws.caKey, ws.caCert, bindIP)
-	if err != nil {
-		return fmt.Errorf("webserver: generate leaf cert: %w", err)
-	}
-	tlsCfg := BuildTLSConfig(leafCert)
-	ws.tlsCfg = tlsCfg
 
 	// Try configured port first; fall back to :0 (random) on EADDRINUSE.
 	port := ws.config.Port
@@ -204,7 +191,7 @@ func (ws *WebServer) Addr() string {
 	return ln.Addr().String()
 }
 
-// BaseURL returns the base HTTPS URL for the server (e.g. https://127.0.0.1:7443).
+// BaseURL returns the base HTTPS URL using the configured FQDN (e.g. https://hostname.ts.net:7443).
 func (ws *WebServer) BaseURL() string {
 	ws.mu.RLock()
 	ln := ws.listener
@@ -212,26 +199,11 @@ func (ws *WebServer) BaseURL() string {
 	if ln == nil {
 		return ""
 	}
-	host, port, err := net.SplitHostPort(ln.Addr().String())
+	_, port, err := net.SplitHostPort(ln.Addr().String())
 	if err != nil {
 		return ""
 	}
-	return fmt.Sprintf("https://%s:%s", host, port)
-}
-
-// TestClient returns an *http.Client that trusts the server's CA cert and
-// has a cookie jar. Intended for use in tests only.
-func (ws *WebServer) TestClient() *http.Client {
-	pool := x509.NewCertPool()
-	pool.AddCert(ws.caCert)
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{RootCAs: pool},
-	}
-	jar := &simpleCookieJar{cookies: make(map[string][]*http.Cookie)}
-	return &http.Client{
-		Transport: transport,
-		Jar:       jar,
-	}
+	return fmt.Sprintf("https://%s:%s", ws.config.FQDN, port)
 }
 
 // setupRoutes registers all HTTP routes on the server mux.
@@ -267,9 +239,6 @@ func (ws *WebServer) setupRoutes() {
 
 	// GET /api/sessions/{id}/qr — requires dashboard auth; serves QR code PNG
 	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.dashboardAuth(ws.handleSessionQR))
-
-	// GET /ca.crt — no auth required; CA cert is public
-	mux.HandleFunc("GET /ca.crt", ws.handleCACert)
 }
 
 // dashboardAuth middleware — validates agenthub_session cookie.
@@ -413,14 +382,6 @@ func (ws *WebServer) handleSessionQR(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(png) //nolint:errcheck
-}
-
-// handleCACert serves the CA certificate in PEM format. No auth required.
-func (ws *WebServer) handleCACert(w http.ResponseWriter, r *http.Request) {
-	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ws.caDER})
-	w.Header().Set("Content-Type", "application/x-pem-file")
-	w.Header().Set("Content-Disposition", `attachment; filename="ca.crt"`)
-	w.Write(pemBytes) //nolint:errcheck
 }
 
 // handleWSSRelay upgrades to WebSocket and relays frames between the hub and the browser.
