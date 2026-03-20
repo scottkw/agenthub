@@ -97,12 +97,25 @@ build_linux() {
     exit 1
   fi
 
+  # Pre-build frontend assets (Docker container won't have Node/pnpm)
+  echo "==> Building frontend assets for Linux"
+  (cd frontend && pnpm install --frozen-lockfile && pnpm run build)
+
   echo "==> Building Linux (linux/amd64) via Docker"
   docker run --rm \
+    --platform linux/amd64 \
     -v "$(pwd)":/app \
     -w /app \
-    ghcr.io/abjrcode/cross-wails:v2.6.0 \
-    wails build -platform linux/amd64 -clean
+    golang:1.26-bookworm \
+    bash -c "
+      apt-get update -qq && \
+      apt-get install -y --no-install-recommends \
+        gcc libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config && \
+      CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+        go build -tags production \
+        -ldflags '-w -s' \
+        -o build/bin/agenthub .
+    "
   echo "==> Linux build complete: build/bin/agenthub"
 }
 
