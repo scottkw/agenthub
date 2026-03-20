@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
 stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-03-20T21:15:17.085Z"
+last_updated: "2026-03-20T21:23:46.517Z"
 progress:
   total_phases: 5
   completed_phases: 3
