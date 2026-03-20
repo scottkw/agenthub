@@ -39,7 +39,7 @@
 
 **Phase Summary:**
 
-- [ ] **Phase 14: Tailscale Health Check Infrastructure** — Backend health check logic and Wails binding; zero regression risk; unblocks every subsequent phase
+- [x] **Phase 14: Tailscale Health Check Infrastructure** — Backend health check logic and Wails binding; zero regression risk; unblocks every subsequent phase (completed 2026-03-20)
 - [ ] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP
 - [ ] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding
 - [ ] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase
@@ -57,7 +57,7 @@
   3. App correctly detects when Tailscale is connected but HTTPS certs are not enabled
   4. App correctly detects when all three health conditions are satisfied
   5. Health checks run on a background goroutine and the frontend receives updated state automatically without a restart
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 14-01-PLAN.md — TailscaleHealth struct + CheckHealth function with TDD tests
 - [ ] 14-02-PLAN.md — Wails GetTailscaleStatus binding + background health poller
@@ -123,7 +123,7 @@ Plans:
 | 11. New-Session Modal | v1.1 | 3/3 | Complete | 2026-03-19 |
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
-| 14. Tailscale Health Check Infrastructure | 1/2 | In Progress|  | - |
+| 14. Tailscale Health Check Infrastructure | 2/2 | Complete   | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | v1.2 | 0/? | Not started | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |

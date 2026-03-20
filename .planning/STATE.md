@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-20T18:45:20.579Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-20T19:10:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Current Position
 
-Phase: 14 (tailscale-health-check-infrastructure) — EXECUTING
-Plan: 1 of 2
+Phase: 14 (tailscale-health-check-infrastructure) — COMPLETE
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Plan: 1 of 2
 
 *Updated after each plan completion*
 | Phase 14-tailscale-health-check-infrastructure P01 | 15 | 2 tasks | 4 files |
+| Phase 14-tailscale-health-check-infrastructure P02 | 10 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,9 @@ Key v1.2 constraints affecting all phases:
 - Binary size: measure delta after `go get tailscale.com@v1.96.3` in Phase 14; fallback to `github.com/tailscale/tscert` documented if binary exceeds ~25 MB
 - [Phase 14-01]: statusFunc type defined in tailscale.go (not test file) to avoid duplicate type in same-package tests
 - [Phase 14-01]: Connected==(BackendState=='Running') only; all 5 non-Running states correctly yield Connected=false
+- [Phase 14-02]: GetTailscaleStatus uses context.Background() (not a.ctx) so callable before Wails fully initialises
+- [Phase 14-02]: Struct equality (h != last) prevents event storms when Tailscale state is stable
+- [Phase 14-02]: startHealthPoller goroutine bound to Wails ctx for lifecycle alignment with app shutdown
 
 ### Pending Todos
 
@@ -69,6 +73,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T18:45:20.577Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-20T19:10:00.000Z
+Stopped at: Completed 14-02-PLAN.md (Phase 14 complete)
 Resume file: None
