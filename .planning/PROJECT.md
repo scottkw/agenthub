@@ -38,7 +38,15 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active requirements — start next milestone with `/gsd:new-milestone`)
+**Current Milestone: v1.2 Tailscale-Only Networking**
+
+**Goal:** Simplify networking to Tailscale-only — use its Let's Encrypt certs, remove self-signed TLS and password/token auth, add health checks with user-friendly guidance.
+
+**Target features:**
+- Tailscale-only networking (remove generic VPN interface support)
+- Tailscale health checks (installed, connected, certs enabled) with instructional modal
+- Let's Encrypt certs via Tailscale for web server and remote sessions
+- Remove password auth, per-session tokens, and self-signed cert infrastructure
 
 ### Out of Scope
 
