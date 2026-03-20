@@ -161,16 +161,6 @@ func TestGetRelayPort(t *testing.T) {
 }
 
 
-func TestGetNetworkInterfaces(t *testing.T) {
-	app := testApp(t)
-	ifaces := app.GetNetworkInterfaces()
-	// GetNetworkInterfaces may return empty on minimal CI environments.
-	// The important thing is it does NOT return nil and does not panic.
-	if ifaces == nil {
-		t.Error("GetNetworkInterfaces returned nil, want non-nil slice")
-	}
-}
-
 func TestToggleWebServingErrorsWhenNotRunning(t *testing.T) {
 	app := testApp(t)
 	// webServer is nil — ToggleWebServing should return an error.

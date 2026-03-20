@@ -296,16 +296,6 @@ func configDir() string {
 	return dir
 }
 
-// GetNetworkInterfaces returns all active non-loopback IPv4 network interfaces,
-// including Tailscale detection. Used to populate the interface dropdown in Settings.
-func (a *App) GetNetworkInterfaces() []webserver.NetworkInterface {
-	ifaces, err := webserver.ListInterfaces()
-	if err != nil {
-		return []webserver.NetworkInterface{}
-	}
-	return ifaces
-}
-
 // StartWebServer creates (or re-creates) the WebServer bound to the Tailscale IP:port
 // and begins serving. Returns an error if Tailscale is not connected with HTTPS certs
 // enabled. Access control is provided at the network level by Tailscale.
