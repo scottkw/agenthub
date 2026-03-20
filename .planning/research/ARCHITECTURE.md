@@ -1,429 +1,580 @@
 # Architecture Research
 
-**Domain:** Cross-platform desktop terminal app (Go/Wails + React/xterm.js) — v1.1 feature integration
-**Researched:** 2026-03-19
-**Confidence:** HIGH — based on direct codebase inspection of all affected files
+**Domain:** Tailscale-only networking integration — Go/Wails desktop app (v1.2 milestone)
+**Researched:** 2026-03-20
+**Confidence:** HIGH (official Tailscale Go API docs, source code examples, direct codebase inspection)
 
 ---
 
-## Existing System Overview
+## Context: What Already Exists
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                     Wails Desktop Window                           │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  React Frontend  (frontend/src/)                             │  │
-│  │  ┌──────────┐  ┌───────────────┐  ┌────────────────────────┐│  │
-│  │  │  TabBar  │  │TerminalPanel  │  │    SettingsPanel       ││  │
-│  │  │(toolbar+ │  │(xterm.js +    │  │    (modal overlay)     ││  │
-│  │  │ status   │  │ FitAddon +    │  └────────────────────────┘│  │
-│  │  │  dots)   │  │ RelayClient)  │  ┌──────────────┐          │  │
-│  │  └──────────┘  └───────────────┘  │  QRModal     │          │  │
-│  │                                   └──────────────┘          │  │
-│  │  App.tsx (root state: tabs, statuses, webEnabled, URLs)      │  │
-│  └──────────────────────────┬───────────────────────────────────┘  │
-│                             │ Wails IPC (wailsjs bindings)          │
-│  ┌──────────────────────────┴───────────────────────────────────┐  │
-│  │  Go Backend  (app.go + internal/)                            │  │
-│  │  ┌───────────┐  ┌──────────────┐  ┌──────────────────────┐  │  │
-│  │  │  pty/     │  │  relay/      │  │  webserver/          │  │  │
-│  │  │ SessionReg│  │  HubManager  │  │  WebServer (HTTPS)   │  │  │
-│  │  │ NativePTY │  │  Hub (fan-   │  │  dashboard.html      │  │  │
-│  │  │ Backend   │  │  out, scroll │  │  terminal.html       │  │  │
-│  │  │ detector  │  │  back)       │  │  AuthManager+Tokens  │  │  │
-│  │  └───────────┘  └──────────────┘  └──────────────────────┘  │  │
-│  │  App struct (tabNames map, cliPaths map, sessionStatuses map) │  │
-│  │  HTTP relay server on 127.0.0.1:RANDOM_PORT (WS relay)       │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│  macOS tray (NSStatusBar), linux/windows stubs                      │
-└────────────────────────────────────────────────────────────────────┘
+The existing architecture in `internal/webserver/` has these components:
+
+| Component | File | Current Behavior |
+|-----------|------|-----------------|
+| `WebServer` struct | `server.go` | Holds `caKey`, `caCert`, `caDER`, `tlsCfg`; generates leaf cert in `Start()` |
+| TLS layer | `tls.go` | `LoadOrCreateCA`, `GenerateLeafCert`, `BuildTLSConfig` — all self-signed |
+| Auth layer | `auth.go` | `AuthManager` (bcrypt password + session cookies) |
+| Token layer | `tokens.go` | `TokenStore` — per-session shareable tokens |
+| Network detection | `network.go` | `ListInterfaces()` — generic NIC scan, `IsTailscaleIP` by CGNAT range |
+| Entry point | `app.go` | `StartWebServer(bindIP, port)` — takes any IP, calls `GenerateLeafCert(bindIP)` |
+
+**Config struct today:**
+```go
+type Config struct {
+    BindIP    string  // any IP — Tailscale or LAN
+    Port      int
+    ConfigDir string  // for CA cert persistence
+}
 ```
 
-### Existing Key Data Flows
+---
 
-**PTY output → desktop terminal:**
-PTY process → Hub.Run() reads 32 KiB chunks → wraps in MsgOutput frame → broadcasts to all Hub.Subscribers → RelayClient (WS to 127.0.0.1:RELAY_PORT) → xterm.js.write()
+## v1.2 Target Architecture
 
-**PTY output → web browser:**
-Same Hub.Subscribers → WebServer.handleWSSRelay pump → browser xterm.js in terminal.html
+### System Overview
 
-**Session status:**
-status.Watch goroutine subscribes to Hub output → pattern-matches → runtime.EventsEmit("session:status") → App.tsx EventsOn handler → setSessionStatuses state
-
-**Tab rename:**
-App.tsx handleRenameTab → RenameSession(id, name) Wails call → app.go writes to tabNames map → ListSessions reads tabNames → returned to frontend on next ListSessions call
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                          app.go (App struct)                           │
+│                                                                        │
+│  StartWebServer(port int)     GetTailscaleStatus() TailscaleHealth     │
+│  [no bindIP param — auto]     [new Wails method]                       │
+└──────────────────────┬────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                      internal/webserver/                               │
+│                                                                        │
+│  ┌──────────────────┐  ┌─────────────────────┐  ┌──────────────────┐  │
+│  │   server.go      │  │   tailscale.go      │  │  network.go      │  │
+│  │                  │  │   (NEW FILE)        │  │  (simplified)    │  │
+│  │  WebServer       │  │                     │  │                  │  │
+│  │  - mux           │◄─│  TailscaleHealth    │  │  GetTailscaleIP  │  │
+│  │  - manager       │  │  CheckHealth()      │  │  (replaces       │  │
+│  │  - webEnabled    │  │                     │  │  ListInterfaces) │  │
+│  │  - sessionRes.   │  │  local.Client{}     │  │                  │  │
+│  │                  │  │  .StatusWithout     │  └──────────────────┘  │
+│  │  REMOVED:        │  │   Peers(ctx)        │                        │
+│  │  - caKey/caCert  │  │  .GetCertificate    │                        │
+│  │  - tlsCfg        │  │   (used in Start()) │                        │
+│  │  - auth          │  └─────────────────────┘                        │
+│  │  - tokens        │                                                  │
+│  └────────┬─────────┘                                                  │
+│           │                                                            │
+│  ┌────────▼─────────┐  ┌─────────────────────┐                        │
+│  │   tls.go         │  │   auth.go           │                        │
+│  │   (DELETE)       │  │   (DELETE)          │                        │
+│  │   tokens.go      │  │   tls_test.go       │                        │
+│  │   (DELETE)       │  │   auth_test.go      │                        │
+│  │                  │  │   tokens_test.go    │                        │
+│  └──────────────────┘  └─────────────────────┘                        │
+└───────────────────────────────────────────────────────────────────────┘
+                       │
+                       ▼ tls.Listen on Tailscale IP (100.x.x.x)
+┌───────────────────────────────────────────────────────────────────────┐
+│               tailscaled (local daemon — already running)              │
+│                                                                        │
+│  local.Client{}.GetCertificate(hi *tls.ClientHelloInfo)               │
+│  → fetches/caches Let's Encrypt cert from tailscaled                  │
+│  → cert CN = <hostname>.tail46d69a.ts.net (or similar ts.net domain)  │
+│                                                                        │
+│  local.Client{}.StatusWithoutPeers(ctx)                               │
+│  → BackendState: "Running" | "NeedsLogin" | "Stopped" | "Starting"   │
+│  → TailscaleIPs: []netip.Addr — the 100.x.x.x address                │
+│  → CertDomains: []string — non-empty when HTTPS enabled in admin      │
+└───────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## New Features: Integration Points
+## Component Changes: New vs Modified vs Deleted
 
-### 1. Build Script (`build.sh`)
+### NEW: `internal/webserver/tailscale.go`
 
-**Nature:** New file — no existing code modified.
+This file does not exist yet. It owns all Tailscale health-check logic.
 
-**Integration points:**
-- Wraps `wails build -platform {target}` — the same invocation the CI YAML already uses
-- macOS signing: replicates the exact codesign/notarytool sequence in `.github/workflows/build.yml`:
-  keychain create → import certificate.p12 → codesign with `--options runtime` + `build/entitlements.plist` → notarytool submit → stapler staple → keychain delete
-- Build output lands in `build/bin/` (Wails convention, already used by CI artifact upload steps)
-- No Go or React code changes required
-- Must handle: `darwin/universal`, `linux/amd64`, `windows/amd64`
-- macOS signing is conditional on env vars being set (same pattern CI uses for `MACOS_CERTIFICATE`)
+**Responsibility:** Query the local Tailscale daemon for connectivity and cert readiness. Surface structured status to `app.go`.
 
-**Critical constraint:** The script is a developer convenience wrapper only. It must not duplicate configuration that belongs in `wails.json` or the CI YAML — those remain authoritative.
+```go
+package webserver
 
----
+import (
+    "context"
+    "tailscale.com/client/local"
+)
 
-### 2. Terminal Full-Fill Fix
+// TailscaleHealth is the result of a health check against the local tailscaled.
+type TailscaleHealth struct {
+    Installed bool   // tailscaled socket reachable (no error from StatusWithoutPeers)
+    Connected bool   // BackendState == "Running"
+    HasCerts  bool   // len(CertDomains) > 0
+    IP        string // first TailscaleIP as string, empty if not connected
+    Domain    string // first CertDomain (e.g. hostname.ts.net), empty if none
+}
 
-**Existing problem:** `TerminalPanel` returns a div with `flex: 1; width: 100%; minHeight: 0`. The `.terminal-wrapper` has `display: flex; flex-direction: column; height: 100%`. The `.web-serving-bar` is `flex-shrink: 0` with no explicit height. The bug is a layout race: when `display: none → display: flex` happens on tab switch (or initial mount), the browser has not yet committed the final layout, so `fitAddon.fit()` fires against a zero or stale container size.
-
-**Integration points:**
-- Modify: `frontend/src/style.css` — ensure `.terminal-container` has `position: absolute; inset: 0` or equivalent to give the `terminal-wrapper` a concrete pixel height
-- Modify: `frontend/src/components/TerminalPanel.tsx` — the single `requestAnimationFrame(() => fitAddon.fit())` in the init effect may need a second pass; consider using a `MutationObserver` or a second RAF after the first resolves
-- The `ResizeObserver` in the `isActive` effect already handles ongoing size changes correctly — the bug is only at initial render/tab-switch
-- Do not restructure the `display: none` tab-hiding pattern — that pattern preserves xterm buffer state and is correct
-
----
-
-### 3. Per-Tab Status Bar (replacing inline web-serving controls)
-
-**Existing state:** In `App.tsx`, a `.web-serving-bar` div is rendered inline inside `.terminal-wrapper` for each tab. It contains: web toggle button, session URL link, copy token button, QR button. This is unstyled (no explicit height, no separator line).
-
-**New component:** `StatusBar` — a fixed-height bar at the bottom of each terminal panel that shows:
-- Web on/off toggle button
-- Session URL (when web is on and web server is running)
-- Copy token link button
-- QR button
-- Session status indicator (running / waiting / idle / errored)
-
-**Integration points:**
-- New file: `frontend/src/components/StatusBar.tsx`
-- Modify: `frontend/src/App.tsx` — replace the inline `web-serving-bar` JSX block with `<StatusBar />`. Props: `sessionId`, `webEnabled`, `sessionURL`, `webServerRunning`, `onToggleWeb`, `onCopyToken`, `onShowQR`, `status`
-- Modify: `frontend/src/style.css` — add `.status-bar` rules (height, border-top, flex layout); repurpose or remove `.web-serving-bar` rules
-- StatusBar is always rendered (not gated on `webServerRunning`) so the status indicator is always visible; web controls appear conditionally inside it
-
-**Data flow:** All StatusBar props come from existing App.tsx state — no new Go backend calls required.
-
----
-
-### 4. Settings Modal Overhaul
-
-**Existing state:** `SettingsPanel` is ~334 LOC mixing CLI paths, web serving controls, and CA cert instructions in a single scrollable body div. Three `<h3>` sections exist but lack visual separation.
-
-**Integration points:**
-- Modify: `frontend/src/components/SettingsPanel.tsx` — restructure body layout into visually separated sections (e.g. tabs or accordion); no change to Wails bindings or internal state
-- Modify: `frontend/src/style.css` — update `.settings-panel*` rules for new layout
-
-**No new Go backend methods required.** All existing Wails bindings (`UpdateCLIPath`, `SetWebPassword`, `GetNetworkInterfaces`, `StartWebServer`, `StopWebServer`, `GetWebServerURL`, `GetCACertPath`, `IsWebServerRunning`) remain unchanged.
-
----
-
-### 5. Toolbar Buttons (larger hit targets)
-
-**Existing state:** Tab bar control buttons (`+` and gear) are 28×28px in `.tab-bar__btn`. They use plain character glyphs (`+` and `&#9881;`).
-
-**Integration points:**
-- Modify: `frontend/src/style.css` — increase `.tab-bar__btn` to at least 32×32px and bump `font-size`
-- Optionally modify: `frontend/src/components/TabBar.tsx` — replace character glyphs with inline SVG icons for crisper rendering at larger sizes
-
-No backend changes.
-
----
-
-### 6. New-Session Modal with Agent Picker + Folder Browser
-
-**Existing state:** When `detectedCLIs.length > 1`, `App.tsx` renders a `.cli-picker-overlay` — absolute-positioned divs. When only one CLI exists, `CreateSession(cli, name)` is called immediately. The `CreateSession` Wails method takes `(cli, name string)` — no working directory.
-
-**New component:** `NewSessionModal` — a proper modal dialog with:
-- Agent/CLI picker (list of detected CLIs)
-- Folder browser (path input + "Browse" button triggering Wails `OpenDirectoryDialog`)
-- Session name input (optional, auto-generated default)
-- "Remember last folder" via `localStorage`
-
-**Integration points — Frontend:**
-- New file: `frontend/src/components/NewSessionModal.tsx`
-- Modify: `frontend/src/App.tsx` — replace `showCLIPicker` state + inline picker JSX with `showNewSessionModal` + `<NewSessionModal />`. The modal calls `createTab(cli, name, workDir)` on confirm.
-- Modify: `frontend/src/style.css` — remove `.cli-picker*` rules; add `.new-session-modal*` rules
-
-**Integration points — Go backend:**
-- Modify: `app.go` `CreateSession` method — add `workDir string` parameter:
-  ```go
-  func (a *App) CreateSession(cli, name, workDir string) (string, error)
-  ```
-- Add: `app.go` `BrowseFolder` method — wraps `runtime.OpenDirectoryDialog`:
-  ```go
-  func (a *App) BrowseFolder() (string, error) {
-      return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-          Title: "Select working folder",
-      })
-  }
-  ```
-- Modify: `internal/pty/backend.go` — add `WorkDir string` field to `CreateRequest` struct
-- Modify: `internal/pty/native.go` — set `cmd.Dir = req.WorkDir` when `WorkDir` is non-empty at PTY spawn time
-
-**Persist last folder:** `localStorage.setItem('agenthub.lastFolder', workDir)` inside the modal component — no backend needed.
-
-**Web interface:** The web-served `terminal.html` has no new-session UI. This feature is desktop-only — no changes to the web layer.
-
----
-
-### 7. Tab Renaming with Web Dashboard Propagation
-
-**Existing state:** Tab renaming already works end-to-end for the desktop: `RenameSession(id, name)` writes to `app.tabNames[id]`; `ListSessions()` reads it. The web dashboard's `GET /api/sessions` currently returns `[]string` (just session IDs). The `dashboard.html` `renderSessions` function already handles a `session.name` field — it has: `const name = (typeof s === 'object' && s.name) ? s.name : id` — so names already display correctly if the API returns objects.
-
-**Gap:** The API returns `[]string`, not objects. The dashboard shows IDs instead of names.
-
-**Integration points:**
-- Modify: `internal/webserver/server.go` — change `handleListSessions` response from `[]string` to `[]SessionSummary`:
-  ```go
-  type SessionSummary struct {
-      ID      string `json:"id"`
-      Name    string `json:"name"`
-      CLIType string `json:"cli_type"`
-  }
-  ```
-- Modify: `internal/webserver/server.go` `Config` struct — add a `NameFunc func(id string) (name, cliType string)` callback field. The webserver does not import the main package; a callback avoids a circular import.
-- Modify: `app.go` — add `getTabName(id string) (string, string)` helper method and wire it to `Config.NameFunc` when calling `NewWebServer`.
-- Modify: `web/dashboard.html` — no structural change needed (already handles `s.name`); polish the CSS and layout as part of the dashboard visual refresh.
-
-**No change to relay protocol, Hub, or auth layers required.**
-
----
-
-### 8. Per-Tab Font Size (SHIFT+ / SHIFT-)
-
-**Existing state:** `TerminalPanel` creates its `Terminal` with hardcoded `fontSize: 14`. The terminal instance is fully encapsulated in `termRef.current` and not accessible from `App.tsx`.
-
-**Integration points:**
-- Modify: `frontend/src/App.tsx` — add `tabFontSizes: Record<string, number>` state (default 14 per tab); register a `window` keydown listener for `SHIFT+=` (SHIFT+) and `SHIFT+-` on the active tab:
-  ```typescript
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (!activeId) return
-      if (e.shiftKey && e.key === '=') {
-        setTabFontSizes(prev => ({ ...prev, [activeId]: Math.min((prev[activeId] ?? 14) + 1, 32) }))
-      }
-      if (e.shiftKey && e.key === '-') {
-        setTabFontSizes(prev => ({ ...prev, [activeId]: Math.max((prev[activeId] ?? 14) - 1, 8) }))
-      }
+// CheckHealth queries tailscaled via local.Client and returns TailscaleHealth.
+// ctx should have a short timeout (3-5 seconds) to avoid blocking the UI.
+func CheckHealth(ctx context.Context) TailscaleHealth {
+    var lc local.Client  // zero value uses platform default socket
+    status, err := lc.StatusWithoutPeers(ctx)
+    if err != nil {
+        return TailscaleHealth{Installed: false}
     }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [activeId])
-  ```
-- Modify: `frontend/src/components/TerminalPanel.tsx` — add `fontSize` prop; add a `useEffect([fontSize])` that mutates `term.options.fontSize` and calls `fitAddonRef.current?.fit()`. Do not recreate the terminal — xterm.js supports live `options.fontSize` mutation.
+    h := TailscaleHealth{Installed: true}
+    h.Connected = status.BackendState == "Running"
+    h.HasCerts = len(status.CertDomains) > 0
+    if len(status.TailscaleIPs) > 0 {
+        h.IP = status.TailscaleIPs[0].String()
+    }
+    if len(status.CertDomains) > 0 {
+        h.Domain = status.CertDomains[0]
+    }
+    return h
+}
+```
 
-**Note on keyboard capture:** xterm.js captures keyboard events inside its canvas before they bubble. `window.addEventListener` fires for global shortcuts. The `window`-level listener in App.tsx is the correct approach — `attachCustomKeyEventHandler` is for events xterm processes (printable chars, navigation), not app-level shortcuts.
+**Three health states the frontend modal must handle:**
 
-**No Go backend changes required.**
+| `Installed` | `Connected` | `HasCerts` | Meaning | User action |
+|-------------|-------------|------------|---------|-------------|
+| false | — | — | tailscaled not running | Install / start Tailscale |
+| true | false | — | Installed but not connected | Log in or connect to Tailscale |
+| true | true | false | Connected but HTTPS disabled | Enable HTTPS in Tailscale admin DNS settings |
+| true | true | true | Ready | Start web server |
 
 ---
 
-### 9. Web Dashboard Visual Refresh
+### MODIFIED: `internal/webserver/server.go`
 
-**Existing state:** `web/dashboard.html` is a single self-contained HTML file with all styles and JS inline. Embedded via `//go:embed` in `web/embed.go`. No build step.
+**Config struct — simplify:**
+```go
+// v1.2 Config — no BindIP (always Tailscale), no ConfigDir (no CA cert storage)
+type Config struct {
+    Port int  // preferred port; 0 or unavailable → OS-assigned random
+}
+```
 
-**Integration points:**
-- Modify: `web/dashboard.html` — update inline CSS; improve session list layout to show names (see §7 above); this change is coordinated with the `GET /api/sessions` shape change
-- The dashboard visual refresh and the session name propagation (§7) must be deployed together — they are the same file
+**WebServer struct — remove TLS/auth fields:**
+```go
+type WebServer struct {
+    config  Config
+    manager *relay.HubManager
+
+    mu         sync.RWMutex
+    webEnabled map[string]bool
+    listener   net.Listener
+    mux        *http.ServeMux
+
+    sessionResolver func(sessionID string) (name, cliType, status string)
+    // REMOVED: auth, tokens, caKey, caCert, caDER, tlsCfg
+}
+```
+
+**`NewWebServer` — remove CA loading:**
+```go
+func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
+    // No CA setup — just allocate struct and register routes
+    ws := &WebServer{
+        config:     cfg,
+        manager:    manager,
+        webEnabled: make(map[string]bool),
+        mux:        http.NewServeMux(),
+    }
+    ws.setupRoutes()
+    return ws, nil
+}
+```
+
+**`Start()` — use Tailscale TLS instead of self-signed:**
+```go
+func (ws *WebServer) Start(tailscaleIP string) error {
+    var lc local.Client
+    tlsCfg := &tls.Config{
+        GetCertificate: lc.GetCertificate,
+    }
+    port := ws.config.Port
+    addr := fmt.Sprintf("%s:%d", tailscaleIP, port)
+    ln, err := tls.Listen("tcp", addr, tlsCfg)
+    if err != nil {
+        var opErr *net.OpError
+        if errors.As(err, &opErr) && port != 0 {
+            addr = fmt.Sprintf("%s:0", tailscaleIP)
+            ln, err = tls.Listen("tcp", addr, tlsCfg)
+        }
+        if err != nil {
+            return fmt.Errorf("webserver: listen: %w", err)
+        }
+    }
+    ws.mu.Lock()
+    ws.listener = ln
+    ws.mu.Unlock()
+    go http.Serve(ln, ws.mux) //nolint:errcheck
+    return nil
+}
+```
+
+**`BaseURL()` — now returns Tailscale IP-based URL:**
+```go
+func (ws *WebServer) BaseURL() string {
+    // Returns https://100.x.x.x:port
+    // Tailscale's reverse DNS resolves 100.x.x.x to hostname.ts.net,
+    // but the IP URL works directly and avoids a DNS lookup dependency.
+}
+```
+
+**`setupRoutes()` — remove auth routes:**
+
+| Route | v1.1 | v1.2 |
+|-------|------|------|
+| `POST /login` | present | REMOVE |
+| `GET /ca.crt` | present | REMOVE |
+| `POST /api/sessions/{id}/token` | present | REMOVE |
+| `GET /dashboard` | no auth | keep unchanged |
+| `GET /api/sessions` | requires dashboardAuth | open — network is the perimeter |
+| `GET /sessions/{id}` | requires sessionAuth (cookie or token) | only `isSessionEnabled` check remains |
+| `GET /sessions/{id}/ws` | requires sessionAuth | only `isSessionEnabled` check remains |
+| `GET /api/sessions/{id}/qr` | requires dashboardAuth | keep or open — no token needed |
+
+**Auth middleware removal:** `dashboardAuth` and `sessionAuth` functions are deleted. The `isSessionEnabled` guard on session routes stays — it controls which sessions are web-accessible regardless of auth.
 
 ---
 
-## Revised Component Map
+### MODIFIED: `internal/webserver/network.go`
 
-```
-frontend/src/
-├── App.tsx                  MODIFIED — new state: tabFontSizes, showNewSessionModal;
-│                                        replaces showCLIPicker + inline picker JSX with
-│                                        NewSessionModal; font-size keydown listener;
-│                                        StatusBar props wiring
-├── style.css                MODIFIED — StatusBar rules, toolbar sizing,
-│                                        terminal fill CSS, NewSessionModal rules,
-│                                        remove .cli-picker* rules
-├── components/
-│   ├── TabBar.tsx           MODIFIED — larger buttons (CSS or SVG glyph swap)
-│   ├── TerminalPanel.tsx    MODIFIED — adds fontSize prop; useEffect mutates
-│   │                                   term.options.fontSize + re-fit on change
-│   ├── SettingsPanel.tsx    MODIFIED — layout overhaul; no API changes
-│   ├── QRModal.tsx          UNCHANGED
-│   ├── StatusBar.tsx        NEW — per-tab bar: web controls + status indicator
-│   └── NewSessionModal.tsx  NEW — agent picker + folder browser + name input
-└── lib/
-    └── relayClient.ts       UNCHANGED
+**Remove entirely:** `ListInterfaces()`, `IsTailscaleIP()`, `tailscaleCIDR` init block, `NetworkInterface` struct, `network_test.go`.
 
-app.go                       MODIFIED — CreateSession adds workDir param;
-│                                        new BrowseFolder() method;
-│                                        new getTabName() helper;
-│                                        NameFunc wired into webserver Config
-internal/
-├── pty/
-│   ├── backend.go           MODIFIED — CreateRequest.WorkDir field added
-│   └── native.go            MODIFIED — cmd.Dir = req.WorkDir when non-empty
-│   └── [others]             UNCHANGED
-├── relay/                   UNCHANGED
-└── webserver/
-    └── server.go            MODIFIED — Config gains NameFunc callback;
-                                         handleListSessions returns []SessionSummary
-    └── [others]             UNCHANGED
-web/
-└── dashboard.html           MODIFIED — CSS polish + session name display
-                                         (coordinated with server.go API shape change)
-
-build.sh                     NEW — local build wrapper: wails build + macOS signing
+**Add:**
+```go
+// GetTailscaleIP is a convenience wrapper around CheckHealth for use in app.go.
+// Returns the Tailscale IP or an error with a user-friendly message.
+func GetTailscaleIP(ctx context.Context) (string, error) {
+    h := CheckHealth(ctx)
+    if !h.Installed {
+        return "", fmt.Errorf("Tailscale is not installed or not running")
+    }
+    if !h.Connected {
+        return "", fmt.Errorf("Tailscale is not connected")
+    }
+    if h.IP == "" {
+        return "", fmt.Errorf("no Tailscale IP address assigned")
+    }
+    return h.IP, nil
+}
 ```
 
 ---
 
-## Data Flow Changes
+### DELETED: `internal/webserver/tls.go` and `tls_test.go`
 
-### Session Name Propagation to Web Dashboard
+All functions (`GenerateCA`, `LoadOrCreateCA`, `GenerateLeafCert`, `BuildTLSConfig`, `ExportCACertPath`, `loadECPrivateKey`, `loadCertificate`) become dead code once `Start()` switches to `local.Client.GetCertificate`. Delete both files.
 
+---
+
+### DELETED: `internal/webserver/auth.go`, `auth_test.go`, `tokens.go`, `tokens_test.go`
+
+`AuthManager`, `TokenStore`, `HashPassword`, `CheckPassword` — all removed. No replacement needed; Tailscale network membership is the auth boundary.
+
+---
+
+### MODIFIED: `app.go`
+
+**Remove Wails methods:**
+- `SetWebPassword(password string) error`
+- `IsWebPasswordSet() bool`
+- `GenerateSessionToken(sessionID string) (string, error)`
+- `GetCACertPath() string`
+- `GetNetworkInterfaces() []webserver.NetworkInterface`
+
+**Remove internal helpers:**
+- `webPasswordPath() string`
+- `configDir()` — only needed for CA cert storage; keep only if used elsewhere
+
+**Modify `StartWebServer`:**
+```go
+// StartWebServer no longer takes bindIP — always uses the Tailscale IP.
+func (a *App) StartWebServer(port int) error {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    health := webserver.CheckHealth(ctx)
+    if !health.Installed {
+        return fmt.Errorf("Tailscale is not installed or running")
+    }
+    if !health.Connected {
+        return fmt.Errorf("Tailscale is not connected")
+    }
+    if !health.HasCerts {
+        return fmt.Errorf("Tailscale HTTPS certificates not enabled — enable HTTPS in Tailscale admin DNS settings")
+    }
+
+    // Stop any running server first.
+    a.mu.Lock()
+    oldWS := a.webServer
+    a.mu.Unlock()
+    if oldWS != nil {
+        _ = oldWS.Stop()
+    }
+
+    ws, err := webserver.NewWebServer(webserver.Config{Port: port}, a.manager)
+    if err != nil {
+        return fmt.Errorf("StartWebServer: %w", err)
+    }
+    ws.SetSessionResolver(...)  // unchanged
+
+    if err := ws.Start(health.IP); err != nil {
+        return fmt.Errorf("StartWebServer: start: %w", err)
+    }
+
+    a.mu.Lock()
+    a.webServer = ws
+    a.mu.Unlock()
+    return nil
+}
 ```
-Desktop: RenameSession(id, name)
-    → app.go: tabNames[id] = name          (existing)
-    → setTabs() in App.tsx                 (existing — desktop tab updates immediately)
 
-Web request: GET /api/sessions
-    → webserver.handleListSessions()
-    → calls cfg.NameFunc(id) for each web-enabled session    (NEW)
-    → cfg.NameFunc = app.getTabName                          (NEW wiring in app.go)
-    → returns []SessionSummary{id, name, cli_type}           (NEW response shape)
-    → dashboard.html renderSessions() reads s.name           (already handles this)
-```
-
-### Working Directory for New Sessions
-
-```
-NewSessionModal (React)
-    → user picks folder: BrowseFolder() Wails call           (NEW backend method)
-    → result stored in localStorage as 'agenthub.lastFolder' (NEW, frontend-only)
-    → CreateSession(cli, name, workDir) Wails call           (MODIFIED signature)
-    → app.go resolves CLI path, passes workDir to CreateRequest
-    → pty.CreateRequest{CLI, Cols, Rows, WorkDir}            (MODIFIED struct)
-    → native.go: cmd.Dir = req.WorkDir if non-empty          (MODIFIED PTY spawn)
-```
-
-### Font Size State Flow
-
-```
-Window keydown (SHIFT+/SHIFT-)
-    → App.tsx handler updates tabFontSizes[activeId]
-    → TerminalPanel receives fontSize prop change
-    → useEffect([fontSize]): term.options.fontSize = fontSize; fitAddon.fit()
-    → xterm reflows columns/rows to new cell size
-    → term.onResize fires → RelayClient.sendResize(cols, rows)
-    → Hub.Resize() → PTY resized to new dimensions           (existing resize path)
+**Add new Wails method:**
+```go
+// GetTailscaleStatus returns Tailscale health for the settings UI and health modal.
+func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    return webserver.CheckHealth(ctx)
+}
 ```
 
 ---
 
-## Architectural Patterns to Follow
+## Data Flow: TLS Cert Provisioning
 
-### Pattern: Self-Contained Terminal Panel
+```
+User enables web serving in settings
+            ↓
+app.go: StartWebServer(port)
+            ↓
+webserver.CheckHealth(ctx)  [5s timeout]
+  → local.Client{}.StatusWithoutPeers(ctx)
+  → confirm BackendState == "Running"
+  → confirm len(CertDomains) > 0
+  → extract TailscaleIPs[0] as bindIP
+            ↓
+webserver.NewWebServer(Config{Port: port}, manager)
+            ↓
+ws.Start(tailscaleIP = "100.x.x.x")
+  → tls.Config{ GetCertificate: local.Client{}.GetCertificate }
+  → tls.Listen("tcp", "100.x.x.x:port", tlsCfg)
+            ↓
+First HTTPS request arrives
+  → TLS handshake triggers GetCertificate callback
+  → local.Client talks to tailscaled via Unix socket
+  → tailscaled serves cached or fetches fresh Let's Encrypt cert
+    for <hostname>.ts.net via DNS-01 ACME challenge
+  → Returns *tls.Certificate to the TLS stack
+  → Browser receives browser-trusted cert — no CA install required
+```
 
-`TerminalPanel` creates, owns, and destroys its xterm instance. Switching tabs uses `display: none` — the panel is never re-mounted for the same `sessionId`. This pattern preserves the xterm buffer and relay connection.
+**Cert caching:** `local.Client.GetCertificate` caches on disk inside the tailscaled data directory. Automatic renewal is handled by tailscaled. No cert files in `~/.config/agenthub/`.
 
-**For font size:** Add a `fontSize` prop and react to changes with `useEffect([fontSize])`. Do not lift terminal instance state out of `TerminalPanel` into App.tsx.
+---
 
-### Pattern: App.tsx as Thin State Hub
+## Data Flow: Health Check for UI Modal
 
-All cross-cutting state (tabs, webEnabled, sessionStatuses, tabFontSizes) lives in `App.tsx` and flows down as props. Child components do not call Wails bindings directly (except `SettingsPanel`, which manages its own local state for web-serving controls). New state for font sizes and the new-session modal follows this pattern.
+```
+Frontend settings panel loads, or user clicks "Check Status"
+            ↓
+Wails: app.GetTailscaleStatus()
+            ↓
+webserver.CheckHealth(ctx)  [5s timeout]
+            ↓
+Returns TailscaleHealth {
+    Installed: bool   → false: show "Install Tailscale" instructions
+    Connected: bool   → false: show "Connect to tailnet" instructions
+    HasCerts:  bool   → false: show "Enable HTTPS in admin console" link
+    IP:        string → display to user when server is running
+    Domain:    string → display Tailscale hostname when available
+}
+            ↓
+Frontend renders instructional modal based on first false field
+(three distinct user actions, each with specific copy and link)
+```
 
-### Pattern: Wails IPC Boundary Is Go Methods on App
+---
 
-All Wails-exposed methods live on the `App` struct in `app.go`. They return simple JSON-serializable types. Adding `BrowseFolder()` and modifying `CreateSession()` follows the existing convention. The TypeScript bindings in `wailsjs/` regenerate automatically on `wails dev`.
+## Interface Binding: Old vs New
 
-### Pattern: Embedded Web Assets with No Build Step
+| Aspect | v1.1 | v1.2 |
+|--------|------|------|
+| How IP is obtained | `ListInterfaces()` scans all NICs; user picks from dropdown | `lc.StatusWithoutPeers().TailscaleIPs[0]` — direct from daemon |
+| Bind address | Any IPv4 on the machine (user selected) | Tailscale CGNAT IP only (100.x.x.x) |
+| User choice | Interface dropdown in Settings | None — auto-detected |
+| VPN fallback | Generic VPN interface support | Removed — Tailscale only |
+| TLS | Self-signed CA + leaf cert | Let's Encrypt via tailscaled |
+| Auth | bcrypt password + session cookies + per-session tokens | Network membership (Tailscale ACLs as perimeter) |
+| Port | Configurable default 7443 | Configurable, recommend default 443 |
 
-`web/dashboard.html` and `web/terminal.html` are embedded via `//go:embed`. No build tooling — vanilla HTML/CSS/JS only. The dashboard refresh must remain self-contained in a single HTML file. Do not introduce a CDN dependency beyond the existing xterm.js CDN references in `terminal.html`.
+**Port recommendation:** Defaulting to 443 gives clean URLs (`https://hostname.ts.net`) and works without custom firewall rules. The existing port-fallback logic (`EADDRINUSE` → `:0`) handles conflicts. If 443 is taken by another service, fallback to a high port like 7443.
 
-### Pattern: NameFunc Callback for Webserver Decoupling
+---
 
-The `webserver` package must not import the `main` package (circular import). All cross-boundary data (like session names) flows via callback fields in `webserver.Config`. This is the existing pattern for `HubManager` (passed in as a concrete type) extended to name resolution.
+## Architectural Patterns
+
+### Pattern 1: GetCertificate as tls.Config Callback (HIGH confidence)
+
+**What:** Set `tls.Config.GetCertificate = lc.GetCertificate` instead of generating or loading cert files. The TLS stack invokes this callback per-connection handshake; `local.Client` returns a cached valid cert or fetches a fresh one from tailscaled.
+
+**When to use:** Any Go HTTPS server that only serves on a Tailscale IP. This is the official pattern documented by Tailscale with a reference implementation in their repository.
+
+**Trade-offs:** Requires tailscaled running when the server starts (first connection fails if tailscaled goes down post-start; TLS handshake errors). No cert management code in the app. Automatic renewal by tailscaled.
+
+**Example:**
+```go
+var lc local.Client  // zero value uses platform default socket
+tlsCfg := &tls.Config{
+    GetCertificate: lc.GetCertificate,
+}
+ln, err := tls.Listen("tcp", tailscaleIP+":443", tlsCfg)
+```
+
+### Pattern 2: StatusWithoutPeers for Health Checks (HIGH confidence)
+
+**What:** Use `StatusWithoutPeers` (not `Status`) for connectivity checks. Omits the peer list, which can be large.
+
+**When to use:** Any time you need to check local Tailscale state, not peer routing.
+
+**Key fields:**
+```go
+status, err := lc.StatusWithoutPeers(ctx)
+// err != nil            → tailscaled unreachable → Installed: false
+// status.BackendState   → "Running" | "NeedsLogin" | "Stopped" | "Starting" | "NoState"
+// status.TailscaleIPs   → []netip.Addr — the 100.x.x.x address(es)
+// status.CertDomains    → []string — non-empty only when HTTPS enabled in admin DNS settings
+// status.Health         → []string — known problems; empty = healthy
+```
+
+### Pattern 3: Network-as-Auth-Perimeter (MEDIUM confidence)
+
+**What:** Remove application-layer password auth and per-session tokens. Rely on Tailscale network membership as the security boundary. The server only listens on the Tailscale IP; public internet cannot reach it.
+
+**When to use:** Single-user or small-team tailnets where tailnet membership is controlled. For stricter access control, Tailscale ACLs at the network layer are the right tool (not app-layer auth).
+
+**Trade-offs:** Simpler code. Any authenticated tailnet member can reach the dashboard — if multiple people are on the same tailnet, they share access. For personal use this is fine. For team use, Tailscale ACLs restrict which devices can reach specific IPs/ports.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern: Recreating the Terminal for Font Size
+### Anti-Pattern 1: Calling `tailscale cert` as a Subprocess
 
-**What:** Disposing and re-creating the `Terminal` instance when font size changes.
-**Why wrong:** Destroys the scrollback buffer, disconnects the relay, causes a visible flash.
-**Do this instead:** Mutate `term.options.fontSize` in-place, then call `fitAddon.fit()`. xterm.js supports this — viewport reflows without losing buffer state.
+**What people do:** `exec.Command("tailscale", "cert", domain)` to write cert files, then `tls.LoadX509KeyPair`.
 
-### Anti-Pattern: Working Directory in the Binary Framing Protocol
+**Why it's wrong:** Requires the `tailscale` CLI binary on PATH (not guaranteed). Cert files written to disk need cleanup. `local.Client.GetCertificate` is the designed Go API that `tailscale cert` calls internally.
 
-**What:** Adding `workDir` as a new frame type in the relay binary protocol.
-**Why wrong:** `workDir` is a one-time session creation parameter, not a runtime I/O message.
-**Do this instead:** Pass `workDir` through `CreateSession` → `CreateRequest` → `cmd.Dir` at PTY spawn time. The relay layer never sees it.
+**Do this instead:** Use `local.Client.GetCertificate` as a `tls.Config.GetCertificate` callback.
 
-### Anti-Pattern: Polling Session Names in the Web Dashboard
+### Anti-Pattern 2: Binding to `0.0.0.0` and Filtering in Middleware
 
-**What:** Using a timer or WebSocket push to keep the dashboard session list current.
-**Why wrong:** Unnecessary complexity — the list is already manually refreshed.
-**Do this instead:** Serve names correctly in `GET /api/sessions`. Dashboard fetches on load and on the existing "Refresh" button. That is sufficient.
+**What people do:** Bind to all interfaces, then check `r.RemoteAddr` in middleware to reject non-Tailscale connections.
 
-### Anti-Pattern: Global Keyboard Shortcuts via xterm attachCustomKeyEventHandler
+**Why it's wrong:** Exposes the port on all network interfaces at the OS level. The TLS handshake (including `GetCertificate`) happens before any middleware sees the request — non-Tailscale connections still trigger cert fetching and consume a handshake.
 
-**What:** Using xterm's `attachCustomKeyEventHandler` for the SHIFT+/SHIFT- font size shortcuts.
-**Why wrong:** That handler intercepts events before xterm acts on them — it is for overriding terminal key behavior, not app-level shortcuts.
-**Do this instead:** `window.addEventListener('keydown', ...)` in App.tsx, checked for `e.shiftKey`. This captures events from all sources including the xterm canvas.
+**Do this instead:** Bind the listener to the Tailscale IP specifically. The OS rejects connections from other interfaces before they reach Go.
 
----
+### Anti-Pattern 3: Hardcoding the Tailscale IP
 
-## Build Order for v1.1 Features
+**What people do:** Read `100.x.x.x` from a config file or environment variable.
 
-The features have these dependencies:
+**Why it's wrong:** Tailscale IPs are stable per-device but can change on re-key or re-install. Also breaks on machines enrolled in multiple tailnets.
 
-```
-Terminal fill fix           — CSS + TerminalPanel only; no deps
-Toolbar larger buttons      — CSS only; independent
-StatusBar component         — needs App.tsx web-serving state (already exists); no new backend
-Settings modal overhaul     — pure frontend; independent
-Per-tab font size           — needs TerminalPanel fontSize prop; no backend
-New-session modal           — needs BrowseFolder() Go method + CreateSession workDir
-Tab rename → web prop.      — needs webserver API shape change + NameFunc callback
-Build script                — independent of all code; written last against stable binary
-```
+**Do this instead:** Always call `lc.StatusWithoutPeers(ctx).TailscaleIPs[0]` at server start time. One call, always current.
 
-**Recommended build sequence:**
+### Anti-Pattern 4: Importing the Deprecated `tailscale.com/client/tailscale` Package
 
-| Step | Features | Reason |
-|------|----------|--------|
-| 1 | Terminal fill + toolbar sizing | Pure CSS; validates layout baseline for all subsequent UI work |
-| 2 | StatusBar component | Extracts existing inline JSX; tests the status indicator placement |
-| 3 | Settings modal overhaul | Isolated component refactor; reduces clutter before adding more settings |
-| 4 | Per-tab font size | Adds TerminalPanel `fontSize` prop; no backend; validates the prop+effect pattern |
-| 5 | New-session modal + folder browser | Requires backend changes; largest scope; implement after frontend patterns are stable |
-| 6 | Tab rename web propagation | Requires backend + webserver API shape change; coordinate with dashboard.html refresh |
-| 7 | Build script | Written after all code is stable; tested against the final binary |
+**What people do:** `import "tailscale.com/client/tailscale"` and use package-level functions like `tailscale.GetCertificate` or `tailscale.Status`.
+
+**Why it's wrong:** These are deprecated aliases. The `pkg.go.dev` docs mark them deprecated in favor of `tailscale.com/client/local`.
+
+**Do this instead:** Import `tailscale.com/client/local`. The `local.Client` type is the current API.
 
 ---
 
-## Integration Risk Assessment
+## Integration Points
 
-| Feature | Risk | Reason |
-|---------|------|--------|
-| Terminal fill fix | LOW | Pure CSS change; ResizeObserver already handles ongoing resizes |
-| Toolbar sizing | LOW | CSS only |
-| StatusBar | LOW | Extracts existing inline JSX; no new data flows |
-| Settings overhaul | LOW | No API surface changes |
-| Per-tab font size | MEDIUM | `window` keydown listener interaction with xterm canvas needs verification; `term.options.fontSize` mutation is stable in xterm 5.x/6.x but requires fit() call |
-| New-session modal + workDir | MEDIUM | Requires Go backend changes; `runtime.OpenDirectoryDialog` behavior on all three platforms (macOS/Linux/Windows) needs verification |
-| Tab rename web propagation | MEDIUM | Changes `GET /api/sessions` response shape; backward-compatible since `dashboard.html` already handles both string and object array formats |
-| Build script macOS signing | HIGH | Requires local Developer ID certificate + notarization credentials; codesign + notarytool behavior differs between local and CI keychain setups |
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| tailscaled (local daemon) | `local.Client{}` zero value — uses platform default socket | Linux/macOS: `/var/run/tailscale/tailscaled.sock`; Windows: named pipe. Platform detection is handled inside `local.Client`. |
+| Let's Encrypt (via tailscaled) | Indirect — tailscaled handles ACME DNS-01 challenge. App only calls `lc.GetCertificate`. | Prerequisite: HTTPS must be enabled in Tailscale admin console DNS settings. First cert fetch may take 1–2 seconds. Cert files stored in tailscaled data dir, not `~/.config/agenthub/`. |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `app.go` → `webserver.TailscaleHealth` | Direct struct return from `CheckHealth()` | Replaces the `[]webserver.NetworkInterface` that was returned to the frontend |
+| `WebServer.Start()` → `local.Client` | Direct call; `local.Client` is a value type | Not an interface — wrap in a `getCertFunc` parameter for testability: `type certFunc func(*tls.ClientHelloInfo) (*tls.Certificate, error)` |
+| `tls.Listener` → tailscaled | Unix socket via `local.Client` | If tailscaled stops after `Start()`, `GetCertificate` returns an error on the next handshake. Existing connections are unaffected. |
+
+---
+
+## go.mod Impact
+
+Adding `tailscale.com` as a direct dependency is significant:
+
+- `tailscale.com` is a large module with many transitive dependencies
+- Only `tailscale.com/client/local` and `tailscale.com/ipn/ipnstate` are needed
+- **Verify binary size delta before committing** — the Tailscale module pulls in networking/crypto packages that may substantially increase binary size from the current ~15 MB baseline
+
+**Alternative if binary size is unacceptable:** Use `github.com/tailscale/tscert` (a minimal stripped-down package for cert-only use) for `GetCertificate`, and perform health checks via raw HTTP to the tailscaled local API socket. This avoids the full `tailscale.com` dependency tree but requires more manual HTTP work.
+
+---
+
+## Suggested Build Order
+
+### Phase 1: New `tailscale.go` — Health Check (isolated, no behavioral changes)
+
+Build `internal/webserver/tailscale.go` with `TailscaleHealth` and `CheckHealth()`. Wire `GetTailscaleStatus()` into `app.go` as a new Wails method. Write tests that mock the `local.Client` response.
+
+**Why first:** Health check logic is used by everything else. Can be built and tested without touching existing TLS or auth code. Frontend can start showing Tailscale status immediately.
+
+**This phase also:** Adds `tailscale.com` to `go.mod`. Measure binary size delta here before proceeding.
+
+### Phase 2: Bind to Tailscale IP + Tailscale TLS
+
+Modify `WebServer.Start()` to accept `tailscaleIP string` and use `local.Client.GetCertificate`. Modify `app.go:StartWebServer()` to call `CheckHealth()` first and pass the IP.
+
+**Why second:** The TLS change is the load-bearing shift. Old `tls.go` is not deleted yet — kept until integration tests confirm `GetCertificate` returns a valid cert for the machine's `.ts.net` domain.
+
+**Risk:** First real test against live tailscaled. Needs manual verification on the dev machine that cert provisioning works end-to-end.
+
+### Phase 3: Remove Auth Layer
+
+Remove `dashboardAuth` and `sessionAuth` middleware. Remove `AuthManager`, `TokenStore`. Remove `POST /login`, `GET /ca.crt`, `POST /api/sessions/{id}/token` routes. Remove corresponding Wails methods from `app.go` (`SetWebPassword`, `IsWebPasswordSet`, `GenerateSessionToken`, `GetCACertPath`). Remove password persistence (`web_password` file, `webPasswordPath()`, `LoadPasswordHash` calls).
+
+**Why third:** Only safe to remove auth after confirming the server works with Tailscale TLS on the correct IP (Phase 2). Removing auth while still on self-signed certs during transition would expose the server unguarded.
+
+### Phase 4: Delete Dead Files
+
+Delete `tls.go`, `tls_test.go`, `auth.go`, `auth_test.go`, `tokens.go`, `tokens_test.go`. Simplify `network.go` to only `GetTailscaleIP`. Simplify `Config` struct. Remove `GetNetworkInterfaces()` from `app.go`.
+
+**Why last:** Deleting files after the code compiles without them means the compiler enforces that all callsites are updated. Delete only when `go build ./...` passes.
+
+### Phase 5: Frontend Health Modal
+
+Wire `TailscaleHealth` struct to a React modal in Settings that shows three distinct instructional states. Can begin in parallel with Phase 3–4 once `GetTailscaleStatus()` is available from Phase 1.
 
 ---
 
 ## Sources
 
-- Direct codebase inspection: `app.go`, `App.tsx`, `TerminalPanel.tsx`, `TabBar.tsx`, `SettingsPanel.tsx`, `style.css`, `relayClient.ts`, `internal/relay/hub.go`, `internal/relay/server.go`, `internal/webserver/server.go`, `web/dashboard.html`, `web/terminal.html`, `.github/workflows/build.yml`, `internal/pty/detect.go`, `internal/pty/registry.go`, `wails.json`
-- xterm.js `terminal.options.fontSize` live mutation: supported since xterm 4.x, present in xterm 5.x/6.x API
-- Wails v2 `runtime.OpenDirectoryDialog`: documented in Wails v2 runtime API
-- `//go:embed` pattern: `web/embed.go` confirmed in codebase
+- [Tailscale enabling HTTPS docs](https://tailscale.com/docs/how-to/set-up-https-certificates)
+- [tailscale.com/client/local pkg.go.dev](https://pkg.go.dev/tailscale.com/client/local) — `Client`, `GetCertificate`, `CertPair`, `StatusWithoutPeers` — confirmed stable API
+- [tailscale.com/ipn/ipnstate pkg.go.dev](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — `Status` struct: `BackendState`, `TailscaleIPs`, `CertDomains`, `Health`
+- [Official servetls example](https://github.com/tailscale/tailscale/blob/main/client/tailscale/example/servetls/servetls.go) — canonical `GetCertificate` usage: `TLSConfig: &tls.Config{GetCertificate: lc.GetCertificate}`
+- [github.com/tailscale/tscert](https://pkg.go.dev/github.com/tailscale/tscert) — minimal cert-only alternative if full `tailscale.com` dependency is too heavy
+- [Tailscale TLS blog post](https://tailscale.com/blog/tls-certs) — context on the DNS-01 ACME cert provisioning model
+- Direct codebase inspection: `internal/webserver/server.go`, `tls.go`, `auth.go`, `tokens.go`, `network.go`, `app.go`, `go.mod`
 
 ---
 
-*Architecture research for: AgentHub v1.1 Polish & Build milestone*
-*Researched: 2026-03-19*
+*Architecture research for: AgentHub v1.2 Tailscale-only networking*
+*Researched: 2026-03-20*

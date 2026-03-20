@@ -1,235 +1,280 @@
 # Pitfalls Research
 
-**Domain:** Wails v2 / React / xterm.js desktop app — v1.1 feature additions
-**Researched:** 2026-03-19
-**Confidence:** HIGH (all critical pitfalls verified against official issues, docs, and codebase inspection)
+**Domain:** Tailscale-only networking — transitioning from self-signed TLS + password/token auth + generic VPN to Tailscale Let's Encrypt certs + Tailscale-only networking (Go/Wails + React desktop app)
+**Researched:** 2026-03-20
+**Confidence:** HIGH (critical pitfalls verified against official Tailscale docs, GitHub issues, and Go package documentation)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that force rewrites, break existing functionality, or ship broken features silently.
+Mistakes that cause broken connectivity, regression in security, or silent failure modes during and after this transition.
 
 ---
 
-### Pitfall 1: xterm.js Font Size Change Without Subsequent fit() Leaves Terminal Garbled
+### Pitfall 1: Importing the Deprecated `tailscale.com/client/tailscale` Package
 
 **What goes wrong:**
-Setting `terminal.options.fontSize = newSize` resizes each character cell, which changes the number of columns and rows that fit in the container. If `fitAddon.fit()` is NOT called immediately after, the terminal continues to think it has the old dimensions. The PTY receives incorrect `cols`/`rows` via the resize message, causing AI CLI output to wrap at the wrong column width — the terminal renders correctly visually but the underlying data model is wrong. Issue #4886 on the xterm.js GitHub documents "abnormal display" after fontSize change.
+The `tailscale.com/client/tailscale` package is deprecated and marked "only intended for internal and transitional use." All its methods — `Status`, `GetCertificate`, `CertPair`, `ExpandSNIName` — delegate to the new `tailscale.com/client/local` package. Importing the old package will work today but Tailscale has signaled migration intent, and the package header explicitly says to use `tailscale.com/client/local` instead. Code written against the deprecated package will require migration again in a future Tailscale version, which is friction in a Go module that embeds Tailscale as a dep.
 
 **Why it happens:**
-`terminal.options.fontSize` is a pure render-side option — it changes cell height/width but does NOT trigger the FitAddon's ResizeObserver. The FitAddon only fires on container *pixel* dimension changes, not on logical character dimension changes. A 14px→18px font change with the same container pixel size still requires a re-fit because cols/rows must shrink to fit.
+Most existing blog posts, Stack Overflow answers, and pre-2024 examples use `tailscale.com/client/tailscale`. The new package path is only visible in the pkg.go.dev deprecation notice and is easy to miss.
 
 **How to avoid:**
-After every font size change: `terminal.options.fontSize = newSize; requestAnimationFrame(() => fitAddonRef.current?.fit())`. The `requestAnimationFrame` defers until after the browser has applied the new glyph metrics. Without the defer, `fit()` reads stale cell dimensions and computes wrong cols/rows. The existing codebase already uses this pattern for other triggers (line 58-60, line 100-102 in TerminalPanel.tsx) — apply it consistently here too.
+Use `tailscale.com/client/local` for all local daemon interactions from the start. The `LocalClient` struct lives there. The key methods are:
+- `lc.Status(ctx)` — check BackendState
+- `lc.GetCertificate(hi)` — TLS config callback
+- `lc.CertPair(ctx, domain)` — get cert + key PEM bytes
+- `lc.CertDomains(ctx)` — list of FQDN the daemon will cert for
+
+For control plane (tailnet admin) API calls, use `tailscale.com/client/tailscale/v2` (separate concern from local daemon).
 
 **Warning signs:**
-- Terminal text wraps mid-word at incorrect column position after font size change
-- `onResize` fires with the correct new pixel dimensions but wrong cols/rows
-- AI CLI output re-wraps when pressing Enter after a font change (shell redraws at the old width)
+- Import path is `tailscale.com/client/tailscale` (not `.../local`)
+- pkg.go.dev shows "Deprecated" badge on any function being called
+- `go vet` or the IDE surfaces deprecation warnings
 
 **Phase to address:**
-Font size shortcut implementation phase — verify fit() is called in the same handler that sets fontSize, not as a separate follow-up.
+Health check implementation phase — establish the correct import path before writing any Tailscale-touching code; retrofit is painful if the wrong package spreads across multiple files.
 
 ---
 
-### Pitfall 2: SHIFT+= and SHIFT+- Key Events Are Consumed by xterm.js Before the App Can Handle Them
+### Pitfall 2: Calling `GetCertificate` Without Verifying Tailscale Is Running and HTTPS Is Enabled
 
 **What goes wrong:**
-`SHIFT+=` produces `+` in most keyboard layouts. Inside an xterm.js terminal, typing `+` or `-` is valid terminal input and xterm.js passes it directly to the PTY. If the font size shortcut handler uses `onKey` (which fires after xterm.js processes the key), the character has already been sent to the shell. The user sees their font size change AND a `+` character inserted into the shell prompt simultaneously.
+`lc.GetCertificate(hi)` is designed as a `tls.Config.GetCertificate` callback and is called for every TLS handshake. If Tailscale daemon is not running, or if HTTPS certificates are not enabled in the tailnet admin console, this function returns an error. The Go `net/http` TLS stack logs the error and drops the handshake. Browser clients see "ERR_SSL_PROTOCOL_ERROR" with zero indication of what precondition is missing. The server appears broken.
+
+Additionally, `lc.CertDomains(ctx)` returns nil when the daemon is not running — this is both a health signal and a guard condition. If you skip this check and directly wire `GetCertificate` into `tls.Config`, every failed handshake is an opaque error from the browser's perspective.
 
 **Why it happens:**
-xterm.js has two key event layers: `attachCustomKeyEventHandler` (runs first, can return `false` to cancel PTY delivery) and `onKey` (runs after, PTY already received the input). Font size shortcuts must use `attachCustomKeyEventHandler`, not `onKey` or `onData`, and must return `false` to suppress PTY delivery. Note: `attachCustomKeyEventHandler` only registers ONE handler at a time — registering it again overwrites the previous one, which is a pitfall if other handlers (copy/paste shortcuts) are already registered.
+Developers wire `GetCertificate` into their TLS config (correctly) but do not add startup checks that verify Tailscale's BackendState is "Running" AND that HTTPS certs are enabled. The server starts, listens, but fails silently on first connection from any browser.
 
 **How to avoid:**
-Use a single `attachCustomKeyEventHandler` registration that handles all custom shortcuts in one function. Check `ev.type === 'keydown'` (not keyup/keypress), `ev.shiftKey === true`, and `ev.key === '=' || ev.key === '+'` for increase, `ev.key === '-' || ev.key === '_'` for decrease. Return `false` from the handler to prevent PTY delivery. Register this handler inside the session-creation `useEffect` (alongside `term.onData` and `term.onResize`), so it is cleaned up on session close.
+At server startup (before accepting connections), perform an ordered health check:
+1. Call `lc.Status(ctx)` and verify `BackendState == "Running"` — if not, surface a modal to the user
+2. Call `lc.CertDomains(ctx)` — if empty, HTTPS certs are not enabled in the tailnet; surface instructional modal
+3. Only then start the HTTPS listener with `GetCertificate` in `tls.Config`
+
+The health check should be non-blocking from the UI perspective: the Wails app can load normally, show a warning, and let the user follow instructions to fix Tailscale state. Do NOT block app startup on Tailscale being healthy.
 
 **Warning signs:**
-- Font size changes but `+` or `-` characters appear in the terminal prompt
-- Only the last-registered custom key handler fires (previous handlers silently replaced)
-- Key events fire twice on some browsers (keydown + keypress)
+- Browser shows "ERR_SSL_PROTOCOL_ERROR" or TLS handshake errors when server is "running"
+- Go logs show `GetCertificate: ...` errors with no corresponding user-visible message
+- App starts normally but no web connections can be established
 
 **Phase to address:**
-Font size shortcut implementation phase — verify with manual input testing that no characters leak to the PTY.
+Tailscale health check phase — implement the check-and-modal flow before wiring `GetCertificate` into the server.
 
 ---
 
-### Pitfall 3: Wails OpenDirectoryDialog Panics on Windows If DefaultDirectory Does Not Exist
+### Pitfall 3: MagicDNS Not Enabled — Cert Provisioning Fails Silently
 
 **What goes wrong:**
-`runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{DefaultDirectory: lastPath})` panics on Windows 10 when `lastPath` points to a directory that has since been deleted or is otherwise invalid. This was reported as Issue #1052 and tracked in Issue #1381 in the Wails repo. The fix (validate with `fs.DirExists()` before passing) exists in recent Wails v2 builds, but the application still needs to guard on the Go side.
+Tailscale HTTPS certificates require MagicDNS to be enabled first. Without MagicDNS, `tailscale cert` and `GetCertificate` both fail. The error message from the Tailscale daemon is not self-explanatory to a user who does not know what MagicDNS is. The dependency order is: MagicDNS enabled → HTTPS certs enabled → `GetCertificate` works. Skipping MagicDNS in the health check means users who have never configured their tailnet will see cert failures with no actionable guidance.
 
 **Why it happens:**
-The underlying Windows file dialog API (`SHBrowseForFolder` / `IFileOpenDialog`) does not gracefully handle invalid `DefaultDirectory` values — it passes the invalid path directly to Windows API without sanitization, causing an unrecoverable OS-level error that propagates as a Go panic.
+The health check naively checks only "is Tailscale connected?" (BackendState == "Running") without verifying the tailnet-level setting for HTTPS certs. A device can be fully connected to a tailnet that has neither MagicDNS nor HTTPS certs configured.
 
 **How to avoid:**
-Before calling `OpenDirectoryDialog`, validate the `DefaultDirectory` path on the Go backend:
+Use `lc.CertDomains(ctx)` as the definitive proxy check for "is HTTPS provisioning possible?" — an empty result means HTTPS is not enabled (which implies MagicDNS may also be absent). The instructional modal for this state should include both steps: (1) enable MagicDNS in tailnet admin, (2) enable HTTPS in tailnet admin. Do not separate these into two different modals; users must do both sequentially and benefit from seeing both instructions at once.
+
+**Warning signs:**
+- `CertDomains` returns empty slice despite BackendState being "Running"
+- `GetCertificate` returns error containing "HTTPS not configured" or similar
+- User reports "cert error" but Tailscale is shown as connected
+
+**Phase to address:**
+Tailscale health check phase — the check must distinguish at minimum three states: not installed, installed but not connected, connected but HTTPS not configured.
+
+---
+
+### Pitfall 4: Certificate Transparency Exposes Machine Names — Permanent and Public
+
+**What goes wrong:**
+Every Tailscale Let's Encrypt certificate is recorded in public Certificate Transparency (CT) logs. The machine's FQDN (`machinename.tailnet-name.ts.net`) is permanently and publicly visible to anyone querying CT logs (crt.sh, Google CT, etc.). This is not reversible — even if HTTPS is later disabled, the CT entry persists forever. For AgentHub specifically, if the machine name contains the user's personal name, company name, or otherwise sensitive identifier, that information is now permanently public.
+
+Research confirms this is not theoretical: analysis found 464 real hostnames exposed by 312 Tailscale users via `tailscale cert`.
+
+**Why it happens:**
+Let's Encrypt uses Certificate Transparency as a required part of the ACME protocol for domain-validated (DV) certificates. There is no opt-out. Tailscale explicitly warns about this in their docs but many users miss or skip the warning.
+
+**How to avoid:**
+Display a one-time warning in the instructional modal: "Your machine's Tailscale hostname will be permanently recorded in public Certificate Transparency logs. If your machine is named using your real name, company name, or other sensitive identifier, consider renaming it before enabling HTTPS." This warning should appear before the first cert provisioning attempt, not after.
+
+This is a user education concern, not a code concern. The app cannot prevent CT disclosure — it can only ensure the user makes an informed decision.
+
+**Warning signs:**
+- No user-visible warning exists before enabling Tailscale HTTPS
+- User later discovers their home PC's name (e.g., `kens-macbook.tail46d69a.ts.net`) is publicly searchable
+
+**Phase to address:**
+Tailscale health check / instructional modal phase — include the CT disclosure warning in the modal that guides users through HTTPS setup.
+
+---
+
+### Pitfall 5: Let's Encrypt Rate Limits Triggered by Repeated Cert Requests
+
+**What goes wrong:**
+Let's Encrypt enforces rate limits: 5 duplicate certificate requests per week for the same FQDN. If the server restarts frequently and `GetCertificate` is not properly caching, or if the cert validation check on startup has a bug that causes the daemon to treat every startup as a "need new cert" event, Let's Encrypt will return 429 errors. Once rate-limited, the machine cannot get a valid cert for up to 34 hours.
+
+There is a documented bug in older Tailscale versions where the cert cache invalidation logic was wrong: even if a cert existed on disk and was valid, the daemon could repeatedly request renewals due to a validation function that always considered the cached cert invalid. This triggered Let's Encrypt rate limits under normal operation (issue #14690).
+
+**Why it happens:**
+`GetCertificate` is called on every TLS handshake. The Tailscale daemon handles caching and renewal internally, but bugs in the renewal heuristic have existed. In normal single-user desktop app use (few daily restarts, few connections), this is unlikely to trigger. But during development — many restarts, testing cert path — it can become a real problem quickly.
+
+**How to avoid:**
+- Use `GetCertificate` via the `LocalClient` (daemon-mediated) rather than calling `CertPair` on every startup and wiring it manually. The daemon handles caching; bypass the daemon cache and you own the caching problem.
+- Ensure you are on a recent Tailscale version (post-fix for issue #14690 / #8725, fixed in v1.56+).
+- Do not call `CertPair` on every TLS handshake — only use it if you are implementing file-based cert rotation (which is unnecessary in this case since `GetCertificate` handles the full lifecycle).
+
+**Warning signs:**
+- Tailscale daemon logs show "certificate: too many requests" or Let's Encrypt 429 responses
+- `GetCertificate` errors that include "rate limit" strings
+- Multiple restarts per day during development with cert checks on each startup
+
+**Phase to address:**
+Let's Encrypt cert integration phase — use `GetCertificate` via `LocalClient` and verify the daemon handles caching by inspecting logs for "async renewal" vs "serving cached" messages.
+
+---
+
+### Pitfall 6: Cert Renewal: `tailscale cert` File-Based Path Does NOT Auto-Renew
+
+**What goes wrong:**
+If you use `tailscale cert` CLI to obtain cert + key PEM files and load them as static files into the Go TLS config, you own renewal. Let's Encrypt certs expire in 90 days. The daemon does not know where you put the files and will not update them. The server will start serving an expired certificate, and all browser connections will fail with cert expiry errors — with no warning until the cert actually expires.
+
+This is the wrong pattern for AgentHub. File-based certs are for nginx/Caddy use cases where the web server manages cert files separately from the daemon.
+
+**Why it happens:**
+Documentation for `tailscale cert` (the CLI command) is prominent and feels like the natural way to get certs. `GetCertificate` via the Go API is the correct pattern for in-process Go servers but requires knowing it exists.
+
+**How to avoid:**
+Use `lc.GetCertificate` wired into `tls.Config.GetCertificate`. This delegates certificate lifecycle entirely to the Tailscale daemon, which handles caching and renewal automatically. Never load cert PEM from a file obtained via `tailscale cert` into the Go server directly.
+
 ```go
-func (a *App) BrowseFolder(defaultDir string) (string, error) {
-    if defaultDir != "" {
-        if _, err := os.Stat(defaultDir); err != nil {
-            defaultDir = "" // fall back to OS default
-        }
-    }
-    return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-        DefaultDirectory: defaultDir,
-        Title: "Choose project folder",
-    })
+tlsConfig := &tls.Config{
+    GetCertificate: lc.GetCertificate,
 }
 ```
-Also guard the persisted "last folder" value on load — if the file exists but the stored path no longer exists on disk, clear it before passing to the dialog.
+
+This is the correct and complete integration. The daemon fetches, caches, and renews — the server code never touches cert bytes directly.
 
 **Warning signs:**
-- App crashes on Windows when opening the new-session modal for the first time after a folder has been moved or deleted
-- No crash on macOS (different underlying dialog implementation is more tolerant)
+- Code opens cert/key PEM files from disk and loads them into `tls.Config{Certificates: [...]}`
+- Code calls `lc.CertPair()` on every startup and caches the result in a variable
+- No test plan for "what happens 88 days after launch?"
 
 **Phase to address:**
-New-session modal / folder browser implementation phase — handle the "last folder" loading path defensively from day one.
+Let's Encrypt cert integration phase — the implementation must use `GetCertificate` callback, not static cert loading.
 
 ---
 
-### Pitfall 4: Terminal Not Filling Available Height — The Flex `min-height: 0` Trap
+### Pitfall 7: Removing Password Auth Leaves Sessions Accessible to All Tailnet Members
 
 **What goes wrong:**
-When a new per-tab status bar is added above the `TerminalPanel`, the terminal container stops filling the remaining space. The flex child with `flex: 1` stops expanding because its parent doesn't have `min-height: 0`. This is a well-known CSS flexbox bug: flex items have `min-height: auto` by default, which prevents them from shrinking below their content size even when `flex: 1` is set. The xterm.js FitAddon then measures a container with a non-zero height remainder and computes incorrect terminal dimensions.
+The v1.1 password protects the web dashboard and per-session tokens protect individual terminal sessions. Removing password auth means any device on the user's tailnet — which can include family members, work colleagues, or shared devices depending on how the tailnet is configured — can access all terminal sessions directly by visiting the AgentHub URL. The Tailscale network-level authentication (WireGuard identity) is the only remaining gate.
+
+For most single-person tailnets this is the intended behavior. For shared tailnets (family, team), this is a significant regression in access control that the user may not expect.
 
 **Why it happens:**
-The existing `.terminal-wrapper` already has `display: flex; flex-direction: column; width: 100%; height: 100%`. Adding a new `<div className="status-bar">` with `flex-shrink: 0` inside it creates a new flex child above `TerminalPanel`. The `TerminalPanel`'s outer div has `flex: 1` but without `min-height: 0` on either the wrapper or the panel div, the browser calculates the available height incorrectly. This is confirmed by the existing `min-height: 0` in `.terminal-container` in style.css — the same fix is needed at every flex level in the chain.
+Tailscale's security model assumes that tailnet membership itself is sufficient access control. This is true for single-user tailnets. But tailnets can be shared, and Tailscale's own docs note that ACLs do not affect local network access — only tailnet-to-tailnet routing.
 
 **How to avoid:**
-Every flex container in the vertical chain that uses `flex: 1` must also have `min-height: 0`. Check all ancestors of the `TerminalPanel` container:
-- `.app` (already: `display: flex; flex-direction: column; height: 100%`)
-- `.terminal-container` (already: `flex: 1; overflow: hidden` — add `min-height: 0` if not present)
-- `.terminal-wrapper` (add `min-height: 0`)
-- The `TerminalPanel` outer div (`flex: 1; min-height: 0`)
+Include a one-time disclosure in the health check modal: "AgentHub will be accessible to all devices on your Tailscale network. If you share your Tailscale network with others, anyone on it can access your terminal sessions." This is user education, not a code change.
 
-Also: the per-tab status bar must use `flex-shrink: 0` (not `flex: 1`) so only the terminal grows to fill remaining space.
+Optionally defer: if a future milestone wants per-device ACLs, Tailscale supports them via ACL policy files — but that is out of scope for v1.2.
 
 **Warning signs:**
-- Terminal only fills part of the window vertically, with a gray or empty strip at the bottom
-- FitAddon reports fewer rows than expected (e.g., 20 rows when 40 would fit)
-- Issue appears or disappears based on whether the status bar has rendered content
+- No user-visible disclosure that "all tailnet members can access sessions"
+- Family/team member reports accessing sessions they did not expect to be able to access
 
 **Phase to address:**
-Per-tab status bar implementation phase — test terminal fill explicitly after adding the status bar, before considering the feature done.
+Auth removal phase — the informational modal about what is being removed should include the tailnet-sharing disclosure.
 
 ---
 
-### Pitfall 5: Tab Rename Does Not Propagate to Web Dashboard Session Names
+### Pitfall 8: Hardcoded Tailscale FQDN Assumptions Breaking on Non-Standard Tailnets
 
 **What goes wrong:**
-`RenameSession` in app.go updates `a.tabNames[id]` in memory and the React state in the desktop frontend. But the web dashboard (served to external browsers) fetches session names from `ListSessions()`, which reads `a.tabNames`. The problem: external browser clients have no mechanism to know when a rename happened — they don't receive Wails events (`EventsEmit` only reaches the embedded WebView, not WebSocket clients). Web dashboard session names go stale immediately after any rename.
+Tailscale FQDNs follow the pattern `<machinename>.<tailnet-dns-name>.ts.net`. Code that constructs the FQDN by string-concatenation (e.g., `hostname + ".ts.net"`) breaks on:
+- Tailnets with custom DNS names (not the default `ts.net` suffix)
+- Funnel-enabled nodes (different DNS namespace)
+- Older tailnets with legacy naming
+
+If the constructed FQDN does not match what the daemon reports via `CertDomains`, the TLS server will answer connections on the wrong hostname and browsers will see a cert name mismatch error.
 
 **Why it happens:**
-There are two independent display surfaces (desktop WebView, external browsers) sharing the same session state but with different update mechanisms. Wails `EventsEmit` only reaches the embedded frontend via the IPC bridge — it does not reach WebSocket-connected external clients. The web dashboard currently has no rename notification channel.
+`ts.net` looks like the canonical suffix. The daemon can report a different FQDN. Developers construct URLs for the QR code and share links by hardcoding the suffix instead of querying the daemon.
 
 **How to avoid:**
-One of two approaches:
-1. **Polling (simpler):** The web dashboard polls `GET /api/sessions` on a short interval (e.g., every 3-5 seconds). The Go handler for this endpoint reads `a.tabNames` and returns current names. No new infrastructure needed, slightly stale data acceptable.
-2. **SSE or WebSocket push (real-time):** Add a Server-Sent Events endpoint to the web server. On `RenameSession`, publish a `session_renamed` event. Web dashboard subscribes and updates the name. More complex but correct latency.
+Never construct the Tailscale FQDN by string manipulation. Always derive it from `lc.CertDomains(ctx)` — the first element is the canonical FQDN for this node. Use this same value for:
+- The TLS server name (SNI check)
+- The URL shown in the UI and QR code
+- The shareable link
 
-For v1.1, polling is sufficient. The key is to NOT consider rename "done" until the web dashboard reflects the change.
-
-**Warning signs:**
-- Renaming a tab in the desktop app does not update the session name shown on the web dashboard until page reload
-- Web dashboard shows original CLI name (e.g., "claude") instead of user-assigned name (e.g., "auth-refactor") after rename
-
-**Phase to address:**
-Tab renaming phase — explicitly verify web dashboard reflects rename before marking the task complete.
-
----
-
-### Pitfall 6: macOS Signing: `--deep` Flag Breaks Code Signature Integrity
-
-**What goes wrong:**
-Using `codesign --deep` to sign the Wails `.app` bundle appears to sign all nested binaries recursively, but it does NOT correctly sign them in the required bottom-up order. Go-built binaries embedded in the app bundle are signed incorrectly with `--deep`, and Apple's notarization service rejects the submission with "The signature of the binary is invalid." The `--deep` flag is documented as unreliable for production signing in Apple's own documentation and in community post-mortems.
-
-**Why it happens:**
-Correct macOS code signing requires signing all nested components first (bottom-up), then signing the outer bundle last. `--deep` attempts this automatically but fails for Go-compiled Mach-O binaries that have specific entitlement requirements or when the binary is in a non-standard location within the bundle. The Wails `.app` has the main binary at `Contents/MacOS/agenthub` — it must be signed before `Contents` is signed, before the `.app` is signed.
-
-**How to avoid:**
-Sign explicitly, bottom-up, without `--deep`:
-```bash
-codesign --force --options runtime \
-  --entitlements build/entitlements.plist \
-  --sign "Developer ID Application: <name> (<team-id>)" \
-  --timestamp \
-  "agenthub.app/Contents/MacOS/agenthub"
-
-codesign --force --options runtime \
-  --entitlements build/entitlements.plist \
-  --sign "Developer ID Application: <name> (<team-id>)" \
-  --timestamp \
-  "agenthub.app"
+```go
+domains, err := lc.CertDomains(ctx)
+if err != nil || len(domains) == 0 {
+    // not configured — show health check modal
+}
+fqdn := domains[0] // canonical FQDN, use everywhere
 ```
-Use `notarytool` (not the deprecated `altool`) to submit. Create the notarization zip with `ditto -c -k --keepParent agenthub.app agenthub.zip` (NOT `zip -r` — zip does not preserve extended attributes needed for code signing integrity).
 
 **Warning signs:**
-- `codesign --verify --deep --strict agenthub.app` exits non-zero after signing with `--deep`
-- `xcrun notarytool submit` returns status "Invalid" even though `codesign` exits 0
-- `spctl --assess --type execute agenthub.app` outputs "rejected"
+- URLs shown in UI contain `.ts.net` suffix hardcoded in source
+- QR code URL and actual served cert have different hostnames
+- cert name mismatch browser errors (`ERR_CERT_COMMON_NAME_INVALID`)
 
 **Phase to address:**
-Build script implementation phase — test the full sign + notarize + staple pipeline end-to-end before declaring the build script complete.
+Let's Encrypt cert integration phase AND URL generation / QR code generation — derive FQDN from daemon at all code sites.
 
 ---
 
-### Pitfall 7: `notarytool` Exits 0 Even on Failure — CI Silently Ships Unsigned Binaries
+### Pitfall 9: Health Check State Machine Is Incomplete — No Periodic Re-Check
 
 **What goes wrong:**
-`xcrun notarytool submit app.zip --wait` exits with status 0 even when notarization fails (e.g., "Invalid" or "Rejected" status). A CI pipeline that checks only `$?` will proceed to staple and release a binary that Gatekeeper will block. The failure is only visible by parsing stdout for the status string.
+A health check that runs once at startup and shows a modal is insufficient. Tailscale can disconnect after startup (network change, sleep/wake, logout). If the health check runs only at app launch, the server continues attempting to serve over Tailscale after the daemon has disconnected. Connections silently time out. The status bar shows a valid Tailscale URL that no longer resolves.
 
 **Why it happens:**
-`notarytool` considers "submission received and processed" to be a success (exit 0), regardless of whether Apple approved or rejected the submission. This is by design but is a pitfall for naive CI scripts.
+Startup-only health checks are simpler to implement. Ongoing polling feels like over-engineering for a desktop app.
 
 **How to avoid:**
-Parse notarytool output explicitly:
-```bash
-RESULT=$(xcrun notarytool submit agenthub.zip \
-  --apple-id "$APPLE_ID" \
-  --team-id "$APPLE_TEAM_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-  --wait --output-format json)
+Implement a lightweight background goroutine that polls `lc.Status(ctx)` every 30–60 seconds. On BackendState transition from "Running" to anything else, update the UI status indicator and optionally suppress the Tailscale URL from the status bar (replace with a "Tailscale disconnected" message). Re-check every interval and restore when BackendState returns to "Running".
 
-STATUS=$(echo "$RESULT" | jq -r '.status')
-if [ "$STATUS" != "Accepted" ]; then
-  echo "Notarization failed: $STATUS"
-  echo "$RESULT" | jq .
-  exit 1
-fi
-xcrun stapler staple agenthub.app
-```
-Store Apple credentials as GitHub Actions secrets. Use an app-specific password (not the account password). CI must run on a macOS runner — notarization requires network access to Apple's servers and a macOS-signed submission binary.
+This goroutine should be cancellable (using a context tied to app shutdown) and should not surface a modal for every transient disconnect — only after a sustained disconnect (2+ consecutive failed checks).
 
 **Warning signs:**
-- CI build passes but macOS users report "cannot be opened because Apple cannot check it for malicious software"
-- notarytool output contains "status: Invalid" but CI reported success
+- No goroutine in the codebase that polls Tailscale status after startup
+- Status bar shows Tailscale URL even after manually stopping Tailscale daemon
+- User shares a Tailscale URL that times out immediately because Tailscale is disconnected
 
 **Phase to address:**
-Build script implementation phase — the CI notarization check must be explicit from day one.
+Tailscale health check phase — design the health check as a state machine from the beginning, not just a one-shot startup gate.
 
 ---
 
-### Pitfall 8: UI Refactor Breaks Wails Binding Imports — TypeScript Types Silently Stale
+### Pitfall 10: WebSocket Connections Break During TLS Certificate Change (Migration Transition)
 
 **What goes wrong:**
-Wails generates TypeScript bindings in `frontend/src/wailsjs/go/main/App.ts` by introspecting the exported Go methods on `App`. When new Go methods are added (e.g., `BrowseFolder`, `GetLastFolder`) or signatures change, running `wails build` or `wails dev` regenerates these bindings. If the frontend is modified without regenerating (e.g., editing `.tsx` files while `wails dev` is NOT running), the TypeScript types become stale. The code compiles and type-checks against the old bindings, but at runtime calls to new methods silently return undefined or throw "method not found" errors.
+During the transition from self-signed TLS to Tailscale Let's Encrypt certs, any browser that has an existing WebSocket (`wss://`) connection to the old self-signed cert endpoint will not automatically reconnect to the new HTTPS endpoint. The browser caches the old CA trust (added by the user during v1.0 setup) and may reject the new cert or route to a stale URL. Users with an open browser tab on the web dashboard during the update will lose their connection with no automatic reconnect.
 
 **Why it happens:**
-The `wailsjs/` directory is auto-generated and gitignored (or included but only updated on `wails build`/`wails dev`). Frontend developers refactoring components may not realize that new Wails-bound methods require a rebuild to update the bindings file. TypeScript compiles against the local `.ts` file, which is stale.
+Changing the TLS certificate (CA, domain, hostname) is not transparent to existing WebSocket clients. The client has a connection to `wss://192.168.x.x` or `wss://agenthub.local` and after the update the server is at `wss://machinename.tailnet.ts.net`. These are different origins.
 
 **How to avoid:**
-- Always run `wails dev` (not `pnpm dev`) when working on features that touch Go-backend interfaces
-- After adding any new Go method to `App`, verify the binding is regenerated in `wailsjs/go/main/App.ts` before writing frontend code that calls it
-- Add a note in the build script that regenerating bindings is a prerequisite when Go method signatures change
+This is a one-time migration concern. The handling is:
+1. Accept that existing connections break at the moment of update — this is unavoidable
+2. Ensure the frontend WebSocket reconnect logic handles connection loss gracefully with a user-visible "reconnecting..." state (already required for general robustness)
+3. After the v1.2 update, the web dashboard URL changes from IP/self-signed to FQDN/LE cert — document this in the release notes
+
+The deeper mitigation: ensure the frontend's WebSocket reconnect logic does not hard-code the old `wss://` URL. The URL should be derived dynamically from `window.location.host` or passed from the backend as part of the initial session metadata.
 
 **Warning signs:**
-- TypeScript compiles cleanly but runtime throws "method not bound" or function returns undefined
-- `frontend/src/wailsjs/go/main/App.ts` does not list the new method you just added in Go
-- Feature works in Wails dev mode but not in production build (or vice versa)
+- Frontend WebSocket URL is hardcoded to an IP address or `localhost`
+- No "reconnecting..." UI state for WebSocket disconnects
+- Web dashboard shows stale data after server restart with no reload prompt
 
 **Phase to address:**
-Every phase that adds new Go methods — regenerate bindings as part of the definition of "done" for backend work.
+TLS migration / cert integration phase — verify the frontend derives the WebSocket URL dynamically and handles reconnects.
 
 ---
 
@@ -239,27 +284,27 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store "last folder" in React state only (not persisted) | No persistence code needed | User loses last folder on restart | Never — persistence was an explicit requirement |
-| Per-terminal fontSize stored in xterm options only | Simple state | Lost on terminal re-mount / session restore | Only if per-session font size is not a v1.1 requirement |
-| Web dashboard rename propagation via full-page reload only | No SSE/polling needed | Confusing UX for remote users watching a renamed session | Acceptable for v1.1 if polling is added later; not acceptable if web dashboard is primary UI |
-| Build script that only signs on CI (not locally) | Simpler local dev | Cannot test notarization locally, CI failures are slow to iterate | Acceptable temporarily; add local signing path before release |
-| Hardcoding `build/entitlements.plist` path in build script | Works today | Breaks if build structure changes | Acceptable; document the assumption clearly |
+| Run health check only at startup | Simple code | App shows stale "connected" state after Tailscale disconnects | Never — daemon can disconnect; add periodic polling |
+| Construct Tailscale FQDN by string concatenation | No async call needed | Breaks on custom tailnet domains, Funnel, legacy tailnets | Never — always use `CertDomains()` |
+| Show one combined "not ready" error | Less UX work | User can't tell whether Tailscale is missing, disconnected, or just HTTPS-unconfigured | Never — three distinct states need three distinct messages |
+| Load cert from file via `tailscale cert` CLI output | Works today | Cert expires in 90 days with no auto-renewal | Never for a daemon-integrated Go server — use `GetCertificate` callback |
+| Skip CT disclosure warning | Less UI friction | User's machine name permanently public in CT logs without their knowledge | Never |
+| Import `tailscale.com/client/tailscale` (deprecated) | Works today | Migration required when deprecated package is removed | Only if already in codebase and refactor is too costly — document the debt |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting the new features to existing systems.
+Common mistakes when wiring Tailscale into the existing Go server.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| xterm.js fontSize + FitAddon | Set fontSize, forget to call fit() | Always `requestAnimationFrame(() => fitAddon.fit())` after setting fontSize |
-| xterm.js key handler + PTY input | Use onKey (after PTY delivery) for font shortcuts | Use `attachCustomKeyEventHandler` (before PTY delivery), return false |
-| Wails OpenDirectoryDialog + last path persistence | Pass stale/deleted path as DefaultDirectory | Validate path existence before passing; fall back to "" |
-| macOS codesign + notarytool | Sign with --deep; use altool; check only exit code | Sign bottom-up without --deep; use notarytool; parse output for "Accepted" |
-| Tab rename + web dashboard | Only update React state | Also verify web dashboard reflects rename via ListSessions |
-| Per-tab status bar + terminal fill | Status bar added but no min-height: 0 on flex ancestors | Check entire flex chain for min-height: 0 at every column flex level |
-| Wails binding regeneration | Edit frontend without running wails dev | Always run wails dev when Go method signatures change |
+| `tls.Config.GetCertificate` | Wire in without health check guard | Check `CertDomains()` before starting TLS listener; surface modal if empty |
+| `lc.Status()` — BackendState | Check only for non-nil error | Check `Status.BackendState == "Running"` explicitly; error-free ≠ connected |
+| Tailscale FQDN for URLs | Construct with `hostname + ".ts.net"` | Derive from `lc.CertDomains(ctx)[0]` always |
+| VPN interface binding removal | Delete generic interface code first | First confirm Tailscale is the only interface in use; then remove generic code |
+| Auth removal — token validation | Delete token middleware before removing token UI | Remove token middleware and token UI together; orphaned middleware is a security hole |
+| WebSocket URL on frontend | Hardcode `wss://` + IP address | Derive from `window.location.host` or backend-provided session URL |
 
 ---
 
@@ -269,35 +314,36 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Font size change triggers rapid SHIFT+hold | Continuous fit() calls, WebSocket resize storm | Debounce font size changes (50-100ms) before calling fit() and sending PTY resize | When user holds SHIFT+= |
-| Web dashboard polling for renames at 1-second interval | Unnecessary load on Go server with many open sessions | Poll at 3-5 second interval; only poll when dashboard tab is visible | >10 sessions with aggressive polling |
-| ResizeObserver firing on every status bar content change | Spurious terminal re-fits | Status bar content changes must not change the container pixel height | Status bar with variable-height content (errors, long URLs) |
+| Calling `lc.Status()` on every request to verify Tailscale is up | High IPC overhead on Go<→daemon socket | Cache status; recheck every 30–60s in background goroutine | > a few requests per second |
+| Calling `lc.CertDomains()` on every TLS handshake | Redundant IPC; adds latency to every connection | Cache domains at startup; invalidate on health-check polling interval | Every TLS handshake |
+| Polling health check at 1-second interval | Tailscale daemon IPC load, unnecessary wake-ups | Poll at 30–60 second intervals; only shorten on user-triggered check | Constant when app is open |
 
 ---
 
 ## Security Mistakes
 
-Domain-specific security issues for the new features.
+Domain-specific security issues introduced by this migration.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Storing Apple signing certificate as plaintext in build script or repo | Certificate theft, unauthorized app distribution | Store as base64-encoded GitHub Actions secret; decode to temp file; delete after signing |
-| Using account password instead of app-specific password for notarytool | Full Apple account compromise if CI secret leaks | Always use app-specific passwords from appleid.apple.com |
-| Allowing BrowseFolder to return paths outside the user's home directory | Path traversal if the returned path is used to construct shell commands | Validate returned folder path before using it in session creation; use it only as working directory, not in shell command strings |
+| Removing password auth without informing user that tailnet = access gate | Shared tailnet members silently gain full terminal access | Display disclosure in health check modal before auth is removed |
+| Continuing to serve on all interfaces after switching to Tailscale-only | Traffic bypasses Tailscale if direct IP access is possible | Bind the HTTPS listener exclusively to the Tailscale interface IP (from `lc.Status`) not `0.0.0.0` |
+| No check that `GetCertificate` domain matches the request's SNI | Wrong cert served if server is reached via non-Tailscale hostname | `GetCertificate` via `LocalClient` handles this; ensure custom cert code does not bypass it |
+| Leaving self-signed CA trust instructions in documentation post-v1.2 | Users install unnecessary CA; creates trust confusion | Remove or archive all self-signed TLS onboarding docs after v1.2 ships |
 
 ---
 
 ## UX Pitfalls
 
-Common user experience mistakes in these specific features.
+Common user experience mistakes specific to the Tailscale networking migration.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Font size shortcut changes font but doesn't update other tabs | Confusing — different tabs have different font sizes unexpectedly | Decide up front: per-tab or global font size. If per-tab, make that obvious; if global, store in app-level state and apply to all terminals |
-| New-session modal requires clicking into folder browser every time | Friction for power users creating multiple sessions in same folder | Default to "last used folder"; only show browser if user clicks the folder field |
-| Folder browser shows hidden files by default | Confusing on macOS where most project dirs are visible | Default ShowHiddenFiles: false; consider adding a toggle |
-| Status bar added per tab but shows nothing when web server is off | Wasted vertical space; terminal area shrinks for no reason | Conditionally render status bar (only when web server is running, matching existing pattern in web-serving-bar) |
-| Tab rename input doesn't trim whitespace | User creates tab named " " or "  " which looks empty | Already handled in TabBar.tsx (trimmed.length > 0 check) — maintain this in any rename refactor |
+| Health check modal appears every app launch even after user has fixed Tailscale | Annoying; modal fatigue | Persist a "health acknowledged" flag; re-show only when state regresses |
+| Instructional modal just says "Enable HTTPS in Tailscale" with no link | User has to search for where to do this | Include a direct link to `https://login.tailscale.com/admin/dns` with instructions |
+| URL and QR code in status bar update before cert is ready | Browser shows cert error when user scans QR code immediately | Only show the Tailscale URL/QR code after `CertDomains()` returns a non-empty domain AND a test TLS handshake succeeds |
+| No status differentiation: "Tailscale not installed" vs "not connected" vs "no HTTPS" | User tries wrong fix for each state | Three distinct health states: MISSING, DISCONNECTED, NO_HTTPS — each with its own message and action |
+| Status bar shows Tailscale FQDN URL even when Tailscale is offline | User copies and shares a broken URL | Status bar should conditionally show Tailscale URL only when health check goroutine confirms "Running" |
 
 ---
 
@@ -305,13 +351,15 @@ Common user experience mistakes in these specific features.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Font size shortcut:** Key handler prevents PTY delivery AND calls fit() AND sends PTY resize — verify all three, not just the visual font change
-- [ ] **Folder browser:** Persists last path across app restarts (not just within a session) — verify with app restart
-- [ ] **Tab rename:** Web dashboard session list reflects new name — verify in browser, not just in desktop UI
-- [ ] **macOS build script:** Signed AND notarized AND stapled AND verified with `spctl --assess` — not just codesigned
-- [ ] **Terminal fill fix:** Status bar added but terminal still fills remaining space — verify with both short and tall status bar content
-- [ ] **Per-tab status bar:** Renders correctly on all three platforms — macOS, Linux, Windows (flexbox rendering differs slightly in WebKit vs WebView2)
-- [ ] **Build script:** Works locally (not just CI) — test `./build.sh darwin` on a dev machine with signing certs available
+- [ ] **Health check:** Distinguishes three states (not installed, disconnected, no HTTPS) — not just "connected vs not"
+- [ ] **Cert provisioning:** Uses `lc.GetCertificate` callback in `tls.Config` — NOT static cert file loading
+- [ ] **FQDN derivation:** All URL construction uses `CertDomains()[0]` — no hardcoded `.ts.net` suffix
+- [ ] **Auth removal:** Both token middleware AND token UI removed together — no orphaned server-side token validation
+- [ ] **Periodic health check:** Background goroutine polls status and updates UI — not startup-only check
+- [ ] **Interface binding:** HTTPS listener bound to Tailscale IP only — not `0.0.0.0`
+- [ ] **CT disclosure:** Warning shown to user before first cert provisioning attempt
+- [ ] **WebSocket URL:** Frontend derives `wss://` URL dynamically — not hardcoded to IP or old self-signed hostname
+- [ ] **Self-signed code removal:** CA generation, leaf cert generation, and CA install instructions all removed — no dead code that might accidentally be re-enabled
 
 ---
 
@@ -321,13 +369,13 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Garbled terminal after font size change | LOW | Add `requestAnimationFrame(() => fitAddon.fit())` after fontSize set; regression test |
-| Key handler leaks + to PTY | LOW | Replace onKey with attachCustomKeyEventHandler, return false; test input |
-| OpenDirectoryDialog panic on Windows | LOW | Add os.Stat validation before passing DefaultDirectory; deploy patch build |
-| Terminal not filling height | LOW-MEDIUM | Audit flex chain for missing min-height: 0; CSS-only fix |
-| Rename not on web dashboard | MEDIUM | Add polling to web dashboard or SSE endpoint; frontend-only if polling chosen |
-| Notarization accepted by CI but rejected by Gatekeeper | MEDIUM | Re-sign from scratch bottom-up; renotarize; update CI to parse notarytool output |
-| Wails bindings stale | LOW | Run wails dev to regenerate; delete wailsjs/ and rebuild |
+| Wrong import package (deprecated) | LOW | Search-replace import paths; regenerate if any API shape differences |
+| `GetCertificate` errors at runtime — HTTPS not enabled | LOW | Show modal; user follows link to enable HTTPS in tailnet admin; health check passes on next poll |
+| Let's Encrypt rate limited (429) | HIGH — up to 34 hour wait | Wait; do not re-request during rate limit window; add logging to detect early |
+| CT disclosure missed — machine name exposed | NONE — irreversible | Document the disclosure warning; rename machine in Tailscale if possible (new cert CT entry, old one remains) |
+| File-based cert expires (90 days) | MEDIUM | Switch to `GetCertificate` callback; redeploy; previous cert was expired and caused outage |
+| Tailnet-sharing auth issue (unintended access) | MEDIUM | Add Tailscale ACL policy to restrict access to specific Tailscale users/tags; or add optional in-app PIN |
+| FQDN hardcoded — cert mismatch on non-standard tailnet | LOW-MEDIUM | Replace hardcoded FQDN derivation with `CertDomains()`; deploy patch |
 
 ---
 
@@ -337,33 +385,36 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Font size without fit() | Font size shortcuts phase | Hold SHIFT+= for 2 seconds; verify terminal wraps correctly |
-| Key handler leaks to PTY | Font size shortcuts phase | Type + and - normally in terminal after implementing shortcuts; verify no regression |
-| OpenDirectoryDialog panic | New-session modal phase | Test on Windows with a deleted "last folder" path |
-| Terminal fill with status bar | Per-tab status bar phase | Add status bar; verify terminal occupies all remaining space |
-| Tab rename not on web dashboard | Tab renaming phase | Rename a tab; reload web dashboard; verify name matches |
-| codesign --deep | Build script phase | Run `codesign --verify --deep --strict` after signing |
-| notarytool exit-0 on failure | Build script phase | Parse notarytool JSON output; fail CI if status != Accepted |
-| Stale Wails bindings | Any phase adding Go methods | Check wailsjs/go/main/App.ts for new method before writing frontend code |
+| Deprecated package import | Health check / first Tailscale integration | All imports use `tailscale.com/client/local`; no `client/tailscale` in source |
+| `GetCertificate` without precondition check | Health check phase | Server refuses to start HTTPS listener until `CertDomains()` is non-empty |
+| MagicDNS prerequisite missing | Health check phase | Modal shown when `CertDomains()` is empty with MagicDNS + HTTPS setup instructions |
+| CT disclosure | Health check / instructional modal | Warning text visible in modal before cert provisioning enabled |
+| Rate limit from repeated cert requests | Cert integration phase | Verify daemon-mediated `GetCertificate` is used; logs show "cached" not "requesting new" |
+| File-based cert with no auto-renewal | Cert integration phase | Code review confirms no `CertPair()` called at startup + stored; only `GetCertificate` callback |
+| Auth removal — tailnet sharing disclosure | Auth removal phase | Informational text present in modal about tailnet access scope |
+| Hardcoded FQDN | Cert integration + URL generation phase | Grep confirms no `.ts.net` string literals in URL-constructing code |
+| Health check not periodic | Health check phase | Background goroutine present; disconnect Tailscale while app is open and verify UI updates |
+| WebSocket URL static | Cert/URL migration phase | Disconnect old self-signed cert; WebSocket URL updates dynamically to new FQDN |
+| Interface binding | Interface removal phase | `ss -tlnp` or netstat confirms server not listening on `0.0.0.0`; only on Tailscale IP |
 
 ---
 
 ## Sources
 
-- [xterm.js Issue #4886 — Set fontSize causes abnormal display](https://github.com/xtermjs/xterm.js/issues/4886) — confirmed: fontSize change requires fit() call
-- [xterm.js ITerminalOptions — fontSize](https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/) — authoritative option documentation
-- [xterm.js Terminal.attachCustomKeyEventHandler](https://xtermjs.org/docs/api/terminal/classes/terminal/) — key handler API
-- [xterm.js FitAddon resize issues #4841](https://github.com/xtermjs/xterm.js/issues/4841) — FitAddon resizes incorrectly when called with stale dimensions
-- [Wails OpenDirectoryDialog panic Issue #1052](https://github.com/wailsapp/wails/issues/1052) — DefaultDirectory panic on Windows
-- [Wails OpenDirectoryDialog invalid path Issue #1381](https://github.com/wailsapp/wails/issues/1381) — fix: validate DefaultDirectory before passing
-- [Wails Dialog reference](https://wails.io/docs/reference/runtime/dialog/) — OpenDirectoryDialog API
-- [Apple notarization with notarytool — Automatic CI setup (federicoterzi.com)](https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/) — notarytool pipeline, exit-0 trap documented
-- [macOS code signing gist (rsms)](https://gist.github.com/rsms/929c9c2fec231f0cf843a1a746a416f5) — bottom-up signing, --deep pitfall
-- [ddev signing_tools](https://github.com/ddev/signing_tools) — reference implementation for CI signing
-- [Wails cross-platform build guide](https://wails.io/docs/guides/crossplatform-build/) — macOS must build on macOS runner (CGO)
-- [Wails code signing guide](https://wails.io/docs/guides/signing/) — official Wails signing documentation
-- [xterm.js CSS flex min-height:0 fix — Issue #3346](https://github.com/xtermjs/xterm.js/issues/3346) — FitAddon height zero when flex container lacks min-height: 0
+- [Tailscale Enabling HTTPS — official docs](https://tailscale.com/kb/1153/enabling-https) — prerequisites (MagicDNS required), CT disclosure, rate limits, 90-day expiry, "you own renewal" when using CLI certs
+- [Tailscale TLS Certs blog post](https://tailscale.com/blog/tls-certs) — `GetCertificate` integration pattern for Go
+- [tailscale.com/client/tailscale — pkg.go.dev](https://pkg.go.dev/tailscale.com/client/tailscale) — deprecation notice; confirmed all methods deprecated in favor of `tailscale.com/client/local`
+- [tsnet package — pkg.go.dev](https://pkg.go.dev/tailscale.com/tsnet) — in-process Tailscale node; alternative to LocalClient for embedded use
+- [GitHub issue #14690 — tsnet cert validation bug causing rate limits](https://github.com/tailscale/tailscale/issues/14690) — cached cert treated as invalid on every handshake → rate limit
+- [GitHub issue #8725 — TLS cert not renewing before expiry](https://github.com/tailscale/tailscale/issues/8725) — confirmed bug fixed in PR #8731; renewal heuristic was wrong
+- [GitHub issue #8204 — cert renewal uses hard-coded 14-day threshold](https://github.com/tailscale/tailscale/issues/8204) — improved to 2/3rds validity period heuristic
+- [Analyzing public hostnames of Tailscale users (CT logs research)](https://iter.ca/post/hostnames/) — 464 real hostnames exposed; CT exposure is real, not theoretical
+- [GitHub issue #12199 — FR: allowlist for HTTPS certs to avoid CT log leaks](https://github.com/tailscale/tailscale/issues/12199) — community discussion of CT concern; no resolution implemented
+- [GitHub issue #15650 — Certificate transparency concern](https://github.com/tailscale/tailscale/issues/15650) — upstream acknowledgment
+- [Tailscale best practices — security hardening](https://tailscale.com/kb/1196/security-hardening) — ACLs do not affect local network access; tailnet membership = access
+- [ipnstate package — pkg.go.dev](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — BackendState values: NoState, NeedsLogin, NeedsMachineAuth, Stopped, Starting, Running
+- [Tailscale Serve docs](https://tailscale.com/docs/features/tailscale-serve) — interactive HTTPS enable prompt UX reference
 
 ---
-*Pitfalls research for: Wails/React/xterm.js v1.1 — build script, UI refactor, folder browser, font resize, terminal fill, tab rename*
-*Researched: 2026-03-19*
+*Pitfalls research for: v1.2 Tailscale-only networking — transitioning from self-signed TLS + password/token auth to Tailscale Let's Encrypt certs*
+*Researched: 2026-03-20*
