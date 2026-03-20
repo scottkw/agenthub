@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Polish & Build
-status: phase-complete
-stopped_at: Phase 12 verified and complete
-last_updated: "2026-03-20T12:19:00.401Z"
+status: unknown
+stopped_at: Completed 13-build-script plan 01
+last_updated: "2026-03-20T13:30:12.971Z"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 13
+  completed_plans: 12
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 12 — tab-rename-web-dashboard
+**Current focus:** Phase 13 — build-script
 
 ## Current Position
 
-Phase: 12 (tab-rename-web-dashboard) — COMPLETE
-Plan: 3 of 3
+Phase: 13 (build-script) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: 3 of 3
 | Phase 12-tab-rename-web-dashboard P01 | 2 | 2 tasks | 3 files |
 | Phase 12-tab-rename-web-dashboard P03 | 2 | 1 tasks | 1 files |
 | Phase 12 P02 | 3 | 1 tasks | 3 files |
+| Phase 13-build-script P01 | 156 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,8 @@ Recent decisions for v1.1:
 - [Phase 12-tab-rename-web-dashboard]: [Phase 12-02]: contextMenu state holds { tabId, x, y } — position captured from MouseEvent.clientX/Y for fixed positioning
 - [Phase 12-tab-rename-web-dashboard]: [Phase 12-02]: startEditById added alongside existing startEdit(tab, e) — context menu needs ID-only entry point without MouseEvent
 - [Phase 12-tab-rename-web-dashboard]: [Phase 12-02]: onMouseDown stopPropagation on menu div prevents document mousedown listener from self-closing the menu
+- [Phase 13-build-script]: sign_and_notarize() left as stub exiting 1 — Plan 02 implements real signing pipeline
+- [Phase 13-build-script]: Dispatch order in --all: macos first (native/fastest), then windows, then linux (Docker/slowest)
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-20T12:18:51.583Z
-Stopped at: Completed 12-tab-rename-web-dashboard plan 03
+Last session: 2026-03-20T13:30:12.967Z
+Stopped at: Completed 13-build-script plan 01
 Resume file: None
