@@ -48,6 +48,55 @@
 
 ---
 
+## Milestone: v1.1 — Polish & Build
+
+**Shipped:** 2026-03-20
+**Phases:** 7 | **Plans:** 13
+
+### What Was Built
+- Terminal layout baseline with CSS flex chain fix and enlarged toolbar buttons (38x38px)
+- Per-tab status bar (3 states: inactive/off/on) replacing floating web-serving overlay
+- Tabbed settings modal with inline Save Paths and single Close footer
+- Per-tab font size adjustment via SHIFT+=/- with key suppression and per-tab state isolation
+- New-session modal with agent picker, native OS folder browser, and localStorage last-folder memory
+- Tab rename (double-click + right-click context menu) with name propagation to web dashboard via session resolver
+- Web dashboard visual redesign: card layout, status dots, CLI badges, TokyoNight palette
+- Cross-platform build script (`build.sh`) with macOS code signing and notarization pipeline
+
+### What Worked
+- Layout-first phase ordering (Phase 7) prevented false-positive flex issues in subsequent UI phases
+- Source-inspection test pattern (?raw imports) scaled well — 73 tests covering xterm.js/Wails components without Canvas/WebGL
+- JSX conditional rendering pattern (established Phase 8) reused consistently through Phase 9, keeping React patterns clean
+- Phase dependency chain (7→8→10, 7→9, 7→11→12, 12→13) kept integration clean — each phase built on verified foundations
+- Build script as final phase validated against the stable codebase — no retroactive fixes needed
+
+### What Was Inefficient
+- Phase 13 build.sh Plan 01 took 156 minutes — Docker cross-compile debugging (cross-wails image incompatibility, go-webview2 version conflict) consumed most of the time
+- SUMMARY frontmatter inconsistency: 13-01-SUMMARY.md shipped with empty `requirements_completed` — BUILD-01..04 verified working but not recorded
+- Phase 09 SUMMARY describes "two-tab layout" but implementation shipped three tabs — documentation drifted from reality
+- DetectedCLI.DisplayName never added to TypeScript Wails stub (App.d.ts) — workaround in NewSessionModal works but type is stale
+
+### Patterns Established
+- Source-inspection tests via ?raw Vite imports — verify code structure without runtime DOM
+- JSX conditionals (not CSS display toggle) for modal/tab content switching
+- Per-tab state pattern: `Record<string, T>` keyed by sessionId in App.tsx for font sizes, tab names, etc.
+- Session resolver pattern: closure wired once in StartWebServer, reads shared state at query time with correct mutex discipline
+- attachCustomKeyEventHandler + return false for intercepting keyboard shortcuts without PTY character leak
+- ditto (not zip) for macOS notarization archives — preserves extended attributes
+
+### Key Lessons
+1. Docker cross-compilation is the most time-expensive task — image incompatibilities and version conflicts are hard to debug. Budget extra time or pin exact versions.
+2. SUMMARY frontmatter should be updated immediately when requirements are verified — retroactive updates are easy to forget.
+3. xterm.js FitAddon initial-paint timing is fundamentally racy — multiple strategies (double-RAF, setTimeout, fonts.ready) all fail intermittently. Accept it or solve at a higher level (e.g., visible-only rendering).
+4. TypeScript Wails stubs drift from Go structs — regenerating stubs should be a build step, not manual.
+
+### Cost Observations
+- Model mix: ~70% sonnet (execution/research/verification), ~25% opus (audit/review/completion), ~5% haiku (synthesis)
+- Sessions: ~8 sessions across 2 days (v1.1 phases only)
+- Notable: All 13 plan executions handled by sonnet; opus used for milestone audit and completion
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -55,14 +104,18 @@
 | Milestone | Commits | Phases | Key Change |
 |-----------|---------|--------|------------|
 | v1.0 | 107 | 6 | Initial process — inside-out architecture, gap closure plans |
+| v1.1 | ~50 | 7 | Source-inspection tests, JSX conditional pattern, layout-first ordering |
 
 ### Cumulative Quality
 
 | Milestone | Go Tests | JS Tests | LOC | Tech Debt Items |
 |-----------|----------|----------|-----|-----------------|
 | v1.0 | 53+ (race-clean) | 0 | ~8,100 | 14 (0 blockers) |
+| v1.1 | 55+ (race-clean) | 73 | ~9,956 | 9 (0 blockers) |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Interface-first design pays off — define contracts before implementations
 2. Gap closure plans catch integration issues that initial planning misses
+3. Phase ordering matters — foundation phases (layout, contracts) before feature phases prevents cascading issues
+4. Source-inspection tests are a viable pattern when runtime testing is impractical (Canvas/WebGL, Wails bindings)
