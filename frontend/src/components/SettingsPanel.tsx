@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
   UpdateCLIPath,
-  SetWebPassword,
-  IsWebPasswordSet,
   StartWebServer,
   StopWebServer,
   GetWebServerURL,
@@ -21,11 +19,10 @@ interface SettingsPanelProps {
 /**
  * Modal settings panel for configuring custom CLI executable paths and web serving.
  * Lists all detected CLIs with an input field for path overrides, plus a Web Server
- * section for CT disclosure and server start/stop, and a Security section for
- * password setup.
+ * section for CT disclosure and server start/stop.
  */
 export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): React.ReactElement | null {
-  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server' | 'security'>('cli-paths')
+  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -38,10 +35,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
   const [error, setError] = useState<string | null>(null)
 
   // Web serving state
-  const [webPassword, setWebPassword] = useState('')
-  const [isPasswordSet, setIsPasswordSet] = useState(false)
-  const [passwordSaving, setPasswordSaving] = useState(false)
-  const [passwordError, setPasswordError] = useState<string | null>(null)
   const [selectedPort, setSelectedPort] = useState<number>(7443)
   const [isServerRunning, setIsServerRunning] = useState(false)
   const [serverURL, setServerURL] = useState<string>('')
@@ -55,12 +48,10 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
     if (!isOpen) return
     async function loadWebState() {
       try {
-        const [pwSet, running, ctAck] = await Promise.all([
-          IsWebPasswordSet(),
+        const [running, ctAck] = await Promise.all([
           IsWebServerRunning(),
           HasCTDisclosure(),
         ])
-        setIsPasswordSet(pwSet)
         setIsServerRunning(running)
         setCTDisclosed(ctAck)
 
@@ -91,24 +82,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleSetPassword() {
-    if (!webPassword.trim()) {
-      setPasswordError('Password cannot be empty')
-      return
-    }
-    setPasswordSaving(true)
-    setPasswordError(null)
-    try {
-      await SetWebPassword(webPassword.trim())
-      setIsPasswordSet(true)
-      setWebPassword('')
-    } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setPasswordSaving(false)
     }
   }
 
@@ -169,14 +142,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
             aria-selected={activeTab === 'web-server'}
           >
             Web Server
-          </button>
-          <button
-            className={`settings-panel__tab-btn ${activeTab === 'security' ? 'settings-panel__tab-btn--active' : ''}`}
-            onClick={() => setActiveTab('security')}
-            role="tab"
-            aria-selected={activeTab === 'security'}
-          >
-            Security
           </button>
         </div>
 
@@ -280,13 +245,11 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                 <button
                   className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
                   onClick={handleToggleServer}
-                  disabled={serverLoading || (!isServerRunning && (!isPasswordSet || !ctDisclosed))}
+                  disabled={serverLoading || (!isServerRunning && !ctDisclosed)}
                   title={
                     !ctDisclosed && !isServerRunning
                       ? 'Acknowledge the Certificate Transparency disclosure first'
-                      : !isPasswordSet && !isServerRunning
-                        ? 'Set a password in the Security tab first'
-                        : undefined
+                      : undefined
                   }
                 >
                   {serverLoading
@@ -303,37 +266,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
             </>
           )}
 
-          {activeTab === 'security' && (
-            <>
-              {/* Password Setup */}
-              <div className="settings-panel__field-group">
-                <label className="settings-panel__label">
-                  Dashboard Password
-                  {isPasswordSet && (
-                    <span className="settings-panel__check" title="Password is set"> ✓</span>
-                  )}
-                </label>
-                <div className="settings-panel__row">
-                  <input
-                    className="settings-panel__path-input"
-                    type="password"
-                    value={webPassword}
-                    onChange={(e) => setWebPassword(e.target.value)}
-                    placeholder={isPasswordSet ? 'Change password\u2026' : 'Set a password to enable web serving'}
-                    onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
-                  />
-                  <button
-                    className="settings-panel__btn settings-panel__btn--save"
-                    onClick={handleSetPassword}
-                    disabled={passwordSaving || !webPassword.trim()}
-                  >
-                    {passwordSaving ? 'Saving\u2026' : 'Set Password'}
-                  </button>
-                </div>
-                {passwordError && <p className="settings-panel__error">{passwordError}</p>}
-              </div>
-            </>
-          )}
         </div>
 
         <div className="settings-panel__footer">

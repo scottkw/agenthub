@@ -10,7 +10,6 @@ import {
   DetectCLIs,
   GetRelayPort,
   ToggleWebServing,
-  GenerateSessionToken,
   GetWebServerURL,
   IsWebServerRunning,
   GetSessionStatus,
@@ -190,15 +189,6 @@ function App(): React.ReactElement {
     }
   }, [webEnabled])
 
-  const handleCopyTokenLink = useCallback(async (sessionId: string) => {
-    try {
-      const tokenURL = await GenerateSessionToken(sessionId)
-      await navigator.clipboard.writeText(tokenURL)
-    } catch (err) {
-      console.warn('[App] GenerateSessionToken/clipboard failed:', err)
-    }
-  }, [])
-
   // Re-check server running state when settings panel closes (user may have started/stopped server).
   const handleSettingsClose = useCallback(async () => {
     setShowSettings(false)
@@ -252,7 +242,6 @@ function App(): React.ReactElement {
                   webEnabled={!!webEnabled[tab.sessionId]}
                   sessionURL={sessionURLs[tab.sessionId]}
                   onToggleWeb={() => void handleToggleWeb(tab.sessionId)}
-                  onCopyTokenLink={() => void handleCopyTokenLink(tab.sessionId)}
                   onShowQR={() => setQrSessionId(tab.sessionId)}
                 />
               </div>

@@ -13,13 +13,10 @@ export const GetRelayPort   = ()             => Call('main.App.GetRelayPort', []
 export const UpdateCLIPath  = (name, path)   => Call('main.App.UpdateCLIPath', [name, path])
 
 // Web serving bound methods
-export const SetWebPassword       = (password)              => Call('main.App.SetWebPassword', [password])
-export const IsWebPasswordSet     = ()                      => Call('main.App.IsWebPasswordSet', [])
 export const GetNetworkInterfaces = ()                      => Call('main.App.GetNetworkInterfaces', [])
 export const StartWebServer       = (port)                  => Call('main.App.StartWebServer', [port])
 export const StopWebServer        = ()                      => Call('main.App.StopWebServer', [])
 export const ToggleWebServing     = (sessionID, enabled)    => Call('main.App.ToggleWebServing', [sessionID, enabled])
-export const GenerateSessionToken = (sessionID)             => Call('main.App.GenerateSessionToken', [sessionID])
 export const GetWebServerURL      = ()                      => Call('main.App.GetWebServerURL', [])
 export const IsWebServerRunning   = ()                      => Call('main.App.IsWebServerRunning', [])
 

@@ -6,7 +6,6 @@ export interface StatusBarProps {
   webEnabled: boolean
   sessionURL: string | undefined
   onToggleWeb: () => void
-  onCopyTokenLink: () => void
   onShowQR: () => void
 }
 
@@ -19,7 +18,6 @@ export function StatusBar({
   webEnabled,
   sessionURL,
   onToggleWeb,
-  onCopyTokenLink,
   onShowQR,
 }: StatusBarProps): React.ReactElement {
   return (
@@ -61,13 +59,6 @@ export function StatusBar({
             title="Disable web sharing for this session"
           >
             Disable Web
-          </button>
-          <button
-            className="tab-status-bar__btn"
-            onClick={onCopyTokenLink}
-            title="Copy shareable token link"
-          >
-            Copy Link
           </button>
           <button
             className="tab-status-bar__btn"
