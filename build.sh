@@ -107,8 +107,82 @@ build_linux() {
 }
 
 sign_and_notarize() {
-  echo "ERROR: Code signing not yet implemented. See build.sh plan 02."
-  exit 1
+  local APP="$1"
+  local ENTITLEMENTS="build/entitlements.plist"
+  local IDENTITY="${MACOS_SIGNING_IDENTITY:-}"
+  local APPLE_ID="${MACOS_APPLE_ID:-}"
+  local TEAM_ID="${MACOS_TEAM_ID:-}"
+  local APP_PASSWORD="${MACOS_APP_PASSWORD:-}"
+
+  # Validate all four required env vars
+  local MISSING=()
+  [[ -z "$IDENTITY" ]] && MISSING+=("MACOS_SIGNING_IDENTITY")
+  [[ -z "$APPLE_ID" ]] && MISSING+=("MACOS_APPLE_ID")
+  [[ -z "$TEAM_ID" ]] && MISSING+=("MACOS_TEAM_ID")
+  [[ -z "$APP_PASSWORD" ]] && MISSING+=("MACOS_APP_PASSWORD")
+
+  if [[ ${#MISSING[@]} -gt 0 ]]; then
+    echo "ERROR: Missing required environment variables for code signing:"
+    for var in "${MISSING[@]}"; do
+      echo "  - $var"
+    done
+    echo ""
+    echo "Setup instructions:"
+    echo "  MACOS_SIGNING_IDENTITY  Run: security find-identity -v -p codesigning"
+    echo "  MACOS_APPLE_ID          Your Apple ID email"
+    echo "  MACOS_TEAM_ID           Apple Developer portal -> Membership -> Team ID"
+    echo "  MACOS_APP_PASSWORD      appleid.apple.com -> Security -> App-Specific Passwords"
+    exit 1
+  fi
+
+  # Verify entitlements file exists
+  if [[ ! -f "$ENTITLEMENTS" ]]; then
+    echo "ERROR: Entitlements file not found: $ENTITLEMENTS"
+    exit 1
+  fi
+
+  # Step 1: Deep sign with hardened runtime
+  echo "==> Signing $APP"
+  codesign --deep --force --verbose \
+    --options runtime \
+    --timestamp \
+    --entitlements "$ENTITLEMENTS" \
+    --sign "$IDENTITY" \
+    "$APP"
+
+  # Step 2: Verify signature
+  echo "==> Verifying signature"
+  codesign --verify --deep --strict --verbose=2 "$APP"
+
+  # Step 3: Create zip for notarytool (ditto preserves macOS metadata; NOT zip -r)
+  local ZIP="build/bin/agenthub-notarize.zip"
+  echo "==> Creating notarization archive"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+
+  # Step 4: Store credentials in keychain profile
+  echo "==> Storing notarization credentials"
+  xcrun notarytool store-credentials "agenthub-notarize" \
+    --apple-id "$APPLE_ID" \
+    --team-id "$TEAM_ID" \
+    --password "$APP_PASSWORD"
+
+  # Step 5: Submit and wait (--wait is CRITICAL: without it, exit 0 does NOT mean success)
+  echo "==> Submitting for notarization (this may take several minutes)"
+  xcrun notarytool submit "$ZIP" \
+    --keychain-profile "agenthub-notarize" \
+    --wait
+
+  # Step 6: Staple notarization ticket to .app
+  echo "==> Stapling notarization ticket"
+  xcrun stapler staple "$APP"
+
+  # Step 7: Final verification with spctl (exit 0 = Gatekeeper accepted)
+  echo "==> Verifying with spctl"
+  spctl --assess --verbose=2 --type install "$APP"
+
+  # Cleanup
+  rm -f "$ZIP"
+  echo "==> macOS build signed and notarized: $APP"
 }
 
 # --- Dispatch ---
