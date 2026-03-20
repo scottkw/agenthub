@@ -44,7 +44,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 **Target features:**
 - Tailscale-only networking (remove generic VPN interface support)
-- Tailscale health checks (installed, connected, certs enabled) with instructional modal
+- Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events
 - Let's Encrypt certs via Tailscale for web server and remote sessions
 - Remove password auth, per-session tokens, and self-signed cert infrastructure
 
@@ -102,4 +102,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | ditto (not zip) for notarization archive | Preserves macOS extended attributes required by notarytool | ✓ Good — correct signing pipeline |
 
 ---
-*Last updated: 2026-03-20 after v1.1 milestone*
+*Last updated: 2026-03-20 after Phase 14 (Tailscale health check infrastructure)*
