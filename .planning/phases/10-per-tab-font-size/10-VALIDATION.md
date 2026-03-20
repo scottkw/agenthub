@@ -1,9 +1,9 @@
 ---
 phase: 10
 slug: per-tab-font-size
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-19
 ---
 
@@ -38,10 +38,10 @@ created: 2026-03-19
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 10-01-01 | 01 | 0 | TERM-02, TERM-03, TERM-04 | unit (source inspection) | `pnpm test -- TerminalPanel` | ✅ (new cases needed) | ⬜ pending |
-| 10-01-02 | 01 | 0 | TERM-04 | unit (source inspection) | `pnpm test -- App` | ❌ W0 | ⬜ pending |
-| 10-02-01 | 02 | 1 | TERM-04 | unit (source inspection) | `pnpm test -- App` | ❌ W0 | ⬜ pending |
-| 10-02-02 | 02 | 1 | TERM-02, TERM-03, TERM-04 | unit (source inspection) | `pnpm test -- TerminalPanel` | ✅ (new cases needed) | ⬜ pending |
+| 10-01-01 | 01 | 0 | TERM-02, TERM-03, TERM-04 | unit (source inspection) | `pnpm test -- TerminalPanel` | ✅ | ✅ green |
+| 10-01-02 | 01 | 0 | TERM-04 | unit (source inspection) | `pnpm test -- App` | ✅ | ✅ green |
+| 10-02-01 | 02 | 1 | TERM-04 | unit (source inspection) | `pnpm test -- App` | ✅ | ✅ green |
+| 10-02-02 | 02 | 1 | TERM-02, TERM-03, TERM-04 | unit (source inspection) | `pnpm test -- TerminalPanel` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,8 +49,8 @@ created: 2026-03-19
 
 ## Wave 0 Requirements
 
-- [ ] New test cases in `frontend/src/components/__tests__/TerminalPanel.test.tsx` — stubs for TERM-02, TERM-03, TERM-04 via `?raw` source inspection
-- [ ] New test file `frontend/src/components/__tests__/App.test.tsx` — stubs for TERM-04 (fontSizes state in App.tsx) via `?raw` source inspection
+- [x] New test cases in `frontend/src/components/__tests__/TerminalPanel.test.tsx` — 10 source-inspection tests for TERM-02, TERM-03, TERM-04
+- [x] New test file `frontend/src/components/__tests__/App.test.tsx` — 7 source-inspection tests for TERM-04 (fontSizes state in App.tsx)
 
 *Vitest, jsdom, and React testing infrastructure already configured. No new framework setup needed.*
 
@@ -70,11 +70,19 @@ created: 2026-03-19
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+## Validation Audit 2026-03-20
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
