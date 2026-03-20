@@ -12,8 +12,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net"
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,73 +160,6 @@ func TestGetRelayPort(t *testing.T) {
 	}
 }
 
-// testAppWithConfigDir returns an App with an isolated temp config directory
-// so web server tests don't pollute ~/.config/agenthub.
-func testAppWithConfigDir(t *testing.T) (*App, string) {
-	t.Helper()
-	dir := t.TempDir()
-
-	// Override configDir resolution by pointing the config to a temp path.
-	// We use an env var approach: set XDG_CONFIG_HOME so os.UserConfigDir returns our dir.
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	// On macOS, os.UserConfigDir uses $HOME/Library/Application Support, not XDG.
-	// Override by pointing HOME to dir so configDir() returns dir/agenthub.
-	// Simpler: just call functions directly and use the temp dir as the override.
-
-	app := testApp(t)
-	return app, filepath.Join(dir, "agenthub")
-}
-
-func TestSetWebPasswordPersistsAndReloads(t *testing.T) {
-	// Use a temp dir to isolate password persistence.
-	dir := t.TempDir()
-	// Override HOME so configDir() returns dir + "/agenthub" (macOS uses Library subdir).
-	// Instead, we directly test the full round-trip by writing/reading using the same path.
-	hashPath := filepath.Join(dir, "web_password")
-
-	// Write a known bcrypt hash manually using the same logic as SetWebPassword.
-	// We can't override configDir() directly, so we test the underlying mechanism:
-	// SetWebPassword calls os.WriteFile(webPasswordPath(), ...) and IsWebPasswordSet
-	// checks os.Stat(webPasswordPath()).
-	//
-	// For integration, create the app and temporarily redirect the config dir.
-	t.Setenv("HOME", dir)
-
-	app := testApp(t)
-
-	// Initially, no password set.
-	if app.IsWebPasswordSet() {
-		t.Error("expected IsWebPasswordSet to be false before SetWebPassword")
-	}
-
-	if err := app.SetWebPassword("testpassword123"); err != nil {
-		t.Fatalf("SetWebPassword: %v", err)
-	}
-
-	// Check that a hash file was written somewhere under dir.
-	// The actual path will be dir/Library/... on macOS or dir/.config/agenthub/...
-	// We verify via IsWebPasswordSet which should read from disk.
-	if !app.IsWebPasswordSet() {
-		t.Error("expected IsWebPasswordSet to be true after SetWebPassword")
-	}
-
-	// Verify the web_password file exists somewhere under the temp dir.
-	found := false
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if filepath.Base(path) == "web_password" {
-			found = true
-			hashPath = path
-		}
-		return nil
-	})
-	if !found {
-		t.Fatal("web_password file not created under temp HOME")
-	}
-	_ = hashPath // verified it exists
-}
 
 func TestGetNetworkInterfaces(t *testing.T) {
 	app := testApp(t)
@@ -248,15 +180,22 @@ func TestToggleWebServingErrorsWhenNotRunning(t *testing.T) {
 	}
 }
 
-func TestStartWebServerErrorsWhenPasswordNotSet(t *testing.T) {
+func TestStartWebServerNoPasswordRequired(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
-
 	app := testApp(t)
-	// No password set — StartWebServer should return an error.
+	// StartWebServer should NOT error due to a missing password requirement.
+	// If Tailscale is not connected, it errors about Tailscale (not password).
+	// If Tailscale is connected, it may succeed.
+	// Either way, no error mentioning "password" should appear.
 	err := app.StartWebServer(0)
 	if err == nil {
-		t.Error("expected StartWebServer to return error when password is not set")
+		// Tailscale is connected and server started — clean up.
+		_ = app.StopWebServer()
+		return
+	}
+	if strings.Contains(err.Error(), "password") {
+		t.Errorf("StartWebServer should not mention password, got: %s", err.Error())
 	}
 }
 
@@ -315,9 +254,6 @@ func TestGetSessionQRCode(t *testing.T) {
 	}, app.manager)
 	if err != nil {
 		t.Fatalf("NewWebServer: %v", err)
-	}
-	if err := ws.SetPassword("testpass"); err != nil {
-		t.Fatalf("SetPassword: %v", err)
 	}
 	if err := ws.Start(); err != nil {
 		t.Fatalf("ws.Start: %v", err)

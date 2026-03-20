@@ -296,63 +296,6 @@ func configDir() string {
 	return dir
 }
 
-// webPasswordPath returns the path to the persisted web password hash file.
-func webPasswordPath() string {
-	return filepath.Join(configDir(), "web_password")
-}
-
-// SetWebPassword sets the dashboard password for web serving. The bcrypt hash
-// is persisted to disk so it survives restarts. Lazily initialises the WebServer
-// if it has not been created yet (needed for password setup before server start).
-func (a *App) SetWebPassword(password string) error {
-	a.mu.Lock()
-	ws := a.webServer
-	a.mu.Unlock()
-
-	if ws == nil {
-		// Create lazily so password can be set before StartWebServer is called.
-		newWS, err := webserver.NewWebServer(webserver.Config{
-			BindIP: "127.0.0.1",
-			Port:   7443,
-			FQDN:   "localhost",
-		}, a.manager)
-		if err != nil {
-			return fmt.Errorf("SetWebPassword: init server: %w", err)
-		}
-		a.mu.Lock()
-		a.webServer = newWS
-		a.mu.Unlock()
-		ws = newWS
-	}
-
-	if err := ws.SetPassword(password); err != nil {
-		return fmt.Errorf("SetWebPassword: %w", err)
-	}
-
-	// Persist the bcrypt hash to disk.
-	hash, err := webserver.HashPassword(password)
-	if err != nil {
-		return fmt.Errorf("SetWebPassword: hash: %w", err)
-	}
-	if err := os.WriteFile(webPasswordPath(), hash, 0600); err != nil {
-		return fmt.Errorf("SetWebPassword: persist: %w", err)
-	}
-	return nil
-}
-
-// IsWebPasswordSet returns true if a web serving password has been configured
-// (either in memory or via the persisted hash on disk).
-func (a *App) IsWebPasswordSet() bool {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws != nil && ws.IsPasswordSet() {
-		return true
-	}
-	_, err := os.Stat(webPasswordPath())
-	return err == nil
-}
-
 // GetNetworkInterfaces returns all active non-loopback IPv4 network interfaces,
 // including Tailscale detection. Used to populate the interface dropdown in Settings.
 func (a *App) GetNetworkInterfaces() []webserver.NetworkInterface {
@@ -363,14 +306,10 @@ func (a *App) GetNetworkInterfaces() []webserver.NetworkInterface {
 	return ifaces
 }
 
-// StartWebServer creates (or re-creates) the WebServer bound to the Tailscale IP:port,
-// loads the persisted password hash, and begins serving. Returns an error if no
-// password has been set or Tailscale is not connected with HTTPS certs enabled.
+// StartWebServer creates (or re-creates) the WebServer bound to the Tailscale IP:port
+// and begins serving. Returns an error if Tailscale is not connected with HTTPS certs
+// enabled. Access control is provided at the network level by Tailscale.
 func (a *App) StartWebServer(port int) error {
-	if !a.IsWebPasswordSet() {
-		return fmt.Errorf("web serving requires a password — set one in Settings first")
-	}
-
 	h := a.GetTailscaleStatus()
 	if !h.Connected {
 		return fmt.Errorf("Tailscale is not connected")
@@ -397,11 +336,6 @@ func (a *App) StartWebServer(port int) error {
 	}, a.manager)
 	if err != nil {
 		return fmt.Errorf("StartWebServer: create: %w", err)
-	}
-
-	// Load persisted password hash.
-	if hash, err := os.ReadFile(webPasswordPath()); err == nil {
-		ws.LoadPasswordHash(hash)
 	}
 
 	ws.SetSessionResolver(func(id string) (string, string, string) {
@@ -458,23 +392,6 @@ func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
 		ws.DisableSession(sessionID)
 	}
 	return nil
-}
-
-// GenerateSessionToken generates a one-time token for the session and returns
-// the full shareable URL (https://bindIP:port/sessions/{id}?token=xxx).
-func (a *App) GenerateSessionToken(sessionID string) (string, error) {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
-		return "", fmt.Errorf("web server is not running")
-	}
-	tok, err := ws.CreateToken(sessionID)
-	if err != nil {
-		return "", fmt.Errorf("GenerateSessionToken: %w", err)
-	}
-	baseURL := ws.BaseURL()
-	return fmt.Sprintf("%s/sessions/%s?token=%s", baseURL, sessionID, tok), nil
 }
 
 // GetWebServerURL returns the base HTTPS URL of the running web server,
