@@ -9,8 +9,6 @@ import (
 	"tailscale.com/ipn/ipnstate"
 )
 
-type statusFunc func(ctx context.Context) (*ipnstate.Status, error)
-
 func TestCheckHealth_NotRunning(t *testing.T) {
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("dial unix: connection refused")

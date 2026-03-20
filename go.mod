@@ -9,6 +9,7 @@ require (
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/crypto v0.46.0
 	golang.org/x/sys v0.40.0
+	tailscale.com v1.96.3
 )
 
 require (
@@ -57,5 +58,4 @@ require (
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
-	tailscale.com v1.96.3 // indirect
 )
