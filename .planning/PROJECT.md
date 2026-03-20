@@ -29,7 +29,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-- [ ] Build script (`build.sh`) for per-platform and all-platform compilation with macOS signing support
+- ✓ Build script (`build.sh`) for per-platform and all-platform compilation with macOS signing support — Phase 13
 - ✓ UI/UX overhaul: settings modal declutter/restyle (Phase 9), web dashboard visual refresh (Phase 12)
 - ✓ Per-tab status bar replacing header overlay for web status/URL/controls — Phase 8
 - ✓ Tab renaming with right-click context menu + name propagation to web dashboard — Phase 12
@@ -97,4 +97,4 @@ Spiritual successor to ccrs (Claude Code Remote Sessions) — a zsh script proje
 | ResizeObserver + requestAnimationFrame for fit() | Handles all layout changes, not just window resize | ✓ Good — fixed terminal height issues |
 
 ---
-*Last updated: 2026-03-20 — Phase 12 complete (tab rename context menu, session metadata API, web dashboard visual refresh)*
+*Last updated: 2026-03-20 — Phase 13 complete (build.sh cross-platform build script with macOS signing/notarization)*
