@@ -38,7 +38,7 @@ Declared values (must be multiples of 4):
 | xs | 4px | Icon gaps, tab bar control padding (`pad: 0 4px`) |
 | sm | 8px | Gap between status bar items, inline button padding (`pad: 4px 8px`) |
 | md | 16px | Modal header/body/footer horizontal padding base |
-| lg | 20px | Modal body padding (`padding: 20px`), settings panel padding |
+| lg | 24px | Modal body padding, settings panel padding |
 | xl | 24px | Section separation inside modal body (`margin-bottom: 24px`) |
 | 2xl | 32px | Status bar height (fixed 32px), dashboard page padding (`2rem`) |
 | 3xl | 48px | — (reserved; not used in this phase) |
@@ -49,7 +49,7 @@ Exceptions:
 - Context menu must appear at `position: fixed` anchored to `clientX/clientY` — no spacing token applies to positioning
 - Dashboard session card padding: `0.75rem 1rem` (12px 16px) — matches existing `#session-list li` rule; do not alter
 
-**Source:** Measured from `style.css` existing rules.
+**Source:** Measured from `style.css` existing rules. `lg` corrected from 20px to 24px to conform to the 8-point scale.
 
 ---
 
@@ -69,10 +69,14 @@ Exceptions:
 **New elements this phase:**
 
 - Context menu item text: 13px, weight 400, line-height 1.5 (matches `.tab` rule)
-- Dashboard CLI badge text: 11px, weight 500, line-height 1.2 (new; follows `.tab-status-bar__state` precedent)
-- Dashboard session name: 14px, weight 500 (upgrade from current `font-weight: 500; color: #fff` — keep as-is)
+- Dashboard CLI badge text: 12px, weight 600, line-height 1.2 (new; follows `.tab-status-bar__state` precedent)
+- Dashboard session name: 14px, weight 600
 
-**Source:** Measured from `style.css`. Weights 400 and 600 are the only two in use; do not introduce 500 in desktop app CSS.
+**Distinct font sizes in use:** 12px, 13px, 14px, 16px — four sizes, within the maximum of four.
+
+**Distinct font weights in use:** 400 (regular) and 600 (semibold) — two weights only. Do not introduce weight 500 anywhere in this phase.
+
+**Source:** Measured from `style.css`.
 
 ---
 
@@ -108,7 +112,7 @@ Exceptions:
 - Dashboard border: change `#444` → `#292e42`
 - Dashboard primary text: change `#fff`/`#ccc` → `#c0caf5`
 - Dashboard secondary text: change `#888` → `#565f89`
-- Dashboard accent/link: keep `#4fc3f7` for existing session links OR align to `#7aa2f7` — use `#7aa2f7` for consistency
+- Dashboard accent/link: align to `#7aa2f7` for consistency
 - Dashboard platform-tab active: change `#0e639c` → `#7aa2f7` (text `#1a1b26`)
 
 **Source:** All values extracted from `frontend/src/style.css` and current `dashboard.html`.
@@ -118,6 +122,8 @@ Exceptions:
 ## Component Inventory
 
 ### New: Tab Context Menu (`tab__context-menu`)
+
+**Focal point:** The "Rename" label is the sole actionable element; it draws the eye via `#c0caf5` hover text against the `#292e42` hover row, anchored to the card surface `#1e2030` background.
 
 **Trigger:** `onContextMenu` on `.tab__name` span (right-click). Suppresses native browser menu via `e.preventDefault()`.
 
@@ -156,11 +162,15 @@ div.tab__context-menu           -- position: fixed, anchored at clientX/clientY
 
 ### Modified: Tab (`TabBar.tsx`)
 
+**Focal point:** Tab label text remains the primary focus; the rename affordance is a tooltip hint and right-click gesture — it does not alter the resting tab appearance.
+
 Existing double-click rename behavior is unchanged. Addition only: `onContextMenu` handler on `.tab__name` span. The `.tab__rename-input` interaction (Enter commits, Escape cancels, blur commits) is unchanged.
 
 **New title attribute on `.tab__name`:** Change from `"Double-click to rename"` → `"Double-click or right-click to rename"`.
 
 ### Modified: Dashboard Session Card (`dashboard.html`)
+
+**Focal point:** The status dot (8px circle, left-anchored) draws the eye first; session name at 14px weight 600 is the primary label; CLI badge and session ID are secondary information in smaller, dimmer text.
 
 Current `#session-list li` layout: flex row with `session-name`, `session-cli`, QR thumb, Open link, Copy Token Link button.
 
@@ -185,12 +195,12 @@ li.session-card
 
 **CLI badge spec (new):**
 - Display: `inline-block`
-- Padding: `1px 6px`
+- Padding: `4px 8px`
 - Border-radius: `3px`
 - Background: `#292e42`
 - Color: `#a9b1d6`
-- Font-size: `11px`
-- Font-weight: `500`
+- Font-size: `12px`
+- Font-weight: `600`
 - Margin-left: `8px`
 
 **Session card spec:**
