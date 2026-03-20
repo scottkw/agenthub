@@ -57,10 +57,11 @@ Declared values (multiples of 4 only — matched to existing style.css usage):
 | xs | 4px | Icon gaps, inline padding, tight row gaps |
 | sm | 8px | Field group gaps, button internal gap, list spacing |
 | md | 16px | Field group bottom margin, section separation |
-| lg | 20px | Modal body padding, header padding horizontal |
 | xl | 24px | Modal section breaks |
 | 2xl | 32px | Not used in Phase 15 scope |
 | 3xl | 64px | Not used in Phase 15 scope |
+
+**Legacy exception:** `.settings-panel__header` and `.settings-panel__body` use 20px padding sourced from existing `style.css`. Phase 15 introduces no new 20px usage; the CT disclosure banner uses `md (16px)` and `sm (8px)` only. Executors must not apply 20px to any new elements.
 
 Exceptions: Modal header/footer padding uses 12px vertical (3 * 4) — matches existing `.settings-panel__header` padding. Do not change existing padding values.
 
