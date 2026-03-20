@@ -30,3 +30,7 @@ frontend/src/wailsjs/wailsjs/
 *.out
 coverage.html
 .superpowers/
+
+# Tailscale cert files (local testing artifacts, not committed)
+*.ts.net.crt
+*.ts.net.key

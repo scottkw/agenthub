@@ -312,9 +312,9 @@ func (a *App) SetWebPassword(password string) error {
 	if ws == nil {
 		// Create lazily so password can be set before StartWebServer is called.
 		newWS, err := webserver.NewWebServer(webserver.Config{
-			BindIP:    "127.0.0.1",
-			Port:      7443,
-			ConfigDir: configDir(),
+			BindIP: "127.0.0.1",
+			Port:   7443,
+			FQDN:   "localhost",
 		}, a.manager)
 		if err != nil {
 			return fmt.Errorf("SetWebPassword: init server: %w", err)
@@ -363,12 +363,23 @@ func (a *App) GetNetworkInterfaces() []webserver.NetworkInterface {
 	return ifaces
 }
 
-// StartWebServer creates (or re-creates) the WebServer bound to bindIP:port,
+// StartWebServer creates (or re-creates) the WebServer bound to the Tailscale IP:port,
 // loads the persisted password hash, and begins serving. Returns an error if no
-// password has been set (web serving is gated behind password setup).
-func (a *App) StartWebServer(bindIP string, port int) error {
+// password has been set or Tailscale is not connected with HTTPS certs enabled.
+func (a *App) StartWebServer(port int) error {
 	if !a.IsWebPasswordSet() {
 		return fmt.Errorf("web serving requires a password — set one in Settings first")
+	}
+
+	h := a.GetTailscaleStatus()
+	if !h.Connected {
+		return fmt.Errorf("Tailscale is not connected")
+	}
+	if h.IP == "" {
+		return fmt.Errorf("Tailscale IP not available")
+	}
+	if !h.HasCerts {
+		return fmt.Errorf("Tailscale HTTPS certificates not enabled — enable in Tailscale admin")
 	}
 
 	// Stop any running server before creating a new one.
@@ -380,9 +391,9 @@ func (a *App) StartWebServer(bindIP string, port int) error {
 	}
 
 	ws, err := webserver.NewWebServer(webserver.Config{
-		BindIP:    bindIP,
-		Port:      port,
-		ConfigDir: configDir(),
+		BindIP: h.IP,
+		Port:   port,
+		FQDN:   h.Domain,
 	}, a.manager)
 	if err != nil {
 		return fmt.Errorf("StartWebServer: create: %w", err)
@@ -397,19 +408,16 @@ func (a *App) StartWebServer(bindIP string, port int) error {
 		a.mu.RLock()
 		name := a.tabNames[id]
 		a.mu.RUnlock()
-
 		cliType := ""
 		if sess, ok := a.registry.Get(id); ok {
 			cliType = sess.CLI
 		}
-
 		a.statusMu.RLock()
 		st := ""
 		if s, ok := a.sessionStatuses[id]; ok {
 			st = string(s)
 		}
 		a.statusMu.RUnlock()
-
 		return name, cliType, st
 	})
 
@@ -481,10 +489,20 @@ func (a *App) GetWebServerURL() string {
 	return ws.BaseURL()
 }
 
-// GetCACertPath returns the file path to the CA certificate used by the web server.
-// This path is shown in Settings so users can install it in their OS trust store.
-func (a *App) GetCACertPath() string {
-	return webserver.ExportCACertPath(configDir())
+// ctDisclosurePath returns the path to the CT disclosure acknowledgement file.
+func ctDisclosurePath() string {
+	return filepath.Join(configDir(), "ct_disclosed")
+}
+
+// HasCTDisclosure returns true if the user has acknowledged the CT log disclosure.
+func (a *App) HasCTDisclosure() bool {
+	_, err := os.Stat(ctDisclosurePath())
+	return err == nil
+}
+
+// AcknowledgeCTDisclosure persists the CT disclosure acknowledgement.
+func (a *App) AcknowledgeCTDisclosure() error {
+	return os.WriteFile(ctDisclosurePath(), []byte("1"), 0600)
 }
 
 // IsWebServerRunning returns true if the web server has been started and its
