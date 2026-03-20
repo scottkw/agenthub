@@ -18,8 +18,8 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Web serving of terminal sessions via hosted xterm.js — v1.0
 - ✓ Per-session toggle for web serving (on/off) — v1.0
 - ✓ Self-signed TLS certificates (CA + leaf pattern) for all web connections — v1.0
-- ✓ Web dashboard with password authentication to browse all served sessions — v1.0
-- ✓ Per-session shareable tokens/links for quick access — v1.0
+- ✓ Web dashboard to browse all served sessions — v1.0 (password auth removed in v1.2 Phase 16)
+- ✓ Per-session QR/URL access — v1.0 (shareable tokens removed in v1.2 Phase 16)
 - ✓ QR code generation for all web-served sessions — v1.0
 - ✓ VPN interface binding — Tailscale-first, with support for other VPN interfaces — v1.0
 - ✓ Multi-platform: macOS, Linux, Windows — v1.0 (CI matrix, signing/notarization)
@@ -46,22 +46,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - Tailscale-only networking (remove generic VPN interface support)
 - Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events
 - Let's Encrypt certs via Tailscale for web server and remote sessions — Phase 15 complete: GetCertificate hook, FQDN-based URLs, CT disclosure
-- Remove password auth, per-session tokens, and self-signed cert infrastructure
+- Remove password auth, per-session tokens, and self-signed cert infrastructure — Phase 16 complete: all auth deleted, dashboard/sessions open to tailnet members
 
 ### Out of Scope
 
 - Mobile app — desktop and web access only; PWA via web serving covers mobile needs
 - AI coding CLI installation — app checks for CLIs but doesn't install them
 - Tailscale/VPN installation or management — user handles VPN setup separately
-- End-to-end encryption beyond TLS — TLS with self-signed certs is sufficient
-- User account system with registration — password + tokens, not a full identity system
+- End-to-end encryption beyond TLS — Tailscale's Let's Encrypt certs are sufficient
+- User account system with registration — Tailscale network membership is the access control
 - Cloud hosting or SaaS deployment — this is a local-first desktop app
 - Plugin system for adding new CLIs — initial set is hardcoded, extensibility is future scope
 - Session output search / replay — tools like agent-sessions serve this niche
 - Split panes / tiling within a tab — each AI session gets its own tab
 - Configurable session backend (tmux vs Go-native) — deferred to future milestone
 - Real tmux mode with `tmux attach` — deferred to future milestone
-- Per-session token expiry and revocation — deferred to future milestone
+- Per-session token expiry and revocation — removed: tokens deleted in Phase 16
 - Tab color coding per CLI type — deferred to future milestone
 - Status heuristic patterns for non-Claude CLIs — deferred to future milestone
 - Font/theme customization beyond size — per-tab font size covers the immediate need
@@ -90,8 +90,8 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | xterm.js for terminal rendering | Industry standard, well-maintained, used by VS Code terminal | ✓ Good — full ANSI/Unicode support, scrollback works |
 | Go-native PTY only for v1 (tmux deferred to v2) | Reduce scope; Go-native covers all v1 use cases | ✓ Good — simplified architecture, no tmux dep |
 | Same Go process serves desktop + web | Simpler architecture, single port management, shared session state | ✓ Good — session sharing works seamlessly |
-| Self-signed TLS with CA+leaf pattern | Local-first, no domain; CA pattern lets browsers trust leaf certs | ✓ Good — WSS works without browser errors after CA install |
-| Password + token auth model | Password for dashboard, tokens for shareable per-session links | ✓ Good — simple, effective for single-user |
+| Self-signed TLS → Tailscale Let's Encrypt | Phase 15 switched to Tailscale certs; self-signed CA removed | ✓ Good — no CA install needed, browser-trusted by default |
+| Tailscale network = access control | Phase 16 removed password + tokens; only tailnet members can reach the server | ✓ Good — simpler, no auth UI/middleware to maintain |
 | go-pty (aymanbagabas) over creack/pty | Windows ConPTY support required from day one | ✓ Good — cross-platform PTY with single API |
 | Binary framing protocol for WS relay | Distinguishes output/resize/input frames; enables scrollback replay | ✓ Good — clean separation of message types |
 | Native macOS cgo NSStatusBar for tray | fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol) | ⚠️ Revisit — platform-specific code, Linux/Windows stubs needed |
@@ -102,4 +102,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | ditto (not zip) for notarization archive | Preserves macOS extended attributes required by notarytool | ✓ Good — correct signing pipeline |
 
 ---
-*Last updated: 2026-03-20 after Phase 15 (Tailscale TLS + interface binding)*
+*Last updated: 2026-03-20 after Phase 16 (Auth Layer Removal)*
