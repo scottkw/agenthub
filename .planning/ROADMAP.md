@@ -98,7 +98,7 @@ Plans:
   1. `go build ./...` passes with zero errors after the deletions
   2. No generic VPN interface picker, password field, or token UI remains in the settings panel
   3. Auth middleware, token generation routes, and VPN interface code are absent from the compiled binary (confirmed by source inspection)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 17-01-PLAN.md — Backend Go dead code deletion (network.go, GetNetworkInterfaces)
 - [ ] 17-02-PLAN.md — Frontend Wails binding cleanup (GetNetworkInterfaces exports, NetworkInterface type)
@@ -138,7 +138,7 @@ Plans:
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | 2/2 | Complete    | 2026-03-20 | - |
-| 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
+| 17. Dead Code Cleanup | 1/2 | In Progress|  | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
 
 ---

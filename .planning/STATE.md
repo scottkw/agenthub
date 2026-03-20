@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-03-20T21:23:46.517Z"
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-20T22:12:59.808Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 16 — auth-layer-removal
+**Current focus:** Phase 17 — dead-code-cleanup
 
 ## Current Position
 
-Phase: 16 (auth-layer-removal) — EXECUTING
+Phase: 17 (dead-code-cleanup) — EXECUTING
 Plan: 1 of 2
 
 ## Performance Metrics
@@ -47,6 +47,7 @@ Plan: 1 of 2
 | Phase 15 P02 | 480 | 2 tasks | 7 files |
 | Phase 16-auth-layer-removal P01 | 445s | 2 tasks | 9 files |
 | Phase 16-auth-layer-removal P02 | 480 | 2 tasks | 8 files |
+| Phase 17-dead-code-cleanup P01 | 240 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Key v1.2 constraints affecting all phases:
 - [Phase 16-auth-layer-removal]: Auth removal: All app-layer auth removed; Tailscale provides network-level access control
 - [Phase 16-auth-layer-removal]: SettingsPanel reduced to 2 tabs; Security tab and password state fully removed
 - [Phase 16-auth-layer-removal]: Dashboard HTML renders session list directly on load with no login gate or CA section
+- [Phase 17-dead-code-cleanup]: Delete network.go and network_test.go atomically — test file references network.go symbols so they must go together
+- [Phase 17-dead-code-cleanup]: Retain webserver package import in app.go — used by TailscaleHealth, CheckHealth, Config, NewWebServer
 
 ### Pending Todos
 
@@ -85,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:15:17.082Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-03-20T22:12:59.806Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None

@@ -32,8 +32,8 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 
 ### Cleanup
 
-- [ ] **CLEAN-01**: Generic VPN interface binding code is removed
-- [ ] **CLEAN-02**: Auth middleware, token generation, and related backend routes are removed
+- [x] **CLEAN-01**: Generic VPN interface binding code is removed
+- [x] **CLEAN-02**: Auth middleware, token generation, and related backend routes are removed
 - [ ] **CLEAN-03**: Settings UI for password, tokens, and VPN interface selection is removed
 
 ## Future Requirements
@@ -73,8 +73,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 16 | Complete |
 | AUTH-02 | Phase 16 | Complete |
 | AUTH-03 | Phase 16 | Complete |
-| CLEAN-01 | Phase 17 | Pending |
-| CLEAN-02 | Phase 17 | Pending |
+| CLEAN-01 | Phase 17 | Complete |
+| CLEAN-02 | Phase 17 | Complete |
 | CLEAN-03 | Phase 17 | Pending |
 
 **Coverage:**
