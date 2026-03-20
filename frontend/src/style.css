@@ -790,3 +790,29 @@ body {
   color: #f38ba8;
 }
 
+/* ─── CT Disclosure Banner ──────────────────────────────────────── */
+.ct-disclosure {
+  background: #16161e;
+  border: 1px solid #292e42;
+  border-left: 3px solid #7aa2f7;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.ct-disclosure--acknowledged {
+  border-left-color: #9ece6a;
+}
+
+.ct-disclosure__text {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #a9b1d6;
+  margin-bottom: 8px;
+}
+
+.ct-disclosure__btn {
+  margin-top: 8px;
+}
+

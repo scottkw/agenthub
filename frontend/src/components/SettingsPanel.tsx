@@ -3,14 +3,14 @@ import {
   UpdateCLIPath,
   SetWebPassword,
   IsWebPasswordSet,
-  GetNetworkInterfaces,
   StartWebServer,
   StopWebServer,
   GetWebServerURL,
-  GetCACertPath,
   IsWebServerRunning,
+  HasCTDisclosure,
+  AcknowledgeCTDisclosure,
 } from '../wailsjs/go/main/App'
-import type { DetectedCLI, NetworkInterface } from '../wailsjs/go/main/App'
+import type { DetectedCLI } from '../wailsjs/go/main/App'
 
 interface SettingsPanelProps {
   isOpen: boolean
@@ -21,8 +21,8 @@ interface SettingsPanelProps {
 /**
  * Modal settings panel for configuring custom CLI executable paths and web serving.
  * Lists all detected CLIs with an input field for path overrides, plus a Web Server
- * section for network interface selection and server start/stop, and a Security
- * section for password setup and CA certificate guidance.
+ * section for CT disclosure and server start/stop, and a Security section for
+ * password setup.
  */
 export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): React.ReactElement | null {
   const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server' | 'security'>('cli-paths')
@@ -42,42 +42,31 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
   const [isPasswordSet, setIsPasswordSet] = useState(false)
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
-  const [networkInterfaces, setNetworkInterfaces] = useState<NetworkInterface[]>([])
-  const [selectedInterface, setSelectedInterface] = useState<string>('127.0.0.1')
   const [selectedPort, setSelectedPort] = useState<number>(7443)
   const [isServerRunning, setIsServerRunning] = useState(false)
   const [serverURL, setServerURL] = useState<string>('')
-  const [caCertPath, setCACertPath] = useState<string>('')
   const [serverError, setServerError] = useState<string | null>(null)
   const [serverLoading, setServerLoading] = useState(false)
+  const [ctDisclosed, setCTDisclosed] = useState(false)
+  const [ctError, setCTError] = useState<string | null>(null)
 
   // Load web serving state on panel open.
   useEffect(() => {
     if (!isOpen) return
     async function loadWebState() {
       try {
-        const [pwSet, ifaces, running, certPath] = await Promise.all([
+        const [pwSet, running, ctAck] = await Promise.all([
           IsWebPasswordSet(),
-          GetNetworkInterfaces(),
           IsWebServerRunning(),
-          GetCACertPath(),
+          HasCTDisclosure(),
         ])
         setIsPasswordSet(pwSet)
-        setNetworkInterfaces(ifaces)
         setIsServerRunning(running)
-        setCACertPath(certPath)
+        setCTDisclosed(ctAck)
 
         if (running) {
           const url = await GetWebServerURL()
           setServerURL(url)
-        }
-
-        // Auto-select Tailscale interface if one exists.
-        const tailscale = ifaces.find((i) => i.IsTailscale)
-        if (tailscale) {
-          setSelectedInterface(tailscale.IP)
-        } else if (ifaces.length > 0) {
-          setSelectedInterface(ifaces[0].IP)
         }
       } catch (err) {
         console.error('[SettingsPanel] loadWebState:', err)
@@ -123,6 +112,16 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
     }
   }
 
+  async function handleAcknowledgeCT() {
+    setCTError(null)
+    try {
+      await AcknowledgeCTDisclosure()
+      setCTDisclosed(true)
+    } catch (err) {
+      setCTError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
   async function handleToggleServer() {
     setServerError(null)
     setServerLoading(true)
@@ -132,7 +131,7 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
         setIsServerRunning(false)
         setServerURL('')
       } else {
-        await StartWebServer(selectedInterface, selectedPort)
+        await StartWebServer(selectedPort)
         const url = await GetWebServerURL()
         setServerURL(url)
         setIsServerRunning(true)
@@ -141,18 +140,6 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
       setServerError(err instanceof Error ? err.message : String(err))
     } finally {
       setServerLoading(false)
-    }
-  }
-
-  // Platform-specific CA cert installation instructions.
-  function getCACertInstructions(): string {
-    const ua = navigator.userAgent.toLowerCase()
-    if (ua.includes('mac')) {
-      return `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "${caCertPath}"`
-    } else if (ua.includes('win')) {
-      return `certutil -addstore -f "ROOT" "${caCertPath}"`
-    } else {
-      return `sudo cp "${caCertPath}" /usr/local/share/ca-certificates/agenthub-ca.crt && sudo update-ca-certificates`
     }
   }
 
@@ -236,7 +223,7 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                   onClick={handleSaveCLIPaths}
                   disabled={saving}
                 >
-                  {saving ? 'Saving…' : 'Save Paths'}
+                  {saving ? 'Saving\u2026' : 'Save Paths'}
                 </button>
               </div>
             </>
@@ -245,27 +232,32 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
           {activeTab === 'web-server' && (
             <>
               <p className="settings-panel__description">
-                Enable HTTPS access to terminal sessions from remote browsers.
+                Enable HTTPS access to terminal sessions from your Tailscale network.
               </p>
 
-              {/* Network Interface Selector */}
-              <div className="settings-panel__field-group">
-                <label className="settings-panel__label">Network Interface</label>
-                {networkInterfaces.length === 0 ? (
-                  <p className="settings-panel__empty">No non-loopback interfaces found.</p>
+              {/* CT Disclosure Banner */}
+              <div className={`ct-disclosure ${ctDisclosed ? 'ct-disclosure--acknowledged' : ''}`}>
+                <label className="settings-panel__label">Certificate Transparency</label>
+                {ctDisclosed ? (
+                  <p className="ct-disclosure__text">
+                    <span style={{ color: '#9ece6a' }}>&#10003;</span> Certificate Transparency acknowledged
+                  </p>
                 ) : (
-                  <select
-                    className="settings-panel__select"
-                    value={selectedInterface}
-                    onChange={(e) => setSelectedInterface(e.target.value)}
-                    disabled={isServerRunning}
-                  >
-                    {networkInterfaces.map((iface) => (
-                      <option key={`${iface.Name}-${iface.IP}`} value={iface.IP}>
-                        {iface.Name} ({iface.IP}){iface.IsTailscale ? ' — Tailscale' : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <p className="ct-disclosure__text">
+                      When you start the web server, Tailscale will provision a Let&apos;s Encrypt TLS certificate
+                      for your device&apos;s hostname (e.g., <code className="settings-panel__code">hostname.ts.net</code>).
+                      This hostname will be permanently visible in public Certificate Transparency logs.
+                      This is normal and expected for any Let&apos;s Encrypt certificate.
+                    </p>
+                    <button
+                      className="ct-disclosure__btn settings-panel__btn settings-panel__btn--save"
+                      onClick={handleAcknowledgeCT}
+                    >
+                      I Understand
+                    </button>
+                    {ctError && <p className="settings-panel__error">{ctError}</p>}
+                  </>
                 )}
               </div>
 
@@ -288,11 +280,17 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                 <button
                   className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
                   onClick={handleToggleServer}
-                  disabled={serverLoading || (!isServerRunning && !isPasswordSet)}
-                  title={!isPasswordSet && !isServerRunning ? 'Set a password in the Security tab first' : undefined}
+                  disabled={serverLoading || (!isServerRunning && (!isPasswordSet || !ctDisclosed))}
+                  title={
+                    !ctDisclosed && !isServerRunning
+                      ? 'Acknowledge the Certificate Transparency disclosure first'
+                      : !isPasswordSet && !isServerRunning
+                        ? 'Set a password in the Security tab first'
+                        : undefined
+                  }
                 >
                   {serverLoading
-                    ? (isServerRunning ? 'Stopping…' : 'Starting…')
+                    ? (isServerRunning ? 'Stopping\u2026' : 'Starting\u2026')
                     : (isServerRunning ? 'Stop Web Server' : 'Start Web Server')}
                 </button>
                 {serverError && <p className="settings-panel__error">{serverError}</p>}
@@ -321,7 +319,7 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                     type="password"
                     value={webPassword}
                     onChange={(e) => setWebPassword(e.target.value)}
-                    placeholder={isPasswordSet ? 'Change password…' : 'Set a password to enable web serving'}
+                    placeholder={isPasswordSet ? 'Change password\u2026' : 'Set a password to enable web serving'}
                     onKeyDown={(e) => { if (e.key === 'Enter') void handleSetPassword() }}
                   />
                   <button
@@ -329,36 +327,10 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
                     onClick={handleSetPassword}
                     disabled={passwordSaving || !webPassword.trim()}
                   >
-                    {passwordSaving ? 'Saving…' : 'Set Password'}
+                    {passwordSaving ? 'Saving\u2026' : 'Set Password'}
                   </button>
                 </div>
                 {passwordError && <p className="settings-panel__error">{passwordError}</p>}
-              </div>
-
-              <hr style={{ border: 'none', borderTop: '1px solid #292e42', margin: '20px 0' }} />
-
-              {/* CA Certificate Guidance */}
-              <div className="settings-panel__field-group">
-                <label className="settings-panel__label">CA Certificate</label>
-                <p className="settings-panel__description">
-                  To avoid browser security warnings, install the local CA cert into your system trust store.
-                  The cert can also be downloaded from the running server at{' '}
-                  <code className="settings-panel__code">/ca.crt</code>.
-                </p>
-                {caCertPath && (
-                  <>
-                    <code className="settings-panel__code">{caCertPath}</code>
-                    <details className="settings-panel__details">
-                      <summary>Installation instructions</summary>
-                      <pre className="settings-panel__code settings-panel__code--block">
-                        {getCACertInstructions()}
-                      </pre>
-                      <p className="settings-panel__description">
-                        After installation, restart your browser and refresh the page.
-                      </p>
-                    </details>
-                  </>
-                )}
               </div>
             </>
           )}

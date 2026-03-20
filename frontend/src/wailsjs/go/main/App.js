@@ -16,13 +16,16 @@ export const UpdateCLIPath  = (name, path)   => Call('main.App.UpdateCLIPath', [
 export const SetWebPassword       = (password)              => Call('main.App.SetWebPassword', [password])
 export const IsWebPasswordSet     = ()                      => Call('main.App.IsWebPasswordSet', [])
 export const GetNetworkInterfaces = ()                      => Call('main.App.GetNetworkInterfaces', [])
-export const StartWebServer       = (bindIP, port)          => Call('main.App.StartWebServer', [bindIP, port])
+export const StartWebServer       = (port)                  => Call('main.App.StartWebServer', [port])
 export const StopWebServer        = ()                      => Call('main.App.StopWebServer', [])
 export const ToggleWebServing     = (sessionID, enabled)    => Call('main.App.ToggleWebServing', [sessionID, enabled])
 export const GenerateSessionToken = (sessionID)             => Call('main.App.GenerateSessionToken', [sessionID])
 export const GetWebServerURL      = ()                      => Call('main.App.GetWebServerURL', [])
-export const GetCACertPath        = ()                      => Call('main.App.GetCACertPath', [])
 export const IsWebServerRunning   = ()                      => Call('main.App.IsWebServerRunning', [])
+
+// CT disclosure bound methods
+export const HasCTDisclosure        = ()                    => Call('main.App.HasCTDisclosure', [])
+export const AcknowledgeCTDisclosure = ()                   => Call('main.App.AcknowledgeCTDisclosure', [])
 
 // QR code and status bound methods
 export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
@@ -30,3 +33,6 @@ export const GetSessionStatus     = (sessionID)             => Call('main.App.Ge
 
 // Directory dialog bound method
 export const OpenDirectoryDialog  = (defaultDir)            => Call('main.App.OpenDirectoryDialog', [defaultDir])
+
+// Tailscale health bound method
+export const GetTailscaleStatus   = ()                      => Call('main.App.GetTailscaleStatus', [])

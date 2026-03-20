@@ -32,13 +32,16 @@ export function UpdateCLIPath(name: string, path: string): Promise<void>
 export function SetWebPassword(password: string): Promise<void>
 export function IsWebPasswordSet(): Promise<boolean>
 export function GetNetworkInterfaces(): Promise<NetworkInterface[]>
-export function StartWebServer(bindIP: string, port: number): Promise<void>
+export function StartWebServer(port: number): Promise<void>
 export function StopWebServer(): Promise<void>
 export function ToggleWebServing(sessionID: string, enabled: boolean): Promise<void>
 export function GenerateSessionToken(sessionID: string): Promise<string>
 export function GetWebServerURL(): Promise<string>
-export function GetCACertPath(): Promise<string>
 export function IsWebServerRunning(): Promise<boolean>
+
+// CT disclosure bound methods
+export function HasCTDisclosure(): Promise<boolean>
+export function AcknowledgeCTDisclosure(): Promise<void>
 
 // QR code and status bound methods
 export function GetSessionQRCode(sessionID: string): Promise<string>
@@ -46,3 +49,12 @@ export function GetSessionStatus(sessionID: string): Promise<string>
 
 // Directory dialog bound method
 export function OpenDirectoryDialog(defaultDir: string): Promise<string>
+
+// Tailscale health bound method
+export function GetTailscaleStatus(): Promise<{
+  installed: boolean
+  connected: boolean
+  hasCerts: boolean
+  ip: string
+  domain: string
+}>

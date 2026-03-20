@@ -2,12 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/pem"
+	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/agenthub/agenthub/internal/webserver"
 )
 
 // testApp creates an App wired for testing — no Wails GUI, but all bound
@@ -244,7 +254,7 @@ func TestStartWebServerErrorsWhenPasswordNotSet(t *testing.T) {
 
 	app := testApp(t)
 	// No password set — StartWebServer should return an error.
-	err := app.StartWebServer("127.0.0.1", 0)
+	err := app.StartWebServer(0)
 	if err == nil {
 		t.Error("expected StartWebServer to return error when password is not set")
 	}
@@ -257,19 +267,64 @@ func TestIsWebServerRunning(t *testing.T) {
 	}
 }
 
+// selfSignedTLSForAppTest generates an in-memory self-signed TLS config
+// for use in app-level tests where Tailscale is not available.
+func selfSignedTLSForAppTest(t *testing.T) *tls.Config {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("selfSignedTLSForAppTest: generate key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test"},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+		DNSNames:     []string{"localhost"},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("selfSignedTLSForAppTest: create cert: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("selfSignedTLSForAppTest: marshal key: %v", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("selfSignedTLSForAppTest: key pair: %v", err)
+	}
+	return &tls.Config{Certificates: []tls.Certificate{cert}}
+}
+
 func TestGetSessionQRCode(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
 	app := testApp(t)
 
-	// Start the web server with a password.
-	if err := app.SetWebPassword("testpass"); err != nil {
-		t.Fatalf("SetWebPassword: %v", err)
+	// Bypass StartWebServer (which requires Tailscale) by directly creating a
+	// WebServer with an in-memory TLS config, then assigning it to app.webServer.
+	tlsCfg := selfSignedTLSForAppTest(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "localhost",
+		TLSConfig: tlsCfg,
+	}, app.manager)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
 	}
-	if err := app.StartWebServer("127.0.0.1", 0); err != nil {
-		t.Fatalf("StartWebServer: %v", err)
+	if err := ws.SetPassword("testpass"); err != nil {
+		t.Fatalf("SetPassword: %v", err)
 	}
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	app.mu.Lock()
+	app.webServer = ws
+	app.mu.Unlock()
 	t.Cleanup(func() { _ = app.StopWebServer() })
 
 	// Enable a session in the web server.
