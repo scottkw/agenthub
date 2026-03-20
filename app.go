@@ -389,6 +389,26 @@ func (a *App) StartWebServer(bindIP string, port int) error {
 		ws.LoadPasswordHash(hash)
 	}
 
+	ws.SetSessionResolver(func(id string) (string, string, string) {
+		a.mu.RLock()
+		name := a.tabNames[id]
+		a.mu.RUnlock()
+
+		cliType := ""
+		if sess, ok := a.registry.Get(id); ok {
+			cliType = sess.CLI
+		}
+
+		a.statusMu.RLock()
+		st := ""
+		if s, ok := a.sessionStatuses[id]; ok {
+			st = string(s)
+		}
+		a.statusMu.RUnlock()
+
+		return name, cliType, st
+	})
+
 	if err := ws.Start(); err != nil {
 		return fmt.Errorf("StartWebServer: start: %w", err)
 	}
