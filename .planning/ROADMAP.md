@@ -109,7 +109,11 @@ Plans:
   2. A renamed tab's name appears as the session name in the web dashboard (not the raw session ID)
   3. The web dashboard displays sessions in a visually improved layout with status color indicators and CLI badges
   4. New sessions created via the new-session modal appear with their chosen name in the web dashboard
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Go backend: session resolver callback, /api/sessions returns objects with name/cli/status
+- [ ] 12-02-PLAN.md — Right-click context menu on tab names for rename
+- [ ] 12-03-PLAN.md — Dashboard HTML/CSS redesign with card layout, status dots, CLI badges
 
 ### Phase 13: Build Script
 **Goal**: A single build.sh script compiles the app for any platform, with macOS signing and notarization support
@@ -138,7 +142,7 @@ Plans:
 | 9. Settings Modal Overhaul | 1/1 | Complete   | 2026-03-19 | - |
 | 10. Per-Tab Font Size | 1/1 | Complete    | 2026-03-19 | - |
 | 11. New-Session Modal | 3/3 | Complete    | 2026-03-19 | - |
-| 12. Tab Rename + Web Dashboard | v1.1 | 0/? | Not started | - |
+| 12. Tab Rename + Web Dashboard | v1.1 | 0/3 | Not started | - |
 | 13. Build Script | v1.1 | 0/? | Not started | - |
 
 ---
