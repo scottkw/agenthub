@@ -355,8 +355,7 @@ func (ws *WebServer) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	host, port, _ := net.SplitHostPort(ws.Addr())
-	url := fmt.Sprintf("https://%s:%s/sessions/%s?token=%s", host, port, sessionID, tok)
+	url := fmt.Sprintf("%s/sessions/%s?token=%s", ws.BaseURL(), sessionID, tok)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
