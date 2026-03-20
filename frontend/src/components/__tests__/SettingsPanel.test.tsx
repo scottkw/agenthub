@@ -6,7 +6,6 @@ import { SettingsPanel } from '../SettingsPanel'
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   UpdateCLIPath: vi.fn(),
-  GetNetworkInterfaces: vi.fn().mockResolvedValue([]),
   StartWebServer: vi.fn(),
   StopWebServer: vi.fn(),
   GetWebServerURL: vi.fn().mockResolvedValue(''),
