@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"sync"
 
 	"github.com/agenthub/agenthub/internal/relay"
@@ -37,12 +36,11 @@ type sessionListItem struct {
 	Status  string `json:"status"`
 }
 
-// WebServer serves the AgentHub dashboard, handles authentication, and relays
-// terminal I/O over WSS to remote browser clients.
+// WebServer serves the AgentHub dashboard and relays terminal I/O over WSS to
+// remote browser clients. Access control is provided at the network level by
+// Tailscale — no application-layer authentication is required.
 type WebServer struct {
 	config  Config
-	auth    *AuthManager
-	tokens  *TokenStore
 	manager *relay.HubManager
 
 	mu          sync.RWMutex
@@ -59,8 +57,6 @@ type WebServer struct {
 func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 	ws := &WebServer{
 		config:     cfg,
-		auth:       NewAuthManager(),
-		tokens:     NewTokenStore(),
 		manager:    manager,
 		webEnabled: make(map[string]bool),
 		mux:        http.NewServeMux(),
@@ -69,31 +65,10 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 	return ws, nil
 }
 
-// SetPassword sets the dashboard login password.
-func (ws *WebServer) SetPassword(plaintext string) error {
-	return ws.auth.SetPassword(plaintext)
-}
-
 // SetSessionResolver sets the callback used by handleListSessions to resolve
 // session metadata (name, CLI type, status). Must be called before Start().
 func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string)) {
 	ws.sessionResolver = fn
-}
-
-// LoadPasswordHash loads a pre-existing bcrypt hash into the auth manager.
-// Used when restoring a persisted password hash on startup.
-func (ws *WebServer) LoadPasswordHash(hash []byte) {
-	ws.auth.LoadPasswordHash(hash)
-}
-
-// IsPasswordSet returns true if a password hash has been set.
-func (ws *WebServer) IsPasswordSet() bool {
-	return ws.auth.IsPasswordSet()
-}
-
-// CreateToken creates a one-time shareable token for the given session.
-func (ws *WebServer) CreateToken(sessionID string) (string, error) {
-	return ws.tokens.Create(sessionID)
 }
 
 // EnableSession marks a session as web-served (WEB-01 toggle).
@@ -207,6 +182,7 @@ func (ws *WebServer) BaseURL() string {
 }
 
 // setupRoutes registers all HTTP routes on the server mux.
+// All routes are open — network-level access control is provided by Tailscale.
 func (ws *WebServer) setupRoutes() {
 	mux := ws.mux
 
@@ -219,71 +195,32 @@ func (ws *WebServer) setupRoutes() {
 		http.NotFound(w, r)
 	})
 
-	// GET /dashboard — no auth required; the HTML's JS handles login state internally
+	// GET /dashboard
 	mux.HandleFunc("GET /dashboard", ws.handleDashboard)
 
-	// POST /login — JSON {"password": "..."}
-	mux.HandleFunc("POST /login", ws.handleLogin)
+	// GET /api/sessions
+	mux.HandleFunc("GET /api/sessions", ws.handleListSessions)
 
-	// GET /api/sessions — requires dashboard auth
-	mux.HandleFunc("GET /api/sessions", ws.dashboardAuth(ws.handleListSessions))
-
-	// GET /sessions/{id} — requires session auth (cookie OR token)
-	mux.HandleFunc("GET /sessions/{id}", ws.sessionAuth(ws.handleTerminalPage))
-
-	// GET /sessions/{id}/ws — requires session auth; WebSocket upgrade
-	mux.HandleFunc("GET /sessions/{id}/ws", ws.sessionAuth(ws.handleWSSRelay))
-
-	// POST /api/sessions/{id}/token — requires dashboard auth
-	mux.HandleFunc("POST /api/sessions/{id}/token", ws.dashboardAuth(ws.handleCreateToken))
-
-	// GET /api/sessions/{id}/qr — requires dashboard auth; serves QR code PNG
-	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.dashboardAuth(ws.handleSessionQR))
-}
-
-// dashboardAuth middleware — validates agenthub_session cookie.
-func (ws *WebServer) dashboardAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("agenthub_session")
-		if err != nil || !ws.auth.IsAuthenticated(cookie.Value) {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next(w, r)
-	}
-}
-
-// sessionAuth middleware — validates token query param OR session cookie.
-func (ws *WebServer) sessionAuth(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		sessionID := r.PathValue("id")
-
-		// Check if session is web-enabled
-		if !ws.isSessionEnabled(sessionID) {
+	// GET /sessions/{id} — checks web-enabled toggle only
+	mux.HandleFunc("GET /sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !ws.isSessionEnabled(r.PathValue("id")) {
 			http.NotFound(w, r)
 			return
 		}
+		ws.handleTerminalPage(w, r)
+	})
 
-		// Try token first
-		if tok := r.URL.Query().Get("token"); tok != "" {
-			sid, ok := ws.tokens.Lookup(tok)
-			if ok && sid == sessionID {
-				next(w, r)
-				return
-			}
-			// Token provided but invalid — reject
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	// GET /sessions/{id}/ws — checks web-enabled toggle only; WebSocket upgrade
+	mux.HandleFunc("GET /sessions/{id}/ws", func(w http.ResponseWriter, r *http.Request) {
+		if !ws.isSessionEnabled(r.PathValue("id")) {
+			http.NotFound(w, r)
 			return
 		}
+		ws.handleWSSRelay(w, r)
+	})
 
-		// Fall back to session cookie
-		cookie, err := r.Cookie("agenthub_session")
-		if err != nil || !ws.auth.IsAuthenticated(cookie.Value) {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next(w, r)
-	}
+	// GET /api/sessions/{id}/qr — serves QR code PNG
+	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.handleSessionQR)
 }
 
 // handleDashboard serves the embedded dashboard.html.
@@ -295,26 +232,6 @@ func (ws *WebServer) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(data) //nolint:errcheck
-}
-
-// handleLogin handles POST /login.
-func (ws *WebServer) handleLogin(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	cookieValue, err := ws.auth.Login(req.Password)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	http.SetCookie(w, ws.auth.MakeSessionCookie(cookieValue))
-	w.WriteHeader(http.StatusOK)
 }
 
 // handleListSessions handles GET /api/sessions.
@@ -344,24 +261,6 @@ func (ws *WebServer) handleTerminalPage(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(data) //nolint:errcheck
-}
-
-// handleCreateToken handles POST /api/sessions/{id}/token.
-func (ws *WebServer) handleCreateToken(w http.ResponseWriter, r *http.Request) {
-	sessionID := r.PathValue("id")
-	tok, err := ws.tokens.Create(sessionID)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	url := fmt.Sprintf("%s/sessions/%s?token=%s", ws.BaseURL(), sessionID, tok)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{ //nolint:errcheck
-		"token": tok,
-		"url":   url,
-	})
 }
 
 // handleSessionQR handles GET /api/sessions/{id}/qr.
@@ -397,9 +296,8 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// The sessionAuth middleware has already validated the request.
-		// Accept connections from any origin — the server is only accessible to
-		// explicitly authenticated clients (cookie or token).
+		// The server is accessible only to tailnet members via Tailscale.
+		// Accept connections from any origin.
 		OriginPatterns: []string{"*"},
 	})
 	if err != nil {
@@ -470,23 +368,4 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-}
-
-// simpleCookieJar is a minimal CookieJar for tests.
-type simpleCookieJar struct {
-	mu      sync.Mutex
-	cookies map[string][]*http.Cookie
-}
-
-func (j *simpleCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	key := u.Host
-	j.cookies[key] = append(j.cookies[key], cookies...)
-}
-
-func (j *simpleCookieJar) Cookies(u *url.URL) []*http.Cookie {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-	return j.cookies[u.Host]
 }
