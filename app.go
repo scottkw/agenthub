@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/agenthub/agenthub/internal/relay"
@@ -80,6 +81,9 @@ func (a *App) startup(ctx context.Context) {
 	// Start system tray icon (non-blocking, macOS NSStatusBar).
 	a.initTray()
 	a.trayInit = true
+
+	// Start Tailscale health check background poller.
+	a.startHealthPoller(ctx)
 }
 
 // shutdown is called when the Wails app is about to exit.
@@ -527,4 +531,39 @@ func (a *App) OpenDirectoryDialog(defaultDir string) (string, error) {
 		Title:            "Select Working Directory",
 		DefaultDirectory: defaultDir,
 	})
+}
+
+// GetTailscaleStatus returns the current Tailscale health state.
+// Called by the frontend on-demand; also available as a Wails-bound method.
+func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return webserver.CheckHealth(ctx)
+}
+
+// startHealthPoller starts a background goroutine that polls Tailscale health
+// every 10 seconds and emits "tailscale:health" events when the state changes.
+// The goroutine exits when ctx is cancelled (Wails shutdown).
+func (a *App) startHealthPoller(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		var last webserver.TailscaleHealth
+		for {
+			select {
+			case <-ticker.C:
+				checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+				h := webserver.CheckHealth(checkCtx)
+				cancel()
+				if h != last {
+					last = h
+					if a.ctx != nil && a.ctx.Value("frontend") != nil {
+						runtime.EventsEmit(a.ctx, "tailscale:health", h)
+					}
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
