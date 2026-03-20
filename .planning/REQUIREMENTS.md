@@ -27,7 +27,7 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 - [x] **UILAY-01**: Toolbar buttons are visually larger and easy to click
 - [x] **UILAY-02**: Each tab displays a status bar at the bottom showing web serving state, URL, and controls
 - [x] **UILAY-03**: Web status/URL header overlay is removed from tab content area
-- [ ] **UILAY-04**: User can rename a tab by double-clicking or right-clicking the tab label
+- [x] **UILAY-04**: User can rename a tab by double-clicking or right-clicking the tab label
 - [x] **UILAY-05**: Renamed tab name is used as the session name in the web dashboard
 
 ### Session Management
@@ -39,7 +39,7 @@ Requirements for v1.1 Polish & Build milestone. Each maps to roadmap phases.
 
 ### Web Dashboard
 
-- [ ] **WEBUI-01**: Web dashboard has an improved visual design with better styling
+- [x] **WEBUI-01**: Web dashboard has an improved visual design with better styling
 - [x] **WEBUI-02**: Web dashboard displays session names (from tab renames) instead of raw session IDs
 
 ### Settings
@@ -95,13 +95,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UILAY-01 | Phase 7 | Complete |
 | UILAY-02 | Phase 8 | Complete |
 | UILAY-03 | Phase 8 | Complete |
-| UILAY-04 | Phase 12 | Pending |
+| UILAY-04 | Phase 12 | Complete |
 | UILAY-05 | Phase 12 | Complete |
 | SESS-01 | Phase 11 | Complete |
 | SESS-02 | Phase 11 | Complete |
 | SESS-03 | Phase 11 | Complete |
 | SESS-04 | Phase 11 | Complete |
-| WEBUI-01 | Phase 12 | Pending |
+| WEBUI-01 | Phase 12 | Complete |
 | WEBUI-02 | Phase 12 | Complete |
 | SETT-01 | Phase 9 | Complete |
 | SETT-02 | Phase 9 | Complete |
