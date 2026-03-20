@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { TerminalPanel } from '../TerminalPanel'
 import raw from '../TerminalPanel.tsx?raw'
+
+const __dir = dirname(fileURLToPath(import.meta.url))
+const cssRaw = readFileSync(resolve(__dir, '../../style.css'), 'utf-8')
 
 describe('TerminalPanel', () => {
   it('exports TerminalPanel function', () => {
@@ -11,6 +17,16 @@ describe('TerminalPanel', () => {
     expect(raw).toContain("flex: 1")
     expect(raw).toContain("minHeight: 0")
     expect(raw).toContain("width: '100%'")
+  })
+})
+
+describe('TERM-01 terminal container layout (style.css)', () => {
+  it('terminal-container has min-height: 0 so content fills all available space', () => {
+    // Extract the .terminal-container rule block from the stylesheet
+    const ruleStart = cssRaw.indexOf('.terminal-container')
+    expect(ruleStart).toBeGreaterThan(-1)
+    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
+    expect(ruleBlock).toContain('min-height: 0')
   })
 })
 

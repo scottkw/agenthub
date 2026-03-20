@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import React from 'react'
+
+const __dir = dirname(fileURLToPath(import.meta.url))
+const cssRaw = readFileSync(resolve(__dir, '../../style.css'), 'utf-8')
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { TabBar } from '../TabBar'
@@ -91,6 +97,36 @@ describe('TabBar', () => {
   it('renders tab-list container', () => {
     ;({ container, root } = renderTabBar())
     expect(container.querySelector('.tab-list')).not.toBeNull()
+  })
+})
+
+describe('UILAY-01 toolbar button dimensions (style.css)', () => {
+  it('tab-bar has height 42px so the bar is visually substantial', () => {
+    const ruleStart = cssRaw.indexOf('.tab-bar {')
+    expect(ruleStart).toBeGreaterThan(-1)
+    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
+    expect(ruleBlock).toContain('height: 42px')
+  })
+
+  it('tab-bar__btn has width 38px to meet the 38x38px click-target requirement', () => {
+    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
+    expect(ruleStart).toBeGreaterThan(-1)
+    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
+    expect(ruleBlock).toContain('width: 38px')
+  })
+
+  it('tab-bar__btn has height 38px to meet the 38x38px click-target requirement', () => {
+    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
+    expect(ruleStart).toBeGreaterThan(-1)
+    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
+    expect(ruleBlock).toContain('height: 38px')
+  })
+
+  it('tab-bar__btn has font-size 18px so icons are visually large', () => {
+    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
+    expect(ruleStart).toBeGreaterThan(-1)
+    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
+    expect(ruleBlock).toContain('font-size: 18px')
   })
 })
 
