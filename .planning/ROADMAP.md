@@ -72,7 +72,7 @@ Plans:
   3. The FQDN shown in the app and QR codes is derived from the Tailscale daemon, not any hardcoded value
   4. User sees a Certificate Transparency disclosure before the first cert is provisioned
   5. Self-signed certificate generation code is gone and no cert files are written to disk
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 15-01-PLAN.md — WebServer TLS swap: GetCertificate hook, FQDN BaseURL, delete tls.go, update tests
 - [ ] 15-02-PLAN.md — App layer + frontend: StartWebServer(port), CT disclosure, SettingsPanel update
@@ -127,7 +127,7 @@ Plans:
 | 12. Tab Rename + Web Dashboard | v1.1 | 3/3 | Complete | 2026-03-20 |
 | 13. Build Script | v1.1 | 2/2 | Complete | 2026-03-20 |
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
-| 15. Tailscale TLS + Interface Binding | v1.2 | 0/2 | Planning complete | - |
+| 15. Tailscale TLS + Interface Binding | 1/2 | In Progress|  | - |
 | 16. Auth Layer Removal | v1.2 | 0/? | Not started | - |
 | 17. Dead Code Cleanup | v1.2 | 0/? | Not started | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |

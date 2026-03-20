@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Tailscale-Only Networking
 status: unknown
-stopped_at: Completed 14-02-PLAN.md (Phase 14 complete)
-last_updated: "2026-03-20T18:51:47.590Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-20T19:42:45.712Z"
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 14 — tailscale-health-check-infrastructure
+**Current focus:** Phase 15 — tailscale-tls-interface-binding
 
 ## Current Position
 
-Phase: 14 (tailscale-health-check-infrastructure) — COMPLETE
+Phase: 15 (tailscale-tls-interface-binding) — EXECUTING
 Plan: 2 of 2
 
 ## Performance Metrics
@@ -43,6 +43,7 @@ Plan: 2 of 2
 *Updated after each plan completion*
 | Phase 14-tailscale-health-check-infrastructure P01 | 15 | 2 tasks | 4 files |
 | Phase 14-tailscale-health-check-infrastructure P02 | 10 | 2 tasks | 2 files |
+| Phase 15-tailscale-tls-interface-binding P01 | 215 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Key v1.2 constraints affecting all phases:
 - [Phase 14-02]: GetTailscaleStatus uses context.Background() (not a.ctx) so callable before Wails fully initialises
 - [Phase 14-02]: Struct equality (h != last) prevents event storms when Tailscale state is stable
 - [Phase 14-02]: startHealthPoller goroutine bound to Wails ctx for lifecycle alignment with app shutdown
+- [Phase 15-01]: Use InsecureSkipVerify for fresh token-test clients (these test auth logic, not TLS trust)
+- [Phase 15-01]: Tailscale GetCertificate hook in Start(); TLSConfig field in Config for test isolation
 
 ### Pending Todos
 
@@ -73,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20T19:10:00.000Z
-Stopped at: Completed 14-02-PLAN.md (Phase 14 complete)
+Last session: 2026-03-20T19:42:45.709Z
+Stopped at: Completed 15-01-PLAN.md
 Resume file: None
