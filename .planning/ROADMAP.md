@@ -42,7 +42,7 @@
 - [x] **Phase 14: Tailscale Health Check Infrastructure** — Backend health check logic and Wails binding; zero regression risk; unblocks every subsequent phase (completed 2026-03-20)
 - [x] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP (completed 2026-03-20)
 - [x] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding (completed 2026-03-20)
-- [ ] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase
+- [x] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase (completed 2026-03-20)
 - [ ] **Phase 18: Frontend Health Modal + Status UI** — Instructional health modal with three-state guidance, CT disclosure, and Tailscale status indicator replacing interface picker
 
 ## Phase Details
@@ -98,7 +98,7 @@ Plans:
   1. `go build ./...` passes with zero errors after the deletions
   2. No generic VPN interface picker, password field, or token UI remains in the settings panel
   3. Auth middleware, token generation routes, and VPN interface code are absent from the compiled binary (confirmed by source inspection)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 17-01-PLAN.md — Backend Go dead code deletion (network.go, GetNetworkInterfaces)
 - [ ] 17-02-PLAN.md — Frontend Wails binding cleanup (GetNetworkInterfaces exports, NetworkInterface type)
@@ -138,7 +138,7 @@ Plans:
 | 14. Tailscale Health Check Infrastructure | 2/2 | Complete    | 2026-03-20 | - |
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | 2/2 | Complete    | 2026-03-20 | - |
-| 17. Dead Code Cleanup | 1/2 | In Progress|  | - |
+| 17. Dead Code Cleanup | 2/2 | Complete   | 2026-03-20 | - |
 | 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
 
 ---
