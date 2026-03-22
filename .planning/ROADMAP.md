@@ -115,8 +115,8 @@ Plans:
   5. Settings panel shows a Tailscale connection status indicator where the VPN interface picker used to be
 **Plans:** 2 plans
 Plans:
-- [ ] 17-01-PLAN.md — Backend Go dead code deletion (network.go, GetNetworkInterfaces)
-- [ ] 17-02-PLAN.md — Frontend Wails binding cleanup (GetNetworkInterfaces exports, NetworkInterface type)
+- [ ] 18-01-PLAN.md — HealthModal component with three-state panels, platform instructions, CT disclosure, CSS
+- [ ] 18-02-PLAN.md — App.tsx health wiring, SettingsPanel status indicator, test updates
 
 ## Progress
 
@@ -139,7 +139,7 @@ Plans:
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | 2/2 | Complete    | 2026-03-20 | - |
 | 17. Dead Code Cleanup | 2/2 | Complete    | 2026-03-20 | - |
-| 18. Frontend Health Modal + Status UI | v1.2 | 0/? | Not started | - |
+| 18. Frontend Health Modal + Status UI | v1.2 | 0/2 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
