@@ -13,12 +13,14 @@ import {
   GetWebServerURL,
   IsWebServerRunning,
   GetSessionStatus,
+  GetTailscaleStatus,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI } from './wailsjs/go/main/App'
-import { EventsOn } from './wailsjs/wailsjs/runtime/runtime'
+import { EventsOn, Environment } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
+import { HealthModal } from './components/HealthModal'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -46,20 +48,33 @@ function App(): React.ReactElement {
   const [qrSessionId, setQrSessionId] = useState<string | null>(null)
   // Track font size per session: sessionId -> fontSize (pixels)
   const [fontSizes, setFontSizes] = useState<Record<string, number>>({})
+  // Tailscale health state
+  const [tailscaleHealth, setTailscaleHealth] = useState<{
+    installed: boolean
+    connected: boolean
+    hasCerts: boolean
+    ip: string
+    domain: string
+  } | null>(null)
+  const [platform, setPlatform] = useState<string>('linux')
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
     async function init() {
       try {
-        const [port, clis, sessions, running] = await Promise.all([
+        const [port, clis, sessions, running, health, env] = await Promise.all([
           GetRelayPort(),
           DetectCLIs(),
           ListSessions(),
           IsWebServerRunning(),
+          GetTailscaleStatus(),
+          Environment(),
         ])
         setRelayPort(port)
         setDetectedCLIs(clis)
         setWebServerRunning(running)
+        setTailscaleHealth(health)
+        setPlatform(env.platform)
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -95,8 +110,19 @@ function App(): React.ReactElement {
       },
     )
 
+    const offHealth = EventsOn('tailscale:health', (h: {
+      installed: boolean
+      connected: boolean
+      hasCerts: boolean
+      ip: string
+      domain: string
+    }) => {
+      setTailscaleHealth(h)
+    })
+
     return () => {
       offStatus()
+      offHealth()
     }
   }, [])
 
@@ -206,6 +232,15 @@ function App(): React.ReactElement {
     })
   }, [])
 
+  const handleCheckHealthAgain = useCallback(async () => {
+    try {
+      const health = await GetTailscaleStatus()
+      setTailscaleHealth(health)
+    } catch (err) {
+      console.error('[App] GetTailscaleStatus failed:', err)
+    }
+  }, [])
+
   return (
     <div className="app">
       <TabBar
@@ -273,6 +308,13 @@ function App(): React.ReactElement {
         isOpen={showSettings}
         onClose={handleSettingsClose}
         clis={detectedCLIs}
+        tailscaleHealth={tailscaleHealth}
+      />
+
+      <HealthModal
+        health={tailscaleHealth}
+        platform={platform}
+        onCheckAgain={handleCheckHealthAgain}
       />
     </div>
   )
