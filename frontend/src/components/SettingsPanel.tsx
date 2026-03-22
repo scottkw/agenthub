@@ -14,6 +14,13 @@ interface SettingsPanelProps {
   isOpen: boolean
   onClose: () => void
   clis: DetectedCLI[]
+  tailscaleHealth: {
+    installed: boolean
+    connected: boolean
+    hasCerts: boolean
+    ip: string
+    domain: string
+  } | null
 }
 
 /**
@@ -21,7 +28,7 @@ interface SettingsPanelProps {
  * Lists all detected CLIs with an input field for path overrides, plus a Web Server
  * section for CT disclosure and server start/stop.
  */
-export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): React.ReactElement | null {
+export function SettingsPanel({ isOpen, onClose, clis, tailscaleHealth }: SettingsPanelProps): React.ReactElement | null {
   const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
@@ -67,6 +74,20 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
   }, [isOpen])
 
   if (!isOpen) return null
+
+  function tailscaleStatusClass(h: SettingsPanelProps['tailscaleHealth']): string {
+    if (!h) return ''
+    if (h.installed && h.connected) return 'ok'
+    if (h.installed) return 'warn'
+    return 'error'
+  }
+
+  function tailscaleStatusText(h: SettingsPanelProps['tailscaleHealth']): string {
+    if (!h) return 'Checking\u2026'
+    if (h.installed && h.connected) return 'Connected'
+    if (h.installed) return 'Not Connected'
+    return 'Not Installed'
+  }
 
   async function handleSaveCLIPaths() {
     setSaving(true)
@@ -199,6 +220,17 @@ export function SettingsPanel({ isOpen, onClose, clis }: SettingsPanelProps): Re
               <p className="settings-panel__description">
                 Enable HTTPS access to terminal sessions from your Tailscale network.
               </p>
+
+              {/* Tailscale Status Indicator */}
+              <div className="settings-panel__field-group">
+                <label className="settings-panel__label">Tailscale Status</label>
+                <div className="ts-status">
+                  {tailscaleHealth && (
+                    <span className={`ts-status__dot ts-status__dot--${tailscaleStatusClass(tailscaleHealth)}`} />
+                  )}
+                  <span className="ts-status__text">{tailscaleStatusText(tailscaleHealth)}</span>
+                </div>
+              </div>
 
               {/* CT Disclosure Banner */}
               <div className={`ct-disclosure ${ctDisclosed ? 'ct-disclosure--acknowledged' : ''}`}>

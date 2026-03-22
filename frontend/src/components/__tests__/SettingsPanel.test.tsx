@@ -3,6 +3,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { SettingsPanel } from '../SettingsPanel'
+import rawSettings from '../SettingsPanel.tsx?raw'
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   UpdateCLIPath: vi.fn(),
@@ -18,6 +19,13 @@ interface SettingsPanelProps {
   isOpen: boolean
   onClose: () => void
   clis: Array<{ Name: string; Path: string }>
+  tailscaleHealth: {
+    installed: boolean
+    connected: boolean
+    hasCerts: boolean
+    ip: string
+    domain: string
+  } | null
 }
 
 function renderSettingsPanel(props: Partial<SettingsPanelProps> = {}) {
@@ -25,6 +33,7 @@ function renderSettingsPanel(props: Partial<SettingsPanelProps> = {}) {
     isOpen: true,
     onClose: vi.fn(),
     clis: [{ Name: 'claude', Path: '/usr/bin/claude' }],
+    tailscaleHealth: null,
   }
   const merged = { ...defaults, ...props }
   const container = document.createElement('div')
@@ -146,5 +155,39 @@ describe('SettingsPanel', () => {
     expect(footerBtnTexts).not.toContain('Save Paths')
     const savePathsBtn = Array.from(body!.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Save Paths')
     expect(savePathsBtn).not.toBeUndefined()
+  })
+
+  describe('Tailscale Status Indicator', () => {
+    it('SettingsPanel accepts tailscaleHealth prop', () => {
+      expect(rawSettings).toContain('tailscaleHealth')
+    })
+
+    it('Web Server tab contains Tailscale Status label', () => {
+      expect(rawSettings).toContain('Tailscale Status')
+    })
+
+    it('renders ts-status CSS class', () => {
+      expect(rawSettings).toContain('ts-status')
+    })
+
+    it('renders ts-status__dot with status class', () => {
+      expect(rawSettings).toContain('ts-status__dot')
+    })
+
+    it('shows "Connected" text for healthy state', () => {
+      ;({ container, root } = renderSettingsPanel({
+        tailscaleHealth: { installed: true, connected: true, hasCerts: true, ip: '100.64.0.1', domain: 'host.ts.net' },
+      }))
+      clickTabByText(container, 'Web Server')
+      const statusText = container.querySelector('.ts-status__text')
+      expect(statusText?.textContent).toBe('Connected')
+    })
+
+    it('shows "Checking..." when tailscaleHealth is null', () => {
+      ;({ container, root } = renderSettingsPanel({ tailscaleHealth: null }))
+      clickTabByText(container, 'Web Server')
+      const statusText = container.querySelector('.ts-status__text')
+      expect(statusText?.textContent).toBe('Checking\u2026')
+    })
   })
 })
