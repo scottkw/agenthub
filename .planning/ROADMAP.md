@@ -43,7 +43,7 @@
 - [x] **Phase 15: Tailscale TLS + Interface Binding** — Replace self-signed cert infrastructure with Let's Encrypt via Tailscale daemon; bind web server to Tailscale IP (completed 2026-03-20)
 - [x] **Phase 16: Auth Layer Removal** — Remove password auth, per-session tokens, and all auth middleware; safe only after Phase 15 confirms Tailscale IP binding (completed 2026-03-20)
 - [x] **Phase 17: Dead Code Cleanup** — Delete obsolete files and simplify Config struct; compiler-guided; unblocks clean codebase (completed 2026-03-20)
-- [ ] **Phase 18: Frontend Health Modal + Status UI** — Instructional health modal with three-state guidance, CT disclosure, and Tailscale status indicator replacing interface picker
+- [x] **Phase 18: Frontend Health Modal + Status UI** — Instructional health modal with three-state guidance, CT disclosure, and Tailscale status indicator replacing interface picker (completed 2026-03-22)
 
 ## Phase Details
 
@@ -113,7 +113,7 @@ Plans:
   3. When Tailscale is connected but certs are not enabled, the modal shows cert-enablement instructions with a "Check Again" button
   4. The Certificate Transparency disclosure is visible in the modal before any cert provisioning attempt
   5. Settings panel shows a Tailscale connection status indicator where the VPN interface picker used to be
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 18-01-PLAN.md — HealthModal component with three-state panels, platform instructions, CT disclosure, CSS
 - [ ] 18-02-PLAN.md — App.tsx health wiring, SettingsPanel status indicator, test updates
@@ -139,7 +139,7 @@ Plans:
 | 15. Tailscale TLS + Interface Binding | 2/2 | Complete    | 2026-03-20 | - |
 | 16. Auth Layer Removal | 2/2 | Complete    | 2026-03-20 | - |
 | 17. Dead Code Cleanup | 2/2 | Complete    | 2026-03-20 | - |
-| 18. Frontend Health Modal + Status UI | 1/2 | In Progress|  | - |
+| 18. Frontend Health Modal + Status UI | 2/2 | Complete   | 2026-03-22 | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
