@@ -44,7 +44,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 **Target features:**
 - Tailscale-only networking (remove generic VPN interface support) — Phase 17 complete: dead code removed
-- Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events
+- Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events; Phase 18 complete: HealthModal UI with three-state panels, platform-specific instructions, CT disclosure, status indicator in SettingsPanel
 - Let's Encrypt certs via Tailscale for web server and remote sessions — Phase 15 complete: GetCertificate hook, FQDN-based URLs, CT disclosure
 - Remove password auth, per-session tokens, and self-signed cert infrastructure — Phase 16 complete: all auth deleted, dashboard/sessions open to tailnet members
 
@@ -70,7 +70,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 Shipped v1.1 with ~9,956 LOC (6,541 Go + 2,622 TS/TSX + 793 CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode.
-Frontend test suite: 73 vitest tests (source-inspection pattern for xterm.js/Wails constraints).
+Frontend test suite: 121 vitest tests (source-inspection pattern for xterm.js/Wails constraints).
 Go test suite: race-clean, webserver tests with resolver coverage.
 Status heuristics implemented for Claude CLI; other CLIs always show "running" (deferred).
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization.
