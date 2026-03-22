@@ -34,7 +34,7 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, tight inline padding (tab-bar controls gap: 2px is an existing exception) |
-| sm | 8px | Compact element spacing, modal footer gaps |
+| sm | 8px | Compact element spacing, modal footer gaps, `.ts-status { gap: }` |
 | md | 16px | Default element spacing — modal body padding, field-group margin-bottom |
 | lg | 20px | Modal header/body padding (existing settings-panel convention: `padding: 16px 20px`) |
 | xl | 24px | Modal body padding (existing new-session modal: `padding: 24px`) |
@@ -44,8 +44,9 @@ Declared values (must be multiples of 4):
 Exceptions:
 - Modal width: 520px (fixed, matches `.settings-panel` exactly — source: `style.css:247`)
 - Status dot dimensions: 8×8px (matches existing `.tab__status` dot — source: `style.css:710`)
-- Status dot gap: 6px (matches existing `.tab__status` margin-right — source: `style.css:713`)
 - Tab-bar button touch target: 38×38px (existing `.tab-bar__btn` — not changed in this phase)
+
+Note: The legacy `.tab__status` element uses `margin-right: 6px` (source: `style.css:713`). That element is not modified in this phase. The new `.ts-status` class uses `gap: 8px`.
 
 ---
 
@@ -68,14 +69,13 @@ Source: extracted from existing SettingsPanel CSS — `settings-panel__header h2
 |------|-------|-------|
 | Dominant (60%) | `#1a1b26` | App background, terminal background |
 | Secondary (30%) | `#1e2030` | Modal surface, hover backgrounds, card backgrounds |
-| Accent (10%) | `#7aa2f7` | Active tab underline, active border, links, primary CTA buttons, CT disclosure left-border, `ts-status__dot--ok` dot label |
+| Accent (10%) | `#7aa2f7` | Active tab underline, active border, links, primary CTA buttons, CT disclosure left-border |
 | Destructive | `#f7768e` | Close button hover, error text, status dot errors |
 
 Accent (`#7aa2f7`) reserved for:
 1. `health-modal__header` bottom border (matching `.settings-panel__tab-btn--active` border)
-2. `ts-status__dot--ok` — connected state indicator dot color (`#9ece6a` green, same as `.tab__status--idle`)
-3. "Check Again" button — primary CTA styling (matches `.settings-panel__btn--save`)
-4. Links inside modal instruction panels
+2. "Check Again" button — primary CTA styling (matches `.settings-panel__btn--save`)
+3. Links inside modal instruction panels
 
 Status dot color mapping (source: `style.css` existing patterns):
 - `ts-status__dot--ok`: `#9ece6a` (green — matches `.tab__status--idle`)
@@ -88,6 +88,34 @@ Supporting surface colors:
 - Primary text: `#c0caf5`
 - Secondary text: `#a9b1d6`
 - Code background: `#16161e`
+
+---
+
+## Focal Points
+
+### Screen State 1: NotInstalledPanel
+
+- Primary focal point: modal heading "Tailscale Setup Required" (`.health-modal__header h2` — 16px semibold, top of modal, full-width)
+- Secondary focal point: panel title "Tailscale is not installed or not running." (`.health-modal__title` — 13px semibold, first element in body, color `#a9b1d6`)
+- No interactive elements — body is informational only
+
+### Screen State 2: NotConnectedPanel
+
+- Primary focal point: modal heading "Tailscale Setup Required" (`.health-modal__header h2` — 16px semibold, top of modal)
+- Secondary focal point: platform-specific instruction paragraph (`.health-modal__text` — 13px regular, body area)
+- No interactive elements — body is informational only
+
+### Screen State 3: NoCertsPanel
+
+- Primary focal point: modal heading "Tailscale Setup Required" (`.health-modal__header h2` — 16px semibold, top of modal)
+- Secondary focal point: "Check Again" button (`.health-modal__btn--check` — accent `#7aa2f7` background, 13px semibold, bottom-right of modal footer)
+- Tertiary content: CT disclosure paragraph (`.health-modal__text` — 13px regular, color `#a9b1d6`, below the steps list)
+
+### Screen State 4: TailscaleStatusIndicator (SettingsPanel Web Server tab)
+
+- Primary focal point: colored status dot (`.ts-status__dot--ok/warn/error` — 8×8px circle, leftmost element in the row, color communicates health at a glance)
+- Secondary focal point: status label text (`.ts-status__text` — 13px regular, `#a9b1d6`, immediately right of the dot)
+- No interactive elements — read-only at all times
 
 ---
 
@@ -122,7 +150,7 @@ Inline status indicator added in the Web Server tab, above the CT disclosure blo
 
 | CSS class | Description | Value |
 |-----------|-------------|-------|
-| `.ts-status` | Row container | `display: flex; align-items: center; gap: 6px; font-size: 13px` |
+| `.ts-status` | Row container | `display: flex; align-items: center; gap: 8px; font-size: 13px` |
 | `.ts-status__dot` | Colored dot | `display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0` |
 | `.ts-status__dot--ok` | Connected | `background: #9ece6a` |
 | `.ts-status__dot--warn` | Not connected | `background: #f59e0b` |
