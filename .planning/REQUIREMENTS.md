@@ -12,8 +12,8 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 - [x] **HEALTH-01**: App detects whether Tailscale is installed on the system
 - [x] **HEALTH-02**: App detects whether Tailscale is connected to a tailnet
 - [x] **HEALTH-03**: App detects whether HTTPS certificates are enabled in the tailnet
-- [ ] **HEALTH-04**: User sees a modal with clear, actionable instructions when any health check fails
-- [ ] **HEALTH-05**: Modal instructions are platform-specific (macOS, Linux, Windows)
+- [x] **HEALTH-04**: User sees a modal with clear, actionable instructions when any health check fails
+- [x] **HEALTH-05**: Modal instructions are platform-specific (macOS, Linux, Windows)
 - [x] **HEALTH-06**: Health checks run periodically in background; modal updates automatically when user resolves issues
 
 ### TLS & Certificates
@@ -34,7 +34,7 @@ Requirements for Tailscale-Only Networking milestone. Each maps to roadmap phase
 
 - [x] **CLEAN-01**: Generic VPN interface binding code is removed
 - [x] **CLEAN-02**: Auth middleware, token generation, and related backend routes are removed
-- [ ] **CLEAN-03**: Settings UI for password, tokens, and VPN interface selection is removed
+- [x] **CLEAN-03**: Settings UI for password, tokens, and VPN interface selection is removed
 
 ## Future Requirements
 
@@ -62,8 +62,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HEALTH-01 | Phase 14 | Complete |
 | HEALTH-02 | Phase 14 | Complete |
 | HEALTH-03 | Phase 14 | Complete |
-| HEALTH-04 | Phase 18 | Pending |
-| HEALTH-05 | Phase 18 | Pending |
+| HEALTH-04 | Phase 18 | Complete |
+| HEALTH-05 | Phase 18 | Complete |
 | HEALTH-06 | Phase 14 | Complete |
 | TLS-01 | Phase 15 | Complete |
 | TLS-02 | Phase 15 | Complete |
@@ -75,7 +75,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 16 | Complete |
 | CLEAN-01 | Phase 17 | Complete |
 | CLEAN-02 | Phase 17 | Complete |
-| CLEAN-03 | Phase 17 | Pending |
+| CLEAN-03 | Phase 17 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 17 total
