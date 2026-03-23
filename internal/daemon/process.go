@@ -53,7 +53,14 @@ func RunDaemon() {
 func EnsureDaemon(socketPath string) error {
 	client := NewDaemonClient(socketPath)
 	if err := client.Health(); err == nil {
-		return nil // already running
+		// Daemon is reachable — verify relay is also ready.
+		if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
+			return nil // fully operational
+		}
+		// Stale daemon without relay support. Log and continue to spawn a new one.
+		// The stale process will exit on its own when the socket is replaced.
+		fmt.Fprintf(os.Stderr, "EnsureDaemon: stale daemon detected (relay not ready), respawning\n")
+		_ = CleanupStaleSocket(socketPath)
 	}
 
 	exe, err := os.Executable()
@@ -65,13 +72,15 @@ func EnsureDaemon(socketPath string) error {
 		return fmt.Errorf("EnsureDaemon: start daemon: %w", err)
 	}
 
-	// Poll until daemon is ready (max 3 seconds).
+	// Poll until daemon is fully ready — health + relay port (max 3 seconds).
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		if err := client.Health(); err == nil {
-			return nil
+			if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
+				return nil
+			}
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	return fmt.Errorf("EnsureDaemon: daemon did not start within 3s")
+	return fmt.Errorf("EnsureDaemon: daemon did not become ready within 3s")
 }

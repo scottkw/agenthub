@@ -331,7 +331,7 @@ function App(): React.ReactElement {
             </button>
           </div>
         )}
-        {relayPort !== null &&
+        {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
             const isActive = tab.id === activeId
             return (
