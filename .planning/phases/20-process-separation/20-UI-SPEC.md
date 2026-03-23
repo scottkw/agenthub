@@ -43,7 +43,7 @@ Declared values (must be multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Icon gaps, control button padding (tab-bar__controls gap: 2px exception noted below) |
+| xs | 4px | Icon gaps, control button padding |
 | sm | 8px | Inline gaps (tab, status-bar, modal footer gap), button padding vertical |
 | md | 16px | Modal body padding, header padding horizontal, section spacing |
 | lg | 24px | Modal section margin-bottom, QR modal padding |
@@ -52,11 +52,12 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Not used directly — reserved for page-level breaks |
 
 Exceptions:
-- Tab bar control button gap: 2px (tighter than xs for icon-only toolbar density)
 - Tab height: 42px (not a multiple of 8 — matches macOS traffic-light row height expectation)
 - Status bar height: 32px (compact information density row)
 - Tab close button: 16px × 16px (icon-only hit target; below 44px — desktop app, not touch)
 - Tab bar button: 38px × 38px (desktop icon button, sufficient for pointer input)
+
+Note: The existing stylesheet uses a raw 2px gap on tab bar control buttons as an internal CSS implementation detail. This value is not a planner-facing token and is not part of the spacing contract. The planner uses `xs` (4px) as the minimum gap token.
 
 **Source:** `frontend/src/style.css` — measured from all height/padding/gap declarations.
 
@@ -76,6 +77,7 @@ Notes:
 - 13px is the dominant UI text size (tabs, context menus, buttons, table cells, modal body)
 - Status bar state label uses 11px + weight 600 + uppercase + letter-spacing 0.05em
 - No sans-serif font is in use anywhere in the project
+- The 11/12/13px cluster is a justified consequence of the terminal-aesthetic design system where density is a primary value; each size has a distinct role (label, code, body) with no ambiguity in context
 
 **Source:** `frontend/src/style.css` — measured from font-size declarations across all components.
 
@@ -121,6 +123,8 @@ When `init()` fails (relay port unavailable, daemon unreachable), the app must d
 
 **Placement:** Full-width banner in the terminal container area (below the tab bar, which shows zero tabs).
 
+**Focal point:** Left border accent (`border-left: 3px solid #f7768e`) — draws the eye to the destructive signal and anchors the banner's visual hierarchy.
+
 **Copy (see Copywriting Contract below).**
 
 **Visual spec:**
@@ -133,7 +137,7 @@ When `init()` fails (relay port unavailable, daemon unreachable), the app must d
 - Text: 13px, color `#a9b1d6` (text secondary)
 - Button: same style as `.tab-status-bar__btn` — border 1px solid `#292e42`, background transparent, color `#a9b1d6`, hover background `#1e2030`
 
-**Interaction:** "Retry" button calls `init()` again. No automatic retry — user-initiated only.
+**Interaction:** "Retry Connection" button calls `init()` again. No automatic retry — user-initiated only.
 
 **States:**
 1. **Connecting** (transient, only shown if init takes > 500ms): Small status line in terminal container, text muted `#565f89`, "Connecting to session daemon..." — 13px, no border
@@ -153,7 +157,7 @@ Note: The "Connecting" transient state is optional for Phase 20 — EnsureDaemon
 | Empty tab bar (no sessions) | No explicit empty state UI exists — tab bar shows "+ " button; no body text needed |
 | Daemon error heading | "Unable to connect to session daemon" |
 | Daemon error body | "The background daemon did not start in time. Your sessions are not accessible. Check the system log or restart AgentHub." |
-| Daemon error retry button | "Retry" |
+| Daemon error retry button | "Retry Connection" |
 | Session restore (existing, no change) | Sessions restored silently from ListSessions() — no UI copy needed |
 | Destructive: close tab (kill session) | No confirmation dialog — tab × click kills immediately (existing behavior, unchanged) |
 
