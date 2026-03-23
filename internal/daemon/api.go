@@ -118,6 +118,15 @@ func (a *API) Addr() net.Addr {
 	return a.ln.Addr()
 }
 
+// SetWebServerForTest directly injects a running WebServer into the API's web
+// server field. This is for use in unit tests only — it allows tests to bypass
+// the Tailscale prerequisite check in handleWebServerStart.
+func (a *API) SetWebServerForTest(ws *webserver.WebServer) {
+	a.mu.Lock()
+	a.webServer = ws
+	a.mu.Unlock()
+}
+
 // writeJSON writes v as a JSON response with the given status code.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

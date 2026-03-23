@@ -10,8 +10,8 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
-	"math/big"
 	"fmt"
+	"math/big"
 	"net"
 	"os"
 	"strings"
@@ -26,41 +26,106 @@ import (
 var testSockSeq atomic.Int64
 
 // testApp creates an App wired for testing — no Wails GUI, but all bound
-// methods are functional.  It starts the daemon API on a temp socket and
-// wires the client, simulating what startup() does.
+// methods are functional.  It starts an in-process daemon API on a temp socket
+// and wires the client, simulating what startup() does without the subprocess.
 func testApp(t *testing.T) *App {
 	t.Helper()
-	app := NewApp()
 
-	// Set context — startup() is not called in tests, so we provide a background context.
-	app.ctx = context.Background()
+	// Start an in-process daemon API for tests (no real subprocess).
+	engine := daemon.NewSessionEngine()
+	api := daemon.NewAPI(engine)
 
-	// Use a short socket path under /tmp to stay within the 103-char sun_path limit.
-	// macOS t.TempDir() paths exceed 103 chars (the macOS limit for Unix socket paths).
 	seq := testSockSeq.Add(1)
 	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), seq)
-	app.socketPath = socketPath
-	_ = os.Remove(socketPath) // clean up any leftover from prior run
-	if err := app.api.Start(socketPath); err != nil {
+	_ = os.Remove(socketPath)
+	if err := api.Start(socketPath); err != nil {
 		t.Fatalf("testApp: api.Start: %v", err)
 	}
-	app.client = daemon.NewDaemonClient(socketPath)
+
+	// Start relay inside daemon API so GetRelayPort works.
+	if _, err := api.StartRelay(); err != nil {
+		t.Fatalf("testApp: StartRelay: %v", err)
+	}
+
+	client := daemon.NewDaemonClient(socketPath)
 	// Brief sleep for server goroutine to be ready.
 	time.Sleep(10 * time.Millisecond)
 
-	// Simulate the startup listener allocation (without running wails.Run).
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("testApp: net.Listen: %v", err)
+	app := &App{
+		ctx:    context.Background(),
+		client: client,
 	}
-	app.listener = ln
+
 	t.Cleanup(func() {
-		ln.Close()
-		app.engine.Manager().Shutdown()
-		app.api.Stop()
+		engine.Manager().Shutdown()
+		api.Stop()
 		_ = os.Remove(socketPath)
 	})
 	return app
+}
+
+// testAppWithDirectWebServer creates an App + daemon API pair and returns a
+// setup function that injects a TLS web server directly into the daemon API
+// (bypassing the Tailscale prerequisite). Used for tests that need a running
+// web server without a real Tailscale connection.
+func testAppWithDirectWebServer(t *testing.T, tlsCfg *tls.Config) (*App, func(sessionID string) error) {
+	t.Helper()
+
+	engine := daemon.NewSessionEngine()
+	api := daemon.NewAPI(engine)
+
+	seq := testSockSeq.Add(1)
+	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), seq)
+	_ = os.Remove(socketPath)
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("testAppWithDirectWebServer: api.Start: %v", err)
+	}
+	if _, err := api.StartRelay(); err != nil {
+		t.Fatalf("testAppWithDirectWebServer: StartRelay: %v", err)
+	}
+
+	client := daemon.NewDaemonClient(socketPath)
+	time.Sleep(10 * time.Millisecond)
+
+	app := &App{
+		ctx:    context.Background(),
+		client: client,
+	}
+
+	var wsRef *webserver.WebServer
+
+	setup := func(sessionID string) error {
+		ws, err := webserver.NewWebServer(webserver.Config{
+			BindIP:    "127.0.0.1",
+			Port:      0,
+			FQDN:      "localhost",
+			TLSConfig: tlsCfg,
+		}, engine.Manager())
+		if err != nil {
+			return fmt.Errorf("NewWebServer: %w", err)
+		}
+		ws.SetSessionResolver(func(id string) (string, string, string) {
+			return id, "", ""
+		})
+		if err := ws.Start(); err != nil {
+			return fmt.Errorf("ws.Start: %w", err)
+		}
+		ws.EnableSession(sessionID)
+		wsRef = ws
+		// Inject the running webserver directly into the daemon API.
+		api.SetWebServerForTest(ws)
+		return nil
+	}
+
+	t.Cleanup(func() {
+		if wsRef != nil {
+			_ = wsRef.Stop()
+		}
+		engine.Manager().Shutdown()
+		api.Stop()
+		_ = os.Remove(socketPath)
+	})
+	return app, setup
 }
 
 func TestListSessionsEmpty(t *testing.T) {
@@ -181,10 +246,9 @@ func TestGetRelayPort(t *testing.T) {
 	}
 }
 
-
 func TestToggleWebServingErrorsWhenNotRunning(t *testing.T) {
 	app := testApp(t)
-	// webServer is nil — ToggleWebServing should return an error.
+	// web server is not running — ToggleWebServing should return an error.
 	err := app.ToggleWebServing("some-session-id", true)
 	if err == nil {
 		t.Error("expected ToggleWebServing to return error when web server is not running")
@@ -252,31 +316,14 @@ func TestGetSessionQRCode(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
-	app := testApp(t)
-
-	// Bypass StartWebServer (which requires Tailscale) by directly creating a
-	// WebServer with an in-memory TLS config, then assigning it to app.webServer.
+	// Use testAppWithDirectWebServer to bypass the Tailscale prerequisite.
+	// The daemon API does not accept TLS config via its HTTP route, so we use
+	// SetWebServerForTest to inject a running web server directly.
 	tlsCfg := selfSignedTLSForAppTest(t)
-	ws, err := webserver.NewWebServer(webserver.Config{
-		BindIP:    "127.0.0.1",
-		Port:      0,
-		FQDN:      "localhost",
-		TLSConfig: tlsCfg,
-	}, app.engine.Manager())
-	if err != nil {
-		t.Fatalf("NewWebServer: %v", err)
-	}
-	if err := ws.Start(); err != nil {
-		t.Fatalf("ws.Start: %v", err)
-	}
-	app.mu.Lock()
-	app.webServer = ws
-	app.mu.Unlock()
-	t.Cleanup(func() { _ = app.StopWebServer() })
+	app, startWebServer := testAppWithDirectWebServer(t, tlsCfg)
 
-	// Enable a session in the web server.
-	if err := app.ToggleWebServing("test-session-id", true); err != nil {
-		t.Fatalf("ToggleWebServing: %v", err)
+	if err := startWebServer("test-session-id"); err != nil {
+		t.Fatalf("startWebServer: %v", err)
 	}
 
 	// GetSessionQRCode should return a non-empty base64 string.
@@ -303,7 +350,7 @@ func TestGetSessionQRCode(t *testing.T) {
 
 func TestGetSessionQRCode_NoServer(t *testing.T) {
 	app := testApp(t)
-	// webServer is nil — should return an error.
+	// web server is not running — should return an error.
 	_, err := app.GetSessionQRCode("any-id")
 	if err == nil {
 		t.Error("expected GetSessionQRCode to return error when web server is not running")

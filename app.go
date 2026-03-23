@@ -4,16 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/agenthub/agenthub/internal/daemon"
 	"github.com/agenthub/agenthub/internal/pty"
-	"github.com/agenthub/agenthub/internal/relay"
 	"github.com/agenthub/agenthub/internal/status"
 	"github.com/agenthub/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
@@ -30,55 +26,28 @@ type SessionInfo struct {
 }
 
 // App holds all application state and exposes the Wails-bound methods.
-// App is a thin Wails-binding shell — it holds no authoritative session state.
-// All session operations are delegated through DaemonClient over the in-process Unix socket.
+// App is a thin Wails-binding shell — all session state lives in the daemon process.
+// All session operations are delegated through DaemonClient over the Unix socket.
 type App struct {
-	ctx        context.Context
-	engine     *daemon.SessionEngine  // owns all session state
-	api        *daemon.API            // HTTP server over Unix socket
-	client     *daemon.DaemonClient   // typed client for delegation
-	socketPath string                 // path to the Unix socket
-	server     *relay.Server
-	listener   net.Listener
-	trayInit   bool // true once initTray has been called
-
-	mu        sync.RWMutex
-	webServer *webserver.WebServer
+	ctx      context.Context
+	client   *daemon.DaemonClient // only daemon communication field
+	trayInit bool                 // true once initTray has been called
 }
 
-// NewApp creates a new App with all subsystems initialised but not yet started.
+// NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
-	engine := daemon.NewSessionEngine()
-	api := daemon.NewAPI(engine)
-	server := relay.NewServer(engine.Manager(), engine.Backend())
-	socketPath := daemon.DefaultSocketPath()
-
-	return &App{
-		engine:     engine,
-		api:        api,
-		server:     server,
-		socketPath: socketPath,
-	}
+	return &App{}
 }
 
 // startup is called when Wails initialises the app.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Allocate listener synchronously to avoid a race between GetRelayPort and Serve.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		// Startup failure is fatal — Wails will report it.
-		panic(fmt.Sprintf("agenthub: relay listener: %v", err))
+	socketPath := daemon.DefaultSocketPath()
+	if err := daemon.EnsureDaemon(socketPath); err != nil {
+		panic(fmt.Sprintf("agenthub: ensure daemon: %v", err))
 	}
-	a.listener = ln
-	go func() { _ = http.Serve(ln, a.server) }()
-
-	// Start the daemon API and wire the client.
-	if err := a.api.Start(a.socketPath); err != nil {
-		panic(fmt.Sprintf("agenthub: daemon api: %v", err))
-	}
-	a.client = daemon.NewDaemonClient(a.socketPath)
+	a.client = daemon.NewDaemonClient(socketPath)
 
 	// Start system tray icon (non-blocking, macOS NSStatusBar).
 	a.initTray()
@@ -94,19 +63,8 @@ func (a *App) shutdown(_ context.Context) {
 	if a.trayInit {
 		a.cleanupTray()
 	}
-	a.engine.Manager().Shutdown()
-	if a.listener != nil {
-		_ = a.listener.Close()
-	}
-	a.mu.Lock()
-	ws := a.webServer
-	a.mu.Unlock()
-	if ws != nil {
-		_ = ws.Stop()
-	}
-	if a.api != nil {
-		_ = a.api.Stop()
-	}
+	// Daemon is an independent process — GUI does NOT stop it.
+	// Sessions persist after GUI exits (DAEMON-03).
 }
 
 // beforeClose hides the window instead of quitting so the app stays alive in
@@ -125,23 +83,44 @@ func (a *App) beforeClose(ctx context.Context) bool {
 // --- Wails-bound methods ---
 
 // CreateSession spawns a new CLI session and returns its ID.
-// CreateSession calls engine directly (not through client) because we need to
-// pass the onStatus callback that wraps runtime.EventsEmit — callbacks cannot
-// be serialized over HTTP.
+// Creates the session through the daemon client, then polls for status updates
+// and emits Wails events (replaces the onStatus callback used in earlier phases).
 func (a *App) CreateSession(cli, name, workDir string) (string, error) {
-	onStatus := func(sid string, s status.SessionStatus) {
-		// Only emit events when running inside the Wails event loop.
-		// context.Background() is used in tests — the Wails runtime panics on
-		// non-Wails contexts, so guard with the "frontend" key check (same
-		// pattern as beforeClose).
-		if a.ctx != nil && a.ctx.Value("frontend") != nil {
-			runtime.EventsEmit(a.ctx, "session:status", map[string]string{
-				"sessionId": sid,
-				"status":    string(s),
-			})
+	id, err := a.client.CreateSession(cli, name, workDir)
+	if err != nil {
+		return "", err
+	}
+	// Poll session status for up to 60s to emit Wails events (replaces onStatus callback).
+	go a.pollSessionStatus(id)
+	return id, nil
+}
+
+// pollSessionStatus polls the daemon for status changes on a newly created
+// session and emits Wails "session:status" events. Replaces the onStatus
+// callback that was used when CreateSession called the engine directly.
+// Stops when status reaches "errored" or after 60 seconds.
+func (a *App) pollSessionStatus(sessionID string) {
+	var last string
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+		s, err := a.client.GetSessionStatus(sessionID)
+		if err != nil {
+			return
+		}
+		if s != last {
+			last = s
+			if a.ctx != nil && a.ctx.Value("frontend") != nil {
+				runtime.EventsEmit(a.ctx, "session:status", map[string]string{
+					"sessionId": sessionID,
+					"status":    s,
+				})
+			}
+			if s == string(status.StatusErrored) {
+				return
+			}
 		}
 	}
-	return a.engine.CreateSession(a.ctx, cli, name, workDir, onStatus)
 }
 
 // ListSessions returns a snapshot of all registered sessions.
@@ -200,24 +179,19 @@ func (a *App) DetectCLIs() []pty.DetectedCLI {
 	return pty.DetectCLIs()
 }
 
-// GetRelayPort returns the TCP port the relay HTTP server is listening on.
+// GetRelayPort returns the TCP port the daemon's relay HTTP server is listening on.
 func (a *App) GetRelayPort() int {
-	if a.listener == nil {
+	port, err := a.client.GetRelayPort()
+	if err != nil {
 		return 0
 	}
-	return a.listener.Addr().(*net.TCPAddr).Port
+	return port
 }
 
 // UpdateCLIPath stores a custom executable path for the named CLI.
 // The path must exist on disk.
 func (a *App) UpdateCLIPath(name, path string) error {
 	return a.client.UpdateCLIPath(name, path)
-}
-
-// resolveCLI returns the executable path for the named CLI.
-// Only called from CreateSession which uses engine directly.
-func (a *App) resolveCLI(name string) string {
-	return a.engine.ResolveCLI(name)
 }
 
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
@@ -232,9 +206,8 @@ func configDir() string {
 	return dir
 }
 
-// StartWebServer creates (or re-creates) the WebServer bound to the Tailscale IP:port
-// and begins serving. Returns an error if Tailscale is not connected with HTTPS certs
-// enabled. Access control is provided at the network level by Tailscale.
+// StartWebServer tells the daemon to start the Tailscale web server.
+// Returns an error if Tailscale is not connected with HTTPS certs enabled.
 func (a *App) StartWebServer(port int) error {
 	h := a.GetTailscaleStatus()
 	if !h.Connected {
@@ -246,87 +219,29 @@ func (a *App) StartWebServer(port int) error {
 	if !h.HasCerts {
 		return fmt.Errorf("Tailscale HTTPS certificates not enabled — enable in Tailscale admin")
 	}
-
-	// Stop any running server before creating a new one.
-	a.mu.Lock()
-	oldWS := a.webServer
-	a.mu.Unlock()
-	if oldWS != nil {
-		_ = oldWS.Stop()
-	}
-
-	ws, err := webserver.NewWebServer(webserver.Config{
-		BindIP: h.IP,
-		Port:   port,
-		FQDN:   h.Domain,
-	}, a.engine.Manager())
-	if err != nil {
-		return fmt.Errorf("StartWebServer: create: %w", err)
-	}
-
-	ws.SetSessionResolver(func(id string) (string, string, string) {
-		sessions, _ := a.client.ListSessions()
-		var name, cliType string
-		for _, s := range sessions {
-			if s.ID == id {
-				name = s.Name
-				cliType = s.CLI
-				break
-			}
-		}
-		st, _ := a.client.GetSessionStatus(id)
-		return name, cliType, st
-	})
-
-	if err := ws.Start(); err != nil {
-		return fmt.Errorf("StartWebServer: start: %w", err)
-	}
-
-	a.mu.Lock()
-	a.webServer = ws
-	a.mu.Unlock()
-	return nil
+	_, err := a.client.StartWebServer(h.IP, port, h.Domain)
+	return err
 }
 
-// StopWebServer stops the web server and clears the webServer field.
+// StopWebServer tells the daemon to stop the web server.
 func (a *App) StopWebServer() error {
-	a.mu.Lock()
-	ws := a.webServer
-	a.webServer = nil
-	a.mu.Unlock()
-	if ws == nil {
-		return nil
-	}
-	return ws.Stop()
+	return a.client.StopWebServer()
 }
 
 // ToggleWebServing enables or disables web serving for a specific session.
 // Returns an error if the web server is not running.
 func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
-		return fmt.Errorf("web server is not running — start it in Settings first")
-	}
-	if enabled {
-		ws.EnableSession(sessionID)
-	} else {
-		ws.DisableSession(sessionID)
-	}
-	return nil
+	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
 // GetWebServerURL returns the base HTTPS URL of the running web server,
 // or an empty string if the server is not running.
 func (a *App) GetWebServerURL() string {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
+	resp, err := a.client.GetWebServerStatus()
+	if err != nil || !resp.Running {
 		return ""
 	}
-	return ws.BaseURL()
+	return resp.URL
 }
 
 // ctDisclosurePath returns the path to the CT disclosure acknowledgement file.
@@ -345,16 +260,13 @@ func (a *App) AcknowledgeCTDisclosure() error {
 	return os.WriteFile(ctDisclosurePath(), []byte("1"), 0600)
 }
 
-// IsWebServerRunning returns true if the web server has been started and its
-// listener is active.
+// IsWebServerRunning returns true if the daemon's web server is active.
 func (a *App) IsWebServerRunning() bool {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
+	resp, err := a.client.GetWebServerStatus()
+	if err != nil {
 		return false
 	}
-	return ws.Addr() != ""
+	return resp.Running
 }
 
 // GetSessionQRCode generates a QR code for the web-served session URL and
@@ -362,13 +274,11 @@ func (a *App) IsWebServerRunning() bool {
 // (https://bindIP:port/sessions/{id}). Returns an error if the web server is
 // not running.
 func (a *App) GetSessionQRCode(sessionID string) (string, error) {
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
+	resp, err := a.client.GetWebServerStatus()
+	if err != nil || !resp.Running {
 		return "", fmt.Errorf("web server not running")
 	}
-	url := fmt.Sprintf("%s/sessions/%s", ws.BaseURL(), sessionID)
+	url := fmt.Sprintf("%s/sessions/%s", resp.URL, sessionID)
 	png, err := qrcode.Encode(url, qrcode.Medium, 256)
 	if err != nil {
 		return "", fmt.Errorf("GetSessionQRCode: encode: %w", err)

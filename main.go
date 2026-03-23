@@ -9,12 +9,20 @@
 package main
 
 import (
+	"os"
+
+	"github.com/agenthub/agenthub/internal/daemon"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "daemon" {
+		daemon.RunDaemon()
+		return
+	}
+
 	app := NewApp()
 
 	err := wails.Run(&options.App{
@@ -28,8 +36,8 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		OnStartup:   app.startup,
-		OnShutdown:  app.shutdown,
+		OnStartup:     app.startup,
+		OnShutdown:    app.shutdown,
 		OnBeforeClose: app.beforeClose,
 		Bind: []interface{}{
 			app,

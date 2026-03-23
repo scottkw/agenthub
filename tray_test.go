@@ -6,7 +6,7 @@ import (
 )
 
 // TestHideWindowSessionsAlive verifies that calling beforeClose does NOT kill
-// any PTY sessions — they remain alive in the registry.  The system tray UI
+// any PTY sessions — they remain alive in the daemon registry.  The system tray UI
 // (systray package) is not exercised here because it requires a display server.
 func TestHideWindowSessionsAlive(t *testing.T) {
 	app := testApp(t)
@@ -22,8 +22,12 @@ func TestHideWindowSessionsAlive(t *testing.T) {
 	}
 
 	// Verify 2 sessions are registered before the window hide.
-	if app.engine.Registry().Len() != 2 {
-		t.Fatalf("expected 2 sessions before beforeClose, got %d", app.engine.Registry().Len())
+	sessions, err := app.client.ListSessions()
+	if err != nil {
+		t.Fatalf("ListSessions before beforeClose: %v", err)
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("expected 2 sessions before beforeClose, got %d", len(sessions))
 	}
 
 	// Call beforeClose with a background context (Wails ctx not available in tests).
@@ -31,8 +35,12 @@ func TestHideWindowSessionsAlive(t *testing.T) {
 	_ = app.beforeClose(context.Background())
 
 	// Sessions must still be alive — beforeClose must NOT kill them.
-	if app.engine.Registry().Len() != 2 {
-		t.Errorf("expected 2 sessions after beforeClose (window hide), got %d — sessions must survive window close", app.engine.Registry().Len())
+	sessions, err = app.client.ListSessions()
+	if err != nil {
+		t.Fatalf("ListSessions after beforeClose: %v", err)
+	}
+	if len(sessions) != 2 {
+		t.Errorf("expected 2 sessions after beforeClose (window hide), got %d — sessions must survive window close", len(sessions))
 	}
 }
 
