@@ -49,7 +49,7 @@
 
 **Milestone Goal:** Extract session management into a persistent background daemon; GUI and CLI are both clients to the same session pool.
 
-- [ ] **Phase 19: Daemon Core (Engine + IPC)** — Extract SessionEngine from App and establish HTTP/JSON protocol over Unix socket in-process; validates the module boundary and protocol before any process separation
+- [x] **Phase 19: Daemon Core (Engine + IPC)** — Extract SessionEngine from App and establish HTTP/JSON protocol over Unix socket in-process; validates the module boundary and protocol before any process separation (completed 2026-03-23)
 - [ ] **Phase 20: Process Separation** — Fork daemon into a standalone process; sessions survive GUI close/reopen; daemon auto-starts from CLI when not running
 - [ ] **Phase 21: CLI Session + Web Commands** — Add cobra command tree with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient
 - [ ] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths
@@ -170,7 +170,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 16. Auth Layer Removal | v1.2 | 2/2 | Complete | 2026-03-20 |
 | 17. Dead Code Cleanup | v1.2 | 2/2 | Complete | 2026-03-20 |
 | 18. Frontend Health Modal + Status UI | v1.2 | 2/2 | Complete | 2026-03-22 |
-| 19. Daemon Core (Engine + IPC) | 1/2 | In Progress|  | - |
+| 19. Daemon Core (Engine + IPC) | 2/2 | Complete   | 2026-03-23 | - |
 | 20. Process Separation | v1.3 | 0/TBD | Not started | - |
 | 21. CLI Session + Web Commands | v1.3 | 0/TBD | Not started | - |
 | 22. CLI Attach | v1.3 | 0/TBD | Not started | - |

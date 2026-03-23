@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
 status: unknown
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-03-23T14:27:23.515Z"
+stopped_at: "Completed 19-02 Task 1, awaiting checkpoint:human-verify at Task 2"
+last_updated: "2026-03-23T14:36:18.356Z"
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -42,6 +42,7 @@ Plan: 1 of 2
 
 *Updated after each plan completion*
 | Phase 19-daemon-core-engine-ipc P01 | 25min | 2 tasks | 9 files |
+| Phase 19-daemon-core-engine-ipc P02 | 6min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -55,6 +56,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 19-01]: onStatus callback injected at CreateSession call site so engine has zero Wails imports; App in Plan 02 supplies the EventsEmit wrapper
 - [Phase 19-01]: CleanupStaleSocket probes with net.DialTimeout(500ms): refused/timeout=stale (remove), success=already running (error)
 - [Phase 19-01]: Short socket paths in tests use /tmp/dtest{n}_{name} — macOS t.TempDir() paths exceed 103-char sun_path limit
+- [Phase 19-02]: CreateSession calls engine directly (not client) — onStatus callback cannot be serialized over HTTP; this is the intentional exception to the delegation pattern
+- [Phase 19-02]: testApp() uses /tmp/aht{pid}_{seq}.sock paths to stay under macOS 103-char sun_path limit (t.TempDir() produces paths > 103 chars)
 
 ### Pending Todos
 
@@ -69,6 +72,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T14:27:23.512Z
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-03-23T14:36:18.352Z
+Stopped at: Completed 19-02 Task 1, awaiting checkpoint:human-verify at Task 2
 Resume file: None
