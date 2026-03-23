@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: ready_to_plan
-stopped_at: Roadmap created — Phase 19 ready to plan
-last_updated: "2026-03-23T14:30:00.000Z"
+status: unknown
+stopped_at: Completed 19-01-PLAN.md
+last_updated: "2026-03-23T14:27:23.515Z"
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -19,20 +19,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 19 — Daemon Core (Engine + IPC)
+**Current focus:** Phase 19 — daemon-core-engine-ipc
 
 ## Current Position
 
-Phase: 19 of 24 (Daemon Core — Engine + IPC)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-23 — v1.3 roadmap created, 23 requirements mapped to 6 phases
-
-Progress: [░░░░░░░░░░] 0% (v1.3)
+Phase: 19 (daemon-core-engine-ipc) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0 (v1.3)
 - Average duration: —
 - Total execution time: —
@@ -44,6 +41,7 @@ Progress: [░░░░░░░░░░] 0% (v1.3)
 | — | — | — | — |
 
 *Updated after each plan completion*
+| Phase 19-daemon-core-engine-ipc P01 | 25min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -54,6 +52,9 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [v1.2]: Tailscale health gates web server startup — safe to build daemon on top of this
 - [v1.3 roadmap]: Phase 19 combines SessionEngine extraction + IPC layer (in-process) to validate protocol before process separation in Phase 20
 - [v1.3 roadmap]: Phase 22 (CLI Attach) is its own phase — 7 distinct correctness requirements need explicit testing gates
+- [Phase 19-01]: onStatus callback injected at CreateSession call site so engine has zero Wails imports; App in Plan 02 supplies the EventsEmit wrapper
+- [Phase 19-01]: CleanupStaleSocket probes with net.DialTimeout(500ms): refused/timeout=stale (remove), success=already running (error)
+- [Phase 19-01]: Short socket paths in tests use /tmp/dtest{n}_{name} — macOS t.TempDir() paths exceed 103-char sun_path limit
 
 ### Pending Todos
 
@@ -68,6 +69,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23
-Stopped at: Roadmap created for v1.3 — 6 phases, 23 requirements mapped, Phase 19 ready to plan
+Last session: 2026-03-23T14:27:23.512Z
+Stopped at: Completed 19-01-PLAN.md
 Resume file: None
