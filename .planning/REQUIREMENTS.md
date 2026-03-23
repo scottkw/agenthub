@@ -75,35 +75,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DAEMON-01 | — | Pending |
-| DAEMON-02 | — | Pending |
-| DAEMON-03 | — | Pending |
-| DAEMON-04 | — | Pending |
-| DAEMON-05 | — | Pending |
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| CLI-03 | — | Pending |
-| CLI-04 | — | Pending |
-| CLI-05 | — | Pending |
-| CLI-06 | — | Pending |
-| CLI-07 | — | Pending |
-| CLI-08 | — | Pending |
-| WEB-01 | — | Pending |
-| WEB-02 | — | Pending |
-| WEB-03 | — | Pending |
-| WEB-04 | — | Pending |
-| WEB-05 | — | Pending |
-| SVC-01 | — | Pending |
-| SVC-02 | — | Pending |
-| SVC-03 | — | Pending |
-| POLISH-01 | — | Pending |
-| POLISH-02 | — | Pending |
+| DAEMON-01 | Phase 20 | Pending |
+| DAEMON-02 | Phase 19 | Pending |
+| DAEMON-03 | Phase 20 | Pending |
+| DAEMON-04 | Phase 20 | Pending |
+| DAEMON-05 | Phase 20 | Pending |
+| CLI-01 | Phase 21 | Pending |
+| CLI-02 | Phase 21 | Pending |
+| CLI-03 | Phase 21 | Pending |
+| CLI-04 | Phase 21 | Pending |
+| CLI-05 | Phase 22 | Pending |
+| CLI-06 | Phase 22 | Pending |
+| CLI-07 | Phase 22 | Pending |
+| CLI-08 | Phase 22 | Pending |
+| WEB-01 | Phase 21 | Pending |
+| WEB-02 | Phase 21 | Pending |
+| WEB-03 | Phase 21 | Pending |
+| WEB-04 | Phase 21 | Pending |
+| WEB-05 | Phase 21 | Pending |
+| SVC-01 | Phase 23 | Pending |
+| SVC-02 | Phase 23 | Pending |
+| SVC-03 | Phase 23 | Pending |
+| POLISH-01 | Phase 24 | Pending |
+| POLISH-02 | Phase 24 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23 ⚠️
+- Mapped to phases: 23
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after initial definition*
+*Last updated: 2026-03-23 after roadmap creation (v1.3 phases 19-24)*
