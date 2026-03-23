@@ -50,7 +50,7 @@
 **Milestone Goal:** Extract session management into a persistent background daemon; GUI and CLI are both clients to the same session pool.
 
 - [x] **Phase 19: Daemon Core (Engine + IPC)** — Extract SessionEngine from App and establish HTTP/JSON protocol over Unix socket in-process; validates the module boundary and protocol before any process separation (completed 2026-03-23)
-- [ ] **Phase 20: Process Separation** — Fork daemon into a standalone process; sessions survive GUI close/reopen; daemon auto-starts from CLI when not running
+- [x] **Phase 20: Process Separation** — Fork daemon into a standalone process; sessions survive GUI close/reopen; daemon auto-starts from CLI when not running (completed 2026-03-23)
 - [ ] **Phase 21: CLI Session + Web Commands** — Add cobra command tree with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient
 - [ ] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths
 - [ ] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop
@@ -159,7 +159,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 17. Dead Code Cleanup | v1.2 | 2/2 | Complete | 2026-03-20 |
 | 18. Frontend Health Modal + Status UI | v1.2 | 2/2 | Complete | 2026-03-22 |
 | 19. Daemon Core (Engine + IPC) | v1.3 | 2/2 | Complete | 2026-03-23 |
-| 20. Process Separation | 1/2 | In Progress|  | - |
+| 20. Process Separation | 2/2 | Complete   | 2026-03-23 | - |
 | 21. CLI Session + Web Commands | v1.3 | 0/TBD | Not started | - |
 | 22. CLI Attach | v1.3 | 0/TBD | Not started | - |
 | 23. Service Manager Integration | v1.3 | 0/TBD | Not started | - |

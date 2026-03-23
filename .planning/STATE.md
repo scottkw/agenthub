@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: unknown
-stopped_at: "Checkpoint: 20-02 Task 3 awaiting GUI regression verification"
-last_updated: "2026-03-23T16:16:30.776Z"
+status: executing
+stopped_at: "Completed 20-02-PLAN.md"
+last_updated: "2026-03-23T17:30:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 20 (process-separation) — EXECUTING
-Plan: 1 of 2
+Plan: 2 of 2 — COMPLETE
 
 ## Performance Metrics
 
@@ -67,6 +67,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 20-process-separation]: pollSessionStatus goroutine replaces onStatus callback — callbacks cannot be serialized over HTTP; polling is the correct pattern for out-of-process daemon
 - [Phase 20-process-separation]: SetWebServerForTest added to daemon.API — enables test injection of TLS webserver without Tailscale in test environment
 - [Phase 20-process-separation]: shutdown() has no daemon teardown — daemon is an independent process; GUI closing does not affect session state (DAEMON-03)
+- [Phase 20-02]: PTY sessions use background context — HTTP request context cancellation kills goroutines when handler returns; PTY goroutines must outlive the request
+- [Phase 20-02]: GUI regression verified end-to-end: sessions survive close/reopen, daemon auto-restarts after kill, relay port handoff confirmed working
 
 ### Pending Todos
 
@@ -74,13 +76,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 20 risk]: Session state must live in exactly one place after extraction. Any local map in App not migrated to daemon creates silent divergence bugs.
 - [Phase 22 risk]: Terminal left in raw mode on crash is most visible failure mode — signal handlers for SIGTERM/SIGINT/SIGHUP must restore terminal before exit.
 - [Phase 23 research flag]: Windows SCM behavior with kardianos/service is MEDIUM confidence — establish Windows CI during Phase 19 before Phase 23 makes it critical.
-- [Phase 20 research flag]: Relay port handoff sequence (daemon → GUI) needs to be pinned during Phase 20 planning with respect to Wails lifecycle hooks.
 
 ## Session Continuity
 
-Last session: 2026-03-23T16:16:22.040Z
-Stopped at: Checkpoint: 20-02 Task 3 awaiting GUI regression verification
+Last session: 2026-03-23T17:30:00.000Z
+Stopped at: Completed 20-02-PLAN.md
 Resume file: None

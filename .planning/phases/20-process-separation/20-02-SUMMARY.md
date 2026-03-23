@@ -60,7 +60,7 @@ completed: 2026-03-23
 - **Duration:** 7 min
 - **Started:** 2026-03-23T16:08:23Z
 - **Completed:** 2026-03-23T16:15:26Z
-- **Tasks:** 2 of 3 automated (Task 3 is human verification checkpoint)
+- **Tasks:** 3 of 3 complete (2 automated + 1 human-verify checkpoint, approved)
 - **Files modified:** 6
 
 ## Accomplishments
@@ -80,9 +80,13 @@ Each task was committed atomically:
 
 1. **Task 1: main.go dispatch + app.go refactor + test updates** - `55d0cda` (feat)
 2. **Task 2: Frontend daemon error banner** - `9a57cde` (feat)
-3. **Task 3: GUI regression verification** — awaiting human checkpoint
+3. **Task 3: GUI regression verification** — human-approved (no code commit, all 10 steps passed)
 
-**Plan metadata:** (docs commit follows after verification)
+**Bug fixes committed during Task 3 verification:**
+- `a4c9f67`: fix(20-02): fix blank terminal from stale daemon and silent relay failure
+- `fda05c5`: fix(20-02): use background context for PTY sessions in daemon API
+
+**Plan metadata:** `4207532` (docs: plan summary and state update — awaiting Task 3 checkpoint)
 
 ## Files Created/Modified
 - `main.go` - Added daemon subcommand dispatch before Wails startup
@@ -108,9 +112,29 @@ Each task was committed atomically:
 - **Files modified:** `internal/daemon/api.go`
 - **Commit:** `55d0cda`
 
+**2. [Rule 1 - Bug] Blank terminal from stale socket and silent relay failure**
+- **Found during:** Task 3 GUI regression verification
+- **Issue:** EnsureDaemon probed an old socket, got "connection refused", but stale socket cleanup left the daemon in a state where relay was not started. GetRelayPort returned 0 — frontend WebSocket never connected, terminal stayed blank.
+- **Fix:** Fixed stale socket cleanup in EnsureDaemon; relay startup failure now surfaces as an error instead of being silent
+- **Files modified:** `internal/daemon/api.go`, `internal/daemon/process.go`
+- **Commit:** `a4c9f67`
+
+**3. [Rule 1 - Bug] PTY sessions killed by HTTP request context cancellation**
+- **Found during:** Task 3 GUI regression verification (terminal briefly showed output then went blank)
+- **Issue:** daemon API passed the HTTP request's `context.Context` to PTY session goroutines. When the HTTP handler returned its response, the context was cancelled, terminating the PTY session immediately.
+- **Fix:** Changed PTY session creation to use `context.Background()` — PTY goroutines must outlive the HTTP request that created them
+- **Files modified:** `internal/daemon/api.go`
+- **Commit:** `fda05c5`
+
+---
+
+**Total deviations:** 3 auto-fixed (1 missing critical functionality + 2 bugs)
+**Impact on plan:** All auto-fixes necessary for correctness. SetWebServerForTest preserved test coverage. Both bugs would have caused complete feature failure in production.
+
 ## Issues Encountered
 
-None beyond the test injection deviation above.
+- macOS `Cmd+W` does not trigger window close event in Wails — it hides to tray only via the close button (X). Pre-existing Wails behavior, not a regression.
+- Task 3 verification revealed two bugs (blank terminal, PTY context) that required post-task fixes before human approval could be given.
 
 ## User Setup Required
 
@@ -121,7 +145,8 @@ None - no external service configuration required.
 - Sessions survive GUI close/reopen once EnsureDaemon reconnects on startup
 - Daemon auto-starts on GUI launch via EnsureDaemon
 - Relay port is fetched from daemon via GetRelayPort()
-- Awaiting human GUI regression verification (Task 3 checkpoint) to confirm end-to-end behavior
+- GUI regression verified by human: all 10 steps passed (session creation, daemon process visible, close/reopen session survival, relay port working, daemon auto-restart after manual kill)
+- Process separation complete end-to-end
 
 ---
 *Phase: 20-process-separation*
