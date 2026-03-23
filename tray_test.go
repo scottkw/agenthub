@@ -22,8 +22,8 @@ func TestHideWindowSessionsAlive(t *testing.T) {
 	}
 
 	// Verify 2 sessions are registered before the window hide.
-	if app.registry.Len() != 2 {
-		t.Fatalf("expected 2 sessions before beforeClose, got %d", app.registry.Len())
+	if app.engine.Registry().Len() != 2 {
+		t.Fatalf("expected 2 sessions before beforeClose, got %d", app.engine.Registry().Len())
 	}
 
 	// Call beforeClose with a background context (Wails ctx not available in tests).
@@ -31,8 +31,8 @@ func TestHideWindowSessionsAlive(t *testing.T) {
 	_ = app.beforeClose(context.Background())
 
 	// Sessions must still be alive — beforeClose must NOT kill them.
-	if app.registry.Len() != 2 {
-		t.Errorf("expected 2 sessions after beforeClose (window hide), got %d — sessions must survive window close", app.registry.Len())
+	if app.engine.Registry().Len() != 2 {
+		t.Errorf("expected 2 sessions after beforeClose (window hide), got %d — sessions must survive window close", app.engine.Registry().Len())
 	}
 }
 

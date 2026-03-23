@@ -11,23 +11,42 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
+	"fmt"
 	"net"
+	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/agenthub/agenthub/internal/daemon"
 	"github.com/agenthub/agenthub/internal/webserver"
 )
 
+var testSockSeq atomic.Int64
+
 // testApp creates an App wired for testing — no Wails GUI, but all bound
-// methods are functional.  It opens a real TCP listener on 127.0.0.1:0 to
-// simulate what startup() does.
+// methods are functional.  It starts the daemon API on a temp socket and
+// wires the client, simulating what startup() does.
 func testApp(t *testing.T) *App {
 	t.Helper()
 	app := NewApp()
 
 	// Set context — startup() is not called in tests, so we provide a background context.
 	app.ctx = context.Background()
+
+	// Use a short socket path under /tmp to stay within the 103-char sun_path limit.
+	// macOS t.TempDir() paths exceed 103 chars (the macOS limit for Unix socket paths).
+	seq := testSockSeq.Add(1)
+	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), seq)
+	app.socketPath = socketPath
+	_ = os.Remove(socketPath) // clean up any leftover from prior run
+	if err := app.api.Start(socketPath); err != nil {
+		t.Fatalf("testApp: api.Start: %v", err)
+	}
+	app.client = daemon.NewDaemonClient(socketPath)
+	// Brief sleep for server goroutine to be ready.
+	time.Sleep(10 * time.Millisecond)
 
 	// Simulate the startup listener allocation (without running wails.Run).
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -37,7 +56,9 @@ func testApp(t *testing.T) *App {
 	app.listener = ln
 	t.Cleanup(func() {
 		ln.Close()
-		app.manager.Shutdown()
+		app.engine.Manager().Shutdown()
+		app.api.Stop()
+		_ = os.Remove(socketPath)
 	})
 	return app
 }
@@ -241,7 +262,7 @@ func TestGetSessionQRCode(t *testing.T) {
 		Port:      0,
 		FQDN:      "localhost",
 		TLSConfig: tlsCfg,
-	}, app.manager)
+	}, app.engine.Manager())
 	if err != nil {
 		t.Fatalf("NewWebServer: %v", err)
 	}

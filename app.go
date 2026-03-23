@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/agenthub/agenthub/internal/daemon"
 	"github.com/agenthub/agenthub/internal/pty"
 	"github.com/agenthub/agenthub/internal/relay"
 	"github.com/agenthub/agenthub/internal/status"
@@ -29,39 +30,34 @@ type SessionInfo struct {
 }
 
 // App holds all application state and exposes the Wails-bound methods.
+// App is a thin Wails-binding shell — it holds no authoritative session state.
+// All session operations are delegated through DaemonClient over the in-process Unix socket.
 type App struct {
-	ctx      context.Context
-	registry *pty.SessionRegistry
-	backend  pty.SessionBackend
-	manager  *relay.HubManager
-	server   *relay.Server
-	listener net.Listener
-	trayInit bool // true once initTray has been called
+	ctx        context.Context
+	engine     *daemon.SessionEngine  // owns all session state
+	api        *daemon.API            // HTTP server over Unix socket
+	client     *daemon.DaemonClient   // typed client for delegation
+	socketPath string                 // path to the Unix socket
+	server     *relay.Server
+	listener   net.Listener
+	trayInit   bool // true once initTray has been called
 
 	mu        sync.RWMutex
-	tabNames  map[string]string // sessionID -> display name
-	cliPaths  map[string]string // cli name -> custom path override
 	webServer *webserver.WebServer
-
-	statusMu        sync.RWMutex
-	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
 }
 
 // NewApp creates a new App with all subsystems initialised but not yet started.
 func NewApp() *App {
-	registry := pty.NewSessionRegistry()
-	backend := pty.NewNativePTYBackend()
-	manager := relay.NewHubManager()
-	server := relay.NewServer(manager, backend)
+	engine := daemon.NewSessionEngine()
+	api := daemon.NewAPI(engine)
+	server := relay.NewServer(engine.Manager(), engine.Backend())
+	socketPath := daemon.DefaultSocketPath()
 
 	return &App{
-		registry:        registry,
-		backend:         backend,
-		manager:         manager,
-		server:          server,
-		tabNames:        make(map[string]string),
-		cliPaths:        make(map[string]string),
-		sessionStatuses: make(map[string]status.SessionStatus),
+		engine:     engine,
+		api:        api,
+		server:     server,
+		socketPath: socketPath,
 	}
 }
 
@@ -78,6 +74,12 @@ func (a *App) startup(ctx context.Context) {
 	a.listener = ln
 	go func() { _ = http.Serve(ln, a.server) }()
 
+	// Start the daemon API and wire the client.
+	if err := a.api.Start(a.socketPath); err != nil {
+		panic(fmt.Sprintf("agenthub: daemon api: %v", err))
+	}
+	a.client = daemon.NewDaemonClient(a.socketPath)
+
 	// Start system tray icon (non-blocking, macOS NSStatusBar).
 	a.initTray()
 	a.trayInit = true
@@ -92,7 +94,7 @@ func (a *App) shutdown(_ context.Context) {
 	if a.trayInit {
 		a.cleanupTray()
 	}
-	a.manager.Shutdown()
+	a.engine.Manager().Shutdown()
 	if a.listener != nil {
 		_ = a.listener.Close()
 	}
@@ -101,6 +103,9 @@ func (a *App) shutdown(_ context.Context) {
 	a.mu.Unlock()
 	if ws != nil {
 		_ = ws.Stop()
+	}
+	if a.api != nil {
+		_ = a.api.Stop()
 	}
 }
 
@@ -120,40 +125,11 @@ func (a *App) beforeClose(ctx context.Context) bool {
 // --- Wails-bound methods ---
 
 // CreateSession spawns a new CLI session and returns its ID.
+// CreateSession calls engine directly (not through client) because we need to
+// pass the onStatus callback that wraps runtime.EventsEmit — callbacks cannot
+// be serialized over HTTP.
 func (a *App) CreateSession(cli, name, workDir string) (string, error) {
-	// Resolve CLI path: custom override → PATH lookup.
-	cliPath := a.resolveCLI(cli)
-
-	sess, err := a.backend.Create(a.ctx, pty.CreateRequest{
-		CLI:     cliPath,
-		Cols:    80,
-		Rows:    24,
-		WorkDir: workDir,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create session: %w", err)
-	}
-
-	a.registry.Add(sess)
-
-	// Build resize function for the Hub.
-	id := sess.ID
-	resizeFn := func(cols, rows int) error {
-		return a.backend.Resize(id, cols, rows)
-	}
-	hub := a.manager.Create(id, sess, sess, resizeFn)
-
-	a.mu.Lock()
-	a.tabNames[id] = name
-	a.mu.Unlock()
-
-	// Start the status detector goroutine alongside the hub.
-	// The detector subscribes to hub output and pushes status transitions via
-	// EventsEmit so the frontend receives live updates without polling.
-	go status.Watch(hub, id, cli, func(sid string, s status.SessionStatus) {
-		a.statusMu.Lock()
-		a.sessionStatuses[sid] = s
-		a.statusMu.Unlock()
+	onStatus := func(sid string, s status.SessionStatus) {
 		// Only emit events when running inside the Wails event loop.
 		// context.Background() is used in tests — the Wails runtime panics on
 		// non-Wails contexts, so guard with the "frontend" key check (same
@@ -164,73 +140,47 @@ func (a *App) CreateSession(cli, name, workDir string) (string, error) {
 				"status":    string(s),
 			})
 		}
-	})
-
-	return id, nil
+	}
+	return a.engine.CreateSession(a.ctx, cli, name, workDir, onStatus)
 }
 
 // ListSessions returns a snapshot of all registered sessions.
 func (a *App) ListSessions() []SessionInfo {
-	sessions := a.registry.List()
-	result := make([]SessionInfo, 0, len(sessions))
-
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	for _, s := range sessions {
-		state := "running"
-		if s.State == pty.StateStopped {
-			state = "stopped"
-		}
-		name := a.tabNames[s.ID]
-		result = append(result, SessionInfo{
+	sessions, err := a.client.ListSessions()
+	if err != nil {
+		return []SessionInfo{}
+	}
+	result := make([]SessionInfo, len(sessions))
+	for i, s := range sessions {
+		result[i] = SessionInfo{
 			ID:        s.ID,
 			CLI:       s.CLI,
-			Name:      name,
-			State:     state,
-			CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		})
+			Name:      s.Name,
+			State:     s.State,
+			CreatedAt: s.CreatedAt,
+		}
 	}
 	return result
 }
 
 // RenameSession updates the display name of a session.
 func (a *App) RenameSession(id, name string) error {
-	if _, ok := a.registry.Get(id); !ok {
-		return fmt.Errorf("session %q not found", id)
-	}
-	a.mu.Lock()
-	a.tabNames[id] = name
-	a.mu.Unlock()
-	return nil
+	return a.client.RenameSession(id, name)
 }
 
 // KillSession terminates the session and removes it from all registries.
 func (a *App) KillSession(id string) error {
-	if err := a.backend.Kill(id); err != nil {
-		return fmt.Errorf("kill session: %w", err)
+	err := a.client.KillSession(id)
+	if err != nil {
+		return err
 	}
-	a.manager.Remove(id)
-	a.registry.Remove(id)
-
-	a.mu.Lock()
-	delete(a.tabNames, id)
-	a.mu.Unlock()
-
-	// Mark the session as errored and emit the transition before cleaning up.
-	a.statusMu.Lock()
-	a.sessionStatuses[id] = status.StatusErrored
-	a.statusMu.Unlock()
+	// Emit the status event for the frontend (same payload shape as before).
 	if a.ctx != nil && a.ctx.Value("frontend") != nil {
 		runtime.EventsEmit(a.ctx, "session:status", map[string]string{
 			"sessionId": id,
 			"status":    string(status.StatusErrored),
 		})
 	}
-	a.statusMu.Lock()
-	delete(a.sessionStatuses, id)
-	a.statusMu.Unlock()
-
 	return nil
 }
 
@@ -238,13 +188,11 @@ func (a *App) KillSession(id string) error {
 // string ("running", "waiting", "idle", or "errored").
 // Returns "running" if the session is not found (conservative default).
 func (a *App) GetSessionStatus(sessionID string) string {
-	a.statusMu.RLock()
-	s, ok := a.sessionStatuses[sessionID]
-	a.statusMu.RUnlock()
-	if !ok {
-		return string(status.StatusRunning)
+	s, err := a.client.GetSessionStatus(sessionID)
+	if err != nil {
+		return string(status.StatusRunning) // conservative default
 	}
-	return string(s)
+	return s
 }
 
 // DetectCLIs returns the list of supported AI coding CLIs found on PATH.
@@ -263,25 +211,13 @@ func (a *App) GetRelayPort() int {
 // UpdateCLIPath stores a custom executable path for the named CLI.
 // The path must exist on disk.
 func (a *App) UpdateCLIPath(name, path string) error {
-	if _, err := os.Stat(path); err != nil {
-		return fmt.Errorf("custom CLI path %q: %w", path, err)
-	}
-	a.mu.Lock()
-	a.cliPaths[name] = path
-	a.mu.Unlock()
-	return nil
+	return a.client.UpdateCLIPath(name, path)
 }
 
 // resolveCLI returns the executable path for the named CLI.
-// It checks the custom overrides map first, then falls back to the name as-is
-// (os/exec will PATH-search it at Create time).
+// Only called from CreateSession which uses engine directly.
 func (a *App) resolveCLI(name string) string {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	if path, ok := a.cliPaths[name]; ok {
-		return path
-	}
-	return name
+	return a.engine.ResolveCLI(name)
 }
 
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
@@ -323,25 +259,22 @@ func (a *App) StartWebServer(port int) error {
 		BindIP: h.IP,
 		Port:   port,
 		FQDN:   h.Domain,
-	}, a.manager)
+	}, a.engine.Manager())
 	if err != nil {
 		return fmt.Errorf("StartWebServer: create: %w", err)
 	}
 
 	ws.SetSessionResolver(func(id string) (string, string, string) {
-		a.mu.RLock()
-		name := a.tabNames[id]
-		a.mu.RUnlock()
-		cliType := ""
-		if sess, ok := a.registry.Get(id); ok {
-			cliType = sess.CLI
+		sessions, _ := a.client.ListSessions()
+		var name, cliType string
+		for _, s := range sessions {
+			if s.ID == id {
+				name = s.Name
+				cliType = s.CLI
+				break
+			}
 		}
-		a.statusMu.RLock()
-		st := ""
-		if s, ok := a.sessionStatuses[id]; ok {
-			st = string(s)
-		}
-		a.statusMu.RUnlock()
+		st, _ := a.client.GetSessionStatus(id)
 		return name, cliType, st
 	})
 
