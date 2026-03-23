@@ -97,6 +97,51 @@
 
 ---
 
+## Milestone: v1.2 — Tailscale-Only Networking
+
+**Shipped:** 2026-03-23
+**Phases:** 5 | **Plans:** 10 | **Commits:** 64
+
+### What Was Built
+- Tailscale health check infrastructure — detects installation, connection, and cert readiness with background polling via `local.Client{}`
+- Let's Encrypt TLS via Tailscale daemon — replaced self-signed cert system with `GetCertificate` hook and FQDN-based URLs
+- Auth layer removal — deleted password auth, per-session tokens, and all auth middleware; tailnet = access control
+- Dead code cleanup — removed generic VPN interface picker, `network.go`, and all orphaned frontend bindings
+- Health modal — three-state instructional UI with platform-specific guidance, CT disclosure, Check Again auto-dismiss
+- Tailscale status indicator in Settings panel replacing removed VPN interface picker
+
+### What Worked
+- Safety dependency chain (health→TLS→auth removal→cleanup) — each phase's deletion was safe only after the prior phase confirmed the replacement works. Zero regressions across 5 phases
+- Function injection pattern (`statusFunc`) enabled daemon-free unit testing of Tailscale health checks without mocks or interfaces
+- Milestone was a net-negative LOC change (removed more code than added) — codebase is simpler after shipping
+- Phase 14 and 17 were fast (15min and 5min per plan) — well-scoped, compiler-guided work
+- Audit passed 17/17 first attempt — strong requirements traceability throughout
+
+### What Was Inefficient
+- Phase 15 Plan 02 took 480s — `StartWebServer(port)` refactor had complex integration with CT disclosure, FQDN derivation, and health gating all in one plan
+- Phase 16 Plans 01 and 02 both hit 445-480s — auth removal touched many files (9 and 8 files respectively) across backend and frontend
+- Summary frontmatter `one_liner` field consistently null across all 10 summaries — CLI extraction produced no accomplishments for MILESTONES.md
+- Nyquist validation partial for all 5 phases — wave_0_complete never reached true
+
+### Patterns Established
+- `local.Client{}` zero-value for Tailscale daemon queries — no constructor, no config, just call methods
+- Health gate pattern: web server refuses to start without healthy Tailscale state
+- CT disclosure via sentinel file (`ct_disclosed`) — one-time acknowledgment without database
+- Props-down health state: App.tsx owns all health state, passes to HealthModal and SettingsPanel as props
+
+### Key Lessons
+1. Deletion milestones benefit from strict dependency ordering — removing auth before confirming TLS works would have been dangerous
+2. Plans that touch 7+ files consistently take 400+ seconds — consider splitting large removal plans by subsystem
+3. Summary frontmatter fields should be validated at write time — null `one_liner` across 10 summaries indicates a systematic gap
+4. Tailscale `local.Client{}` is remarkably simple to integrate — the Go SDK's zero-value pattern eliminated all configuration boilerplate
+
+### Cost Observations
+- Model mix: ~70% sonnet (execution/research), ~25% opus (audit/review/completion), ~5% haiku (synthesis)
+- Sessions: ~6 sessions across 6 days
+- Notable: Phases 14 and 17 were the fastest in project history (compiler-guided deletion is predictable)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -105,6 +150,7 @@
 |-----------|---------|--------|------------|
 | v1.0 | 107 | 6 | Initial process — inside-out architecture, gap closure plans |
 | v1.1 | ~50 | 7 | Source-inspection tests, JSX conditional pattern, layout-first ordering |
+| v1.2 | 64 | 5 | Safety dependency chain, deletion-focused milestone, function injection testing |
 
 ### Cumulative Quality
 
@@ -112,6 +158,7 @@
 |-----------|----------|----------|-----|-----------------|
 | v1.0 | 53+ (race-clean) | 0 | ~8,100 | 14 (0 blockers) |
 | v1.1 | 55+ (race-clean) | 73 | ~9,956 | 9 (0 blockers) |
+| v1.2 | 55+ (race-clean) | 73+ | ~8,846 | 3 (0 blockers, info-only) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -119,3 +166,4 @@
 2. Gap closure plans catch integration issues that initial planning misses
 3. Phase ordering matters — foundation phases (layout, contracts) before feature phases prevents cascading issues
 4. Source-inspection tests are a viable pattern when runtime testing is impractical (Canvas/WebGL, Wails bindings)
+5. Deletion milestones benefit from strict dependency ordering — confirm replacements work before removing originals (v1.2)

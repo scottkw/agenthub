@@ -1,5 +1,31 @@
 # Milestones
 
+## v1.2 Tailscale-Only Networking (Shipped: 2026-03-23)
+
+**Phases completed:** 5 phases, 10 plans
+
+**Key accomplishments:**
+
+- Tailscale health check infrastructure — detects installation, connection, and cert readiness with background polling via `local.Client{}`
+- Let's Encrypt TLS via Tailscale daemon — replaced self-signed cert system with `GetCertificate` hook, FQDN-based URLs, CT disclosure flow
+- Auth layer removal — deleted password auth, per-session tokens, and all auth middleware; tailnet membership = access control
+- Dead code cleanup — removed generic VPN interface picker (`network.go`), `GetNetworkInterfaces`, and all orphaned frontend bindings
+- Health modal with platform-specific guidance — three-state instructional UI (not installed / not connected / no certs) with Check Again button and auto-dismiss
+- Tailscale status indicator in Settings panel replacing removed VPN interface picker
+
+**Stats:**
+
+- 64 commits, 74 files changed, ~8,846 LOC (5,364 Go + 2,550 TS/TSX + 932 CSS)
+- Timeline: 6 days (2026-03-17 → 2026-03-23)
+- Git range: `4e84151..6894faf`
+
+**Tech debt (info-level only):**
+
+- TailscaleHealth type defined inline in App.tsx and App.d.ts rather than imported from models.ts — manual sync needed if fields change
+- NoCertsPanel `_platform` unused param — intentional, no platform-specific content in that panel
+
+---
+
 ## v1.1 Polish & Build (Shipped: 2026-03-20)
 
 **Phases completed:** 7 phases, 13 plans

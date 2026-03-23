@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Every session can optionally be served over the web via TLS with authentication, accessible from any browser via URL or QR code, and bindable to a VPN interface (Tailscale-first, but any VPN supported). Live status indicators show whether each CLI is running, waiting, or errored. Includes a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker and folder browser, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support.
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker and folder browser, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support.
 
 ## Core Value
 
@@ -35,18 +35,21 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ New-session modal with agent picker, native folder browser, and last-folder memory — v1.1
 - ✓ Per-tab SHIFT+/SHIFT- font size adjustment — v1.1
 - ⚠️ Terminal fill: CSS flex chain fixed, fills after resize — initial-paint timing gap remains (tabled) — v1.1
+- ✓ Tailscale health checks (installed, connected, certs enabled) with background polling — v1.2
+- ✓ Health modal with platform-specific instructions (macOS/Linux/Windows) and Check Again auto-dismiss — v1.2
+- ✓ Let's Encrypt TLS via Tailscale daemon (`GetCertificate` hook, FQDN-based URLs) — v1.2
+- ✓ Certificate Transparency disclosure before first cert provisioning — v1.2
+- ✓ Web server binds exclusively to Tailscale interface IP — v1.2
+- ✓ Password auth, per-session tokens, and auth middleware removed — v1.2
+- ✓ Web dashboard accessible without authentication to tailnet members — v1.2
+- ✓ Self-signed certificate infrastructure removed (CA+leaf generation, tls.go) — v1.2
+- ✓ Generic VPN interface binding code removed (Tailscale-only) — v1.2
+- ✓ Dead code cleanup: network.go, GetNetworkInterfaces, and frontend binding stubs removed — v1.2
+- ✓ Tailscale status indicator in Settings panel — v1.2
 
 ### Active
 
-**Current Milestone: v1.2 Tailscale-Only Networking**
-
-**Goal:** Simplify networking to Tailscale-only — use its Let's Encrypt certs, remove self-signed TLS and password/token auth, add health checks with user-friendly guidance.
-
-**Target features:**
-- Tailscale-only networking (remove generic VPN interface support) — Phase 17 complete: dead code removed
-- Tailscale health checks (installed, connected, certs enabled) with instructional modal — Phase 14 complete: core CheckHealth + app-layer polling/events; Phase 18 complete: HealthModal UI with three-state panels, platform-specific instructions, CT disclosure, status indicator in SettingsPanel
-- Let's Encrypt certs via Tailscale for web server and remote sessions — Phase 15 complete: GetCertificate hook, FQDN-based URLs, CT disclosure
-- Remove password auth, per-session tokens, and self-signed cert infrastructure — Phase 16 complete: all auth deleted, dashboard/sessions open to tailnet members
+(No active milestone — planning next)
 
 ### Out of Scope
 
@@ -61,17 +64,19 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - Split panes / tiling within a tab — each AI session gets its own tab
 - Configurable session backend (tmux vs Go-native) — deferred to future milestone
 - Real tmux mode with `tmux attach` — deferred to future milestone
-- Per-session token expiry and revocation — removed: tokens deleted in Phase 16
+- Per-session token expiry and revocation — removed: tokens deleted in v1.2
+- Non-Tailscale VPN support — removed in v1.2; Tailscale-only networking
 - Tab color coding per CLI type — deferred to future milestone
 - Status heuristic patterns for non-Claude CLIs — deferred to future milestone
 - Font/theme customization beyond size — per-tab font size covers the immediate need
 
 ## Context
 
-Shipped v1.1 with ~9,956 LOC (6,541 Go + 2,622 TS/TSX + 793 CSS).
-Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode.
-Frontend test suite: 121 vitest tests (source-inspection pattern for xterm.js/Wails constraints).
-Go test suite: race-clean, webserver tests with resolver coverage.
+Shipped v1.2 with ~8,846 LOC (5,364 Go + 2,550 TS/TSX + 932 CSS). Net LOC decreased from v1.1 due to auth/VPN code removal.
+Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local.
+Frontend test suite: vitest tests (source-inspection pattern for xterm.js/Wails constraints).
+Go test suite: race-clean, webserver tests with function injection for Tailscale health checks.
+Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
 Status heuristics implemented for Claude CLI; other CLIs always show "running" (deferred).
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization.
 
@@ -100,6 +105,13 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | JSX conditionals over CSS display toggle | Consistent pattern across StatusBar, SettingsPanel tabs | ✓ Good — cleaner React patterns, easier to test |
 | build.sh with Docker for Linux cross-compile | No native Linux WebKitGTK headers on macOS | ✓ Good — portable Linux builds from any OS |
 | ditto (not zip) for notarization archive | Preserves macOS extended attributes required by notarytool | ✓ Good — correct signing pipeline |
+| `local.Client{}` zero-value for Tailscale daemon | Queries existing tailscaled via Unix socket; no tsnet, no embedded daemon | ✓ Good — minimal dependency, no second Tailscale node |
+| Function injection for health checks (`statusFunc`) | Enables daemon-free unit testing without mocks or interfaces | ✓ Good — fast, deterministic tests |
+| `GetCertificate` hook (not cached CertPair) | Dynamic cert provisioning; certs always fresh from daemon | ✓ Good — no stale cert bugs, no disk writes |
+| FQDN from `CertDomains()[0]` (not hardcoded) | Machine name auto-derived from Tailscale daemon | ✓ Good — zero configuration for users |
+| CT disclosure via sentinel file | One-time acknowledgment persisted as `ct_disclosed` file | ✓ Good — simple, no database needed |
+| Tailscale health gates web server startup | Server refuses to start without healthy Tailscale state | ✓ Good — clear error path, no partial failures |
+| Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-20 after Phase 17 (Dead Code Cleanup)*
+*Last updated: 2026-03-23 after v1.2 milestone (Tailscale-Only Networking)*
