@@ -128,4 +128,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-23 after Phase 19 (Daemon Core Engine + IPC) complete*
+*Last updated: 2026-03-23 after Phase 20 (Process Separation) complete*
