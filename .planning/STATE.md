@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
 status: unknown
-stopped_at: Completed 20-process-separation-01-PLAN.md
-last_updated: "2026-03-23T16:06:45.748Z"
+stopped_at: "Checkpoint: 20-02 Task 3 awaiting GUI regression verification"
+last_updated: "2026-03-23T16:16:30.776Z"
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -64,6 +64,9 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 19-02]: testApp() uses /tmp/aht{pid}_{seq}.sock paths to stay under macOS 103-char sun_path limit (t.TempDir() produces paths > 103 chars)
 - [Phase 20-process-separation]: Relay TCP server lives inside API struct (relayLn field), started by RunDaemon before api.Start() — daemon owns the relay port lifecycle
 - [Phase 20-process-separation]: EnsureDaemon takes socketPath as argument — allows tests to inject short socket paths and avoids macOS 103-char limit
+- [Phase 20-process-separation]: pollSessionStatus goroutine replaces onStatus callback — callbacks cannot be serialized over HTTP; polling is the correct pattern for out-of-process daemon
+- [Phase 20-process-separation]: SetWebServerForTest added to daemon.API — enables test injection of TLS webserver without Tailscale in test environment
+- [Phase 20-process-separation]: shutdown() has no daemon teardown — daemon is an independent process; GUI closing does not affect session state (DAEMON-03)
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T16:06:45.744Z
-Stopped at: Completed 20-process-separation-01-PLAN.md
+Last session: 2026-03-23T16:16:22.040Z
+Stopped at: Checkpoint: 20-02 Task 3 awaiting GUI regression verification
 Resume file: None
