@@ -1,207 +1,231 @@
 # Stack Research
 
-**Domain:** Tailscale-only networking for Go desktop app (v1.2 milestone)
-**Researched:** 2026-03-20
-**Confidence:** HIGH
-
-## Context: What This Is NOT
-
-This is a **subsequent-milestone delta document** for v1.2. The following are already validated and must NOT be re-evaluated:
-- Go/Wails v2, React, xterm.js, nhooyr/websocket (now coder/websocket), go-pty
-- Self-signed TLS infrastructure — being **REMOVED** in this milestone
-- Password auth + per-session tokens — being **REMOVED** in this milestone
-- Generic VPN interface binding — being **REMOVED** in this milestone
-
-This file covers only the **net-new dependencies** for Tailscale-only networking.
+**Domain:** Go CLI + background daemon + terminal attach/detach (v1.3 milestone additions)
+**Researched:** 2026-03-23
+**Confidence:** HIGH (all library versions verified via pkg.go.dev)
 
 ---
 
-## Recommended Stack (New Additions Only)
+## Context: What Already Exists (Do NOT Re-add)
+
+The v1.2 codebase already has the following in `go.mod` — none of these need to be added:
+
+| Already Present | Version | Purpose |
+|----------------|---------|---------|
+| `github.com/aymanbagabas/go-pty` | v0.2.2 | PTY creation and management (cross-platform, ConPTY on Windows) |
+| `github.com/coder/websocket` | v1.8.14 | WebSocket relay (nhooyr fork) |
+| `github.com/wailsapp/wails/v2` | v2.10.2 | Desktop GUI shell |
+| `golang.org/x/sys` | v0.40.0 | Low-level OS syscalls (SIGWINCH, etc.) |
+| `tailscale.com` | v1.96.3 | Tailscale integration |
+| `github.com/tailscale/go-winio` | indirect via tailscale | Windows named pipes — already in dep graph |
+| `golang.org/x/term` | indirect via tailscale/crypto | Terminal raw mode — already in dep graph, needs promotion |
+
+---
+
+## Recommended Stack Additions (v1.3 New Dependencies)
 
 ### Core Technologies
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `tailscale.com/client/local` | v1.96.3 | Query running Tailscale daemon: connection status, cert domains, machine DNS name, provision TLS certs | Official current API. Zero-value `local.Client{}` works without configuration — communicates via local Unix/named-pipe socket to the already-running `tailscaled`. No embedded daemon; no second Tailscale identity. |
-| `tailscale.com/ipn/ipnstate` | v1.96.3 (same module) | Typed response structs for daemon status | `ipnstate.Status` contains `BackendState`, `CertDomains`, `Self.DNSName`, `TailscaleIPs` — all fields needed for health checks. Pulled in transitively with `client/local`; no separate import needed in go.mod. |
+| `github.com/spf13/cobra` | v1.9.1 | CLI command framework | Industry standard used by Kubernetes, Docker, Hugo, and GitHub CLI — 184k+ importers. Subcommand tree maps directly to `agenthub new`, `agenthub list`, `agenthub attach`, `agenthub web start`, etc. Native `context.Context` support, persistent flags, shell completion generation. No viable alternative at this adoption level. Latest release: v1.9.1 (Dec 3, 2025). |
+| `github.com/kardianos/service` | v1.2.4 | Service manager integration | The only mature Go library that handles launchd (macOS), systemd (Linux), and Windows Service from one unified API. Generates correct plist/unit files, handles install/uninstall/start/stop. 1,400+ importers, actively maintained (released July 14, 2025). Supports `service.Config{}` with platform-specific overrides for LaunchAgent KeepAlive, systemd WantedBy, etc. |
 
-**Module:** Both packages live in the single `tailscale.com` module. Latest stable: **v1.96.3** (released 2026-03-19).
+### Promote to Direct Dependency
 
-**One `go get` command:**
-```bash
-go get tailscale.com@v1.96.3
-```
+| Technology | Current Status | Action | Why |
+|------------|---------------|--------|-----|
+| `golang.org/x/term` | indirect via tailscale | `go get golang.org/x/term@latest` | Required directly for CLI attach: `term.MakeRaw`/`term.Restore` for raw mode, `term.GetSize` for resize events. Official Go extended library, already in binary. Promoting avoids accidental removal during dep tidy. Latest: v0.30.0+ (Mar 2026). |
 
-### No Other New Libraries Required
+### No Additional IPC Library Needed
 
-Everything else uses existing dependencies:
-- TLS config: Go stdlib `crypto/tls` — `local.Client.GetCertificate` returns a `tls.Config.GetCertificate` callback directly
-- HTTP/HTTPS server: existing Go `net/http` server already in the codebase
-- "Is Tailscale installed" check: Go stdlib `os/exec.LookPath` — no library needed
+Do NOT add `github.com/james-barrow/golang-ipc` or any third-party IPC wrapper.
 
----
-
-## How Each Health Check Maps to a Specific API
-
-### Check 1: Is Tailscale Installed?
-
-```go
-import "os/exec"
-
-_, err := exec.LookPath("tailscale")
-installed := err == nil
-```
-
-This is a pre-flight check before attempting any `local.Client` calls. The local client will return a connection error if `tailscaled` is not running, but that error is indistinguishable (by error type) from "not installed." LookPath distinguishes the two cases.
-
-**Platform note:**
-- macOS (App Store variant): `tailscale` CLI may not be in PATH. Use `exec.LookPath("tailscale")` first; if not found, check for the app at `/Applications/Tailscale.app`. Alternatively, attempt a `local.Client` call and treat the connection error as "not installed" with a message directing the user to tailscale.com.
-- macOS (direct download / Homebrew): `tailscale` is in PATH at `/usr/local/bin/tailscale` or `/opt/homebrew/bin/tailscale`.
-- Linux: `tailscale` is in PATH if installed.
-- Windows: Tailscale installer adds the binary to PATH.
-
-**Decision:** Attempt `local.Client.StatusWithoutPeers()`. If the call fails with a connection error, treat it as "Tailscale not running or not installed" and show the instructional modal. This is simpler than trying to distinguish installed-but-stopped from not-installed — both require the same user action (open Tailscale).
-
-### Check 2: Is Tailscale Connected?
-
-```go
-lc := &local.Client{}
-st, err := lc.StatusWithoutPeers(ctx)
-if err != nil {
-    // Tailscale daemon not reachable (not installed or not running)
-    return ErrTailscaleNotRunning
-}
-// st.BackendState values:
-//   "Running"          → connected to tailnet (proceed)
-//   "NeedsLogin"       → installed+running, not authenticated
-//   "NeedsMachineAuth" → awaiting admin approval
-//   "Stopped"          → installed+running, paused by user
-//   "Starting"         → daemon initializing
-//   "NoState"          → daemon up, no profile configured
-```
-
-`StatusWithoutPeers` is preferred over `Status` — lighter response (no peer map allocation), sufficient for health checks.
-
-### Check 3: Are HTTPS Certs Enabled?
-
-```go
-certsEnabled := len(st.CertDomains) > 0
-```
-
-`CertDomains` is the authoritative signal. It is populated by the Tailscale control plane when both:
-1. MagicDNS is enabled in the admin console (tailscale.com/admin → DNS)
-2. HTTPS certificates are enabled in the admin console (tailscale.com/admin → DNS → HTTPS)
-
-If `CertDomains` is empty: show instructional modal pointing user to admin console. The machine's FQDN for constructing the web server address:
-
-```go
-// st.Self.DNSName is e.g. "my-machine.tail1234.ts.net." (trailing dot)
-// Strip trailing dot before use as a hostname
-hostname := strings.TrimSuffix(st.Self.DNSName, ".")
-```
-
-### Cert Provisioning for the HTTP/TLS Server
-
-```go
-lc := &local.Client{}
-
-// Drop-in tls.Config callback — preferred approach
-// Handles caching and auto-renewal; daemon manages ACME DNS-01 challenge
-tlsConfig := &tls.Config{
-    GetCertificate: lc.GetCertificate,
-}
-
-// Alternative: get raw PEM bytes (if cert needs inspection or disk writing)
-certPEM, keyPEM, err := lc.CertPair(ctx, hostname)
-```
-
-`GetCertificate` is the correct choice for the existing Go HTTP server — it is a stable API, handles cert caching, and triggers renewal when the cert is close to expiry. No cert files to manage on disk. The daemon handles the ACME DNS-01 challenge via the Tailscale control plane; the app never sees ACME directly.
-
-**Replacing self-signed TLS:** Remove the existing `generateSelfSignedCert` / CA+leaf infrastructure and replace the `tls.Config` construction with the above two lines. The `net.Listen("tcp", addr)` and `http.Server{TLSConfig: tlsConfig}` pattern is unchanged.
+The project already transitively depends on `github.com/tailscale/go-winio` (Windows named pipes). Use stdlib `net.Listen("unix", socketPath)` on macOS/Linux and the already-available `go-winio` for Windows named pipes. This keeps the dependency count minimal and avoids duplicating what Tailscale's `go-winio` already provides.
 
 ---
 
 ## Installation
 
 ```bash
-go get tailscale.com@v1.96.3
+# From the agenthub project root
+go get github.com/spf13/cobra@v1.9.1
+go get github.com/kardianos/service@v1.2.4
+go get golang.org/x/term@latest   # promote from indirect to direct
 ```
 
-**Expected binary size impact:** `tailscale.com/client/local` is a thin HTTP-over-Unix-socket client. It does NOT embed tsnet or the Tailscale daemon. The module pulls in Tailscale's internal types and some crypto, but the bulk of the Tailscale module (wireguard engine, DNS, routing) is not linked unless imported. Binary size increase is estimated at 2-5MB. Acceptable for a desktop app currently at ~15MB.
+---
+
+## Integration Patterns with Existing Wails Binary
+
+### Pattern 1: Single Binary, Two Entry Points
+
+The existing `main.go` calls `wails.Run()` unconditionally. For v1.3, `main()` must inspect `os.Args` BEFORE calling `wails.Run()`. If a CLI subcommand is detected, cobra handles it and the process exits — `wails.Run()` is never called, no window opens.
+
+```go
+func main() {
+    // If any non-GUI subcommand is present, run CLI path and exit.
+    // Never calls wails.Run() — no window, no WebKit, no GUI overhead.
+    if len(os.Args) > 1 && !isWailsInternalArg(os.Args[1]) {
+        cli.Execute()  // cobra root command; os.Exit on completion
+        return
+    }
+    // GUI path — unchanged from v1.2
+    err := wails.Run(&options.App{ ... })
+}
+```
+
+**Wails dev mode caveat (from wails/discussions/4175):** During `wails dev`, the binary is invoked twice — second time with `/tmp/wailsbindings` as an arg. The `isWailsInternalArg` guard must pass through these internal args. Use a `//go:build production` build tag to make arg inspection active only in `wails build` output, not in `wails dev`.
+
+### Pattern 2: Daemon Reuses Existing Internal Packages
+
+When invoked as `agenthub daemon` (or via service manager), the binary runs headlessly — `wails.Run()` is never called. The `SessionRegistry`, `HubManager`, and `WebServer` subsystems already live in `internal/` with no GUI dependency and can be reused directly:
+
+```
+agenthub daemon
+  └── IPC socket listener (unix socket on macOS/Linux, named pipe on Windows)
+  └── internal/pty.SessionRegistry  (no change needed)
+  └── internal/relay.HubManager     (no change needed)
+  └── internal/webserver.WebServer  (no change needed)
+  └── Tailscale TLS via existing local.Client.GetCertificate
+```
+
+### Pattern 3: IPC Socket for CLI-to-Daemon Communication
+
+The CLI subcommands (`list`, `attach`, `kill`, `rename`, etc.) communicate with the running daemon via a local socket.
+
+**macOS/Linux:**
+```go
+socketPath := filepath.Join(os.UserCacheDir(), "agenthub", "daemon.sock")
+ln, err := net.Listen("unix", socketPath)
+```
+
+**Windows:** `tailscale/go-winio` is already in the dep graph. Import it directly:
+```go
+// Windows build tag file
+import "github.com/tailscale/go-winio"
+
+ln, err := winio.ListenPipe(`\\.\pipe\agenthub-daemon`, nil)
+```
+
+Abstract behind a single `NewDaemonListener(path string) (net.Listener, error)` function gated by `//go:build` tags — one per platform, same call site.
+
+**Protocol:** stdlib `encoding/json` over the socket is sufficient for the ~15 command types (`new`, `list`, `attach`, `kill`, `rename`, `web start/stop/status`, `health`, `qr`, `settings`). No gRPC or protobuf needed.
+
+### Pattern 4: Terminal Attach (PTY Proxy over IPC Socket)
+
+The `agenthub attach <id>` command:
+
+1. Dial daemon IPC socket; send `{"op": "attach", "session_id": "..."}`.
+2. Daemon finds the session's Hub, registers a new subscriber (same subscriber interface used by WebSocket relay today).
+3. Raw PTY bytes stream over the socket.
+4. CLI client calls `term.MakeRaw(int(os.Stdin.Fd()))` to enter raw mode.
+5. Two goroutines: `io.Copy(conn, os.Stdin)` and `io.Copy(os.Stdout, conn)`.
+6. On detach prefix (configurable, default `Ctrl+\` = `0x1c`), CLI intercepts the byte in the stdin copy loop, sends `{"op": "detach"}`, and calls `term.Restore`.
+7. On `SIGWINCH`, read size with `term.GetSize(int(os.Stdout.Fd()))` and send resize event to daemon which calls `hub.Resize(cols, rows)`.
+
+The existing `relay.Hub` / `relay.Subscriber` fan-out infrastructure handles daemon-side attach with no changes — IPC socket attach is another subscriber type alongside WebSocket subscribers.
+
+### Pattern 5: Service Manager Integration (kardianos/service)
+
+```go
+svcConfig := &service.Config{
+    Name:        "agenthub-daemon",
+    DisplayName: "AgentHub Daemon",
+    Description: "Manages AgentHub terminal sessions in the background.",
+    // macOS: installs as LaunchAgent (user-level, runs on login)
+    // Linux: installs as systemd user unit
+    // Windows: installs as Windows Service
+    Option: service.KeyValue{
+        "KeepAlive":  true,   // launchd: restart on crash
+        "RunAtLoad":  true,   // launchd: start immediately on install
+        "UserService": true,  // systemd: user-level unit
+    },
+}
+
+prg := &daemonProgram{...}  // implements service.Interface
+svc, err := service.New(prg, svcConfig)
+```
+
+`kardianos/service` also provides `service.Interactive()` — returns `true` when running from a terminal vs. from a service manager. Use this to decide whether to write logs to stderr (interactive) or the system logger (service manager).
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| `tailscale.com/client/local` | `tailscale.com/tsnet` | tsnet embeds a full Tailscale node inside the Go binary — correct for headless servers that need their own Tailscale identity and tailnet presence. Wrong for AgentHub: it is a desktop app that authenticates via the user's existing Tailscale installation. Adding tsnet would create a second Tailscale node on the user's tailnet, require separate auth, and massively bloat the binary. |
-| `tailscale.com/client/local` | `github.com/tailscale/tscert` | tscert is a stripped-down cert-only shim maintained for Caddy's older-Go-version compatibility requirements. It lacks the status/health check methods needed for this milestone. No reason to use it when the full `client/local` is available. |
-| `tailscale.com/client/local` | `tailscale.com/client/tailscale` (old package) | Deprecated. All methods on the old package delegate to `local.Client` internally. Official docs say to migrate to `client/local`. Do not use. |
-| `local.Client.GetCertificate` | `exec.Command("tailscale", "cert", hostname)` subprocess | Running `tailscale cert` as a subprocess works but requires parsing stdout, error handling across platforms, no automatic renewal, and no in-process cert caching. The Go API is strictly better. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| `spf13/cobra v1.9.1` | `urfave/cli v2` | urfave/cli is fine but cobra has wider ecosystem adoption, superior persistent-flag inheritance for nested command groups (`web start/stop/status`), and better shell completion generation. The Kubernetes/Docker ecosystem tooling patterns align with cobra. |
+| `spf13/cobra v1.9.1` | `urfave/cli v3` | v3 is still gaining adoption (API stabilized late 2024). Cobra is the safe, proven choice. |
+| `kardianos/service` | Manual plist/systemd/SCM authoring | Correct plist and systemd unit files require platform-specific knowledge and maintenance across 3 platforms. `kardianos/service` generates them from a single `service.Config{}` struct with well-tested templates. |
+| stdlib `net.Listen("unix",...)` + existing `tailscale/go-winio` | `james-barrow/golang-ipc` | `golang-ipc` abstracts what the project already has. Adding it introduces 3+ new transitive deps and version skew risk for something fully covered by stdlib + an existing dep. |
+| stdlib `encoding/json` over socket | gRPC + protobuf | Massive overkill for ~15 local command types. Adds code generation, `google.golang.org/grpc` (large dep), proto files to maintain. No performance benefit for a local IPC use case. |
+| `golang.org/x/term` | `github.com/pkg/term` | `x/term` is the official Go extended library, already in the binary transitively, actively maintained (v0.41.0 released March 2026). `pkg/term` is unmaintained. |
 
 ---
 
-## What NOT to Add
+## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `tailscale.com/tsnet` | Embeds a full Tailscale daemon; creates a second tailnet node; wrong architectural model for a desktop app using an existing daemon | `tailscale.com/client/local` |
-| `tailscale.com/client/tailscale` (old) | Deprecated; all methods forward to `local.Client`; wrong dependency to establish | `tailscale.com/client/local` |
-| `github.com/tailscale/tscert` | Caddy compatibility shim; no status/health methods; `client/local` is the recommended path | `tailscale.com/client/local` |
-| Any auth library (bcrypt, JWT, session tokens) | Auth is being removed entirely in v1.2 — Tailscale network membership is the access control | Remove existing auth; no replacement |
-| Any TLS cert generation library | Self-signed cert infrastructure is being removed — Tailscale provides Let's Encrypt certs | Remove existing cert gen; use `local.Client.GetCertificate` |
-| Any VPN interface detection library | Generic VPN binding is being removed; Tailscale-specific APIs replace it | `local.Client.StatusWithoutPeers` for IP/hostname |
+| `github.com/james-barrow/golang-ipc` | Wraps what the project already has (go-winio for Windows, stdlib for Unix). Adds transitive deps with no benefit. | stdlib `net` + existing `tailscale/go-winio` |
+| `github.com/creack/pty` direct use | The project already uses `aymanbagabas/go-pty` which wraps `creack/pty` on Unix and adds ConPTY on Windows. Mixing both packages causes confusion in the PTY lifecycle. | Continue using `aymanbagabas/go-pty` exclusively |
+| gRPC / protobuf for daemon IPC | Overkill for a local socket with ~15 command types. Adds code generation, large deps, build complexity. | stdlib `encoding/json` over Unix socket |
+| `tmux` as session backend | Out of scope per PROJECT.md ("Configurable session backend deferred to future milestone"). Adds an external process dependency. | Existing Go-native PTY in `internal/pty` |
+| Wails v3 alpha | In alpha as of March 2026; breaking API changes likely before stable release. Project is on Wails v2.10.2 which is stable and battle-tested. | Stay on Wails v2.10.2 |
+| Separate daemon binary | Contradicts the "single binary, two modes" requirement in PROJECT.md. Complicates distribution, signing, and PATH management. | Single binary with cobra dispatch in `main()` |
 
 ---
 
-## Stack Patterns by Health Check State
+## Stack Patterns by Scenario
 
-**If Tailscale daemon unreachable (StatusWithoutPeers returns error):**
-- Show instructional modal: "AgentHub web sharing requires Tailscale. Download at tailscale.com."
-- Disable all web serving controls in the UI
-- Poll periodically (e.g., every 10s) and re-enable controls when daemon becomes available
+**If running as GUI (no CLI subcommand in os.Args):**
+- `main()` proceeds to `wails.Run()` — unchanged from v1.2.
+- Daemon subsystems (registry, relay, webserver) start inside the Wails process as goroutines.
+- IPC socket opened so CLI clients can communicate with the running GUI process.
 
-**If BackendState != "Running" (e.g., NeedsLogin, Stopped):**
-- Show instructional modal with state-specific message:
-  - `NeedsLogin`: "Open Tailscale and sign in to your tailnet"
-  - `Stopped`: "Tailscale is paused. Resume it to enable web sharing"
-- Disable web serving controls
+**If running as CLI subcommand (`agenthub list`, `agenthub attach <id>`, etc.):**
+- cobra `Execute()` runs; `wails.Run()` is never called.
+- CLI dials daemon IPC socket; daemon process must already be running (or CLI auto-starts it).
+- No Wails/WebKit overhead; fast startup, stdout/stderr output.
 
-**If BackendState == "Running" but CertDomains is empty:**
-- Show instructional modal: "Enable HTTPS in the Tailscale admin console: tailscale.com/admin → DNS → Enable HTTPS"
-- Disable web serving controls (cannot provision certs without this)
+**If running as daemon (`agenthub daemon` or via service manager):**
+- `kardianos/service` detects service manager invocation vs. interactive terminal.
+- `wails.Run()` never called; no window.
+- Sessions managed via existing `SessionRegistry`; web server started via existing `webserver` package.
+- IPC socket opened on a well-known path.
 
-**If all checks pass (Running + CertDomains non-empty):**
-- Use `strings.TrimSuffix(st.Self.DNSName, ".")` as the server hostname
-- Bind HTTP/TLS listener to `st.TailscaleIPs[0]` (Tailscale interface) on the desired port
-- Configure `tls.Config{GetCertificate: lc.GetCertificate}` on the HTTP server
-- The web serving URL is `https://<DNSName>:<port>/`
+**If Windows named pipe needed for IPC:**
+- Import `github.com/tailscale/go-winio` directly (already in dep graph — just needs a direct import).
+- Use `winio.ListenPipe` / `winio.DialPipe` behind a `//go:build windows` file.
+- The rest of the codebase uses `net.Listener` / `net.Conn` — the abstraction boundary is at socket creation only.
 
 ---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `tailscale.com v1.96.3` | Go 1.26+ | go.mod already specifies `go 1.26.1`; no conflict |
-| `tailscale.com v1.96.3` | `coder/websocket v1.8.14` | No conflict; different subsystems |
-| `tailscale.com v1.96.3` | `wails/v2 v2.10.2` | No known conflicts; both use standard `net/http` |
-| `local.Client` | tailscaled >= v1.20 | Local socket API stable for years; any recent Tailscale install is compatible |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| `github.com/spf13/cobra` | v1.9.1 | Go 1.22+ | v1.9.0 released Feb 2025, v1.9.1 bugfix shortly after; both stable |
+| `github.com/kardianos/service` | v1.2.4 | Go 1.17+, macOS 12+, Linux systemd v221+, Windows 10+ | July 2025 release. Launchd UserAgent mode supported. |
+| `golang.org/x/term` | v0.30.0+ | `golang.org/x/sys v0.40.0` | Must match same golang.org/x/* release family; no conflict expected |
+| `github.com/tailscale/go-winio` | existing indirect | Windows 10+ | Named pipe API stable; do not upgrade independently of tailscale dep |
 
 ---
 
 ## Sources
 
-- [pkg.go.dev — tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) — Client methods, CertPair, GetCertificate, Status signatures. HIGH confidence, official documentation.
-- [pkg.go.dev — tailscale.com/ipn/ipnstate](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — Status struct fields: BackendState, CertDomains, Self.DNSName, TailscaleIPs. HIGH confidence, official documentation.
-- [Tailscale Docs — Enabling HTTPS](https://tailscale.com/docs/how-to/set-up-https-certificates) — CertDomains requires MagicDNS + HTTPS enabled in admin console. HIGH confidence, official Tailscale documentation.
-- [pkg.go.dev — tailscale.com versions](https://pkg.go.dev/tailscale.com?tab=versions) — v1.96.3 confirmed latest stable as of 2026-03-19. HIGH confidence, official.
-- [pkg.go.dev — tailscale.com/client/tailscale (deprecated)](https://pkg.go.dev/tailscale.com/client/tailscale) — Confirmed deprecated; all methods redirect to `client/local`. HIGH confidence, official.
-- [GitHub — tailscale/tscert](https://github.com/tailscale/tscert) — Confirmed as a Caddy compatibility shim, not for general use. MEDIUM confidence, official GitHub.
-- [Tailscale Docs — tsnet](https://tailscale.com/kb/1244/tsnet) — Confirmed tsnet embeds a full daemon (wrong for desktop app use case). HIGH confidence, official Tailscale documentation.
+- [pkg.go.dev/github.com/spf13/cobra](https://pkg.go.dev/github.com/spf13/cobra) — latest version v1.9.1 (Dec 3, 2025), feature set verified. HIGH confidence.
+- [github.com/spf13/cobra/releases/tag/v1.9.0](https://github.com/spf13/cobra/releases/tag/v1.9.0) — v1.9.0 release date confirmed Feb 2025. HIGH confidence.
+- [pkg.go.dev/github.com/kardianos/service](https://pkg.go.dev/github.com/kardianos/service) — v1.2.4 (July 14, 2025), platform support and API verified. HIGH confidence.
+- [pkg.go.dev/golang.org/x/term](https://pkg.go.dev/golang.org/x/term) — v0.41.0 (Mar 10, 2026), MakeRaw/Restore/GetSize API confirmed. HIGH confidence.
+- [pkg.go.dev/github.com/aymanbagabas/go-pty](https://pkg.go.dev/github.com/aymanbagabas/go-pty) — v0.2.2, ReadWriteCloser + Resize API verified. HIGH confidence.
+- [pkg.go.dev/github.com/Microsoft/go-winio](https://pkg.go.dev/github.com/Microsoft/go-winio) — v0.6.2+, net.Listener-compatible named pipe API confirmed. HIGH confidence.
+- [github.com/wailsapp/wails/discussions/4175](https://github.com/wailsapp/wails/discussions/4175) — os.Args pattern in Wails v2 and production build tag approach. MEDIUM confidence (community discussion, no official doc).
+- [iximiuz.com — Linux PTY attach/detach internals](https://iximiuz.com/en/posts/linux-pty-what-powers-docker-attach-functionality/) — raw mode + PTY proxy pattern (same pattern Docker uses). MEDIUM confidence (authoritative blog, verified against stdlib docs).
+- `/Users/ken/dev/agenthub/go.mod` — existing dependencies verified directly. HIGH confidence.
+- `/Users/ken/dev/agenthub/internal/relay/hub.go` — existing Hub/Subscriber fan-out infrastructure verified compatible with attach use case. HIGH confidence.
 
 ---
-
-*Stack research for: AgentHub v1.2 Tailscale-Only Networking*
-*Researched: 2026-03-20*
+*Stack research for: AgentHub v1.3 CLI + Daemon milestone*
+*Researched: 2026-03-23*

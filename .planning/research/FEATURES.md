@@ -78,37 +78,26 @@ Features that must work correctly for the milestone to feel complete.
 
 #### Dependency Notes
 
-- **Health checks are strictly ordered.** Cannot check cert enablement without confirming connection first; cannot confirm connection without confirming installation. Present all three as sequential steps in the modal.
-- **Auth removal requires interface binding to be locked down first.** The current auth system is the only thing preventing arbitrary access from non-Tailscale IPs. Removing auth before the bind address is Tailscale-only is a security regression.
-- **`GetCertificate` requires both MagicDNS and HTTPS certs enabled in admin console.** These are two separate toggles in the tailnet DNS settings. The health check for "certs enabled" covers both by checking `len(Status.CertDomains) > 0`.
-- **`local.Client` package is the current API.** `tailscale.com/client/tailscale` (module-level functions) is deprecated; use `tailscale.com/client/local.Client` struct methods directly. `CertPair`, `CertPairWithValidity`, and `GetCertificate` are all marked stable API.
+- **Health checks gate web server startup:** A healthy Tailscale state is required before binding to the interface IP. The health check chain is sequential: installed → connected → certs enabled. Each must pass before the next is checked.
+- **Auth removal is safe only after interface binding:** Removing password auth while still binding to 0.0.0.0 would expose sessions on the local network. The Tailscale-interface-only binding is the prerequisite that makes auth removal safe.
+- **Self-signed CA removal is safe only after GetCertificate hook is tested:** If the GetCertificate callback has a bug, there is no fallback — the server won't start. Confirm it works end-to-end before deleting tls.go.
 
 ---
 
 ### MVP Definition (v1.2)
 
-#### Must Ship
+#### Launch With
 
-- [ ] Health check: `local.Client.StatusWithoutPeers()` error detection (tailscaled reachable)
-- [ ] Health check: `BackendState == "Running"` (connected to tailnet)
-- [ ] Health check: `len(CertDomains) > 0` (HTTPS certs enabled in tailnet)
-- [ ] Instructional modal with per-state failure guidance and "Check Again" button
-- [ ] `tls.Config.GetCertificate` wired to `local.Client.GetCertificate`
-- [ ] Auto-select Tailscale IP as bind address; remove interface picker UI
-- [ ] Auto-derive HTTPS URL from `strings.TrimSuffix(Status.Self.DNSName, ".")`
-- [ ] Delete `auth.go`, `tokens.go`, `tls.go` and all auth middleware
-- [ ] Remove `GET /ca.crt`, `POST /login`, `POST /api/sessions/{id}/token` routes
-- [ ] Replace interface picker in settings UI with Tailscale status indicator
+- [x] Health check: installed, connected, certs enabled — core safety gate
+- [x] Instructional modal with per-OS text and Check Again button
+- [x] Let's Encrypt cert via `local.Client.GetCertificate`
+- [x] Tailscale-only interface binding
+- [x] Remove password/token auth and self-signed CA infrastructure
 
-#### Add After Validation (v1.2.x)
+#### Defer
 
-- [ ] Per-OS instructional text in health check modal — add after confirming basic modal works on all three platforms
-- [ ] Health check on web-serve toggle — add if users report confusion from mid-session Tailscale disconnects
-
-#### Future Consideration (v2+)
-
-- [ ] Tailscale Funnel integration for public access — requires separate scoping; different trust model
-- [ ] Tailscale ACL-based per-session access control — only needed if multi-user tailnet sharing becomes a use case
+- Tailscale Funnel integration — different threat model, separate milestone
+- Per-user Tailscale ACL configuration UI — out of scope for v1.2
 
 ---
 
@@ -116,422 +105,213 @@ Features that must work correctly for the milestone to feel complete.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Health checks (all three states) | HIGH | LOW | P1 |
+| Health check chain | HIGH | LOW | P1 |
 | Instructional modal | HIGH | MEDIUM | P1 |
-| `GetCertificate` wiring | HIGH | LOW | P1 |
-| Bind to Tailscale IP (auto-select) | HIGH | LOW | P1 |
-| Remove password/token auth | HIGH | MEDIUM | P1 |
-| Remove self-signed CA | MEDIUM | LOW | P1 |
-| Auto-derive URL from DNSName | MEDIUM | LOW | P1 |
-| Remove interface picker UI | MEDIUM | LOW | P1 |
-| Per-OS modal instructions | MEDIUM | LOW | P2 |
-| Health check on web-serve toggle | MEDIUM | LOW | P2 |
+| GetCertificate TLS hook | HIGH | MEDIUM | P1 |
+| Tailscale-only binding | HIGH | LOW | P1 |
+| Remove auth + self-signed CA | MEDIUM | MEDIUM | P1 (cleanup enables simpler codebase) |
+| Per-OS instructions | MEDIUM | LOW | P1 |
+| CT disclosure modal | MEDIUM | LOW | P2 |
 
 ---
 
-### Implementation Notes (v1.2)
+## v1.3 Milestone: CLI + Daemon
 
-**Health check API (Go)**
+### Scope
 
-```go
-import "tailscale.com/client/local"
-
-client := &local.Client{}
-
-// Check 1: tailscaled reachable
-st, err := client.StatusWithoutPeers(ctx)
-if err != nil {
-    // tailscaled not running or not installed
-    // Distinguish: check for binary via exec.LookPath("tailscale")
-}
-
-// Check 2: connected to tailnet
-if st.BackendState != "Running" {
-    // NeedsLogin, Stopped, Starting — show state-specific message
-}
-
-// Check 3: HTTPS certs enabled
-if len(st.CertDomains) == 0 {
-    // User must enable HTTPS in tailnet admin console (DNS page)
-}
-
-// FQDN for URL construction
-fqdn := strings.TrimSuffix(st.Self.DNSName, ".") // e.g. "host.tail12345.ts.net"
-```
-
-**TLS config wiring (Go)**
-
-```go
-client := &local.Client{}
-tlsCfg := &tls.Config{
-    GetCertificate: client.GetCertificate, // handles caching + auto-renewal
-}
-ln, err := tls.Listen("tcp", tailscaleBindAddr, tlsCfg)
-```
-
-**What gets deleted from the existing codebase**
-
-| File / Component | Reason |
-|-----------------|--------|
-| `internal/webserver/auth.go` | Password/session cookie management |
-| `internal/webserver/tokens.go` | Per-session shareable tokens |
-| `internal/webserver/tls.go` | Self-signed CA and leaf cert generation |
-| `auth_test.go`, `tokens_test.go`, `tls_test.go` | Tests for deleted code |
-| `GET /ca.crt` route | CA cert download endpoint |
-| `POST /login` route | Login endpoint |
-| `POST /api/sessions/{id}/token` route | Token creation endpoint |
-| `dashboardAuth` middleware in `server.go` | All routes become open |
-| `sessionAuth` middleware in `server.go` | Access control delegated to Tailscale |
-| `ListInterfaces()` usage in settings UI | No longer needed for user selection |
-| `Config.ConfigDir` field | Only needed for CA persistence |
-
-**What gets added**
-
-| Component | Notes |
-|-----------|-------|
-| `internal/tailscale/` (new package) | Wraps `local.Client` status checks; returns typed result with three states and FQDN |
-| Health check modal in React frontend | Three-state UI with per-step guidance; "Check Again" button; optional per-OS text |
-| `GetCertificate` in `server.go` | Replace `GenerateLeafCert` + `BuildTLSConfig` with `local.Client.GetCertificate` |
-| Tailscale status indicator in settings UI | Shows connected IP, hostname, health state; replaces interface picker |
+This section covers only what is NEW in v1.3. Existing app ships all v1.2 features. The core
+architectural change: session management moves from the GUI process into a persistent background
+daemon. The GUI and a new CLI become two equal client types that attach to the same daemon session
+pool. Research basis: tmux/screen patterns, shpool architecture, kardianos/service for cross-platform
+service registration, Go Unix domain socket IPC, and PTY raw mode / resize passthrough.
 
 ---
 
-### Sources (v1.2)
+### Table Stakes (Users Expect These for v1.3)
 
-- [Tailscale local client Go API — pkg.go.dev/tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) (HIGH — official package docs, stable API markers present)
-- [ipnstate.Status fields — pkg.go.dev/tailscale.com/ipn/ipnstate](https://pkg.go.dev/tailscale.com/ipn/ipnstate) (HIGH — official package docs)
-- [Enabling HTTPS — tailscale.com/kb/1153/enabling-https](https://tailscale.com/kb/1153/enabling-https) (HIGH — official Tailscale docs)
-- [Tailscale TLS certs blog — tailscale.com/blog/tls-certs](https://tailscale.com/blog/tls-certs) (HIGH — official Tailscale blog)
-- Existing codebase read directly: `internal/webserver/server.go`, `auth.go`, `tokens.go`, `tls.go`, `network.go`
-
----
-
-## v1.1 Milestone: Polish & Build (Preserved)
-
-This section covers features added in v1.1. v1.0 feature landscape is preserved below.
-
-### Context: What v1.0 Already Ships
-
-- Tabbed terminal UI (xterm.js), tab creation/close, inline rename via double-click
-- Settings modal: CLI path overrides + web serving (single scrolling panel)
-- Web serving: TLS, auth, per-session tokens, QR codes
-- `web-serving-bar` overlay above terminal: Web On/Off toggle, URL, Copy Token Link, QR button
-- Status dot per tab (running/waiting/idle/errored), status event subscription
-- GitHub Actions CI matrix: macOS (signed+notarized), Linux (two webkit variants), Windows (NSIS)
-- `ResizeObserver` + `requestAnimationFrame` driving `fitAddon.fit()` on active tab
-
----
-
-### Table Stakes (Users Expect These for v1.1)
-
-Features expected in a polished v1.1 given what v1.0 shipped. Missing these degrades perceived quality.
+Features that must work for the milestone to feel complete. Grounded in what tmux, screen, shpool,
+and Docker daemon users consider non-negotiable in any session manager.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Build script (`build.sh`)** | Developers need one-command local builds for release; currently only possible via CI. | MEDIUM | Wails: `wails build -platform <target>`; macOS: `codesign` + `xcrun notarytool`; env-gated so unsigned local builds work without certs. Cannot cross-compile macOS from Linux/Windows (hard constraint: CGo + WebKit). |
-| **Terminal full-fill fix** | Terminals that don't fill available space look broken. `web-serving-bar` overlay above the terminal takes height without being accounted for in the flex layout. | LOW | CSS fix: `.terminal-wrapper` flex column; status bar `flex-shrink: 0`; terminal `flex: 1; min-height: 0`. `ResizeObserver` fires `fitAddon.fit()` automatically. |
-| **Larger toolbar buttons** | Current `+` and gear buttons are explicitly noted as too small in PROJECT.md. Touch/click targets should be 36–44px minimum (Apple HIG, Material guidelines). | LOW | CSS only. No logic changes. |
-| **Per-tab status bar** | The `web-serving-bar` is conditional (only shows when web server running) and ad-hoc. A permanent status bar is expected in any app with per-tab state: always present, always shows current tab's status and controls. | MEDIUM | Replace `web-serving-bar` with permanent single-line strip below tab bar. Always rendered — height is stable, so terminal fit is deterministic. When web serving is off/unconfigured: show muted status text. |
-| **Settings modal declutter** | Current panel is a single long scroll mixing CLI paths and web serving. Sectioned/tabbed settings modals are the standard for any desktop app with 2+ configuration domains. | LOW | CSS + React layout only; no backend changes. Two sections: "CLI Paths" and "Web Serving". Can use a tab strip at top of modal. Footer should be "Close" only — saves are per-field. |
-| **Tab renaming → web dashboard** | `RenameSession` already works on desktop. The web dashboard session list shows session names. Users expect the rename to propagate — otherwise the dashboard shows stale names. | LOW | `RenameSession` Go method exists; `/api/sessions` response includes session name field; dashboard `renderSessions()` reads `session.name`. Likely already works — verify `json:"name"` tag on session struct. |
+| `agenthub new [agent] [path]` | Any session manager must support creating sessions from CLI without a GUI | LOW | Forwards to daemon over Unix socket. Returns session ID. Prints session name on success. Should accept `--name` flag for custom naming. Mirrors GUI new-session modal. |
+| `agenthub list` (alias `ls`) | Sessions must be enumerable; core workflow is "what is running?" | LOW | Returns table: ID, name, agent, working dir, status, web URL if serving. Machine-readable `--json` flag useful for scripting. |
+| `agenthub attach <id-or-name>` | Session persistence is useless without a way to reconnect | HIGH | Enters raw PTY proxy mode: stdin → daemon socket → PTY; PTY output → stdout. Must handle resize (SIGWINCH → send resize event to daemon). Must restore terminal state on exit. This is the hardest feature in the milestone. |
+| `agenthub detach` | Attach without detach is a trap; user must be able to leave session running | LOW | Send detach message to daemon via the attach connection. Configurable prefix key (default `ctrl+b d`, matching tmux convention). Restores normal terminal mode. Session keeps running in daemon. |
+| `agenthub kill <id-or-name>` | Sessions must be terminable from CLI | LOW | Sends SIGTERM to the session's child process via daemon. Daemon removes session from pool. Confirm with a `--force` flag for SIGKILL. |
+| `agenthub rename <id-or-name> <new-name>` | Named sessions are table stakes; renaming is expected | LOW | Updates session name in daemon registry. Propagates to GUI (GUI polls or receives push notification). |
+| Background daemon process | The whole point: sessions must survive GUI close and terminal disconnect | MEDIUM | Single daemon per user, not per session. Listens on Unix socket at well-known path (e.g. `$XDG_RUNTIME_DIR/agenthub.sock` on Linux, `$TMPDIR/agenthub.sock` on macOS). Auto-started by CLI if not running. |
+| Daemon auto-start on login | Users expect their session manager to be there when they open a terminal | MEDIUM | Platform service registration: launchd plist on macOS, systemd user unit on Linux, Windows Service on Windows. `kardianos/service` package provides a unified Go API across all three. Registered on first `agenthub daemon install`. |
+| `agenthub daemon start/stop/status` | Service lifecycle commands are expected in any daemon-managed tool (Docker, Redis, etc.) | LOW | Wraps platform service manager commands. `status` reports whether daemon is running, its PID, and socket path. |
+| Shared session pool: GUI + CLI see same sessions | If GUI and CLI show different sessions, the product is broken | HIGH | Daemon owns all sessions. GUI connects to daemon over Unix socket (or migrates to HTTP IPC — see architecture). GUI's current in-process session store becomes a client view of daemon state. This is the largest architectural change in v1.3. |
+| Graceful terminal state restore on detach/exit | Raw PTY mode changes terminal settings; failure to restore leaves terminal broken | MEDIUM | Call `term.Restore(fd, oldState)` on any exit path: normal detach, ctrl+c, daemon disconnect, signal. Must use `defer` and handle panics. This is the classic footgun in PTY tools. |
+| `agenthub web start/stop/status <id>` | Per-session web serving is an existing GUI feature that must be reachable from CLI | LOW | Maps to existing web server toggle. `status` prints URL + QR text if serving. Existing webserver package already handles this; CLI just invokes it via daemon RPC. |
+| `agenthub health` | CLI should surface the same Tailscale health state the GUI shows | LOW | Calls existing health check logic. Returns structured status: installed, connected, certs. Exits non-zero on failure for scripting. |
+| `agenthub qr <id>` | QR code sharing is a core AgentHub feature; must be CLI-accessible | LOW | Prints QR code as Unicode block characters (existing `skip2/go-qrcode` can output to terminal). Falls back to printing URL if session is not web-served. |
 
 ### Differentiators (Competitive Advantage)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **New-session modal with agent picker + folder browser** | Replaces the bare CLI dropdown overlay. A proper modal with agent picker + folder browser (with "Browse" native OS dialog) is how IDEs handle new-terminal workflows (VS Code, JetBrains). Eliminates the "which folder is this agent running in?" confusion. | MEDIUM | Wails `runtime.OpenDirectoryDialog` provides native OS folder picker (one Go line, zero React file tree). Go `CreateSession` needs a `workDir string` parameter passed to PTY spawn `Cmd.Dir`. React modal: agent picker, directory field, Browse button, name field (pre-filled from folder basename), Create button. Last-used folder in `localStorage`. |
-| **Per-tab SHIFT+/SHIFT- font size** | Lets each terminal have its own font size. Power users adjust per session (dense code view vs. comfortable reading). xterm.js supports per-instance `options.fontSize`; `attachCustomKeyEventHandler` intercepts Shift++ and Shift+- before they reach the PTY. After size change, `fitAddon.fit()` reflows cols/rows. | LOW | Intercept: `e.shiftKey && (e.key === '=' \|\| e.key === '+')` and `e.shiftKey && e.key === '-'`. Return `false` to prevent PTY passthrough. Bounds: 8–32px. Persist per-sessionId in `localStorage` as `agenthub.fontSize.<sessionId>`. |
-| **Web dashboard visual refresh** | Current dashboard is functional but minimal: plain list items, no status colors, no CLI badge, no visual hierarchy. A card-based layout with status indicators, CLI type badge, and copy-link/QR actions makes the remote experience feel first-class. | MEDIUM | Pure HTML/CSS/JS in `web/dashboard.html` (no framework). Status and name already in `/api/sessions`. Cards replace `<li>` items. Status dot colors match desktop app convention. |
+| Configurable detach prefix key | tmux's C-b default conflicts with many editors and terminal apps; configurable prefix is a known quality-of-life win | LOW | Stored in config file. Default: `ctrl+b` then `d` (tmux convention). Alternative suggestion: `ctrl+]` (no conflicts, used by shpool). Applied in CLI attach handler before bytes are forwarded to daemon. |
+| GUI and CLI are interchangeable session clients | Most session managers treat GUI as primary and CLI as secondary; making them truly equal enables headless server use cases | HIGH | Requires daemon to own all session state. GUI becomes a display client, not the session owner. This is architecturally ambitious but enables: SSH into machine, `agenthub list`, attach to session the GUI was managing. |
+| `agenthub serve <path>` / `agenthub unserve <id>` | Shorthand for new-session + web-start in one command; enables one-line "serve this project" workflow | LOW | Sugar over `new` + `web start`. Prints URL and QR immediately. Common enough workflow to deserve first-class support. |
+| `agenthub settings` | CLI settings inspection (read-only) closes the gap between GUI and CLI discoverability | LOW | Prints current settings as JSON or table. Not a full TUI settings editor — just inspection. GUI remains the write interface. |
+| `--json` output on all list/status commands | Enables scripting and automation (piping to jq, CI integration) | LOW | Standard in modern CLIs (gh, kubectl, docker). Use `encoding/json`. Add to `list`, `status`, `health`, `web status`. |
+| Scrollback replay on attach | When reattaching to a session, show recent output so the user knows where they left off | MEDIUM | Existing `relay/scrollback.go` already implements in-memory VT100 scrollback buffer. On attach, daemon sends the scrollback buffer before entering live relay mode. Shpool uses the same pattern — confirmed as a user expectation. |
 
-### Anti-Features (v1.1)
+### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Folder browser built in React (custom file tree)** | Polished look | Massive scope: need Go FS APIs, permissions, pagination, cross-platform path separators. Fragile on large dirs. | Use `runtime.OpenDirectoryDialog` (Wails native OS dialog) — one line of Go, zero React tree code, native OS appearance. |
-| **Settings as a separate page/route** | Cleaner than modal | Wails is a single-page app; routing adds complexity, back-navigation confusion. Settings are infrequent-access. | Tabbed/sectioned modal. Keyboard-dismissable. Same pattern as VS Code settings overlay. |
-| **Font size stored server-side per session** | Persist across restarts | Font size is a local display preference, not session data. Backend doesn't need it. Synchronizing over WebSocket adds protocol complexity. | `localStorage` keyed by sessionId. Zero backend changes. Persists across app restarts. |
-| **Auto-fit font size to fill terminal container** | "Fill the space perfectly" | FitAddon explicitly does not support this. Implementing font-size-to-fit requires iterative binary search, triggers layout thrash, and still only fits one dimension. This is a known xterm.js limitation. | Fixed user-controlled font size + fitAddon for cols/rows. This is the industry standard (VS Code, Hyper, Warp all work this way). |
-| **macOS cross-compilation from Linux/Windows** | Single build host for all platforms | Hard constraint: Wails uses CGo + WebKit2GTK which cannot cross-compile to macOS. Apple notarization also requires a macOS host. | GitHub Actions macOS runner for macOS builds; `build.sh` auto-detects host platform and builds only the matching target. |
-| **Global font size (all tabs)** | Simpler UX | Negates the per-tab differentiator. Some users want dense in one tab and readable in another. | Per-tab font size. A "reset all to default" button in settings can satisfy the "reset global" need. |
+| Full TUI session manager (tmux-style pane layout) | "Why not make it like tmux?" | Out of scope for v1.3; AgentHub tabs are managed in the GUI, not via a TUI pane system; adding pane layout to the CLI would be a parallel product, not an enhancement | Each AI agent gets one session, one tab. The GUI is the multiplexer. The CLI is the automation interface. |
+| Multiple clients attached to one session simultaneously | Collaborative terminal sharing (tmux's killer feature) | Complex to implement correctly (output fan-out, input arbitration, resize conflicts); not a stated requirement; adds protocol complexity without a clear AgentHub use case | One active attach at a time. The GUI can observe sessions (web view is already the read-only path). |
+| Daemon per session (zmx model) | Isolates crashes — if one session's daemon crashes, others survive | Adds process management overhead; complicates the shared session pool (each GUI tab would need to track multiple daemon PIDs); cross-session commands (`list`, `rename`) require a coordinator anyway | Single daemon model (shpool/tmux approach). Make the daemon resilient rather than eliminating it. |
+| Automatic session naming from git branch or cwd | "Name sessions after my project automatically" | Heuristic-based naming causes collisions and surprises; users immediately start overriding it | Require explicit `--name` or default to `agent-<id>`. Support `agenthub rename` for post-hoc naming. |
+| Session recording/replay (full asciinema-style) | "Record my Claude Code sessions" | Significant storage and privacy concerns; orthogonal to session management; better served by a dedicated tool | Scrollback buffer for reattach is sufficient. Full recording is out of scope. |
+| Remote daemon (TCP socket) | Access sessions over the network without SSH | Security model complexity (auth, TLS); the existing web-serving feature covers the read-only remote access case; the GUI covers local management | Web serving is the remote access path. CLI is local-only (Unix socket). SSH + `agenthub attach` covers advanced cases. |
+| Interactive TUI for `agenthub list` | "Show a fzf-style picker" | Adds a TUI dependency (bubbletea/lipgloss); the simple table output is faster and more scriptable; the GUI is the correct rich-UI surface | Plain table output with `--json` flag for scripting. Pipe to `fzf` externally if desired. |
 
 ---
 
-### Feature Dependencies (v1.1)
+### Feature Dependencies (v1.3)
 
 ```
-[build.sh]
-    uses──> wails build -platform <target>
-    uses──> codesign + xcrun notarytool  (macOS only, env-gated)
-    requires──> APPLE_DEVELOPER_ID, NOTARIZATION_* env vars for signing
+[Background daemon process]
+    └──required by──> [Unix socket IPC]
+                          └──required by──> [agenthub new/list/kill/rename/web/health/qr]
+                                                └──required by──> [agenthub attach]
+                                                                      └──required by──> [agenthub detach]
 
-[Terminal full-fill fix]
-    enables──> [Per-tab status bar]  (stable height required for deterministic fit)
-    uses──> existing ResizeObserver + fitAddon pattern (no logic changes)
+[Shared session pool: GUI + CLI]
+    └──requires──> [Daemon owns all sessions] (GUI migrates from in-process store to daemon client)
+                       └──required by──> [GUI connects to daemon socket]
 
-[Per-tab status bar]
-    requires──> [Terminal full-fill fix]  (status bar height must be stable before fit)
-    replaces──> web-serving-bar overlay
-    enhances──> tab renaming display  (status bar shows current tab name)
+[agenthub attach]
+    └──requires──> [PTY proxy: raw I/O relay]
+    └──requires──> [Terminal state save/restore]
+    └──requires──> [Resize event forwarding (SIGWINCH)]
+    └──enhanced by──> [Scrollback replay on attach]
 
-[New-session modal]
-    requires──> Go: OpenDirectoryDialog bound method (new)
-    requires──> Go: CreateSession updated to accept workDir string (new param)
-    enhances──> tab naming  (name pre-filled from folder basename)
-    persists via──> localStorage: agenthub.lastWorkDir
+[Daemon auto-start on login]
+    └──requires──> [agenthub daemon install] (registers with platform service manager)
+    └──uses──> [kardianos/service] for launchd/systemd/Windows Service abstraction
 
-[Per-tab font size SHIFT+/SHIFT-]
-    requires──> [Terminal full-fill fix]  (font size change triggers refit)
-    uses──> term.attachCustomKeyEventHandler (existing xterm.js API)
-    requires──> fitAddon.fit() called after options.fontSize update
-    persists via──> localStorage: agenthub.fontSize.<sessionId>
+[agenthub serve <path>]
+    └──sugar over──> [agenthub new] + [agenthub web start]
+    └──requires──> [agenthub new] and [agenthub web start/stop/status]
 
-[Tab renaming → dashboard]
-    depends on──> RenameSession Go method  (already exists)
-    depends on──> /api/sessions returning name field  (verify json tag)
+[Configurable detach prefix key]
+    └──requires──> [agenthub attach] (prefix key is parsed during attach raw mode)
+    └──stored in──> [config file] (existing config system)
 
-[Web dashboard visual refresh]
-    depends on──> existing /api/sessions JSON endpoint  (status + name already present)
+[Scrollback replay on attach]
+    └──already implemented──> [relay/scrollback.go] (in-memory VT100 buffer exists)
+    └──requires──> [Daemon sends scrollback on attach handshake]
 ```
 
-#### Dependency Notes (v1.1)
+### Dependency Notes
 
-- **Status bar requires terminal full-fill fix first:** The status bar has a fixed pixel height that reduces the terminal container height. `fitAddon.fit()` must fire after the status bar mounts. The existing `ResizeObserver` handles this automatically if the status bar is inside the observed container hierarchy.
-- **New-session modal requires backend change:** Current `CreateSession(cliName, defaultName string)` has no `workDir` parameter. This is a Go + TypeScript binding change — both backend and generated wailsjs bindings must be updated.
-- **Font size change requires immediate refit:** After `term.options.fontSize = newSize`, cell pixel dimensions change. `fitAddon.fit()` must run immediately or PTY cols/rows will be stale and terminal content will reflow incorrectly.
-
----
-
-### MVP Definition (v1.1)
-
-#### Must Ship
-
-All items from PROJECT.md Active list:
-
-- [ ] `build.sh` — per-platform and all-platform with macOS signing support (env-gated)
-- [ ] Terminal full-fill fix — terminals fill all available vertical space
-- [ ] Per-tab status bar — replaces `web-serving-bar` overlay, permanent single-line strip
-- [ ] Tab renaming propagation to web dashboard session names
-- [ ] Larger toolbar buttons — CSS fix, 36–44px click area
-- [ ] New-session modal with agent picker + folder browser (remembers last folder)
-- [ ] Per-tab SHIFT+/SHIFT- font size adjustment
-- [ ] Settings modal declutter/restyle
-
-#### Stretch Goal (v1.1 if time allows)
-
-- [ ] Web dashboard visual refresh — card layout, status colors, CLI badge
-
-#### Defer (v1.2+)
-
-- Tab color coding per CLI type (PROJECT.md explicit deferral)
-- Status heuristics for non-Claude CLIs (PROJECT.md explicit deferral)
-- Font size persistence via backend
+- **Daemon is the prerequisite for everything:** All CLI commands route through the Unix socket to the daemon. The daemon must exist before any CLI command is useful. Auto-start logic (start daemon if not running, then run the command) must be rock-solid.
+- **Shared session pool requires architectural migration:** The GUI currently owns sessions in-process. Moving them to the daemon means the GUI must become a client. This is the highest-risk change in v1.3 and should be the first phase, with all other CLI commands built on top.
+- **PTY attach is the hardest feature:** Raw terminal mode, SIGWINCH handling, terminal state restore, and prefix key parsing must all work correctly. A single missed `defer term.Restore()` leaves the user's terminal broken. Treat this as a mini-project within the milestone.
+- **Scrollback replay is low-cost:** `relay/scrollback.go` already exists. The daemon just needs to send the buffer at the start of an attach session. This is a differentiator that costs almost nothing given the existing infrastructure.
+- **kardianos/service for service management:** The `github.com/kardianos/service` package provides a single Go API for launchd (macOS), systemd (Linux), and Windows Service. This is the right choice — do not write platform-specific service registration code.
 
 ---
 
-### Feature Prioritization Matrix (v1.1)
+### MVP Definition (v1.3)
+
+#### Launch With (Phase 1: Daemon foundation)
+
+- [ ] Background daemon with Unix socket IPC
+- [ ] Daemon auto-start from CLI if not running
+- [ ] Shared session pool: GUI migrates to daemon-as-backend
+
+#### Launch With (Phase 2: Core CLI commands)
+
+- [ ] `agenthub new`, `list`, `kill`, `rename` — session lifecycle
+- [ ] `agenthub web start/stop/status` — web serving control
+- [ ] `agenthub health` — Tailscale health from CLI
+- [ ] `agenthub qr <id>` — QR code output
+
+#### Launch With (Phase 3: Attach/detach)
+
+- [ ] `agenthub attach <id>` — full PTY proxy with raw I/O, resize, ctrl-c passthrough
+- [ ] `agenthub detach` via configurable prefix key
+- [ ] Terminal state restore on all exit paths
+- [ ] Scrollback replay on reattach (already implemented in relay/scrollback.go)
+
+#### Launch With (Phase 4: Service manager)
+
+- [ ] `agenthub daemon install/uninstall/start/stop/status`
+- [ ] launchd plist (macOS), systemd user unit (Linux), Windows Service
+
+#### Add After Validation (v1.3.x)
+
+- [ ] `agenthub serve <path>` / `agenthub unserve <id>` — sugar commands
+- [ ] `agenthub settings` — read-only config inspection
+- [ ] `--json` output on all list/status commands
+
+#### Future Consideration (v2+)
+
+- TUI session picker with fzf-style interface
+- Multiple simultaneous clients attached to one session
+- Remote daemon over TCP
+
+---
+
+### Feature Prioritization Matrix (v1.3)
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Terminal full-fill fix | HIGH | LOW | P1 |
-| Larger toolbar buttons | MEDIUM | LOW | P1 |
-| Per-tab status bar | HIGH | MEDIUM | P1 |
-| Settings modal declutter | MEDIUM | LOW | P1 |
-| Tab renaming → dashboard | MEDIUM | LOW | P1 |
-| Per-tab SHIFT+/SHIFT- font size | MEDIUM | LOW | P1 |
-| New-session modal + folder browser | HIGH | MEDIUM | P1 |
-| Build script (`build.sh`) | HIGH | MEDIUM | P1 |
-| Web dashboard visual refresh | MEDIUM | MEDIUM | P2 |
+| Background daemon + Unix socket | HIGH | MEDIUM | P1 |
+| Shared session pool (GUI→daemon migration) | HIGH | HIGH | P1 |
+| `agenthub new/list/kill/rename` | HIGH | LOW | P1 |
+| `agenthub attach` with PTY proxy | HIGH | HIGH | P1 |
+| `agenthub detach` with prefix key | HIGH | LOW | P1 |
+| Terminal state restore | HIGH | MEDIUM | P1 (safety-critical) |
+| `agenthub web start/stop/status` | MEDIUM | LOW | P1 |
+| `agenthub health` | MEDIUM | LOW | P1 |
+| Daemon auto-start on login (kardianos/service) | MEDIUM | MEDIUM | P1 |
+| `agenthub qr <id>` | MEDIUM | LOW | P2 |
+| Scrollback replay on attach | MEDIUM | LOW | P2 (infrastructure exists) |
+| Configurable detach prefix | MEDIUM | LOW | P2 |
+| `--json` output flags | LOW | LOW | P2 |
+| `agenthub serve <path>` sugar | LOW | LOW | P3 |
+| `agenthub settings` inspect | LOW | LOW | P3 |
 
 ---
 
-### Implementation Notes (v1.1)
+### Competitor / Reference Feature Analysis (v1.3)
 
-**build.sh**
-- Auto-detect host platform via `uname -s`; default to host-platform build only.
-- `--platform all` flag: build for all platforms sequentially (macOS must run on macOS host).
-- macOS signing: `codesign --deep --force --options runtime --sign "$APPLE_DEVELOPER_ID" ./build/bin/agenthub.app`
-- macOS notarization: `xcrun notarytool submit <zip> --apple-id "$NOTARIZATION_APPLE_ID" --password "$NOTARIZATION_PWD" --team-id "$NOTARIZATION_TEAM_ID" --wait`
-- All signing steps env-gated so unsigned local builds work without certs.
-- Linux: document required `apt-get` deps (build-essential, pkg-config, libgtk-3-dev, libwebkit2gtk-4.1-dev).
-- Reference: existing `.github/workflows/build.yml` for exact flag values.
-
-**Terminal full-fill fix**
-- `.terminal-wrapper`: `display: flex; flex-direction: column; flex: 1; min-height: 0`
-- Status bar: `flex-shrink: 0` (fixed height, does not compress)
-- Terminal container div: `flex: 1; min-height: 0` (takes remaining space)
-- `ResizeObserver` already fires `fitAddon.fit()` on dimension change — no additional fit logic needed.
-
-**Per-tab status bar**
-- Left: status dot + label (running/waiting/idle/errored)
-- Center: session name (read-only in status bar; rename via tab double-click)
-- Right: web toggle button | URL link (when enabled) | copy token | QR
-- Always rendered. When web server not configured/running: "Web serving off" muted text + "Configure" button that opens settings.
-
-**New-session modal + folder browser**
-- Go: add `OpenDirectoryDialog() (string, error)` bound method using `runtime.OpenDirectoryDialog(ctx, runtime.OpenDialogOptions{Title: "Select Working Directory"})`.
-- Go: update `CreateSession(cliName, name, workDir string)` — pass `workDir` to PTY spawn `exec.Cmd.Dir`.
-- React: modal with agent picker (button group), directory text input, "Browse..." button (calls Go binding), session name input (auto-fills from `path.basename(dir)`), Create button.
-- `localStorage` key `agenthub.lastWorkDir` — read on modal open, write on Create.
-
-**Per-tab SHIFT+/SHIFT- font size**
-- In `TerminalPanel.tsx`, after creating `term`:
-  ```ts
-  term.attachCustomKeyEventHandler((e) => {
-    if (e.type !== 'keydown') return true
-    if (e.shiftKey && (e.key === '=' || e.key === '+')) {
-      term.options.fontSize = Math.min(32, (term.options.fontSize ?? 14) + 1)
-      fitAddon.fit()
-      return false
-    }
-    if (e.shiftKey && e.key === '-') {
-      term.options.fontSize = Math.max(8, (term.options.fontSize ?? 14) - 1)
-      fitAddon.fit()
-      return false
-    }
-    return true
-  })
-  ```
-- On terminal init, read `localStorage.getItem('agenthub.fontSize.' + sessionId)` and apply if set.
-- Store on each change: `localStorage.setItem('agenthub.fontSize.' + sessionId, String(term.options.fontSize))`.
-
-**Settings modal declutter**
-- Add tab strip at top: "CLI Paths" | "Web Serving". Only one section visible at a time.
-- Remove Save/Cancel footer — save is per-field (existing Set Password / UpdateCLIPath patterns stay).
-- Single "Close" button in footer.
-- CA cert block already uses `<details>` — keep; improve summary text.
-
-**Tab renaming → dashboard**
-- Verify Go session struct has `json:"name"` tag on `Name` field.
-- Dashboard `/api/sessions` already returns session objects — confirm `name` is in JSON.
-- No WebSocket push needed — dashboard has Refresh button + optional poll.
-
----
-
-## v1.0 Feature Landscape (Preserved)
-
-The sections below document the v1.0 feature research. They remain valid as the foundation.
-
----
-
-## Table Stakes (v1.0)
-
-Features users expect from any terminal host for AI coding CLIs. Missing = product feels broken.
-
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Tabbed terminal sessions | Every modern terminal uses tabs; power users run many agents in parallel | Low | Tab rename, reorder, color-coding are secondary |
-| Per-tab session naming | Users run claude/codex/gemini simultaneously and need to tell them apart | Low | Defaults to CLI name + working dir; user can rename |
-| Session persistence across app restart | tmux-style: sessions survive app crash or restart | Medium | Requires PTY backend to maintain process when frontend disconnects |
-| Scrollback buffer | Reviewing agent output is as important as interacting; adequate buffer required | Low | xterm.js; configure ≥10K lines |
-| Resize / reflow on window resize | SIGWINCH propagation to PTY; agents with TUI output break on stale COLS/ROWS | Low | Standard PTY behavior wired through WebSocket |
-| Copy/paste from terminal | Essential for grabbing file paths, command output, error messages | Low | Browser clipboard API; xterm.js handles with configuration |
-| ANSI/color rendering | AI coding CLIs output rich ANSI color | Low | xterm.js native |
-| Unicode/emoji support | Claude Code and others output emoji and Unicode symbols | Low | xterm.js Unicode11 addon |
-| Launch a new session with a chosen CLI | Core UX entry point | Low | Depends on CLI detection |
-| Detection of installed CLIs | App surfaces only installed, launchable CLIs | Low | PATH lookup at startup |
-| Kill / close a session | Terminate stuck agents cleanly | Low | SIGHUP to PTY child, close tab |
-
----
-
-## Differentiators (v1.0)
-
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| Web serving per session via hosted xterm.js | "Walk away" workflow — start an agent, check progress from phone | High | Session persistence, TLS, auth | Self-hosted equivalent to Claude Code Remote Control (Anthropic, Feb 2026) |
-| Per-session web toggle (on/off) | Not all sessions should be web-accessible | Low | Web serving | Single UI control per tab |
-| Self-signed TLS for all web connections | Transport encryption without domain name or CA dependency | Medium | Web serving, VPN binding | CA+leaf cert pattern; browser trust via user-installed CA |
-| VPN interface binding (Tailscale-first) | Exposes sessions only on VPN interface, not public internet | Medium | Web serving, TLS | Tailscale 100.x.x.x is canonical use case |
-| QR code generation for session URLs | Fastest path from desktop to phone | Low | Web serving | Encodes full session URL with auth token |
-| Web dashboard with password auth | Browse all web-served sessions from a browser | Medium | Web serving, TLS, auth | Password for dashboard; tokens for shareable per-session links |
-| Per-session shareable tokens | Give a teammate a link without sharing master password | Medium | Web serving, auth | Scoped token per session |
-| Go-native PTY mode (no dependencies) | Works on any machine without tmux | Medium | None | Default mode; sessions are internal to app process |
-| Multi-CLI session status indicators | Per-tab: running/waiting/idle/errored | High | Session monitoring | Heuristic output parsing; Claude Code most parseable |
-| System tray / menubar presence | Keep sessions alive when main window is closed | Medium | App lifecycle | Critical for "walk away" workflow |
-
----
-
-## Anti-Features (v1.0)
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Mobile app | Out of scope; web UI served from desktop app is the remote access mechanism | Use web-served xterm.js in any mobile browser |
-| CLI installation / management | Version management, permissions, install liability | Detect via PATH; surface clear "not installed" message |
-| Tailscale / VPN installation | Significant privilege requirements, separate concern | Read available VPN interfaces at runtime; document user responsibility |
-| Let's Encrypt / ACME cert management | Requires domain + internet-accessible challenge endpoint | Self-signed TLS; VPN provides network trust boundary |
-| User account / registration system | Single-user per installation; registration implies multi-tenancy | Password + token model |
-| Cloud hosting / SaaS deployment | Contradicts local-first design | Sessions stay on user's machine; web serving over VPN only |
-| Plugin system for new CLIs | Premature extensibility before validating core workflows | Hardcode initial CLI set; add more via code contributions |
-| Session output search / replay | High complexity; agent-sessions niche product exists | Adequate scrollback buffer; full replay is future scope |
-| Split panes / tiling within a tab | Increases terminal rendering complexity | Multiple tabs cover the use case |
-| Multi-user concurrent session editing | Auth complexity; denial-of-service via web | Per-session tokens are observe-or-interact, not multi-write |
-
----
-
-## Feature Dependencies (v1.0)
-
-```
-CLI detection
-  └─> Launch session (session creation)
-        └─> PTY backend (Go-native)
-              └─> Session persistence
-              └─> xterm.js terminal rendering (tab UI)
-                    └─> Scrollback, resize, copy/paste, ANSI, Unicode
-
-Web serving per session
-  └─> Session must exist
-  └─> Self-signed TLS
-  └─> Password auth (dashboard)
-        └─> Per-session shareable tokens
-        └─> QR code generation
-  └─> VPN interface binding (optional; enhances web serving)
-
-System tray presence
-  └─> Session persistence (sessions survive window close)
-
-Multi-CLI status indicators
-  └─> Session running (PTY backend)
-  └─> Output pattern detection per CLI
-```
-
----
-
-## AI Coding CLI-Specific Considerations
-
-1. **Long-running autonomous sessions.** AI agents run for minutes to hours. Session persistence and remote access are primary, not secondary.
-2. **Multiple parallel agents.** One agent per feature branch / git worktree. Tab management and session identity are load-bearing.
-3. **Approvals and interaction.** Claude Code pauses for user approval. Web interface must support full interaction, not read-only.
-4. **Output volume.** Large volumes of structured output. Scrollback ≥10K lines, correct ANSI, Unicode non-negotiable.
-5. **Agent state visibility.** Users want: "is this agent done, waiting, or still thinking?" Even simple heuristics are valuable.
-6. **CLI version resilience.** Lean on `claude`, `codex`, `gemini`, `opencode` as PATH commands with optional path overrides.
+| Feature | tmux | shpool | Docker CLI | AgentHub v1.3 |
+|---------|------|--------|------------|---------------|
+| Session create | `tmux new -s name` | `shpool attach name` (creates if absent) | `docker run` | `agenthub new [agent] [path]` |
+| Session list | `tmux ls` | `shpool list` | `docker ps` | `agenthub list` |
+| Attach | `tmux attach -t name` | `shpool attach name` | `docker attach` | `agenthub attach <id>` |
+| Detach | `ctrl+b d` (configurable) | `ctrl+]` (fixed) | `ctrl+p ctrl+q` | `ctrl+b d` (configurable) |
+| Kill | `tmux kill-session -t name` | `shpool kill name` | `docker kill` | `agenthub kill <id>` |
+| Rename | `tmux rename-session -t old new` | not supported | `docker rename` | `agenthub rename <id> <name>` |
+| Daemon auto-start | server auto-starts on first tmux cmd | daemon must be started manually | dockerd managed by systemd | `agenthub daemon install` + kardianos/service |
+| JSON output | not native | not supported | `--format json` | `--json` flag |
+| Scrollback on reattach | full scrollback | in-memory VT100 replay | not applicable | relay/scrollback.go replay |
+| GUI co-existence | not applicable | not applicable | not applicable | GUI + CLI share daemon session pool |
+| Web serving | not applicable | not applicable | not applicable | `agenthub web start/stop/status` |
 
 ---
 
 ## Sources
 
-**v1.2 research:**
-- [Tailscale local client Go API — pkg.go.dev/tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) (HIGH — official package docs, stable API markers)
-- [ipnstate.Status fields — pkg.go.dev/tailscale.com/ipn/ipnstate](https://pkg.go.dev/tailscale.com/ipn/ipnstate) (HIGH — official package docs)
-- [Enabling HTTPS — tailscale.com/kb/1153/enabling-https](https://tailscale.com/kb/1153/enabling-https) (HIGH — official Tailscale docs)
-- [Tailscale TLS certs blog — tailscale.com/blog/tls-certs](https://tailscale.com/blog/tls-certs) (HIGH — official Tailscale blog)
-- Existing codebase read directly: `internal/webserver/server.go`, `auth.go`, `tokens.go`, `tls.go`, `network.go`
-
-**v1.1 research:**
-- Wails v2 cross-platform build guide: https://wails.io/docs/guides/crossplatform-build/
-- Wails v2 code signing guide: https://wails.io/docs/guides/signing/
-- Wails v2 dialog API (OpenDirectoryDialog): https://wails.io/docs/reference/runtime/dialog/
-- xterm.js Terminal API (options.fontSize, attachCustomKeyEventHandler): https://xtermjs.org/docs/api/terminal/classes/terminal/
-- xterm.js ITerminalOptions (fontSize): https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/
-- xterm-addon-fit FitAddon behavior: https://www.npmjs.com/package/xterm-addon-fit
-- Existing codebase read directly: App.tsx, SettingsPanel.tsx, TabBar.tsx, TerminalPanel.tsx, web/dashboard.html
-- Existing CI workflow: .github/workflows/build.yml
-
-**v1.0 research:**
-- [ttyd official site](https://tsl0922.github.io/ttyd/) — web terminal table stakes
-- [agent-deck README](https://github.com/asheshgoplani/agent-deck) — AI coding agent feature set
-- [Claude Code Remote Control docs](https://code.claude.com/docs/en/remote-control) — remote session QR code workflow, Feb 2026
-- [GoTTY GitHub](https://github.com/yudai/gotty) — multi-session limitations
-- [Wails framework](https://wailsapp.io/) — single-binary constraint, tray support
-- [Julia Evans: Getting a modern terminal setup](https://jvns.ca/blog/2025/01/11/getting-a-modern-terminal-setup/) — tab management UX norms
+- tmux man page and wiki: https://github.com/tmux/tmux/wiki/Getting-Started
+- shpool architecture: https://deepwiki.com/shell-pool/shpool
+- zmx session persistence: https://lobste.rs/s/fvdh2d/zmx_session_persistence_for_terminal
+- kardianos/service Go package: https://pkg.go.dev/github.com/kardianos/service
+- creack/pty PTY library: https://pkg.go.dev/github.com/creack/pty (SIGWINCH, InheritSize, raw mode patterns)
+- Unix domain sockets in Go: https://eli.thegreenplace.net/2019/unix-domain-sockets-in-go/
+- Zellij session management: https://zellij.dev/tutorials/session-management/
+- Existing codebase: `/Users/ken/dev/agenthub/internal/relay/` (scrollback.go already implemented)
 
 ---
-*Feature research for: AgentHub — v1.0 (2026-03-17), v1.1 (2026-03-19), v1.2 (2026-03-20)*
+*Feature research for: AgentHub v1.3 CLI + Daemon*
+*Researched: 2026-03-23*

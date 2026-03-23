@@ -1,280 +1,210 @@
 # Pitfalls Research
 
-**Domain:** Tailscale-only networking — transitioning from self-signed TLS + password/token auth + generic VPN to Tailscale Let's Encrypt certs + Tailscale-only networking (Go/Wails + React desktop app)
-**Researched:** 2026-03-20
-**Confidence:** HIGH (critical pitfalls verified against official Tailscale docs, GitHub issues, and Go package documentation)
+**Domain:** CLI + Daemon — adding daemon mode, CLI commands, and terminal attach/detach to an existing Go/Wails desktop app
+**Researched:** 2026-03-23
+**Confidence:** HIGH for daemon/process/signal pitfalls (verified against official docs and GitHub issues); MEDIUM for Wails-specific coexistence (limited documented precedent, based on Wails source and community issues)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause broken connectivity, regression in security, or silent failure modes during and after this transition.
+### Pitfall 1: Wails Initialization Runs Before os.Args Dispatch
+
+**What goes wrong:**
+Wails v2's binding generation phase executes `main()` during the build process without the user's CLI arguments. If `main()` dispatches on `os.Args` before calling `wails.Run()`, any argument validation or subcommand routing that panics or calls `os.Exit` will break the build entirely. Even at runtime, the macOS `.app` bundle launch path does not pass arguments through the same way a terminal invocation does — double-clicking the app passes no arguments, but the binary must still route correctly to GUI mode.
+
+**Why it happens:**
+Developers assume `os.Args` dispatch is safe at the top of `main()`. In Wails v2, the framework calls the compiled binary during code generation, so `main()` runs twice: once during build (without args) and once for real (with args). Additionally, macOS `.app` bundles launched by the Finder do not pass CLI arguments — the binary receives only `os.Args[0]`.
+
+**How to avoid:**
+Dispatch on `os.Args` at the very top of `main()`, before any Wails imports are initialized, but use a safe default: if `len(os.Args) == 1` (no subcommand), fall through to `wails.Run()`. Never panic or exit on missing arguments in the dispatch path. Use `//go:build production` constraints to guard any argument validation that is only safe at runtime. Test the no-args path explicitly.
+
+**Warning signs:**
+- `wails build` fails with a panic or non-zero exit in code that "should never run"
+- Double-clicking the `.app` bundle crashes immediately rather than showing the window
+- Argument flags accepted by the CLI conflict with internal Wails flags (e.g. `-loglevel`)
+
+**Phase to address:** Daemon binary architecture / single-binary mode dispatch (first phase of v1.3)
 
 ---
 
-### Pitfall 1: Importing the Deprecated `tailscale.com/client/tailscale` Package
+### Pitfall 2: Stale Unix Socket Blocks Daemon Startup
 
 **What goes wrong:**
-The `tailscale.com/client/tailscale` package is deprecated and marked "only intended for internal and transitional use." All its methods — `Status`, `GetCertificate`, `CertPair`, `ExpandSNIName` — delegate to the new `tailscale.com/client/local` package. Importing the old package will work today but Tailscale has signaled migration intent, and the package header explicitly says to use `tailscale.com/client/local` instead. Code written against the deprecated package will require migration again in a future Tailscale version, which is friction in a Go module that embeds Tailscale as a dep.
+The daemon creates a Unix socket for IPC. If the daemon crashes, is killed with SIGKILL, or the machine reboots without a clean shutdown, the socket file remains on disk. The next daemon startup attempt calls `net.Listen("unix", socketPath)` and gets `address already in use`, refusing to start even though no daemon is actually running.
 
 **Why it happens:**
-Most existing blog posts, Stack Overflow answers, and pre-2024 examples use `tailscale.com/client/tailscale`. The new package path is only visible in the pkg.go.dev deprecation notice and is easy to miss.
+Unix sockets are filesystem objects. Unlike TCP ports, the OS does not automatically reclaim a socket file when a process dies. The file persists until explicitly removed. This is one of the most common daemon startup failures and has thousands of hits in forums — there is no OS-level automatic cleanup.
 
 **How to avoid:**
-Use `tailscale.com/client/local` for all local daemon interactions from the start. The `LocalClient` struct lives there. The key methods are:
-- `lc.Status(ctx)` — check BackendState
-- `lc.GetCertificate(hi)` — TLS config callback
-- `lc.CertPair(ctx, domain)` — get cert + key PEM bytes
-- `lc.CertDomains(ctx)` — list of FQDN the daemon will cert for
-
-For control plane (tailnet admin) API calls, use `tailscale.com/client/tailscale/v2` (separate concern from local daemon).
+At startup, before calling `net.Listen`, attempt to connect to the socket. If the connect succeeds, another daemon is already running — exit with an "already running" error. If the connect fails (connection refused or no such file), the socket is stale — remove it with `os.Remove(socketPath)` and then listen. Use a lock file (via `flock` on POSIX) as the authoritative running-state indicator rather than the socket itself, because lock files are immune to PID reuse. On startup: check lock file → check PID liveness → remove stale socket → listen.
 
 **Warning signs:**
-- Import path is `tailscale.com/client/tailscale` (not `.../local`)
-- pkg.go.dev shows "Deprecated" badge on any function being called
-- `go vet` or the IDE surfaces deprecation warnings
+- `agenthub daemon start` fails with "address already in use" after a crash
+- Socket file exists at the expected path but no process holds the lock
+- Users report having to manually `rm` the socket file to restart the daemon
 
-**Phase to address:**
-Health check implementation phase — establish the correct import path before writing any Tailscale-touching code; retrofit is painful if the wrong package spreads across multiple files.
+**Phase to address:** Daemon process management (PID files, socket lifecycle)
 
 ---
 
-### Pitfall 2: Calling `GetCertificate` Without Verifying Tailscale Is Running and HTTPS Is Enabled
+### Pitfall 3: Terminal Left in Raw Mode After Crash or Panic
 
 **What goes wrong:**
-`lc.GetCertificate(hi)` is designed as a `tls.Config.GetCertificate` callback and is called for every TLS handshake. If Tailscale daemon is not running, or if HTTPS certificates are not enabled in the tailnet admin console, this function returns an error. The Go `net/http` TLS stack logs the error and drops the handshake. Browser clients see "ERR_SSL_PROTOCOL_ERROR" with zero indication of what precondition is missing. The server appears broken.
-
-Additionally, `lc.CertDomains(ctx)` returns nil when the daemon is not running — this is both a health signal and a guard condition. If you skip this check and directly wire `GetCertificate` into `tls.Config`, every failed handshake is an opaque error from the browser's perspective.
+When the CLI attaches to a session, it calls `term.MakeRaw(os.Stdin.Fd())` to enter raw terminal mode. If the process panics, receives SIGKILL, or exits via `os.Exit` without running deferred cleanup, the terminal is left in raw mode. The user's shell prompt becomes invisible — keystrokes are not echoed, Enter does not submit commands, and the terminal appears frozen. The user must type `reset` blind to recover.
 
 **Why it happens:**
-Developers wire `GetCertificate` into their TLS config (correctly) but do not add startup checks that verify Tailscale's BackendState is "Running" AND that HTTPS certs are enabled. The server starts, listens, but fails silently on first connection from any browser.
+`defer term.Restore(...)` only runs on normal function returns and panics that unwind the stack. It does NOT run when: the process receives SIGKILL, `os.Exit` is called, `log.Fatal` is called (which calls `os.Exit`), or the program crashes due to a nil pointer dereference that goes unrecovered. Signal handlers for SIGTERM and SIGINT must also call restore before exiting.
 
 **How to avoid:**
-At server startup (before accepting connections), perform an ordered health check:
-1. Call `lc.Status(ctx)` and verify `BackendState == "Running"` — if not, surface a modal to the user
-2. Call `lc.CertDomains(ctx)` — if empty, HTTPS certs are not enabled in the tailnet; surface instructional modal
-3. Only then start the HTTPS listener with `GetCertificate` in `tls.Config`
-
-The health check should be non-blocking from the UI perspective: the Wails app can load normally, show a warning, and let the user follow instructions to fix Tailscale state. Do NOT block app startup on Tailscale being healthy.
+Save the original terminal state immediately: `oldState, _ := term.GetState(fd)`. Register signal handlers for SIGTERM, SIGINT, and SIGHUP that call `term.Restore(fd, oldState)` before `os.Exit`. Wrap the attach loop in a `recover()` that restores terminal state before re-panicking. Never call `log.Fatal` from within raw mode — capture the error, restore first, then log and exit. On Windows, `SetConsoleMode` must be similarly restored via a deferred call that is also wired through signal handlers.
 
 **Warning signs:**
-- Browser shows "ERR_SSL_PROTOCOL_ERROR" or TLS handshake errors when server is "running"
-- Go logs show `GetCertificate: ...` errors with no corresponding user-visible message
-- App starts normally but no web connections can be established
+- Users report "broken terminal" or "invisible typing" after `agenthub attach` exits abnormally
+- CI/CD attach tests leave the test runner's terminal in raw mode (causing subsequent test output to be garbled)
+- Any `log.Fatal` call path reachable from attach mode
 
-**Phase to address:**
-Tailscale health check phase — implement the check-and-modal flow before wiring `GetCertificate` into the server.
+**Phase to address:** Terminal attach / raw mode (CLI attach command implementation)
 
 ---
 
-### Pitfall 3: MagicDNS Not Enabled — Cert Provisioning Fails Silently
+### Pitfall 4: Daemon Does Not Daemonize on macOS (launchd Conflict)
 
 **What goes wrong:**
-Tailscale HTTPS certificates require MagicDNS to be enabled first. Without MagicDNS, `tailscale cert` and `GetCertificate` both fail. The error message from the Tailscale daemon is not self-explanatory to a user who does not know what MagicDNS is. The dependency order is: MagicDNS enabled → HTTPS certs enabled → `GetCertificate` works. Skipping MagicDNS in the health check means users who have never configured their tailnet will see cert failures with no actionable guidance.
+Traditional Unix daemons double-fork to detach from the controlling terminal and become session leaders. On macOS, launchd expects to be the parent of the service process — if the daemon double-forks, launchd loses track of the PID, cannot monitor the process, and the service appears to crash immediately after "starting." Launchd then enters rapid-restart loops.
 
 **Why it happens:**
-The health check naively checks only "is Tailscale connected?" (BackendState == "Running") without verifying the tailnet-level setting for HTTPS certs. A device can be fully connected to a tailnet that has neither MagicDNS nor HTTPS certs configured.
+Developers familiar with Linux daemon patterns (POSIX double-fork, `setsid()`, daemonize libraries) apply them to macOS launchd agents. The launchd contract is that the registered binary runs in the foreground; launchd handles backgrounding. The `go-daemon` library's fork approach also conflicts with Go's runtime, which does not support `fork()` without `exec()` — forked child processes in Go do not inherit goroutines.
 
 **How to avoid:**
-Use `lc.CertDomains(ctx)` as the definitive proxy check for "is HTTPS provisioning possible?" — an empty result means HTTPS is not enabled (which implies MagicDNS may also be absent). The instructional modal for this state should include both steps: (1) enable MagicDNS in tailnet admin, (2) enable HTTPS in tailnet admin. Do not separate these into two different modals; users must do both sequentially and benefit from seeing both instructions at once.
+The daemon must NOT self-daemonize. Run in the foreground. Let launchd (macOS), systemd (Linux), and Windows SCM manage the process lifecycle. Use `kardianos/service` as an abstraction — it implements the correct Run/Stop pattern for each platform without requiring platform-specific fork/setsid code. The plist `RunAtLoad` key and `KeepAlive` key handle restarts. Never use `go-daemon`'s fork-based approach in a Wails project.
 
 **Warning signs:**
-- `CertDomains` returns empty slice despite BackendState being "Running"
-- `GetCertificate` returns error containing "HTTPS not configured" or similar
-- User reports "cert error" but Tailscale is shown as connected
+- launchd shows the service as "crashed" immediately after `launchctl start`
+- `launchctl list | grep agenthub` shows the service with a non-zero exit code
+- Service appears to start and stop in rapid succession in Console.app
 
-**Phase to address:**
-Tailscale health check phase — the check must distinguish at minimum three states: not installed, installed but not connected, connected but HTTPS not configured.
+**Phase to address:** Service manager integration (launchd/systemd/Windows SCM)
 
 ---
 
-### Pitfall 4: Certificate Transparency Exposes Machine Names — Permanent and Public
+### Pitfall 5: PTY Resize Events Not Propagated Through the Daemon Proxy
 
 **What goes wrong:**
-Every Tailscale Let's Encrypt certificate is recorded in public Certificate Transparency (CT) logs. The machine's FQDN (`machinename.tailnet-name.ts.net`) is permanently and publicly visible to anyone querying CT logs (crt.sh, Google CT, etc.). This is not reversible — even if HTTPS is later disabled, the CT entry persists forever. For AgentHub specifically, if the machine name contains the user's personal name, company name, or otherwise sensitive identifier, that information is now permanently public.
-
-Research confirms this is not theoretical: analysis found 464 real hostnames exposed by 312 Tailscale users via `tailscale cert`.
+When a CLI client attaches to a session via the daemon, the daemon proxies PTY I/O over the Unix socket. Terminal resize events (SIGWINCH on POSIX) are delivered to the CLI process, not to the daemon process that owns the PTY. If the CLI attach handler does not forward resize events through the socket to the daemon, which then calls `pty.Resize()` on the backing PTY, the AI coding CLI's UI will misrender after any window resize — wrapped lines, broken layouts, overwritten output.
 
 **Why it happens:**
-Let's Encrypt uses Certificate Transparency as a required part of the ACME protocol for domain-validated (DV) certificates. There is no opt-out. Tailscale explicitly warns about this in their docs but many users miss or skip the warning.
+PTY resize requires calling the `TIOCSWINSZ` ioctl on the master PTY file descriptor. The master FD lives in the daemon process. The CLI client receives SIGWINCH, but it does not own the master FD. Developers implement the I/O proxy but forget the resize channel, because it works fine during initial testing in a fixed-size terminal.
 
 **How to avoid:**
-Display a one-time warning in the instructional modal: "Your machine's Tailscale hostname will be permanently recorded in public Certificate Transparency logs. If your machine is named using your real name, company name, or other sensitive identifier, consider renaming it before enabling HTTPS." This warning should appear before the first cert provisioning attempt, not after.
-
-This is a user education concern, not a code concern. The app cannot prevent CT disclosure — it can only ensure the user makes an informed decision.
+The IPC protocol must include a resize message type (already partially present in the existing binary framing protocol). On the client side, install a SIGWINCH handler that reads the current terminal dimensions with `unix.IoctlGetWinsize` and sends a resize frame to the daemon. The daemon receives the resize frame and calls the PTY resize API. Test explicitly by resizing the terminal window during an active attach session. Note: Windows uses `ConPTY` resize via a separate call — handle with a build tag.
 
 **Warning signs:**
-- No user-visible warning exists before enabling Tailscale HTTPS
-- User later discovers their home PC's name (e.g., `kens-macbook.tail46d69a.ts.net`) is publicly searchable
+- AI CLI renders correctly at initial attach but breaks after window resize
+- Line wrapping artifacts visible in the terminal output
+- `stty size` inside the attached session returns wrong dimensions after resize
 
-**Phase to address:**
-Tailscale health check / instructional modal phase — include the CT disclosure warning in the modal that guides users through HTTPS setup.
+**Phase to address:** Terminal attach / PTY proxy (CLI attach command implementation)
 
 ---
 
-### Pitfall 5: Let's Encrypt Rate Limits Triggered by Repeated Cert Requests
+### Pitfall 6: Session State Lives in Two Places After Extraction
 
 **What goes wrong:**
-Let's Encrypt enforces rate limits: 5 duplicate certificate requests per week for the same FQDN. If the server restarts frequently and `GetCertificate` is not properly caching, or if the cert validation check on startup has a bug that causes the daemon to treat every startup as a "need new cert" event, Let's Encrypt will return 429 errors. Once rate-limited, the machine cannot get a valid cert for up to 34 hours.
-
-There is a documented bug in older Tailscale versions where the cert cache invalidation logic was wrong: even if a cert existed on disk and was valid, the daemon could repeatedly request renewals due to a validation function that always considered the cached cert invalid. This triggered Let's Encrypt rate limits under normal operation (issue #14690).
+Currently `App` in `app.go` holds session state (registry, tabNames, cliPaths, sessionStatuses) directly. When a daemon is extracted, session state must move to the daemon. But if the GUI still maintains a local copy — even a cache — the two diverge: the GUI shows stale session names, incorrect status, or phantom sessions that the daemon has already killed. Race conditions between the GUI's local state and the daemon's authoritative state cause confusing bugs that are hard to reproduce.
 
 **Why it happens:**
-`GetCertificate` is called on every TLS handshake. The Tailscale daemon handles caching and renewal internally, but bugs in the renewal heuristic have existed. In normal single-user desktop app use (few daily restarts, few connections), this is unlikely to trigger. But during development — many restarts, testing cert path — it can become a real problem quickly.
+The natural refactoring path is to "add a daemon" while keeping the existing App struct intact. Developers add RPC calls for new operations but leave old direct mutations for "performance" or "it works locally." The first divergence bug appears only after a multi-client scenario (GUI + CLI both attached) or after the daemon kills a session the GUI doesn't know about.
 
 **How to avoid:**
-- Use `GetCertificate` via the `LocalClient` (daemon-mediated) rather than calling `CertPair` on every startup and wiring it manually. The daemon handles caching; bypass the daemon cache and you own the caching problem.
-- Ensure you are on a recent Tailscale version (post-fix for issue #14690 / #8725, fixed in v1.56+).
-- Do not call `CertPair` on every TLS handshake — only use it if you are implementing file-based cert rotation (which is unnecessary in this case since `GetCertificate` handles the full lifecycle).
+The daemon is the single source of truth for ALL session state. The GUI is a client, not a peer. After extraction, `App` holds no session state — it only holds the IPC connection to the daemon and a local display cache that is invalidated and refreshed via daemon events (push notifications or periodic polling). The `tabNames` map, `sessionStatuses` map, and all other mutable session fields must live exclusively in the daemon. The GUI's `App.startup` connects to (or starts) the daemon and subscribes for state change events.
 
 **Warning signs:**
-- Tailscale daemon logs show "certificate: too many requests" or Let's Encrypt 429 responses
-- `GetCertificate` errors that include "rate limit" strings
-- Multiple restarts per day during development with cert checks on each startup
+- GUI shows a session as "running" that the CLI's `list` command shows as "stopped"
+- Renaming a tab in the GUI doesn't appear in CLI's `list` output
+- Creating a session via CLI doesn't appear in the GUI until restart
 
-**Phase to address:**
-Let's Encrypt cert integration phase — use `GetCertificate` via `LocalClient` and verify the daemon handles caching by inspecting logs for "async renewal" vs "serving cached" messages.
+**Phase to address:** Daemon extraction / session state migration (first phase, architectural decision)
 
 ---
 
-### Pitfall 6: Cert Renewal: `tailscale cert` File-Based Path Does NOT Auto-Renew
+### Pitfall 7: macOS App Sandbox Blocks Unix Socket IPC
 
 **What goes wrong:**
-If you use `tailscale cert` CLI to obtain cert + key PEM files and load them as static files into the Go TLS config, you own renewal. Let's Encrypt certs expire in 90 days. The daemon does not know where you put the files and will not update them. The server will start serving an expired certificate, and all browser connections will fail with cert expiry errors — with no warning until the cert actually expires.
-
-This is the wrong pattern for AgentHub. File-based certs are for nginx/Caddy use cases where the web server manages cert files separately from the daemon.
+macOS App Sandbox (required for Mac App Store distribution and sometimes applied by notarization tooling) blocks Unix domain socket access between processes from different teams. The GUI app (sandboxed) cannot reach the daemon's socket at a path outside the app container. Additionally, `sun_path` in `sockaddr_un` is limited to 104 characters on macOS — paths under `XDG_RUNTIME_DIR` or long username paths can silently exceed this, causing `bind: invalid argument` with no clear error message.
 
 **Why it happens:**
-Documentation for `tailscale cert` (the CLI command) is prominent and feels like the natural way to get certs. `GetCertificate` via the Go API is the correct pattern for in-process Go servers but requires knowing it exists.
+Unix socket entitlements in the App Sandbox require `com.apple.security.temporary-exception.files.absolute-path.read-write`, but this entitlement specifically does NOT cover Unix domain sockets — only regular files. Network framework restrictions and the 104-character limit are also not surfaced clearly by the compiler or runtime.
 
 **How to avoid:**
-Use `lc.GetCertificate` wired into `tls.Config.GetCertificate`. This delegates certificate lifecycle entirely to the Tailscale daemon, which handles caching and renewal automatically. Never load cert PEM from a file obtained via `tailscale cert` into the Go server directly.
-
-```go
-tlsConfig := &tls.Config{
-    GetCertificate: lc.GetCertificate,
-}
-```
-
-This is the correct and complete integration. The daemon fetches, caches, and renews — the server code never touches cert bytes directly.
+For the v1.3 milestone (not targeting Mac App Store), sandbox is not active. But the socket path must be kept under 104 characters. Use `os.UserCacheDir()` or a path like `~/.config/agenthub/daemon.sock` — verify the length does not exceed 104 chars even for long usernames. On macOS 13+, consider the `ServiceManagement` framework for service registration to avoid launchd plist complexity. Add a path length assertion at startup that panics with a clear message rather than a cryptic `bind: invalid argument`.
 
 **Warning signs:**
-- Code opens cert/key PEM files from disk and loads them into `tls.Config{Certificates: [...]}`
-- Code calls `lc.CertPair()` on every startup and caches the result in a variable
-- No test plan for "what happens 88 days after launch?"
+- `bind: invalid argument` on the socket listen call with no other error details
+- Socket path length is over 100 characters when username is included
+- App works for short usernames but fails for users with longer home directory paths
 
-**Phase to address:**
-Let's Encrypt cert integration phase — the implementation must use `GetCertificate` callback, not static cert loading.
+**Phase to address:** Daemon IPC design (socket path selection and validation)
 
 ---
 
-### Pitfall 7: Removing Password Auth Leaves Sessions Accessible to All Tailnet Members
+### Pitfall 8: Windows Named Pipe vs Unix Socket IPC Split
 
 **What goes wrong:**
-The v1.1 password protects the web dashboard and per-session tokens protect individual terminal sessions. Removing password auth means any device on the user's tailnet — which can include family members, work colleagues, or shared devices depending on how the tailnet is configured — can access all terminal sessions directly by visiting the AgentHub URL. The Tailscale network-level authentication (WireGuard identity) is the only remaining gate.
-
-For most single-person tailnets this is the intended behavior. For shared tailnets (family, team), this is a significant regression in access control that the user may not expect.
+Windows does not support Unix domain sockets in Go's `net.Listen("unix", ...)` on older builds (pre-Windows 10 1803), and even on supported versions, permissions and path conventions differ from POSIX. Attempting to use a single Unix socket path on all platforms either breaks on Windows or produces confusing `\\.\pipe\` path handling. If the IPC layer is not abstracted from the start, adding Windows named pipe support later requires touching every call site.
 
 **Why it happens:**
-Tailscale's security model assumes that tailnet membership itself is sufficient access control. This is true for single-user tailnets. But tailnets can be shared, and Tailscale's own docs note that ACLs do not affect local network access — only tailnet-to-tailnet routing.
+Development happens on macOS/Linux first. The Unix socket path works perfectly. Windows is "handled later." By then, the IPC protocol, connection logic, and socket path resolution are spread across the codebase.
 
 **How to avoid:**
-Include a one-time disclosure in the health check modal: "AgentHub will be accessible to all devices on your Tailscale network. If you share your Tailscale network with others, anyone on it can access your terminal sessions." This is user education, not a code change.
-
-Optionally defer: if a future milestone wants per-device ACLs, Tailscale supports them via ACL policy files — but that is out of scope for v1.2.
+Abstract the transport behind an interface from day one: `type Transport interface { Listen() (net.Listener, error); Dial() (net.Conn, error) }`. On macOS/Linux, implement with `net.Listen("unix", ...)`. On Windows, implement with a named pipe (using `npipe` or `winio`). The IPC protocol over the transport is identical — only the transport layer differs. Use `//go:build` tags to select the correct implementation per platform. The socket path resolver must also be platform-aware: `~/.config/agenthub/daemon.sock` on POSIX, `\\.\pipe\agenthub-daemon` on Windows.
 
 **Warning signs:**
-- No user-visible disclosure that "all tailnet members can access sessions"
-- Family/team member reports accessing sessions they did not expect to be able to access
+- IPC connection works on macOS/Linux but fails silently on Windows
+- Windows build shows `address family not supported` errors
+- Hard-coded socket paths with `/` separators in Windows-targeting code
 
-**Phase to address:**
-Auth removal phase — the informational modal about what is being removed should include the tailnet-sharing disclosure.
+**Phase to address:** Daemon IPC design (transport abstraction), verified in Windows CI
 
 ---
 
-### Pitfall 8: Hardcoded Tailscale FQDN Assumptions Breaking on Non-Standard Tailnets
+### Pitfall 9: Signal Handling Does Not Account for Forwarded Signals in the Proxy Chain
 
 **What goes wrong:**
-Tailscale FQDNs follow the pattern `<machinename>.<tailnet-dns-name>.ts.net`. Code that constructs the FQDN by string-concatenation (e.g., `hostname + ".ts.net"`) breaks on:
-- Tailnets with custom DNS names (not the default `ts.net` suffix)
-- Funnel-enabled nodes (different DNS namespace)
-- Older tailnets with legacy naming
-
-If the constructed FQDN does not match what the daemon reports via `CertDomains`, the TLS server will answer connections on the wrong hostname and browsers will see a cert name mismatch error.
+When the CLI client is in raw attach mode, Ctrl-C (SIGINT) should be forwarded to the AI coding CLI process inside the daemon, not terminate the CLI client itself. But Go's `os/signal.Notify(sigChan, syscall.SIGINT)` intercepts Ctrl-C before it propagates. If the CLI client exits on SIGINT instead of forwarding it as a PTY input byte (0x03) to the session, the user cannot interrupt the AI CLI's current operation without detaching first.
 
 **Why it happens:**
-`ts.net` looks like the canonical suffix. The daemon can report a different FQDN. Developers construct URLs for the QR code and share links by hardcoding the suffix instead of querying the daemon.
+Go's default SIGINT handling terminates the process. Developers override this with `signal.Notify` for graceful shutdown, but in raw PTY proxy mode the correct behavior is to pass Ctrl-C through as a byte to the slave PTY — the receiving process should handle SIGINT. The distinction between "Ctrl-C to stop my attach client" vs "Ctrl-C to interrupt the AI CLI" is only possible via the detach prefix (e.g. Ctrl-B d to detach first).
 
 **How to avoid:**
-Never construct the Tailscale FQDN by string manipulation. Always derive it from `lc.CertDomains(ctx)` — the first element is the canonical FQDN for this node. Use this same value for:
-- The TLS server name (SNI check)
-- The URL shown in the UI and QR code
-- The shareable link
-
-```go
-domains, err := lc.CertDomains(ctx)
-if err != nil || len(domains) == 0 {
-    // not configured — show health check modal
-}
-fqdn := domains[0] // canonical FQDN, use everywhere
-```
+In raw PTY proxy mode, do NOT install SIGINT as a shutdown signal. Instead, forward all bytes from stdin directly to the PTY write. The detach sequence (e.g. Ctrl-B followed by `d`) must be intercepted in the byte stream BEFORE writing to the PTY — implement a small state machine that watches for the prefix key. Only after detach completes should normal signal handling resume. SIGTERM and SIGHUP (terminal close) should still trigger a clean detach + terminal restore.
 
 **Warning signs:**
-- URLs shown in UI contain `.ts.net` suffix hardcoded in source
-- QR code URL and actual served cert have different hostnames
-- cert name mismatch browser errors (`ERR_CERT_COMMON_NAME_INVALID`)
+- Ctrl-C in attach mode exits the `agenthub attach` process instead of interrupting the AI CLI
+- Users have no way to interrupt a running AI command without closing the terminal window
+- The detach prefix key accidentally interrupts the AI CLI if the key byte passes through
 
-**Phase to address:**
-Let's Encrypt cert integration phase AND URL generation / QR code generation — derive FQDN from daemon at all code sites.
+**Phase to address:** Terminal attach / signal proxying (CLI attach command implementation)
 
 ---
 
-### Pitfall 9: Health Check State Machine Is Incomplete — No Periodic Re-Check
+### Pitfall 10: Daemon Startup Race — GUI Starts Before Daemon Is Ready
 
 **What goes wrong:**
-A health check that runs once at startup and shows a modal is insufficient. Tailscale can disconnect after startup (network change, sleep/wake, logout). If the health check runs only at app launch, the server continues attempting to serve over Tailscale after the daemon has disconnected. Connections silently time out. The status bar shows a valid Tailscale URL that no longer resolves.
+The GUI app starts the daemon as a subprocess (if not already running) and immediately tries to connect to the IPC socket. The daemon needs a non-trivial amount of time to create its socket, initialize the session registry, and start listening. The GUI's connect attempt fails because the socket does not exist yet. If the retry logic is naive (fixed sleep), it is either too short (race on slow machines) or too long (bad startup UX on fast machines).
 
 **Why it happens:**
-Startup-only health checks are simpler to implement. Ongoing polling feels like over-engineering for a desktop app.
+"Start subprocess then connect" patterns use `time.Sleep(500ms)` as the synchronization mechanism. This is brittle across machines and configurations. On a fast developer machine it always works; on a user's older hardware or at login time when disk I/O is contended, it fails intermittently.
 
 **How to avoid:**
-Implement a lightweight background goroutine that polls `lc.Status(ctx)` every 30–60 seconds. On BackendState transition from "Running" to anything else, update the UI status indicator and optionally suppress the Tailscale URL from the status bar (replace with a "Tailscale disconnected" message). Re-check every interval and restore when BackendState returns to "Running".
-
-This goroutine should be cancellable (using a context tied to app shutdown) and should not surface a modal for every transient disconnect — only after a sustained disconnect (2+ consecutive failed checks).
+Use exponential backoff with a deadline: try to connect every 50ms, doubling the interval, up to a 5-second total timeout. The connect attempt itself is cheap — if the socket doesn't exist yet, the error is immediate. This converges in ~100ms on fast machines and still works on slow ones. Alternatively, have the daemon write a sentinel file (distinct from the socket) when it is fully ready. The GUI watches for the sentinel before attempting the socket connection.
 
 **Warning signs:**
-- No goroutine in the codebase that polls Tailscale status after startup
-- Status bar shows Tailscale URL even after manually stopping Tailscale daemon
-- User shares a Tailscale URL that times out immediately because Tailscale is disconnected
+- "Connection refused" errors logged at GUI startup on some machines but not others
+- App initialization always works in development but occasionally fails on user machines
+- Startup failures are more common immediately after login (system under load)
 
-**Phase to address:**
-Tailscale health check phase — design the health check as a state machine from the beginning, not just a one-shot startup gate.
-
----
-
-### Pitfall 10: WebSocket Connections Break During TLS Certificate Change (Migration Transition)
-
-**What goes wrong:**
-During the transition from self-signed TLS to Tailscale Let's Encrypt certs, any browser that has an existing WebSocket (`wss://`) connection to the old self-signed cert endpoint will not automatically reconnect to the new HTTPS endpoint. The browser caches the old CA trust (added by the user during v1.0 setup) and may reject the new cert or route to a stale URL. Users with an open browser tab on the web dashboard during the update will lose their connection with no automatic reconnect.
-
-**Why it happens:**
-Changing the TLS certificate (CA, domain, hostname) is not transparent to existing WebSocket clients. The client has a connection to `wss://192.168.x.x` or `wss://agenthub.local` and after the update the server is at `wss://machinename.tailnet.ts.net`. These are different origins.
-
-**How to avoid:**
-This is a one-time migration concern. The handling is:
-1. Accept that existing connections break at the moment of update — this is unavoidable
-2. Ensure the frontend WebSocket reconnect logic handles connection loss gracefully with a user-visible "reconnecting..." state (already required for general robustness)
-3. After the v1.2 update, the web dashboard URL changes from IP/self-signed to FQDN/LE cert — document this in the release notes
-
-The deeper mitigation: ensure the frontend's WebSocket reconnect logic does not hard-code the old `wss://` URL. The URL should be derived dynamically from `window.location.host` or passed from the backend as part of the initial session metadata.
-
-**Warning signs:**
-- Frontend WebSocket URL is hardcoded to an IP address or `localhost`
-- No "reconnecting..." UI state for WebSocket disconnects
-- Web dashboard shows stale data after server restart with no reload prompt
-
-**Phase to address:**
-TLS migration / cert integration phase — verify the frontend derives the WebSocket URL dynamically and handles reconnects.
+**Phase to address:** GUI-daemon connection bootstrap (GUI integration with daemon)
 
 ---
 
@@ -284,27 +214,31 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Run health check only at startup | Simple code | App shows stale "connected" state after Tailscale disconnects | Never — daemon can disconnect; add periodic polling |
-| Construct Tailscale FQDN by string concatenation | No async call needed | Breaks on custom tailnet domains, Funnel, legacy tailnets | Never — always use `CertDomains()` |
-| Show one combined "not ready" error | Less UX work | User can't tell whether Tailscale is missing, disconnected, or just HTTPS-unconfigured | Never — three distinct states need three distinct messages |
-| Load cert from file via `tailscale cert` CLI output | Works today | Cert expires in 90 days with no auto-renewal | Never for a daemon-integrated Go server — use `GetCertificate` callback |
-| Skip CT disclosure warning | Less UI friction | User's machine name permanently public in CT logs without their knowledge | Never |
-| Import `tailscale.com/client/tailscale` (deprecated) | Works today | Migration required when deprecated package is removed | Only if already in codebase and refactor is too costly — document the debt |
+| Keep session state in App struct, duplicate to daemon | Avoid refactoring App | State divergence, dual-source bugs, GUI shows stale data | Never — migrate cleanly |
+| Fixed `time.Sleep` for daemon startup sync | Simple code | Flaky on slow machines, bad UX at login | Never — use retry with deadline |
+| Skip Windows named pipe abstraction, use TCP localhost | Works everywhere, fast | Security hole (any local process can connect), no auth on loopback | Only as temporary scaffold in CI |
+| Single Unix socket path without length check | Simpler code | Cryptic `bind: invalid argument` for users with long usernames | Never — add assertion |
+| `log.Fatal` inside raw-mode attach path | Simple error handling | Terminal left in raw mode, user sees broken shell | Never in raw mode path |
+| Skip SIGWINCH handling for MVP attach | Faster to ship | All users with non-fixed terminal windows see rendering bugs | Never — too visible |
+| Inline all CLI subcommands in main.go | Simple file structure | Untestable, giant file, hard to add subcommands | Never — use cobra or manual dispatch with clear boundaries |
+| Use `os.Kill(pid)` to check if daemon is running | Simple PID check | PID reuse: kills unrelated process with recycled PID | Never — use lock file |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when wiring Tailscale into the existing Go server.
+Common mistakes when connecting to external services.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `tls.Config.GetCertificate` | Wire in without health check guard | Check `CertDomains()` before starting TLS listener; surface modal if empty |
-| `lc.Status()` — BackendState | Check only for non-nil error | Check `Status.BackendState == "Running"` explicitly; error-free ≠ connected |
-| Tailscale FQDN for URLs | Construct with `hostname + ".ts.net"` | Derive from `lc.CertDomains(ctx)[0]` always |
-| VPN interface binding removal | Delete generic interface code first | First confirm Tailscale is the only interface in use; then remove generic code |
-| Auth removal — token validation | Delete token middleware before removing token UI | Remove token middleware and token UI together; orphaned middleware is a security hole |
-| WebSocket URL on frontend | Hardcode `wss://` + IP address | Derive from `window.location.host` or backend-provided session URL |
+| launchd plist | Setting `RunAtLoad` without `KeepAlive` | Use `KeepAlive: true` for daemon resilience; `RunAtLoad` alone starts once but doesn't restart on crash |
+| launchd plist | Hard-coding absolute binary path | Use `CFBundleIdentifier`-relative path or derive from `os.Executable()` at install time; app location may change |
+| launchd plist | Calling `launchctl load` (deprecated) | Use `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/plist` on macOS 10.11+ |
+| systemd unit | Not setting `Type=simple` for foreground daemon | Without explicit Type, systemd may misidentify daemon state; `Type=simple` + `Restart=on-failure` is correct for a foreground Go binary |
+| Windows SCM | Writing to stdout/stderr directly | Windows services have no console; use `kardianos/service` logger which routes to Event Log; direct fmt.Print output is lost |
+| Windows SCM | Using `os.Signal` (SIGTERM) for shutdown | Windows SCM sends a stop command, not SIGTERM; `kardianos/service`'s `Stop()` method is the correct handler |
+| go-pty (aymanbagabas) | Calling Resize on closed PTY | The PTY may close asynchronously when the child exits; always check for nil and recover from the resize call |
+| IPC protocol | Sending string session IDs without length prefix | Stream corruption when session ID contains rare bytes that collide with frame delimiters; use the existing binary framing |
 
 ---
 
@@ -314,36 +248,38 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Calling `lc.Status()` on every request to verify Tailscale is up | High IPC overhead on Go<→daemon socket | Cache status; recheck every 30–60s in background goroutine | > a few requests per second |
-| Calling `lc.CertDomains()` on every TLS handshake | Redundant IPC; adds latency to every connection | Cache domains at startup; invalidate on health-check polling interval | Every TLS handshake |
-| Polling health check at 1-second interval | Tailscale daemon IPC load, unnecessary wake-ups | Poll at 30–60 second intervals; only shorten on user-triggered check | Constant when app is open |
+| Full session list scan on every CLI command | CLI `list` is fast with 3 sessions | O(n) list operations become slow; registry already uses a map | At 50+ simultaneous sessions (unlikely but not impossible) |
+| Synchronous IPC calls for every GUI refresh | No visible lag with 1 client | GUI stutter when daemon is under load | When CLI client is attached and hammering input simultaneously with GUI refresh |
+| Scrollback replay on every new GUI attach | Fast with short sessions | Re-sending MB of scrollback over Unix socket blocks the attach path | Sessions running > 30 minutes with high output volume; already use bounded scrollback |
+| Polling daemon status every 100ms from GUI | Unnoticeable at idle | Unnecessary CPU wake-ups prevent App Nap on macOS | Always — use push notification or 1s polling minimum |
 
 ---
 
 ## Security Mistakes
 
-Domain-specific security issues introduced by this migration.
+Domain-specific security issues.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Removing password auth without informing user that tailnet = access gate | Shared tailnet members silently gain full terminal access | Display disclosure in health check modal before auth is removed |
-| Continuing to serve on all interfaces after switching to Tailscale-only | Traffic bypasses Tailscale if direct IP access is possible | Bind the HTTPS listener exclusively to the Tailscale interface IP (from `lc.Status`) not `0.0.0.0` |
-| No check that `GetCertificate` domain matches the request's SNI | Wrong cert served if server is reached via non-Tailscale hostname | `GetCertificate` via `LocalClient` handles this; ensure custom cert code does not bypass it |
-| Leaving self-signed CA trust instructions in documentation post-v1.2 | Users install unnecessary CA; creates trust confusion | Remove or archive all self-signed TLS onboarding docs after v1.2 ships |
+| Unix socket world-readable (0777 permissions) | Any local user can send commands to the daemon, kill sessions, start new ones | Create socket with `0600` permissions; `os.Chmod(socketPath, 0600)` immediately after `net.Listen` |
+| Not verifying daemon binary before connecting | Malicious process squats on socket path, GUI connects to it | In same-user single-daemon model, socket path under `~/.config/agenthub/` is sufficient; document the threat model |
+| Daemon running as root for service installation | Root daemon accepts commands from non-root GUI with no auth | Daemon must run as the logged-in user (LaunchAgent not LaunchDaemon); user-space daemon only |
+| Passing CLI command arguments through shell expansion | `agenthub new --cwd "$HOME"` injection via crafted directory names | Pass all arguments as `[]string` to `exec.Cmd`, never via shell; the existing `pty.NewNativePTYBackend` already does this |
 
 ---
 
 ## UX Pitfalls
 
-Common user experience mistakes specific to the Tailscale networking migration.
+Common user experience mistakes specific to this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Health check modal appears every app launch even after user has fixed Tailscale | Annoying; modal fatigue | Persist a "health acknowledged" flag; re-show only when state regresses |
-| Instructional modal just says "Enable HTTPS in Tailscale" with no link | User has to search for where to do this | Include a direct link to `https://login.tailscale.com/admin/dns` with instructions |
-| URL and QR code in status bar update before cert is ready | Browser shows cert error when user scans QR code immediately | Only show the Tailscale URL/QR code after `CertDomains()` returns a non-empty domain AND a test TLS handshake succeeds |
-| No status differentiation: "Tailscale not installed" vs "not connected" vs "no HTTPS" | User tries wrong fix for each state | Three distinct health states: MISSING, DISCONNECTED, NO_HTTPS — each with its own message and action |
-| Status bar shows Tailscale FQDN URL even when Tailscale is offline | User copies and shares a broken URL | Status bar should conditionally show Tailscale URL only when health check goroutine confirms "Running" |
+| Detach prefix key not shown anywhere in CLI output | Users don't know how to detach; resort to killing the terminal | Print `[Attached. Detach with Ctrl-B d]` on connect; configurable via settings |
+| `attach` with no visual confirmation of session identity | User doesn't know which session they attached to | Print session ID, name, and CLI type as a banner before entering raw mode |
+| Daemon errors surfaced as "connection refused" | Users see cryptic socket error, not actionable message | Translate socket errors into human messages: "Daemon is not running. Start it with: agenthub daemon start" |
+| `agenthub kill` with no confirmation prompt | Accidentally killing the wrong session is irreversible | Require `--force` flag or print "Killed session 'my-session' (claude)" as confirmation |
+| CLI exit codes not propagating daemon errors | Scripts using `agenthub` can't detect failures | Every CLI command must exit non-zero on daemon error; test exit codes in CI |
+| Service install requiring manual plist editing | Users give up on auto-start | `agenthub service install` / `agenthub service uninstall` commands handle plist/unit generation |
 
 ---
 
@@ -351,15 +287,14 @@ Common user experience mistakes specific to the Tailscale networking migration.
 
 Things that appear complete but are missing critical pieces.
 
-- [ ] **Health check:** Distinguishes three states (not installed, disconnected, no HTTPS) — not just "connected vs not"
-- [ ] **Cert provisioning:** Uses `lc.GetCertificate` callback in `tls.Config` — NOT static cert file loading
-- [ ] **FQDN derivation:** All URL construction uses `CertDomains()[0]` — no hardcoded `.ts.net` suffix
-- [ ] **Auth removal:** Both token middleware AND token UI removed together — no orphaned server-side token validation
-- [ ] **Periodic health check:** Background goroutine polls status and updates UI — not startup-only check
-- [ ] **Interface binding:** HTTPS listener bound to Tailscale IP only — not `0.0.0.0`
-- [ ] **CT disclosure:** Warning shown to user before first cert provisioning attempt
-- [ ] **WebSocket URL:** Frontend derives `wss://` URL dynamically — not hardcoded to IP or old self-signed hostname
-- [ ] **Self-signed code removal:** CA generation, leaf cert generation, and CA install instructions all removed — no dead code that might accidentally be re-enabled
+- [ ] **Stale socket cleanup:** Looks done when `os.Remove` is called at startup — verify it also handles the case where the socket file does not exist (double-remove is an error; ignore `os.IsNotExist`)
+- [ ] **Graceful shutdown:** Looks done when SIGTERM handler calls cancel() — verify active PTY sessions are drained (not killed mid-write) and the scrollback buffer is flushed before exit
+- [ ] **Terminal raw mode restore:** Looks done when `defer term.Restore` is present — verify SIGTERM, SIGINT, and SIGHUP signal handlers ALSO call restore before exiting, not just defer
+- [ ] **Daemon auto-start via service manager:** Looks done when plist/unit file is written — verify `agenthub service install` works for a fresh-install user, not just a developer who already has the binary on PATH
+- [ ] **Cross-platform IPC:** Looks done on macOS/Linux — verify Windows named pipe implementation exists, is tested, and CI covers it; Unix socket code must not compile on Windows
+- [ ] **Session state migration:** Looks done when daemon has a registry — verify GUI `App` struct no longer holds any authoritative session state (tabNames, sessionStatuses) and that all writes go through the daemon IPC, not a local map
+- [ ] **PTY resize propagation:** Looks done when SIGWINCH handler fires — verify the resize frame is sent over the IPC socket, the daemon applies it to the correct session's PTY, and the AI CLI re-renders at the new size
+- [ ] **Wails + CLI mode dispatch:** Looks done when `os.Args` check is present — verify a no-args invocation from Finder/desktop launcher still opens the GUI window, not a "missing command" error
 
 ---
 
@@ -369,13 +304,12 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Wrong import package (deprecated) | LOW | Search-replace import paths; regenerate if any API shape differences |
-| `GetCertificate` errors at runtime — HTTPS not enabled | LOW | Show modal; user follows link to enable HTTPS in tailnet admin; health check passes on next poll |
-| Let's Encrypt rate limited (429) | HIGH — up to 34 hour wait | Wait; do not re-request during rate limit window; add logging to detect early |
-| CT disclosure missed — machine name exposed | NONE — irreversible | Document the disclosure warning; rename machine in Tailscale if possible (new cert CT entry, old one remains) |
-| File-based cert expires (90 days) | MEDIUM | Switch to `GetCertificate` callback; redeploy; previous cert was expired and caused outage |
-| Tailnet-sharing auth issue (unintended access) | MEDIUM | Add Tailscale ACL policy to restrict access to specific Tailscale users/tags; or add optional in-app PIN |
-| FQDN hardcoded — cert mismatch on non-standard tailnet | LOW-MEDIUM | Replace hardcoded FQDN derivation with `CertDomains()`; deploy patch |
+| Session state divergence (GUI + daemon out of sync) | HIGH | Stop GUI, restart daemon, restart GUI; investigate which mutation path bypassed IPC and add the missing RPC call |
+| Terminal left in raw mode | LOW | User types `reset` or `stty sane` blindly; add recovery note to CLI help text; fix signal handler in next patch |
+| Stale socket prevents daemon start | LOW | `rm ~/.config/agenthub/daemon.sock && agenthub daemon start`; add `agenthub daemon restart --force` command that removes stale socket automatically |
+| launchd rapid-restart loop | MEDIUM | `launchctl stop com.agenthub.daemon` then diagnose; check Console.app for exit reason; usually double-fork or stdout/stderr to terminal |
+| PTY resize not working | MEDIUM | Detach and re-attach (inherits current terminal size on re-attach); fix SIGWINCH forwarding in next release |
+| Windows IPC broken | HIGH | Fall back to TCP localhost for Windows-only builds as emergency scaffold; prioritize named pipe fix; Windows users cannot use CLI until fixed |
 
 ---
 
@@ -385,36 +319,38 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Deprecated package import | Health check / first Tailscale integration | All imports use `tailscale.com/client/local`; no `client/tailscale` in source |
-| `GetCertificate` without precondition check | Health check phase | Server refuses to start HTTPS listener until `CertDomains()` is non-empty |
-| MagicDNS prerequisite missing | Health check phase | Modal shown when `CertDomains()` is empty with MagicDNS + HTTPS setup instructions |
-| CT disclosure | Health check / instructional modal | Warning text visible in modal before cert provisioning enabled |
-| Rate limit from repeated cert requests | Cert integration phase | Verify daemon-mediated `GetCertificate` is used; logs show "cached" not "requesting new" |
-| File-based cert with no auto-renewal | Cert integration phase | Code review confirms no `CertPair()` called at startup + stored; only `GetCertificate` callback |
-| Auth removal — tailnet sharing disclosure | Auth removal phase | Informational text present in modal about tailnet access scope |
-| Hardcoded FQDN | Cert integration + URL generation phase | Grep confirms no `.ts.net` string literals in URL-constructing code |
-| Health check not periodic | Health check phase | Background goroutine present; disconnect Tailscale while app is open and verify UI updates |
-| WebSocket URL static | Cert/URL migration phase | Disconnect old self-signed cert; WebSocket URL updates dynamically to new FQDN |
-| Interface binding | Interface removal phase | `ss -tlnp` or netstat confirms server not listening on `0.0.0.0`; only on Tailscale IP |
+| Wails init runs before os.Args dispatch | Phase: Binary mode dispatch | Build succeeds with `wails build`; `./agenthub` (no args) opens GUI; `./agenthub list` prints usage |
+| Stale Unix socket blocks startup | Phase: Daemon process management | Kill daemon with SIGKILL, restart; daemon starts cleanly without manual socket removal |
+| Terminal left in raw mode | Phase: CLI attach command | Send SIGKILL to attach process; parent shell still echoes input correctly |
+| Daemon self-daemonizes (launchd conflict) | Phase: Service manager integration | `launchctl start com.agenthub.daemon` shows service stays running in `launchctl list` |
+| PTY resize not propagated | Phase: CLI attach command | Resize terminal during active attach; AI CLI re-renders without artifacts |
+| Session state in two places | Phase: Daemon extraction (architectural) | GUI and CLI `list` output is identical in all multi-client scenarios |
+| macOS socket path too long | Phase: Daemon IPC design | Add path length assertion; test with a 30-char username |
+| Windows named pipe abstraction missing | Phase: Cross-platform IPC scaffold | Windows CI build runs daemon start/stop/connect test |
+| Signal forwarding (Ctrl-C) | Phase: CLI attach command | Ctrl-C inside attach interrupts AI CLI command; does NOT exit `agenthub attach` |
+| Daemon startup race | Phase: GUI-daemon integration | Run startup 50 times on a loaded machine; zero "connection refused" errors |
 
 ---
 
 ## Sources
 
-- [Tailscale Enabling HTTPS — official docs](https://tailscale.com/kb/1153/enabling-https) — prerequisites (MagicDNS required), CT disclosure, rate limits, 90-day expiry, "you own renewal" when using CLI certs
-- [Tailscale TLS Certs blog post](https://tailscale.com/blog/tls-certs) — `GetCertificate` integration pattern for Go
-- [tailscale.com/client/tailscale — pkg.go.dev](https://pkg.go.dev/tailscale.com/client/tailscale) — deprecation notice; confirmed all methods deprecated in favor of `tailscale.com/client/local`
-- [tsnet package — pkg.go.dev](https://pkg.go.dev/tailscale.com/tsnet) — in-process Tailscale node; alternative to LocalClient for embedded use
-- [GitHub issue #14690 — tsnet cert validation bug causing rate limits](https://github.com/tailscale/tailscale/issues/14690) — cached cert treated as invalid on every handshake → rate limit
-- [GitHub issue #8725 — TLS cert not renewing before expiry](https://github.com/tailscale/tailscale/issues/8725) — confirmed bug fixed in PR #8731; renewal heuristic was wrong
-- [GitHub issue #8204 — cert renewal uses hard-coded 14-day threshold](https://github.com/tailscale/tailscale/issues/8204) — improved to 2/3rds validity period heuristic
-- [Analyzing public hostnames of Tailscale users (CT logs research)](https://iter.ca/post/hostnames/) — 464 real hostnames exposed; CT exposure is real, not theoretical
-- [GitHub issue #12199 — FR: allowlist for HTTPS certs to avoid CT log leaks](https://github.com/tailscale/tailscale/issues/12199) — community discussion of CT concern; no resolution implemented
-- [GitHub issue #15650 — Certificate transparency concern](https://github.com/tailscale/tailscale/issues/15650) — upstream acknowledgment
-- [Tailscale best practices — security hardening](https://tailscale.com/kb/1196/security-hardening) — ACLs do not affect local network access; tailnet membership = access
-- [ipnstate package — pkg.go.dev](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — BackendState values: NoState, NeedsLogin, NeedsMachineAuth, Stopped, Starting, Running
-- [Tailscale Serve docs](https://tailscale.com/docs/features/tailscale-serve) — interactive HTTPS enable prompt UX reference
+- Wails GitHub Discussion #3098: Including a CLI with a Wails app — https://github.com/wailsapp/wails/discussions/3098
+- Wails GitHub Discussion #4175: Getting CLI arguments in Wails — https://github.com/wailsapp/wails/discussions/4175
+- Wails GitHub Issue #1533: `-appargs` flag conflict with argument flags — https://github.com/wailsapp/wails/issues/1533
+- kardianos/service: Cross-platform service management for Go — https://github.com/kardianos/service
+- Apple Developer: Creating Launch Daemons and Agents — https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html
+- Apple Developer Forum: Unix socket from App Sandbox — https://developer.apple.com/forums/thread/788364
+- launchd.info: Authoritative launchd tutorial — https://www.launchd.info/
+- VictoriaMetrics: Graceful Shutdown in Go — https://victoriametrics.com/blog/go-graceful-shutdown/
+- Go Blog: Graceful Shutdown, Signals, Contexts — https://rafalroppel.medium.com/graceful-shutdown-in-go-explained-signals-contexts-and-the-correct-shutdown-sequence-f24fd9ef8fac
+- Go By Example: Signals — https://gobyexample.com/signals
+- creack/pty GitHub: macOS tty kill issue after Start — https://github.com/creack/pty/issues/186
+- go-tty Issue: raw mode to cooked mode failure on Linux — https://github.com/mattn/go-tty/issues/13
+- XDG Base Directory Specification — https://specifications.freedesktop.org/basedir/latest/
+- IPC Performance Comparison — https://www.baeldung.com/linux/ipc-performance-comparison
+- Mastering Unix Domain Sockets in Go — https://dev.to/jones_charles_ad50858dbc0/mastering-unix-domain-sockets-in-go-fast-local-ipc-for-your-apps-o48
+- Windows service graceful termination (SIGTERM alternatives) — https://www.codestudy.net/blog/gracefully-terminate-a-process-on-windows/
 
 ---
-*Pitfalls research for: v1.2 Tailscale-only networking — transitioning from self-signed TLS + password/token auth to Tailscale Let's Encrypt certs*
-*Researched: 2026-03-20*
+*Pitfalls research for: CLI + Daemon addition to Go/Wails desktop app (AgentHub v1.3)*
+*Researched: 2026-03-23*

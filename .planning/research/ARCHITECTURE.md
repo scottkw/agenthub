@@ -1,580 +1,534 @@
 # Architecture Research
 
-**Domain:** Tailscale-only networking integration — Go/Wails desktop app (v1.2 milestone)
-**Researched:** 2026-03-20
-**Confidence:** HIGH (official Tailscale Go API docs, source code examples, direct codebase inspection)
+**Domain:** CLI + Daemon extraction from Go/Wails desktop app
+**Researched:** 2026-03-23
+**Confidence:** HIGH (direct codebase inspection + official Go/kardianos/service docs)
 
 ---
 
-## Context: What Already Exists
+## Context: Current State (v1.2)
 
-The existing architecture in `internal/webserver/` has these components:
+Everything lives in a single Wails process. The `App` struct owns all state and is the only client of the session engine:
 
-| Component | File | Current Behavior |
-|-----------|------|-----------------|
-| `WebServer` struct | `server.go` | Holds `caKey`, `caCert`, `caDER`, `tlsCfg`; generates leaf cert in `Start()` |
-| TLS layer | `tls.go` | `LoadOrCreateCA`, `GenerateLeafCert`, `BuildTLSConfig` — all self-signed |
-| Auth layer | `auth.go` | `AuthManager` (bcrypt password + session cookies) |
-| Token layer | `tokens.go` | `TokenStore` — per-session shareable tokens |
-| Network detection | `network.go` | `ListInterfaces()` — generic NIC scan, `IsTailscaleIP` by CGNAT range |
-| Entry point | `app.go` | `StartWebServer(bindIP, port)` — takes any IP, calls `GenerateLeafCert(bindIP)` |
-
-**Config struct today:**
-```go
-type Config struct {
-    BindIP    string  // any IP — Tailscale or LAN
-    Port      int
-    ConfigDir string  // for CA cert persistence
-}
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   agenthub binary (Wails)                     │
+│                                                               │
+│  App struct (app.go)                                          │
+│  ├── SessionRegistry   (pty/registry.go)                      │
+│  ├── NativePTYBackend  (pty/native.go)                        │
+│  ├── HubManager        (relay/manager.go)                     │
+│  ├── relay.Server      (relay/server.go)  127.0.0.1:random    │
+│  ├── WebServer         (webserver/server.go)  Tailscale IP    │
+│  └── Wails runtime → React frontend (embedded assets)        │
+└──────────────────────────────────────────────────────────────┘
 ```
 
+Session I/O path today:
+```
+React (xterm.js) → WebSocket → relay.Server (127.0.0.1) → Hub → PTY
+```
+
+**Key constraint:** The relay.Server and WebServer both live inside the Wails process. The Wails process dies when the window is closed (even with hide-on-close, it still exits on Quit). Sessions cannot outlive the GUI.
+
 ---
 
-## v1.2 Target Architecture
+## Target Architecture (v1.3)
 
 ### System Overview
 
 ```
-┌───────────────────────────────────────────────────────────────────────┐
-│                          app.go (App struct)                           │
-│                                                                        │
-│  StartWebServer(port int)     GetTailscaleStatus() TailscaleHealth     │
-│  [no bindIP param — auto]     [new Wails method]                       │
-└──────────────────────┬────────────────────────────────────────────────┘
-                       │
-                       ▼
-┌───────────────────────────────────────────────────────────────────────┐
-│                      internal/webserver/                               │
-│                                                                        │
-│  ┌──────────────────┐  ┌─────────────────────┐  ┌──────────────────┐  │
-│  │   server.go      │  │   tailscale.go      │  │  network.go      │  │
-│  │                  │  │   (NEW FILE)        │  │  (simplified)    │  │
-│  │  WebServer       │  │                     │  │                  │  │
-│  │  - mux           │◄─│  TailscaleHealth    │  │  GetTailscaleIP  │  │
-│  │  - manager       │  │  CheckHealth()      │  │  (replaces       │  │
-│  │  - webEnabled    │  │                     │  │  ListInterfaces) │  │
-│  │  - sessionRes.   │  │  local.Client{}     │  │                  │  │
-│  │                  │  │  .StatusWithout     │  └──────────────────┘  │
-│  │  REMOVED:        │  │   Peers(ctx)        │                        │
-│  │  - caKey/caCert  │  │  .GetCertificate    │                        │
-│  │  - tlsCfg        │  │   (used in Start()) │                        │
-│  │  - auth          │  └─────────────────────┘                        │
-│  │  - tokens        │                                                  │
-│  └────────┬─────────┘                                                  │
-│           │                                                            │
-│  ┌────────▼─────────┐  ┌─────────────────────┐                        │
-│  │   tls.go         │  │   auth.go           │                        │
-│  │   (DELETE)       │  │   (DELETE)          │                        │
-│  │   tokens.go      │  │   tls_test.go       │                        │
-│  │   (DELETE)       │  │   auth_test.go      │                        │
-│  │                  │  │   tokens_test.go    │                        │
-│  └──────────────────┘  └─────────────────────┘                        │
-└───────────────────────────────────────────────────────────────────────┘
-                       │
-                       ▼ tls.Listen on Tailscale IP (100.x.x.x)
-┌───────────────────────────────────────────────────────────────────────┐
-│               tailscaled (local daemon — already running)              │
-│                                                                        │
-│  local.Client{}.GetCertificate(hi *tls.ClientHelloInfo)               │
-│  → fetches/caches Let's Encrypt cert from tailscaled                  │
-│  → cert CN = <hostname>.tail46d69a.ts.net (or similar ts.net domain)  │
-│                                                                        │
-│  local.Client{}.StatusWithoutPeers(ctx)                               │
-│  → BackendState: "Running" | "NeedsLogin" | "Stopped" | "Starting"   │
-│  → TailscaleIPs: []netip.Addr — the 100.x.x.x address                │
-│  → CertDomains: []string — non-empty when HTTPS enabled in admin      │
-└───────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  agenthub-daemon  (background process, survives GUI close)       │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  SessionEngine                                             │  │
+│  │  ├── SessionRegistry   (existing, unchanged)              │  │
+│  │  ├── NativePTYBackend  (existing, unchanged)              │  │
+│  │  ├── HubManager        (existing, unchanged)              │  │
+│  │  └── StatusRegistry    (new: maps sessionID→SessionStatus)│  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌────────────────────────┐  ┌───────────────────────────────┐   │
+│  │  DaemonAPI             │  │  WebServer (Tailscale TLS)    │   │
+│  │  HTTP/JSON on          │  │  (existing, moved into daemon)│   │
+│  │  Unix socket           │  │                               │   │
+│  │  (macOS/Linux)         │  │  GET /dashboard               │   │
+│  │  Named pipe            │  │  GET /sessions/{id}/ws        │   │
+│  │  (Windows)             │  │  GET /api/sessions            │   │
+│  └──────────┬─────────────┘  └───────────────────────────────┘   │
+└─────────────┼───────────────────────────────────────────────────┘
+              │ IPC (HTTP/JSON)
+    ┌─────────┴──────────┐
+    │                    │
+    ▼                    ▼
+┌──────────┐      ┌─────────────────────────────────────────────┐
+│  CLI     │      │  Wails GUI (agenthub, no --cli flag)        │
+│  client  │      │                                             │
+│          │      │  App struct (app.go) — becomes thin client  │
+│  new,    │      │  ├── DaemonClient  (new: IPC call wrapper)  │
+│  list,   │      │  ├── Wails runtime → React frontend         │
+│  attach, │      │  └── relay.Server 127.0.0.1 (REMOVED)      │
+│  kill,   │      │                                             │
+│  rename, │      │  React still uses its own relay port BUT    │
+│  web,    │      │  relay.Server moves into the daemon         │
+│  health, │      │  GUI connects via DaemonClient, not direct  │
+│  qr      │      └─────────────────────────────────────────────┘
+└──────────┘
 ```
 
----
+### Single Binary, Two Modes
 
-## Component Changes: New vs Modified vs Deleted
-
-### NEW: `internal/webserver/tailscale.go`
-
-This file does not exist yet. It owns all Tailscale health-check logic.
-
-**Responsibility:** Query the local Tailscale daemon for connectivity and cert readiness. Surface structured status to `app.go`.
-
-```go
-package webserver
-
-import (
-    "context"
-    "tailscale.com/client/local"
-)
-
-// TailscaleHealth is the result of a health check against the local tailscaled.
-type TailscaleHealth struct {
-    Installed bool   // tailscaled socket reachable (no error from StatusWithoutPeers)
-    Connected bool   // BackendState == "Running"
-    HasCerts  bool   // len(CertDomains) > 0
-    IP        string // first TailscaleIP as string, empty if not connected
-    Domain    string // first CertDomain (e.g. hostname.ts.net), empty if none
-}
-
-// CheckHealth queries tailscaled via local.Client and returns TailscaleHealth.
-// ctx should have a short timeout (3-5 seconds) to avoid blocking the UI.
-func CheckHealth(ctx context.Context) TailscaleHealth {
-    var lc local.Client  // zero value uses platform default socket
-    status, err := lc.StatusWithoutPeers(ctx)
-    if err != nil {
-        return TailscaleHealth{Installed: false}
-    }
-    h := TailscaleHealth{Installed: true}
-    h.Connected = status.BackendState == "Running"
-    h.HasCerts = len(status.CertDomains) > 0
-    if len(status.TailscaleIPs) > 0 {
-        h.IP = status.TailscaleIPs[0].String()
-    }
-    if len(status.CertDomains) > 0 {
-        h.Domain = status.CertDomains[0]
-    }
-    return h
-}
+```
+agenthub                    → launches Wails GUI (existing behavior)
+agenthub daemon             → starts background daemon (new)
+agenthub daemon install     → installs as launchd/systemd/Windows service
+agenthub daemon uninstall   → removes service registration
+agenthub new <cli> [dir]    → CLI: create session
+agenthub list               → CLI: list sessions
+agenthub attach <id>        → CLI: raw PTY attach
+agenthub kill <id>          → CLI: kill session
+agenthub rename <id> <name> → CLI: rename session
+agenthub web start [port]   → CLI: start web server
+agenthub web stop           → CLI: stop web server
+agenthub web status         → CLI: web server status
+agenthub health             → CLI: Tailscale health
+agenthub qr <id>            → CLI: print QR for session URL
+agenthub settings [key val] → CLI: read/write settings
 ```
 
-**Three health states the frontend modal must handle:**
-
-| `Installed` | `Connected` | `HasCerts` | Meaning | User action |
-|-------------|-------------|------------|---------|-------------|
-| false | — | — | tailscaled not running | Install / start Tailscale |
-| true | false | — | Installed but not connected | Log in or connect to Tailscale |
-| true | true | false | Connected but HTTPS disabled | Enable HTTPS in Tailscale admin DNS settings |
-| true | true | true | Ready | Start web server |
-
----
-
-### MODIFIED: `internal/webserver/server.go`
-
-**Config struct — simplify:**
+`main()` dispatch:
 ```go
-// v1.2 Config — no BindIP (always Tailscale), no ConfigDir (no CA cert storage)
-type Config struct {
-    Port int  // preferred port; 0 or unavailable → OS-assigned random
-}
-```
-
-**WebServer struct — remove TLS/auth fields:**
-```go
-type WebServer struct {
-    config  Config
-    manager *relay.HubManager
-
-    mu         sync.RWMutex
-    webEnabled map[string]bool
-    listener   net.Listener
-    mux        *http.ServeMux
-
-    sessionResolver func(sessionID string) (name, cliType, status string)
-    // REMOVED: auth, tokens, caKey, caCert, caDER, tlsCfg
-}
-```
-
-**`NewWebServer` — remove CA loading:**
-```go
-func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
-    // No CA setup — just allocate struct and register routes
-    ws := &WebServer{
-        config:     cfg,
-        manager:    manager,
-        webEnabled: make(map[string]bool),
-        mux:        http.NewServeMux(),
+func main() {
+    if len(os.Args) > 1 {
+        // CLI/daemon mode: never starts Wails
+        cli.Run(os.Args[1:])
+        return
     }
-    ws.setupRoutes()
-    return ws, nil
-}
-```
-
-**`Start()` — use Tailscale TLS instead of self-signed:**
-```go
-func (ws *WebServer) Start(tailscaleIP string) error {
-    var lc local.Client
-    tlsCfg := &tls.Config{
-        GetCertificate: lc.GetCertificate,
-    }
-    port := ws.config.Port
-    addr := fmt.Sprintf("%s:%d", tailscaleIP, port)
-    ln, err := tls.Listen("tcp", addr, tlsCfg)
-    if err != nil {
-        var opErr *net.OpError
-        if errors.As(err, &opErr) && port != 0 {
-            addr = fmt.Sprintf("%s:0", tailscaleIP)
-            ln, err = tls.Listen("tcp", addr, tlsCfg)
-        }
-        if err != nil {
-            return fmt.Errorf("webserver: listen: %w", err)
-        }
-    }
-    ws.mu.Lock()
-    ws.listener = ln
-    ws.mu.Unlock()
-    go http.Serve(ln, ws.mux) //nolint:errcheck
-    return nil
-}
-```
-
-**`BaseURL()` — now returns Tailscale IP-based URL:**
-```go
-func (ws *WebServer) BaseURL() string {
-    // Returns https://100.x.x.x:port
-    // Tailscale's reverse DNS resolves 100.x.x.x to hostname.ts.net,
-    // but the IP URL works directly and avoids a DNS lookup dependency.
-}
-```
-
-**`setupRoutes()` — remove auth routes:**
-
-| Route | v1.1 | v1.2 |
-|-------|------|------|
-| `POST /login` | present | REMOVE |
-| `GET /ca.crt` | present | REMOVE |
-| `POST /api/sessions/{id}/token` | present | REMOVE |
-| `GET /dashboard` | no auth | keep unchanged |
-| `GET /api/sessions` | requires dashboardAuth | open — network is the perimeter |
-| `GET /sessions/{id}` | requires sessionAuth (cookie or token) | only `isSessionEnabled` check remains |
-| `GET /sessions/{id}/ws` | requires sessionAuth | only `isSessionEnabled` check remains |
-| `GET /api/sessions/{id}/qr` | requires dashboardAuth | keep or open — no token needed |
-
-**Auth middleware removal:** `dashboardAuth` and `sessionAuth` functions are deleted. The `isSessionEnabled` guard on session routes stays — it controls which sessions are web-accessible regardless of auth.
-
----
-
-### MODIFIED: `internal/webserver/network.go`
-
-**Remove entirely:** `ListInterfaces()`, `IsTailscaleIP()`, `tailscaleCIDR` init block, `NetworkInterface` struct, `network_test.go`.
-
-**Add:**
-```go
-// GetTailscaleIP is a convenience wrapper around CheckHealth for use in app.go.
-// Returns the Tailscale IP or an error with a user-friendly message.
-func GetTailscaleIP(ctx context.Context) (string, error) {
-    h := CheckHealth(ctx)
-    if !h.Installed {
-        return "", fmt.Errorf("Tailscale is not installed or not running")
-    }
-    if !h.Connected {
-        return "", fmt.Errorf("Tailscale is not connected")
-    }
-    if h.IP == "" {
-        return "", fmt.Errorf("no Tailscale IP address assigned")
-    }
-    return h.IP, nil
+    // GUI mode: existing Wails startup
+    runGUI()
 }
 ```
 
 ---
 
-### DELETED: `internal/webserver/tls.go` and `tls_test.go`
+## Component Map: New vs Modified vs Unchanged
 
-All functions (`GenerateCA`, `LoadOrCreateCA`, `GenerateLeafCert`, `BuildTLSConfig`, `ExportCACertPath`, `loadECPrivateKey`, `loadCertificate`) become dead code once `Start()` switches to `local.Client.GetCertificate`. Delete both files.
+### NEW: `internal/daemon/` package
 
----
+The session engine extracted from `App` into a self-contained struct:
 
-### DELETED: `internal/webserver/auth.go`, `auth_test.go`, `tokens.go`, `tokens_test.go`
+```
+internal/daemon/
+├── engine.go        — SessionEngine: owns registry, backend, hub manager, status map
+├── api.go           — DaemonAPI: HTTP handler serving JSON on Unix socket
+├── server.go        — Daemon: top-level struct, starts engine + API + WebServer
+└── client.go        — DaemonClient: HTTP client for Unix socket (used by GUI and CLI)
+```
 
-`AuthManager`, `TokenStore`, `HashPassword`, `CheckPassword` — all removed. No replacement needed; Tailscale network membership is the auth boundary.
+**SessionEngine** owns everything the current `App` struct owns except Wails bindings:
+- `SessionRegistry`
+- `NativePTYBackend`
+- `HubManager`
+- `sessionStatuses` map
+- `tabNames` map (session display names)
+- `webServer *webserver.WebServer`
+- Config persistence (cliPaths, CT disclosure sentinel)
 
----
+**DaemonAPI** is an `http.Handler` that multiplexes all daemon operations over the IPC socket:
+
+| Method | Path | Operation |
+|--------|------|-----------|
+| POST | `/sessions` | Create session |
+| GET | `/sessions` | List sessions |
+| DELETE | `/sessions/{id}` | Kill session |
+| PATCH | `/sessions/{id}` | Rename session |
+| GET | `/sessions/{id}/status` | Get session status |
+| GET | `/sessions/{id}/ws` | Attach WebSocket (raw PTY I/O) |
+| POST | `/web/start` | Start web server |
+| POST | `/web/stop` | Stop web server |
+| GET | `/web/status` | Web server status |
+| POST | `/web/sessions/{id}/enable` | Enable web serving for session |
+| POST | `/web/sessions/{id}/disable` | Disable web serving for session |
+| GET | `/health` | Tailscale health |
+| GET | `/sessions/{id}/qr` | QR code base64 |
+| GET | `/settings` | Read settings |
+| PUT | `/settings` | Write settings |
+
+**DaemonClient** wraps this API with typed Go methods. Both the GUI `App` struct and the CLI commands call `DaemonClient`. This is the only new dependency the GUI introduces.
+
+### NEW: `cmd/` directory
+
+```
+cmd/
+├── cli/
+│   ├── main.go      — entry point for CLI dispatch (called from root main.go)
+│   ├── new.go       — `agenthub new` command
+│   ├── list.go      — `agenthub list` command
+│   ├── attach.go    — `agenthub attach` command (PTY proxy)
+│   ├── kill.go      — `agenthub kill` command
+│   ├── rename.go    — `agenthub rename` command
+│   ├── web.go       — `agenthub web start/stop/status` commands
+│   ├── health.go    — `agenthub health` command
+│   ├── qr.go        — `agenthub qr` command
+│   └── settings.go  — `agenthub settings` command
+└── daemon/
+    └── main.go      — `agenthub daemon [install|uninstall|start|stop]`
+```
 
 ### MODIFIED: `app.go`
 
-**Remove Wails methods:**
-- `SetWebPassword(password string) error`
-- `IsWebPasswordSet() bool`
-- `GenerateSessionToken(sessionID string) (string, error)`
-- `GetCACertPath() string`
-- `GetNetworkInterfaces() []webserver.NetworkInterface`
+The `App` struct becomes a thin GUI client. Current session management methods (`CreateSession`, `ListSessions`, `KillSession`, etc.) are rewritten to call `DaemonClient` instead of owning the session engine directly.
 
-**Remove internal helpers:**
-- `webPasswordPath() string`
-- `configDir()` — only needed for CA cert storage; keep only if used elsewhere
-
-**Modify `StartWebServer`:**
+**Before (owns engine):**
 ```go
-// StartWebServer no longer takes bindIP — always uses the Tailscale IP.
-func (a *App) StartWebServer(port int) error {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    health := webserver.CheckHealth(ctx)
-    if !health.Installed {
-        return fmt.Errorf("Tailscale is not installed or running")
-    }
-    if !health.Connected {
-        return fmt.Errorf("Tailscale is not connected")
-    }
-    if !health.HasCerts {
-        return fmt.Errorf("Tailscale HTTPS certificates not enabled — enable HTTPS in Tailscale admin DNS settings")
-    }
-
-    // Stop any running server first.
-    a.mu.Lock()
-    oldWS := a.webServer
-    a.mu.Unlock()
-    if oldWS != nil {
-        _ = oldWS.Stop()
-    }
-
-    ws, err := webserver.NewWebServer(webserver.Config{Port: port}, a.manager)
-    if err != nil {
-        return fmt.Errorf("StartWebServer: %w", err)
-    }
-    ws.SetSessionResolver(...)  // unchanged
-
-    if err := ws.Start(health.IP); err != nil {
-        return fmt.Errorf("StartWebServer: start: %w", err)
-    }
-
-    a.mu.Lock()
-    a.webServer = ws
-    a.mu.Unlock()
-    return nil
+type App struct {
+    ctx      context.Context
+    registry *pty.SessionRegistry      // REMOVE
+    backend  pty.SessionBackend        // REMOVE
+    manager  *relay.HubManager         // REMOVE
+    server   *relay.Server             // REMOVE
+    listener net.Listener              // REMOVE
+    tabNames  map[string]string        // REMOVE (moves to daemon)
+    cliPaths  map[string]string        // REMOVE (moves to daemon)
+    webServer *webserver.WebServer     // REMOVE (moves to daemon)
+    sessionStatuses map[string]status.SessionStatus  // REMOVE (moves to daemon)
 }
 ```
 
-**Add new Wails method:**
+**After (client only):**
 ```go
-// GetTailscaleStatus returns Tailscale health for the settings UI and health modal.
-func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    return webserver.CheckHealth(ctx)
+type App struct {
+    ctx    context.Context
+    daemon *daemon.DaemonClient   // NEW: IPC calls
+    trayInit bool
 }
 ```
 
----
+All current Wails-bound methods on `App` remain (same names, same JS binding surface), but their implementations become one-line calls to `daemon.*`. No frontend changes needed.
 
-## Data Flow: TLS Cert Provisioning
+**Health poller** moves into the daemon. The GUI receives health events via Server-Sent Events or a polling endpoint on the daemon API.
 
-```
-User enables web serving in settings
-            ↓
-app.go: StartWebServer(port)
-            ↓
-webserver.CheckHealth(ctx)  [5s timeout]
-  → local.Client{}.StatusWithoutPeers(ctx)
-  → confirm BackendState == "Running"
-  → confirm len(CertDomains) > 0
-  → extract TailscaleIPs[0] as bindIP
-            ↓
-webserver.NewWebServer(Config{Port: port}, manager)
-            ↓
-ws.Start(tailscaleIP = "100.x.x.x")
-  → tls.Config{ GetCertificate: local.Client{}.GetCertificate }
-  → tls.Listen("tcp", "100.x.x.x:port", tlsCfg)
-            ↓
-First HTTPS request arrives
-  → TLS handshake triggers GetCertificate callback
-  → local.Client talks to tailscaled via Unix socket
-  → tailscaled serves cached or fetches fresh Let's Encrypt cert
-    for <hostname>.ts.net via DNS-01 ACME challenge
-  → Returns *tls.Certificate to the TLS stack
-  → Browser receives browser-trusted cert — no CA install required
-```
+### MODIFIED: `main.go`
 
-**Cert caching:** `local.Client.GetCertificate` caches on disk inside the tailscaled data directory. Automatic renewal is handled by tailscaled. No cert files in `~/.config/agenthub/`.
+Add CLI dispatch before the Wails startup block. The Wails block is unchanged — `NewApp()` now creates a thin client App rather than the full engine.
 
----
+### MODIFIED: `internal/webserver/server.go`
 
-## Data Flow: Health Check for UI Modal
+No structural changes. The `WebServer` is instantiated inside `daemon.SessionEngine` instead of inside `app.go`. The `SetSessionResolver` callback still works the same way.
 
-```
-Frontend settings panel loads, or user clicks "Check Status"
-            ↓
-Wails: app.GetTailscaleStatus()
-            ↓
-webserver.CheckHealth(ctx)  [5s timeout]
-            ↓
-Returns TailscaleHealth {
-    Installed: bool   → false: show "Install Tailscale" instructions
-    Connected: bool   → false: show "Connect to tailnet" instructions
-    HasCerts:  bool   → false: show "Enable HTTPS in admin console" link
-    IP:        string → display to user when server is running
-    Domain:    string → display Tailscale hostname when available
-}
-            ↓
-Frontend renders instructional modal based on first false field
-(three distinct user actions, each with specific copy and link)
-```
+### UNCHANGED: `internal/relay/`
+
+`Hub`, `HubManager`, `Server`, `Scrollback`, protocol — all unchanged. They move from being constructed in `App` to being constructed in `daemon.SessionEngine`.
+
+### UNCHANGED: `internal/pty/`
+
+`SessionRegistry`, `NativePTYBackend`, `Session`, `SessionBackend` interface — all unchanged.
+
+### UNCHANGED: `internal/status/`
+
+`Detector`, `Watch`, `SessionStatus` — all unchanged.
+
+### UNCHANGED: `internal/webserver/tailscale.go`
+
+`CheckHealth`, `TailscaleHealth` — unchanged.
+
+### UNCHANGED: `tray.go`
+
+The tray icon and callbacks are GUI-only. They remain in `tray.go`, calling `daemon.DaemonClient.Quit()` instead of `runtime.Quit()` directly. The daemon process does not have a tray.
 
 ---
 
-## Interface Binding: Old vs New
+## IPC Protocol: HTTP/JSON over Unix Socket
 
-| Aspect | v1.1 | v1.2 |
-|--------|------|------|
-| How IP is obtained | `ListInterfaces()` scans all NICs; user picks from dropdown | `lc.StatusWithoutPeers().TailscaleIPs[0]` — direct from daemon |
-| Bind address | Any IPv4 on the machine (user selected) | Tailscale CGNAT IP only (100.x.x.x) |
-| User choice | Interface dropdown in Settings | None — auto-detected |
-| VPN fallback | Generic VPN interface support | Removed — Tailscale only |
-| TLS | Self-signed CA + leaf cert | Let's Encrypt via tailscaled |
-| Auth | bcrypt password + session cookies + per-session tokens | Network membership (Tailscale ACLs as perimeter) |
-| Port | Configurable default 7443 | Configurable, recommend default 443 |
+### Why HTTP/JSON over Unix socket (not gRPC, not raw TCP)
 
-**Port recommendation:** Defaulting to 443 gives clean URLs (`https://hostname.ts.net`) and works without custom firewall rules. The existing port-fallback logic (`EADDRINUSE` → `:0`) handles conflicts. If 443 is taken by another service, fallback to a high port like 7443.
+- **Go stdlib only.** `net.Listen("unix", socketPath)` + standard `net/http` + `encoding/json`. No new dependencies for the core IPC protocol.
+- **WebSocket attach is already HTTP.** The existing relay protocol uses WebSocket over HTTP. Reusing HTTP for the control plane means the daemon runs one server with two endpoint classes: JSON control + WebSocket terminal.
+- **Debuggable.** Any HTTP client can call the daemon API during development (`curl --unix-socket /tmp/agenthub.sock http://localhost/sessions`).
+- **Precedent.** Docker daemon, tailscaled, and gopls all use this pattern (HTTP or JSON-RPC over Unix socket).
 
----
+### Socket location
 
-## Architectural Patterns
+| Platform | Path |
+|----------|------|
+| macOS/Linux | `~/.config/agenthub/daemon.sock` |
+| Windows | Named pipe `\\.\pipe\agenthub-daemon` |
 
-### Pattern 1: GetCertificate as tls.Config Callback (HIGH confidence)
+The socket path is deterministic — both CLI and GUI discover it the same way: `filepath.Join(configDir(), "daemon.sock")`. No port negotiation, no PID files.
 
-**What:** Set `tls.Config.GetCertificate = lc.GetCertificate` instead of generating or loading cert files. The TLS stack invokes this callback per-connection handshake; `local.Client` returns a cached valid cert or fetches a fresh one from tailscaled.
+### Daemon auto-start from CLI
 
-**When to use:** Any Go HTTPS server that only serves on a Tailscale IP. This is the official pattern documented by Tailscale with a reference implementation in their repository.
+When a CLI command calls `DaemonClient` and the socket does not exist (daemon not running), it auto-starts the daemon:
 
-**Trade-offs:** Requires tailscaled running when the server starts (first connection fails if tailscaled goes down post-start; TLS handshake errors). No cert management code in the app. Automatic renewal by tailscaled.
-
-**Example:**
 ```go
-var lc local.Client  // zero value uses platform default socket
-tlsCfg := &tls.Config{
-    GetCertificate: lc.GetCertificate,
+func (c *DaemonClient) ensureRunning() error {
+    if c.isReachable() {
+        return nil
+    }
+    // Exec self with "daemon" subcommand, detached from terminal
+    return startDaemonDetached()
 }
-ln, err := tls.Listen("tcp", tailscaleIP+":443", tlsCfg)
 ```
 
-### Pattern 2: StatusWithoutPeers for Health Checks (HIGH confidence)
+`startDaemonDetached()` runs `os.Executable()` with `daemon` argument, `Stdout/Stderr` redirected to a log file, and `SysProcAttr` set to detach from the controlling terminal (POSIX: `Setsid: true`; Windows: `CREATE_NEW_PROCESS_GROUP`). The CLI then polls the socket path until reachable (max 3 seconds, 100ms intervals).
 
-**What:** Use `StatusWithoutPeers` (not `Status`) for connectivity checks. Omits the peer list, which can be large.
+### Terminal attach protocol
 
-**When to use:** Any time you need to check local Tailscale state, not peer routing.
+`agenthub attach <id>` is the interactive case. The CLI:
 
-**Key fields:**
-```go
-status, err := lc.StatusWithoutPeers(ctx)
-// err != nil            → tailscaled unreachable → Installed: false
-// status.BackendState   → "Running" | "NeedsLogin" | "Stopped" | "Starting" | "NoState"
-// status.TailscaleIPs   → []netip.Addr — the 100.x.x.x address(es)
-// status.CertDomains    → []string — non-empty only when HTTPS enabled in admin DNS settings
-// status.Health         → []string — known problems; empty = healthy
+1. Connects to `/sessions/{id}/ws` on the daemon via WebSocket (same binary relay protocol already used by the browser client and the Wails relay server).
+2. Puts the terminal in raw mode (`golang.org/x/term`).
+3. Runs two goroutines: stdin → `MsgInput` frames; `MsgOutput` frames → stdout.
+4. Installs a `SIGWINCH` handler to send `MsgResize2` frames on terminal resize.
+5. Listens for a detach key sequence (default: `Ctrl-D Ctrl-D`, configurable). On detach, restores terminal mode and exits without killing the session.
+
+The daemon's DaemonAPI WebSocket handler for attach is identical in structure to the existing `relay/server.go` `handleSession` function — subscribe, replay scrollback, pump frames. No new protocol needed; the relay protocol already handles all three frame types needed for interactive use.
+
+### Event streaming (GUI health updates)
+
+The GUI replaces its Wails `EventsEmit` health poller with a Server-Sent Events endpoint on the daemon:
+
+```
+GET /events   (daemon API, text/event-stream)
 ```
 
-### Pattern 3: Network-as-Auth-Perimeter (MEDIUM confidence)
+Events:
+- `session:status` — `{"sessionId":"...","status":"running"}`
+- `tailscale:health` — `TailscaleHealth` struct
+- `session:created` — session metadata
+- `session:killed` — sessionId
 
-**What:** Remove application-layer password auth and per-session tokens. Rely on Tailscale network membership as the security boundary. The server only listens on the Tailscale IP; public internet cannot reach it.
-
-**When to use:** Single-user or small-team tailnets where tailnet membership is controlled. For stricter access control, Tailscale ACLs at the network layer are the right tool (not app-layer auth).
-
-**Trade-offs:** Simpler code. Any authenticated tailnet member can reach the dashboard — if multiple people are on the same tailnet, they share access. For personal use this is fine. For team use, Tailscale ACLs restrict which devices can reach specific IPs/ports.
+The Wails frontend subscribes to these via a `useEffect` that calls a Wails-bound `SubscribeDaemonEvents()` method, which in turn opens an HTTP SSE connection to the daemon and forwards events via `runtime.EventsEmit`. This keeps the React event model unchanged while moving the source of truth to the daemon.
 
 ---
 
-## Anti-Patterns to Avoid
+## Data Flow Changes
 
-### Anti-Pattern 1: Calling `tailscale cert` as a Subprocess
+### Session creation (after migration)
 
-**What people do:** `exec.Command("tailscale", "cert", domain)` to write cert files, then `tls.LoadX509KeyPair`.
+```
+React frontend
+    ↓ Wails call: app.CreateSession(cli, name, workDir)
+App.CreateSession (thin wrapper)
+    ↓ HTTP POST /sessions  (Unix socket)
+daemon.SessionEngine.CreateSession
+    ├── backend.Create(ctx, req) → *pty.Session
+    ├── registry.Add(sess)
+    ├── manager.Create(id, sess, sess, resizeFn) → *relay.Hub
+    ├── go status.Watch(hub, id, cli, onTransit)
+    └── returns sessionID
+    ↓ HTTP 201 JSON: {"id":"..."}
+app.go returns sessionID to Wails JS binding
+React frontend uses sessionID to connect to relay WebSocket
+```
 
-**Why it's wrong:** Requires the `tailscale` CLI binary on PATH (not guaranteed). Cert files written to disk need cleanup. `local.Client.GetCertificate` is the designed Go API that `tailscale cert` calls internally.
+### React terminal connection (after migration)
 
-**Do this instead:** Use `local.Client.GetCertificate` as a `tls.Config.GetCertificate` callback.
+React currently calls `GetRelayPort()` to find the Wails-embedded relay server port and connects to `ws://127.0.0.1:{port}/sessions/{id}/ws`. After migration:
 
-### Anti-Pattern 2: Binding to `0.0.0.0` and Filtering in Middleware
+- The relay.Server moves from `App.startup` into the daemon.
+- The daemon listens on a stable TCP port (or a second Unix socket) for relay WebSocket connections from the GUI.
+- `GetRelayPort()` becomes a call to the daemon that returns the daemon's relay port.
 
-**What people do:** Bind to all interfaces, then check `r.RemoteAddr` in middleware to reject non-Tailscale connections.
+**Simplest option:** Daemon binds relay.Server on `127.0.0.1:0` (random port, same as today), daemon API exposes `GET /relay-port`. The GUI calls this once at startup. React behavior is unchanged. This is a one-line change in the App struct.
 
-**Why it's wrong:** Exposes the port on all network interfaces at the OS level. The TLS handshake (including `GetCertificate`) happens before any middleware sees the request — non-Tailscale connections still trigger cert fetching and consume a handshake.
+### Terminal attach (CLI, new flow)
 
-**Do this instead:** Bind the listener to the Tailscale IP specifically. The OS rejects connections from other interfaces before they reach Go.
+```
+agenthub attach <id>
+    ↓ DaemonClient.Attach(id)
+    ↓ WebSocket connect to daemon API /sessions/{id}/ws
+    ↓ Terminal raw mode on
+    ↓ stdin → MsgInput frames → daemon → PTY
+    ↓ PTY output → MsgOutput frames → daemon → stdout
+    ↓ SIGWINCH → MsgResize2 frames
+    ↓ Detach key sequence → restore terminal → exit (session stays alive)
+```
 
-### Anti-Pattern 3: Hardcoding the Tailscale IP
+---
 
-**What people do:** Read `100.x.x.x` from a config file or environment variable.
+## Migration Path: Wails-Owns-Everything → Daemon-Centric
 
-**Why it's wrong:** Tailscale IPs are stable per-device but can change on re-key or re-install. Also breaks on machines enrolled in multiple tailnets.
+### Phase 1: Extract SessionEngine into daemon package (no behavior change)
 
-**Do this instead:** Always call `lc.StatusWithoutPeers(ctx).TailscaleIPs[0]` at server start time. One call, always current.
+Create `internal/daemon/engine.go` with `SessionEngine` that wraps `SessionRegistry`, `NativePTYBackend`, `HubManager`, and the status/tabNames maps. Copy-paste `App`'s session methods into `SessionEngine` with identical logic.
 
-### Anti-Pattern 4: Importing the Deprecated `tailscale.com/client/tailscale` Package
+In `App`, wire `NewSessionEngine()` and delegate all session methods to it. `App` still owns `SessionEngine` directly — no IPC yet. All existing tests pass unchanged.
 
-**What people do:** `import "tailscale.com/client/tailscale"` and use package-level functions like `tailscale.GetCertificate` or `tailscale.Status`.
+**Why first:** Establishes the module boundary. Daemon code is now testable in isolation before any process separation happens. Compiler enforces the interface.
 
-**Why it's wrong:** These are deprecated aliases. The `pkg.go.dev` docs mark them deprecated in favor of `tailscale.com/client/local`.
+### Phase 2: DaemonAPI HTTP server on Unix socket
 
-**Do this instead:** Import `tailscale.com/client/local`. The `local.Client` type is the current API.
+Add `internal/daemon/api.go` implementing the HTTP handler for the daemon API routes. Add `internal/daemon/client.go` implementing `DaemonClient`.
+
+Wire `App` to use `DaemonClient` instead of holding `SessionEngine` directly. The daemon is still in-process (same binary, no fork), but all calls go through the HTTP layer over a Unix socket. This validates the protocol without multi-process complexity.
+
+**Confidence check:** Run all existing tests with a local in-process daemon. If anything breaks here, it breaks trivially (socket path, JSON serialization) not architecturally.
+
+### Phase 3: Fork the daemon process
+
+Add `cmd/daemon/main.go`. The daemon starts as a separate process. `DaemonClient.ensureRunning()` forks if the socket is not present.
+
+`main.go` gets the CLI dispatch block. Running `agenthub` with no args starts Wails as before; running with `daemon` or a session command takes the CLI path.
+
+The relay.Server moves from `App.startup` into the daemon. `GetRelayPort()` is wired to the daemon. The GUI no longer owns a relay listener.
+
+**This is the first phase where sessions outlive the GUI window.** Verify: close the GUI, reopen it, and confirm sessions are still listed and attachable.
+
+### Phase 4: CLI commands
+
+Implement CLI commands in `cmd/cli/`. Each command is a thin wrapper:
+- Parse args
+- Call `DaemonClient.EnsureRunning()`
+- Call the relevant `DaemonClient` method
+- Print results
+
+`attach` is the only complex command (raw PTY proxy, `golang.org/x/term`, SIGWINCH handler, detach key).
+
+### Phase 5: Service manager integration
+
+Add `agenthub daemon install / uninstall` using `kardianos/service`. The service just runs `agenthub daemon` in the foreground — the service manager handles restart-on-failure.
+
+Service definition is generated at install time and written to the platform's config directory:
+- macOS: `~/Library/LaunchAgents/com.agenthub.daemon.plist`
+- Linux: `~/.config/systemd/user/agenthub-daemon.service`
+- Windows: Windows service registry via `kardianos/service`
+
+---
+
+## Structural Changes to the Codebase
+
+### Recommended final file tree delta
+
+```
+agenthub/
+├── main.go                    MODIFIED — add CLI dispatch
+├── app.go                     MODIFIED — thin client, delegates to DaemonClient
+├── tray.go                    UNCHANGED
+├── cmd/
+│   ├── cli/
+│   │   ├── root.go            NEW — cobra/flag CLI entry point
+│   │   ├── new.go             NEW
+│   │   ├── list.go            NEW
+│   │   ├── attach.go          NEW — PTY proxy, raw mode
+│   │   ├── kill.go            NEW
+│   │   ├── rename.go          NEW
+│   │   ├── web.go             NEW
+│   │   ├── health.go          NEW
+│   │   ├── qr.go              NEW
+│   │   └── settings.go        NEW
+│   └── daemon/
+│       └── main.go            NEW — daemon subcommand + service install/uninstall
+├── internal/
+│   ├── daemon/
+│   │   ├── engine.go          NEW — SessionEngine (session logic extracted from App)
+│   │   ├── api.go             NEW — HTTP handler on Unix socket
+│   │   ├── server.go          NEW — top-level Daemon struct
+│   │   └── client.go          NEW — DaemonClient (used by GUI and CLI)
+│   ├── pty/                   UNCHANGED
+│   ├── relay/                 UNCHANGED
+│   ├── status/                UNCHANGED
+│   └── webserver/             UNCHANGED
+```
+
+No existing internal packages are modified. The extraction is additive until Phase 3, when `app.go` delegates to `DaemonClient`.
 
 ---
 
 ## Integration Points
 
-### External Services
+### Wails GUI ↔ Daemon
 
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| tailscaled (local daemon) | `local.Client{}` zero value — uses platform default socket | Linux/macOS: `/var/run/tailscale/tailscaled.sock`; Windows: named pipe. Platform detection is handled inside `local.Client`. |
-| Let's Encrypt (via tailscaled) | Indirect — tailscaled handles ACME DNS-01 challenge. App only calls `lc.GetCertificate`. | Prerequisite: HTTPS must be enabled in Tailscale admin console DNS settings. First cert fetch may take 1–2 seconds. Cert files stored in tailscaled data dir, not `~/.config/agenthub/`. |
+| Point | Current | After Migration |
+|-------|---------|-----------------|
+| Session CRUD | Direct method calls on `App` fields | `DaemonClient` HTTP calls to Unix socket |
+| Relay WebSocket port | `app.listener` (in-process) | `DaemonClient.GetRelayPort()` → daemon API |
+| Health events | `app.startHealthPoller` → `runtime.EventsEmit` | Daemon SSE stream → GUI proxies via `runtime.EventsEmit` |
+| Web server control | `app.StartWebServer` / `StopWebServer` | `DaemonClient.WebStart/Stop` |
+| Session status | `app.sessionStatuses` map | `DaemonClient.GetSessionStatus` |
+| Tab names | `app.tabNames` map | `DaemonClient.RenameSession` + `ListSessions` includes name |
+| Wails JS bindings | Same method names on `App` | Same method names, different implementation bodies |
 
-### Internal Boundaries
+**Critical invariant:** All Wails-bound method signatures on `App` remain identical. Zero changes to the React frontend are required in Phase 2–3.
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `app.go` → `webserver.TailscaleHealth` | Direct struct return from `CheckHealth()` | Replaces the `[]webserver.NetworkInterface` that was returned to the frontend |
-| `WebServer.Start()` → `local.Client` | Direct call; `local.Client` is a value type | Not an interface — wrap in a `getCertFunc` parameter for testability: `type certFunc func(*tls.ClientHelloInfo) (*tls.Certificate, error)` |
-| `tls.Listener` → tailscaled | Unix socket via `local.Client` | If tailscaled stops after `Start()`, `GetCertificate` returns an error on the next handshake. Existing connections are unaffected. |
+### CLI ↔ Daemon
 
----
+All CLI commands go through `DaemonClient`. The CLI has no direct knowledge of PTYs, hubs, or the relay protocol except in `attach.go`, which uses the existing binary relay framing protocol over WebSocket.
 
-## go.mod Impact
+### Service Manager ↔ Daemon
 
-Adding `tailscale.com` as a direct dependency is significant:
-
-- `tailscale.com` is a large module with many transitive dependencies
-- Only `tailscale.com/client/local` and `tailscale.com/ipn/ipnstate` are needed
-- **Verify binary size delta before committing** — the Tailscale module pulls in networking/crypto packages that may substantially increase binary size from the current ~15 MB baseline
-
-**Alternative if binary size is unacceptable:** Use `github.com/tailscale/tscert` (a minimal stripped-down package for cert-only use) for `GetCertificate`, and perform health checks via raw HTTP to the tailscaled local API socket. This avoids the full `tailscale.com` dependency tree but requires more manual HTTP work.
+The service manager invokes `agenthub daemon` and manages the process lifecycle (restart-on-crash, start-on-login). The daemon must not daemonize itself (no double-fork) — service managers expect the process to run in the foreground.
 
 ---
 
-## Suggested Build Order
+## Anti-Patterns to Avoid
 
-### Phase 1: New `tailscale.go` — Health Check (isolated, no behavioral changes)
+### Anti-Pattern 1: Shared In-Process State After Phase 2
 
-Build `internal/webserver/tailscale.go` with `TailscaleHealth` and `CheckHealth()`. Wire `GetTailscaleStatus()` into `app.go` as a new Wails method. Write tests that mock the `local.Client` response.
+**What happens:** Keeping `SessionEngine` as a direct field of `App` while also exposing it via `DaemonClient` creates two code paths. Bugs will appear in one but not the other.
 
-**Why first:** Health check logic is used by everything else. Can be built and tested without touching existing TLS or auth code. Frontend can start showing Tailscale status immediately.
+**Do this instead:** After Phase 2 validates the DaemonClient interface, remove the direct field immediately. One code path only.
 
-**This phase also:** Adds `tailscale.com` to `go.mod`. Measure binary size delta here before proceeding.
+### Anti-Pattern 2: TCP Port for the Daemon API
 
-### Phase 2: Bind to Tailscale IP + Tailscale TLS
+**What people do:** Bind the daemon API on a localhost TCP port (e.g., 7444) and store the port number in a config file or PID file.
 
-Modify `WebServer.Start()` to accept `tailscaleIP string` and use `local.Client.GetCertificate`. Modify `app.go:StartWebServer()` to call `CheckHealth()` first and pass the IP.
+**Why it's wrong:** Port conflicts across users or multiple test instances. Port scanning by other processes. PID files are notorious for stale-state bugs. Unix sockets are path-addressed — no ports, no discovery needed.
 
-**Why second:** The TLS change is the load-bearing shift. Old `tls.go` is not deleted yet — kept until integration tests confirm `GetCertificate` returns a valid cert for the machine's `.ts.net` domain.
+**Exception:** Windows requires named pipes. `kardianos` and the Go standard library handle this transparently via `net.Listen("unix", path)` on POSIX and named pipe emulation on Windows.
 
-**Risk:** First real test against live tailscaled. Needs manual verification on the dev machine that cert provisioning works end-to-end.
+### Anti-Pattern 3: Duplicating the Relay Protocol for CLI Attach
 
-### Phase 3: Remove Auth Layer
+**What people do:** Create a separate "CLI attach" protocol that copies PTY bytes over stdin/stdout of the daemon process directly.
 
-Remove `dashboardAuth` and `sessionAuth` middleware. Remove `AuthManager`, `TokenStore`. Remove `POST /login`, `GET /ca.crt`, `POST /api/sessions/{id}/token` routes. Remove corresponding Wails methods from `app.go` (`SetWebPassword`, `IsWebPasswordSet`, `GenerateSessionToken`, `GetCACertPath`). Remove password persistence (`web_password` file, `webPasswordPath()`, `LoadPasswordHash` calls).
+**Why it's wrong:** Redundant with the existing WebSocket relay protocol. The relay protocol already handles all three interactive frame types (MsgOutput, MsgInput, MsgResize2). The `relay/server.go` `handleSession` function is 50 lines and already tested.
 
-**Why third:** Only safe to remove auth after confirming the server works with Tailscale TLS on the correct IP (Phase 2). Removing auth while still on self-signed certs during transition would expose the server unguarded.
+**Do this instead:** The `agenthub attach` CLI command connects to `/sessions/{id}/ws` on the daemon API using the existing binary frame protocol. The daemon API WebSocket handler is identical to `relay/server.go`.
 
-### Phase 4: Delete Dead Files
+### Anti-Pattern 4: Rebuilding the Wails Frontend for CLI Output
 
-Delete `tls.go`, `tls_test.go`, `auth.go`, `auth_test.go`, `tokens.go`, `tokens_test.go`. Simplify `network.go` to only `GetTailscaleIP`. Simplify `Config` struct. Remove `GetNetworkInterfaces()` from `app.go`.
+**What people do:** Add a "headless" Wails mode or reuse React components for CLI output formatting.
 
-**Why last:** Deleting files after the code compiles without them means the compiler enforces that all callsites are updated. Delete only when `go build ./...` passes.
+**Why it's wrong:** The CLI has no WebView. React and xterm.js have no role in a terminal attach.
 
-### Phase 5: Frontend Health Modal
+**Do this instead:** CLI output is plain text to stdout. `attach` connects directly to the daemon WebSocket and pipes bytes. `list` formats a table with `text/tabwriter`. No shared UI code.
 
-Wire `TailscaleHealth` struct to a React modal in Settings that shows three distinct instructional states. Can begin in parallel with Phase 3–4 once `GetTailscaleStatus()` is available from Phase 1.
+### Anti-Pattern 5: Embedding the Daemon in the Wails App Process
+
+**What people do:** Run the daemon logic in a background goroutine inside the Wails process, protected by a mutex, with the "daemon" being just a goroutine pool.
+
+**Why it's wrong:** Sessions still die when the Wails window closes / process exits. The whole point of the daemon is process-level persistence. "Daemon as goroutine" solves nothing.
+
+**Do this instead:** The daemon is always a separate OS process. The GUI connects to it like any other client.
+
+---
+
+## Scaling Considerations
+
+This is a local desktop app. Scaling means "many sessions per user," not "many users."
+
+| Concern | Current | With Daemon |
+|---------|---------|-------------|
+| Sessions outliving GUI | Not supported | Supported — daemon owns sessions |
+| Multiple GUI windows | Not supported (single Wails window) | Possible future extension |
+| CLI + GUI simultaneously | Not supported | Supported — both are daemon clients |
+| Session count limit | No hard limit; PTY is the bottleneck | Same; each session is ~1 goroutine + PTY fd |
+| IPC throughput | N/A (in-process) | Unix socket saturates at ~1 GB/s; terminal I/O is KB/s |
+
+No scaling concerns at the local desktop level. The daemon architecture is also the right foundation for a future remote-access mode where the daemon runs headless on a server.
 
 ---
 
 ## Sources
 
-- [Tailscale enabling HTTPS docs](https://tailscale.com/docs/how-to/set-up-https-certificates)
-- [tailscale.com/client/local pkg.go.dev](https://pkg.go.dev/tailscale.com/client/local) — `Client`, `GetCertificate`, `CertPair`, `StatusWithoutPeers` — confirmed stable API
-- [tailscale.com/ipn/ipnstate pkg.go.dev](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — `Status` struct: `BackendState`, `TailscaleIPs`, `CertDomains`, `Health`
-- [Official servetls example](https://github.com/tailscale/tailscale/blob/main/client/tailscale/example/servetls/servetls.go) — canonical `GetCertificate` usage: `TLSConfig: &tls.Config{GetCertificate: lc.GetCertificate}`
-- [github.com/tailscale/tscert](https://pkg.go.dev/github.com/tailscale/tscert) — minimal cert-only alternative if full `tailscale.com` dependency is too heavy
-- [Tailscale TLS blog post](https://tailscale.com/blog/tls-certs) — context on the DNS-01 ACME cert provisioning model
-- Direct codebase inspection: `internal/webserver/server.go`, `tls.go`, `auth.go`, `tokens.go`, `network.go`, `app.go`, `go.mod`
+- Direct codebase inspection: `app.go`, `main.go`, `internal/pty/`, `internal/relay/`, `internal/webserver/`, `internal/status/`
+- [kardianos/service](https://pkg.go.dev/github.com/kardianos/service) — cross-platform service manager (macOS launchd, Linux systemd, Windows service) — MEDIUM confidence (well-maintained library, 4.3k stars, stable API)
+- [gopls daemon architecture](https://go.dev/gopls/daemon) — Unix socket + HTTP/JSON-RPC pattern for Go daemon/client split — HIGH confidence (official Go toolchain)
+- [Unix domain sockets in Go (Eli Bendersky)](https://eli.thegreenplace.net/2019/unix-domain-sockets-in-go/) — net.Listen("unix") pattern — HIGH confidence
+- Docker daemon / tailscaled — precedent for HTTP over Unix socket as IPC — HIGH confidence
 
 ---
 
-*Architecture research for: AgentHub v1.2 Tailscale-only networking*
-*Researched: 2026-03-20*
+*Architecture research for: AgentHub v1.3 CLI + Daemon*
+*Researched: 2026-03-23*
