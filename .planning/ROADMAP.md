@@ -68,7 +68,10 @@
   3. `internal/daemon/client.go` provides a typed Go client; App delegates all session operations through it
   4. Stale socket file on startup is handled automatically (auto-remove on ECONNREFUSED); socket path length assertion fires a clear error before a cryptic bind failure
   5. All existing Go tests pass with `go test -race ./...`; GUI behavior is identical to v1.2
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ### Phase 20: Process Separation
 **Goal**: Sessions outlive the GUI window; closing and reopening the GUI reconnects to the same running session pool managed by a separate daemon process
@@ -80,7 +83,10 @@
   3. CLI `agenthub list` output and GUI session list are identical in all scenarios (single source of truth)
   4. The daemon auto-starts when any CLI command is run and no daemon is already listening on the socket
   5. GUI App struct holds exactly one field for daemon communication: `*daemon.DaemonClient`
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ### Phase 21: CLI Session + Web Commands
 **Goal**: Users can manage sessions and all web-serving functionality from the terminal
@@ -92,7 +98,10 @@
   3. `agenthub kill <id>` terminates a session; `agenthub rename <id> <name>` renames it with the new name reflected in GUI tab bar
   4. `agenthub web start`, `agenthub web stop`, and `agenthub web status` control and report the Tailscale web server state
   5. `agenthub serve <id>`, `agenthub unserve <id>`, `agenthub health`, and `agenthub qr <id>` execute without error and produce correct output matching GUI equivalents
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ### Phase 22: CLI Attach
 **Goal**: Users can attach to any running session with a full interactive terminal and detach cleanly without harming the session or leaving the terminal in a broken state
@@ -104,7 +113,10 @@
   3. Resizing the terminal window while attached propagates the new dimensions to the session PTY with no visual corruption
   4. Ctrl-C passes through to the AI CLI as a PTY byte (0x03) and does not terminate the attach process
   5. The configured detach prefix key sequence detaches cleanly; the terminal is restored to its prior mode on every exit path including normal detach, SIGTERM, SIGHUP, and abnormal exit
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ### Phase 23: Service Manager Integration
 **Goal**: The daemon can be registered as a platform-native service that auto-starts on login and is controllable via CLI
@@ -116,7 +128,10 @@
   3. `agenthub daemon uninstall` removes the service registration; daemon no longer auto-starts after the next reboot
   4. `agenthub daemon start` and `agenthub daemon stop` control a registered service that is not already running/stopped
   5. The daemon runs in foreground mode (no double-fork on any platform); the service manager owns the process lifecycle
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ### Phase 24: CLI Polish
 **Goal**: CLI output is machine-readable and all configuration is inspectable from the terminal without opening the GUI
@@ -125,7 +140,10 @@
 **Success Criteria** (what must be TRUE):
   1. `agenthub list --json`, `agenthub web status --json`, `agenthub health --json`, and `agenthub daemon status --json` all emit valid JSON parseable by `jq` with no interleaved plain text
   2. `agenthub settings` prints current configuration values in a human-readable format (read-only; no modifications via this command)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — Create internal/daemon package (SessionEngine, HTTP API, DaemonClient, socket utilities, tests)
+- [ ] 19-02-PLAN.md — Migrate App to delegate through DaemonClient, verify all tests pass, GUI regression check
 
 ## Progress
 
