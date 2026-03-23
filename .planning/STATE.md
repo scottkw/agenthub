@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
 status: unknown
-stopped_at: Completed 19-02-PLAN.md — Phase 19 plan 02 done
-last_updated: "2026-03-23T14:55:00.086Z"
+stopped_at: Completed 20-process-separation-01-PLAN.md
+last_updated: "2026-03-23T16:06:45.748Z"
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 19 — daemon-core-engine-ipc
+**Current focus:** Phase 20 — process-separation
 
 ## Current Position
 
-Phase: 19 (daemon-core-engine-ipc) — EXECUTING
+Phase: 20 (process-separation) — EXECUTING
 Plan: 1 of 2
 
 ## Performance Metrics
@@ -44,6 +44,7 @@ Plan: 1 of 2
 | Phase 19-daemon-core-engine-ipc P01 | 25min | 2 tasks | 9 files |
 | Phase 19-daemon-core-engine-ipc P02 | 6min | 1 tasks | 3 files |
 | Phase 19-daemon-core-engine-ipc P02 | 11min | 2 tasks | 3 files |
+| Phase 20-process-separation P01 | 4min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 19-02]: testApp() uses /tmp/aht{pid}_{seq}.sock paths to stay under macOS 103-char sun_path limit (t.TempDir() produces paths > 103 chars)
 - [Phase 19-02]: CreateSession calls engine directly (not client) — onStatus callback cannot be serialized over HTTP; this is the intentional exception to the delegation pattern
 - [Phase 19-02]: testApp() uses /tmp/aht{pid}_{seq}.sock paths to stay under macOS 103-char sun_path limit (t.TempDir() produces paths > 103 chars)
+- [Phase 20-process-separation]: Relay TCP server lives inside API struct (relayLn field), started by RunDaemon before api.Start() — daemon owns the relay port lifecycle
+- [Phase 20-process-separation]: EnsureDaemon takes socketPath as argument — allows tests to inject short socket paths and avoids macOS 103-char limit
 
 ### Pending Todos
 
@@ -75,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T14:48:58.947Z
-Stopped at: Completed 19-02-PLAN.md — Phase 19 plan 02 done
+Last session: 2026-03-23T16:06:45.744Z
+Stopped at: Completed 20-process-separation-01-PLAN.md
 Resume file: None

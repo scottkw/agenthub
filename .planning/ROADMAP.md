@@ -159,7 +159,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 17. Dead Code Cleanup | v1.2 | 2/2 | Complete | 2026-03-20 |
 | 18. Frontend Health Modal + Status UI | v1.2 | 2/2 | Complete | 2026-03-22 |
 | 19. Daemon Core (Engine + IPC) | v1.3 | 2/2 | Complete | 2026-03-23 |
-| 20. Process Separation | v1.3 | 0/2 | Not started | - |
+| 20. Process Separation | 1/2 | In Progress|  | - |
 | 21. CLI Session + Web Commands | v1.3 | 0/TBD | Not started | - |
 | 22. CLI Attach | v1.3 | 0/TBD | Not started | - |
 | 23. Service Manager Integration | v1.3 | 0/TBD | Not started | - |

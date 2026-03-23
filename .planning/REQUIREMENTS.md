@@ -9,11 +9,11 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 
 ### Daemon Infrastructure
 
-- [ ] **DAEMON-01**: Session management runs in a standalone daemon process separate from the GUI
+- [x] **DAEMON-01**: Session management runs in a standalone daemon process separate from the GUI
 - [x] **DAEMON-02**: Daemon communicates with clients via HTTP/JSON over Unix socket (named pipe on Windows)
 - [ ] **DAEMON-03**: Sessions persist when all clients (GUI and CLI) disconnect
 - [ ] **DAEMON-04**: GUI app connects to the daemon as a client; GUI and CLI see the same session pool
-- [ ] **DAEMON-05**: Daemon auto-starts when any CLI command is run and no daemon is running
+- [x] **DAEMON-05**: Daemon auto-starts when any CLI command is run and no daemon is running
 
 ### CLI Session Commands
 
@@ -75,11 +75,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DAEMON-01 | Phase 20 | Pending |
+| DAEMON-01 | Phase 20 | Complete |
 | DAEMON-02 | Phase 19 | Complete |
 | DAEMON-03 | Phase 20 | Pending |
 | DAEMON-04 | Phase 20 | Pending |
-| DAEMON-05 | Phase 20 | Pending |
+| DAEMON-05 | Phase 20 | Complete |
 | CLI-01 | Phase 21 | Pending |
 | CLI-02 | Phase 21 | Pending |
 | CLI-03 | Phase 21 | Pending |
