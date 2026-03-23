@@ -49,7 +49,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active milestone — planning next)
+**Current Milestone: v1.3 CLI + Daemon**
+
+**Goal:** Extract session management into a persistent background daemon with full CLI control; GUI and CLI are both clients that attach to the same session pool.
+
+**Target features:**
+- Background daemon managing all sessions, surviving client disconnects and reboots (launchd/systemd/Windows service)
+- Single binary, two modes: `agenthub` (GUI) / `agenthub <command>` (CLI)
+- Full CLI command set: new, list, attach, detach, kill, rename, web start/stop/status, serve/unserve, health, qr, settings
+- Interactive terminal attach: full PTY proxy with raw I/O, resize events, ctrl-c passthrough
+- Configurable detach prefix key
+- Shared sessions: GUI and CLI see the same session pool, attach/detach independently
+- Daemon auto-start on login via platform service managers
 
 ### Out of Scope
 
@@ -114,4 +125,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-23 after v1.2 milestone (Tailscale-Only Networking)*
+*Last updated: 2026-03-23 after starting v1.3 milestone (CLI + Daemon)*
