@@ -57,6 +57,7 @@ function App(): React.ReactElement {
     domain: string
   } | null>(null)
   const [platform, setPlatform] = useState<string>('linux')
+  const [daemonError, setDaemonError] = useState<string | null>(null)
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
@@ -98,6 +99,7 @@ function App(): React.ReactElement {
         }
       } catch (err) {
         console.error('[App] init failed:', err)
+        setDaemonError(String(err))
       }
     }
     void init()
@@ -241,6 +243,43 @@ function App(): React.ReactElement {
     }
   }, [])
 
+  const retryInit = useCallback(async () => {
+    setDaemonError(null)
+    try {
+      const [port, clis, sessions, running, health, env] = await Promise.all([
+        GetRelayPort(),
+        DetectCLIs(),
+        ListSessions(),
+        IsWebServerRunning(),
+        GetTailscaleStatus(),
+        Environment(),
+      ])
+      setRelayPort(port)
+      setDetectedCLIs(clis)
+      setWebServerRunning(running)
+      setTailscaleHealth(health)
+      setPlatform(env.platform)
+      if (sessions.length > 0) {
+        const restoredTabs: Tab[] = sessions.map((s) => ({
+          id: s.id,
+          name: s.name || s.cli,
+          sessionId: s.id,
+          cli: s.cli,
+        }))
+        setTabs(restoredTabs)
+        setActiveId(restoredTabs[0].id)
+        sessions.forEach((s) => {
+          GetSessionStatus(s.id)
+            .then((st) => setSessionStatuses((prev) => ({ ...prev, [s.id]: st })))
+            .catch(() => {})
+        })
+      }
+    } catch (err) {
+      console.error('[App] retry init failed:', err)
+      setDaemonError(String(err))
+    }
+  }, [])
+
   return (
     <div className="app">
       <TabBar
@@ -255,6 +294,43 @@ function App(): React.ReactElement {
       />
 
       <div className="terminal-container">
+        {daemonError && tabs.length === 0 && (
+          <div style={{
+            background: '#16161e',
+            borderLeft: '3px solid #f7768e',
+            border: '1px solid #292e42',
+            borderLeftWidth: '3px',
+            borderLeftColor: '#f7768e',
+            borderRadius: '4px',
+            padding: '12px 16px',
+            margin: '16px',
+            color: '#a9b1d6',
+            fontSize: '13px',
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '8px', color: '#c0caf5' }}>
+              Unable to connect to session daemon
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              The background daemon did not start in time. Your sessions are not accessible. Check the system log or restart AgentHub.
+            </div>
+            <button
+              onClick={retryInit}
+              style={{
+                border: '1px solid #292e42',
+                background: 'transparent',
+                color: '#a9b1d6',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+              }}
+              onMouseEnter={(e) => { (e.target as HTMLElement).style.background = '#1e2030' }}
+              onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent' }}
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
         {relayPort !== null &&
           tabs.map((tab) => {
             const isActive = tab.id === activeId
