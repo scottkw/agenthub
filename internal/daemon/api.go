@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -152,7 +153,9 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	id, err := a.engine.CreateSession(r.Context(), req.CLI, req.Name, req.WorkDir, nil)
+	// Use background context — the PTY must outlive the HTTP request.
+	// r.Context() would kill the session when the response is sent.
+	id, err := a.engine.CreateSession(context.Background(), req.CLI, req.Name, req.WorkDir, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
