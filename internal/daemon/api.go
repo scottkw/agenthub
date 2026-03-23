@@ -2,16 +2,25 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"sync"
+
+	"github.com/agenthub/agenthub/internal/relay"
+	"github.com/agenthub/agenthub/internal/webserver"
 )
 
 // API serves the daemon HTTP API over a Unix socket.
 type API struct {
-	engine *SessionEngine
-	mux    *http.ServeMux
-	ln     net.Listener
+	engine    *SessionEngine
+	mux       *http.ServeMux
+	ln        net.Listener
+	relayPort int               // TCP port the relay server is listening on
+	relayLn   net.Listener      // TCP listener for the relay server
+	mu        sync.RWMutex      // guards webServer
+	webServer *webserver.WebServer // nil when not running
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -35,6 +44,26 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /sessions/{id}/status", a.handleGetSessionStatus)
 	a.mux.HandleFunc("GET /settings/cli-paths", a.handleGetCLIPaths)
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
+	// Relay port and web server routes.
+	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
+	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
+	a.mux.HandleFunc("POST /webserver/stop", a.handleWebServerStop)
+	a.mux.HandleFunc("GET /webserver/status", a.handleWebServerStatus)
+	a.mux.HandleFunc("POST /sessions/{id}/web-serve", a.handleWebServe)
+}
+
+// StartRelay creates the relay HTTP server and starts it on a random TCP port.
+// Returns the allocated port. Must be called after NewAPI.
+func (a *API) StartRelay() (int, error) {
+	server := relay.NewServer(a.engine.Manager(), a.engine.Backend())
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, fmt.Errorf("relay listener: %w", err)
+	}
+	a.relayPort = ln.Addr().(*net.TCPAddr).Port
+	a.relayLn = ln
+	go http.Serve(ln, server) //nolint:errcheck
+	return a.relayPort, nil
 }
 
 // Start validates the socket path, cleans up any stale socket, creates the
@@ -57,6 +86,21 @@ func (a *API) Start(socketPath string) error {
 
 // Stop closes the listener and removes the socket file.
 func (a *API) Stop() error {
+	// Stop web server if running.
+	a.mu.Lock()
+	ws := a.webServer
+	a.webServer = nil
+	a.mu.Unlock()
+	if ws != nil {
+		_ = ws.Stop()
+	}
+
+	// Close relay listener if open.
+	if a.relayLn != nil {
+		_ = a.relayLn.Close()
+		a.relayLn = nil
+	}
+
 	if a.ln == nil {
 		return nil
 	}
@@ -166,6 +210,102 @@ func (a *API) handleUpdateCLIPath(w http.ResponseWriter, r *http.Request) {
 	if err := a.engine.UpdateCLIPath(name, req.Path); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleRelayPort(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, RelayPortResponse{Port: a.relayPort})
+}
+
+func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
+	var req WebServerStartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: req.IP,
+		Port:   req.Port,
+		FQDN:   req.FQDN,
+	}, a.engine.Manager())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set session resolver so the web server can look up session metadata.
+	ws.SetSessionResolver(func(sessionID string) (name, cliType, status string) {
+		for _, s := range a.engine.ListSessions() {
+			if s.ID == sessionID {
+				return s.Name, s.CLI, a.engine.GetSessionStatus(sessionID)
+			}
+		}
+		return sessionID, "", ""
+	})
+
+	if err := ws.Start(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	a.mu.Lock()
+	a.webServer = ws
+	a.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, WebServerStartResponse{URL: ws.BaseURL()})
+}
+
+func (a *API) handleWebServerStop(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	ws := a.webServer
+	a.webServer = nil
+	a.mu.Unlock()
+
+	if ws != nil {
+		_ = ws.Stop()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleWebServerStatus(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+
+	if ws == nil {
+		writeJSON(w, http.StatusOK, WebServerStatusResponse{Running: false})
+		return
+	}
+	writeJSON(w, http.StatusOK, WebServerStatusResponse{
+		Running: true,
+		URL:     ws.BaseURL(),
+		Addr:    ws.Addr(),
+	})
+}
+
+func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req WebServeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+
+	if ws == nil {
+		http.Error(w, "web server not running", http.StatusBadRequest)
+		return
+	}
+
+	if req.Enabled {
+		ws.EnableSession(id)
+	} else {
+		ws.DisableSession(id)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -275,3 +275,52 @@ func TestAPIUpdateCLIPath(t *testing.T) {
 		t.Errorf("cli path for 'claude': got %q, want %q", paths["claude"], "/bin/cat")
 	}
 }
+
+func TestAPIRelayPort(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	port, err := api.StartRelay()
+	if err != nil {
+		t.Fatalf("StartRelay: %v", err)
+	}
+	if port <= 0 {
+		t.Fatalf("StartRelay returned invalid port: %d", port)
+	}
+
+	status, body := rawGet(t, socketPath, "/relay-port")
+	if status != 200 {
+		t.Errorf("GET /relay-port: want 200, got %d", status)
+	}
+	var resp RelayPortResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode relay port response: %v", err)
+	}
+	if resp.Port <= 0 {
+		t.Errorf("relay port: want > 0, got %d", resp.Port)
+	}
+	if resp.Port != port {
+		t.Errorf("relay port mismatch: got %d, want %d", resp.Port, port)
+	}
+}
+
+func TestAPIWebServerStatus_NotRunning(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawGet(t, socketPath, "/webserver/status")
+	if status != 200 {
+		t.Errorf("GET /webserver/status: want 200, got %d", status)
+	}
+	var resp WebServerStatusResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode webserver status response: %v", err)
+	}
+	if resp.Running {
+		t.Errorf("webserver status: want running=false, got true")
+	}
+}
+
+func TestAPIWebServe_NoServer(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, _ := rawPost(t, socketPath, "/sessions/xxx/web-serve", `{"enabled":true}`)
+	if status != 400 {
+		t.Errorf("POST /sessions/xxx/web-serve with no server: want 400, got %d", status)
+	}
+}

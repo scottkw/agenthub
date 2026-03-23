@@ -99,6 +99,39 @@ func TestClientGetSessionStatus(t *testing.T) {
 	}
 }
 
+func TestClientGetRelayPort(t *testing.T) {
+	api, client, _ := testDaemon(t)
+	port, err := api.StartRelay()
+	if err != nil {
+		t.Fatalf("StartRelay: %v", err)
+	}
+	if port <= 0 {
+		t.Fatalf("StartRelay returned invalid port: %d", port)
+	}
+
+	got, err := client.GetRelayPort()
+	if err != nil {
+		t.Fatalf("GetRelayPort: %v", err)
+	}
+	if got <= 0 {
+		t.Errorf("GetRelayPort: want > 0, got %d", got)
+	}
+	if got != port {
+		t.Errorf("GetRelayPort: got %d, want %d", got, port)
+	}
+}
+
+func TestClientWebServerStatus(t *testing.T) {
+	_, client, _ := testDaemon(t)
+	resp, err := client.GetWebServerStatus()
+	if err != nil {
+		t.Fatalf("GetWebServerStatus: %v", err)
+	}
+	if resp.Running {
+		t.Errorf("GetWebServerStatus: want Running=false, got true")
+	}
+}
+
 // TestClientFullLifecycle tests the full round-trip: create -> list -> rename -> list -> kill -> list.
 func TestClientFullLifecycle(t *testing.T) {
 	_, client, _ := testDaemon(t)

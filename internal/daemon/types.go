@@ -43,3 +43,32 @@ type CLIPathsResponse map[string]string
 type UpdateCLIPathRequest struct {
 	Path string `json:"path"`
 }
+
+// RelayPortResponse is the response body for GET /relay-port.
+type RelayPortResponse struct {
+	Port int `json:"port"`
+}
+
+// WebServerStartRequest is the request body for POST /webserver/start.
+type WebServerStartRequest struct {
+	IP   string `json:"ip"`
+	Port int    `json:"port"`
+	FQDN string `json:"fqdn"`
+}
+
+// WebServerStartResponse is the response body for POST /webserver/start.
+type WebServerStartResponse struct {
+	URL string `json:"url"`
+}
+
+// WebServerStatusResponse is the response body for GET /webserver/status.
+type WebServerStatusResponse struct {
+	Running bool   `json:"running"`
+	URL     string `json:"url"`
+	Addr    string `json:"addr"`
+}
+
+// WebServeRequest is the request body for POST /sessions/{id}/web-serve.
+type WebServeRequest struct {
+	Enabled bool `json:"enabled"`
+}

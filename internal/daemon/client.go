@@ -94,6 +94,44 @@ func (c *DaemonClient) UpdateCLIPath(name, path string) error {
 	return c.doJSON(http.MethodPatch, "/settings/cli-paths/"+name, UpdateCLIPathRequest{Path: path}, nil)
 }
 
+// GetRelayPort returns the TCP port the daemon's relay server is listening on.
+func (c *DaemonClient) GetRelayPort() (int, error) {
+	var resp RelayPortResponse
+	if err := c.doJSON(http.MethodGet, "/relay-port", nil, &resp); err != nil {
+		return 0, err
+	}
+	return resp.Port, nil
+}
+
+// StartWebServer tells the daemon to start the Tailscale web server.
+func (c *DaemonClient) StartWebServer(ip string, port int, fqdn string) (string, error) {
+	req := WebServerStartRequest{IP: ip, Port: port, FQDN: fqdn}
+	var resp WebServerStartResponse
+	if err := c.doJSON(http.MethodPost, "/webserver/start", req, &resp); err != nil {
+		return "", err
+	}
+	return resp.URL, nil
+}
+
+// StopWebServer tells the daemon to stop the Tailscale web server.
+func (c *DaemonClient) StopWebServer() error {
+	return c.doJSON(http.MethodPost, "/webserver/stop", nil, nil)
+}
+
+// GetWebServerStatus returns the current web server state from the daemon.
+func (c *DaemonClient) GetWebServerStatus() (WebServerStatusResponse, error) {
+	var resp WebServerStatusResponse
+	if err := c.doJSON(http.MethodGet, "/webserver/status", nil, &resp); err != nil {
+		return WebServerStatusResponse{}, err
+	}
+	return resp, nil
+}
+
+// ToggleWebServing enables or disables web serving for a session.
+func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
+}
+
 // doJSON is a shared request/response helper. It marshals body (if non-nil),
 // sends the request, checks the status code, and decodes result (if non-nil).
 func (c *DaemonClient) doJSON(method, path string, body, result any) error {
