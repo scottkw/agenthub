@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to plan
-stopped_at: Phase 26 UI-SPEC approved
-last_updated: "2026-03-24T20:59:13.280Z"
+status: Ready to execute
+stopped_at: Completed 26-graceful-gui-startup-failure/26-02-PLAN.md
+last_updated: "2026-03-24T21:56:36.811Z"
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 25 — windows-named-pipe-fix
+**Current focus:** Phase 26 — graceful-gui-startup-failure
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
+Phase: 26 (graceful-gui-startup-failure) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Plan: Not started
 | Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
 | Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
 | Phase 24-cli-polish P02 | 2min | 1 tasks | 2 files |
+| Phase 26-graceful-gui-startup-failure P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 24-cli-polish]: Used flag.NewFlagSet per command (not flag package globals) to avoid state pollution between test runs
 - [Phase 24-cli-polish]: daemon status intercepted in main() before early-exit block; other daemon subcommands bypass EnsureDaemon
 - [Phase 24-cli-polish]: cmdSettings uses daemon.DefaultSocketPath() directly (socket path is local config, not daemon state); tests use /bin/sh for CLI path (daemon validates existence)
+- [Phase 26-graceful-gui-startup-failure]: Early-return in retryInit: call RetryDaemon() first; if daemon restart fails, skip Promise.all to avoid cascading nil-client errors
+- [Phase 26-graceful-gui-startup-failure]: Banner shows {daemonError} directly — Go error strings are more actionable than hardcoded generic messages
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T20:59:13.277Z
-Stopped at: Phase 26 UI-SPEC approved
-Resume file: .planning/phases/26-graceful-gui-startup-failure/26-UI-SPEC.md
+Last session: 2026-03-24T21:56:36.809Z
+Stopped at: Completed 26-graceful-gui-startup-failure/26-02-PLAN.md
+Resume file: None
