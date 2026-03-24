@@ -53,7 +53,7 @@
 - [x] **Phase 20: Process Separation** — Fork daemon into a standalone process; sessions survive GUI close/reopen; daemon auto-starts from CLI when not running (completed 2026-03-23)
 - [x] **Phase 21: CLI Session + Web Commands** — Standalone CLI binary with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient (completed 2026-03-24)
 - [x] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths (completed 2026-03-24)
-- [ ] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop
+- [x] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop (completed 2026-03-24)
 - [ ] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection
 
 ## Phase Details
@@ -142,7 +142,7 @@ Plans:
   2. `agenthub settings` prints current configuration values in a human-readable format (read-only; no modifications via this command)
 **Plans**: 2 plans
 Plans:
-- [ ] 23-01-PLAN.md — Add kardianos/service dependency, create service.go with daemonSvc wrapper + ServiceControl, refactor RunDaemon
+- [x] 23-01-PLAN.md — Add kardianos/service dependency, create service.go with daemonSvc wrapper + ServiceControl, refactor RunDaemon
 - [ ] 23-02-PLAN.md — CLI daemon subcommand dispatcher (install/uninstall/start/stop), tests, macOS verification
 
 ## Progress
@@ -174,7 +174,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 20. Process Separation | v1.3 | 2/2 | Complete | 2026-03-23 |
 | 21. CLI Session + Web Commands | v1.3 | 2/2 | Complete    | 2026-03-24 |
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
-| 23. Service Manager Integration | v1.3 | 1/2 | In Progress|  |
+| 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 0/TBD | Not started | - |
 
 ---

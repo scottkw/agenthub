@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to execute
-stopped_at: Completed 23-service-manager-integration-01-PLAN.md
-last_updated: "2026-03-24T18:35:32.145Z"
+status: Ready to plan
+stopped_at: "Checkpoint: 23-02 Task 2 awaiting macOS launchd verification"
+last_updated: "2026-03-24T19:13:16.981Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 ## Current Position
 
-Phase: 23 (service-manager-integration) — EXECUTING
-Plan: 2 of 2
+Phase: 24
+Plan: Not started
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: 2 of 2
 | Phase 22-cli-attach P01 | 2 | 2 tasks | 5 files |
 | Phase 22-cli-attach P02 | 130 | 1 tasks | 1 files |
 | Phase 23-service-manager-integration P01 | 104 | 2 tasks | 5 files |
+| Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 23-service-manager-integration]: Use KeepAlive=false to allow manual daemon stop without automatic restart
 - [Phase 23-service-manager-integration]: Use UserService=true for user-scope service registration (launchd/systemd/SCM)
 - [Phase 23-service-manager-integration]: runDaemonCore uses fmt.Fprintf+return instead of os.Exit for clean service manager lifecycle
+- [Phase Phase 23-02]: Use package-level var serviceControlFunc = daemon.ServiceControl for test injection — avoids interface overhead for single-function mocking
+- [Phase Phase 23-02]: No-args and 'run' subcommand both call daemon.RunDaemon() for backward compat with EnsureDaemon spawn pattern
 
 ### Pending Todos
 
@@ -97,6 +100,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T18:35:32.141Z
-Stopped at: Completed 23-service-manager-integration-01-PLAN.md
+Last session: 2026-03-24T18:40:50.365Z
+Stopped at: Checkpoint: 23-02 Task 2 awaiting macOS launchd verification
 Resume file: None
