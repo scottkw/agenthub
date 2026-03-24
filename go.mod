@@ -7,7 +7,8 @@ require (
 	github.com/coder/websocket v1.8.14
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/wailsapp/wails/v2 v2.10.2
-	golang.org/x/sys v0.40.0
+	golang.org/x/sys v0.42.0
+	golang.org/x/term v0.41.0
 	tailscale.com v1.96.3
 )
 
