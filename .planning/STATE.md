@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to execute
-stopped_at: Completed Phase 21-01-PLAN.md — CLI binary with session commands
-last_updated: "2026-03-24T13:40:10.163Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 21-02-PLAN.md — CLI web/utility commands complete
+last_updated: "2026-03-24T13:47:08.380Z"
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Plan: 2 of 2
 | Phase 19-daemon-core-engine-ipc P02 | 11min | 2 tasks | 3 files |
 | Phase 20-process-separation P01 | 4min | 2 tasks | 9 files |
 | Phase 21-cli-session-web-commands P01 | 15min | 2 tasks | 2 files |
+| Phase 21-cli-session-web-commands P02 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 20-02]: GUI regression verified end-to-end: sessions survive close/reopen, daemon auto-restarts after kill, relay port handoff confirmed working
 - [Phase 21-01]: cmd functions return error instead of os.Exit — main() handles exits; makes unit testing trivial
 - [Phase 21-01]: io.Writer injection on cmdNew/cmdList for testable stdout; main() passes os.Stdout, tests pass bytes.Buffer
+- [Phase 21-cli-session-web-commands]: cmdWebStart gates on all 3 Tailscale checks (Connected, IP, HasCerts) before calling daemon
+- [Phase 21-cli-session-web-commands]: testSetupWithWebServer injects real WebServer via SetWebServerForTest for serve/unserve tests — avoids Tailscale in CI
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T13:40:10.135Z
-Stopped at: Completed Phase 21-01-PLAN.md — CLI binary with session commands
+Last session: 2026-03-24T13:47:08.358Z
+Stopped at: Completed 21-02-PLAN.md — CLI web/utility commands complete
 Resume file: None

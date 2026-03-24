@@ -28,11 +28,11 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 
 ### CLI Web/Utility Commands
 
-- [ ] **WEB-01**: User can start/stop the Tailscale web server from the terminal (`agenthub web start/stop`)
-- [ ] **WEB-02**: User can check web server status from the terminal (`agenthub web status`)
-- [ ] **WEB-03**: User can toggle web serving per session from the terminal (`agenthub serve/unserve`)
-- [ ] **WEB-04**: User can run Tailscale health check from the terminal (`agenthub health`)
-- [ ] **WEB-05**: User can display a session's QR code in the terminal (`agenthub qr`)
+- [x] **WEB-01**: User can start/stop the Tailscale web server from the terminal (`agenthub web start/stop`)
+- [x] **WEB-02**: User can check web server status from the terminal (`agenthub web status`)
+- [x] **WEB-03**: User can toggle web serving per session from the terminal (`agenthub serve/unserve`)
+- [x] **WEB-04**: User can run Tailscale health check from the terminal (`agenthub health`)
+- [x] **WEB-05**: User can display a session's QR code in the terminal (`agenthub qr`)
 
 ### Service Management
 
@@ -88,11 +88,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-06 | Phase 22 | Pending |
 | CLI-07 | Phase 22 | Pending |
 | CLI-08 | Phase 22 | Pending |
-| WEB-01 | Phase 21 | Pending |
-| WEB-02 | Phase 21 | Pending |
-| WEB-03 | Phase 21 | Pending |
-| WEB-04 | Phase 21 | Pending |
-| WEB-05 | Phase 21 | Pending |
+| WEB-01 | Phase 21 | Complete |
+| WEB-02 | Phase 21 | Complete |
+| WEB-03 | Phase 21 | Complete |
+| WEB-04 | Phase 21 | Complete |
+| WEB-05 | Phase 21 | Complete |
 | SVC-01 | Phase 23 | Pending |
 | SVC-02 | Phase 23 | Pending |
 | SVC-03 | Phase 23 | Pending |
