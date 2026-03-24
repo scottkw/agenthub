@@ -113,7 +113,10 @@ Plans:
   3. Resizing the terminal window while attached propagates the new dimensions to the session PTY with no visual corruption
   4. Ctrl-C passes through to the AI CLI as a PTY byte (0x03) and does not terminate the attach process
   5. The configured detach prefix key sequence detaches cleanly; the terminal is restored to its prior mode on every exit path including normal detach, SIGTERM, SIGHUP, and abnormal exit
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 22-01-PLAN.md — Core attach implementation (cmd_attach.go, platform files, main.go integration)
+- [ ] 22-02-PLAN.md — Attach command tests (unit + integration tests for all attach behaviors)
 
 ### Phase 23: Service Manager Integration
 **Goal**: The daemon can be registered as a platform-native service that auto-starts on login and is controllable via CLI
@@ -164,7 +167,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 19. Daemon Core (Engine + IPC) | v1.3 | 2/2 | Complete | 2026-03-23 |
 | 20. Process Separation | v1.3 | 2/2 | Complete | 2026-03-23 |
 | 21. CLI Session + Web Commands | v1.3 | 2/2 | Complete    | 2026-03-24 |
-| 22. CLI Attach | v1.3 | 0/TBD | Not started | - |
+| 22. CLI Attach | v1.3 | 0/2 | Not started | - |
 | 23. Service Manager Integration | v1.3 | 0/TBD | Not started | - |
 | 24. CLI Polish | v1.3 | 0/TBD | Not started | - |
 
