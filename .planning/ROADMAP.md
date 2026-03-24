@@ -142,7 +142,7 @@ Plans:
   2. `agenthub settings` prints current configuration values in a human-readable format (read-only; no modifications via this command)
 **Plans**: 2 plans
 Plans:
-- [ ] 24-01-PLAN.md — Add --json flag to list, web status, health, daemon status commands with tests
+- [x] 24-01-PLAN.md — Add --json flag to list, web status, health, daemon status commands with tests
 - [ ] 24-02-PLAN.md — Add agenthub settings command for read-only config inspection with tests
 
 ## Progress
@@ -175,7 +175,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 21. CLI Session + Web Commands | v1.3 | 2/2 | Complete    | 2026-03-24 |
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
-| 24. CLI Polish | v1.3 | 0/2 | Not started | - |
+| 24. CLI Polish | v1.3 | 1/2 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

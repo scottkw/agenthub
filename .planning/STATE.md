@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to plan
-stopped_at: "Checkpoint: 23-02 Task 2 awaiting macOS launchd verification"
-last_updated: "2026-03-24T19:13:16.981Z"
+status: Ready to execute
+stopped_at: Completed 24-cli-polish-01-PLAN.md
+last_updated: "2026-03-24T19:42:10.804Z"
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 23 — service-manager-integration
+**Current focus:** Phase 24 — cli-polish
 
 ## Current Position
 
-Phase: 24
-Plan: Not started
+Phase: 24 (cli-polish) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Plan: Not started
 | Phase 22-cli-attach P02 | 130 | 1 tasks | 1 files |
 | Phase 23-service-manager-integration P01 | 104 | 2 tasks | 5 files |
 | Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
+| Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 23-service-manager-integration]: runDaemonCore uses fmt.Fprintf+return instead of os.Exit for clean service manager lifecycle
 - [Phase Phase 23-02]: Use package-level var serviceControlFunc = daemon.ServiceControl for test injection — avoids interface overhead for single-function mocking
 - [Phase Phase 23-02]: No-args and 'run' subcommand both call daemon.RunDaemon() for backward compat with EnsureDaemon spawn pattern
+- [Phase 24-cli-polish]: Used flag.NewFlagSet per command (not flag package globals) to avoid state pollution between test runs
+- [Phase 24-cli-polish]: daemon status intercepted in main() before early-exit block; other daemon subcommands bypass EnsureDaemon
 
 ### Pending Todos
 
@@ -100,6 +103,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T18:40:50.365Z
-Stopped at: Checkpoint: 23-02 Task 2 awaiting macOS launchd verification
+Last session: 2026-03-24T19:42:10.801Z
+Stopped at: Completed 24-cli-polish-01-PLAN.md
 Resume file: None

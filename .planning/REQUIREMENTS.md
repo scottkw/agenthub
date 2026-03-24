@@ -38,11 +38,11 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 
 - [x] **SVC-01**: Daemon can be installed as a platform service (launchd/systemd/Windows Service)
 - [x] **SVC-02**: Daemon auto-starts on login when installed as a service
-- [ ] **SVC-03**: User can install/uninstall/start/stop the service from CLI (`agenthub daemon install/uninstall/start/stop`)
+- [x] **SVC-03**: User can install/uninstall/start/stop the service from CLI (`agenthub daemon install/uninstall/start/stop`)
 
 ### CLI Polish
 
-- [ ] **POLISH-01**: All list/status commands support `--json` flag for machine-readable output
+- [x] **POLISH-01**: All list/status commands support `--json` flag for machine-readable output
 - [ ] **POLISH-02**: User can view current settings from CLI (`agenthub settings`)
 
 ## Future Requirements
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-05 | Phase 21 | Complete |
 | SVC-01 | Phase 23 | Complete |
 | SVC-02 | Phase 23 | Complete |
-| SVC-03 | Phase 23 | Pending |
-| POLISH-01 | Phase 24 | Pending |
+| SVC-03 | Phase 23 | Complete |
+| POLISH-01 | Phase 24 | Complete |
 | POLISH-02 | Phase 24 | Pending |
 
 **Coverage:**
