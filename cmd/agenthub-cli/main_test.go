@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -68,7 +69,7 @@ func TestCmdNew_MissingArgs(t *testing.T) {
 func TestCmdList_Empty(t *testing.T) {
 	client := testSetup(t)
 	var buf bytes.Buffer
-	err := cmdList(client, &buf)
+	err := cmdList(client, nil, &buf)
 	if err != nil {
 		t.Fatalf("cmdList returned error: %v", err)
 	}
@@ -82,12 +83,12 @@ func TestCmdList_Empty(t *testing.T) {
 func TestCmdList_WithSessions(t *testing.T) {
 	client := testSetup(t)
 	// Create a session via the client directly.
-	id, err := client.CreateSession("cat","mytest", "/tmp")
+	id, err := client.CreateSession("cat", "mytest", "/tmp")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	var buf bytes.Buffer
-	if err := cmdList(client, &buf); err != nil {
+	if err := cmdList(client, nil, &buf); err != nil {
 		t.Fatalf("cmdList: %v", err)
 	}
 	out := buf.String()
@@ -99,10 +100,50 @@ func TestCmdList_WithSessions(t *testing.T) {
 	}
 }
 
+// TestCmdList_JSON_Empty verifies that --json with no sessions produces "[]".
+func TestCmdList_JSON_Empty(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdList(client, []string{"--json"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdList --json returned error: %v", err)
+	}
+	out := strings.TrimSpace(buf.String())
+	if out != "[]" {
+		t.Errorf("expected empty JSON array %q, got %q", "[]", out)
+	}
+}
+
+// TestCmdList_JSON_WithSessions verifies that --json with sessions produces valid JSON.
+func TestCmdList_JSON_WithSessions(t *testing.T) {
+	client := testSetup(t)
+	id, err := client.CreateSession("cat", "jsontest", "/tmp")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := cmdList(client, []string{"--json"}, &buf); err != nil {
+		t.Fatalf("cmdList --json: %v", err)
+	}
+	var sessions []daemon.SessionInfo
+	if err := json.Unmarshal(buf.Bytes(), &sessions); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].ID != id {
+		t.Errorf("expected session ID %q, got %q", id, sessions[0].ID)
+	}
+	if sessions[0].Name != "jsontest" {
+		t.Errorf("expected name %q, got %q", "jsontest", sessions[0].Name)
+	}
+}
+
 // TestCmdKill_Success creates a session, kills it, and verifies it is removed.
 func TestCmdKill_Success(t *testing.T) {
 	client := testSetup(t)
-	id, err := client.CreateSession("cat","killtest", "/tmp")
+	id, err := client.CreateSession("cat", "killtest", "/tmp")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -121,7 +162,7 @@ func TestCmdKill_Success(t *testing.T) {
 // TestCmdRename_Success creates a session, renames it, and verifies the new name.
 func TestCmdRename_Success(t *testing.T) {
 	client := testSetup(t)
-	id, err := client.CreateSession("cat","oldname", "/tmp")
+	id, err := client.CreateSession("cat", "oldname", "/tmp")
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -194,7 +235,7 @@ func testSetupWithWebServer(t *testing.T) *daemon.DaemonClient {
 func TestCmdWebStatus_NotRunning(t *testing.T) {
 	client := testSetup(t)
 	var buf bytes.Buffer
-	err := cmdWebStatus(client, &buf)
+	err := cmdWebStatus(client, nil, &buf)
 	if err != nil {
 		t.Fatalf("cmdWebStatus returned error: %v", err)
 	}
@@ -204,6 +245,23 @@ func TestCmdWebStatus_NotRunning(t *testing.T) {
 	}
 	if !strings.Contains(out, "false") {
 		t.Errorf("expected output to contain %q, got %q", "false", out)
+	}
+}
+
+// TestCmdWebStatus_JSON verifies --json produces valid JSON for web status.
+func TestCmdWebStatus_JSON(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdWebStatus(client, []string{"--json"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdWebStatus --json returned error: %v", err)
+	}
+	var resp daemon.WebServerStatusResponse
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if resp.Running {
+		t.Error("expected Running=false")
 	}
 }
 
@@ -256,7 +314,7 @@ func TestCmdUnserve_Success(t *testing.T) {
 // TestCmdHealth_OutputFormat verifies cmdHealth prints exactly 5 key-value lines.
 func TestCmdHealth_OutputFormat(t *testing.T) {
 	var buf bytes.Buffer
-	err := cmdHealth(&buf)
+	err := cmdHealth(nil, &buf)
 	if err != nil {
 		t.Fatalf("cmdHealth returned error: %v", err)
 	}
@@ -272,6 +330,20 @@ func TestCmdHealth_OutputFormat(t *testing.T) {
 	if len(lines) != 5 {
 		t.Errorf("expected 5 output lines, got %d:\n%s", len(lines), out)
 	}
+}
+
+// TestCmdHealth_JSON verifies --json produces valid JSON for health.
+func TestCmdHealth_JSON(t *testing.T) {
+	var buf bytes.Buffer
+	err := cmdHealth([]string{"--json"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdHealth --json returned error: %v", err)
+	}
+	var h webserver.TailscaleHealth
+	if err := json.Unmarshal(buf.Bytes(), &h); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	// Just verify it deserialized without error — actual values depend on system state.
 }
 
 // TestCmdQR_WebNotRunning verifies cmdQR returns an error when web server is not running.

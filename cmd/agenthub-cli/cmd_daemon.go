@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 
@@ -49,6 +51,26 @@ func cmdDaemon(args []string, out io.Writer) error {
 		fmt.Fprintln(out, "daemon service stopped")
 		return nil
 	default:
-		return fmt.Errorf("unknown daemon subcommand %q; usage: agenthub daemon <install|uninstall|start|stop|run>", args[0])
+		return fmt.Errorf("unknown daemon subcommand %q; usage: agenthub daemon <install|uninstall|start|stop|status|run>", args[0])
 	}
+}
+
+// cmdDaemonStatus checks daemon reachability and prints status.
+func cmdDaemonStatus(client *daemon.DaemonClient, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("daemon-status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	running := client.Health() == nil
+
+	if *jsonOut {
+		type statusResp struct {
+			Running bool `json:"running"`
+		}
+		return json.NewEncoder(out).Encode(statusResp{Running: running})
+	}
+	fmt.Fprintf(out, "%-12s%v\n", "running:", running)
+	return nil
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -23,8 +25,10 @@ func main() {
 	cmd := os.Args[1]
 
 	// Daemon sub-command: run daemon mode without EnsureDaemon, or manage service lifecycle.
-	// This is what EnsureDaemon spawns — MUST be handled before any client setup.
-	if cmd == "daemon" {
+	// daemon status needs a running daemon — fall through to EnsureDaemon path.
+	if cmd == "daemon" && len(os.Args) > 2 && os.Args[2] == "status" {
+		// handled below in switch after EnsureDaemon
+	} else if cmd == "daemon" {
 		if err := cmdDaemon(os.Args[2:], os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
@@ -47,7 +51,7 @@ func main() {
 	case "new":
 		err = cmdNew(client, args, os.Stdout)
 	case "list":
-		err = cmdList(client, os.Stdout)
+		err = cmdList(client, args, os.Stdout)
 	case "kill":
 		err = cmdKill(client, args)
 	case "rename":
@@ -61,9 +65,12 @@ func main() {
 	case "unserve":
 		err = cmdUnserve(client, args)
 	case "health":
-		err = cmdHealth(os.Stdout)
+		err = cmdHealth(args, os.Stdout)
 	case "qr":
 		err = cmdQR(client, args, os.Stdout)
+	case "daemon":
+		// Only "daemon status" reaches here (others handled above).
+		err = cmdDaemonStatus(client, args[1:], os.Stdout)
 	default:
 		fmt.Fprintf(os.Stderr, "agenthub: unknown command %q\n", cmd)
 		usage()
@@ -81,22 +88,23 @@ func usage() {
 	fmt.Fprint(os.Stderr, `Usage: agenthub <command> [args]
 
 Commands:
-  new <agent> <path>     Create a new session
-  list                   List all sessions
-  kill <id>              Terminate a session
-  rename <id> <name>     Rename a session
-  attach <id>            Attach to a session (detach: Ctrl-\)
-  serve <id>             Enable web serving for a session
-  unserve <id>           Disable web serving for a session
-  web start              Start the Tailscale web server
-  web stop               Stop the Tailscale web server
-  web status             Show web server status
-  health                 Check Tailscale health
-  qr <id>                Display session QR code in terminal
-  daemon install         Install daemon as a login service
-  daemon uninstall       Remove daemon login service
-  daemon start           Start the daemon service
-  daemon stop            Stop the daemon service
+  new <agent> <path>       Create a new session
+  list [--json]            List all sessions
+  kill <id>                Terminate a session
+  rename <id> <name>       Rename a session
+  attach <id>              Attach to a session (detach: Ctrl-\)
+  serve <id>               Enable web serving for a session
+  unserve <id>             Disable web serving for a session
+  web start                Start the Tailscale web server
+  web stop                 Stop the Tailscale web server
+  web status [--json]      Show web server status
+  health [--json]          Check Tailscale health
+  qr <id>                  Display session QR code in terminal
+  daemon install           Install daemon as a login service
+  daemon uninstall         Remove daemon login service
+  daemon start             Start the daemon service
+  daemon stop              Stop the daemon service
+  daemon status [--json]   Show daemon status
 `)
 }
 
@@ -115,11 +123,22 @@ func cmdNew(client *daemon.DaemonClient, args []string, out io.Writer) error {
 	return nil
 }
 
-// cmdList lists all sessions in a tabwriter table.
-func cmdList(client *daemon.DaemonClient, out io.Writer) error {
+// cmdList lists all sessions in a tabwriter table, or as JSON with --json.
+func cmdList(client *daemon.DaemonClient, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("list", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	sessions, err := client.ListSessions()
 	if err != nil {
 		return fmt.Errorf("agenthub list: %w", err)
+	}
+	if *jsonOut {
+		if sessions == nil {
+			sessions = []daemon.SessionInfo{}
+		}
+		return json.NewEncoder(out).Encode(sessions)
 	}
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tNAME\tAGENT\tSTATUS")
@@ -163,7 +182,7 @@ func cmdWeb(client *daemon.DaemonClient, args []string, out io.Writer) error {
 	case "stop":
 		return cmdWebStop(client)
 	case "status":
-		return cmdWebStatus(client, out)
+		return cmdWebStatus(client, args[1:], out)
 	default:
 		return fmt.Errorf("usage: agenthub web <start|stop|status>")
 	}
@@ -200,11 +219,19 @@ func cmdWebStop(client *daemon.DaemonClient) error {
 	return nil
 }
 
-// cmdWebStatus prints the web server running/url/addr key-value block.
-func cmdWebStatus(client *daemon.DaemonClient, out io.Writer) error {
+// cmdWebStatus prints the web server running/url/addr key-value block, or JSON with --json.
+func cmdWebStatus(client *daemon.DaemonClient, args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("web-status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	resp, err := client.GetWebServerStatus()
 	if err != nil {
 		return fmt.Errorf("agenthub web status: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(out).Encode(resp)
 	}
 	fmt.Fprintf(out, "%-12s%v\n", "running:", resp.Running)
 	if resp.Running {
@@ -236,11 +263,19 @@ func cmdUnserve(client *daemon.DaemonClient, args []string) error {
 	return nil
 }
 
-// cmdHealth prints a 5-line Tailscale health key-value block.
-func cmdHealth(out io.Writer) error {
+// cmdHealth prints a 5-line Tailscale health key-value block, or JSON with --json.
+func cmdHealth(args []string, out io.Writer) error {
+	fs := flag.NewFlagSet("health", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	h := webserver.CheckHealth(ctx)
+	if *jsonOut {
+		return json.NewEncoder(out).Encode(h)
+	}
 	fmt.Fprintf(out, "%-12s%v\n", "installed:", h.Installed)
 	fmt.Fprintf(out, "%-12s%v\n", "connected:", h.Connected)
 	fmt.Fprintf(out, "%-12s%v\n", "has-certs:", h.HasCerts)
