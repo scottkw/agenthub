@@ -22,10 +22,13 @@ func main() {
 
 	cmd := os.Args[1]
 
-	// Daemon sub-command: run daemon mode without EnsureDaemon.
+	// Daemon sub-command: run daemon mode without EnsureDaemon, or manage service lifecycle.
 	// This is what EnsureDaemon spawns — MUST be handled before any client setup.
 	if cmd == "daemon" {
-		daemon.RunDaemon()
+		if err := cmdDaemon(os.Args[2:], os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -90,6 +93,10 @@ Commands:
   web status             Show web server status
   health                 Check Tailscale health
   qr <id>                Display session QR code in terminal
+  daemon install         Install daemon as a login service
+  daemon uninstall       Remove daemon login service
+  daemon start           Start the daemon service
+  daemon stop            Stop the daemon service
 `)
 }
 
