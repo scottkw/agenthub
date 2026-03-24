@@ -36,8 +36,8 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 
 ### Service Management
 
-- [ ] **SVC-01**: Daemon can be installed as a platform service (launchd/systemd/Windows Service)
-- [ ] **SVC-02**: Daemon auto-starts on login when installed as a service
+- [x] **SVC-01**: Daemon can be installed as a platform service (launchd/systemd/Windows Service)
+- [x] **SVC-02**: Daemon auto-starts on login when installed as a service
 - [ ] **SVC-03**: User can install/uninstall/start/stop the service from CLI (`agenthub daemon install/uninstall/start/stop`)
 
 ### CLI Polish
@@ -93,8 +93,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-03 | Phase 21 | Complete |
 | WEB-04 | Phase 21 | Complete |
 | WEB-05 | Phase 21 | Complete |
-| SVC-01 | Phase 23 | Pending |
-| SVC-02 | Phase 23 | Pending |
+| SVC-01 | Phase 23 | Complete |
+| SVC-02 | Phase 23 | Complete |
 | SVC-03 | Phase 23 | Pending |
 | POLISH-01 | Phase 24 | Pending |
 | POLISH-02 | Phase 24 | Pending |

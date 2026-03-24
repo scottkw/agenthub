@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to plan
-stopped_at: Completed 22-cli-attach-02-PLAN.md
-last_updated: "2026-03-24T16:22:18.696Z"
+status: Ready to execute
+stopped_at: Completed 23-service-manager-integration-01-PLAN.md
+last_updated: "2026-03-24T18:35:32.145Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 22 — cli-attach
+**Current focus:** Phase 23 — service-manager-integration
 
 ## Current Position
 
-Phase: 23
-Plan: Not started
+Phase: 23 (service-manager-integration) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: Not started
 | Phase 21-cli-session-web-commands P02 | 4min | 2 tasks | 2 files |
 | Phase 22-cli-attach P01 | 2 | 2 tasks | 5 files |
 | Phase 22-cli-attach P02 | 130 | 1 tasks | 1 files |
+| Phase 23-service-manager-integration P01 | 104 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 22-cli-attach]: Do NOT catch SIGINT in attach — in raw mode Ctrl-C is byte 0x03 forwarded to remote PTY, not a local signal
 - [Phase 22-cli-attach]: Used polling loop with 10ms intervals for live output test over channel-based sync — simpler and tolerates scheduler jitter
 - [Phase 22-cli-attach]: 30ms sleep before dial in scrollback test mirrors relay/server_test.go pattern to ensure hub processes write before client connects
+- [Phase 23-service-manager-integration]: Use KeepAlive=false to allow manual daemon stop without automatic restart
+- [Phase 23-service-manager-integration]: Use UserService=true for user-scope service registration (launchd/systemd/SCM)
+- [Phase 23-service-manager-integration]: runDaemonCore uses fmt.Fprintf+return instead of os.Exit for clean service manager lifecycle
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T16:18:17.845Z
-Stopped at: Completed 22-cli-attach-02-PLAN.md
+Last session: 2026-03-24T18:35:32.141Z
+Stopped at: Completed 23-service-manager-integration-01-PLAN.md
 Resume file: None
