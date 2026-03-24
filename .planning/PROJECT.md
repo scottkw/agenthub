@@ -53,6 +53,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Machine-readable CLI output: `--json` flag on list, web status, health, daemon status commands for scripting/CI — v1.3 Phase 24
 - ✓ Settings inspection: `agenthub settings` read-only command showing socket-path, relay-port, cli-paths — v1.3 Phase 24
 - ✓ Windows named pipe fix: CleanupStaleSocket detects `\\.\pipe\...` paths and uses winio.DialPipe instead of unix dial, preventing duplicate daemon spawns on Windows — v1.3 Phase 25
+- ✓ Graceful GUI startup failure: startup() returns error instead of panicking on EnsureDaemon failure, emits daemon:error Wails event, frontend subscribes and shows actual error in banner with RetryDaemon() retry button, nil-safety guards on all bound methods — v1.3 Phase 26
 
 ### Active
 
