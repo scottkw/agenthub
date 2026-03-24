@@ -54,7 +54,7 @@
 - [x] **Phase 21: CLI Session + Web Commands** — Standalone CLI binary with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient (completed 2026-03-24)
 - [x] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths (completed 2026-03-24)
 - [x] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop (completed 2026-03-24)
-- [ ] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection
+- [x] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection (completed 2026-03-24)
 
 ## Phase Details
 
@@ -143,7 +143,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 24-01-PLAN.md — Add --json flag to list, web status, health, daemon status commands with tests
-- [ ] 24-02-PLAN.md — Add agenthub settings command for read-only config inspection with tests
+- [x] 24-02-PLAN.md — Add agenthub settings command for read-only config inspection with tests
 
 ## Progress
 
@@ -175,7 +175,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 21. CLI Session + Web Commands | v1.3 | 2/2 | Complete    | 2026-03-24 |
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
-| 24. CLI Polish | v1.3 | 1/2 | In Progress|  |
+| 24. CLI Polish | v1.3 | 2/2 | Complete   | 2026-03-24 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
