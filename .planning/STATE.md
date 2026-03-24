@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
 status: Milestone complete
-stopped_at: Completed 24-02-PLAN.md
-last_updated: "2026-03-24T19:50:10.521Z"
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-03-24T20:10:00.000Z"
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 12
-  completed_plans: 12
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 13
+  completed_plans: 13
 ---
 
 # Project State
@@ -53,6 +53,7 @@ Plan: Not started
 | Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
 | Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
 | Phase 24-cli-polish P02 | 2min | 1 tasks | 2 files |
+| Phase 25-windows-named-pipe-fix P01 | 10min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 24-cli-polish]: Used flag.NewFlagSet per command (not flag package globals) to avoid state pollution between test runs
 - [Phase 24-cli-polish]: daemon status intercepted in main() before early-exit block; other daemon subcommands bypass EnsureDaemon
 - [Phase 24-cli-polish]: cmdSettings uses daemon.DefaultSocketPath() directly (socket path is local config, not daemon state); tests use /bin/sh for CLI path (daemon validates existence)
+- [Phase 25-windows-named-pipe-fix]: Return nil for all dial failures on named pipes — pipes vanish when last server handle closes, no os.Remove needed
+- [Phase 25-windows-named-pipe-fix]: Non-Windows cleanupStaleWindowsPipe stub panics rather than returns nil — unreachable code should fail loudly if somehow reached
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T19:46:50.549Z
-Stopped at: Completed 24-02-PLAN.md
+Last session: 2026-03-24T20:10:00.000Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None

@@ -55,7 +55,7 @@
 - [x] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths (completed 2026-03-24)
 - [x] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop (completed 2026-03-24)
 - [x] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection (completed 2026-03-24)
-- [ ] **Phase 25: Windows Named Pipe Dial Fix** — Fix CleanupStaleSocket to use correct network dial for Windows named pipes (gap closure: INT-01)
+- [x] **Phase 25: Windows Named Pipe Dial Fix** — Fix CleanupStaleSocket to use correct network dial for Windows named pipes (gap closure: INT-01) (completed 2026-03-24)
 - [ ] **Phase 26: Graceful GUI Startup Failure** — Replace panic with error return on EnsureDaemon failure; wire frontend error banner (gap closure: INT-02, flow)
 
 ## Phase Details
@@ -157,7 +157,7 @@ Plans:
   2. On Windows, stale named pipe cleanup works correctly without false "connection refused" from wrong network dial
 **Plans**: 1 plan
 Plans:
-- [ ] 25-01-PLAN.md — Add isWindowsNamedPipe detection, build-tagged winio.DialPipe implementation, tests
+- [x] 25-01-PLAN.md — Add isWindowsNamedPipe detection, build-tagged winio.DialPipe implementation, tests
 
 ### Phase 26: Graceful GUI Startup Failure
 **Goal**: When the daemon fails to start, the GUI shows an error banner with retry instead of hard-crashing
@@ -201,7 +201,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 2/2 | Complete    | 2026-03-24 |
-| 25. Windows Named Pipe Dial Fix | v1.3 | 0/1 | Planned | — |
+| 25. Windows Named Pipe Dial Fix | v1.3 | 1/1 | Complete | 2026-03-24 |
 | 26. Graceful GUI Startup Failure | v1.3 | 0/0 | Planned | — |
 
 ---
