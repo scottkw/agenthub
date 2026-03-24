@@ -428,3 +428,84 @@ func TestStatusMap(t *testing.T) {
 		t.Errorf("unknown session status: got %q, want %q", sUnknown, "running")
 	}
 }
+
+// testAppNoDaemon returns an App with no daemon client — simulates a startup
+// failure where EnsureDaemon returned an error before the client was created.
+func testAppNoDaemon(t *testing.T) *App {
+	t.Helper()
+	return &App{ctx: context.Background()}
+}
+
+// --- Nil-client guard tests ---
+
+// TestNilClientListSessions verifies ListSessions returns an empty slice (not nil,
+// no panic) when the daemon client is nil.
+func TestNilClientListSessions(t *testing.T) {
+	app := testAppNoDaemon(t)
+	sessions := app.ListSessions()
+	if sessions == nil {
+		t.Fatal("ListSessions with nil client returned nil, want empty slice")
+	}
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions, got %d", len(sessions))
+	}
+}
+
+// TestNilClientGetRelayPort verifies GetRelayPort returns 0 (no panic) when
+// the daemon client is nil.
+func TestNilClientGetRelayPort(t *testing.T) {
+	app := testAppNoDaemon(t)
+	port := app.GetRelayPort()
+	if port != 0 {
+		t.Errorf("expected GetRelayPort to return 0 with nil client, got %d", port)
+	}
+}
+
+// TestNilClientCreateSession verifies CreateSession returns an error (no panic)
+// when the daemon client is nil.
+func TestNilClientCreateSession(t *testing.T) {
+	app := testAppNoDaemon(t)
+	_, err := app.CreateSession("cat", "tab", "")
+	if err == nil {
+		t.Error("expected CreateSession to return error with nil client")
+	}
+}
+
+// TestNilClientKillSession verifies KillSession returns an error (no panic)
+// when the daemon client is nil.
+func TestNilClientKillSession(t *testing.T) {
+	app := testAppNoDaemon(t)
+	err := app.KillSession("any-id")
+	if err == nil {
+		t.Error("expected KillSession to return error with nil client")
+	}
+}
+
+// TestNilClientGetSessionStatus verifies GetSessionStatus returns "running"
+// (no panic) when the daemon client is nil.
+func TestNilClientGetSessionStatus(t *testing.T) {
+	app := testAppNoDaemon(t)
+	s := app.GetSessionStatus("any-id")
+	if s != "running" {
+		t.Errorf("expected GetSessionStatus to return %q with nil client, got %q", "running", s)
+	}
+}
+
+// --- RetryDaemon tests ---
+
+// TestRetryDaemonFail verifies RetryDaemon returns a non-nil error when no
+// daemon is running, leaves a.client nil, and sets a.daemonErr.
+func TestRetryDaemonFail(t *testing.T) {
+	app := testAppNoDaemon(t)
+	// No daemon running — RetryDaemon should fail.
+	err := app.RetryDaemon()
+	if err == nil {
+		t.Error("expected RetryDaemon to return error when no daemon is running")
+	}
+	if app.client != nil {
+		t.Error("expected app.client to remain nil after failed RetryDaemon")
+	}
+	if app.daemonErr == nil {
+		t.Error("expected app.daemonErr to be set after failed RetryDaemon")
+	}
+}
