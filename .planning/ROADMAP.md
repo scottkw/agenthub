@@ -56,7 +56,7 @@
 - [x] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop (completed 2026-03-24)
 - [x] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection (completed 2026-03-24)
 - [x] **Phase 25: Windows Named Pipe Dial Fix** — Fix CleanupStaleSocket to use correct network dial for Windows named pipes (gap closure: INT-01) (completed 2026-03-24)
-- [ ] **Phase 26: Graceful GUI Startup Failure** — Replace panic with error return on EnsureDaemon failure; wire frontend error banner (gap closure: INT-02, flow)
+- [x] **Phase 26: Graceful GUI Startup Failure** — Replace panic with error return on EnsureDaemon failure; wire frontend error banner (gap closure: INT-02, flow) (completed 2026-03-24)
 
 ## Phase Details
 
@@ -205,7 +205,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 2/2 | Complete    | 2026-03-24 |
 | 25. Windows Named Pipe Dial Fix | v1.3 | 1/1 | Complete    | 2026-03-24 |
-| 26. Graceful GUI Startup Failure | v1.3 | 1/2 | In Progress|  |
+| 26. Graceful GUI Startup Failure | v1.3 | 1/2 | Complete    | 2026-03-24 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to execute
-stopped_at: Completed 26-graceful-gui-startup-failure/26-02-PLAN.md
-last_updated: "2026-03-24T21:56:36.811Z"
+status: Milestone complete
+stopped_at: Completed 26-graceful-gui-startup-failure-01-PLAN.md
+last_updated: "2026-03-24T22:04:38.498Z"
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -23,8 +23,8 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 ## Current Position
 
-Phase: 26 (graceful-gui-startup-failure) — EXECUTING
-Plan: 2 of 2
+Phase: 26
+Plan: Not started
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Plan: 2 of 2
 | Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
 | Phase 24-cli-polish P02 | 2min | 1 tasks | 2 files |
 | Phase 26-graceful-gui-startup-failure P02 | 2 | 2 tasks | 4 files |
+| Phase 26-graceful-gui-startup-failure P01 | 15 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 24-cli-polish]: cmdSettings uses daemon.DefaultSocketPath() directly (socket path is local config, not daemon state); tests use /bin/sh for CLI path (daemon validates existence)
 - [Phase 26-graceful-gui-startup-failure]: Early-return in retryInit: call RetryDaemon() first; if daemon restart fails, skip Promise.all to avoid cascading nil-client errors
 - [Phase 26-graceful-gui-startup-failure]: Banner shows {daemonError} directly — Go error strings are more actionable than hardcoded generic messages
+- [Phase 26-graceful-gui-startup-failure]: Emit daemon:error event AND store daemonErr field — event covers real-time notification, field covers polling
+- [Phase 26-graceful-gui-startup-failure]: Nil guards on all 13 client-calling bound methods return same zero/error values as existing error paths
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T21:56:36.809Z
-Stopped at: Completed 26-graceful-gui-startup-failure/26-02-PLAN.md
+Last session: 2026-03-24T22:00:55.939Z
+Stopped at: Completed 26-graceful-gui-startup-failure-01-PLAN.md
 Resume file: None
