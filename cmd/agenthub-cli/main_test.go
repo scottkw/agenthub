@@ -384,3 +384,73 @@ func TestCmdWeb_MissingSubcommand(t *testing.T) {
 		t.Errorf("expected error to contain %q, got %q", "usage: agenthub web", err.Error())
 	}
 }
+
+// TestCmdSettings_Basic verifies cmdSettings prints all three label lines.
+func TestCmdSettings_Basic(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdSettings(client, &buf)
+	if err != nil {
+		t.Fatalf("cmdSettings returned error: %v", err)
+	}
+	out := buf.String()
+	for _, label := range []string{"socket-path:", "relay-port:", "cli-paths:"} {
+		if !strings.Contains(out, label) {
+			t.Errorf("expected output to contain %q, got:\n%s", label, out)
+		}
+	}
+}
+
+// TestCmdSettings_SocketPath verifies the output contains the default socket path value.
+func TestCmdSettings_SocketPath(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	if err := cmdSettings(client, &buf); err != nil {
+		t.Fatalf("cmdSettings error: %v", err)
+	}
+	expected := daemon.DefaultSocketPath()
+	if !strings.Contains(buf.String(), expected) {
+		t.Errorf("expected socket path %q in output, got:\n%s", expected, buf.String())
+	}
+}
+
+// TestCmdSettings_RelayPort verifies the relay-port label is always present in output.
+func TestCmdSettings_RelayPort(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	if err := cmdSettings(client, &buf); err != nil {
+		t.Fatalf("cmdSettings error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "relay-port:") {
+		t.Errorf("expected 'relay-port:' in output, got:\n%s", out)
+	}
+}
+
+// TestCmdSettings_CLIPaths_None verifies that when no CLI paths are set, output contains "(none)".
+func TestCmdSettings_CLIPaths_None(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	if err := cmdSettings(client, &buf); err != nil {
+		t.Fatalf("cmdSettings error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "(none)") {
+		t.Errorf("expected '(none)' for empty CLI paths, got:\n%s", buf.String())
+	}
+}
+
+// TestCmdSettings_CLIPaths_Set verifies that after setting a CLI path, output contains the path name and value.
+func TestCmdSettings_CLIPaths_Set(t *testing.T) {
+	client := testSetup(t)
+	if err := client.UpdateCLIPath("claude", "/usr/local/bin/claude"); err != nil {
+		t.Fatalf("UpdateCLIPath: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := cmdSettings(client, &buf); err != nil {
+		t.Fatalf("cmdSettings error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "claude=/usr/local/bin/claude") {
+		t.Errorf("expected CLI path in output, got:\n%s", out)
+	}
+}
