@@ -47,6 +47,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Dead code cleanup: network.go, GetNetworkInterfaces, and frontend binding stubs removed — v1.2
 - ✓ Tailscale status indicator in Settings panel — v1.2
 - ✓ SessionEngine extracted from App into `internal/daemon` package with HTTP/JSON protocol over Unix socket — v1.3 Phase 19
+- ✓ Standalone CLI binary (`agenthub-cli`) with session commands (new/list/kill/rename), web commands (start/stop/status/serve/unserve), health check, QR code display, and daemon auto-start — v1.3 Phase 21
 
 ### Active
 
@@ -128,4 +129,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-23 after Phase 20 (Process Separation) complete*
+*Last updated: 2026-03-24 after Phase 21 (CLI Session + Web Commands) complete*
