@@ -29,9 +29,10 @@ type SessionInfo struct {
 // App is a thin Wails-binding shell — all session state lives in the daemon process.
 // All session operations are delegated through DaemonClient over the Unix socket.
 type App struct {
-	ctx      context.Context
-	client   *daemon.DaemonClient // only daemon communication field
-	trayInit bool                 // true once initTray has been called
+	ctx       context.Context
+	client    *daemon.DaemonClient // only daemon communication field; nil when startup failed
+	trayInit  bool                 // true once initTray has been called
+	daemonErr error                // non-nil when EnsureDaemon failed at startup
 }
 
 // NewApp creates a new App without starting any subsystems.
@@ -45,7 +46,10 @@ func (a *App) startup(ctx context.Context) {
 
 	socketPath := daemon.DefaultSocketPath()
 	if err := daemon.EnsureDaemon(socketPath); err != nil {
-		panic(fmt.Sprintf("agenthub: ensure daemon: %v", err))
+		a.daemonErr = err
+		// Notify frontend — window is already rendered when OnStartup runs (goroutine).
+		runtime.EventsEmit(ctx, "daemon:error", err.Error())
+		return // Do NOT call initTray or startHealthPoller
 	}
 	a.client = daemon.NewDaemonClient(socketPath)
 
@@ -55,6 +59,26 @@ func (a *App) startup(ctx context.Context) {
 
 	// Start Tailscale health check background poller.
 	a.startHealthPoller(ctx)
+}
+
+// RetryDaemon re-attempts daemon spawn after a startup failure.
+// Called by the frontend "Retry Connection" button.
+func (a *App) RetryDaemon() error {
+	socketPath := daemon.DefaultSocketPath()
+	if err := daemon.EnsureDaemon(socketPath); err != nil {
+		a.daemonErr = err
+		return err
+	}
+	a.daemonErr = nil
+	a.client = daemon.NewDaemonClient(socketPath)
+	if !a.trayInit {
+		a.initTray()
+		a.trayInit = true
+	}
+	if a.ctx != nil {
+		a.startHealthPoller(a.ctx)
+	}
+	return nil
 }
 
 // shutdown is called when the Wails app is about to exit.
@@ -86,6 +110,9 @@ func (a *App) beforeClose(ctx context.Context) bool {
 // Creates the session through the daemon client, then polls for status updates
 // and emits Wails events (replaces the onStatus callback used in earlier phases).
 func (a *App) CreateSession(cli, name, workDir string) (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
 	id, err := a.client.CreateSession(cli, name, workDir)
 	if err != nil {
 		return "", err
@@ -125,6 +152,9 @@ func (a *App) pollSessionStatus(sessionID string) {
 
 // ListSessions returns a snapshot of all registered sessions.
 func (a *App) ListSessions() []SessionInfo {
+	if a.client == nil {
+		return []SessionInfo{}
+	}
 	sessions, err := a.client.ListSessions()
 	if err != nil {
 		return []SessionInfo{}
@@ -144,11 +174,17 @@ func (a *App) ListSessions() []SessionInfo {
 
 // RenameSession updates the display name of a session.
 func (a *App) RenameSession(id, name string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	return a.client.RenameSession(id, name)
 }
 
 // KillSession terminates the session and removes it from all registries.
 func (a *App) KillSession(id string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	err := a.client.KillSession(id)
 	if err != nil {
 		return err
@@ -167,6 +203,9 @@ func (a *App) KillSession(id string) error {
 // string ("running", "waiting", "idle", or "errored").
 // Returns "running" if the session is not found (conservative default).
 func (a *App) GetSessionStatus(sessionID string) string {
+	if a.client == nil {
+		return string(status.StatusRunning)
+	}
 	s, err := a.client.GetSessionStatus(sessionID)
 	if err != nil {
 		return string(status.StatusRunning) // conservative default
@@ -181,6 +220,9 @@ func (a *App) DetectCLIs() []pty.DetectedCLI {
 
 // GetRelayPort returns the TCP port the daemon's relay HTTP server is listening on.
 func (a *App) GetRelayPort() int {
+	if a.client == nil {
+		return 0
+	}
 	port, err := a.client.GetRelayPort()
 	if err != nil {
 		return 0
@@ -191,6 +233,9 @@ func (a *App) GetRelayPort() int {
 // UpdateCLIPath stores a custom executable path for the named CLI.
 // The path must exist on disk.
 func (a *App) UpdateCLIPath(name, path string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	return a.client.UpdateCLIPath(name, path)
 }
 
@@ -209,6 +254,9 @@ func configDir() string {
 // StartWebServer tells the daemon to start the Tailscale web server.
 // Returns an error if Tailscale is not connected with HTTPS certs enabled.
 func (a *App) StartWebServer(port int) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	h := a.GetTailscaleStatus()
 	if !h.Connected {
 		return fmt.Errorf("Tailscale is not connected")
@@ -225,18 +273,27 @@ func (a *App) StartWebServer(port int) error {
 
 // StopWebServer tells the daemon to stop the web server.
 func (a *App) StopWebServer() error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	return a.client.StopWebServer()
 }
 
 // ToggleWebServing enables or disables web serving for a specific session.
 // Returns an error if the web server is not running.
 func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
 	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
 // GetWebServerURL returns the base HTTPS URL of the running web server,
 // or an empty string if the server is not running.
 func (a *App) GetWebServerURL() string {
+	if a.client == nil {
+		return ""
+	}
 	resp, err := a.client.GetWebServerStatus()
 	if err != nil || !resp.Running {
 		return ""
@@ -262,6 +319,9 @@ func (a *App) AcknowledgeCTDisclosure() error {
 
 // IsWebServerRunning returns true if the daemon's web server is active.
 func (a *App) IsWebServerRunning() bool {
+	if a.client == nil {
+		return false
+	}
 	resp, err := a.client.GetWebServerStatus()
 	if err != nil {
 		return false
@@ -274,6 +334,9 @@ func (a *App) IsWebServerRunning() bool {
 // (https://bindIP:port/sessions/{id}). Returns an error if the web server is
 // not running.
 func (a *App) GetSessionQRCode(sessionID string) (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
 	resp, err := a.client.GetWebServerStatus()
 	if err != nil || !resp.Running {
 		return "", fmt.Errorf("web server not running")

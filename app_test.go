@@ -493,14 +493,19 @@ func TestNilClientGetSessionStatus(t *testing.T) {
 
 // --- RetryDaemon tests ---
 
-// TestRetryDaemonFail verifies RetryDaemon returns a non-nil error when no
-// daemon is running, leaves a.client nil, and sets a.daemonErr.
+// TestRetryDaemonFail verifies RetryDaemon returns a non-nil error, leaves
+// a.client nil, and sets a.daemonErr when the daemon cannot start.
+// We force failure by redirecting HOME to a read-only path so the socket
+// directory cannot be created and EnsureDaemon times out.
 func TestRetryDaemonFail(t *testing.T) {
+	// Override HOME so DefaultSocketPath resolves to a dir that can't be created.
+	t.Setenv("HOME", "/nonexistent-test-dir-that-cannot-exist")
+	t.Setenv("XDG_CONFIG_HOME", "/nonexistent-test-dir-that-cannot-exist")
+
 	app := testAppNoDaemon(t)
-	// No daemon running — RetryDaemon should fail.
 	err := app.RetryDaemon()
 	if err == nil {
-		t.Error("expected RetryDaemon to return error when no daemon is running")
+		t.Error("expected RetryDaemon to return error when daemon cannot start")
 	}
 	if app.client != nil {
 		t.Error("expected app.client to remain nil after failed RetryDaemon")
