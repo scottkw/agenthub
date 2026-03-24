@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -40,6 +41,12 @@ func ValidateSocketPath(path string) error {
 	return nil
 }
 
+// isWindowsNamedPipe reports whether path is a Windows named pipe path.
+// Named pipe paths start with \\ (double backslash).
+func isWindowsNamedPipe(path string) bool {
+	return strings.HasPrefix(path, `\\`)
+}
+
 // CleanupStaleSocket probes whether anything is listening on path.
 //
 //   - If the file does not exist: returns nil (nothing to clean up).
@@ -48,6 +55,9 @@ func ValidateSocketPath(path string) error {
 //   - If something is actively listening: returns an error containing
 //     "already running" so callers can surface a helpful message.
 func CleanupStaleSocket(path string) error {
+	if isWindowsNamedPipe(path) {
+		return cleanupStaleWindowsPipe(path)
+	}
 	conn, err := net.DialTimeout("unix", path, 500*time.Millisecond)
 	if err != nil {
 		// Could not connect — either no file or nothing listening.
