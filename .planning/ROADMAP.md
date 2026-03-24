@@ -100,7 +100,7 @@ Plans:
   5. `agenthub serve <id>`, `agenthub unserve <id>`, `agenthub health`, and `agenthub qr <id>` execute without error and produce correct output matching GUI equivalents
 **Plans**: 2 plans
 Plans:
-- [ ] 21-01-PLAN.md — CLI binary with session commands (new, list, kill, rename), daemon mode, tests
+- [x] 21-01-PLAN.md — CLI binary with session commands (new, list, kill, rename), daemon mode, tests
 - [ ] 21-02-PLAN.md — Web/utility commands (web start/stop/status, serve, unserve, health, qr), tests
 
 ### Phase 22: CLI Attach
@@ -163,7 +163,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 18. Frontend Health Modal + Status UI | v1.2 | 2/2 | Complete | 2026-03-22 |
 | 19. Daemon Core (Engine + IPC) | v1.3 | 2/2 | Complete | 2026-03-23 |
 | 20. Process Separation | v1.3 | 2/2 | Complete | 2026-03-23 |
-| 21. CLI Session + Web Commands | v1.3 | 0/2 | Not started | - |
+| 21. CLI Session + Web Commands | v1.3 | 1/2 | In Progress|  |
 | 22. CLI Attach | v1.3 | 0/TBD | Not started | - |
 | 23. Service Manager Integration | v1.3 | 0/TBD | Not started | - |
 | 24. CLI Polish | v1.3 | 0/TBD | Not started | - |

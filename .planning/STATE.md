@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: unknown
-stopped_at: Completed 20-02-PLAN.md
-last_updated: "2026-03-23T19:48:15.553Z"
+status: Ready to execute
+stopped_at: Completed Phase 21-01-PLAN.md — CLI binary with session commands
+last_updated: "2026-03-24T13:40:10.163Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 20 — process-separation
+**Current focus:** Phase 21 — cli-session-web-commands
 
 ## Current Position
 
-Phase: 20 (process-separation) — EXECUTING
-Plan: 2 of 2 — COMPLETE
+Phase: 21 (cli-session-web-commands) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Plan: 2 of 2 — COMPLETE
 | Phase 19-daemon-core-engine-ipc P02 | 6min | 1 tasks | 3 files |
 | Phase 19-daemon-core-engine-ipc P02 | 11min | 2 tasks | 3 files |
 | Phase 20-process-separation P01 | 4min | 2 tasks | 9 files |
+| Phase 21-cli-session-web-commands P01 | 15min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 20-process-separation]: shutdown() has no daemon teardown — daemon is an independent process; GUI closing does not affect session state (DAEMON-03)
 - [Phase 20-02]: PTY sessions use background context — HTTP request context cancellation kills goroutines when handler returns; PTY goroutines must outlive the request
 - [Phase 20-02]: GUI regression verified end-to-end: sessions survive close/reopen, daemon auto-restarts after kill, relay port handoff confirmed working
+- [Phase 21-01]: cmd functions return error instead of os.Exit — main() handles exits; makes unit testing trivial
+- [Phase 21-01]: io.Writer injection on cmdNew/cmdList for testable stdout; main() passes os.Stdout, tests pass bytes.Buffer
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T17:30:00.000Z
-Stopped at: Completed 20-02-PLAN.md
+Last session: 2026-03-24T13:40:10.135Z
+Stopped at: Completed Phase 21-01-PLAN.md — CLI binary with session commands
 Resume file: None
