@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to execute
-stopped_at: Completed 24-cli-polish-01-PLAN.md
-last_updated: "2026-03-24T19:42:10.804Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-03-24T19:46:50.552Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Plan: 2 of 2
 | Phase 23-service-manager-integration P01 | 104 | 2 tasks | 5 files |
 | Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
 | Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
+| Phase 24-cli-polish P02 | 2min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase Phase 23-02]: No-args and 'run' subcommand both call daemon.RunDaemon() for backward compat with EnsureDaemon spawn pattern
 - [Phase 24-cli-polish]: Used flag.NewFlagSet per command (not flag package globals) to avoid state pollution between test runs
 - [Phase 24-cli-polish]: daemon status intercepted in main() before early-exit block; other daemon subcommands bypass EnsureDaemon
+- [Phase 24-cli-polish]: cmdSettings uses daemon.DefaultSocketPath() directly (socket path is local config, not daemon state); tests use /bin/sh for CLI path (daemon validates existence)
 
 ### Pending Todos
 
@@ -103,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T19:42:10.801Z
-Stopped at: Completed 24-cli-polish-01-PLAN.md
+Last session: 2026-03-24T19:46:50.549Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None

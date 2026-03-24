@@ -43,7 +43,7 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 ### CLI Polish
 
 - [x] **POLISH-01**: All list/status commands support `--json` flag for machine-readable output
-- [ ] **POLISH-02**: User can view current settings from CLI (`agenthub settings`)
+- [x] **POLISH-02**: User can view current settings from CLI (`agenthub settings`)
 
 ## Future Requirements
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SVC-02 | Phase 23 | Complete |
 | SVC-03 | Phase 23 | Complete |
 | POLISH-01 | Phase 24 | Complete |
-| POLISH-02 | Phase 24 | Pending |
+| POLISH-02 | Phase 24 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 23 total
