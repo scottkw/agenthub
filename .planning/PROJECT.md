@@ -48,6 +48,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Tailscale status indicator in Settings panel — v1.2
 - ✓ SessionEngine extracted from App into `internal/daemon` package with HTTP/JSON protocol over Unix socket — v1.3 Phase 19
 - ✓ Standalone CLI binary (`agenthub-cli`) with session commands (new/list/kill/rename), web commands (start/stop/status/serve/unserve), health check, QR code display, and daemon auto-start — v1.3 Phase 21
+- ✓ Interactive terminal attach (`agenthub attach <id>`): full PTY proxy with raw I/O, detach key (Ctrl-\), resize propagation, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore — v1.3 Phase 22
 
 ### Active
 
@@ -129,4 +130,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-24 after Phase 21 (CLI Session + Web Commands) complete*
+*Last updated: 2026-03-24 after Phase 22 (CLI Attach) complete*
