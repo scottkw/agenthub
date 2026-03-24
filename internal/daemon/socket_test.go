@@ -109,3 +109,21 @@ func TestCleanupStaleSocket_ActiveSocket(t *testing.T) {
 		t.Errorf("error should mention 'already running', got: %v", err)
 	}
 }
+
+func TestIsWindowsNamedPipe(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{`\\.\pipe\agenthub-daemon`, true},
+		{`\\server\pipe\foo`, true},
+		{"/tmp/daemon.sock", false},
+		{"/var/run/agenthub/daemon.sock", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		if got := isWindowsNamedPipe(tt.path); got != tt.want {
+			t.Errorf("isWindowsNamedPipe(%q) = %v, want %v", tt.path, got, tt.want)
+		}
+	}
+}
