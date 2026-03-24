@@ -253,7 +253,7 @@ func cmdQR(client *daemon.DaemonClient, args []string, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("agenthub qr: %w", err)
 	}
-	fmt.Fprint(out, q.ToString(false))
+	fmt.Fprint(out, q.ToSmallString(false))
 	fmt.Fprintln(out, url)
 	return nil
 }
