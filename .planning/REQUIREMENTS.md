@@ -79,7 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DAEMON-02 | Phase 19 | Complete |
 | DAEMON-03 | Phase 20 | Complete |
 | DAEMON-04 | Phase 20 | Complete |
-| DAEMON-05 | Phase 20 | Complete |
+| DAEMON-05 | Phase 20, 25, 26 | Pending |
 | CLI-01 | Phase 21 | Complete |
 | CLI-02 | Phase 21 | Complete |
 | CLI-03 | Phase 21 | Complete |
@@ -106,4 +106,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after roadmap creation (v1.3 phases 19-24)*
+*Last updated: 2026-03-24 after gap closure phases added (v1.3 phases 25-26)*

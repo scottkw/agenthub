@@ -55,6 +55,8 @@
 - [x] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths (completed 2026-03-24)
 - [x] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop (completed 2026-03-24)
 - [x] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection (completed 2026-03-24)
+- [ ] **Phase 25: Windows Named Pipe Dial Fix** — Fix CleanupStaleSocket to use correct network dial for Windows named pipes (gap closure: INT-01)
+- [ ] **Phase 26: Graceful GUI Startup Failure** — Replace panic with error return on EnsureDaemon failure; wire frontend error banner (gap closure: INT-02, flow)
 
 ## Phase Details
 
@@ -145,6 +147,27 @@ Plans:
 - [x] 24-01-PLAN.md — Add --json flag to list, web status, health, daemon status commands with tests
 - [x] 24-02-PLAN.md — Add agenthub settings command for read-only config inspection with tests
 
+### Phase 25: Windows Named Pipe Dial Fix
+**Goal**: CleanupStaleSocket correctly detects and dials Windows named pipes so EnsureDaemon does not attempt duplicate daemon spawns on Windows
+**Depends on**: Phase 20
+**Requirements**: DAEMON-05
+**Gap Closure**: INT-01
+**Success Criteria** (what must be TRUE):
+  1. `CleanupStaleSocket` detects whether the socket path is a Unix socket or Windows named pipe and uses the correct `net.DialTimeout` network parameter
+  2. On Windows, stale named pipe cleanup works correctly without false "connection refused" from wrong network dial
+**Plans**: TBD
+
+### Phase 26: Graceful GUI Startup Failure
+**Goal**: When the daemon fails to start, the GUI shows an error banner with retry instead of hard-crashing
+**Depends on**: Phase 20
+**Requirements**: DAEMON-05
+**Gap Closure**: INT-02, Flow "GUI startup with daemon spawn failure"
+**Success Criteria** (what must be TRUE):
+  1. `app.go startup()` returns an error instead of calling `panic()` when `EnsureDaemon` fails
+  2. The frontend error banner renders and shows the daemon startup failure message with a retry option
+  3. The GUI process does not crash when the daemon binary is missing or fails to start within the timeout
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
@@ -176,6 +199,8 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 2/2 | Complete    | 2026-03-24 |
+| 25. Windows Named Pipe Dial Fix | v1.3 | 0/0 | Planned | — |
+| 26. Graceful GUI Startup Failure | v1.3 | 0/0 | Planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
