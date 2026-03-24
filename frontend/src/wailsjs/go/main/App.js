@@ -27,6 +27,9 @@ export const AcknowledgeCTDisclosure = ()                   => Call('main.App.Ac
 export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
 export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])
 
+// Daemon retry bound method
+export const RetryDaemon          = ()                      => Call('main.App.RetryDaemon', [])
+
 // Directory dialog bound method
 export const OpenDirectoryDialog  = (defaultDir)            => Call('main.App.OpenDirectoryDialog', [defaultDir])
 

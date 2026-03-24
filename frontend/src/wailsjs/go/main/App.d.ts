@@ -37,6 +37,9 @@ export function AcknowledgeCTDisclosure(): Promise<void>
 export function GetSessionQRCode(sessionID: string): Promise<string>
 export function GetSessionStatus(sessionID: string): Promise<string>
 
+// Daemon retry bound method
+export function RetryDaemon(): Promise<void>
+
 // Directory dialog bound method
 export function OpenDirectoryDialog(defaultDir: string): Promise<string>
 
