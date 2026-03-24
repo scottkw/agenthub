@@ -155,7 +155,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `CleanupStaleSocket` detects whether the socket path is a Unix socket or Windows named pipe and uses the correct `net.DialTimeout` network parameter
   2. On Windows, stale named pipe cleanup works correctly without false "connection refused" from wrong network dial
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 25-01-PLAN.md — Add isWindowsNamedPipe detection, build-tagged winio.DialPipe implementation, tests
 
 ### Phase 26: Graceful GUI Startup Failure
 **Goal**: When the daemon fails to start, the GUI shows an error banner with retry instead of hard-crashing
@@ -199,7 +201,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 2/2 | Complete    | 2026-03-24 |
-| 25. Windows Named Pipe Dial Fix | v1.3 | 0/0 | Planned | — |
+| 25. Windows Named Pipe Dial Fix | v1.3 | 0/1 | Planned | — |
 | 26. Graceful GUI Startup Failure | v1.3 | 0/0 | Planned | — |
 
 ---
