@@ -51,7 +51,7 @@
 
 - [x] **Phase 19: Daemon Core (Engine + IPC)** — Extract SessionEngine from App and establish HTTP/JSON protocol over Unix socket in-process; validates the module boundary and protocol before any process separation (completed 2026-03-23)
 - [x] **Phase 20: Process Separation** — Fork daemon into a standalone process; sessions survive GUI close/reopen; daemon auto-starts from CLI when not running (completed 2026-03-23)
-- [ ] **Phase 21: CLI Session + Web Commands** — Add cobra command tree with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient
+- [ ] **Phase 21: CLI Session + Web Commands** — Standalone CLI binary with new, list, kill, rename, web, health, qr, serve, unserve commands; all thin wrappers over DaemonClient
 - [ ] **Phase 22: CLI Attach** — Full interactive PTY proxy: raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, detach prefix state machine, terminal restore on all exit paths
 - [ ] **Phase 23: Service Manager Integration** — Register daemon with launchd (macOS), systemd (Linux), Windows SCM; agenthub daemon install/uninstall/start/stop
 - [ ] **Phase 24: CLI Polish** — JSON output flag on all list/status commands; agenthub settings read-only inspection
@@ -85,8 +85,8 @@ Plans:
   5. GUI App struct holds exactly one field for daemon communication: `*daemon.DaemonClient`
 **Plans**: 2 plans
 Plans:
-- [ ] 20-01-PLAN.md — Daemon infrastructure: RunDaemon entry point, EnsureDaemon auto-start, relay/webserver API routes + client methods
-- [ ] 20-02-PLAN.md — App migration to pure DaemonClient shell, main.go daemon dispatch, frontend error banner, GUI regression
+- [x] 20-01-PLAN.md — Daemon infrastructure: RunDaemon entry point, EnsureDaemon auto-start, relay/webserver API routes + client methods
+- [x] 20-02-PLAN.md — App migration to pure DaemonClient shell, main.go daemon dispatch, frontend error banner, GUI regression
 
 ### Phase 21: CLI Session + Web Commands
 **Goal**: Users can manage sessions and all web-serving functionality from the terminal
@@ -98,7 +98,10 @@ Plans:
   3. `agenthub kill <id>` terminates a session; `agenthub rename <id> <name>` renames it with the new name reflected in GUI tab bar
   4. `agenthub web start`, `agenthub web stop`, and `agenthub web status` control and report the Tailscale web server state
   5. `agenthub serve <id>`, `agenthub unserve <id>`, `agenthub health`, and `agenthub qr <id>` execute without error and produce correct output matching GUI equivalents
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 21-01-PLAN.md — CLI binary with session commands (new, list, kill, rename), daemon mode, tests
+- [ ] 21-02-PLAN.md — Web/utility commands (web start/stop/status, serve, unserve, health, qr), tests
 
 ### Phase 22: CLI Attach
 **Goal**: Users can attach to any running session with a full interactive terminal and detach cleanly without harming the session or leaving the terminal in a broken state
@@ -159,8 +162,8 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 17. Dead Code Cleanup | v1.2 | 2/2 | Complete | 2026-03-20 |
 | 18. Frontend Health Modal + Status UI | v1.2 | 2/2 | Complete | 2026-03-22 |
 | 19. Daemon Core (Engine + IPC) | v1.3 | 2/2 | Complete | 2026-03-23 |
-| 20. Process Separation | 2/2 | Complete    | 2026-03-23 | - |
-| 21. CLI Session + Web Commands | v1.3 | 0/TBD | Not started | - |
+| 20. Process Separation | v1.3 | 2/2 | Complete | 2026-03-23 |
+| 21. CLI Session + Web Commands | v1.3 | 0/2 | Not started | - |
 | 22. CLI Attach | v1.3 | 0/TBD | Not started | - |
 | 23. Service Manager Integration | v1.3 | 0/TBD | Not started | - |
 | 24. CLI Polish | v1.3 | 0/TBD | Not started | - |
