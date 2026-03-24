@@ -49,6 +49,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ SessionEngine extracted from App into `internal/daemon` package with HTTP/JSON protocol over Unix socket — v1.3 Phase 19
 - ✓ Standalone CLI binary (`agenthub-cli`) with session commands (new/list/kill/rename), web commands (start/stop/status/serve/unserve), health check, QR code display, and daemon auto-start — v1.3 Phase 21
 - ✓ Interactive terminal attach (`agenthub attach <id>`): full PTY proxy with raw I/O, detach key (Ctrl-\), resize propagation, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore — v1.3 Phase 22
+- ✓ Service manager integration: `agenthub daemon install/uninstall/start/stop` registers daemon with launchd (macOS), kardianos/service abstraction for cross-platform support — v1.3 Phase 23
 
 ### Active
 
