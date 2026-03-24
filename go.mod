@@ -5,6 +5,7 @@ go 1.26.1
 require (
 	github.com/aymanbagabas/go-pty v0.2.2
 	github.com/coder/websocket v1.8.14
+	github.com/kardianos/service v1.2.4
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/sys v0.42.0

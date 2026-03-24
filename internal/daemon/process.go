@@ -9,14 +9,23 @@ import (
 	"time"
 )
 
-// RunDaemon is the daemon's main entry point. It creates a SessionEngine,
-// starts the API (with relay server inside), and blocks until SIGTERM or SIGINT.
-// This function is called from main.go when os.Args[1] == "daemon".
+// RunDaemon is the daemon's main entry point. It creates a signal context and
+// delegates to runDaemonCore. Called from main.go when os.Args[1] == "daemon".
 func RunDaemon() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+	runDaemonCore(ctx)
+}
+
+// runDaemonCore is the blocking core of the daemon. It creates a SessionEngine,
+// starts the API (with relay server inside), and blocks until ctx is cancelled.
+// Using a context parameter allows it to be driven by either signal handling
+// (RunDaemon) or a service manager (daemonSvc).
+func runDaemonCore(ctx context.Context) {
 	socketPath := DefaultSocketPath()
 	if err := CleanupStaleSocket(socketPath); err != nil {
 		fmt.Fprintf(os.Stderr, "daemon: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	engine := NewSessionEngine()
@@ -26,19 +35,15 @@ func RunDaemon() {
 	relayPort, err := api.StartRelay()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "daemon: start relay: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	fmt.Fprintf(os.Stderr, "daemon: relay listening on port %d\n", relayPort)
 
 	if err := api.Start(socketPath); err != nil {
 		fmt.Fprintf(os.Stderr, "daemon: start api: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	fmt.Fprintf(os.Stderr, "daemon: listening on %s\n", socketPath)
-
-	ctx, stop := signal.NotifyContext(context.Background(),
-		syscall.SIGTERM, syscall.SIGINT)
-	defer stop()
 
 	<-ctx.Done()
 
