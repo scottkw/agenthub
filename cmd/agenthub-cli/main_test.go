@@ -442,7 +442,8 @@ func TestCmdSettings_CLIPaths_None(t *testing.T) {
 // TestCmdSettings_CLIPaths_Set verifies that after setting a CLI path, output contains the path name and value.
 func TestCmdSettings_CLIPaths_Set(t *testing.T) {
 	client := testSetup(t)
-	if err := client.UpdateCLIPath("claude", "/usr/local/bin/claude"); err != nil {
+	// Use /bin/sh as the CLI binary — it always exists on macOS and Linux.
+	if err := client.UpdateCLIPath("claude", "/bin/sh"); err != nil {
 		t.Fatalf("UpdateCLIPath: %v", err)
 	}
 	var buf bytes.Buffer
@@ -450,7 +451,7 @@ func TestCmdSettings_CLIPaths_Set(t *testing.T) {
 		t.Fatalf("cmdSettings error: %v", err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "claude=/usr/local/bin/claude") {
+	if !strings.Contains(out, "claude=/bin/sh") {
 		t.Errorf("expected CLI path in output, got:\n%s", out)
 	}
 }
