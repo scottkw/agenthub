@@ -1,6 +1,8 @@
 # Go build artifacts
 /agenthub
 /agenthub.exe
+/agenthub-cli
+/agenthub-cli.exe
 *.exe
 
 # Node / frontend
