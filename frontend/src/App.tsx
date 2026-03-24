@@ -14,6 +14,7 @@ import {
   IsWebServerRunning,
   GetSessionStatus,
   GetTailscaleStatus,
+  RetryDaemon,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI } from './wailsjs/go/main/App'
 import { EventsOn, Environment } from './wailsjs/wailsjs/runtime/runtime'
@@ -122,9 +123,14 @@ function App(): React.ReactElement {
       setTailscaleHealth(h)
     })
 
+    const offDaemonError = EventsOn('daemon:error', (msg: string) => {
+      setDaemonError(msg)
+    })
+
     return () => {
       offStatus()
       offHealth()
+      offDaemonError()
     }
   }, [])
 
@@ -246,6 +252,12 @@ function App(): React.ReactElement {
   const retryInit = useCallback(async () => {
     setDaemonError(null)
     try {
+      await RetryDaemon()
+    } catch (err) {
+      setDaemonError(String(err))
+      return
+    }
+    try {
       const [port, clis, sessions, running, health, env] = await Promise.all([
         GetRelayPort(),
         DetectCLIs(),
@@ -311,7 +323,7 @@ function App(): React.ReactElement {
               Unable to connect to session daemon
             </div>
             <div style={{ marginBottom: '12px' }}>
-              The background daemon did not start in time. Your sessions are not accessible. Check the system log or restart AgentHub.
+              {daemonError}
             </div>
             <button
               onClick={retryInit}

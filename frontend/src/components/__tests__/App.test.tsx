@@ -128,4 +128,35 @@ describe('App', () => {
       expect(raw).toContain('env.platform')
     })
   })
+
+  describe('daemon error handling (Phase 26)', () => {
+    it('imports RetryDaemon from wailsjs bindings', () => {
+      expect(raw).toContain('RetryDaemon')
+      expect(raw).toContain("from './wailsjs/go/main/App'")
+    })
+
+    it('subscribes to daemon:error event on mount', () => {
+      expect(raw).toContain("EventsOn('daemon:error'")
+    })
+
+    it('unsubscribes from daemon:error in cleanup', () => {
+      expect(raw).toContain('offDaemonError()')
+    })
+
+    it('retryInit calls RetryDaemon before other methods', () => {
+      // RetryDaemon must appear before Promise.all in retryInit
+      const retryBlock = raw.slice(raw.indexOf('const retryInit'))
+      const retryDaemonPos = retryBlock.indexOf('await RetryDaemon()')
+      const promiseAllPos = retryBlock.indexOf('Promise.all')
+      expect(retryDaemonPos).toBeGreaterThan(-1)
+      expect(promiseAllPos).toBeGreaterThan(-1)
+      expect(retryDaemonPos).toBeLessThan(promiseAllPos)
+    })
+
+    it('renders daemonError directly in banner (not hardcoded message)', () => {
+      // The banner body should use {daemonError} not a static string
+      expect(raw).toContain('{daemonError}')
+      expect(raw).not.toContain('The background daemon did not start in time')
+    })
+  })
 })
