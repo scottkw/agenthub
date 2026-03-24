@@ -68,6 +68,8 @@ func main() {
 		err = cmdHealth(args, os.Stdout)
 	case "qr":
 		err = cmdQR(client, args, os.Stdout)
+	case "settings":
+		err = cmdSettings(client, os.Stdout)
 	case "daemon":
 		// Only "daemon status" reaches here (others handled above).
 		err = cmdDaemonStatus(client, args[1:], os.Stdout)
@@ -100,6 +102,7 @@ Commands:
   web status [--json]      Show web server status
   health [--json]          Check Tailscale health
   qr <id>                  Display session QR code in terminal
+  settings               Show current configuration (read-only)
   daemon install           Install daemon as a login service
   daemon uninstall         Remove daemon login service
   daemon start             Start the daemon service
@@ -281,6 +284,35 @@ func cmdHealth(args []string, out io.Writer) error {
 	fmt.Fprintf(out, "%-12s%v\n", "has-certs:", h.HasCerts)
 	fmt.Fprintf(out, "%-12s%v\n", "ip:", h.IP)
 	fmt.Fprintf(out, "%-12s%v\n", "domain:", h.Domain)
+	return nil
+}
+
+// cmdSettings prints current configuration values in a human-readable format (read-only).
+func cmdSettings(client *daemon.DaemonClient, out io.Writer) error {
+	socketPath := daemon.DefaultSocketPath()
+	fmt.Fprintf(out, "%-14s%s\n", "socket-path:", socketPath)
+
+	port, err := client.GetRelayPort()
+	if err != nil {
+		fmt.Fprintf(out, "%-14s%s\n", "relay-port:", "(unavailable)")
+	} else {
+		fmt.Fprintf(out, "%-14s%d\n", "relay-port:", port)
+	}
+
+	paths, err := client.GetCLIPaths()
+	if err != nil || len(paths) == 0 {
+		fmt.Fprintf(out, "%-14s%s\n", "cli-paths:", "(none)")
+	} else {
+		first := true
+		for name, p := range paths {
+			if first {
+				fmt.Fprintf(out, "%-14s%s=%s\n", "cli-paths:", name, p)
+				first = false
+			} else {
+				fmt.Fprintf(out, "%-14s%s=%s\n", "", name, p)
+			}
+		}
+	}
 	return nil
 }
 
