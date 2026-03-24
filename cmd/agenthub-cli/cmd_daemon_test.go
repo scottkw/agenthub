@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/agenthub/agenthub/internal/daemon"
 )
 
 func TestCmdDaemon_ServiceActions(t *testing.T) {
@@ -59,5 +62,75 @@ func TestCmdDaemon_ServiceControlError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "mock error") {
 		t.Errorf("error %q does not contain 'mock error'", err.Error())
+	}
+}
+
+// TestCmdDaemon_Status verifies cmdDaemonStatus prints "running:" and "true" with reachable daemon.
+func TestCmdDaemon_Status(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdDaemonStatus(client, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdDaemonStatus error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "running:") {
+		t.Errorf("expected 'running:' in output, got %q", out)
+	}
+	if !strings.Contains(out, "true") {
+		t.Errorf("expected 'true' in output, got %q", out)
+	}
+}
+
+// TestCmdDaemon_Status_JSON verifies --json produces {"running":true} with reachable daemon.
+func TestCmdDaemon_Status_JSON(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdDaemonStatus(client, []string{"--json"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdDaemonStatus --json error: %v", err)
+	}
+	var resp struct {
+		Running bool `json:"running"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if !resp.Running {
+		t.Error("expected running=true for reachable daemon")
+	}
+}
+
+// TestCmdDaemon_Status_Unreachable verifies cmdDaemonStatus prints "false" for unreachable daemon.
+func TestCmdDaemon_Status_Unreachable(t *testing.T) {
+	// Create client pointing to non-existent socket.
+	client := daemon.NewDaemonClient("/tmp/nonexistent-aht-test.sock")
+	var buf bytes.Buffer
+	err := cmdDaemonStatus(client, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdDaemonStatus error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "false") {
+		t.Errorf("expected 'false' for unreachable daemon, got %q", out)
+	}
+}
+
+// TestCmdDaemon_Status_JSON_Unreachable verifies --json produces {"running":false} for unreachable daemon.
+func TestCmdDaemon_Status_JSON_Unreachable(t *testing.T) {
+	client := daemon.NewDaemonClient("/tmp/nonexistent-aht-test.sock")
+	var buf bytes.Buffer
+	err := cmdDaemonStatus(client, []string{"--json"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdDaemonStatus --json error: %v", err)
+	}
+	var resp struct {
+		Running bool `json:"running"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if resp.Running {
+		t.Error("expected running=false for unreachable daemon")
 	}
 }
