@@ -160,7 +160,7 @@ func cmdWeb(client *daemon.DaemonClient, args []string, out io.Writer) error {
 }
 
 // cmdWebStart validates Tailscale health then starts the web server, printing the URL.
-func cmdWebStart(client *daemon.DaemonClient, args []string, out io.Writer) error {
+func cmdWebStart(client *daemon.DaemonClient, _ []string, out io.Writer) error {
 	port := 443
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
