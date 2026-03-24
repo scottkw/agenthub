@@ -201,7 +201,7 @@ Phases execute in numeric order: 19 → 20 → 21 → 22 → 23 → 24
 | 22. CLI Attach | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 23. Service Manager Integration | v1.3 | 1/2 | Complete    | 2026-03-24 |
 | 24. CLI Polish | v1.3 | 2/2 | Complete    | 2026-03-24 |
-| 25. Windows Named Pipe Dial Fix | v1.3 | 1/1 | Complete | 2026-03-24 |
+| 25. Windows Named Pipe Dial Fix | v1.3 | 1/1 | Complete    | 2026-03-24 |
 | 26. Graceful GUI Startup Failure | v1.3 | 0/0 | Planned | — |
 
 ---

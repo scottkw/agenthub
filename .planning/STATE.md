@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Milestone complete
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-03-24T20:10:00.000Z"
+status: Ready to plan
+stopped_at: Completed 24-02-PLAN.md
+last_updated: "2026-03-24T20:28:33.793Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
   total_plans: 13
   completed_plans: 13
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 24 — cli-polish
+**Current focus:** Phase 25 — windows-named-pipe-fix
 
 ## Current Position
 
-Phase: 24
+Phase: 26
 Plan: Not started
 
 ## Performance Metrics
@@ -53,7 +53,6 @@ Plan: Not started
 | Phase 23-service-manager-integration P02 | 8 | 1 tasks | 3 files |
 | Phase 24-cli-polish P01 | 3 | 2 tasks | 4 files |
 | Phase 24-cli-polish P02 | 2min | 1 tasks | 2 files |
-| Phase 25-windows-named-pipe-fix P01 | 10min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -94,8 +93,6 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 24-cli-polish]: Used flag.NewFlagSet per command (not flag package globals) to avoid state pollution between test runs
 - [Phase 24-cli-polish]: daemon status intercepted in main() before early-exit block; other daemon subcommands bypass EnsureDaemon
 - [Phase 24-cli-polish]: cmdSettings uses daemon.DefaultSocketPath() directly (socket path is local config, not daemon state); tests use /bin/sh for CLI path (daemon validates existence)
-- [Phase 25-windows-named-pipe-fix]: Return nil for all dial failures on named pipes — pipes vanish when last server handle closes, no os.Remove needed
-- [Phase 25-windows-named-pipe-fix]: Non-Windows cleanupStaleWindowsPipe stub panics rather than returns nil — unreachable code should fail loudly if somehow reached
 
 ### Pending Todos
 
@@ -108,6 +105,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T20:10:00.000Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-03-24T19:46:50.549Z
+Stopped at: Completed 24-02-PLAN.md
 Resume file: None
