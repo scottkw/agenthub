@@ -49,6 +49,8 @@ func main() {
 		err = cmdKill(client, args)
 	case "rename":
 		err = cmdRename(client, args)
+	case "attach":
+		err = cmdAttach(client, args)
 	case "web":
 		err = cmdWeb(client, args, os.Stdout)
 	case "serve":
@@ -80,6 +82,7 @@ Commands:
   list                   List all sessions
   kill <id>              Terminate a session
   rename <id> <name>     Rename a session
+  attach <id>            Attach to a session (detach: Ctrl-\)
   serve <id>             Enable web serving for a session
   unserve <id>           Disable web serving for a session
   web start              Start the Tailscale web server
