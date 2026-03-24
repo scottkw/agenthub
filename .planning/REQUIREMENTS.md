@@ -21,10 +21,10 @@ Requirements for CLI + Daemon milestone. Each maps to roadmap phases.
 - [x] **CLI-02**: User can list all sessions with status from the terminal (`agenthub list`)
 - [x] **CLI-03**: User can terminate a session from the terminal (`agenthub kill`)
 - [x] **CLI-04**: User can rename a session from the terminal (`agenthub rename`)
-- [ ] **CLI-05**: User can attach to a session with full interactive PTY proxy (`agenthub attach`)
-- [ ] **CLI-06**: Attached session supports raw I/O, terminal resize propagation, and ctrl-c passthrough
-- [ ] **CLI-07**: User can detach from an attached session via configurable prefix key
-- [ ] **CLI-08**: Attaching to an existing session replays recent scrollback output
+- [x] **CLI-05**: User can attach to a session with full interactive PTY proxy (`agenthub attach`)
+- [x] **CLI-06**: Attached session supports raw I/O, terminal resize propagation, and ctrl-c passthrough
+- [x] **CLI-07**: User can detach from an attached session via configurable prefix key
+- [x] **CLI-08**: Attaching to an existing session replays recent scrollback output
 
 ### CLI Web/Utility Commands
 
@@ -84,10 +84,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-02 | Phase 21 | Complete |
 | CLI-03 | Phase 21 | Complete |
 | CLI-04 | Phase 21 | Complete |
-| CLI-05 | Phase 22 | Pending |
-| CLI-06 | Phase 22 | Pending |
-| CLI-07 | Phase 22 | Pending |
-| CLI-08 | Phase 22 | Pending |
+| CLI-05 | Phase 22 | Complete |
+| CLI-06 | Phase 22 | Complete |
+| CLI-07 | Phase 22 | Complete |
+| CLI-08 | Phase 22 | Complete |
 | WEB-01 | Phase 21 | Complete |
 | WEB-02 | Phase 21 | Complete |
 | WEB-03 | Phase 21 | Complete |

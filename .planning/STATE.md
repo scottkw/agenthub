@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: CLI + Daemon
-status: Ready to plan
-stopped_at: Completed 21-02-PLAN.md — CLI web/utility commands complete
-last_updated: "2026-03-24T13:52:31.019Z"
+status: Ready to execute
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-03-24T16:13:45.833Z"
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 21 — cli-session-web-commands
+**Current focus:** Phase 22 — cli-attach
 
 ## Current Position
 
-Phase: 22
-Plan: Not started
+Phase: 22 (cli-attach) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Plan: Not started
 | Phase 20-process-separation P01 | 4min | 2 tasks | 9 files |
 | Phase 21-cli-session-web-commands P01 | 15min | 2 tasks | 2 files |
 | Phase 21-cli-session-web-commands P02 | 4min | 2 tasks | 2 files |
+| Phase 22-cli-attach P01 | 2 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - [Phase 21-01]: io.Writer injection on cmdNew/cmdList for testable stdout; main() passes os.Stdout, tests pass bytes.Buffer
 - [Phase 21-cli-session-web-commands]: cmdWebStart gates on all 3 Tailscale checks (Connected, IP, HasCerts) before calling daemon
 - [Phase 21-cli-session-web-commands]: testSetupWithWebServer injects real WebServer via SetWebServerForTest for serve/unserve tests — avoids Tailscale in CI
+- [Phase 22-cli-attach]: Use MsgResize2 (0x11) not MsgResize (0x02) for client-to-server resize — server read pump only handles MsgResize2 for incoming resize frames
+- [Phase 22-cli-attach]: Do NOT catch SIGINT in attach — in raw mode Ctrl-C is byte 0x03 forwarded to remote PTY, not a local signal
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24T13:47:08.358Z
-Stopped at: Completed 21-02-PLAN.md — CLI web/utility commands complete
+Last session: 2026-03-24T16:13:45.828Z
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None
