@@ -71,7 +71,6 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub |
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
 | `internal/webserver` | HTTPS server via Tailscale, dashboard, health checks |
-| `cmd/agenthub-cli` | CLI command implementations |
 | `web/` | Embedded HTML assets (dashboard + terminal pages) |
 
 **Frontend (`frontend/`):**
