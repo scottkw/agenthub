@@ -104,7 +104,7 @@ Plans:
   3. All existing test suites (28+ daemon tests, 16 CLI tests, 7 attach tests) pass with `-race` flag
 **Plans:** 1 plan
 Plans:
-- [ ] 28-01-PLAN.md — Delete cmd/agenthub-cli/ and scrub references
+- [ ] 29-01-PLAN.md — Fix build-script test portability, add race detector and build-script step to CI
 
 ## Progress
 
@@ -116,7 +116,7 @@ Plans:
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27. Unified Entrypoint | v1.4 | 1/1 | Complete    | 2026-03-25 |
 | 28. CLI Package Removal | v1.4 | 1/1 | Complete    | 2026-03-25 |
-| 29. Build System & Verification | v1.4 | 0/? | Not started | - |
+| 29. Build System & Verification | v1.4 | 0/1 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
