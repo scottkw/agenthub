@@ -61,17 +61,6 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-## Current Milestone: v1.4 Unified Binary
-
-**Goal:** Merge GUI and CLI into a single `agenthub` executable — no args launches GUI, subcommands run CLI.
-
-**Target features:**
-- Unified binary: `agenthub` handles GUI, CLI, and daemon modes from one entrypoint
-- CLI command dispatch integrated into root main.go (all 13 commands)
-- Remove `cmd/agenthub-cli/` package entirely
-- Update build system (build.sh, CI, wails.json) to produce single binary
-- Update tests to cover unified dispatch logic
-
 ### Out of Scope
 
 - Mobile app — desktop and web access only; PWA via web serving covers mobile needs
@@ -93,14 +82,13 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Context
 
-Shipped v1.3 with ~12,619 LOC (9,068 Go + 2,619 TS/TSX + 932 CSS).
+Shipped v1.4 with ~12,771 LOC (9,220 Go + 2,619 TS/TSX + 932 CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
-Architecture: Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows).
-CLI: Single binary, unified dispatch — `agenthub` (GUI via Wails) / `agenthub <command>` (CLI) / `agenthub daemon` (service management). Root package contains all CLI functions as of Phase 27.
-Go test suite: race-clean, 28+ daemon tests, 16 CLI tests, 7 attach tests, function injection patterns.
+Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4).
+Go test suite: 194 tests race-clean across 6 packages (28+ daemon, 16 CLI, 7 attach, 5 dispatch).
 Frontend test suite: vitest source-inspection tests.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
-Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization.
+Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
 
 ## Constraints
 
@@ -145,4 +133,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-25 after Phase 29 (Build System Verification) completed*
+*Last updated: 2026-03-25 after v1.4 milestone*

@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.4 Unified Binary (Shipped: 2026-03-25)
+
+**Phases completed:** 3 phases, 3 plans, 6 tasks
+
+**Key accomplishments:**
+
+- Merged cmd/agenthub-cli/ into root package: single agenthub binary dispatches no-args→GUI, flags→GUI, --help→usage(), commands→runCLI() with full migrated+new test suite
+- Deleted cmd/agenthub-cli/ dead package (8 files, 1559 lines) and scrubbed its README.md row — repo now has zero references to the old standalone CLI binary
+- Portable BASH_SOURCE path resolution in build-script tests and race-enabled CI workflow with ubuntu-latest build-script verification
+
+---
+
 ## v1.3 CLI + Daemon (Shipped: 2026-03-25)
 
 **Phases completed:** 8 phases, 15 plans, 23 tasks
