@@ -51,8 +51,15 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Major section breaks |
 | 3xl | 64px | Page-level spacing |
 
-Exceptions: Tab height is 42px (not on the 8-point scale — inherited from Phase 7, do not change).
-Status bar height is 32px. Tab-bar button touch targets are 38×38px (not on the 8-point scale — inherited from Phase 7, do not change).
+### Inherited Exceptions (outside grid system)
+
+These values are not multiples of 4 and are not part of the spacing grid. They are inherited from
+Phase 7 and must not be changed.
+
+| Value | Element | Justification |
+|-------|---------|---------------|
+| 42px | Tab height | Inherited from Phase 7 — do not change |
+| 38×38px | Tab-bar button touch targets | Inherited from Phase 7 — do not change |
 
 ---
 
