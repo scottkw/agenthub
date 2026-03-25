@@ -56,6 +56,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Windows named pipe fix: CleanupStaleSocket uses winio.DialPipe for `\\.\pipe\...` paths — v1.3
 - ✓ Graceful GUI startup failure: error banner with retry instead of panic on daemon failure — v1.3
 - ✓ Unified entrypoint: root main.go dispatches GUI (no args), CLI (subcommand), and daemon modes — v1.4 Phase 27
+- ✓ Dead `cmd/agenthub-cli/` package removed — 8 files (1,559 lines) deleted, all references scrubbed — v1.4 Phase 28
 
 ### Active
 
@@ -143,4 +144,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-25 after Phase 27 (Unified Entrypoint) completed*
+*Last updated: 2026-03-25 after Phase 28 (CLI Package Removal) completed*
