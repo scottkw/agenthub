@@ -58,7 +58,16 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-*No active milestone — run `/gsd:new-milestone` to plan the next version.*
+## Current Milestone: v1.4 Unified Binary
+
+**Goal:** Merge GUI and CLI into a single `agenthub` executable — no args launches GUI, subcommands run CLI.
+
+**Target features:**
+- Unified binary: `agenthub` handles GUI, CLI, and daemon modes from one entrypoint
+- CLI command dispatch integrated into root main.go (all 13 commands)
+- Remove `cmd/agenthub-cli/` package entirely
+- Update build system (build.sh, CI, wails.json) to produce single binary
+- Update tests to cover unified dispatch logic
 
 ### Out of Scope
 
@@ -133,4 +142,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-25 after v1.3 milestone*
+*Last updated: 2026-03-25 after v1.4 milestone started*

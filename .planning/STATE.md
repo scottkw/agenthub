@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: CLI + Daemon
-status: milestone complete
-stopped_at: v1.3 milestone archived
+milestone: v1.4
+milestone_name: Unified Binary
+status: defining requirements
+stopped_at: null
 last_updated: "2026-03-25"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 15
-  completed_plans: 15
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -19,11 +19,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Milestone complete — run `/gsd:new-milestone` to plan next version
+**Current focus:** Milestone v1.4 — Unified Binary
 
 ## Current Position
 
-Milestone v1.3 complete. All 8 phases (19-26), 15 plans shipped.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-25 — Milestone v1.4 started
 
 ## Accumulated Context
 
@@ -37,12 +40,10 @@ None.
 
 ### Blockers/Concerns
 
-None active. Previous concerns resolved:
-- Terminal raw mode restore: implemented with signal handlers (Phase 22)
-- Windows SCM: addressed via kardianos/service abstraction (Phase 23)
+None.
 
 ## Session Continuity
 
 Last session: 2026-03-25
-Stopped at: v1.3 milestone archived
+Stopped at: Milestone v1.4 initialization
 Resume file: None
