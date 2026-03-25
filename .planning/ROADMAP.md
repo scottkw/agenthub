@@ -115,7 +115,7 @@ Plans:
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27. Unified Entrypoint | v1.4 | 1/1 | Complete    | 2026-03-25 |
-| 28. CLI Package Removal | v1.4 | 1/1 | Complete   | 2026-03-25 |
+| 28. CLI Package Removal | v1.4 | 1/1 | Complete    | 2026-03-25 |
 | 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
 ---
