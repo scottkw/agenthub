@@ -9,16 +9,16 @@ Requirements for unified binary milestone. Each maps to roadmap phases.
 
 ### Command Routing
 
-- [ ] **ROUTE-01**: User can run `agenthub` with no args to launch GUI
-- [ ] **ROUTE-02**: User can run `agenthub <command>` to execute any CLI command
-- [ ] **ROUTE-03**: User can run `agenthub daemon` to start daemon mode
+- [x] **ROUTE-01**: User can run `agenthub` with no args to launch GUI
+- [x] **ROUTE-02**: User can run `agenthub <command>` to execute any CLI command
+- [x] **ROUTE-03**: User can run `agenthub daemon` to start daemon mode
 
 ### CLI Integration
 
-- [ ] **CLI-01**: All 13 CLI commands (new, list, kill, rename, attach, serve, unserve, web, health, qr, settings, daemon) work from unified binary
-- [ ] **CLI-02**: `--json` flag works on applicable commands from unified binary
-- [ ] **CLI-03**: Interactive attach (raw PTY, detach key, resize) works from unified binary
-- [ ] **CLI-04**: `agenthub --help` shows both GUI and CLI usage
+- [x] **CLI-01**: All 13 CLI commands (new, list, kill, rename, attach, serve, unserve, web, health, qr, settings, daemon) work from unified binary
+- [x] **CLI-02**: `--json` flag works on applicable commands from unified binary
+- [x] **CLI-03**: Interactive attach (raw PTY, detach key, resize) works from unified binary
+- [x] **CLI-04**: `agenthub --help` shows both GUI and CLI usage
 
 ### Cleanup
 
@@ -50,13 +50,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROUTE-01 | Phase 27 | Pending |
-| ROUTE-02 | Phase 27 | Pending |
-| ROUTE-03 | Phase 27 | Pending |
-| CLI-01 | Phase 27 | Pending |
-| CLI-02 | Phase 27 | Pending |
-| CLI-03 | Phase 27 | Pending |
-| CLI-04 | Phase 27 | Pending |
+| ROUTE-01 | Phase 27 | Complete |
+| ROUTE-02 | Phase 27 | Complete |
+| ROUTE-03 | Phase 27 | Complete |
+| CLI-01 | Phase 27 | Complete |
+| CLI-02 | Phase 27 | Complete |
+| CLI-03 | Phase 27 | Complete |
+| CLI-04 | Phase 27 | Complete |
 | CLEAN-01 | Phase 28 | Pending |
 | CLEAN-02 | Phase 28 | Pending |
 | BUILD-01 | Phase 29 | Pending |

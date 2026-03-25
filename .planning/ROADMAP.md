@@ -62,7 +62,7 @@
 
 ### v1.4 Unified Binary (Phases 27-29)
 
-- [ ] **Phase 27: Unified Entrypoint** - Single main.go dispatches GUI, CLI commands, and daemon mode
+- [x] **Phase 27: Unified Entrypoint** - Single main.go dispatches GUI, CLI commands, and daemon mode (completed 2026-03-25)
 - [ ] **Phase 28: CLI Package Removal** - `cmd/agenthub-cli/` deleted, all references scrubbed
 - [ ] **Phase 29: Build System & Verification** - build.sh, CI, and tests validated against unified binary
 
@@ -78,9 +78,9 @@
   3. Running `agenthub daemon` starts daemon mode (run/install/uninstall/start/stop subcommands work)
   4. Running `agenthub attach <id>` enters interactive PTY mode with raw I/O, detach key, and resize
   5. Running `agenthub --help` prints usage covering both GUI launch and all CLI subcommands
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 27-01-PLAN.md — Copy CLI source + tests to root package, wire unified dispatch in main.go
+- [x] 27-01-PLAN.md — Copy CLI source + tests to root package, wire unified dispatch in main.go
 
 ### Phase 28: CLI Package Removal
 **Goal**: The `cmd/agenthub-cli/` package is fully deleted with no dangling references anywhere
@@ -110,7 +110,7 @@ Plans:
 | 7-13 | v1.1 | 13/13 | Complete | 2026-03-20 |
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
-| 27. Unified Entrypoint | v1.4 | 0/1 | Not started | - |
+| 27. Unified Entrypoint | v1.4 | 1/1 | Complete   | 2026-03-25 |
 | 28. CLI Package Removal | v1.4 | 0/? | Not started | - |
 | 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
