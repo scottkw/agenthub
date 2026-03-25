@@ -50,24 +50,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROUTE-01 | — | Pending |
-| ROUTE-02 | — | Pending |
-| ROUTE-03 | — | Pending |
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| CLI-03 | — | Pending |
-| CLI-04 | — | Pending |
-| CLEAN-01 | — | Pending |
-| CLEAN-02 | — | Pending |
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
+| ROUTE-01 | Phase 27 | Pending |
+| ROUTE-02 | Phase 27 | Pending |
+| ROUTE-03 | Phase 27 | Pending |
+| CLI-01 | Phase 27 | Pending |
+| CLI-02 | Phase 27 | Pending |
+| CLI-03 | Phase 27 | Pending |
+| CLI-04 | Phase 27 | Pending |
+| CLEAN-01 | Phase 28 | Pending |
+| CLEAN-02 | Phase 28 | Pending |
+| BUILD-01 | Phase 29 | Pending |
+| BUILD-02 | Phase 29 | Pending |
+| BUILD-03 | Phase 29 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 — traceability filled after roadmap creation*

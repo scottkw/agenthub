@@ -6,6 +6,7 @@
 - ✅ **v1.1 Polish & Build** — Phases 7-13 (shipped 2026-03-20)
 - ✅ **v1.2 Tailscale-Only Networking** — Phases 14-18 (shipped 2026-03-23)
 - ✅ **v1.3 CLI + Daemon** — Phases 19-26 (shipped 2026-03-25)
+- 🔄 **v1.4 Unified Binary** — Phases 27-29 (in progress)
 
 ## Phases
 
@@ -59,6 +60,46 @@
 
 </details>
 
+### v1.4 Unified Binary (Phases 27-29)
+
+- [ ] **Phase 27: Unified Entrypoint** - Single main.go dispatches GUI, CLI commands, and daemon mode
+- [ ] **Phase 28: CLI Package Removal** - `cmd/agenthub-cli/` deleted, all references scrubbed
+- [ ] **Phase 29: Build System & Verification** - build.sh, CI, and tests validated against unified binary
+
+## Phase Details
+
+### Phase 27: Unified Entrypoint
+**Goal**: A single `agenthub` binary dispatches to GUI, all CLI commands, and daemon mode based on args
+**Depends on**: Nothing (first phase of v1.4)
+**Requirements**: ROUTE-01, ROUTE-02, ROUTE-03, CLI-01, CLI-02, CLI-03, CLI-04
+**Success Criteria** (what must be TRUE):
+  1. Running `agenthub` with no arguments launches the desktop GUI
+  2. Running `agenthub <command>` executes the corresponding CLI action for all 13 commands
+  3. Running `agenthub daemon` starts daemon mode (run/install/uninstall/start/stop subcommands work)
+  4. Running `agenthub attach <id>` enters interactive PTY mode with raw I/O, detach key, and resize
+  5. Running `agenthub --help` prints usage covering both GUI launch and all CLI subcommands
+**Plans**: TBD
+
+### Phase 28: CLI Package Removal
+**Goal**: The `cmd/agenthub-cli/` package is fully deleted with no dangling references anywhere
+**Depends on**: Phase 27
+**Requirements**: CLEAN-01, CLEAN-02
+**Success Criteria** (what must be TRUE):
+  1. The `cmd/agenthub-cli/` directory does not exist in the repository
+  2. No file in the repo (docs, CI workflows, build scripts, Go source) references `agenthub-cli`
+  3. `go build ./...` succeeds with no import errors after the deletion
+**Plans**: TBD
+
+### Phase 29: Build System & Verification
+**Goal**: The build pipeline produces and validates a single unified binary on all platforms
+**Depends on**: Phase 28
+**Requirements**: BUILD-01, BUILD-02, BUILD-03
+**Success Criteria** (what must be TRUE):
+  1. `build.sh` compiles one `agenthub` binary that passes GUI, CLI, and daemon dispatch tests
+  2. GitHub Actions CI runs the build and test suite against the unified binary with green status
+  3. All existing test suites (28+ daemon tests, 16 CLI tests, 7 attach tests) pass with `-race` flag
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -67,6 +108,9 @@
 | 7-13 | v1.1 | 13/13 | Complete | 2026-03-20 |
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
+| 27. Unified Entrypoint | v1.4 | 0/? | Not started | - |
+| 28. CLI Package Removal | v1.4 | 0/? | Not started | - |
+| 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
