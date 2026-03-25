@@ -78,7 +78,9 @@
   3. Running `agenthub daemon` starts daemon mode (run/install/uninstall/start/stop subcommands work)
   4. Running `agenthub attach <id>` enters interactive PTY mode with raw I/O, detach key, and resize
   5. Running `agenthub --help` prints usage covering both GUI launch and all CLI subcommands
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Copy CLI source + tests to root package, wire unified dispatch in main.go
 
 ### Phase 28: CLI Package Removal
 **Goal**: The `cmd/agenthub-cli/` package is fully deleted with no dangling references anywhere
@@ -108,7 +110,7 @@
 | 7-13 | v1.1 | 13/13 | Complete | 2026-03-20 |
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
-| 27. Unified Entrypoint | v1.4 | 0/? | Not started | - |
+| 27. Unified Entrypoint | v1.4 | 0/1 | Not started | - |
 | 28. CLI Package Removal | v1.4 | 0/? | Not started | - |
 | 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
