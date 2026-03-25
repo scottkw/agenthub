@@ -158,5 +158,18 @@ describe('App', () => {
       expect(raw).toContain('{daemonError}')
       expect(raw).not.toContain('The background daemon did not start in time')
     })
+
+    it('imports GetDaemonError from wailsjs bindings', () => {
+      expect(raw).toContain('GetDaemonError')
+    })
+
+    it('calls GetDaemonError before Promise.all in init', () => {
+      const initBlock = raw.slice(raw.indexOf('async function init()'))
+      const getDaemonPos = initBlock.indexOf('GetDaemonError()')
+      const promiseAllPos = initBlock.indexOf('Promise.all')
+      expect(getDaemonPos).toBeGreaterThan(-1)
+      expect(promiseAllPos).toBeGreaterThan(-1)
+      expect(getDaemonPos).toBeLessThan(promiseAllPos)
+    })
   })
 })

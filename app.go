@@ -61,6 +61,16 @@ func (a *App) startup(ctx context.Context) {
 	a.startHealthPoller(ctx)
 }
 
+// GetDaemonError returns the startup error message, or "" if startup succeeded.
+// Called by the frontend on mount to detect a failed startup (the daemon:error
+// event may fire before React subscribes, so this is the reliable path).
+func (a *App) GetDaemonError() string {
+	if a.daemonErr != nil {
+		return a.daemonErr.Error()
+	}
+	return ""
+}
+
 // RetryDaemon re-attempts daemon spawn after a startup failure.
 // Called by the frontend "Retry Connection" button.
 func (a *App) RetryDaemon() error {

@@ -15,6 +15,7 @@ import {
   GetSessionStatus,
   GetTailscaleStatus,
   RetryDaemon,
+  GetDaemonError,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI } from './wailsjs/go/main/App'
 import { EventsOn, Environment } from './wailsjs/wailsjs/runtime/runtime'
@@ -63,6 +64,12 @@ function App(): React.ReactElement {
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
     async function init() {
+      // Check if startup() failed before calling methods that need a.client.
+      const startupErr = await GetDaemonError()
+      if (startupErr) {
+        setDaemonError(startupErr)
+        return
+      }
       try {
         const [port, clis, sessions, running, health, env] = await Promise.all([
           GetRelayPort(),
