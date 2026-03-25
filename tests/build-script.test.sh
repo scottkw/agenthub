@@ -3,11 +3,12 @@
 # Behavioral tests for build.sh argument parsing, error paths, and static pattern checks.
 # Does NOT require Wails, Docker, or mingw-w64.
 #
-# Run: bash /Users/ken/dev/agenthub/tests/build-script.test.sh
+# Run: bash tests/build-script.test.sh    (from project root)
 
 set -uo pipefail
 
-BUILD_SH="/Users/ken/dev/agenthub/build.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_SH="$SCRIPT_DIR/../build.sh"
 PASS=0
 FAIL=0
 
