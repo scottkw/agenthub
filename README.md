@@ -1,80 +1,98 @@
 # AgentHub
 
-A cross-platform desktop app for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in tabbed terminal sessions. Any session can be shared over the web via HTTPS with QR codes, token links, and live status indicators. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. Built with Go/Wails and React.
 
 ## Features
 
+### Terminal & Sessions
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback)
+- **Background daemon** — Sessions live in a standalone daemon process; closing the GUI doesn't kill sessions
 - **CLI auto-detection** — Scans PATH for Claude Code, Codex, Gemini CLI, and OpenCode on startup; supports custom CLI paths
-- **New session modal** — Select a CLI and pick a working directory when creating a session; remembers your last-used directory
-- **Session persistence** — Close the window to the system tray; sessions keep running. Reopen and reattach instantly with full scrollback replay
-- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` keyboard shortcuts
-- **Tab management** — Rename tabs by double-clicking or right-click context menu; close with the `×` button
-- **Web serving** — Toggle any session to be accessible from a remote browser over HTTPS. Self-signed TLS with a local CA cert pattern so browsers trust the connection
-- **Web dashboard** — Dark-themed dashboard with session cards showing live status dots, CLI type badges, and direct connect links
-- **Authentication** — Password-protected dashboard lists all shared sessions. Per-session token links grant access without the dashboard password
-- **QR codes** — Every web-served session gets a scannable QR code in the desktop app and on the web dashboard
-- **Live status indicators** — Each tab shows a colored dot: running (green), waiting for input (yellow), idle (gray), or errored (red). Status detection uses heuristic output parsing
-- **Per-tab status bar** — Shows web-serving state for each session with toggle, copy token link, and QR code buttons
-- **Tabbed settings** — Settings organized into CLI Paths, Web Server, and Security tabs
-- **VPN binding** — Bind the web server to a specific network interface. Auto-detects Tailscale via CGNAT range; supports any VPN interface
-- **Cross-platform** — Builds for macOS (universal, signed + notarized), Linux (Ubuntu 22.04 + 24.04), and Windows (NSIS installer)
-- **Build script** — `build.sh` for local cross-platform builds with optional macOS code signing and notarization
+- **New session modal** — Select a CLI and pick a working directory; remembers your last-used directory
+- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-`
+- **Tab management** — Rename tabs by double-clicking or right-click context menu
+- **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
+
+### CLI
+- **Full CLI** — `agenthub new`, `list`, `kill`, `rename`, `attach`, `web`, `health`, `qr`, `settings`
+- **Interactive attach** — `agenthub attach <id>` for full PTY proxy with raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, and detach key (Ctrl-\\)
+- **Machine-readable output** — `--json` flag on list, web status, health, and daemon status commands
+- **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
+
+### Web Serving
+- **Tailscale networking** — Web server binds exclusively to Tailscale interface with Let's Encrypt TLS via `tsnet`
+- **Zero-config security** — Tailscale network membership is the access control; no passwords or tokens needed
+- **Per-session toggle** — Enable/disable web access per session from GUI or CLI (`agenthub serve/unserve`)
+- **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, and direct connect links
+- **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
+- **Health checks** — Detects Tailscale installation, connection, and cert readiness with platform-specific setup guidance
+
+### Platform
+- **Cross-platform** — macOS (universal, signed + notarized), Linux (Ubuntu 22.04 + 24.04), Windows (NSIS installer)
+- **Single binary** — `agenthub` launches GUI; `agenthub <command>` runs CLI
+- **Build script** — `build.sh` for local cross-platform builds with optional macOS code signing
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                  Wails Desktop App               │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  TabBar   │  │ Terminal  │  │  Settings /   │  │
-│  │  + Status │  │  Panel    │  │  QR Modal     │  │
-│  │  Badges   │  │ (xterm.js)│  │               │  │
-│  └──────────┘  └──────────┘  └───────────────┘  │
-│         React Frontend (Vite + TypeScript)        │
-├───────────────────────────────────────────────────┤
-│         Wails v2 Bridge (bound Go methods)        │
-├───────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │ PTY      │  │ WebSocket │  │  Web Server   │  │
-│  │ Backend  │  │ Relay Hub │  │  (TLS + Auth) │  │
-│  │ (go-pty) │  │ (fan-out) │  │               │  │
-│  └──────────┘  └──────────┘  └───────────────┘  │
-│  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │ Session  │  │  Status   │  │  QR Code Gen  │  │
-│  │ Registry │  │ Detector  │  │ (go-qrcode)   │  │
-│  └──────────┘  └──────────┘  └───────────────┘  │
-│              Go Backend (single binary)           │
-└───────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                     Clients                             │
+│  ┌──────────────────┐    ┌───────────────────────────┐ │
+│  │   GUI (Wails)     │    │   CLI (agenthub <cmd>)    │ │
+│  │   React + xterm.js│    │   attach / list / new ... │ │
+│  └────────┬─────────┘    └──────────┬────────────────┘ │
+│           │     DaemonClient         │                  │
+│           └──────────┬───────────────┘                  │
+├──────────────────────┼──────────────────────────────────┤
+│              Unix Socket / Named Pipe                   │
+├──────────────────────┼──────────────────────────────────┤
+│  ┌───────────────────┴──────────────────────────────┐  │
+│  │              Daemon (background process)           │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
+│  │  │ Session  │  │ WebSocket │  │  Web Server   │  │  │
+│  │  │ Engine   │  │ Relay Hub │  │ (Tailscale    │  │  │
+│  │  │ (go-pty) │  │ (fan-out) │  │  TLS + FQDN) │  │  │
+│  │  └──────────┘  └──────────┘  └───────────────┘  │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
+│  │  │  Status  │  │ QR Code  │  │   Service     │  │  │
+│  │  │ Detector │  │ Generator│  │   Manager     │  │  │
+│  │  └──────────┘  └──────────┘  └───────────────┘  │  │
+│  └──────────────────────────────────────────────────┘  │
+│                   HTTP/JSON API                         │
+└────────────────────────────────────────────────────────┘
 ```
 
 **Go packages:**
 
 | Package | Purpose |
 |---------|---------|
-| `internal/pty` | PTY process management, CLI detection, session registry |
+| `internal/daemon` | Session engine, HTTP/JSON API, Unix socket server, DaemonClient |
+| `internal/pty` | PTY process management, CLI detection |
 | `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub |
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
-| `internal/webserver` | HTTPS server, TLS cert generation, auth, dashboard, token links |
+| `internal/webserver` | HTTPS server via Tailscale, dashboard, health checks |
+| `cmd/agenthub-cli` | CLI command implementations |
 | `web/` | Embedded HTML assets (dashboard + terminal pages) |
 
 **Frontend (`frontend/`):**
 
 | Component | Purpose |
 |-----------|---------|
-| `App.tsx` | Root layout, session management, event wiring |
-| `TabBar.tsx` | Tab strip with status dots, rename (double-click or right-click), close |
-| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay client, per-tab font size |
-| `NewSessionModal.tsx` | CLI selector + working directory picker for new sessions |
-| `StatusBar.tsx` | Per-tab web-serving status bar with toggle, token link, and QR buttons |
-| `SettingsPanel.tsx` | Tabbed settings (CLI Paths, Web Server, Security) |
-| `QRModal.tsx` | QR code display modal for web-served sessions |
+| `App.tsx` | Root layout, daemon client, session management, event wiring |
+| `TabBar.tsx` | Tab strip with status dots, rename, close |
+| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
+| `NewSessionModal.tsx` | CLI selector + working directory picker |
+| `StatusBar.tsx` | Per-tab web-serving controls |
+| `SettingsPanel.tsx` | Tabbed settings with Tailscale status |
+| `HealthModal.tsx` | Tailscale health check with platform-specific instructions |
+| `QRModal.tsx` | QR code display for web-served sessions |
 
 ## Prerequisites
 
 - **Go** 1.22+ ([go.dev/dl](https://go.dev/dl/))
 - **Node.js** 18+ and **pnpm** ([pnpm.io](https://pnpm.io/installation))
 - **Wails CLI** v2 (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`)
+- **Tailscale** — required for web serving features ([tailscale.com](https://tailscale.com))
 
 ### Platform-specific
 
@@ -124,8 +142,6 @@ cd frontend && pnpm test
 
 ### Using `build.sh` (recommended)
 
-The included build script handles cross-platform builds, including Docker-based Linux builds and cross-compilation for Windows from macOS:
-
 ```bash
 # Build for the current platform
 ./build.sh --platform macos    # macOS universal binary (.app)
@@ -144,7 +160,7 @@ The included build script handles cross-platform builds, including Docker-based 
 #### Local build (current platform)
 
 ```bash
-wails build
+wails build -tags wailsassets
 ```
 
 Output: `build/bin/agenthub` (or `agenthub.exe` on Windows, `agenthub.app` on macOS)
@@ -152,49 +168,28 @@ Output: `build/bin/agenthub` (or `agenthub.exe` on Windows, `agenthub.app` on ma
 #### macOS (universal binary)
 
 ```bash
-wails build -platform darwin/universal
-```
-
-**Manual signing and notarization** (requires Apple Developer account):
-
-```bash
-# Sign
-codesign --force --deep --sign "Developer ID Application: YOUR NAME (TEAM_ID)" \
-  --entitlements build/entitlements.plist \
-  --options runtime \
-  build/bin/agenthub.app
-
-# Notarize
-ditto -c -k --keepParent build/bin/agenthub.app notarization.zip
-xcrun notarytool submit notarization.zip \
-  --apple-id "your@email.com" \
-  --password "app-specific-password" \
-  --team-id "TEAM_ID" \
-  --wait
-xcrun stapler staple build/bin/agenthub.app
+wails build -platform darwin/universal -tags wailsassets
 ```
 
 #### Linux
 
 ```bash
 # Ubuntu 24.04 (WebKitGTK 4.1)
-wails build -tags webkit2_41
+wails build -tags webkit2_41,wailsassets
 
 # Ubuntu 22.04 (WebKitGTK 4.0)
-wails build
+wails build -tags wailsassets
 ```
 
 #### Windows
 
 ```bash
 # Standard build
-wails build
+wails build -tags wailsassets
 
 # With NSIS installer
-wails build -nsis
+wails build -nsis -tags wailsassets
 ```
-
-The NSIS build produces both `agenthub.exe` and `agenthub-amd64-installer.exe`.
 
 ### CI/CD
 
@@ -207,55 +202,45 @@ The GitHub Actions workflow (`.github/workflows/build.yml`) builds for all platf
 | `ubuntu-22.04` | `linux/amd64` | WebKitGTK 4.0 |
 | `windows-latest` | `windows/amd64` | NSIS installer + WebView2 embedded |
 
-Build artifacts are uploaded as GitHub Actions artifacts.
-
-**Required secrets for macOS signing** (optional — builds work without them):
-
-| Secret | Purpose |
-|--------|---------|
-| `MACOS_CERTIFICATE` | Base64-encoded .p12 certificate |
-| `MACOS_CERTIFICATE_NAME` | Certificate common name |
-| `MACOS_CERTIFICATE_PWD` | Certificate password |
-| `MACOS_CI_KEYCHAIN_PWD` | Ephemeral CI keychain password |
-| `MACOS_NOTARIZATION_APPLE_ID` | Apple ID for notarization |
-| `MACOS_NOTARIZATION_PWD` | App-specific password |
-| `MACOS_NOTARIZATION_TEAM_ID` | Apple Developer Team ID |
-
 ## Usage
 
-### First launch
+### Desktop (GUI)
 
-1. **Launch AgentHub** — the app scans your PATH for installed AI coding CLIs
-2. **Create a session** — click the `+` button to open the new session modal. Select a CLI and choose a working directory
-3. **Use the terminal** — full interactive terminal with the selected CLI. Resize, scroll, copy/paste all work as expected
+1. **Launch AgentHub** — run `agenthub` with no arguments to open the GUI
+2. **Create a session** — click `+` to open the new session modal; select a CLI and working directory
+3. **Use the terminal** — full interactive terminal with the selected CLI
+4. **Web serve** — toggle web access per session; Tailscale health check runs automatically
 
-### Managing sessions
+### CLI
 
-- **Multiple tabs** — open as many sessions as you need; each runs independently
-- **Rename tabs** — double-click a tab name or right-click for a context menu
-- **Font size** — press `Shift+=` to zoom in or `Shift+-` to zoom out per tab
-- **Close sessions** — click the `×` on a tab to kill the session and its process
-- **System tray** — close the window and sessions keep running in the background. Click the tray icon to reopen
+```bash
+# Session management
+agenthub new claude-code ~/project    # Create a new session
+agenthub list                         # List all sessions
+agenthub list --json                  # Machine-readable output
+agenthub attach <id>                  # Attach to session (Ctrl-\ to detach)
+agenthub kill <id>                    # Terminate a session
+agenthub rename <id> "my session"     # Rename a session
 
-### Web serving
+# Web serving
+agenthub web start                    # Start the Tailscale web server
+agenthub web stop                     # Stop the web server
+agenthub web status                   # Check web server state
+agenthub serve <id>                   # Enable web access for a session
+agenthub unserve <id>                 # Disable web access
+agenthub health                       # Tailscale health check
+agenthub qr <id>                      # Show session QR code in terminal
 
-1. **Set a password** — go to Settings and set a web dashboard password (required before starting the web server)
-2. **Start the web server** — click "Start Web Server" in Settings. Choose a network interface (auto-detects Tailscale)
-3. **Enable per-session** — toggle the web icon on any tab to make that session accessible remotely
-4. **Share access:**
-   - **Dashboard URL** — share the HTTPS URL; recipients enter the dashboard password to see all shared sessions
-   - **Token link** — generate a per-session token link that grants direct access without the dashboard password
-   - **QR code** — scan from the desktop app or web dashboard to open on a phone/tablet
+# Daemon management
+agenthub daemon install               # Register as login service
+agenthub daemon uninstall             # Remove service registration
+agenthub daemon start                 # Start the daemon service
+agenthub daemon stop                  # Stop the daemon service
+agenthub daemon status                # Check daemon status
 
-### TLS certificate trust
-
-AgentHub generates a local CA certificate on first run. To avoid browser warnings:
-
-- **macOS:** Open Keychain Access, import `~/.config/agenthub/ca.crt`, set to "Always Trust"
-- **Linux:** `sudo cp ~/.config/agenthub/ca.crt /usr/local/share/ca-certificates/ && sudo update-ca-certificates`
-- **Windows:** `certutil -addstore "Root" %USERPROFILE%\.config\agenthub\ca.crt`
-
-The app provides in-app guidance for this process in the Settings panel.
+# Configuration
+agenthub settings                     # Show current settings
+```
 
 ### Status indicators
 
@@ -268,7 +253,7 @@ Each tab shows a colored status dot:
 | Gray | Idle | No recent output activity |
 | Red | Errored | CLI process has exited with a non-zero code |
 
-Status detection currently uses heuristic output patterns for **Claude Code**. Other CLIs (Codex, Gemini CLI, OpenCode) will show "running" until their output patterns are catalogued in a future release.
+Status detection uses heuristic output patterns for **Claude Code**. Other CLIs show "running" until their patterns are catalogued.
 
 ## Tech Stack
 
@@ -281,8 +266,8 @@ Status detection currently uses heuristic output patterns for **Claude Code**. O
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
-| TLS | Go `crypto/tls` + `crypto/x509` |
-| Auth | bcrypt password hashing + cookie sessions |
+| TLS | Tailscale Let's Encrypt via `GetCertificate` |
+| Service manager | [kardianos/service](https://github.com/kardianos/service) |
 | CI | GitHub Actions (4-runner matrix) |
 
 ## License
