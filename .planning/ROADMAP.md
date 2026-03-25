@@ -64,7 +64,7 @@
 
 - [x] **Phase 27: Unified Entrypoint** - Single main.go dispatches GUI, CLI commands, and daemon mode (completed 2026-03-25)
 - [x] **Phase 28: CLI Package Removal** - `cmd/agenthub-cli/` deleted, all references scrubbed (completed 2026-03-25)
-- [ ] **Phase 29: Build System & Verification** - build.sh, CI, and tests validated against unified binary
+- [x] **Phase 29: Build System & Verification** - build.sh, CI, and tests validated against unified binary (completed 2026-03-25)
 
 ## Phase Details
 
@@ -102,7 +102,7 @@ Plans:
   1. `build.sh` compiles one `agenthub` binary that passes GUI, CLI, and daemon dispatch tests
   2. GitHub Actions CI runs the build and test suite against the unified binary with green status
   3. All existing test suites (28+ daemon tests, 16 CLI tests, 7 attach tests) pass with `-race` flag
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 29-01-PLAN.md — Fix build-script test portability, add race detector and build-script step to CI
 
@@ -116,7 +116,7 @@ Plans:
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27. Unified Entrypoint | v1.4 | 1/1 | Complete    | 2026-03-25 |
 | 28. CLI Package Removal | v1.4 | 1/1 | Complete    | 2026-03-25 |
-| 29. Build System & Verification | v1.4 | 0/1 | Not started | - |
+| 29. Build System & Verification | v1.4 | 0/1 | Complete    | 2026-03-25 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

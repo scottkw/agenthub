@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Unified Binary
-status: Ready to plan
-stopped_at: Completed 28-01-PLAN.md
-last_updated: "2026-03-25T19:00:14.798Z"
+status: Milestone complete
+stopped_at: Completed 29-build-system-verification/29-01-PLAN.md
+last_updated: "2026-03-25T20:44:36.427Z"
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 3
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 28 — cli-package-removal
+**Current focus:** Phase 29 — build-system-verification
 
 ## Current Position
 
@@ -35,6 +35,7 @@ Plan: Not started
 | Binary targets | 2 (agenthub + agenthub-cli) | 1 (agenthub) |
 | Phase 27-unified-entrypoint P01 | 18 | 2 tasks | 11 files |
 | Phase 28 P01 | 2min | 2 tasks | 9 files |
+| Phase 29-build-system-verification P01 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -48,6 +49,8 @@ Plan: Not started
 - [Phase 27-unified-entrypoint]: daemon status fall-through: most daemon subcommands go directly to cmdDaemon; only status needs EnsureDaemon first
 - [Phase 27-unified-entrypoint]: cmd/agenthub-cli/ left untouched — deletion is Phase 28
 - [Phase 28]: Deleted cmd/agenthub-cli/ entirely — all CLI logic now lives in root package (main.go) per Phase 27 unification
+- [Phase 29-build-system-verification]: BASH_SOURCE[0] over $0 for portable shell script self-location in tests/build-script.test.sh
+- [Phase 29-build-system-verification]: Build-script CI step restricted to ubuntu-latest only — bash and toolchain detection environment requirements
 
 ### Pending Todos
 
@@ -59,7 +62,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T18:55:11.035Z
-Stopped at: Completed 28-01-PLAN.md
+Last session: 2026-03-25T20:41:16.135Z
+Stopped at: Completed 29-build-system-verification/29-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 27`
