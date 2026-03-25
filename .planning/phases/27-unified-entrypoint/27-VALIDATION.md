@@ -1,10 +1,11 @@
 ---
 phase: 27
 slug: unified-entrypoint
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-25
+audited: 2026-03-25
 ---
 
 # Phase 27 — Validation Strategy
@@ -38,13 +39,13 @@ created: 2026-03-25
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 27-01-01 | 01 | 1 | ROUTE-01 | unit | `go test -run TestDispatchNoArgs` | ❌ W0 | ⬜ pending |
-| 27-01-02 | 01 | 1 | ROUTE-02 | unit | `go test -run TestDispatchCLI` | ❌ W0 | ⬜ pending |
-| 27-01-03 | 01 | 1 | ROUTE-03 | unit | `go test -run TestDispatchDaemon` | ❌ W0 | ⬜ pending |
-| 27-01-04 | 01 | 1 | CLI-01 | unit | `go test -run TestCmd` | ✅ | ⬜ pending |
-| 27-01-05 | 01 | 1 | CLI-02 | unit | `go test -run TestCmdDaemon` | ✅ | ⬜ pending |
-| 27-01-06 | 01 | 1 | CLI-03 | unit | `go test -run TestCmdAttach` | ✅ | ⬜ pending |
-| 27-01-07 | 01 | 1 | CLI-04 | unit | `go test -run TestHelp` | ❌ W0 | ⬜ pending |
+| 27-01-01 | 01 | 1 | ROUTE-01 | unit | `go test -run TestDispatchNoArgs` | ✅ | ✅ green |
+| 27-01-02 | 01 | 1 | ROUTE-02 | unit | `go test -run TestDispatchFlagRouting` | ✅ | ✅ green |
+| 27-01-03 | 01 | 1 | ROUTE-03 | unit | `go test -run TestCmdDaemon_ServiceActions` | ✅ | ✅ green |
+| 27-01-04 | 01 | 1 | CLI-01 | unit | `go test -run TestCmd` | ✅ | ✅ green |
+| 27-01-05 | 01 | 1 | CLI-02 | unit | `go test -run TestCmdDaemon` | ✅ | ✅ green |
+| 27-01-06 | 01 | 1 | CLI-03 | unit | `go test -run TestCmdAttach` | ✅ | ✅ green |
+| 27-01-07 | 01 | 1 | CLI-04 | unit | `go test -run TestDispatchHelp` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,11 +53,11 @@ created: 2026-03-25
 
 ## Wave 0 Requirements
 
-- [ ] Dispatch routing tests (TestDispatchNoArgs, TestDispatchCLI, TestDispatchDaemon) — stubs for ROUTE-01, ROUTE-02, ROUTE-03
-- [ ] Help output test (TestHelp) — stub for CLI-04
-- [ ] Existing CLI/daemon/attach tests migrate from `cmd/agenthub-cli/` to root package
+- [x] Dispatch routing tests (TestDispatchNoArgs, TestDispatchFlagRouting) — ROUTE-01, ROUTE-02, ROUTE-03
+- [x] Help output test (TestDispatchHelp, TestDispatchHelpShort) — CLI-04
+- [x] Existing CLI/daemon/attach tests migrated from `cmd/agenthub-cli/` to root package
 
-*Existing test infrastructure covers CLI-01, CLI-02, CLI-03 requirements.*
+*All requirements have automated test coverage.*
 
 ---
 
@@ -71,11 +72,23 @@ created: 2026-03-25
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-03-25
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 7 requirements (ROUTE-01, ROUTE-02, ROUTE-03, CLI-01, CLI-02, CLI-03, CLI-04) have automated test coverage in root package. Tests verified green with `go test -count=1 -run "TestDispatch|TestCmd|TestAttach|TestRunCLI" .`

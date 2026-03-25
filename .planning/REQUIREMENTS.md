@@ -27,9 +27,9 @@ Requirements for unified binary milestone. Each maps to roadmap phases.
 
 ### Build System
 
-- [ ] **BUILD-01**: `build.sh` produces single binary that handles GUI + CLI + daemon
-- [ ] **BUILD-02**: GitHub Actions CI builds and tests unified binary
-- [ ] **BUILD-03**: All existing tests pass against unified binary (daemon tests, CLI tests, attach tests)
+- [x] **BUILD-01**: `build.sh` produces single binary that handles GUI + CLI + daemon
+- [x] **BUILD-02**: GitHub Actions CI builds and tests unified binary
+- [x] **BUILD-03**: All existing tests pass against unified binary (daemon tests, CLI tests, attach tests)
 
 ## Future Requirements
 
@@ -59,9 +59,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-04 | Phase 27 | Complete |
 | CLEAN-01 | Phase 28 | Complete |
 | CLEAN-02 | Phase 28 | Complete |
-| BUILD-01 | Phase 29 | Pending |
-| BUILD-02 | Phase 29 | Pending |
-| BUILD-03 | Phase 29 | Pending |
+| BUILD-01 | Phase 29 | Complete |
+| BUILD-02 | Phase 29 | Complete |
+| BUILD-03 | Phase 29 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 12 total
