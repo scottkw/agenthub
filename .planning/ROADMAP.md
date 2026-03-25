@@ -90,7 +90,9 @@ Plans:
   1. The `cmd/agenthub-cli/` directory does not exist in the repository
   2. No file in the repo (docs, CI workflows, build scripts, Go source) references `agenthub-cli`
   3. `go build ./...` succeeds with no import errors after the deletion
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 28-01-PLAN.md — Delete cmd/agenthub-cli/ and scrub references
 
 ### Phase 29: Build System & Verification
 **Goal**: The build pipeline produces and validates a single unified binary on all platforms
@@ -100,7 +102,9 @@ Plans:
   1. `build.sh` compiles one `agenthub` binary that passes GUI, CLI, and daemon dispatch tests
   2. GitHub Actions CI runs the build and test suite against the unified binary with green status
   3. All existing test suites (28+ daemon tests, 16 CLI tests, 7 attach tests) pass with `-race` flag
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 28-01-PLAN.md — Delete cmd/agenthub-cli/ and scrub references
 
 ## Progress
 
@@ -111,7 +115,7 @@ Plans:
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27. Unified Entrypoint | v1.4 | 1/1 | Complete    | 2026-03-25 |
-| 28. CLI Package Removal | v1.4 | 0/? | Not started | - |
+| 28. CLI Package Removal | v1.4 | 0/1 | Planning complete | - |
 | 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
 ---
