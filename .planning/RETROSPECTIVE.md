@@ -192,6 +192,42 @@
 
 ---
 
+## Milestone: v1.4 — Unified Binary
+
+**Shipped:** 2026-03-25
+**Phases:** 3 | **Plans:** 3 | **Tasks:** 6
+
+### What Was Built
+- Unified entrypoint: single `agenthub` binary dispatches GUI (no args), CLI (subcommands), and daemon modes from root main.go
+- Dead code cleanup: deleted `cmd/agenthub-cli/` package (8 files, 1,559 lines) and scrubbed all references
+- Build system hardened: portable BASH_SOURCE path resolution in tests, race detector in CI, build-script CI step on ubuntu-latest
+
+### What Worked
+- Three-phase dependency chain (dispatch→delete→verify) was the correct ordering — deleting before verification would have left CI in unknown state
+- Phase 28 (deletion) completed in ~5 minutes — well-scoped, compiler-guided work with zero ambiguity
+- Milestone audit passed first attempt: 12/12 requirements, 12/12 integration, 4/4 E2E flows — strong traceability throughout
+- Entire milestone completed in a single day — focused refactoring milestones are fast when scope is clear
+
+### What Was Inefficient
+- v1.4 was essentially a cleanup milestone that could have been folded into v1.3 Phase 27 — separate milestone added overhead (requirements, roadmap, audit) for 3 phases of work
+- ROADMAP.md still had unchecked plan checkbox for 29-01 despite completion — the recurring checkbox drift issue from v1.0/v1.3
+
+### Patterns Established
+- Unified binary dispatch: `len(os.Args)==1` or `HasPrefix("-")` → GUI; `--help/-h` → usage(); command → runCLI()
+- BASH_SOURCE[0] for portable shell script path resolution in test suites
+
+### Key Lessons
+1. Cleanup milestones with <5 phases may not need full milestone ceremony — the overhead-to-value ratio is high for small refactoring work
+2. ROADMAP.md plan checkbox drift is now confirmed across 4 milestones — this is a systemic process gap, not an oversight
+3. Race detector in CI catches real issues — worth the ~30% test runtime overhead
+
+### Cost Observations
+- Model mix: ~60% sonnet (execution), ~35% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~3 sessions in 1 day
+- Notable: Fastest milestone by wall clock — focused scope with no feature additions
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -202,6 +238,7 @@
 | v1.1 | ~50 | 7 | Source-inspection tests, JSX conditional pattern, layout-first ordering |
 | v1.2 | 64 | 5 | Safety dependency chain, deletion-focused milestone, function injection testing |
 | v1.3 | 101 | 8 | In-process-first daemon validation, audit-driven gap closure phases, property-based PTY testing |
+| v1.4 | ~20 | 3 | Unified binary dispatch, focused cleanup milestone, race detector in CI |
 
 ### Cumulative Quality
 
@@ -211,6 +248,7 @@
 | v1.1 | 55+ (race-clean) | 73 | ~9,956 | 9 (0 blockers) |
 | v1.2 | 55+ (race-clean) | 73+ | ~8,846 | 3 (0 blockers, info-only) |
 | v1.3 | 80+ (race-clean) | 73+ | ~12,619 | 4 (0 blockers, bookkeeping) |
+| v1.4 | 194 (race-clean) | 73+ | ~12,771 | 4 (0 blockers, deferred) |
 
 ### Top Lessons (Verified Across Milestones)
 
