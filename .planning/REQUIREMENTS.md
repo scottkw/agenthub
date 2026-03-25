@@ -22,8 +22,8 @@ Requirements for unified binary milestone. Each maps to roadmap phases.
 
 ### Cleanup
 
-- [ ] **CLEAN-01**: `cmd/agenthub-cli/` directory fully removed
-- [ ] **CLEAN-02**: No references to `agenthub-cli` remain in docs, CI, or build scripts
+- [x] **CLEAN-01**: `cmd/agenthub-cli/` directory fully removed
+- [x] **CLEAN-02**: No references to `agenthub-cli` remain in docs, CI, or build scripts
 
 ### Build System
 
@@ -57,8 +57,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLI-02 | Phase 27 | Complete |
 | CLI-03 | Phase 27 | Complete |
 | CLI-04 | Phase 27 | Complete |
-| CLEAN-01 | Phase 28 | Pending |
-| CLEAN-02 | Phase 28 | Pending |
+| CLEAN-01 | Phase 28 | Complete |
+| CLEAN-02 | Phase 28 | Complete |
 | BUILD-01 | Phase 29 | Pending |
 | BUILD-02 | Phase 29 | Pending |
 | BUILD-03 | Phase 29 | Pending |

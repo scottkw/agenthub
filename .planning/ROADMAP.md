@@ -63,7 +63,7 @@
 ### v1.4 Unified Binary (Phases 27-29)
 
 - [x] **Phase 27: Unified Entrypoint** - Single main.go dispatches GUI, CLI commands, and daemon mode (completed 2026-03-25)
-- [ ] **Phase 28: CLI Package Removal** - `cmd/agenthub-cli/` deleted, all references scrubbed
+- [x] **Phase 28: CLI Package Removal** - `cmd/agenthub-cli/` deleted, all references scrubbed (completed 2026-03-25)
 - [ ] **Phase 29: Build System & Verification** - build.sh, CI, and tests validated against unified binary
 
 ## Phase Details
@@ -90,9 +90,9 @@ Plans:
   1. The `cmd/agenthub-cli/` directory does not exist in the repository
   2. No file in the repo (docs, CI workflows, build scripts, Go source) references `agenthub-cli`
   3. `go build ./...` succeeds with no import errors after the deletion
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 28-01-PLAN.md — Delete cmd/agenthub-cli/ and scrub references
+- [x] 28-01-PLAN.md — Delete cmd/agenthub-cli/ and scrub references
 
 ### Phase 29: Build System & Verification
 **Goal**: The build pipeline produces and validates a single unified binary on all platforms
@@ -115,7 +115,7 @@ Plans:
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27. Unified Entrypoint | v1.4 | 1/1 | Complete    | 2026-03-25 |
-| 28. CLI Package Removal | v1.4 | 0/1 | Planning complete | - |
+| 28. CLI Package Removal | v1.4 | 1/1 | Complete   | 2026-03-25 |
 | 29. Build System & Verification | v1.4 | 0/? | Not started | - |
 
 ---

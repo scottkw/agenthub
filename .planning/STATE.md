@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Unified Binary
-status: Ready to plan
-stopped_at: Completed 27-unified-entrypoint-01-PLAN.md
-last_updated: "2026-03-25T18:13:53.938Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-25T18:55:11.037Z"
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 27 — unified-entrypoint
+**Current focus:** Phase 28 — cli-package-removal
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
+Phase: 28 (cli-package-removal) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Plan: Not started
 | Requirements | ~20 | 12 |
 | Binary targets | 2 (agenthub + agenthub-cli) | 1 (agenthub) |
 | Phase 27-unified-entrypoint P01 | 18 | 2 tasks | 11 files |
+| Phase 28 P01 | 2min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -46,6 +47,7 @@ Plan: Not started
 - [Phase 27-unified-entrypoint]: Dispatch rule: no args or flag (not --help/-h) routes to GUI; --help/-h routes to usage(); any word command routes to runCLI()
 - [Phase 27-unified-entrypoint]: daemon status fall-through: most daemon subcommands go directly to cmdDaemon; only status needs EnsureDaemon first
 - [Phase 27-unified-entrypoint]: cmd/agenthub-cli/ left untouched — deletion is Phase 28
+- [Phase 28]: Deleted cmd/agenthub-cli/ entirely — all CLI logic now lives in root package (main.go) per Phase 27 unification
 
 ### Pending Todos
 
@@ -57,7 +59,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T18:09:43.610Z
-Stopped at: Completed 27-unified-entrypoint-01-PLAN.md
+Last session: 2026-03-25T18:55:11.035Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 27`
