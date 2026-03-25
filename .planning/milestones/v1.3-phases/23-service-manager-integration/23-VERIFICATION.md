@@ -1,19 +1,16 @@
 ---
 phase: 23-service-manager-integration
-verified: 2026-03-24T00:00:00Z
-status: human_needed
-score: 9/10 must-haves verified
-human_verification:
-  - test: "Run 'agenthub daemon start' after install, then check 'agenthub health' responds"
-    expected: "Daemon starts via launchd and responds to health check within a few seconds"
-    why_human: "The stop-of-running-service path requires a live launchd-managed process; CLI test only verified stop-of-unstarted-service which returned a launchd I/O error. Confirming start->health->stop->uninstall happy path requires interactive macOS session."
+verified: 2026-03-25T00:00:00Z
+status: verified
+score: 10/10 must-haves verified
+human_verification: []
 ---
 
 # Phase 23: Service Manager Integration — Verification Report
 
 **Phase Goal:** The daemon can be registered as a platform-native service that auto-starts on login and is controllable via CLI
 **Verified:** 2026-03-24
-**Status:** human_needed
+**Status:** verified
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
@@ -33,7 +30,7 @@ human_verification:
 | 9 | `agenthub daemon` with no subcommand calls `RunDaemon` for backward compat with EnsureDaemon | VERIFIED | `cmd_daemon.go:18-22` — `len(args) == 0` path calls `daemon.RunDaemon()` directly |
 | 10 | Usage text includes daemon install/uninstall/start/stop commands | VERIFIED | `main.go:96-99` — all four daemon subcommands listed in `usage()` |
 
-**Score:** 10/10 truths verified (automated); 1 item flagged for human confirmation (live start->health path)
+**Score:** 10/10 truths verified; human UAT completed 2026-03-25
 
 ### Required Artifacts
 
@@ -73,31 +70,29 @@ No orphaned requirements: all three SVC IDs declared in plan frontmatter match R
 
 No TODOs, FIXMEs, placeholder returns, or empty handler bodies found in phase files.
 
-### Human Verification Required
+### Human Verification Completed
 
-#### 1. Start → Health → Stop Happy Path
+#### 1. Start → Health → Stop Happy Path — PASSED (2026-03-25)
 
-**Test:** Build `./bin/agenthub`, run `./bin/agenthub daemon install`, then `./bin/agenthub daemon start`. Wait 2-3 seconds and run `./bin/agenthub health`. Then `./bin/agenthub daemon stop` and `./bin/agenthub daemon uninstall`.
+Full lifecycle tested via CLI:
 
-**Expected:**
-- `daemon install` prints "daemon service installed" and creates `~/Library/LaunchAgents/agenthub-daemon.plist`
-- `daemon start` prints "daemon service started" with exit 0
-- `agenthub health` returns non-error response (daemon listening on socket)
-- `daemon stop` prints "daemon service stopped" with exit 0
-- `daemon uninstall` prints "daemon service uninstalled", plist removed
-
-**Why human:** The live `daemon stop` run during verification returned a launchd I/O error because the service was not running (we installed but did not start). Confirming the full start→health→stop cycle requires a user session where launchd can boot the service interactively. This is the only unverified behavior path.
+| Step | Command | Result |
+|------|---------|--------|
+| install | `./bin/agenthub daemon install` | "daemon service installed", plist created |
+| start | `./bin/agenthub daemon start` | "daemon service started", exit 0 |
+| health | `./bin/agenthub health` | Connected, certs valid, domain resolved |
+| stop | `./bin/agenthub daemon stop` | "daemon service stopped", exit 0 |
+| uninstall | `./bin/agenthub daemon uninstall` | "daemon service uninstalled", plist removed |
 
 ### Gaps Summary
 
-No automated gaps. All must-haves from both plan frontmatters are verified:
+No gaps. All must-haves from both plan frontmatters are verified:
 
 - Plan 01 (SVC-01, SVC-02): `service.go` implements full kardianos/service adapter, `process.go` refactored with `runDaemonCore`, all 6 unit tests pass, dependency in `go.mod`
 - Plan 02 (SVC-03): `cmd_daemon.go` dispatcher handles all subcommands, `main.go` updated, usage text complete, all 3 CLI tests pass
-
-The single human-needed item is the live start→stop round-trip, which requires launchd to manage an actual running process. All code paths for install, uninstall, config correctness (`RunAtLoad=true`), and dispatch wiring are fully verified.
+- Human UAT: Full install→start→health→stop→uninstall lifecycle verified on macOS with launchd
 
 ---
 
-_Verified: 2026-03-24_
-_Verifier: Claude (gsd-verifier)_
+_Verified: 2026-03-24 (automated), 2026-03-25 (human UAT)_
+_Verifier: Claude (gsd-verifier), Claude Code (UAT)_

@@ -142,6 +142,56 @@
 
 ---
 
+## Milestone: v1.3 — CLI + Daemon
+
+**Shipped:** 2026-03-25
+**Phases:** 8 | **Plans:** 15 | **Commits:** 101
+
+### What Was Built
+- Daemon architecture: SessionEngine extracted into `internal/daemon` with HTTP/JSON API over Unix socket
+- Process separation: sessions persist across GUI close/reopen; daemon auto-starts from CLI
+- Full CLI binary: 13 commands (new, list, kill, rename, attach, web start/stop/status, serve/unserve, health, qr, settings)
+- Interactive PTY attach: raw I/O, detach key, resize propagation, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore
+- Service manager integration via kardianos/service for launchd/systemd/Windows SCM
+- Windows named pipe fix and graceful GUI startup failure with error banner + retry
+
+### What Worked
+- In-process socket first (Phase 19), process separation second (Phase 20) — validated the entire API contract before adding fork complexity
+- Function injection patterns: `serviceControlFunc`, `statusFunc` enabled unit testing without mocks or interfaces throughout
+- Gap closure phases (25, 26) added after milestone audit caught real integration issues — audit-driven quality improvement
+- Attach correctness properties defined upfront (7 properties → 7 tests) made Phase 22 testing systematic
+- CLI command pattern (cmd functions return error, io.Writer injection) made all commands independently testable
+- 8 days for 8 phases — consistent velocity despite increasing complexity (daemon, process separation, PTY proxy)
+
+### What Was Inefficient
+- ROADMAP.md plan checkboxes drifted again (22-02, 23-02, 26-01 unchecked despite completion) — recurring issue from v1.0
+- Phase 22 attach tests (Plan 02) took 130 units — polling-based tests for live output required careful timing tuning
+- Phase 23 service manager (Plan 01) took 104 units — kardianos/service integration required understanding platform-specific lifecycle nuances
+- Nyquist validation still never completed for any phase — all VALIDATION.md files remain draft
+- Summary one_liner extraction inconsistent — some phases returned "One-liner:" prefix instead of content
+
+### Patterns Established
+- Daemon architecture: SessionEngine + HTTP API + DaemonClient — clean separation of session state from client access
+- EnsureDaemon pattern: auto-start daemon from any CLI command if socket not listening
+- MsgResize2 (0x11) for client-to-server resize frames — disambiguates from server MsgResize (0x02)
+- Detach prefix state machine for terminal escape sequences
+- Dual error notification: Wails event (real-time) + stored field (polling) for daemon errors
+- Nil-guard pattern for bound methods when daemon unavailable — return zero values matching existing error paths
+
+### Key Lessons
+1. In-process validation before process separation eliminates an entire class of debugging — protocol bugs surface immediately without fork/IPC complexity
+2. ROADMAP.md checkbox drift is a systemic issue (3 milestones running) — needs automation or should be removed as a manual tracking mechanism
+3. PTY proxy correctness requires property-based thinking — define the properties first, then test each one independently
+4. kardianos/service abstracts well but KeepAlive/UserService flags matter — wrong defaults cause unexpected restart behavior
+5. Gap closure phases after milestone audit are high-value — Phases 25 and 26 fixed real issues that would have shipped as bugs
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution), ~30% opus (planning/audit/review/completion), ~5% haiku (synthesis)
+- Sessions: ~10 sessions across 8 days
+- Notable: Phases 24-26 were fast (2-15 units per plan) — well-scoped, focused work. Phase 19 Plan 01 was the largest (25min) due to full daemon package creation
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -151,6 +201,7 @@
 | v1.0 | 107 | 6 | Initial process — inside-out architecture, gap closure plans |
 | v1.1 | ~50 | 7 | Source-inspection tests, JSX conditional pattern, layout-first ordering |
 | v1.2 | 64 | 5 | Safety dependency chain, deletion-focused milestone, function injection testing |
+| v1.3 | 101 | 8 | In-process-first daemon validation, audit-driven gap closure phases, property-based PTY testing |
 
 ### Cumulative Quality
 
@@ -159,11 +210,14 @@
 | v1.0 | 53+ (race-clean) | 0 | ~8,100 | 14 (0 blockers) |
 | v1.1 | 55+ (race-clean) | 73 | ~9,956 | 9 (0 blockers) |
 | v1.2 | 55+ (race-clean) | 73+ | ~8,846 | 3 (0 blockers, info-only) |
+| v1.3 | 80+ (race-clean) | 73+ | ~12,619 | 4 (0 blockers, bookkeeping) |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Interface-first design pays off — define contracts before implementations
-2. Gap closure plans catch integration issues that initial planning misses
-3. Phase ordering matters — foundation phases (layout, contracts) before feature phases prevents cascading issues
-4. Source-inspection tests are a viable pattern when runtime testing is impractical (Canvas/WebGL, Wails bindings)
+1. Interface-first design pays off — define contracts before implementations (v1.0, v1.3)
+2. Gap closure plans catch integration issues that initial planning misses (v1.0, v1.3)
+3. Phase ordering matters — foundation phases (layout, contracts) before feature phases prevents cascading issues (v1.1, v1.3)
+4. Source-inspection tests are a viable pattern when runtime testing is impractical (Canvas/WebGL, Wails bindings) (v1.1)
 5. Deletion milestones benefit from strict dependency ordering — confirm replacements work before removing originals (v1.2)
+6. In-process validation before process separation eliminates an entire class of debugging (v1.3)
+7. Milestone audits that drive gap closure phases are high-value — they catch real bugs before shipping (v1.3)

@@ -1,5 +1,32 @@
 # Milestones
 
+## v1.3 CLI + Daemon (Shipped: 2026-03-25)
+
+**Phases completed:** 8 phases, 15 plans, 23 tasks
+
+**Key accomplishments:**
+
+- Daemon architecture: SessionEngine extracted into `internal/daemon` with HTTP/JSON API over Unix socket, typed DaemonClient, 28 tests with -race
+- Process separation: Sessions survive GUI close/reopen; RunDaemon/EnsureDaemon lifecycle; App reduced to thin DaemonClient shell
+- Full CLI: 13 commands (new, list, kill, rename, attach, web start/stop/status, serve/unserve, health, qr, settings) with `--json` output
+- Interactive attach: Full PTY proxy with raw I/O, detach key (Ctrl-\), SIGWINCH resize, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore
+- Service manager: `agenthub daemon install/uninstall/start/stop` via kardianos/service for launchd/systemd/Windows SCM
+- Robustness: Windows named pipe dial fix + graceful GUI startup failure with error banner and retry
+
+**Stats:**
+
+- 101 commits, 38 files changed, +4,197/-295 lines, ~12,619 LOC (9,068 Go + 2,619 TS/TSX + 932 CSS)
+- Timeline: 8 days (2026-03-17 → 2026-03-25)
+
+**Tech debt (accepted):**
+
+- ROADMAP.md plan checkboxes unchecked for 22-02, 23-02, 26-01 (code implemented and working)
+- SUMMARY.md frontmatter missing requirements_completed field across all plan summaries
+- All 6 Nyquist VALIDATION.md files are draft status
+- Service manager live start/stop round-trip needs human verification on macOS
+
+---
+
 ## v1.2 Tailscale-Only Networking (Shipped: 2026-03-23)
 
 **Phases completed:** 5 phases, 10 plans

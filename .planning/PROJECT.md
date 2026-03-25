@@ -46,29 +46,19 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Generic VPN interface binding code removed (Tailscale-only) — v1.2
 - ✓ Dead code cleanup: network.go, GetNetworkInterfaces, and frontend binding stubs removed — v1.2
 - ✓ Tailscale status indicator in Settings panel — v1.2
-- ✓ SessionEngine extracted from App into `internal/daemon` package with HTTP/JSON protocol over Unix socket — v1.3 Phase 19
-- ✓ Standalone CLI binary (`agenthub-cli`) with session commands (new/list/kill/rename), web commands (start/stop/status/serve/unserve), health check, QR code display, and daemon auto-start — v1.3 Phase 21
-- ✓ Interactive terminal attach (`agenthub attach <id>`): full PTY proxy with raw I/O, detach key (Ctrl-\), resize propagation, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore — v1.3 Phase 22
-- ✓ Service manager integration: `agenthub daemon install/uninstall/start/stop` registers daemon with launchd (macOS), kardianos/service abstraction for cross-platform support — v1.3 Phase 23
-- ✓ Machine-readable CLI output: `--json` flag on list, web status, health, daemon status commands for scripting/CI — v1.3 Phase 24
-- ✓ Settings inspection: `agenthub settings` read-only command showing socket-path, relay-port, cli-paths — v1.3 Phase 24
-- ✓ Windows named pipe fix: CleanupStaleSocket detects `\\.\pipe\...` paths and uses winio.DialPipe instead of unix dial, preventing duplicate daemon spawns on Windows — v1.3 Phase 25
-- ✓ Graceful GUI startup failure: startup() returns error instead of panicking on EnsureDaemon failure, emits daemon:error Wails event, frontend subscribes and shows actual error in banner with RetryDaemon() retry button, nil-safety guards on all bound methods — v1.3 Phase 26
+- ✓ SessionEngine extracted from App into `internal/daemon` package with HTTP/JSON protocol over Unix socket — v1.3
+- ✓ Process separation: sessions persist across GUI close/reopen; RunDaemon/EnsureDaemon lifecycle; App reduced to thin DaemonClient shell — v1.3
+- ✓ Standalone CLI binary with 13 commands (new, list, kill, rename, attach, web start/stop/status, serve/unserve, health, qr, settings) and daemon auto-start — v1.3
+- ✓ Interactive terminal attach (`agenthub attach <id>`): full PTY proxy with raw I/O, detach key (Ctrl-\), resize propagation, Ctrl-C passthrough, scrollback replay, signal-safe terminal restore — v1.3
+- ✓ Service manager integration: `agenthub daemon install/uninstall/start/stop` via kardianos/service for launchd/systemd/Windows SCM — v1.3
+- ✓ Machine-readable CLI output: `--json` flag on list, web status, health, daemon status commands — v1.3
+- ✓ Settings inspection: `agenthub settings` read-only command — v1.3
+- ✓ Windows named pipe fix: CleanupStaleSocket uses winio.DialPipe for `\\.\pipe\...` paths — v1.3
+- ✓ Graceful GUI startup failure: error banner with retry instead of panic on daemon failure — v1.3
 
 ### Active
 
-**Current Milestone: v1.3 CLI + Daemon**
-
-**Goal:** Extract session management into a persistent background daemon with full CLI control; GUI and CLI are both clients that attach to the same session pool.
-
-**Target features:**
-- Background daemon managing all sessions, surviving client disconnects and reboots (launchd/systemd/Windows service)
-- Single binary, two modes: `agenthub` (GUI) / `agenthub <command>` (CLI)
-- Full CLI command set: new, list, attach, detach, kill, rename, web start/stop/status, serve/unserve, health, qr, settings
-- Interactive terminal attach: full PTY proxy with raw I/O, resize events, ctrl-c passthrough
-- Configurable detach prefix key
-- Shared sessions: GUI and CLI see the same session pool, attach/detach independently
-- Daemon auto-start on login via platform service managers
+*No active milestone — run `/gsd:new-milestone` to plan the next version.*
 
 ### Out of Scope
 
@@ -91,12 +81,13 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Context
 
-Shipped v1.2 with ~8,846 LOC (5,364 Go + 2,550 TS/TSX + 932 CSS). Net LOC decreased from v1.1 due to auth/VPN code removal.
-Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local.
-Frontend test suite: vitest tests (source-inspection pattern for xterm.js/Wails constraints).
-Go test suite: race-clean, webserver tests with function injection for Tailscale health checks.
+Shipped v1.3 with ~12,619 LOC (9,068 Go + 2,619 TS/TSX + 932 CSS).
+Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
+Architecture: Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows).
+CLI: Single binary, two modes — `agenthub` (GUI via Wails) / `agenthub <command>` (CLI).
+Go test suite: race-clean, 28+ daemon tests, 16 CLI tests, 7 attach tests, function injection patterns.
+Frontend test suite: vitest source-inspection tests.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
-Status heuristics implemented for Claude CLI; other CLIs always show "running" (deferred).
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization.
 
 ## Constraints
@@ -119,6 +110,13 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | go-pty (aymanbagabas) over creack/pty | Windows ConPTY support required from day one | ✓ Good — cross-platform PTY with single API |
 | Binary framing protocol for WS relay | Distinguishes output/resize/input frames; enables scrollback replay | ✓ Good — clean separation of message types |
 | Native macOS cgo NSStatusBar for tray | fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol) | ⚠️ Revisit — platform-specific code, Linux/Windows stubs needed |
+| In-process Unix socket before process separation | Phase 19 validates module boundary and protocol without fork complexity | ✓ Good — full test coverage of API contract; Phase 20 changed only socket path |
+| CreateSession calls engine directly (not client) | onStatus callback wraps runtime.EventsEmit — callbacks can't serialize over HTTP | ✓ Good — clean exception, documented in code |
+| Function injection for service control (`serviceControlFunc`) | Enables daemon-free unit testing without mocks or interfaces | ✓ Good — fast, deterministic tests |
+| kardianos/service for cross-platform service management | Abstracts launchd/systemd/Windows SCM behind single Go API | ✓ Good — single codebase, platform-specific behavior via library |
+| pollSessionStatus goroutine replaces onStatus callback | Callbacks can't serialize over HTTP in out-of-process daemon | ✓ Good — correct pattern for process separation |
+| flag.NewFlagSet per CLI command (not package globals) | Avoids state pollution between test runs | ✓ Good — clean test isolation |
+| Graceful startup with daemonErr + daemon:error event | Dual notification: event for real-time, field for polling | ✓ Good — no crash on daemon failure, retry works |
 | ResizeObserver + requestAnimationFrame for fit() | Handles all layout changes, not just window resize | ✓ Good — fixed terminal height issues |
 | ?raw source-inspection tests for xterm.js components | jsdom lacks Canvas/WebGL; runtime mocking xterm is fragile | ✓ Good — stable tests that verify code structure without DOM |
 | JSX conditionals over CSS display toggle | Consistent pattern across StatusBar, SettingsPanel tabs | ✓ Good — cleaner React patterns, easier to test |
@@ -135,4 +133,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-24 after Phase 25 (Windows Named Pipe Fix) complete*
+*Last updated: 2026-03-25 after v1.3 milestone*
