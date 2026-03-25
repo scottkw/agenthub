@@ -55,6 +55,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Settings inspection: `agenthub settings` read-only command — v1.3
 - ✓ Windows named pipe fix: CleanupStaleSocket uses winio.DialPipe for `\\.\pipe\...` paths — v1.3
 - ✓ Graceful GUI startup failure: error banner with retry instead of panic on daemon failure — v1.3
+- ✓ Unified entrypoint: root main.go dispatches GUI (no args), CLI (subcommand), and daemon modes — v1.4 Phase 27
 
 ### Active
 
@@ -93,7 +94,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 Shipped v1.3 with ~12,619 LOC (9,068 Go + 2,619 TS/TSX + 932 CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
 Architecture: Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows).
-CLI: Single binary, two modes — `agenthub` (GUI via Wails) / `agenthub <command>` (CLI).
+CLI: Single binary, unified dispatch — `agenthub` (GUI via Wails) / `agenthub <command>` (CLI) / `agenthub daemon` (service management). Root package contains all CLI functions as of Phase 27.
 Go test suite: race-clean, 28+ daemon tests, 16 CLI tests, 7 attach tests, function injection patterns.
 Frontend test suite: vitest source-inspection tests.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
@@ -142,4 +143,4 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-25 after v1.4 milestone started*
+*Last updated: 2026-03-25 after Phase 27 (Unified Entrypoint) completed*
