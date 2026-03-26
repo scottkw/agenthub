@@ -455,3 +455,77 @@ func TestCmdSettings_CLIPaths_Set(t *testing.T) {
 		t.Errorf("expected CLI path in output, got:\n%s", out)
 	}
 }
+
+// TestSplitDashDash verifies all boundary cases for the -- separator.
+func TestSplitDashDash(t *testing.T) {
+	cases := []struct {
+		name   string
+		input  []string
+		before []string
+		after  []string
+	}{
+		{"no separator", []string{"new", "cat", "/tmp"}, []string{"new", "cat", "/tmp"}, nil},
+		{"with args after", []string{"new", "cat", "/tmp", "--", "--model", "foo"}, []string{"new", "cat", "/tmp"}, []string{"--model", "foo"}},
+		{"trailing separator", []string{"new", "cat", "/tmp", "--"}, []string{"new", "cat", "/tmp"}, []string{}},
+		{"leading separator", []string{"--", "--model", "foo"}, []string{}, []string{"--model", "foo"}},
+		{"empty input", []string{}, []string{}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b, a := splitDashDash(tc.input)
+			if len(b) != len(tc.before) {
+				t.Fatalf("before: got %v, want %v", b, tc.before)
+			}
+			for i := range b {
+				if b[i] != tc.before[i] {
+					t.Fatalf("before[%d]: got %q, want %q", i, b[i], tc.before[i])
+				}
+			}
+			if tc.after == nil {
+				if a != nil {
+					t.Fatalf("after: got %v, want nil", a)
+				}
+			} else {
+				if a == nil {
+					t.Fatalf("after: got nil, want %v", tc.after)
+				}
+				if len(a) != len(tc.after) {
+					t.Fatalf("after: got %v, want %v", a, tc.after)
+				}
+				for i := range a {
+					if a[i] != tc.after[i] {
+						t.Fatalf("after[%d]: got %q, want %q", i, a[i], tc.after[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestCmdNew_WithExtraArgs verifies that args after "--" are forwarded via CreateSession.
+func TestCmdNew_WithExtraArgs(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNew(client, []string{"cat", "/tmp"}, []string{"--model", "opus"}, &buf)
+	if err != nil {
+		t.Fatalf("cmdNew with extraArgs: %v", err)
+	}
+	out := strings.TrimSpace(buf.String())
+	if len(out) != 32 {
+		t.Errorf("expected 32-char hex session ID, got %q", out)
+	}
+}
+
+// TestCmdNew_NoSeparator verifies that nil extraArgs still works (backward compat).
+func TestCmdNew_NoSeparator(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNew(client, []string{"cat", "/tmp"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNew without extraArgs: %v", err)
+	}
+	out := strings.TrimSpace(buf.String())
+	if len(out) != 32 {
+		t.Errorf("expected 32-char hex session ID, got %q", out)
+	}
+}
