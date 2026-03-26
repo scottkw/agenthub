@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Bug Fixes & CLI Args
 status: Ready to plan
-stopped_at: Completed 30-backend-args-wiring 30-01-PLAN.md
-last_updated: "2026-03-26T04:14:57.940Z"
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-03-26T04:33:48.360Z"
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 30 — backend-args-wiring
+**Current focus:** Phase 31 — cli-arg-passthrough
 
 ## Current Position
 
-Phase: 31
+Phase: 32
 Plan: Not started
 
 ## Accumulated Context
@@ -36,6 +36,7 @@ Plan: Not started
 - Slow startup root cause: `pollSessionStatus` in `app.go` sleeps 2s before first poll (not EnsureDaemon)
 - Args feature: `pty.CreateRequest.Args` already exists and is forwarded at PTY layer; gap is in the 5 layers above it
 - [Phase 30-backend-args-wiring]: args threaded between workDir and onStatus params; json:args,omitempty ensures backward-compatible wire format; all callers pass nil
+- [Phase 31-cli-arg-passthrough]: splitDashDash returns nil (not empty slice) when no -- present, matching Go idiom
 
 ### Pending Todos
 
@@ -49,7 +50,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T04:11:52.177Z
-Stopped at: Completed 30-backend-args-wiring 30-01-PLAN.md
+Last session: 2026-03-26T04:30:44.415Z
+Stopped at: Completed 31-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 30`
