@@ -144,7 +144,9 @@ Plans:
   2. Opening a Gemini CLI session shows a full-viewport terminal on first activation (no manual resize needed)
   3. PTY sessions spawn with dimensions matching the container size, not hardcoded 80x24
   4. Switching tabs to a previously hidden terminal does not produce a 1-column or zero-height render
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 34-01-PLAN.md — Double-rAF fit + cols/rows threading through full stack + tests
 **UI hint**: yes
 
 ## Progress
@@ -160,7 +162,7 @@ Plans:
 | 31. CLI Arg Passthrough | v1.5 | 0/1 | Complete    | 2026-03-26 |
 | 32. Daemon Startup Performance | v1.5 | 2/2 | Complete    | 2026-03-26 |
 | 33. GUI Args Field | v1.5 | 1/1 | Complete    | 2026-03-26 |
-| 34. Terminal Fill Fix | v1.5 | 0/? | Not started | - |
+| 34. Terminal Fill Fix | v1.5 | 0/1 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
