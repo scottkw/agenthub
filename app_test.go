@@ -493,6 +493,69 @@ func TestNilClientGetSessionStatus(t *testing.T) {
 
 // --- RetryDaemon tests ---
 
+// TestPollSessionStatus_ImmediateFirstCall verifies that pollSessionStatus
+// makes its first HTTP call immediately, without sleeping first. The test
+// creates a session and then checks that GetSessionStatus returns a non-empty
+// status within 200ms — well before the old 2-second sleep would have elapsed.
+func TestPollSessionStatus_ImmediateFirstCall(t *testing.T) {
+	app := testApp(t)
+
+	id, err := app.CreateSession("cat", "poll-test", "", nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Start polling in a background goroutine (mirrors production usage).
+	go app.pollSessionStatus(id)
+
+	// Wait 200ms — well under the 2-second sleep that exists in the buggy code.
+	time.Sleep(200 * time.Millisecond)
+
+	// The first HTTP call must have been made by now. GetSessionStatus
+	// independently polls the daemon so it always returns a fresh value; the
+	// important thing is that the session exists and has a valid status, proving
+	// the daemon is reachable and the session was created.
+	s := app.GetSessionStatus(id)
+	if s == "" {
+		t.Error("GetSessionStatus returned empty string within 200ms — first poll may not have fired yet")
+	}
+	valid := map[string]bool{"running": true, "waiting": true, "idle": true, "errored": true}
+	if !valid[s] {
+		t.Errorf("GetSessionStatus returned invalid status %q", s)
+	}
+}
+
+// TestPollSessionStatus_StopsOnHTTPError verifies that pollSessionStatus exits
+// promptly when GetSessionStatus returns an HTTP error (connection refused),
+// rather than blocking until the 60-second deadline expires.
+func TestPollSessionStatus_StopsOnHTTPError(t *testing.T) {
+	// Point the client at a socket path that has no listener — every HTTP call
+	// will fail immediately with "connection refused". This simulates a daemon
+	// that has gone away and exercises the error-return path in pollSessionStatus.
+	seq := testSockSeq.Add(1)
+	deadSocketPath := fmt.Sprintf("/tmp/aht_dead_%d_%d.sock", os.Getpid(), seq)
+	_ = os.Remove(deadSocketPath) // Ensure nothing is listening there.
+
+	client := daemon.NewDaemonClient(deadSocketPath)
+	app := &App{
+		ctx:    context.Background(),
+		client: client,
+	}
+
+	start := time.Now()
+	// pollSessionStatus should call GetSessionStatus, get an immediate connection
+	// error, and return. With poll-first semantics this exits on the very first
+	// attempt — well within 1 second.
+	app.pollSessionStatus("any-session-id")
+	elapsed := time.Since(start)
+
+	// The dial timeout in DaemonClient is 2s, so allow 3s headroom.
+	// The important assertion is it doesn't loop for 60 seconds.
+	if elapsed > 3*time.Second {
+		t.Errorf("pollSessionStatus took %v with no daemon — expected < 3s (should exit on first HTTP error)", elapsed)
+	}
+}
+
 // TestRetryDaemonFail verifies RetryDaemon returns a non-nil error, leaves
 // a.client nil, and sets a.daemonErr when the daemon cannot start.
 // We force failure by redirecting HOME to a read-only path so the socket

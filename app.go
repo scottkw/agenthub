@@ -141,7 +141,6 @@ func (a *App) pollSessionStatus(sessionID string) {
 	var last string
 	deadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(deadline) {
-		time.Sleep(2 * time.Second)
 		s, err := a.client.GetSessionStatus(sessionID)
 		if err != nil {
 			return
@@ -158,6 +157,7 @@ func (a *App) pollSessionStatus(sessionID string) {
 				return
 			}
 		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
