@@ -91,7 +91,9 @@
   2. A session created via the daemon API with args receives those args at the PTY process invocation
   3. All existing callers (GUI, CLI) that pass no args continue to work without change
   4. Go tests cover the full IPC chain with a non-empty args slice
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 30-01-PLAN.md — Thread args through all 5 daemon layers + integration tests
 
 ### Phase 31: CLI Arg Passthrough
 **Goal**: Users can pass extra flags to agents from the CLI using the `--` separator
@@ -148,7 +150,7 @@
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
-| 30. Backend Args Wiring | v1.5 | 0/? | Not started | - |
+| 30. Backend Args Wiring | v1.5 | 0/1 | Not started | - |
 | 31. CLI Arg Passthrough | v1.5 | 0/? | Not started | - |
 | 32. Daemon Startup Performance | v1.5 | 0/? | Not started | - |
 | 33. GUI Args Field | v1.5 | 0/? | Not started | - |
