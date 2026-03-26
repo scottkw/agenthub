@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Bug Fixes & CLI Args
-status: Ready to plan
-stopped_at: Completed 33-01-PLAN.md
-last_updated: "2026-03-26T06:11:36.688Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 34-01-PLAN.md (phase 34-terminal-fill-fix)
+last_updated: "2026-03-26T07:16:46.766Z"
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 5
+  total_plans: 6
   completed_plans: 5
 ---
 
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 33 — gui-args-field
+**Current focus:** Phase 34 — terminal-fill-fix
 
 ## Current Position
 
-Phase: 34
-Plan: Not started
+Phase: 34 (terminal-fill-fix) — EXECUTING
+Plan: 1 of 1
 
 ## Accumulated Context
 
@@ -41,6 +41,8 @@ Plan: Not started
 - [Phase 32-daemon-startup-performance]: pollSessionStatus poll-first: GetSessionStatus fires immediately, then sleep 500ms between polls (was sleep 2s before first call)
 - [Phase 33-gui-args-field]: Args parsed with argsText.trim().split(/\s+/).filter(Boolean) so empty input yields [] not ['']
 - [Phase 33-gui-args-field]: Per-agent localStorage key pattern agenthub:args:{cliName} consistent with agenthub:lastWorkDir
+- [Phase 34-terminal-fill-fix]: Double-rAF replaces document.fonts.ready as primary fit trigger in TerminalPanel isActive effect
+- [Phase 34-terminal-fill-fix]: cols/rows threaded from frontend container measurement through entire Go backend stack to pty.CreateRequest
 
 ### Pending Todos
 
@@ -54,7 +56,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T06:07:49.170Z
-Stopped at: Completed 33-01-PLAN.md
+Last session: 2026-03-26T07:16:46.763Z
+Stopped at: Completed 34-01-PLAN.md (phase 34-terminal-fill-fix)
 Resume file: None
 Next action: `/gsd:plan-phase 30`

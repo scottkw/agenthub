@@ -9,10 +9,10 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 
 ### Terminal Fix
 
-- [ ] **TERM-01**: Terminal fills correctly on initial load for Claude CLI sessions (no resize needed)
-- [ ] **TERM-02**: Terminal fills correctly on initial load for Gemini CLI sessions (no resize needed)
-- [ ] **TERM-03**: PTY sessions spawn at appropriate initial dimensions instead of hardcoded 80x24
-- [ ] **TERM-04**: Double-rAF deferral on `fit()` ensures layout is committed before terminal sizing
+- [x] **TERM-01**: Terminal fills correctly on initial load for Claude CLI sessions (no resize needed)
+- [x] **TERM-02**: Terminal fills correctly on initial load for Gemini CLI sessions (no resize needed)
+- [x] **TERM-03**: PTY sessions spawn at appropriate initial dimensions instead of hardcoded 80x24
+- [x] **TERM-04**: Double-rAF deferral on `fit()` ensures layout is committed before terminal sizing
 
 ### Daemon Performance
 
@@ -49,10 +49,10 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | Phase 34 | Pending |
-| TERM-02 | Phase 34 | Pending |
-| TERM-03 | Phase 34 | Pending |
-| TERM-04 | Phase 34 | Pending |
+| TERM-01 | Phase 34 | Complete |
+| TERM-02 | Phase 34 | Complete |
+| TERM-03 | Phase 34 | Complete |
+| TERM-04 | Phase 34 | Complete |
 | PERF-01 | Phase 32 | Complete |
 | PERF-02 | Phase 32 | Complete |
 | PERF-03 | Phase 32 | Complete |
