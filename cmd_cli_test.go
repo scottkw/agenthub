@@ -36,7 +36,7 @@ func testSetup(t *testing.T) *daemon.DaemonClient {
 func TestCmdNew_Success(t *testing.T) {
 	client := testSetup(t)
 	var buf bytes.Buffer
-	err := cmdNew(client, []string{"cat", "/tmp"}, &buf)
+	err := cmdNew(client, []string{"cat", "/tmp"}, nil, &buf)
 	if err != nil {
 		t.Fatalf("cmdNew returned error: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestCmdNew_Success(t *testing.T) {
 // TestCmdNew_MissingArgs verifies that missing args returns an error with "usage".
 func TestCmdNew_MissingArgs(t *testing.T) {
 	client := testSetup(t)
-	err := cmdNew(client, []string{}, &bytes.Buffer{})
+	err := cmdNew(client, []string{}, nil, &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected error for missing args, got nil")
 	}

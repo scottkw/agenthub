@@ -23,7 +23,7 @@ func usage() {
 Run with no arguments to launch the desktop GUI.
 
 Commands:
-  new <name> [--dir <path>] [--cli <name>]   Create a new terminal session
+  new <agent> <path> [-- <extra-args>...]     Create a new terminal session
   list [--json]                               List all active sessions
   kill <id>                                   Kill a session
   rename <id> <name>                          Rename a session
@@ -47,13 +47,14 @@ Run 'agenthub <command> --help' for command-specific flags.
 }
 
 // cmdNew creates a new session. On success it writes the session UUID to out.
-func cmdNew(client *daemon.DaemonClient, args []string, out io.Writer) error {
+// extraArgs are forwarded to the agent process (tokens after "--" on the command line).
+func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out io.Writer) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: agenthub new <agent> <path>")
 	}
 	agent, workDir := args[0], args[1]
 	name := filepath.Base(workDir)
-	id, err := client.CreateSession(agent, name, workDir, nil)
+	id, err := client.CreateSession(agent, name, workDir, extraArgs)
 	if err != nil {
 		return fmt.Errorf("agenthub new: %w", err)
 	}
