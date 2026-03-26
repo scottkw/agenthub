@@ -61,14 +61,24 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Backend args wiring: all 5 daemon IPC layers (types, engine, API, client, Wails binding) accept and forward `args []string` to PTY — v1.5 Phase 30
 - ✓ CLI arg passthrough: `splitDashDash` helper + `cmdNew` updated to forward extra args via `--` separator to `CreateSession` — v1.5 Phase 31
 - ✓ Daemon startup performance: immediate session status polling (500ms vs 2s) and PATH augmentation for service-mode agents (nvm, Volta, Homebrew) — v1.5 Phase 32
-- ✓ Terminal fill fix: double-rAF fit timing + cols/rows threading from frontend to PTY spawn — terminals fill viewport on first load — v1.5 Phase 34
+- ⚠️ Terminal fill fix: double-rAF fit timing + cols/rows threading — insufficient, 3/4 CLIs still don't fill on initial load — v1.5 Phase 34 (reopened in v1.6)
 - ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
 - ✓ GUI args field: text field in new-session modal with per-agent localStorage persistence and clear button — v1.5 Phase 33
 - ✓ Per-agent argument memory: last-used args pre-filled per agent, clearable — v1.5 Phase 33
 
 ### Active
 
-(None — planning next milestone)
+- [ ] Terminal fills correctly on initial load for all 4 CLIs (Claude, Codex, Gemini, OpenCode) without resize
+- [ ] Fix must work in both `wails dev` and production builds
+
+## Current Milestone: v1.6 Terminal Fill Fix v2
+
+**Goal:** Make terminals fill the viewport on initial load for all CLIs without requiring a window resize.
+
+**Target features:**
+- Terminal fills correctly on first tab activation for Claude, Gemini, OpenCode, and Codex
+- No regression on tab-switch fill behavior
+- Fix must work in both `wails dev` and production builds
 
 ### Out of Scope
 
@@ -166,4 +176,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after v1.5 milestone*
+*Last updated: 2026-03-26 after v1.6 milestone started*
