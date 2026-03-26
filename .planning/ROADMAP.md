@@ -76,7 +76,7 @@
 
 - [x] **Phase 30: Backend Args Wiring** - Thread args through all Go daemon layers (types → engine → API → client) (completed 2026-03-26)
 - [x] **Phase 31: CLI Arg Passthrough** - Parse `--` separator in `cmdNew` and pass trailing tokens to session creation (completed 2026-03-26)
-- [ ] **Phase 32: Daemon Startup Performance** - Fix status polling latency and service-mode PATH resolution
+- [x] **Phase 32: Daemon Startup Performance** - Fix status polling latency and service-mode PATH resolution (completed 2026-03-26)
 - [ ] **Phase 33: GUI Args Field** - Add args text field to new-session modal with per-agent memory and Wails binding update
 - [ ] **Phase 34: Terminal Fill Fix** - Fix terminal viewport sizing on initial load for all CLIs
 
@@ -118,7 +118,7 @@ Plans:
   3. Agents installed via nvm, volta, or Homebrew are found when the daemon runs as a launchd/systemd service
 **Plans**: 2 plans
 Plans:
-- [ ] 32-01-PLAN.md — Fix pollSessionStatus timing (poll-first, 500ms interval)
+- [x] 32-01-PLAN.md — Fix pollSessionStatus timing (poll-first, 500ms interval)
 - [x] 32-02-PLAN.md — Add PATH augmentation for service-mode daemon
 
 ### Phase 33: GUI Args Field
@@ -157,7 +157,7 @@ Plans:
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30. Backend Args Wiring | v1.5 | 1/1 | Complete    | 2026-03-26 |
 | 31. CLI Arg Passthrough | v1.5 | 0/1 | Complete    | 2026-03-26 |
-| 32. Daemon Startup Performance | v1.5 | 1/2 | In Progress|  |
+| 32. Daemon Startup Performance | v1.5 | 2/2 | Complete   | 2026-03-26 |
 | 33. GUI Args Field | v1.5 | 0/? | Not started | - |
 | 34. Terminal Fill Fix | v1.5 | 0/? | Not started | - |
 

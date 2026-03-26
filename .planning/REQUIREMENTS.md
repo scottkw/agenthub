@@ -16,8 +16,8 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 
 ### Daemon Performance
 
-- [ ] **PERF-01**: Session status appears immediately after session creation (no artificial delay)
-- [ ] **PERF-02**: `pollSessionStatus` first poll runs without 2-second sleep
+- [x] **PERF-01**: Session status appears immediately after session creation (no artificial delay)
+- [x] **PERF-02**: `pollSessionStatus` first poll runs without 2-second sleep
 - [x] **PERF-03**: Service-mode daemon resolves agent CLIs in user PATH (nvm, volta, Homebrew paths)
 
 ### CLI Arguments
@@ -53,8 +53,8 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 | TERM-02 | Phase 34 | Pending |
 | TERM-03 | Phase 34 | Pending |
 | TERM-04 | Phase 34 | Pending |
-| PERF-01 | Phase 32 | Pending |
-| PERF-02 | Phase 32 | Pending |
+| PERF-01 | Phase 32 | Complete |
+| PERF-02 | Phase 32 | Complete |
 | PERF-03 | Phase 32 | Complete |
 | ARGS-01 | Phase 31 | Complete |
 | ARGS-02 | Phase 33 | Pending |

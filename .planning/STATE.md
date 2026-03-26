@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Bug Fixes & CLI Args
-status: Ready to execute
-stopped_at: Completed 32-daemon-startup-performance-02-PLAN.md
-last_updated: "2026-03-26T05:33:22.277Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 32-01-PLAN.md
+last_updated: "2026-03-26T05:34:55.361Z"
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -38,6 +38,7 @@ Plan: 2 of 2
 - [Phase 30-backend-args-wiring]: args threaded between workDir and onStatus params; json:args,omitempty ensures backward-compatible wire format; all callers pass nil
 - [Phase 31-cli-arg-passthrough]: splitDashDash returns nil (not empty slice) when no -- present, matching Go idiom
 - [Phase 32-daemon-startup-performance]: Runtime PATH augmentation at daemon startup: prepend nvm/volta/Homebrew dirs to process PATH before exec.LookPath, so service-mode agents resolve correctly
+- [Phase 32-daemon-startup-performance]: pollSessionStatus poll-first: GetSessionStatus fires immediately, then sleep 500ms between polls (was sleep 2s before first call)
 
 ### Pending Todos
 
@@ -51,7 +52,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T05:33:22.274Z
-Stopped at: Completed 32-daemon-startup-performance-02-PLAN.md
+Last session: 2026-03-26T05:34:55.358Z
+Stopped at: Completed 32-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 30`
