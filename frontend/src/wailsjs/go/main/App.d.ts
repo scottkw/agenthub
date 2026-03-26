@@ -14,7 +14,7 @@ export interface DetectedCLI {
   Path: string
 }
 
-export function CreateSession(cli: string, name: string, workDir: string, args: string[]): Promise<string>
+export function CreateSession(cli: string, name: string, workDir: string, args: string[], cols: number, rows: number): Promise<string>
 export function ListSessions(): Promise<SessionInfo[]>
 export function RenameSession(id: string, name: string): Promise<void>
 export function KillSession(id: string): Promise<void>

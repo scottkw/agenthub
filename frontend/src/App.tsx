@@ -144,8 +144,19 @@ function App(): React.ReactElement {
   const createTab = useCallback(async (cliName: string, workDir: string, args: string[]) => {
     const defaultName = `${cliName} ${tabCounter}`
     setTabCounter((n) => n + 1)
+
+    // Estimate initial PTY dimensions from the terminal container.
+    // These are approximations — the double-rAF fit sends exact resize after mount.
+    const container = document.querySelector('.terminal-container') as HTMLElement | null
+    let cols = 220, rows = 50  // Reasonable fallback for large screens
+    if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+      const statusBarHeight = 32  // .tab-status-bar fixed height
+      cols = Math.max(80, Math.floor(container.clientWidth / 8))
+      rows = Math.max(24, Math.floor((container.clientHeight - statusBarHeight) / 17))
+    }
+
     try {
-      const sessionId = await CreateSession(cliName, defaultName, workDir, args)
+      const sessionId = await CreateSession(cliName, defaultName, workDir, args, cols, rows)
       const tab: Tab = {
         id: sessionId,
         name: defaultName,

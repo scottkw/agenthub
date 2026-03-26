@@ -180,6 +180,6 @@ describe('ARGS-02: args threading', () => {
     expect(raw).toContain('createTab(cli, workDir, args)')
   })
   it('createTab passes args to CreateSession', () => {
-    expect(raw).toContain('CreateSession(cliName, defaultName, workDir, args)')
+    expect(raw).toContain('CreateSession(cliName, defaultName, workDir, args, cols, rows)')
   })
 })

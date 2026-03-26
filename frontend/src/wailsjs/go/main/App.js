@@ -4,7 +4,7 @@
 
 import { Call } from '../../runtime/runtime.js'
 
-export const CreateSession  = (cli, name, workDir, args) => Call('main.App.CreateSession', [cli, name, workDir, args])
+export const CreateSession  = (cli, name, workDir, args, cols, rows) => Call('main.App.CreateSession', [cli, name, workDir, args, cols, rows])
 export const ListSessions   = ()             => Call('main.App.ListSessions', [])
 export const RenameSession  = (id, name)     => Call('main.App.RenameSession', [id, name])
 export const KillSession    = (id)           => Call('main.App.KillSession', [id])

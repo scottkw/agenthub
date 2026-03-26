@@ -81,3 +81,37 @@ describe('font size control', () => {
     expect(raw).toContain('[fontSize]')
   })
 })
+
+describe('TERM-04 double-rAF initial fit', () => {
+  it('isActive effect uses double-rAF (two nested requestAnimationFrame calls)', () => {
+    const matches = raw.match(/requestAnimationFrame/g) || []
+    expect(matches.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('does not use document.fonts.ready as the primary initial fit trigger', () => {
+    const isActiveStart = raw.indexOf('[isActive]')
+    expect(isActiveStart).toBeGreaterThan(-1)
+    const effectBlock = raw.slice(Math.max(0, isActiveStart - 800), isActiveStart)
+    expect(effectBlock).toContain('requestAnimationFrame')
+  })
+
+  it('cleanup cancels both rAF IDs', () => {
+    const matches = raw.match(/cancelAnimationFrame/g) || []
+    expect(matches.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('tracks rafId2 for inner rAF cancellation', () => {
+    expect(raw).toContain('rafId2')
+  })
+})
+
+describe('TERM-01/02 initial fit not synchronous', () => {
+  it('does not call fit() synchronously in isActive effect', () => {
+    const isActiveStart = raw.indexOf("if (!isActive")
+    const roStart = raw.indexOf("new ResizeObserver", isActiveStart)
+    if (isActiveStart > -1 && roStart > -1) {
+      const betweenBlock = raw.slice(isActiveStart, roStart)
+      expect(betweenBlock).toContain('requestAnimationFrame')
+    }
+  })
+})

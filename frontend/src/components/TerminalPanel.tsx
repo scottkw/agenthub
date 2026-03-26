@@ -104,25 +104,31 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     if (!isActive || !containerRef.current) return
 
     const container = containerRef.current
-
     const fit = () => fitAddonRef.current?.fit()
 
-    // FitAddon measures character cell size using the active font. If the font
-    // hasn't resolved yet (system font enumeration, @font-face load), the
-    // measurement uses a fallback and calculates wrong cols/rows.
-    // document.fonts.ready resolves when all font faces in the document are loaded.
+    // Double-rAF: ensures CSS layout is committed for the newly-visible
+    // container before FitAddon measures it. Single rAF is insufficient
+    // in Wails production build (WebView needs an extra frame).
     let cancelled = false
-    document.fonts.ready.then(() => {
-      if (!cancelled) fit()
+    let rafId2: number | undefined
+    const rafId1 = requestAnimationFrame(() => {
+      rafId2 = requestAnimationFrame(() => {
+        if (!cancelled) {
+          document.fonts.ready.then(() => {
+            if (!cancelled) fit()
+          })
+        }
+      })
     })
 
-    // ResizeObserver fires on initial observation AND on dimension changes
-    // (window resize, display:none → flex transitions, sidebar toggle, etc.).
+    // ResizeObserver handles all subsequent size changes (window resize, etc.)
     const ro = new ResizeObserver(fit)
     ro.observe(container)
 
     return () => {
       cancelled = true
+      cancelAnimationFrame(rafId1)
+      if (rafId2 !== undefined) cancelAnimationFrame(rafId2)
       ro.disconnect()
     }
   }, [isActive])
