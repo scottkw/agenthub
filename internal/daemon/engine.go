@@ -41,12 +41,14 @@ func NewSessionEngine() *SessionEngine {
 }
 
 // CreateSession spawns a new CLI session and returns its ID.
+// args are passed to the CLI process; pass nil if no extra arguments are needed.
 // onStatus is called on each status transition; pass nil if not needed.
-func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, onStatus func(string, status.SessionStatus)) (string, error) {
+func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, onStatus func(string, status.SessionStatus)) (string, error) {
 	cliPath := e.ResolveCLI(cli)
 
 	sess, err := e.backend.Create(ctx, pty.CreateRequest{
 		CLI:     cliPath,
+		Args:    args,
 		Cols:    80,
 		Rows:    24,
 		WorkDir: workDir,

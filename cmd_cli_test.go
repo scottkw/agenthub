@@ -83,7 +83,7 @@ func TestCmdList_Empty(t *testing.T) {
 func TestCmdList_WithSessions(t *testing.T) {
 	client := testSetup(t)
 	// Create a session via the client directly.
-	id, err := client.CreateSession("cat", "mytest", "/tmp")
+	id, err := client.CreateSession("cat", "mytest", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestCmdList_JSON_Empty(t *testing.T) {
 // TestCmdList_JSON_WithSessions verifies that --json with sessions produces valid JSON.
 func TestCmdList_JSON_WithSessions(t *testing.T) {
 	client := testSetup(t)
-	id, err := client.CreateSession("cat", "jsontest", "/tmp")
+	id, err := client.CreateSession("cat", "jsontest", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestCmdList_JSON_WithSessions(t *testing.T) {
 // TestCmdKill_Success creates a session, kills it, and verifies it is removed.
 func TestCmdKill_Success(t *testing.T) {
 	client := testSetup(t)
-	id, err := client.CreateSession("cat", "killtest", "/tmp")
+	id, err := client.CreateSession("cat", "killtest", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestCmdKill_Success(t *testing.T) {
 // TestCmdRename_Success creates a session, renames it, and verifies the new name.
 func TestCmdRename_Success(t *testing.T) {
 	client := testSetup(t)
-	id, err := client.CreateSession("cat", "oldname", "/tmp")
+	id, err := client.CreateSession("cat", "oldname", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestCmdWebStop(t *testing.T) {
 // TestCmdServe_Success creates a session and enables web serving for it.
 func TestCmdServe_Success(t *testing.T) {
 	client := testSetupWithWebServer(t)
-	id, err := client.CreateSession("cat", "servetest", "/tmp")
+	id, err := client.CreateSession("cat", "servetest", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -302,7 +302,7 @@ func TestCmdServe_MissingArgs(t *testing.T) {
 // TestCmdUnserve_Success creates a session and disables web serving for it.
 func TestCmdUnserve_Success(t *testing.T) {
 	client := testSetupWithWebServer(t)
-	id, err := client.CreateSession("cat", "unservetest", "/tmp")
+	id, err := client.CreateSession("cat", "unservetest", "/tmp", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}

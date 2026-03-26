@@ -117,13 +117,14 @@ func (a *App) beforeClose(ctx context.Context) bool {
 // --- Wails-bound methods ---
 
 // CreateSession spawns a new CLI session and returns its ID.
+// args are passed to the CLI process; pass nil if no extra arguments are needed.
 // Creates the session through the daemon client, then polls for status updates
 // and emits Wails events (replaces the onStatus callback used in earlier phases).
-func (a *App) CreateSession(cli, name, workDir string) (string, error) {
+func (a *App) CreateSession(cli, name, workDir string, args []string) (string, error) {
 	if a.client == nil {
 		return "", fmt.Errorf("daemon not connected")
 	}
-	id, err := a.client.CreateSession(cli, name, workDir)
+	id, err := a.client.CreateSession(cli, name, workDir, args)
 	if err != nil {
 		return "", err
 	}

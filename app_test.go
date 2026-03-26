@@ -141,7 +141,7 @@ func TestListSessionsEmpty(t *testing.T) {
 
 func TestCreateSession(t *testing.T) {
 	app := testApp(t)
-	id, err := app.CreateSession("cat", "test-tab", "")
+	id, err := app.CreateSession("cat", "test-tab", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestCreateSession(t *testing.T) {
 
 func TestRenameSession(t *testing.T) {
 	app := testApp(t)
-	id, err := app.CreateSession("cat", "original", "")
+	id, err := app.CreateSession("cat", "original", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -183,7 +183,7 @@ func TestRenameSession(t *testing.T) {
 
 func TestKillSession(t *testing.T) {
 	app := testApp(t)
-	id, err := app.CreateSession("cat", "kill-me", "")
+	id, err := app.CreateSession("cat", "kill-me", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestUpdateCLIPath(t *testing.T) {
 	}
 
 	// Now create a session with "claude" — it should resolve to /bin/cat.
-	id, err := app.CreateSession("claude", "custom-path-tab", "")
+	id, err := app.CreateSession("claude", "custom-path-tab", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession with custom path: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestHealthPollerStops(t *testing.T) {
 func TestGetSessionStatus(t *testing.T) {
 	app := testApp(t)
 
-	id, err := app.CreateSession("cat", "status-test-tab", "")
+	id, err := app.CreateSession("cat", "status-test-tab", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -406,11 +406,11 @@ func TestGetSessionStatus(t *testing.T) {
 func TestStatusMap(t *testing.T) {
 	app := testApp(t)
 
-	id1, err := app.CreateSession("cat", "tab-1", "")
+	id1, err := app.CreateSession("cat", "tab-1", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-1: %v", err)
 	}
-	id2, err := app.CreateSession("cat", "tab-2", "")
+	id2, err := app.CreateSession("cat", "tab-2", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-2: %v", err)
 	}
@@ -465,7 +465,7 @@ func TestNilClientGetRelayPort(t *testing.T) {
 // when the daemon client is nil.
 func TestNilClientCreateSession(t *testing.T) {
 	app := testAppNoDaemon(t)
-	_, err := app.CreateSession("cat", "tab", "")
+	_, err := app.CreateSession("cat", "tab", "", nil)
 	if err == nil {
 		t.Error("expected CreateSession to return error with nil client")
 	}

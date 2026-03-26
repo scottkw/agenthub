@@ -33,7 +33,7 @@ func TestNewSessionEngine(t *testing.T) {
 
 func TestEngineCreateSession(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil)
+	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -46,11 +46,11 @@ func TestEngineCreateSession(t *testing.T) {
 func TestEngineListSessions(t *testing.T) {
 	e := NewSessionEngine()
 
-	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil)
+	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-1: %v", err)
 	}
-	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil)
+	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-2: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestEngineListSessions(t *testing.T) {
 func TestEngineKillSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil)
+	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestEngineKillSession(t *testing.T) {
 func TestEngineRenameSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil)
+	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestEngineGetSessionStatus(t *testing.T) {
 		t.Errorf("unknown session status: got %q, want %q", s, "running")
 	}
 
-	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil)
+	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}

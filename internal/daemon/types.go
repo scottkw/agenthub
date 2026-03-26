@@ -11,9 +11,10 @@ type SessionInfo struct {
 
 // CreateRequest is the request body for POST /sessions.
 type CreateRequest struct {
-	CLI     string `json:"cli"`
-	Name    string `json:"name"`
-	WorkDir string `json:"workDir"`
+	CLI     string   `json:"cli"`
+	Name    string   `json:"name"`
+	WorkDir string   `json:"workDir"`
+	Args    []string `json:"args,omitempty"`
 }
 
 // CreateResponse is the response body for POST /sessions.

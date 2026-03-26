@@ -28,7 +28,7 @@ func TestClientListSessions(t *testing.T) {
 
 func TestClientCreateSession(t *testing.T) {
 	_, client, _ := testDaemon(t)
-	id, err := client.CreateSession("cat", "test-tab", "")
+	id, err := client.CreateSession("cat", "test-tab", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestClientCreateSession(t *testing.T) {
 
 func TestClientKillSession(t *testing.T) {
 	_, client, _ := testDaemon(t)
-	id, err := client.CreateSession("cat", "kill-me", "")
+	id, err := client.CreateSession("cat", "kill-me", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestClientKillSession(t *testing.T) {
 
 func TestClientRenameSession(t *testing.T) {
 	_, client, _ := testDaemon(t)
-	id, err := client.CreateSession("cat", "original", "")
+	id, err := client.CreateSession("cat", "original", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestClientRenameSession(t *testing.T) {
 
 func TestClientGetSessionStatus(t *testing.T) {
 	_, client, _ := testDaemon(t)
-	id, err := client.CreateSession("cat", "status-tab", "")
+	id, err := client.CreateSession("cat", "status-tab", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestClientFullLifecycle(t *testing.T) {
 	_, client, _ := testDaemon(t)
 
 	// Create.
-	id, err := client.CreateSession("cat", "tab-one", "")
+	id, err := client.CreateSession("cat", "tab-one", "", nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
