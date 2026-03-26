@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.5 Bug Fixes & CLI Args (Shipped: 2026-03-26)
+
+**Phases completed:** 5 phases, 6 plans, 8 tasks
+
+**Key accomplishments:**
+
+- Args wiring: `args []string` threaded through all 5 daemon IPC layers with integration tests proving args survive the full HTTP round-trip from JSON to PTY
+- CLI passthrough: `agenthub new <agent> <path> -- <extra-args>` via `splitDashDash` helper
+- Eliminated 2-second session status startup delay by restructuring pollSessionStatus to poll immediately then sleep 500ms between iterations
+- TDD implementation of runtime PATH augmentation at daemon startup so service-mode agents (nvm, Volta, Homebrew) resolve via exec.LookPath without shell init files
+- Thread cols/rows from React frontend through Wails/Go stack to PTY spawn with double-rAF initial fit timing
+
+---
+
 ## v1.4 Unified Binary (Shipped: 2026-03-25)
 
 **Phases completed:** 3 phases, 3 plans, 6 tasks

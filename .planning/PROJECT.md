@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker and folder browser, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support.
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI).
 
 ## Core Value
 
@@ -34,7 +34,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Larger toolbar buttons (38x38px, comfortable to click) — v1.1
 - ✓ New-session modal with agent picker, native folder browser, and last-folder memory — v1.1
 - ✓ Per-tab SHIFT+/SHIFT- font size adjustment — v1.1
-- ⚠️ Terminal fill: CSS flex chain fixed, fills after resize — initial-paint timing gap remains (tabled) — v1.1
+- ✓ Terminal fill: CSS flex chain fixed, fills after resize — v1.1 (initial-paint timing gap fully resolved in v1.5 Phase 34)
 - ✓ Tailscale health checks (installed, connected, certs enabled) with background polling — v1.2
 - ✓ Health modal with platform-specific instructions (macOS/Linux/Windows) and Check Again auto-dismiss — v1.2
 - ✓ Let's Encrypt TLS via Tailscale daemon (`GetCertificate` hook, FQDN-based URLs) — v1.2
@@ -61,23 +61,14 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Backend args wiring: all 5 daemon IPC layers (types, engine, API, client, Wails binding) accept and forward `args []string` to PTY — v1.5 Phase 30
 - ✓ CLI arg passthrough: `splitDashDash` helper + `cmdNew` updated to forward extra args via `--` separator to `CreateSession` — v1.5 Phase 31
 - ✓ Daemon startup performance: immediate session status polling (500ms vs 2s) and PATH augmentation for service-mode agents (nvm, Volta, Homebrew) — v1.5 Phase 32
+- ✓ Terminal fill fix: double-rAF fit timing + cols/rows threading from frontend to PTY spawn — terminals fill viewport on first load — v1.5 Phase 34
+- ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
+- ✓ GUI args field: text field in new-session modal with per-agent localStorage persistence and clear button — v1.5 Phase 33
+- ✓ Per-agent argument memory: last-used args pre-filled per agent, clearable — v1.5 Phase 33
 
 ### Active
 
-- [ ] Fix terminal not filling screen on initial load for Claude and Gemini CLIs
-- ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
-- [ ] Pass CLI arguments to agents via text field in GUI new-session modal
-- [ ] Per-agent argument memory: pre-fill last-used args with easy clear
-
-## Current Milestone: v1.5 Bug Fixes & CLI Args
-
-**Goal:** Fix terminal rendering and daemon performance regressions, and add the ability to pass custom arguments to agents.
-
-**Target features:**
-- Fix terminal not filling screen on initial load for Claude and Gemini CLIs
-- Fix slow agent startup introduced by daemon mode (affects all agents)
-- Pass CLI arguments to agents: `--` passthrough in CLI, text field in GUI new-session modal
-- Per-agent argument memory with pre-fill and easy clear
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -100,11 +91,11 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Context
 
-Shipped v1.4 with ~12,771 LOC (9,220 Go + 2,619 TS/TSX + 932 CSS).
+Shipped v1.5 with ~13,400 LOC (9,870 Go + 2,600 TS/TSX + 930 CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
-Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4).
-Go test suite: 194 tests race-clean across 6 packages (28+ daemon, 16 CLI, 7 attach, 5 dispatch).
-Frontend test suite: vitest source-inspection tests.
+Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation.
+Go test suite: 200+ tests race-clean across 6 packages.
+Frontend test suite: vitest source-inspection tests covering args field, terminal panel, and modal components.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
 
@@ -149,6 +140,12 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | CT disclosure via sentinel file | One-time acknowledgment persisted as `ct_disclosed` file | ✓ Good — simple, no database needed |
 | Tailscale health gates web server startup | Server refuses to start without healthy Tailscale state | ✓ Good — clear error path, no partial failures |
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
+| `args []string` threaded between workDir and onStatus params | Clean positional parameter ordering; `json:"args,omitempty"` for backward compat | ✓ Good — no wire format regression for nil callers |
+| `splitDashDash` returns nil (not empty slice) when no `--` | Go idiom: nil means "not provided", empty means "provided but empty" | ✓ Good — clean distinction, no injection risk |
+| Poll-first, sleep-after for `pollSessionStatus` | Eliminates artificial 2s blank period; 500ms interval is responsive without overhead | ✓ Good — immediate status feedback |
+| Runtime PATH augmentation at daemon startup | Service-mode daemon can't source shell init files; prepend known install paths | ✓ Good — nvm/Volta/Homebrew agents found without config |
+| Double-rAF for initial terminal fit | Wails WebView needs two animation frames for CSS layout commit before FitAddon measurement | ✓ Good — fixes initial-paint gap across all CLIs |
+| Frontend cols/rows estimation at session creation | `Math.floor(clientWidth/charWidth)` estimates dimensions before xterm renders | ✓ Good — PTY spawns at correct size, no 80x24 default |
 
 ---
 ## Evolution
@@ -169,4 +166,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after Phase 34 (terminal-fill-fix) completed — v1.5 milestone complete*
+*Last updated: 2026-03-26 after v1.5 milestone*

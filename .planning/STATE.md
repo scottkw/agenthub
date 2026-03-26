@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Bug Fixes & CLI Args
-status: Milestone complete
-stopped_at: Completed 34-01-PLAN.md (phase 34-terminal-fill-fix)
-last_updated: "2026-03-26T07:26:05.335Z"
+status: Milestone shipped
+stopped_at: v1.5 milestone archived
+last_updated: "2026-03-26T13:45:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 5
@@ -16,33 +16,21 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-25)
+See: .planning/PROJECT.md (updated 2026-03-26)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 34 — terminal-fill-fix
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 34
-Plan: Not started
+Phase: All v1.5 phases complete
+Plan: N/A — milestone shipped
 
 ## Accumulated Context
 
 ### Decisions
 
-- v1.4 unified binary: single `agenthub` binary dispatches GUI/CLI/daemon
-- Daemon architecture: SessionEngine in `internal/daemon`, HTTP/JSON over Unix socket
-- Terminal fill bug is agent-specific (Claude/Gemini), works after resize — root cause is FitAddon called before CSS layout commits
-- Slow startup root cause: `pollSessionStatus` in `app.go` sleeps 2s before first poll (not EnsureDaemon)
-- Args feature: `pty.CreateRequest.Args` already exists and is forwarded at PTY layer; gap is in the 5 layers above it
-- [Phase 30-backend-args-wiring]: args threaded between workDir and onStatus params; json:args,omitempty ensures backward-compatible wire format; all callers pass nil
-- [Phase 31-cli-arg-passthrough]: splitDashDash returns nil (not empty slice) when no -- present, matching Go idiom
-- [Phase 32-daemon-startup-performance]: Runtime PATH augmentation at daemon startup: prepend nvm/volta/Homebrew dirs to process PATH before exec.LookPath, so service-mode agents resolve correctly
-- [Phase 32-daemon-startup-performance]: pollSessionStatus poll-first: GetSessionStatus fires immediately, then sleep 500ms between polls (was sleep 2s before first call)
-- [Phase 33-gui-args-field]: Args parsed with argsText.trim().split(/\s+/).filter(Boolean) so empty input yields [] not ['']
-- [Phase 33-gui-args-field]: Per-agent localStorage key pattern agenthub:args:{cliName} consistent with agenthub:lastWorkDir
-- [Phase 34-terminal-fill-fix]: Double-rAF replaces document.fonts.ready as primary fit trigger in TerminalPanel isActive effect
-- [Phase 34-terminal-fill-fix]: cols/rows threaded from frontend container measurement through entire Go backend stack to pty.CreateRequest
+(Cleared at milestone boundary — see PROJECT.md Key Decisions for full history)
 
 ### Pending Todos
 
@@ -50,13 +38,12 @@ None.
 
 ### Blockers/Concerns
 
-- PERF-03 (service-mode PATH): Gemini CLI has known 8-60s MCP initialization regression (CLI-side, not daemon-side). Profile with time.Now() deltas to distinguish.
-- Phase 34: double-rAF vs. single-rAF for initial fit — test both in production binary (wails build), behavior differs from wails dev.
-- Phase 33: confirm whether `wails dev` auto-regenerates TypeScript bindings on Go method signature change or requires explicit `wails generate`.
+- Gemini CLI has known 8-60s MCP initialization regression (CLI-side, not daemon-side)
+- Double-rAF vs single-rAF for initial fit — verify in production Wails build
 
 ## Session Continuity
 
-Last session: 2026-03-26T07:16:46.763Z
-Stopped at: Completed 34-01-PLAN.md (phase 34-terminal-fill-fix)
+Last session: 2026-03-26
+Stopped at: v1.5 milestone archived
 Resume file: None
-Next action: `/gsd:plan-phase 30`
+Next action: `/gsd:new-milestone`
