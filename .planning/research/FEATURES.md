@@ -301,7 +301,176 @@ and Docker daemon users consider non-negotiable in any session manager.
 
 ---
 
-## Sources
+## v1.5 Milestone: Bug Fixes and CLI Args
+
+### Scope
+
+This section covers only what is NEW in v1.5. Existing app ships all v1.4 features. Two items
+are bug fixes (regressions): terminal not filling on initial load, and slow agent startup
+introduced by daemon mode. Three items are new features: CLI arg passthrough via `--`, GUI
+args text field in the new-session modal, and per-agent argument memory. Research basis:
+direct codebase analysis of the full call chain, xterm.js FitAddon behavior with hidden panels,
+PTY size initialization patterns from VTE/libvte and VS Code terminal, and established CLI
+convention for `--` argument separator.
+
+---
+
+### Table Stakes (Users Expect These for v1.5)
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Terminal fills available space on first open | Every terminal app (VS Code, iTerm2, Warp) sizes to container on launch; a 80x24 terminal inside a full-screen window looks broken | MEDIUM | Root cause identified: `fit()` is deferred until the panel becomes active (`isActive` effect), but the relay has already sent PTY size 80x24 to the agent at session creation time. Claude Code and Gemini CLI render their TUI layout on first output at 80 columns and never reflow correctly after resize. Current code already handles `document.fonts.ready` + `ResizeObserver` — the gap is the PTY-side initial size. Fix: spawn with a wider default (e.g., 220x50) rather than 80x24. The relay resize frame sent after `fit()` runs will then only be a minor adjustment rather than a dramatic layout change. |
+| Agent startup is fast | Users expect a session to be live within 1-2s of hitting Create; any visible spinner longer than that creates doubt | MEDIUM | Daemon persistence is working (EnsureDaemon is already a no-op when running). The regression is per-session creation latency. Likely cause: `exec.LookPath` is called at exec time inside go-pty for the default case (non-overridden CLI names are passed as-is, so the OS PATH scan happens on every `cmd.Start()`). Pre-resolving and caching CLI paths at daemon startup eliminates repeated filesystem scans. Secondary suspect: socket round-trip + HTTP overhead for the POST /sessions request. Profile before assuming. |
+| CLI arg passthrough (`agenthub new <agent> <path> -- <args>`) | Standard POSIX/GNU convention used by dotnet run, docker run, npm run. Claude Code accepts `--model`, `--permission-mode`; Gemini CLI accepts `--model`, `--yolo`; OpenCode accepts prompts as positional args. Power users and script authors need this. | LOW | Plumbing already exists: `pty.CreateRequest.Args []string` is defined but unused. The entire call chain (cmdNew → DaemonClient.CreateSession → POST /sessions → engine.CreateSession → backend.Create) only needs `Args []string` added to `daemon.CreateRequest` (additive JSON change — backwards-compatible). `cmdNew` currently uses positional args without a FlagSet; refactor to `flag.NewFlagSet` which naturally terminates at `--`, making `fs.Args()` the passthrough args. |
+| Args field in GUI new-session modal | GUI users expect the same capability as CLI users. VS Code launch profiles, iTerm2 profiles, and Warp workflows all support per-launch arguments. | LOW-MEDIUM | `NewSessionModal` currently calls `onConfirm(cli, workDir)` — extend to `onConfirm(cli, workDir, args string)`. Single-line text input. Passed to `App.CreateSession` which passes it to `DaemonClient.CreateSession`. Args string is space-split into `[]string` before sending to daemon; quoted strings are not supported in v1.5 (see anti-features). |
+| Per-agent argument memory with pre-fill and clear | The last-folder memory in v1.1 established this UX pattern. Users running `claude --model claude-opus-4-5` repeatedly expect the field to pre-fill. | LOW | localStorage keyed by CLI name: `agenthub:lastArgs:<cli>`. Pre-fill the args field when an agent is selected in the modal. Clear button adjacent to the field. No backend involvement — purely frontend. Matches the `LAST_DIR_KEY` localStorage pattern already in `NewSessionModal.tsx`. |
+
+### Differentiators (Competitive Advantage)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Correct initial PTY columns (no narrow-layout flash) | Claude Code and Gemini CLI render TUI layouts on first output. Competitors (ccmanager, others) have the same 80-column default bug and have not fixed it. An app that opens correctly on first paint is noticeably better. | MEDIUM | Spawn with cols=220, rows=50 as the default. 220 is wide enough that no common AI CLI TUI layout will wrap. The relay will adjust to actual dimensions within one `fit()` cycle (typically <100ms after the panel renders). This is a one-line change in `engine.CreateSession` but requires coordinated testing across Claude Code and Gemini CLI to confirm the layout improvement. |
+| Per-agent arg memory (CLI-specific) | Other terminal apps have profile-level defaults; storing args per-CLI-type is a lightweight version that requires zero configuration UI. | LOW | Key by CLI name in localStorage. The per-agent scope means `claude` and `gemini` args are remembered independently, which is the right behavior since they have different flag vocabularies. |
+
+### Anti-Features (Commonly Requested, Often Problematic)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Shell-interpolated args in GUI | "Pass args as a shell string, let the shell expand it" | Cross-platform: Windows has no POSIX shell. Shell injection risk. The PTY is already a shell; double-interpolation confuses users. Paths with spaces break unless quoted correctly. | Accept a raw args string, split on whitespace, pass `[]string` to exec directly. In v1.5 this is sufficient for all documented AI CLI flags. Quoted-string support can be added in v1.6 if users need it. |
+| Persistent args stored in daemon or settings file | "Remember my args forever, survive reinstall" | Daemon settings are currently in-memory only. Adding disk persistence introduces schema migrations, config file location decisions, and upgrade complexity. | Use Wails WebView localStorage, which persists across app launches within the same machine, same user. No daemon changes. Same pattern as `lastWorkDir`. |
+| Per-session arg editing after spawn | "Let me change the model flag on a running session" | PTY processes don't support re-exec with new args. This would require kill + recreate, destroying scrollback and session state. | Args are creation-time only. New args require a new session (open another tab). |
+| Complex shell quoting in args field | "Support `--prompt 'multi word message'` in the GUI" | Requires a full POSIX tokenizer (shlex). Adds implementation complexity and testing surface. Not needed for the v1.5 use cases (model flags, boolean flags). | Defer quoted-string support to v1.6. In v1.5, document that the args field is whitespace-split. |
+| Automatic daemon warm-up / pre-spawning | "Pre-start sessions before I ask for them" | Daemon already persists across GUI close/reopen. The startup latency is per-session exec time, not daemon startup. Pre-spawning wastes resources for sessions the user may not open. | Fix the exec.LookPath caching to reduce per-session creation latency directly. |
+
+---
+
+### Feature Dependencies (v1.5)
+
+```
+[CLI arg passthrough: agenthub new -- <args>]
+    requires --> [Args []string field in daemon.CreateRequest]
+    requires --> [Args []string in DaemonClient.CreateSession]
+    requires --> [Args []string in engine.CreateSession]
+    requires --> [Args []string in pty.CreateRequest -- already exists, currently unused]
+    requires --> [cmdNew refactored to use flag.NewFlagSet with -- termination]
+
+[GUI args field in NewSessionModal]
+    requires --> [Args []string field in daemon.CreateRequest -- same as above]
+    requires --> [App.CreateSession(cli, name, workDir, args string)]
+    enhances --> [Per-agent argument memory]
+
+[Per-agent argument memory]
+    requires --> [GUI args field -- no point pre-filling if there is no field]
+    enhances --> [GUI args field -- pre-fills on agent selection]
+    independent-of --> [CLI arg passthrough -- CLI users set args inline]
+
+[Terminal initial-fit fix]
+    requires --> [Wider default PTY size in engine.CreateSession (220x50 instead of 80x24)]
+    independent-of --> [CLI arg passthrough and per-agent memory]
+    note --> [Frontend fit() timing already correct; the regression is the PTY spawn size]
+
+[Slow agent startup fix]
+    requires --> [Profiling to confirm root cause before changing code]
+    independent-of --> [All other v1.5 features -- different code path entirely]
+    likely-fix --> [Cache exec.LookPath result for each CLI at daemon startup]
+```
+
+### Dependency Notes
+
+- **Args passthrough requires one protocol change:** `daemon.CreateRequest` needs `Args []string`. This is an additive JSON field (missing = nil = no extra args). No version negotiation needed. All three layers (CLI, App.go Wails binding, daemon API handler) need to thread the field through.
+- **GUI args and per-agent memory should be one phase:** They are tightly coupled (pre-fill only makes sense with the field present) and collectively amount to ~40 lines of frontend code.
+- **Terminal fit fix is independent and should be first:** It is the most visible regression and the fix is a one-line change in Go plus validation. Ship it first. The xterm.js `isActive` + `ResizeObserver` + `document.fonts.ready` chain is already correct; only the PTY spawn size needs changing.
+- **Startup regression requires profiling before fixing:** The cause is inferred (exec.LookPath repeated on each spawn) but not yet measured. A phase that adds timing instrumentation and confirms the root cause before implementing the fix reduces the risk of fixing the wrong thing.
+
+---
+
+### MVP Definition (v1.5)
+
+All five items are the milestone. There is no sub-MVP — two are regressions reported by users
+and three are directly related new features.
+
+#### Launch With
+
+- [ ] **Terminal fill fix** — visible regression; makes product look broken on first open for Claude and Gemini CLIs
+- [ ] **Slow agent startup fix** — regression from daemon separation; affects every agent on every session create
+- [ ] **CLI arg passthrough** — `agenthub new <agent> <path> -- <extra-args>`; core new feature for scripting users
+- [ ] **GUI args text field** — parity with CLI; required so GUI users have the same capability
+- [ ] **Per-agent argument memory** — polish add-on; bundle with GUI args field (same phase, low cost)
+
+#### Defer
+
+- Shell-aware (shlex-style) quoted-string tokenization for the GUI args field — simple space-split is sufficient for v1.5 use cases
+- Args stored in a daemon-side persistent settings file — localStorage is sufficient
+- Per-session argument editing after spawn — requires kill+recreate, different feature
+
+---
+
+### Feature Prioritization Matrix (v1.5)
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Terminal fill fix (wider PTY spawn size) | HIGH — visible regression | LOW — one-line change + validation | P1 |
+| Slow agent startup fix | HIGH — regression affects all agents | MEDIUM — profile first, then fix | P1 |
+| CLI arg passthrough (`--`) | HIGH — scripting use case | LOW — plumbing exists | P1 |
+| GUI args text field | HIGH — parity with CLI | LOW — modal extension | P1 |
+| Per-agent arg memory | MEDIUM — convenience | LOW — localStorage only | P1 (bundle with GUI args) |
+
+---
+
+### How Comparable Tools Handle These Problems
+
+#### Terminal Initial Sizing
+
+| Tool | Approach | Result |
+|------|----------|--------|
+| VS Code integrated terminal | Queries layout dimensions synchronously before PTY spawn; sends SIGWINCH after attach if size changed | No 80-column flash in normal case; known issue only when panel is hidden at spawn (GitHub #98399) |
+| iTerm2 | Sets PTY window size (TIOCSWINSZ via `ptySetSize`) before spawning child process | Correct from first byte; this is the VTE canonical pattern |
+| Warp | WebView-based; waits for layout render, then spawns PTY with measured cols/rows | No flash; tradeoff is spawn latency after first paint |
+| ccmanager (direct competitor) | Same 80x24 default bug; relies on SIGWINCH from subsequent resize | Users report wrapped layouts on first open; unfixed as of 2025 |
+| AgentHub v1.4 | Spawns 80x24; ResizeObserver triggers fit() + relay resize after isActive | Regression: agent paints initial TUI at 80 cols; subsequent resize does not cause layout reflow in Claude Code or Gemini CLI |
+
+The VTE/libvte canonical pattern is to set PTY size _before_ spawning the child process so it reads correct dimensions on startup. In AgentHub's architecture, the frontend does not know its pixel dimensions at session-creation time (the session is created before the terminal panel renders). The practical fix is to spawn with a generous default (220x50) so that no AI CLI TUI layout wraps at spawn time. The relay resize that arrives after `fit()` becomes a minor adjustment rather than a full layout reflow.
+
+#### Daemon Startup Latency
+
+| Tool | Per-Session Approach |
+|------|---------------------|
+| VS Code | Extension host pre-warms; terminal process created before user opens panel |
+| iTerm2 | Pre-forks shell processes into a pool |
+| AgentHub v1.4 | Daemon persists; per-session latency is exec time + socket round-trip |
+
+The latency in AgentHub is not daemon startup (already solved by persistence) — it is per-session exec time. The inferred bottleneck is `exec.LookPath` being called at spawn time inside go-pty for each new session (Go issue #36768 confirms this is a known pattern). Pre-resolving CLI paths at daemon startup and caching them eliminates repeated filesystem scans.
+
+#### CLI Arg Passthrough Convention
+
+| Tool | Convention | Example |
+|------|------------|---------|
+| dotnet run | `--` separator | `dotnet run -- --myapp-flag value` |
+| docker run | Args after image name | `docker run image cmd --flag` |
+| npm run | `--` separator | `npm run start -- --port 3001` |
+| concurrently | `-P` / `--passthrough-arguments` + `--` | `concurrently -P -- npm start -- --flag` |
+| agenthub new (v1.5) | `--` separator | `agenthub new claude /path -- --model claude-opus-4-5` |
+
+The `--` convention is the POSIX/GNU standard. Go's `flag.NewFlagSet` with `ContinueOnError` stops parsing at `--` and makes remaining args available via `fs.Args()`. `cmdNew` currently uses raw positional args without a FlagSet; refactoring it to use `flag.NewFlagSet` (consistent with `cmdList`, `cmdWebStatus`, etc.) makes `--` termination free.
+
+---
+
+### Sources
+
+- AgentHub codebase (direct read): `/Users/ken/dev/agenthub/` — HIGH confidence (primary source)
+- xterm.js FitAddon with `display:none`: [GitHub xtermjs/xterm.js #3029](https://github.com/xtermjs/xterm.js/issues/3029) — MEDIUM confidence
+- VS Code terminal 80-column wrap bug: [GitHub microsoft/vscode #98399](https://github.com/microsoft/vscode/issues/98399) — MEDIUM confidence
+- VTE `set_size` before spawn canonical pattern: web search result from VTE/libvte documentation — MEDIUM confidence
+- Go `exec.LookPath` caching: [golang/go #36768](https://github.com/golang/go/issues/36768) — MEDIUM confidence
+- CLI `--` passthrough convention: [GNU Coding Standards](https://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html) — HIGH confidence
+- dotnet run `--` convention: [Microsoft Learn CLI design guidance](https://learn.microsoft.com/en-us/dotnet/standard/commandline/design-guidance) — HIGH confidence
+- concurrently passthrough: [concurrently docs](https://github.com/open-cli-tools/concurrently/blob/main/docs/cli/passthrough-arguments.md) — HIGH confidence
+- Claude Code CLI flags: [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference) — HIGH confidence
+- OpenCode CLI: [opencode.ai/docs/cli](https://opencode.ai/docs/cli/) — MEDIUM confidence
+
+---
+
+## Sources (All Milestones)
 
 - tmux man page and wiki: https://github.com/tmux/tmux/wiki/Getting-Started
 - shpool architecture: https://deepwiki.com/shell-pool/shpool
@@ -313,5 +482,6 @@ and Docker daemon users consider non-negotiable in any session manager.
 - Existing codebase: `/Users/ken/dev/agenthub/internal/relay/` (scrollback.go already implemented)
 
 ---
-*Feature research for: AgentHub v1.3 CLI + Daemon*
-*Researched: 2026-03-23*
+
+*Feature research for: AgentHub v1.3 CLI + Daemon, v1.5 Bug Fixes and CLI Args*
+*Researched: 2026-03-25*

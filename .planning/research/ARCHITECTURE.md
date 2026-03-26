@@ -1,534 +1,457 @@
 # Architecture Research
 
-**Domain:** CLI + Daemon extraction from Go/Wails desktop app
-**Researched:** 2026-03-23
-**Confidence:** HIGH (direct codebase inspection + official Go/kardianos/service docs)
+**Domain:** Desktop app — bug fixes and CLI argument passthrough for AgentHub v1.5
+**Researched:** 2026-03-25
+**Confidence:** HIGH (direct codebase inspection of all affected files)
+
+> This document supersedes the v1.3 architecture research. The daemon-centric
+> architecture described there is now fully implemented in v1.4. This document
+> focuses on the v1.5 integration points only.
 
 ---
 
-## Context: Current State (v1.2)
-
-Everything lives in a single Wails process. The `App` struct owns all state and is the only client of the session engine:
+## Current Architecture (v1.4 baseline)
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                   agenthub binary (Wails)                     │
-│                                                               │
-│  App struct (app.go)                                          │
-│  ├── SessionRegistry   (pty/registry.go)                      │
-│  ├── NativePTYBackend  (pty/native.go)                        │
-│  ├── HubManager        (relay/manager.go)                     │
-│  ├── relay.Server      (relay/server.go)  127.0.0.1:random    │
-│  ├── WebServer         (webserver/server.go)  Tailscale IP    │
-│  └── Wails runtime → React frontend (embedded assets)        │
-└──────────────────────────────────────────────────────────────┘
-```
+┌──────────────────────────────────────────────────────────────────┐
+│                      GUI Process (Wails)                          │
+│  ┌────────────────────┐        ┌──────────────────────────────┐  │
+│  │   React Frontend   │        │         app.go (App)         │  │
+│  │  NewSessionModal   │←Wails→│  CreateSession(cli,name,dir) │  │
+│  │  TerminalPanel     │ binds  │  (delegates to DaemonClient) │  │
+│  │  (xterm.js + Fit)  │       └──────────────┬───────────────┘  │
+│  └────────────────────┘                       │ HTTP/Unix socket  │
+└───────────────────────────────────────────────┼──────────────────┘
+                                                │
+┌───────────────────────────────────────────────┼──────────────────┐
+│                  Daemon Process               │                   │
+│  ┌────────────────────────────────────────────▼───────────────┐  │
+│  │                  daemon.API (HTTP mux)                      │  │
+│  │  POST /sessions ───────────────────────────────────────┐   │  │
+│  └───────────────────────────────────────────────────────-┼───┘  │
+│  ┌──────────────────────────────────────────────────────────▼──┐  │
+│  │                   daemon.SessionEngine                       │  │
+│  │  CreateSession(ctx, cli, name, workDir, onStatus)           │  │
+│  │    → backend.Create(pty.CreateRequest{CLI, Args, WorkDir})  │  │
+│  └──────────────────────────────────────────┬────────────────--┘  │
+│  ┌───────────────────────────────────────────▼──────────────────┐  │
+│  │               pty.NativePTYBackend                           │  │
+│  │  Create(req) → gopty.New() → cmd.Start(req.CLI, req.Args…)  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────┘
 
-Session I/O path today:
+CLI (same binary, different argv):
+  agenthub new <agent> <path>
+    → DaemonClient.CreateSession(cli, name, workDir)
+    → POST /sessions  {cli, name, workDir}
 ```
-React (xterm.js) → WebSocket → relay.Server (127.0.0.1) → Hub → PTY
-```
-
-**Key constraint:** The relay.Server and WebServer both live inside the Wails process. The Wails process dies when the window is closed (even with hide-on-close, it still exits on Quit). Sessions cannot outlive the GUI.
 
 ---
 
-## Target Architecture (v1.3)
+## Component Responsibilities
 
-### System Overview
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| `main.go` dispatch | Routes argv: no args → GUI, subcommand → CLI, `daemon` → service | `main.go` |
+| `App` (Wails) | Thin binding shell; delegates all session ops to DaemonClient | `app.go` |
+| `NewSessionModal` | Session creation UI: CLI picker, folder browser | `frontend/src/components/NewSessionModal.tsx` |
+| `TerminalPanel` | xterm.js lifecycle; FitAddon timing | `frontend/src/components/TerminalPanel.tsx` |
+| `cmdNew` | CLI handler for `agenthub new` | `cmd_cli.go` |
+| `DaemonClient` | Typed HTTP client over Unix socket | `internal/daemon/client.go` |
+| `daemon.API` | HTTP mux over Unix socket; deserializes requests | `internal/daemon/api.go` |
+| `daemon.SessionEngine` | Owns all session state; calls backend.Create | `internal/daemon/engine.go` |
+| `daemon.CreateRequest` | Wire type for POST /sessions | `internal/daemon/types.go` |
+| `pty.CreateRequest` | Internal PTY spawn request (has `Args []string` already) | `internal/pty/backend.go` |
+| `pty.NativePTYBackend` | Spawns process via go-pty using `req.CLI` and `req.Args` | `internal/pty/native.go` |
+| `EnsureDaemon` | Spawns daemon subprocess + polls health; startup path | `internal/daemon/process.go` |
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  agenthub-daemon  (background process, survives GUI close)       │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │  SessionEngine                                             │  │
-│  │  ├── SessionRegistry   (existing, unchanged)              │  │
-│  │  ├── NativePTYBackend  (existing, unchanged)              │  │
-│  │  ├── HubManager        (existing, unchanged)              │  │
-│  │  └── StatusRegistry    (new: maps sessionID→SessionStatus)│  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌────────────────────────┐  ┌───────────────────────────────┐   │
-│  │  DaemonAPI             │  │  WebServer (Tailscale TLS)    │   │
-│  │  HTTP/JSON on          │  │  (existing, moved into daemon)│   │
-│  │  Unix socket           │  │                               │   │
-│  │  (macOS/Linux)         │  │  GET /dashboard               │   │
-│  │  Named pipe            │  │  GET /sessions/{id}/ws        │   │
-│  │  (Windows)             │  │  GET /api/sessions            │   │
-│  └──────────┬─────────────┘  └───────────────────────────────┘   │
-└─────────────┼───────────────────────────────────────────────────┘
-              │ IPC (HTTP/JSON)
-    ┌─────────┴──────────┐
-    │                    │
-    ▼                    ▼
-┌──────────┐      ┌─────────────────────────────────────────────┐
-│  CLI     │      │  Wails GUI (agenthub, no --cli flag)        │
-│  client  │      │                                             │
-│          │      │  App struct (app.go) — becomes thin client  │
-│  new,    │      │  ├── DaemonClient  (new: IPC call wrapper)  │
-│  list,   │      │  ├── Wails runtime → React frontend         │
-│  attach, │      │  └── relay.Server 127.0.0.1 (REMOVED)      │
-│  kill,   │      │                                             │
-│  rename, │      │  React still uses its own relay port BUT    │
-│  web,    │      │  relay.Server moves into the daemon         │
-│  health, │      │  GUI connects via DaemonClient, not direct  │
-│  qr      │      └─────────────────────────────────────────────┘
-└──────────┘
-```
+---
 
-### Single Binary, Two Modes
+## Feature 1: CLI Argument Passthrough
+
+### Integration Points
+
+The PTY layer already supports args. `pty.CreateRequest.Args []string` exists (backend.go:13) and `NativePTYBackend.Create` already passes `req.Args` to the spawned process (native.go:41 — `p.CommandContext(childCtx, req.CLI, req.Args...)`). Zero changes needed below `SessionEngine`.
+
+The gap is in the layers above: the wire type, engine signature, client, and UI all lack the `args` field.
+
+### Call Chain: Current vs Target
 
 ```
-agenthub                    → launches Wails GUI (existing behavior)
-agenthub daemon             → starts background daemon (new)
-agenthub daemon install     → installs as launchd/systemd/Windows service
-agenthub daemon uninstall   → removes service registration
-agenthub new <cli> [dir]    → CLI: create session
-agenthub list               → CLI: list sessions
-agenthub attach <id>        → CLI: raw PTY attach
-agenthub kill <id>          → CLI: kill session
-agenthub rename <id> <name> → CLI: rename session
-agenthub web start [port]   → CLI: start web server
-agenthub web stop           → CLI: stop web server
-agenthub web status         → CLI: web server status
-agenthub health             → CLI: Tailscale health
-agenthub qr <id>            → CLI: print QR for session URL
-agenthub settings [key val] → CLI: read/write settings
+Current GUI path:
+  NewSessionModal.onConfirm(cli, workDir)
+    → App.CreateSession(cli, name, workDir)
+    → DaemonClient.CreateSession(cli, name, workDir)
+    → POST /sessions  {cli, name, workDir}
+    → engine.CreateSession(ctx, cli, name, workDir, nil)
+    → backend.Create({CLI: path, Args: nil, WorkDir: dir})
+    → exec(cli)   ← no args
+
+Target GUI path:
+  NewSessionModal.onConfirm(cli, workDir, args: string)
+    → App.CreateSession(cli, name, workDir, args: []string)
+    → DaemonClient.CreateSession(cli, name, workDir, args: []string)
+    → POST /sessions  {cli, name, workDir, args: [...]}
+    → engine.CreateSession(ctx, cli, name, workDir, args, nil)
+    → backend.Create({CLI: path, Args: args, WorkDir: dir})
+    → exec(cli, args...)   ← agent receives its arguments
+
+Target CLI path:
+  $ agenthub new claude /path/to/project -- --resume --continue
+    → cmdNew parses positional args and "--" separator
+    → DaemonClient.CreateSession("claude", "project", "/path", ["--resume","--continue"])
+    → (same daemon path as GUI above)
 ```
 
-`main()` dispatch:
+### Components to Modify
+
+| Component | File | Change |
+|-----------|------|--------|
+| `daemon.CreateRequest` | `internal/daemon/types.go` | Add `Args []string \`json:"args,omitempty"\`` |
+| `daemon.SessionEngine.CreateSession` | `internal/daemon/engine.go` | Add `args []string` param; pass to `pty.CreateRequest{Args: args}` |
+| `daemon.API.handleCreateSession` | `internal/daemon/api.go` | Pass `req.Args` to `engine.CreateSession` |
+| `DaemonClient.CreateSession` | `internal/daemon/client.go` | Add `args []string` param to method and request struct construction |
+| `App.CreateSession` (Wails) | `app.go` | Add `args []string` param to Wails-bound method |
+| `NewSessionModal` | `frontend/src/components/NewSessionModal.tsx` | Add args text field, per-agent localStorage memory, clear button; update `onConfirm` signature |
+| `App.tsx` | `frontend/src/App.tsx` | Update `handleCreate` to pass parsed args to `App.CreateSession` |
+| `cmdNew` | `cmd_cli.go` | Parse `--` separator from args; pass trailing tokens to `CreateSession` |
+| `wailsjs/` bindings | `frontend/src/wailsjs/go/main/App.js` | Auto-regenerated by `wails dev` / `wails build` when `App.CreateSession` signature changes |
+
+**No changes needed:** `pty.backend.go`, `pty.native.go`, `pty.session.go` — PTY layer already supports args.
+
+### Per-Agent Argument Memory
+
+Pattern: extend the existing `LAST_DIR_KEY = 'agenthub:lastWorkDir'` localStorage pattern.
+
+```
+Key:   agenthub:lastArgs:<cliName>   (e.g., "agenthub:lastArgs:claude")
+Value: raw args string as typed by user
+Scope: per-CLI-name, not per-session
+```
+
+On CLI picker selection change in modal: load corresponding key from localStorage and pre-fill the text field. On confirm: save current text field value to localStorage. Clear button: sets field to empty string, removes localStorage key.
+
+### Args Parsing in cmdNew
+
 ```go
-func main() {
-    if len(os.Args) > 1 {
-        // CLI/daemon mode: never starts Wails
-        cli.Run(os.Args[1:])
-        return
+// Find "--" separator in args
+var agentArgs []string
+for i, a := range args {
+    if a == "--" {
+        agentArgs = args[i+1:]
+        args = args[:i]
+        break
     }
-    // GUI mode: existing Wails startup
-    runGUI()
 }
+// args now contains [agent, path]; agentArgs contains passthrough tokens
 ```
+
+### Args Splitting in the GUI Text Field
+
+Use a shell-word splitter, not `strings.Fields`. `strings.Fields` breaks on all whitespace, corrupting quoted arguments like `--system-prompt "do the thing"`.
+
+Options:
+- `github.com/google/shlex` — handles single/double quotes and backslash escapes; minimal, no transitive deps (MEDIUM confidence — widely used but not verified via Context7 in this session)
+- Manual quote-aware split is acceptable for the limited flags AI CLIs actually use in practice
+
+If shell-word splitting is deferred, the text field can document "space-separated flags without quoting" as a v1.5 limitation.
 
 ---
 
-## Component Map: New vs Modified vs Unchanged
+## Feature 2: Terminal Initial-Fit Fix
 
-### NEW: `internal/daemon/` package
+### Root Cause
 
-The session engine extracted from `App` into a self-contained struct:
+In `TerminalPanel.tsx` the `isActive` useEffect (lines 103-128) fires when a tab becomes active:
 
-```
-internal/daemon/
-├── engine.go        — SessionEngine: owns registry, backend, hub manager, status map
-├── api.go           — DaemonAPI: HTTP handler serving JSON on Unix socket
-├── server.go        — Daemon: top-level struct, starts engine + API + WebServer
-└── client.go        — DaemonClient: HTTP client for Unix socket (used by GUI and CLI)
-```
-
-**SessionEngine** owns everything the current `App` struct owns except Wails bindings:
-- `SessionRegistry`
-- `NativePTYBackend`
-- `HubManager`
-- `sessionStatuses` map
-- `tabNames` map (session display names)
-- `webServer *webserver.WebServer`
-- Config persistence (cliPaths, CT disclosure sentinel)
-
-**DaemonAPI** is an `http.Handler` that multiplexes all daemon operations over the IPC socket:
-
-| Method | Path | Operation |
-|--------|------|-----------|
-| POST | `/sessions` | Create session |
-| GET | `/sessions` | List sessions |
-| DELETE | `/sessions/{id}` | Kill session |
-| PATCH | `/sessions/{id}` | Rename session |
-| GET | `/sessions/{id}/status` | Get session status |
-| GET | `/sessions/{id}/ws` | Attach WebSocket (raw PTY I/O) |
-| POST | `/web/start` | Start web server |
-| POST | `/web/stop` | Stop web server |
-| GET | `/web/status` | Web server status |
-| POST | `/web/sessions/{id}/enable` | Enable web serving for session |
-| POST | `/web/sessions/{id}/disable` | Disable web serving for session |
-| GET | `/health` | Tailscale health |
-| GET | `/sessions/{id}/qr` | QR code base64 |
-| GET | `/settings` | Read settings |
-| PUT | `/settings` | Write settings |
-
-**DaemonClient** wraps this API with typed Go methods. Both the GUI `App` struct and the CLI commands call `DaemonClient`. This is the only new dependency the GUI introduces.
-
-### NEW: `cmd/` directory
-
-```
-cmd/
-├── cli/
-│   ├── main.go      — entry point for CLI dispatch (called from root main.go)
-│   ├── new.go       — `agenthub new` command
-│   ├── list.go      — `agenthub list` command
-│   ├── attach.go    — `agenthub attach` command (PTY proxy)
-│   ├── kill.go      — `agenthub kill` command
-│   ├── rename.go    — `agenthub rename` command
-│   ├── web.go       — `agenthub web start/stop/status` commands
-│   ├── health.go    — `agenthub health` command
-│   ├── qr.go        — `agenthub qr` command
-│   └── settings.go  — `agenthub settings` command
-└── daemon/
-    └── main.go      — `agenthub daemon [install|uninstall|start|stop]`
+```typescript
+document.fonts.ready.then(() => {
+  if (!cancelled) fit()
+})
+const ro = new ResizeObserver(fit)
+ro.observe(container)
 ```
 
-### MODIFIED: `app.go`
+`document.fonts.ready` may already be resolved (resolved promise callbacks run as microtasks — synchronously before the next paint). When the callback fires, `fitAddon.fit()` reads `clientWidth`/`clientHeight` from the container. If the container's dimensions are not yet committed to the browser layout (transition from `display:none` to `display:flex`), `fit()` calculates wrong cols/rows.
 
-The `App` struct becomes a thin GUI client. Current session management methods (`CreateSession`, `ListSessions`, `KillSession`, etc.) are rewritten to call `DaemonClient` instead of owning the session engine directly.
+For Claude and Gemini specifically: these CLIs immediately render their startup UI (prompts, banners, color output) before any user input arrives. If the initial PTY dimensions are wrong at that moment, the first render is corrupted and does not recover cleanly until a manual resize or window resize triggers another `fit()`.
 
-**Before (owns engine):**
-```go
-type App struct {
-    ctx      context.Context
-    registry *pty.SessionRegistry      // REMOVE
-    backend  pty.SessionBackend        // REMOVE
-    manager  *relay.HubManager         // REMOVE
-    server   *relay.Server             // REMOVE
-    listener net.Listener              // REMOVE
-    tabNames  map[string]string        // REMOVE (moves to daemon)
-    cliPaths  map[string]string        // REMOVE (moves to daemon)
-    webServer *webserver.WebServer     // REMOVE (moves to daemon)
-    sessionStatuses map[string]status.SessionStatus  // REMOVE (moves to daemon)
-}
+The `ResizeObserver` fires on initial observation but only after the browser layout engine has settled — which is after the first paint, not at microtask time. On a fast machine the race is narrow; on a slow machine or a cold start with font loading, the race window is larger.
+
+### Fix
+
+Replace the direct `document.fonts.ready.then(fit)` call with a double-`requestAnimationFrame` deferral:
+
+```typescript
+document.fonts.ready.then(() => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!cancelled) fit()
+    })
+  })
+})
 ```
 
-**After (client only):**
-```go
-type App struct {
-    ctx    context.Context
-    daemon *daemon.DaemonClient   // NEW: IPC calls
-    trayInit bool
-}
-```
+The double-rAF pattern (used by xterm.js internally) waits for two browser paint cycles. After both cycles, the browser has committed layout and the WebGL canvas has rendered its first frame. FitAddon's measurement of character cell dimensions against `clientWidth`/`clientHeight` is then reliable.
 
-All current Wails-bound methods on `App` remain (same names, same JS binding surface), but their implementations become one-line calls to `daemon.*`. No frontend changes needed.
+The `ResizeObserver` path is already correct and does not need to change — ResizeObserver callbacks fire after layout, not as microtasks.
 
-**Health poller** moves into the daemon. The GUI receives health events via Server-Sent Events or a polling endpoint on the daemon API.
+### Components to Modify
 
-### MODIFIED: `main.go`
-
-Add CLI dispatch before the Wails startup block. The Wails block is unchanged — `NewApp()` now creates a thin client App rather than the full engine.
-
-### MODIFIED: `internal/webserver/server.go`
-
-No structural changes. The `WebServer` is instantiated inside `daemon.SessionEngine` instead of inside `app.go`. The `SetSessionResolver` callback still works the same way.
-
-### UNCHANGED: `internal/relay/`
-
-`Hub`, `HubManager`, `Server`, `Scrollback`, protocol — all unchanged. They move from being constructed in `App` to being constructed in `daemon.SessionEngine`.
-
-### UNCHANGED: `internal/pty/`
-
-`SessionRegistry`, `NativePTYBackend`, `Session`, `SessionBackend` interface — all unchanged.
-
-### UNCHANGED: `internal/status/`
-
-`Detector`, `Watch`, `SessionStatus` — all unchanged.
-
-### UNCHANGED: `internal/webserver/tailscale.go`
-
-`CheckHealth`, `TailscaleHealth` — unchanged.
-
-### UNCHANGED: `tray.go`
-
-The tray icon and callbacks are GUI-only. They remain in `tray.go`, calling `daemon.DaemonClient.Quit()` instead of `runtime.Quit()` directly. The daemon process does not have a tray.
+| Component | File | Change |
+|-----------|------|--------|
+| `TerminalPanel` | `frontend/src/components/TerminalPanel.tsx` | Wrap the `document.fonts.ready` callback in double-rAF before calling `fit()` |
 
 ---
 
-## IPC Protocol: HTTP/JSON over Unix Socket
+## Feature 3: Daemon Startup Latency
 
-### Why HTTP/JSON over Unix socket (not gRPC, not raw TCP)
+### Root Cause Analysis
 
-- **Go stdlib only.** `net.Listen("unix", socketPath)` + standard `net/http` + `encoding/json`. No new dependencies for the core IPC protocol.
-- **WebSocket attach is already HTTP.** The existing relay protocol uses WebSocket over HTTP. Reusing HTTP for the control plane means the daemon runs one server with two endpoint classes: JSON control + WebSocket terminal.
-- **Debuggable.** Any HTTP client can call the daemon API during development (`curl --unix-socket /tmp/agenthub.sock http://localhost/sessions`).
-- **Precedent.** Docker daemon, tailscaled, and gopls all use this pattern (HTTP or JSON-RPC over Unix socket).
+There are two distinct latency sources users may be conflating:
 
-### Socket location
+**Source A: Daemon startup on first GUI open**
 
-| Platform | Path |
-|----------|------|
-| macOS/Linux | `~/.config/agenthub/daemon.sock` |
-| Windows | Named pipe `\\.\pipe\agenthub-daemon` |
+`EnsureDaemon` (process.go:58-91) spawns a subprocess and polls every 50ms up to 3 seconds. This is a one-time cost paid the first time the GUI opens after boot. If the daemon is installed as a service (`agenthub daemon install`) it starts at login and this cost is zero.
 
-The socket path is deterministic — both CLI and GUI discover it the same way: `filepath.Join(configDir(), "daemon.sock")`. No port negotiation, no PID files.
+This is architecturally sound. No change needed here unless users report > 3s startup.
 
-### Daemon auto-start from CLI
+**Source B: Slow first status update after session creation**
 
-When a CLI command calls `DaemonClient` and the socket does not exist (daemon not running), it auto-starts the daemon:
+`pollSessionStatus` (app.go:139-161) sleeps 2 seconds *before* the first poll:
 
 ```go
-func (c *DaemonClient) ensureRunning() error {
-    if c.isReachable() {
-        return nil
+for time.Now().Before(deadline) {
+    time.Sleep(2 * time.Second)   // ← sleeps BEFORE first check
+    s, err := a.client.GetSessionStatus(sessionID)
+    ...
+}
+```
+
+This means the frontend receives no status event for at least 2 seconds after `CreateSession` returns. During those 2 seconds the tab shows no status indicator, which users perceive as "slow startup."
+
+**Source C: PTY process spawn time**
+
+`cmd.Start()` in `NativePTYBackend.Create` forks a process. This is typically <50ms on any platform. Not the bottleneck.
+
+### Fix
+
+Restructure `pollSessionStatus` to poll immediately, then use a shorter interval:
+
+```go
+func (a *App) pollSessionStatus(sessionID string) {
+    var last string
+    deadline := time.Now().Add(60 * time.Second)
+    for time.Now().Before(deadline) {
+        s, err := a.client.GetSessionStatus(sessionID)
+        if err != nil {
+            return
+        }
+        if s != last {
+            last = s
+            if a.ctx != nil && a.ctx.Value("frontend") != nil {
+                runtime.EventsEmit(a.ctx, "session:status", map[string]string{
+                    "sessionId": sessionID,
+                    "status":    s,
+                })
+            }
+            if s == string(status.StatusErrored) {
+                return
+            }
+        }
+        time.Sleep(500 * time.Millisecond)  // poll at end, not start
     }
-    // Exec self with "daemon" subcommand, detached from terminal
-    return startDaemonDetached()
 }
 ```
 
-`startDaemonDetached()` runs `os.Executable()` with `daemon` argument, `Stdout/Stderr` redirected to a log file, and `SysProcAttr` set to detach from the controlling terminal (POSIX: `Setsid: true`; Windows: `CREATE_NEW_PROCESS_GROUP`). The CLI then polls the socket path until reachable (max 3 seconds, 100ms intervals).
+### Components to Modify
 
-### Terminal attach protocol
-
-`agenthub attach <id>` is the interactive case. The CLI:
-
-1. Connects to `/sessions/{id}/ws` on the daemon via WebSocket (same binary relay protocol already used by the browser client and the Wails relay server).
-2. Puts the terminal in raw mode (`golang.org/x/term`).
-3. Runs two goroutines: stdin → `MsgInput` frames; `MsgOutput` frames → stdout.
-4. Installs a `SIGWINCH` handler to send `MsgResize2` frames on terminal resize.
-5. Listens for a detach key sequence (default: `Ctrl-D Ctrl-D`, configurable). On detach, restores terminal mode and exits without killing the session.
-
-The daemon's DaemonAPI WebSocket handler for attach is identical in structure to the existing `relay/server.go` `handleSession` function — subscribe, replay scrollback, pump frames. No new protocol needed; the relay protocol already handles all three frame types needed for interactive use.
-
-### Event streaming (GUI health updates)
-
-The GUI replaces its Wails `EventsEmit` health poller with a Server-Sent Events endpoint on the daemon:
-
-```
-GET /events   (daemon API, text/event-stream)
-```
-
-Events:
-- `session:status` — `{"sessionId":"...","status":"running"}`
-- `tailscale:health` — `TailscaleHealth` struct
-- `session:created` — session metadata
-- `session:killed` — sessionId
-
-The Wails frontend subscribes to these via a `useEffect` that calls a Wails-bound `SubscribeDaemonEvents()` method, which in turn opens an HTTP SSE connection to the daemon and forwards events via `runtime.EventsEmit`. This keeps the React event model unchanged while moving the source of truth to the daemon.
+| Component | File | Change |
+|-----------|------|--------|
+| `App.pollSessionStatus` | `app.go` | Move `time.Sleep` to end of loop; reduce interval from 2s to 500ms |
 
 ---
 
-## Data Flow Changes
+## Recommended Build Order
 
-### Session creation (after migration)
+Dependencies drive the order. Each phase is independently testable.
+
+### Phase 1: Wire Args Through the Backend Stack (Go only, no UI changes)
+
+All changes are additive and backward-compatible — existing callers pass no args, which is identical to passing `nil`/empty slice.
+
+1. `internal/daemon/types.go` — add `Args []string` to `CreateRequest`
+2. `internal/daemon/engine.go` — add `args []string` param to `CreateSession`; pass to `pty.CreateRequest{Args: args}`
+3. `internal/daemon/api.go` — pass `req.Args` to `engine.CreateSession`
+4. `internal/daemon/client.go` — add `args []string` param to `CreateSession`
+
+Validation: existing 194 tests pass; add daemon tests for `CreateRequest` round-trip with non-empty args.
+
+### Phase 2: CLI Command Passthrough
+
+Modify `cmd_cli.go`:
+- `cmdNew` parses `--` separator; passes trailing tokens to `client.CreateSession`
+- Update `usage()` and `--help` text
+
+Validation: add test case to `cmd_cli_test.go` covering `-- --flag value` passthrough.
+
+### Phase 3: Daemon Startup Latency Fix
+
+Modify `app.go` — restructure `pollSessionStatus` as described above.
+
+Validation: measure time from `CreateSession` call to first `session:status` event in frontend console; target < 1s.
+
+### Phase 4: GUI Wails Binding + Modal UI
+
+1. `app.go` — add `args []string` param to `App.CreateSession`
+2. Run `wails dev` to regenerate `wailsjs/` bindings
+3. `NewSessionModal.tsx` — add args text field, per-agent localStorage memory, clear button; update `onConfirm` signature
+4. `App.tsx` — update `handleCreate` to pass args
+
+Validation: vitest source-inspection tests for `NewSessionModal`; manual smoke test in dev with `claude -- --resume`.
+
+### Phase 5: Terminal Initial-Fit Fix
+
+Modify `TerminalPanel.tsx` — add double-rAF wrapper as described above.
+
+Validation: manual test with Claude and Gemini — terminal must fill screen on first tab open without window resize.
+
+---
+
+## Data Flow
+
+### Args Flow: GUI Path
 
 ```
-React frontend
-    ↓ Wails call: app.CreateSession(cli, name, workDir)
-App.CreateSession (thin wrapper)
-    ↓ HTTP POST /sessions  (Unix socket)
-daemon.SessionEngine.CreateSession
-    ├── backend.Create(ctx, req) → *pty.Session
-    ├── registry.Add(sess)
-    ├── manager.Create(id, sess, sess, resizeFn) → *relay.Hub
-    ├── go status.Watch(hub, id, cli, onTransit)
-    └── returns sessionID
-    ↓ HTTP 201 JSON: {"id":"..."}
-app.go returns sessionID to Wails JS binding
-React frontend uses sessionID to connect to relay WebSocket
+NewSessionModal text field → onConfirm(cli, workDir, argsString)
+  → App.tsx parseArgs(argsString) → string[]
+  → App.CreateSession(cli, name, workDir, args)        [Wails call]
+  → DaemonClient.CreateSession(cli, name, workDir, args) [Unix socket]
+  → POST /sessions  {cli, name, workDir, args: [...]}
+  → daemon.API decodes CreateRequest
+  → engine.CreateSession(ctx, cli, name, workDir, args, nil)
+  → backend.Create(pty.CreateRequest{CLI: path, Args: args, WorkDir: dir})
+  → NativePTYBackend: p.CommandContext(ctx, req.CLI, req.Args...)
+  → OS: exec(cli, args[0], args[1], ...)
 ```
 
-### React terminal connection (after migration)
-
-React currently calls `GetRelayPort()` to find the Wails-embedded relay server port and connects to `ws://127.0.0.1:{port}/sessions/{id}/ws`. After migration:
-
-- The relay.Server moves from `App.startup` into the daemon.
-- The daemon listens on a stable TCP port (or a second Unix socket) for relay WebSocket connections from the GUI.
-- `GetRelayPort()` becomes a call to the daemon that returns the daemon's relay port.
-
-**Simplest option:** Daemon binds relay.Server on `127.0.0.1:0` (random port, same as today), daemon API exposes `GET /relay-port`. The GUI calls this once at startup. React behavior is unchanged. This is a one-line change in the App struct.
-
-### Terminal attach (CLI, new flow)
+### Args Flow: CLI Path
 
 ```
-agenthub attach <id>
-    ↓ DaemonClient.Attach(id)
-    ↓ WebSocket connect to daemon API /sessions/{id}/ws
-    ↓ Terminal raw mode on
-    ↓ stdin → MsgInput frames → daemon → PTY
-    ↓ PTY output → MsgOutput frames → daemon → stdout
-    ↓ SIGWINCH → MsgResize2 frames
-    ↓ Detach key sequence → restore terminal → exit (session stays alive)
+$ agenthub new claude /path -- --resume --continue
+  → cmdNew: args=["claude","/path"], agentArgs=["--resume","--continue"]
+  → DaemonClient.CreateSession("claude", "path", "/path", ["--resume","--continue"])
+  → (same daemon path as GUI above)
+```
+
+### Terminal Fit Flow (after fix)
+
+```
+React: new tab created, isActive=true
+  → isActive useEffect fires
+  → document.fonts.ready.then(...)      ← may resolve immediately
+      → rAF #1 queued                   ← deferred to next paint cycle
+          → rAF #2 queued               ← deferred to paint cycle after that
+              → fitAddon.fit()          ← container dimensions now stable
+                  → term.onResize fires
+                      → RelayClient.sendResize(cols, rows)
+                          → daemon.backend.Resize(id, cols, rows)
+                              → go-pty: ioctl(TIOCSWINSZ)
+```
+
+### Status Event Flow (after fix)
+
+```
+App.CreateSession called
+  → client.CreateSession → POST /sessions → returns sessionID
+  → go pollSessionStatus(sessionID)
+      → immediately: GetSessionStatus → emit "session:status"  ← < 50ms
+      → after 500ms: poll again if changed
+      → ... (500ms intervals for 60s)
 ```
 
 ---
 
-## Migration Path: Wails-Owns-Everything → Daemon-Centric
+## Anti-Patterns
 
-### Phase 1: Extract SessionEngine into daemon package (no behavior change)
+### Anti-Pattern 1: Shell-Splitting with strings.Fields
 
-Create `internal/daemon/engine.go` with `SessionEngine` that wraps `SessionRegistry`, `NativePTYBackend`, `HubManager`, and the status/tabNames maps. Copy-paste `App`'s session methods into `SessionEngine` with identical logic.
+**What people do:** Split the GUI args text field with `strings.Fields(input)`.
 
-In `App`, wire `NewSessionEngine()` and delegate all session methods to it. `App` still owns `SessionEngine` directly — no IPC yet. All existing tests pass unchanged.
+**Why it's wrong:** Users pass quoted arguments like `--system-prompt "do the thing"`. `strings.Fields` splits on all whitespace, producing `["--system-prompt", "\"do", "the", "thing\""]`.
 
-**Why first:** Establishes the module boundary. Daemon code is now testable in isolation before any process separation happens. Compiler enforces the interface.
+**Do this instead:** Use a shell-word splitter (`github.com/google/shlex` or equivalent) that handles single/double quotes and backslash escapes.
 
-### Phase 2: DaemonAPI HTTP server on Unix socket
+### Anti-Pattern 2: Fitting xterm.js Synchronously on Mount
 
-Add `internal/daemon/api.go` implementing the HTTP handler for the daemon API routes. Add `internal/daemon/client.go` implementing `DaemonClient`.
+**What people do:** Call `fitAddon.fit()` directly inside `useEffect` or in the `document.fonts.ready` microtask callback.
 
-Wire `App` to use `DaemonClient` instead of holding `SessionEngine` directly. The daemon is still in-process (same binary, no fork), but all calls go through the HTTP layer over a Unix socket. This validates the protocol without multi-process complexity.
+**Why it's wrong:** The browser has not committed layout dimensions at microtask time. FitAddon reads zero or stale `clientWidth`/`clientHeight`.
 
-**Confidence check:** Run all existing tests with a local in-process daemon. If anything breaks here, it breaks trivially (socket path, JSON serialization) not architecturally.
+**Do this instead:** Defer `fit()` via `requestAnimationFrame` inside the `document.fonts.ready` callback. Two rAF calls ensure both layout and the WebGL canvas first-frame are complete.
 
-### Phase 3: Fork the daemon process
+### Anti-Pattern 3: Changing CreateSession Signature Across All Callers at Once
 
-Add `cmd/daemon/main.go`. The daemon starts as a separate process. `DaemonClient.ensureRunning()` forks if the socket is not present.
+**What people do:** Add the `args` parameter and update all callers (types, engine, api, client, app, cmdNew, tests) in a single commit.
 
-`main.go` gets the CLI dispatch block. Running `agenthub` with no args starts Wails as before; running with `daemon` or a session command takes the CLI path.
+**Why it's wrong:** Large, hard-to-review diff; easy to miss a call site; test failures become hard to isolate.
 
-The relay.Server moves from `App.startup` into the daemon. `GetRelayPort()` is wired to the daemon. The GUI no longer owns a relay listener.
+**Do this instead:** Follow the build order: types first (additive, no caller changes), then engine/api/client (pass empty slice for now), then cmdNew, then GUI. Gate each phase on passing tests.
 
-**This is the first phase where sessions outlive the GUI window.** Verify: close the GUI, reopen it, and confirm sessions are still listed and attachable.
+### Anti-Pattern 4: Polling Status Before the PTY Has Started
 
-### Phase 4: CLI commands
+**What people do:** Call `GetSessionStatus` immediately after `CreateSession` returns.
 
-Implement CLI commands in `cmd/cli/`. Each command is a thin wrapper:
-- Parse args
-- Call `DaemonClient.EnsureRunning()`
-- Call the relevant `DaemonClient` method
-- Print results
-
-`attach` is the only complex command (raw PTY proxy, `golang.org/x/term`, SIGWINCH handler, detach key).
-
-### Phase 5: Service manager integration
-
-Add `agenthub daemon install / uninstall` using `kardianos/service`. The service just runs `agenthub daemon` in the foreground — the service manager handles restart-on-failure.
-
-Service definition is generated at install time and written to the platform's config directory:
-- macOS: `~/Library/LaunchAgents/com.agenthub.daemon.plist`
-- Linux: `~/.config/systemd/user/agenthub-daemon.service`
-- Windows: Windows service registry via `kardianos/service`
-
----
-
-## Structural Changes to the Codebase
-
-### Recommended final file tree delta
-
-```
-agenthub/
-├── main.go                    MODIFIED — add CLI dispatch
-├── app.go                     MODIFIED — thin client, delegates to DaemonClient
-├── tray.go                    UNCHANGED
-├── cmd/
-│   ├── cli/
-│   │   ├── root.go            NEW — cobra/flag CLI entry point
-│   │   ├── new.go             NEW
-│   │   ├── list.go            NEW
-│   │   ├── attach.go          NEW — PTY proxy, raw mode
-│   │   ├── kill.go            NEW
-│   │   ├── rename.go          NEW
-│   │   ├── web.go             NEW
-│   │   ├── health.go          NEW
-│   │   ├── qr.go              NEW
-│   │   └── settings.go        NEW
-│   └── daemon/
-│       └── main.go            NEW — daemon subcommand + service install/uninstall
-├── internal/
-│   ├── daemon/
-│   │   ├── engine.go          NEW — SessionEngine (session logic extracted from App)
-│   │   ├── api.go             NEW — HTTP handler on Unix socket
-│   │   ├── server.go          NEW — top-level Daemon struct
-│   │   └── client.go          NEW — DaemonClient (used by GUI and CLI)
-│   ├── pty/                   UNCHANGED
-│   ├── relay/                 UNCHANGED
-│   ├── status/                UNCHANGED
-│   └── webserver/             UNCHANGED
-```
-
-No existing internal packages are modified. The extraction is additive until Phase 3, when `app.go` delegates to `DaemonClient`.
+**Why it's fine for v1.5:** `CreateSession` over Unix socket returns after the PTY process has started (the engine's `backend.Create` call completes before the HTTP response). The status watcher goroutine is running. An immediate poll will return `"running"` which is the correct initial state. No sleep needed before the first poll.
 
 ---
 
 ## Integration Points
 
-### Wails GUI ↔ Daemon
+### Internal Boundaries
 
-| Point | Current | After Migration |
-|-------|---------|-----------------|
-| Session CRUD | Direct method calls on `App` fields | `DaemonClient` HTTP calls to Unix socket |
-| Relay WebSocket port | `app.listener` (in-process) | `DaemonClient.GetRelayPort()` → daemon API |
-| Health events | `app.startHealthPoller` → `runtime.EventsEmit` | Daemon SSE stream → GUI proxies via `runtime.EventsEmit` |
-| Web server control | `app.StartWebServer` / `StopWebServer` | `DaemonClient.WebStart/Stop` |
-| Session status | `app.sessionStatuses` map | `DaemonClient.GetSessionStatus` |
-| Tab names | `app.tabNames` map | `DaemonClient.RenameSession` + `ListSessions` includes name |
-| Wails JS bindings | Same method names on `App` | Same method names, different implementation bodies |
+| Boundary | Communication | Impact for v1.5 |
+|----------|---------------|-----------------|
+| GUI App → DaemonClient | Direct Go method call | `CreateSession` signature gains `args []string` — Wails regenerates JS bindings |
+| DaemonClient → daemon.API | HTTP/JSON over Unix socket | `CreateRequest` gains `Args []string` — backward-compatible (omitempty) |
+| daemon.API → SessionEngine | Direct Go method call (same process) | `CreateSession` signature gains `args []string` |
+| SessionEngine → NativePTYBackend | `pty.CreateRequest` struct | Already has `Args []string` — no change |
+| React → Wails binding | Wails-generated `wailsjs/` | Regenerated automatically when `App.CreateSession` changes |
+| xterm.js → relay WebSocket | Binary-framed resize/input/output | Unchanged; only initial fit timing changes |
 
-**Critical invariant:** All Wails-bound method signatures on `App` remain identical. Zero changes to the React frontend are required in Phase 2–3.
+### File Change Summary
 
-### CLI ↔ Daemon
+```
+No new files needed. All v1.5 changes are modifications to existing files.
 
-All CLI commands go through `DaemonClient`. The CLI has no direct knowledge of PTYs, hubs, or the relay protocol except in `attach.go`, which uses the existing binary relay framing protocol over WebSocket.
+internal/daemon/types.go       MODIFIED — Args []string on CreateRequest
+internal/daemon/engine.go      MODIFIED — args param on CreateSession
+internal/daemon/api.go         MODIFIED — pass req.Args to engine
+internal/daemon/client.go      MODIFIED — args param on CreateSession
 
-### Service Manager ↔ Daemon
+app.go                         MODIFIED — args param on CreateSession; fix pollSessionStatus
+cmd_cli.go                     MODIFIED — cmdNew parses -- separator
 
-The service manager invokes `agenthub daemon` and manages the process lifecycle (restart-on-crash, start-on-login). The daemon must not daemonize itself (no double-fork) — service managers expect the process to run in the foreground.
+frontend/src/components/
+  NewSessionModal.tsx           MODIFIED — args text field + per-agent memory
+  TerminalPanel.tsx             MODIFIED — double-rAF for initial fit
+frontend/src/App.tsx            MODIFIED — pass args to CreateSession
 
----
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Shared In-Process State After Phase 2
-
-**What happens:** Keeping `SessionEngine` as a direct field of `App` while also exposing it via `DaemonClient` creates two code paths. Bugs will appear in one but not the other.
-
-**Do this instead:** After Phase 2 validates the DaemonClient interface, remove the direct field immediately. One code path only.
-
-### Anti-Pattern 2: TCP Port for the Daemon API
-
-**What people do:** Bind the daemon API on a localhost TCP port (e.g., 7444) and store the port number in a config file or PID file.
-
-**Why it's wrong:** Port conflicts across users or multiple test instances. Port scanning by other processes. PID files are notorious for stale-state bugs. Unix sockets are path-addressed — no ports, no discovery needed.
-
-**Exception:** Windows requires named pipes. `kardianos` and the Go standard library handle this transparently via `net.Listen("unix", path)` on POSIX and named pipe emulation on Windows.
-
-### Anti-Pattern 3: Duplicating the Relay Protocol for CLI Attach
-
-**What people do:** Create a separate "CLI attach" protocol that copies PTY bytes over stdin/stdout of the daemon process directly.
-
-**Why it's wrong:** Redundant with the existing WebSocket relay protocol. The relay protocol already handles all three interactive frame types (MsgOutput, MsgInput, MsgResize2). The `relay/server.go` `handleSession` function is 50 lines and already tested.
-
-**Do this instead:** The `agenthub attach` CLI command connects to `/sessions/{id}/ws` on the daemon API using the existing binary frame protocol. The daemon API WebSocket handler is identical to `relay/server.go`.
-
-### Anti-Pattern 4: Rebuilding the Wails Frontend for CLI Output
-
-**What people do:** Add a "headless" Wails mode or reuse React components for CLI output formatting.
-
-**Why it's wrong:** The CLI has no WebView. React and xterm.js have no role in a terminal attach.
-
-**Do this instead:** CLI output is plain text to stdout. `attach` connects directly to the daemon WebSocket and pipes bytes. `list` formats a table with `text/tabwriter`. No shared UI code.
-
-### Anti-Pattern 5: Embedding the Daemon in the Wails App Process
-
-**What people do:** Run the daemon logic in a background goroutine inside the Wails process, protected by a mutex, with the "daemon" being just a goroutine pool.
-
-**Why it's wrong:** Sessions still die when the Wails window closes / process exits. The whole point of the daemon is process-level persistence. "Daemon as goroutine" solves nothing.
-
-**Do this instead:** The daemon is always a separate OS process. The GUI connects to it like any other client.
-
----
-
-## Scaling Considerations
-
-This is a local desktop app. Scaling means "many sessions per user," not "many users."
-
-| Concern | Current | With Daemon |
-|---------|---------|-------------|
-| Sessions outliving GUI | Not supported | Supported — daemon owns sessions |
-| Multiple GUI windows | Not supported (single Wails window) | Possible future extension |
-| CLI + GUI simultaneously | Not supported | Supported — both are daemon clients |
-| Session count limit | No hard limit; PTY is the bottleneck | Same; each session is ~1 goroutine + PTY fd |
-| IPC throughput | N/A (in-process) | Unix socket saturates at ~1 GB/s; terminal I/O is KB/s |
-
-No scaling concerns at the local desktop level. The daemon architecture is also the right foundation for a future remote-access mode where the daemon runs headless on a server.
+frontend/src/wailsjs/           AUTO-REGENERATED by wails dev/build
+```
 
 ---
 
 ## Sources
 
-- Direct codebase inspection: `app.go`, `main.go`, `internal/pty/`, `internal/relay/`, `internal/webserver/`, `internal/status/`
-- [kardianos/service](https://pkg.go.dev/github.com/kardianos/service) — cross-platform service manager (macOS launchd, Linux systemd, Windows service) — MEDIUM confidence (well-maintained library, 4.3k stars, stable API)
-- [gopls daemon architecture](https://go.dev/gopls/daemon) — Unix socket + HTTP/JSON-RPC pattern for Go daemon/client split — HIGH confidence (official Go toolchain)
-- [Unix domain sockets in Go (Eli Bendersky)](https://eli.thegreenplace.net/2019/unix-domain-sockets-in-go/) — net.Listen("unix") pattern — HIGH confidence
-- Docker daemon / tailscaled — precedent for HTTP over Unix socket as IPC — HIGH confidence
+- Codebase inspection (HIGH confidence): all integration points verified against working tree at v1.4 HEAD
+- `internal/pty/backend.go:13` — `CreateRequest.Args []string` already present
+- `internal/pty/native.go:41` — `p.CommandContext(childCtx, req.CLI, req.Args...)` already passes args
+- `app.go:144` — `time.Sleep(2 * time.Second)` before first poll is the status latency source
+- `frontend/src/components/TerminalPanel.tsx:115` — `document.fonts.ready.then(() => fit())` is the fit timing issue
+- `frontend/src/components/NewSessionModal.tsx:4` — `LAST_DIR_KEY` localStorage pattern to extend for per-agent args
 
 ---
 
-*Architecture research for: AgentHub v1.3 CLI + Daemon*
-*Researched: 2026-03-23*
+*Architecture research for: AgentHub v1.5 — bug fixes and CLI argument passthrough*
+*Researched: 2026-03-25*

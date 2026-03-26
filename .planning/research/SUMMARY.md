@@ -1,190 +1,175 @@
 # Project Research Summary
 
-**Project:** AgentHub v1.3 CLI + Daemon
-**Domain:** Go CLI + background daemon + terminal attach/detach added to an existing Go/Wails desktop app
-**Researched:** 2026-03-23
+**Project:** AgentHub v1.5 — Terminal Fill Fix, Daemon Startup Performance, CLI Arg Passthrough
+**Domain:** Desktop app (Wails/Go + React) — three targeted bug fixes and one quality-of-life feature
+**Researched:** 2026-03-25
 **Confidence:** HIGH
 
 ## Executive Summary
 
-AgentHub v1.3 is a well-scoped architectural evolution of a mature desktop app. The core change is extracting session management out of the Wails GUI process into a persistent background daemon, then providing a CLI that is a peer client to the same daemon. The established pattern for this problem (used by Docker, gopls, tailscaled, and tmux) is: HTTP/JSON over a Unix domain socket (named pipe on Windows), a single binary that dispatches on os.Args, and a foreground daemon managed by the platform's native service manager. All three patterns are directly applicable and well-documented. The existing codebase has excellent internal package boundaries — `internal/relay`, `internal/pty`, `internal/webserver`, and `internal/status` are all daemon-ready today with no structural changes required.
+AgentHub v1.5 is a focused maintenance and enhancement release with zero new dependencies. All three feature areas (terminal fill fix, daemon startup performance, CLI argument passthrough) are implementable entirely within the existing technology stack. The PTY layer already supports argument arrays; the terminal fit infrastructure already uses the right mechanisms; the daemon polling logic already has the correct shape — all three just need targeted refinements to eliminate timing races and close propagation gaps.
 
-The recommended approach is a five-phase migration that avoids big-bang rewrites. Phase 1 extracts `SessionEngine` from `App` without any process separation, establishing the module boundary and keeping all existing tests green. Phase 2 adds the HTTP/JSON IPC layer while the daemon is still in-process, validating the protocol before any process fork. Phase 3 forks the daemon into a separate process — the first phase where sessions genuinely outlive the GUI. Phase 4 adds CLI commands built on the validated `DaemonClient`. Phase 5 adds cross-platform service manager integration via `kardianos/service`. This incremental path means each phase is independently verifiable and rollback is cheap.
+The recommended approach is a strict build order driven by code dependencies: wire the args data model through the Go backend first (purely additive, all existing callers continue to work), then add CLI parsing, then fix the status polling latency, then add the GUI modal fields, and finally apply the terminal fit timing fix. This order ensures each phase is independently testable and that frontend changes are never blocked by incomplete backend wiring. The most critical architectural insight is that `pty.CreateRequest.Args` already exists and is already forwarded to the PTY process — the entire args feature is a propagation change through six layers above it.
 
-The highest-risk items are: (1) the architectural migration of session state from `App` to the daemon — if any state lives in two places, divergence bugs are nearly impossible to diagnose; (2) the PTY attach command, which requires correct terminal raw mode, SIGWINCH resize forwarding, signal proxying (Ctrl-C must pass through to the AI CLI, not terminate the attach process), and bulletproof terminal restore on every exit path; and (3) the Wails os.Args dispatch guard, which must correctly pass through internal Wails build arguments that are not user subcommands. These three items need explicit testing gates before moving to the next phase.
+The primary risks are subtle rather than complex: (1) the terminal fit fix requires understanding why `requestAnimationFrame` is the correct deferral and `setTimeout` is not; (2) the daemon performance root cause is actually a 2-second sleep-before-first-poll in `pollSessionStatus` in `app.go`, not the `EnsureDaemon` polling loop in `process.go`; and (3) args silently disappearing at the `daemon.CreateRequest` JSON boundary if that struct is not updated. All three risks are well-understood and have clear, low-cost fixes.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The v1.2 codebase already contains all low-level dependencies needed for v1.3. Only two new direct dependencies are required: `github.com/spf13/cobra@v1.9.1` for the CLI command tree, and `github.com/kardianos/service@v1.2.4` for cross-platform service registration. `golang.org/x/term` is already in the binary transitively and just needs promotion to a direct dependency. IPC uses stdlib `net.Listen("unix", ...)` plus the already-present `tailscale/go-winio` for Windows named pipes. No gRPC, no protobuf, no additional IPC library.
+No new dependencies are required for any v1.5 feature. The fix surfaces are all within existing packages: `frontend/src/components/TerminalPanel.tsx` (fit timing), `app.go` (status polling), `internal/daemon/` (args propagation), `cmd_cli.go` (CLI parsing), and `frontend/src/components/NewSessionModal.tsx` (GUI args field).
 
-**Core technologies:**
-- `github.com/spf13/cobra v1.9.1`: CLI command framework — industry standard (Kubernetes, Docker, GitHub CLI), best persistent-flag inheritance for nested command groups like `agenthub web start/stop/status`
-- `github.com/kardianos/service v1.2.4`: Service manager integration — the only mature Go library handling launchd (macOS), systemd (Linux), and Windows Service from one unified API; released July 2025
-- `golang.org/x/term` (promote from indirect): Terminal raw mode for attach — official Go extended library, already in the binary, `MakeRaw`/`Restore`/`GetSize` API confirmed at v0.41.0
-- stdlib `net` + existing `tailscale/go-winio`: IPC transport — Unix socket on POSIX, named pipe on Windows, no additional dependencies
-- stdlib `encoding/json` over socket: IPC protocol — sufficient for ~15 command types; Docker and tailscaled use this same pattern
+**Core technologies in scope:**
+- `@xterm/addon-fit` v0.11.0: FitAddon timing fix — wrap `fit()` calls in `requestAnimationFrame` inside the `document.fonts.ready` callback; use double-rAF to guarantee both layout and WebGL canvas first-frame are complete before measuring dimensions
+- `github.com/aymanbagabas/go-pty` v0.2.2: `CreateRequest.Args []string` already defined and wired to `CommandContext(ctx, req.CLI, req.Args...)` in `native.go` — no change needed in PTY layer
+- Go stdlib `flag.NewFlagSet`: `--` terminator behavior is stable since Go 1.0; split remaining args on `"--"` in `cmdNew` to extract passthrough tokens
+- `wailsapp/wails/v2` v2.10.2: `App.CreateSession` Wails binding must gain an `args []string` parameter; `wails dev` or `wails build` auto-regenerates TypeScript bindings
 
 ### Expected Features
 
-The v1.3 milestone has a clear four-group feature set aligned with the migration phases.
+**Must have (v1.5 table stakes):**
+- Terminal fills viewport on first tab activation without requiring a window resize — currently broken for Claude and Gemini which render splash screens before the user can resize
+- Status indicator appears within 1 second of session creation — currently delayed 2 full seconds by a sleep-before-first-poll pattern
+- `agenthub new -- --flag value` passes extra flags to the agent CLI — currently impossible; `CreateRequest.Args` is always nil at every layer above PTY
+- GUI new-session modal accepts and persists per-agent extra args — per-CLI localStorage memory keyed as `agenthub:args:<cliName>`
 
-**Must have (table stakes):**
-- Background daemon process with Unix socket IPC — the foundational prerequisite for everything else
-- Shared session pool: GUI and CLI see identical sessions — broken product if missing; highest architectural risk
-- `agenthub new`, `list`, `kill`, `rename` — session lifecycle core; users of any session manager expect these
-- `agenthub attach <id>` with full PTY proxy (raw I/O, resize, Ctrl-C passthrough) — session persistence is useless without reconnect
-- `agenthub detach` via configurable prefix key — attach without detach is a trap
-- Terminal state restore on all exit paths — non-negotiable safety feature; broken terminal is the most visible failure mode
-- `agenthub daemon install/uninstall/start/stop/status` — service lifecycle commands expected in any daemon-managed tool
-- `agenthub web start/stop/status <id>`, `agenthub health`, `agenthub qr <id>` — parity with existing GUI features
+**Should have (quality):**
+- `safeFit()` guard that checks `proposeDimensions()` returns non-zero before calling `fit()` — prevents broken 1-column terminal on hidden panel activation
+- WebGL context loss recovery that calls `safeFit()` after disposing the addon — prevents blank terminal on tab reactivation after idle
+- Args clear button that persists the clear to localStorage (not just UI state)
+- `wails generate` as an explicit build step requirement after `App.CreateSession` signature change
 
-**Should have (competitive):**
-- Scrollback replay on reattach — infrastructure already exists in `relay/scrollback.go`; near-zero implementation cost; confirmed user expectation from tmux/shpool research
-- Configurable detach prefix key — tmux's Ctrl-B conflicts with many editors; configurable prefix is a known quality-of-life win
-- `--json` output on all list/status commands — standard in modern CLIs (gh, kubectl, docker); enables scripting
-- Daemon auto-start from CLI if not running — CLI is unusable if users must manually start the daemon first
-
-**Defer (v1.3.x after validation):**
-- `agenthub serve <path>` / `agenthub unserve <id>` sugar commands
-- `agenthub settings` read-only config inspection
-- TUI session picker (fzf-style) — v2+
-- Multiple simultaneous clients attached to one session — v2+
-- Remote daemon over TCP — v2+
+**Defer (v2+):**
+- Shell-word splitting (shlex) for quoted arguments in the GUI text field — simple whitespace split is sufficient for v1.5; document the limitation in placeholder text
+- Combined `/ready` daemon endpoint (health + relay port in one round-trip) — exponential backoff on the existing two-call pattern resolves startup detection without API changes
+- Persist args to a settings file — localStorage is sufficient for v1.5; settings file migration is a v1.6 concern
 
 ### Architecture Approach
 
-The architecture is a daemon-centric model with two equal client types: the existing Wails GUI (thinned to a client) and the new CLI. The daemon owns all session state in a new `internal/daemon/` package containing `SessionEngine` (session logic extracted from `App`), `DaemonAPI` (HTTP handler on the Unix socket), and `DaemonClient` (typed Go client used by both GUI and CLI). All existing internal packages — `internal/relay/`, `internal/pty/`, `internal/status/`, `internal/webserver/` — are unchanged; they move from being constructed in `App` to being constructed in `daemon.SessionEngine`. The Wails GUI's `App` struct shrinks from owning ~8 fields of session state to owning exactly one: `*daemon.DaemonClient`. All Wails-bound method signatures on `App` stay identical; zero frontend changes are required in Phases 1-3.
+All v1.5 changes are modifications to existing files — no new files are needed. The architecture is a six-layer call chain from GUI to PTY: `NewSessionModal` → `App.CreateSession` (Wails) → `DaemonClient.CreateSession` (Unix socket) → `daemon.API` (HTTP) → `SessionEngine` → `pty.NativePTYBackend`. Args must be threaded through every layer from the top down; the PTY layer at the bottom already supports them.
 
-**Major components:**
-1. `internal/daemon/engine.go` — `SessionEngine`: owns `SessionRegistry`, `NativePTYBackend`, `HubManager`, status/tabNames maps; extracted from `App`
-2. `internal/daemon/api.go` — `DaemonAPI`: HTTP/JSON handler on Unix socket; 15 routes covering session CRUD, web serving, health, attach WebSocket, settings, and SSE events
-3. `internal/daemon/client.go` — `DaemonClient`: typed Go wrapper used by both GUI `App` and all CLI commands; the only new dependency either consumer introduces
-4. `cmd/cli/` — cobra command tree: `new`, `list`, `attach`, `kill`, `rename`, `web`, `health`, `qr`, `settings`; all thin wrappers over `DaemonClient`
-5. `cmd/daemon/main.go` — daemon subcommand + `kardianos/service` install/uninstall for launchd/systemd/Windows SCM
+**Major components and v1.5 changes:**
+
+1. `internal/daemon/types.go` — add `Args []string` to `daemon.CreateRequest` (JSON wire type); this is the most commonly missed layer and the silent-discard risk
+2. `internal/daemon/{engine,api,client}.go` — thread `args []string` through all three; purely additive changes
+3. `app.go` — two independent changes: (a) add `args []string` to `App.CreateSession` Wails binding; (b) fix `pollSessionStatus` to check immediately then sleep 500ms (not sleep 2s then check)
+4. `cmd_cli.go` — parse `--` separator in `cmdNew`; pass trailing tokens to `CreateSession`
+5. `NewSessionModal.tsx` — add args text field, per-agent localStorage memory keyed on `agenthub:args:<cli>`, clear button
+6. `TerminalPanel.tsx` — replace direct `fit()` in `document.fonts.ready` callback with double-`requestAnimationFrame` deferral; add `safeFit()` guard
 
 ### Critical Pitfalls
 
-1. **Session state in two places after extraction** — After Phase 2, `App` must hold zero authoritative session state. Any local map (`tabNames`, `sessionStatuses`) not migrated to the daemon creates divergence bugs that appear only in multi-client scenarios and are extremely hard to diagnose. Verification: GUI `list` output and CLI `list` output must be identical in all scenarios.
+1. **FitAddon called while container has zero dimensions** — `document.fonts.ready` only gates font load, not CSS layout. Resolved promises run as microtasks before the browser paints; the container may still report zero dimensions. Wrap every `fit()` call in a `safeFit()` dimension guard, and defer the initial fit call with double-`requestAnimationFrame`. Confirmed upstream in xterm.js issue #3029 (designed behavior — caller's responsibility to guard).
 
-2. **Terminal left in raw mode after crash** — `defer term.Restore(...)` does not run on SIGKILL, `os.Exit`, or `log.Fatal`. Signal handlers for SIGTERM, SIGINT, and SIGHUP must explicitly call `term.Restore` before exiting. `log.Fatal` must never be called from within the raw mode attach path. This is the most user-visible failure: the shell appears frozen after an abnormal exit.
+2. **Status polling starts with a 2-second sleep** — The real daemon "startup latency" is not `EnsureDaemon` polling but `pollSessionStatus` in `app.go` sleeping 2 seconds before its first HTTP call. Fix: move `time.Sleep` to the end of the loop, reduce to 500ms. This is the highest-value single-line change in the release.
 
-3. **Wails os.Args dispatch breaks the build** — Wails v2 invokes the compiled binary during code generation without user arguments. The `main()` dispatch guard must never panic or exit non-zero on `len(os.Args) == 1`. Guard Wails-internal arguments (e.g. `/tmp/wailsbindings`) with an `isWailsInternalArg` check and a `//go:build production` tag.
+3. **Args silently dropped at `daemon.CreateRequest` boundary** — `pty.CreateRequest.Args` exists and works; `daemon.CreateRequest` (the JSON HTTP type) does not have `Args`. If only the PTY layer is verified, args appear to work in unit tests but are always nil in production. Update all six layers in sequence; write an integration test that exercises the full IPC chain with a non-empty args slice.
 
-4. **Stale Unix socket blocks daemon restart** — After a crash or SIGKILL, the socket file remains on disk. The next startup gets `address already in use`. At startup: attempt connect; if connection refused, remove socket with `os.Remove`; then listen. Add a path length assertion (<104 chars on macOS) to catch cryptic `bind: invalid argument` errors for users with long usernames.
+4. **Daemon PATH mismatch when running as a service** — Agents installed via nvm, volta, or Homebrew are invisible to the daemon's minimal system PATH when started by launchd/systemd. Log the resolved binary path on every session creation; if PATH is the cause, use a login shell spawn wrapper (`/bin/zsh -l -c`). Profile before fixing — Gemini CLI has documented 8–60s MCP initialization regressions that are CLI-side, not daemon-side.
 
-5. **PTY resize not propagated through the daemon proxy** — SIGWINCH is delivered to the CLI client process, not the daemon that owns the PTY master FD. The CLI must send resize frames through the IPC protocol; the daemon applies them via `pty.Resize()`. This is easy to miss because initial testing in a fixed-size terminal always works. Test explicitly by resizing the window during an active attach session.
-
-6. **Daemon must not self-daemonize on macOS** — launchd expects to be the parent of the service process. A double-fork causes launchd to lose the PID and enter rapid-restart loops. Use `kardianos/service` throughout — it implements the correct foreground-run contract for each platform.
-
-7. **Ctrl-C signal handling in raw mode** — In attach mode, Ctrl-C must be forwarded to the AI CLI as a PTY input byte (0x03), not handled as a Go SIGINT to terminate the attach process. Only SIGTERM and SIGHUP should trigger clean detach. The detach prefix state machine intercepts the detach sequence before bytes reach the PTY write path.
+5. **Wails TypeScript bindings stale after Go signature change** — Wails silently uses the old signature if `wails generate` is not run after `App.CreateSession` changes. Make `wails generate` a required build step in the phase runbook; verify `wailsjs/go/main/App.d.ts` parameters match the Go source before marking the phase complete.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on the dependency analysis in ARCHITECTURE.md, the build order is driven by two constraints: (1) backend must be wired before frontend can be tested end-to-end; (2) each phase must leave the codebase in a passing-tests state.
 
-### Phase 1: SessionEngine Extraction
+### Phase 1: Backend Args Wiring (Go only)
 
-**Rationale:** Establishes the module boundary without any behavior change. The compiler enforces the interface before any process separation. All existing tests pass unchanged. This is the prerequisite for every subsequent phase.
-**Delivers:** `internal/daemon/engine.go` with `SessionEngine` wrapping all session logic extracted from `App`; `App` delegates to `SessionEngine` directly (still in-process, no IPC yet)
-**Addresses:** "Shared session pool" foundational requirement; "session state in two places" pitfall prevention starts here
-**Avoids:** Big-bang rewrite risk; every phase after this builds on a tested module boundary
+**Rationale:** The entire args feature depends on this foundation. All changes are additive and backward-compatible — callers that pass no args are equivalent to passing `nil`. No UI changes means no Wails binding regeneration in this phase.
+**Delivers:** `daemon.CreateRequest`, `engine.CreateSession`, `api.handleCreateSession`, and `DaemonClient.CreateSession` all accept and forward `args []string`.
+**Addresses:** CLI arg passthrough (Go backend half); closes the silent-discard-at-boundary pitfall.
+**Avoids:** Pitfall — args dropped at `daemon.CreateRequest` JSON boundary.
 
-### Phase 2: DaemonAPI + DaemonClient (In-Process IPC)
+### Phase 2: CLI Arg Passthrough
 
-**Rationale:** Validates the HTTP/JSON protocol over the Unix socket before adding process-separation complexity. The daemon is still in-process; bugs in JSON serialization or socket path handling are trivially reproducible. Existing tests run with a local in-process daemon.
-**Delivers:** `internal/daemon/api.go` (HTTP handler), `internal/daemon/client.go` (typed client); `App` calls `DaemonClient` instead of holding `SessionEngine` directly; protocol fully validated
-**Avoids:** Session state divergence (removes the last direct field ownership from `App`); stale socket pitfall (socket lifecycle handling implemented here); socket path >104 chars (assertion added here)
+**Rationale:** The CLI path (`cmdNew`) is pure Go with no UI dependencies — testable with existing Go test infrastructure. Depends on Phase 1 backend wiring being in place.
+**Delivers:** `agenthub new claude /path -- --model claude-opus-4-5 --verbose` works end-to-end from CLI to PTY.
+**Addresses:** CLI-side arg parsing with `flag.NewFlagSet` `--` separator.
+**Avoids:** Word-splitting pitfall; uses `[]string` tokens passed to `exec.Command`, never a raw shell string.
 
-### Phase 3: Process Separation + Relay Migration
+### Phase 3: Daemon Startup Latency Fix
 
-**Rationale:** First phase where sessions genuinely outlive the GUI window. The relay.Server moves from `App.startup` into the daemon. GUI connects to daemon on startup and retrieves the relay port. This is the highest-risk phase and must be gated by an explicit test: close the GUI, reopen it, confirm sessions are still listed and attachable.
-**Delivers:** `cmd/daemon/main.go`; forked daemon process; `DaemonClient.ensureRunning()` with exponential backoff retry; GUI health events via SSE stream; GUI `App` struct holds only `*daemon.DaemonClient`
-**Uses:** stdlib `net` (Unix socket), exponential backoff startup sync with 5s deadline (not `time.Sleep`)
-**Avoids:** "Daemon as goroutine" anti-pattern (sessions still die with GUI); daemon startup race (fixed sleep is brittle on slow machines)
+**Rationale:** This is an independent change in `app.go` with no dependencies on Phase 1 or 2. It delivers immediately visible UX improvement (status indicator in less than 1 second vs. 2+ seconds). Worth shipping as a standalone fix and can be developed in parallel with Phase 1.
+**Delivers:** `pollSessionStatus` polls immediately on first iteration then at 500ms intervals. First status event appears in less than 100ms of session creation.
+**Addresses:** Daemon startup performance feature from PROJECT.md.
+**Avoids:** Conflating daemon spawn latency (`EnsureDaemon`) with status reporting latency (`pollSessionStatus`).
 
-### Phase 4: CLI Commands
+### Phase 4: GUI Args Field + Wails Binding
 
-**Rationale:** All CLI commands are thin wrappers over `DaemonClient`, which is fully validated by Phase 3. The only complex command is `attach` — treat it as a mini-project. Build and test simpler commands first to validate the cobra tree and output formatting before tackling attach.
-**Delivers:** Full `cmd/cli/` tree; `agenthub new/list/kill/rename/web/health/qr`; `agenthub attach` with PTY proxy, raw mode, SIGWINCH resize, signal proxying, scrollback replay, detach prefix state machine, terminal restore on all exit paths; Wails os.Args dispatch guard in `main.go`
-**Implements:** cobra dispatch; `golang.org/x/term` promoted to direct dependency
-**Avoids:** Terminal raw mode left on crash (signal handlers + no `log.Fatal` in raw path); PTY resize not propagated; Ctrl-C handled as shutdown instead of passthrough; Wails os.Args dispatch breakage
+**Rationale:** Depends on Phase 1 (backend wiring) and requires Wails binding regeneration. GUI changes are the most manually-tested phase; place after backend is proven.
+**Delivers:** New-session modal includes args text field with per-agent localStorage memory and clear button. `App.CreateSession` Wails binding updated with `args []string` parameter.
+**Addresses:** GUI half of the CLI arg passthrough feature; per-agent args memory (`agenthub:args:<cli>` localStorage keys).
+**Avoids:** Non-namespaced localStorage key collisions; stale Wails TypeScript bindings.
 
-### Phase 5: Service Manager Integration
+### Phase 5: Terminal Fill Fix
 
-**Rationale:** `kardianos/service` wraps all platform complexity. Lower risk than Phases 3-4 but requires explicit testing on each platform because launchd, systemd, and Windows SCM have different failure modes.
-**Delivers:** `agenthub daemon install/uninstall/start/stop/status`; launchd plist at `~/Library/LaunchAgents/`; systemd user unit; Windows service registration; daemon runs in foreground (no double-fork)
-**Uses:** `github.com/kardianos/service v1.2.4`
-**Avoids:** macOS launchd conflict (no self-daemonize); binary path hard-coded in plist (derive from `os.Executable()` at install time); `launchctl load` deprecated call (use `launchctl bootstrap`)
-
-### Phase 6: Polish + v1.3.x Features
-
-**Rationale:** After service manager is validated, add differentiator features that have near-zero implementation cost given the infrastructure from Phases 1-5.
-**Delivers:** `--json` output on all list/status commands; `agenthub serve <path>` sugar; `agenthub settings` read-only inspection; configurable detach prefix key stored in config; UX improvements (attach banner showing session identity, detach key hint on connect)
+**Rationale:** Self-contained change in `TerminalPanel.tsx`. Placed last because it requires manual testing with a production build (`wails build`) — the behavior differs between `wails dev` and the production binary due to asset loading timing differences.
+**Delivers:** Terminal fills the viewport on first activation for all CLIs (Claude, Gemini, OpenCode, Codex) without requiring a window resize. WebGL context loss recovery also addressed.
+**Addresses:** Terminal fill fix feature from PROJECT.md.
+**Avoids:** FitAddon zero-dimension on hidden panel activation; WebGL context loss with no renderer fallback.
 
 ### Phase Ordering Rationale
 
-- **Phases 1-2 must precede Phase 3:** Process separation before the IPC protocol is proven creates multi-process debugging nightmares. Validate protocol in-process first.
-- **Phase 3 gate:** Close GUI, verify sessions persist, reopen GUI, verify sessions appear. Do not proceed to Phase 4 until this passes.
-- **Attach is isolated within Phase 4:** Build all simple CLI commands before `attach`. Attach has seven distinct correctness requirements (raw mode, SIGWINCH, Ctrl-C forwarding, detach prefix, scrollback replay, resize propagation, terminal restore) that each need explicit tests.
-- **Service manager last:** The daemon binary must be stable before registering it with the OS service manager. A crashing daemon in launchd triggers rapid-restart loops that are annoying to diagnose.
+- Phases 1 and 2 must be sequential (Phase 2 calls Phase 1 APIs).
+- Phase 3 is independent and can be developed in parallel with Phase 1 or shipped as a standalone PR.
+- Phase 4 depends on Phase 1 (Wails binding calls backend that must have the args param).
+- Phase 5 is fully independent of Phases 1-4 and can be developed in parallel or applied at any point.
+- The dependency-free ordering (3, 1, 2, 4, 5) matches ascending implementation risk: Phase 3 is the highest-value/lowest-risk change in the entire release.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3 (Process Separation):** The relay port handoff between daemon and GUI (`GetRelayPort()` via daemon API) has no direct precedent in the codebase; the exact sequence for GUI startup, daemon detection, and relay port acquisition needs to be pinned during planning
-- **Phase 5 (Service Manager):** Windows SCM behavior with `kardianos/service` is MEDIUM confidence; the library is well-maintained but Windows CI coverage is not confirmed in the existing project
+Phases with well-documented patterns (no additional research needed):
+- **Phase 1:** Additive struct field propagation in Go — standard pattern; no research required.
+- **Phase 2:** Go stdlib `flag.NewFlagSet` `--` terminator — documented behavior, verified in STACK.md.
+- **Phase 3:** Loop restructuring — trivial refactor; no research required.
+- **Phase 4:** React controlled input with localStorage — standard React pattern.
+- **Phase 5:** `requestAnimationFrame` deferral for FitAddon — confirmed fix in xterm.js issue #4841; no further research required.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1 (SessionEngine Extraction):** Pure Go refactor with direct codebase inspection; no external unknowns
-- **Phase 2 (In-Process IPC):** HTTP/JSON over Unix socket is a fully documented pattern; `DaemonAPI` routes are enumerated in ARCHITECTURE.md
-- **Phase 4 simple commands:** `new`, `list`, `kill`, `rename`, `web`, `health`, `qr` are thin wrappers; cobra patterns are well-established
-- **Phase 4 attach:** Research is complete and detailed in STACK.md and ARCHITECTURE.md; implementation risk is execution, not unknowns
+Phases that may need targeted investigation during implementation:
+- **Phase 4 (Wails binding regeneration):** Confirm whether `wails dev` auto-regenerates on method signature change vs. requiring explicit `wails generate`. Build tooling question, not a code question.
+- **Phase 5 (double-rAF vs. single-rAF):** STACK.md recommends single-rAF; ARCHITECTURE.md recommends double-rAF. The correct choice depends on whether WebGL canvas first-frame timing matters. Test both in a production build; double-rAF is the safer default.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All versions verified via pkg.go.dev; existing go.mod inspected directly; no speculative dependencies |
-| Features | HIGH | Grounded in tmux/shpool/Docker CLI comparison; existing codebase read directly; `relay/scrollback.go` confirmed present |
-| Architecture | HIGH | Direct codebase inspection of `app.go`, `internal/relay/`, `internal/pty/`; Docker/gopls/tailscaled precedent for HTTP-over-Unix-socket; migration path is incremental and reversible |
-| Pitfalls | HIGH (POSIX/signal/PTY), MEDIUM (Wails-specific) | Signal/PTY/socket pitfalls verified against official docs and GitHub issues; Wails os.Args coexistence is MEDIUM — community discussion, limited official docs |
+| Stack | HIGH | All technologies verified against existing `go.mod` and `package.json`; no new deps; all code paths confirmed by direct file reads |
+| Features | HIGH | v1.5 features directly derived from PROJECT.md scope; implementation surfaces confirmed in v1.4 codebase |
+| Architecture | HIGH | All integration points verified against v1.4 HEAD; `CreateRequest.Args` existence confirmed in `pty/backend.go:13` and `pty/native.go:41`; `pollSessionStatus` 2s sleep confirmed in `app.go:144` |
+| Pitfalls | HIGH | Terminal fit pitfalls confirmed via xterm.js upstream issues; daemon PATH pitfall confirmed by direct daemon spawn analysis; Gemini MCP regression confirmed via upstream issues |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Wails dev mode argument handling:** The `isWailsInternalArg` guard for `/tmp/wailsbindings` is documented in a community discussion, not official docs. Verify empirically during Phase 1 with `wails dev` to confirm the exact internal arg pattern before relying on it.
-- **Windows CI coverage:** Windows named pipe IPC via `tailscale/go-winio` and service registration via `kardianos/service` on Windows SCM are noted in research but not confirmed with a CI run. Establish Windows CI in Phase 2 before Phase 5 makes it critical.
-- **Relay port handoff sequence:** The exact GUI startup sequence (start daemon if needed → wait for socket → get relay port → start React) needs to be pinned during Phase 3 planning with respect to Wails lifecycle hooks.
-- **Socket path length assertion:** The 104-character `sun_path` limit on macOS must be verified for `~/.config/agenthub/daemon.sock` with usernames up to ~30 characters. Add a startup assertion that panics with a clear message rather than the cryptic `bind: invalid argument`.
+- **Single-rAF vs. double-rAF for initial fit:** STACK.md and ARCHITECTURE.md give slightly different recommendations. ARCHITECTURE.md's double-rAF is the safer choice for production (matches xterm.js internal pattern); verify in Phase 5 implementation with a production binary.
+- **Daemon PATH mismatch vs. Gemini MCP:** The daemon performance improvement may be partially obscured by Gemini CLI's own 8–60s MCP initialization regression. Profile session creation time with `time.Now()` deltas before and after the Phase 3 fix to distinguish daemon-side from CLI-side latency; communicate this distinction to users if Gemini remains slow.
+- **Shlex dependency decision:** Simple whitespace-split is documented as a v1.5 limitation for quoted arguments. If any of the target CLIs (Claude Code, Gemini, OpenCode, Codex) require quoted flag values in practice before v1.6, `github.com/google/shlex` can be added at any point — it has no transitive dependencies and is MIT licensed.
+- **Wails binding regeneration flow:** Confirm whether `wails dev` watches for Go method signature changes and regenerates TypeScript bindings automatically, or whether `wails generate` must be run explicitly. This affects Phase 4 validation procedure.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- pkg.go.dev/github.com/spf13/cobra — v1.9.1 feature set, persistent flags, shell completion verified
-- pkg.go.dev/github.com/kardianos/service — v1.2.4 platform support (launchd/systemd/Windows SCM) and API verified
-- pkg.go.dev/golang.org/x/term — v0.41.0 MakeRaw/Restore/GetSize API confirmed
-- pkg.go.dev/github.com/aymanbagabas/go-pty — v0.2.2 ReadWriteCloser + Resize API verified
-- `/Users/ken/dev/agenthub/go.mod` — existing dependencies verified directly
-- `/Users/ken/dev/agenthub/internal/relay/hub.go` — Hub/Subscriber fan-out compatibility with attach use case confirmed
-- `/Users/ken/dev/agenthub/app.go` — current App struct field inventory for migration planning
-- Docker daemon, tailscaled, gopls — HTTP/JSON over Unix socket pattern precedent (HIGH confidence)
-- Eli Bendersky: Unix Domain Sockets in Go — `net.Listen("unix", ...)` pattern
+
+- `/Users/ken/dev/agenthub/internal/pty/backend.go` — `CreateRequest.Args []string` already defined
+- `/Users/ken/dev/agenthub/internal/pty/native.go` — `p.CommandContext(childCtx, req.CLI, req.Args...)` confirms args are forwarded
+- `/Users/ken/dev/agenthub/app.go:144` — `time.Sleep(2 * time.Second)` before first poll is the status latency source
+- `/Users/ken/dev/agenthub/frontend/src/components/TerminalPanel.tsx` — `document.fonts.ready.then(() => fit())` is the fit timing issue
+- `/Users/ken/dev/agenthub/frontend/src/components/NewSessionModal.tsx` — `LAST_DIR_KEY` localStorage pattern to extend for per-agent args
+- `pkg.go.dev/flag` — `--` terminator behavior for stdlib flag package; stable since Go 1.0
 
 ### Secondary (MEDIUM confidence)
-- github.com/wailsapp/wails/discussions/4175 — os.Args pattern in Wails v2 and production build tag approach
-- github.com/wailsapp/wails/issues/1533 — `-appargs` flag conflict with argument flags
-- iximiuz.com — Linux PTY attach/detach internals (raw mode + PTY proxy pattern, same as Docker attach)
-- kardianos/service README — cross-platform service config examples
-- Apple Developer: Creating Launch Daemons and Agents — launchd plist foreground-run contract
-- shpool architecture (deepwiki.com/shell-pool/shpool) — session persistence patterns and scrollback replay behavior
-- VictoriaMetrics: Graceful Shutdown in Go — signal handling and terminal restore patterns
 
-### Tertiary (LOW confidence)
-- None — all key technical claims have HIGH or MEDIUM sources
+- xterm.js issue #4841 — FitAddon resizes incorrectly; `requestAnimationFrame` confirmed as correct fix by maintainer (Tyriar)
+- xterm.js issue #5320 — `width=1` result from CSS layout race; confirms zero-dimension pitfall
+- xterm.js issue #5298 — layout timing patterns; confirms ResizeObserver fires after layout
+- xterm.js issue #3029 — FitAddon with `display:none` is designed behavior; caller's responsibility to guard
+
+### Tertiary (confirmed upstream issues, external fix not in-scope)
+
+- Gemini CLI issue #4544 — synchronous MCP server initialization causing 8–60s startup regression; not fixable in AgentHub
+- Gemini CLI issues #21853, #17774 — startup regressions on Windows and vs. Claude
 
 ---
-*Research completed: 2026-03-23*
+*Research completed: 2026-03-25*
 *Ready for roadmap: yes*

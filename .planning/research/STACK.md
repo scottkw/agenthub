@@ -1,153 +1,271 @@
 # Stack Research
 
-**Domain:** Go CLI + background daemon + terminal attach/detach (v1.3 milestone additions)
-**Researched:** 2026-03-23
-**Confidence:** HIGH (all library versions verified via pkg.go.dev)
+**Domain:** AgentHub v1.5 — terminal fill fix, daemon startup performance, CLI arg passthrough
+**Researched:** 2026-03-25
+**Confidence:** HIGH (library versions verified via pkg.go.dev and go.mod; patterns verified against xterm.js GitHub issues)
 
 ---
 
-## Context: What Already Exists (Do NOT Re-add)
+## Context: No New Dependencies Required
 
-The v1.2 codebase already has the following in `go.mod` — none of these need to be added:
+All three v1.5 features are implementable with the existing dependency set. The changes are:
 
-| Already Present | Version | Purpose |
-|----------------|---------|---------|
-| `github.com/aymanbagabas/go-pty` | v0.2.2 | PTY creation and management (cross-platform, ConPTY on Windows) |
-| `github.com/coder/websocket` | v1.8.14 | WebSocket relay (nhooyr fork) |
-| `github.com/wailsapp/wails/v2` | v2.10.2 | Desktop GUI shell |
-| `golang.org/x/sys` | v0.40.0 | Low-level OS syscalls (SIGWINCH, etc.) |
-| `tailscale.com` | v1.96.3 | Tailscale integration |
-| `github.com/tailscale/go-winio` | indirect via tailscale | Windows named pipes — already in dep graph |
-| `golang.org/x/term` | indirect via tailscale/crypto | Terminal raw mode — already in dep graph, needs promotion |
+1. **xterm.js terminal fill fix** — timing/CSS fix in React frontend only
+2. **Daemon startup performance** — algorithmic fix in `internal/daemon/process.go`
+3. **CLI arg passthrough** — data model and propagation through existing layers
+
+No `go get` or `npm install` required for any of these.
 
 ---
 
-## Recommended Stack Additions (v1.3 New Dependencies)
+## Recommended Stack
 
-### Core Technologies
+### Core Technologies (Unchanged)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `github.com/spf13/cobra` | v1.9.1 | CLI command framework | Industry standard used by Kubernetes, Docker, Hugo, and GitHub CLI — 184k+ importers. Subcommand tree maps directly to `agenthub new`, `agenthub list`, `agenthub attach`, `agenthub web start`, etc. Native `context.Context` support, persistent flags, shell completion generation. No viable alternative at this adoption level. Latest release: v1.9.1 (Dec 3, 2025). |
-| `github.com/kardianos/service` | v1.2.4 | Service manager integration | The only mature Go library that handles launchd (macOS), systemd (Linux), and Windows Service from one unified API. Generates correct plist/unit files, handles install/uninstall/start/stop. 1,400+ importers, actively maintained (released July 14, 2025). Supports `service.Config{}` with platform-specific overrides for LaunchAgent KeepAlive, systemd WantedBy, etc. |
+| Technology | Version | Purpose | Why Relevant to v1.5 |
+|------------|---------|---------|----------------------|
+| `@xterm/xterm` | `^6.0.0` (currently installed) | Terminal rendering | Fix site for the fill bug |
+| `@xterm/addon-fit` | `^0.11.0` (currently installed) | Terminal resize to container | Root cause of fill timing issue |
+| `document.fonts.ready` | Browser API (no package) | Font load gate before fit() | Already used; needs enhancement |
+| stdlib `flag.NewFlagSet` | Go stdlib (in use) | CLI command parsing | Extend `cmdNew` for `--` passthrough |
+| Go `os/exec` / PTY `CreateRequest.Args` | Go stdlib + existing `internal/pty` | CLI arg forwarding to PTY | `Args []string` field already exists in `CreateRequest` |
 
-### Promote to Direct Dependency
+### Supporting Libraries (Unchanged, Already in go.mod)
 
-| Technology | Current Status | Action | Why |
-|------------|---------------|--------|-----|
-| `golang.org/x/term` | indirect via tailscale | `go get golang.org/x/term@latest` | Required directly for CLI attach: `term.MakeRaw`/`term.Restore` for raw mode, `term.GetSize` for resize events. Official Go extended library, already in binary. Promoting avoids accidental removal during dep tidy. Latest: v0.30.0+ (Mar 2026). |
+| Library | Version | Purpose | v1.5 Usage |
+|---------|---------|---------|------------|
+| `github.com/aymanbagabas/go-pty` | v0.2.2 | PTY process launch | `CreateRequest.Args []string` is already wired into `cmd := p.CommandContext(ctx, req.CLI, req.Args...)` |
+| `golang.org/x/term` | v0.41.0 | Terminal raw mode | No change needed for v1.5 |
+| `github.com/wailsapp/wails/v2` | v2.10.2 | Desktop GUI + JS bindings | Wails-bound method on `App` needs `args string` param |
 
-### No Additional IPC Library Needed
+---
 
-Do NOT add `github.com/james-barrow/golang-ipc` or any third-party IPC wrapper.
+## Feature-Specific Stack Patterns
 
-The project already transitively depends on `github.com/tailscale/go-winio` (Windows named pipes). Use stdlib `net.Listen("unix", socketPath)` on macOS/Linux and the already-available `go-winio` for Windows named pipes. This keeps the dependency count minimal and avoids duplicating what Tailscale's `go-winio` already provides.
+### Feature 1: xterm.js Terminal Fill on Initial Load
+
+**Problem:** Claude and Gemini CLIs render a styled TUI on startup (full-screen panels, status bars). If `FitAddon.fit()` is called while the terminal container is still transitioning from hidden to visible, the measured container dimensions are wrong — the PTY gets initialized at 80x24 (the fallback) and the CLI draws its UI at that size. The correct dimensions arrive later but the CLI has already committed to the wrong terminal size.
+
+**Root cause (confirmed via xterm.js issues #4841, #5320, #5298):**
+- `fit()` calls `proposeDimensions()` which reads `containerElement.clientWidth/clientHeight` from the DOM
+- If called while the container is `display:none` or mid-CSS-transition, `clientWidth === 0` → `cols === 1` (or the prior 80x24 default survives)
+- `document.fonts.ready` only gates font load; it does not gate CSS layout completion
+- `ResizeObserver` fires on observation start AND on subsequent size changes — but only if the element is already visible when observed
+
+**Fix pattern (no new packages):**
+
+The current code in `TerminalPanel.tsx` uses `document.fonts.ready.then(() => fit())` plus a `ResizeObserver`. This is the right structure but has a gap: the ResizeObserver's initial callback fires before CSS layout has settled (the flex container completing its transition from display:none). The fix is to add a `requestAnimationFrame` gate inside the ResizeObserver callback to defer `fit()` to after paint:
+
+```typescript
+// In the ResizeObserver callback:
+const ro = new ResizeObserver(() => {
+  requestAnimationFrame(() => {
+    fitAddonRef.current?.fit()
+  })
+})
+ro.observe(container)
+```
+
+Additionally, add a targeted resize after the PTY relay WebSocket connects (`onOpen` callback in `RelayClient`), which sends the correct cols/rows to the PTY. This forces a SIGWINCH to the CLI process at the moment it is ready to receive input — the key missing piece for CLIs that draw their TUI before xterm.js has reported the correct size.
+
+**The correct `onOpen` resize pattern:**
+
+```typescript
+onOpen: () => {
+  // Fit now that the relay is connected; PTY can receive resize immediately.
+  const fitAddon = fitAddonRef.current
+  if (fitAddon) {
+    requestAnimationFrame(() => fitAddon.fit())
+  }
+},
+```
+
+This combines with the existing ResizeObserver so both paths converge on `requestAnimationFrame(() => fit())`.
+
+**Why `requestAnimationFrame` works:** The browser paints after rAF callbacks execute, which means CSS layout (including flex size resolution) has completed before the callback runs. This is the correct hook point for reading element dimensions.
+
+**Why NOT `setTimeout(..., 100)` or similar:** Fixed delays are flaky — fast machines miss them, slow machines add unnecessary latency. rAF is layout-cycle-accurate and zero-latency on fast hardware.
+
+**Confidence:** HIGH — rAF-after-fit is the documented workaround in xterm.js issue #4841 and confirmed by the maintainer (Tyriar) to be the correct approach for container-visibility timing.
+
+---
+
+### Feature 2: Daemon Startup Performance
+
+**Problem:** `EnsureDaemon` in `internal/daemon/process.go` polls with `time.Sleep(50 * time.Millisecond)` for up to 3 seconds after spawning the daemon subprocess. The actual daemon startup time is typically 50–150ms (Go binary, no JVM warmup), but the polling may sleep through the ready window and add unnecessary latency visible to users.
+
+**Current code analysis:**
+```go
+// Poll until daemon is fully ready — health + relay port (max 3 seconds).
+deadline := time.Now().Add(3 * time.Second)
+for time.Now().Before(deadline) {
+    if err := client.Health(); err == nil {
+        if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
+            return nil
+        }
+    }
+    time.Sleep(50 * time.Millisecond)  // ← sleeps BEFORE re-checking
+}
+```
+
+The issue: the loop sleeps AFTER each failed check. On the iteration where the daemon becomes ready, the code checks, succeeds, and returns — but only if it happens to check at the right moment. If the daemon is ready at t=80ms but the next poll is at t=100ms (50ms sleep), 20ms of unnecessary wait accrues. More importantly, the current structure does health check, then relay-port check as a separate HTTP round-trip — two sequential IPC calls per iteration.
+
+**Fix pattern (no new packages):**
+
+Three improvements, pure Go stdlib:
+
+1. **Check immediately first** (before any sleep): return early if daemon is already running (handles the restart/retry case).
+
+2. **Exponential backoff with cap**: start at 5ms, double each iteration, cap at 50ms. Matches daemon startup curve — fast to detect fast-starting daemons.
+
+3. **Combine health + relay into one round-trip**: add a `/ready` endpoint (or extend `/health`) that returns `{"status":"ok","relayPort":N}` so a single HTTP call confirms both conditions.
+
+```go
+// Improved poll: immediate first, then exponential backoff
+sleep := 5 * time.Millisecond
+deadline := time.Now().Add(3 * time.Second)
+for time.Now().Before(deadline) {
+    if err := client.Health(); err == nil {
+        if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
+            return nil
+        }
+    }
+    time.Sleep(sleep)
+    if sleep < 50*time.Millisecond {
+        sleep *= 2
+    }
+}
+```
+
+**Impact:** For a daemon that starts in 80ms, the current code detects readiness at the 100ms poll tick. With 5ms start + doubling (5, 10, 20, 40, 80ms cumulative = 155ms), the daemon is detected at 80ms within the 5ms window — detection happens at 80ms instead of 100ms. For the GUI startup path (App.startup → EnsureDaemon), this reduces perceived latency.
+
+**Additional: daemon startup warm path.** The daemon calls `NewSessionEngine()` + `NewAPI()` + `StartRelay()` + `api.Start(socketPath)` sequentially. `StartRelay()` does a `net.Listen("tcp", "127.0.0.1:0")` which is fast, but starts the relay server in a goroutine *after* `api.Start()`. Consider starting relay concurrently with API startup — both are independent listeners. This is a refactor within `runDaemonCore` in `process.go`, no new dependencies.
+
+**Confidence:** HIGH — analysis based on direct code reading. The polling pattern is a known Go pattern optimization with no library dependency.
+
+---
+
+### Feature 3: CLI Argument Passthrough
+
+**Problem:** Agents like Claude Code accept extra flags (`--model`, `--permission-mode`, `--verbose`). Users need to pass these through from both the CLI (`agenthub new`) and the GUI new-session modal.
+
+**Data flow analysis (existing code):**
+
+```
+cmdNew (cmd_cli.go)
+  → client.CreateSession(cli, name, workDir)      ← no args param
+    → POST /sessions {cli, name, workDir}          ← no args field
+      → engine.CreateSession(cli, name, workDir)  ← no args param
+        → backend.Create(CreateRequest{CLI, Cols, Rows, WorkDir})  ← Args []string exists but unused!
+          → p.CommandContext(ctx, req.CLI, req.Args...)  ← already wired!
+```
+
+`CreateRequest.Args []string` in `internal/pty/backend.go` is already defined and already forwarded to the PTY command. The gap is that nothing above it passes args down. This is a clean propagation fix through the existing layers.
+
+**Fix pattern — no new packages, extend existing types:**
+
+**Layer 1: `daemon/types.go` — add `Args []string` to wire types:**
+```go
+type CreateRequest struct {
+    CLI     string   `json:"cli"`
+    Name    string   `json:"name"`
+    WorkDir string   `json:"workDir"`
+    Args    []string `json:"args,omitempty"`   // ← add
+}
+```
+
+**Layer 2: `daemon/engine.go` — thread args into PTY CreateRequest:**
+```go
+func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, onStatus func(...)) (string, error) {
+    sess, err := e.backend.Create(ctx, pty.CreateRequest{
+        CLI:     cliPath,
+        Args:    args,     // ← add
+        Cols:    80, Rows: 24,
+        WorkDir: workDir,
+    })
+```
+
+**Layer 3: `daemon/client.go` — pass args through HTTP:**
+```go
+func (c *DaemonClient) CreateSession(cli, name, workDir string, args []string) (string, error) {
+    req := CreateRequest{CLI: cli, Name: name, WorkDir: workDir, Args: args}
+```
+
+**Layer 4: `cmd_cli.go` — parse `--` passthrough in `cmdNew`:**
+
+Go stdlib `flag.NewFlagSet` stops parsing at `--`. After `fs.Parse(args)`, `fs.Args()` contains everything after `--`. This is built in — no cobra needed.
+
+```go
+func cmdNew(client *daemon.DaemonClient, args []string, out io.Writer) error {
+    fs := flag.NewFlagSet("new", flag.ContinueOnError)
+    dir  := fs.String("dir", "", "working directory")
+    cli  := fs.String("cli", "claude", "agent CLI name")
+    if err := fs.Parse(args); err != nil { return err }
+
+    remaining := fs.Args()  // positional args (session name)
+
+    // Everything after "--" is captured in remaining after flag parsing.
+    // Split on "--" to separate session name from agent args.
+    var agentArgs []string
+    name := ""
+    for i, a := range remaining {
+        if a == "--" {
+            agentArgs = remaining[i+1:]
+            remaining = remaining[:i]
+            break
+        }
+    }
+    if len(remaining) > 0 { name = remaining[0] }
+    ...
+    id, err := client.CreateSession(*cli, name, *dir, agentArgs)
+```
+
+Usage: `agenthub new myproject --dir /path --cli claude -- --model claude-opus-4-5 --verbose`
+
+**Layer 5: `App.go` Wails binding — add args param:**
+```go
+func (a *App) CreateSession(cli, workDir string, args []string) (string, error) {
+    name := filepath.Base(workDir)
+    return a.client.CreateSession(cli, name, workDir, args)
+}
+```
+
+**Layer 6: `NewSessionModal.tsx` — add args text field with per-agent localStorage memory:**
+
+```typescript
+const LAST_ARGS_KEY = (cli: string) => `agenthub:lastArgs:${cli}`
+
+const [agentArgs, setAgentArgs] = useState(() =>
+    localStorage.getItem(LAST_ARGS_KEY(selectedCLI)) ?? ''
+)
+
+// When CLI selection changes, load saved args for that CLI
+useEffect(() => {
+    setAgentArgs(localStorage.getItem(LAST_ARGS_KEY(selectedCLI)) ?? '')
+}, [selectedCLI])
+
+// On confirm, persist and parse
+function handleConfirm() {
+    localStorage.setItem(LAST_ARGS_KEY(selectedCLI), agentArgs)
+    const parsedArgs = agentArgs.trim() ? agentArgs.trim().split(/\s+/) : []
+    onConfirm(selectedCLI, selectedDir, parsedArgs)
+}
+```
+
+Add a clear button: `<button onClick={() => { setAgentArgs(''); localStorage.removeItem(LAST_ARGS_KEY(selectedCLI)) }}>Clear</button>`
+
+**arg parsing note:** Simple whitespace-split is correct for the MVP — agent CLIs use `--flag value` pairs without embedded spaces. Shell quoting (e.g. `--prompt "hello world"`) is a future enhancement; document this limitation in the UI placeholder text.
+
+**Confidence:** HIGH — `CreateRequest.Args` is already defined and wired to the PTY command in `native.go`. This is purely a propagation change through existing types.
 
 ---
 
 ## Installation
 
 ```bash
-# From the agenthub project root
-go get github.com/spf13/cobra@v1.9.1
-go get github.com/kardianos/service@v1.2.4
-go get golang.org/x/term@latest   # promote from indirect to direct
+# No new dependencies for any v1.5 feature.
+# All changes are within existing packages.
 ```
-
----
-
-## Integration Patterns with Existing Wails Binary
-
-### Pattern 1: Single Binary, Two Entry Points
-
-The existing `main.go` calls `wails.Run()` unconditionally. For v1.3, `main()` must inspect `os.Args` BEFORE calling `wails.Run()`. If a CLI subcommand is detected, cobra handles it and the process exits — `wails.Run()` is never called, no window opens.
-
-```go
-func main() {
-    // If any non-GUI subcommand is present, run CLI path and exit.
-    // Never calls wails.Run() — no window, no WebKit, no GUI overhead.
-    if len(os.Args) > 1 && !isWailsInternalArg(os.Args[1]) {
-        cli.Execute()  // cobra root command; os.Exit on completion
-        return
-    }
-    // GUI path — unchanged from v1.2
-    err := wails.Run(&options.App{ ... })
-}
-```
-
-**Wails dev mode caveat (from wails/discussions/4175):** During `wails dev`, the binary is invoked twice — second time with `/tmp/wailsbindings` as an arg. The `isWailsInternalArg` guard must pass through these internal args. Use a `//go:build production` build tag to make arg inspection active only in `wails build` output, not in `wails dev`.
-
-### Pattern 2: Daemon Reuses Existing Internal Packages
-
-When invoked as `agenthub daemon` (or via service manager), the binary runs headlessly — `wails.Run()` is never called. The `SessionRegistry`, `HubManager`, and `WebServer` subsystems already live in `internal/` with no GUI dependency and can be reused directly:
-
-```
-agenthub daemon
-  └── IPC socket listener (unix socket on macOS/Linux, named pipe on Windows)
-  └── internal/pty.SessionRegistry  (no change needed)
-  └── internal/relay.HubManager     (no change needed)
-  └── internal/webserver.WebServer  (no change needed)
-  └── Tailscale TLS via existing local.Client.GetCertificate
-```
-
-### Pattern 3: IPC Socket for CLI-to-Daemon Communication
-
-The CLI subcommands (`list`, `attach`, `kill`, `rename`, etc.) communicate with the running daemon via a local socket.
-
-**macOS/Linux:**
-```go
-socketPath := filepath.Join(os.UserCacheDir(), "agenthub", "daemon.sock")
-ln, err := net.Listen("unix", socketPath)
-```
-
-**Windows:** `tailscale/go-winio` is already in the dep graph. Import it directly:
-```go
-// Windows build tag file
-import "github.com/tailscale/go-winio"
-
-ln, err := winio.ListenPipe(`\\.\pipe\agenthub-daemon`, nil)
-```
-
-Abstract behind a single `NewDaemonListener(path string) (net.Listener, error)` function gated by `//go:build` tags — one per platform, same call site.
-
-**Protocol:** stdlib `encoding/json` over the socket is sufficient for the ~15 command types (`new`, `list`, `attach`, `kill`, `rename`, `web start/stop/status`, `health`, `qr`, `settings`). No gRPC or protobuf needed.
-
-### Pattern 4: Terminal Attach (PTY Proxy over IPC Socket)
-
-The `agenthub attach <id>` command:
-
-1. Dial daemon IPC socket; send `{"op": "attach", "session_id": "..."}`.
-2. Daemon finds the session's Hub, registers a new subscriber (same subscriber interface used by WebSocket relay today).
-3. Raw PTY bytes stream over the socket.
-4. CLI client calls `term.MakeRaw(int(os.Stdin.Fd()))` to enter raw mode.
-5. Two goroutines: `io.Copy(conn, os.Stdin)` and `io.Copy(os.Stdout, conn)`.
-6. On detach prefix (configurable, default `Ctrl+\` = `0x1c`), CLI intercepts the byte in the stdin copy loop, sends `{"op": "detach"}`, and calls `term.Restore`.
-7. On `SIGWINCH`, read size with `term.GetSize(int(os.Stdout.Fd()))` and send resize event to daemon which calls `hub.Resize(cols, rows)`.
-
-The existing `relay.Hub` / `relay.Subscriber` fan-out infrastructure handles daemon-side attach with no changes — IPC socket attach is another subscriber type alongside WebSocket subscribers.
-
-### Pattern 5: Service Manager Integration (kardianos/service)
-
-```go
-svcConfig := &service.Config{
-    Name:        "agenthub-daemon",
-    DisplayName: "AgentHub Daemon",
-    Description: "Manages AgentHub terminal sessions in the background.",
-    // macOS: installs as LaunchAgent (user-level, runs on login)
-    // Linux: installs as systemd user unit
-    // Windows: installs as Windows Service
-    Option: service.KeyValue{
-        "KeepAlive":  true,   // launchd: restart on crash
-        "RunAtLoad":  true,   // launchd: start immediately on install
-        "UserService": true,  // systemd: user-level unit
-    },
-}
-
-prg := &daemonProgram{...}  // implements service.Interface
-svc, err := service.New(prg, svcConfig)
-```
-
-`kardianos/service` also provides `service.Interactive()` — returns `true` when running from a terminal vs. from a service manager. Use this to decide whether to write logs to stderr (interactive) or the system logger (service manager).
 
 ---
 
@@ -155,77 +273,51 @@ svc, err := service.New(prg, svcConfig)
 
 | Recommended | Alternative | Why Not |
 |-------------|-------------|---------|
-| `spf13/cobra v1.9.1` | `urfave/cli v2` | urfave/cli is fine but cobra has wider ecosystem adoption, superior persistent-flag inheritance for nested command groups (`web start/stop/status`), and better shell completion generation. The Kubernetes/Docker ecosystem tooling patterns align with cobra. |
-| `spf13/cobra v1.9.1` | `urfave/cli v3` | v3 is still gaining adoption (API stabilized late 2024). Cobra is the safe, proven choice. |
-| `kardianos/service` | Manual plist/systemd/SCM authoring | Correct plist and systemd unit files require platform-specific knowledge and maintenance across 3 platforms. `kardianos/service` generates them from a single `service.Config{}` struct with well-tested templates. |
-| stdlib `net.Listen("unix",...)` + existing `tailscale/go-winio` | `james-barrow/golang-ipc` | `golang-ipc` abstracts what the project already has. Adding it introduces 3+ new transitive deps and version skew risk for something fully covered by stdlib + an existing dep. |
-| stdlib `encoding/json` over socket | gRPC + protobuf | Massive overkill for ~15 local command types. Adds code generation, `google.golang.org/grpc` (large dep), proto files to maintain. No performance benefit for a local IPC use case. |
-| `golang.org/x/term` | `github.com/pkg/term` | `x/term` is the official Go extended library, already in the binary transitively, actively maintained (v0.41.0 released March 2026). `pkg/term` is unmaintained. |
+| `requestAnimationFrame` gate for fit() | `setTimeout(fit, 100)` delay | Fixed delay is unreliable — too fast on slow machines, unnecessary latency on fast ones. rAF is layout-cycle accurate. |
+| `requestAnimationFrame` gate for fit() | `MutationObserver` on container | Mutations don't fire on CSS transitions completing. ResizeObserver already in place is correct mechanism; just needs rAF gate. |
+| Exponential backoff polling in EnsureDaemon | Reduce sleep to 10ms flat | Flat 10ms still has up to 10ms excess delay at detection. Exponential starts faster and converges quicker. |
+| Exponential backoff polling | Channel-based notification (daemon signals readiness) | Requires adding a signaling mechanism (pipe, socket ping) to the daemon spawn contract. Over-engineering for a 50-150ms startup path. |
+| `flag.NewFlagSet` `--` split for args | Add cobra | Cobra not in the project (despite being researched in v1.3, stdlib flag was used instead). Adding cobra for one new flag is unjustified scope. |
+| Whitespace-split args string from GUI | JSON array input in GUI | Whitespace split matches how users type CLI flags. JSON array is unfamiliar UX for CLI flags. |
+| Per-CLI localStorage key for args | Single global args key | Different CLIs have different flags (claude uses `--model`, gemini uses `--model` differently, etc.). Per-CLI memory prevents confusion. |
 
 ---
 
-## What NOT to Use
+## What NOT to Add
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `github.com/james-barrow/golang-ipc` | Wraps what the project already has (go-winio for Windows, stdlib for Unix). Adds transitive deps with no benefit. | stdlib `net` + existing `tailscale/go-winio` |
-| `github.com/creack/pty` direct use | The project already uses `aymanbagabas/go-pty` which wraps `creack/pty` on Unix and adds ConPTY on Windows. Mixing both packages causes confusion in the PTY lifecycle. | Continue using `aymanbagabas/go-pty` exclusively |
-| gRPC / protobuf for daemon IPC | Overkill for a local socket with ~15 command types. Adds code generation, large deps, build complexity. | stdlib `encoding/json` over Unix socket |
-| `tmux` as session backend | Out of scope per PROJECT.md ("Configurable session backend deferred to future milestone"). Adds an external process dependency. | Existing Go-native PTY in `internal/pty` |
-| Wails v3 alpha | In alpha as of March 2026; breaking API changes likely before stable release. Project is on Wails v2.10.2 which is stable and battle-tested. | Stay on Wails v2.10.2 |
-| Separate daemon binary | Contradicts the "single binary, two modes" requirement in PROJECT.md. Complicates distribution, signing, and PATH management. | Single binary with cobra dispatch in `main()` |
-
----
-
-## Stack Patterns by Scenario
-
-**If running as GUI (no CLI subcommand in os.Args):**
-- `main()` proceeds to `wails.Run()` — unchanged from v1.2.
-- Daemon subsystems (registry, relay, webserver) start inside the Wails process as goroutines.
-- IPC socket opened so CLI clients can communicate with the running GUI process.
-
-**If running as CLI subcommand (`agenthub list`, `agenthub attach <id>`, etc.):**
-- cobra `Execute()` runs; `wails.Run()` is never called.
-- CLI dials daemon IPC socket; daemon process must already be running (or CLI auto-starts it).
-- No Wails/WebKit overhead; fast startup, stdout/stderr output.
-
-**If running as daemon (`agenthub daemon` or via service manager):**
-- `kardianos/service` detects service manager invocation vs. interactive terminal.
-- `wails.Run()` never called; no window.
-- Sessions managed via existing `SessionRegistry`; web server started via existing `webserver` package.
-- IPC socket opened on a well-known path.
-
-**If Windows named pipe needed for IPC:**
-- Import `github.com/tailscale/go-winio` directly (already in dep graph — just needs a direct import).
-- Use `winio.ListenPipe` / `winio.DialPipe` behind a `//go:build windows` file.
-- The rest of the codebase uses `net.Listener` / `net.Conn` — the abstraction boundary is at socket creation only.
+| Shell quoting/parsing library (e.g. `google/shlex`) | Overkill for MVP — agent flags don't use quoted values in practice. Adds a new Go dependency. | Simple `strings.Fields()` / whitespace split; document limitation. |
+| New `/ready` daemon endpoint (combined health+relay) | While it would save one round-trip, the current two-call pattern works correctly and the exponential backoff alone solves the performance issue without requiring API changes. | Exponential backoff on existing two-call pattern. |
+| `cobra` for CLI arg parsing | Already researched in v1.3, not adopted. Flag stdlib is established in the codebase (flag.NewFlagSet per command). Adding cobra now is churn. | Continue stdlib `flag.NewFlagSet` pattern. |
+| xterm.js addon-canvas or addon-serialize | Not needed for fit timing fix — existing WebGL/fallback stack is correct. | Existing `@xterm/addon-webgl` + canvas fallback. |
+| Increase EnsureDaemon timeout beyond 3s | If the daemon doesn't start in 3s, something is wrong (binary not found, permission error). Longer timeout just delays error reporting. | Keep 3s deadline; improve detection speed within it. |
 
 ---
 
 ## Version Compatibility
 
-| Package | Version | Compatible With | Notes |
-|---------|---------|-----------------|-------|
-| `github.com/spf13/cobra` | v1.9.1 | Go 1.22+ | v1.9.0 released Feb 2025, v1.9.1 bugfix shortly after; both stable |
-| `github.com/kardianos/service` | v1.2.4 | Go 1.17+, macOS 12+, Linux systemd v221+, Windows 10+ | July 2025 release. Launchd UserAgent mode supported. |
-| `golang.org/x/term` | v0.30.0+ | `golang.org/x/sys v0.40.0` | Must match same golang.org/x/* release family; no conflict expected |
-| `github.com/tailscale/go-winio` | existing indirect | Windows 10+ | Named pipe API stable; do not upgrade independently of tailscale dep |
+| Package | Version | Notes |
+|---------|---------|-------|
+| `@xterm/addon-fit` | `^0.11.0` | `fit()` behavior unchanged since 0.10.x; rAF fix is in calling code, not the addon |
+| `@xterm/xterm` | `^6.0.0` | No API changes needed; `onResize` event already fires correctly |
+| Go stdlib `flag` | Go 1.26.1 (in go.mod) | `--` terminator behavior is stable and documented since Go 1.0 |
+| `github.com/aymanbagabas/go-pty` | v0.2.2 | `CreateRequest.Args []string` already defined; no upgrade needed |
 
 ---
 
 ## Sources
 
-- [pkg.go.dev/github.com/spf13/cobra](https://pkg.go.dev/github.com/spf13/cobra) — latest version v1.9.1 (Dec 3, 2025), feature set verified. HIGH confidence.
-- [github.com/spf13/cobra/releases/tag/v1.9.0](https://github.com/spf13/cobra/releases/tag/v1.9.0) — v1.9.0 release date confirmed Feb 2025. HIGH confidence.
-- [pkg.go.dev/github.com/kardianos/service](https://pkg.go.dev/github.com/kardianos/service) — v1.2.4 (July 14, 2025), platform support and API verified. HIGH confidence.
-- [pkg.go.dev/golang.org/x/term](https://pkg.go.dev/golang.org/x/term) — v0.41.0 (Mar 10, 2026), MakeRaw/Restore/GetSize API confirmed. HIGH confidence.
-- [pkg.go.dev/github.com/aymanbagabas/go-pty](https://pkg.go.dev/github.com/aymanbagabas/go-pty) — v0.2.2, ReadWriteCloser + Resize API verified. HIGH confidence.
-- [pkg.go.dev/github.com/Microsoft/go-winio](https://pkg.go.dev/github.com/Microsoft/go-winio) — v0.6.2+, net.Listener-compatible named pipe API confirmed. HIGH confidence.
-- [github.com/wailsapp/wails/discussions/4175](https://github.com/wailsapp/wails/discussions/4175) — os.Args pattern in Wails v2 and production build tag approach. MEDIUM confidence (community discussion, no official doc).
-- [iximiuz.com — Linux PTY attach/detach internals](https://iximiuz.com/en/posts/linux-pty-what-powers-docker-attach-functionality/) — raw mode + PTY proxy pattern (same pattern Docker uses). MEDIUM confidence (authoritative blog, verified against stdlib docs).
-- `/Users/ken/dev/agenthub/go.mod` — existing dependencies verified directly. HIGH confidence.
-- `/Users/ken/dev/agenthub/internal/relay/hub.go` — existing Hub/Subscriber fan-out infrastructure verified compatible with attach use case. HIGH confidence.
+- [xterm.js issue #4841 — FitAddon resizes incorrectly](https://github.com/xtermjs/xterm.js/issues/4841) — root cause analysis confirming rAF as correct fix. MEDIUM confidence (community + maintainer comment).
+- [xterm.js issue #5320 — addon-fit: width=1](https://github.com/xtermjs/xterm.js/issues/5320) — CSS layout conflict as root cause. MEDIUM confidence.
+- [xterm.js issue #5298 — fit not exactly to parent dimensions](https://github.com/xtermjs/xterm.js/issues/5298) — layout timing patterns. MEDIUM confidence.
+- [pkg.go.dev/flag](https://pkg.go.dev/flag) — `--` terminator behavior for stdlib flag package. HIGH confidence.
+- `/Users/ken/dev/agenthub/internal/pty/backend.go` — `CreateRequest.Args []string` already defined and wired. HIGH confidence (direct code read).
+- `/Users/ken/dev/agenthub/internal/pty/native.go` — `p.CommandContext(ctx, req.CLI, req.Args...)` confirms args forwarding path. HIGH confidence (direct code read).
+- `/Users/ken/dev/agenthub/internal/daemon/process.go` — `EnsureDaemon` polling logic (50ms flat sleep). HIGH confidence (direct code read).
+- `/Users/ken/dev/agenthub/frontend/src/components/TerminalPanel.tsx` — current fit timing implementation. HIGH confidence (direct code read).
+- `/Users/ken/dev/agenthub/frontend/package.json` — current xterm.js addon versions confirmed. HIGH confidence (direct file read).
 
 ---
-*Stack research for: AgentHub v1.3 CLI + Daemon milestone*
-*Researched: 2026-03-23*
+*Stack research for: AgentHub v1.5 Bug Fixes & CLI Args*
+*Researched: 2026-03-25*

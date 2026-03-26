@@ -1,356 +1,332 @@
 # Pitfalls Research
 
-**Domain:** CLI + Daemon — adding daemon mode, CLI commands, and terminal attach/detach to an existing Go/Wails desktop app
-**Researched:** 2026-03-23
-**Confidence:** HIGH for daemon/process/signal pitfalls (verified against official docs and GitHub issues); MEDIUM for Wails-specific coexistence (limited documented precedent, based on Wails source and community issues)
+**Domain:** Desktop app — terminal fit fix, daemon performance, CLI arg passthrough (AgentHub v1.5)
+**Researched:** 2026-03-25
+**Confidence:** HIGH — codebase read directly, pitfalls verified against xterm.js GitHub issues and Go exec docs; Gemini CLI startup issue verified against upstream issues
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Wails Initialization Runs Before os.Args Dispatch
+### Pitfall 1: FitAddon Called While Container Has Zero Dimensions
 
 **What goes wrong:**
-Wails v2's binding generation phase executes `main()` during the build process without the user's CLI arguments. If `main()` dispatches on `os.Args` before calling `wails.Run()`, any argument validation or subcommand routing that panics or calls `os.Exit` will break the build entirely. Even at runtime, the macOS `.app` bundle launch path does not pass arguments through the same way a terminal invocation does — double-clicking the app passes no arguments, but the binary must still route correctly to GUI mode.
+`fitAddon.fit()` is called when the TerminalPanel container is hidden (`display: none`) or not yet laid out. FitAddon calls `proposeDimensions()` internally, which reads `getBoundingClientRect()` on the parent. Hidden elements return zero. The result is a 1-column or 0-row terminal that stays broken until the next manual resize — exactly the bug described in PROJECT.md: "CSS flex chain fixed, fills after resize — initial-paint timing gap remains."
 
 **Why it happens:**
-Developers assume `os.Args` dispatch is safe at the top of `main()`. In Wails v2, the framework calls the compiled binary during code generation, so `main()` runs twice: once during build (without args) and once for real (with args). Additionally, macOS `.app` bundles launched by the Finder do not pass CLI arguments — the binary receives only `os.Args[0]`.
+The current `TerminalPanel.tsx` runs `fit()` inside the `isActive` useEffect, which fires when `isActive` becomes true. In Wails/WebView there is a non-zero gap between React setting `display: flex` on the container and the browser completing layout. The ResizeObserver fires immediately on first observation — before the browser has flushed the layout pass — so the first `fit()` call can read zero dimensions.
+
+The existing `document.fonts.ready` guard only protects against font-measurement errors. It does not wait for the layout-flush-after-display-change. Both conditions must be true before `fit()` is safe: fonts loaded AND container has non-zero layout dimensions.
+
+Confirmed upstream: xterm.js issue #3029 ("FitAddon and display 'none'") was closed as "designed" behavior — FitAddon requires the container to have measurable dimensions; it is the caller's responsibility to guard against zero-dimension calls. Issue #5320 documents `width=1` results from layout not being settled.
 
 **How to avoid:**
-Dispatch on `os.Args` at the very top of `main()`, before any Wails imports are initialized, but use a safe default: if `len(os.Args) == 1` (no subcommand), fall through to `wails.Run()`. Never panic or exit on missing arguments in the dispatch path. Use `//go:build production` constraints to guard any argument validation that is only safe at runtime. Test the no-args path explicitly.
+Wrap every `fit()` call in a `safeFit()` guard that checks `proposeDimensions()` first:
+```typescript
+function safeFit(fitAddon: FitAddon): void {
+  const dims = fitAddon.proposeDimensions()
+  if (dims && dims.cols > 0 && dims.rows > 0) {
+    fitAddon.fit()
+  }
+}
+```
+Additionally, for the initial activation (first time `isActive` becomes true), schedule the fit call inside `requestAnimationFrame` so at least one layout frame has committed before measuring. ResizeObserver fires after layout passes, so subsequent calls do not need the rAF deferral — only the first observation at activation.
 
 **Warning signs:**
-- `wails build` fails with a panic or non-zero exit in code that "should never run"
-- Double-clicking the `.app` bundle crashes immediately rather than showing the window
-- Argument flags accepted by the CLI conflict with internal Wails flags (e.g. `-loglevel`)
+- Terminal appears as a thin strip (1–2 rows) or incorrect width on first tab activation.
+- Terminal fills correctly after any window resize or browser zoom change.
+- The bug reproduces on all CLI types but is most visible with CLIs that print a splash screen immediately (Claude, Gemini) because the broken dimensions are visible before the user has a chance to resize.
 
-**Phase to address:** Daemon binary architecture / single-binary mode dispatch (first phase of v1.3)
+**Phase to address:** Phase 1 — Terminal fill fix.
 
 ---
 
-### Pitfall 2: Stale Unix Socket Blocks Daemon Startup
+### Pitfall 2: WebGL Context Lost on Hidden-Tab Reactivation, No Renderer Fallback
 
 **What goes wrong:**
-The daemon creates a Unix socket for IPC. If the daemon crashes, is killed with SIGKILL, or the machine reboots without a clean shutdown, the socket file remains on disk. The next daemon startup attempt calls `net.Listen("unix", socketPath)` and gets `address already in use`, refusing to start even though no daemon is actually running.
+Browsers budget WebGL contexts per page. When multiple terminals are open and inactive panels are hidden via `display: none`, the browser may silently drop a WebGL context. When that tab is reactivated, the WebGL addon fires `onContextLoss` — the current handler disposes the addon — but does not attach a fallback renderer. The terminal accepts data but renders blank.
 
 **Why it happens:**
-Unix sockets are filesystem objects. Unlike TCP ports, the OS does not automatically reclaim a socket file when a process dies. The file persists until explicitly removed. This is one of the most common daemon startup failures and has thousands of hits in forums — there is no OS-level automatic cleanup.
+The current `TerminalPanel.tsx` disposes the WebGL addon on context loss but takes no further action:
+```typescript
+webglAddon.onContextLoss(() => {
+  webglAddon.dispose()
+  // Nothing here — terminal is now renderer-less
+})
+```
+Without an active renderer, xterm.js has no way to paint to the canvas.
 
 **How to avoid:**
-At startup, before calling `net.Listen`, attempt to connect to the socket. If the connect succeeds, another daemon is already running — exit with an "already running" error. If the connect fails (connection refused or no such file), the socket is stale — remove it with `os.Remove(socketPath)` and then listen. Use a lock file (via `flock` on POSIX) as the authoritative running-state indicator rather than the socket itself, because lock files are immune to PID reuse. On startup: check lock file → check PID liveness → remove stale socket → listen.
+After disposing the WebGL addon, explicitly force canvas rendering via xterm.js options. Canvas is the default fallback and performs adequately for CLI output volumes:
+```typescript
+webglAddon.onContextLoss(() => {
+  webglAddon.dispose()
+  term.options.allowTransparency = false  // required before canvas mode on some xterm versions
+  // xterm.js v5 falls back to canvas automatically after WebGL addon is disposed
+  // but calling fit() after ensures dimensions are recalculated for the new renderer
+  safeFit(fitAddonRef.current)
+})
+```
 
 **Warning signs:**
-- `agenthub daemon start` fails with "address already in use" after a crash
-- Socket file exists at the expected path but no process holds the lock
-- Users report having to manually `rm` the socket file to restart the daemon
+- Terminal goes blank when switching back to a tab that was idle for a long time.
+- No JavaScript console errors (context loss is silent by default without the handler).
+- Only affects tabs with WebGL renderer — if WebGL failed at creation and canvas was used from the start, this pitfall doesn't trigger.
 
-**Phase to address:** Daemon process management (PID files, socket lifecycle)
+**Phase to address:** Phase 1 — Terminal fill fix (fix context loss recovery alongside fit fix).
 
 ---
 
-### Pitfall 3: Terminal Left in Raw Mode After Crash or Panic
+### Pitfall 3: Daemon Starts With Minimal System PATH — Agent Resolution Fails or Resolves Wrong Binary
 
 **What goes wrong:**
-When the CLI attaches to a session, it calls `term.MakeRaw(os.Stdin.Fd())` to enter raw terminal mode. If the process panics, receives SIGKILL, or exits via `os.Exit` without running deferred cleanup, the terminal is left in raw mode. The user's shell prompt becomes invisible — keystrokes are not echoed, Enter does not submit commands, and the terminal appears frozen. The user must type `reset` blind to recover.
+The daemon is a background service started by launchd/systemd/SCM. Its environment contains only the minimal system PATH (`/usr/bin:/bin:/usr/sbin:/sbin`). When `CreateSession` calls `engine.ResolveCLI("claude")` and falls through to using the name as-is, `exec.LookPath("claude")` or the PTY spawn resolves against the daemon's PATH — not the user's PATH.
+
+For agents installed via npm global (`gemini`), nvm/volta-managed Node paths, or Homebrew (`/opt/homebrew/bin`), the binary is simply not found or the wrong version is used. This is the most likely root cause of the slow-startup regression introduced in v1.3 when sessions moved to daemon mode — the daemon's PATH may miss the binary entirely and fall back to a slow retry path, or the wrong binary (older system-level install) is used.
 
 **Why it happens:**
-`defer term.Restore(...)` only runs on normal function returns and panics that unwind the stack. It does NOT run when: the process receives SIGKILL, `os.Exit` is called, `log.Fatal` is called (which calls `os.Exit`), or the program crashes due to a nil pointer dereference that goes unrecovered. Signal handlers for SIGTERM and SIGINT must also call restore before exiting.
+When sessions were created in-process (pre-v1.3), they inherited the full user shell environment. When moved to the daemon, the daemon process was spawned via `startDetachedDaemon` which inherits only the minimal GUI launch environment — not the shell profile environment. Users with nvm, volta, pyenv, or Homebrew have their binaries in paths that only appear after shell profile scripts run (`~/.zshrc`, `~/.profile`).
+
+Gemini CLI additionally has documented startup regressions of 8–60 seconds caused by synchronous MCP server initialization (GitHub issues #4544, #21853, #17774). These are CLI-side issues unrelated to daemon mode but may be conflated with the daemon regression.
 
 **How to avoid:**
-Save the original terminal state immediately: `oldState, _ := term.GetState(fd)`. Register signal handlers for SIGTERM, SIGINT, and SIGHUP that call `term.Restore(fd, oldState)` before `os.Exit`. Wrap the attach loop in a `recover()` that restores terminal state before re-panicking. Never call `log.Fatal` from within raw mode — capture the error, restore first, then log and exit. On Windows, `SetConsoleMode` must be similarly restored via a deferred call that is also wired through signal handlers.
+Profile first — add a `time.Now()` delta log around `b.backend.Create()` in `engine.go` to measure actual PTY spawn time separately from agent initialization time. This distinguishes daemon-side from CLI-side latency.
+
+If daemon-side PATH is the issue, two options:
+1. **Login shell spawn wrapper:** Spawn agents via a login shell: `cmd = /bin/zsh -l -c "<agent> <args>"`. This adds one shell process but ensures the full user environment including nvm/volta/Homebrew paths.
+2. **PATH expansion at daemon startup:** At `runDaemonCore`, expand PATH by reading `/etc/paths`, `/etc/paths.d/*`, and common tool manager paths (`~/.nvm/alias/default` version resolution, `/opt/homebrew/bin`), then set `PATH` in the daemon's environment explicitly. Cache the expanded PATH.
+
+Log the resolved binary path for each session creation so misresolution is diagnosable.
 
 **Warning signs:**
-- Users report "broken terminal" or "invisible typing" after `agenthub attach` exits abnormally
-- CI/CD attach tests leave the test runner's terminal in raw mode (causing subsequent test output to be garbled)
-- Any `log.Fatal` call path reachable from attach mode
+- Session takes 2–5+ seconds to show first output where it previously appeared in under 1 second.
+- `agenthub list` shows session stuck in `running` state for several seconds with no terminal output.
+- `which gemini` in a user terminal returns `~/.nvm/versions/node/.../bin/gemini` but daemon logs resolve it differently.
+- Bug only manifests when daemon is running as a service (`agenthub daemon install`), not when launched manually from a terminal.
 
-**Phase to address:** Terminal attach / raw mode (CLI attach command implementation)
+**Phase to address:** Phase 2 — Daemon performance fix.
 
 ---
 
-### Pitfall 4: Daemon Does Not Daemonize on macOS (launchd Conflict)
+### Pitfall 4: CLI Args Word-Splitting on User Input String
 
 **What goes wrong:**
-Traditional Unix daemons double-fork to detach from the controlling terminal and become session leaders. On macOS, launchd expects to be the parent of the service process — if the daemon double-forks, launchd loses track of the PID, cannot monitor the process, and the service appears to crash immediately after "starting." Launchd then enters rapid-restart loops.
+The user types extra args in a text field: `--model claude-opus-4-5 --no-auto-updates`. The frontend sends this as a single string to the Go backend. If the backend splits naively with `strings.Fields()`, arguments with embedded spaces or quotes (`--config "/path/with spaces/config.json"`) are split incorrectly. If the backend passes the raw string as one element to `exec.Command`, the agent receives the entire string as a single token and ignores it. Either failure is silent — no error, the agent just doesn't see the flags.
 
 **Why it happens:**
-Developers familiar with Linux daemon patterns (POSIX double-fork, `setsid()`, daemonize libraries) apply them to macOS launchd agents. The launchd contract is that the registered binary runs in the foreground; launchd handles backgrounding. The `go-daemon` library's fork approach also conflicts with Go's runtime, which does not support `fork()` without `exec()` — forked child processes in Go do not inherit goroutines.
+String splitting looks trivially simple until quoted arguments appear. `strings.Fields()` splits on whitespace only and does not understand POSIX quoting conventions (`"..."`, `'...'`, `\` escaping). Shell-style parsing requires a proper lexer.
 
 **How to avoid:**
-The daemon must NOT self-daemonize. Run in the foreground. Let launchd (macOS), systemd (Linux), and Windows SCM manage the process lifecycle. Use `kardianos/service` as an abstraction — it implements the correct Run/Stop pattern for each platform without requiring platform-specific fork/setsid code. The plist `RunAtLoad` key and `KeepAlive` key handle restarts. Never use `go-daemon`'s fork-based approach in a Wails project.
+Tokenize the args string using a shlex-equivalent before building the `[]string` slice passed to `pty.CreateRequest.Args`. Options:
+- `github.com/google/shlex` — MIT licensed, minimal, no dependencies
+- `mvdan.cc/sh/v3/syntax` — full POSIX shell parser (heavier, overkill for arg splitting)
+
+Pass the tokenized `[]string` to `exec.Command` / `gopty.CommandContext` — never concatenate back into a shell string. Go's `exec.Command` does not invoke a shell, so array-based passing is injection-safe by construction once the string is correctly tokenized.
+
+Edge cases to test: `--key "value with spaces"`, `--key='value with spaces'`, `--key value`, multiple consecutive spaces, empty string input.
 
 **Warning signs:**
-- launchd shows the service as "crashed" immediately after `launchctl start`
-- `launchctl list | grep agenthub` shows the service with a non-zero exit code
-- Service appears to start and stop in rapid succession in Console.app
+- `--model` flag is ignored when combined with other flags in the same text field.
+- Args containing quoted paths with spaces produce "file not found" errors from the agent.
+- Test: create a session with `--version` as extra args; verify the agent prints its version and exits (single flag, no quoting complexity).
 
-**Phase to address:** Service manager integration (launchd/systemd/Windows SCM)
+**Phase to address:** Phase 3 — CLI args passthrough.
 
 ---
 
-### Pitfall 5: PTY Resize Events Not Propagated Through the Daemon Proxy
+### Pitfall 5: Args Field Missing From daemon.CreateRequest — Silent Discard at Daemon Boundary
 
 **What goes wrong:**
-When a CLI client attaches to a session via the daemon, the daemon proxies PTY I/O over the Unix socket. Terminal resize events (SIGWINCH on POSIX) are delivered to the CLI process, not to the daemon process that owns the PTY. If the CLI attach handler does not forward resize events through the socket to the daemon, which then calls `pty.Resize()` on the backing PTY, the AI coding CLI's UI will misrender after any window resize — wrapped lines, broken layouts, overwritten output.
+`pty.CreateRequest` already has `Args []string` and `NativePTYBackend.Create` uses it correctly. However, `daemon.CreateRequest` (the HTTP JSON type in `daemon/types.go`) does not have an `Args` field. If args are wired into the frontend and `app.go` but the daemon type layer is not updated, args are silently dropped at the HTTP serialization boundary — the daemon creates the session without them and returns success.
 
 **Why it happens:**
-PTY resize requires calling the `TIOCSWINSZ` ioctl on the master PTY file descriptor. The master FD lives in the daemon process. The CLI client receives SIGWINCH, but it does not own the master FD. Developers implement the I/O proxy but forget the resize channel, because it works fine during initial testing in a fixed-size terminal.
+The call chain has three distinct type layers: `daemon.CreateRequest` (HTTP JSON) → `engine.CreateSession()` parameters → `pty.CreateRequest`. The pty layer is already done. The daemon layer requires surgery at every level:
+- `daemon/types.go` — struct definition
+- `daemon/api.go` — handler reads `req.Args`
+- `daemon/engine.go` — `CreateSession` accepts `args []string` and passes to `pty.CreateRequest{Args: args}`
+- `daemon/client.go` — `CreateSession` method accepts and sends `args`
+- `app.go` — `CreateSession` Wails method accepts and forwards `args`
+- Wails binding regeneration — required after any method signature change
 
 **How to avoid:**
-The IPC protocol must include a resize message type (already partially present in the existing binary framing protocol). On the client side, install a SIGWINCH handler that reads the current terminal dimensions with `unix.IoctlGetWinsize` and sends a resize frame to the daemon. The daemon receives the resize frame and calls the PTY resize API. Test explicitly by resizing the terminal window during an active attach session. Note: Windows uses `ConPTY` resize via a separate call — handle with a build tag.
+Update all six layers in sequence. Write an integration test that creates a session with `Args: []string{"--version"}` via the daemon API and verifies the spawned process received the flag (check `ps aux` output or capture stderr). A unit test that only checks `daemon.CreateRequest` serialization is not sufficient — it must exercise the full IPC chain.
+
+Also update the `cmd_cli.go` `new` command to accept `--` suffix args: `agenthub new --cli claude --workdir /tmp -- --model claude-opus-4-5`.
 
 **Warning signs:**
-- AI CLI renders correctly at initial attach but breaks after window resize
-- Line wrapping artifacts visible in the terminal output
-- `stty size` inside the attached session returns wrong dimensions after resize
+- Extra args appear in the UI modal but the agent behaves identically with and without them.
+- No error is returned from `CreateSession` — the session is created successfully, just without the args.
 
-**Phase to address:** Terminal attach / PTY proxy (CLI attach command implementation)
+**Phase to address:** Phase 3 — CLI args passthrough.
 
 ---
 
-### Pitfall 6: Session State Lives in Two Places After Extraction
+### Pitfall 6: Per-Agent Arg Memory Uses Non-Namespaced localStorage Keys
 
 **What goes wrong:**
-Currently `App` in `app.go` holds session state (registry, tabNames, cliPaths, sessionStatuses) directly. When a daemon is extracted, session state must move to the daemon. But if the GUI still maintains a local copy — even a cache — the two diverge: the GUI shows stale session names, incorrect status, or phantom sessions that the daemon has already killed. Race conditions between the GUI's local state and the daemon's authoritative state cause confusing bugs that are hard to reproduce.
+If per-agent args are stored using a bare key like `"args"` or `"claude-args"`, two problems arise:
+1. Key collisions with any other feature that uses similar keys.
+2. If an agent is renamed or a new agent with a similar name is added, the wrong defaults are pre-filled.
 
-**Why it happens:**
-The natural refactoring path is to "add a daemon" while keeping the existing App struct intact. Developers add RPC calls for new operations but leave old direct mutations for "performance" or "it works locally." The first divergence bug appears only after a multi-client scenario (GUI + CLI both attached) or after the daemon kills a session the GUI doesn't know about.
+The existing codebase uses the pattern `'agenthub:lastWorkDir'` (in `NewSessionModal.tsx`). Per-agent keys must follow this namespace pattern consistently.
+
+A secondary risk: stored args persist across app upgrades in the Wails WebView data directory. If a deprecated flag is stored (e.g., `--old-flag` that the agent no longer accepts), every new session silently gets a broken default.
 
 **How to avoid:**
-The daemon is the single source of truth for ALL session state. The GUI is a client, not a peer. After extraction, `App` holds no session state — it only holds the IPC connection to the daemon and a local display cache that is invalidated and refreshed via daemon events (push notifications or periodic polling). The `tabNames` map, `sessionStatuses` map, and all other mutable session fields must live exclusively in the daemon. The GUI's `App.startup` connects to (or starts) the daemon and subscribes for state change events.
+Use the key pattern `agenthub:args:<cliName>` (e.g., `agenthub:args:claude`, `agenthub:args:gemini`). Store args as the raw text field string — not a parsed array. Parsing happens at session creation, not at storage time. Provide a clear button that calls `localStorage.removeItem('agenthub:args:' + cli)` (not just `setState('')`). On load, validate the stored value is a string type; clear it if malformed.
 
 **Warning signs:**
-- GUI shows a session as "running" that the CLI's `list` command shows as "stopped"
-- Renaming a tab in the GUI doesn't appear in CLI's `list` output
-- Creating a session via CLI doesn't appear in the GUI until restart
+- Switching the selected CLI in the modal pre-fills the wrong agent's saved args.
+- Clearing args in the modal shows an empty field but reopening the modal shows the args again.
+- Two agents with similar name prefixes ("claude", "claude-opus") share defaults incorrectly.
 
-**Phase to address:** Daemon extraction / session state migration (first phase, architectural decision)
+**Phase to address:** Phase 3 — CLI args passthrough.
 
 ---
 
-### Pitfall 7: macOS App Sandbox Blocks Unix Socket IPC
+### Pitfall 7: Wails TypeScript Bindings Stale After Go Method Signature Change
 
 **What goes wrong:**
-macOS App Sandbox (required for Mac App Store distribution and sometimes applied by notarization tooling) blocks Unix domain socket access between processes from different teams. The GUI app (sandboxed) cannot reach the daemon's socket at a path outside the app container. Additionally, `sun_path` in `sockaddr_un` is limited to 104 characters on macOS — paths under `XDG_RUNTIME_DIR` or long username paths can silently exceed this, causing `bind: invalid argument` with no clear error message.
+When `App.CreateSession` is changed to accept an `args string` parameter, Wails's auto-generated TypeScript bindings in `wailsjs/go/main/App.js` and `App.d.ts` must be regenerated. If `wails generate` is not run, the frontend calls the old signature (no `args` parameter). Wails silently ignores extra arguments and omits missing ones at the IPC boundary — no runtime error, just missing data.
 
 **Why it happens:**
-Unix socket entitlements in the App Sandbox require `com.apple.security.temporary-exception.files.absolute-path.read-write`, but this entitlement specifically does NOT cover Unix domain sockets — only regular files. Network framework restrictions and the 104-character limit are also not surfaced clearly by the compiler or runtime.
+Wails generates TypeScript bindings at build time, not automatically on every save. Developers who test with `wails dev` may see the right behavior if dev mode regenerates on restart, but production builds with stale bindings silently drop the new parameter.
 
 **How to avoid:**
-For the v1.3 milestone (not targeting Mac App Store), sandbox is not active. But the socket path must be kept under 104 characters. Use `os.UserCacheDir()` or a path like `~/.config/agenthub/daemon.sock` — verify the length does not exceed 104 chars even for long usernames. On macOS 13+, consider the `ServiceManagement` framework for service registration to avoid launchd plist complexity. Add a path length assertion at startup that panics with a clear message rather than a cryptic `bind: invalid argument`.
+Make `wails generate` a required step in the build runbook for any phase that changes Wails-bound method signatures. Do not commit `wailsjs/` directory changes without verifying they match the current Go source. Check TypeScript binding parameters match the Go signature exactly before marking the feature complete.
 
 **Warning signs:**
-- `bind: invalid argument` on the socket listen call with no other error details
-- Socket path length is over 100 characters when username is included
-- App works for short usernames but fails for users with longer home directory paths
+- Frontend compiles without TypeScript errors but args are not passed to the backend.
+- TypeScript call site shows correct parameter count but the Go handler receives zero/empty value.
+- `wailsjs/go/main/App.d.ts` shows the old signature after a Go method was changed.
 
-**Phase to address:** Daemon IPC design (socket path selection and validation)
-
----
-
-### Pitfall 8: Windows Named Pipe vs Unix Socket IPC Split
-
-**What goes wrong:**
-Windows does not support Unix domain sockets in Go's `net.Listen("unix", ...)` on older builds (pre-Windows 10 1803), and even on supported versions, permissions and path conventions differ from POSIX. Attempting to use a single Unix socket path on all platforms either breaks on Windows or produces confusing `\\.\pipe\` path handling. If the IPC layer is not abstracted from the start, adding Windows named pipe support later requires touching every call site.
-
-**Why it happens:**
-Development happens on macOS/Linux first. The Unix socket path works perfectly. Windows is "handled later." By then, the IPC protocol, connection logic, and socket path resolution are spread across the codebase.
-
-**How to avoid:**
-Abstract the transport behind an interface from day one: `type Transport interface { Listen() (net.Listener, error); Dial() (net.Conn, error) }`. On macOS/Linux, implement with `net.Listen("unix", ...)`. On Windows, implement with a named pipe (using `npipe` or `winio`). The IPC protocol over the transport is identical — only the transport layer differs. Use `//go:build` tags to select the correct implementation per platform. The socket path resolver must also be platform-aware: `~/.config/agenthub/daemon.sock` on POSIX, `\\.\pipe\agenthub-daemon` on Windows.
-
-**Warning signs:**
-- IPC connection works on macOS/Linux but fails silently on Windows
-- Windows build shows `address family not supported` errors
-- Hard-coded socket paths with `/` separators in Windows-targeting code
-
-**Phase to address:** Daemon IPC design (transport abstraction), verified in Windows CI
-
----
-
-### Pitfall 9: Signal Handling Does Not Account for Forwarded Signals in the Proxy Chain
-
-**What goes wrong:**
-When the CLI client is in raw attach mode, Ctrl-C (SIGINT) should be forwarded to the AI coding CLI process inside the daemon, not terminate the CLI client itself. But Go's `os/signal.Notify(sigChan, syscall.SIGINT)` intercepts Ctrl-C before it propagates. If the CLI client exits on SIGINT instead of forwarding it as a PTY input byte (0x03) to the session, the user cannot interrupt the AI CLI's current operation without detaching first.
-
-**Why it happens:**
-Go's default SIGINT handling terminates the process. Developers override this with `signal.Notify` for graceful shutdown, but in raw PTY proxy mode the correct behavior is to pass Ctrl-C through as a byte to the slave PTY — the receiving process should handle SIGINT. The distinction between "Ctrl-C to stop my attach client" vs "Ctrl-C to interrupt the AI CLI" is only possible via the detach prefix (e.g. Ctrl-B d to detach first).
-
-**How to avoid:**
-In raw PTY proxy mode, do NOT install SIGINT as a shutdown signal. Instead, forward all bytes from stdin directly to the PTY write. The detach sequence (e.g. Ctrl-B followed by `d`) must be intercepted in the byte stream BEFORE writing to the PTY — implement a small state machine that watches for the prefix key. Only after detach completes should normal signal handling resume. SIGTERM and SIGHUP (terminal close) should still trigger a clean detach + terminal restore.
-
-**Warning signs:**
-- Ctrl-C in attach mode exits the `agenthub attach` process instead of interrupting the AI CLI
-- Users have no way to interrupt a running AI command without closing the terminal window
-- The detach prefix key accidentally interrupts the AI CLI if the key byte passes through
-
-**Phase to address:** Terminal attach / signal proxying (CLI attach command implementation)
-
----
-
-### Pitfall 10: Daemon Startup Race — GUI Starts Before Daemon Is Ready
-
-**What goes wrong:**
-The GUI app starts the daemon as a subprocess (if not already running) and immediately tries to connect to the IPC socket. The daemon needs a non-trivial amount of time to create its socket, initialize the session registry, and start listening. The GUI's connect attempt fails because the socket does not exist yet. If the retry logic is naive (fixed sleep), it is either too short (race on slow machines) or too long (bad startup UX on fast machines).
-
-**Why it happens:**
-"Start subprocess then connect" patterns use `time.Sleep(500ms)` as the synchronization mechanism. This is brittle across machines and configurations. On a fast developer machine it always works; on a user's older hardware or at login time when disk I/O is contended, it fails intermittently.
-
-**How to avoid:**
-Use exponential backoff with a deadline: try to connect every 50ms, doubling the interval, up to a 5-second total timeout. The connect attempt itself is cheap — if the socket doesn't exist yet, the error is immediate. This converges in ~100ms on fast machines and still works on slow ones. Alternatively, have the daemon write a sentinel file (distinct from the socket) when it is fully ready. The GUI watches for the sentinel before attempting the socket connection.
-
-**Warning signs:**
-- "Connection refused" errors logged at GUI startup on some machines but not others
-- App initialization always works in development but occasionally fails on user machines
-- Startup failures are more common immediately after login (system under load)
-
-**Phase to address:** GUI-daemon connection bootstrap (GUI integration with daemon)
+**Phase to address:** Phase 3 — CLI args passthrough (as a build step requirement, not a code change).
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Keep session state in App struct, duplicate to daemon | Avoid refactoring App | State divergence, dual-source bugs, GUI shows stale data | Never — migrate cleanly |
-| Fixed `time.Sleep` for daemon startup sync | Simple code | Flaky on slow machines, bad UX at login | Never — use retry with deadline |
-| Skip Windows named pipe abstraction, use TCP localhost | Works everywhere, fast | Security hole (any local process can connect), no auth on loopback | Only as temporary scaffold in CI |
-| Single Unix socket path without length check | Simpler code | Cryptic `bind: invalid argument` for users with long usernames | Never — add assertion |
-| `log.Fatal` inside raw-mode attach path | Simple error handling | Terminal left in raw mode, user sees broken shell | Never in raw mode path |
-| Skip SIGWINCH handling for MVP attach | Faster to ship | All users with non-fixed terminal windows see rendering bugs | Never — too visible |
-| Inline all CLI subcommands in main.go | Simple file structure | Untestable, giant file, hard to add subcommands | Never — use cobra or manual dispatch with clear boundaries |
-| Use `os.Kill(pid)` to check if daemon is running | Simple PID check | PID reuse: kills unrelated process with recycled PID | Never — use lock file |
+| `strings.Fields()` for arg splitting | Simple, no dependency | Breaks on quoted paths/spaces silently | Never — use shlex, 3-line change |
+| Direct `fit()` without `safeFit()` guard | Less code | Terminal broken on every cold start and hidden panel | Never — guard is 4 lines |
+| Hardcoded `80x24` initial PTY dimensions in `engine.go` | Simple | PTY and xterm.js are out of sync until first resize event | Acceptable for v1.5 if fit fix resolves UX; address in v1.6 |
+| Storing args string only in localStorage (not settings file) | Simple | Lost if user clears WebView storage or migrates machines | Acceptable for v1.5; persist to settings file in v1.6 |
+| Login shell spawn wrapper for daemon PATH fix | Simple workaround | Adds one extra process per session; slower startup | Acceptable as interim fix; replace with proper PATH expansion later |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services.
-
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| launchd plist | Setting `RunAtLoad` without `KeepAlive` | Use `KeepAlive: true` for daemon resilience; `RunAtLoad` alone starts once but doesn't restart on crash |
-| launchd plist | Hard-coding absolute binary path | Use `CFBundleIdentifier`-relative path or derive from `os.Executable()` at install time; app location may change |
-| launchd plist | Calling `launchctl load` (deprecated) | Use `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/plist` on macOS 10.11+ |
-| systemd unit | Not setting `Type=simple` for foreground daemon | Without explicit Type, systemd may misidentify daemon state; `Type=simple` + `Restart=on-failure` is correct for a foreground Go binary |
-| Windows SCM | Writing to stdout/stderr directly | Windows services have no console; use `kardianos/service` logger which routes to Event Log; direct fmt.Print output is lost |
-| Windows SCM | Using `os.Signal` (SIGTERM) for shutdown | Windows SCM sends a stop command, not SIGTERM; `kardianos/service`'s `Stop()` method is the correct handler |
-| go-pty (aymanbagabas) | Calling Resize on closed PTY | The PTY may close asynchronously when the child exits; always check for nil and recover from the resize call |
-| IPC protocol | Sending string session IDs without length prefix | Stream corruption when session ID contains rare bytes that collide with frame delimiters; use the existing binary framing |
+| xterm.js FitAddon | Call `fit()` synchronously in `useEffect` after `isActive` changes | Defer first call with `requestAnimationFrame`; guard all calls with `safeFit()` that checks `proposeDimensions()` returns non-zero |
+| xterm.js WebGL addon | Dispose on context loss but leave terminal without renderer | After dispose, re-fit (triggers canvas fallback) or explicitly set canvas renderer option |
+| go-pty `CommandContext` | Pass raw user input string as `req.Args[0]` | Tokenize with shlex-equivalent first; pass `[]string` to `CommandContext(ctx, cli, args...)` |
+| Wails TypeScript bindings | Manually edit `wailsjs/go/main/App.d.ts` | Run `wails generate` after any bound method signature change; manual edits are overwritten on next build |
+| `daemon.CreateRequest` JSON type | Add args to `pty.CreateRequest` only | Update all three layers: `daemon/types.go` (JSON struct), `daemon/engine.go` (function parameters), `daemon/api.go` (handler) |
+| Gemini CLI startup | Attribute all startup slowness to daemon mode regression | Gemini CLI has documented 8–60s startup regressions from MCP initialization; profile to separate daemon-side vs. CLI-side latency before fixing |
+| `kardianos/service` launchd plist | Service inherits minimal system PATH | Explicitly expand PATH at daemon startup or in the plist `EnvironmentVariables` key; test with `agenthub daemon install && agenthub daemon start` (not just in-terminal launch) |
 
 ---
 
 ## Performance Traps
 
-Patterns that work at small scale but fail as usage grows.
-
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Full session list scan on every CLI command | CLI `list` is fast with 3 sessions | O(n) list operations become slow; registry already uses a map | At 50+ simultaneous sessions (unlikely but not impossible) |
-| Synchronous IPC calls for every GUI refresh | No visible lag with 1 client | GUI stutter when daemon is under load | When CLI client is attached and hammering input simultaneously with GUI refresh |
-| Scrollback replay on every new GUI attach | Fast with short sessions | Re-sending MB of scrollback over Unix socket blocks the attach path | Sessions running > 30 minutes with high output volume; already use bounded scrollback |
-| Polling daemon status every 100ms from GUI | Unnoticeable at idle | Unnecessary CPU wake-ups prevent App Nap on macOS | Always — use push notification or 1s polling minimum |
+| Daemon spawned with minimal system PATH | Agent not found or wrong binary version resolves; slow startup | Log resolved binary path on every session creation; expand PATH at daemon startup | First cold start after `agenthub daemon install` on any machine with nvm/volta/Homebrew |
+| nvm/volta-managed agents invisible to daemon | Correct binary in user shell, missing or wrong binary in daemon | Use login shell spawn (`/bin/zsh -l -c`) or set PATH in plist `EnvironmentVariables` | Any user with version-manager-managed Node.js |
+| `exec.LookPath` called in daemon context without logging | Resolves to system binary silently, not user's preferred version | Log resolved path at startup; compare against expected in tests | Silent — no error, wrong version used |
+| FitAddon fit on `ResizeObserver` first observation before layout | Terminal renders at 1col or wrong size until resize | `requestAnimationFrame` deferral on first activation only | Every cold start of the app |
+| Gemini CLI MCP startup blocking PTY ready signal | Session appears slow regardless of daemon state | Distinguish via timing logs; this is CLI-side, not daemon-side | Gemini CLI with any MCP server configured |
 
 ---
 
 ## Security Mistakes
 
-Domain-specific security issues.
-
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Unix socket world-readable (0777 permissions) | Any local user can send commands to the daemon, kill sessions, start new ones | Create socket with `0600` permissions; `os.Chmod(socketPath, 0600)` immediately after `net.Listen` |
-| Not verifying daemon binary before connecting | Malicious process squats on socket path, GUI connects to it | In same-user single-daemon model, socket path under `~/.config/agenthub/` is sufficient; document the threat model |
-| Daemon running as root for service installation | Root daemon accepts commands from non-root GUI with no auth | Daemon must run as the logged-in user (LaunchAgent not LaunchDaemon); user-space daemon only |
-| Passing CLI command arguments through shell expansion | `agenthub new --cwd "$HOME"` injection via crafted directory names | Pass all arguments as `[]string` to `exec.Cmd`, never via shell; the existing `pty.NewNativePTYBackend` already does this |
+| Splitting user args with shell=true or via `/bin/sh -c` | Shell injection — user inputs `; rm -rf ~` | Always use `exec.Command(cli, args...)` with args as separate `[]string` tokens; never concatenate into a shell string |
+| Passing raw unsplit args string as a single `argv[1]` element | No injection risk but args silently ignored | Tokenize with shlex before passing to `exec.Command` |
+| Logging user-supplied args to stderr without redaction | Args may contain API keys or tokens (`--api-key sk-...`) | Omit or redact args from daemon log output; use structured logging with explicit field allowlist |
+| No validation that tokenized args don't include `--exec` or similar for agent-specific RCE flags | Low risk for Claude/Gemini current versions; risk increases as agents add shell-execution flags | Add a per-agent flag denylist for known RCE-capable flags; review when agents add new flag sets |
+
+Note: Go's `exec.Command` does NOT invoke a shell — passing args as a `[]string` is injection-safe by construction. The only risk is in the tokenization step (shlex parsing) and in agents that accept flags which internally invoke a shell.
 
 ---
 
 ## UX Pitfalls
 
-Common user experience mistakes specific to this domain.
-
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Detach prefix key not shown anywhere in CLI output | Users don't know how to detach; resort to killing the terminal | Print `[Attached. Detach with Ctrl-B d]` on connect; configurable via settings |
-| `attach` with no visual confirmation of session identity | User doesn't know which session they attached to | Print session ID, name, and CLI type as a banner before entering raw mode |
-| Daemon errors surfaced as "connection refused" | Users see cryptic socket error, not actionable message | Translate socket errors into human messages: "Daemon is not running. Start it with: agenthub daemon start" |
-| `agenthub kill` with no confirmation prompt | Accidentally killing the wrong session is irreversible | Require `--force` flag or print "Killed session 'my-session' (claude)" as confirmation |
-| CLI exit codes not propagating daemon errors | Scripts using `agenthub` can't detect failures | Every CLI command must exit non-zero on daemon error; test exit codes in CI |
-| Service install requiring manual plist editing | Users give up on auto-start | `agenthub service install` / `agenthub service uninstall` commands handle plist/unit generation |
+| Args text field accepts anything; bad args discovered only after session creation with no visible feedback | Session creates, CLI exits or misbehaves silently, user confused | No pre-validation needed (CLIs validate their own args), but ensure stderr is visible in the terminal so agent-side flag errors are immediately readable |
+| "Saved defaults" not communicated to user | User doesn't know pre-fill came from storage; unexpected behavior when switching machines | Show a subtle "Saved" label or visual indicator next to pre-filled args; make clear button prominent |
+| Clear button clears UI state but not localStorage | User clears args, closes modal, reopens — args are back | Clear button must call `localStorage.removeItem(key)` AND `setState('')` |
+| Terminal fill fix only tested in `wails dev`, not `wails build` | Fix works in development but broken in production binary | Always test terminal fill with a `wails build` production binary; dev mode and production have different asset loading timing |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Stale socket cleanup:** Looks done when `os.Remove` is called at startup — verify it also handles the case where the socket file does not exist (double-remove is an error; ignore `os.IsNotExist`)
-- [ ] **Graceful shutdown:** Looks done when SIGTERM handler calls cancel() — verify active PTY sessions are drained (not killed mid-write) and the scrollback buffer is flushed before exit
-- [ ] **Terminal raw mode restore:** Looks done when `defer term.Restore` is present — verify SIGTERM, SIGINT, and SIGHUP signal handlers ALSO call restore before exiting, not just defer
-- [ ] **Daemon auto-start via service manager:** Looks done when plist/unit file is written — verify `agenthub service install` works for a fresh-install user, not just a developer who already has the binary on PATH
-- [ ] **Cross-platform IPC:** Looks done on macOS/Linux — verify Windows named pipe implementation exists, is tested, and CI covers it; Unix socket code must not compile on Windows
-- [ ] **Session state migration:** Looks done when daemon has a registry — verify GUI `App` struct no longer holds any authoritative session state (tabNames, sessionStatuses) and that all writes go through the daemon IPC, not a local map
-- [ ] **PTY resize propagation:** Looks done when SIGWINCH handler fires — verify the resize frame is sent over the IPC socket, the daemon applies it to the correct session's PTY, and the AI CLI re-renders at the new size
-- [ ] **Wails + CLI mode dispatch:** Looks done when `os.Args` check is present — verify a no-args invocation from Finder/desktop launcher still opens the GUI window, not a "missing command" error
+- [ ] **Terminal fit fix:** `fit()` works on first load in production binary (`wails build`) — not just in `wails dev`. Open the app fresh with no prior sessions; no resize needed.
+- [ ] **Terminal fit fix:** All CLI types (Claude, Gemini, OpenCode, Codex) show correct dimensions on first activation.
+- [ ] **Terminal fit fix:** Switching tabs multiple times with terminals at different font sizes produces no blank or incorrectly-sized terminals.
+- [ ] **Context loss recovery:** Open 3+ sessions, let them idle for several minutes, switch tabs — no blank terminals.
+- [ ] **Args passthrough:** Spawned agent process has args as separate tokens in `ps aux` / Task Manager — not as a single concatenated string.
+- [ ] **Args passthrough:** Multi-word quoted arg `--config "/path with spaces/file"` passes as one `argv` element.
+- [ ] **Args passthrough:** `agenthub new --cli claude --workdir /tmp -- --model claude-opus-4-5` CLI path works end-to-end.
+- [ ] **Args persistence:** Switching CLI in the modal shows the correct saved args for that CLI (not another agent's args).
+- [ ] **Args persistence:** Clear button actually removes the stored value; reopening the modal shows an empty field.
+- [ ] **Daemon performance:** Profiling confirms slow path is daemon-side (PATH mismatch) vs. CLI-side (Gemini MCP) before applying a fix.
+- [ ] **Daemon performance:** Fix tested with `agenthub daemon install && agenthub daemon start` (service mode), not just `./agenthub daemon` from a terminal.
+- [ ] **Wails bindings:** `wails generate` run after `App.CreateSession` signature change; TypeScript types match Go types.
 
 ---
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Session state divergence (GUI + daemon out of sync) | HIGH | Stop GUI, restart daemon, restart GUI; investigate which mutation path bypassed IPC and add the missing RPC call |
-| Terminal left in raw mode | LOW | User types `reset` or `stty sane` blindly; add recovery note to CLI help text; fix signal handler in next patch |
-| Stale socket prevents daemon start | LOW | `rm ~/.config/agenthub/daemon.sock && agenthub daemon start`; add `agenthub daemon restart --force` command that removes stale socket automatically |
-| launchd rapid-restart loop | MEDIUM | `launchctl stop com.agenthub.daemon` then diagnose; check Console.app for exit reason; usually double-fork or stdout/stderr to terminal |
-| PTY resize not working | MEDIUM | Detach and re-attach (inherits current terminal size on re-attach); fix SIGWINCH forwarding in next release |
-| Windows IPC broken | HIGH | Fall back to TCP localhost for Windows-only builds as emergency scaffold; prioritize named pipe fix; Windows users cannot use CLI until fixed |
+| FitAddon wrong dimensions on first load | LOW | Add `safeFit()` guard + `requestAnimationFrame` deferral; no architecture change; 10-line patch |
+| WebGL context loss — blank terminal | LOW | Add canvas fallback after `webglAddon.dispose()`; one line change |
+| Args silently dropped (missing daemon type layer) | LOW | Add `Args []string` to `daemon.CreateRequest`; update 6 call sites; run `wails generate` |
+| Args word-split incorrectly | LOW | Add shlex dependency; swap `strings.Fields()` call at one location |
+| Daemon slow due to PATH mismatch | MEDIUM | Profile first; if PATH, add login shell spawn or PATH expansion at daemon startup |
+| Daemon slow due to Gemini MCP startup | NONE (external) | Cannot fix in AgentHub; document known issue; recommend user disable unused MCP servers in Gemini config |
+| localStorage key naming collision | LOW | Rename keys to `agenthub:args:<cliName>` pattern; no migration needed (stale keys auto-orphan) |
 
 ---
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Wails init runs before os.Args dispatch | Phase: Binary mode dispatch | Build succeeds with `wails build`; `./agenthub` (no args) opens GUI; `./agenthub list` prints usage |
-| Stale Unix socket blocks startup | Phase: Daemon process management | Kill daemon with SIGKILL, restart; daemon starts cleanly without manual socket removal |
-| Terminal left in raw mode | Phase: CLI attach command | Send SIGKILL to attach process; parent shell still echoes input correctly |
-| Daemon self-daemonizes (launchd conflict) | Phase: Service manager integration | `launchctl start com.agenthub.daemon` shows service stays running in `launchctl list` |
-| PTY resize not propagated | Phase: CLI attach command | Resize terminal during active attach; AI CLI re-renders without artifacts |
-| Session state in two places | Phase: Daemon extraction (architectural) | GUI and CLI `list` output is identical in all multi-client scenarios |
-| macOS socket path too long | Phase: Daemon IPC design | Add path length assertion; test with a 30-char username |
-| Windows named pipe abstraction missing | Phase: Cross-platform IPC scaffold | Windows CI build runs daemon start/stop/connect test |
-| Signal forwarding (Ctrl-C) | Phase: CLI attach command | Ctrl-C inside attach interrupts AI CLI command; does NOT exit `agenthub attach` |
-| Daemon startup race | Phase: GUI-daemon integration | Run startup 50 times on a loaded machine; zero "connection refused" errors |
+| FitAddon zero-dimension on initial activation | Phase 1: Terminal fill fix | Open app fresh, create Claude session — fills viewport without resize event |
+| WebGL context loss — blank terminal on tab switch | Phase 1: Terminal fill fix | Open 3+ sessions, idle, switch tabs — no blank terminals |
+| Daemon PATH mismatch / agent not found in service mode | Phase 2: Daemon performance | Time session creation with `agenthub daemon install && agenthub daemon start`; < 2s for Claude |
+| CLI-side startup latency (Gemini MCP) attributed to daemon | Phase 2: Daemon performance | Profile shows daemon-side PTY spawn time separate from agent init time |
+| Args word-splitting with quoted paths | Phase 3: CLI args | Create session with `--config "/path with spaces/x"` — single `argv` element in `ps` output |
+| Args silently dropped (incomplete type chain) | Phase 3: CLI args | Integration test creates session with `Args: []string{"--version"}`, verifies output contains version string |
+| Per-agent args localStorage key collisions | Phase 3: CLI args | Switch between Claude and Gemini in modal; each shows own saved args, not shared |
+| Args clear button not persisting the clear | Phase 3: CLI args | Clear args, close modal, reopen — field is empty |
+| Wails binding out of sync after signature change | Phase 3: CLI args | `wails generate` run as part of phase build; TypeScript types verified against Go signature |
 
 ---
 
 ## Sources
 
-- Wails GitHub Discussion #3098: Including a CLI with a Wails app — https://github.com/wailsapp/wails/discussions/3098
-- Wails GitHub Discussion #4175: Getting CLI arguments in Wails — https://github.com/wailsapp/wails/discussions/4175
-- Wails GitHub Issue #1533: `-appargs` flag conflict with argument flags — https://github.com/wailsapp/wails/issues/1533
-- kardianos/service: Cross-platform service management for Go — https://github.com/kardianos/service
-- Apple Developer: Creating Launch Daemons and Agents — https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html
-- Apple Developer Forum: Unix socket from App Sandbox — https://developer.apple.com/forums/thread/788364
-- launchd.info: Authoritative launchd tutorial — https://www.launchd.info/
-- VictoriaMetrics: Graceful Shutdown in Go — https://victoriametrics.com/blog/go-graceful-shutdown/
-- Go Blog: Graceful Shutdown, Signals, Contexts — https://rafalroppel.medium.com/graceful-shutdown-in-go-explained-signals-contexts-and-the-correct-shutdown-sequence-f24fd9ef8fac
-- Go By Example: Signals — https://gobyexample.com/signals
-- creack/pty GitHub: macOS tty kill issue after Start — https://github.com/creack/pty/issues/186
-- go-tty Issue: raw mode to cooked mode failure on Linux — https://github.com/mattn/go-tty/issues/13
-- XDG Base Directory Specification — https://specifications.freedesktop.org/basedir/latest/
-- IPC Performance Comparison — https://www.baeldung.com/linux/ipc-performance-comparison
-- Mastering Unix Domain Sockets in Go — https://dev.to/jones_charles_ad50858dbc0/mastering-unix-domain-sockets-in-go-fast-local-ipc-for-your-apps-o48
-- Windows service graceful termination (SIGTERM alternatives) — https://www.codestudy.net/blog/gracefully-terminate-a-process-on-windows/
+- xterm.js FitAddon display:none designed behavior: https://github.com/xtermjs/xterm.js/issues/3029
+- xterm.js FitAddon width=1 from unsettled layout: https://github.com/xtermjs/xterm.js/issues/5320
+- xterm.js FitAddon incorrect resize (v5.3.0): https://github.com/xtermjs/xterm.js/issues/4841
+- Gemini CLI slow startup from synchronous MCP initialization: https://github.com/google-gemini/gemini-cli/issues/4544
+- Gemini CLI 20–50s startup regression on Windows: https://github.com/google-gemini/gemini-cli/issues/21853
+- Gemini CLI startup slower than Claude: https://github.com/google-gemini/gemini-cli/issues/17774
+- nvm shell startup overhead: https://github.com/nvm-sh/nvm/issues/2724
+- Go exec.Command argument handling (no shell invocation): https://pkg.go.dev/os/exec
+- go-pty library (Args field in Cmd struct): https://pkg.go.dev/github.com/aymanbagabas/go-pty
+- localStorage namespace collision: https://medium.com/@emadalam/namespace-localstorage-e2d1d2e68b20
+- AgentHub codebase (direct read): `pty/backend.go` (Args field exists in CreateRequest), `pty/native.go` (Args used in CommandContext), `daemon/types.go` (Args field absent from CreateRequest), `daemon/engine.go` (does not pass args to pty), `frontend/src/components/TerminalPanel.tsx` (safeFit not yet present), `frontend/src/components/NewSessionModal.tsx` (no args field)
 
 ---
-*Pitfalls research for: CLI + Daemon addition to Go/Wails desktop app (AgentHub v1.3)*
-*Researched: 2026-03-23*
+*Pitfalls research for: AgentHub v1.5 — terminal fill fix, daemon performance, CLI args passthrough*
+*Researched: 2026-03-25*
