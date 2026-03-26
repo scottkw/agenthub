@@ -82,7 +82,7 @@
 
 </details>
 
-### 🚧 v1.6 Terminal Fill Fix v2 (In Progress)
+### v1.6 Terminal Fill Fix v2 (In Progress)
 
 **Milestone Goal:** All four CLIs fill the terminal viewport on initial load without requiring a window resize, in both dev and production builds.
 
@@ -100,7 +100,11 @@
   3. Opening an OpenCode session shows a terminal that fills the full panel width immediately, with no blank right-side gap
   4. Switching to any previously hidden terminal tab fills the full panel width without requiring a resize event
   5. The fix behaves identically in `wails dev` and `wails build` production mode
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 35-01-PLAN.md — rAF retry loop replacing double-rAF one-shot for initial terminal fit
+
 **UI hint**: yes
 
 ## Progress
@@ -113,7 +117,7 @@
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
-| 35 | v1.6 | 0/? | Not started | - |
+| 35 | v1.6 | 0/1 | In progress | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
