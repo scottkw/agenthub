@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Bug Fixes & CLI Args
-status: Ready to plan
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-26T05:37:53.416Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 33-01-PLAN.md
+last_updated: "2026-03-26T06:07:49.173Z"
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-25)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 32 — daemon-startup-performance
+**Current focus:** Phase 33 — gui-args-field
 
 ## Current Position
 
-Phase: 33
-Plan: Not started
+Phase: 33 (gui-args-field) — EXECUTING
+Plan: 1 of 1
 
 ## Accumulated Context
 
@@ -39,6 +39,8 @@ Plan: Not started
 - [Phase 31-cli-arg-passthrough]: splitDashDash returns nil (not empty slice) when no -- present, matching Go idiom
 - [Phase 32-daemon-startup-performance]: Runtime PATH augmentation at daemon startup: prepend nvm/volta/Homebrew dirs to process PATH before exec.LookPath, so service-mode agents resolve correctly
 - [Phase 32-daemon-startup-performance]: pollSessionStatus poll-first: GetSessionStatus fires immediately, then sleep 500ms between polls (was sleep 2s before first call)
+- [Phase 33-gui-args-field]: Args parsed with argsText.trim().split(/\s+/).filter(Boolean) so empty input yields [] not ['']
+- [Phase 33-gui-args-field]: Per-agent localStorage key pattern agenthub:args:{cliName} consistent with agenthub:lastWorkDir
 
 ### Pending Todos
 
@@ -52,7 +54,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T05:34:55.358Z
-Stopped at: Completed 32-01-PLAN.md
+Last session: 2026-03-26T06:07:49.170Z
+Stopped at: Completed 33-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 30`

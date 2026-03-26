@@ -23,10 +23,10 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 ### CLI Arguments
 
 - [x] **ARGS-01**: User can pass extra arguments to an agent via `agenthub new <agent> -- --flag value`
-- [ ] **ARGS-02**: User can enter extra arguments in the GUI new-session modal text field
+- [x] **ARGS-02**: User can enter extra arguments in the GUI new-session modal text field
 - [x] **ARGS-03**: Args propagate through daemon layers (types → engine → API → client → PTY)
-- [ ] **ARGS-04**: Per-agent argument memory: last-used args pre-filled in GUI modal
-- [ ] **ARGS-05**: User can clear or edit pre-filled args before session creation
+- [x] **ARGS-04**: Per-agent argument memory: last-used args pre-filled in GUI modal
+- [x] **ARGS-05**: User can clear or edit pre-filled args before session creation
 
 ## Future Requirements
 
@@ -57,10 +57,10 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 | PERF-02 | Phase 32 | Complete |
 | PERF-03 | Phase 32 | Complete |
 | ARGS-01 | Phase 31 | Complete |
-| ARGS-02 | Phase 33 | Pending |
+| ARGS-02 | Phase 33 | Complete |
 | ARGS-03 | Phase 30 | Complete |
-| ARGS-04 | Phase 33 | Pending |
-| ARGS-05 | Phase 33 | Pending |
+| ARGS-04 | Phase 33 | Complete |
+| ARGS-05 | Phase 33 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 12 total
