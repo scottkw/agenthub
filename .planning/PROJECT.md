@@ -59,12 +59,13 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Dead `cmd/agenthub-cli/` package removed — 8 files (1,559 lines) deleted, all references scrubbed — v1.4 Phase 28
 - ✓ Build system verified: portable build-script tests (35/35), CI race detector on all platforms, build-script CI step on ubuntu-latest — v1.4 Phase 29
 - ✓ Backend args wiring: all 5 daemon IPC layers (types, engine, API, client, Wails binding) accept and forward `args []string` to PTY — v1.5 Phase 30
+- ✓ CLI arg passthrough: `splitDashDash` helper + `cmdNew` updated to forward extra args via `--` separator to `CreateSession` — v1.5 Phase 31
 
 ### Active
 
 - [ ] Fix terminal not filling screen on initial load for Claude and Gemini CLIs
 - [ ] Fix slow agent startup regression introduced by daemon mode (all agents)
-- [ ] Pass CLI arguments to agents via `--` passthrough in CLI command
+- ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
 - [ ] Pass CLI arguments to agents via text field in GUI new-session modal
 - [ ] Per-agent argument memory: pre-fill last-used args with easy clear
 
@@ -168,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-25 after Phase 30 (backend args wiring) completed*
+*Last updated: 2026-03-25 after Phase 31 (CLI arg passthrough) completed*
