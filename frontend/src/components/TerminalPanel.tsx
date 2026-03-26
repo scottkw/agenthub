@@ -104,31 +104,40 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     if (!isActive || !containerRef.current) return
 
     const container = containerRef.current
-    const fit = () => fitAddonRef.current?.fit()
-
-    // Double-rAF: ensures CSS layout is committed for the newly-visible
-    // container before FitAddon measures it. Single rAF is insufficient
-    // in Wails production build (WebView needs an extra frame).
     let cancelled = false
-    let rafId2: number | undefined
-    const rafId1 = requestAnimationFrame(() => {
-      rafId2 = requestAnimationFrame(() => {
-        if (!cancelled) {
-          document.fonts.ready.then(() => {
-            if (!cancelled) fit()
-          })
-        }
-      })
-    })
+    let rafId: number | undefined
+    const MAX_ATTEMPTS = 20  // ~333ms at 60fps; covers slow CLI startup delays
 
-    // ResizeObserver handles all subsequent size changes (window resize, etc.)
-    const ro = new ResizeObserver(fit)
+    const tryFit = (attempt: number) => {
+      if (cancelled) return
+
+      // proposeDimensions() returns undefined when css.cell.width === 0
+      // (CharSizeService hasn't measured font yet — zero cell dims from display:none open())
+      const dims = fitAddonRef.current?.proposeDimensions()
+      if (dims !== undefined) {
+        fitAddonRef.current?.fit()
+        return
+      }
+
+      // Cell dimensions not ready — schedule next rAF attempt
+      if (attempt < MAX_ATTEMPTS) {
+        rafId = requestAnimationFrame(() => tryFit(attempt + 1))
+      } else {
+        // Best-effort fallback after max attempts
+        fitAddonRef.current?.fit()
+      }
+    }
+
+    // Initial rAF: ensure display:none -> flex layout change is committed
+    rafId = requestAnimationFrame(() => tryFit(0))
+
+    // ResizeObserver handles all subsequent size changes (window resize, font size change)
+    const ro = new ResizeObserver(() => fitAddonRef.current?.fit())
     ro.observe(container)
 
     return () => {
       cancelled = true
-      cancelAnimationFrame(rafId1)
-      if (rafId2 !== undefined) cancelAnimationFrame(rafId2)
+      if (rafId !== undefined) cancelAnimationFrame(rafId)
       ro.disconnect()
     }
   }, [isActive])
