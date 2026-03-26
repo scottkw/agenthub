@@ -173,3 +173,13 @@ describe('App', () => {
     })
   })
 })
+
+// ARGS-02: Args threading from modal to CreateSession
+describe('ARGS-02: args threading', () => {
+  it('onConfirm passes args to createTab', () => {
+    expect(raw).toContain('createTab(cli, workDir, args)')
+  })
+  it('createTab passes args to CreateSession', () => {
+    expect(raw).toContain('CreateSession(cliName, defaultName, workDir, args)')
+  })
+})

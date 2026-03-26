@@ -57,3 +57,44 @@ describe('NewSessionModal source inspection', () => {
     })
   })
 })
+
+// ARGS-02: Args text field
+describe('ARGS-02: args text field', () => {
+  it('has args input class', () => {
+    expect(raw).toContain('new-session-modal__args-input')
+  })
+  it('has placeholder with example flag', () => {
+    expect(raw).toContain('e.g. --model claude-opus-4-5')
+  })
+  it('splits args with filter(Boolean) to avoid empty strings', () => {
+    expect(raw).toContain('.filter(Boolean)')
+  })
+})
+
+// ARGS-04: Per-agent args persistence
+describe('ARGS-04: per-agent args persistence', () => {
+  it('uses agenthub:args: localStorage key pattern', () => {
+    expect(raw).toContain('agenthub:args:')
+  })
+  it('reads args from localStorage on agent change', () => {
+    // handleSelectCLI reads localStorage for the newly selected agent
+    expect(raw).toContain('handleSelectCLI')
+  })
+  it('persists args to localStorage on confirm', () => {
+    // handleConfirm calls localStorage.setItem with ARGS_KEY
+    expect(raw).toContain('ARGS_KEY(selectedCLI)')
+  })
+})
+
+// ARGS-05: Clear args
+describe('ARGS-05: clear args button', () => {
+  it('has handleClearArgs function', () => {
+    expect(raw).toContain('handleClearArgs')
+  })
+  it('removes localStorage key on clear', () => {
+    expect(raw).toContain('localStorage.removeItem')
+  })
+  it('has accessible clear button', () => {
+    expect(raw).toContain('aria-label="Clear arguments"')
+  })
+})
