@@ -35,7 +35,7 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Tight button padding (e.g. `padding: 2px 6px` close button) |
 | sm | 8px | Element gaps, section margin-bottom between label and input (`margin-bottom: 8px`), gap within `.folder-row` / `.args-row` |
-| md | 16px | Body padding top, section vertical separation (`margin-bottom: 24px` uses lg) |
+| md | 16px | Body padding top, section vertical separation (`margin-bottom: 24px` uses lg), horizontal input padding |
 | lg | 24px | Section spacing within modal body (`new-session-modal__section` margin-bottom) |
 | xl | 32px | Not applicable for this phase |
 | 2xl | 48px | Not applicable for this phase |
@@ -97,6 +97,8 @@ Source: `frontend/src/style.css` — all hex values confirmed from existing decl
 
 Location: below the "Working Directory" section, above the footer.
 
+The modal's inherited focal hierarchy places the agent selector (top) as the primary decision point and "Create Session" (footer CTA) as the terminal action. The args field is a secondary, optional refinement that sits between these two anchors — it must not compete visually with either.
+
 ```
 .new-session-modal__section                        (reuse existing class)
   .new-session-modal__section-label                (reuse: "EXTRA ARGUMENTS")
@@ -116,9 +118,9 @@ Location: below the "Working Directory" section, above the footer.
 - `border-radius: 4px`
 - `color: #c0caf5` (primary text)
 - `font-size: 13px; font-family: inherit`
-- `padding: 6px 12px`
+- `padding: 8px 16px`
 - `outline: none`
-- `min-height: 32px` (matches folder-display height)
+- `min-height: 32px` (matches folder-display height; `box-sizing: border-box` applies)
 - Focus state: `border-color: #7aa2f7` (accent)
 - Placeholder: `color: #414868` (muted placeholder)
 
@@ -144,8 +146,8 @@ Source: `frontend/src/style.css` lines 596–636 (folder-row and browse-btn esta
 
 ```
 [empty field, no stored args]
-    → user types → [non-empty field] → Clear button appears
-    → user clears → [empty field] → Clear button disappears
+    → user types → [non-empty field] → Clear Args button appears
+    → user clears → [empty field] → Clear Args button disappears
 
 [agent selection] → load from localStorage key agenthub:args:{cliName}
     → found: pre-fill argsText with stored value
@@ -155,10 +157,10 @@ Source: `frontend/src/style.css` lines 596–636 (folder-row and browse-btn esta
     → argsText non-empty: localStorage.setItem(key, argsText), pass parsed args[]
     → argsText empty: localStorage.removeItem(key), pass []
 
-[Clear button click]
+[Clear Args button click]
     → setArgsText('')
     → localStorage.removeItem(key)
-    → Clear button disappears
+    → Clear Args button disappears
 ```
 
 ### Focus Behavior
@@ -179,16 +181,16 @@ Source: `frontend/src/style.css` lines 596–636 (folder-row and browse-btn esta
 | Primary CTA | "Create Session" (existing — no change) |
 | Section label | "EXTRA ARGUMENTS" (uppercase per `.new-session-modal__section-label` pattern) |
 | Input placeholder | `e.g. --model claude-opus-4-5` |
-| Clear button label | "Clear" |
+| Clear button label | "Clear Args" |
 | Clear button aria-label | "Clear arguments" |
 | Empty state (no agents detected) | Not in scope for this phase — existing modal handles it |
 | Error state | Not in scope — args field has no validation error state; ARGS-06 (shell quoting) is deferred |
-| Destructive confirmation | No destructive action in this phase. Clear button removes localStorage entry but is non-destructive (re-enterable) and does not require confirmation. |
+| Destructive confirmation | No destructive action in this phase. Clear Args button removes localStorage entry but is non-destructive (re-enterable) and does not require confirmation. |
 
 Notes on copy:
 - "EXTRA ARGUMENTS" not "ADDITIONAL ARGUMENTS" — "extra" matches the CLI convention (`agenthub new claude -- --flag`) and the codebase's internal naming (`extraArgs`).
 - Placeholder shows a real agent flag (`--model claude-opus-4-5`) rather than an abstract `<arg>` — this educates new users on expected format.
-- "Clear" is a verb label matching the clear-and-reset action. Not "Reset" (which implies to default) or "Delete" (which implies destructive).
+- "Clear Args" uses a verb + noun label, adding noun context so sighted users understand what is being cleared. Not "Reset" (which implies to default) or "Delete" (which implies destructive).
 
 Source: REQUIREMENTS.md ARGS-02/04/05; RESEARCH.md architecture pattern section.
 
@@ -208,7 +210,7 @@ No new packages or registries are introduced in this phase. All changes are pure
 ## Accessibility Contract
 
 - `<input type="text">` with explicit `<label>` linked via `className="new-session-modal__section-label"` (not `htmlFor` — existing modal uses visual label pattern, maintain consistency).
-- Clear button has `aria-label="Clear arguments"` for screen readers.
+- Clear Args button has `aria-label="Clear arguments"` for screen readers.
 - Focus ring: native `outline: none` is used throughout the codebase; focus state is communicated via `border-color: #7aa2f7` (accent). This is the established pattern — maintain it.
 - Color contrast: `#c0caf5` text on `#16161e` background = 9.2:1 (exceeds WCAG AA 4.5:1). Placeholder `#414868` on `#16161e` = 2.5:1 (below AA — accepted, matches existing placeholder pattern in settings panel and folder display).
 
