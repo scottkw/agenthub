@@ -49,24 +49,24 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TERM-01 | — | Pending |
-| TERM-02 | — | Pending |
-| TERM-03 | — | Pending |
-| TERM-04 | — | Pending |
-| PERF-01 | — | Pending |
-| PERF-02 | — | Pending |
-| PERF-03 | — | Pending |
-| ARGS-01 | — | Pending |
-| ARGS-02 | — | Pending |
-| ARGS-03 | — | Pending |
-| ARGS-04 | — | Pending |
-| ARGS-05 | — | Pending |
+| TERM-01 | Phase 34 | Pending |
+| TERM-02 | Phase 34 | Pending |
+| TERM-03 | Phase 34 | Pending |
+| TERM-04 | Phase 34 | Pending |
+| PERF-01 | Phase 32 | Pending |
+| PERF-02 | Phase 32 | Pending |
+| PERF-03 | Phase 32 | Pending |
+| ARGS-01 | Phase 31 | Pending |
+| ARGS-02 | Phase 33 | Pending |
+| ARGS-03 | Phase 30 | Pending |
+| ARGS-04 | Phase 33 | Pending |
+| ARGS-05 | Phase 33 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12 ⚠️
+- Mapped to phases: 12
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after initial definition*
+*Last updated: 2026-03-25 — traceability mapped to phases 30-34*
