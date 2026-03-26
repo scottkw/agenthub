@@ -22,6 +22,7 @@ func RunDaemon() {
 // Using a context parameter allows it to be driven by either signal handling
 // (RunDaemon) or a service manager (daemonSvc).
 func runDaemonCore(ctx context.Context) {
+	augmentServicePath() // Must be before NewSessionEngine / any exec.LookPath
 	socketPath := DefaultSocketPath()
 	if err := CleanupStaleSocket(socketPath); err != nil {
 		fmt.Fprintf(os.Stderr, "daemon: %v\n", err)
