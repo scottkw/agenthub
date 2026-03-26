@@ -104,7 +104,9 @@ Plans:
   2. Args after `--` are passed as a `[]string` token array, not a raw shell string (no injection risk)
   3. `agenthub new claude /path` with no `--` continues to work as before
   4. Go tests cover the `cmdNew` `--` separator parsing with and without trailing args
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 31-01-PLAN.md — Parse -- separator in runCLI, update cmdNew to forward extraArgs
 
 ### Phase 32: Daemon Startup Performance
 **Goal**: Session status appears immediately after creation and service-mode agents resolve correctly in user PATH
@@ -151,7 +153,7 @@ Plans:
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30. Backend Args Wiring | v1.5 | 1/1 | Complete    | 2026-03-26 |
-| 31. CLI Arg Passthrough | v1.5 | 0/? | Not started | - |
+| 31. CLI Arg Passthrough | v1.5 | 0/1 | Planning complete | - |
 | 32. Daemon Startup Performance | v1.5 | 0/? | Not started | - |
 | 33. GUI Args Field | v1.5 | 0/? | Not started | - |
 | 34. Terminal Fill Fix | v1.5 | 0/? | Not started | - |
