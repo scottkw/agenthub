@@ -33,7 +33,7 @@ func TestNewSessionEngine(t *testing.T) {
 
 func TestEngineCreateSession(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -46,11 +46,11 @@ func TestEngineCreateSession(t *testing.T) {
 func TestEngineListSessions(t *testing.T) {
 	e := NewSessionEngine()
 
-	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil, nil)
+	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-1: %v", err)
 	}
-	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil, nil)
+	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-2: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestEngineListSessions(t *testing.T) {
 func TestEngineKillSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestEngineKillSession(t *testing.T) {
 func TestEngineRenameSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestEngineGetSessionStatus(t *testing.T) {
 		t.Errorf("unknown session status: got %q, want %q", s, "running")
 	}
 
-	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -153,12 +153,36 @@ func TestEngineGetSessionStatus(t *testing.T) {
 
 func TestEngineCreateSessionWithArgs(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "args-test", "", []string{"--version"}, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "args-test", "", []string{"--version"}, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("CreateSession with args: %v", err)
 	}
 	if id == "" {
 		t.Fatal("CreateSession with args returned empty ID")
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+}
+
+func TestEngineCreateSessionWithDimensions(t *testing.T) {
+	e := NewSessionEngine()
+	id, err := e.CreateSession(context.Background(), "cat", "dims-test", "", nil, 120, 40, nil)
+	if err != nil {
+		t.Fatalf("CreateSession with dimensions: %v", err)
+	}
+	if id == "" {
+		t.Fatal("CreateSession with dimensions returned empty ID")
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+}
+
+func TestEngineCreateSessionDefaultDimensions(t *testing.T) {
+	e := NewSessionEngine()
+	id, err := e.CreateSession(context.Background(), "cat", "default-dims", "", nil, 0, 0, nil)
+	if err != nil {
+		t.Fatalf("CreateSession with zero dims: %v", err)
+	}
+	if id == "" {
+		t.Fatal("CreateSession with zero dims returned empty ID")
 	}
 	t.Cleanup(func() { _ = e.KillSession(id) })
 }

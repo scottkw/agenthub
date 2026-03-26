@@ -54,7 +54,7 @@ func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out 
 	}
 	agent, workDir := args[0], args[1]
 	name := filepath.Base(workDir)
-	id, err := client.CreateSession(agent, name, workDir, extraArgs)
+	id, err := client.CreateSession(agent, name, workDir, extraArgs, 0, 0)
 	if err != nil {
 		return fmt.Errorf("agenthub new: %w", err)
 	}

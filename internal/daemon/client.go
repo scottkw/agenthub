@@ -53,8 +53,9 @@ func (c *DaemonClient) ListSessions() ([]SessionInfo, error) {
 
 // CreateSession creates a new session and returns its ID.
 // args are passed to the CLI process; pass nil if no extra arguments are needed.
-func (c *DaemonClient) CreateSession(cli, name, workDir string, args []string) (string, error) {
-	req := CreateRequest{CLI: cli, Name: name, WorkDir: workDir, Args: args}
+// cols and rows specify the initial PTY dimensions; pass 0 for defaults (80x24).
+func (c *DaemonClient) CreateSession(cli, name, workDir string, args []string, cols, rows int) (string, error) {
+	req := CreateRequest{CLI: cli, Name: name, WorkDir: workDir, Args: args, Cols: cols, Rows: rows}
 	var resp CreateResponse
 	if err := c.doJSON(http.MethodPost, "/sessions", req, &resp); err != nil {
 		return "", err

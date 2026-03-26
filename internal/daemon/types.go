@@ -15,6 +15,8 @@ type CreateRequest struct {
 	Name    string   `json:"name"`
 	WorkDir string   `json:"workDir"`
 	Args    []string `json:"args,omitempty"`
+	Cols    int      `json:"cols,omitempty"`
+	Rows    int      `json:"rows,omitempty"`
 }
 
 // CreateResponse is the response body for POST /sessions.

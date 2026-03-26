@@ -343,7 +343,7 @@ func TestAPICreateSessionWithArgs(t *testing.T) {
 
 func TestClientCreateSessionWithArgs(t *testing.T) {
 	_, client, _ := testDaemon(t)
-	id, err := client.CreateSession("cat", "client-args-test", "", []string{"--extra", "arg"})
+	id, err := client.CreateSession("cat", "client-args-test", "", []string{"--extra", "arg"}, 0, 0)
 	if err != nil {
 		t.Fatalf("CreateSession with args: %v", err)
 	}

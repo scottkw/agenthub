@@ -18,9 +18,9 @@ type API struct {
 	engine    *SessionEngine
 	mux       *http.ServeMux
 	ln        net.Listener
-	relayPort int               // TCP port the relay server is listening on
-	relayLn   net.Listener      // TCP listener for the relay server
-	mu        sync.RWMutex      // guards webServer
+	relayPort int                  // TCP port the relay server is listening on
+	relayLn   net.Listener         // TCP listener for the relay server
+	mu        sync.RWMutex         // guards webServer
 	webServer *webserver.WebServer // nil when not running
 }
 
@@ -155,7 +155,7 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 	// Use background context — the PTY must outlive the HTTP request.
 	// r.Context() would kill the session when the response is sent.
-	id, err := a.engine.CreateSession(context.Background(), req.CLI, req.Name, req.WorkDir, req.Args, nil)
+	id, err := a.engine.CreateSession(context.Background(), req.CLI, req.Name, req.WorkDir, req.Args, req.Cols, req.Rows, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

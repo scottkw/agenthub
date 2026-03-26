@@ -12,11 +12,11 @@ func TestHideWindowSessionsAlive(t *testing.T) {
 	app := testApp(t)
 
 	// Create two sessions using the always-available "cat" binary.
-	_, err := app.CreateSession("cat", "tab-1", "", nil)
+	_, err := app.CreateSession("cat", "tab-1", "", nil, 0, 0)
 	if err != nil {
 		t.Fatalf("CreateSession tab-1: %v", err)
 	}
-	_, err = app.CreateSession("cat", "tab-2", "", nil)
+	_, err = app.CreateSession("cat", "tab-2", "", nil, 0, 0)
 	if err != nil {
 		t.Fatalf("CreateSession tab-2: %v", err)
 	}
