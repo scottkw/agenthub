@@ -151,6 +151,18 @@ func TestEngineGetSessionStatus(t *testing.T) {
 	}
 }
 
+func TestEngineCreateSessionWithArgs(t *testing.T) {
+	e := NewSessionEngine()
+	id, err := e.CreateSession(context.Background(), "cat", "args-test", "", []string{"--version"}, nil)
+	if err != nil {
+		t.Fatalf("CreateSession with args: %v", err)
+	}
+	if id == "" {
+		t.Fatal("CreateSession with args returned empty ID")
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+}
+
 func TestEngineResolveCLI(t *testing.T) {
 	e := NewSessionEngine()
 

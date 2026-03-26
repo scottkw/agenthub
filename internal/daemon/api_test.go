@@ -324,3 +324,30 @@ func TestAPIWebServe_NoServer(t *testing.T) {
 		t.Errorf("POST /sessions/xxx/web-serve with no server: want 400, got %d", status)
 	}
 }
+
+func TestAPICreateSessionWithArgs(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawPost(t, socketPath, "/sessions",
+		`{"cli":"cat","name":"args-test","workDir":"","args":["--flag","value"]}`)
+	if status != 201 {
+		t.Errorf("POST /sessions with args: want 201, got %d; body: %s", status, body)
+	}
+	var resp CreateResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if resp.ID == "" {
+		t.Error("create response with args: empty ID")
+	}
+}
+
+func TestClientCreateSessionWithArgs(t *testing.T) {
+	_, client, _ := testDaemon(t)
+	id, err := client.CreateSession("cat", "client-args-test", "", []string{"--extra", "arg"})
+	if err != nil {
+		t.Fatalf("CreateSession with args: %v", err)
+	}
+	if id == "" {
+		t.Fatal("CreateSession with args returned empty ID")
+	}
+}
