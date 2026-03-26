@@ -41,7 +41,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not applicable for this phase |
 | 3xl | 64px | Not applicable for this phase |
 
-Exceptions: Button hit-target padding uses asymmetric values (`4px 8px` for `.browse-btn`, `6px 16px` for footer actions) — these are established modal patterns, not deviations.
+Exceptions: Phase 33's new components use asymmetric padding — `4px 8px` for `.new-session-modal__args-clear` and `8px 16px` for `.new-session-modal__args-input`. Both values are multiples of 4 and conform to the scale above.
 
 Source: `frontend/src/style.css` lines 596–675.
 
