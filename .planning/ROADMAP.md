@@ -70,7 +70,7 @@
 
 </details>
 
-### 🚧 v1.5 Bug Fixes & CLI Args (In Progress)
+### v1.5 Bug Fixes & CLI Args (In Progress)
 
 **Milestone Goal:** Fix terminal rendering and daemon performance regressions; add ability to pass custom arguments to agents from both CLI and GUI.
 
@@ -131,8 +131,9 @@ Plans:
   3. User can clear the pre-filled args with a clear button (clears both UI and stored memory)
   4. Args are passed correctly to the session when the modal is submitted
   5. Wails TypeScript bindings reflect the updated `App.CreateSession` signature
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+Plans:
+- [ ] 33-01-PLAN.md — Update Wails bindings, add args field with per-agent persistence, thread through App.tsx, add tests
 
 ### Phase 34: Terminal Fill Fix
 **Goal**: Terminal fills the viewport correctly on first tab activation for all CLIs without requiring a window resize
@@ -158,7 +159,7 @@ Plans:
 | 30. Backend Args Wiring | v1.5 | 1/1 | Complete    | 2026-03-26 |
 | 31. CLI Arg Passthrough | v1.5 | 0/1 | Complete    | 2026-03-26 |
 | 32. Daemon Startup Performance | v1.5 | 2/2 | Complete    | 2026-03-26 |
-| 33. GUI Args Field | v1.5 | 0/? | Not started | - |
+| 33. GUI Args Field | v1.5 | 0/1 | In progress | - |
 | 34. Terminal Fill Fix | v1.5 | 0/? | Not started | - |
 
 ---
