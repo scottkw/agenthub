@@ -228,6 +228,50 @@
 
 ---
 
+## Milestone: v1.5 — Bug Fixes & CLI Args
+
+**Shipped:** 2026-03-26
+**Phases:** 5 | **Plans:** 6 | **Commits:** 40
+
+### What Was Built
+- Backend args wiring: `args []string` threaded through all 5 daemon IPC layers (types, engine, API, client, Wails binding)
+- CLI arg passthrough: `splitDashDash` helper + `cmdNew` updated to forward extra args via `--` separator
+- Daemon startup fix: poll-first pattern (500ms vs 2s) + PATH augmentation for service-mode agents (nvm, Volta, Homebrew)
+- GUI args field in new-session modal with per-agent localStorage persistence and clear button
+- Terminal viewport fill: double-rAF fit timing + cols/rows threading from frontend to PTY spawn
+
+### What Worked
+- Two independent tracks (args: 30→31→33, fixes: 32+34) could be worked in parallel — dependency graph was well-structured
+- TDD for `splitDashDash` and PATH augmentation caught edge cases early (nil vs empty slice distinction, path dedup)
+- Milestone audit passed 12/12 first attempt — requirements were well-scoped and each phase had clear boundaries
+- Small focused phases (1-2 plans each) executed quickly — most plans completed in under 5 minutes
+- Double-rAF pattern resolved a timing issue that had been deferred since v1.1 — sometimes the right fix is to wait for context
+
+### What Was Inefficient
+- SUMMARY frontmatter `requirements-completed` field missing across 4 of 5 phases — recurring issue from v1.1-v1.4
+- Phase 31 ROADMAP.md plan checkbox shows `[ ]` despite completion (31-01-PLAN.md) — the checkbox drift issue continues
+- Nyquist validation partial for 4 of 5 phases — wave_0_complete never reached true (same pattern since v1.0)
+
+### Patterns Established
+- `splitDashDash` returns nil (not `[]string{}`) when no `--` present — Go idiom for "not provided" vs "provided but empty"
+- Per-agent localStorage key pattern: `agenthub:args:{cliName}` — consistent with `agenthub:lastWorkDir`
+- Double-rAF for Wails WebView CSS layout commit timing — necessary when single rAF is too early
+- Frontend container dimension estimation: `Math.floor(clientWidth/charWidth)` for PTY initial size
+
+### Key Lessons
+1. Threading a parameter through N layers is mechanical but error-prone — integration tests at the boundary layer (HTTP round-trip) catch mismatches that unit tests miss
+2. Poll-first, sleep-after is the correct pattern for responsive status displays — sleep-first introduces perceptible lag that makes the app feel broken
+3. Service-mode daemons can't rely on shell init files (`.bashrc`, `.zshrc`) — runtime PATH augmentation is necessary for tool resolution
+4. Double-rAF is a legitimate timing pattern for WebView-based apps where CSS layout commit is not synchronous with JS execution
+5. SUMMARY frontmatter drift is now confirmed across 5 milestones — this is a tooling gap, not a human discipline issue
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution), ~30% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~4 sessions in 1 day
+- Notable: Entire milestone completed in a single day — small focused bug-fix milestones execute fast
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -239,6 +283,7 @@
 | v1.2 | 64 | 5 | Safety dependency chain, deletion-focused milestone, function injection testing |
 | v1.3 | 101 | 8 | In-process-first daemon validation, audit-driven gap closure phases, property-based PTY testing |
 | v1.4 | ~20 | 3 | Unified binary dispatch, focused cleanup milestone, race detector in CI |
+| v1.5 | 40 | 5 | Args threading through IPC layers, double-rAF terminal fix, poll-first status pattern |
 
 ### Cumulative Quality
 
@@ -249,6 +294,7 @@
 | v1.2 | 55+ (race-clean) | 73+ | ~8,846 | 3 (0 blockers, info-only) |
 | v1.3 | 80+ (race-clean) | 73+ | ~12,619 | 4 (0 blockers, bookkeeping) |
 | v1.4 | 194 (race-clean) | 73+ | ~12,771 | 4 (0 blockers, deferred) |
+| v1.5 | 200+ (race-clean) | 80+ | ~13,400 | 7 (0 blockers, documentation/test gaps) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -259,3 +305,5 @@
 5. Deletion milestones benefit from strict dependency ordering — confirm replacements work before removing originals (v1.2)
 6. In-process validation before process separation eliminates an entire class of debugging (v1.3)
 7. Milestone audits that drive gap closure phases are high-value — they catch real bugs before shipping (v1.3)
+8. SUMMARY frontmatter `requirements-completed` drift is systemic — needs tooling validation, not discipline (v1.1-v1.5)
+9. Small focused bug-fix milestones (5 phases, 1 day) execute fast — overhead is minimal when scope is clear (v1.5)
