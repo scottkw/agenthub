@@ -61,6 +61,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
+- [ ] Fix terminal not filling screen on initial load for Claude and Gemini CLIs
+- [ ] Fix slow agent startup regression introduced by daemon mode (all agents)
+- [ ] Pass CLI arguments to agents via `--` passthrough in CLI command
+- [ ] Pass CLI arguments to agents via text field in GUI new-session modal
+- [ ] Per-agent argument memory: pre-fill last-used args with easy clear
+
+## Current Milestone: v1.5 Bug Fixes & CLI Args
+
+**Goal:** Fix terminal rendering and daemon performance regressions, and add the ability to pass custom arguments to agents.
+
+**Target features:**
+- Fix terminal not filling screen on initial load for Claude and Gemini CLIs
+- Fix slow agent startup introduced by daemon mode (affects all agents)
+- Pass CLI arguments to agents: `--` passthrough in CLI, text field in GUI new-session modal
+- Per-agent argument memory with pre-fill and easy clear
+
 ### Out of Scope
 
 - Mobile app — desktop and web access only; PWA via web serving covers mobile needs
@@ -133,4 +149,22 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Safety dependency chain (health→TLS→auth removal→cleanup) | Each phase's deletion is safe only after the prior phase confirms the replacement works | ✓ Good — zero regressions across 5 phases |
 
 ---
-*Last updated: 2026-03-25 after v1.4 milestone*
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-03-25 after v1.5 milestone started*
