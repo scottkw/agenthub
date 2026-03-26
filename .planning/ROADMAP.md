@@ -8,6 +8,7 @@
 - ✅ **v1.3 CLI + Daemon** — Phases 19-26 (shipped 2026-03-25)
 - ✅ **v1.4 Unified Binary** — Phases 27-29 (shipped 2026-03-25)
 - ✅ **v1.5 Bug Fixes & CLI Args** — Phases 30-34 (shipped 2026-03-26)
+- 🚧 **v1.6 Terminal Fill Fix v2** — Phase 35 (in progress)
 
 ## Phases
 
@@ -81,6 +82,27 @@
 
 </details>
 
+### 🚧 v1.6 Terminal Fill Fix v2 (In Progress)
+
+**Milestone Goal:** All four CLIs fill the terminal viewport on initial load without requiring a window resize, in both dev and production builds.
+
+- [ ] **Phase 35: Terminal Fill Fix v2** - Diagnose and fix initial-load terminal fill for all CLIs
+
+## Phase Details
+
+### Phase 35: Terminal Fill Fix v2
+**Goal**: All four CLIs (Claude, Gemini, OpenCode, Codex) fill the terminal viewport correctly on first tab activation, without requiring a window resize
+**Depends on**: Nothing (standalone fix)
+**Requirements**: FILL-01, FILL-02, FILL-03, FILL-04, FILL-05, FILL-06
+**Success Criteria** (what must be TRUE):
+  1. Opening a Claude CLI session shows a terminal that fills the full panel width immediately, with no blank right-side gap
+  2. Opening a Gemini CLI session shows a terminal that fills the full panel width immediately, with no blank right-side gap
+  3. Opening an OpenCode session shows a terminal that fills the full panel width immediately, with no blank right-side gap
+  4. Switching to any previously hidden terminal tab fills the full panel width without requiring a resize event
+  5. The fix behaves identically in `wails dev` and `wails build` production mode
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -91,6 +113,7 @@
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
+| 35 | v1.6 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

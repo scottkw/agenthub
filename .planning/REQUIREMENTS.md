@@ -36,17 +36,17 @@ Requirements for v1.6 Terminal Fill Fix v2. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FILL-01 | — | Not started |
-| FILL-02 | — | Not started |
-| FILL-03 | — | Not started |
-| FILL-04 | — | Not started |
-| FILL-05 | — | Not started |
-| FILL-06 | — | Not started |
+| FILL-01 | Phase 35 | Not started |
+| FILL-02 | Phase 35 | Not started |
+| FILL-03 | Phase 35 | Not started |
+| FILL-04 | Phase 35 | Not started |
+| FILL-05 | Phase 35 | Not started |
+| FILL-06 | Phase 35 | Not started |
 
 **Coverage:**
 - v1.6 requirements: 6 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 6
+- Mapped to phases: 6
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-26*
