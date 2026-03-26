@@ -82,26 +82,48 @@ describe('font size control', () => {
   })
 })
 
-describe('TERM-04 double-rAF initial fit', () => {
-  it('isActive effect uses double-rAF (two nested requestAnimationFrame calls)', () => {
+describe('FILL-01..06 rAF retry loop initial fit', () => {
+  it('defines MAX_ATTEMPTS constant set to 20', () => {
+    expect(raw).toContain('MAX_ATTEMPTS = 20')
+  })
+
+  it('checks proposeDimensions() for cell dimension readiness', () => {
+    // The retry loop must check proposeDimensions() to know when cell dims are non-zero
+    expect(raw).toContain('proposeDimensions()')
+  })
+
+  it('defines tryFit function for retry loop', () => {
+    expect(raw).toContain('tryFit')
+  })
+
+  it('uses requestAnimationFrame for retry scheduling', () => {
     const matches = raw.match(/requestAnimationFrame/g) || []
-    expect(matches.length).toBeGreaterThanOrEqual(2)
+    expect(matches.length).toBeGreaterThanOrEqual(2) // initial rAF + retry rAF
   })
 
-  it('does not use document.fonts.ready as the primary initial fit trigger', () => {
-    const isActiveStart = raw.indexOf('[isActive]')
-    expect(isActiveStart).toBeGreaterThan(-1)
-    const effectBlock = raw.slice(Math.max(0, isActiveStart - 800), isActiveStart)
-    expect(effectBlock).toContain('requestAnimationFrame')
+  it('has cancelled flag for cleanup safety', () => {
+    expect(raw).toContain('cancelled = true')
   })
 
-  it('cleanup cancels both rAF IDs', () => {
-    const matches = raw.match(/cancelAnimationFrame/g) || []
-    expect(matches.length).toBeGreaterThanOrEqual(2)
+  it('calls cancelAnimationFrame in cleanup', () => {
+    expect(raw).toContain('cancelAnimationFrame(rafId)')
   })
 
-  it('tracks rafId2 for inner rAF cancellation', () => {
-    expect(raw).toContain('rafId2')
+  it('does NOT use old double-rAF pattern (no rafId2)', () => {
+    expect(raw).not.toContain('rafId2')
+  })
+
+  it('does NOT use document.fonts.ready as fit trigger', () => {
+    expect(raw).not.toContain('document.fonts.ready')
+  })
+
+  it('retains [isActive] as the sole dependency', () => {
+    // Find the isActive effect — it must end with }, [isActive])
+    expect(raw).toContain('[isActive]')
+  })
+
+  it('retains ResizeObserver for subsequent resize handling', () => {
+    expect(raw).toContain('new ResizeObserver')
   })
 })
 
