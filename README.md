@@ -5,7 +5,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 ## Features
 
 ### Terminal & Sessions
-- **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback)
+- **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
 - **Background daemon** — Sessions live in a standalone daemon process; closing the GUI doesn't kill sessions
 - **CLI auto-detection** — Scans PATH for Claude Code, Codex, Gemini CLI, and OpenCode on startup; supports custom CLI paths
 - **New session modal** — Select a CLI and pick a working directory; remembers your last-used directory

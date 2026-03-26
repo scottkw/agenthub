@@ -69,12 +69,12 @@ describe('font size control', () => {
     expect(raw).toContain('options.fontSize = fontSize')
   })
 
-  it('calls fitAddon.fit() after fontSize change', () => {
-    // fontSize assignment and fit() must appear in same effect
+  it('calls fitTerminal() after fontSize change', () => {
+    // fontSize assignment and fitTerminal() must appear in same effect
     const fontSizeEffect = raw.slice(
       raw.indexOf('options.fontSize = fontSize'),
     )
-    expect(fontSizeEffect).toContain('.fit()')
+    expect(fontSizeEffect).toContain('fitTerminal(')
   })
 
   it('has useEffect with fontSize dependency', () => {
@@ -124,6 +124,17 @@ describe('FILL-01..06 rAF retry loop initial fit', () => {
 
   it('retains ResizeObserver for subsequent resize handling', () => {
     expect(raw).toContain('new ResizeObserver')
+  })
+
+  it('uses fitTerminal() instead of fitAddon.fit() for full-width rendering', () => {
+    expect(raw).toContain('fitTerminal(termRef.current!)')
+  })
+
+  it('sends terminal dimensions on WebSocket open to sync PTY size', () => {
+    // The onOpen callback must send the current terminal size to the PTY.
+    // Without this, the resize from fitTerminal() is dropped (WS not yet open)
+    // and the CLI process renders to the wrong width.
+    expect(raw).toContain('sendResize(term.cols, term.rows)')
   })
 })
 

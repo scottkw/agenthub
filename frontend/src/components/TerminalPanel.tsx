@@ -5,6 +5,35 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { RelayClient } from '../lib/relayClient'
 
+// Custom fit that uses full container width (no hardcoded scrollbar deduction).
+// FitAddon.fit() always subtracts DEFAULT_SCROLL_BAR_WIDTH (14px) even when the
+// scrollbar is hidden via CSS and takes 0px — causing a permanent right-side gap.
+function fitTerminal(term: Terminal): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const core = (term as any)._core
+  const dims = core._renderService.dimensions
+  if (dims.css.cell.width === 0 || dims.css.cell.height === 0) return
+
+  const parent = term.element?.parentElement
+  if (!parent) return
+
+  const parentStyle = window.getComputedStyle(parent)
+  const parentW = parseInt(parentStyle.width)
+  const parentH = parseInt(parentStyle.height)
+
+  const elStyle = window.getComputedStyle(term.element!)
+  const padH = parseInt(elStyle.paddingLeft) + parseInt(elStyle.paddingRight)
+  const padV = parseInt(elStyle.paddingTop) + parseInt(elStyle.paddingBottom)
+
+  const cols = Math.max(2, Math.floor((parentW - padH) / dims.css.cell.width))
+  const rows = Math.max(1, Math.floor((parentH - padV) / dims.css.cell.height))
+
+  if (term.rows !== rows || term.cols !== cols) {
+    core._renderService.clear()
+    term.resize(cols, rows)
+  }
+}
+
 interface TerminalPanelProps {
   sessionId: string
   isActive: boolean
@@ -71,9 +100,15 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     fitAddonRef.current = fitAddon
 
     // Connect relay client — one per terminal (TERM-01 independent sessions).
+    // onOpen sends the current terminal dimensions to the PTY. This is critical:
+    // fitTerminal() runs before the WS connects, so the onResize event from fit()
+    // is silently dropped (WS not yet open). Without this, the CLI process never
+    // learns the correct terminal size and renders to the wrong width.
     const client = new RelayClient(relayPort, sessionId, {
       onOutput: (data) => term.write(data),
-      onOpen: () => console.debug(`[RelayClient] connected session=${sessionId}`),
+      onOpen: () => {
+        client.sendResize(term.cols, term.rows)
+      },
       onClose: () => console.debug(`[RelayClient] disconnected session=${sessionId}`),
     })
     clientRef.current = client
@@ -115,7 +150,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
       // (CharSizeService hasn't measured font yet — zero cell dims from display:none open())
       const dims = fitAddonRef.current?.proposeDimensions()
       if (dims !== undefined) {
-        fitAddonRef.current?.fit()
+        fitTerminal(termRef.current!)
         return
       }
 
@@ -124,7 +159,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
         rafId = requestAnimationFrame(() => tryFit(attempt + 1))
       } else {
         // Best-effort fallback after max attempts
-        fitAddonRef.current?.fit()
+        fitTerminal(termRef.current!)
       }
     }
 
@@ -132,7 +167,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     rafId = requestAnimationFrame(() => tryFit(0))
 
     // ResizeObserver handles all subsequent size changes (window resize, font size change)
-    const ro = new ResizeObserver(() => fitAddonRef.current?.fit())
+    const ro = new ResizeObserver(() => { if (termRef.current) fitTerminal(termRef.current) })
     ro.observe(container)
 
     return () => {
@@ -146,7 +181,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
   useEffect(() => {
     if (!termRef.current || !fitAddonRef.current) return
     termRef.current.options.fontSize = fontSize
-    fitAddonRef.current.fit()
+    fitTerminal(termRef.current)
   }, [fontSize])
 
   return (

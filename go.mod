@@ -7,6 +7,7 @@ require (
 	github.com/coder/websocket v1.8.14
 	github.com/kardianos/service v1.2.4
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55
 	github.com/wailsapp/wails/v2 v2.10.2
 	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.41.0
@@ -44,7 +45,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/samber/lo v1.49.1 // indirect
-	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
 	github.com/u-root/u-root v0.14.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect

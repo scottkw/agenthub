@@ -9,12 +9,12 @@ Requirements for v1.6 Terminal Fill Fix v2. Each maps to roadmap phases.
 
 ### Terminal Fill
 
-- [ ] **FILL-01**: Terminal fills the full viewport width on initial tab activation for Claude CLI sessions
-- [ ] **FILL-02**: Terminal fills the full viewport width on initial tab activation for Gemini CLI sessions
-- [ ] **FILL-03**: Terminal fills the full viewport width on initial tab activation for OpenCode sessions
-- [ ] **FILL-04**: Terminal fills the full viewport width on initial tab activation for Codex sessions (no regression)
-- [ ] **FILL-05**: Switching tabs to a previously hidden terminal fills correctly without resize
-- [ ] **FILL-06**: Fix works in both `wails dev` and production `wails build` modes
+- [x] **FILL-01**: Terminal fills the full viewport width on initial tab activation for Claude CLI sessions
+- [x] **FILL-02**: Terminal fills the full viewport width on initial tab activation for Gemini CLI sessions
+- [x] **FILL-03**: Terminal fills the full viewport width on initial tab activation for OpenCode sessions
+- [x] **FILL-04**: Terminal fills the full viewport width on initial tab activation for Codex sessions (no regression)
+- [x] **FILL-05**: Switching tabs to a previously hidden terminal fills correctly without resize
+- [x] **FILL-06**: Fix works in both `wails dev` and production `wails build` modes
 
 ## Future Requirements
 

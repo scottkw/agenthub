@@ -44,7 +44,7 @@ func runGUI() {
 		MinWidth:          800,
 		MinHeight:         600,
 		HideWindowOnClose: true,
-		BackgroundColour:  &options.RGBA{R: 0x1b, G: 0x26, B: 0x36, A: 0xff},
+		BackgroundColour:  &options.RGBA{R: 0x1a, G: 0x1b, B: 0x26, A: 0xff},
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

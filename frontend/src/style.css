@@ -1,5 +1,15 @@
 @import '@xterm/xterm/css/xterm.css';
 
+/* ─── xterm overrides ───────────────────────────────────────────── */
+/* Hide native scrollbar so FitAddon uses full container width.
+   xterm.js handles scroll internally via mouse wheel / touchpad. */
+.xterm-viewport {
+  scrollbar-width: none;           /* Firefox */
+}
+.xterm-viewport::-webkit-scrollbar {
+  display: none;                   /* WebKit (Wails, Chrome, Safari) */
+}
+
 /* ─── Reset ─────────────────────────────────────────────────────── */
 * {
   margin: 0;
@@ -13,6 +23,16 @@ body,
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+/* Prevent macOS WKWebView from reserving native scrollbar space.
+   Without this, "Always show scrollbars" in System Preferences causes
+   a ~16px gap on the right where the scrollbar track is rendered. */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 body {

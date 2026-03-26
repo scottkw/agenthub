@@ -106,6 +106,14 @@ None — no external service configuration required.
 - Manual verification of all 4 CLIs (Claude, Gemini, OpenCode, Codex) pending at Task 3 checkpoint
 - Upon user confirmation, phase 35 is complete and v1.6 milestone closes
 
+## Self-Check: PASSED
+
+- FOUND: frontend/src/components/TerminalPanel.tsx
+- FOUND: frontend/src/components/__tests__/TerminalPanel.test.tsx
+- FOUND: .planning/phases/35-terminal-fill-fix-v2/35-01-SUMMARY.md
+- FOUND: commit 9148a11 (test: add FILL-01..06 tests)
+- FOUND: commit 2f86d5a (feat: rAF retry loop)
+
 ---
 *Phase: 35-terminal-fill-fix-v2*
 *Completed: 2026-03-26*
