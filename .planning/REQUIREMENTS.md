@@ -18,11 +18,11 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 
 - [ ] **PERF-01**: Session status appears immediately after session creation (no artificial delay)
 - [ ] **PERF-02**: `pollSessionStatus` first poll runs without 2-second sleep
-- [ ] **PERF-03**: Service-mode daemon resolves agent CLIs in user PATH (nvm, volta, Homebrew paths)
+- [x] **PERF-03**: Service-mode daemon resolves agent CLIs in user PATH (nvm, volta, Homebrew paths)
 
 ### CLI Arguments
 
-- [ ] **ARGS-01**: User can pass extra arguments to an agent via `agenthub new <agent> -- --flag value`
+- [x] **ARGS-01**: User can pass extra arguments to an agent via `agenthub new <agent> -- --flag value`
 - [ ] **ARGS-02**: User can enter extra arguments in the GUI new-session modal text field
 - [x] **ARGS-03**: Args propagate through daemon layers (types → engine → API → client → PTY)
 - [ ] **ARGS-04**: Per-agent argument memory: last-used args pre-filled in GUI modal
@@ -55,8 +55,8 @@ Requirements for v1.5 Bug Fixes & CLI Args. Each maps to roadmap phases.
 | TERM-04 | Phase 34 | Pending |
 | PERF-01 | Phase 32 | Pending |
 | PERF-02 | Phase 32 | Pending |
-| PERF-03 | Phase 32 | Pending |
-| ARGS-01 | Phase 31 | Pending |
+| PERF-03 | Phase 32 | Complete |
+| ARGS-01 | Phase 31 | Complete |
 | ARGS-02 | Phase 33 | Pending |
 | ARGS-03 | Phase 30 | Complete |
 | ARGS-04 | Phase 33 | Pending |
