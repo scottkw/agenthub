@@ -74,7 +74,7 @@
 
 **Milestone Goal:** Fix terminal rendering and daemon performance regressions; add ability to pass custom arguments to agents from both CLI and GUI.
 
-- [ ] **Phase 30: Backend Args Wiring** - Thread args through all Go daemon layers (types → engine → API → client)
+- [x] **Phase 30: Backend Args Wiring** - Thread args through all Go daemon layers (types → engine → API → client) (completed 2026-03-26)
 - [ ] **Phase 31: CLI Arg Passthrough** - Parse `--` separator in `cmdNew` and pass trailing tokens to session creation
 - [ ] **Phase 32: Daemon Startup Performance** - Fix status polling latency and service-mode PATH resolution
 - [ ] **Phase 33: GUI Args Field** - Add args text field to new-session modal with per-agent memory and Wails binding update
@@ -93,7 +93,7 @@
   4. Go tests cover the full IPC chain with a non-empty args slice
 **Plans**: 1 plan
 Plans:
-- [ ] 30-01-PLAN.md — Thread args through all 5 daemon layers + integration tests
+- [x] 30-01-PLAN.md — Thread args through all 5 daemon layers + integration tests
 
 ### Phase 31: CLI Arg Passthrough
 **Goal**: Users can pass extra flags to agents from the CLI using the `--` separator
@@ -150,7 +150,7 @@ Plans:
 | 14-18 | v1.2 | 10/10 | Complete | 2026-03-23 |
 | 19-26 | v1.3 | 15/15 | Complete | 2026-03-25 |
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
-| 30. Backend Args Wiring | v1.5 | 0/1 | Not started | - |
+| 30. Backend Args Wiring | v1.5 | 1/1 | Complete   | 2026-03-26 |
 | 31. CLI Arg Passthrough | v1.5 | 0/? | Not started | - |
 | 32. Daemon Startup Performance | v1.5 | 0/? | Not started | - |
 | 33. GUI Args Field | v1.5 | 0/? | Not started | - |
