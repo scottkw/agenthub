@@ -157,7 +157,7 @@ Plans:
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30. Backend Args Wiring | v1.5 | 1/1 | Complete    | 2026-03-26 |
 | 31. CLI Arg Passthrough | v1.5 | 0/1 | Complete    | 2026-03-26 |
-| 32. Daemon Startup Performance | v1.5 | 2/2 | Complete   | 2026-03-26 |
+| 32. Daemon Startup Performance | v1.5 | 2/2 | Complete    | 2026-03-26 |
 | 33. GUI Args Field | v1.5 | 0/? | Not started | - |
 | 34. Terminal Fill Fix | v1.5 | 0/? | Not started | - |
 
