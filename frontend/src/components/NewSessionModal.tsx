@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { OpenDirectoryDialog } from '../wailsjs/go/main/App'
 
 const LAST_DIR_KEY = 'agenthub:lastWorkDir'
+const ARGS_KEY = (cli: string) => `agenthub:args:${cli}`
 
 interface DetectedCLI {
   Name: string
@@ -12,7 +13,7 @@ interface DetectedCLI {
 export interface NewSessionModalProps {
   isOpen: boolean
   clis: DetectedCLI[]
-  onConfirm: (cli: string, workDir: string) => void
+  onConfirm: (cli: string, workDir: string, args: string[]) => void
   onClose: () => void
 }
 
@@ -21,6 +22,9 @@ export function NewSessionModal({ isOpen, clis, onConfirm, onClose }: NewSession
   const [selectedDir, setSelectedDir] = useState(() => localStorage.getItem(LAST_DIR_KEY) ?? '')
   const [browseLoading, setBrowseLoading] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [argsText, setArgsText] = useState(() =>
+    localStorage.getItem(ARGS_KEY(clis[0]?.Name ?? '')) ?? ''
+  )
 
   if (!isOpen) return null
 
@@ -37,9 +41,25 @@ export function NewSessionModal({ isOpen, clis, onConfirm, onClose }: NewSession
     }
   }
 
+  function handleSelectCLI(name: string) {
+    setSelectedCLI(name)
+    setArgsText(localStorage.getItem(ARGS_KEY(name)) ?? '')
+  }
+
+  function handleClearArgs() {
+    setArgsText('')
+    localStorage.removeItem(ARGS_KEY(selectedCLI))
+  }
+
   function handleConfirm() {
     setCreating(true)
-    onConfirm(selectedCLI, selectedDir)
+    if (argsText.trim()) {
+      localStorage.setItem(ARGS_KEY(selectedCLI), argsText)
+    } else {
+      localStorage.removeItem(ARGS_KEY(selectedCLI))
+    }
+    const args = argsText.trim().split(/\s+/).filter(Boolean)
+    onConfirm(selectedCLI, selectedDir, args)
   }
 
   return (
@@ -57,7 +77,7 @@ export function NewSessionModal({ isOpen, clis, onConfirm, onClose }: NewSession
                 <button
                   key={cli.Name}
                   className={`new-session-modal__agent-btn${selectedCLI === cli.Name ? ' new-session-modal__agent-btn--selected' : ''}`}
-                  onClick={() => setSelectedCLI(cli.Name)}
+                  onClick={() => handleSelectCLI(cli.Name)}
                 >
                   {cli.DisplayName || cli.Name}
                 </button>
@@ -77,6 +97,27 @@ export function NewSessionModal({ isOpen, clis, onConfirm, onClose }: NewSession
               >
                 {browseLoading ? 'Browsing\u2026' : 'Browse\u2026'}
               </button>
+            </div>
+          </div>
+          <div className="new-session-modal__section">
+            <label className="new-session-modal__section-label">Extra Arguments</label>
+            <div className="new-session-modal__args-row">
+              <input
+                className="new-session-modal__args-input"
+                type="text"
+                value={argsText}
+                onChange={(e) => setArgsText(e.target.value)}
+                placeholder="e.g. --model claude-opus-4-5"
+              />
+              {argsText && (
+                <button
+                  className="new-session-modal__args-clear"
+                  onClick={handleClearArgs}
+                  aria-label="Clear arguments"
+                >
+                  Clear Args
+                </button>
+              )}
             </div>
           </div>
         </div>

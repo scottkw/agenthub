@@ -634,6 +634,45 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.new-session-modal__args-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.new-session-modal__args-input {
+  flex: 1;
+  background: #16161e;
+  border: 1px solid #292e42;
+  border-radius: 4px;
+  color: #c0caf5;
+  font-size: 13px;
+  padding: 8px 16px;
+  outline: none;
+  font-family: inherit;
+  min-height: 32px;
+  box-sizing: border-box;
+}
+.new-session-modal__args-input:focus {
+  border-color: #7aa2f7;
+}
+.new-session-modal__args-input::placeholder {
+  color: #414868;
+}
+.new-session-modal__args-clear {
+  padding: 4px 8px;
+  border: 1px solid #292e42;
+  border-radius: 4px;
+  font-size: 11px;
+  background: transparent;
+  color: #a9b1d6;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.new-session-modal__args-clear:hover {
+  background: #1e2030;
+  color: #c0caf5;
+}
 .new-session-modal__footer {
   display: flex;
   justify-content: flex-end;

@@ -141,11 +141,11 @@ function App(): React.ReactElement {
     }
   }, [])
 
-  const createTab = useCallback(async (cliName: string, workDir: string) => {
+  const createTab = useCallback(async (cliName: string, workDir: string, args: string[]) => {
     const defaultName = `${cliName} ${tabCounter}`
     setTabCounter((n) => n + 1)
     try {
-      const sessionId = await CreateSession(cliName, defaultName, workDir)
+      const sessionId = await CreateSession(cliName, defaultName, workDir, args)
       const tab: Tab = {
         id: sessionId,
         name: defaultName,
@@ -383,9 +383,9 @@ function App(): React.ReactElement {
         <NewSessionModal
           isOpen={showNewSessionModal}
           clis={detectedCLIs}
-          onConfirm={(cli, workDir) => {
+          onConfirm={(cli, workDir, args) => {
             setShowNewSessionModal(false)
-            void createTab(cli, workDir)
+            void createTab(cli, workDir, args)
           }}
           onClose={() => setShowNewSessionModal(false)}
         />
