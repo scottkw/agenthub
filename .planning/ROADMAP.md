@@ -94,7 +94,7 @@
 
 **Milestone Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
 
-- [ ] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work
+- [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
 - [ ] **Phase 37: Splash Screen** - Branded startup overlay using the title logo; dismisses when daemon connection is confirmed
 - [ ] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification
 - [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
@@ -113,9 +113,9 @@
   3. `icon.ico` contains at least 4 sizes (16, 32, 48, 256px) for Windows taskbar and installer
   4. Multi-size PNGs are present in `build/linux/` for Linux desktop integration and Wails embedding
   5. The full title logo PNG is copied into `frontend/src/assets/` for use by the splash screen
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 36-01-PLAN.md — Generate all icon assets, production build with ICNS injection, visual verification
+- [x] 36-01-PLAN.md — Generate all icon assets, production build with ICNS injection, visual verification
 **UI hint**: yes
 
 ### Phase 37: Splash Screen
@@ -193,7 +193,7 @@ Plans:
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
-| 36. App Icons & Branding Assets | v1.7 | 0/1 | Not started | - |
+| 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete   | 2026-03-31 |
 | 37. Splash Screen | v1.7 | 0/TBD | Not started | - |
 | 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |

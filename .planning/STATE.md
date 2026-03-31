@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
-status: active
-stopped_at: Roadmap created — ready for Phase 36 planning
-last_updated: "2026-03-31T19:30:00.000Z"
-last_activity: 2026-03-31 -- Roadmap created for v1.7 (6 phases, 15 requirements)
+status: verifying
+stopped_at: "Completed 36-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)"
+last_updated: "2026-03-31T20:49:22.749Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,20 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 36 — App Icons & Branding Assets
+**Current focus:** Phase 36 — app-icons-branding-assets
 
 ## Current Position
 
-Phase: 36 of 41 (App Icons & Branding Assets)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-31 — Roadmap created (Phases 36-41, 15 requirements mapped)
+Phase: 36 (app-icons-branding-assets) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-03-31
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -46,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 36-app-icons-branding-assets P01 | 37 | 2 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -57,6 +59,8 @@ Key decisions from research (inform upcoming phases):
 - Phase 37: Splash anti-flash — use `StartHidden: true` + static HTML splash in index.html + `OnDomReady` → `runtime.WindowShow()`; `defer setInitComplete(true)` on all code paths
 - Phase 39: Web status bar — use REST polling (3s interval) not a new relay frame type; status bar must be flex sibling with fixed height to avoid FitAddon regression
 - Phase 41: Tray — never add fyne.io/systray or any mainstream systray library (duplicate AppDelegate symbol confirmed failure); keep custom cgo NSStatusItem for macOS; LSUIElement in Info.plist only (not Info.dev.plist)
+- [Phase 36-app-icons-branding-assets]: Phase 36: ICNS injection pattern — wails build produces 3-size ICNS (361KB); post-build cp of pre-built 10-entry iconfile.icns (590KB) into bundle Resources is required
+- [Phase 36-app-icons-branding-assets]: Phase 36: Transparent background for appicon.png — macOS applies standardized rounded corners + drop shadow to transparent icons; no custom background color needed
 
 ### Pending Todos
 
@@ -70,7 +74,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-31
-Stopped at: Roadmap created — 6 phases defined, all 15 v1.7 requirements mapped
+Last session: 2026-03-31T20:49:22.746Z
+Stopped at: Completed 36-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)
 Resume file: None
 Next action: `/gsd:plan-phase 36`

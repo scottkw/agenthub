@@ -30,7 +30,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 ### Branding
 
-- [ ] **BRND-01**: App icon set generated from logomark: .icns (macOS), .ico (Windows), multi-size PNGs (Linux/Wails)
+- [x] **BRND-01**: App icon set generated from logomark: .icns (macOS), .ico (Windows), multi-size PNGs (Linux/Wails)
 - [ ] **BRND-02**: Splash screen shows full title logo during app startup, dismissed when daemon connection confirmed (no artificial delay, 3s timeout fallback)
 - [ ] **BRND-03**: macOS tray icon uses monochrome template image that adapts to light/dark menu bar
 
@@ -64,7 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRND-01 | Phase 36 | Pending |
+| BRND-01 | Phase 36 | Complete |
 | BRND-02 | Phase 37 | Pending |
 | RMTE-03 | Phase 38 | Pending |
 | RMTE-01 | Phase 39 | Pending |
