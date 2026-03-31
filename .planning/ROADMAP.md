@@ -113,7 +113,9 @@
   3. `icon.ico` contains at least 4 sizes (16, 32, 48, 256px) for Windows taskbar and installer
   4. Multi-size PNGs are present in `build/linux/` for Linux desktop integration and Wails embedding
   5. The full title logo PNG is copied into `frontend/src/assets/` for use by the splash screen
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 36-01-PLAN.md — Generate all icon assets, production build with ICNS injection, visual verification
 **UI hint**: yes
 
 ### Phase 37: Splash Screen
@@ -191,7 +193,7 @@
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
-| 36. App Icons & Branding Assets | v1.7 | 0/TBD | Not started | - |
+| 36. App Icons & Branding Assets | v1.7 | 0/1 | Not started | - |
 | 37. Splash Screen | v1.7 | 0/TBD | Not started | - |
 | 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
