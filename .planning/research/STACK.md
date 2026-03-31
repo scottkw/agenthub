@@ -1,285 +1,136 @@
 # Stack Research
 
-**Domain:** AgentHub v1.5 — terminal fill fix, daemon startup performance, CLI arg passthrough
-**Researched:** 2026-03-25
-**Confidence:** HIGH (library versions verified via pkg.go.dev and go.mod; patterns verified against xterm.js GitHub issues)
+**Domain:** AgentHub v1.7 — Daemon UX & Branding (system tray, remote session indicators, app icons, splash screen)
+**Researched:** 2026-03-31
+**Confidence:** MEDIUM-HIGH (system tray library choice has one CRITICAL constraint; icon tooling HIGH confidence)
 
 ---
 
-## Context: No New Dependencies Required
+## Context: What's New vs What's Unchanged
 
-All three v1.5 features are implementable with the existing dependency set. The changes are:
+v1.7 adds four capability areas. Three require new Go dependencies. One (splash screen) is zero-dependency.
 
-1. **xterm.js terminal fill fix** — timing/CSS fix in React frontend only
-2. **Daemon startup performance** — algorithmic fix in `internal/daemon/process.go`
-3. **CLI arg passthrough** — data model and propagation through existing layers
-
-No `go get` or `npm install` required for any of these.
+| Area | New Dependency? | Notes |
+|------|-----------------|-------|
+| System tray icon + menu | YES — CGO required | Most complex; platform-specific constraints |
+| Remote session status bar | NO | Frontend-only React component; xterm.js WebSocket already in place |
+| App icons (.icns, .ico, multi-PNG) | YES — build-time CLI tools | Generation scripts only, not runtime deps |
+| Splash screen | NO | CSS overlay in React, hidden on `OnDomReady` |
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies (Unchanged)
+### New Go Runtime Dependency: System Tray
 
-| Technology | Version | Purpose | Why Relevant to v1.5 |
-|------------|---------|---------|----------------------|
-| `@xterm/xterm` | `^6.0.0` (currently installed) | Terminal rendering | Fix site for the fill bug |
-| `@xterm/addon-fit` | `^0.11.0` (currently installed) | Terminal resize to container | Root cause of fill timing issue |
-| `document.fonts.ready` | Browser API (no package) | Font load gate before fit() | Already used; needs enhancement |
-| stdlib `flag.NewFlagSet` | Go stdlib (in use) | CLI command parsing | Extend `cmdNew` for `--` passthrough |
-| Go `os/exec` / PTY `CreateRequest.Args` | Go stdlib + existing `internal/pty` | CLI arg forwarding to PTY | `Args []string` field already exists in `CreateRequest` |
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| `fyne.io/systray` | v1.12.0 (Dec 2025) | Cross-platform system tray icon + right-click menu | Actively maintained fork of getlantern/systray; removed GTK dependency (uses DBus on Linux); no AppDelegate conflict with Wails on macOS when used correctly via goroutine; supports macOS, Windows, Linux, BSD |
 
-### Supporting Libraries (Unchanged, Already in go.mod)
+**Critical integration constraint for macOS:** The standard `fyne.io/systray` API calls `systray.Run(onReady, onExit)` which tries to lock the main OS thread — the same thread Wails' WebView owns. Direct embedding causes an AppDelegate duplicate symbol linker error.
 
-| Library | Version | Purpose | v1.5 Usage |
-|---------|---------|---------|------------|
-| `github.com/aymanbagabas/go-pty` | v0.2.2 | PTY process launch | `CreateRequest.Args []string` is already wired into `cmd := p.CommandContext(ctx, req.CLI, req.Args...)` |
-| `golang.org/x/term` | v0.41.0 | Terminal raw mode | No change needed for v1.5 |
-| `github.com/wailsapp/wails/v2` | v2.10.2 | Desktop GUI + JS bindings | Wails-bound method on `App` needs `args string` param |
+**Confirmed working pattern (from Wails community discussion #4514):** Run the tray in a subprocess that communicates with the daemon over IPC (Unix socket / named pipe). The daemon already owns an IPC socket; the tray process connects as another client. This matches the existing architecture — the tray is just another DaemonClient consumer.
 
----
+Alternative for macOS-only: native NSStatusBar via cgo (no third-party library; avoids all conflicts). Requires platform-specific `.m` files and build constraints. Recommended only if cross-platform tray is deprioritized.
 
-## Feature-Specific Stack Patterns
+**Linux note:** `fyne.io/systray` uses DBus / SystemNotifier/AppIndicator spec. Requires `libdbus-1-dev` on the build host. Older desktop environments (classic GNOME, some i3 setups) need `snixembed` proxy to display the icon. Modern GNOME 3+, KDE, XFCE work natively.
 
-### Feature 1: xterm.js Terminal Fill on Initial Load
+**Build requirement:** `CGO_ENABLED=1` (already required by Wails itself; no change needed).
 
-**Problem:** Claude and Gemini CLIs render a styled TUI on startup (full-screen panels, status bars). If `FitAddon.fit()` is called while the terminal container is still transitioning from hidden to visible, the measured container dimensions are wrong — the PTY gets initialized at 80x24 (the fallback) and the CLI draws its UI at that size. The correct dimensions arrive later but the CLI has already committed to the wrong terminal size.
+### New Build-Time Tools: Icon Generation
 
-**Root cause (confirmed via xterm.js issues #4841, #5320, #5298):**
-- `fit()` calls `proposeDimensions()` which reads `containerElement.clientWidth/clientHeight` from the DOM
-- If called while the container is `display:none` or mid-CSS-transition, `clientWidth === 0` → `cols === 1` (or the prior 80x24 default survives)
-- `document.fonts.ready` only gates font load; it does not gate CSS layout completion
-- `ResizeObserver` fires on observation start AND on subsequent size changes — but only if the element is already visible when observed
+These are one-time generation scripts (run during asset prep, not at runtime). Install as dev tools; not added to `go.mod` as runtime deps.
 
-**Fix pattern (no new packages):**
+| Tool | Version | Purpose | Why |
+|------|---------|---------|-----|
+| `github.com/jackmordaunt/icns/v3` (CLI: `icnsify`) | v3 / v2.2.7 (Nov 2023) | PNG → `.icns` for macOS | Pure Go, no ImageMagick, works on Windows/Linux/macOS build hosts. Takes any PNG, outputs multi-size `.icns`. Supports piping. |
+| `github.com/sergeymakinen/go-ico` | latest (Jan 2024) | PNG → `.ico` for Windows | Pure Go ICO encoder/decoder. Multi-size ICO (256, 128, 64, 48, 32, 16) from a single source PNG. |
+| `golang.org/x/image/draw` | stdlib (in go.mod) | Image resizing for multi-size PNGs | Standard library; `draw.BiLinear.Scale()` handles high-quality downsample. No additional dependency. |
+| macOS native `iconutil` | macOS system tool | Alternative PNG → `.icns` on macOS only | Built into macOS. Use as fallback if `icnsify` unavailable. Requires an `.iconset/` directory structure. Not cross-platform. |
 
-The current code in `TerminalPanel.tsx` uses `document.fonts.ready.then(() => fit())` plus a `ResizeObserver`. This is the right structure but has a gap: the ResizeObserver's initial callback fires before CSS layout has settled (the flex container completing its transition from display:none). The fix is to add a `requestAnimationFrame` gate inside the ResizeObserver callback to defer `fit()` to after paint:
+**Existing state:** `build/appicon.png` is 256x256 (placeholder geometric art). `build/windows/icon.ico` exists (6 sizes, Wails-generated from appicon). `build/darwin/` has no `.icns` — this is the gap.
 
-```typescript
-// In the ResizeObserver callback:
-const ro = new ResizeObserver(() => {
-  requestAnimationFrame(() => {
-    fitAddonRef.current?.fit()
-  })
-})
-ro.observe(container)
+**Wails v2 icon behavior:**
+- `build/appicon.png` → embedded in binary as the app icon (dock/taskbar)
+- `build/windows/icon.ico` → Windows .exe resource; Wails auto-generates from appicon.png if missing, sizes: 256, 128, 64, 48, 32, 16
+- `build/darwin/*.icns` → macOS .app bundle icon; Wails uses the `.icns` if present; falls back to `appicon.png`. **Must be pre-generated** — Wails v2 does not auto-generate `.icns` from PNG the way it does for Windows.
+
+**Recommended icon pipeline:**
+```
+docs/agenthub-title-logo.png  (source — full branding asset)
+  → strip to square icon crop (manual Figma/Photoshop step, or imagemagick -gravity center -extent 1:1)
+  → build/appicon.png          (1024x1024 PNG, transparent background recommended)
+  → build/darwin/AppIcon.icns  (via icnsify or iconutil)
+  → build/windows/icon.ico     (via go-ico or Wails auto-gen)
+  → build/linux/icons/         (16, 32, 48, 64, 128, 256 PNGs via x/image/draw)
 ```
 
-Additionally, add a targeted resize after the PTY relay WebSocket connects (`onOpen` callback in `RelayClient`), which sends the correct cols/rows to the PTY. This forces a SIGWINCH to the CLI process at the moment it is ready to receive input — the key missing piece for CLIs that draw their TUI before xterm.js has reported the correct size.
+### Frontend: Remote Session Status Bar
 
-**The correct `onOpen` resize pattern:**
+No new npm packages. The status bar is a React component consuming existing WebSocket state.
 
-```typescript
-onOpen: () => {
-  // Fit now that the relay is connected; PTY can receive resize immediately.
-  const fitAddon = fitAddonRef.current
-  if (fitAddon) {
-    requestAnimationFrame(() => fitAddon.fit())
-  }
-},
-```
+| Technology | Already In Project | Usage |
+|------------|-------------------|-------|
+| React state / props | Yes — React in frontend | Session connection state |
+| xterm.js WebSocket relay | Yes — RelayClient.ts | `onOpen`/`onClose`/`latency` events already available |
+| CSS flexbox | Yes | Status bar layout (same pattern as existing per-tab StatusBar) |
 
-This combines with the existing ResizeObserver so both paths converge on `requestAnimationFrame(() => fit())`.
+The web dashboard already has a status bar. The new component targets the standalone web terminal page (the page served to remote browsers and `agenthub attach` CLI sessions).
 
-**Why `requestAnimationFrame` works:** The browser paints after rAF callbacks execute, which means CSS layout (including flex size resolution) has completed before the callback runs. This is the correct hook point for reading element dimensions.
+### Frontend: Splash Screen
 
-**Why NOT `setTimeout(..., 100)` or similar:** Fixed delays are flaky — fast machines miss them, slow machines add unnecessary latency. rAF is layout-cycle-accurate and zero-latency on fast hardware.
+No new dependencies. Wails v2 provides `OnDomReady` callback and CSS overlay pattern.
 
-**Confidence:** HIGH — rAF-after-fit is the documented workaround in xterm.js issue #4841 and confirmed by the maintainer (Tyriar) to be the correct approach for container-visibility timing.
+| Technology | How Used |
+|------------|---------|
+| Wails `OnDomReady` in `main.go` | Triggers a Wails event (`runtime.EventsEmit`) when DOM is fully ready |
+| React `useEffect` + state | Hides splash overlay after event received |
+| CSS `position: fixed` overlay | Covers WebView during load; fades out on hide |
 
----
+**Pattern:** Splash overlay is a `<div>` with `position:fixed; z-index:9999; width:100vw; height:100vh` containing the title logo image. On `OnDomReady` event, set `display:none` or trigger a CSS fade-out transition. The logo image (`docs/agenthub-title-logo.png`) is embedded in the Wails frontend assets.
 
-### Feature 2: Daemon Startup Performance
-
-**Problem:** `EnsureDaemon` in `internal/daemon/process.go` polls with `time.Sleep(50 * time.Millisecond)` for up to 3 seconds after spawning the daemon subprocess. The actual daemon startup time is typically 50–150ms (Go binary, no JVM warmup), but the polling may sleep through the ready window and add unnecessary latency visible to users.
-
-**Current code analysis:**
-```go
-// Poll until daemon is fully ready — health + relay port (max 3 seconds).
-deadline := time.Now().Add(3 * time.Second)
-for time.Now().Before(deadline) {
-    if err := client.Health(); err == nil {
-        if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
-            return nil
-        }
-    }
-    time.Sleep(50 * time.Millisecond)  // ← sleeps BEFORE re-checking
-}
-```
-
-The issue: the loop sleeps AFTER each failed check. On the iteration where the daemon becomes ready, the code checks, succeeds, and returns — but only if it happens to check at the right moment. If the daemon is ready at t=80ms but the next poll is at t=100ms (50ms sleep), 20ms of unnecessary wait accrues. More importantly, the current structure does health check, then relay-port check as a separate HTTP round-trip — two sequential IPC calls per iteration.
-
-**Fix pattern (no new packages):**
-
-Three improvements, pure Go stdlib:
-
-1. **Check immediately first** (before any sleep): return early if daemon is already running (handles the restart/retry case).
-
-2. **Exponential backoff with cap**: start at 5ms, double each iteration, cap at 50ms. Matches daemon startup curve — fast to detect fast-starting daemons.
-
-3. **Combine health + relay into one round-trip**: add a `/ready` endpoint (or extend `/health`) that returns `{"status":"ok","relayPort":N}` so a single HTTP call confirms both conditions.
-
-```go
-// Improved poll: immediate first, then exponential backoff
-sleep := 5 * time.Millisecond
-deadline := time.Now().Add(3 * time.Second)
-for time.Now().Before(deadline) {
-    if err := client.Health(); err == nil {
-        if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
-            return nil
-        }
-    }
-    time.Sleep(sleep)
-    if sleep < 50*time.Millisecond {
-        sleep *= 2
-    }
-}
-```
-
-**Impact:** For a daemon that starts in 80ms, the current code detects readiness at the 100ms poll tick. With 5ms start + doubling (5, 10, 20, 40, 80ms cumulative = 155ms), the daemon is detected at 80ms within the 5ms window — detection happens at 80ms instead of 100ms. For the GUI startup path (App.startup → EnsureDaemon), this reduces perceived latency.
-
-**Additional: daemon startup warm path.** The daemon calls `NewSessionEngine()` + `NewAPI()` + `StartRelay()` + `api.Start(socketPath)` sequentially. `StartRelay()` does a `net.Listen("tcp", "127.0.0.1:0")` which is fast, but starts the relay server in a goroutine *after* `api.Start()`. Consider starting relay concurrently with API startup — both are independent listeners. This is a refactor within `runDaemonCore` in `process.go`, no new dependencies.
-
-**Confidence:** HIGH — analysis based on direct code reading. The polling pattern is a known Go pattern optimization with no library dependency.
-
----
-
-### Feature 3: CLI Argument Passthrough
-
-**Problem:** Agents like Claude Code accept extra flags (`--model`, `--permission-mode`, `--verbose`). Users need to pass these through from both the CLI (`agenthub new`) and the GUI new-session modal.
-
-**Data flow analysis (existing code):**
-
-```
-cmdNew (cmd_cli.go)
-  → client.CreateSession(cli, name, workDir)      ← no args param
-    → POST /sessions {cli, name, workDir}          ← no args field
-      → engine.CreateSession(cli, name, workDir)  ← no args param
-        → backend.Create(CreateRequest{CLI, Cols, Rows, WorkDir})  ← Args []string exists but unused!
-          → p.CommandContext(ctx, req.CLI, req.Args...)  ← already wired!
-```
-
-`CreateRequest.Args []string` in `internal/pty/backend.go` is already defined and already forwarded to the PTY command. The gap is that nothing above it passes args down. This is a clean propagation fix through the existing layers.
-
-**Fix pattern — no new packages, extend existing types:**
-
-**Layer 1: `daemon/types.go` — add `Args []string` to wire types:**
-```go
-type CreateRequest struct {
-    CLI     string   `json:"cli"`
-    Name    string   `json:"name"`
-    WorkDir string   `json:"workDir"`
-    Args    []string `json:"args,omitempty"`   // ← add
-}
-```
-
-**Layer 2: `daemon/engine.go` — thread args into PTY CreateRequest:**
-```go
-func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, onStatus func(...)) (string, error) {
-    sess, err := e.backend.Create(ctx, pty.CreateRequest{
-        CLI:     cliPath,
-        Args:    args,     // ← add
-        Cols:    80, Rows: 24,
-        WorkDir: workDir,
-    })
-```
-
-**Layer 3: `daemon/client.go` — pass args through HTTP:**
-```go
-func (c *DaemonClient) CreateSession(cli, name, workDir string, args []string) (string, error) {
-    req := CreateRequest{CLI: cli, Name: name, WorkDir: workDir, Args: args}
-```
-
-**Layer 4: `cmd_cli.go` — parse `--` passthrough in `cmdNew`:**
-
-Go stdlib `flag.NewFlagSet` stops parsing at `--`. After `fs.Parse(args)`, `fs.Args()` contains everything after `--`. This is built in — no cobra needed.
-
-```go
-func cmdNew(client *daemon.DaemonClient, args []string, out io.Writer) error {
-    fs := flag.NewFlagSet("new", flag.ContinueOnError)
-    dir  := fs.String("dir", "", "working directory")
-    cli  := fs.String("cli", "claude", "agent CLI name")
-    if err := fs.Parse(args); err != nil { return err }
-
-    remaining := fs.Args()  // positional args (session name)
-
-    // Everything after "--" is captured in remaining after flag parsing.
-    // Split on "--" to separate session name from agent args.
-    var agentArgs []string
-    name := ""
-    for i, a := range remaining {
-        if a == "--" {
-            agentArgs = remaining[i+1:]
-            remaining = remaining[:i]
-            break
-        }
-    }
-    if len(remaining) > 0 { name = remaining[0] }
-    ...
-    id, err := client.CreateSession(*cli, name, *dir, agentArgs)
-```
-
-Usage: `agenthub new myproject --dir /path --cli claude -- --model claude-opus-4-5 --verbose`
-
-**Layer 5: `App.go` Wails binding — add args param:**
-```go
-func (a *App) CreateSession(cli, workDir string, args []string) (string, error) {
-    name := filepath.Base(workDir)
-    return a.client.CreateSession(cli, name, workDir, args)
-}
-```
-
-**Layer 6: `NewSessionModal.tsx` — add args text field with per-agent localStorage memory:**
-
-```typescript
-const LAST_ARGS_KEY = (cli: string) => `agenthub:lastArgs:${cli}`
-
-const [agentArgs, setAgentArgs] = useState(() =>
-    localStorage.getItem(LAST_ARGS_KEY(selectedCLI)) ?? ''
-)
-
-// When CLI selection changes, load saved args for that CLI
-useEffect(() => {
-    setAgentArgs(localStorage.getItem(LAST_ARGS_KEY(selectedCLI)) ?? '')
-}, [selectedCLI])
-
-// On confirm, persist and parse
-function handleConfirm() {
-    localStorage.setItem(LAST_ARGS_KEY(selectedCLI), agentArgs)
-    const parsedArgs = agentArgs.trim() ? agentArgs.trim().split(/\s+/) : []
-    onConfirm(selectedCLI, selectedDir, parsedArgs)
-}
-```
-
-Add a clear button: `<button onClick={() => { setAgentArgs(''); localStorage.removeItem(LAST_ARGS_KEY(selectedCLI)) }}>Clear</button>`
-
-**arg parsing note:** Simple whitespace-split is correct for the MVP — agent CLIs use `--flag value` pairs without embedded spaces. Shell quoting (e.g. `--prompt "hello world"`) is a future enhancement; document this limitation in the UI placeholder text.
-
-**Confidence:** HIGH — `CreateRequest.Args` is already defined and wired to the PTY command in `native.go`. This is purely a propagation change through existing types.
+Wails `OnDomReady` timing note: fires when all assets in `index.html` are loaded (equivalent to `body.onload`). On first load this includes the time to parse/render React — typically 100-400ms on target hardware. Reliable for splash-hide triggering.
 
 ---
 
 ## Installation
 
 ```bash
-# No new dependencies for any v1.5 feature.
-# All changes are within existing packages.
+# System tray runtime dep (add to go.mod)
+go get fyne.io/systray@v1.12.0
+
+# Icon generation tools (install as dev tools, not go.mod deps)
+go install github.com/jackmordaunt/icns/v3/cmd/icnsify@latest
+
+# go-ico is used as a library in a build script, not a standalone CLI
+# Add to a build/gen_icons.go script:
+go get github.com/sergeymakinen/go-ico@latest
+
+# golang.org/x/image — already in project via indirect deps (Wails/Tailscale pull it in)
+# Verify: grep "golang.org/x/image" go.sum
+```
+
+**Linux build host requirement for tray CGO:**
+```bash
+# Ubuntu/Debian
+sudo apt-get install libdbus-1-dev
+
+# Already required: libgtk-3-dev, libwebkit2gtk-4.0-dev (Wails itself needs these)
 ```
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| `requestAnimationFrame` gate for fit() | `setTimeout(fit, 100)` delay | Fixed delay is unreliable — too fast on slow machines, unnecessary latency on fast ones. rAF is layout-cycle accurate. |
-| `requestAnimationFrame` gate for fit() | `MutationObserver` on container | Mutations don't fire on CSS transitions completing. ResizeObserver already in place is correct mechanism; just needs rAF gate. |
-| Exponential backoff polling in EnsureDaemon | Reduce sleep to 10ms flat | Flat 10ms still has up to 10ms excess delay at detection. Exponential starts faster and converges quicker. |
-| Exponential backoff polling | Channel-based notification (daemon signals readiness) | Requires adding a signaling mechanism (pipe, socket ping) to the daemon spawn contract. Over-engineering for a 50-150ms startup path. |
-| `flag.NewFlagSet` `--` split for args | Add cobra | Cobra not in the project (despite being researched in v1.3, stdlib flag was used instead). Adding cobra for one new flag is unjustified scope. |
-| Whitespace-split args string from GUI | JSON array input in GUI | Whitespace split matches how users type CLI flags. JSON array is unfamiliar UX for CLI flags. |
-| Per-CLI localStorage key for args | Single global args key | Different CLIs have different flags (claude uses `--model`, gemini uses `--model` differently, etc.). Per-CLI memory prevents confusion. |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `fyne.io/systray` (subprocess/IPC pattern) | `github.com/energye/systray` | energye is another active fork with similar API; use if fyne.io has a breaking issue. Same AppDelegate constraint applies. |
+| `fyne.io/systray` subprocess | `github.com/ra1phdd/systray-on-wails` | Pre-release (v0.0.0, Nov 2024), limited adoption. Use only if Wails main-thread integration is confirmed working on all 3 platforms. |
+| `fyne.io/systray` subprocess | Native NSStatusBar via cgo | Eliminates AppDelegate conflict entirely on macOS. Requires platform-specific Obj-C glue files. Choose this if dropping Linux tray or building platform-specific tray modules. PROJECT.md key decisions already note this pattern was attempted. |
+| `fyne.io/systray` subprocess | Wails v3 built-in tray | Wails v3 has native systray support. Currently v3-alpha, not production-ready. Choose when v3 stabilizes (no ETA as of early 2026). |
+| `icnsify` for .icns generation | macOS `iconutil` CLI | Use `iconutil` when building exclusively on macOS; it's a zero-install option. Not usable in CI (Ubuntu runners). |
+| `github.com/sergeymakinen/go-ico` | Wails auto-gen | Wails auto-generates `icon.ico` from `appicon.png` if not present. Use Wails auto-gen if the 6-size default suffices. Use go-ico for custom size control or transparent backgrounds. |
+| CSS splash overlay | Wails `SplashBackgroundColour` option | Wails has a `BackgroundColour` option (not a splash screen). There is no official Wails v2 splash screen API — CSS overlay is the community-standard approach. |
 
 ---
 
@@ -287,37 +138,64 @@ Add a clear button: `<button onClick={() => { setAgentArgs(''); localStorage.rem
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Shell quoting/parsing library (e.g. `google/shlex`) | Overkill for MVP — agent flags don't use quoted values in practice. Adds a new Go dependency. | Simple `strings.Fields()` / whitespace split; document limitation. |
-| New `/ready` daemon endpoint (combined health+relay) | While it would save one round-trip, the current two-call pattern works correctly and the exponential backoff alone solves the performance issue without requiring API changes. | Exponential backoff on existing two-call pattern. |
-| `cobra` for CLI arg parsing | Already researched in v1.3, not adopted. Flag stdlib is established in the codebase (flag.NewFlagSet per command). Adding cobra now is churn. | Continue stdlib `flag.NewFlagSet` pattern. |
-| xterm.js addon-canvas or addon-serialize | Not needed for fit timing fix — existing WebGL/fallback stack is correct. | Existing `@xterm/addon-webgl` + canvas fallback. |
-| Increase EnsureDaemon timeout beyond 3s | If the daemon doesn't start in 3s, something is wrong (binary not found, permission error). Longer timeout just delays error reporting. | Keep 3s deadline; improve detection speed within it. |
+| `getlantern/systray` | Original library; requires GTK on Linux and causes AppDelegate duplicate symbol on macOS with Wails | `fyne.io/systray` (fork that removed GTK) |
+| `github.com/energye/energy` | Full Chromium-based desktop framework; enormous dependency for just a tray icon | `fyne.io/systray` standalone |
+| Wails v3 upgrade | v3 is alpha; Wails v2 is the production-validated stack in this project. Upgrading mid-milestone introduces unquantified risk | Stay on Wails v2.10.2; revisit at next major milestone |
+| `nfnt/resize` for icon resizing | Unmaintained (last commit 2018). Works but no security updates | `golang.org/x/image/draw` — standard library, in project already via indirect deps |
+| ImageMagick (`convert` CLI) | External binary dependency; not reliably present on all build hosts or CI runners | Pure Go tools (`icnsify`, `go-ico`) |
+| `disintegration/imaging` | Last tagged release was 2019 despite later commits; no active maintainer response to issues | `golang.org/x/image/draw` for resizing; `icnsify` for .icns |
+| React splash screen library (npm) | A CSS overlay + CSS transition is 10 lines. No library warranted. | Inline CSS + React state |
+
+---
+
+## Stack Patterns by Variant
+
+**If system tray runs in-process (macOS only, NSStatusBar cgo):**
+- Create `internal/tray/tray_darwin.go` with `//go:build darwin` and cgo NSStatusBar calls
+- Create stub `internal/tray/tray_linux.go` and `tray_windows.go` with build constraints
+- No external tray library needed
+- Because: NSStatusBar doesn't conflict with Wails' AppDelegate (it hooks into the existing NSApp, doesn't create its own)
+
+**If system tray runs as subprocess (cross-platform, fyne.io/systray):**
+- Create `cmd/agenthub-tray/main.go` — separate binary that calls `systray.Run()`
+- Tray binary communicates with daemon via existing Unix socket / named pipe
+- Tray binary launched by daemon on startup, tracked as a managed child process
+- Bundled in the same `.app` bundle / distribution package as the main binary
+- Because: avoids main-thread ownership conflict; matches existing daemon-as-subprocess pattern
+
+**If splash screen needs to hide before React hydration:**
+- Embed splash as a static `<div>` in `index.html` (not in React), using `window.hideSplash = () => { ... }`
+- Call from Wails `OnDomReady` via `runtime.WindowExecJS(ctx, "window.hideSplash()")`
+- Because: React render itself takes ~50-100ms after DOM ready; if splash is a React component it may flash before rendering
 
 ---
 
 ## Version Compatibility
 
-| Package | Version | Notes |
-|---------|---------|-------|
-| `@xterm/addon-fit` | `^0.11.0` | `fit()` behavior unchanged since 0.10.x; rAF fix is in calling code, not the addon |
-| `@xterm/xterm` | `^6.0.0` | No API changes needed; `onResize` event already fires correctly |
-| Go stdlib `flag` | Go 1.26.1 (in go.mod) | `--` terminator behavior is stable and documented since Go 1.0 |
-| `github.com/aymanbagabas/go-pty` | v0.2.2 | `CreateRequest.Args []string` already defined; no upgrade needed |
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `fyne.io/systray v1.12.0` | Wails v2.10.2 | Compatible when run in subprocess (separate binary). In-process on macOS causes AppDelegate linker error. |
+| `fyne.io/systray v1.12.0` | Go 1.26.1 | No known incompatibilities |
+| `github.com/jackmordaunt/icns/v3` | macOS, Linux, Windows build hosts | Pure Go; no host OS requirement |
+| `github.com/sergeymakinen/go-ico` | macOS, Linux, Windows build hosts | Pure Go; no host OS requirement |
+| `golang.org/x/image` | Already in project (indirect dep via Wails/Tailscale) | Verify `golang.org/x/image` is reachable; if not explicit in go.mod, add it |
 
 ---
 
 ## Sources
 
-- [xterm.js issue #4841 — FitAddon resizes incorrectly](https://github.com/xtermjs/xterm.js/issues/4841) — root cause analysis confirming rAF as correct fix. MEDIUM confidence (community + maintainer comment).
-- [xterm.js issue #5320 — addon-fit: width=1](https://github.com/xtermjs/xterm.js/issues/5320) — CSS layout conflict as root cause. MEDIUM confidence.
-- [xterm.js issue #5298 — fit not exactly to parent dimensions](https://github.com/xtermjs/xterm.js/issues/5298) — layout timing patterns. MEDIUM confidence.
-- [pkg.go.dev/flag](https://pkg.go.dev/flag) — `--` terminator behavior for stdlib flag package. HIGH confidence.
-- `/Users/ken/dev/agenthub/internal/pty/backend.go` — `CreateRequest.Args []string` already defined and wired. HIGH confidence (direct code read).
-- `/Users/ken/dev/agenthub/internal/pty/native.go` — `p.CommandContext(ctx, req.CLI, req.Args...)` confirms args forwarding path. HIGH confidence (direct code read).
-- `/Users/ken/dev/agenthub/internal/daemon/process.go` — `EnsureDaemon` polling logic (50ms flat sleep). HIGH confidence (direct code read).
-- `/Users/ken/dev/agenthub/frontend/src/components/TerminalPanel.tsx` — current fit timing implementation. HIGH confidence (direct code read).
-- `/Users/ken/dev/agenthub/frontend/package.json` — current xterm.js addon versions confirmed. HIGH confidence (direct file read).
+- [fyne.io/systray pkg.go.dev](https://pkg.go.dev/fyne.io/systray) — v1.12.0 version, Linux DBus requirement, CGO requirement. MEDIUM confidence (official package page).
+- [fyne-io/systray GitHub](https://github.com/fyne-io/systray) — Fork origin (from getlantern/systray), GTK removal confirmed. MEDIUM confidence.
+- [Wails discussion #4514 — SysTray](https://github.com/wailsapp/wails/discussions/4514) — Confirmed: no built-in Wails v2 systray; subprocess/IPC as community-validated workaround; NSStatusBar cgo as macOS alternative. HIGH confidence (Wails maintainer + community).
+- [Wails issue #1010 — macOS tray](https://github.com/wailsapp/wails/issues/1010) — Main-thread conflict root cause: "both the systray library and wails use the main thread, so it is difficult to use them together." HIGH confidence.
+- [jackmordaunt/icns GitHub](https://github.com/JackMordaunt/icns) — Pure Go, v2.2.7, `icnsify` CLI, cross-platform. HIGH confidence.
+- [sergeymakinen/go-ico pkg.go.dev](https://pkg.go.dev/github.com/sergeymakinen/go-ico) — Pure Go ICO encoder, Jan 2024. MEDIUM confidence.
+- [Wails project config docs](https://wails.io/docs/reference/project-config/) — Icon file locations and build behavior confirmed via search. MEDIUM confidence (403 on direct fetch; cross-referenced with issue #1431).
+- [Wails issue #1431](https://github.com/wailsapp/wails/issues/1431) — Windows icon.ico auto-generated from appicon.png confirmed. MEDIUM confidence.
+- `/Users/ken/dev/agenthub/build/` — Direct inspection: appicon.png is 256x256, icon.ico exists (6 sizes), no .icns in darwin/. HIGH confidence (direct file read).
+- `/Users/ken/dev/agenthub/go.mod` — Current dependencies: Wails v2.10.2, Go 1.26.1; fyne.io/systray not yet present. HIGH confidence (direct file read).
+- `/Users/ken/dev/agenthub/.planning/PROJECT.md` — Key Decision "Native macOS cgo NSStatusBar for tray: fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol)" — confirms the constraint was already encountered. HIGH confidence.
 
 ---
-*Stack research for: AgentHub v1.5 Bug Fixes & CLI Args*
-*Researched: 2026-03-25*
+*Stack research for: AgentHub v1.7 — Daemon UX & Branding*
+*Researched: 2026-03-31*

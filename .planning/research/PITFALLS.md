@@ -1,206 +1,306 @@
 # Pitfalls Research
 
-**Domain:** Desktop app — terminal fit fix, daemon performance, CLI arg passthrough (AgentHub v1.5)
-**Researched:** 2026-03-25
-**Confidence:** HIGH — codebase read directly, pitfalls verified against xterm.js GitHub issues and Go exec docs; Gemini CLI startup issue verified against upstream issues
+**Domain:** Desktop app — daemon tray management, remote session indicators, app branding/icons (AgentHub v1.7)
+**Researched:** 2026-03-31
+**Confidence:** HIGH — codebase read directly for framing protocol, relay server, and status bar; Wails issues verified from GitHub; icon requirements verified from Apple/Microsoft official docs and community post-mortems
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: FitAddon Called While Container Has Zero Dimensions
+### Pitfall 1: fyne.io/systray (and energye/systray) Produces Duplicate Objective-C Symbols With Wails AppDelegate
 
 **What goes wrong:**
-`fitAddon.fit()` is called when the TerminalPanel container is hidden (`display: none`) or not yet laid out. FitAddon calls `proposeDimensions()` internally, which reads `getBoundingClientRect()` on the parent. Hidden elements return zero. The result is a 1-column or 0-row terminal that stays broken until the next manual resize — exactly the bug described in PROJECT.md: "CSS flex chain fixed, fills after resize — initial-paint timing gap remains."
+Any Go systray library that contains its own Objective-C `AppDelegate` class — including `fyne.io/systray` and `github.com/energye/systray` — will fail to link on macOS with a fatal error:
 
-**Why it happens:**
-The current `TerminalPanel.tsx` runs `fit()` inside the `isActive` useEffect, which fires when `isActive` becomes true. In Wails/WebView there is a non-zero gap between React setting `display: flex` on the container and the browser completing layout. The ResizeObserver fires immediately on first observation — before the browser has flushed the layout pass — so the first `fit()` call can read zero dimensions.
-
-The existing `document.fonts.ready` guard only protects against font-measurement errors. It does not wait for the layout-flush-after-display-change. Both conditions must be true before `fit()` is safe: fonts loaded AND container has non-zero layout dimensions.
-
-Confirmed upstream: xterm.js issue #3029 ("FitAddon and display 'none'") was closed as "designed" behavior — FitAddon requires the container to have measurable dimensions; it is the caller's responsibility to guard against zero-dimension calls. Issue #5320 documents `width=1` results from layout not being settled.
-
-**How to avoid:**
-Wrap every `fit()` call in a `safeFit()` guard that checks `proposeDimensions()` first:
-```typescript
-function safeFit(fitAddon: FitAddon): void {
-  const dims = fitAddon.proposeDimensions()
-  if (dims && dims.cols > 0 && dims.rows > 0) {
-    fitAddon.fit()
-  }
-}
 ```
-Additionally, for the initial activation (first time `isActive` becomes true), schedule the fit call inside `requestAnimationFrame` so at least one layout frame has committed before measuring. ResizeObserver fires after layout passes, so subsequent calls do not need the rAF deferral — only the first observation at activation.
-
-**Warning signs:**
-- Terminal appears as a thin strip (1–2 rows) or incorrect width on first tab activation.
-- Terminal fills correctly after any window resize or browser zoom change.
-- The bug reproduces on all CLI types but is most visible with CLIs that print a splash screen immediately (Claude, Gemini) because the broken dimensions are visible before the user has a chance to resize.
-
-**Phase to address:** Phase 1 — Terminal fill fix.
-
----
-
-### Pitfall 2: WebGL Context Lost on Hidden-Tab Reactivation, No Renderer Fallback
-
-**What goes wrong:**
-Browsers budget WebGL contexts per page. When multiple terminals are open and inactive panels are hidden via `display: none`, the browser may silently drop a WebGL context. When that tab is reactivated, the WebGL addon fires `onContextLoss` — the current handler disposes the addon — but does not attach a fallback renderer. The terminal accepts data but renders blank.
-
-**Why it happens:**
-The current `TerminalPanel.tsx` disposes the WebGL addon on context loss but takes no further action:
-```typescript
-webglAddon.onContextLoss(() => {
-  webglAddon.dispose()
-  // Nothing here — terminal is now renderer-less
-})
-```
-Without an active renderer, xterm.js has no way to paint to the canvas.
-
-**How to avoid:**
-After disposing the WebGL addon, explicitly force canvas rendering via xterm.js options. Canvas is the default fallback and performs adequately for CLI output volumes:
-```typescript
-webglAddon.onContextLoss(() => {
-  webglAddon.dispose()
-  term.options.allowTransparency = false  // required before canvas mode on some xterm versions
-  // xterm.js v5 falls back to canvas automatically after WebGL addon is disposed
-  // but calling fit() after ensures dimensions are recalculated for the new renderer
-  safeFit(fitAddonRef.current)
-})
+duplicate symbol '_OBJC_CLASS_$_AppDelegate'
+duplicate symbol '_OBJC_METACLASS_$_AppDelegate'
 ```
 
-**Warning signs:**
-- Terminal goes blank when switching back to a tab that was idle for a long time.
-- No JavaScript console errors (context loss is silent by default without the handler).
-- Only affects tabs with WebGL renderer — if WebGL failed at creation and canvas was used from the start, this pitfall doesn't trigger.
-
-**Phase to address:** Phase 1 — Terminal fill fix (fix context loss recovery alongside fit fix).
-
----
-
-### Pitfall 3: Daemon Starts With Minimal System PATH — Agent Resolution Fails or Resolves Wrong Binary
-
-**What goes wrong:**
-The daemon is a background service started by launchd/systemd/SCM. Its environment contains only the minimal system PATH (`/usr/bin:/bin:/usr/sbin:/sbin`). When `CreateSession` calls `engine.ResolveCLI("claude")` and falls through to using the name as-is, `exec.LookPath("claude")` or the PTY spawn resolves against the daemon's PATH — not the user's PATH.
-
-For agents installed via npm global (`gemini`), nvm/volta-managed Node paths, or Homebrew (`/opt/homebrew/bin`), the binary is simply not found or the wrong version is used. This is the most likely root cause of the slow-startup regression introduced in v1.3 when sessions moved to daemon mode — the daemon's PATH may miss the binary entirely and fall back to a slow retry path, or the wrong binary (older system-level install) is used.
+The project already hit this exact failure. The decision log in PROJECT.md records: "fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol) — marked as ⚠️ Revisit."
 
 **Why it happens:**
-When sessions were created in-process (pre-v1.3), they inherited the full user shell environment. When moved to the daemon, the daemon process was spawned via `startDetachedDaemon` which inherits only the minimal GUI launch environment — not the shell profile environment. Users with nvm, volta, pyenv, or Homebrew have their binaries in paths that only appear after shell profile scripts run (`~/.zshrc`, `~/.profile`).
-
-Gemini CLI additionally has documented startup regressions of 8–60 seconds caused by synchronous MCP server initialization (GitHub issues #4544, #21853, #17774). These are CLI-side issues unrelated to daemon mode but may be conflated with the daemon regression.
+Wails v2's macOS backend defines its own `AppDelegate` in Objective-C via cgo. Any library that also defines `AppDelegate` produces a duplicate symbol at link time. The Go linker cannot resolve two Objective-C implementations of the same class name. This is not a version issue — it is a structural incompatibility that affects all versions of these libraries.
 
 **How to avoid:**
-Profile first — add a `time.Now()` delta log around `b.backend.Create()` in `engine.go` to measure actual PTY spawn time separately from agent initialization time. This distinguishes daemon-side from CLI-side latency.
+The only safe approach on macOS is to implement the tray icon using a custom cgo wrapper that creates an `NSStatusItem` directly without defining any new Objective-C class that conflicts with Wails. The implementation must:
+1. Create a `NSStatusItem` via `[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength]`
+2. Attach an `NSMenu` to it
+3. Handle click events via an existing Wails-compatible mechanism (a category, not a new class, or a C callback)
 
-If daemon-side PATH is the issue, two options:
-1. **Login shell spawn wrapper:** Spawn agents via a login shell: `cmd = /bin/zsh -l -c "<agent> <args>"`. This adds one shell process but ensures the full user environment including nvm/volta/Homebrew paths.
-2. **PATH expansion at daemon startup:** At `runDaemonCore`, expand PATH by reading `/etc/paths`, `/etc/paths.d/*`, and common tool manager paths (`~/.nvm/alias/default` version resolution, `/opt/homebrew/bin`), then set `PATH` in the daemon's environment explicitly. Cache the expanded PATH.
+Do NOT introduce any of these libraries: `fyne.io/systray`, `github.com/energye/systray`, `github.com/getlantern/systray`, `github.com/cratonica/trayhost`. All have their own `AppDelegate` or Cocoa main-thread assumptions that conflict with Wails.
 
-Log the resolved binary path for each session creation so misresolution is diagnosable.
+Linux and Windows require entirely separate, stub-compatible implementations (see Pitfall 2).
 
 **Warning signs:**
-- Session takes 2–5+ seconds to show first output where it previously appeared in under 1 second.
-- `agenthub list` shows session stuck in `running` state for several seconds with no terminal output.
-- `which gemini` in a user terminal returns `~/.nvm/versions/node/.../bin/gemini` but daemon logs resolve it differently.
-- Bug only manifests when daemon is running as a service (`agenthub daemon install`), not when launched manually from a terminal.
+- Build error contains `duplicate symbol` referencing `AppDelegate`
+- Build succeeds on Linux/Windows but fails only on macOS
+- The cgo import path includes `fyne.io` anywhere in the dependency tree
 
-**Phase to address:** Phase 2 — Daemon performance fix.
+**Phase to address:** Phase: System Tray — macOS implementation must use a custom cgo NSStatusItem approach, not a cross-platform library.
 
 ---
 
-### Pitfall 4: CLI Args Word-Splitting on User Input String
+### Pitfall 2: The "No Dock Icon" Requirement Requires LSUIElement in Info.plist — Runtime API Alone Is Not Enough
 
 **What goes wrong:**
-The user types extra args in a text field: `--model claude-opus-4-5 --no-auto-updates`. The frontend sends this as a single string to the Go backend. If the backend splits naively with `strings.Fields()`, arguments with embedded spaces or quotes (`--config "/path/with spaces/config.json"`) are split incorrectly. If the backend passes the raw string as one element to `exec.Command`, the agent receives the entire string as a single token and ignores it. Either failure is silent — no error, the agent just doesn't see the flags.
+Setting `NSApplicationActivationPolicyAccessory` at runtime (via cgo or via Wails's Dock Service) causes the dock icon to appear briefly at launch, then disappear. Users see a flash of the dock icon on every app start. For a daemon tray app that is supposed to be invisible, this is unacceptable.
+
+Additionally, when running as an accessory app, certain Wails behaviors change: `WindowShow()` may not bring the management window to the front correctly because the app is not a regular activation-policy app.
 
 **Why it happens:**
-String splitting looks trivially simple until quoted arguments appear. `strings.Fields()` splits on whitespace only and does not understand POSIX quoting conventions (`"..."`, `'...'`, `\` escaping). Shell-style parsing requires a proper lexer.
+macOS evaluates the Info.plist `LSUIElement` flag before any application code runs. Setting activation policy at runtime only takes effect after `NSApplicationMain` has already registered the dock icon. Setting `LSUIElement = YES` in Info.plist prevents the dock icon from appearing at all — it is never registered.
+
+Wails v2 generates `Info.plist` from templates during `wails build`. The relevant key must be in the template used for macOS builds, not set via runtime Go code.
 
 **How to avoid:**
-Tokenize the args string using a shlex-equivalent before building the `[]string` slice passed to `pty.CreateRequest.Args`. Options:
-- `github.com/google/shlex` — MIT licensed, minimal, no dependencies
-- `mvdan.cc/sh/v3/syntax` — full POSIX shell parser (heavier, overkill for arg splitting)
+Add `LSUIElement` to the macOS Info.plist template used by the Wails build:
+```xml
+<key>LSUIElement</key>
+<true/>
+```
 
-Pass the tokenized `[]string` to `exec.Command` / `gopty.CommandContext` — never concatenate back into a shell string. Go's `exec.Command` does not invoke a shell, so array-based passing is injection-safe by construction once the string is correctly tokenized.
+This plist is located at `build/darwin/Info.plist`. Verify it is present in the built `.app` bundle after `wails build` by inspecting `Contents/Info.plist` in the output.
 
-Edge cases to test: `--key "value with spaces"`, `--key='value with spaces'`, `--key value`, multiple consecutive spaces, empty string input.
+Important implication: with `LSUIElement = YES`, the app has no menu bar application name, no dock icon, and cannot be brought forward by clicking the dock. The management window must be opened exclusively from the tray menu click. The tray menu becomes the only entry point.
 
 **Warning signs:**
-- `--model` flag is ignored when combined with other flags in the same text field.
-- Args containing quoted paths with spaces produce "file not found" errors from the agent.
-- Test: create a session with `--version` as extra args; verify the agent prints its version and exits (single flag, no quoting complexity).
+- Dock icon appears for ~10ms on startup before vanishing
+- `wails build` output does not include `LSUIElement` in `Contents/Info.plist`
+- Management window does not receive focus when shown via `WindowShow()` while app has policy `Accessory`
 
-**Phase to address:** Phase 3 — CLI args passthrough.
+**Phase to address:** Phase: System Tray — set LSUIElement in Info.plist template at the start; test with production `wails build` (not `wails dev`).
 
 ---
 
-### Pitfall 5: Args Field Missing From daemon.CreateRequest — Silent Discard at Daemon Boundary
+### Pitfall 3: Adding a New Binary Frame Type to the Relay Protocol Breaks Existing Web Clients That Don't Ignore Unknown Types
 
 **What goes wrong:**
-`pty.CreateRequest` already has `Args []string` and `NativePTYBackend.Create` uses it correctly. However, `daemon.CreateRequest` (the HTTP JSON type in `daemon/types.go`) does not have an `Args` field. If args are wired into the frontend and `app.go` but the daemon type layer is not updated, args are silently dropped at the HTTP serialization boundary — the daemon creates the session without them and returns success.
+The existing relay framing protocol in `internal/relay/protocol.go` defines message types 0x01–0x03 (output, resize, title) and 0x10–0x12 (input, resize2, ping). Adding a new type — for example `MsgStatus byte = 0x20` for a remote session status indicator — will be received by any existing web terminal client connected via WebSocket.
+
+The current web terminal JavaScript parses all binary frames. If it does not have an explicit `default: break` (or equivalent) in the type switch, receiving an unknown type byte may cause a crash, incorrect output rendering, or silent corruption.
+
+Additionally, the scrollback buffer in `internal/relay/scrollback.go` records all frames. If status frames are recorded in scrollback, they will be replayed to new clients — which is correct for most frames but may be wrong for transient status frames (e.g., "session is connecting" should not be replayed after the session is already running).
 
 **Why it happens:**
-The call chain has three distinct type layers: `daemon.CreateRequest` (HTTP JSON) → `engine.CreateSession()` parameters → `pty.CreateRequest`. The pty layer is already done. The daemon layer requires surgery at every level:
-- `daemon/types.go` — struct definition
-- `daemon/api.go` — handler reads `req.Args`
-- `daemon/engine.go` — `CreateSession` accepts `args []string` and passes to `pty.CreateRequest{Args: args}`
-- `daemon/client.go` — `CreateSession` method accepts and sends `args`
-- `app.go` — `CreateSession` Wails method accepts and forwards `args`
-- Wails binding regeneration — required after any method signature change
+The protocol was designed for terminal I/O and was not explicitly versioned. The frontend JavaScript switch on type bytes is not documented to handle unknown types gracefully. Scroll back replay applies uniformly to all frames without filtering by type.
 
 **How to avoid:**
-Update all six layers in sequence. Write an integration test that creates a session with `Args: []string{"--version"}` via the daemon API and verifies the spawned process received the flag (check `ps aux` output or capture stderr). A unit test that only checks `daemon.CreateRequest` serialization is not sufficient — it must exercise the full IPC chain.
-
-Also update the `cmd_cli.go` `new` command to accept `--` suffix args: `agenthub new --cli claude --workdir /tmp -- --model claude-opus-4-5`.
+1. Before adding any new frame type, audit the web terminal JavaScript client to verify it has a safe default handler for unrecognized type bytes. Add one if absent.
+2. Classify new frame types as "non-scrollback" vs "scrollback" in the relay hub. Status frames should be classified as non-scrollback: not recorded, only broadcast to currently-connected clients.
+3. Add the new frame type to `protocol.go` with a constant and a `Make*Frame` helper function.
+4. Update `server.go`'s read pump switch to handle any new client-to-server types.
+5. Write a `protocol_test.go` round-trip test for each new frame type.
 
 **Warning signs:**
-- Extra args appear in the UI modal but the agent behaves identically with and without them.
-- No error is returned from `CreateSession` — the session is created successfully, just without the args.
+- Web terminal shows garbage output or a partial character after reconnecting
+- Status frame content appears as raw bytes rendered in the terminal viewport
+- JavaScript console shows `TypeError` when processing a frame with an unrecognized first byte
 
-**Phase to address:** Phase 3 — CLI args passthrough.
+**Phase to address:** Phase: Remote Session Indicators — audit and update the web terminal JS switch before adding new frame types; mark status frames as non-scrollback.
 
 ---
 
-### Pitfall 6: Per-Agent Arg Memory Uses Non-Namespaced localStorage Keys
+### Pitfall 4: Injecting a Status Bar Above/Below the Web Terminal Breaks the Terminal's CSS Height Calculation
 
 **What goes wrong:**
-If per-agent args are stored using a bare key like `"args"` or `"claude-args"`, two problems arise:
-1. Key collisions with any other feature that uses similar keys.
-2. If an agent is renamed or a new agent with a similar name is added, the wrong defaults are pre-filled.
+The web terminal uses `xterm.js` with `FitAddon`. FitAddon calls `proposeDimensions()` which reads the parent container's `clientHeight`. If a status bar is added above or below the terminal container without subtracting its height from the flex layout, the terminal container's `clientHeight` includes the status bar region. FitAddon then calculates more rows than physically fit, causing the terminal to overflow and produce a vertical scrollbar, or the last row is hidden behind the status bar.
 
-The existing codebase uses the pattern `'agenthub:lastWorkDir'` (in `NewSessionModal.tsx`). Per-agent keys must follow this namespace pattern consistently.
-
-A secondary risk: stored args persist across app upgrades in the Wails WebView data directory. If a deprecated flag is stored (e.g., `--old-flag` that the agent no longer accepts), every new session silently gets a broken default.
-
-**How to avoid:**
-Use the key pattern `agenthub:args:<cliName>` (e.g., `agenthub:args:claude`, `agenthub:args:gemini`). Store args as the raw text field string — not a parsed array. Parsing happens at session creation, not at storage time. Provide a clear button that calls `localStorage.removeItem('agenthub:args:' + cli)` (not just `setState('')`). On load, validate the stored value is a string type; clear it if malformed.
-
-**Warning signs:**
-- Switching the selected CLI in the modal pre-fills the wrong agent's saved args.
-- Clearing args in the modal shows an empty field but reopening the modal shows the args again.
-- Two agents with similar name prefixes ("claude", "claude-opus") share defaults incorrectly.
-
-**Phase to address:** Phase 3 — CLI args passthrough.
-
----
-
-### Pitfall 7: Wails TypeScript Bindings Stale After Go Method Signature Change
-
-**What goes wrong:**
-When `App.CreateSession` is changed to accept an `args string` parameter, Wails's auto-generated TypeScript bindings in `wailsjs/go/main/App.js` and `App.d.ts` must be regenerated. If `wails generate` is not run, the frontend calls the old signature (no `args` parameter). Wails silently ignores extra arguments and omits missing ones at the IPC boundary — no runtime error, just missing data.
+This is a variant of the layout pitfall that was solved in v1.6 with the bounded rAF retry loop. Adding a status bar reintroduces the same failure mode through a different cause.
 
 **Why it happens:**
-Wails generates TypeScript bindings at build time, not automatically on every save. Developers who test with `wails dev` may see the right behavior if dev mode regenerates on restart, but production builds with stale bindings silently drop the new parameter.
+FitAddon measures the pixel height of the container, divides by character height, and floors to get row count. If the container is `height: 100%` of a flex parent that also contains a 32px status bar, and the flex layout is not set to `flex: 1 1 auto` (with `overflow: hidden`) on the terminal div, the terminal div's computed height includes the status bar pixels.
+
+The existing `StatusBar.tsx` for web-serving state already uses a fixed 32px height with JSX conditionals (per PROJECT.md: "Always rendered at 32px height regardless of state — no layout reflow on toggle"). The remote session status bar must follow the same pattern.
 
 **How to avoid:**
-Make `wails generate` a required step in the build runbook for any phase that changes Wails-bound method signatures. Do not commit `wailsjs/` directory changes without verifying they match the current Go source. Check TypeScript binding parameters match the Go signature exactly before marking the feature complete.
+- Add the remote session status bar as a sibling to the terminal container inside a `display: flex; flex-direction: column` wrapper
+- Give the terminal container `flex: 1 1 0; min-height: 0; overflow: hidden`
+- Fix the status bar at a constant pixel height (e.g., 28px or 32px) — no dynamic height, no conditional rendering that changes height
+- After adding the status bar, verify `proposeDimensions()` returns the same row count as the viewport physically shows — use `console.log(fitAddon.proposeDimensions())` on connect
+- The existing bounded rAF retry loop already handles timing; the layout fix is a CSS concern
 
 **Warning signs:**
-- Frontend compiles without TypeScript errors but args are not passed to the backend.
-- TypeScript call site shows correct parameter count but the Go handler receives zero/empty value.
-- `wailsjs/go/main/App.d.ts` shows the old signature after a Go method was changed.
+- Terminal has a vertical scrollbar when the status bar is shown
+- Last row of terminal output is clipped or hidden
+- Row count from `proposeDimensions()` is 1–2 rows more than the visible viewport fits
 
-**Phase to address:** Phase 3 — CLI args passthrough (as a build step requirement, not a code change).
+**Phase to address:** Phase: Remote Session Indicators — implement the CSS flex structure correctly from the start; test by comparing proposeDimensions() row count against visible rows in the viewport.
+
+---
+
+### Pitfall 5: Wails v2 Has No Native Multi-Window API — A Tray Management Window Requires a Workaround
+
+**What goes wrong:**
+Wails v2's architecture is built around a single main window created by `wails.Run()`. There is no first-class API for creating a second window at runtime (unlike v3, which has full multi-window support). Attempts to open a second Wails window at runtime either fail silently, cause a crash, or create a second Wails runtime instance, which is not supported.
+
+**Why it happens:**
+Wails v2 was designed with a single-window model. The `wails.Run()` call takes over the main thread and manages the lifecycle of exactly one `WebviewWindow`. Issue #1480 ("Support Multiple Windows") was the primary driver for the v3 rewrite. The tray mini management window feature requires either: (a) reusing the existing Wails main window (show/hide based on tray clicks), or (b) opening a native OS window via a separate cgo implementation, or (c) a lightweight approach like a system notification or a web-based popup URL.
+
+**How to avoid:**
+The only v2-compatible approach is to reuse the single Wails window as the management interface. The tray click shows/hides the main window. The main window's React app renders different content based on whether it was opened from the tray vs. from the standard launch. Do not attempt to spawn a second `wails.Run()` or a second `webview`.
+
+Specifically:
+- Use `runtime.WindowShow(ctx)` / `runtime.WindowHide(ctx)` from the tray click handler
+- Use Wails events (`runtime.EventsEmit`) to notify the React frontend which "mode" it should render (tray-opened vs. full-open)
+- The existing window can be centered to the screen or positioned near the tray icon (use `runtime.WindowSetPosition`)
+- Do not use `runtime.WindowCenter()` + `Show()` inside a cgo callback — this can deadlock if called from a non-main thread. Use a Go channel or goroutine to dispatch to the Wails runtime context
+
+**Warning signs:**
+- App crashes on tray click with a nil pointer or "runtime not initialized"
+- Second window appears but has no Wails JavaScript bridge (blank/non-functional)
+- `wails.Run()` is called twice in the same process
+
+**Phase to address:** Phase: System Tray — management window is the existing Wails window, shown/hidden from tray click; no second window.
+
+---
+
+### Pitfall 6: The Daemon Process and the GUI Process Both Trying to Own the Tray Icon Creates Two Icons
+
+**What goes wrong:**
+AgentHub v1.7 plans a "daemon tray icon." The daemon is a background process (`internal/daemon`) that manages sessions. The Wails GUI is a separate process. If both the daemon and the GUI try to create a tray icon (e.g., the daemon uses cgo NSStatusItem and the Wails GUI also tries to create one), two tray icons appear. Users see duplicate icons; clicking the wrong one performs unexpected actions.
+
+**Why it happens:**
+The architecture decision is ambiguous: "Daemon system tray icon (no taskbar/dock icon)" could be interpreted as the daemon process owning the tray icon, or the Wails GUI owning the tray icon while the daemon is the data source. If the daemon runs as a `kardianos/service` service (launchd/systemd), it runs as a background process without a UI session on some configurations — it cannot create UI elements at all on macOS (`LSUIElement` is a GUI-process concern; background services may not have screen access).
+
+**How to avoid:**
+The tray icon must be owned by exactly one process: the Wails GUI process. The daemon provides status data (session count, health) via the existing Unix socket IPC. The GUI polls the daemon and updates the tray menu content accordingly. The daemon itself does not create any UI elements.
+
+Rationale: macOS services launched via launchd without a UI session (`SessionCreate false`) cannot access the screen. The GUI process always runs in the user's login session. This is consistent with how tools like Docker Desktop operate (daemon as service, tray icon in the GUI agent).
+
+On first launch with no GUI window open, the app should run as `LSUIElement` (tray-only) — the daemon is a separate background service already, and the Wails app is the lightweight tray agent.
+
+**Warning signs:**
+- Two tray icons appear after launching the app
+- Tray icon disappears when the management window is closed (because the window closing terminates the Wails process)
+- Daemon service logs show errors about "no display connection" when attempting UI initialization
+
+**Phase to address:** Phase: System Tray — establish process model explicitly: GUI owns tray, daemon is headless; document this in code comments.
+
+---
+
+### Pitfall 7: macOS .icns Missing Specific Sizes Causes Blurry or Missing Icons at Certain Scales
+
+**What goes wrong:**
+If the `.icns` file does not contain all required size/scale combinations, macOS will upscale or downscale an available size to fill the gap. At 16x16 and 32x32 (used in window title bars, menu bars, and Finder sidebars), upscaling from a 512px source produces blurry results that look unprofessional. The tray icon specifically renders at 18x18pt (36px on Retina) on macOS — if neither `16x16@2x` nor a purpose-built template size is present, the tray icon will appear pixelated.
+
+**Why it happens:**
+The `iconutil` + `sips` workflow requires exactly 10 files in the `.iconset` folder with specific naming:
+```
+icon_16x16.png       (16x16)
+icon_16x16@2x.png    (32x32)
+icon_32x32.png       (32x32)
+icon_32x32@2x.png    (64x64)
+icon_128x128.png     (128x128)
+icon_128x128@2x.png  (256x256)
+icon_256x256.png     (256x256)
+icon_256x256@2x.png  (512x512)
+icon_512x512.png     (512x512)
+icon_512x512@2x.png  (1024x1024)
+```
+Developers commonly generate only 5 sizes (missing the `@2x` variants), which produces 5-file icns files that look fine on non-Retina displays but blurry on Retina.
+
+Additionally, macOS system tray icons are displayed as template images (white with transparency mask) on macOS 10.14+. A full-color icon in the tray will not adapt to dark/light mode. The tray icon must be a template image (suffix `Template` in the image name when using NSImage, or set `[item.button setImageScalingFactor:NSImageScaleProportionallyDown]` with a monochrome PNG).
+
+**How to avoid:**
+- Generate the source asset at 1024x1024 minimum (ideally 1024x1024 from vector/SVG)
+- Use a script that generates all 10 files with correct naming conventions, then runs `iconutil -c icns`
+- For the tray icon specifically, generate a separate monochrome PNG at 18x18pt source (18px and 36px at @2x) and mark it as a template image in the cgo NSStatusItem code: `[statusItem.button setImage:[NSImage imageNamed:@"TrayIconTemplate"]]`
+- Validate the `.icns` contents with `iconutil -c icns --convert iconset` and inspect with Preview — check it renders sharply at 16x16 display size
+
+**Warning signs:**
+- Tray icon appears white on white in Light Mode, or black on black in Dark Mode
+- App icon in Finder or Dock appears blurry when the window is at small size
+- `file AppIcon.icns` reports fewer than 10 embedded images
+- `sips -g all AppIcon.icns` shows maximum dimension is 512 (missing 1024 @2x layer)
+
+**Phase to address:** Phase: App Branding — generate all 10 icns sizes from the start; generate a separate template PNG for the tray icon.
+
+---
+
+### Pitfall 8: Windows .ico Missing Small Sizes Causes Blurry Taskbar and Explorer Icons
+
+**What goes wrong:**
+Windows uses the `.ico` file at multiple sizes simultaneously: 16x16 (taskbar small icons, Explorer list view), 24x24 (some system contexts), 32x32 (Explorer medium view, legacy), 48x48 (Explorer large view), 256x256 (high-DPI and Windows 10/11 tiles). If only a single 256x256 PNG is embedded in the `.ico`, Windows downscales it to 16x16 for the taskbar — the result is blurry, indistinct, and may show compression artifacts.
+
+The electron-builder community documented this exact issue: "Icons look jagged on Windows 10+ when using 256x256 icon due to bad downscaling" (issue #7328). The Wails build pipeline requires an `.ico` file at `build/windows/icon.ico` — if this file contains only one size, the same problem occurs.
+
+**Why it happens:**
+`.ico` is a multi-image container format. Each embedded image is a separately designed bitmap at its target size. Small icons (16x16, 32x32) need hand-crafted or carefully downscaled designs with higher contrast and fewer details — not just a rescaled version of the 256px master.
+
+**How to avoid:**
+- Build the `.ico` with at minimum: 16x16, 32x32, 48x48, 256x256 (PNG-compressed format for 256x256 is acceptable and preferred)
+- Use ImageMagick (`convert`): `magick source_1024.png -define icon:auto-resize=256,48,32,16 icon.ico`
+- Or use a tool like `icotool` (Linux/cross-platform)
+- Verify the output: `magick identify icon.ico` should list 4 entries at the expected sizes
+- The 16x16 and 32x32 versions benefit from a simpler design (remove fine details, increase contrast) — use the same logo simplified, not a direct downscale
+
+**Warning signs:**
+- `magick identify icon.ico` shows only one image entry
+- Taskbar icon appears blurry or shows a featureless blob at small sizes
+- `wails build` completes but Windows shows a generic app icon (Wails placeholder not replaced)
+
+**Phase to address:** Phase: App Branding — generate multi-resolution `.ico` from the start; verify with `magick identify`.
+
+---
+
+### Pitfall 9: Wails Splash Screen Shown Before WebView Content Is Ready Causes a White Flash, Not a Splash Screen
+
+**What goes wrong:**
+A common implementation pattern is: start with the window visible, render a splash component in React, then hide it when the app is ready. In Wails, the window opens, shows the OS-native white/gray background for ~100–300ms while the WebView is initializing, then React renders the splash. The user sees: white flash → splash screen → main app. The "white flash before splash" defeats the purpose.
+
+Alternatively: start with `StartHidden: true` and call `runtime.WindowShow(ctx)` from the `OnDomReady` callback. This eliminates the white flash but creates a different problem: `OnDomReady` fires when the DOM is ready, not when React has finished initial rendering. If the splash is pure CSS/HTML (no JavaScript required), this is fine. If the splash requires React hydration, `OnDomReady` fires too early and the splash may render for a single frame before the React tree renders.
+
+**Why it happens:**
+Wails's `StartHidden` option hides the native OS window, but the WebView still initializes in the background. `OnDomReady` maps to the browser `DOMContentLoaded` event — not `load` or the React commit phase. On slower machines or during cold starts (no cached assets), there can be a visible lag between `DOMContentLoaded` and the first React paint.
+
+**How to avoid:**
+Use the combined approach:
+1. Set `StartHidden: true` in Wails options
+2. Implement the splash screen as static HTML in `index.html` (outside React) — a `<div id="splash">` with inline styles. This renders with zero JavaScript latency, immediately after the WebView initializes.
+3. Call `runtime.WindowShow(ctx)` from `OnDomReady` — at this point the static splash is already visible
+4. In React, after initialization is complete, hide the splash div and render the main app
+5. The splash div removal triggers no layout reflow because it is absolutely positioned
+
+Avoid using the Wails `runtime.WindowShow()` from a goroutine with a fixed `time.Sleep` delay — timing is unpredictable across machines and produces either too-early show (white flash) or too-long splash (app appears frozen).
+
+**Warning signs:**
+- White/gray OS window background visible for >50ms before any content appears
+- Splash screen itself flickers or renders for a single frame with incorrect dimensions
+- On Windows with WebView2 cold start, app appears frozen for 2–3 seconds (WebView2 runtime initialization)
+
+**Phase to address:** Phase: App Branding — splash screen implementation; use static HTML splash + `StartHidden: true` + `OnDomReady` show.
+
+---
+
+### Pitfall 10: Linux Tray Icon Requires Extension or Proxy on Modern GNOME — No Guarantee of Visibility
+
+**What goes wrong:**
+On modern GNOME (default on Ubuntu 22.04+, Fedora, and many other distros), the system tray (StatusNotifierItem / AppIndicator spec) is not supported natively. GNOME removed the system tray in GNOME 3.26. Without the `gnome-shell-extension-appindicator` extension installed, any tray icon the app creates is silently invisible — no error, no fallback, no notification to the user.
+
+Additionally, `gnome-shell-extension-appindicator` was flagged as incompatible with GNOME 48 (released 2025), meaning this problem will worsen over time as distros ship newer GNOME.
+
+On KDE (Plasma), the StatusNotifierItem protocol works natively. On i3/XFCE/MATE with system tray support, legacy XEmbed systray works. The behavior varies by desktop environment in ways that are not detectable at app startup.
+
+**Why it happens:**
+GNOME's design philosophy removed the persistent system tray. The AppIndicator protocol exists as a community workaround (originally from Ubuntu/Unity) but requires an extension. The `fyne.io/systray` library (which is excluded anyway due to the Wails conflict) uses DBus with the SNI/AppIndicator spec but this does not guarantee visibility on GNOME without the extension.
+
+**How to avoid:**
+For v1.7, tray on Linux is a best-effort feature with documented limitations:
+- Accept that the tray icon will not be visible on stock GNOME without the AppIndicator extension
+- Display a first-run notice on Linux: "If you don't see the tray icon, install gnome-shell-extension-appindicator or run the app from your application launcher"
+- The app should not depend on the tray icon for critical functionality on Linux — provide an alternative launch mechanism (e.g., the desktop launcher shows the management window directly)
+- On Windows, the system tray (notification area) has full support and no extension requirement
+
+For the custom cgo NSStatusBar approach on macOS, a separate stub is needed for Linux and Windows. The Linux stub can use a pure-Go DBus SNI implementation or be a no-op for v1.7 with a follow-up ticket.
+
+**Warning signs:**
+- Running on GNOME: no tray icon appears and no error is logged (silent failure)
+- Running on GNOME 48+: even with appindicator extension installed, icon may be missing
+- CI tests pass but manual test on a clean Ubuntu 24.04 VM shows no tray icon
+
+**Phase to address:** Phase: System Tray — document Linux limitation explicitly; Linux tray as best-effort; provide non-tray launch path.
 
 ---
 
@@ -208,11 +308,11 @@ Make `wails generate` a required step in the build runbook for any phase that ch
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| `strings.Fields()` for arg splitting | Simple, no dependency | Breaks on quoted paths/spaces silently | Never — use shlex, 3-line change |
-| Direct `fit()` without `safeFit()` guard | Less code | Terminal broken on every cold start and hidden panel | Never — guard is 4 lines |
-| Hardcoded `80x24` initial PTY dimensions in `engine.go` | Simple | PTY and xterm.js are out of sync until first resize event | Acceptable for v1.5 if fit fix resolves UX; address in v1.6 |
-| Storing args string only in localStorage (not settings file) | Simple | Lost if user clears WebView storage or migrates machines | Acceptable for v1.5; persist to settings file in v1.6 |
-| Login shell spawn wrapper for daemon PATH fix | Simple workaround | Adds one extra process per session; slower startup | Acceptable as interim fix; replace with proper PATH expansion later |
+| Tray icon as no-op stub on Linux | Unblocks macOS/Windows delivery | Linux users get no tray management — must use CLI | Acceptable for v1.7 with documented follow-up |
+| Single Wails window show/hide instead of dedicated tray window | No multi-window complexity | Management UI shares React state with terminal tabs — messy | Acceptable for v1.7; v3 migration (whenever that happens) would enable a proper separate window |
+| Using `sips` downscale for all icon sizes | Script simplicity | Small icon sizes (16, 32px) look blurry without hand-crafted artwork | Acceptable if source is a clean vector/SVG; review results manually before shipping |
+| Static HTML splash screen outside React | Instant render, zero JS dependency | CSS and app fonts may not match React styles exactly | Acceptable — keep splash visually simple (logo + background color only) |
+| Status frame broadcast-only (no scrollback) | Avoids stale status in scrollback replay | New clients connecting after a status change don't immediately see current status | Acceptable — clients should request status via HTTP API on connect, not via scrollback |
 
 ---
 
@@ -220,13 +320,13 @@ Make `wails generate` a required step in the build runbook for any phase that ch
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| xterm.js FitAddon | Call `fit()` synchronously in `useEffect` after `isActive` changes | Defer first call with `requestAnimationFrame`; guard all calls with `safeFit()` that checks `proposeDimensions()` returns non-zero |
-| xterm.js WebGL addon | Dispose on context loss but leave terminal without renderer | After dispose, re-fit (triggers canvas fallback) or explicitly set canvas renderer option |
-| go-pty `CommandContext` | Pass raw user input string as `req.Args[0]` | Tokenize with shlex-equivalent first; pass `[]string` to `CommandContext(ctx, cli, args...)` |
-| Wails TypeScript bindings | Manually edit `wailsjs/go/main/App.d.ts` | Run `wails generate` after any bound method signature change; manual edits are overwritten on next build |
-| `daemon.CreateRequest` JSON type | Add args to `pty.CreateRequest` only | Update all three layers: `daemon/types.go` (JSON struct), `daemon/engine.go` (function parameters), `daemon/api.go` (handler) |
-| Gemini CLI startup | Attribute all startup slowness to daemon mode regression | Gemini CLI has documented 8–60s startup regressions from MCP initialization; profile to separate daemon-side vs. CLI-side latency before fixing |
-| `kardianos/service` launchd plist | Service inherits minimal system PATH | Explicitly expand PATH at daemon startup or in the plist `EnvironmentVariables` key; test with `agenthub daemon install && agenthub daemon start` (not just in-terminal launch) |
+| cgo NSStatusItem | Define a new Objective-C class that conflicts with Wails AppDelegate | Implement tray using C functions and callbacks attached to existing Wails AppDelegate via a category; never define `@implementation AppDelegate` in tray code |
+| Wails `runtime.WindowShow()` from cgo callback | Call Go runtime from NSMenu action handler directly — deadlock on main thread | Post to a Go channel or use `dispatch_async(dispatch_get_main_queue(), ...)` to defer back to Go's goroutine scheduler |
+| Relay protocol new frame type | Forget to update web terminal JavaScript switch — unknown bytes rendered as terminal output | Audit JS switch before adding frame type; add `default: return` for unknown types; use protocol_test.go for every frame type |
+| `iconutil` icns generation | Generate only 5 sizes (missing @2x variants) | Script must generate all 10 named files; verify with `sips -g all AppIcon.icns` |
+| Windows `.ico` | Single-image ico file from a 256px PNG | Use `magick convert` with `icon:auto-resize=256,48,32,16`; verify with `magick identify icon.ico` |
+| Wails Info.plist on macOS | Set `LSUIElement` via runtime Go code after `NSApplicationMain` | Edit `build/darwin/Info.plist` template before `wails build` runs |
+| `kardianos/service` daemon on macOS | Assume service can create UI elements (NSStatusItem) | Service runs without screen access in launchd; all UI elements must be in the GUI process, not the service |
 
 ---
 
@@ -234,11 +334,10 @@ Make `wails generate` a required step in the build runbook for any phase that ch
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Daemon spawned with minimal system PATH | Agent not found or wrong binary version resolves; slow startup | Log resolved binary path on every session creation; expand PATH at daemon startup | First cold start after `agenthub daemon install` on any machine with nvm/volta/Homebrew |
-| nvm/volta-managed agents invisible to daemon | Correct binary in user shell, missing or wrong binary in daemon | Use login shell spawn (`/bin/zsh -l -c`) or set PATH in plist `EnvironmentVariables` | Any user with version-manager-managed Node.js |
-| `exec.LookPath` called in daemon context without logging | Resolves to system binary silently, not user's preferred version | Log resolved path at startup; compare against expected in tests | Silent — no error, wrong version used |
-| FitAddon fit on `ResizeObserver` first observation before layout | Terminal renders at 1col or wrong size until resize | `requestAnimationFrame` deferral on first activation only | Every cold start of the app |
-| Gemini CLI MCP startup blocking PTY ready signal | Session appears slow regardless of daemon state | Distinguish via timing logs; this is CLI-side, not daemon-side | Gemini CLI with any MCP server configured |
+| Tray menu rebuilt on every daemon poll | Tray menu flickers or has a noticeable delay on open | Build the NSMenu object once; update individual menu items in place via `setTitle:` rather than rebuilding the entire menu tree | Every poll cycle if menu is rebuilt each time |
+| Daemon poll goroutine without back-pressure | If daemon is slow or socket reconnect is retrying, new polls stack up, creating a goroutine leak | Use a `time.Ticker` (not `time.Sleep` in a loop) with a `select` that drops missed ticks; bound reconnect retries with exponential backoff | When daemon is restarting or the socket is unavailable |
+| Status bar WebSocket frame sent on every PTY output byte | If MsgStatus is sent per-output-byte (via the write pump), it floods the WebSocket channel | Only send MsgStatus frames on state transitions (connected → disconnected → reconnecting), not per output byte | Any connected web terminal client with active output |
+| Splash screen asset loaded from Wails embed (MIME type) | Splash image fails to load with MIME type error in production build | Always build with `-tags wailsassets` for production; use `wails build` not a manual `go build` | Production binary without the embed build tag |
 
 ---
 
@@ -246,12 +345,9 @@ Make `wails generate` a required step in the build runbook for any phase that ch
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Splitting user args with shell=true or via `/bin/sh -c` | Shell injection — user inputs `; rm -rf ~` | Always use `exec.Command(cli, args...)` with args as separate `[]string` tokens; never concatenate into a shell string |
-| Passing raw unsplit args string as a single `argv[1]` element | No injection risk but args silently ignored | Tokenize with shlex before passing to `exec.Command` |
-| Logging user-supplied args to stderr without redaction | Args may contain API keys or tokens (`--api-key sk-...`) | Omit or redact args from daemon log output; use structured logging with explicit field allowlist |
-| No validation that tokenized args don't include `--exec` or similar for agent-specific RCE flags | Low risk for Claude/Gemini current versions; risk increases as agents add shell-execution flags | Add a per-agent flag denylist for known RCE-capable flags; review when agents add new flag sets |
-
-Note: Go's `exec.Command` does NOT invoke a shell — passing args as a `[]string` is injection-safe by construction. The only risk is in the tokenization step (shlex parsing) and in agents that accept flags which internally invoke a shell.
+| Tray menu "Open in Browser" action opens an arbitrary URL from daemon response | SSRF or URL spoofing if daemon IPC is compromised | Validate URL origin: only open URLs with `https://` scheme and a known FQDN prefix (the tailscale FQDN) |
+| Tray right-click menu exposes session list with IDs | Session IDs in the tray menu are readable by any macOS accessibility process or screenshot | Not a critical risk for a local Tailscale-only deployment; acceptable for v1.7; do not expose API keys or auth tokens in menu items |
+| NSStatusItem cgo code receives untrusted input from menu item actions | Menu item `tag` or `representedObject` values passed back to Go | Use a fixed integer tag per menu item; do not pass user-controlled strings as `representedObject`; map tags to Go constants |
 
 ---
 
@@ -259,27 +355,31 @@ Note: Go's `exec.Command` does NOT invoke a shell — passing args as a `[]strin
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Args text field accepts anything; bad args discovered only after session creation with no visible feedback | Session creates, CLI exits or misbehaves silently, user confused | No pre-validation needed (CLIs validate their own args), but ensure stderr is visible in the terminal so agent-side flag errors are immediately readable |
-| "Saved defaults" not communicated to user | User doesn't know pre-fill came from storage; unexpected behavior when switching machines | Show a subtle "Saved" label or visual indicator next to pre-filled args; make clear button prominent |
-| Clear button clears UI state but not localStorage | User clears args, closes modal, reopens — args are back | Clear button must call `localStorage.removeItem(key)` AND `setState('')` |
-| Terminal fill fix only tested in `wails dev`, not `wails build` | Fix works in development but broken in production binary | Always test terminal fill with a `wails build` production binary; dev mode and production have different asset loading timing |
+| Tray icon shows no visual difference when daemon is down | User doesn't know sessions are unavailable | Use a different tray icon image (grayed-out or with an overlay dot) when the daemon is unreachable |
+| Management window opens behind other windows | User clicks tray, sees nothing, thinks the app didn't respond | Call `runtime.WindowSetAlwaysOnTop(ctx, true)` then `WindowShow()` then `WindowSetAlwaysOnTop(ctx, false)` to bring it to front once |
+| Remote session status bar "DISCONNECTED" persists after reconnect | Web terminal user sees stale disconnected state | Status bar must update on both connect and disconnect events; test by simulating a WebSocket reconnect |
+| CLI attach `agenthub attach <id>` shows no visual indicator that it's a remote session | User not aware of latency characteristics | Print a one-line status header to stderr before starting the PTY proxy: "Attached to remote session <id> (type Ctrl-\ to detach)" — already done for detach key, extend it |
+| Splash screen blocks the window during daemon health check | Startup appears frozen if Tailscale check takes 2–5 seconds | Splash should be a brief branding moment (500ms max), not a loading gate; run health checks after the window is fully shown |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Terminal fit fix:** `fit()` works on first load in production binary (`wails build`) — not just in `wails dev`. Open the app fresh with no prior sessions; no resize needed.
-- [ ] **Terminal fit fix:** All CLI types (Claude, Gemini, OpenCode, Codex) show correct dimensions on first activation.
-- [ ] **Terminal fit fix:** Switching tabs multiple times with terminals at different font sizes produces no blank or incorrectly-sized terminals.
-- [ ] **Context loss recovery:** Open 3+ sessions, let them idle for several minutes, switch tabs — no blank terminals.
-- [ ] **Args passthrough:** Spawned agent process has args as separate tokens in `ps aux` / Task Manager — not as a single concatenated string.
-- [ ] **Args passthrough:** Multi-word quoted arg `--config "/path with spaces/file"` passes as one `argv` element.
-- [ ] **Args passthrough:** `agenthub new --cli claude --workdir /tmp -- --model claude-opus-4-5` CLI path works end-to-end.
-- [ ] **Args persistence:** Switching CLI in the modal shows the correct saved args for that CLI (not another agent's args).
-- [ ] **Args persistence:** Clear button actually removes the stored value; reopening the modal shows an empty field.
-- [ ] **Daemon performance:** Profiling confirms slow path is daemon-side (PATH mismatch) vs. CLI-side (Gemini MCP) before applying a fix.
-- [ ] **Daemon performance:** Fix tested with `agenthub daemon install && agenthub daemon start` (service mode), not just `./agenthub daemon` from a terminal.
-- [ ] **Wails bindings:** `wails generate` run after `App.CreateSession` signature change; TypeScript types match Go types.
+- [ ] **macOS tray icon:** Tray icon appears immediately on app launch with no dock icon flash — verify with a production `wails build`, not `wails dev`.
+- [ ] **macOS tray icon:** Tray icon uses template image mode — appears white in Light Mode menu bar and adapts to Dark Mode correctly.
+- [ ] **macOS tray icon:** `LSUIElement = YES` is present in the built `.app/Contents/Info.plist` — inspect file directly after `wails build`.
+- [ ] **macOS tray icon:** Management window opens centered/near tray icon, receives focus, and closes/hides without terminating the process.
+- [ ] **Windows tray icon:** Tray icon appears in the system notification area with correct icon (not Wails placeholder default).
+- [ ] **Windows .ico:** `magick identify build/windows/icon.ico` lists 4+ size entries (16, 32, 48, 256).
+- [ ] **macOS .icns:** `sips -g all build/darwin/AppIcon.icns` shows 10 size variants including 1024x1024 @2x.
+- [ ] **Tray menu:** Session count in tray menu updates within 2 seconds of a session being created or killed via CLI.
+- [ ] **Tray menu:** "Quit" menu item terminates both the GUI process and prompts/confirms daemon shutdown (does not orphan sessions).
+- [ ] **Relay protocol:** New MsgStatus frame type renders nothing in the terminal viewport — web terminal JS ignores unknown types.
+- [ ] **Remote session status bar:** Adding the status bar does not introduce a vertical scrollbar in the web terminal (`proposeDimensions()` row count unchanged).
+- [ ] **Remote session status bar:** Status bar height is constant (no layout reflow on connect/disconnect state change).
+- [ ] **Splash screen:** No white flash before splash — window is hidden until `OnDomReady`; static splash HTML renders before React.
+- [ ] **Splash screen:** On Windows, WebView2 cold-start delay is handled gracefully — splash is visible, app does not appear frozen.
+- [ ] **Linux:** App launches without crashing even when no tray is available — tray init failure is logged and swallowed, not panicked.
 
 ---
 
@@ -287,13 +387,14 @@ Note: Go's `exec.Command` does NOT invoke a shell — passing args as a `[]strin
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| FitAddon wrong dimensions on first load | LOW | Add `safeFit()` guard + `requestAnimationFrame` deferral; no architecture change; 10-line patch |
-| WebGL context loss — blank terminal | LOW | Add canvas fallback after `webglAddon.dispose()`; one line change |
-| Args silently dropped (missing daemon type layer) | LOW | Add `Args []string` to `daemon.CreateRequest`; update 6 call sites; run `wails generate` |
-| Args word-split incorrectly | LOW | Add shlex dependency; swap `strings.Fields()` call at one location |
-| Daemon slow due to PATH mismatch | MEDIUM | Profile first; if PATH, add login shell spawn or PATH expansion at daemon startup |
-| Daemon slow due to Gemini MCP startup | NONE (external) | Cannot fix in AgentHub; document known issue; recommend user disable unused MCP servers in Gemini config |
-| localStorage key naming collision | LOW | Rename keys to `agenthub:args:<cliName>` pattern; no migration needed (stale keys auto-orphan) |
+| fyne/energye systray duplicate symbol | LOW | Remove conflicting dependency from go.mod; implement custom cgo NSStatusItem wrapper from scratch (~150 lines of Objective-C + Go) |
+| Dock icon flash (missing LSUIElement) | LOW | Add `LSUIElement` to `build/darwin/Info.plist` template; rebuild with `wails build`; no code changes required |
+| New relay frame type corrupts terminal output | MEDIUM | Revert frame type addition; add JS `default: return` handler; re-add frame type after verification |
+| Status bar breaks terminal row count | LOW | Fix CSS flex layout (`flex: 1 1 0; min-height: 0; overflow: hidden` on terminal container); no protocol changes needed |
+| Two tray icons appear | LOW | Identify which process creates the duplicate; remove tray init from daemon process; tray owned exclusively by GUI |
+| icns missing @2x layers | LOW | Rerun icon generation script with all 10 files; rebuild Wails macOS target |
+| ico single-size blurry | LOW | Regenerate with `magick convert source.png -define icon:auto-resize=256,48,32,16 icon.ico`; rebuild Windows target |
+| Splash shows white flash | MEDIUM | Add `StartHidden: true` to Wails options; add static HTML splash in `index.html`; wire `OnDomReady` to `WindowShow()` |
 
 ---
 
@@ -301,32 +402,38 @@ Note: Go's `exec.Command` does NOT invoke a shell — passing args as a `[]strin
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| FitAddon zero-dimension on initial activation | Phase 1: Terminal fill fix | Open app fresh, create Claude session — fills viewport without resize event |
-| WebGL context loss — blank terminal on tab switch | Phase 1: Terminal fill fix | Open 3+ sessions, idle, switch tabs — no blank terminals |
-| Daemon PATH mismatch / agent not found in service mode | Phase 2: Daemon performance | Time session creation with `agenthub daemon install && agenthub daemon start`; < 2s for Claude |
-| CLI-side startup latency (Gemini MCP) attributed to daemon | Phase 2: Daemon performance | Profile shows daemon-side PTY spawn time separate from agent init time |
-| Args word-splitting with quoted paths | Phase 3: CLI args | Create session with `--config "/path with spaces/x"` — single `argv` element in `ps` output |
-| Args silently dropped (incomplete type chain) | Phase 3: CLI args | Integration test creates session with `Args: []string{"--version"}`, verifies output contains version string |
-| Per-agent args localStorage key collisions | Phase 3: CLI args | Switch between Claude and Gemini in modal; each shows own saved args, not shared |
-| Args clear button not persisting the clear | Phase 3: CLI args | Clear args, close modal, reopen — field is empty |
-| Wails binding out of sync after signature change | Phase 3: CLI args | `wails generate` run as part of phase build; TypeScript types verified against Go signature |
+| fyne/energye duplicate symbol on macOS | System Tray | `wails build` produces binary — zero linker errors; tray icon appears in menu bar |
+| Dock icon flash (missing LSUIElement) | System Tray | Production `.app/Contents/Info.plist` contains `LSUIElement = YES`; no dock icon at launch |
+| Second window attempt crash | System Tray | Management window is the existing Wails window shown/hidden; no second `wails.Run()` |
+| GUI vs. daemon both creating tray icons | System Tray | Only one tray icon visible; daemon process has no UI initialization code |
+| Linux tray silent failure | System Tray | App runs on Ubuntu 22.04 with no extension — no crash; log message about tray not available |
+| New relay frame type breaks web terminal | Remote Session Indicators | Web terminal renders no garbage bytes; protocol_test.go covers new frame type |
+| Status bar breaks terminal fit | Remote Session Indicators | `proposeDimensions()` row count matches visible rows; no vertical scrollbar |
+| macOS .icns missing @2x | App Branding | `sips -g all AppIcon.icns` lists 10 size entries |
+| Windows .ico single-size | App Branding | `magick identify icon.ico` lists 4+ entries; taskbar icon sharp at 16px |
+| Splash screen white flash | App Branding | No white OS background visible before splash; `StartHidden: true` in Wails options |
+| Tray icon not a template image | App Branding | Tray icon adapts to macOS Dark/Light Mode automatically |
 
 ---
 
 ## Sources
 
-- xterm.js FitAddon display:none designed behavior: https://github.com/xtermjs/xterm.js/issues/3029
-- xterm.js FitAddon width=1 from unsettled layout: https://github.com/xtermjs/xterm.js/issues/5320
-- xterm.js FitAddon incorrect resize (v5.3.0): https://github.com/xtermjs/xterm.js/issues/4841
-- Gemini CLI slow startup from synchronous MCP initialization: https://github.com/google-gemini/gemini-cli/issues/4544
-- Gemini CLI 20–50s startup regression on Windows: https://github.com/google-gemini/gemini-cli/issues/21853
-- Gemini CLI startup slower than Claude: https://github.com/google-gemini/gemini-cli/issues/17774
-- nvm shell startup overhead: https://github.com/nvm-sh/nvm/issues/2724
-- Go exec.Command argument handling (no shell invocation): https://pkg.go.dev/os/exec
-- go-pty library (Args field in Cmd struct): https://pkg.go.dev/github.com/aymanbagabas/go-pty
-- localStorage namespace collision: https://medium.com/@emadalam/namespace-localstorage-e2d1d2e68b20
-- AgentHub codebase (direct read): `pty/backend.go` (Args field exists in CreateRequest), `pty/native.go` (Args used in CommandContext), `daemon/types.go` (Args field absent from CreateRequest), `daemon/engine.go` (does not pass args to pty), `frontend/src/components/TerminalPanel.tsx` (safeFit not yet present), `frontend/src/components/NewSessionModal.tsx` (no args field)
+- Wails v2 AppDelegate duplicate symbol issue (fyne/energye conflict): https://github.com/wailsapp/wails/issues/3003
+- fyne.io MenuItem type conflict with systray: https://github.com/fyne-io/fyne/issues/632
+- Wails v2 system tray community discussion (custom cgo approach): https://github.com/wailsapp/wails/discussions/4514
+- Wails v2 dock icon hiding issue and Dock Service PR #4451: https://github.com/wailsapp/wails/issues/3700
+- Wails v2 LSUIElement / activation policy: https://github.com/wailsapp/wails/issues/3374
+- Wails v2 multiple windows limitation (primary driver for v3): https://github.com/wailsapp/wails/issues/1480
+- macOS .icns required sizes and naming: https://gist.github.com/jamieweavis/b4c394607641e1280d447deed5fc85fc
+- macOS .icns compression and modern standards: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
+- macOS icon margin/scaling standard: https://mjtsai.com/blog/2025/10/02/how-to-export-a-mac-icon-file-with-the-proper-margins/
+- Windows .ico required sizes (Microsoft): https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction
+- Windows .ico blurry downscaling (electron-builder issue #7328): https://github.com/electron-userland/electron-builder/issues/7328
+- Linux GNOME AppIndicator extension: https://extensions.gnome.org/extension/615/appindicator-support/
+- Linux AppIndicator GNOME 48 compatibility issue: https://bbs.archlinux.org/viewtopic.php?id=304357
+- Wails splash screen via WindowShow/Hide: https://github.com/wailsapp/wails/pull/1599
+- AgentHub codebase (direct read): `internal/relay/protocol.go` (frame types 0x01–0x03, 0x10–0x12), `internal/relay/server.go` (read pump switch), `internal/relay/scrollback.go` (scrollback buffer), `frontend/src/components/StatusBar.tsx` (32px fixed height JSX pattern), `internal/daemon/types.go` (IPC types), `build/darwin/Info.plist` (macOS build template)
 
 ---
-*Pitfalls research for: AgentHub v1.5 — terminal fill fix, daemon performance, CLI args passthrough*
-*Researched: 2026-03-25*
+*Pitfalls research for: AgentHub v1.7 — daemon tray management, remote session indicators, app branding/icons*
+*Researched: 2026-03-31*
