@@ -64,27 +64,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TRAY-01 | — | Pending |
-| TRAY-02 | — | Pending |
-| TRAY-03 | — | Pending |
-| TRAY-04 | — | Pending |
-| TRAY-05 | — | Pending |
-| TRAY-06 | — | Pending |
-| DMGR-01 | — | Pending |
-| DMGR-02 | — | Pending |
-| DMGR-03 | — | Pending |
-| RMTE-01 | — | Pending |
-| RMTE-02 | — | Pending |
-| RMTE-03 | — | Pending |
-| BRND-01 | — | Pending |
-| BRND-02 | — | Pending |
-| BRND-03 | — | Pending |
+| BRND-01 | Phase 36 | Pending |
+| BRND-02 | Phase 37 | Pending |
+| RMTE-03 | Phase 38 | Pending |
+| RMTE-01 | Phase 39 | Pending |
+| RMTE-02 | Phase 39 | Pending |
+| DMGR-03 | Phase 40 | Pending |
+| TRAY-01 | Phase 41 | Pending |
+| TRAY-02 | Phase 41 | Pending |
+| TRAY-03 | Phase 41 | Pending |
+| TRAY-04 | Phase 41 | Pending |
+| TRAY-05 | Phase 41 | Pending |
+| TRAY-06 | Phase 41 | Pending |
+| DMGR-01 | Phase 41 | Pending |
+| DMGR-02 | Phase 41 | Pending |
+| BRND-03 | Phase 41 | Pending |
 
 **Coverage:**
 - v1.7 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after initial definition*
+*Last updated: 2026-03-31 after roadmap creation — all 15 requirements mapped to Phases 36-41*

@@ -9,6 +9,7 @@
 - ✅ **v1.4 Unified Binary** — Phases 27-29 (shipped 2026-03-25)
 - ✅ **v1.5 Bug Fixes & CLI Args** — Phases 30-34 (shipped 2026-03-26)
 - ✅ **v1.6 Terminal Fill Fix v2** — Phase 35 (shipped 2026-03-31)
+- 🚧 **v1.7 Daemon UX & Branding** — Phases 36-41 (in progress)
 
 ## Phases
 
@@ -89,6 +90,96 @@
 
 </details>
 
+### 🚧 v1.7 Daemon UX & Branding (In Progress)
+
+**Milestone Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
+
+- [ ] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work
+- [ ] **Phase 37: Splash Screen** - Branded startup overlay using the title logo; dismisses when daemon connection is confirmed
+- [ ] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification
+- [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
+- [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
+- [ ] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement
+
+## Phase Details
+
+### Phase 36: App Icons & Branding Assets
+**Goal**: Properly branded platform icon sets exist for macOS, Windows, and Linux, and the title logo is available in the frontend asset tree for downstream use
+**Depends on**: Nothing (first phase of v1.7)
+**Requirements**: BRND-01
+**Success Criteria** (what must be TRUE):
+  1. The built macOS `.app` bundle shows the AgentHub logomark icon in Finder and the Dock (replaces generic placeholder)
+  2. `AppIcon.icns` contains all 10 required size/density entries including 1024x1024@2x (Retina-ready)
+  3. `icon.ico` contains at least 4 sizes (16, 32, 48, 256px) for Windows taskbar and installer
+  4. Multi-size PNGs are present in `build/linux/` for Linux desktop integration and Wails embedding
+  5. The full title logo PNG is copied into `frontend/src/assets/` for use by the splash screen
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 37: Splash Screen
+**Goal**: Users see a branded splash screen during app startup that dismisses automatically when the daemon connection is confirmed, masking WebKit init latency
+**Depends on**: Phase 36 (title logo in frontend/src/assets/)
+**Requirements**: BRND-02
+**Success Criteria** (what must be TRUE):
+  1. A splash screen showing the full AgentHub title logo appears immediately on app launch with no visible white-flash before it
+  2. The splash screen automatically dismisses once the daemon connection is confirmed and the main UI is ready
+  3. If the daemon fails to connect, the splash screen still dismisses within 3 seconds (fallback timeout) so the error banner is visible
+  4. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no dock icon flash)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 38: Remote Session Metadata
+**Goal**: The daemon includes machine hostname in session metadata so web and CLI clients can identify which host a session is running on
+**Depends on**: Nothing (independent of tray and splash work)
+**Requirements**: RMTE-03
+**Success Criteria** (what must be TRUE):
+  1. `GET /api/sessions` response includes a `hostname` field (populated via `os.Hostname()`) for each session
+  2. Hostname is available in session metadata without any client configuration — it is populated automatically at daemon startup
+  3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
+**Plans**: TBD
+
+### Phase 39: Remote Session Indicators
+**Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
+**Depends on**: Phase 38 (hostname in session metadata)
+**Requirements**: RMTE-01, RMTE-02
+**Success Criteria** (what must be TRUE):
+  1. The web terminal page shows a status bar above the terminal displaying the session name, agent type, and hostname (e.g., "claude-session | claude | macbook-pro.local")
+  2. The web terminal status bar updates its connection state indicator within 3 seconds if the session goes offline
+  3. The terminal viewport fills correctly after the status bar is added — `proposeDimensions()` row count is unchanged (no regression from v1.6)
+  4. Running `agenthub attach <id>` prints a connection banner to stderr before the PTY stream: session name, agent, hostname, and the Ctrl-\ detach key reminder
+  5. A "Detached." message is printed to stderr when the user exits an attach session
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 40: Daemon Management Panel
+**Goal**: Users can view all active sessions with their status and perform kill/rename/web-serve operations from a panel inside the existing GUI window
+**Depends on**: Nothing (can be validated independently of tray work)
+**Requirements**: DMGR-03
+**Success Criteria** (what must be TRUE):
+  1. The daemon management panel is accessible within the existing GUI window (not a separate OS window)
+  2. The panel lists all active sessions with their current status (running, waiting, idle, errored)
+  3. User can kill any session from the panel without switching to the Sessions tab
+  4. User can toggle web serving on/off for any session from the panel
+  5. The panel uses only existing Wails bindings — no new Go IPC routes are added
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 41: System Tray + Lifecycle
+**Goal**: AgentHub runs as a true tray-resident app — visible in the system tray with a right-click menu, hidden from the dock, and persisting when the window is closed
+**Depends on**: Phase 40 (Daemon Manager tray menu item requires the panel to exist), Phase 36 (monochrome tray icon template requires branded icon assets)
+**Requirements**: TRAY-01, TRAY-02, TRAY-03, TRAY-04, TRAY-05, TRAY-06, DMGR-01, DMGR-02, BRND-03
+**Success Criteria** (what must be TRUE):
+  1. The AgentHub icon appears in the macOS menu bar (system tray) and does NOT appear in the Dock or Cmd+Tab switcher
+  2. Right-clicking the tray icon shows a menu with "Open AgentHub", active session names, and "Quit"
+  3. Clicking "Open AgentHub" from the tray brings the GUI window to the foreground (shows it if hidden)
+  4. Closing the GUI window (red traffic-light button) hides the window but leaves the tray icon and daemon running — sessions continue uninterrupted
+  5. Clicking "Quit" from the tray menu stops the daemon, removes the tray icon, and fully exits the application
+  6. The tray icon uses a monochrome template image that adapts correctly to both light and dark macOS menu bars
+  7. The tray icon tooltip on hover shows the current active session count
+  8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -100,6 +191,12 @@
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
+| 36. App Icons & Branding Assets | v1.7 | 0/TBD | Not started | - |
+| 37. Splash Screen | v1.7 | 0/TBD | Not started | - |
+| 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
+| 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
+| 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
+| 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
