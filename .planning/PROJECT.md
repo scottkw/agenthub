@@ -34,7 +34,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Larger toolbar buttons (38x38px, comfortable to click) — v1.1
 - ✓ New-session modal with agent picker, native folder browser, and last-folder memory — v1.1
 - ✓ Per-tab SHIFT+/SHIFT- font size adjustment — v1.1
-- ✓ Terminal fill: CSS flex chain fixed, fills after resize — v1.1 (initial-paint timing gap fully resolved in v1.5 Phase 34)
+- ✓ Terminal fill: CSS flex chain fixed, fills after resize — v1.1 (initial-paint timing gap fully resolved in v1.6 Phase 35)
 - ✓ Tailscale health checks (installed, connected, certs enabled) with background polling — v1.2
 - ✓ Health modal with platform-specific instructions (macOS/Linux/Windows) and Check Again auto-dismiss — v1.2
 - ✓ Let's Encrypt TLS via Tailscale daemon (`GetCertificate` hook, FQDN-based URLs) — v1.2
@@ -61,24 +61,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Backend args wiring: all 5 daemon IPC layers (types, engine, API, client, Wails binding) accept and forward `args []string` to PTY — v1.5 Phase 30
 - ✓ CLI arg passthrough: `splitDashDash` helper + `cmdNew` updated to forward extra args via `--` separator to `CreateSession` — v1.5 Phase 31
 - ✓ Daemon startup performance: immediate session status polling (500ms vs 2s) and PATH augmentation for service-mode agents (nvm, Volta, Homebrew) — v1.5 Phase 32
-- ⚠️ Terminal fill fix: double-rAF fit timing + cols/rows threading — insufficient, 3/4 CLIs still don't fill on initial load — v1.5 Phase 34 (reopened in v1.6)
+- ✓ Terminal fill fix v2: bounded rAF retry loop polling proposeDimensions() — fixes initial-load fill for all 4 CLIs — v1.6 Phase 35
 - ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
 - ✓ GUI args field: text field in new-session modal with per-agent localStorage persistence and clear button — v1.5 Phase 33
 - ✓ Per-agent argument memory: last-used args pre-filled per agent, clearable — v1.5 Phase 33
 
 ### Active
 
-- [ ] Terminal fills correctly on initial load for all 4 CLIs (Claude, Codex, Gemini, OpenCode) without resize
-- [ ] Fix must work in both `wails dev` and production builds
+(None — planning next milestone)
 
-## Current Milestone: v1.6 Terminal Fill Fix v2
+## Current State
 
-**Goal:** Make terminals fill the viewport on initial load for all CLIs without requiring a window resize.
-
-**Target features:**
-- Terminal fills correctly on first tab activation for Claude, Gemini, OpenCode, and Codex
-- No regression on tab-switch fill behavior
-- Fix must work in both `wails dev` and production builds
+Shipped v1.6. All planned features through 7 milestones complete. Ready for next milestone.
 
 ### Out of Scope
 
@@ -101,7 +95,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Context
 
-Shipped v1.5 with ~13,400 LOC (9,870 Go + 2,600 TS/TSX + 930 CSS).
+Shipped v1.6 with ~73K LOC (51K Go + 16.5K TS/TSX + 5.6K CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation.
 Go test suite: 200+ tests race-clean across 6 packages.
@@ -154,7 +148,8 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | `splitDashDash` returns nil (not empty slice) when no `--` | Go idiom: nil means "not provided", empty means "provided but empty" | ✓ Good — clean distinction, no injection risk |
 | Poll-first, sleep-after for `pollSessionStatus` | Eliminates artificial 2s blank period; 500ms interval is responsive without overhead | ✓ Good — immediate status feedback |
 | Runtime PATH augmentation at daemon startup | Service-mode daemon can't source shell init files; prepend known install paths | ✓ Good — nvm/Volta/Homebrew agents found without config |
-| Double-rAF for initial terminal fit | Wails WebView needs two animation frames for CSS layout commit before FitAddon measurement | ✓ Good — fixes initial-paint gap across all CLIs |
+| Double-rAF for initial terminal fit | Wails WebView needs two animation frames for CSS layout commit before FitAddon measurement | ⚠️ Revisit — insufficient for 3/4 CLIs; replaced by rAF retry loop in v1.6 |
+| Bounded rAF retry loop polling proposeDimensions() | Double-rAF fires once at ~32ms, misses slow CLI startups; retry loop polls until CharSizeService reports non-zero dimensions | ✓ Good — fixes all 4 CLIs, bounded at 20 attempts (~333ms) |
 | Frontend cols/rows estimation at session creation | `Math.floor(clientWidth/charWidth)` estimates dimensions before xterm renders | ✓ Good — PTY spawns at correct size, no 80x24 default |
 
 ---
@@ -176,4 +171,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-26 after v1.6 milestone started*
+*Last updated: 2026-03-31 after v1.6 milestone completed*

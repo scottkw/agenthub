@@ -272,6 +272,46 @@
 
 ---
 
+## Milestone: v1.6 — Terminal Fill Fix v2
+
+**Shipped:** 2026-03-31
+**Phases:** 1 | **Plans:** 1 | **Commits:** 14
+
+### What Was Built
+- Replaced double-rAF one-shot with bounded rAF retry loop polling `proposeDimensions()` until CharSizeService reports non-zero cell dimensions
+- Fixes initial-load terminal fill for Claude, Gemini, and OpenCode CLIs (Codex already worked)
+- WebSocket `onOpen` sends terminal dimensions immediately to close race where `fitTerminal()` fires before WS connects
+
+### What Worked
+- Root cause diagnosis was precise: `proposeDimensions()` returning `undefined` when CharSizeService hasn't measured cells was the canonical signal — no guesswork needed
+- Single-phase milestone with clear success criteria made execution and verification straightforward
+- UAT (4/4 passed) confirmed the fix across all CLIs without regression
+- Research phase (35-RESEARCH.md) correctly identified the retry pattern before any code was written
+
+### What Was Inefficient
+- Milestone had unnecessary overhead for a single-phase bug fix — requirements, roadmap, audit ceremony for 1 phase
+- Phase 34 (v1.5) attempted double-rAF which proved insufficient — the research phase in v1.6 could have been done before shipping v1.5
+- REQUIREMENTS.md traceability table was never updated from "Not started" despite all checkboxes being checked
+- VERIFICATION.md was never created (UAT.md was created instead) — audit flagged this as a gap
+
+### Patterns Established
+- `proposeDimensions() !== undefined` as canonical readiness check for FitAddon before calling `fit()`
+- Bounded rAF retry loop: `requestAnimationFrame(() => fn(attempt + 1))` with `attempt < MAX_ATTEMPTS` guard
+- `onOpen → sendResize(cols, rows)` to sync terminal dimensions on WebSocket connection
+
+### Key Lessons
+1. Double-rAF is not a general solution for WebView timing — it works for fast operations but fails when the dependency (CharSizeService font measurement) has variable latency
+2. Polling with a readiness predicate (proposeDimensions check) is more robust than fixed-delay approaches for async initialization sequences
+3. Single-bug milestones work but the full milestone ceremony (requirements, audit, roadmap) adds overhead disproportionate to scope
+4. VERIFICATION.md vs UAT.md naming inconsistency caused a false audit gap — GSD tooling should recognize both
+
+### Cost Observations
+- Model mix: ~60% sonnet (execution/research), ~35% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~4 sessions across 6 days
+- Notable: Actual code work was ~8 minutes; most time spent on planning/research/verification ceremony
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -284,6 +324,7 @@
 | v1.3 | 101 | 8 | In-process-first daemon validation, audit-driven gap closure phases, property-based PTY testing |
 | v1.4 | ~20 | 3 | Unified binary dispatch, focused cleanup milestone, race detector in CI |
 | v1.5 | 40 | 5 | Args threading through IPC layers, double-rAF terminal fix, poll-first status pattern |
+| v1.6 | 14 | 1 | Bounded rAF retry loop replacing double-rAF, proposeDimensions() readiness gate |
 
 ### Cumulative Quality
 
@@ -295,6 +336,7 @@
 | v1.3 | 80+ (race-clean) | 73+ | ~12,619 | 4 (0 blockers, bookkeeping) |
 | v1.4 | 194 (race-clean) | 73+ | ~12,771 | 4 (0 blockers, deferred) |
 | v1.5 | 200+ (race-clean) | 80+ | ~13,400 | 7 (0 blockers, documentation/test gaps) |
+| v1.6 | 200+ (race-clean) | 150 | ~73,000 | 3 (0 blockers, stale comments/docs) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -307,3 +349,5 @@
 7. Milestone audits that drive gap closure phases are high-value — they catch real bugs before shipping (v1.3)
 8. SUMMARY frontmatter `requirements-completed` drift is systemic — needs tooling validation, not discipline (v1.1-v1.5)
 9. Small focused bug-fix milestones (5 phases, 1 day) execute fast — overhead is minimal when scope is clear (v1.5)
+10. Single-bug milestones add disproportionate ceremony overhead — consider folding into the previous milestone or using a lighter process (v1.6)
+11. Polling with readiness predicates beats fixed-delay timing for async initialization — `proposeDimensions()` is more robust than double-rAF (v1.6)

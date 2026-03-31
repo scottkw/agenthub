@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.6 Terminal Fill Fix v2 (Shipped: 2026-03-31)
+
+**Phases completed:** 1 phases, 1 plans, 2 tasks
+
+**Key accomplishments:**
+
+- Replaced double-rAF one-shot fit with bounded rAF retry loop polling FitAddon.proposeDimensions() until cell dimensions are non-zero, fixing initial-load terminal fill for Claude, Gemini, and OpenCode CLIs
+
+---
+
 ## v1.5 Bug Fixes & CLI Args (Shipped: 2026-03-26)
 
 **Phases completed:** 5 phases, 6 plans, 8 tasks
