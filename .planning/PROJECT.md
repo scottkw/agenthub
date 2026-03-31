@@ -68,11 +68,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(None — planning next milestone)
+(See REQUIREMENTS.md for v1.7 scope)
+
+## Current Milestone: v1.7 Daemon UX & Branding
+
+**Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
+
+**Target features:**
+- Remote session status bar in web terminal views and CLI attach sessions
+- Daemon system tray icon (no taskbar/dock icon) with right-click menu
+- Daemon mini management window openable from tray menu
+- App icons and branding extracted from logo, sized for all platforms
+- Splash screen using full title logo
 
 ## Current State
 
-Shipped v1.6. All planned features through 7 milestones complete. Ready for next milestone.
+Shipped v1.6. Starting v1.7 — Daemon UX & Branding.
 
 ### Out of Scope
 
@@ -171,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after v1.6 milestone completed*
+*Last updated: 2026-03-31 after v1.7 milestone started*
