@@ -24,6 +24,7 @@ build/bin/
 build/darwin/*
 !build/darwin/Info.plist
 !build/darwin/Info.dev.plist
+!build/darwin/iconfile.icns
 frontend/package.json.md5
 frontend/src/wailsjs/wailsjs/
 
