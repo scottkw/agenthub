@@ -26,7 +26,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 - [ ] **RMTE-01**: Web terminal (browser) displays a status bar showing session name, agent type, host machine name, and connection state
 - [ ] **RMTE-02**: CLI `agenthub attach` prints connection banner to stderr showing session name, agent, hostname, and detach key before PTY stream
-- [ ] **RMTE-03**: Session metadata from daemon includes machine hostname (`os.Hostname()`) for remote identification
+- [x] **RMTE-03**: Session metadata from daemon includes machine hostname (`os.Hostname()`) for remote identification
 
 ### Branding
 
@@ -66,7 +66,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | BRND-01 | Phase 36 | Complete |
 | BRND-02 | Phase 37 | Complete |
-| RMTE-03 | Phase 38 | Pending |
+| RMTE-03 | Phase 38 | Complete |
 | RMTE-01 | Phase 39 | Pending |
 | RMTE-02 | Phase 39 | Pending |
 | DMGR-03 | Phase 40 | Pending |

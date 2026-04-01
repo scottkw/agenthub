@@ -96,7 +96,7 @@
 
 - [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
 - [x] **Phase 37: Splash Screen** - Branded Welcome tab with title logo, tagline, version, install instructions; StartHidden + OnDomReady prevents white flash (completed 2026-04-01)
-- [ ] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification
+- [x] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification (completed 2026-04-01)
 - [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
 - [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
 - [ ] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement
@@ -142,7 +142,7 @@ Plans:
   3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
 **Plans**: 1 plan
 Plans:
-- [ ] 38-01-PLAN.md — Add hostname field to SessionInfo, populate from os.Hostname() at engine startup, add tests
+- [x] 38-01-PLAN.md — Add hostname field to SessionInfo, populate from os.Hostname() at engine startup, add tests
 
 ### Phase 39: Remote Session Indicators
 **Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
@@ -205,7 +205,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 38. Remote Session Metadata | v1.7 | 0/1 | Not started | - |
+| 38. Remote Session Metadata | v1.7 | 1/1 | Complete   | 2026-04-01 |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
 | 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
