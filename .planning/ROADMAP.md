@@ -97,7 +97,7 @@
 - [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
 - [x] **Phase 37: Splash Screen** - Branded Welcome tab with title logo, tagline, version, install instructions; StartHidden + OnDomReady prevents white flash (completed 2026-04-01)
 - [x] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification (completed 2026-04-01)
-- [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
+- [x] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state (completed 2026-04-01)
 - [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
 - [ ] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement
 
@@ -154,9 +154,9 @@ Plans:
   3. The terminal viewport fills correctly after the status bar is added — `proposeDimensions()` row count is unchanged (no regression from v1.6)
   4. Running `agenthub attach <id>` prints a connection banner to stderr before the PTY stream: session name, agent, hostname, and the Ctrl-\ detach key reminder
   5. A "Detached." message is printed to stderr when the user exits an attach session
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 39-01-PLAN.md — Web terminal status bar with session metadata and connection state polling
+- [x] 39-01-PLAN.md — Web terminal status bar with session metadata and connection state polling
 - [x] 39-02-PLAN.md — CLI attach connection banner and detach message
 **UI hint**: yes
 
@@ -207,7 +207,7 @@ Plans:
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 38. Remote Session Metadata | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 39. Remote Session Indicators | v1.7 | 1/2 | In Progress|  |
+| 39. Remote Session Indicators | v1.7 | 2/2 | Complete   | 2026-04-01 |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
 | 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
 
