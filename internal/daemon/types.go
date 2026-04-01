@@ -7,6 +7,7 @@ type SessionInfo struct {
 	Name      string `json:"name"`
 	State     string `json:"state"`
 	CreatedAt string `json:"createdAt"`
+	Hostname  string `json:"hostname"`
 }
 
 // CreateRequest is the request body for POST /sessions.

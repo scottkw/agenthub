@@ -16,6 +16,8 @@ import (
 // It is intentionally free of Wails imports — callers supply an onStatus
 // callback if they need event emission.
 type SessionEngine struct {
+	hostname string // machine hostname, captured at startup
+
 	registry *pty.SessionRegistry
 	backend  pty.SessionBackend
 	manager  *relay.HubManager
@@ -30,7 +32,9 @@ type SessionEngine struct {
 
 // NewSessionEngine creates a SessionEngine with all subsystems initialised.
 func NewSessionEngine() *SessionEngine {
+	hostname, _ := os.Hostname()
 	return &SessionEngine{
+		hostname:        hostname,
 		registry:        pty.NewSessionRegistry(),
 		backend:         pty.NewNativePTYBackend(),
 		manager:         relay.NewHubManager(),
@@ -108,6 +112,7 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			Name:      name,
 			State:     state,
 			CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Hostname:  e.hostname,
 		})
 	}
 	return result
