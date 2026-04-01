@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 37 complete: Welcome tab with branding info (logo, tagline, version, install instructions), StartHidden + OnDomReady prevents white flash on startup.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 38 complete: daemon session API now includes machine hostname for remote session identification. Phase 37 delivered Welcome tab with branding info; Phase 36 delivered platform icon sets.
 
 ### Out of Scope
 
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 37 (Splash Screen / Welcome Tab) complete*
+*Last updated: 2026-04-01 after Phase 38 (Remote Session Metadata) complete*
