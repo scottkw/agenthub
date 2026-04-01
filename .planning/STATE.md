@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
 status: verifying
-stopped_at: "Completed 36-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)"
-last_updated: "2026-04-01T03:47:41.763Z"
+stopped_at: "Completed 37-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)"
+last_updated: "2026-04-01T04:21:12.432Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 36 — app-icons-branding-assets
+**Current focus:** Phase 37 — splash-screen
 
 ## Current Position
 
-Phase: 37
-Plan: Not started
+Phase: 37 (splash-screen) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-01
 
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 36-app-icons-branding-assets P01 | 37 | 2 tasks | 22 files |
+| Phase 37-splash-screen P01 | 4min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Key decisions from research (inform upcoming phases):
 - Phase 41: Tray — never add fyne.io/systray or any mainstream systray library (duplicate AppDelegate symbol confirmed failure); keep custom cgo NSStatusItem for macOS; LSUIElement in Info.plist only (not Info.dev.plist)
 - [Phase 36-app-icons-branding-assets]: Phase 36: ICNS injection pattern — wails build produces 3-size ICNS (361KB); post-build cp of pre-built 10-entry iconfile.icns (590KB) into bundle Resources is required
 - [Phase 36-app-icons-branding-assets]: Phase 36: Transparent background for appicon.png — macOS applies standardized rounded corners + drop shadow to transparent icons; no custom background color needed
+- [Phase 37-splash-screen]: StartHidden + OnDomReady: window stays hidden until WebView DOM ready, domReady calls runtime.WindowShow — canonical Wails no-flash pattern
+- [Phase 37-splash-screen]: Logo in frontend/public/ not src/assets/ — ensures stable /agenthub-title-logo.png URL without Vite content-hashing in both dev and production builds
 
 ### Pending Todos
 
@@ -74,7 +77,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-31T20:49:22.746Z
-Stopped at: Completed 36-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)
+Last session: 2026-04-01T04:21:12.430Z
+Stopped at: Completed 37-01-PLAN.md — awaiting Task 3 human visual verification (checkpoint:human-verify)
 Resume file: None
 Next action: `/gsd:plan-phase 36`

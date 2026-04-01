@@ -95,7 +95,7 @@
 **Milestone Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
 
 - [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
-- [ ] **Phase 37: Splash Screen** - Branded startup overlay using the title logo; dismisses when daemon connection is confirmed
+- [x] **Phase 37: Splash Screen** - Branded startup overlay using the title logo; dismisses when daemon connection is confirmed (completed 2026-04-01)
 - [ ] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification
 - [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
 - [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
@@ -129,7 +129,7 @@ Plans:
   4. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no dock icon flash)
 **Plans**: 1 plan
 Plans:
-- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [x] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 **UI hint**: yes
 
 ### Phase 38: Remote Session Metadata
@@ -204,7 +204,7 @@ Plans:
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 37. Splash Screen | v1.7 | 0/TBD | Not started | - |
+| 37. Splash Screen | v1.7 | 1/1 | Complete   | 2026-04-01 |
 | 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
