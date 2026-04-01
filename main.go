@@ -44,11 +44,13 @@ func runGUI() {
 		MinWidth:          800,
 		MinHeight:         600,
 		HideWindowOnClose: true,
+		StartHidden:       true,
 		BackgroundColour:  &options.RGBA{R: 0x1a, G: 0x1b, B: 0x26, A: 0xff},
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		OnStartup:     app.startup,
+		OnDomReady:    app.domReady,
 		OnShutdown:    app.shutdown,
 		OnBeforeClose: app.beforeClose,
 		Bind: []interface{}{

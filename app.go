@@ -40,6 +40,12 @@ func NewApp() *App {
 	return &App{}
 }
 
+// domReady is called by Wails after the WebView DOM is ready.
+// Shows the window now that the static HTML splash is rendered and visible.
+func (a *App) domReady(ctx context.Context) {
+	runtime.WindowShow(ctx)
+}
+
 // startup is called when Wails initialises the app.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
