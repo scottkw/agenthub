@@ -95,7 +95,7 @@
 **Milestone Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
 
 - [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
-- [x] **Phase 37: Splash Screen** - Branded startup overlay using the title logo; dismisses when daemon connection is confirmed (completed 2026-04-01)
+- [x] **Phase 37: Splash Screen** - Branded Welcome tab with title logo, tagline, version, install instructions; StartHidden + OnDomReady prevents white flash (completed 2026-04-01)
 - [ ] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification
 - [ ] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state
 - [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
@@ -119,14 +119,14 @@ Plans:
 **UI hint**: yes
 
 ### Phase 37: Splash Screen
-**Goal**: Users see a branded splash screen during app startup that dismisses automatically when the daemon connection is confirmed, masking WebKit init latency
+**Goal**: Users see branded content on app startup with no white flash; a Welcome tab displays branding info (logo, tagline, version, install instructions, links)
 **Depends on**: Phase 36 (title logo in frontend/src/assets/)
 **Requirements**: BRND-02
 **Success Criteria** (what must be TRUE):
-  1. A splash screen showing the full AgentHub title logo appears immediately on app launch with no visible white-flash before it
-  2. The splash screen automatically dismisses once the daemon connection is confirmed and the main UI is ready
-  3. If the daemon fails to connect, the splash screen still dismisses within 3 seconds (fallback timeout) so the error banner is visible
-  4. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no dock icon flash)
+  1. A Welcome tab showing the AgentHub title logo, tagline, version, install instructions, and links appears as the default tab on startup
+  2. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no white flash)
+  3. A static HTML splash in index.html covers the WebKit-to-React gap with the logo on dark background
+  4. The Welcome tab is closeable like any session tab
 **Plans**: 1 plan
 Plans:
 - [x] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
@@ -142,7 +142,7 @@ Plans:
   3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
 **Plans**: 1 plan
 Plans:
-- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [x] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 
 ### Phase 39: Remote Session Indicators
 **Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
@@ -204,7 +204,7 @@ Plans:
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 37. Splash Screen | v1.7 | 1/1 | Complete   | 2026-04-01 |
+| 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |

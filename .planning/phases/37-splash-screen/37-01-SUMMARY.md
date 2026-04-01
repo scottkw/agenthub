@@ -9,11 +9,10 @@ requires:
   - phase: 36-app-icons-branding-assets
     provides: agenthub-title-logo.png asset in frontend/src/assets/
 provides:
-  - Branded splash screen on app launch with no white flash
-  - StartHidden + OnDomReady lifecycle hooks in main.go and app.go
+  - Welcome tab with branding info (logo, tagline, version, install instructions, links)
+  - StartHidden + OnDomReady lifecycle hooks in main.go and app.go (no white flash)
   - Static HTML splash in index.html covering WebKit-to-React gap
-  - React SplashScreen overlay component with fade-out
-  - Splash dismissal wired to all 3 init paths in App.tsx with 3s fallback
+  - Extended Tab type with optional 'welcome' type for non-terminal tabs
 affects: [39-web-status-bar, 41-tray, future-splash-changes]
 
 # Tech tracking
@@ -22,31 +21,32 @@ tech-stack:
   patterns:
     - "StartHidden: true + OnDomReady -> WindowShow() for no-flash window reveal"
     - "Static HTML splash in index.html bridges DOM-ready to React-paint gap"
-    - "React component with done prop and 300ms visibility timeout for fade-out"
-    - "setSplashDone(true) on all async init code paths (error, success, catch)"
-    - "3-second fallback useEffect ensures splash never blocks UI indefinitely"
+    - "Tab type extended with optional type field for non-terminal content tabs"
+    - "Welcome tab as default tab on startup — closeable like session tabs"
 
 key-files:
   created:
-    - frontend/src/components/SplashScreen.tsx
+    - frontend/src/components/WelcomeTab.tsx
     - frontend/public/agenthub-title-logo.png
-    - frontend/src/components/__tests__/SplashScreen.test.tsx
+    - frontend/src/components/__tests__/WelcomeTab.test.tsx
   modified:
     - main.go
     - app.go
     - frontend/index.html
     - frontend/src/App.tsx
+    - frontend/src/components/TabBar.tsx
+    - frontend/src/style.css
     - frontend/src/components/__tests__/App.test.tsx
 
 key-decisions:
   - "StartHidden: true + OnDomReady -> runtime.WindowShow() — window stays hidden until WebView DOM is ready, eliminating white flash"
-  - "Static HTML splash in index.html covers the DOM-ready to React-paint gap (additional ~50-100ms)"
-  - "Logo copied to frontend/public/ (not src/assets/) to ensure stable /agenthub-title-logo.png path without Vite content-hashing"
-  - "300ms CSS opacity transition on done=true, then setVisible(false) unmounts component — smooth fade without blocking UI"
+  - "Welcome tab instead of overlay — shows branding info as a persistent tab, not a transient loading screen"
+  - "Tab type extended with optional type: 'welcome' | 'terminal' to support non-terminal content tabs"
+  - "Logo in frontend/public/ for stable /agenthub-title-logo.png path without Vite content-hashing"
 
 patterns-established:
   - "Wails StartHidden pattern: always pair with OnDomReady -> WindowShow for no-flash launch"
-  - "Splash state management: setSplashDone(true) on every code path (error, success, catch) plus 3s timeout fallback"
+  - "Non-terminal tab pattern: extend Tab type with optional type field, render different content based on type"
 
 requirements-completed: [BRND-02]
 
