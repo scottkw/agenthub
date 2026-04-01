@@ -203,6 +203,9 @@ func (ws *WebServer) setupRoutes() {
 	// GET /api/sessions
 	mux.HandleFunc("GET /api/sessions", ws.handleListSessions)
 
+	// GET /api/sessions/{id}/info — single-session metadata
+	mux.HandleFunc("GET /api/sessions/{id}/info", ws.handleSessionInfo)
+
 	// GET /sessions/{id} — checks web-enabled toggle only
 	mux.HandleFunc("GET /sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if !ws.isSessionEnabled(r.PathValue("id")) {
@@ -252,6 +255,34 @@ func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items) //nolint:errcheck
+}
+
+// handleSessionInfo handles GET /api/sessions/{id}/info.
+// Returns full session metadata for a single web-enabled session.
+func (ws *WebServer) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !ws.isSessionEnabled(id) {
+		http.NotFound(w, r)
+		return
+	}
+	if ws.sessionResolver == nil {
+		http.NotFound(w, r)
+		return
+	}
+	name, cliType, status, hostname := ws.sessionResolver(id)
+	// If resolver returned defaults (name == id and cliType empty), session not found
+	if name == id && cliType == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sessionListItem{
+		ID:       id,
+		Name:     name,
+		CLIType:  cliType,
+		Status:   status,
+		Hostname: hostname,
+	}) //nolint:errcheck
 }
 
 // handleTerminalPage serves the embedded terminal.html.
