@@ -207,7 +207,7 @@ Plans:
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 38. Remote Session Metadata | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 39. Remote Session Indicators | v1.7 | 2/2 | Complete   | 2026-04-01 |
+| 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
 | 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
 
