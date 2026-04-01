@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. Starting v1.7 — Daemon UX & Branding.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 36 complete: branded app icons (ICNS/ICO/PNGs) generated for all platforms.
 
 ### Out of Scope
 
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after v1.7 milestone started*
+*Last updated: 2026-03-31 after Phase 36 (App Icons & Branding Assets) complete*
