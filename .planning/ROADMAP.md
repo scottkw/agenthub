@@ -154,9 +154,10 @@ Plans:
   3. The terminal viewport fills correctly after the status bar is added — `proposeDimensions()` row count is unchanged (no regression from v1.6)
   4. Running `agenthub attach <id>` prints a connection banner to stderr before the PTY stream: session name, agent, hostname, and the Ctrl-\ detach key reminder
   5. A "Detached." message is printed to stderr when the user exits an attach session
-**Plans**: 1 plan
+**Plans:** 2 plans
 Plans:
-- [ ] 39-01-PLAN.md — TBD
+- [ ] 39-01-PLAN.md — Web terminal status bar with session metadata and connection state polling
+- [ ] 39-02-PLAN.md — CLI attach connection banner and detach message
 **UI hint**: yes
 
 ### Phase 40: Daemon Management Panel
