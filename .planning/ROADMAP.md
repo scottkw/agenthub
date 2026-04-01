@@ -142,7 +142,7 @@ Plans:
   3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
 **Plans**: 1 plan
 Plans:
-- [x] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [ ] 38-01-PLAN.md — Add hostname field to SessionInfo, populate from os.Hostname() at engine startup, add tests
 
 ### Phase 39: Remote Session Indicators
 **Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
@@ -156,7 +156,7 @@ Plans:
   5. A "Detached." message is printed to stderr when the user exits an attach session
 **Plans**: 1 plan
 Plans:
-- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [ ] 39-01-PLAN.md — TBD
 **UI hint**: yes
 
 ### Phase 40: Daemon Management Panel
@@ -171,7 +171,7 @@ Plans:
   5. The panel uses only existing Wails bindings — no new Go IPC routes are added
 **Plans**: 1 plan
 Plans:
-- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [ ] 40-01-PLAN.md — TBD
 **UI hint**: yes
 
 ### Phase 41: System Tray + Lifecycle
@@ -189,7 +189,7 @@ Plans:
   8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
 **Plans**: 1 plan
 Plans:
-- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
+- [ ] 41-01-PLAN.md — TBD
 **UI hint**: yes
 
 ## Progress
@@ -205,7 +205,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
+| 38. Remote Session Metadata | v1.7 | 0/1 | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
 | 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
 | 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
