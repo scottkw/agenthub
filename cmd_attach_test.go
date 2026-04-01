@@ -272,6 +272,69 @@ func TestAttachSession_CtrlCPassthrough(t *testing.T) {
 	cancel()
 }
 
+// TestPrintAttachBanner verifies that printAttachBanner writes the expected
+// connection banner containing session name, CLI type, hostname, and detach hint (RMTE-02).
+func TestPrintAttachBanner(t *testing.T) {
+	var buf bytes.Buffer
+	printAttachBanner(&buf, "my-session", "claude", "macbook-pro.local")
+	output := buf.String()
+
+	// Must contain session name
+	if !strings.Contains(output, "my-session") {
+		t.Errorf("banner missing session name; got: %s", output)
+	}
+	// Must contain CLI type
+	if !strings.Contains(output, "claude") {
+		t.Errorf("banner missing CLI type; got: %s", output)
+	}
+	// Must contain hostname
+	if !strings.Contains(output, "macbook-pro.local") {
+		t.Errorf("banner missing hostname; got: %s", output)
+	}
+	// Must contain detach key hint
+	if !strings.Contains(output, `Ctrl-\`) {
+		t.Errorf("banner missing detach key hint; got: %s", output)
+	}
+	// Must contain separator lines
+	if !strings.Contains(output, "─────") {
+		t.Errorf("banner missing separator line; got: %s", output)
+	}
+}
+
+// TestPrintAttachBanner_EmptyName verifies that an empty session name
+// is replaced by "unnamed" in the banner (RMTE-02).
+func TestPrintAttachBanner_EmptyName(t *testing.T) {
+	var buf bytes.Buffer
+	printAttachBanner(&buf, "", "claude", "host.local")
+	if !strings.Contains(buf.String(), "unnamed") {
+		t.Errorf("empty name should show 'unnamed'; got: %s", buf.String())
+	}
+}
+
+// TestPrintAttachBanner_NoOptionalFields verifies that the banner omits
+// separator characters when CLI and hostname are empty (RMTE-02).
+func TestPrintAttachBanner_NoOptionalFields(t *testing.T) {
+	var buf bytes.Buffer
+	printAttachBanner(&buf, "session-1", "", "")
+	output := buf.String()
+	if strings.Contains(output, "│") {
+		t.Errorf("should not contain separator when CLI and hostname are empty; got: %s", output)
+	}
+	if !strings.Contains(output, "session-1") {
+		t.Errorf("banner missing session name; got: %s", output)
+	}
+}
+
+// TestPrintDetachMessage verifies that printDetachMessage writes
+// the "Detached." confirmation to the writer (RMTE-02).
+func TestPrintDetachMessage(t *testing.T) {
+	var buf bytes.Buffer
+	printDetachMessage(&buf)
+	if !strings.Contains(buf.String(), "Detached.") {
+		t.Errorf("detach message missing; got: %s", buf.String())
+	}
+}
+
 // TestAttachSession_InputForwarded verifies that keyboard input written to stdin
 // is forwarded as raw bytes to the PTY stdin (CLI-06).
 func TestAttachSession_InputForwarded(t *testing.T) {
