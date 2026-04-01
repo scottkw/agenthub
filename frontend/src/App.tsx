@@ -23,7 +23,7 @@ import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { HealthModal } from './components/HealthModal'
-import { SplashScreen } from './components/SplashScreen'
+import { WelcomeTab } from './components/WelcomeTab'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -32,8 +32,9 @@ const DEFAULT_FONT_SIZE = 14
  * the Wails-generated TypeScript bindings to the child components.
  */
 function App(): React.ReactElement {
-  const [tabs, setTabs] = useState<Tab[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
+  const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
+  const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
@@ -61,16 +62,17 @@ function App(): React.ReactElement {
   } | null>(null)
   const [platform, setPlatform] = useState<string>('linux')
   const [daemonError, setDaemonError] = useState<string | null>(null)
-  const [splashDone, setSplashDone] = useState(false)
 
-  // On mount: get relay port, detect CLIs, restore any existing sessions.
+  // On mount: hide static HTML splash and initialize.
   useEffect(() => {
+    const splashEl = document.getElementById('splash-static')
+    if (splashEl) splashEl.style.display = 'none'
+
     async function init() {
       // Check if startup() failed before calling methods that need a.client.
       const startupErr = await GetDaemonError()
       if (startupErr) {
         setDaemonError(startupErr)
-        setSplashDone(true)
         return
       }
       try {
@@ -87,7 +89,6 @@ function App(): React.ReactElement {
         setWebServerRunning(running)
         setTailscaleHealth(health)
         setPlatform(env.platform)
-        setSplashDone(true)
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -112,7 +113,6 @@ function App(): React.ReactElement {
       } catch (err) {
         console.error('[App] init failed:', err)
         setDaemonError(String(err))
-        setSplashDone(true)
       }
     }
     void init()
@@ -144,12 +144,6 @@ function App(): React.ReactElement {
       offHealth()
       offDaemonError()
     }
-  }, [])
-
-  // 3-second fallback: dismiss splash even if daemon init hangs or throws
-  useEffect(() => {
-    const t = setTimeout(() => setSplashDone(true), 3000)
-    return () => clearTimeout(t)
   }, [])
 
   const createTab = useCallback(async (cliName: string, workDir: string, args: string[]) => {
@@ -323,7 +317,6 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
-      <SplashScreen done={splashDone} />
       <TabBar
         tabs={tabs}
         activeId={activeId}
@@ -336,7 +329,10 @@ function App(): React.ReactElement {
       />
 
       <div className="terminal-container">
-        {daemonError && tabs.length === 0 && (
+        {activeId === WELCOME_TAB.id && (
+          <WelcomeTab />
+        )}
+        {daemonError && tabs.filter((t) => t.type !== 'welcome').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',

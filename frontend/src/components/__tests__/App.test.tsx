@@ -184,50 +184,30 @@ describe('ARGS-02: args threading', () => {
   })
 })
 
-// BRND-02: Splash screen integration
-describe('BRND-02: splash screen integration', () => {
-  it('imports SplashScreen component', () => {
-    expect(raw).toContain("import { SplashScreen } from './components/SplashScreen'")
+// BRND-02: Welcome tab integration
+describe('BRND-02: welcome tab integration', () => {
+  it('imports WelcomeTab component', () => {
+    expect(raw).toContain("import { WelcomeTab } from './components/WelcomeTab'")
   })
 
-  it('declares splashDone state initialized to false', () => {
-    expect(raw).toContain('useState(false)')
-    expect(raw).toContain('splashDone')
+  it('defines a WELCOME_TAB constant with type welcome', () => {
+    expect(raw).toContain("type: 'welcome'")
+    expect(raw).toContain('WELCOME_TAB')
   })
 
-  it('has 3-second fallback timeout for splash dismissal', () => {
-    expect(raw).toContain('setTimeout(() => setSplashDone(true), 3000)')
+  it('initializes tabs with welcome tab', () => {
+    expect(raw).toContain('useState<Tab[]>([WELCOME_TAB])')
   })
 
-  it('sets splashDone true on daemon error path in init', () => {
-    // In init(), after setDaemonError(startupErr), setSplashDone must be called
-    const initBlock = raw.slice(raw.indexOf('async function init()'))
-    const daemonErrSection = initBlock.slice(0, initBlock.indexOf('Promise.all'))
-    expect(daemonErrSection).toContain('setSplashDone(true)')
+  it('initializes activeId with welcome tab id', () => {
+    expect(raw).toContain('useState<string | null>(WELCOME_TAB.id)')
   })
 
-  it('sets splashDone true on success path in init', () => {
-    // After the Promise.all setters
-    const initBlock = raw.slice(raw.indexOf('async function init()'))
-    const afterPromiseAll = initBlock.slice(initBlock.indexOf('Promise.all'))
-    expect(afterPromiseAll).toContain('setSplashDone(true)')
+  it('renders WelcomeTab when active tab is welcome', () => {
+    expect(raw).toContain('<WelcomeTab')
   })
 
-  it('sets splashDone true in catch block of init', () => {
-    const initBlock = raw.slice(raw.indexOf('async function init()'))
-    const catchBlock = initBlock.slice(initBlock.indexOf('catch'))
-    expect(catchBlock).toContain('setSplashDone(true)')
-  })
-
-  it('renders SplashScreen with done={splashDone} in JSX', () => {
-    expect(raw).toContain('<SplashScreen done={splashDone}')
-  })
-
-  it('renders SplashScreen before TabBar (first visual element)', () => {
-    const splashPos = raw.indexOf('<SplashScreen')
-    const tabBarPos = raw.indexOf('<TabBar')
-    expect(splashPos).toBeGreaterThan(-1)
-    expect(tabBarPos).toBeGreaterThan(-1)
-    expect(splashPos).toBeLessThan(tabBarPos)
+  it('hides static HTML splash on mount', () => {
+    expect(raw).toContain("getElementById('splash-static')")
   })
 })

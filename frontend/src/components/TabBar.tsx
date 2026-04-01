@@ -5,6 +5,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
+  type?: 'terminal' | 'welcome'
 }
 
 interface TabBarProps {
