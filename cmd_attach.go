@@ -50,19 +50,20 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 		return fmt.Errorf("attach: %w", err)
 	}
 
-	// Verify the session exists.
+	// Verify the session exists and capture its metadata for the banner.
 	sessions, err := client.ListSessions()
 	if err != nil {
 		return fmt.Errorf("attach: %w", err)
 	}
-	found := false
+	var session *daemon.SessionInfo
 	for _, s := range sessions {
 		if s.ID == sessionID {
-			found = true
+			s := s // capture loop variable
+			session = &s
 			break
 		}
 	}
-	if !found {
+	if session == nil {
 		return fmt.Errorf("attach: session %q not found", sessionID)
 	}
 
@@ -78,6 +79,9 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 		return fmt.Errorf("attach: dial relay: %w", err)
 	}
 	defer conn.CloseNow()
+
+	// Print connection banner to stderr before entering raw mode.
+	printAttachBanner(os.Stderr, session.Name, session.CLI, session.Hostname)
 
 	// Put terminal in raw mode. Restore on every exit path.
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -96,7 +100,9 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	// Start platform-specific SIGWINCH watcher (no-op on Windows).
 	watchResize(ctx, conn)
 
-	return attachSession(ctx, conn, os.Stdin, os.Stdout, detachKey)
+	err = attachSession(ctx, conn, os.Stdin, os.Stdout, detachKey)
+	printDetachMessage(os.Stderr)
+	return err
 }
 
 // attachSession is the testable core of the attach flow. It runs two I/O
@@ -189,6 +195,31 @@ func wsOutputPump(ctx context.Context, conn *websocket.Conn, w io.Writer) error 
 			}
 		}
 	}
+}
+
+// printAttachBanner writes the connection banner to w (typically os.Stderr).
+// It shows session name, CLI type, hostname, and detach key hint.
+func printAttachBanner(w io.Writer, name, cli, hostname string) {
+	displayName := name
+	if displayName == "" {
+		displayName = "unnamed"
+	}
+	fmt.Fprintf(w, "───────────────────────────────────\n")
+	fmt.Fprintf(w, " %s", displayName)
+	if cli != "" {
+		fmt.Fprintf(w, " │ %s", cli)
+	}
+	if hostname != "" {
+		fmt.Fprintf(w, " │ %s", hostname)
+	}
+	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(w, " Press Ctrl-\\ to detach.\n")
+	fmt.Fprintf(w, "───────────────────────────────────\n")
+}
+
+// printDetachMessage writes the detach confirmation to w (typically os.Stderr).
+func printDetachMessage(w io.Writer) {
+	fmt.Fprintf(w, "\nDetached.\n")
 }
 
 // makeClientResizeFrame builds a MsgResize2 frame for client-to-server resize.
