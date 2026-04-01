@@ -193,7 +193,7 @@ Plans:
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
-| 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete   | 2026-03-31 |
+| 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 37. Splash Screen | v1.7 | 0/TBD | Not started | - |
 | 38. Remote Session Metadata | v1.7 | 0/TBD | Not started | - |
 | 39. Remote Session Indicators | v1.7 | 0/TBD | Not started | - |
