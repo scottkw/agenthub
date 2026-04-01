@@ -341,6 +341,23 @@ func TestAPICreateSessionWithArgs(t *testing.T) {
 	}
 }
 
+func TestAPIListSessionsHostname(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"h-test","workDir":""}`)
+
+	_, body := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(body, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	if len(sessions) == 0 {
+		t.Fatal("expected at least 1 session")
+	}
+	if sessions[0].Hostname == "" {
+		t.Error("SessionInfo.Hostname is empty — want non-empty hostname")
+	}
+}
+
 func TestClientCreateSessionWithArgs(t *testing.T) {
 	_, client, _ := testDaemon(t)
 	id, err := client.CreateSession("cat", "client-args-test", "", []string{"--extra", "arg"}, 0, 0)

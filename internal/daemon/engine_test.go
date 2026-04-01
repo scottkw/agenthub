@@ -187,6 +187,23 @@ func TestEngineCreateSessionDefaultDimensions(t *testing.T) {
 	t.Cleanup(func() { _ = e.KillSession(id) })
 }
 
+func TestEngineListSessionsHostname(t *testing.T) {
+	e := NewSessionEngine()
+	id, err := e.CreateSession(context.Background(), "cat", "h-eng", "", nil, 0, 0, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	sessions := e.ListSessions()
+	if len(sessions) == 0 {
+		t.Fatal("expected 1 session")
+	}
+	if sessions[0].Hostname == "" {
+		t.Error("SessionInfo.Hostname empty — os.Hostname() must have failed or field not populated")
+	}
+}
+
 func TestEngineResolveCLI(t *testing.T) {
 	e := NewSessionEngine()
 
