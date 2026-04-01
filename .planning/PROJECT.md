@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 36 complete: branded app icons (ICNS/ICO/PNGs) generated for all platforms.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 37 complete: Welcome tab with branding info (logo, tagline, version, install instructions), StartHidden + OnDomReady prevents white flash on startup.
 
 ### Out of Scope
 
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after Phase 36 (App Icons & Branding Assets) complete*
+*Last updated: 2026-04-01 after Phase 37 (Splash Screen / Welcome Tab) complete*
