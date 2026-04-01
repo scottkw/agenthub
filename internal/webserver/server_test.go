@@ -165,11 +165,11 @@ func TestWebServerSessionListAPIWithResolver(t *testing.T) {
 	ws, client := testServer(t)
 	baseURL := ws.BaseURL()
 
-	ws.SetSessionResolver(func(id string) (string, string, string) {
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
 		if id == "sess1" {
-			return "My Session", "claude", "running"
+			return "My Session", "claude", "running", "test-host.local"
 		}
-		return "", "", ""
+		return "", "", "", ""
 	})
 	ws.EnableSession("sess1")
 
@@ -402,6 +402,136 @@ func TestTokenRouteNotRegistered(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusOK {
 		t.Error("POST /api/sessions/sess1/token should not return 200 — route should be removed")
+	}
+}
+
+// TestSessionListIncludesHostname verifies that GET /api/sessions returns items
+// with a "hostname" JSON key.
+func TestSessionListIncludesHostname(t *testing.T) {
+	ws, client := testServer(t)
+	baseURL := ws.BaseURL()
+
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		if id == "sess1" {
+			return "My Session", "claude", "running", "test-host.local"
+		}
+		return "", "", "", ""
+	})
+	ws.EnableSession("sess1")
+
+	resp, err := client.Get(baseURL + "/api/sessions")
+	if err != nil {
+		t.Fatalf("GET /api/sessions: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	var items []struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Hostname string `json:"hostname"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(items))
+	}
+	if items[0].Hostname != "test-host.local" {
+		t.Errorf("expected hostname 'test-host.local', got %q", items[0].Hostname)
+	}
+}
+
+// TestSessionInfoEndpoint verifies that GET /api/sessions/{id}/info returns
+// full session metadata for an enabled session.
+func TestSessionInfoEndpoint(t *testing.T) {
+	ws, client := testServer(t)
+	baseURL := ws.BaseURL()
+
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		if id == "sess1" {
+			return "My Session", "claude", "running", "test-host.local"
+		}
+		return id, "", "", ""
+	})
+	ws.EnableSession("sess1")
+
+	resp, err := client.Get(baseURL + "/api/sessions/sess1/info")
+	if err != nil {
+		t.Fatalf("GET /api/sessions/sess1/info: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	var item struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		CLIType  string `json:"cli_type"`
+		Status   string `json:"status"`
+		Hostname string `json:"hostname"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&item); err != nil {
+		t.Fatalf("decode session info: %v", err)
+	}
+	if item.ID != "sess1" {
+		t.Errorf("expected id 'sess1', got %q", item.ID)
+	}
+	if item.Name != "My Session" {
+		t.Errorf("expected name 'My Session', got %q", item.Name)
+	}
+	if item.CLIType != "claude" {
+		t.Errorf("expected cli_type 'claude', got %q", item.CLIType)
+	}
+	if item.Status != "running" {
+		t.Errorf("expected status 'running', got %q", item.Status)
+	}
+	if item.Hostname != "test-host.local" {
+		t.Errorf("expected hostname 'test-host.local', got %q", item.Hostname)
+	}
+}
+
+// TestSessionInfoEndpoint_NotEnabled verifies that GET /api/sessions/{id}/info
+// returns 404 for a session that is not web-enabled.
+func TestSessionInfoEndpoint_NotEnabled(t *testing.T) {
+	ws, client := testServer(t)
+	baseURL := ws.BaseURL()
+
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		return "test", "claude", "running", "testhost"
+	})
+	// Do NOT enable the session
+
+	resp, err := client.Get(baseURL + "/api/sessions/sess1/info")
+	if err != nil {
+		t.Fatalf("GET /api/sessions/sess1/info: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for non-enabled session, got %d", resp.StatusCode)
+	}
+}
+
+// TestSessionInfoEndpoint_NotFound verifies that GET /api/sessions/{id}/info
+// returns 404 for a nonexistent session (resolver returns defaults).
+func TestSessionInfoEndpoint_NotFound(t *testing.T) {
+	ws, client := testServer(t)
+	baseURL := ws.BaseURL()
+
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		// Return default values — session not found in resolver
+		return id, "", "", ""
+	})
+	ws.EnableSession("nonexistent")
+
+	resp, err := client.Get(baseURL + "/api/sessions/nonexistent/info")
+	if err != nil {
+		t.Fatalf("GET /api/sessions/nonexistent/info: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for nonexistent session, got %d", resp.StatusCode)
 	}
 }
 

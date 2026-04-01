@@ -215,8 +215,8 @@ func testSetupWithWebServer(t *testing.T) *daemon.DaemonClient {
 	if err != nil {
 		t.Fatalf("NewWebServer: %v", err)
 	}
-	ws.SetSessionResolver(func(id string) (string, string, string) {
-		return id, "", ""
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		return id, "", "", ""
 	})
 	if err := ws.Start(); err != nil {
 		t.Fatalf("ws.Start: %v", err)

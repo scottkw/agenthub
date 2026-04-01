@@ -28,12 +28,13 @@ type Config struct {
 	TLSConfig *tls.Config
 }
 
-// sessionListItem is the JSON shape returned by GET /api/sessions.
+// sessionListItem is the JSON shape returned by GET /api/sessions and GET /api/sessions/{id}/info.
 type sessionListItem struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	CLIType string `json:"cli_type"`
-	Status  string `json:"status"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	CLIType  string `json:"cli_type"`
+	Status   string `json:"status"`
+	Hostname string `json:"hostname"`
 }
 
 // WebServer serves the AgentHub dashboard and relays terminal I/O over WSS to
@@ -43,13 +44,13 @@ type WebServer struct {
 	config  Config
 	manager *relay.HubManager
 
-	mu          sync.RWMutex
-	webEnabled  map[string]bool // sessionID -> enabled (WEB-01 toggle)
-	listener    net.Listener
-	mux         *http.ServeMux
+	mu         sync.RWMutex
+	webEnabled map[string]bool // sessionID -> enabled (WEB-01 toggle)
+	listener   net.Listener
+	mux        *http.ServeMux
 
 	// sessionResolver is set once before Start() and is not mutex-protected.
-	sessionResolver func(sessionID string) (name, cliType, status string)
+	sessionResolver func(sessionID string) (name, cliType, status, hostname string)
 }
 
 // NewWebServer creates a WebServer and sets up routes.
@@ -65,9 +66,10 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 	return ws, nil
 }
 
-// SetSessionResolver sets the callback used by handleListSessions to resolve
-// session metadata (name, CLI type, status). Must be called before Start().
-func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string)) {
+// SetSessionResolver sets the callback used by handleListSessions and
+// handleSessionInfo to resolve session metadata (name, CLI type, status,
+// hostname). Must be called before Start().
+func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string, string)) {
 	ws.sessionResolver = fn
 }
 
@@ -239,14 +241,14 @@ func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) 
 	ids := ws.webEnabledSessions()
 	items := make([]sessionListItem, 0, len(ids))
 	for _, id := range ids {
-		name, cliType, st := "", "", ""
+		name, cliType, st, hostname := "", "", "", ""
 		if ws.sessionResolver != nil {
-			name, cliType, st = ws.sessionResolver(id)
+			name, cliType, st, hostname = ws.sessionResolver(id)
 		}
 		if name == "" {
 			name = id
 		}
-		items = append(items, sessionListItem{ID: id, Name: name, CLIType: cliType, Status: st})
+		items = append(items, sessionListItem{ID: id, Name: name, CLIType: cliType, Status: st, Hostname: hostname})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items) //nolint:errcheck

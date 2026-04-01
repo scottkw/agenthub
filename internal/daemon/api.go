@@ -248,13 +248,13 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set session resolver so the web server can look up session metadata.
-	ws.SetSessionResolver(func(sessionID string) (name, cliType, status string) {
+	ws.SetSessionResolver(func(sessionID string) (name, cliType, status, hostname string) {
 		for _, s := range a.engine.ListSessions() {
 			if s.ID == sessionID {
-				return s.Name, s.CLI, a.engine.GetSessionStatus(sessionID)
+				return s.Name, s.CLI, a.engine.GetSessionStatus(sessionID), s.Hostname
 			}
 		}
-		return sessionID, "", ""
+		return sessionID, "", "", ""
 	})
 
 	if err := ws.Start(); err != nil {
