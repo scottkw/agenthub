@@ -23,6 +23,7 @@ import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { HealthModal } from './components/HealthModal'
+import { SplashScreen } from './components/SplashScreen'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -60,6 +61,7 @@ function App(): React.ReactElement {
   } | null>(null)
   const [platform, setPlatform] = useState<string>('linux')
   const [daemonError, setDaemonError] = useState<string | null>(null)
+  const [splashDone, setSplashDone] = useState(false)
 
   // On mount: get relay port, detect CLIs, restore any existing sessions.
   useEffect(() => {
@@ -68,6 +70,7 @@ function App(): React.ReactElement {
       const startupErr = await GetDaemonError()
       if (startupErr) {
         setDaemonError(startupErr)
+        setSplashDone(true)
         return
       }
       try {
@@ -84,6 +87,7 @@ function App(): React.ReactElement {
         setWebServerRunning(running)
         setTailscaleHealth(health)
         setPlatform(env.platform)
+        setSplashDone(true)
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -108,6 +112,7 @@ function App(): React.ReactElement {
       } catch (err) {
         console.error('[App] init failed:', err)
         setDaemonError(String(err))
+        setSplashDone(true)
       }
     }
     void init()
@@ -139,6 +144,12 @@ function App(): React.ReactElement {
       offHealth()
       offDaemonError()
     }
+  }, [])
+
+  // 3-second fallback: dismiss splash even if daemon init hangs or throws
+  useEffect(() => {
+    const t = setTimeout(() => setSplashDone(true), 3000)
+    return () => clearTimeout(t)
   }, [])
 
   const createTab = useCallback(async (cliName: string, workDir: string, args: string[]) => {
@@ -312,6 +323,7 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
+      <SplashScreen done={splashDone} />
       <TabBar
         tabs={tabs}
         activeId={activeId}
