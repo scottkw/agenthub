@@ -7,13 +7,47 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6/css/xterm.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: #1e1e1e; overflow: hidden; }
-    #terminal { width: 100%; height: 100%; }
-    #status { position: fixed; top: 0; left: 0; right: 0; background: rgba(30,30,30,0.9); color: #888; font-family: monospace; font-size: 0.8rem; padding: 0.3rem 0.75rem; text-align: center; display: none; z-index: 100; }
+    html, body { width: 100%; height: 100%; background: #1a1b26; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
+    #web-status-bar {
+      flex-shrink: 0;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      background-color: #16161e;
+      border-bottom: 1px solid #292e42;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Menlo, Monaco, monospace;
+      font-size: 12px;
+      color: #565f89;
+    }
+    #web-status-bar .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    #web-status-bar .status-dot--connected    { background-color: #9ece6a; }
+    #web-status-bar .status-dot--disconnected { background-color: #f7768e; }
+    #web-status-bar .status-dot--connecting   { background-color: #e0af68; }
+    #web-status-bar .session-info {
+      color: #a9b1d6;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #web-status-bar .separator {
+      color: #414868;
+    }
+    #terminal { flex: 1; min-height: 0; width: 100%; }
   </style>
 </head>
 <body>
-  <div id="status"></div>
+  <div id="web-status-bar">
+    <span class="status-dot status-dot--connecting" id="status-dot"></span>
+    <span class="session-info" id="session-info">Connecting...</span>
+  </div>
   <div id="terminal"></div>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@6/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.11/lib/addon-fit.js"></script>
@@ -56,11 +90,52 @@
     // Build WSS URL
     const wsURL = 'wss://' + location.host + '/sessions/' + encodeURIComponent(sessionID) + '/ws' + (token ? '?token=' + encodeURIComponent(token) : '');
 
+    // Session metadata: fetch once, then poll every 3s for connection state
+    let sessionMeta = null;
+    const statusDot = document.getElementById('status-dot');
+    const sessionInfoEl = document.getElementById('session-info');
+
+    function updateStatusBar(meta, wsConnected) {
+      if (meta) {
+        var parts = [meta.name || sessionID];
+        if (meta.cli_type) parts.push(meta.cli_type);
+        if (meta.hostname) parts.push(meta.hostname);
+        sessionInfoEl.textContent = parts.join(' \u2502 ');
+      }
+
+      statusDot.className = 'status-dot';
+      if (wsConnected) {
+        statusDot.classList.add('status-dot--connected');
+      } else if (meta === null) {
+        statusDot.classList.add('status-dot--connecting');
+      } else {
+        statusDot.classList.add('status-dot--disconnected');
+      }
+    }
+
+    function fetchSessionInfo() {
+      fetch('/api/sessions/' + encodeURIComponent(sessionID) + '/info')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (data) {
+            sessionMeta = data;
+            updateStatusBar(sessionMeta, connected);
+          }
+        })
+        .catch(function() {
+          // Fetch failed — server unreachable, mark disconnected
+          updateStatusBar(sessionMeta, false);
+        });
+    }
+
+    fetchSessionInfo();
+    setInterval(fetchSessionInfo, 3000);
+
     // Initialize xterm.js
     const term = new Terminal({
       cursorBlink: true,
       theme: {
-        background: '#1e1e1e',
+        background: '#1a1b26',
         foreground: '#cccccc',
         cursor: '#cccccc',
       },
@@ -73,15 +148,6 @@
     term.open(document.getElementById('terminal'));
     fitAddon.fit();
 
-    const statusEl = document.getElementById('status');
-    function showStatus(msg) {
-      statusEl.textContent = msg;
-      statusEl.style.display = 'block';
-    }
-    function hideStatus() {
-      statusEl.style.display = 'none';
-    }
-
     // Open WebSocket connection
     let ws = null;
     let connected = false;
@@ -92,7 +158,7 @@
 
       ws.onopen = function() {
         connected = true;
-        hideStatus();
+        updateStatusBar(sessionMeta, true);
         // Send initial resize
         if (term.cols && term.rows) {
           ws.send(makeResizeFrame(term.cols, term.rows));
@@ -115,12 +181,12 @@
 
       ws.onclose = function(evt) {
         connected = false;
-        showStatus('Disconnected (code ' + evt.code + '). Refresh to reconnect.');
+        updateStatusBar(sessionMeta, false);
       };
 
       ws.onerror = function() {
         connected = false;
-        showStatus('Connection error. Check that the server is running and the CA cert is trusted.');
+        updateStatusBar(sessionMeta, false);
       };
     }
 
