@@ -127,7 +127,9 @@ Plans:
   2. The splash screen automatically dismisses once the daemon connection is confirmed and the main UI is ready
   3. If the daemon fails to connect, the splash screen still dismisses within 3 seconds (fallback timeout) so the error banner is visible
   4. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no dock icon flash)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 **UI hint**: yes
 
 ### Phase 38: Remote Session Metadata
@@ -138,7 +140,9 @@ Plans:
   1. `GET /api/sessions` response includes a `hostname` field (populated via `os.Hostname()`) for each session
   2. Hostname is available in session metadata without any client configuration — it is populated automatically at daemon startup
   3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 
 ### Phase 39: Remote Session Indicators
 **Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
@@ -150,7 +154,9 @@ Plans:
   3. The terminal viewport fills correctly after the status bar is added — `proposeDimensions()` row count is unchanged (no regression from v1.6)
   4. Running `agenthub attach <id>` prints a connection banner to stderr before the PTY stream: session name, agent, hostname, and the Ctrl-\ detach key reminder
   5. A "Detached." message is printed to stderr when the user exits an attach session
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 **UI hint**: yes
 
 ### Phase 40: Daemon Management Panel
@@ -163,7 +169,9 @@ Plans:
   3. User can kill any session from the panel without switching to the Sessions tab
   4. User can toggle web serving on/off for any session from the panel
   5. The panel uses only existing Wails bindings — no new Go IPC routes are added
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 **UI hint**: yes
 
 ### Phase 41: System Tray + Lifecycle
@@ -179,7 +187,9 @@ Plans:
   6. The tray icon uses a monochrome template image that adapts correctly to both light and dark macOS menu bars
   7. The tray icon tooltip on hover shows the current active session count
   8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
 **UI hint**: yes
 
 ## Progress
