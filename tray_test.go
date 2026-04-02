@@ -1,9 +1,40 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"image/png"
 	"testing"
 )
+
+// TestTrayIconAsset verifies that both tray icon PNGs are valid 18x18 images.
+func TestTrayIconAsset(t *testing.T) {
+	// Verify tray_icon.png is valid and correct size
+	if len(trayIconBytes) == 0 {
+		t.Fatal("trayIconBytes is empty")
+	}
+	img, err := png.Decode(bytes.NewReader(trayIconBytes))
+	if err != nil {
+		t.Fatalf("tray_icon.png is not valid PNG: %v", err)
+	}
+	bounds := img.Bounds()
+	if bounds.Dx() != 18 || bounds.Dy() != 18 {
+		t.Errorf("tray_icon.png expected 18x18, got %dx%d", bounds.Dx(), bounds.Dy())
+	}
+
+	// Verify error icon too
+	if len(trayIconErrorBytes) == 0 {
+		t.Fatal("trayIconErrorBytes is empty")
+	}
+	imgErr, err := png.Decode(bytes.NewReader(trayIconErrorBytes))
+	if err != nil {
+		t.Fatalf("tray_icon_error.png is not valid PNG: %v", err)
+	}
+	boundsErr := imgErr.Bounds()
+	if boundsErr.Dx() != 18 || boundsErr.Dy() != 18 {
+		t.Errorf("tray_icon_error.png expected 18x18, got %dx%d", boundsErr.Dx(), boundsErr.Dy())
+	}
+}
 
 // TestHideWindowSessionsAlive verifies that calling beforeClose does NOT kill
 // any PTY sessions — they remain alive in the daemon registry.  The system tray UI

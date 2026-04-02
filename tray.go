@@ -84,8 +84,11 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-//go:embed assets/appicon.png
+//go:embed assets/tray_icon.png
 var trayIconBytes []byte
+
+//go:embed assets/tray_icon_error.png
+var trayIconErrorBytes []byte
 
 // trayCallbackApp is the global App reference for cgo callbacks.
 // Set before initTray returns. Only accessed from the main goroutine.
