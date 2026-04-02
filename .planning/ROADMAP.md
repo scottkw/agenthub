@@ -170,9 +170,9 @@ Plans:
   3. User can kill any session from the panel without switching to the Sessions tab
   4. User can toggle web serving on/off for any session from the panel
   5. The panel uses only existing Wails bindings — no new Go IPC routes are added
-**Plans**: 1 plan
+**Plans:** 1 plan
 Plans:
-- [ ] 40-01-PLAN.md — TBD
+- [ ] 40-01-PLAN.md — DaemonManagerPanel component, TabBar/App wiring, CSS, tests, visual verification
 **UI hint**: yes
 
 ### Phase 41: System Tray + Lifecycle
