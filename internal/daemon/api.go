@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/agenthub/agenthub/internal/relay"
 	"github.com/agenthub/agenthub/internal/webserver"
@@ -51,6 +52,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("POST /webserver/stop", a.handleWebServerStop)
 	a.mux.HandleFunc("GET /webserver/status", a.handleWebServerStatus)
 	a.mux.HandleFunc("POST /sessions/{id}/web-serve", a.handleWebServe)
+	a.mux.HandleFunc("POST /shutdown", a.handleShutdown)
 }
 
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
@@ -137,6 +139,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func (a *API) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+}
+
+func (a *API) handleShutdown(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNoContent)
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		os.Exit(0)
+	}()
 }
 
 func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {

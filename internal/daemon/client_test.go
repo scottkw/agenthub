@@ -1,6 +1,8 @@
 package daemon
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -129,6 +131,33 @@ func TestClientWebServerStatus(t *testing.T) {
 	}
 	if resp.Running {
 		t.Errorf("GetWebServerStatus: want Running=false, got true")
+	}
+}
+
+func TestShutdownDaemon(t *testing.T) {
+	// Create a test HTTP server that records the shutdown call
+	var shutdownCalled bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/shutdown" {
+			shutdownCalled = true
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	// Create client pointing to test server (TCP, not Unix socket)
+	client := &DaemonClient{
+		http: srv.Client(),
+		base: srv.URL,
+	}
+	err := client.ShutdownDaemon()
+	if err != nil {
+		t.Fatalf("ShutdownDaemon returned error: %v", err)
+	}
+	if !shutdownCalled {
+		t.Error("expected /shutdown endpoint to be called")
 	}
 }
 

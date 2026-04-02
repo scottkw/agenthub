@@ -129,6 +129,25 @@ func (c *DaemonClient) GetWebServerStatus() (WebServerStatusResponse, error) {
 	return resp, nil
 }
 
+// ShutdownDaemon sends POST /shutdown to terminate the daemon process.
+// Connection-reset errors are expected (daemon exits before response completes)
+// and are treated as success.
+func (c *DaemonClient) ShutdownDaemon() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/shutdown", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		// Connection reset is expected — daemon exited. Treat as success.
+		return nil
+	}
+	resp.Body.Close()
+	return nil
+}
+
 // ToggleWebServing enables or disables web serving for a session.
 func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
