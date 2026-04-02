@@ -63,6 +63,9 @@ func (a *App) startup(ctx context.Context) {
 	a.initTray()
 	a.trayInit = true
 
+	// Start tray state poller (updates icon, tooltip, session list every 5s).
+	a.startTrayPoller(ctx)
+
 	// Start Tailscale health check background poller.
 	a.startHealthPoller(ctx)
 }
@@ -92,6 +95,7 @@ func (a *App) RetryDaemon() error {
 		a.trayInit = true
 	}
 	if a.ctx != nil {
+		a.startTrayPoller(a.ctx)
 		a.startHealthPoller(a.ctx)
 	}
 	return nil
@@ -388,6 +392,40 @@ func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return webserver.CheckHealth(ctx)
+}
+
+// startTrayPoller starts a background goroutine that refreshes tray state
+// (icon, tooltip, session list) immediately and then every 5 seconds.
+// The goroutine exits when ctx is cancelled (Wails shutdown).
+func (a *App) startTrayPoller(ctx context.Context) {
+	go func() {
+		// Do an immediate refresh before the first tick.
+		a.refreshTrayState()
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				a.refreshTrayState()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// refreshTrayState reads daemon connectivity and session list, then updates
+// the tray icon, tooltip, and session menu entries.
+func (a *App) refreshTrayState() {
+	if !a.trayInit || a.client == nil {
+		return
+	}
+	connected := a.client.Health() == nil
+	var sessions []SessionInfo
+	if connected {
+		sessions = a.ListSessions()
+	}
+	a.updateTray(sessions, connected)
 }
 
 // startHealthPoller starts a background goroutine that polls Tailscale health
