@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 39 complete: web terminal status bar shows session name, agent type, hostname, and live connection state; CLI attach prints connection banner and detach message. Phase 38 added hostname to session API. Phase 37 delivered Welcome tab with branding info; Phase 36 delivered platform icon sets.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 40 complete: Daemon Management Panel accessible as a closeable tab via ☰ button in TabBar — shows all sessions with live status dots, kill buttons, and web-serve toggles; polls ListSessions every 3s; zero new Go bindings. Phase 39: web terminal status bar with session name, agent, hostname, connection state. Phase 38 added hostname to session API. Phase 37 delivered Welcome tab with branding info; Phase 36 delivered platform icon sets.
 
 ### Out of Scope
 
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 39 (Remote Session Indicators) complete*
+*Last updated: 2026-04-02 after Phase 40 (Daemon Management Panel) complete*
