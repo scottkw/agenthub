@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
-status: executing
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-04-02T17:04:24.865Z"
+status: verifying
+stopped_at: Completed 41-02 tasks 1-2; awaiting human-verify checkpoint for production tray verification
+last_updated: "2026-04-02T17:13:55.180Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 6
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-31)
 
 Phase: 41 (system-tray-lifecycle) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 39 P01 | 11min | 2 tasks | 6 files |
 | Phase 40-daemon-management-panel P01 | 3 | 2 tasks | 5 files |
 | Phase 41-system-tray-lifecycle P01 | 12min | 3 tasks | 8 files |
+| Phase 41-system-tray-lifecycle P02 | 25min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Key decisions from research (inform upcoming phases):
 - [Phase 41-system-tray-lifecycle]: Daemon shutdown flushes response before goroutine delay — ensures client receives 204 before os.Exit(0) fires
 - [Phase 41-system-tray-lifecycle]: ShutdownDaemon treats connection errors as success — connection-reset is expected signal daemon exited
 - [Phase 41-system-tray-lifecycle]: Tray icons generated with Go image/draw for pixel-exact 18x18 letterforms; LSUIElement in Info.plist only (not Info.dev.plist)
+- [Phase 41-system-tray-lifecycle]: ObjC @implementation in .go cgo blocks causes duplicate symbol linker errors during go test — move to separate .m file
+- [Phase 41-system-tray-lifecycle]: NSMenuDelegate menuWillOpen: pattern used for dynamic tray menu — always fresh at open time, no push-update polling needed
 
 ### Pending Todos
 
@@ -90,7 +93,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T17:04:24.860Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-04-02T17:13:55.176Z
+Stopped at: Completed 41-02 tasks 1-2; awaiting human-verify checkpoint for production tray verification
 Resume file: None
 Next action: `/gsd:plan-phase 36`
