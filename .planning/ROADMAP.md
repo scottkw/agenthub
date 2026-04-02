@@ -188,9 +188,9 @@ Plans:
   6. The tray icon uses a monochrome template image that adapts correctly to both light and dark macOS menu bars
   7. The tray icon tooltip on hover shows the current active session count
   8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 41-01-PLAN.md — Daemon shutdown endpoint, monochrome tray icon assets, LSUIElement plist
+- [x] 41-01-PLAN.md — Daemon shutdown endpoint, monochrome tray icon assets, LSUIElement plist
 - [ ] 41-02-PLAN.md — Extend tray cgo with dynamic menu, tooltip, icon swap, poller, frontend event
 **UI hint**: yes
 
@@ -210,7 +210,7 @@ Plans:
 | 38. Remote Session Metadata | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
 | 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
-| 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
+| 41. System Tray + Lifecycle | v1.7 | 1/2 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

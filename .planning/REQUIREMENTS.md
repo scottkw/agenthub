@@ -13,13 +13,13 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 - [ ] **TRAY-02**: User can right-click tray icon to see menu with "Open AgentHub" and "Quit" actions
 - [ ] **TRAY-03**: Tray icon visually reflects daemon state (running vs error/disconnected)
 - [ ] **TRAY-04**: Tray menu lists active sessions by name; clicking a session focuses it in the GUI
-- [ ] **TRAY-05**: macOS dock icon is hidden (LSUIElement) — app lives in menu bar only
+- [x] **TRAY-05**: macOS dock icon is hidden (LSUIElement) — app lives in menu bar only
 - [ ] **TRAY-06**: Tray icon tooltip shows active session count on hover
 
 ### Daemon Management
 
 - [ ] **DMGR-01**: Closing the GUI window hides it instead of quitting — daemon and tray icon remain active
-- [ ] **DMGR-02**: "Quit" from tray menu stops daemon and fully exits the application
+- [x] **DMGR-02**: "Quit" from tray menu stops daemon and fully exits the application
 - [x] **DMGR-03**: Daemon management panel inside existing GUI window showing session list with status, start/stop, kill, and web-serve controls
 
 ### Remote Session Indicators
@@ -32,7 +32,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 - [x] **BRND-01**: App icon set generated from logomark: .icns (macOS), .ico (Windows), multi-size PNGs (Linux/Wails)
 - [x] **BRND-02**: Splash screen shows full title logo during app startup, dismissed when daemon connection confirmed (no artificial delay, 3s timeout fallback)
-- [ ] **BRND-03**: macOS tray icon uses monochrome template image that adapts to light/dark menu bar
+- [x] **BRND-03**: macOS tray icon uses monochrome template image that adapts to light/dark menu bar
 
 ## Future Requirements
 
@@ -74,11 +74,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRAY-02 | Phase 41 | Pending |
 | TRAY-03 | Phase 41 | Pending |
 | TRAY-04 | Phase 41 | Pending |
-| TRAY-05 | Phase 41 | Pending |
+| TRAY-05 | Phase 41 | Complete |
 | TRAY-06 | Phase 41 | Pending |
 | DMGR-01 | Phase 41 | Pending |
-| DMGR-02 | Phase 41 | Pending |
-| BRND-03 | Phase 41 | Pending |
+| DMGR-02 | Phase 41 | Complete |
+| BRND-03 | Phase 41 | Complete |
 
 **Coverage:**
 - v1.7 requirements: 15 total

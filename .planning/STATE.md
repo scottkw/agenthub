@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
-status: verifying
-stopped_at: Completed 40-01 tasks 1-2; awaiting human-verify checkpoint for visual verification of DaemonManagerPanel
-last_updated: "2026-04-02T05:39:34.618Z"
+status: executing
+stopped_at: Completed 41-01-PLAN.md
+last_updated: "2026-04-02T17:04:24.865Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 40 — daemon-management-panel
+**Current focus:** Phase 41 — system-tray-lifecycle
 
 ## Current Position
 
-Phase: 41
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 41 (system-tray-lifecycle) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 39-remote-session-indicators P02 | 8min | 1 tasks | 2 files |
 | Phase 39 P01 | 11min | 2 tasks | 6 files |
 | Phase 40-daemon-management-panel P01 | 3 | 2 tasks | 5 files |
+| Phase 41-system-tray-lifecycle P01 | 12min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Key decisions from research (inform upcoming phases):
 - [Phase 39]: sessionResolver extended from 3 to 4 return values (hostname) — flex sibling status bar prevents FitAddon regression
 - [Phase 40-daemon-management-panel]: DaemonManagerPanel receives all data/callbacks as props from App.tsx — no direct Wails bindings in component
 - [Phase 40-daemon-management-panel]: Sessions button (hamburger) placed before + button in TabBar controls; create-or-focus pattern via tabs.find(type=daemon-manager)
+- [Phase 41-system-tray-lifecycle]: Daemon shutdown flushes response before goroutine delay — ensures client receives 204 before os.Exit(0) fires
+- [Phase 41-system-tray-lifecycle]: ShutdownDaemon treats connection errors as success — connection-reset is expected signal daemon exited
+- [Phase 41-system-tray-lifecycle]: Tray icons generated with Go image/draw for pixel-exact 18x18 letterforms; LSUIElement in Info.plist only (not Info.dev.plist)
 
 ### Pending Todos
 
@@ -86,7 +90,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T05:12:29.513Z
-Stopped at: Completed 40-01 tasks 1-2; awaiting human-verify checkpoint for visual verification of DaemonManagerPanel
+Last session: 2026-04-02T17:04:24.860Z
+Stopped at: Completed 41-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 36`
