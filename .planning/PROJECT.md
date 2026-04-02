@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 40 complete: Daemon Management Panel accessible as a closeable tab via ☰ button in TabBar — shows all sessions with live status dots, kill buttons, and web-serve toggles; polls ListSessions every 3s; zero new Go bindings. Phase 39: web terminal status bar with session name, agent, hostname, connection state. Phase 38 added hostname to session API. Phase 37 delivered Welcome tab with branding info; Phase 36 delivered platform icon sets.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 41 complete: System tray icon with full lifecycle — monochrome template icon (adapts to light/dark), dynamic NSMenuDelegate menu (Open AgentHub, session names, Quit), icon state switching (normal/error), tooltip with session count, 5s background poller, quit-with-shutdown (daemon stops on Quit), window hide-on-close (tray stays active), NSApplicationActivationPolicyAccessory (no Dock icon), tray:focus-session frontend event. Phase 40: Daemon Management Panel as closeable tab. Phase 39: web terminal status bar. Phase 38: hostname in session API. Phase 37: Welcome tab with branding. Phase 36: platform icon sets.
 
 ### Out of Scope
 
