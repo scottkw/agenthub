@@ -1,9 +1,9 @@
 ---
 phase: 39
 slug: remote-session-indicators
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-01
 ---
 
@@ -38,10 +38,10 @@ created: 2026-04-01
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 39-01-01 | 01 | 1 | RMTE-01 | unit | `go test ./internal/webserver/ -run TestSessionInfo` | ❌ W0 | ⬜ pending |
-| 39-01-02 | 01 | 1 | RMTE-01 | integration | `go test ./internal/webserver/ -run TestTerminalSessionInfo` | ❌ W0 | ⬜ pending |
-| 39-02-01 | 02 | 1 | RMTE-02 | unit | `go test -run TestCmdAttach_Banner -v .` | ❌ W0 | ⬜ pending |
-| 39-02-02 | 02 | 1 | RMTE-02 | unit | `go test -run TestCmdAttach_Detach -v .` | ✅ exists | ⬜ pending |
+| 39-01-01 | 01 | 1 | RMTE-01 | unit | `go test ./internal/webserver/ -run TestSessionListIncludesHostname` | ✅ exists | ✅ green |
+| 39-01-02 | 01 | 1 | RMTE-01 | integration | `go test ./internal/webserver/ -run "TestSessionInfoEndpoint"` | ✅ exists | ✅ green |
+| 39-02-01 | 02 | 1 | RMTE-02 | unit | `go test -run "TestPrintAttachBanner" -v .` | ✅ exists | ✅ green |
+| 39-02-02 | 02 | 1 | RMTE-02 | unit | `go test -run "TestPrintDetachMessage" -v .` | ✅ exists | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,10 +49,7 @@ created: 2026-04-01
 
 ## Wave 0 Requirements
 
-- [ ] Tests for `handleSessionInfo` endpoint in `internal/webserver/server_test.go`
-- [ ] Tests for CLI attach banner output in `cmd_attach_test.go`
-
-*Existing test infrastructure covers framework needs — no new framework install required.*
+Existing infrastructure covers all phase requirements.
 
 ---
 
@@ -68,11 +65,27 @@ created: 2026-04-01
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-04-02
+
+---
+
+## Validation Audit 2026-04-02
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 4 task verification entries confirmed green. Tests exist and pass:
+- `TestSessionListIncludesHostname` — PASS
+- `TestSessionInfoEndpoint` (+ NotEnabled, NotFound) — PASS
+- `TestPrintAttachBanner` (3 variants) — PASS
+- `TestPrintDetachMessage` — PASS
