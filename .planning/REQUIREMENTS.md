@@ -20,7 +20,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 - [ ] **DMGR-01**: Closing the GUI window hides it instead of quitting — daemon and tray icon remain active
 - [ ] **DMGR-02**: "Quit" from tray menu stops daemon and fully exits the application
-- [ ] **DMGR-03**: Daemon management panel inside existing GUI window showing session list with status, start/stop, kill, and web-serve controls
+- [x] **DMGR-03**: Daemon management panel inside existing GUI window showing session list with status, start/stop, kill, and web-serve controls
 
 ### Remote Session Indicators
 
@@ -69,7 +69,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RMTE-03 | Phase 38 | Complete |
 | RMTE-01 | Phase 39 | Complete |
 | RMTE-02 | Phase 39 | Complete |
-| DMGR-03 | Phase 40 | Pending |
+| DMGR-03 | Phase 40 | Complete |
 | TRAY-01 | Phase 41 | Pending |
 | TRAY-02 | Phase 41 | Pending |
 | TRAY-03 | Phase 41 | Pending |

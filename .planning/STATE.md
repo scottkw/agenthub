@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
 status: verifying
-stopped_at: Completed 39-01-PLAN.md
-last_updated: "2026-04-01T20:24:15.174Z"
-last_activity: 2026-04-01
+stopped_at: Completed 40-01 tasks 1-2; awaiting human-verify checkpoint for visual verification of DaemonManagerPanel
+last_updated: "2026-04-02T05:12:29.516Z"
+last_activity: 2026-04-02
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 5
+  total_plans: 6
+  completed_plans: 6
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 39 — remote-session-indicators
+**Current focus:** Phase 40 — daemon-management-panel
 
 ## Current Position
 
-Phase: 40
-Plan: Not started
+Phase: 40 (daemon-management-panel) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
-Last activity: 2026-04-01
+Last activity: 2026-04-02
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 38-remote-session-metadata P01 | 5min | 2 tasks | 4 files |
 | Phase 39-remote-session-indicators P02 | 8min | 1 tasks | 2 files |
 | Phase 39 P01 | 11min | 2 tasks | 6 files |
+| Phase 40-daemon-management-panel P01 | 3 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Key decisions from research (inform upcoming phases):
 - [Phase 38-remote-session-metadata]: Discard os.Hostname() error — empty string on failure matches codebase pattern for non-fatal errors
 - [Phase 39-remote-session-indicators]: Extract banner/detach into io.Writer functions for testability rather than inlining to os.Stderr
 - [Phase 39]: sessionResolver extended from 3 to 4 return values (hostname) — flex sibling status bar prevents FitAddon regression
+- [Phase 40-daemon-management-panel]: DaemonManagerPanel receives all data/callbacks as props from App.tsx — no direct Wails bindings in component
+- [Phase 40-daemon-management-panel]: Sessions button (hamburger) placed before + button in TabBar controls; create-or-focus pattern via tabs.find(type=daemon-manager)
 
 ### Pending Todos
 
@@ -83,7 +86,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-01T18:29:09.541Z
-Stopped at: Completed 39-01-PLAN.md
+Last session: 2026-04-02T05:12:29.513Z
+Stopped at: Completed 40-01 tasks 1-2; awaiting human-verify checkpoint for visual verification of DaemonManagerPanel
 Resume file: None
 Next action: `/gsd:plan-phase 36`

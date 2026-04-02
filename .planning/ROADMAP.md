@@ -98,7 +98,7 @@
 - [x] **Phase 37: Splash Screen** - Branded Welcome tab with title logo, tagline, version, install instructions; StartHidden + OnDomReady prevents white flash (completed 2026-04-01)
 - [x] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification (completed 2026-04-01)
 - [x] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state (completed 2026-04-01)
-- [ ] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls
+- [x] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls (completed 2026-04-02)
 - [ ] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement
 
 ## Phase Details
@@ -170,9 +170,9 @@ Plans:
   3. User can kill any session from the panel without switching to the Sessions tab
   4. User can toggle web serving on/off for any session from the panel
   5. The panel uses only existing Wails bindings — no new Go IPC routes are added
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 40-01-PLAN.md — DaemonManagerPanel component, TabBar/App wiring, CSS, tests, visual verification
+- [x] 40-01-PLAN.md — DaemonManagerPanel component, TabBar/App wiring, CSS, tests, visual verification
 **UI hint**: yes
 
 ### Phase 41: System Tray + Lifecycle
@@ -208,7 +208,7 @@ Plans:
 | 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 38. Remote Session Metadata | v1.7 | 1/1 | Complete    | 2026-04-01 |
 | 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
-| 40. Daemon Management Panel | v1.7 | 0/TBD | Not started | - |
+| 40. Daemon Management Panel | v1.7 | 1/1 | Complete   | 2026-04-02 |
 | 41. System Tray + Lifecycle | v1.7 | 0/TBD | Not started | - |
 
 ---
