@@ -61,13 +61,15 @@ static AgentHubMenuDelegate *menuDelegate = nil;
 
 // initStatusItem creates a macOS status bar item with a dynamic menu delegate.
 void initStatusItem(const void *iconData, int iconLen) {
+    // Copy icon data synchronously — iconData is a Go pointer only valid during
+    // the cgo call. The dispatch_async block runs later when Go may have reclaimed it.
+    NSData *data = [NSData dataWithBytes:iconData length:iconLen];
     dispatch_async(dispatch_get_main_queue(), ^{
         NSStatusBar *bar = [NSStatusBar systemStatusBar];
         statusItem = [bar statusItemWithLength:NSVariableStatusItemLength];
         [statusItem retain];
 
         // Set icon from PNG data.
-        NSData *data = [NSData dataWithBytes:iconData length:iconLen];
         NSImage *icon = [[NSImage alloc] initWithData:data];
         [icon setSize:NSMakeSize(18, 18)];
         [icon setTemplate:YES];  // Adapts to light/dark menu bar.
@@ -79,6 +81,10 @@ void initStatusItem(const void *iconData, int iconLen) {
         menuDelegate = [[AgentHubMenuDelegate alloc] init];
         menu.delegate = menuDelegate;
         statusItem.menu = menu;
+
+        // Hide Dock icon — Wails overrides LSUIElement by setting its own
+        // activation policy, so we must set accessory mode programmatically.
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
     });
 }
 
@@ -95,9 +101,10 @@ void removeStatusItem(void) {
 
 // updateTrayIcon swaps the tray icon PNG at runtime (normal vs error state).
 void updateTrayIcon(const void *iconData, int iconLen) {
+    // Copy before dispatch — iconData is a Go pointer only valid during cgo call.
+    NSData *data = [NSData dataWithBytes:iconData length:iconLen];
     dispatch_async(dispatch_get_main_queue(), ^{
         if (statusItem == nil) return;
-        NSData *data = [NSData dataWithBytes:iconData length:iconLen];
         NSImage *icon = [[NSImage alloc] initWithData:data];
         [icon setSize:NSMakeSize(18, 18)];
         [icon setTemplate:YES];
@@ -117,13 +124,14 @@ void updateTrayTooltip(const char *tooltip) {
 
 // setTraySessionData updates the session names/IDs used by the menu delegate.
 void setTraySessionData(const char **names, const char **ids, int count) {
+    // Copy strings synchronously — names/ids are Go pointers freed after cgo returns.
+    NSMutableArray *nameArr = [NSMutableArray arrayWithCapacity:count];
+    NSMutableArray *idArr = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++) {
+        [nameArr addObject:[NSString stringWithUTF8String:names[i]]];
+        [idArr addObject:[NSString stringWithUTF8String:ids[i]]];
+    }
     dispatch_async(dispatch_get_main_queue(), ^{
-        NSMutableArray *nameArr = [NSMutableArray arrayWithCapacity:count];
-        NSMutableArray *idArr = [NSMutableArray arrayWithCapacity:count];
-        for (int i = 0; i < count; i++) {
-            [nameArr addObject:[NSString stringWithUTF8String:names[i]]];
-            [idArr addObject:[NSString stringWithUTF8String:ids[i]]];
-        }
         menuSessionNames = nameArr;
         menuSessionIDs = idArr;
     });

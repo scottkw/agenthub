@@ -33,6 +33,7 @@ type App struct {
 	client    *daemon.DaemonClient // only daemon communication field; nil when startup failed
 	trayInit  bool                 // true once initTray has been called
 	daemonErr error                // non-nil when EnsureDaemon failed at startup
+	quitting  bool                 // true when tray Quit was clicked; lets beforeClose allow exit
 }
 
 // NewApp creates a new App without starting any subsystems.
@@ -50,18 +51,21 @@ func (a *App) domReady(ctx context.Context) {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// Start system tray icon immediately — it must be visible regardless of
+	// daemon state. The poller will set the error icon if daemon is unreachable.
+	a.initTray()
+	a.trayInit = true
+
 	socketPath := daemon.DefaultSocketPath()
 	if err := daemon.EnsureDaemon(socketPath); err != nil {
 		a.daemonErr = err
 		// Notify frontend — window is already rendered when OnStartup runs (goroutine).
 		runtime.EventsEmit(ctx, "daemon:error", err.Error())
-		return // Do NOT call initTray or startHealthPoller
+		// Start tray poller even on failure — it will show error icon state.
+		a.startTrayPoller(ctx)
+		return
 	}
 	a.client = daemon.NewDaemonClient(socketPath)
-
-	// Start system tray icon (non-blocking, macOS NSStatusBar).
-	a.initTray()
-	a.trayInit = true
 
 	// Start tray state poller (updates icon, tooltip, session list every 5s).
 	a.startTrayPoller(ctx)
@@ -90,12 +94,7 @@ func (a *App) RetryDaemon() error {
 	}
 	a.daemonErr = nil
 	a.client = daemon.NewDaemonClient(socketPath)
-	if !a.trayInit {
-		a.initTray()
-		a.trayInit = true
-	}
 	if a.ctx != nil {
-		a.startTrayPoller(a.ctx)
 		a.startHealthPoller(a.ctx)
 	}
 	return nil
@@ -116,12 +115,15 @@ func (a *App) shutdown(_ context.Context) {
 // When called outside a Wails context (e.g., in unit tests), the window hide
 // is skipped safely — sessions are unaffected in both cases.
 func (a *App) beforeClose(ctx context.Context) bool {
+	if a.quitting {
+		return false // allow quit — tray Quit was clicked
+	}
 	// Wails stores the frontend under the "frontend" key; skip the call when
 	// running outside the Wails event loop (tests, CLI helpers).
 	if ctx.Value("frontend") != nil {
 		runtime.WindowHide(ctx)
 	}
-	return true // prevent the default quit behaviour
+	return true // prevent the default quit behaviour — hide window instead
 }
 
 // --- Wails-bound methods ---

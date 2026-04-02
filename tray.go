@@ -49,8 +49,11 @@ func onTrayQuit() {
 		if trayCallbackApp != nil && trayCallbackApp.client != nil {
 			_ = trayCallbackApp.client.ShutdownDaemon()
 		}
-		if trayCallbackApp != nil && trayCallbackApp.ctx != nil {
-			runtime.Quit(trayCallbackApp.ctx)
+		if trayCallbackApp != nil {
+			trayCallbackApp.quitting = true // bypass beforeClose hide-on-close
+			if trayCallbackApp.ctx != nil {
+				runtime.Quit(trayCallbackApp.ctx)
+			}
 		}
 	}()
 }
