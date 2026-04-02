@@ -188,9 +188,10 @@ Plans:
   6. The tray icon uses a monochrome template image that adapts correctly to both light and dark macOS menu bars
   7. The tray icon tooltip on hover shows the current active session count
   8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
-**Plans**: 1 plan
+**Plans:** 2 plans
 Plans:
-- [ ] 41-01-PLAN.md — TBD
+- [ ] 41-01-PLAN.md — Daemon shutdown endpoint, monochrome tray icon assets, LSUIElement plist
+- [ ] 41-02-PLAN.md — Extend tray cgo with dynamic menu, tooltip, icon swap, poller, frontend event
 **UI hint**: yes
 
 ## Progress
