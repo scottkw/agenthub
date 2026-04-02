@@ -5,7 +5,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
-  type?: 'terminal' | 'welcome'
+  type?: 'terminal' | 'welcome' | 'daemon-manager'
 }
 
 interface TabBarProps {
@@ -16,6 +16,7 @@ interface TabBarProps {
   onRename: (id: string, name: string) => void
   onAdd: () => void
   onSettings: () => void
+  onOpenDaemonManager: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -31,6 +32,7 @@ export function TabBar({
   onRename,
   onAdd,
   onSettings,
+  onOpenDaemonManager,
   sessionStatuses,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -149,6 +151,14 @@ export function TabBar({
       </div>
 
       <div className="tab-bar__controls">
+        <button
+          className="tab-bar__btn tab-bar__btn--sessions"
+          onClick={onOpenDaemonManager}
+          title="Daemon sessions"
+          aria-label="Daemon sessions"
+        >
+          &#9776;{/* hamburger/list icon ☰ */}
+        </button>
         <button
           className="tab-bar__btn tab-bar__btn--add"
           onClick={onAdd}

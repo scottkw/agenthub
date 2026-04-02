@@ -17,13 +17,14 @@ import {
   RetryDaemon,
   GetDaemonError,
 } from './wailsjs/go/main/App'
-import type { DetectedCLI } from './wailsjs/go/main/App'
+import type { DetectedCLI, SessionInfo } from './wailsjs/go/main/App'
 import { EventsOn, Environment } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { HealthModal } from './components/HealthModal'
 import { WelcomeTab } from './components/WelcomeTab'
+import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -33,6 +34,7 @@ const DEFAULT_FONT_SIZE = 14
  */
 function App(): React.ReactElement {
   const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
+  const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
   const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
@@ -62,6 +64,8 @@ function App(): React.ReactElement {
   } | null>(null)
   const [platform, setPlatform] = useState<string>('linux')
   const [daemonError, setDaemonError] = useState<string | null>(null)
+  // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
+  const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
 
   // On mount: hide static HTML splash and initialize.
   useEffect(() => {
@@ -272,6 +276,40 @@ function App(): React.ReactElement {
     }
   }, [])
 
+  // Poll sessions when the daemon-manager panel tab is active.
+  useEffect(() => {
+    const isDaemonManagerActive = activeId === DAEMON_MANAGER_TAB.id
+    if (!isDaemonManagerActive) return
+
+    let cancelled = false
+    async function refresh() {
+      try {
+        const sessions = await ListSessions()
+        if (!cancelled) setPanelSessions(sessions)
+      } catch (err) {
+        console.warn('[App] ListSessions poll failed:', err)
+      }
+    }
+    void refresh()
+    const interval = setInterval(() => void refresh(), 3000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [activeId])
+
+  const handleOpenDaemonManager = useCallback(() => {
+    // If daemon-manager tab already exists, just focus it.
+    const existing = tabs.find((t) => t.type === 'daemon-manager')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    // Otherwise, add it and focus.
+    setTabs((prev) => [...prev, DAEMON_MANAGER_TAB])
+    setActiveId(DAEMON_MANAGER_TAB.id)
+  }, [tabs])
+
   const retryInit = useCallback(async () => {
     setDaemonError(null)
     try {
@@ -325,6 +363,7 @@ function App(): React.ReactElement {
         onRename={handleRenameTab}
         onAdd={handleAddTab}
         onSettings={() => setShowSettings(true)}
+        onOpenDaemonManager={handleOpenDaemonManager}
         sessionStatuses={sessionStatuses}
       />
 
@@ -332,7 +371,17 @@ function App(): React.ReactElement {
         {activeId === WELCOME_TAB.id && (
           <WelcomeTab />
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome').length === 0 && (
+        {activeId === DAEMON_MANAGER_TAB.id && (
+          <DaemonManagerPanel
+            sessions={panelSessions}
+            sessionStatuses={sessionStatuses}
+            webServerRunning={webServerRunning}
+            webEnabled={webEnabled}
+            onKill={(id) => void handleCloseTab(id)}
+            onToggleWeb={(id) => void handleToggleWeb(id)}
+          />
+        )}
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -371,6 +420,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager') return null
             const isActive = tab.id === activeId
             return (
               <div
