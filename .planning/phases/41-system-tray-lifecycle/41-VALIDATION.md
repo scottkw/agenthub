@@ -1,10 +1,11 @@
 ---
 phase: 41
 slug: system-tray-lifecycle
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-02
+audited: 2026-04-02
 ---
 
 # Phase 41 — Validation Strategy
@@ -38,13 +39,13 @@ created: 2026-04-02
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 41-01-01 | 01 | 1 | DMGR-01 | unit | `go test . -run TestBeforeCloseReturnsTrue -v` | ✅ tray_test.go | ⬜ pending |
-| 41-01-02 | 01 | 1 | DMGR-01 | unit | `go test . -run TestHideWindowSessionsAlive -v` | ✅ tray_test.go | ⬜ pending |
-| 41-01-03 | 01 | 1 | DMGR-02 | unit | `go test ./internal/daemon/... -run TestShutdownDaemon -v` | ❌ W0 | ⬜ pending |
-| 41-01-04 | 01 | 1 | DMGR-02 | unit | `go test . -run TestTrayQuitShutdownsDaemon -v` | ❌ W0 | ⬜ pending |
-| 41-01-05 | 01 | 1 | TRAY-03, TRAY-06 | unit | `go test . -run TestUpdateTray -v` | ❌ W0 | ⬜ pending |
-| 41-01-06 | 01 | 1 | TRAY-05 | manual | Inspect `build/darwin/Info.plist` | manual-only | ⬜ pending |
-| 41-01-07 | 01 | 1 | BRND-03 | unit | `go test . -run TestTrayIconAsset -v` | ❌ W0 | ⬜ pending |
+| 41-01-01 | 01 | 1 | DMGR-01 | unit | `go test . -run TestBeforeCloseReturnsTrue -v` | ✅ tray_test.go | ✅ green |
+| 41-01-02 | 01 | 1 | DMGR-01 | unit | `go test . -run TestHideWindowSessionsAlive -v` | ✅ tray_test.go | ✅ green |
+| 41-01-03 | 01 | 1 | DMGR-02 | unit | `go test ./internal/daemon/... -run TestShutdownDaemon -v` | ✅ client_test.go | ✅ green |
+| 41-01-04 | 01 | 1 | DMGR-02 | unit | `go test . -run TestTrayQuitNilClient -v` | ✅ tray_test.go | ✅ green |
+| 41-01-05 | 01 | 1 | TRAY-03, TRAY-06 | unit | `go test . -run "TestTrayTooltip\|TestRefreshTrayStateNilClient" -v` | ✅ tray_test.go | ✅ green |
+| 41-01-06 | 01 | 1 | TRAY-05 | manual | Inspect `build/darwin/Info.plist` | manual-only | ✅ verified |
+| 41-01-07 | 01 | 1 | BRND-03 | unit | `go test . -run TestTrayIconAsset -v` | ✅ tray_test.go | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,10 +53,10 @@ created: 2026-04-02
 
 ## Wave 0 Requirements
 
-- [ ] `tray_test.go` — add `TestUpdateTray`, `TestTrayQuitShutdownsDaemon`, `TestTrayIconAsset`
-- [ ] `internal/daemon/client_test.go` — add `TestShutdownDaemon`
+- [x] `tray_test.go` — `TestTrayIconAsset`, `TestTrayTooltip`, `TestTrayQuitNilClient`, `TestRefreshTrayStateNilClient` all present and green
+- [x] `internal/daemon/client_test.go` — `TestShutdownDaemon` present and green
 
-*Existing infrastructure covers DMGR-01 (tests already exist).*
+*All Wave 0 gaps resolved during execution.*
 
 ---
 
@@ -71,11 +72,23 @@ created: 2026-04-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-04-02
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 6 automated tests verified green. Wave 0 items were filled during phase execution (Plan 01 and Plan 02). No additional test generation needed.
