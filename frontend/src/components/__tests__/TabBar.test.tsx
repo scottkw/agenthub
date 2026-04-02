@@ -19,6 +19,7 @@ interface TabBarProps {
   onRename: (id: string, name: string) => void
   onAdd: () => void
   onSettings: () => void
+  onOpenDaemonManager: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -36,6 +37,7 @@ function renderTabBar() {
         onRename: () => {},
         onAdd: () => {},
         onSettings: () => {},
+        onOpenDaemonManager: () => {},
       })
     )
   })
@@ -46,7 +48,7 @@ function renderTabBarWithTabs(overrides: Partial<TabBarProps> = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
-  const props: TabBarProps = {
+  const props = {
     tabs: [
       { id: 'tab1', name: 'claude 1', sessionId: 'sess1', cli: 'claude' },
       { id: 'tab2', name: 'codex 1', sessionId: 'sess2', cli: 'codex' },
@@ -57,6 +59,7 @@ function renderTabBarWithTabs(overrides: Partial<TabBarProps> = {}) {
     onRename: () => {},
     onAdd: () => {},
     onSettings: () => {},
+    onOpenDaemonManager: () => {},
     ...overrides,
   }
   flushSync(() => {
