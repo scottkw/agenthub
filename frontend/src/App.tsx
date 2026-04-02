@@ -143,10 +143,21 @@ function App(): React.ReactElement {
       setDaemonError(msg)
     })
 
+    const cancelTrayFocus = EventsOn('tray:focus-session', (sessionId: string) => {
+      setTabs(prev => {
+        const tab = prev.find(t => t.sessionId === sessionId)
+        if (tab) {
+          setActiveId(tab.id)
+        }
+        return prev
+      })
+    })
+
     return () => {
       offStatus()
       offHealth()
       offDaemonError()
+      cancelTrayFocus()
     }
   }, [])
 
