@@ -1,9 +1,9 @@
 ---
 phase: 38
 slug: remote-session-metadata
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-01
 ---
 
@@ -38,8 +38,8 @@ created: 2026-04-01
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 38-01-01 | 01 | 1 | RMTE-03 | unit | `go test ./internal/daemon/... -run TestEngineListSessionsHostname` | ❌ W0 | ⬜ pending |
-| 38-01-02 | 01 | 1 | RMTE-03 | integration | `go test ./internal/daemon/... -run TestAPIListSessionsHostname` | ❌ W0 | ⬜ pending |
+| 38-01-01 | 01 | 1 | RMTE-03 | unit | `go test ./internal/daemon/... -run TestEngineListSessionsHostname` | ✅ | ✅ green |
+| 38-01-02 | 01 | 1 | RMTE-03 | integration | `go test ./internal/daemon/... -run TestAPIListSessionsHostname` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -47,8 +47,8 @@ created: 2026-04-01
 
 ## Wave 0 Requirements
 
-- [ ] `internal/daemon/engine_test.go` — add `TestEngineListSessionsHostname` (inline, no new file)
-- [ ] `internal/daemon/api_test.go` — add `TestAPIListSessionsHostname` (inline, no new file)
+- [x] `internal/daemon/engine_test.go` — `TestEngineListSessionsHostname` (line 190)
+- [x] `internal/daemon/api_test.go` — `TestAPIListSessionsHostname` (line 344)
 
 *Existing infrastructure covers all phase requirements — no new test framework or fixtures needed.*
 
@@ -62,11 +62,21 @@ created: 2026-04-01
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+## Validation Audit 2026-04-02
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 2 requirements verified with passing automated tests. No gaps detected.
