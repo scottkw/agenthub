@@ -419,7 +419,13 @@ func (a *App) startTrayPoller(ctx context.Context) {
 // refreshTrayState reads daemon connectivity and session list, then updates
 // the tray icon, tooltip, and session menu entries.
 func (a *App) refreshTrayState() {
-	if !a.trayInit || a.client == nil {
+	if !a.trayInit {
+		return // tray not yet initialised
+	}
+	if a.client == nil {
+		// Startup failed — tray is visible but daemon is unreachable.
+		// Show error icon and appropriate tooltip.
+		a.updateTray(nil, false)
 		return
 	}
 	connected := a.client.Health() == nil

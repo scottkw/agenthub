@@ -118,3 +118,15 @@ func TestRefreshTrayStateNilClient(t *testing.T) {
 	app := &App{trayInit: false, client: nil}
 	app.refreshTrayState()
 }
+
+// TestRefreshTrayStateStartupFailure verifies that when trayInit=true but
+// client=nil (daemon startup failure), refreshTrayState calls updateTray
+// with connected=false (error icon) rather than returning early.
+// The test verifies no panic occurs — the cgo call itself is the observable
+// side-effect on darwin (updateTrayIcon sets the error icon PNG).
+func TestRefreshTrayStateStartupFailure(t *testing.T) {
+	app := &App{trayInit: true, client: nil}
+	// Must not panic. On darwin, updateTray calls cgo updateTrayIcon with the
+	// error icon bytes. On Linux/Windows the stub is a no-op.
+	app.refreshTrayState()
+}
