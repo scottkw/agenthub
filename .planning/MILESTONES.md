@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.7 Daemon UX & Branding (Shipped: 2026-04-03)
+
+**Phases completed:** 8 phases, 10 plans, 20 tasks
+
+**Key accomplishments:**
+
+- 1024x1024 branded A logomark extracted from title logo, compiled into full 10-entry macOS ICNS (590KB), 6-frame Windows ICO, and 6 Linux PNGs via sips+iconutil+ImageMagick pipeline with post-build bundle injection
+- Branded splash screen with StartHidden + OnDomReady lifecycle, static HTML bridge div, React SplashScreen overlay, and triple-path init dismissal with 3s fallback
+- Machine hostname added to daemon session API — SessionInfo includes Hostname field populated at engine startup via os.Hostname()
+- Web terminal status bar with session name, agent type, hostname display and 3-second REST-polled connection state indicator using TokyoNight theme
+- Connection banner and detach message for CLI attach — shows session name, CLI type, hostname, and Ctrl-\ hint on stderr before raw mode
+- DaemonManagerPanel tab in TabBar showing live session list with status dots, kill buttons, and web-serve toggles via ☰ button — zero new Go bindings
+- Daemon POST /shutdown endpoint, two 18x18 monochrome tray icon PNGs embedded in tray.go, and LSUIElement=true in production Info.plist
+- AgentHubMenuDelegate NSMenuDelegate for dynamic session menu, updateTray() for icon/tooltip state, startTrayPoller() 5s background refresh, and tray:focus-session frontend event handler
+- Split refreshTrayState nil-client guard so tray shows error icon (trayIconErrorBytes) and updated tooltip when daemon fails to start
+- Hostname field forwarded from daemon SessionInfo through App.go Wails binding, displayed as pill badge in DaemonManagerPanel with em dash fallback for empty values
+
+---
+
 ## v1.6 Terminal Fill Fix v2 (Shipped: 2026-03-31)
 
 **Phases completed:** 1 phases, 1 plans, 2 tasks

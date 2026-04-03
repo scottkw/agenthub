@@ -9,7 +9,7 @@
 - ✅ **v1.4 Unified Binary** — Phases 27-29 (shipped 2026-03-25)
 - ✅ **v1.5 Bug Fixes & CLI Args** — Phases 30-34 (shipped 2026-03-26)
 - ✅ **v1.6 Terminal Fill Fix v2** — Phase 35 (shipped 2026-03-31)
-- 🚧 **v1.7 Daemon UX & Branding** — Phases 36-41 (in progress)
+- ✅ **v1.7 Daemon UX & Branding** — Phases 36-43 (shipped 2026-04-03)
 
 ## Phases
 
@@ -90,135 +90,19 @@
 
 </details>
 
-### 🚧 v1.7 Daemon UX & Branding (In Progress)
+<details>
+<summary>✅ v1.7 Daemon UX & Branding (Phases 36-43) — SHIPPED 2026-04-03</summary>
 
-**Milestone Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
+- [x] Phase 36: App Icons & Branding Assets (1/1 plans) — completed 2026-04-01
+- [x] Phase 37: Splash Screen (1/1 plans) — completed 2026-04-01
+- [x] Phase 38: Remote Session Metadata (1/1 plans) — completed 2026-04-01
+- [x] Phase 39: Remote Session Indicators (2/2 plans) — completed 2026-04-01
+- [x] Phase 40: Daemon Management Panel (1/1 plans) — completed 2026-04-02
+- [x] Phase 41: System Tray + Lifecycle (2/2 plans) — completed 2026-04-02
+- [x] Phase 42: Tray Startup-Failure Error Icon (1/1 plans) — completed 2026-04-03
+- [x] Phase 43: GUI Hostname Forwarding (1/1 plans) — completed 2026-04-03
 
-- [x] **Phase 36: App Icons & Branding Assets** - Generate platform icon sets (ICNS, ICO, PNGs) from the logomark; unblocks all visual work (completed 2026-03-31)
-- [x] **Phase 37: Splash Screen** - Branded Welcome tab with title logo, tagline, version, install instructions; StartHidden + OnDomReady prevents white flash (completed 2026-04-01)
-- [x] **Phase 38: Remote Session Metadata** - Daemon exposes machine hostname in session metadata for remote identification (completed 2026-04-01)
-- [x] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state (completed 2026-04-01)
-- [x] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls (completed 2026-04-02)
-- [x] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement (completed 2026-04-02)
-- [x] **Phase 42: Tray Startup-Failure Error Icon** - Fix nil-client guard so tray shows error icon and tooltip when daemon is unreachable at startup (completed 2026-04-03)
-- [x] **Phase 43: GUI Hostname Forwarding** - Forward SessionInfo.Hostname through App.go to frontend/tray for GUI display (completed 2026-04-03)
-
-## Phase Details
-
-### Phase 36: App Icons & Branding Assets
-**Goal**: Properly branded platform icon sets exist for macOS, Windows, and Linux, and the title logo is available in the frontend asset tree for downstream use
-**Depends on**: Nothing (first phase of v1.7)
-**Requirements**: BRND-01
-**Success Criteria** (what must be TRUE):
-  1. The built macOS `.app` bundle shows the AgentHub logomark icon in Finder and the Dock (replaces generic placeholder)
-  2. `AppIcon.icns` contains all 10 required size/density entries including 1024x1024@2x (Retina-ready)
-  3. `icon.ico` contains at least 4 sizes (16, 32, 48, 256px) for Windows taskbar and installer
-  4. Multi-size PNGs are present in `build/linux/` for Linux desktop integration and Wails embedding
-  5. The full title logo PNG is copied into `frontend/src/assets/` for use by the splash screen
-**Plans:** 1/1 plans complete
-Plans:
-- [x] 36-01-PLAN.md — Generate all icon assets, production build with ICNS injection, visual verification
-**UI hint**: yes
-
-### Phase 37: Splash Screen
-**Goal**: Users see branded content on app startup with no white flash; a Welcome tab displays branding info (logo, tagline, version, install instructions, links)
-**Depends on**: Phase 36 (title logo in frontend/src/assets/)
-**Requirements**: BRND-02
-**Success Criteria** (what must be TRUE):
-  1. A Welcome tab showing the AgentHub title logo, tagline, version, install instructions, and links appears as the default tab on startup
-  2. The app window is hidden until the splash is ready to display (`StartHidden: true` + `OnDomReady` show pattern — no white flash)
-  3. A static HTML splash in index.html covers the WebKit-to-React gap with the logo on dark background
-  4. The Welcome tab is closeable like any session tab
-**Plans**: 1 plan
-Plans:
-- [x] 37-01-PLAN.md — Splash screen implementation (Go lifecycle + React overlay + tests + visual verification)
-**UI hint**: yes
-
-### Phase 38: Remote Session Metadata
-**Goal**: The daemon includes machine hostname in session metadata so web and CLI clients can identify which host a session is running on
-**Depends on**: Nothing (independent of tray and splash work)
-**Requirements**: RMTE-03
-**Success Criteria** (what must be TRUE):
-  1. `GET /api/sessions` response includes a `hostname` field (populated via `os.Hostname()`) for each session
-  2. Hostname is available in session metadata without any client configuration — it is populated automatically at daemon startup
-  3. Go tests verify the hostname field is present and non-empty in the daemon API response struct
-**Plans**: 1 plan
-Plans:
-- [x] 38-01-PLAN.md — Add hostname field to SessionInfo, populate from os.Hostname() at engine startup, add tests
-
-### Phase 39: Remote Session Indicators
-**Goal**: Remote users (web browser and CLI attach) can see the session name, agent type, host machine name, and connection state without guessing what they are connected to
-**Depends on**: Phase 38 (hostname in session metadata)
-**Requirements**: RMTE-01, RMTE-02
-**Success Criteria** (what must be TRUE):
-  1. The web terminal page shows a status bar above the terminal displaying the session name, agent type, and hostname (e.g., "claude-session | claude | macbook-pro.local")
-  2. The web terminal status bar updates its connection state indicator within 3 seconds if the session goes offline
-  3. The terminal viewport fills correctly after the status bar is added — `proposeDimensions()` row count is unchanged (no regression from v1.6)
-  4. Running `agenthub attach <id>` prints a connection banner to stderr before the PTY stream: session name, agent, hostname, and the Ctrl-\ detach key reminder
-  5. A "Detached." message is printed to stderr when the user exits an attach session
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 39-01-PLAN.md — Web terminal status bar with session metadata and connection state polling
-- [x] 39-02-PLAN.md — CLI attach connection banner and detach message
-**UI hint**: yes
-
-### Phase 40: Daemon Management Panel
-**Goal**: Users can view all active sessions with their status and perform kill/rename/web-serve operations from a panel inside the existing GUI window
-**Depends on**: Nothing (can be validated independently of tray work)
-**Requirements**: DMGR-03
-**Success Criteria** (what must be TRUE):
-  1. The daemon management panel is accessible within the existing GUI window (not a separate OS window)
-  2. The panel lists all active sessions with their current status (running, waiting, idle, errored)
-  3. User can kill any session from the panel without switching to the Sessions tab
-  4. User can toggle web serving on/off for any session from the panel
-  5. The panel uses only existing Wails bindings — no new Go IPC routes are added
-**Plans:** 1/1 plans complete
-Plans:
-- [x] 40-01-PLAN.md — DaemonManagerPanel component, TabBar/App wiring, CSS, tests, visual verification
-**UI hint**: yes
-
-### Phase 41: System Tray + Lifecycle
-**Goal**: AgentHub runs as a true tray-resident app — visible in the system tray with a right-click menu, hidden from the dock, and persisting when the window is closed
-**Depends on**: Phase 40 (Daemon Manager tray menu item requires the panel to exist), Phase 36 (monochrome tray icon template requires branded icon assets)
-**Requirements**: TRAY-01, TRAY-02, TRAY-03, TRAY-04, TRAY-05, TRAY-06, DMGR-01, DMGR-02, BRND-03
-**Success Criteria** (what must be TRUE):
-  1. The AgentHub icon appears in the macOS menu bar (system tray) and does NOT appear in the Dock or Cmd+Tab switcher
-  2. Right-clicking the tray icon shows a menu with "Open AgentHub", active session names, and "Quit"
-  3. Clicking "Open AgentHub" from the tray brings the GUI window to the foreground (shows it if hidden)
-  4. Closing the GUI window (red traffic-light button) hides the window but leaves the tray icon and daemon running — sessions continue uninterrupted
-  5. Clicking "Quit" from the tray menu stops the daemon, removes the tray icon, and fully exits the application
-  6. The tray icon uses a monochrome template image that adapts correctly to both light and dark macOS menu bars
-  7. The tray icon tooltip on hover shows the current active session count
-  8. The tray icon switches to an error/disconnected visual state when the daemon is unreachable
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 41-01-PLAN.md — Daemon shutdown endpoint, monochrome tray icon assets, LSUIElement plist
-- [x] 41-02-PLAN.md — Extend tray cgo with dynamic menu, tooltip, icon swap, poller, frontend event
-**UI hint**: yes
-
-### Phase 42: Tray Startup-Failure Error Icon
-**Goal:** Tray icon correctly shows error/disconnected state when the daemon is unreachable at startup (not just on runtime disconnection)
-**Depends on:** Phase 41 (tray infrastructure)
-**Requirements:** TRAY-03
-**Gap Closure:** Closes gaps from v1.7 audit — TRAY-03 partial, Flow #8 broken
-**Success Criteria** (what must be TRUE):
-  1. When EnsureDaemon fails at startup (a.client==nil), the tray icon shows the error/disconnected visual state
-  2. The tray tooltip is updated to reflect the error state on startup failure (not left at default)
-  3. The refreshTrayState nil-client guard at app.go:422 no longer skips updateTray entirely — it calls updateTray with error state
-Plans:
-- [x] 42-01-PLAN.md — Fix nil-client guard in refreshTrayState, show error icon and tooltip on startup failure
-
-### Phase 43: GUI Hostname Forwarding
-**Goal:** The App.go SessionInfo struct includes Hostname so the frontend DaemonManagerPanel and tray menu can display which host each session runs on
-**Depends on:** Phase 38 (hostname in daemon API), Phase 40 (DaemonManagerPanel), Phase 42 (tray fixes)
-**Requirements:** RMTE-03, DMGR-03
-**Gap Closure:** Closes integration gap from v1.7 audit — Phase 38 → Phase 40/41 hostname not forwarded
-**Success Criteria** (what must be TRUE):
-  1. App.go SessionInfo struct includes a Hostname field
-  2. ListSessions() maps the daemon API hostname into the frontend SessionInfo
-  3. DaemonManagerPanel displays hostname per session
-Plans:
-- [x] 43-01-PLAN.md — Add Hostname to App.SessionInfo, forward in ListSessions, display in DaemonManagerPanel
+</details>
 
 ## Progress
 
@@ -231,14 +115,7 @@ Plans:
 | 27-29 | v1.4 | 3/3 | Complete | 2026-03-25 |
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
-| 36. App Icons & Branding Assets | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 37. Splash Screen | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 38. Remote Session Metadata | v1.7 | 1/1 | Complete    | 2026-04-01 |
-| 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
-| 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
-| 41. System Tray + Lifecycle | v1.7 | 2/2 | Complete    | 2026-04-02 |
-| 42. Tray Startup-Failure Error Icon | v1.7 | 1/1 | Complete    | 2026-04-03 |
-| 43. GUI Hostname Forwarding | v1.7 | 1/1 | Complete    | 2026-04-03 |
+| 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -248,3 +125,4 @@ Plans:
 *Full v1.4 details: .planning/milestones/v1.4-ROADMAP.md*
 *Full v1.5 details: .planning/milestones/v1.5-ROADMAP.md*
 *Full v1.6 details: .planning/milestones/v1.6-ROADMAP.md*
+*Full v1.7 details: .planning/milestones/v1.7-ROADMAP.md*

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI).
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Remote sessions display hostname, agent type, and connection state in both web terminal status bars and CLI attach banners. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes branded app icons, a splash screen with the title logo, a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI).
 
 ## Core Value
 
@@ -65,25 +65,27 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ CLI `--` passthrough: `agenthub new <agent> <path> -- <extra-args>` forwards trailing tokens to agent PTY process — v1.5 Phase 31
 - ✓ GUI args field: text field in new-session modal with per-agent localStorage persistence and clear button — v1.5 Phase 33
 - ✓ Per-agent argument memory: last-used args pre-filled per agent, clearable — v1.5 Phase 33
+- ✓ Platform icon sets: ICNS (macOS), ICO (Windows), multi-size PNGs (Linux/Wails) from branded logomark — v1.7 Phase 36
+- ✓ Splash screen: WelcomeTab with title logo, tagline, version, install instructions; StartHidden + OnDomReady no-flash pattern — v1.7 Phase 37
+- ✓ Session metadata includes machine hostname via os.Hostname() for remote identification — v1.7 Phase 38
+- ✓ Web terminal status bar showing session name, agent type, hostname, and REST-polled connection state — v1.7 Phase 39
+- ✓ CLI attach connection banner and detach message on stderr with session name, agent, hostname — v1.7 Phase 39
+- ✓ Daemon Management Panel: in-GUI tab with session list, status dots, kill, and web-serve toggles — v1.7 Phase 40
+- ✓ System tray icon with monochrome template, dynamic NSMenuDelegate menu, tooltip, and session list — v1.7 Phase 41
+- ✓ Window hide-on-close: closing GUI hides window, daemon and tray remain active — v1.7 Phase 41
+- ✓ LSUIElement: app hidden from Dock and Cmd+Tab, lives in menu bar only — v1.7 Phase 41
+- ✓ Quit from tray: stops daemon, removes tray icon, fully exits application — v1.7 Phase 41
+- ✓ Monochrome tray icon template adapting to light/dark macOS menu bar — v1.7 Phase 41
+- ✓ Tray icon error state: shows disconnected icon and tooltip when daemon unreachable at startup — v1.7 Phase 42
+- ✓ GUI hostname forwarding: Hostname field in App.go SessionInfo, displayed in DaemonManagerPanel — v1.7 Phase 43
 
 ### Active
 
-(See REQUIREMENTS.md for v1.7 scope)
-
-## Current Milestone: v1.7 Daemon UX & Branding
-
-**Goal:** Make the daemon a first-class citizen with its own tray icon and management UI, add remote session indicators to web and CLI attach sessions, and establish app branding with proper icons and splash screen.
-
-**Target features:**
-- Remote session status bar in web terminal views and CLI attach sessions
-- Daemon system tray icon (no taskbar/dock icon) with right-click menu
-- Daemon mini management window openable from tray menu
-- App icons and branding extracted from logo, sized for all platforms
-- Splash screen using full title logo
+(No active milestone — run `/gsd:new-milestone` to define next)
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 43 complete: GUI hostname forwarding — hostname from daemon API forwarded through App.go ListSessions() to Wails TypeScript bindings and displayed as pill badge in DaemonManagerPanel (em dash fallback for empty). Phase 42: Tray startup-failure error icon — split compound nil-client guard in refreshTrayState. Phase 41: System tray icon with full lifecycle — monochrome template icon, dynamic NSMenuDelegate menu, icon state switching, tooltip with session count, quit-with-shutdown, window hide-on-close, NSApplicationActivationPolicyAccessory. Phase 40: Daemon Management Panel as closeable tab. Phase 39: web terminal status bar. Phase 38: hostname in session API. Phase 37: Welcome tab with branding. Phase 36: platform icon sets.
+Shipped v1.7 Daemon UX & Branding (2026-04-03). 8 milestones shipped (v1.0–v1.7), 43 phases, 77 plans total. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. System tray uses native macOS cgo NSStatusBar with dynamic NSMenuDelegate menu, monochrome template icon, and error state switching.
 
 ### Out of Scope
 
@@ -106,13 +108,14 @@ Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 43 complete: GUI hostname 
 
 ## Context
 
-Shipped v1.6 with ~73K LOC (51K Go + 16.5K TS/TSX + 5.6K CSS).
+Shipped v1.7 with ~15K LOC (10.2K Go + 3.7K TS/TSX + 1.2K CSS).
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
-Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation.
+Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus.
 Go test suite: 200+ tests race-clean across 6 packages.
-Frontend test suite: vitest source-inspection tests covering args field, terminal panel, and modal components.
+Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, and web status bar components.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); hardcoded VERSION in WelcomeTab.tsx; Linux/Windows tray stubs needed.
 
 ## Constraints
 
@@ -162,6 +165,15 @@ Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS si
 | Double-rAF for initial terminal fit | Wails WebView needs two animation frames for CSS layout commit before FitAddon measurement | ⚠️ Revisit — insufficient for 3/4 CLIs; replaced by rAF retry loop in v1.6 |
 | Bounded rAF retry loop polling proposeDimensions() | Double-rAF fires once at ~32ms, misses slow CLI startups; retry loop polls until CharSizeService reports non-zero dimensions | ✓ Good — fixes all 4 CLIs, bounded at 20 attempts (~333ms) |
 | Frontend cols/rows estimation at session creation | `Math.floor(clientWidth/charWidth)` estimates dimensions before xterm renders | ✓ Good — PTY spawns at correct size, no 80x24 default |
+| Native macOS cgo NSStatusBar for tray (no fyne.io/systray) | fyne.io/systray conflicts with Wails AppDelegate — duplicate symbol linker error | ✓ Good — full control, no library conflicts; Linux/Windows stubs needed |
+| NSMenuDelegate menuWillOpen: for dynamic tray menu | Always fresh at open time, no push-update polling needed for session list | ✓ Good — menu always reflects current state |
+| StartHidden + OnDomReady for splash screen | Window hidden until WebView DOM ready, then runtime.WindowShow — no white flash | ✓ Good — canonical Wails no-flash pattern |
+| Logo in frontend/public/ not src/assets/ | Stable /agenthub-title-logo.png URL without Vite content-hashing in dev and prod | ✓ Good — reliable for both static HTML splash and React |
+| REST polling (3s) for web terminal status bar | Simpler than new WebSocket frame type; status bar is flex sibling to avoid FitAddon regression | ✓ Good — no relay protocol changes needed |
+| WelcomeTab as persistent closeable tab (user-approved pivot) | Original spec was auto-dismiss on daemon connect; user preferred persistent welcome | ⚠️ Tech debt — auto-dismiss and 3s fallback not implemented |
+| ObjC @implementation in separate .m file (not cgo blocks) | Go cgo blocks cause duplicate symbol linker errors during `go test` | ✓ Good — clean compilation for both build and test |
+| Split nil-client guard in refreshTrayState | Single compound guard skipped tray update entirely on startup failure | ✓ Good — tray shows error icon when daemon unreachable |
+| Post-build cp of pre-built ICNS into bundle | wails build produces 3-size ICNS (361KB); pre-built 10-entry iconfile.icns (590KB) needed for Retina | ✓ Good — full Retina coverage in production builds |
 
 ---
 ## Evolution
@@ -182,4 +194,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after Phase 43 (GUI Hostname Forwarding) complete*
+*Last updated: 2026-04-03 after v1.7 milestone complete*
