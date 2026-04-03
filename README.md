@@ -1,21 +1,42 @@
 # AgentHub
 
+<p align="center">
+  <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
+</p>
+
 A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. Built with Go/Wails and React.
 
 ## Features
 
 ### Terminal & Sessions
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
-- **Background daemon** — Sessions live in a standalone daemon process; closing the GUI doesn't kill sessions
+- **Background daemon** — Sessions live in a standalone daemon process; closing the GUI hides the window while sessions and the system tray remain active
 - **CLI auto-detection** — Scans PATH for Claude Code, Codex, Gemini CLI, and OpenCode on startup; supports custom CLI paths
-- **New session modal** — Select a CLI and pick a working directory; remembers your last-used directory
-- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-`
+- **New session modal** — Select a CLI and pick a working directory with a native folder browser; remembers your last-used directory
+- **CLI argument passing** — Pass extra arguments to CLIs with `--` separator syntax (e.g., `agenthub new claude ~/dir -- --arg1`); arguments are remembered per CLI
+- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
 - **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
+- **Welcome tab** — Branded splash screen with version info, platform-specific installation instructions, and getting-started guide
+
+### System Tray (macOS)
+- **Menu bar icon** — Monochrome template icon adapts to light/dark mode
+- **Session menu** — Dynamic menu listing all active sessions; click to activate
+- **Session count tooltip** — Shows active session count (e.g., "AgentHub — 3 sessions")
+- **Error state** — Tray icon switches to error state when daemon is unreachable
+- **Hide-on-close** — Closing the window hides the GUI; quit from tray to fully exit
+- **Dock hiding** — App hides from Dock and Cmd+Tab via LSUIElement
+
+### Daemon Management Panel
+- **In-GUI session control** — "Sessions" tab showing all active sessions with status dots, CLI type, and hostname badges
+- **Per-session actions** — Kill sessions and toggle web serving directly from the panel
+- **Live polling** — Session list refreshes automatically every 3 seconds
+- **Hostname identification** — Each session displays the machine hostname for multi-machine visibility
 
 ### CLI
 - **Full CLI** — `agenthub new`, `list`, `kill`, `rename`, `attach`, `web`, `health`, `qr`, `settings`
-- **Interactive attach** — `agenthub attach <id>` for full PTY proxy with raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, and detach key (Ctrl-\\)
+- **Interactive attach** — `agenthub attach <id>` for full PTY proxy with raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, and configurable detach key (default Ctrl-\\, set with `--detach-key=`)
+- **Connection banner** — Attach displays session name, CLI type, and hostname before entering raw mode
 - **Machine-readable output** — `--json` flag on list, web status, health, and daemon status commands
 - **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
 
@@ -23,13 +44,21 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Tailscale networking** — Web server binds exclusively to Tailscale interface with Let's Encrypt TLS via `tsnet`
 - **Zero-config security** — Tailscale network membership is the access control; no passwords or tokens needed
 - **Per-session toggle** — Enable/disable web access per session from GUI or CLI (`agenthub serve/unserve`)
-- **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, and direct connect links
+- **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, QR code thumbnails, and direct connect links
+- **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
 - **Health checks** — Detects Tailscale installation, connection, and cert readiness with platform-specific setup guidance
+
+### Settings
+- **Tabbed settings panel** — CLI Paths and Web Server tabs
+- **Custom CLI paths** — Override auto-detected paths per CLI
+- **Tailscale health display** — Color-coded status indicators with platform-specific setup instructions
+- **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
 
 ### Platform
 - **Cross-platform** — macOS (universal, signed + notarized), Linux (Ubuntu 22.04 + 24.04), Windows (NSIS installer)
 - **Single binary** — `agenthub` launches GUI; `agenthub <command>` runs CLI
+- **Custom app icons** — Branded AgentHub logomark across all platforms
 - **Build script** — `build.sh` for local cross-platform builds with optional macOS code signing
 
 ## Architecture
@@ -80,7 +109,9 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `App.tsx` | Root layout, daemon client, session management, event wiring |
 | `TabBar.tsx` | Tab strip with status dots, rename, close |
 | `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
-| `NewSessionModal.tsx` | CLI selector + working directory picker |
+| `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
+| `DaemonManagerPanel.tsx` | Session list with kill, web toggle, hostname badges |
+| `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
 | `SettingsPanel.tsx` | Tabbed settings with Tailscale status |
 | `HealthModal.tsx` | Tailscale health check with platform-specific instructions |
@@ -206,20 +237,23 @@ The GitHub Actions workflow (`.github/workflows/build.yml`) builds for all platf
 ### Desktop (GUI)
 
 1. **Launch AgentHub** — run `agenthub` with no arguments to open the GUI
-2. **Create a session** — click `+` to open the new session modal; select a CLI and working directory
+2. **Create a session** — click `+` to open the new session modal; select a CLI, working directory, and optional arguments
 3. **Use the terminal** — full interactive terminal with the selected CLI
-4. **Web serve** — toggle web access per session; Tailscale health check runs automatically
+4. **Manage sessions** — use the Sessions tab to view all sessions, kill them, or toggle web access
+5. **Web serve** — toggle web access per session; Tailscale health check runs automatically
+6. **System tray** — close the window to hide; use the tray menu to switch sessions or quit
 
 ### CLI
 
 ```bash
 # Session management
-agenthub new claude-code ~/project    # Create a new session
-agenthub list                         # List all sessions
-agenthub list --json                  # Machine-readable output
-agenthub attach <id>                  # Attach to session (Ctrl-\ to detach)
-agenthub kill <id>                    # Terminate a session
-agenthub rename <id> "my session"     # Rename a session
+agenthub new claude-code ~/project           # Create a new session
+agenthub new claude-code ~/project -- --arg  # Pass extra CLI arguments
+agenthub list                                # List all sessions
+agenthub list --json                         # Machine-readable output
+agenthub attach <id>                         # Attach to session (Ctrl-\ to detach)
+agenthub kill <id>                           # Terminate a session
+agenthub rename <id> "my session"            # Rename a session
 
 # Web serving
 agenthub web start                    # Start the Tailscale web server
