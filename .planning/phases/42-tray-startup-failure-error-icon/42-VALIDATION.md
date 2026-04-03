@@ -1,10 +1,11 @@
 ---
 phase: 42
 slug: tray-startup-failure-error-icon
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-02
+audited: 2026-04-03
 ---
 
 # Phase 42 — Validation Strategy
@@ -38,8 +39,8 @@ created: 2026-04-02
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 42-01-01 | 01 | 1 | TRAY-03 | unit | `go test . -run TestRefreshTrayStateStartupFailure -v` | ❌ W0 | ⬜ pending |
-| 42-01-02 | 01 | 1 | TRAY-03 | unit | `go test . -run TestRefreshTrayStateNilClient -v` | ✅ (update) | ⬜ pending |
+| 42-01-01 | 01 | 1 | TRAY-03 | unit | `go test . -run TestRefreshTrayStateStartupFailure -v` | ✅ | ✅ green |
+| 42-01-02 | 01 | 1 | TRAY-03 | unit | `go test . -run TestRefreshTrayStateNilClient -v` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -47,7 +48,7 @@ created: 2026-04-02
 
 ## Wave 0 Requirements
 
-- [ ] `tray_test.go` — add `TestRefreshTrayStateStartupFailure` covering `{trayInit: true, client: nil}` path
+- [x] `tray_test.go` — add `TestRefreshTrayStateStartupFailure` covering `{trayInit: true, client: nil}` path
 
 *Existing `TestRefreshTrayStateNilClient` covers the `trayInit: false` path — keep as-is.*
 
@@ -63,11 +64,21 @@ created: 2026-04-02
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 5s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 5s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-04-03
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
