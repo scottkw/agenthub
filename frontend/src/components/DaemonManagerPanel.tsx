@@ -44,6 +44,9 @@ export function DaemonManagerPanel({
               />
               <span className="daemon-panel__name">{s.name}</span>
               <span className="daemon-panel__cli">{s.cli}</span>
+              <span className="daemon-panel__hostname" title={s.hostname || ''}>
+                {s.hostname || '\u2014'}
+              </span>
               <div className="daemon-panel__actions">
                 <button
                   className="daemon-panel__btn daemon-panel__btn--web"

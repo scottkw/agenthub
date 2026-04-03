@@ -1184,6 +1184,19 @@ body {
   flex-shrink: 0;
 }
 
+.daemon-panel__hostname {
+  font-size: 11px;
+  color: #565f89;
+  background: #1e2030;
+  padding: 2px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .daemon-panel__actions {
   margin-left: auto;
   display: flex;

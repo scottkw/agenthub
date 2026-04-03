@@ -13,11 +13,12 @@ interface SessionInfo {
   name: string
   state: string
   createdAt: string
+  hostname: string
 }
 
 const mockSessions: SessionInfo[] = [
-  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', createdAt: '2026-04-01T10:00:00Z' },
-  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', createdAt: '2026-04-01T11:00:00Z' },
+  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local' },
+  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal' },
 ]
 
 function renderPanel(props: Partial<DaemonManagerPanelProps> = {}) {
@@ -59,6 +60,10 @@ describe('DaemonManagerPanel (DMGR-03) - source inspection', () => {
   it('uses status class pattern daemon-panel__status--${status}', () => {
     expect(raw).toContain('daemon-panel__status--')
     expect(raw).toContain('daemon-panel__status')
+  })
+
+  it('uses BEM class daemon-panel__hostname', () => {
+    expect(raw).toContain('daemon-panel__hostname')
   })
 })
 
@@ -120,5 +125,23 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
     webButtons.forEach((btn) => {
       expect((btn as HTMLButtonElement).disabled).toBe(true)
     })
+  })
+
+  it('renders hostname badge per session row', () => {
+    ;({ container, root } = renderPanel({ sessions: mockSessions }))
+    const hostnames = container.querySelectorAll('.daemon-panel__hostname')
+    expect(hostnames.length).toBe(mockSessions.length)
+    expect(hostnames[0].textContent).toBe('macbook-pro.local')
+    expect(hostnames[1].textContent).toBe('dev-server.internal')
+  })
+
+  it('renders em dash when hostname is empty', () => {
+    const noHostSessions = [
+      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '' },
+    ]
+    ;({ container, root } = renderPanel({ sessions: noHostSessions }))
+    const badge = container.querySelector('.daemon-panel__hostname')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toBe('\u2014')
   })
 })
