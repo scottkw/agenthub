@@ -100,7 +100,7 @@
 - [x] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state (completed 2026-04-01)
 - [x] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls (completed 2026-04-02)
 - [x] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement (completed 2026-04-02)
-- [ ] **Phase 42: Tray Startup-Failure Error Icon** - Fix nil-client guard so tray shows error icon and tooltip when daemon is unreachable at startup
+- [x] **Phase 42: Tray Startup-Failure Error Icon** - Fix nil-client guard so tray shows error icon and tooltip when daemon is unreachable at startup (completed 2026-04-03)
 - [ ] **Phase 43: GUI Hostname Forwarding** - Forward SessionInfo.Hostname through App.go to frontend/tray for GUI display
 
 ## Phase Details
@@ -206,7 +206,7 @@ Plans:
   2. The tray tooltip is updated to reflect the error state on startup failure (not left at default)
   3. The refreshTrayState nil-client guard at app.go:422 no longer skips updateTray entirely — it calls updateTray with error state
 Plans:
-- [ ] 42-01-PLAN.md — Fix nil-client guard in refreshTrayState, show error icon and tooltip on startup failure
+- [x] 42-01-PLAN.md — Fix nil-client guard in refreshTrayState, show error icon and tooltip on startup failure
 
 ### Phase 43: GUI Hostname Forwarding
 **Goal:** The App.go SessionInfo struct includes Hostname so the frontend DaemonManagerPanel and tray menu can display which host each session runs on
@@ -237,7 +237,7 @@ Plans:
 | 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
 | 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
 | 41. System Tray + Lifecycle | v1.7 | 2/2 | Complete    | 2026-04-02 |
-| 42. Tray Startup-Failure Error Icon | v1.7 | 0/1 | Pending | — |
+| 42. Tray Startup-Failure Error Icon | v1.7 | 1/1 | Complete   | 2026-04-03 |
 | 43. GUI Hostname Forwarding | v1.7 | 0/1 | Pending | — |
 
 ---

@@ -11,7 +11,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 - [x] **TRAY-01**: User sees AgentHub icon in system tray (macOS menu bar, Windows notification area, Linux tray)
 - [x] **TRAY-02**: User can right-click tray icon to see menu with "Open AgentHub" and "Quit" actions
-- [ ] **TRAY-03**: Tray icon visually reflects daemon state (running vs error/disconnected)
+- [x] **TRAY-03**: Tray icon visually reflects daemon state (running vs error/disconnected)
 - [x] **TRAY-04**: Tray menu lists active sessions by name; clicking a session focuses it in the GUI
 - [x] **TRAY-05**: macOS dock icon is hidden (LSUIElement) — app lives in menu bar only
 - [x] **TRAY-06**: Tray icon tooltip shows active session count on hover
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DMGR-03 | Phase 40 | Complete |
 | TRAY-01 | Phase 41 | Complete |
 | TRAY-02 | Phase 41 | Complete |
-| TRAY-03 | Phase 42 | Pending |
+| TRAY-03 | Phase 42 | Complete |
 | TRAY-04 | Phase 41 | Complete |
 | TRAY-05 | Phase 41 | Complete |
 | TRAY-06 | Phase 41 | Complete |

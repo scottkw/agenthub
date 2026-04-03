@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Daemon UX & Branding
 status: verifying
-stopped_at: Completed 41-02 tasks 1-2; awaiting human-verify checkpoint for production tray verification
-last_updated: "2026-04-02T20:41:46.529Z"
-last_activity: 2026-04-02
+stopped_at: Completed 42-01-PLAN.md
+last_updated: "2026-04-03T04:38:35.668Z"
+last_activity: 2026-04-03
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 8
+  completed_phases: 7
+  total_plans: 9
+  completed_plans: 9
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 41 — system-tray-lifecycle
+**Current focus:** Phase 42 — tray-startup-failure-error-icon
 
 ## Current Position
 
-Phase: 41
-Plan: Not started
+Phase: 42 (tray-startup-failure-error-icon) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
-Last activity: 2026-04-02
+Last activity: 2026-04-03
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 40-daemon-management-panel P01 | 3 | 2 tasks | 5 files |
 | Phase 41-system-tray-lifecycle P01 | 12min | 3 tasks | 8 files |
 | Phase 41-system-tray-lifecycle P02 | 25min | 2 tasks | 7 files |
+| Phase 42-tray-startup-failure-error-icon P01 | 3min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Key decisions from research (inform upcoming phases):
 - [Phase 41-system-tray-lifecycle]: Tray icons generated with Go image/draw for pixel-exact 18x18 letterforms; LSUIElement in Info.plist only (not Info.dev.plist)
 - [Phase 41-system-tray-lifecycle]: ObjC @implementation in .go cgo blocks causes duplicate symbol linker errors during go test — move to separate .m file
 - [Phase 41-system-tray-lifecycle]: NSMenuDelegate menuWillOpen: pattern used for dynamic tray menu — always fresh at open time, no push-update polling needed
+- [Phase 42-tray-startup-failure-error-icon]: Split '!a.trayInit || a.client == nil' guard into two separate if blocks — trayInit=false means tray not ready (skip), client=nil means startup failed (show error icon)
 
 ### Pending Todos
 
@@ -93,7 +95,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-02T17:13:55.176Z
-Stopped at: Completed 41-02 tasks 1-2; awaiting human-verify checkpoint for production tray verification
+Last session: 2026-04-03T04:38:35.666Z
+Stopped at: Completed 42-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 36`
