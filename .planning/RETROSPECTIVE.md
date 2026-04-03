@@ -312,6 +312,54 @@
 
 ---
 
+## Milestone: v1.7 — Daemon UX & Branding
+
+**Shipped:** 2026-04-03
+**Phases:** 8 | **Plans:** 10 | **Commits:** 88
+
+### What Was Built
+- Platform icon sets (ICNS/ICO/PNG) from 1024x1024 branded logomark with sips+iconutil+ImageMagick pipeline and post-build bundle injection
+- Splash screen with StartHidden + OnDomReady lifecycle, static HTML bridge div, React WelcomeTab with branding
+- Remote session indicators: web terminal status bar (REST-polled connection state) and CLI attach banner (session name, agent, hostname)
+- Daemon Management Panel as in-GUI closeable tab with session list, status dots, kill, and web-serve toggles
+- System tray with native cgo NSStatusBar, NSMenuDelegate for dynamic session menu, monochrome template icon, tooltip, error state
+- Window hide-on-close lifecycle, LSUIElement (no dock/Cmd+Tab), quit-with-daemon-shutdown from tray
+- Gap closures (Phases 42-43): tray startup-failure error icon and GUI hostname forwarding
+
+### What Worked
+- Milestone audit mid-development identified two real gaps (tray startup error icon, hostname forwarding) — gap closure phases (42, 43) shipped same day
+- Native cgo approach for tray (from v1.0 lesson about systray conflicts) scaled well — NSMenuDelegate, icon state switching, tooltip all worked cleanly
+- Props-down pattern (DaemonManagerPanel receives data/callbacks from App.tsx) kept new components testable with zero new Go bindings
+- 4-day timeline for 8 phases (10 plans) — consistent velocity despite new platform-specific code (Objective-C, macOS menu bar)
+- Parallel-capable phases (36+38, 37 waiting on 36 only) allowed efficient sequencing
+
+### What Was Inefficient
+- SUMMARY frontmatter missing `requirements_completed` field for Phases 36 and 37 — the systemic issue from v1.1 continues
+- User-approved pivot on splash screen (persistent WelcomeTab instead of auto-dismiss) created audit gap — BRND-02 spec diverged from implementation
+- Hardcoded VERSION in WelcomeTab.tsx — will drift on future releases
+- Linux/Windows tray stubs are empty no-ops — platform coverage incomplete for tray functionality
+
+### Patterns Established
+- NSMenuDelegate `menuWillOpen:` for always-fresh dynamic menus — avoids push-update polling
+- ObjC @implementation in separate `.m` files (not cgo blocks) to avoid duplicate symbol linker errors in `go test`
+- Split nil-guard pattern: distinguish "not initialized" (skip) from "initialized but failed" (show error)
+- Daemon POST /shutdown with response-flush-before-goroutine-exit for clean client disconnect
+- 18x18 monochrome template icon generation with Go `image/draw` for pixel-exact letterforms
+
+### Key Lessons
+1. Native cgo platform code is maintainable when scoped to a single file with clear build tags — the tray implementation (tray_darwin.go + tray_helpers.m) is self-contained
+2. Milestone audits that run mid-development (not just at the end) produce actionable gap closure phases that ship in the same milestone
+3. User-approved pivots should be documented in REQUIREMENTS.md immediately — waiting creates audit confusion later
+4. REST polling (3s interval) is sufficient for status indicators that don't need sub-second updates — simpler than extending WebSocket protocols
+5. Props-down components with zero framework bindings (DaemonManagerPanel pattern) are the most testable — worth the prop-drilling cost
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution/research), ~30% opus (audit/review/completion), ~5% haiku (synthesis)
+- Sessions: ~6 sessions across 4 days
+- Notable: Gap closure phases (42, 43) completed in 3min and 2min respectively — well-scoped, targeted fixes
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -325,6 +373,7 @@
 | v1.4 | ~20 | 3 | Unified binary dispatch, focused cleanup milestone, race detector in CI |
 | v1.5 | 40 | 5 | Args threading through IPC layers, double-rAF terminal fix, poll-first status pattern |
 | v1.6 | 14 | 1 | Bounded rAF retry loop replacing double-rAF, proposeDimensions() readiness gate |
+| v1.7 | 88 | 8 | Native cgo tray, NSMenuDelegate dynamic menus, split nil-guard pattern, mid-milestone audit gap closure |
 
 ### Cumulative Quality
 
@@ -337,6 +386,7 @@
 | v1.4 | 194 (race-clean) | 73+ | ~12,771 | 4 (0 blockers, deferred) |
 | v1.5 | 200+ (race-clean) | 80+ | ~13,400 | 7 (0 blockers, documentation/test gaps) |
 | v1.6 | 200+ (race-clean) | 150 | ~73,000 | 3 (0 blockers, stale comments/docs) |
+| v1.7 | 200+ (race-clean) | 150+ | ~15,100 | 4 (0 blockers; WelcomeTab auto-dismiss, hardcoded VERSION, Linux/Windows tray stubs, SUMMARY frontmatter) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -351,3 +401,6 @@
 9. Small focused bug-fix milestones (5 phases, 1 day) execute fast — overhead is minimal when scope is clear (v1.5)
 10. Single-bug milestones add disproportionate ceremony overhead — consider folding into the previous milestone or using a lighter process (v1.6)
 11. Polling with readiness predicates beats fixed-delay timing for async initialization — `proposeDimensions()` is more robust than double-rAF (v1.6)
+12. Native cgo platform code is sustainable when scoped to single files with build tags — avoids library conflicts while maintaining full platform control (v1.0, v1.7)
+13. Mid-milestone audits produce higher-quality gap closures than end-of-milestone audits — gaps are still fresh context (v1.7)
+14. User-approved pivots need immediate REQUIREMENTS.md annotation — delayed documentation creates false audit gaps (v1.7)
