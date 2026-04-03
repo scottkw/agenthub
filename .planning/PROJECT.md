@@ -81,11 +81,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to define next)
+## Current Milestone: v1.8 GitHub Distribution & CI/CD
+
+**Goal:** Move AgentHub from Gitea to GitHub with automated multi-platform release builds, Homebrew tap, and WinGet distribution.
+
+**Target features:**
+- Migrate primary remote from Gitea to GitHub (scottkw/agenthub)
+- GitHub Actions CI (build.yml for PR validation, release-please.yml for auto-versioning)
+- GitHub Actions release (release.yml — multi-platform builds on tag push with macOS signing/notarization)
+- GitHub Actions distribution (distribute.yml — auto-update Homebrew tap + WinGet on release)
+- Homebrew tap repo (scottkw/homebrew-agenthub) with cask formula and template
+- WinGet manifest generation and submission
+- Packaging templates (packaging/homebrew/, packaging/winget/)
 
 ## Current State
 
-Shipped v1.7 Daemon UX & Branding (2026-04-03). 8 milestones shipped (v1.0–v1.7), 43 phases, 77 plans total. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. System tray uses native macOS cgo NSStatusBar with dynamic NSMenuDelegate menu, monochrome template icon, and error state switching.
+Shipped v1.7 Daemon UX & Branding (2026-04-03). 8 milestones shipped (v1.0–v1.7), 43 phases, 77 plans total. Starting v1.8: GitHub distribution infrastructure. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. System tray uses native macOS cgo NSStatusBar with dynamic NSMenuDelegate menu, monochrome template icon, and error state switching.
 
 ### Out of Scope
 
@@ -194,4 +205,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after v1.7 milestone complete*
+*Last updated: 2026-04-03 after v1.8 milestone started*
