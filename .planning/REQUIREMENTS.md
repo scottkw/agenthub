@@ -53,22 +53,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GIT-01 | — | Pending |
-| GIT-02 | — | Pending |
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
-| REL-04 | — | Pending |
-| DIST-01 | — | Pending |
-| DIST-02 | — | Pending |
-| DIST-03 | — | Pending |
-| DIST-04 | — | Pending |
+| GIT-01 | Phase 44 | Pending |
+| GIT-02 | Phase 44 | Pending |
+| REL-01 | Phase 45 | Pending |
+| REL-03 | Phase 45 | Pending |
+| REL-02 | Phase 46 | Pending |
+| REL-04 | Phase 46 | Pending |
+| DIST-01 | Phase 47 | Pending |
+| DIST-02 | Phase 47 | Pending |
+| DIST-04 | Phase 47 | Pending |
+| DIST-03 | Phase 48 | Pending |
 
 **Coverage:**
 - v1.8 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-03*
-*Last updated: 2026-04-03 after initial definition*
+*Last updated: 2026-04-03 after roadmap creation*
