@@ -238,7 +238,7 @@ Plans:
 | 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
 | 41. System Tray + Lifecycle | v1.7 | 2/2 | Complete    | 2026-04-02 |
 | 42. Tray Startup-Failure Error Icon | v1.7 | 1/1 | Complete    | 2026-04-03 |
-| 43. GUI Hostname Forwarding | v1.7 | 1/1 | Complete   | 2026-04-03 |
+| 43. GUI Hostname Forwarding | v1.7 | 1/1 | Complete    | 2026-04-03 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
