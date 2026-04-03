@@ -83,7 +83,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 42 complete: Tray startup-failure error icon — split compound nil-client guard in refreshTrayState so error icon and tooltip update when daemon unreachable at startup (not just runtime disconnection). Phase 41: System tray icon with full lifecycle — monochrome template icon (adapts to light/dark), dynamic NSMenuDelegate menu (Open AgentHub, session names, Quit), icon state switching (normal/error), tooltip with session count, 5s background poller, quit-with-shutdown (daemon stops on Quit), window hide-on-close (tray stays active), NSApplicationActivationPolicyAccessory (no Dock icon), tray:focus-session frontend event. Phase 40: Daemon Management Panel as closeable tab. Phase 39: web terminal status bar. Phase 38: hostname in session API. Phase 37: Welcome tab with branding. Phase 36: platform icon sets.
+Shipped v1.6. In v1.7 — Daemon UX & Branding. Phase 43 complete: GUI hostname forwarding — hostname from daemon API forwarded through App.go ListSessions() to Wails TypeScript bindings and displayed as pill badge in DaemonManagerPanel (em dash fallback for empty). Phase 42: Tray startup-failure error icon — split compound nil-client guard in refreshTrayState. Phase 41: System tray icon with full lifecycle — monochrome template icon, dynamic NSMenuDelegate menu, icon state switching, tooltip with session count, quit-with-shutdown, window hide-on-close, NSApplicationActivationPolicyAccessory. Phase 40: Daemon Management Panel as closeable tab. Phase 39: web terminal status bar. Phase 38: hostname in session API. Phase 37: Welcome tab with branding. Phase 36: platform icon sets.
 
 ### Out of Scope
 
@@ -182,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after Phase 40 (Daemon Management Panel) complete*
+*Last updated: 2026-04-03 after Phase 43 (GUI Hostname Forwarding) complete*
