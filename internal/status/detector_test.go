@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/relay"
-	"github.com/agenthub/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/status"
 )
 
 // --- mock hub for Watch tests ---

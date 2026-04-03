@@ -11,8 +11,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/daemon"
-	"github.com/agenthub/agenthub/internal/webserver"
+	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
 )
 

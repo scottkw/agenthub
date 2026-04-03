@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/agenthub/agenthub/internal/relay"
-	webfs "github.com/agenthub/agenthub/web"
+	"github.com/scottkw/agenthub/internal/relay"
+	webfs "github.com/scottkw/agenthub/web"
 	"github.com/coder/websocket"
 	qrcode "github.com/skip2/go-qrcode"
 	"tailscale.com/client/local"

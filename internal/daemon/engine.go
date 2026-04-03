@@ -6,9 +6,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/agenthub/agenthub/internal/pty"
-	"github.com/agenthub/agenthub/internal/relay"
-	"github.com/agenthub/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/pty"
+	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/status"
 )
 
 // SessionEngine owns all session state: registry, backend, hub manager,

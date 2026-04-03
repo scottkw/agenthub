@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/relay"
-	"github.com/agenthub/agenthub/internal/webserver"
+	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/webserver"
 )
 
 // API serves the daemon HTTP API over a Unix socket.

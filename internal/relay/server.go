@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/agenthub/agenthub/internal/pty"
+	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/coder/websocket"
 )
 

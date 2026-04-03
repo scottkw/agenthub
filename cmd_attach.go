@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/agenthub/agenthub/internal/daemon"
-	"github.com/agenthub/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/coder/websocket"
 	"golang.org/x/term"
 )

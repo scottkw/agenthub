@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/daemon"
-	"github.com/agenthub/agenthub/internal/relay"
-	"github.com/agenthub/agenthub/internal/webserver"
+	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/webserver"
 )
 
 // testSetup creates a real daemon API on a short socket path and returns a DaemonClient.

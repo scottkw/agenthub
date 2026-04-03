@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/agenthub/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/daemon"
 )
 
 func TestCmdDaemon_ServiceActions(t *testing.T) {
