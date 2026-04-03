@@ -11,7 +11,7 @@ Requirements for v1.7 Daemon UX & Branding. Each maps to roadmap phases.
 
 - [x] **TRAY-01**: User sees AgentHub icon in system tray (macOS menu bar, Windows notification area, Linux tray)
 - [x] **TRAY-02**: User can right-click tray icon to see menu with "Open AgentHub" and "Quit" actions
-- [x] **TRAY-03**: Tray icon visually reflects daemon state (running vs error/disconnected)
+- [ ] **TRAY-03**: Tray icon visually reflects daemon state (running vs error/disconnected)
 - [x] **TRAY-04**: Tray menu lists active sessions by name; clicking a session focuses it in the GUI
 - [x] **TRAY-05**: macOS dock icon is hidden (LSUIElement) — app lives in menu bar only
 - [x] **TRAY-06**: Tray icon tooltip shows active session count on hover
@@ -72,7 +72,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DMGR-03 | Phase 40 | Complete |
 | TRAY-01 | Phase 41 | Complete |
 | TRAY-02 | Phase 41 | Complete |
-| TRAY-03 | Phase 41 | Complete |
+| TRAY-03 | Phase 42 | Pending |
 | TRAY-04 | Phase 41 | Complete |
 | TRAY-05 | Phase 41 | Complete |
 | TRAY-06 | Phase 41 | Complete |
@@ -83,8 +83,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 **Coverage:**
 - v1.7 requirements: 15 total
 - Mapped to phases: 15
+- Complete: 14
+- Pending (gap closure): 1 (TRAY-03 → Phase 42)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after roadmap creation — all 15 requirements mapped to Phases 36-41*
+*Last updated: 2026-04-02 after gap closure — TRAY-03 reassigned to Phase 42, integration gap assigned to Phase 43*

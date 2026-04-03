@@ -100,6 +100,8 @@
 - [x] **Phase 39: Remote Session Indicators** - Web terminal status bar and CLI attach banner showing session name, agent, hostname, and connection state (completed 2026-04-01)
 - [x] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls (completed 2026-04-02)
 - [x] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement (completed 2026-04-02)
+- [ ] **Phase 42: Tray Startup-Failure Error Icon** - Fix nil-client guard so tray shows error icon and tooltip when daemon is unreachable at startup
+- [ ] **Phase 43: GUI Hostname Forwarding** - Forward SessionInfo.Hostname through App.go to frontend/tray for GUI display
 
 ## Phase Details
 
@@ -194,6 +196,30 @@ Plans:
 - [x] 41-02-PLAN.md — Extend tray cgo with dynamic menu, tooltip, icon swap, poller, frontend event
 **UI hint**: yes
 
+### Phase 42: Tray Startup-Failure Error Icon
+**Goal:** Tray icon correctly shows error/disconnected state when the daemon is unreachable at startup (not just on runtime disconnection)
+**Depends on:** Phase 41 (tray infrastructure)
+**Requirements:** TRAY-03
+**Gap Closure:** Closes gaps from v1.7 audit — TRAY-03 partial, Flow #8 broken
+**Success Criteria** (what must be TRUE):
+  1. When EnsureDaemon fails at startup (a.client==nil), the tray icon shows the error/disconnected visual state
+  2. The tray tooltip is updated to reflect the error state on startup failure (not left at default)
+  3. The refreshTrayState nil-client guard at app.go:422 no longer skips updateTray entirely — it calls updateTray with error state
+Plans:
+- [ ] 42-01-PLAN.md — Fix nil-client guard in refreshTrayState, show error icon and tooltip on startup failure
+
+### Phase 43: GUI Hostname Forwarding
+**Goal:** The App.go SessionInfo struct includes Hostname so the frontend DaemonManagerPanel and tray menu can display which host each session runs on
+**Depends on:** Phase 38 (hostname in daemon API), Phase 40 (DaemonManagerPanel), Phase 42 (tray fixes)
+**Requirements:** RMTE-03, DMGR-03
+**Gap Closure:** Closes integration gap from v1.7 audit — Phase 38 → Phase 40/41 hostname not forwarded
+**Success Criteria** (what must be TRUE):
+  1. App.go SessionInfo struct includes a Hostname field
+  2. ListSessions() maps the daemon API hostname into the frontend SessionInfo
+  3. DaemonManagerPanel displays hostname per session
+Plans:
+- [ ] 43-01-PLAN.md — Add Hostname to App.SessionInfo, forward in ListSessions, display in DaemonManagerPanel
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -211,6 +237,8 @@ Plans:
 | 39. Remote Session Indicators | v1.7 | 2/2 | Complete    | 2026-04-01 |
 | 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
 | 41. System Tray + Lifecycle | v1.7 | 2/2 | Complete    | 2026-04-02 |
+| 42. Tray Startup-Failure Error Icon | v1.7 | 0/1 | Pending | — |
+| 43. GUI Hostname Forwarding | v1.7 | 0/1 | Pending | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
