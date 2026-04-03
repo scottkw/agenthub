@@ -1,10 +1,11 @@
 ---
 phase: 43
 slug: gui-hostname-forwarding
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-03
+audited: 2026-04-03
 ---
 
 # Phase 43 — Validation Strategy
@@ -19,16 +20,16 @@ created: 2026-04-03
 |----------|-------|
 | **Framework** | vitest (frontend), Go testing package (backend) |
 | **Config file** | `frontend/vite.config.ts` (vitest inline) |
-| **Quick run command** | `cd /Users/ken/dev/agenthub/frontend && pnpm test --run` |
-| **Full suite command** | `go test ./... && cd frontend && pnpm test --run` |
+| **Quick run command** | `cd /Users/ken/dev/agenthub/frontend && npx vitest run DaemonManagerPanel` |
+| **Full suite command** | `go test ./... && cd frontend && npx vitest run` |
 | **Estimated runtime** | ~15 seconds |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd /Users/ken/dev/agenthub/frontend && pnpm test --run`
-- **After every plan wave:** Run `cd /Users/ken/dev/agenthub && go test ./... && cd frontend && pnpm test --run`
+- **After every task commit:** Run `cd /Users/ken/dev/agenthub/frontend && npx vitest run DaemonManagerPanel`
+- **After every plan wave:** Run `cd /Users/ken/dev/agenthub && go test ./... && cd frontend && npx vitest run`
 - **Before `/gsd:verify-work`:** Full suite must be green
 - **Max feedback latency:** 15 seconds
 
@@ -38,9 +39,9 @@ created: 2026-04-03
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 43-01-01 | 01 | 1 | RMTE-03 | unit (Go) | `go test -run TestListSessions ./...` | Partial — needs hostname assertion | ⬜ pending |
-| 43-01-02 | 01 | 1 | RMTE-03 | unit (Go) | `go test -run TestListSessions ./...` | Partial — needs hostname assertion | ⬜ pending |
-| 43-01-03 | 01 | 1 | DMGR-03 | unit (vitest DOM) | `cd frontend && pnpm test --run DaemonManagerPanel` | Partial — needs hostname assertion | ⬜ pending |
+| 43-01-01 | 01 | 1 | RMTE-03 | unit (Go) | `go test -run TestCreateSession ./...` | `app_test.go:162` — asserts `Hostname != ""` | ✅ green |
+| 43-01-02 | 01 | 1 | RMTE-03 | unit (Go) | `go test -run TestCreateSession ./...` | `app_test.go:162` — same forwarding path test | ✅ green |
+| 43-01-03 | 01 | 1 | DMGR-03 | unit (vitest DOM) | `npx vitest run DaemonManagerPanel` | `DaemonManagerPanel.test.tsx` — BEM class, badge rendering, em dash fallback (3 tests) | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -48,10 +49,10 @@ created: 2026-04-03
 
 ## Wave 0 Requirements
 
-- [ ] `app_test.go` — extend existing list test to assert `Hostname != ""`
-- [ ] `frontend/src/components/__tests__/DaemonManagerPanel.test.tsx` — update `mockSessions` to include `hostname`, add DOM assertion
+- [x] `app_test.go` — extend existing list test to assert `Hostname != ""`
+- [x] `frontend/src/components/__tests__/DaemonManagerPanel.test.tsx` — update `mockSessions` to include `hostname`, add DOM assertion
 
-*Existing test infrastructure covers the phase — no new files needed, only additions to existing tests.*
+*All Wave 0 requirements satisfied during phase execution.*
 
 ---
 
@@ -65,11 +66,23 @@ created: 2026-04-03
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
+
+---
+
+## Validation Audit 2026-04-03
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 3 tasks had automated tests in place at audit time. Go tests (TestCreateSession) and vitest (DaemonManagerPanel — 13 tests including 3 hostname-specific) all pass green.
