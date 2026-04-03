@@ -101,7 +101,7 @@
 - [x] **Phase 40: Daemon Management Panel** - React panel inside existing window for session list with status, kill, and web-serve controls (completed 2026-04-02)
 - [x] **Phase 41: System Tray + Lifecycle** - Persistent tray icon with right-click menu, daemon state indicator, session list, window-hide-on-close, and LSUIElement (completed 2026-04-02)
 - [x] **Phase 42: Tray Startup-Failure Error Icon** - Fix nil-client guard so tray shows error icon and tooltip when daemon is unreachable at startup (completed 2026-04-03)
-- [ ] **Phase 43: GUI Hostname Forwarding** - Forward SessionInfo.Hostname through App.go to frontend/tray for GUI display
+- [x] **Phase 43: GUI Hostname Forwarding** - Forward SessionInfo.Hostname through App.go to frontend/tray for GUI display (completed 2026-04-03)
 
 ## Phase Details
 
@@ -218,7 +218,7 @@ Plans:
   2. ListSessions() maps the daemon API hostname into the frontend SessionInfo
   3. DaemonManagerPanel displays hostname per session
 Plans:
-- [ ] 43-01-PLAN.md — Add Hostname to App.SessionInfo, forward in ListSessions, display in DaemonManagerPanel
+- [x] 43-01-PLAN.md — Add Hostname to App.SessionInfo, forward in ListSessions, display in DaemonManagerPanel
 
 ## Progress
 
@@ -238,7 +238,7 @@ Plans:
 | 40. Daemon Management Panel | v1.7 | 1/1 | Complete    | 2026-04-02 |
 | 41. System Tray + Lifecycle | v1.7 | 2/2 | Complete    | 2026-04-02 |
 | 42. Tray Startup-Failure Error Icon | v1.7 | 1/1 | Complete    | 2026-04-03 |
-| 43. GUI Hostname Forwarding | v1.7 | 0/1 | Pending | — |
+| 43. GUI Hostname Forwarding | v1.7 | 1/1 | Complete   | 2026-04-03 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
