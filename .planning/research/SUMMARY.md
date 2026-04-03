@@ -1,187 +1,196 @@
 # Project Research Summary
 
-**Project:** AgentHub v1.7 — Daemon UX & Branding
-**Domain:** Desktop daemon manager (Wails/Go/React) — system tray, remote session indicators, app icons, splash screen
-**Researched:** 2026-03-31
-**Confidence:** HIGH (codebase inspected directly; Wails platform constraints verified against open GitHub issues; platform icon requirements from Apple/Microsoft official docs)
+**Project:** AgentHub v1.8 — GitHub Distribution & CI/CD
+**Domain:** Release automation, Homebrew tap distribution, and WinGet package manager submission for a Wails v2 cross-platform desktop app
+**Researched:** 2026-04-03
+**Confidence:** HIGH
 
 ## Executive Summary
 
-AgentHub v1.7 adds the UX layer that transforms a functional daemon manager into a polished desktop product: a persistent tray icon with session management, remote session status indicators for web and CLI clients, proper platform icons, and a branded splash screen. The existing architecture (Wails v2 + Go daemon + React frontend) is already the right foundation, and all four v1.7 areas can be implemented without introducing new architectural paradigms. Three of four feature areas require no new Go dependencies at all — only the system tray icon (macOS change) and icon generation tooling require new library work.
+AgentHub v1.8 is a pure CI/CD infrastructure milestone — no new app features, only distribution automation. The project migrates from Gitea to GitHub and establishes a fully automated release pipeline: conventional commits drive release-please versioning, tag-triggered multi-platform builds with macOS signing/notarization populate GitHub Releases, and a post-release distribution workflow updates both a Homebrew cask tap and a WinGet package manifest. The pattern is well-understood, with high-quality reference implementations available (including the existing `scottkw/storcat` repo and the current `build.yml` signing pipeline).
 
-The single hardest constraint for this milestone is well-documented and already encountered in this project: `fyne.io/systray` and every mainstream systray library conflict with Wails' own `AppDelegate` at the macOS linker level, producing an unresolvable duplicate symbol. The project already resolved this by implementing a custom cgo `NSStatusItem` wrapper for macOS. This pattern must be preserved and extended; it must not be replaced with a systray library. The Linux and Windows implementations remain as no-op stubs for v1.7, which is the right call — Linux GNOME has no guaranteed tray support regardless of library used. Wails v2 is also single-window only (confirmed in issue #1480), which means the "daemon mini management window" from the milestone description is a React panel inside the existing window, not a second OS window.
+The recommended approach is four GitHub Actions workflow files: the existing `build.yml` (modified to remove signing), plus three new files — `release-please.yml`, `release.yml`, and `distribute.yml`. Critically, macOS signing/notarization moves out of `build.yml` into `release.yml` only, saving significant GitHub Actions runner minutes and Apple notarization API quota on every PR. The Homebrew tap uses a cross-repo `workflow_dispatch` pattern with a classic PAT. WinGet requires a manual first submission to establish package identity before automation takes over.
 
-The build order is cleanly dependency-driven: icons and branding assets have no code dependencies and unblock all visual work; splash screen needs the logo in the frontend asset tree; remote status bars (web and CLI) are self-contained; the DaemonPanel React component must exist before the tray "Daemon Manager" menu item can be wired up to it. No new Wails bindings are needed for v1.7 — all required operations (`ListSessions`, `GetSessionStatus`, `KillSession`, `RenameSession`) are already bound in `app.go`.
+The most significant risks are process risks rather than technical ones: git history loss during Gitea migration, the release-please PAT misconfiguration that prevents tags from triggering downstream workflows, and the WinGet requirement for a pre-existing manual submission. All three are well-documented and avoidable with explicit phase ordering. The macOS CGO cross-compilation constraint and the `--wait` requirement on `notarytool submit` are the critical technical pitfalls from the existing pipeline.
 
 ## Key Findings
 
 ### Recommended Stack
 
-v1.7 adds minimal new dependencies. The system tray is already implemented as a custom cgo NSStatusBar on macOS (confirmed working in codebase). The icon generation pipeline requires `sips`+`iconutil` (macOS-native, zero-install) or `icnsify` (pure Go, cross-platform CI) for ICNS generation; ImageMagick `magick convert` for ICO on Windows CI; and `golang.org/x/image/draw` (already in project as indirect dep via Wails/Tailscale) for PNG resizing. The splash screen and web status bar are frontend-only changes with no new npm packages.
+The v1.8 stack adds no new application technologies — only GitHub Actions tooling. The core toolset is: `googleapis/release-please-action@v4` for automated versioning from conventional commits, `dAppServer/wails-build-action@main` (already in use) for multi-platform builds, `softprops/action-gh-release@v2` for artifact uploads, `create-dmg` v1.2.3 for macOS DMG packaging, `gh workflow run` for cross-repo Homebrew tap triggering, and `vedantmgoyal9/winget-releaser@main` for WinGet manifest submission.
 
 **Core technologies:**
-- Custom cgo NSStatusItem (darwin only): system tray — the only safe pattern given Wails AppDelegate conflict; confirmed in project KEY DECISION
-- `systray-on-wails` (`github.com/ra1phdd/systray-on-wails`): Linux/Windows tray (optional v1.7) — uses `Register()` not `Run()`, non-blocking, coexists with Wails event loop
-- `sips` + `iconutil` (macOS system tools): ICNS generation — zero-install on macOS build hosts; use `icnsify` for CI/Linux
-- `magick convert` (ImageMagick): ICO generation — already available in CI; multi-size via `icon:auto-resize=256,48,32,16`
-- `golang.org/x/image/draw`: PNG resizing — already in project via indirect deps
+- `googleapis/release-please-action@v4`: Automated versioning, CHANGELOG.md generation, and git tag creation from conventional commits — eliminates manual release tagging
+- `dAppServer/wails-build-action@main`: Multi-platform Wails builds including macOS universal, Linux, and Windows NSIS — already proven in `build.yml`; pin to `@main`, not version tags; use `wails-version: "v2.9.0"` override if v2.10.x issues arise
+- `softprops/action-gh-release@v2`: Attaches built artifacts to GitHub Releases — replaces deprecated `actions/create-release`
+- `create-dmg` v1.2.3: Wraps `hdiutil` to produce installer-style DMG with drag-to-Applications layout for Homebrew distribution
+- `vedantmgoyal9/winget-releaser@main`: Komac-backed WinGet manifest generation and PR submission to `microsoft/winget-pkgs` via the `scottkw` fork — requires classic PAT with `public_repo` scope
 
-**What NOT to add:**
-- `fyne.io/systray`, `github.com/energye/systray`, `github.com/getlantern/systray`, `github.com/cratonica/trayhost` — all cause duplicate `_OBJC_CLASS_$_AppDelegate` linker error with Wails on macOS (project already hit this)
-- Wails v3 upgrade — alpha, unquantified risk; stay on v2.10.2 for this milestone
+Two new secrets are required beyond the 7 existing macOS signing secrets: `TAP_DEPLOY_TOKEN` (classic PAT, `repo` + `workflow` scopes) and `WINGET_TOKEN` (classic PAT, `public_repo` scope). Fine-grained PATs are explicitly incompatible with both cross-repo workflow dispatch and `winget-releaser`.
 
 ### Expected Features
 
-**Must have (table stakes for v1.7 launch):**
-- App icon set (ICNS, ICO, platform PNGs) — required for professional distribution; existing `appicon.png` is a programmatic placeholder
-- Tray icon in system tray (not dock) with right-click Open/Quit — daemon apps must live in the tray; absence makes the app feel like a toy
-- GUI hides (not quits) on window close — tray lifecycle requirement; current Wails default terminates the process on close
-- macOS dock icon hidden (`LSUIElement` in Info.plist) — daemon should not appear in dock or Cmd+Tab
-- Daemon state reflected in tray icon (running vs. error; two icons minimum)
-- Web terminal session status bar — session name, agent, connection state, host name
-- CLI attach session banner — printed to stderr before raw mode; confirms remote session and detach key
+The v1.8 feature set is tightly scoped: a professional release pipeline. Every item on the must-have list is P1 with clear implementation paths from verified sources.
 
-**Should have (add after core tray is stable):**
-- Splash screen using title logo — masks 200-800ms WebKit init latency; adds brand quality signal
-- Tray tooltip with session count — depends on tray event loop being stable
-- Tray menu lists active session names (capped at 5-10) — depends on dynamic menu update support
+**Must have (table stakes):**
+- GitHub Releases with multi-platform binary artifacts — users cannot download without this
+- Versioned SemVer release tags with CHANGELOG.md — release-please automates both
+- macOS codesigning and notarization on release builds — Gatekeeper blocks unsigned binaries on 10.15+
+- SHA256 checksums file attached to each release — required by Homebrew and security-conscious users
+- Consistent artifact naming convention — package managers and automation depend on predictable names
+
+**Should have (differentiators):**
+- Homebrew cask tap (`brew install --cask agenthub`) — macOS power users expect this; eliminates download friction and enables `brew upgrade`
+- WinGet submission (`winget install AgentHub.AgentHub`) — Windows legitimacy signal and zero-friction install for CLI-first users
+- Automated SHA256 injection in `distribute.yml` — eliminates the most error-prone manual step in every release
+- `packaging/homebrew/` and `packaging/winget/` templates in repo — makes distribution logic inspectable and testable locally
+- release-please Release PR workflow — provides changelog and version review gate before each release ships
 
 **Defer (v2+):**
-- Mini management window from tray — Wails v2 is single-window; a real second window requires Wails v3 (alpha) or native Cocoa cgo; complexity far outweighs the value at this stage
-- Session count badge overlay on tray icon — platform support inconsistent; low priority
-- Full-color dark/light adaptive tray icon template — polish detail; ship monochrome first
-- Linux/Windows real tray implementation — Linux GNOME tray is best-effort regardless of library; stubs acceptable for v1.7
+- Linux `.deb` / AppImage packaging — only if user demand emerges
+- Scoop manifest — low ROI vs WinGet for Windows users
+- Submission to `homebrew/homebrew-cask` core — requires established user base; personal tap has identical install UX
+- Windows EV code signing — $300-500+/year with hardware token; SmartScreen does not block execution like Gatekeeper
+- VERSION injection into WelcomeTab.tsx — existing tech debt; separate concern from release automation
 
 ### Architecture Approach
 
-v1.7 modifies 8 existing files and adds 6 new files. No new daemon IPC routes are needed — the daemon API already exposes all required operations. The web terminal status bar uses a polling REST endpoint (`GET /api/sessions/{id}/status`, 3-second interval) rather than a new relay frame type; this avoids touching the hot binary I/O path across 5 files/packages. The DaemonPanel is a React modal inside the existing Wails single window, not a second OS window; tray-to-panel wiring uses the established `runtime.EventsEmit` → `EventsOn` pattern already used for `session:status`, `tailscale:health`, and `daemon:error`. The splash screen is a React state gate on `initComplete` in `App.tsx`, with `defer setInitComplete(true)` required on all code paths including error branches.
+The pipeline follows a strict sequential trigger chain: `push to main` fires `release-please.yml` which maintains a Release PR; merging that PR creates a git tag which fires `release.yml` for multi-platform builds; completing the builds populates the GitHub Release which fires `distribute.yml` for Homebrew and WinGet. The single most important structural change is removing macOS signing from `build.yml` — keeping it there burns Apple notarization quota and 20+ GitHub Actions minutes on every PR build. See `ARCHITECTURE.md` for the complete data flow diagram and explicit file modification/creation inventory.
 
 **Major components:**
-1. `tray.go` (darwin cgo, MODIFIED) — add "Daemon Manager" NSMenuItem; emit `daemon:show-manager` Wails event via `onTrayDaemonMgr()` cgo callback
-2. `tray_linux.go` / `tray_windows.go` (MODIFIED or keep stubs) — optionally implement `systray-on-wails`; no-op stubs are acceptable for v1.7
-3. `SplashScreen.tsx` (NEW) — full-screen branding overlay; dismisses when `initComplete = true` in App.tsx
-4. `DaemonPanel.tsx` (NEW) — session list with status/kill/rename using only existing Wails bindings (no new bindings needed)
-5. `web/terminal.html` (MODIFIED) — status bar div + 3-second polling fetch + flex CSS layout fix
-6. `cmd_attach.go` (MODIFIED) — ANSI banner to stderr before `term.MakeRaw` entry
-7. `internal/webserver/server.go` (MODIFIED) — add `/api/sessions/{id}/status` route (3 lines of Go)
-8. `build.sh` + `assets/appicon.png` + `build/darwin/AppIcon.icns` + `build/darwin/Info.plist` — icon generation pipeline and LSUIElement
+1. `release-please.yml` — reads conventional commits on `main`, maintains Release PR, creates git tag and empty GitHub Release on merge; uses `release-type: go` with `extra-files` annotations for version file updates
+2. `release.yml` — tag-triggered multi-platform builds (macOS universal, Linux amd64 x2, Windows amd64); signs/notarizes macOS using existing 7-secret pipeline; uploads artifacts with consistent naming to GitHub Release
+3. `distribute.yml` — post-release event handler: downloads macOS ZIP, computes SHA256, triggers tap repo update via PAT; runs `winget-releaser` to submit WinGet manifest PR; includes retry logic for asset availability race condition
+4. `scottkw/homebrew-agenthub` (separate repo) — tap repo with `Casks/agenthub.rb`; updated via cross-repo `workflow_dispatch` with `version` and `sha256` inputs; must be named `homebrew-agenthub` to enable `brew tap scottkw/agenthub` shorthand
+5. `packaging/` templates — `homebrew/agenthub.rb.tmpl` and `winget/manifests/*.yaml` for reference and bootstrapping
+
+**Files to modify in existing repo:**
+- `.github/workflows/build.yml` — remove signing steps (lines 75-108); leave build matrix intact
+- `wails.json` — add `// x-release-please-version` annotation on `productVersion` line
+- `frontend/src/components/WelcomeTab.tsx` — add annotation; fix hardcoded `'1.0.0'` to `'1.7.0'`
+- `main.go` — add `var Version string`; wire to `--version` flag
 
 ### Critical Pitfalls
 
-1. **fyne.io/systray and all mainstream systray libraries produce duplicate AppDelegate symbol on macOS** — Never add any of these as a Go dependency. The project already hit this exact failure. Keep the custom cgo NSStatusItem wrapper for macOS exclusively; never call `systray.Run()` from the Wails process on macOS.
+1. **Git history lost during Gitea migration** — Use `git clone --bare` + `git push --mirror` for the initial push; verify all v1.0-v1.7 tags are present on GitHub before enabling any workflows; a missing tag baseline causes release-please to create a v0.0.0 release PR
 
-2. **LSUIElement must be in Info.plist before app launch, not set at runtime** — Setting `NSApplicationActivationPolicyAccessory` at runtime causes a dock icon flash (~10ms) on every startup. Add `<key>LSUIElement</key><true/>` to `build/darwin/Info.plist` ONLY (not `Info.dev.plist` — this would make the app invisible during debugging). Validate by inspecting the built `.app/Contents/Info.plist` after `wails build`.
+2. **Signing left in `build.yml` (current state)** — Every PR merge currently triggers Apple notarization API (10-15 min, burns quota); remove the 4 signing steps from `build.yml` immediately; move them to `release.yml` only
 
-3. **Wails v2 is single-window only — no second OS window for Daemon Manager** — Any attempt to open a second OS window (second `wails.Run()`, second webview, native NSWindow) will either crash, produce a blank non-functional window, or require a full Cocoa UI in cgo. The "daemon mini management window" is a React panel inside the existing window shown via `runtime.WindowShow()` + Wails events.
+3. **`distribute.yml` asset availability race condition** — `release: types: [published]` fires when the release is published, but macOS notarization in `release.yml` takes 15-25 more minutes; Homebrew SHA256 download will fail if it runs before the asset is uploaded; implement retry with exponential backoff in the Homebrew job
 
-4. **Splash screen white flash before React renders** — A React-rendered splash shows the OS white WebView background for ~100-300ms before React paints. Use `StartHidden: true` in Wails options + static HTML splash in `index.html` (no JS required) + `runtime.WindowShow()` from `OnDomReady`. The static HTML splash renders before React hydration.
+4. **WinGet first submission must be manual** — `winget-releaser` only works after the package identity exists in `microsoft/winget-pkgs`; manually submit the v1.8.0 manifests first; only enable the automated job after the first PR is merged
 
-5. **Terminal CSS height breaks when status bar is injected above xterm.js** — FitAddon `proposeDimensions()` measures container `clientHeight`. Status bar must be a flex sibling with fixed pixel height; terminal container must use `flex: 1 1 0; min-height: 0; overflow: hidden`. Verify `proposeDimensions()` row count is unchanged after adding the bar — this is the v1.6 layout regression in a new form.
+5. **`GITHUB_TOKEN` cannot push to other repos** — Both the Homebrew tap update and winget-releaser require classic PATs (not fine-grained, not `GITHUB_TOKEN`); store `TAP_DEPLOY_TOKEN` and `WINGET_TOKEN` before writing the distribute workflow
 
-6. **macOS ICNS missing @2x layers** — `iconutil` requires all 10 named files (5 sizes × 2 densities). Missing `@2x` variants look correct on non-Retina displays but blurry on Retina. Verify with `sips -g all AppIcon.icns` — must show 10 entries including 1024x1024.
+6. **release-please `version-file` is ignored for Go release-type (issue #2541)** — Use `extra-files` with `"type": "generic"` and `// x-release-please-version` annotation comments; do not rely on `version-file` config
 
-7. **initComplete not set on daemon error path** — If the daemon fails during `init()`, the splash must still dismiss so the error banner can render. Use `defer setInitComplete(true)` at the top of the `init()` function; never guard it behind only the happy path.
+7. **`notarytool submit` without `--wait` silently fails** — Without `--wait`, the command exits 0 immediately but notarization never completes; `xcrun stapler staple` then silently fails; users get Gatekeeper warnings; always use `--wait` (already correct in `build.sh`)
 
 ## Implications for Roadmap
 
-Based on the dependency graph and risk profile from combined research, 6 phases are suggested. Phases 1-4 are independent and can proceed in parallel. Phases 5-6 are sequentially coupled.
+Based on the dependency graph in `ARCHITECTURE.md`, the phase structure is clear and ordered by hard dependencies.
 
-### Phase 1: App Icons & Branding Assets
-**Rationale:** Zero code dependencies; unblocks every other visual feature. The existing `appicon.png` is a programmatic placeholder — all icon-dependent work validated against a placeholder is misleading. Complete this before any tray or splash work.
-**Delivers:** Branded 1024x1024 `appicon.png`, `AppIcon.icns` (all 10 sizes for macOS Retina), `icon.ico` (4+ sizes for Windows), `tray_icon.png` (18x18 monochrome template), updated `build.sh` icon generation steps, title logo copied into `frontend/src/assets/`.
-**Addresses:** FEATURES table-stakes "App has proper platform icons"
-**Avoids:** Pitfall 6 (missing @2x ICNS layers), Pitfall 8 (single-size ICO produces blurry taskbar icon on Windows)
+### Phase 1: Git Migration to GitHub
+**Rationale:** All subsequent phases depend on the GitHub repository existing with complete history. This is the true Day 0 blocker.
+**Delivers:** GitHub repo with full Gitea history, all v1.0-v1.7 tags, and confirmed CI secrets migrated from Gitea
+**Addresses:** Table stakes — users cannot access releases without GitHub hosting
+**Avoids:** Pitfall 1 (history loss) — requires mirror push, not default push
 
-### Phase 2: Splash Screen
-**Rationale:** Depends only on the title logo being in `frontend/src/assets/` (Phase 1 output). Pure frontend work; no Go changes. Closes the first-impression UX gap visible on every app launch.
-**Delivers:** `SplashScreen.tsx`, `initComplete` state in `App.tsx` with `defer setInitComplete(true)`, `StartHidden: true` in Wails options, static HTML splash fallback in `index.html`, `OnDomReady` → `runtime.WindowShow()` wiring.
-**Addresses:** FEATURES "Splash screen using title logo"
-**Avoids:** Pitfall 4 (white flash before splash), Pitfall 7 (initComplete not set on error path)
+### Phase 2: release-please Versioning Setup
+**Rationale:** release-please creates the git tags that trigger all downstream workflows; nothing else can ship without it. Low complexity, no external deps.
+**Delivers:** Automated Release PR workflow, CHANGELOG.md generation, version bump in `wails.json` and `WelcomeTab.tsx`, baseline tag set to `1.7.0`
+**Uses:** `googleapis/release-please-action@v4`, `release-please-config.json`, `.release-please-manifest.json`
+**Avoids:** Pitfall 9 (version-file bug) — use `extra-files` with annotation markers; Pitfall 10 (non-conventional commits) — audit history and create baseline tag before enabling
 
-### Phase 3: Remote Status Bar — Web Terminal
-**Rationale:** Fully self-contained; touches only `internal/webserver/server.go` and `web/terminal.html`. No dependency on tray or splash work. Immediately improves UX for all remote web session users.
-**Delivers:** `GET /api/sessions/{id}/status` JSON endpoint, flex CSS layout in `terminal.html`, 3-second `setInterval` polling, status bar showing session name/agent/connection state/host machine name.
-**Addresses:** FEATURES "Remote session status bar in web terminal", "Web session status bar shows machine/host name"
-**Avoids:** Pitfall 3 (adding new relay frame type to hot I/O path — use REST polling instead), Pitfall 5 (terminal CSS height break from status bar injection)
+### Phase 3: Release Build Pipeline
+**Rationale:** Depends on Phase 2 for tag creation. Establishes the artifact naming convention that Homebrew and WinGet depend on — naming must be locked before building distribution automation.
+**Delivers:** `release.yml` with multi-platform matrix, macOS signing/notarization, SHA256 checksums, artifacts uploaded to GitHub Release; `build.yml` modified to remove signing
+**Uses:** `dAppServer/wails-build-action@main`, `softprops/action-gh-release@v2`, existing 7 macOS secrets, `create-dmg` v1.2.3
+**Avoids:** Pitfall 2 (macOS cross-compile) — pin `macos-14`, not `macos-latest`; Pitfall 3 (signing resources error) — verify plist consistency before signing; Pitfall 4 (altool decommissioned) — use `notarytool` exclusively; Pitfall 13 (artifact naming collisions) — platform-specific names in matrix
 
-### Phase 4: Remote Status Banner — CLI Attach
-**Rationale:** Standalone; modifies only `cmd_attach.go`. Lowest-complexity item in the milestone. Print one ANSI `fmt.Fprintf` to stderr before `term.MakeRaw` entry. No protocol changes, no new bindings.
-**Delivers:** ANSI status banner: `[AgentHub] Connected to "<name>" (<agent>) on <hostname>` + Ctrl-\ detach hint; `[AgentHub] Detached.` message on exit.
-**Addresses:** FEATURES "Remote session indicator in CLI attach"
-**Avoids:** No specific pitfall; confirmed clean pattern from Architecture research
+### Phase 4: Packaging Templates
+**Rationale:** Can run parallel to Phase 3 once artifact names are confirmed. Templates must exist before distribute.yml can render them.
+**Delivers:** `packaging/homebrew/agenthub.rb.tmpl` and `packaging/winget/manifests/*.yaml` reference templates in the main repo
+**Uses:** Homebrew Cask Cookbook stanzas, WinGet schema 1.12.0 three-file format
+**Avoids:** Pitfall 11 (Homebrew requires .app in ZIP/DMG, not bare directory) — use `ditto` or `create-dmg` packaging in release.yml
 
-### Phase 5: DaemonPanel React Component
-**Rationale:** Must precede tray wiring (Phase 6). All four required Wails bindings already exist at known locations in `app.go`. Can be validated independently by temporarily setting `showDaemonPanel = true` in `App.tsx` without any tray work.
-**Delivers:** `DaemonPanel.tsx` (session list, per-session status, kill and rename controls), `App.tsx` `EventsOn("daemon:show-manager")` listener, `showDaemonPanel` state toggle.
-**Addresses:** FEATURES "Daemon mini management window from tray" (scoped as an in-window React panel, not a second OS window)
-**Avoids:** Pitfall 3/Architecture Anti-Pattern 1 (second OS window attempt in Wails v2)
+### Phase 5: Homebrew Tap Distribution
+**Rationale:** Depends on Phase 3 (confirmed artifact names, macOS asset available) and Phase 4 (cask template). Requires `scottkw/homebrew-agenthub` repo to be created first.
+**Delivers:** `scottkw/homebrew-agenthub` tap repo with `Casks/agenthub.rb` and `update-cask.yml`; `distribute.yml` Homebrew job with retry logic; users can `brew install --cask agenthub`
+**Uses:** `TAP_DEPLOY_TOKEN` classic PAT, `gh workflow run` cross-repo dispatch, `sha256sum`
+**Avoids:** Pitfall 6 (GITHUB_TOKEN cross-repo failure) — classic PAT required; Pitfall 12 (binary stanza crash) — test CLI invocation outside bundle before adding `binary` stanza
 
-### Phase 6: System Tray — macOS + LSUIElement
-**Rationale:** Depends on DaemonPanel (Phase 5). Most platform-constrained phase; placed last after all other features are validated in isolation. Requires `wails build` production testing — cannot be fully validated in `wails dev` due to Info.plist and template image behavior differences.
-**Delivers:** "Daemon Manager" NSMenuItem added to `tray.go`, `onTrayDaemonMgr()` cgo callback emitting `daemon:show-manager` event, `LSUIElement` in `build/darwin/Info.plist`, window hide-on-close behavior (override default Wails quit), daemon state icon switching (running/error), tray tooltip with session count.
-**Addresses:** FEATURES "Tray icon", "Right-click tray menu", "GUI hides on window close", "macOS dock icon hidden", "Tray icon reflects daemon state"
-**Avoids:** Pitfall 1 (systray library AppDelegate conflict), Pitfall 2 (LSUIElement at runtime = dock flash), Pitfall 6 (daemon process owns tray icon), Pitfall 10 (Linux tray silent failure — keep stubs for v1.7)
+### Phase 6: WinGet Distribution
+**Rationale:** Independent from Homebrew (Phase 5) but requires Phase 3 for the Windows installer artifact. Two-phase process: manual first submission, then automated subsequent releases.
+**Delivers:** Initial `packaging/winget/` manifests manually submitted to `microsoft/winget-pkgs`; `distribute.yml` WinGet job via `winget-releaser` for subsequent versions; `winget install AgentHub.AgentHub` works
+**Uses:** `vedantmgoyal9/winget-releaser@main`, `WINGET_TOKEN` classic PAT, fork of `microsoft/winget-pkgs` under `scottkw`
+**Avoids:** Pitfall 7 (manual first submission required) — bootstrap manually before enabling automation; Pitfall 8 (fine-grained PAT rejected) — classic PAT with `public_repo` only; Pitfall 14 (raw binary rejected) — NSIS installer from existing `nsis: true` satisfies `InstallerType: nullsoft`
 
 ### Phase Ordering Rationale
 
-- Phases 1-4 have no mutual dependencies and can proceed in parallel with multiple workstreams, or sequentially in the order listed.
-- Phase 5 (DaemonPanel) must precede Phase 6 (tray "Daemon Manager" item) because the tray callback emits `daemon:show-manager` and the React handler must exist to be testable.
-- Phase 6 (tray) is last because it is the most constrained by platform behavior, requires production build testing (not dev mode), and depends on the panel it opens (Phase 5) being complete.
-- Phase 1 (icons) is first because validating visual quality against a placeholder icon is misleading and creates rework.
+- Phase 1 before everything: GitHub repo must exist with all tags for release-please baseline
+- Phase 2 before Phase 3: Tags cannot be created until release-please is configured; without tags, release.yml never fires
+- Phase 3 before Phases 5-6: Artifact names and format must be finalized before Homebrew cask URL and WinGet installer URL can be written
+- Phases 4-5-6 can be developed in parallel after Phase 3 artifact naming is confirmed
+- Phase 6 WinGet has a multi-day external dependency (Microsoft PR review) — start early; submission is async and does not block milestone completion
 
 ### Research Flags
 
-Phases needing targeted review before or during planning:
+Phases with standard patterns (skip research-phase):
+- **Phase 2 (release-please):** Official docs are complete; existing storcat reference implementation available; no additional research needed
+- **Phase 3 (release builds):** Existing `build.yml` is the source of truth; steps are copy-edit, not net-new; no additional research needed
+- **Phase 4 (packaging templates):** Template content fully specified in STACK.md and FEATURES.md; straightforward file authoring
 
-- **Phase 6 (System Tray):** Review the existing `tray.go` cgo implementation before writing new code — the KEY DECISION in PROJECT.md documents which approaches failed. Determine at planning time whether Linux/Windows tray gets real `systray-on-wails` implementation or remains as stubs; this scope decision directly affects the Phase 6 work estimate and should be resolved before sprint planning.
-- **Phase 1 (Icons):** Requires a design decision before coding can start. The existing `docs/agenthub-title-logo.png` is a horizontal wordmark (805x208px); icon sizes below 64px require a standalone square logomark, not a wordmark. Determine whether to extract the mark from the existing logo (image editing) or commission new artwork. This is a blocker for Phase 1.
-
-Phases with standard patterns (no additional research needed):
-
-- **Phase 2 (Splash):** Architecture research provides the exact implementation pattern including the `defer setInitComplete(true)` requirement and `StartHidden: true` + `OnDomReady` wiring.
-- **Phase 3 (Web Status Bar):** Architecture research specifies the exact route signature, CSS structure, and `setInterval` polling pattern. This is a solved problem.
-- **Phase 4 (CLI Banner):** One `fmt.Fprintf` before `term.MakeRaw`. Fully specified.
-- **Phase 5 (DaemonPanel):** Architecture research lists the exact Wails binding names and their line numbers in `app.go`. No new research needed.
+Phases that may need validation during execution:
+- **Phase 1 (Git migration):** Verify mirror push preserves all tags before proceeding; one-way step if done wrong
+- **Phase 5 (Homebrew tap):** Test `brew install --cask` end-to-end after initial cask commit; cask formula edge cases (binary stanza, livecheck) may need iteration
+- **Phase 6 (WinGet):** First manual submission has an external timeline dependency on Microsoft review; test `winget validate` locally before submitting
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Critical tray constraint confirmed from project KEY DECISION (direct project failure, not inference) + Wails GitHub issues. Icon tools are pure Go or macOS-native and well-documented. |
-| Features | MEDIUM-HIGH | Feature set derived from clear product context. Platform-specific behavior (Linux GNOME tray) has known limitations documented by the GNOME project itself. |
-| Architecture | HIGH | Based on direct codebase inspection of 15+ files. Wails single-window constraint confirmed from GitHub issue #1480. All data flows drawn from actual source code, not docs. |
-| Pitfalls | HIGH | Most critical pitfalls derive from failures already experienced in this project (systray linker error documented in KEY DECISION; Wails single-window constraint; terminal layout break from v1.6). Not theoretical. |
+| Stack | HIGH | Versions verified against official releases as of 2026-04-03; action names and PAT scopes confirmed from source repos |
+| Features | HIGH | Scoped tightly to distribution infrastructure; well-established patterns with multiple reference implementations |
+| Architecture | HIGH | Existing `build.yml` and `build.sh` inspected directly; CI/CD patterns verified from official docs and working cross-repo examples |
+| Pitfalls | HIGH | 14 pitfalls documented from official GitHub Issues, Apple deprecation notices, and direct code inspection of existing files |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Square logomark asset:** The project has a horizontal wordmark (`docs/agenthub-title-logo.png`, 805x208) but no standalone square icon at 1024x1024 for ICNS/ICO generation. Phase 1 cannot complete until a square logomark exists. Resolve before Phase 1 sprint: extract the mark from the existing logo, redraw it, or letterbox with padding.
-- **Linux/Windows tray scope decision:** Architecture recommends `systray-on-wails` for Linux/Windows but flags it as optional. Whether Phase 6 includes real Linux/Windows tray or keeps stubs is a scope call that affects the work estimate by roughly 1-2 days. Decide before Phase 6 planning.
-- **LSUIElement UX tradeoff:** `LSUIElement = YES` removes the app from Cmd+Tab (app switcher) entirely — not just from the Dock. This is the correct behavior for a pure background daemon tray app but is a significant behavioral change from current behavior. Confirm this is acceptable product behavior before Phase 6 implementation.
-- **Production build test cycle:** Phase 6 (tray) and Phase 1 (ICNS) cannot be fully validated in `wails dev` — they require `wails build` + running the `.app` bundle. Plan for this slower test cycle in the sprint estimate for those phases.
+- **Asset availability race condition in distribute.yml:** The retry-with-backoff approach for Homebrew SHA256 download is recommended but the exact polling implementation (interval, max attempts) needs to be written against observed release.yml run times (typically 20-25 min for macOS notarization). Use `gh release view --json assets` polling.
+
+- **`wails.json` annotation syntax:** JSON does not natively support comments. The `// x-release-please-version` annotation works with release-please's regex-based `generic` type, but this should be verified on the first Release PR. A standalone `VERSION` file is the fallback if the annotation approach fails.
+
+- **Homebrew binary stanza:** Whether `agenthub` CLI mode works when invoked directly outside the `.app` bundle context (via a Homebrew `binary` stanza symlink) is untested. Requires a quick local test post-signing before the cask is published.
+
+- **WinGet NSIS vs portable:** STACK.md specifies `InstallerType: nullsoft` (NSIS) for the NSIS installer produced by `wails-build-action` with `nsis: true`. Verify the NSIS installer (not the bare `.exe`) is the artifact being uploaded to the release — `winget-releaser` auto-detects from `installers-regex`.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- AgentHub codebase (direct inspection): `tray.go`, `tray_linux.go`, `tray_windows.go`, `app.go`, `main.go`, `cmd_attach.go`, `internal/daemon/api.go`, `internal/relay/protocol.go`, `internal/webserver/server.go`, `web/terminal.html`, `frontend/src/App.tsx`, `build/darwin/Info.plist`, `build/gen_icon.go`, `go.mod`, `wails.json`
-- `.planning/PROJECT.md` KEY DECISION — "fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol)" — confirms pitfall was already encountered in this project
-- [Wails issue #1480](https://github.com/wailsapp/wails/issues/1480) — single-window constraint confirmed (driver of v3 rewrite)
-- [Wails issue #3700](https://github.com/wailsapp/wails/issues/3700) — dock icon hiding; LSUIElement must be in Info.plist
-- [Wails discussion #4514](https://github.com/wailsapp/wails/discussions/4514) — systray subprocess/IPC pattern; NSStatusBar cgo as macOS-only alternative confirmed by maintainer
-- [Apple LSUIElement documentation](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement) — agent app behavior; dock and Cmd+Tab exclusion
+- `.github/workflows/build.yml` direct inspection — confirmed existing signing steps, matrix structure, 7 secret names
+- `build.sh` direct inspection — confirmed `sign_and_notarize` using `notarytool --wait` and `ditto`
+- `wails.json` direct inspection — confirmed `productVersion: "1.0.0"` and JSON structure
+- [googleapis/release-please-action releases](https://github.com/googleapis/release-please-action/releases) — v4.4.0 confirmed Oct 2025
+- [softprops/action-gh-release releases](https://github.com/softprops/action-gh-release/releases) — v2.6.1 confirmed Mar 2025
+- [Homebrew Cask Cookbook](https://docs.brew.sh/Cask-Cookbook) — cask stanza verification
+- [How to Create and Maintain a Tap](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap) — `homebrew-` naming, `Casks/` structure
+- [Microsoft WinGet manifest docs](https://learn.microsoft.com/en-us/windows/package-manager/package/manifest) — schema 1.12.0, updated 2026-03-24
+- [vedantmgoyal9/winget-releaser](https://github.com/vedantmgoyal9/winget-releaser) — v2 tag Jan 2026, classic PAT requirement confirmed
+- [create-dmg releases](https://github.com/create-dmg/create-dmg) — v1.2.3 Nov 2025
 
 ### Secondary (MEDIUM confidence)
-- [fyne.io/systray pkg.go.dev](https://pkg.go.dev/fyne.io/systray) v1.12.0 — Linux DBus requirement, CGO requirement, API
-- [systray-on-wails](https://pkg.go.dev/github.com/ra1phdd/systray-on-wails) — cross-platform tray for Wails v2, `Register()` API, published Nov 2024
-- [jackmordaunt/icns GitHub](https://github.com/JackMordaunt/icns) — pure Go, `icnsify` CLI, cross-platform, v2.2.7
-- [macOS ICNS required sizes and naming convention](https://gist.github.com/jamieweavis/b4c394607641e1280d447deed5fc85fc) — all 10 files required for full Retina support
-- [Windows .ico required sizes (Microsoft)](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction) — 16, 32, 48, 256 minimum
+- [release-please issue #2541](https://github.com/googleapis/release-please/issues/2541) — `version-file` ignored for Go type; `extra-files` workaround confirmed
+- [dAppServer/wails-build-action README](https://github.com/dAppServer/wails-build-action) — `@main` usage required; Wails v2.10.0 broken warning
+- [Automating Homebrew Tap Updates with GitHub Actions](https://builtfast.dev/blog/automating-homebrew-tap-updates-with-github-actions/) — cross-repo pattern and SHA256 computation
+- [Automatic Code-Signing and Notarization for macOS apps using GitHub Actions](https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/) — 7-secret pattern confirmed matches existing build.yml
+- [WinGet PR review timeline](https://github.com/microsoft/winget-pkgs/discussions/19502) — hours to ~1 day for new packages
 
-### Tertiary (LOW confidence, noted for context)
-- [GNOME AppIndicator GNOME 48 compatibility issue](https://bbs.archlinux.org/viewtopic.php?id=304357) — Linux tray support degrading further on modern GNOME; reinforces best-effort position
-- [systray-on-wails adoption](https://pkg.go.dev/github.com/ra1phdd/systray-on-wails) — pre-release v0.0.0 with limited production evidence; acceptable risk for Linux/Windows stub replacement, not for macOS
+### Tertiary (LOW confidence)
+- [Naming Your Binary Executable Releases](https://blog.urth.org/2023/04/16/naming-your-binary-executable-releases/) — artifact naming convention informed by community practice; no authoritative standard exists
 
 ---
-*Research completed: 2026-03-31*
+*Research completed: 2026-04-03*
 *Ready for roadmap: yes*

@@ -1,56 +1,59 @@
 # Feature Research
 
-**Domain:** Desktop daemon manager with system tray, remote session indicators, and app branding
-**Researched:** 2026-03-31 (v1.7 Daemon UX & Branding)
-**Confidence:** MEDIUM-HIGH (platform behavior verified via official docs/GitHub issues; Wails v2 tray limitations from open issues)
+**Domain:** GitHub-based release automation, package manager distribution, and CI/CD for a Wails/Go cross-platform desktop app
+**Researched:** 2026-04-03 (v1.8 GitHub Distribution & CI/CD)
+**Confidence:** MEDIUM-HIGH (GitHub Actions patterns verified via official docs and community examples; WinGet review timeline from community discussions; Homebrew tap structure from official docs)
 
 ---
 
-## v1.7 Milestone: Daemon UX & Branding
+## v1.8 Milestone: GitHub Distribution & CI/CD
 
 ### Scope
 
-This section covers only what is NEW in v1.7. The existing app ships: tabbed terminal sessions,
-background daemon with Unix socket IPC, 13 CLI commands, web serving via Tailscale TLS, per-tab
-status bar, settings modal, session naming, and cross-platform builds. Research focus: system
-tray icon behavior, daemon mini management window, remote session status bars, app icons, and
-splash screen.
+This section covers only what is NEW in v1.8. The existing app ships: multi-platform Wails builds
+(macOS/Linux/Windows), build.yml CI with race detection and macOS signing/notarization, build.sh for
+local cross-compilation. Research focus: GitHub release automation (release-please, release.yml,
+distribute.yml), Homebrew cask tap, WinGet submission, artifact naming conventions, changelog
+generation, and packaging templates.
 
-Prior milestone research (v1.2 through v1.6) preserved below.
+Existing signing infrastructure in build.yml (7 secrets: MACOS_CERTIFICATE, MACOS_CERTIFICATE_NAME,
+MACOS_CERTIFICATE_PWD, MACOS_CI_KEYCHAIN_PWD, MACOS_NOTARIZATION_APPLE_ID, MACOS_NOTARIZATION_PWD,
+MACOS_NOTARIZATION_TEAM_ID) is already implemented and does not need to be researched. The
+reference implementation is scottkw/storcat with 4 workflows: build.yml, release-please.yml,
+release.yml, distribute.yml.
+
+Prior milestone research (v1.7) preserved below.
 
 ---
 
 ## Table Stakes (Users Expect These)
 
-Features users assume exist in a tray-resident background daemon app. Missing these = product
-feels broken or unprofessional.
+Features users assume exist in a professionally distributed cross-platform desktop app. Missing
+these = product feels like an alpha or developer-only tool.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Tray icon appears in system tray (not dock/taskbar) | Daemon apps live in the tray, not in the taskbar/dock — Docker Desktop, 1Password, Tailscale all do this; presence in dock signals "foreground app" not "background service" | MEDIUM | Wails v2 lacks native tray support; kardianos/service already manages daemon lifecycle. Tray icon must run in a separate goroutine. fyne.io/systray conflicts with Wails AppDelegate (existing KEY DECISION). NSStatusBar CGO path is the current approach but needs Linux/Windows stubs. Consider `getlantern/systray` or `fyne.io/systray` with `RunWithExternalLoop` for non-Wails tray process. |
-| Right-click tray menu with Open / Quit | Every tray app has right-click for context menu; left-click convention varies by platform but right-click for menu is universal | LOW | Standard items: "Open AgentHub", "Sessions" submenu or count, "Quit". Tooltip on hover with session count is a bonus. macOS: right-click = show menu (left-click behavior is platform-defined). Windows/Linux: right-click always. |
-| Tray icon reflects daemon state | Static icon is acceptable minimum; animated or color-changed icon for "busy" or "error" state is common in daemon tools | MEDIUM | At minimum: one icon for running, one for error/disconnected. macOS tray icons should be template images (PDF or PNG with alpha only) so system applies correct tint for light/dark menubar. Windows/Linux can use color icons. |
-| "Open" tray action shows the GUI window | Users expect left-click or "Open" menu item to bring the main window to front; if window is closed it should open | LOW | Wails `runtime.WindowShow()` + `runtime.WindowFocus()`. If daemon is running as service (no GUI), this must launch the GUI binary. Two cases: (1) GUI is running but hidden — show it; (2) GUI is not running — spawn it. |
-| "Quit" stops the daemon cleanly | Users expect Quit in tray to fully exit — not just close the window | LOW | `os.Exit` or signal the daemon goroutine to shut down. Must call kardianos/service Stop path or send SIGTERM to daemon PID. GUI close button should NOT quit daemon — only tray Quit should. |
-| App has proper platform icons (icns/ico/png) | Wails splash and Dock/Taskbar icons must be set; missing icon = unprofessional | MEDIUM | macOS: `.icns` with sizes 16,32,64,128,256,512,1024 (and @2x variants). Windows: `.ico` with 16,32,48,64,128,256. Linux: multiple `.png` sizes (16,32,48,64,128,256,512). Source: single 1024x1024 PNG → generate all. The existing `docs/agenthub-title-logo.png` provides the wordmark — a standalone icon (logomark only) is needed for small sizes. |
-| Remote session status bar in web terminal | Web users have no tray or settings access — they need to see connection state, session name, and web-serving URL in the terminal view | MEDIUM | Existing per-tab status bar in the GUI provides the pattern. Web terminal view needs equivalent: session name, agent type, connection status (connected/disconnected/reconnecting), and optionally the host machine name. This is the xterm.js web view served via `web/`. |
-| Remote session indicator in CLI attach | `agenthub attach <id>` is a full PTY proxy; users need visual confirmation they are in a remote session (not a local one) and how to detach | LOW | A one-line banner printed before the PTY stream begins: "Connected to session <name> on <host> — press Ctrl-\\ to detach". Already partially implemented (detach key documented in PROJECT.md). Make banner consistent and clear. |
+| GitHub Releases with binary artifacts | Every open-source desktop tool publishes versioned binaries to GitHub Releases; users expect to download directly without building from source | MEDIUM | release.yml triggered on tag push. Multi-platform matrix (macos-latest, ubuntu-latest, ubuntu-22.04, windows-latest) mirrors existing build.yml. Each platform produces its own artifact. macOS: .app inside .zip (ditto-preserved) or .dmg. Linux: .tar.gz. Windows: .exe installer + bare .exe. |
+| Versioned release tags (SemVer) | Users expect v1.8.0, v1.8.1 etc. in GitHub Releases — random commit hashes are unusable for pinning | LOW | release-please automates this. Conventional commits (feat:, fix:, feat!:) drive SemVer bumps. Maintains CHANGELOG.md. Creates a release PR that must be merged to cut a release. |
+| CHANGELOG.md auto-generated | Users and contributors expect a changelog; manual CHANGELOG maintenance is error-prone and typically skipped | LOW | release-please generates CHANGELOG.md from conventional commit messages. Each entry categorized as Features, Bug Fixes, etc. No manual maintenance required after setup. |
+| macOS binary is codesigned and notarized | macOS 10.15+ Gatekeeper blocks unsigned .app from unverified developers; users see "can't be opened because Apple cannot check it for malicious software" | MEDIUM | Already implemented in build.yml. release.yml must replicate the same 7-secret signing+notarization pipeline. The existing pipeline uses xcrun notarytool with --wait for synchronous notarization. |
+| Artifact SHA256 checksums published | Security-conscious users and package managers (Homebrew) require checksums to verify downloads haven't been tampered with | LOW | GitHub Actions: `shasum -a 256` or `sha256sum` per artifact. Upload checksums file to GitHub Release alongside binaries. Homebrew cask formula requires exact sha256 per architecture. |
+| Consistent artifact naming | Package managers and automation scripts must parse artifact filenames; inconsistent naming breaks automation | LOW | Convention: `agenthub-{version}-{os}-{arch}.{ext}`. Examples: `agenthub-1.8.0-darwin-universal.zip`, `agenthub-1.8.0-linux-amd64.tar.gz`, `agenthub-1.8.0-windows-amd64-installer.exe`. Version without "v" prefix in filename is common (Homebrew uses bare version in URL). |
 
 ---
 
 ## Differentiators (Competitive Advantage)
 
-Features that set AgentHub apart from generic tray utilities. Should align with Core Value: "One
-app to launch, manage, and share AI coding terminal sessions."
+Features that make distribution significantly better than the minimum viable "upload binaries to
+GitHub Releases." Aligned with Core Value: reducing setup friction for users.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Daemon mini management window from tray | "Manage sessions" menu item opens a compact window showing session list with start/stop/kill and web-serve toggle — no need to open full GUI for basic ops | HIGH | This is a second Wails window or a separate lightweight webview. Session list already served via daemon HTTP API. Mini window needs its own React page or a simple HTML page hitting daemon API. Alternative: open the existing full GUI to the sessions tab (simpler, less novel). |
-| Session count badge on tray icon | Tray icon shows number of active sessions as a badge/overlay — common in chat apps (unread count) but novel for terminal managers | MEDIUM | Platform support varies. macOS: NSStatusItem can overlay text. Windows: overlay icon on taskbar icon (different from tray). Linux: not universally supported. Consider tooltip text as fallback: "AgentHub — 3 sessions active". |
-| Tray menu lists active sessions by name | Each running session appears as a named menu item — click to show/focus that session in the GUI | MEDIUM | Dynamic menu items require the tray library to support runtime menu updates. fyne.io/systray supports `AddMenuItem` / menu item visibility toggle. Session names come from daemon API. Limit to 5-10 items to avoid menu overflow. |
-| Splash screen using title logo on first load | Masks WebView2/WebKit initialization latency with branded experience; sets tone for app quality | MEDIUM | Wails v2 does not have a built-in splash screen API. Common pattern: render splash as React route shown during `loading` state before `domReady` Wails event fires. Can use `wails:ready` event or `useEffect` on mount to transition out. Duration: show during Go initialization (~0.5-1s) then fade out. Do NOT use a native pre-webview splash (complex, platform-specific). |
-| Web session status bar shows machine/host name | Remote users know WHICH machine they are accessing — important when user has multiple tailnet nodes running AgentHub | LOW | Daemon already knows machine hostname (`os.Hostname()`). Include in session metadata served via HTTP API. Web terminal view reads this and displays "AgentHub on <hostname>" or similar. |
-| Dark/light adaptive tray icon | macOS menu bar uses template icons (monochrome with alpha) that auto-adapt to light/dark mode; Windows 11 also supports this | LOW | macOS: provide two PNG variants named `tray_icon_template.png` (or use PDF); mark as template image via NSImage. Windows: provide color icon (system doesn't auto-adapt). Linux: provide standard color icon. This is a polish detail but visually noticeable. |
+| Homebrew cask tap (brew install --cask) | macOS power users expect `brew install --cask agenthub` — no download page, no drag-to-Applications; auto-update via `brew upgrade` | MEDIUM | Separate repo: scottkw/homebrew-agenthub. Cask file at Casks/scottkw-agenthub.rb (username prefix for uniqueness). distribute.yml in main repo triggers after release: fetches new SHA256, updates version + url in cask file, commits + pushes to tap repo. Requires PAT with repo scope for cross-repo write. brew tap scottkw/agenthub then brew install --cask scottkw/agenthub/scottkw-agenthub. |
+| WinGet submission (winget install) | Windows power users use winget for CLI-first app management; presence in WinGet signals legitimacy | HIGH | vedantmgoyal9/winget-releaser action automates manifest creation and PR submission to microsoft/winget-pkgs. Requires forking microsoft/winget-pkgs under scottkw org (one-time setup) and classic PAT (fine-grained PATs not yet supported by the action). PR goes through automated validation (30-40min) + manual moderator review (hours to ~1 day). This is an async process — distribute.yml submits the PR; merge timing is Microsoft's. |
+| Automated SHA256 computation in distribute.yml | Homebrew casks require exact sha256 per download URL; computing and committing this automatically eliminates the most error-prone step | MEDIUM | After release artifacts are uploaded, distribute.yml downloads each artifact and runs sha256sum/shasum. Injects computed hashes into cask template via sed or a Go/Python script. Commits updated cask to tap repo. This is the core value of distribute.yml. |
+| Packaging templates in repo (packaging/) | packaging/homebrew/ and packaging/winget/ directories contain the templates used by distribute.yml — developers can inspect and modify distribution logic locally | LOW | packaging/homebrew/agenthub.rb.tmpl: cask template with VERSION and SHA256_DARWIN_UNIVERSAL placeholders. packaging/winget/: YAML manifest templates for version, installer, locale files. Templates live in source repo; distribute.yml renders them at release time. |
+| Release PR workflow (release-please) | release-please creates a "Release PR" that shows exactly what will be in the next release before it ships; team can review changelog and version bump before cutting the release | LOW | googleapis/release-please-action@v4. Maintains a pending "Release: v1.8.0" PR. Each new conventional commit on main updates the PR. Merging the PR: updates CHANGELOG.md, bumps version, creates git tag, creates GitHub Release. No manual tagging required. |
 
 ---
 
@@ -58,79 +61,78 @@ app to launch, manage, and share AI coding terminal sessions."
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Tray icon on daemon binary (separate process) | "Tray should be the daemon, not the GUI" | kardianos/service-managed daemons run as background services with no UI access; service process cannot create GUI elements (macOS launchd daemons are not allowed NSStatusItem). Additionally, tray library + kardianos/service + Wails all fight over the main thread on macOS. | Tray icon runs in the GUI binary (Wails app). GUI binary handles tray; daemon binary handles sessions. This is how Docker Desktop works (separate Engine daemon, Desktop GUI owns the tray). |
-| Animated/spinning tray icon while sessions are active | "Shows the app is doing something" | Animation via tray icon on macOS requires updating the icon at 10-30fps via NSStatusItem, burning CPU for a cosmetic effect; on Windows, animated tray icons are deprecated in Win10+. | Use static state icons (running = solid, error = X overlay). Tooltip text can say "3 sessions active". |
-| Full session terminal in mini management window | "Manage and view sessions from tray popup" | Embedding xterm.js in a popup window is a full re-implementation of the main GUI in a small panel; double the maintenance surface. xterm.js requires canvas rendering which is heavyweight for a "quick glance" popup. | Mini window shows session list with metadata (name, status, URL, agent). Double-click to open that session in the full GUI. |
-| Splash screen with fixed minimum duration | "Brand exposure time" | Splash screens with artificial delays frustrate users; if the app loads fast, a forced 2-3s splash is friction. App startup is currently fast (~500ms). | Show splash only while actually loading (until Wails domReady + daemon connection confirmed). Immediately dismiss when ready. |
-| Tray icon replacement for full GUI | "Minimize to tray, live there forever" | Tray-only interaction limits discoverability; new users won't find features. | Tray provides quick ops (quit, show sessions count, open GUI). Full session management always in the main GUI window. |
-| Per-platform native tray icon implementations | "Best platform integration" | Three separate codebase paths (NSStatusBar CGO for macOS, Windows API for Win, AppIndicator for Linux) is significant ongoing maintenance. The existing NSStatusBar CGO approach already has this problem — KEY DECISION flags it as "Revisit". | Single Go tray library (fyne.io/systray or getlantern/systray) abstracts platform differences behind one API. Accept small UX compromises for single codebase. |
+| GoReleaser for Wails builds | GoReleaser is the standard Go release tool and handles multi-platform builds natively | Wails apps require the `wails build` command with specific flags (`-tags wailsassets`, platform matrix, WebKit dependencies on Linux) — GoReleaser's standard Go build pipeline does not support this. Using GoReleaser would mean duplicating the Wails build configuration that already works in CI. | Keep the existing wails-build-action matrix. Use release-please for versioning + changelog only. Attach artifacts to GitHub Release manually in release.yml via `gh release upload`. |
+| Homebrew core submission | Submit to homebrew/homebrew-cask for broader discoverability | Homebrew core requires apps to be "notable" with verifiable user base; new open-source apps are typically rejected during triage. The review process is slow and the bar is high. | Personal tap (scottkw/homebrew-agenthub) has no gatekeeping, deploys immediately, and provides identical install UX for users who know the tap name. Can submit to core after establishing user base. |
+| NSIS installer for Windows in Homebrew/Scoop | Windows users expect installers via winget, Scoop, or Chocolatey | Scoop and Chocolatey are separate ecosystems, each requiring their own manifest format, submission PRs, and ongoing maintenance. Splitting effort across 3 Windows package managers dilutes maintenance. | WinGet is the Microsoft-native package manager with Windows 11 built in; prioritize WinGet for v1.8. Scoop/Chocolatey are future if there's user demand. |
+| Automatic version injection into frontend | "Version number should appear in the app UI" | If version is injected at build time via ldflags, the WelcomeTab.tsx currently has a hardcoded version string (known tech debt in PROJECT.md). This is a separate concern from release automation. | Accept hardcoded version as existing tech debt. Address VERSION injection in a separate phase if prioritized. Release automation does not need to solve this. |
+| Signing Windows binaries in release.yml | Windows code signing removes SmartScreen warnings | Windows EV code signing certificates cost $300-500+/year, require physical hardware token (not compatible with CI without workarounds), and the process is significantly more complex than macOS notarization. SmartScreen warnings do not block execution the same way Gatekeeper does. | Ship unsigned Windows binaries for v1.8. Users can right-click > "Run Anyway". Address Windows signing as a future milestone if user complaints emerge. |
+| Automatic GitHub Pages changelog site | "Publish CHANGELOG.md as a website" | CHANGELOG.md generated by release-please is already readable on GitHub. A separate GitHub Pages site is additional infrastructure with minimal user value at this stage. | Link to GitHub Releases page in README. release-please GitHub Release notes are well-formatted and serve as the changelog display. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[App Icons (icns/ico/png)]
-    └──required by──> [Wails Build System] (wails.json appicon path)
-    └──required by──> [Tray Icon] (tray icon is a smaller crop of app icon)
-    └──required by──> [Splash Screen] (uses title logo, not app icon)
+[release-please.yml — version bump + tag + CHANGELOG]
+    └──triggers──> [release.yml on tag push (v*)]
+                       └──produces──> [GitHub Release with artifacts]
+                                          └──triggers──> [distribute.yml on release published]
+                                                             ├──updates──> [Homebrew tap repo]
+                                                             └──submits──> [WinGet PR]
 
-[Daemon HTTP API — session list endpoint]
-    └──required by──> [Tray Session List Menu items]
-    └──required by──> [Mini Management Window]
-    └──required by──> [Tray Session Count Badge]
+[Existing build.yml signing pipeline (7 secrets)]
+    └──replicated in──> [release.yml for production releases]
 
-[Existing CLI attach (agenthub attach)]
-    └──enhanced by──> [CLI Attach Session Banner]
+[packaging/homebrew/agenthub.rb.tmpl]
+    └──rendered by──> [distribute.yml to update tap repo]
 
-[Existing Web Terminal View (web/)]
-    └──enhanced by──> [Web Session Status Bar]
-    └──enhanced by──> [Machine/Host Name in Web Status]
+[packaging/winget/*.yaml templates]
+    └──rendered by──> [vedantmgoyal9/winget-releaser in distribute.yml]
 
-[Tray Icon (any library)]
-    └──requires──> [Dock/Taskbar Hide on macOS (LSUIElement or activation policy)]
-    └──requires──> [GUI binary stays running after window close (no window-all-closed quit)]
+[scottkw/homebrew-agenthub tap repo (separate GitHub repo)]
+    └──written to by──> [distribute.yml via PAT]
+    └──read from by──> [brew install --cask]
+
+[microsoft/winget-pkgs fork under scottkw]
+    └──required by──> [vedantmgoyal9/winget-releaser]
+    └──PR submitted to microsoft/winget-pkgs]
 ```
 
 ### Dependency Notes
 
-- **App icons required by tray icon:** The tray icon is derived from the app icon; generate both from the same 1024x1024 source PNG. Tray icons are typically 16x16 or 22x22 (macOS) — need a standalone logomark (not wordmark) that reads at small sizes.
-- **Daemon HTTP API required by tray session list:** The daemon already exposes a REST API over Unix socket for the GUI. A mini management window or tray menu listing sessions both poll this same API. No new protocol work needed — just HTTP calls.
-- **LSUIElement required by dock-free tray:** Setting LSUIElement=1 in macOS Info.plist hides both dock icon AND app menu bar. This is the correct behavior for a background service app. Wails v2 has a known issue (GitHub #3700) where `StartHidden: true` still shows dock icon — LSUIElement override in Info.plist is the correct fix.
-- **GUI binary must not quit on window close:** Standard Wails behavior quits the app when the last window closes. For tray apps this must be overridden — close hides the window, tray Quit actually exits. Wails `runtime.EventsOn("quit")` or `OnBeforeClose` callback handles this.
-- **Web status bar independent of GUI:** Web terminal runs in browser, not in Wails WebView. The status bar for web sessions is pure HTML/JS in the `web/` served static assets — no Wails runtime available. Must use WebSocket or polling for live status.
+- **release-please must fire before release.yml:** release-please creates the git tag; release.yml triggers `on: push: tags: ["v*"]`. The PAT GITHUB_TOKEN limitation applies: release-please-created tags do NOT trigger downstream workflows unless a PAT (not GITHUB_TOKEN) is used in the release-please step. Requires a separate PAT secret stored as `RELEASE_PLEASE_TOKEN` or equivalent. This is the most common gotcha with release-please pipelines.
+- **Signing secrets are already configured:** The 7 macOS signing secrets in build.yml already exist in the GitHub repo settings. release.yml can reference the same secrets with the same names.
+- **distribute.yml requires additional secrets:** Cross-repo write access to homebrew-agenthub tap requires `HOMEBREW_TAP_TOKEN` (classic PAT, repo scope). WinGet submission requires `WINGET_TOKEN` (classic PAT, public_repo scope, fork of microsoft/winget-pkgs required).
+- **WinGet submission is async:** distribute.yml submits a PR to microsoft/winget-pkgs. This PR undergoes automated validation (30-40min) and manual moderator review (hours to ~1 day). The workflow cannot wait for merge — it fires and forgets.
+- **Homebrew sha256 is architecture-specific:** The cask formula requires separate sha256 values for each download URL. For darwin/universal there is one sha256. If Linux and Windows are added to the cask in future, each needs its own. For v1.8, cask covers macOS only.
+- **NSIS installer already built by wails-build-action:** The Windows matrix in build.yml already produces `agenthub-amd64-installer.exe` via `nsis: true`. release.yml should upload both the installer and the bare `agenthub.exe` so users can choose.
 
 ---
 
-## MVP Definition for v1.7
+## MVP Definition for v1.8
 
-### Launch With (v1.7)
+### Launch With (v1.8 — what makes distribution real)
 
-Minimum viable to call the milestone complete.
+Minimum viable to consider GitHub distribution complete.
 
-- [ ] App icon set (icns, ico, png variants) — required for professional distribution, unblocks any icon-related work
-- [ ] Tray icon with right-click menu: "Open AgentHub", "Quit" — minimum tray presence
-- [ ] Tray icon reflects daemon running vs error state — two icons minimum
-- [ ] GUI window hides (not quits) on close — tray app lifecycle requirement
-- [ ] macOS dock icon hidden (LSUIElement or activation policy) — daemon should not live in dock
-- [ ] CLI attach session banner — low complexity, high clarity value for remote users
-- [ ] Web terminal session status bar — shows session name, agent, connection state, host
+- [ ] release-please.yml — automated versioning, CHANGELOG.md, and git tags from conventional commits
+- [ ] release.yml — multi-platform builds on tag push with macOS signing/notarization, artifacts uploaded to GitHub Release, SHA256 checksums
+- [ ] scottkw/homebrew-agenthub tap repo — with initial cask formula
+- [ ] distribute.yml — auto-updates Homebrew tap on release
+- [ ] packaging/homebrew/ and packaging/winget/ template directories in main repo
+- [ ] WinGet manifest generation and PR submission in distribute.yml
 
-### Add After Core Tray Works (v1.7.x)
+### Add After Core Works (v1.8.x)
 
-Features to add once the basic tray lifecycle is stable.
-
-- [ ] Splash screen — add after icon assets exist (depends on icon work)
-- [ ] Tray session count in tooltip — depends on tray library event loop working
-- [ ] Tray menu lists active session names — depends on stable tray menu dynamic updates
+- [ ] Linux .deb or AppImage packaging — if user demand emerges from Linux community
+- [ ] Scoop manifest — if Windows users request it
+- [ ] VERSION injection into WelcomeTab.tsx — address tech debt if annoying in practice
 
 ### Future Consideration (v2+)
 
-Defer until core is validated.
-
-- [ ] Mini management window from tray — high complexity, explore after tray basics ship
-- [ ] Session count badge overlay on tray icon — platform support inconsistent, low priority
-- [ ] Dark/light adaptive tray icon (template PNG) — polish, after basic tray works
+- [ ] Submission to homebrew/homebrew-cask (core) — after establishing user base
+- [ ] Windows code signing — if SmartScreen friction becomes a blocker for user adoption
+- [ ] Chocolatey package — niche Windows power user market, low ROI vs WinGet
 
 ---
 
@@ -138,193 +140,217 @@ Defer until core is validated.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| App icon set (all platforms) | HIGH | LOW | P1 |
-| Tray icon + right-click Open/Quit | HIGH | MEDIUM | P1 |
-| GUI hides on window close (not quits) | HIGH | LOW | P1 |
-| macOS dock icon hidden | HIGH | LOW | P1 |
-| Web terminal session status bar | HIGH | MEDIUM | P1 |
-| CLI attach session banner | MEDIUM | LOW | P1 |
-| Daemon state icon (running/error) | MEDIUM | LOW | P1 |
-| Splash screen (title logo) | MEDIUM | MEDIUM | P2 |
-| Tray tooltip with session count | MEDIUM | LOW | P2 |
-| Tray menu lists session names | MEDIUM | MEDIUM | P2 |
-| Session count badge on tray | LOW | HIGH | P3 |
-| Mini management window from tray | HIGH | HIGH | P3 |
-| Dark/light adaptive tray icon | LOW | LOW | P2 |
+| GitHub Releases with binaries | HIGH | MEDIUM | P1 |
+| release-please versioning + CHANGELOG | HIGH | LOW | P1 |
+| macOS signing/notarization in release.yml | HIGH | LOW (reuse existing) | P1 |
+| SHA256 checksums in release | MEDIUM | LOW | P1 |
+| Artifact naming convention | HIGH | LOW | P1 |
+| Homebrew cask tap + formula | HIGH | MEDIUM | P1 |
+| distribute.yml auto-update tap | HIGH | MEDIUM | P1 |
+| WinGet manifest + submission | MEDIUM | HIGH | P2 |
+| packaging/ template directory | MEDIUM | LOW | P1 |
+| PAT for release-please tag trigger | HIGH | LOW | P1 (blocker) |
+
+**Priority key:**
+- P1: Must have for launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
 ---
 
-## Platform-Specific Notes
+## Workflow Architecture
 
-### macOS
+Four workflows that chain together:
 
-- Tray icon lives in the menu bar (top-right area), not in a "system tray"
-- Template icons: PNG with transparency only, named with "Template" suffix or marked via NSImage API; system applies light/dark tint automatically
-- LSUIElement=1 in Info.plist: hides dock icon AND disables the default app menu bar (correct for daemon apps; Wails app menu still accessible via tray)
-- fyne.io/systray calls `NSStatusItem` via CGo; this conflicts with Wails's own NSApplicationDelegate if both run in the same process — known issue documented in existing KEY DECISION
-- Solution: run fyne.io/systray from a separate goroutine with `RunWithExternalLoop`; OR use `ra1phdd/systray-on-wails` which is explicitly designed for Wails coexistence
-- Wails v2 GitHub issue #3700: dock icon cannot be hidden via `wails.json` alone; must set `LSUIElement` in Info.plist
+### build.yml (existing — do not change)
+- Trigger: `push` and `pull_request` on any branch
+- Purpose: PR validation, race detection, smoke build
+- Does NOT create releases or upload artifacts
 
-### Windows
+### release-please.yml (new)
+- Trigger: `push` to `main`
+- Action: googleapis/release-please-action@v4
+- Outputs: maintains "Release: v{version}" PR on main
+- On PR merge: creates git tag `v{version}`, creates GitHub Release (empty), updates CHANGELOG.md
+- Requirement: must use PAT token (not GITHUB_TOKEN) so created tags trigger release.yml
 
-- System tray area is the notification area (bottom-right)
-- `.ico` format required; include 16, 32, 48, 64, 128, 256px sizes in single file
-- Left-click on tray icon: show/hide main window (conventional)
-- Right-click: context menu
-- Color icons (not monochrome templates)
-- Windows 11: tray icons can be hidden in overflow; tooltip is important for discoverability
+### release.yml (new)
+- Trigger: `push: tags: ["v*"]`
+- Matrix: same 4 legs as build.yml (macos-latest, ubuntu-latest, ubuntu-22.04, windows-latest)
+- Steps: build, sign (macOS), compute SHA256, upload artifact to GitHub Release
+- Artifact naming: `agenthub-{version}-{platform}-{arch}.{ext}`
+- Uploads: artifacts + SHA256 checksums file
 
-### Linux
-
-- GNOME 40+: native system tray removed; requires GNOME Shell extension (AppIndicator/KStatusNotifierItem)
-- KDE Plasma: full tray support via StatusNotifierItem
-- Elementary OS, Xfce, MATE: traditional tray support
-- fyne.io/systray uses AppIndicator on GTK desktops and StatusNotifierItem spec on modern DEs
-- Multiple PNG sizes required (16, 22, 32, 48, 64, 128, 256)
-- Desktop entry file (`.desktop`) required for proper integration
-
----
-
-## Icon Asset Requirements
-
-### Source Material
-
-- Existing: `docs/agenthub-title-logo.png` — horizontal wordmark (AgentHub text + icon mark at left)
-- Needed: Square icon mark (logomark only, without wordmark text) — required for small sizes where wordmark is unreadable
-- The existing logo shows a geometric/abstract mark to the left of "AgentHub" text — extract or redraw as standalone square icon
-
-### Required Output Files
-
-| File | Format | Sizes | Platform |
-|------|--------|-------|----------|
-| `appicon.icns` | ICNS | 16,32,64,128,256,512,1024 (@1x + @2x) | macOS |
-| `appicon.ico` | ICO | 16,32,48,64,128,256 | Windows |
-| `appicon.png` | PNG | 256x256 (Wails default) | Linux / Wails |
-| `tray_icon_template.png` | PNG (alpha only) | 22x22 @1x, 44x44 @2x | macOS tray |
-| `tray_icon.ico` / `tray_icon.png` | ICO/PNG | 16x16, 32x32 | Windows/Linux tray |
-
-### Generation Process
-
-1. Start with 1024x1024 square logomark PNG (transparent background)
-2. macOS: `sips` + `iconutil` → `.iconset/` directory → `iconutil -c icns`
-3. Windows: `convert` (ImageMagick) or online tool → multi-size `.ico`
-4. Linux: Copy PNG at required sizes to `/usr/share/icons/` paths in `.desktop` integration
-5. Wails: set `appicon.png` path in `wails.json` `info` section
+### distribute.yml (new)
+- Trigger: `release: types: [published]`
+- Steps:
+  1. Download release artifacts to compute/verify SHA256
+  2. Update Homebrew cask in scottkw/homebrew-agenthub tap (via PAT + git push)
+  3. Submit WinGet manifests via vedantmgoyal9/winget-releaser
+- Required new secrets: `HOMEBREW_TAP_TOKEN` (PAT, repo scope), `WINGET_TOKEN` (PAT, public_repo scope)
 
 ---
 
-## Web Terminal Status Bar Requirements
+## Artifact Naming Convention
 
-### What to Show
+| Platform | Artifact | Format |
+|----------|----------|--------|
+| macOS universal | `agenthub-{version}-darwin-universal.zip` | .app bundle zipped with `ditto` (preserves xattrs for signing) |
+| Linux amd64 (Ubuntu 24) | `agenthub-{version}-linux-amd64.tar.gz` | bare binary in tar.gz |
+| Linux amd64 (Ubuntu 22) | `agenthub-{version}-linux-amd64-ubuntu22.tar.gz` | bare binary, older glibc compat |
+| Windows amd64 installer | `agenthub-{version}-windows-amd64-installer.exe` | NSIS installer |
+| Windows amd64 bare | `agenthub-{version}-windows-amd64.exe` | bare binary for users who prefer no installer |
+| Checksums | `agenthub-{version}-checksums.txt` | sha256 one-line per artifact |
 
-The web terminal status bar appears at the top or bottom of the xterm.js terminal in the browser-served view. It is separate from the Wails GUI status bar.
-
-| Field | Source | Why |
-|-------|--------|-----|
-| Session name | Daemon session metadata | Identifies which session this is |
-| Agent type (Claude Code / Gemini / etc.) | Daemon session metadata | Disambiguates agent behavior |
-| Connection status (Connected / Reconnecting / Disconnected) | WebSocket state | Shows liveness, especially critical on reconnect |
-| Host machine name | `os.Hostname()` in daemon | Remote users need to know which machine they're on |
-| Web URL (optional) | Daemon serve URL | Quick copy for sharing |
-
-### Implementation Pattern
-
-- Status bar is a thin HTML div above or below the xterm.js terminal in the served web page
-- WebSocket already carries session output; add a control channel or heartbeat ping to detect disconnection
-- Connection state changes: WebSocket `onopen`, `onclose`, `onerror` events
-- Status bar updates via JavaScript DOM manipulation (no framework required — served as static HTML/JS)
-- Session metadata fetched once on page load from daemon HTTP API (`GET /api/sessions/<id>`)
-- Host name included in session metadata response from daemon
+**Version format in filenames:** bare version without `v` prefix (e.g., `1.8.0` not `v1.8.0`). The git tag is `v1.8.0`; the filename strips the `v`. This is conventional and matches Homebrew's URL template interpolation.
 
 ---
 
-## CLI Attach Session Banner Requirements
+## Homebrew Cask Template
 
-### Current State
+Minimum viable cask for `packaging/homebrew/agenthub.rb.tmpl`:
 
-`agenthub attach <id>` does: raw I/O PTY proxy, detach key (Ctrl-\\), resize propagation. Banner behavior is undocumented or absent.
+```ruby
+cask "scottkw-agenthub" do
+  version "VERSION_PLACEHOLDER"
 
-### Required Banner
+  on_arm do
+    sha256 "SHA256_DARWIN_UNIVERSAL_PLACEHOLDER"
+  end
+  on_intel do
+    sha256 "SHA256_DARWIN_UNIVERSAL_PLACEHOLDER"
+  end
 
-Print to stderr (not stdout, to avoid polluting session output) before PTY stream begins:
+  url "https://github.com/scottkw/agenthub/releases/download/v#{version}/agenthub-#{version}-darwin-universal.zip",
+      verified: "github.com/scottkw/agenthub/"
 
-```
-[AgentHub] Connected to "<session-name>" (<agent>) on <hostname>
-[AgentHub] Press Ctrl-\ to detach
+  name "AgentHub"
+  desc "Desktop app for running AI coding CLIs in tabbed terminal sessions"
+  homepage "https://github.com/scottkw/agenthub"
+
+  livecheck do
+    url :url
+    strategy :github_latest
+  end
+
+  app "agenthub.app"
+end
 ```
 
-### Implementation
-
-- Already have session metadata from daemon API at attach time
-- `os.Hostname()` available in CLI process
-- Print banner to `os.Stderr` before entering raw mode
-- On detach, print `[AgentHub] Detached.` to stderr
-
----
-
-## Splash Screen Requirements
-
-### Purpose
-
-Masks the 200-800ms WebKit/WebView2 initialization period. Provides brand exposure. Sets quality
-tone on first launch.
-
-### Design Pattern (Wails v2 approach)
-
-Wails v2 has no native splash API. Standard approach:
-
-1. React renders a full-screen splash component as the initial `App` state
-2. Splash shows the title logo (`docs/agenthub-title-logo.png`) centered on a solid background
-3. Wails `runtime.EventsEmit("app:ready")` fired from Go after daemon connection established
-4. React `useEffect` + Wails `EventsOn("app:ready")` transitions splash → main UI
-5. Fade-out animation (200ms CSS transition) smooths the handoff
-6. No artificial minimum duration — dismiss as soon as app is truly ready
-
-### Timing Targets
-
-- Show: immediately on WebView load (before daemon connection)
-- Hide: when daemon IPC confirmed + initial session list loaded
-- Maximum: 3 seconds (timeout fallback to avoid infinite splash on daemon failure)
-- If daemon fails: transition to existing error banner (not infinite splash)
+Notes:
+- Universal binary means same sha256 for both `on_arm` and `on_intel` blocks
+- `livecheck` block enables `brew livecheck` and auto-update infrastructure
+- `verified:` is required when URL host differs from homepage host (GitHub releases URL vs homepage)
+- Users install with: `brew tap scottkw/agenthub && brew install --cask scottkw-agenthub`
 
 ---
 
-## Competitor / Reference App Analysis
+## WinGet Manifest Structure
 
-| Feature | Docker Desktop | 1Password | Tailscale | Our Approach |
-|---------|---------------|-----------|-----------|--------------|
-| Tray icon | Yes, Docker whale, color-coded | Yes, lock icon, color-coded | Yes, Tailscale logo | Icon from logomark, 2 states (running/error) |
-| Dock icon hidden | No (has GUI mode too) | No | Yes (macOS: menu bar only mode) | Yes — daemon should be menu-bar only |
-| Tray menu | Dashboard, Settings, Restart, Quit | Lock/Unlock, Open, Accounts, Quit | Connect/Disconnect, Admin, Quit | Open GUI, session list (names), Quit |
-| Session list in tray | Container list (long) | No | Devices | Active sessions, capped at 5-10 items |
-| Status in web view | N/A | N/A | N/A | Session name, agent, connection, host |
-| Splash screen | Yes (Docker whale animation) | Yes (branded) | No | Title logo, dismiss on ready |
+Three YAML files required per version (schema 1.6.0 as of 2025):
+- `scottkw.agenthub.installer.yaml` — installer URLs, SHA256, architecture
+- `scottkw.agenthub.locale.en-US.yaml` — description, publisher, homepage, tags
+- `scottkw.agenthub.yaml` — version file linking the above
+
+The `vedantmgoyal9/winget-releaser` action generates these from the GitHub Release automatically given the `packageId` (`scottkw.agenthub`) and `token`. This eliminates the need to handcraft YAML templates for v1.8. The `packaging/winget/` directory can hold manually-crafted baseline manifests for reference/testing.
+
+Prerequisite one-time setup:
+1. Fork `microsoft/winget-pkgs` under the `scottkw` GitHub account
+2. Create classic PAT with `public_repo` scope (fine-grained PATs not yet supported)
+3. Store PAT as `WINGET_TOKEN` secret in scottkw/agenthub
+
+---
+
+## CI/CD Secrets Inventory
+
+| Secret Name | Purpose | Already Exists | New for v1.8 |
+|-------------|---------|----------------|--------------|
+| MACOS_CERTIFICATE | Base64 encoded Developer ID .p12 | Yes (build.yml) | No |
+| MACOS_CERTIFICATE_NAME | Certificate CN string | Yes | No |
+| MACOS_CERTIFICATE_PWD | .p12 export password | Yes | No |
+| MACOS_CI_KEYCHAIN_PWD | Temp keychain password | Yes | No |
+| MACOS_NOTARIZATION_APPLE_ID | Apple ID email | Yes | No |
+| MACOS_NOTARIZATION_PWD | App-specific password | Yes | No |
+| MACOS_NOTARIZATION_TEAM_ID | Apple Developer Team ID | Yes | No |
+| RELEASE_PLEASE_TOKEN | PAT for release-please tag creation | No | Yes — needed so tags trigger release.yml |
+| HOMEBREW_TAP_TOKEN | PAT with repo scope for tap repo write | No | Yes |
+| WINGET_TOKEN | Classic PAT with public_repo scope for winget-pkgs fork | No | Yes |
+
+---
+
+## Phase-Specific Notes
+
+### Phase: release-please.yml
+
+Low-risk, low-complexity. The googleapis/release-please-action@v4 is well-documented and used by
+thousands of projects. The critical nuance is the PAT token requirement: GitHub's security model
+prevents GITHUB_TOKEN from triggering downstream workflow runs, so release-please must use a PAT
+to create tags that will fire release.yml.
+
+Configuration file `release-please-config.json` and `.release-please-manifest.json` are required
+at repo root. Package type is `simple` (not `go` — the go type targets Go module version files,
+not the app version).
+
+### Phase: release.yml
+
+Medium complexity due to macOS signing pipeline. The signing steps are already proven in build.yml
+— they just need to be replicated with one important difference: the build output must be packaged
+as a downloadable artifact (zip/tar.gz) before upload. For macOS, `ditto -c -k --keepParent` is
+the correct archiving method (already used for notarization — can reuse the same zip). For Linux,
+`tar czf`. For Windows, upload NSIS installer directly (already .exe).
+
+The `gh release upload` CLI command or `actions/upload-release-asset` uploads artifacts to the
+GitHub Release created by release-please.
+
+### Phase: Homebrew Tap
+
+Two-repo setup. scottkw/homebrew-agenthub is a simple repo with a `Casks/` directory. The
+`distribute.yml` in the main repo uses `sed` or a Python one-liner to replace VERSION and SHA256
+placeholders in the template, then commits and pushes via git in the CI runner (using the PAT for
+auth). No separate CI on the tap repo required — it's a data repo, not a code repo.
+
+### Phase: WinGet
+
+The async nature of WinGet submission is the most important characteristic. `distribute.yml`
+submits the PR using `vedantmgoyal9/winget-releaser@v2`. The job succeeds when the PR is
+submitted, not when it is merged. WinGet moderation is typically hours to <1 day. The package will
+not be installable via `winget install scottkw.agenthub` until Microsoft merges the PR. This is
+not a blocker — it is just expected timeline.
 
 ---
 
 ## Sources
 
-- fyne.io/systray conflicts with Wails: existing KEY DECISION in PROJECT.md ("Native macOS cgo NSStatusBar for tray")
-- Wails v2 dock icon issue: https://github.com/wailsapp/wails/issues/3700
-- Wails v2 tray menu request: https://github.com/wailsapp/wails/issues/1010
-- systray-on-wails (Wails-compatible): https://pkg.go.dev/github.com/ra1phdd/systray-on-wails
-- fyne.io/systray (cross-platform, RunWithExternalLoop): https://pkg.go.dev/fyne.io/systray
-- macOS ICNS format: https://en.wikipedia.org/wiki/Apple_Icon_Image_format
-- macOS icon sizes guide (2025): https://appicongenerator.org/app-icon-sizes-guide
-- Icon sizes across platforms: https://blog.icons8.com/articles/choosing-the-right-size-and-format-for-icons/
-- LSUIElement for menu-bar-only apps: fyne-io/systray README (mentions LSUIElement in Info.plist)
-- Splash screen best practices: https://htmlburger.com/blog/splash-screen/ (duration: <2s, dismiss when ready)
-- Wails v3 tray (alpha): https://v3alpha.wails.io/features/menus/systray/ (not used — staying on v2)
-- AgentHub future features notes: docs/future-agenthub-features.txt
+- release-please-action GitHub: https://github.com/googleapis/release-please-action (MEDIUM confidence — official project)
+- release-please GITHUB_TOKEN limitation: https://github.com/googleapis/release-please-action/issues/1000
+- Homebrew cask tap structure: https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap (HIGH confidence — official docs)
+- Homebrew cask cookbook: https://docs.brew.sh/Cask-Cookbook (HIGH confidence — official docs)
+- macauley/action-homebrew-bump-cask: https://github.com/macauley/action-homebrew-bump-cask
+- Automating Homebrew tap updates: https://builtfast.dev/blog/automating-homebrew-tap-updates-with-github-actions/ (MEDIUM confidence)
+- vedantmgoyal9/winget-releaser: https://github.com/vedantmgoyal9/winget-releaser (MEDIUM confidence — widely used action)
+- WinGet PR review timeline: https://github.com/microsoft/winget-pkgs/discussions/19502 (MEDIUM confidence — community discussion)
+- WinGet manifest structure: https://learn.microsoft.com/en-us/windows/package-manager/package/manifest (HIGH confidence — official docs)
+- Wails cross-platform build with GitHub Actions: https://wails.io/docs/next/guides/crossplatform-build/ (HIGH confidence — official docs)
+- Artifact naming blog: https://blog.urth.org/2023/04/16/naming-your-binary-executable-releases/ (LOW confidence — individual blog)
+- macOS signing in GitHub Actions: https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/ (MEDIUM confidence — established blog, consistent with Wails docs)
+- Existing build.yml in repo: /Users/ken/dev/agenthub/.github/workflows/build.yml (HIGH confidence — source of truth)
 
 ---
 
-## Prior Milestone Research (v1.0 – v1.6)
+## Prior Milestone Research (v1.7 — Daemon UX & Branding)
 
-The sections below preserve feature research from earlier milestones for reference.
-See git history for the full content of each milestone's FEATURES.md.
+The v1.7 research (system tray, remote session indicators, app icons, splash screen) has been
+preserved below in a condensed form. Full content available in git history at the commit prior to
+this v1.8 update.
+
+Key decisions from v1.7 relevant to v1.8:
+- Native macOS cgo NSStatusBar tray (no fyne.io/systray) — affects build complexity for CI
+- `ditto` for notarization archive — confirmed correct, reused in release.yml packaging
+- Post-build cp of pre-built ICNS into bundle — release.yml must replicate this step after wails build
+
+See git history for full v1.7 FEATURES.md content.
 
 ---
 
-*Feature research for: v1.7 Daemon UX & Branding — system tray, remote session indicators, app icons, splash screen*
-*Researched: 2026-03-31*
+*Feature research for: v1.8 GitHub Distribution & CI/CD — release automation, Homebrew tap, WinGet submission*
+*Researched: 2026-04-03*

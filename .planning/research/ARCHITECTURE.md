@@ -1,574 +1,551 @@
 # Architecture Research
 
-**Domain:** Desktop app — daemon tray management, remote session indicators, and app branding for AgentHub v1.7
-**Researched:** 2026-03-31
-**Confidence:** HIGH — conclusions drawn from direct codebase inspection + Wails v2 docs + official Apple/platform references
-
-> This document supersedes the v1.5 architecture research. The arg-passthrough and terminal-fit architecture described there is now fully implemented in v1.6. This document focuses on v1.7 integration points only.
+**Domain:** GitHub Distribution & CI/CD — Wails v2 Desktop App (AgentHub v1.8)
+**Researched:** 2026-04-03
+**Confidence:** HIGH — existing build.yml and build.sh inspected directly; CI/CD patterns verified via official docs and working external references
 
 ---
 
-## System Overview (v1.6 baseline + v1.7 additions)
+## System Overview
 
-### v1.6 Existing Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  agenthub binary (GUI mode)                                                 │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐                           │
-│  │  Wails App (main package)                   │                           │
-│  │  - App struct: thin DaemonClient shell      │                           │
-│  │  - startup() → EnsureDaemon → initTray()    │                           │
-│  │  - beforeClose() → WindowHide (tray persist)│                           │
-│  │  - React frontend via embedded assets       │                           │
-│  └─────────────┬───────────────────────────────┘                           │
-│                │ Unix socket (HTTP/JSON)                                    │
-│                ▼                                                            │
-│  ┌─────────────────────────────────────────────┐                           │
-│  │  Daemon Process (internal/daemon)           │                           │
-│  │  - SessionEngine: owns all PTY sessions     │                           │
-│  │  - API: HTTP over Unix socket               │                           │
-│  │  - Relay: WebSocket relay (127.0.0.1:rand)  │                           │
-│  │  - WebServer: TLS (Tailscale interface)     │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐                           │
-│  │  macOS System Tray (tray.go — darwin cgo)   │                           │
-│  │  - NSStatusBar → "Show AgentHub" + "Quit"   │                           │
-│  │  - Linux/Windows: no-op stubs               │                           │
-│  └─────────────────────────────────────────────┘                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### v1.7 Target Architecture (new blocks marked NEW/MODIFIED)
+### End-to-End Distribution Pipeline
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  agenthub binary (GUI mode)                                                 │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐                           │
-│  │  Wails App (main package)                   │                           │
-│  │  - startup(): unchanged                     │                           │
-│  │  - beforeClose(): unchanged                 │                           │
-│  │  - React frontend: NEW SplashScreen +        │                           │
-│  │    DaemonPanel components                   │                           │
-│  └─────────────┬───────────────────────────────┘                           │
-│                │                                                            │
-│  ┌─────────────────────────────────────────────┐ MODIFIED                  │
-│  │  macOS System Tray (tray.go cgo)            │                           │
-│  │  - NSStatusBar: Show / Daemon Mgr / Quit    │  ← "Daemon Mgr" item new  │
-│  │  - onTrayDaemonMgr() → EventsEmit           │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐ NEW                       │
-│  │  Linux/Windows System Tray (tray_*.go)      │                           │
-│  │  - systray-on-wails (Register, non-blocking)│                           │
-│  │    OR keep no-op stubs (phase decision)     │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                │ runtime.EventsEmit("daemon:show-manager")                 │
-│                ▼                                                            │
-│  ┌─────────────────────────────────────────────┐ MODIFIED                  │
-│  │  React Frontend                             │                           │
-│  │  - App.tsx: + initComplete state,           │                           │
-│  │    + EventsOn("daemon:show-manager")        │                           │
-│  │  - SplashScreen.tsx (NEW)                   │                           │
-│  │  - DaemonPanel.tsx (NEW)                    │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                │ existing Wails bindings                                   │
-│                ▼                                                            │
-│  ┌─────────────────────────────────────────────┐ UNCHANGED                 │
-│  │  Daemon Process (internal/daemon)           │                           │
-│  │  - No new IPC routes for DaemonPanel        │                           │
-│  │    (uses ListSessions / KillSession /       │                           │
-│  │     GetSessionStatus — all exist)           │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐ MODIFIED                  │
-│  │  web/terminal.html (remote browser view)    │                           │
-│  │  - Status bar div above terminal            │                           │
-│  │  - JS polling GET /api/sessions/{id}/status │                           │
-│  └─────────────────────────────────────────────┘                           │
-│                                                                             │
-│  ┌─────────────────────────────────────────────┐ MODIFIED                  │
-│  │  cmd_attach.go (CLI raw terminal proxy)     │                           │
-│  │  - ANSI status banner before raw mode       │                           │
-│  └─────────────────────────────────────────────┘                           │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-Asset pipeline:
-  docs/agenthub-title-logo.png (805x208)  → SplashScreen.tsx import
-  assets/appicon.png (256x256, placeholder → NEW branded 1024x1024)
-    → macOS: iconutil → AppIcon.icns → build/darwin/AppIcon.icns
-    → Windows: ImageMagick → build/windows/icon.ico (REPLACE existing)
-    → Linux: 256x256 PNG → build/linux/appicon.png
-  assets/tray_icon.png (NEW 18x18 monochrome template) → tray.go embed
-  build/darwin/Info.plist → add LSUIElement (optional, per-build decision)
+Developer commits (feat:/fix:/chore:) → main branch
+    │
+    ▼
+release-please.yml listens on: push → main
+    │  maintains Release PR
+    │  when merged: bumps versions, creates git tag, creates GitHub Release
+    ▼
+git tag push (v1.8.0)
+    │
+    ├── triggers release.yml (on: push tags: ['v*.*.*'])
+    │       │
+    │       ├── macos-latest: wails build darwin/universal + sign + notarize
+    │       │     → uploads agenthub-darwin-universal.zip to Release
+    │       │
+    │       ├── ubuntu-latest: wails build linux/amd64
+    │       │     → uploads agenthub-linux-amd64.tar.gz to Release
+    │       │
+    │       └── windows-latest: wails build windows/amd64 + NSIS
+    │             → uploads agenthub-windows-amd64-installer.exe + .exe to Release
+    │
+    └── GitHub Release published
+            │
+            triggers distribute.yml (on: release: types: [published])
+                    │
+                    ├── Homebrew job
+                    │     triggers scottkw/homebrew-agenthub update workflow
+                    │     (downloads .zip, sha256, updates cask .rb, commits)
+                    │
+                    └── WinGet job
+                          winget-releaser reads .exe from release assets
+                          opens PR at microsoft/winget-pkgs via scottkw fork
 ```
+
+### Workflow File Responsibilities
+
+| Workflow File | Trigger | Responsibility |
+|---------------|---------|----------------|
+| `build.yml` (existing, modified) | push, pull_request | PR validation: tests + race detector + build all platforms. **No signing. No release uploads.** |
+| `release-please.yml` (new) | push to main | Parse conventional commits, maintain Release PR, create tag + GitHub Release on merge |
+| `release.yml` (new) | `push: tags: ['v*.*.*']` | Multi-platform builds with macOS signing/notarization; upload artifacts to GitHub Release |
+| `distribute.yml` (new) | `release: types: [published]` | Homebrew tap update + WinGet manifest submission |
 
 ---
 
-## Component Responsibilities
-
-| Component | Responsibility | Change Type |
-|-----------|---------------|-------------|
-| `tray.go` (darwin cgo) | NSStatusBar with Show / Daemon Mgr / Quit | MODIFIED |
-| `tray_linux.go` | Linux tray (systray-on-wails or no-op) | MODIFIED |
-| `tray_windows.go` | Windows tray (systray-on-wails or no-op) | MODIFIED |
-| `app.go` | Wails App struct | UNCHANGED (no new bindings needed) |
-| `SplashScreen.tsx` | Branding cover during init | NEW |
-| `DaemonPanel.tsx` | Daemon status + session list controls | NEW |
-| `App.tsx` | Root component — add initComplete + panel state | MODIFIED |
-| `web/terminal.html` | Remote browser terminal | MODIFIED |
-| `cmd_attach.go` | CLI raw I/O proxy | MODIFIED |
-| `internal/webserver/server.go` | Add `/api/sessions/{id}/status` route | MODIFIED |
-| `assets/appicon.png` | App icon source | REPLACE |
-| `assets/tray_icon.png` | Tray icon (18x18 monochrome) | NEW |
-| `build/darwin/AppIcon.icns` | macOS icon bundle | NEW (generated) |
-| `build/darwin/Info.plist` | macOS bundle config | MODIFIED (optional) |
-| `build.sh` | Build script | MODIFIED (icon generation steps) |
-| `internal/relay/protocol.go` | Binary framing protocol | UNCHANGED |
-| `internal/daemon/api.go` | Daemon IPC API | UNCHANGED |
-| `internal/daemon/types.go` | Daemon wire types | UNCHANGED |
-
----
-
-## Feature-by-Feature Integration Analysis
-
-### 1. System Tray — Daemon Management Item
-
-**Current state:** `tray.go` implements a darwin-only cgo NSStatusBar with two items: "Show AgentHub" and "Quit". `tray_linux.go` and `tray_windows.go` are no-op stubs. The callbacks use a package-level `trayCallbackApp *App` global, set in `initTray()`, to call `runtime.WindowShow` / `runtime.Quit`.
-
-**v1.7 change (macOS):**
-
-Add a "Daemon Manager" NSMenuItem between "Show AgentHub" and the separator. Its action calls a new exported cgo callback `onTrayDaemonMgr()`, which emits the Wails event `"daemon:show-manager"` and also calls `runtime.WindowShow` to bring the window forward.
-
-This is the only correct approach under Wails v2 constraints: **Wails v2 is single-window only** (confirmed via GitHub issue #1480). Multiple OS windows require Wails v3 (alpha). The "daemon mini management window" from the milestone description must be implemented as a React panel inside the existing Wails window — not a second OS window.
+## Recommended Project Structure
 
 ```
-Tray click "Daemon Manager"
-  → cgo onTrayDaemonMgr()
-  → runtime.WindowShow(ctx)             // raise existing window
-  → runtime.EventsEmit(ctx, "daemon:show-manager", nil)
-  → React EventsOn("daemon:show-manager") → setShowDaemonPanel(true)
-  → DaemonPanel renders inside Wails window
-```
-
-**v1.7 change (Linux/Windows):**
-
-`systray-on-wails` (published Nov 2024, Apache-2.0) provides cross-platform tray without conflicting with the existing macOS cgo code. It uses `Register()` instead of `Run()` — non-blocking, coexists with Wails event loop. The macOS implementation is separate (keeps existing cgo), Linux/Windows get `systray-on-wails`.
-
-Linux build dependency: `libgtk-3-dev libayatana-appindicator3-dev` — acceptable since Linux builds already use Docker via `build.sh`.
-
-Platform decision for v1.7: whether to implement real Linux/Windows tray or keep stubs is a scope call. The architecture supports both; the stubs can remain for a phase and real tray can follow.
-
-**macOS dock icon (LSUIElement):**
-
-For a tray-first app, the dock icon should ideally disappear when the user closes the window (app lives in tray). This requires `<key>LSUIElement</key><true/>` in `build/darwin/Info.plist`. However:
-- `LSUIElement` also removes the app from Cmd+Tab (app switcher) — significant UX change
-- Known Wails issue #3700: this is a product decision, not a blocker
-- Recommendation: add to `Info.plist` (production) only, NOT to `Info.dev.plist` (dev mode). Gate behind a `build.sh` flag or note it as a phase-level decision.
-
-### 2. Remote Session Status Bar — Web Terminal
-
-**Existing architecture:** `web/terminal.html` is a self-contained HTML file served by `internal/webserver/server.go`. It loads xterm.js from jsDelivr CDN and connects via WSS to the relay. The binary framing protocol (relay/protocol.go) carries `MsgOutput` (0x01), `MsgInput` (0x10), `MsgResize2` (0x11), `MsgPing` (0x12). There is currently no status indicator in the remote terminal view.
-
-**Two implementation approaches for remote status:**
-
-Option A — New WebSocket frame type `MsgStatus` (0x03, unused):
-- Server pushes status frames from engine's heuristic goroutine
-- Web client handles 0x03 to update a DOM badge
-- Pros: push semantics, immediate updates
-- Cons: modifies relay/protocol.go + relay/server.go + relay/hub.go + terminal.html + cmd_attach.go — 5 files across 3 packages
-
-Option B — Polling REST endpoint in terminal.html:
-- Add `GET /api/sessions/{id}/status` to webserver/server.go
-- terminal.html calls `fetch()` every 3 seconds
-- Pros: 2 files touched, completely isolated change surface
-- Cons: 3-second latency on status change
-
-**Recommendation: Option B (polling REST).** The status bar shows ambient context — running/waiting/idle/errored. A 3-second poll delay is not perceptible to users. The `sessionResolver` callback in webserver already returns `(name, cliType, status)` from `engine.GetSessionStatus()`. The new route is three lines of Go. Option A requires touching the hot I/O path across multiple packages.
-
-**New webserver route:**
-
-```go
-// GET /api/sessions/{id}/status
-// Returns: {name, cli, status} for the session.
-// Used by terminal.html status bar polling.
-mux.HandleFunc("GET /api/sessions/{id}/status", ws.handleSessionStatus)
-```
-
-**terminal.html layout change:**
-
-Current CSS: `#terminal { width: 100%; height: 100%; }` with `body { overflow: hidden }`. The status bar adds a fixed-height element. Change to flex column layout:
-```css
-body { display: flex; flex-direction: column; }
-#status-bar { height: 28px; flex-shrink: 0; }
-#terminal { flex: 1; min-height: 0; }
-```
-
-No build toolchain needed — plain JS + CSS injected directly into terminal.html.
-
-### 3. Remote Session Status Bar — CLI Attach
-
-**Existing architecture:** `cmdAttach` in `cmd_attach.go` opens WebSocket to relay, puts stdin in raw mode, runs two goroutines: `stdinPump` (stdin → WS input frames) and `wsOutputPump` (WS output frames → stdout). The `wsOutputPump` handles only `MsgOutput` frames.
-
-**Approach:** Print an ANSI status header to stdout *before* entering raw mode. This is the cleanest approach — no protocol changes needed.
-
-```
-1. Before raw mode: client.GetSessionStatus(sessionID) → status string
-2. Print ANSI banner: reverse-video line with session name, CLI, status, detach key hint
-3. Enter raw mode, begin I/O pumps
-```
-
-The banner is printed once at connect time. A polling goroutine to refresh it is possible but adds complexity without enough value for v1.7 (the terminal output itself shows the agent's state).
-
-The `DaemonClient` already exposes `GetSessionStatus` and `ListSessions` — session metadata is available before entering raw mode at no additional IPC cost.
-
-### 4. App Icons and Branding
-
-**Current state:**
-- `assets/appicon.png`: 256x256, generated by `build/gen_icon.go` — a programmatic placeholder (dark blue background, stylized A shape)
-- `docs/agenthub-title-logo.png`: 805x208 RGBA PNG — the real branded wide logo
-- `build/darwin/appicon.png`: same 256x256 placeholder (Wails copies this in)
-- `build/windows/icon.ico`: exists, generated from the placeholder
-
-**Required deliverable — icon generation pipeline in build.sh:**
-
-macOS ICNS:
-```bash
-# Create iconset directory with sips (built into macOS)
-mkdir -p AppIcon.iconset
-sips -z 16 16   appicon.png --out AppIcon.iconset/icon_16x16.png
-sips -z 32 32   appicon.png --out AppIcon.iconset/icon_16x16@2x.png
-sips -z 32 32   appicon.png --out AppIcon.iconset/icon_32x32.png
-sips -z 64 64   appicon.png --out AppIcon.iconset/icon_32x32@2x.png
-sips -z 128 128 appicon.png --out AppIcon.iconset/icon_128x128.png
-sips -z 256 256 appicon.png --out AppIcon.iconset/icon_128x128@2x.png
-sips -z 256 256 appicon.png --out AppIcon.iconset/icon_256x256.png
-sips -z 512 512 appicon.png --out AppIcon.iconset/icon_256x256@2x.png
-sips -z 512 512 appicon.png --out AppIcon.iconset/icon_512x512.png
-sips -z 1024 1024 appicon.png --out AppIcon.iconset/icon_512x512@2x.png
-iconutil -c icns AppIcon.iconset -o build/darwin/AppIcon.icns
-```
-
-Windows ICO (ImageMagick — already available in CI):
-```bash
-magick assets/appicon.png \
-  -define icon:auto-resize=256,128,64,48,32,16 \
-  build/windows/icon.ico
-```
-
-Linux: copy 256x256 PNG to `build/linux/appicon.png` (Wails reads it for .desktop file).
-
-Tray icon: `assets/tray_icon.png` — 18x18 monochrome PNG. The existing cgo code uses `[icon setTemplate:YES]` which adapts to light/dark menu bar. The new tray icon should be a monochrome/outline design (solid dark renders as white on dark menu bars automatically). This is a separate design asset from the app icon.
-
-**Info.plist `CFBundleIconFile`:** The `build/darwin/Info.plist` template already has `<key>CFBundleIconFile</key><string>iconfile</string>`. Wails maps this to the `build/darwin/appicon.icns` it generates internally, OR the `build/darwin/AppIcon.icns` we place there. Confirm the exact filename Wails expects by checking Wails build output; if it generates `iconfile.icns` from `build/darwin/appicon.png`, the explicit `AppIcon.icns` may need to be placed as `iconfile.icns` or the `CFBundleIconFile` value updated.
-
-### 5. Splash Screen
-
-**Wails v2 constraint:** No built-in splash screen API. The window appears as soon as Wails initializes. Wails docs suggest `StartHidden` + `OnDomReady` for deferred show, but this causes a blank hang before any visible content — worse UX than a CSS splash.
-
-**Recommended approach — CSS-first React splash:**
-
-`App.tsx` already has an `init()` function in `useEffect` that sets multiple state values when startup data is available. Before `init()` completes, `relayPort` is `null` and `tabs` is empty — the app renders in an empty state. The splash replaces this:
-
-```typescript
-// App.tsx
-const [initComplete, setInitComplete] = useState(false)
-
-useEffect(() => {
-  async function init() {
-    // ... existing logic ...
-    setInitComplete(true)  // mark complete at end
-  }
-  void init()
-}, [])
-
-return (
-  <div className="app">
-    {!initComplete && <SplashScreen />}
-    {initComplete && (
-      <>
-        <TabBar ... />
-        <div className="terminal-container">...</div>
-      </>
-    )}
-    {/* Modals render regardless (QR, Settings, Health) */}
-  </div>
-)
-```
-
-`SplashScreen.tsx` renders the title logo image (`docs/agenthub-title-logo.png` copied to `frontend/src/assets/`) plus a loading animation. The Wails window already has `BackgroundColour: #1a1b26` so the splash background is seamless.
-
-No Go changes required. No `StartHidden` needed. Init typically completes in < 1 second (daemon is already running), so splash is brief.
-
-**Daemon error state interaction:** If `GetDaemonError()` returns an error during init, `initComplete` should still become `true` to show the error banner. The error path is: `init()` catches the error, sets `daemonError`, sets `initComplete = true`. The error banner renders instead of the tab bar (same as current behavior). The splash only hides the error for the brief init window — acceptable.
-
----
-
-## Data Flow
-
-### Tray → DaemonPanel → Daemon IPC
-
-```
-[User: tray right-click → "Daemon Manager"]
-  → cgo onTrayDaemonMgr()
-  → runtime.WindowShow(ctx)                           // raise window
-  → runtime.EventsEmit(ctx, "daemon:show-manager", nil)
-  → React: EventsOn("daemon:show-manager")
-  → setShowDaemonPanel(true)
-  → DaemonPanel component mounts
-  → ListSessions() → DaemonClient → Unix socket       // fetch sessions
-  → render: session rows (name, status, kill button)
-  → KillSession(id) / GetSessionStatus(id)            // via existing bindings
-```
-
-No new Wails bindings needed. `DaemonPanel` uses only: `ListSessions()`, `GetSessionStatus()`, `KillSession()`, `RenameSession()` — all present in `app.go`.
-
-### Remote Status Polling Flow (Web)
-
-```
-[Browser opens /sessions/{id}]
-  → terminal.html JS: setInterval(pollStatus, 3000)
-  → fetch("/api/sessions/{id}/status")
-  → webserver handleSessionStatus
-  → ws.sessionResolver(id)
-  → engine.GetSessionStatus(id)                       // via closure set in api.go
-  → return {name, cli, status}
-  → JS: update status bar DOM
-```
-
-### CLI Attach Status Flow
-
-```
-[$ agenthub attach <id>]
-  → cmdAttach: client.GetSessionStatus(id)            // before raw mode
-  → fmt.Fprintf(os.Stdout, "\033[7m REMOTE: %s (%s) [%s] — Ctrl-\\ to detach \033[0m\n",
-      name, cli, status)
-  → term.MakeRaw(stdin)
-  → attachSession(ctx, conn, os.Stdin, os.Stdout, detachKey)
-  → I/O pumps (unchanged)
-```
-
-### Splash Screen Flow
-
-```
-[Wails window opens]
-  → React renders: initComplete=false → SplashScreen visible
-  → init() begins: GetDaemonError(), GetRelayPort(), ListSessions(), ...
-  → all calls return (< 1s normally)
-  → setInitComplete(true)
-  → React re-renders: SplashScreen unmounts, app UI mounts
-```
-
-### Icon Generation Flow (build.sh)
-
-```
-[build.sh mac target]
-  → sips: generate 10 PNG sizes from assets/appicon.png → AppIcon.iconset/
-  → iconutil: AppIcon.iconset → build/darwin/AppIcon.icns
-  → wails build (Wails reads build/darwin/ for bundle assets)
-
-[build.sh windows target]
-  → magick: assets/appicon.png → build/windows/icon.ico
-  → wails build (Wails embeds icon.ico in PE binary)
-
-[build.sh linux target]
-  → cp assets/appicon.png build/linux/appicon.png
-  → wails build (Wails references PNG for .desktop AppIcon)
-```
-
----
-
-## Recommended Project Structure (New and Modified Files Only)
-
-```
-agenthub/
-├── tray.go                              # MODIFIED: add "Daemon Manager" menu item
-├── tray_linux.go                        # MODIFIED: real systray-on-wails or keep stub
-├── tray_windows.go                      # MODIFIED: real systray-on-wails or keep stub
-├── tray_test.go                         # likely unchanged
+.github/
+├── workflows/
+│   ├── build.yml                 # MODIFY: strip signing steps (move to release.yml)
+│   ├── release-please.yml        # NEW: conventional commit versioning
+│   ├── release.yml               # NEW: tag-triggered release builds
+│   └── distribute.yml            # NEW: package manager distribution
 │
-├── assets/
-│   ├── appicon.png                      # REPLACE: 1024x1024 branded icon (square)
-│   └── tray_icon.png                    # NEW: 18x18 monochrome template PNG
+release-please-config.json        # NEW: release-please configuration
+.release-please-manifest.json     # NEW: version tracking state (initially {"." : "1.7.0"})
+CHANGELOG.md                      # NEW: generated and maintained by release-please
 │
-├── build/
-│   ├── darwin/
-│   │   ├── Info.plist                   # MODIFIED: add LSUIElement (optional)
-│   │   └── AppIcon.icns                 # NEW: generated by build.sh
-│   ├── windows/
-│   │   └── icon.ico                     # REPLACE: regenerated with ImageMagick
-│   └── linux/
-│       └── appicon.png                  # NEW: 256x256 copy for .desktop
-│
-├── build.sh                             # MODIFIED: icon generation steps
-│
-├── frontend/src/
-│   ├── App.tsx                          # MODIFIED: initComplete, DaemonPanel toggle, SplashScreen
-│   ├── components/
-│   │   ├── DaemonPanel.tsx              # NEW: session list + status + kill controls
-│   │   └── SplashScreen.tsx            # NEW: branding cover during init
-│   └── assets/
-│       └── agenthub-title-logo.png     # NEW: copy of docs/ logo for splash
-│
-└── web/
-    └── terminal.html                    # MODIFIED: status bar + polling JS
+packaging/
+├── homebrew/
+│   └── agenthub.rb.tmpl          # NEW: cask formula template with placeholders
+└── winget/
+    └── manifests/                # NEW: initial WinGet manifest files (manual bootstrap)
+        ├── AgentHub.AgentHub.installer.yaml
+        ├── AgentHub.AgentHub.locale.en-US.yaml
+        └── AgentHub.AgentHub.yaml
 ```
 
----
+### Version Source Locations (Files That Must Stay in Sync)
 
-## Integration Boundaries
+The project currently has version values in three places. release-please updates them all via `extra-files` annotations:
 
-### Existing Wails Bindings — No New Bindings Needed
+| File | Current Value | Field | Annotation Needed |
+|------|--------------|-------|-------------------|
+| `wails.json` | `"productVersion": "1.0.0"` | `info.productVersion` | `// x-release-please-version` on that line |
+| `frontend/src/components/WelcomeTab.tsx` | `const VERSION = '1.0.0'` | string literal | `// x-release-please-version` on that line |
+| `CHANGELOG.md` | (new file) | entire file | release-please primary output |
 
-`DaemonPanel.tsx` requires four operations. All are already bound in `app.go`:
-
-| Operation | Bound Method | File/Line |
-|-----------|-------------|-----------|
-| List all sessions | `ListSessions()` | `app.go:166` |
-| Get session status | `GetSessionStatus(id)` | `app.go:217` |
-| Kill a session | `KillSession(id)` | `app.go:196` |
-| Rename a session | `RenameSession(id, name)` | `app.go:188` |
-
-No `wails generate` / `wailsjs` regeneration needed for DaemonPanel.
-
-### Internal Package Boundaries
-
-| Boundary | Communication | v1.7 Impact |
-|----------|---------------|-------------|
-| tray.go → App (Go) | package-level `trayCallbackApp` global | Add `onTrayDaemonMgr` callback — same pattern as existing `onTrayShow` |
-| App → React | `runtime.EventsEmit("daemon:show-manager")` | Add `EventsOn` listener in App.tsx |
-| webserver → sessionResolver | Closure set in api.go before Start() | Reuse for new `/api/sessions/{id}/status` endpoint |
-| cmd_attach → DaemonClient | Existing `client.GetSessionStatus()` | Call before raw mode entry — no new methods |
-| tray_*.go (Linux/Windows) → Wails | `runtime.*` calls | Same pattern if systray-on-wails is used |
+The Go binary itself has no version constant — add a `Version` package-level var in `main.go` and inject via `-ldflags "-X main.Version=v1.8.0"` in `release.yml` at build time.
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Tray-to-React via Wails Events
+### Pattern 1: Separate build.yml from release.yml (Critical Separation)
 
-**What:** cgo (or systray-on-wails) menu callback → `runtime.EventsEmit` → React `EventsOn` handler.
+**What:** `build.yml` handles PR validation (tests + builds, no signing). `release.yml` handles release builds (signing + asset upload), triggered only by tag push.
 
-**When to use:** Any native code outside the Wails WebView needs to trigger React UI state. Already established for `session:status`, `tailscale:health`, `daemon:error`. The `daemon:show-manager` event follows this exact pattern.
+**Why this matters for AgentHub specifically:** The existing `build.yml` already runs macOS signing/notarization steps on every push when `MACOS_CERTIFICATE` is set. This means every PR merge calls Apple's notarization API — consuming rate limit budget, adding 10-15 minutes to every macOS run, and creating unnecessary noise in Apple's logs.
 
-**Trade-off:** One-way (Go → React only). React-to-tray communication still goes through Wails-bound methods. Acceptable since tray state is simple (no feedback needed to tray from DaemonPanel actions).
+**What to change in build.yml:** Remove the following steps entirely (move equivalent logic to release.yml):
+- "Import macOS certificate" step (lines 76-83)
+- "Sign macOS app with hardened runtime" step (lines 85-91)
+- "Notarize macOS app" step (lines 93-102)
+- "Cleanup macOS keychain and certificate" step (lines 104-108)
 
-### Pattern 2: CSS-First Splash Screen
+The build matrix, wails-build-action invocations, Go test runs, and artifact uploads for PR inspection can remain in build.yml.
 
-**What:** React conditionally renders `SplashScreen` while `!initComplete`. The `init()` function in `useEffect` sets `initComplete = true` at completion.
+### Pattern 2: release-please for Automatic Versioning
 
-**When to use:** App needs a loading state before startup data is available. Preferable to Wails-layer `StartHidden` because the splash content is visible immediately (no blank hang).
+**What:** `googleapis/release-please-action@v4` maintains a "Release PR" that accumulates unreleased changes. When the PR is merged, it bumps all annotated version strings, commits CHANGELOG.md, and creates a git tag + GitHub Release.
 
-**Trade-off:** The splash renders inside the already-initialized Wails WebView. This is not a true OS-level splash (which would show before the WebView loads). For v1.7, the init time is < 1 second when the daemon is running, so the distinction is academic.
+**Configuration for AgentHub (Go project with extra version files):**
 
-### Pattern 3: Polling REST for Ambient Status in Vanilla HTML
+```json
+// release-please-config.json
+{
+  "release-type": "go",
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "wails.json"
+        },
+        {
+          "type": "generic",
+          "path": "frontend/src/components/WelcomeTab.tsx"
+        }
+      ]
+    }
+  }
+}
+```
 
-**What:** `setInterval` + `fetch` poll a JSON endpoint from `terminal.html`.
+```json
+// .release-please-manifest.json
+{
+  ".": "1.7.0"
+}
+```
 
-**When to use:** Status is ambient context (not real-time critical), the file has no build toolchain, and the push alternative requires touching multiple Go packages.
+Files referenced in `extra-files` must contain annotation markers so release-please knows which line to update:
 
-**Trade-off:** 3-second status latency. Negligible for session heuristic state (running/waiting/idle/errored changes on a seconds timescale anyway).
+```typescript
+// WelcomeTab.tsx — add comment on the same line
+const VERSION = '1.7.0' // x-release-please-version
+```
+
+```json
+// wails.json — add comment after the value (JSON doesn't support comments natively,
+// but release-please's generic strategy uses regex and will match the line)
+// Alternative: use a VERSION file approach if wails.json comment syntax causes issues
+"productVersion": "1.7.0", // x-release-please-version
+```
+
+**Known limitation:** release-please's `version-file` option for Go release-type has a reported bug (googleapis/release-please issue #2541 — version-file ignored for Go type). Use `extra-files` with `generic` type and annotation markers instead, which is the confirmed working approach.
+
+**Required permissions in release-please.yml:**
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+```
+
+**Token note:** GitHub's `GITHUB_TOKEN` works for release-please's PR creation and tag push. The tag push fired by release-please correctly triggers downstream `push: tags:` workflows — this is a common misconception. The GITHUB_TOKEN restriction only prevents triggering *workflow_dispatch* events from within a workflow; a tag `push` event is a native Git event and fires regardless of token type.
+
+### Pattern 3: Tag-Triggered Multi-Platform Release Builds
+
+**What:** `release.yml` triggers on `push: tags: ['v*.*.*']`, runs the same 4-leg matrix as `build.yml` (darwin/universal, linux/amd64 on two Ubuntu versions, windows/amd64), but adds signing/notarization on macOS and uploads artifacts to the GitHub Release.
+
+**Key difference from build.yml:** wails-build-action with `package: true` (default) automatically uploads artifacts to the GitHub Release when the workflow is triggered by a tag push.
+
+**Version injection via ldflags:** The release tag is available as `github.ref_name` in the workflow. Pass it to the Go binary at build time:
+
+```yaml
+# In release.yml, for the wails-build-action step:
+go-ldflags: "-X main.Version=${{ github.ref_name }}"
+```
+
+This requires adding `var Version string` to `main.go`. The CLI `--version` flag (or `agenthub version` command) should print this value.
+
+**macOS signing flow (reuses existing secrets from build.yml):**
+
+The signing steps are already proven in `build.yml`. They move to `release.yml` unchanged:
+1. Decode `MACOS_CERTIFICATE` (base64) → `.p12`
+2. Create isolated `build.keychain`, import certificate, set partition list
+3. `wails-build-action` builds the `.app`
+4. `codesign --deep --force --options runtime --timestamp --entitlements build/entitlements.plist`
+5. `ditto -c -k --keepParent` → `.zip` for notarytool
+6. `xcrun notarytool submit --wait` (blocks until Apple completes review, typically 2-5 min)
+7. `xcrun stapler staple` → attaches ticket to `.app`
+8. `security delete-keychain build.keychain` cleanup
+9. Re-zip with `ditto` for release upload (the notarization `.zip` gets deleted in step 8's cleanup)
+
+**Release asset naming convention** (important: Homebrew and WinGet depend on predictable names):
+
+| Platform | Asset Name |
+|----------|-----------|
+| macOS | `agenthub-darwin-universal.zip` (signed .app inside) |
+| Linux (ubuntu-latest) | `agenthub-linux-amd64.tar.gz` |
+| Windows | `agenthub-windows-amd64-installer.exe` (NSIS) |
+| Windows (portable) | `agenthub-windows-amd64.exe` |
+
+### Pattern 4: Homebrew Tap via Cross-Repo Workflow Dispatch
+
+**What:** After `distribute.yml` detects a published release, it uses the GitHub CLI to trigger a `workflow_dispatch` event in the `scottkw/homebrew-agenthub` repository. The tap repo's update workflow downloads the macOS release asset, computes SHA256, updates the cask `.rb` file, and commits.
+
+**Tap repository structure (`scottkw/homebrew-agenthub`):**
+
+```
+homebrew-agenthub/
+├── Casks/
+│   └── agenthub.rb              # The live cask formula
+└── .github/
+    └── workflows/
+        └── update-cask.yml      # Triggered by workflow_dispatch with version + sha256
+```
+
+**Naming:** The tap repository MUST be named `homebrew-agenthub` (the `homebrew-` prefix enables the shorthand `brew tap scottkw/agenthub`).
+
+**User install commands:**
+```bash
+brew tap scottkw/agenthub
+brew install --cask agenthub
+# Or in one command:
+brew install --cask scottkw/agenthub/agenthub
+```
+
+**Cask formula structure** (`Casks/agenthub.rb`):
+```ruby
+cask "agenthub" do
+  version "1.8.0"
+  sha256 "abc123..."
+
+  url "https://github.com/scottkw/agenthub/releases/download/v#{version}/agenthub-darwin-universal.zip"
+  name "AgentHub"
+  desc "AI coding session manager"
+  homepage "https://github.com/scottkw/agenthub"
+
+  app "agenthub.app"
+
+  zap trash: [
+    "~/Library/Application Support/agenthub",
+    "~/Library/Logs/agenthub",
+  ]
+end
+```
+
+**distribute.yml Homebrew job:**
+```yaml
+homebrew:
+  runs-on: ubuntu-latest
+  steps:
+    - name: Compute macOS asset SHA256
+      run: |
+        URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/agenthub-darwin-universal.zip"
+        SHA256=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
+        echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
+    - name: Trigger tap update
+      run: |
+        gh workflow run update-cask.yml \
+          --repo scottkw/homebrew-agenthub \
+          --field version="${{ github.event.release.tag_name }}" \
+          --field sha256="${{ env.SHA256 }}"
+      env:
+        GH_TOKEN: ${{ secrets.TAP_DEPLOY_TOKEN }}
+```
+
+**Required secret:** `TAP_DEPLOY_TOKEN` — classic GitHub PAT with `repo` + `workflow` scopes (fine-grained tokens do not support cross-repo workflow_dispatch reliably).
+
+### Pattern 5: WinGet Submission via winget-releaser Action
+
+**What:** `vedantmgoyal9/winget-releaser@v2` (backed by Komac) reads the Windows `.exe` installer from the published release assets, generates the three required WinGet manifests, and opens a PR against `microsoft/winget-pkgs` via the `scottkw` fork.
+
+**Prerequisites:**
+1. Fork `microsoft/winget-pkgs` under the `scottkw` account (one-time)
+2. Create a classic GitHub PAT with `public_repo` scope on the `scottkw` account
+3. Store as `WINGET_TOKEN` repository secret
+4. Submit the first package version manually to establish the package identifier in `winget-pkgs`
+
+**Package identifier:** `AgentHub.AgentHub` (convention: `Publisher.AppName`, globally unique in the WinGet catalog)
+
+**distribute.yml WinGet job:**
+```yaml
+winget:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: vedantmgoyal9/winget-releaser@v2
+      with:
+        identifier: AgentHub.AgentHub
+        token: ${{ secrets.WINGET_TOKEN }}
+        installers-regex: 'agenthub-windows-amd64-installer\.exe$'
+```
+
+**WinGet PR lifecycle:** After `winget-releaser` opens the PR, Microsoft's automated validation bot reviews it (typically 1-3 days for approved publishers, longer for new packages). First submission requires manual review of the package identity; subsequent releases are faster.
+
+---
+
+## Data Flow
+
+### Full Release Data Flow (Tag to Package Manager)
+
+```
+1. Developer merges release-please Release PR
+       │
+       ▼
+2. release-please commits:
+   - CHANGELOG.md (new version section)
+   - wails.json productVersion: "1.8.0"
+   - WelcomeTab.tsx VERSION = '1.8.0'
+   creates: git tag v1.8.0
+   creates: GitHub Release (published, no assets yet)
+       │
+       ├── 3a. release.yml fires (push: tags: v1.8.0)
+       │         macos-latest:
+       │           wails build darwin/universal
+       │           ldflags: -X main.Version=v1.8.0
+       │           codesign + notarytool + stapler
+       │           upload: agenthub-darwin-universal.zip → Release
+       │
+       │         ubuntu-latest:
+       │           wails build linux/amd64
+       │           tar.gz binary
+       │           upload: agenthub-linux-amd64.tar.gz → Release
+       │
+       │         windows-latest:
+       │           wails build windows/amd64 + NSIS
+       │           upload: agenthub-windows-amd64-installer.exe → Release
+       │           upload: agenthub-windows-amd64.exe → Release
+       │
+       └── 3b. distribute.yml fires (release: published)
+                 Homebrew job:
+                   download agenthub-darwin-universal.zip
+                   sha256sum → SHA256
+                   gh workflow run update-cask.yml \
+                     --repo scottkw/homebrew-agenthub \
+                     --field version=v1.8.0 \
+                     --field sha256=SHA256
+                   → tap repo commits updated agenthub.rb
+                   → users: brew update && brew upgrade --cask agenthub
+
+                 WinGet job:
+                   winget-releaser reads agenthub-windows-amd64-installer.exe
+                   generates AgentHub.AgentHub manifest files
+                   opens PR against microsoft/winget-pkgs via scottkw fork
+                   → after Microsoft review: winget upgrade AgentHub.AgentHub
+```
+
+**Timing note:** Step 3b (`distribute.yml`) fires at the moment the release is published. At that point, `release.yml` (3a) may still be running. The macOS build + notarization takes 15-25 minutes. Homebrew and WinGet both download release assets — if `distribute.yml` starts before the macOS asset is uploaded, the SHA256 download will fail.
+
+**Mitigation options:**
+- Make the Homebrew job in `distribute.yml` retry with exponential backoff
+- Use `workflow_run` trigger to chain `distribute.yml` after `release.yml` completes (but this loses the `release.published` event context)
+- Add a `wait-for-asset` step with `gh release view --json assets` polling
+
+The recommended approach is retry with backoff in the Homebrew job, since `release.published` is the cleanest semantic trigger.
+
+### Version String Flow
+
+```
+git tag v1.8.0
+    │
+    ├── release-please already updated in previous commit:
+    │     wails.json: "productVersion": "1.8.0"
+    │       → embedded in macOS .app Info.plist by Wails
+    │       → embedded in Windows .exe version info by Wails
+    │     WelcomeTab.tsx: VERSION = '1.8.0'
+    │       → displayed in splash screen in-app
+    │
+    └── release.yml ldflags injection:
+          go build -ldflags "-X main.Version=v1.8.0"
+          → agenthub --version prints "v1.8.0"
+          → agenthub version command output
+```
+
+---
+
+## Integration Points
+
+### Existing Components: Modify vs. Create New
+
+| Component | Action | What Changes |
+|-----------|--------|-------------|
+| `.github/workflows/build.yml` | **MODIFY** | Remove the 4 macOS signing/notarization steps (lines 75-108). Keep everything else. |
+| `build.sh` | **NO CHANGE** | release.yml uses wails-build-action directly. build.sh remains for local developer use. |
+| `wails.json` | **MODIFY** | Add `// x-release-please-version` annotation so release-please can bump `productVersion` |
+| `frontend/src/components/WelcomeTab.tsx` | **MODIFY** | Add `// x-release-please-version` comment on VERSION line. Also fix hardcoded `'1.0.0'` → `'1.7.0'` |
+| `main.go` | **MODIFY** | Add `var Version string` package-level variable; wire to CLI `--version` flag |
+| `go.mod` | **NO CHANGE** | Module path stays; release-please Go type reads it but does not modify go.mod for versioning |
+
+### New Files Required
+
+| File | Purpose |
+|------|---------|
+| `.github/workflows/release-please.yml` | Conventional commit parsing, release PR maintenance |
+| `.github/workflows/release.yml` | Tag-triggered multi-platform builds with signing |
+| `.github/workflows/distribute.yml` | Post-release Homebrew + WinGet distribution |
+| `release-please-config.json` | release-please configuration for Go + extra-files |
+| `.release-please-manifest.json` | Version state file (initial: `{"." : "1.7.0"}`) |
+| `CHANGELOG.md` | Generated by release-please on first release PR |
+| `packaging/homebrew/agenthub.rb.tmpl` | Cask formula template for reference/bootstrapping |
+| `packaging/winget/manifests/*.yaml` | Initial WinGet manifest files (manually submitted) |
+
+### New Repository Required
+
+| Repo | Purpose | Required Before |
+|------|---------|----------------|
+| `scottkw/homebrew-agenthub` | Homebrew tap hosting cask formula | distribute.yml Homebrew job |
+
+### Required Secrets (Repository Settings)
+
+| Secret Name | Used By | Description |
+|-------------|---------|-------------|
+| `MACOS_CERTIFICATE` | `release.yml` | Base64-encoded .p12 developer certificate (already in build.yml) |
+| `MACOS_CERTIFICATE_NAME` | `release.yml` | Certificate CN, e.g. "Developer ID Application: Name (TEAMID)" |
+| `MACOS_CERTIFICATE_PWD` | `release.yml` | Certificate export password |
+| `MACOS_CI_KEYCHAIN_PWD` | `release.yml` | Temporary keychain password for CI |
+| `MACOS_NOTARIZATION_APPLE_ID` | `release.yml` | Apple ID email |
+| `MACOS_NOTARIZATION_PWD` | `release.yml` | App-specific password from appleid.apple.com |
+| `MACOS_NOTARIZATION_TEAM_ID` | `release.yml` | Apple Developer Team ID |
+| `TAP_DEPLOY_TOKEN` | `distribute.yml` | Classic PAT (scottkw account), scopes: `repo` + `workflow` |
+| `WINGET_TOKEN` | `distribute.yml` | Classic PAT (scottkw account), scope: `public_repo` |
+
+All 7 macOS secrets already exist in the repository (confirmed in build.yml env block). Only `TAP_DEPLOY_TOKEN` and `WINGET_TOKEN` are new.
+
+---
+
+## Build Order for Phases
+
+Dependencies between v1.8 components:
+
+```
+Phase A: release-please.yml + config files
+  (no external deps; unblocks all downstream)
+      │
+      ▼
+Phase B: release.yml (multi-platform release builds)
+  (needs: Phase A for tag creation; existing macOS secrets)
+  (also: modify build.yml to remove signing)
+      │
+      ▼
+Phase C: packaging/ templates
+  (can run parallel to Phase B once release asset names are confirmed)
+      │
+      ▼
+Phase D: scottkw/homebrew-agenthub tap repo + distribute.yml Homebrew leg
+  (needs: Phase B for confirmed asset names; Phase C for cask template)
+  (needs: TAP_DEPLOY_TOKEN secret added)
+      │
+      ▼
+Phase E: WinGet initial manifest + distribute.yml WinGet leg
+  (needs: Phase B for Windows installer in release)
+  (needs: manual first submission to winget-pkgs to establish package identity)
+  (needs: WINGET_TOKEN secret added)
+```
+
+**Phase A is the only true blocker.** Phases C and D can be developed in parallel with Phase B once the asset naming is finalized. Phase E can proceed independently from Phase D.
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Second OS Window for Daemon Manager
+### Anti-Pattern 1: Signing in build.yml (Current State — Must Fix)
 
-**What people might attempt:** Use Wails v3's multi-window API, or open a native NSWindow via cgo, for the "daemon mini management window" described in the milestone.
+**What the current code does:** `build.yml` runs macOS signing/notarization on every push when `MACOS_CERTIFICATE` is set. This means every PR merge triggers a full Apple notarization API call.
 
-**Why it's wrong:** Wails v2 (currently used, v2.10.2) has no multi-window API — confirmed in GitHub issue #1480. Wails v3 is in alpha. A native NSWindow via cgo would need its own separate HTML/rendering pipeline or require building a fully native Cocoa UI in cgo — a major architectural detour.
+**Why it's wrong:** Apple's notarization has rate limits. Each submission takes 2-15 minutes. Every PR build on macOS becomes significantly slower. Notarization submissions for development commits create noise in Apple's developer portal.
 
-**Do this instead:** Implement DaemonPanel as a React modal/panel inside the existing Wails window. Call `runtime.WindowShow(ctx)` from the tray callback to raise it. The "mini management window" is a product concept — a focused panel inside the main window serves the same purpose.
+**Fix:** Remove the 4 signing steps from `build.yml`. Add them to `release.yml` only. The unsigned `.app` artifact from `build.yml` is sufficient for PR validation.
 
-### Anti-Pattern 2: New WebSocket Frame for Remote Status
+### Anti-Pattern 2: Triggering distribute.yml on Tag Push Instead of Release Published
 
-**What people might attempt:** Add `MsgStatus` byte (0x03, currently the reserved `MsgTitle` slot) to relay/protocol.go and push status from the relay server to browser/CLI clients.
+**What people do:** Use `push: tags: ['v*']` to trigger distribution workflows alongside `release.yml`.
 
-**Why it's wrong:** Requires coordinated changes to `relay/protocol.go`, `relay/server.go` (new push goroutine), `relay/hub.go` (status fan-out), `web/terminal.html`, and `cmd_attach.go`. Adds complexity to the hot I/O path. The relay server would need to query `SessionEngine` for status and fan out frames independently of PTY output.
+**Why it's wrong:** Release assets are uploaded during `release.yml`, which takes 15-25 minutes (macOS notarization is the bottleneck). If `distribute.yml` starts on the tag push, the macOS `.zip` asset doesn't exist yet. Homebrew's SHA256 download fails.
 
-**Do this instead:** Add `GET /api/sessions/{id}/status` to `internal/webserver/server.go`. Poll from `terminal.html`. Three lines of Go, one JS function. Leaves the relay protocol clean.
+**Do this instead:** Trigger `distribute.yml` on `release: types: [published]`. The release-please-created release is published immediately (not a draft), but asset upload happens during `release.yml`. Add retry logic to the Homebrew job to wait for the asset.
 
-### Anti-Pattern 3: Mixing systray-on-wails with macOS cgo NSStatusBar
+### Anti-Pattern 3: Using GITHUB_TOKEN for Cross-Repo Workflow Dispatch
 
-**What people might attempt:** Replace the existing darwin cgo tray with `systray-on-wails` for uniform cross-platform code.
+**What people do:** Pass `${{ secrets.GITHUB_TOKEN }}` to `gh workflow run` targeting `scottkw/homebrew-agenthub`.
 
-**Why it's wrong:** `systray-on-wails` registers its own NSStatusBar on macOS. Running two NSStatusBar registrations is undefined behavior. The transition cost (remove working tested cgo code, validate systray-on-wails behavior on macOS) outweighs the uniformity benefit.
+**Why it's wrong:** `GITHUB_TOKEN` is scoped to the current repository. It cannot trigger workflow_dispatch or push commits in other repositories.
 
-**Do this instead:** Keep macOS cgo tray, add `systray-on-wails` only for Linux/Windows stubs. Share menu item label constants between platforms.
+**Do this instead:** Use a classic PAT (`TAP_DEPLOY_TOKEN`) with `repo` + `workflow` scopes stored as a repository secret. Fine-grained tokens can work for repo access but have inconsistent support for cross-repo workflow_dispatch.
 
-### Anti-Pattern 4: LSUIElement in dev build
+### Anti-Pattern 4: Omitting `--wait` from notarytool Submit
 
-**What people might attempt:** Add `LSUIElement` to `build/darwin/Info.dev.plist` along with `Info.plist` for consistency.
+**What people do:** Call `xcrun notarytool submit "$ZIP" --keychain-profile "..."` without `--wait`.
 
-**Why it's wrong:** `LSUIElement` removes the app from the macOS dock AND app switcher (Cmd+Tab). In dev mode, this makes the app nearly unfindable during debugging. The dev binary also runs without a proper `.app` bundle, making dock behavior different anyway.
+**Why it's wrong:** Without `--wait`, the command exits immediately with code 0 after queuing the submission. The GitHub Actions step passes, but the binary is never actually notarized. `xcrun stapler staple` then silently fails or attaches nothing. Users get Gatekeeper warnings on download.
 
-**Do this instead:** Add `LSUIElement` only to `build/darwin/Info.plist` (production bundle). `Info.dev.plist` is used by `wails dev` and must remain a normal windowed app.
+**Do this instead:** Always use `--wait`. The existing `build.sh` already does this correctly (line 186). The same pattern must carry forward to `release.yml`.
 
-### Anti-Pattern 5: initComplete = true Before Daemon Error is Checked
+### Anti-Pattern 5: Single-Version SOURCE in release-please (Go-type version-file)
 
-**What people might attempt:** Set `initComplete = true` at the start of `init()` (or skip it on error paths), leaving the splash screen visible forever if the daemon fails.
+**What people do:** Configure `"release-type": "go"` with `"version-file": "internal/version/version.go"` expecting release-please to bump it.
 
-**Why it's wrong:** If `GetDaemonError()` returns an error, the existing error banner logic must still show. The splash blocks it. `initComplete` must be set to `true` on all code paths through `init()` — success AND error.
+**Why it's wrong:** Known bug in release-please (issue #2541): the `version-file` configuration is ignored for Go release-type projects. The version file never gets updated.
 
-**Do this instead:** Use `defer setInitComplete(true)` at the top of `init()`, or explicitly call it in both the success and error branches.
+**Do this instead:** Use `"extra-files"` with `"type": "generic"` and add `// x-release-please-version` annotation comments to each file. This is the confirmed working approach for files that aren't the primary `CHANGELOG.md`.
+
+### Anti-Pattern 6: Hardcoded Package Identifier in WinGet Before First Manual Submission
+
+**What people do:** Configure `winget-releaser` with an identifier like `AgentHub.AgentHub` before the package exists in the WinGet catalog.
+
+**Why it's wrong:** The first submission to `microsoft/winget-pkgs` must be done manually (create the initial manifest files, submit a PR manually). After that PR is approved and the package identity is established, automated submissions via `winget-releaser` work correctly. Automating before the first approval means every release PR gets rejected as "unknown package."
+
+**Do this instead:** Bootstrap `packaging/winget/manifests/` manually, submit the first PR to `winget-pkgs` by hand, wait for approval, then enable the `distribute.yml` WinGet job.
 
 ---
 
-## Build Order (Suggested Phase Sequence)
+## Scaling Considerations
 
-Dependencies between features:
+Not applicable for CI/CD infrastructure — this is a pipeline, not a service. The relevant capacity concern is GitHub Actions runner minutes:
 
-```
-[Icons + Branding Assets]   (standalone — no code deps)
-  ↓ unblocks
-  ├─→ [Splash Screen]       (needs logo asset in frontend/src/assets/)
-  └─→ (icon files used by all platform builds)
+| Runner | Minutes per release | Billed multiplier | Cost per release |
+|--------|--------------------|--------------------|-----------------|
+| macOS (release.yml) | ~20-25 min | 10x | 200-250 billed min |
+| Linux (release.yml) | ~5-8 min | 1x | 5-8 billed min |
+| Windows (release.yml) | ~8-12 min | 2x | 16-24 billed min |
+| Linux (build.yml, PR) | ~5-8 min per platform | 1x | ~15-25 billed min per PR |
 
-[Remote Status — Web]       (standalone — webserver + HTML only)
-[Remote Status — CLI]       (standalone — cmd_attach only)
-
-[DaemonPanel component]     (standalone — uses only existing Wails bindings)
-  ↓ unblocks
-  └─→ [Tray Daemon Manager item]  (needs DaemonPanel to exist in React)
-          ↓ optional extension
-          └─→ [Linux/Windows real tray]
-```
-
-**Recommended phase order:**
-
-1. **Icons + branding** — Replace `assets/appicon.png` with branded 1024x1024, add `assets/tray_icon.png`, generate ICNS/ICO, update `build.sh`. No source code changes. Unblocks all visual work.
-
-2. **Splash screen** — Add `SplashScreen.tsx`, add `initComplete` state to `App.tsx`, copy logo to `frontend/src/assets/`. No Go changes.
-
-3. **Remote status bar (web terminal)** — Add `/api/sessions/{id}/status` route to webserver, modify `terminal.html` layout and add polling JS. Fully self-contained.
-
-4. **Remote status bar (CLI attach)** — Modify `cmd_attach.go` to print ANSI banner before raw mode. Standalone.
-
-5. **DaemonPanel component** — New React component using only existing Wails bindings. Can be validated by temporarily setting `showDaemonPanel = true` in App.tsx.
-
-6. **Tray: Daemon Manager item** — Add menu item to `tray.go` + new cgo export `onTrayDaemonMgr`. Add `EventsOn("daemon:show-manager")` handler in `App.tsx`. Depends on: DaemonPanel exists.
-
-7. **Linux/Windows tray** (optional in v1.7, can remain stubs) — Implement `systray-on-wails` in `tray_linux.go` / `tray_windows.go`.
-
-Steps 1-4 have no mutual dependencies and can be executed as parallel phases. Steps 5-6 are coupled (DaemonPanel before tray wire-up). Step 7 is independent.
+GitHub free tier provides 2,000 billed minutes/month. With 2-3 releases per month and ~20 PRs, the macOS signing cost is the dominant factor. Moving signing to `release.yml` only (away from every PR) is essential to stay within free tier.
 
 ---
 
 ## Sources
 
-- Codebase inspection (HIGH confidence): `tray.go`, `tray_linux.go`, `tray_windows.go`, `app.go`, `main.go`, `cmd_attach.go`, `internal/daemon/api.go`, `internal/daemon/types.go`, `internal/relay/protocol.go`, `internal/webserver/server.go`, `web/terminal.html`, `frontend/src/App.tsx`, `frontend/src/components/StatusBar.tsx`, `build/darwin/Info.plist`, `build/darwin/Info.dev.plist`, `build/gen_icon.go`, `go.mod`, `wails.json`
-- [Wails v2 does not support multiple windows (issue #1480)](https://github.com/wailsapp/wails/issues/1480) — confirmed single-window constraint
-- [Wails v2 macOS dock hide issue #3700](https://github.com/wailsapp/wails/issues/3700) — LSUIElement complexity in Wails
-- [Wails v2 Application Options](https://wails.io/docs/reference/options/) — StartHidden, HideWindowOnClose, OnBeforeClose
-- [systray-on-wails package](https://pkg.go.dev/github.com/ra1phdd/systray-on-wails) — cross-platform tray for Wails v2, published Nov 2024, Apache-2.0
-- [Apple LSUIElement documentation](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement) — agent app behavior, Dock/app switcher exclusion
-- [iconutil + ImageMagick icon generation gist](https://gist.github.com/miguelsolorio/4f89bdf5bc2aabebf25ce45ca7cf8d97) — macOS iconset workflow
+- `build.yml` direct inspection — confirmed existing signing steps, wails-build-action usage, matrix structure, secret names (HIGH confidence)
+- `build.sh` direct inspection — confirmed `sign_and_notarize` function: ditto archive, notarytool --wait, stapler, cleanup (HIGH confidence)
+- `wails.json` direct inspection — confirmed `productVersion: "1.0.0"` as version location (HIGH confidence)
+- `WelcomeTab.tsx` direct inspection — confirmed hardcoded `VERSION = '1.0.0'` tech debt (HIGH confidence)
+- [release-please GitHub repository](https://github.com/googleapis/release-please) — extra-files configuration, annotation marker syntax (HIGH confidence)
+- [release-please issue #2541](https://github.com/googleapis/release-please/issues/2541) — version-file ignored for Go type; use extra-files instead (MEDIUM confidence — issue is open, workaround confirmed)
+- [Automating Homebrew Tap Updates with GitHub Actions](https://builtfast.dev/blog/automating-homebrew-tap-updates-with-github-actions/) — cross-repo workflow_dispatch pattern, TAP_DEPLOY_TOKEN scope requirements (MEDIUM confidence)
+- [WinGet Releaser Action](https://github.com/marketplace/actions/winget-releaser) — PAT scope (`public_repo`), fork requirement, Komac-backed implementation (HIGH confidence)
+- [How to Create and Maintain a Tap — Homebrew Documentation](https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap) — `homebrew-` naming convention, `Casks/` directory structure, install command syntax (HIGH confidence)
+- [Automatic Code-signing and Notarization for macOS apps using GitHub Actions](https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/) — 7-secret pattern confirmed matches build.yml secrets (MEDIUM confidence)
 
 ---
 
-*Architecture research for: AgentHub v1.7 — Daemon UX & Branding*
-*Researched: 2026-03-31*
+*Architecture research for: AgentHub v1.8 — GitHub Distribution & CI/CD*
+*Researched: 2026-04-03*
