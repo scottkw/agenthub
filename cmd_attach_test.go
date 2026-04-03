@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/coder/websocket"
 )
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/agenthub/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/daemon"
 )
 
 // serviceControlFunc is the function used to control the service. Package-level var

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/agenthub/agenthub/internal/daemon"
-	"github.com/agenthub/agenthub/internal/pty"
-	"github.com/agenthub/agenthub/internal/status"
-	"github.com/agenthub/agenthub/internal/webserver"
+	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/pty"
+	"github.com/scottkw/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )

@@ -1,4 +1,4 @@
-module github.com/agenthub/agenthub
+module github.com/scottkw/agenthub
 
 go 1.26.1
 

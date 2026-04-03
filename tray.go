@@ -45,14 +45,17 @@ func onTrayShow() {
 
 //export onTrayQuit
 func onTrayQuit() {
+	// Capture the pointer before launching the goroutine to avoid a data race
+	// between the goroutine reading trayCallbackApp and tests restoring it.
+	app := trayCallbackApp
 	go func() {
-		if trayCallbackApp != nil && trayCallbackApp.client != nil {
-			_ = trayCallbackApp.client.ShutdownDaemon()
+		if app != nil && app.client != nil {
+			_ = app.client.ShutdownDaemon()
 		}
-		if trayCallbackApp != nil {
-			trayCallbackApp.quitting = true // bypass beforeClose hide-on-close
-			if trayCallbackApp.ctx != nil {
-				runtime.Quit(trayCallbackApp.ctx)
+		if app != nil {
+			app.quitting = true // bypass beforeClose hide-on-close
+			if app.ctx != nil {
+				runtime.Quit(app.ctx)
 			}
 		}
 	}()
