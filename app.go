@@ -23,6 +23,7 @@ type SessionInfo struct {
 	Name      string `json:"name"`
 	State     string `json:"state"`
 	CreatedAt string `json:"createdAt"`
+	Hostname  string `json:"hostname"`
 }
 
 // App holds all application state and exposes the Wails-bound methods.
@@ -191,6 +192,7 @@ func (a *App) ListSessions() []SessionInfo {
 			Name:      s.Name,
 			State:     s.State,
 			CreatedAt: s.CreatedAt,
+			Hostname:  s.Hostname,
 		}
 	}
 	return result

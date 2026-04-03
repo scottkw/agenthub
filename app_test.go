@@ -159,6 +159,9 @@ func TestCreateSession(t *testing.T) {
 	if sessions[0].Name != "test-tab" {
 		t.Errorf("session name mismatch: got %q, want %q", sessions[0].Name, "test-tab")
 	}
+	if sessions[0].Hostname == "" {
+		t.Error("expected non-empty Hostname from ListSessions, got empty string")
+	}
 }
 
 func TestRenameSession(t *testing.T) {

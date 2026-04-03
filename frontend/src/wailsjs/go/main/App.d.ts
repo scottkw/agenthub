@@ -7,6 +7,7 @@ export interface SessionInfo {
   name: string
   state: string
   createdAt: string
+  hostname: string
 }
 
 export interface DetectedCLI {
