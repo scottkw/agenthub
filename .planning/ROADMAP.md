@@ -109,7 +109,7 @@
 
 **Milestone Goal:** Move AgentHub from Gitea to GitHub with automated multi-platform release builds, Homebrew tap, and WinGet distribution.
 
-- [ ] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path
+- [x] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path (completed 2026-04-04)
 - [ ] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml
 - [ ] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums
 - [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
@@ -130,7 +130,7 @@
 **Plans**: 2 plans
 Plans:
 - [x] 44-01-PLAN.md -- Go module path rewrite (go.mod + 16 .go files)
-- [ ] 44-02-PLAN.md -- GitHub repo creation, mirror push, secrets migration
+- [x] 44-02-PLAN.md -- GitHub repo creation, mirror push, secrets migration
 
 ### Phase 45: release-please + CI Signing Removal
 **Goal**: Merging conventional-commit PRs to main automatically creates a Release PR with updated CHANGELOG.md and version bump; macOS signing no longer runs on every PR build, saving notarization quota and runner minutes
@@ -191,7 +191,7 @@ Plans:
 | 30-34 | v1.5 | 6/6 | Complete | 2026-03-26 |
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
-| 44. Git Migration to GitHub | v1.8 | 1/2 | In Progress|  |
+| 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 0/? | Not started | - |
 | 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |

@@ -9,8 +9,8 @@ Requirements for GitHub Distribution & CI/CD milestone. Each maps to roadmap pha
 
 ### Git Migration
 
-- [ ] **GIT-01**: Repository mirrored to GitHub (scottkw/agenthub) with full history and all tags preserved
-- [ ] **GIT-02**: Go module path updated from github.com/agenthub/agenthub to github.com/scottkw/agenthub with all imports rewritten
+- [x] **GIT-01**: Repository mirrored to GitHub (scottkw/agenthub) with full history and all tags preserved
+- [x] **GIT-02**: Go module path updated from github.com/agenthub/agenthub to github.com/scottkw/agenthub with all imports rewritten
 
 ### Release Automation
 
@@ -53,8 +53,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GIT-01 | Phase 44 | Pending |
-| GIT-02 | Phase 44 | Pending |
+| GIT-01 | Phase 44 | Complete |
+| GIT-02 | Phase 44 | Complete |
 | REL-01 | Phase 45 | Pending |
 | REL-03 | Phase 45 | Pending |
 | REL-02 | Phase 46 | Pending |
