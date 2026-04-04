@@ -157,7 +157,9 @@ Plans:
   3. A `checksums.txt` file containing SHA256 hashes for all artifacts is attached to the GitHub Release alongside the binaries
   4. Artifact filenames follow a consistent naming convention (e.g., `agenthub-v1.8.0-darwin-universal.dmg`) that downstream package managers can rely on
   5. The GitHub Release page shows all artifacts available for download immediately after the workflow completes
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 46-01-PLAN.md -- Create release.yml with macOS/Windows/Linux build jobs and publish job
 
 ### Phase 47: Homebrew Tap + Packaging Templates
 **Goal**: macOS users can install AgentHub via `brew install --cask agenthub` using the scottkw/homebrew-agenthub tap; each new release automatically updates the cask formula; packaging templates for both Homebrew and WinGet are committed to the main repo
@@ -196,7 +198,7 @@ Plans:
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
+| 46. Release Build Pipeline | v1.8 | 0/1 | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
 
