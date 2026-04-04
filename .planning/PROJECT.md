@@ -96,7 +96,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Phase 45 complete (2026-04-04): release-please automation configured and verified — release-please.yml, config, and manifest files created; macOS signing stripped from build.yml (moves to release-only workflow); RELEASE_PLEASE_TOKEN PAT configured; PR #1 "chore(main): release 1.8.0" created automatically on first push. 8 milestones shipped (v1.0–v1.7), 44 prior phases, 79 plans total. Continuing v1.8: next up is release build pipeline (Phase 46). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
+Phase 46 complete (2026-04-04): release build pipeline created — `.github/workflows/release.yml` triggers on `v*` tag pushes (from release-please) and builds macOS signed/notarized DMG, Windows NSIS installer + bare EXE, Linux amd64 tar.gz + deb, then generates SHA256 checksums and uploads all artifacts to GitHub Release. 8 milestones shipped (v1.0–v1.7), 45 prior phases, 80 plans total. Continuing v1.8: next up is Homebrew tap + packaging templates (Phase 47). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
@@ -205,4 +205,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 45 completion*
+*Last updated: 2026-04-04 after Phase 46 completion*
