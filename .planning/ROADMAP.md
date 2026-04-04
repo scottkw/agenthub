@@ -144,7 +144,7 @@ Plans:
   5. `release-please-config.json` and `.release-please-manifest.json` are committed to the repo and track the current version
 **Plans**: 2 plans
 Plans:
-- [ ] 45-01-PLAN.md -- Create release-please workflow + config files, remove signing from build.yml
+- [x] 45-01-PLAN.md -- Create release-please workflow + config files, remove signing from build.yml
 - [ ] 45-02-PLAN.md -- Configure PAT secret, verify end-to-end Release PR creation
 
 ### Phase 46: Release Build Pipeline
@@ -195,7 +195,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 45. release-please + CI Signing Removal | v1.8 | 0/2 | Not started | - |
+| 45. release-please + CI Signing Removal | v1.8 | 1/2 | In Progress|  |
 | 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |

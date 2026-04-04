@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: GitHub Distribution & CI/CD
 status: executing
-stopped_at: Completed 44-git-migration-to-github-44-01-PLAN.md
-last_updated: "2026-04-04T17:26:01.027Z"
+stopped_at: Completed 45-release-please-ci-signing-removal-45-01-PLAN.md
+last_updated: "2026-04-04T18:03:06.141Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 44 — git-migration-to-github
+**Current focus:** Phase 45 — release-please-ci-signing-removal
 
 ## Current Position
 
-Phase: 45
-Plan: Not started
+Phase: 45 (release-please-ci-signing-removal) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-04-04
 
@@ -50,6 +50,8 @@ Progress: [░░░░░░░░░░] 0%
 - Both `TAP_DEPLOY_TOKEN` and `WINGET_TOKEN` must be classic PATs (not fine-grained) — fine-grained incompatible with cross-repo dispatch and winget-releaser
 - WinGet first submission is manual — `winget-releaser` only works after package identity exists in microsoft/winget-pkgs
 - [Phase 44-git-migration-to-github]: Capture trayCallbackApp pointer in caller goroutine before onTrayQuit goroutine to eliminate cgo callback data race
+- [Phase 45-release-please-ci-signing-removal]: Use release-type: simple (not go) to sidestep Go version-file bug (issue #2541); wails.json updated via JSON-path extra-file
+- [Phase 45-release-please-ci-signing-removal]: macOS signing removed from build.yml; moves exclusively to release.yml in Phase 46 to save notarization quota on PR builds
 
 ### Pending Todos
 
@@ -61,7 +63,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-03T20:21:19.488Z
-Stopped at: Completed 44-git-migration-to-github-44-01-PLAN.md
+Last session: 2026-04-04T18:03:06.138Z
+Stopped at: Completed 45-release-please-ci-signing-removal-45-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 44`
