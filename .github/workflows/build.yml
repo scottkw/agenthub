@@ -29,15 +29,6 @@ jobs:
 
     runs-on: ${{ matrix.build.os }}
 
-    env:
-      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-      MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
-      MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
-      MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
-      MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
-      MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,41 +62,6 @@ jobs:
           build-flags: ${{ matrix.build.webkit_tag && format('-tags {0}', matrix.build.webkit_tag) || '' }}
           build-webview2: embed
           nsis: ${{ matrix.build.os == 'windows-latest' }}
-
-      - name: Import macOS certificate
-        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
-        run: |
-          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-
-      - name: Sign macOS app with hardened runtime
-        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
-        run: |
-          /usr/bin/codesign --force -s "$MACOS_CERTIFICATE_NAME" \
-            --options runtime \
-            --entitlements build/entitlements.plist \
-            build/bin/agenthub.app -v
-
-      - name: Notarize macOS app
-        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != ''
-        run: |
-          xcrun notarytool store-credentials "notarytool-profile" \
-            --apple-id "$MACOS_NOTARIZATION_APPLE_ID" \
-            --team-id "$MACOS_NOTARIZATION_TEAM_ID" \
-            --password "$MACOS_NOTARIZATION_PWD"
-          ditto -c -k --keepParent build/bin/agenthub.app notarization.zip
-          xcrun notarytool submit notarization.zip --keychain-profile "notarytool-profile" --wait
-          xcrun stapler staple build/bin/agenthub.app
-
-      - name: Cleanup macOS keychain and certificate
-        if: runner.os == 'macOS' && env.MACOS_CERTIFICATE != '' && always()
-        run: |
-          security delete-keychain build.keychain || true
-          rm -f certificate.p12 notarization.zip
 
       - name: Upload macOS artifact
         if: runner.os == 'macOS'
