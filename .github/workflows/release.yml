@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    environment: release
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+      MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+      MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
+      MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build macOS app with Wails
+        uses: dAppServer/wails-build-action@main
+        with:
+          build-name: agenthub
+          build-platform: darwin/universal
+
+      - name: Import certificate to keychain
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+
+      - name: Sign .app with hardened runtime
+        run: |
+          codesign --deep --force --verbose \
+            --options runtime \
+            --timestamp \
+            --entitlements build/entitlements.plist \
+            --sign "$MACOS_CERTIFICATE_NAME" \
+            build/bin/agenthub.app
+
+      - name: Notarize .app
+        run: |
+          xcrun notarytool store-credentials "agenthub-notarize" \
+            --apple-id "$MACOS_NOTARIZATION_APPLE_ID" \
+            --team-id "$MACOS_NOTARIZATION_TEAM_ID" \
+            --password "$MACOS_NOTARIZATION_PWD"
+          ditto -c -k --keepParent build/bin/agenthub.app build/bin/agenthub-notarize.zip
+          xcrun notarytool submit build/bin/agenthub-notarize.zip \
+            --keychain-profile "agenthub-notarize" \
+            --wait
+          xcrun stapler staple build/bin/agenthub.app
+
+      - name: Create and sign DMG
+        run: |
+          brew install create-dmg
+          VERSION="${GITHUB_REF_NAME}"
+          DMG_NAME="agenthub-${VERSION}-darwin-universal.dmg"
+          create-dmg \
+            --volname "AgentHub" \
+            --codesign "$MACOS_CERTIFICATE_NAME" \
+            "${DMG_NAME}" \
+            build/bin/agenthub.app
+          mv "${DMG_NAME}" build/bin/
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          security delete-keychain build.keychain || true
+          rm -f certificate.p12 build/bin/agenthub-notarize.zip
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: build/bin/agenthub-*.dmg
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build Windows artifacts with Wails
+        uses: dAppServer/wails-build-action@main
+        with:
+          build-name: agenthub
+          build-platform: windows/amd64
+          build-webview2: embed
+          nsis: true
+
+      - name: Rename artifacts with version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          mv build/bin/agenthub-amd64-installer.exe \
+            "build/bin/agenthub-${VERSION}-windows-amd64-installer.exe"
+          mv build/bin/agenthub.exe \
+            "build/bin/agenthub-${VERSION}-windows-amd64.exe"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: build/bin/agenthub-*.exe
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config \
+            libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Build Linux binary with Wails
+        uses: dAppServer/wails-build-action@main
+        with:
+          build-name: agenthub
+          build-platform: linux/amd64
+          build-flags: -tags webkit2_41
+
+      - name: Create tar.gz
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          TAR_NAME="agenthub-${VERSION}-linux-amd64.tar.gz"
+          tar -czf "${TAR_NAME}" -C build/bin agenthub
+          mv "${TAR_NAME}" build/bin/
+
+      - name: Create .deb via nfpm
+        run: |
+          VERSION_BARE="${GITHUB_REF_NAME#v}"
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          cat > nfpm.yaml <<EOF
+          name: agenthub
+          arch: amd64
+          platform: linux
+          version: "${VERSION_BARE}"
+          maintainer: AgentHub <noreply@github.com>
+          description: AI coding session manager
+          contents:
+            - src: build/bin/agenthub
+              dst: /usr/bin/agenthub
+          EOF
+          $(go env GOPATH)/bin/nfpm package --packager deb \
+            --target "build/bin/agenthub-${GITHUB_REF_NAME}-linux-amd64.deb"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            build/bin/agenthub-*.tar.gz
+            build/bin/agenthub-*.deb
+          if-no-files-found: error
+
+  publish:
+    needs: [build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd artifacts
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*.dmg
+            artifacts/*.exe
+            artifacts/*.tar.gz
+            artifacts/*.deb
+            artifacts/checksums.txt
+          fail_on_unmatched_files: true
