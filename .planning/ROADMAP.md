@@ -110,7 +110,7 @@
 **Milestone Goal:** Move AgentHub from Gitea to GitHub with automated multi-platform release builds, Homebrew tap, and WinGet distribution.
 
 - [x] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path (completed 2026-04-04)
-- [ ] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml
+- [x] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml (completed 2026-04-04)
 - [ ] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums
 - [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
 - [ ] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml
@@ -145,7 +145,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 45-01-PLAN.md -- Create release-please workflow + config files, remove signing from build.yml
-- [ ] 45-02-PLAN.md -- Configure PAT secret, verify end-to-end Release PR creation
+- [x] 45-02-PLAN.md -- Configure PAT secret, verify end-to-end Release PR creation
 
 ### Phase 46: Release Build Pipeline
 **Goal**: Merging a Release PR (created by release-please) produces a GitHub Release with multi-platform signed artifacts and a SHA256 checksums file that users and package managers can verify
@@ -195,7 +195,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 45. release-please + CI Signing Removal | v1.8 | 1/2 | In Progress|  |
+| 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
