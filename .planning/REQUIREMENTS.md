@@ -15,9 +15,9 @@ Requirements for GitHub Distribution & CI/CD milestone. Each maps to roadmap pha
 ### Release Automation
 
 - [x] **REL-01**: release-please.yml workflow creates Release PRs with auto-versioned CHANGELOG.md from conventional commits
-- [ ] **REL-02**: release.yml workflow builds multi-platform artifacts on tag push (macOS signed/notarized DMG, Windows EXE + NSIS installer, Linux amd64 tar.gz + deb)
+- [x] **REL-02**: release.yml workflow builds multi-platform artifacts on tag push (macOS signed/notarized DMG, Windows EXE + NSIS installer, Linux amd64 tar.gz + deb)
 - [x] **REL-03**: Existing build.yml modified to remove macOS signing (moved to release-only), retaining tests and race detector
-- [ ] **REL-04**: SHA256 checksums file generated and attached to each GitHub Release
+- [x] **REL-04**: SHA256 checksums file generated and attached to each GitHub Release
 
 ### Distribution
 
@@ -57,8 +57,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GIT-02 | Phase 44 | Complete |
 | REL-01 | Phase 45 | Complete |
 | REL-03 | Phase 45 | Complete |
-| REL-02 | Phase 46 | Pending |
-| REL-04 | Phase 46 | Pending |
+| REL-02 | Phase 46 | Complete |
+| REL-04 | Phase 46 | Complete |
 | DIST-01 | Phase 47 | Pending |
 | DIST-02 | Phase 47 | Pending |
 | DIST-04 | Phase 47 | Pending |

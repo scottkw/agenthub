@@ -111,7 +111,7 @@
 
 - [x] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path (completed 2026-04-04)
 - [x] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml (completed 2026-04-04)
-- [ ] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums
+- [x] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums (completed 2026-04-04)
 - [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
 - [ ] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml
 
@@ -159,7 +159,7 @@ Plans:
   5. The GitHub Release page shows all artifacts available for download immediately after the workflow completes
 **Plans**: 1 plan
 Plans:
-- [ ] 46-01-PLAN.md -- Create release.yml with macOS/Windows/Linux build jobs and publish job
+- [x] 46-01-PLAN.md -- Create release.yml with macOS/Windows/Linux build jobs and publish job
 
 ### Phase 47: Homebrew Tap + Packaging Templates
 **Goal**: macOS users can install AgentHub via `brew install --cask agenthub` using the scottkw/homebrew-agenthub tap; each new release automatically updates the cask formula; packaging templates for both Homebrew and WinGet are committed to the main repo
@@ -198,7 +198,7 @@ Plans:
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 46. Release Build Pipeline | v1.8 | 0/1 | Not started | - |
+| 46. Release Build Pipeline | v1.8 | 1/1 | Complete   | 2026-04-04 |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: GitHub Distribution & CI/CD
-status: executing
-stopped_at: Completed 45-release-please-ci-signing-removal-45-01-PLAN.md
-last_updated: "2026-04-04T18:28:06.668Z"
+status: verifying
+stopped_at: Completed 46-release-build-pipeline-46-01-PLAN.md
+last_updated: "2026-04-04T21:39:38.986Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 45 — release-please-ci-signing-removal
+**Current focus:** Phase 46 — release-build-pipeline
 
 ## Current Position
 
-Phase: 46
-Plan: Not started
-Status: Ready to execute
+Phase: 46 (release-build-pipeline) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
 Last activity: 2026-04-04
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 44-git-migration-to-github]: Capture trayCallbackApp pointer in caller goroutine before onTrayQuit goroutine to eliminate cgo callback data race
 - [Phase 45-release-please-ci-signing-removal]: Use release-type: simple (not go) to sidestep Go version-file bug (issue #2541); wails.json updated via JSON-path extra-file
 - [Phase 45-release-please-ci-signing-removal]: macOS signing removed from build.yml; moves exclusively to release.yml in Phase 46 to save notarization quota on PR builds
+- [Phase 46-release-build-pipeline]: Manual signing post-wails-build-action: wails-build-action sign inputs use different secret naming; manual control needed for correct sign-notarize-staple-DMG order
 
 ### Pending Todos
 
@@ -63,7 +64,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-04T18:03:06.138Z
-Stopped at: Completed 45-release-please-ci-signing-removal-45-01-PLAN.md
+Last session: 2026-04-04T21:39:38.983Z
+Stopped at: Completed 46-release-build-pipeline-46-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 44`
