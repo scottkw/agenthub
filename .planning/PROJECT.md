@@ -96,7 +96,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Shipped v1.7 Daemon UX & Branding (2026-04-03). 8 milestones shipped (v1.0–v1.7), 43 phases, 77 plans total. Starting v1.8: GitHub distribution infrastructure. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. System tray uses native macOS cgo NSStatusBar with dynamic NSMenuDelegate menu, monochrome template icon, and error state switching.
+Phase 44 complete (2026-04-04): migrated primary remote from Gitea to GitHub (scottkw/agenthub) with full history, all v1.0–v1.7 annotated tags, Go module path rewritten to github.com/scottkw/agenthub, and 7 macOS signing secrets configured in GitHub release environment. 8 milestones shipped (v1.0–v1.7), 43 prior phases, 77 plans total. Continuing v1.8: next up is release-please + CI signing removal (Phase 45). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
@@ -205,4 +205,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after v1.8 milestone started*
+*Last updated: 2026-04-04 after Phase 44 completion*
