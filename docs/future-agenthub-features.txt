@@ -9,3 +9,5 @@ Future AgentHub Features
 - The GUI and the CLI need to be able to connect to a remote session without needing to SSH into the remote host.  The connections should work like the web-based terminals do.  The user should just be able to list the available sessions running on any hosts available via Tailscale.
 - Add a TUI option to the unified executable that mimics the GUI as closely as possible.
 - Support for or a fork of the inter-session Claude Peers mcp server
+- Welcome screen's version needs to follow the release version number automatically
+- Linux and Windows system tray icons and functionality (currently only macOS)
