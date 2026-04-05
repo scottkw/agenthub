@@ -185,7 +185,10 @@ Plans:
   2. The distribute.yml WinGet job runs `winget-releaser` after each new release and automatically submits a manifest PR to microsoft/winget-pkgs
   3. The WINGET_TOKEN secret (classic PAT with public_repo scope) is stored in GitHub repository settings and used by distribute.yml
   4. `winget validate` passes against the submitted manifests before the first manual PR is opened
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 48-01-PLAN.md -- Add winget-releaser job to distribute.yml + manifest population helper script
+- [ ] 48-02-PLAN.md -- WINGET_TOKEN setup, winget-pkgs fork, manual first submission to microsoft/winget-pkgs
 
 ## Progress
 
@@ -203,7 +206,7 @@ Plans:
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 46. Release Build Pipeline | v1.8 | 1/1 | Complete    | 2026-04-04 |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 2/2 | Complete    | 2026-04-05 |
-| 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
+| 48. WinGet Distribution | v1.8 | 0/2 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
