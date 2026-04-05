@@ -96,7 +96,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Phase 47 complete (2026-04-05): Homebrew tap and packaging templates — `packaging/homebrew/agenthub.rb.template` (Homebrew cask with `{{VERSION}}`/`{{SHA256}}` placeholders), 3 WinGet manifests at schema 1.12.0 in `packaging/winget/manifests/`, `.github/workflows/distribute.yml` (triggers on release:published, downloads checksums with retry, extracts DMG SHA256, pushes updated cask formula to scottkw/homebrew-agenthub via TAP_DEPLOY_TOKEN PAT). Tap repo live: `brew tap scottkw/agenthub` works. 8 milestones shipped (v1.0–v1.7), 46 prior phases, 82 plans total. Continuing v1.8: next up is WinGet distribution (Phase 48). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
+Phase 48 complete (2026-04-05): WinGet distribution — `distribute.yml` now has `submit-winget` job using `vedantmgoyal9/winget-releaser@main` (triggers on release:published, restrictive installer regex, WINGET_TOKEN secret), `populate-manifests.sh` helper script for one-time manual first submission, WINGET_TOKEN classic PAT stored as repo secret, `scottkw/winget-pkgs` fork ready. Manual first submission to microsoft/winget-pkgs deferred until first release is published. v1.8 milestone complete: all 5 phases (44–48) done — GitHub migration, CI/CD, release pipeline, Homebrew tap, and WinGet distribution infrastructure all in place. 8 milestones shipped (v1.0–v1.7), v1.8 complete, 48 phases, 86 plans total. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
@@ -205,4 +205,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 46 completion*
+*Last updated: 2026-04-05 after Phase 48 completion*
