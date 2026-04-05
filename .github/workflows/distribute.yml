@@ -1,0 +1,62 @@
+name: Distribute
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-homebrew-tap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Download checksums with retry
+        uses: nick-fields/retry@v3
+        with:
+          timeout_seconds: 30
+          max_attempts: 5
+          retry_wait_seconds: 60
+          command: |
+            curl -fsSL \
+              "https://github.com/scottkw/agenthub/releases/download/${{ github.ref_name }}/checksums.txt" \
+              -o checksums.txt
+
+      - name: Extract DMG SHA256
+        id: sha256
+        run: |
+          SHA256=$(grep "agenthub-${{ github.ref_name }}-darwin-universal.dmg" checksums.txt | awk '{ print $1 }')
+          if [ -z "$SHA256" ]; then
+            echo "ERROR: SHA256 not found in checksums.txt"
+            cat checksums.txt
+            exit 1
+          fi
+          echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: scottkw/homebrew-agenthub
+          token: ${{ secrets.TAP_DEPLOY_TOKEN }}
+          path: tap
+
+      - name: Update cask formula
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA256="${{ steps.sha256.outputs.sha256 }}"
+          sed -i "s/version \"[^\"]*\"/version \"${VERSION}\"/" tap/Casks/agenthub.rb
+          sed -i "s/sha256 \"[^\"]*\"/sha256 \"${SHA256}\"/" tap/Casks/agenthub.rb
+
+      - name: Commit and push formula update
+        run: |
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/agenthub.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "agenthub ${{ steps.version.outputs.version }}"
+          git push
