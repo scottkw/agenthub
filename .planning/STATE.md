@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: GitHub Distribution & CI/CD
 status: verifying
-stopped_at: Completed 46-release-build-pipeline-46-01-PLAN.md
-last_updated: "2026-04-04T22:24:34.420Z"
-last_activity: 2026-04-04
+stopped_at: Completed 47-homebrew-tap-packaging-templates-47-01-PLAN.md
+last_updated: "2026-04-05T00:26:47.552Z"
+last_activity: 2026-04-05
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 46 — release-build-pipeline
+**Current focus:** Phase 47 — homebrew-tap-packaging-templates
 
 ## Current Position
 
-Phase: 47
-Plan: Not started
+Phase: 47 (homebrew-tap-packaging-templates) — EXECUTING
+Plan: 2 of 2
 Status: Phase complete — ready for verification
-Last activity: 2026-04-04
+Last activity: 2026-04-05
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -53,6 +53,10 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 45-release-please-ci-signing-removal]: Use release-type: simple (not go) to sidestep Go version-file bug (issue #2541); wails.json updated via JSON-path extra-file
 - [Phase 45-release-please-ci-signing-removal]: macOS signing removed from build.yml; moves exclusively to release.yml in Phase 46 to save notarization quota on PR builds
 - [Phase 46-release-build-pipeline]: Manual signing post-wails-build-action: wails-build-action sign inputs use different secret naming; manual control needed for correct sign-notarize-staple-DMG order
+- [Phase 47-homebrew-tap-packaging-templates]: distribute.yml triggers on release:published (not push:tags) to avoid artifact race condition
+- [Phase 47-homebrew-tap-packaging-templates]: Extract SHA256 from checksums.txt (not DMG re-download) — avoids 50MB binary fetch and notarization timing window
+- [Phase 47-homebrew-tap-packaging-templates]: InstallerType: nullsoft chosen for WinGet installer manifest — Phase 46 produces NSIS installer; nullsoft enables automatic /S silent install without explicit switches
+- [Phase 47-homebrew-tap-packaging-templates]: License: Proprietary in WinGet locale manifest — no LICENSE file exists in repo; update to SPDX identifier before Phase 48 submission
 
 ### Pending Todos
 
@@ -64,7 +68,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-04T21:39:38.983Z
-Stopped at: Completed 46-release-build-pipeline-46-01-PLAN.md
+Last session: 2026-04-05T00:26:47.549Z
+Stopped at: Completed 47-homebrew-tap-packaging-templates-47-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 44`

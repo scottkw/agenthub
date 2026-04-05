@@ -112,7 +112,7 @@
 - [x] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path (completed 2026-04-04)
 - [x] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml (completed 2026-04-04)
 - [x] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums (completed 2026-04-04)
-- [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
+- [x] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml (completed 2026-04-05)
 - [ ] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml
 
 ## Phase Details
@@ -173,8 +173,8 @@ Plans:
   5. The `distribute.yml` Homebrew job includes retry logic for the macOS asset SHA256 download to handle the notarization delay after release
 **Plans**: 2 plans
 Plans:
-- [ ] 47-01-PLAN.md -- Homebrew cask template + WinGet manifest templates in packaging/
-- [ ] 47-02-PLAN.md -- distribute.yml workflow + tap repo setup
+- [x] 47-01-PLAN.md -- Homebrew cask template + WinGet manifest templates in packaging/
+- [x] 47-02-PLAN.md -- distribute.yml workflow + tap repo setup
 
 ### Phase 48: WinGet Distribution
 **Goal**: Windows users can install AgentHub via `winget install AgentHub.AgentHub`; the package identity is established in microsoft/winget-pkgs via a manual first submission, and subsequent releases are submitted automatically
@@ -202,7 +202,7 @@ Plans:
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 46. Release Build Pipeline | v1.8 | 1/1 | Complete    | 2026-04-04 |
-| 47. Homebrew Tap + Packaging Templates | v1.8 | 0/2 | Not started | - |
+| 47. Homebrew Tap + Packaging Templates | v1.8 | 2/2 | Complete   | 2026-04-05 |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
 
 ---
