@@ -198,7 +198,7 @@ Plans:
 | 45. release-please + CI Signing Removal | v1.8 | 1/2 | In Progress|  |
 | 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
-| 48. WinGet Distribution | v1.8 | 1/1 | Complete   | 2026-04-05 |
+| 48. WinGet Distribution | v1.8 | 2/2 | Complete    | 2026-04-05 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
