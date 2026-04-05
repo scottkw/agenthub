@@ -202,7 +202,7 @@ Plans:
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 46. Release Build Pipeline | v1.8 | 1/1 | Complete    | 2026-04-04 |
-| 47. Homebrew Tap + Packaging Templates | v1.8 | 2/2 | Complete   | 2026-04-05 |
+| 47. Homebrew Tap + Packaging Templates | v1.8 | 2/2 | Complete    | 2026-04-05 |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
 
 ---
