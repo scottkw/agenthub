@@ -60,3 +60,12 @@ jobs:
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "agenthub ${{ steps.version.outputs.version }}"
           git push
+
+  submit-winget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: scottkw.agenthub
+          installers-regex: 'agenthub-v[\d.]+-windows-amd64-installer\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

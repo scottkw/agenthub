@@ -110,10 +110,10 @@
 **Milestone Goal:** Move AgentHub from Gitea to GitHub with automated multi-platform release builds, Homebrew tap, and WinGet distribution.
 
 - [x] **Phase 44: Git Migration to GitHub** - Mirror Gitea repo to GitHub with full history, all tags, and updated Go module path (completed 2026-04-04)
-- [x] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml (completed 2026-04-04)
-- [x] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums (completed 2026-04-04)
-- [x] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml (completed 2026-04-05)
-- [ ] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml
+- [ ] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml
+- [ ] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums
+- [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
+- [x] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml (completed 2026-04-05)
 
 ## Phase Details
 
@@ -145,7 +145,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 45-01-PLAN.md -- Create release-please workflow + config files, remove signing from build.yml
-- [x] 45-02-PLAN.md -- Configure PAT secret, verify end-to-end Release PR creation
+- [ ] 45-02-PLAN.md -- Configure PAT secret, verify end-to-end Release PR creation
 
 ### Phase 46: Release Build Pipeline
 **Goal**: Merging a Release PR (created by release-please) produces a GitHub Release with multi-platform signed artifacts and a SHA256 checksums file that users and package managers can verify
@@ -157,9 +157,7 @@ Plans:
   3. A `checksums.txt` file containing SHA256 hashes for all artifacts is attached to the GitHub Release alongside the binaries
   4. Artifact filenames follow a consistent naming convention (e.g., `agenthub-v1.8.0-darwin-universal.dmg`) that downstream package managers can rely on
   5. The GitHub Release page shows all artifacts available for download immediately after the workflow completes
-**Plans**: 1 plan
-Plans:
-- [x] 46-01-PLAN.md -- Create release.yml with macOS/Windows/Linux build jobs and publish job
+**Plans**: TBD
 
 ### Phase 47: Homebrew Tap + Packaging Templates
 **Goal**: macOS users can install AgentHub via `brew install --cask agenthub` using the scottkw/homebrew-agenthub tap; each new release automatically updates the cask formula; packaging templates for both Homebrew and WinGet are committed to the main repo
@@ -171,10 +169,7 @@ Plans:
   3. The `packaging/homebrew/agenthub.rb.template` file in the main repo contains a complete, renderable cask formula template with placeholder tokens for version and SHA256
   4. The `packaging/winget/manifests/` directory in the main repo contains the three-file WinGet manifest set (version, installer, locale) matching WinGet schema 1.12.0
   5. The `distribute.yml` Homebrew job includes retry logic for the macOS asset SHA256 download to handle the notarization delay after release
-**Plans**: 2 plans
-Plans:
-- [x] 47-01-PLAN.md -- Homebrew cask template + WinGet manifest templates in packaging/
-- [x] 47-02-PLAN.md -- distribute.yml workflow + tap repo setup
+**Plans**: TBD
 
 ### Phase 48: WinGet Distribution
 **Goal**: Windows users can install AgentHub via `winget install AgentHub.AgentHub`; the package identity is established in microsoft/winget-pkgs via a manual first submission, and subsequent releases are submitted automatically
@@ -185,10 +180,7 @@ Plans:
   2. The distribute.yml WinGet job runs `winget-releaser` after each new release and automatically submits a manifest PR to microsoft/winget-pkgs
   3. The WINGET_TOKEN secret (classic PAT with public_repo scope) is stored in GitHub repository settings and used by distribute.yml
   4. `winget validate` passes against the submitted manifests before the first manual PR is opened
-**Plans**: 2 plans
-Plans:
-- [ ] 48-01-PLAN.md -- Add winget-releaser job to distribute.yml + manifest population helper script
-- [ ] 48-02-PLAN.md -- WINGET_TOKEN setup, winget-pkgs fork, manual first submission to microsoft/winget-pkgs
+**Plans**: TBD
 
 ## Progress
 
@@ -203,10 +195,10 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
-| 46. Release Build Pipeline | v1.8 | 1/1 | Complete    | 2026-04-04 |
-| 47. Homebrew Tap + Packaging Templates | v1.8 | 2/2 | Complete    | 2026-04-05 |
-| 48. WinGet Distribution | v1.8 | 0/2 | Not started | - |
+| 45. release-please + CI Signing Removal | v1.8 | 1/2 | In Progress|  |
+| 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
+| 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
+| 48. WinGet Distribution | v1.8 | 1/1 | Complete   | 2026-04-05 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

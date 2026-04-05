@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: GitHub Distribution & CI/CD
-status: completed
-stopped_at: Completed 47-homebrew-tap-packaging-templates-47-02-PLAN.md
-last_updated: "2026-04-05T00:44:43.034Z"
+status: verifying
+stopped_at: Completed 48-winget-distribution 48-01-PLAN.md
+last_updated: "2026-04-05T21:47:30.886Z"
 last_activity: 2026-04-05
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 47 — homebrew-tap-packaging-templates
+**Current focus:** Phase 45 — release-please-ci-signing-removal
 
 ## Current Position
 
-Phase: 48
-Plan: Not started
-Status: Phase 47 complete — tap repo configured, distribute.yml ready
+Phase: 45 (release-please-ci-signing-removal) — EXECUTING
+Plan: 2 of 2
+Status: Phase complete — ready for verification
 Last activity: 2026-04-05
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,11 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 44-git-migration-to-github]: Capture trayCallbackApp pointer in caller goroutine before onTrayQuit goroutine to eliminate cgo callback data race
 - [Phase 45-release-please-ci-signing-removal]: Use release-type: simple (not go) to sidestep Go version-file bug (issue #2541); wails.json updated via JSON-path extra-file
 - [Phase 45-release-please-ci-signing-removal]: macOS signing removed from build.yml; moves exclusively to release.yml in Phase 46 to save notarization quota on PR builds
-- [Phase 46-release-build-pipeline]: Manual signing post-wails-build-action: wails-build-action sign inputs use different secret naming; manual control needed for correct sign-notarize-staple-DMG order
-- [Phase 47-homebrew-tap-packaging-templates]: distribute.yml triggers on release:published (not push:tags) to avoid artifact race condition
-- [Phase 47-homebrew-tap-packaging-templates]: Extract SHA256 from checksums.txt (not DMG re-download) — avoids 50MB binary fetch and notarization timing window
-- [Phase 47-homebrew-tap-packaging-templates]: InstallerType: nullsoft chosen for WinGet installer manifest — Phase 46 produces NSIS installer; nullsoft enables automatic /S silent install without explicit switches
-- [Phase 47-homebrew-tap-packaging-templates]: License: Proprietary in WinGet locale manifest — no LICENSE file exists in repo; update to SPDX identifier before Phase 48 submission
+- [Phase 48-winget-distribution]: installers-regex uses restrictive pattern to exclude bare EXE artifact from NSIS installer matching in winget-releaser
 
 ### Pending Todos
 
@@ -68,7 +64,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-05T04:00:00.000Z
-Stopped at: Completed 47-homebrew-tap-packaging-templates-47-02-PLAN.md
+Last session: 2026-04-05T21:47:30.883Z
+Stopped at: Completed 48-winget-distribution 48-01-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 48` (WinGet Distribution)
+Next action: `/gsd:plan-phase 44`
