@@ -21,10 +21,10 @@ Requirements for GitHub Distribution & CI/CD milestone. Each maps to roadmap pha
 
 ### Distribution
 
-- [ ] **DIST-01**: Homebrew cask tap repo (scottkw/homebrew-agenthub) with cask formula installable via `brew tap scottkw/agenthub && brew install --cask agenthub`
+- [x] **DIST-01**: Homebrew cask tap repo (scottkw/homebrew-agenthub) with cask formula installable via `brew tap scottkw/agenthub && brew install --cask agenthub`
 - [x] **DIST-02**: distribute.yml workflow auto-updates Homebrew tap with new version and SHA256 on each release
 - [ ] **DIST-03**: WinGet manifest submitted to microsoft/winget-pkgs (manual first submission, then automated via distribute.yml)
-- [ ] **DIST-04**: Packaging templates in repo (packaging/homebrew/agenthub.rb.template, packaging/winget/manifests/)
+- [x] **DIST-04**: Packaging templates in repo (packaging/homebrew/agenthub.rb.template, packaging/winget/manifests/)
 
 ## Future Requirements
 
@@ -59,9 +59,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-03 | Phase 45 | Complete |
 | REL-02 | Phase 46 | Complete |
 | REL-04 | Phase 46 | Complete |
-| DIST-01 | Phase 47 | Pending |
+| DIST-01 | Phase 47 | Complete |
 | DIST-02 | Phase 47 | Complete |
-| DIST-04 | Phase 47 | Pending |
+| DIST-04 | Phase 47 | Complete |
 | DIST-03 | Phase 48 | Pending |
 
 **Coverage:**
