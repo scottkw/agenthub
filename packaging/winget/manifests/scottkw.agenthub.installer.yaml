@@ -1,0 +1,12 @@
+PackageIdentifier: scottkw.agenthub
+PackageVersion: "{{VERSION}}"
+InstallerType: nullsoft
+InstallModes:
+  - silent
+  - silentWithProgress
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/scottkw/agenthub/releases/download/v{{VERSION}}/agenthub-v{{VERSION}}-windows-amd64-installer.exe
+    InstallerSha256: "{{WINDOWS_SHA256}}"
+ManifestType: installer
+ManifestVersion: 1.12.0
