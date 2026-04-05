@@ -96,7 +96,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-Phase 46 complete (2026-04-04): release build pipeline created — `.github/workflows/release.yml` triggers on `v*` tag pushes (from release-please) and builds macOS signed/notarized DMG, Windows NSIS installer + bare EXE, Linux amd64 tar.gz + deb, then generates SHA256 checksums and uploads all artifacts to GitHub Release. 8 milestones shipped (v1.0–v1.7), 45 prior phases, 80 plans total. Continuing v1.8: next up is Homebrew tap + packaging templates (Phase 47). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
+Phase 47 complete (2026-04-05): Homebrew tap and packaging templates — `packaging/homebrew/agenthub.rb.template` (Homebrew cask with `{{VERSION}}`/`{{SHA256}}` placeholders), 3 WinGet manifests at schema 1.12.0 in `packaging/winget/manifests/`, `.github/workflows/distribute.yml` (triggers on release:published, downloads checksums with retry, extracts DMG SHA256, pushes updated cask formula to scottkw/homebrew-agenthub via TAP_DEPLOY_TOKEN PAT). Tap repo live: `brew tap scottkw/agenthub` works. 8 milestones shipped (v1.0–v1.7), 46 prior phases, 82 plans total. Continuing v1.8: next up is WinGet distribution (Phase 48). App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
