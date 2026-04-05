@@ -34,7 +34,7 @@ patterns-established:
   - "Pattern: Cross-repo git push via classic PAT (TAP_DEPLOY_TOKEN) — GITHUB_TOKEN cannot push to other repos"
   - "Pattern: checksums.txt grep+awk SHA256 extraction — grep for exact filename, awk for first field (handles variable spacing)"
 
-requirements-completed: [DIST-02]
+requirements-completed: [DIST-01, DIST-02]
 
 # Metrics
 duration: 1min
@@ -47,10 +47,10 @@ completed: 2026-04-05
 
 ## Performance
 
-- **Duration:** ~1 min
+- **Duration:** ~1 min (Task 1) + user setup (Task 2)
 - **Started:** 2026-04-05T00:25:09Z
-- **Completed:** 2026-04-05T00:25:49Z
-- **Tasks:** 1 of 2 (Task 2 is checkpoint:human-action — awaiting manual setup)
+- **Completed:** 2026-04-05
+- **Tasks:** 2 of 2 (fully complete)
 - **Files modified:** 1
 
 ## Accomplishments
@@ -78,42 +78,14 @@ completed: 2026-04-05
 
 None - plan executed exactly as written.
 
-## User Setup Required
+## Task 2 Completion (User-Confirmed)
 
-**Task 2 requires manual setup before the distribute.yml workflow can function:**
+**Task 2 (checkpoint:human-action) completed by user on 2026-04-05:**
 
-1. **Create tap repo:** Go to https://github.com/new and create `homebrew-agenthub` under the `scottkw` account (Public, initialize with README). The name MUST be `homebrew-agenthub` — Homebrew's `brew tap scottkw/agenthub` short form requires this prefix.
-
-2. **Create Casks/agenthub.rb in the tap repo:** After creating the repo, create `Casks/agenthub.rb` with placeholder content. Use the GitHub UI or git clone. Content:
-   ```ruby
-   cask "agenthub" do
-     version "0.0.0"
-     sha256 "placeholder"
-
-     url "https://github.com/scottkw/agenthub/releases/download/v#{version}/agenthub-v#{version}-darwin-universal.dmg"
-     name "AgentHub"
-     desc "AI coding session manager with tabbed terminals and Tailscale web access"
-     homepage "https://github.com/scottkw/agenthub"
-
-     depends_on macos: ">= :ventura"
-
-     app "agenthub.app"
-
-     zap trash: [
-       "~/Library/Application Support/agenthub",
-       "~/Library/Preferences/com.scottkw.agenthub.plist",
-       "~/Library/Caches/com.scottkw.agenthub",
-       "~/Library/Logs/agenthub",
-     ]
-   end
-   ```
-
-3. **Create TAP_DEPLOY_TOKEN secret:** Go to https://github.com/settings/tokens and generate a classic PAT (NOT fine-grained) with `repo` scope. Then go to https://github.com/scottkw/agenthub/settings/secrets/actions and add it as `TAP_DEPLOY_TOKEN`.
-
-**Verification checklist:**
-- https://github.com/scottkw/homebrew-agenthub exists and is public
-- https://github.com/scottkw/homebrew-agenthub/blob/main/Casks/agenthub.rb contains `cask "agenthub" do`
-- TAP_DEPLOY_TOKEN secret listed at https://github.com/scottkw/agenthub/settings/secrets/actions
+All acceptance criteria verified:
+- https://github.com/scottkw/homebrew-agenthub exists as a public repo
+- Casks/agenthub.rb committed with placeholder cask formula (`cask "agenthub" do`)
+- TAP_DEPLOY_TOKEN secret configured in scottkw/agenthub repository settings
 - `brew tap scottkw/agenthub` succeeds locally
 
 ## Known Stubs
@@ -132,4 +104,6 @@ None. The distribute.yml is complete and functional. Task 2 (tap repo setup) is 
 ## Self-Check: PASSED
 - .github/workflows/distribute.yml: FOUND
 - .planning/phases/47-homebrew-tap-packaging-templates/47-02-SUMMARY.md: FOUND
-- Commit 8a3ba3c: FOUND
+- Commit 8a3ba3c (feat: distribute.yml): FOUND
+- Commit 61e28b4 (docs: plan completion with checkpoint): FOUND
+- Task 2 user setup: CONFIRMED (tap repo, formula, secret, brew tap verified)
