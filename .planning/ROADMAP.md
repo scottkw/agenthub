@@ -171,7 +171,10 @@ Plans:
   3. The `packaging/homebrew/agenthub.rb.template` file in the main repo contains a complete, renderable cask formula template with placeholder tokens for version and SHA256
   4. The `packaging/winget/manifests/` directory in the main repo contains the three-file WinGet manifest set (version, installer, locale) matching WinGet schema 1.12.0
   5. The `distribute.yml` Homebrew job includes retry logic for the macOS asset SHA256 download to handle the notarization delay after release
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 47-01-PLAN.md -- Homebrew cask template + WinGet manifest templates in packaging/
+- [ ] 47-02-PLAN.md -- distribute.yml workflow + tap repo setup
 
 ### Phase 48: WinGet Distribution
 **Goal**: Windows users can install AgentHub via `winget install AgentHub.AgentHub`; the package identity is established in microsoft/winget-pkgs via a manual first submission, and subsequent releases are submitted automatically
@@ -199,7 +202,7 @@ Plans:
 | 44. Git Migration to GitHub | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 45. release-please + CI Signing Removal | v1.8 | 2/2 | Complete    | 2026-04-04 |
 | 46. Release Build Pipeline | v1.8 | 1/1 | Complete    | 2026-04-04 |
-| 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
+| 47. Homebrew Tap + Packaging Templates | v1.8 | 0/2 | Not started | - |
 | 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
 
 ---
