@@ -1,0 +1,20 @@
+cask "agenthub" do
+  version "{{VERSION}}"
+  sha256 "{{SHA256}}"
+
+  url "https://github.com/scottkw/agenthub/releases/download/v#{version}/agenthub-v#{version}-darwin-universal.dmg"
+  name "AgentHub"
+  desc "AI coding session manager with tabbed terminals and Tailscale web access"
+  homepage "https://github.com/scottkw/agenthub"
+
+  depends_on macos: ">= :ventura"
+
+  app "agenthub.app"
+
+  zap trash: [
+    "~/Library/Application Support/agenthub",
+    "~/Library/Preferences/com.scottkw.agenthub.plist",
+    "~/Library/Caches/com.scottkw.agenthub",
+    "~/Library/Logs/agenthub",
+  ]
+end
