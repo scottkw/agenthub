@@ -113,7 +113,7 @@
 - [ ] **Phase 45: release-please + CI Signing Removal** - Automated versioning via release-please.yml; remove macOS signing from build.yml
 - [ ] **Phase 46: Release Build Pipeline** - Tag-triggered multi-platform release.yml with macOS signing/notarization and SHA256 checksums
 - [ ] **Phase 47: Homebrew Tap + Packaging Templates** - Tap repo, cask formula, packaging templates, and Homebrew leg of distribute.yml
-- [ ] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml
+- [x] **Phase 48: WinGet Distribution** - WinGet manifests, manual first submission, and WinGet leg of distribute.yml (completed 2026-04-05)
 
 ## Phase Details
 
@@ -198,7 +198,7 @@ Plans:
 | 45. release-please + CI Signing Removal | v1.8 | 1/2 | In Progress|  |
 | 46. Release Build Pipeline | v1.8 | 0/? | Not started | - |
 | 47. Homebrew Tap + Packaging Templates | v1.8 | 0/? | Not started | - |
-| 48. WinGet Distribution | v1.8 | 0/? | Not started | - |
+| 48. WinGet Distribution | v1.8 | 1/1 | Complete   | 2026-04-05 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
