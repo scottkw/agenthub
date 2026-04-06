@@ -117,6 +117,37 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `HealthModal.tsx` | Tailscale health check with platform-specific instructions |
 | `QRModal.tsx` | QR code display for web-served sessions |
 
+## Installation
+
+### macOS (Homebrew)
+
+```bash
+brew tap scottkw/agenthub
+brew install --cask agenthub
+```
+
+### Windows (WinGet)
+
+```powershell
+winget install scottkw.agenthub
+```
+
+> WinGet availability depends on the first submission being accepted by Microsoft. Check [Releases](https://github.com/scottkw/agenthub/releases) for direct download in the meantime.
+
+### GitHub Releases
+
+Download the latest release for your platform from [Releases](https://github.com/scottkw/agenthub/releases):
+
+| Platform | File | Notes |
+|----------|------|-------|
+| macOS (universal) | `agenthub-v*-darwin-universal.dmg` | Signed and notarized |
+| Windows | `agenthub-v*-windows-amd64-installer.exe` | NSIS installer |
+| Windows | `agenthub-v*-windows-amd64.exe` | Standalone executable |
+| Linux (deb) | `agenthub-v*-linux-amd64.deb` | Ubuntu/Debian package |
+| Linux (tar.gz) | `agenthub-v*-linux-amd64.tar.gz` | Generic archive |
+
+All releases include a `checksums.txt` with SHA256 hashes for verification.
+
 ## Prerequisites
 
 - **Go** 1.22+ ([go.dev/dl](https://go.dev/dl/))
@@ -146,7 +177,7 @@ sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.
 
 ```bash
 # Clone
-git clone https://gitea.eightabyte.com/scottkw/agenthub.git
+git clone https://github.com/scottkw/agenthub.git
 cd agenthub
 
 # Install frontend dependencies
@@ -223,11 +254,20 @@ wails build -nsis -tags wailsassets
 
 ### CI/CD
 
-The GitHub Actions workflow (`.github/workflows/build.yml`) builds for all platforms automatically on push. It runs a 4-job matrix:
+GitHub Actions automates building, releasing, and distributing AgentHub:
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `build.yml` | Push/PR | 4-runner matrix build with race detector (no signing) |
+| `release-please.yml` | Push to main | Auto-creates Release PRs with CHANGELOG and version bump |
+| `release.yml` | Tag push (v*) | Multi-platform release builds with macOS signing/notarization |
+| `distribute.yml` | Release published | Updates Homebrew tap + submits WinGet manifest PR |
+
+**Build matrix:**
 
 | Runner | Platform | Notes |
 |--------|----------|-------|
-| `macos-latest` | `darwin/universal` | Signing + notarization when secrets are configured |
+| `macos-latest` | `darwin/universal` | Signing + notarization in release.yml |
 | `ubuntu-latest` | `linux/amd64` | WebKitGTK 4.1 (`-tags webkit2_41`) |
 | `ubuntu-22.04` | `linux/amd64` | WebKitGTK 4.0 |
 | `windows-latest` | `windows/amd64` | NSIS installer + WebView2 embedded |
