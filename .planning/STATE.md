@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: GitHub Distribution & CI/CD
-status: verifying
-stopped_at: Completed 48-winget-distribution 48-01-PLAN.md
-last_updated: "2026-04-05T22:04:06.527Z"
-last_activity: 2026-04-05
+milestone: null
+milestone_name: null
+status: between_milestones
+stopped_at: Completed v1.8 milestone
+last_updated: "2026-04-06T22:00:00.000Z"
+last_activity: 2026-04-06
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 9
-  completed_plans: 9
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,41 +18,32 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-03)
+See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 45 — release-please-ci-signing-removal
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 48
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-05
-
-Progress: [░░░░░░░░░░] 0%
+Phase: None (between milestones)
+Plan: N/A
+Status: v1.8 shipped — ready for next milestone
+Last activity: 2026-04-06
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Total phases: 5
-- Timeline: Started 2026-04-03
+- v1.8 plans completed: 9
+- v1.8 phases: 5
+- v1.8 timeline: 2026-04-03 → 2026-04-06 (3 days)
+- Cumulative: 48 phases, 86 plans across 9 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
-- Use `git clone --bare` + `git push --mirror` for Gitea migration — prevents history/tag loss (Pitfall 1 from research)
-- Do NOT rely on `version-file` config in release-please — use `extra-files` with `// x-release-please-version` annotation due to Go type bug (issue #2541)
-- macOS signing moves from `build.yml` to `release.yml` only — saves notarization quota on every PR
-- Both `TAP_DEPLOY_TOKEN` and `WINGET_TOKEN` must be classic PATs (not fine-grained) — fine-grained incompatible with cross-repo dispatch and winget-releaser
-- WinGet first submission is manual — `winget-releaser` only works after package identity exists in microsoft/winget-pkgs
-- [Phase 44-git-migration-to-github]: Capture trayCallbackApp pointer in caller goroutine before onTrayQuit goroutine to eliminate cgo callback data race
-- [Phase 45-release-please-ci-signing-removal]: Use release-type: simple (not go) to sidestep Go version-file bug (issue #2541); wails.json updated via JSON-path extra-file
-- [Phase 45-release-please-ci-signing-removal]: macOS signing removed from build.yml; moves exclusively to release.yml in Phase 46 to save notarization quota on PR builds
-- [Phase 48-winget-distribution]: installers-regex uses restrictive pattern to exclude bare EXE artifact from NSIS installer matching in winget-releaser
+(Cleared for next milestone — see .planning/milestones/v1.8-ROADMAP.md for v1.8 decisions)
 
 ### Pending Todos
 
@@ -60,11 +51,11 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 48 (WinGet) has an external timeline dependency: Microsoft PR review for first submission takes hours to ~1 day. Start early; does not block milestone completion since submission is async.
+- WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
 
 ## Session Continuity
 
-Last session: 2026-04-05T21:47:30.883Z
-Stopped at: Completed 48-winget-distribution 48-01-PLAN.md
+Last session: 2026-04-06
+Stopped at: Completed v1.8 milestone
 Resume file: None
-Next action: `/gsd:plan-phase 44`
+Next action: `/gsd:new-milestone`

@@ -79,24 +79,21 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Tray icon error state: shows disconnected icon and tooltip when daemon unreachable at startup — v1.7 Phase 42
 - ✓ GUI hostname forwarding: Hostname field in App.go SessionInfo, displayed in DaemonManagerPanel — v1.7 Phase 43
 
+- ✓ GitHub repository (scottkw/agenthub) with full Gitea history and all v1.0–v1.7 tags — v1.8 Phase 44
+- ✓ Go module path rewritten to github.com/scottkw/agenthub across all imports — v1.8 Phase 44
+- ✓ release-please auto-versioning with conventional commits and CHANGELOG generation — v1.8 Phase 45
+- ✓ macOS signing removed from PR builds, retained only in release pipeline — v1.8 Phase 45
+- ✓ Multi-platform release pipeline (macOS signed DMG, Windows EXE+NSIS, Linux tar.gz+deb, checksums.txt) — v1.8 Phase 46
+- ✓ Homebrew cask tap (scottkw/homebrew-agenthub) with auto-update on release — v1.8 Phase 47
+- ✓ Packaging templates (Homebrew cask template, WinGet 3-file manifests at schema 1.12.0) — v1.8 Phase 47
+- ✓ distribute.yml auto-updates Homebrew tap + submits WinGet manifests on release — v1.8 Phases 47-48
+- ✓ WinGet distribution infrastructure (WINGET_TOKEN, winget-pkgs fork, populate-manifests.sh) — v1.8 Phase 48
+
 ### Active
-
-## Current Milestone: v1.8 GitHub Distribution & CI/CD
-
-**Goal:** Move AgentHub from Gitea to GitHub with automated multi-platform release builds, Homebrew tap, and WinGet distribution.
-
-**Target features:**
-- Migrate primary remote from Gitea to GitHub (scottkw/agenthub)
-- GitHub Actions CI (build.yml for PR validation, release-please.yml for auto-versioning)
-- GitHub Actions release (release.yml — multi-platform builds on tag push with macOS signing/notarization)
-- GitHub Actions distribution (distribute.yml — auto-update Homebrew tap + WinGet on release)
-- Homebrew tap repo (scottkw/homebrew-agenthub) with cask formula and template
-- WinGet manifest generation and submission
-- Packaging templates (packaging/homebrew/, packaging/winget/)
 
 ## Current State
 
-Phase 48 complete (2026-04-05): WinGet distribution — `distribute.yml` now has `submit-winget` job using `vedantmgoyal9/winget-releaser@main` (triggers on release:published, restrictive installer regex, WINGET_TOKEN secret), `populate-manifests.sh` helper script for one-time manual first submission, WINGET_TOKEN classic PAT stored as repo secret, `scottkw/winget-pkgs` fork ready. Manual first submission to microsoft/winget-pkgs deferred until first release is published. v1.8 milestone complete: all 5 phases (44–48) done — GitHub migration, CI/CD, release pipeline, Homebrew tap, and WinGet distribution infrastructure all in place. 8 milestones shipped (v1.0–v1.7), v1.8 complete, 48 phases, 86 plans total. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
+v1.8 milestone shipped (2026-04-06): GitHub Distribution & CI/CD complete. scottkw/agenthub on GitHub with full history, release-please auto-versioning, multi-platform release pipeline (macOS signed DMG, Windows NSIS, Linux deb+tar.gz with SHA256 checksums), Homebrew cask tap with auto-update, and WinGet distribution infrastructure. 9 milestones shipped (v1.0–v1.8), 48 phases, 86 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. WinGet first submission deferred until first release is published.
 
 ### Out of Scope
 
@@ -119,7 +116,7 @@ Phase 48 complete (2026-04-05): WinGet distribution — `distribute.yml` now has
 
 ## Context
 
-Shipped v1.7 with ~15K LOC (10.2K Go + 3.7K TS/TSX + 1.2K CSS).
+Shipped v1.8 with ~31K Go + ~10K TS/TSX.
 Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus.
 Go test suite: 200+ tests race-clean across 6 packages.
@@ -205,4 +202,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-05 after Phase 48 completion*
+*Last updated: 2026-04-06 after v1.8 milestone*

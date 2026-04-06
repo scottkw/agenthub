@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.8 GitHub Distribution & CI/CD (Shipped: 2026-04-06)
+
+**Phases completed:** 5 phases, 9 plans, 11 tasks
+
+**Key accomplishments:**
+
+- Go module path rewritten from `github.com/agenthub/agenthub` to `github.com/scottkw/agenthub` across go.mod and all 30 import sites in 16 .go files; race detector clean
+- RELEASE_PLEASE_TOKEN configured and release-please created PR #1 (chore(main): release 1.8.0) on first push to main
+- One-liner:
+- Homebrew cask template and three-file WinGet manifests (schema 1.12.0) with sed-replaceable {{VERSION}} tokens matching Phase 46 artifact naming exactly
+- distribute.yml GitHub Actions workflow that auto-updates scottkw/homebrew-agenthub cask formula on each release:published event using checksums.txt SHA256 extraction, nick-fields/retry, and TAP_DEPLOY_TOKEN PAT
+- winget-releaser job added to distribute.yml with restrictive installer regex, plus populate-manifests.sh helper for one-time manual WinGet first submission
+- WINGET_TOKEN PAT created with public_repo scope, stored as repo secret; scottkw/winget-pkgs fork verified; manifest submission deferred pending first release
+
+---
+
 ## v1.7 Daemon UX & Branding (Shipped: 2026-04-03)
 
 **Phases completed:** 8 phases, 10 plans, 20 tasks
