@@ -360,6 +360,51 @@
 
 ---
 
+## Milestone: v1.8 — GitHub Distribution & CI/CD
+
+**Shipped:** 2026-04-06
+**Phases:** 5 | **Plans:** 9
+
+### What Was Built
+- GitHub repository (scottkw/agenthub) with full Gitea history, all v1.0–v1.7 tags, and Go module path rewritten
+- release-please auto-versioning with conventional commits and CHANGELOG.md generation
+- Multi-platform release pipeline (macOS signed/notarized DMG, Windows EXE+NSIS, Linux tar.gz+deb, SHA256 checksums)
+- Homebrew cask tap (scottkw/homebrew-agenthub) with auto-update distribute.yml workflow
+- WinGet distribution infrastructure (winget-releaser CI job, WINGET_TOKEN PAT, winget-pkgs fork, populate-manifests.sh helper)
+- Packaging templates (Homebrew cask template, 3-file WinGet manifests at schema 1.12.0)
+
+### What Worked
+- Phase dependency chain (migration→CI→release→Homebrew→WinGet) was strictly ordered — each phase built on verified outputs
+- dev-browser automation for GitHub PAT creation saved manual steps and kept the workflow in-context
+- gh CLI for secrets management was faster and more reliable than browser-based UI navigation
+- Research phases for each phase caught key constraints early (winget-releaser regex, notarization delay retries, sparse-checkout for winget-pkgs)
+- 3-day timeline for 5 phases — CI/CD infrastructure milestones execute quickly when dependencies are clear
+
+### What Was Inefficient
+- REQUIREMENTS.md traceability table showed "Pending" for phases 45-47 despite completion — checkbox/status updates weren't propagated
+- ROADMAP.md plan checkboxes for phases 45-47 still unchecked despite summaries existing — the recurring drift issue
+- Phase 48 Plan 02 Task 2 (manifest submission) deferred because no release exists yet — dependency on release pipeline not yet exercised
+- Phase 47 VERIFICATION.md has 7 human_needed items that could have been automated (file existence checks, grep patterns)
+
+### Patterns Established
+- vedantmgoyal9/winget-releaser with restrictive `installers-regex` to match only the NSIS installer (not bare EXE)
+- nick-fields/retry for checksums.txt download (handles notarization delay)
+- Sparse-checkout for large upstream repos (winget-pkgs) — minimizes disk usage for manifest submission
+- populate-manifests.sh: sed-based template population with v-prefix validation
+
+### Key Lessons
+1. CI/CD milestones are primarily about external integration (GitHub Actions, Homebrew tap, WinGet submission) — code changes are minimal but configuration correctness is critical
+2. ROADMAP.md/REQUIREMENTS.md status drift is confirmed across 8 milestones now — the gsd-tools `roadmap update-plan-progress` command helps but isn't called consistently by executors
+3. Human-action checkpoint plans should explicitly document their prerequisite state — Plan 48-02 Task 2 was blocked by "no release exists" which wasn't in the plan's depends_on
+4. dev-browser automation for GitHub web UI tasks is effective for repetitive credential/setup workflows
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution), ~30% opus (orchestration/completion), ~5% haiku
+- Sessions: ~3 sessions across 3 days
+- Notable: Phase 46 (release pipeline) was single-plan with highest complexity — release.yml touches 5 platform legs
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -374,6 +419,7 @@
 | v1.5 | 40 | 5 | Args threading through IPC layers, double-rAF terminal fix, poll-first status pattern |
 | v1.6 | 14 | 1 | Bounded rAF retry loop replacing double-rAF, proposeDimensions() readiness gate |
 | v1.7 | 88 | 8 | Native cgo tray, NSMenuDelegate dynamic menus, split nil-guard pattern, mid-milestone audit gap closure |
+| v1.8 | ~18 | 5 | CI/CD infrastructure, GitHub Actions pipelines, package manager distribution, dev-browser automation |
 
 ### Cumulative Quality
 
@@ -387,6 +433,7 @@
 | v1.5 | 200+ (race-clean) | 80+ | ~13,400 | 7 (0 blockers, documentation/test gaps) |
 | v1.6 | 200+ (race-clean) | 150 | ~73,000 | 3 (0 blockers, stale comments/docs) |
 | v1.7 | 200+ (race-clean) | 150+ | ~15,100 | 4 (0 blockers; WelcomeTab auto-dismiss, hardcoded VERSION, Linux/Windows tray stubs, SUMMARY frontmatter) |
+| v1.8 | 200+ (race-clean) | 150+ | ~41,000 | 3 (0 blockers; WinGet first submission deferred, ROADMAP checkbox drift, VERIFICATION human items) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -404,3 +451,6 @@
 12. Native cgo platform code is sustainable when scoped to single files with build tags — avoids library conflicts while maintaining full platform control (v1.0, v1.7)
 13. Mid-milestone audits produce higher-quality gap closures than end-of-milestone audits — gaps are still fresh context (v1.7)
 14. User-approved pivots need immediate REQUIREMENTS.md annotation — delayed documentation creates false audit gaps (v1.7)
+15. CI/CD milestones are configuration-heavy, code-light — correctness depends on external integration verification, not unit tests (v1.8)
+16. dev-browser automation is effective for GitHub web UI credential/setup workflows — saves manual context switching (v1.8)
+17. Human-action checkpoint plans need explicit prerequisite state documentation — "no release exists" blocked Task 2 but wasn't in depends_on (v1.8)
