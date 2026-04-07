@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: verifying
-stopped_at: Completed 49-02-PLAN.md
-last_updated: "2026-04-07T16:26:02.093Z"
+status: executing
+stopped_at: Completed 50-01-PLAN.md
+last_updated: "2026-04-07T17:31:42.886Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 49 — app-menus-version-injection
+**Current focus:** Phase 50 — tailscale-peer-discovery
 
 ## Current Position
 
-Phase: 50
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 50 (tailscale-peer-discovery) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
@@ -53,6 +53,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 49]: Package-level appCtx for menu callback context avoids closure complexity in Wails
 - [Phase 49]: appMenu() ordering: AppMenu first per STATE.md Wails pitfall; FileMenu/HelpSubMenu commented out in v2.10.2 — use AddSubmenu() instead
 - [Phase 49]: CSS ?raw import returns empty string in Vitest jsdom — use readFileSync for CSS assertions (matches TabBar/TerminalPanel test convention)
+- [Phase 50-tailscale-peer-discovery]: injectable statusFunc pattern for tailnet package (mirrors webserver/tailscale.go)
+- [Phase 50-tailscale-peer-discovery]: rewriteTransport RoundTripper for httptest probe testing without modifying production URL logic
+- [Phase 50-tailscale-peer-discovery]: No InsecureSkipVerify — Tailscale LE certs are FQDN-only and publicly trusted
 
 ### Pending Todos
 
@@ -73,10 +76,11 @@ None.
 | 260406-s0e | Fix CLI detection - export AugmentServicePath and call in GUI startup | 2026-04-07 | eb90fa6 | [260406-s0e-fix-cli-detection-app-shows-no-clis-dete](./quick/260406-s0e-fix-cli-detection-app-shows-no-clis-dete/) |
 | Phase 49 P01 | 155 | 2 tasks | 4 files |
 | Phase 49 P02 | 390 | 2 tasks | 5 files |
+| Phase 50-tailscale-peer-discovery P01 | 952 | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-04-07T16:22:20.459Z
-Stopped at: Completed 49-02-PLAN.md
+Last session: 2026-04-07T17:31:42.882Z
+Stopped at: Completed 50-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 49`

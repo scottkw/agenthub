@@ -159,7 +159,7 @@ Plans:
   5. Daemon exposes `GET /tailnet/peers` route returning discovered peers with a 30-second result cache
 **Plans**: 2 plans
 Plans:
-- [ ] 50-01-PLAN.md — internal/tailnet package with TDD (types, discovery, probe, tests)
+- [x] 50-01-PLAN.md — internal/tailnet package with TDD (types, discovery, probe, tests)
 - [ ] 50-02-PLAN.md — Daemon route, 30s cache, DaemonClient method, route tests
 
 ### Phase 51: Auto-Update Checker
@@ -225,7 +225,7 @@ Plans:
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 50 | v1.9 | 0/2 | Not started | - |
+| 50 | v1.9 | 1/2 | In Progress|  |
 | 51 | v1.9 | 0/? | Not started | - |
 | 52 | v1.9 | 0/? | Not started | - |
 | 53 | v1.9 | 0/? | Not started | - |
