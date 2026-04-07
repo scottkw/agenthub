@@ -11,6 +11,7 @@
 - ✅ **v1.6 Terminal Fill Fix v2** — Phase 35 (shipped 2026-03-31)
 - ✅ **v1.7 Daemon UX & Branding** — Phases 36-43 (shipped 2026-04-03)
 - ✅ **v1.8 GitHub Distribution & CI/CD** — Phases 44-48 (shipped 2026-04-06)
+- 🚧 **v1.9 Remote Sessions & App Polish** — Phases 49-54 (active)
 
 ## Phases
 
@@ -116,6 +117,94 @@
 
 </details>
 
+<details>
+<summary>🚧 v1.9 Remote Sessions & App Polish (Phases 49-54) — ACTIVE</summary>
+
+- [ ] **Phase 49: App Menus & Version Injection** — Plans: TBD
+- [ ] **Phase 50: Tailscale Peer Discovery** — Plans: TBD
+- [ ] **Phase 51: Auto-Update Checker** — Plans: TBD
+- [ ] **Phase 52: Remote Sessions GUI Panel** — Plans: TBD
+- [ ] **Phase 53: Remote Sessions CLI** — Plans: TBD
+- [ ] **Phase 54: Tailscale Onboarding Enhancement** — Plans: TBD
+
+</details>
+
+## Phase Details
+
+### Phase 49: App Menus & Version Injection
+**Goal**: Users have working macOS keyboard shortcuts in terminals and the app displays its real build version everywhere
+**Depends on**: Nothing (self-contained)
+**Requirements**: MENU-01, MENU-02, VER-01, VER-02, UI-01
+**Success Criteria** (what must be TRUE):
+  1. User can cut, copy, paste, and undo in xterm.js terminal tabs using Cmd+C, Cmd+V, Cmd+X, Cmd+Z on macOS
+  2. Standard File, Edit, Window, and Help menus appear in the macOS menu bar with conventional keyboard shortcuts
+  3. Welcome screen displays the version injected at build time (e.g., "v1.9.0") instead of a hardcoded placeholder
+  4. `wails build -ldflags "-X main.Version=v1.9.0"` produces a binary where the version propagates to the Welcome tab
+  5. Welcome logo/title graphic has visibly rounded corners
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 50: Tailscale Peer Discovery
+**Goal**: The app can enumerate online tailnet peers and probe which ones are running AgentHub
+**Depends on**: Nothing (pure Go package, no UI deps)
+**Requirements**: REM-01
+**Success Criteria** (what must be TRUE):
+  1. `internal/tailnet` package compiles and passes `go test -race` with 100% function coverage using injectable `statusFunc`
+  2. `DiscoverPeers()` returns only online tailnet peers (not stale/offline entries) from `local.Client{}.Status()`
+  3. `ProbePeer()` correctly identifies a peer running AgentHub by probing its Tailscale HTTPS `/api/sessions` endpoint with a 2-second timeout
+  4. Peer probes run concurrently (goroutine pool capped at 5) and do not block the calling goroutine
+  5. Daemon exposes `GET /tailnet/peers` route returning discovered peers with a 30-second result cache
+**Plans**: TBD
+
+### Phase 51: Auto-Update Checker
+**Goal**: Users are notified of available updates and can navigate to the download page with one click
+**Depends on**: Phase 49 (needs real build-time version string for comparison)
+**Requirements**: UPD-01, UPD-02, UPD-03, UPD-04
+**Success Criteria** (what must be TRUE):
+  1. App checks GitHub releases for a newer version on startup and every hour thereafter without blocking the UI
+  2. When a newer version is available, a banner appears in the Welcome tab showing current version, new version, and a "Download" button
+  3. Clicking "Download" opens the GitHub releases page in the system browser (no in-place binary replacement)
+  4. Help menu contains a "Check for Updates" item that triggers an immediate version check
+  5. Update check is rate-limited to once per hour (persisted last-check timestamp) and handles 429/non-200 responses silently
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 52: Remote Sessions GUI Panel
+**Goal**: Users can see all remote sessions across their tailnet and open any of them in the browser
+**Depends on**: Phase 50 (needs `internal/tailnet` package and daemon routes)
+**Requirements**: REM-02, REM-03
+**Success Criteria** (what must be TRUE):
+  1. GUI has a dedicated Remote Sessions panel showing sessions grouped by peer hostname with host, session name, agent type, and status visible
+  2. Panel shows a loading spinner while probing peers and updates every 30 seconds automatically
+  3. User can click "Open" on any remote session to open that session's Tailscale HTTPS web terminal URL in the system browser
+  4. Panel shows a clear "No remote peers found" state when no tailnet peers are running AgentHub
+  5. Remote sessions panel is accessible from the main tab bar or navigation without requiring CLI knowledge
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 53: Remote Sessions CLI
+**Goal**: CLI users can list and attach to remote sessions without leaving the terminal
+**Depends on**: Phase 52 (needs stable daemon tailnet routes)
+**Requirements**: REM-04, REM-05
+**Success Criteria** (what must be TRUE):
+  1. `agenthub list` shows local and remote sessions grouped by host with a hostname column indicating origin machine
+  2. Remote sessions appear in the list with their host prefix (e.g., `macbook.tail:session-id`) distinct from local sessions
+  3. `agenthub attach <remote-session-id>` connects to a remote session via the WebSocket relay without requiring SSH or manual URL construction
+  4. CLI attach banner shows the remote hostname clearly so the user knows they are connected to a non-local machine
+**Plans**: TBD
+
+### Phase 54: Tailscale Onboarding Enhancement
+**Goal**: New users who lack Tailscale can find and follow installation steps without leaving the app
+**Depends on**: Nothing (enhances existing health modal, independent of remote session work)
+**Requirements**: TS-01, TS-02, TS-03
+**Success Criteria** (what must be TRUE):
+  1. Health modal "Tailscale not installed" panel shows platform-specific install command (brew install on macOS, winget on Windows, install.sh on Linux) with a one-click copy-to-clipboard button
+  2. Direct download links to the official Tailscale installer for the current platform are visible and clickable in the health modal
+  3. After Tailscale is installed, the health modal shows a step-by-step "next steps" guide covering how to enable HTTPS certs in the Tailscale admin panel
+  4. User can attempt an auto-install via a "Try Auto-Install" button that runs `brew install --cask tailscale-app` on macOS with visible progress output (manual fallback shown for other platforms)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -129,6 +218,12 @@
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
+| 49 | v1.9 | 0/? | Not started | - |
+| 50 | v1.9 | 0/? | Not started | - |
+| 51 | v1.9 | 0/? | Not started | - |
+| 52 | v1.9 | 0/? | Not started | - |
+| 53 | v1.9 | 0/? | Not started | - |
+| 54 | v1.9 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

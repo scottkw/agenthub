@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: defining_requirements
+status: ready_to_plan
 stopped_at: null
-last_updated: "2026-04-06T22:00:00.000Z"
+last_updated: "2026-04-06T22:30:00.000Z"
 last_activity: 2026-04-06
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Defining requirements for v1.9
+**Current focus:** Phase 49 — App Menus & Version Injection
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-06 — Milestone v1.9 started
+Phase: 49 of 54 (App Menus & Version Injection)
+Plan: — of — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-04-06 — v1.9 roadmap created (6 phases, 17 requirements)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -43,7 +45,11 @@ Last activity: 2026-04-06 — Milestone v1.9 started
 
 ### Decisions
 
-(Cleared for next milestone — see .planning/milestones/v1.8-ROADMAP.md for v1.8 decisions)
+- No binary self-replacement on macOS/Windows — update flow is detect → notify → open browser (Gatekeeper/file-lock constraint)
+- Daemon API is Unix-socket-only — remote peer probing targets web server HTTPS `/api/sessions`, not daemon port
+- Brew subprocess auto-install excluded from scope — show copyable commands only (TTY/sudo/PATH issues)
+- `creativeprojects/go-selfupdate@v1.5.2` chosen over rhysd predecessor (active maintenance, Dec 2025)
+- Menu ordering required: `NewMenu()` → `AppMenu()` → `EditMenu()` → custom submenus (Wails pitfall)
 
 ### Pending Todos
 
@@ -52,6 +58,8 @@ None.
 ### Blockers/Concerns
 
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
+- Validate `go-selfupdate ParseSlug("scottkw/agenthub")` matches v1.8 artifact naming before finalizing Phase 51
+- Confirm Tailscale Let's Encrypt certs are FQDN-only (no IP SANs) before finalizing Phase 50 probe TLS mode
 
 ### Quick Tasks Completed
 
@@ -63,7 +71,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07
-Stopped at: Completed quick task 260406-s0e: Fix CLI detection (export AugmentServicePath)
+Last session: 2026-04-06
+Stopped at: v1.9 roadmap created — 6 phases (49-54), 17 requirements mapped
 Resume file: None
-Next action: Define requirements → create roadmap
+Next action: `/gsd:plan-phase 49`

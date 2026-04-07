@@ -67,29 +67,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REM-01 | — | Pending |
-| REM-02 | — | Pending |
-| REM-03 | — | Pending |
-| REM-04 | — | Pending |
-| REM-05 | — | Pending |
-| UPD-01 | — | Pending |
-| UPD-02 | — | Pending |
-| UPD-03 | — | Pending |
-| UPD-04 | — | Pending |
-| TS-01 | — | Pending |
-| TS-02 | — | Pending |
-| TS-03 | — | Pending |
-| MENU-01 | — | Pending |
-| MENU-02 | — | Pending |
-| VER-01 | — | Pending |
-| VER-02 | — | Pending |
-| UI-01 | — | Pending |
+| MENU-01 | Phase 49 | Pending |
+| MENU-02 | Phase 49 | Pending |
+| VER-01 | Phase 49 | Pending |
+| VER-02 | Phase 49 | Pending |
+| UI-01 | Phase 49 | Pending |
+| REM-01 | Phase 50 | Pending |
+| UPD-01 | Phase 51 | Pending |
+| UPD-02 | Phase 51 | Pending |
+| UPD-03 | Phase 51 | Pending |
+| UPD-04 | Phase 51 | Pending |
+| REM-02 | Phase 52 | Pending |
+| REM-03 | Phase 52 | Pending |
+| REM-04 | Phase 53 | Pending |
+| REM-05 | Phase 53 | Pending |
+| TS-01 | Phase 54 | Pending |
+| TS-02 | Phase 54 | Pending |
+| TS-03 | Phase 54 | Pending |
 
 **Coverage:**
 - v1.9 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-06*
-*Last updated: 2026-04-06 after initial definition*
+*Last updated: 2026-04-06 after roadmap creation (v1.9 phases 49-54)*
