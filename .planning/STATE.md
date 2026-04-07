@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 Phase: None (between milestones)
 Plan: N/A
 Status: v1.8 shipped — ready for next milestone
-Last activity: 2026-04-06
+Last activity: 2026-04-07 - Completed quick task 260406-s0e: Fix CLI detection
 
 ## Performance Metrics
 
