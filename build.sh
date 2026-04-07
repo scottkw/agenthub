@@ -69,8 +69,11 @@ fi
 # --- Build functions ---
 
 build_macos() {
-  echo "==> Building macOS (darwin/universal)"
-  "$WAILS" build -platform darwin/universal -clean
+  local VERSION="${BUILD_VERSION:-dev}"
+  echo "==> Building macOS (darwin/universal) version=${VERSION}"
+  "$WAILS" build -platform darwin/universal -clean \
+    -ldflags "-X main.Version=${VERSION}" \
+    -tags wailsassets
   echo "==> macOS build complete: build/bin/agenthub.app"
 
   if [[ "$SIGN" == "true" ]]; then
@@ -85,8 +88,10 @@ build_windows() {
     exit 1
   fi
 
-  echo "==> Building Windows (windows/amd64)"
-  CC="$MINGW_CC" CGO_ENABLED=1 "$WAILS" build -platform windows/amd64 -clean
+  local VERSION="${BUILD_VERSION:-dev}"
+  echo "==> Building Windows (windows/amd64) version=${VERSION}"
+  CC="$MINGW_CC" CGO_ENABLED=1 "$WAILS" build -platform windows/amd64 -clean \
+    -ldflags "-X main.Version=${VERSION}"
   echo "==> Windows build complete: build/bin/agenthub.exe"
 }
 
@@ -97,13 +102,16 @@ build_linux() {
     exit 1
   fi
 
+  local VERSION="${BUILD_VERSION:-dev}"
+
   # Pre-build frontend assets (Docker container won't have Node/pnpm)
   echo "==> Building frontend assets for Linux"
   (cd frontend && pnpm install --frozen-lockfile && pnpm run build)
 
-  echo "==> Building Linux (linux/amd64) via Docker"
+  echo "==> Building Linux (linux/amd64) via Docker version=${VERSION}"
   docker run --rm \
     --platform linux/amd64 \
+    -e VERSION="${VERSION}" \
     -v "$(pwd)":/app \
     -w /app \
     golang:1.26-bookworm \
@@ -113,7 +121,7 @@ build_linux() {
         gcc libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config && \
       CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
         go build -tags production \
-        -ldflags '-w -s' \
+        -ldflags \"-w -s -X main.Version=\${VERSION}\" \
         -o build/bin/agenthub .
     "
   echo "==> Linux build complete: build/bin/agenthub"

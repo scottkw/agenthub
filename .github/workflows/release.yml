@@ -28,6 +28,7 @@ jobs:
         with:
           build-name: agenthub
           build-platform: darwin/universal
+          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Import certificate to keychain
         run: |
@@ -101,6 +102,7 @@ jobs:
           build-platform: windows/amd64
           build-webview2: embed
           nsis: true
+          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Rename artifacts with version
         shell: bash
@@ -138,6 +140,7 @@ jobs:
           build-name: agenthub
           build-platform: linux/amd64
           build-flags: -tags webkit2_41
+          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Create tar.gz
         run: |
