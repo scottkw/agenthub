@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: verifying
-stopped_at: Completed 53-02-PLAN.md
-last_updated: "2026-04-07T21:21:24.136Z"
+status: executing
+stopped_at: Completed 54-01-PLAN.md
+last_updated: "2026-04-07T22:08:48.378Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 14
+  completed_plans: 13
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 53 — remote-sessions-cli
+**Current focus:** Phase 54 — tailscale-onboarding-enhancement
 
 ## Current Position
 
-Phase: 54
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 54 (tailscale-onboarding-enhancement) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 52 P03 | 12 | 2 tasks | 3 files |
 | Phase 53-remote-sessions-cli P01 | 615 | 2 tasks | 4 files |
 | Phase 53-remote-sessions-cli P02 | 249 | 2 tasks | 4 files |
+| Phase 54-tailscale-onboarding-enhancement P01 | 81 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 53-remote-sessions-cli]: fetchPeerSessionsWithClient internal helper pattern for httptest TLS injection in CLI remote session tests
 - [Phase 53-remote-sessions-cli]: cmdList JSON output changed from flat SessionInfo array to listOutput struct with local/remote grouping — breaking change for --json consumers
 - [Phase 53-remote-sessions-cli]: cmdAttachRemoteWithClient pattern: injectable HTTP client + base URL for testable WSS attach — mirrors fetchPeerSessionsWithClient from Plan 01
+- [Phase 54-tailscale-onboarding-enhancement]: goruntime alias for stdlib runtime avoids collision with wails/v2/pkg/runtime already imported as runtime
+- [Phase 54-tailscale-onboarding-enhancement]: cmd.Stderr = cmd.Stdout merges stderr into stdout pipe for single-goroutine brew output streaming via AutoInstallTailscale
 
 ### Pending Todos
 
@@ -109,7 +112,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07T21:17:08.433Z
-Stopped at: Completed 53-02-PLAN.md
+Last session: 2026-04-07T22:08:48.364Z
+Stopped at: Completed 54-01-PLAN.md
 Resume file: None
 Next action: Execute 51-02-PLAN.md

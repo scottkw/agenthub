@@ -223,7 +223,7 @@ Plans:
   4. User can attempt an auto-install via a "Try Auto-Install" button that runs `brew install --cask tailscale-app` on macOS with visible progress output (manual fallback shown for other platforms)
 **Plans**: 2 plans
 Plans:
-- [ ] 54-01-PLAN.md — Go AutoInstallTailscale method, findBrew helper, test, Wails bindings
+- [x] 54-01-PLAN.md — Go AutoInstallTailscale method, findBrew helper, test, Wails bindings
 - [ ] 54-02-PLAN.md — HealthModal enhancement (copyable commands, download links, auto-install UX, next-steps guide), CSS, App.tsx wiring, tests
 **UI hint**: yes
 
@@ -245,7 +245,7 @@ Plans:
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 53 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 54 | v1.9 | 0/2 | Not started | - |
+| 54 | v1.9 | 1/2 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
