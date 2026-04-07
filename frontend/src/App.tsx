@@ -16,15 +16,17 @@ import {
   GetTailscaleStatus,
   RetryDaemon,
   GetDaemonError,
+  GetRemoteSessions,
 } from './wailsjs/go/main/App'
-import type { DetectedCLI, SessionInfo } from './wailsjs/go/main/App'
-import { EventsOn, Environment } from './wailsjs/wailsjs/runtime/runtime'
+import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
+import { EventsOn, Environment, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { HealthModal } from './components/HealthModal'
 import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
+import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -35,6 +37,7 @@ const DEFAULT_FONT_SIZE = 14
 function App(): React.ReactElement {
   const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
   const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
+  const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
   const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
@@ -66,6 +69,9 @@ function App(): React.ReactElement {
   const [daemonError, setDaemonError] = useState<string | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
   const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
+  // Remote peers for RemoteSessionsPanel (polled when the tab is active)
+  const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
+  const [remoteLoading, setRemoteLoading] = useState(false)
 
   // On mount: hide static HTML splash and initialize.
   useEffect(() => {
@@ -309,6 +315,30 @@ function App(): React.ReactElement {
     }
   }, [activeId])
 
+  // Poll remote sessions when the remote-sessions tab is active.
+  useEffect(() => {
+    if (activeId !== REMOTE_SESSIONS_TAB.id) return
+    let cancelled = false
+    async function refresh() {
+      if (remotePeers.length === 0) setRemoteLoading(true)
+      try {
+        const peers = await GetRemoteSessions()
+        if (!cancelled) {
+          setRemotePeers(peers ?? [])
+          setRemoteLoading(false)
+        }
+      } catch {
+        if (!cancelled) setRemoteLoading(false)
+      }
+    }
+    void refresh()
+    const interval = setInterval(() => void refresh(), 30_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [activeId])
+
   const handleOpenDaemonManager = useCallback(() => {
     // If daemon-manager tab already exists, just focus it.
     const existing = tabs.find((t) => t.type === 'daemon-manager')
@@ -319,6 +349,20 @@ function App(): React.ReactElement {
     // Otherwise, add it and focus.
     setTabs((prev) => [...prev, DAEMON_MANAGER_TAB])
     setActiveId(DAEMON_MANAGER_TAB.id)
+  }, [tabs])
+
+  const handleOpenRemoteSession = useCallback((url: string) => {
+    BrowserOpenURL(url)
+  }, [])
+
+  const handleOpenRemoteSessions = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'remote-sessions')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, REMOTE_SESSIONS_TAB])
+    setActiveId(REMOTE_SESSIONS_TAB.id)
   }, [tabs])
 
   const retryInit = useCallback(async () => {
@@ -375,6 +419,7 @@ function App(): React.ReactElement {
         onAdd={handleAddTab}
         onSettings={() => setShowSettings(true)}
         onOpenDaemonManager={handleOpenDaemonManager}
+        onOpenRemoteSessions={handleOpenRemoteSessions}
         sessionStatuses={sessionStatuses}
       />
 
@@ -392,7 +437,14 @@ function App(): React.ReactElement {
             onToggleWeb={(id) => void handleToggleWeb(id)}
           />
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager').length === 0 && (
+        {activeId === REMOTE_SESSIONS_TAB.id && (
+          <RemoteSessionsPanel
+            peers={remotePeers}
+            loading={remoteLoading}
+            onOpen={handleOpenRemoteSession}
+          />
+        )}
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -431,7 +483,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager') return null
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions') return null
             const isActive = tab.id === activeId
             return (
               <div
