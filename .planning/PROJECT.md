@@ -96,9 +96,9 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - [ ] Attach to remote sessions from GUI and CLI without SSH
 - [ ] Update checker with one-click download and install from GitHub releases
 - [ ] Tailscale install assistance (auto-install + manual instructions)
-- [ ] Standard app menus (File, Edit, Window, Help) with keyboard shortcuts
-- [ ] Welcome screen version from release build (no hardcoded VERSION)
-- [ ] Welcome logo rounded corners
+- ✓ Standard app menus (File, Edit, Window, Help) with keyboard shortcuts — v1.9 Phase 49
+- ✓ Welcome screen version from release build (no hardcoded VERSION) — v1.9 Phase 49
+- ✓ Welcome logo rounded corners — v1.9 Phase 49
 
 ## Current Milestone: v1.9 Remote Sessions & App Polish
 
@@ -113,7 +113,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.8 milestone shipped (2026-04-06): GitHub Distribution & CI/CD complete. scottkw/agenthub on GitHub with full history, release-please auto-versioning, multi-platform release pipeline (macOS signed DMG, Windows NSIS, Linux deb+tar.gz with SHA256 checksums), Homebrew cask tap with auto-update, and WinGet distribution infrastructure. 9 milestones shipped (v1.0–v1.8), 48 phases, 86 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. WinGet first submission deferred until first release is published.
+v1.9 in progress (2026-04-07): Phase 49 complete — macOS app menus (File, Edit, Window, Help) with native clipboard shortcuts, build-time version injection via ldflags across all 6 build paths, and welcome screen version from Go backend binding. 9 milestones shipped (v1.0–v1.8), 49 phases, 88 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
@@ -143,7 +143,7 @@ Go test suite: 200+ tests race-clean across 6 packages.
 Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, and web status bar components.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
-Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); hardcoded VERSION in WelcomeTab.tsx; Linux/Windows tray stubs needed.
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed.
 
 ## Constraints
 
@@ -222,4 +222,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after v1.9 milestone start*
+*Last updated: 2026-04-07 after Phase 49 completion*
