@@ -236,7 +236,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
-| 49 | v1.9 | 2/2 | Complete   | 2026-04-07 |
+| 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 50 | v1.9 | 0/? | Not started | - |
 | 51 | v1.9 | 0/? | Not started | - |
 | 52 | v1.9 | 0/? | Not started | - |
