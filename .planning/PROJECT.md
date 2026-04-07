@@ -116,7 +116,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 in progress (2026-04-07): Phase 53 complete — CLI remote sessions: `agenthub list` shows local and remote sessions grouped by HOST column with `--local`/`--json` flags; `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS. Shared helpers in `cmd_remote.go` (parseRemoteID, resolveRemotePeer, fetchPeerSessions). Phase 52 added GUI remote session panel, Phase 51 auto-update checker, Phase 50 peer discovery. 9 milestones shipped (v1.0–v1.8), 53 phases, 98 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, and remote session discovery via both GUI and CLI.
+v1.9 in progress (2026-04-07): Phase 54 complete — Tailscale onboarding enhancement: HealthModal shows platform-specific install commands (brew/curl/winget) with copy-to-clipboard, download links, macOS auto-install via Homebrew with streaming progress, and numbered next-steps guide for HTTPS certificate setup (MagicDNS prerequisite, admin DNS link). Phase 53 added CLI remote sessions, Phase 52 GUI remote panel, Phase 51 auto-update checker, Phase 50 peer discovery. 9 milestones shipped (v1.0–v1.8), 54 phases, 100 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, remote session discovery via both GUI and CLI, and guided Tailscale onboarding.
 
 ### Out of Scope
 
