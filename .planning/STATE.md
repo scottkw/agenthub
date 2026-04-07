@@ -58,6 +58,7 @@ None.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260406-nqy | Dynamic dock icon visibility - show when window visible, hide when minimized/closed to tray | 2026-04-07 | 82e501c | [260406-nqy-dynamic-dock-icon-visibility-show-when-w](./quick/260406-nqy-dynamic-dock-icon-visibility-show-when-w/) |
+| 260406-op4 | Tray icon A matches app icon A - monochrome for macOS, full color for other OSes | 2026-04-07 | 45ffbd2 | [260406-op4-tray-icon-a-matches-app-icon-a-monochrom](./quick/260406-op4-tray-icon-a-matches-app-icon-a-monochrom/) |
 
 ## Session Continuity
 
