@@ -8,10 +8,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -24,7 +26,7 @@ Run with no arguments to launch the desktop GUI.
 
 Commands:
   new <agent> <path> [-- <extra-args>...]     Create a new terminal session
-  list [--json]                               List all active sessions
+  list [--json] [--local]                      List all active sessions
   kill <id>                                   Kill a session
   rename <id> <name>                          Rename a session
   attach <id>                                 Attach to a session (interactive PTY)
@@ -62,10 +64,24 @@ func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out 
 	return nil
 }
 
+// listOutput is the JSON structure for cmdList --json output.
+type listOutput struct {
+	Local  []daemon.SessionInfo `json:"local"`
+	Remote []listRemoteGroup    `json:"remote,omitempty"`
+}
+
+// listRemoteGroup groups remote sessions by peer hostname.
+type listRemoteGroup struct {
+	Hostname string             `json:"hostname"`
+	Sessions []CLIRemoteSession `json:"sessions"`
+}
+
 // cmdList lists all sessions in a tabwriter table, or as JSON with --json.
+// Includes remote sessions from tailnet peers unless --local is specified.
 func cmdList(client *daemon.DaemonClient, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("list", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "output as JSON")
+	localOnly := fs.Bool("local", false, "show only local sessions")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -73,16 +89,56 @@ func cmdList(client *daemon.DaemonClient, args []string, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("agenthub list: %w", err)
 	}
-	if *jsonOut {
-		if sessions == nil {
-			sessions = []daemon.SessionInfo{}
-		}
-		return json.NewEncoder(out).Encode(sessions)
+	if sessions == nil {
+		sessions = []daemon.SessionInfo{}
 	}
+
+	// Fetch remote sessions (unless --local).
+	var remoteGroups []listRemoteGroup
+	if !*localOnly {
+		peers, _ := client.ListTailnetPeers()
+		if len(peers) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			// Group remote sessions by peer hostname.
+			groupMap := make(map[string][]CLIRemoteSession)
+			for _, p := range peers {
+				fqdn := strings.TrimSuffix(p.DNSName, ".")
+				peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+				for i := range peerSessions {
+					peerSessions[i].Hostname = p.Hostname
+					peerSessions[i].FQDN = fqdn
+				}
+				if len(peerSessions) > 0 {
+					groupMap[p.Hostname] = append(groupMap[p.Hostname], peerSessions...)
+				}
+			}
+			for hostname, sess := range groupMap {
+				remoteGroups = append(remoteGroups, listRemoteGroup{
+					Hostname: hostname,
+					Sessions: sess,
+				})
+			}
+		}
+	}
+
+	if *jsonOut {
+		output := listOutput{
+			Local:  sessions,
+			Remote: remoteGroups,
+		}
+		return json.NewEncoder(out).Encode(output)
+	}
+
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tAGENT\tSTATUS")
+	fmt.Fprintln(w, "HOST\tID\tNAME\tAGENT\tSTATUS")
 	for _, s := range sessions {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.ID, s.Name, s.CLI, s.State)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "(local)", s.ID, s.Name, s.CLI, s.State)
+	}
+	for _, group := range remoteGroups {
+		for _, s := range group.Sessions {
+			fmt.Fprintf(w, "%s\t%s:%s\t%s\t%s\t%s\n", s.Hostname, s.Hostname, s.ID, s.Name, s.CLIType, s.Status)
+		}
 	}
 	w.Flush()
 	return nil

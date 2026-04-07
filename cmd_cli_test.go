@@ -74,6 +74,9 @@ func TestCmdList_Empty(t *testing.T) {
 		t.Fatalf("cmdList returned error: %v", err)
 	}
 	out := buf.String()
+	if !strings.Contains(out, "HOST") {
+		t.Errorf("expected header row with %q, got %q", "HOST", out)
+	}
 	if !strings.Contains(out, "ID") {
 		t.Errorf("expected header row with %q, got %q", "ID", out)
 	}
@@ -100,7 +103,7 @@ func TestCmdList_WithSessions(t *testing.T) {
 	}
 }
 
-// TestCmdList_JSON_Empty verifies that --json with no sessions produces "[]".
+// TestCmdList_JSON_Empty verifies that --json with no sessions produces a listOutput with empty local array.
 func TestCmdList_JSON_Empty(t *testing.T) {
 	client := testSetup(t)
 	var buf bytes.Buffer
@@ -108,9 +111,12 @@ func TestCmdList_JSON_Empty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cmdList --json returned error: %v", err)
 	}
-	out := strings.TrimSpace(buf.String())
-	if out != "[]" {
-		t.Errorf("expected empty JSON array %q, got %q", "[]", out)
+	var output listOutput
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if len(output.Local) != 0 {
+		t.Errorf("expected 0 local sessions, got %d", len(output.Local))
 	}
 }
 
@@ -125,18 +131,18 @@ func TestCmdList_JSON_WithSessions(t *testing.T) {
 	if err := cmdList(client, []string{"--json"}, &buf); err != nil {
 		t.Fatalf("cmdList --json: %v", err)
 	}
-	var sessions []daemon.SessionInfo
-	if err := json.Unmarshal(buf.Bytes(), &sessions); err != nil {
+	var output listOutput
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
 		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
 	}
-	if len(sessions) != 1 {
-		t.Fatalf("expected 1 session, got %d", len(sessions))
+	if len(output.Local) != 1 {
+		t.Fatalf("expected 1 local session, got %d", len(output.Local))
 	}
-	if sessions[0].ID != id {
-		t.Errorf("expected session ID %q, got %q", id, sessions[0].ID)
+	if output.Local[0].ID != id {
+		t.Errorf("expected session ID %q, got %q", id, output.Local[0].ID)
 	}
-	if sessions[0].Name != "jsontest" {
-		t.Errorf("expected name %q, got %q", "jsontest", sessions[0].Name)
+	if output.Local[0].Name != "jsontest" {
+		t.Errorf("expected name %q, got %q", "jsontest", output.Local[0].Name)
 	}
 }
 
@@ -453,6 +459,70 @@ func TestCmdSettings_CLIPaths_Set(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "claude=/bin/sh") {
 		t.Errorf("expected CLI path in output, got:\n%s", out)
+	}
+}
+
+// TestCmdList_WithHostColumn creates a session and verifies "(local)" and "HOST" appear in output.
+func TestCmdList_WithHostColumn(t *testing.T) {
+	client := testSetup(t)
+	_, err := client.CreateSession("cat", "hosttest", "/tmp", nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := cmdList(client, nil, &buf); err != nil {
+		t.Fatalf("cmdList: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "HOST") {
+		t.Errorf("expected HOST column in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "(local)") {
+		t.Errorf("expected (local) in output, got:\n%s", out)
+	}
+}
+
+// TestCmdList_LocalFlag verifies --local skips remote discovery.
+func TestCmdList_LocalFlag(t *testing.T) {
+	client := testSetup(t)
+	_, err := client.CreateSession("cat", "localtest", "/tmp", nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	var buf bytes.Buffer
+	// --local should work without error (no peer fetch attempted on test daemon)
+	if err := cmdList(client, []string{"--local"}, &buf); err != nil {
+		t.Fatalf("cmdList --local: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "(local)") {
+		t.Errorf("expected (local) in --local output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "localtest") {
+		t.Errorf("expected session name in output, got:\n%s", out)
+	}
+}
+
+// TestCmdList_JSON_WithHostField verifies JSON output has local array with session objects.
+func TestCmdList_JSON_WithHostField(t *testing.T) {
+	client := testSetup(t)
+	id, err := client.CreateSession("cat", "jsonhost", "/tmp", nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := cmdList(client, []string{"--json"}, &buf); err != nil {
+		t.Fatalf("cmdList --json: %v", err)
+	}
+	var output listOutput
+	if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
+		t.Fatalf("JSON unmarshal failed: %v\nraw: %s", err, buf.String())
+	}
+	if len(output.Local) != 1 {
+		t.Fatalf("expected 1 local session, got %d", len(output.Local))
+	}
+	if output.Local[0].ID != id {
+		t.Errorf("expected session ID %q, got %q", id, output.Local[0].ID)
 	}
 }
 
