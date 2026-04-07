@@ -85,3 +85,64 @@ describe('HealthModal', () => {
     })
   })
 })
+
+describe('TS-01: Install guidance with copy and download', () => {
+  it('shows brew install command for macOS', () => {
+    expect(raw).toContain('brew install --cask tailscale-app')
+  })
+  it('shows winget command for Windows', () => {
+    expect(raw).toContain('winget install Tailscale.Tailscale')
+  })
+  it('shows curl install command for Linux', () => {
+    expect(raw).toContain('curl -fsSL https://tailscale.com/install.sh | sh')
+  })
+  it('includes copy-to-clipboard handler', () => {
+    expect(raw).toContain('navigator.clipboard.writeText')
+  })
+  it('uses onOpenURL prop not BrowserOpenURL directly', () => {
+    expect(raw).not.toContain('BrowserOpenURL')
+    expect(raw).toContain('onOpenURL')
+  })
+  it('has download links for all platforms', () => {
+    expect(raw).toContain('tailscale.com/download/macos')
+    expect(raw).toContain('tailscale.com/download/linux')
+    expect(raw).toContain('tailscale.com/download/windows')
+  })
+  it('includes CopyableCommand component', () => {
+    expect(raw).toContain('CopyableCommand')
+  })
+})
+
+describe('TS-02: Auto-install button', () => {
+  it('gates auto-install to darwin platform', () => {
+    expect(raw).toContain("platform === 'darwin'")
+  })
+  it('uses onAutoInstall prop', () => {
+    expect(raw).toContain('onAutoInstall')
+  })
+  it('has install progress output area', () => {
+    expect(raw).toContain('health-modal__install-output')
+  })
+  it('has running state class', () => {
+    expect(raw).toContain('health-modal__btn--auto-install--running')
+  })
+})
+
+describe('TS-03: NoCerts next steps guide', () => {
+  it('includes MagicDNS enable step', () => {
+    expect(raw).toContain('MagicDNS')
+  })
+  it('links to admin DNS page', () => {
+    expect(raw).toContain('login.tailscale.com/admin/dns')
+  })
+  it('has numbered step structure', () => {
+    expect(raw).toContain('health-modal__steps')
+    expect(raw).toContain('health-modal__step-number')
+  })
+  it('preserves CT disclosure', () => {
+    expect(raw).toContain('Certificate Transparency')
+  })
+  it('preserves Check Again button', () => {
+    expect(raw).toContain('Check Again')
+  })
+})

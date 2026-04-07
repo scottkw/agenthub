@@ -17,6 +17,7 @@ import {
   RetryDaemon,
   GetDaemonError,
   GetRemoteSessions,
+  AutoInstallTailscale,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, Environment, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -67,6 +68,10 @@ function App(): React.ReactElement {
   } | null>(null)
   const [platform, setPlatform] = useState<string>('linux')
   const [daemonError, setDaemonError] = useState<string | null>(null)
+  // Auto-install Tailscale state
+  const [installProgress, setInstallProgress] = useState<string[]>([])
+  const [installStatus, setInstallStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle')
+  const [installError, setInstallError] = useState<string | undefined>(undefined)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
   const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
@@ -159,11 +164,25 @@ function App(): React.ReactElement {
       })
     })
 
+    const cancelInstallProgress = EventsOn('tailscale:install:progress', (line: string) => {
+      setInstallProgress(prev => [...prev, line])
+    })
+    const cancelInstallDone = EventsOn('tailscale:install:done', (result: { success: boolean; error?: string }) => {
+      if (result.success) {
+        setInstallStatus('success')
+      } else {
+        setInstallStatus('error')
+        setInstallError(result.error ?? 'Unknown error')
+      }
+    })
+
     return () => {
       offStatus()
       offHealth()
       offDaemonError()
       cancelTrayFocus()
+      cancelInstallProgress()
+      cancelInstallDone()
     }
   }, [])
 
@@ -290,6 +309,18 @@ function App(): React.ReactElement {
       setTailscaleHealth(health)
     } catch (err) {
       console.error('[App] GetTailscaleStatus failed:', err)
+    }
+  }, [])
+
+  const handleAutoInstallTailscale = useCallback(async () => {
+    setInstallProgress([])
+    setInstallStatus('running')
+    setInstallError(undefined)
+    try {
+      await AutoInstallTailscale()
+    } catch (err) {
+      setInstallStatus('error')
+      setInstallError(String(err))
     }
   }, [])
 
@@ -542,6 +573,11 @@ function App(): React.ReactElement {
         health={tailscaleHealth}
         platform={platform}
         onCheckAgain={handleCheckHealthAgain}
+        onOpenURL={BrowserOpenURL}
+        onAutoInstall={handleAutoInstallTailscale}
+        installProgress={installProgress}
+        installStatus={installStatus}
+        installError={installError}
       />
     </div>
   )
