@@ -20,6 +20,7 @@ interface TabBarProps {
   onAdd: () => void
   onSettings: () => void
   onOpenDaemonManager: () => void
+  onOpenRemoteSessions: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -38,6 +39,7 @@ function renderTabBar() {
         onAdd: () => {},
         onSettings: () => {},
         onOpenDaemonManager: () => {},
+        onOpenRemoteSessions: () => {},
       })
     )
   })
@@ -60,6 +62,7 @@ function renderTabBarWithTabs(overrides: Partial<TabBarProps> = {}) {
     onAdd: () => {},
     onSettings: () => {},
     onOpenDaemonManager: () => {},
+    onOpenRemoteSessions: () => {},
     ...overrides,
   }
   flushSync(() => {

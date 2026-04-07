@@ -5,7 +5,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
-  type?: 'terminal' | 'welcome' | 'daemon-manager'
+  type?: 'terminal' | 'welcome' | 'daemon-manager' | 'remote-sessions'
 }
 
 interface TabBarProps {
@@ -17,6 +17,7 @@ interface TabBarProps {
   onAdd: () => void
   onSettings: () => void
   onOpenDaemonManager: () => void
+  onOpenRemoteSessions: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -33,6 +34,7 @@ export function TabBar({
   onAdd,
   onSettings,
   onOpenDaemonManager,
+  onOpenRemoteSessions,
   sessionStatuses,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -151,6 +153,14 @@ export function TabBar({
       </div>
 
       <div className="tab-bar__controls">
+        <button
+          className="tab-bar__btn tab-bar__btn--remote"
+          onClick={onOpenRemoteSessions}
+          title="Remote sessions"
+          aria-label="Remote sessions"
+        >
+          &#127760;{/* globe icon */}
+        </button>
         <button
           className="tab-bar__btn tab-bar__btn--sessions"
           onClick={onOpenDaemonManager}
