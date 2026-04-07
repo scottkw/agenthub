@@ -193,7 +193,7 @@ Plans:
 Plans:
 - [x] 52-01-PLAN.md — Go GetRemoteSessions binding, Wails stubs, nil-client test
 - [x] 52-02-PLAN.md — RemoteSessionsPanel component, BEM CSS, tests
-- [ ] 52-03-PLAN.md — TabBar remote-sessions type, App.tsx wiring + polling
+- [x] 52-03-PLAN.md — TabBar remote-sessions type, App.tsx wiring + polling
 **UI hint**: yes
 
 
@@ -245,7 +245,7 @@ Plans:
 | 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
-| 52 | v1.9 | 2/3 | In Progress|  |
+| 52 | v1.9 | 3/3 | Complete   | 2026-04-07 |
 | 53 | v1.9 | 0/? | Not started | - |
 | 54 | v1.9 | 0/? | Not started | - |
 
