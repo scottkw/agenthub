@@ -91,6 +91,26 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
+- [ ] Remote session discovery and access across tailnet (GUI panel + CLI)
+- [ ] Auto-discover AgentHub daemons on tailnet peers
+- [ ] Attach to remote sessions from GUI and CLI without SSH
+- [ ] Update checker with one-click download and install from GitHub releases
+- [ ] Tailscale install assistance (auto-install + manual instructions)
+- [ ] Standard app menus (File, Edit, Window, Help) with keyboard shortcuts
+- [ ] Welcome screen version from release build (no hardcoded VERSION)
+- [ ] Welcome logo rounded corners
+
+## Current Milestone: v1.9 Remote Sessions & App Polish
+
+**Goal:** Enable seamless remote session access across tailnet devices and polish the desktop app with standard menus, auto-update, and improved onboarding.
+
+**Target features:**
+- Remote session access via tailnet (auto-discover, GUI panel, CLI unified list)
+- Update checker & one-click installer from GitHub releases
+- Tailscale install & setup guidance with auto-install option
+- Standard app menus (File, Edit, Window, Help)
+- Welcome screen version from build, logo rounded corners
+
 ## Current State
 
 v1.8 milestone shipped (2026-04-06): GitHub Distribution & CI/CD complete. scottkw/agenthub on GitHub with full history, release-please auto-versioning, multi-platform release pipeline (macOS signed DMG, Windows NSIS, Linux deb+tar.gz with SHA256 checksums), Homebrew cask tap with auto-update, and WinGet distribution infrastructure. 9 milestones shipped (v1.0–v1.8), 48 phases, 86 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel. WinGet first submission deferred until first release is published.
@@ -99,7 +119,7 @@ v1.8 milestone shipped (2026-04-06): GitHub Distribution & CI/CD complete. scott
 
 - Mobile app — desktop and web access only; PWA via web serving covers mobile needs
 - AI coding CLI installation — app checks for CLIs but doesn't install them
-- Tailscale/VPN installation or management — user handles VPN setup separately
+- Tailscale/VPN full management — app assists with installation and initial setup but doesn't manage ongoing Tailscale configuration
 - End-to-end encryption beyond TLS — Tailscale's Let's Encrypt certs are sufficient
 - User account system with registration — Tailscale network membership is the access control
 - Cloud hosting or SaaS deployment — this is a local-first desktop app
@@ -202,4 +222,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after v1.8 milestone*
+*Last updated: 2026-04-06 after v1.9 milestone start*

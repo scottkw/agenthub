@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: between_milestones
-stopped_at: Completed v1.8 milestone
+milestone: v1.9
+milestone_name: Remote Sessions & App Polish
+status: defining_requirements
+stopped_at: null
 last_updated: "2026-04-06T22:00:00.000Z"
-last_activity: 2026-04-07
+last_activity: 2026-04-06
 progress:
   total_phases: 0
   completed_phases: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** Defining requirements for v1.9
 
 ## Current Position
 
-Phase: None (between milestones)
-Plan: N/A
-Status: v1.8 shipped — ready for next milestone
-Last activity: 2026-04-07 - Completed quick task 260406-s0e: Fix CLI detection
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-06 — Milestone v1.9 started
 
 ## Performance Metrics
 
@@ -66,4 +66,4 @@ None.
 Last session: 2026-04-07
 Stopped at: Completed quick task 260406-s0e: Fix CLI detection (export AugmentServicePath)
 Resume file: None
-Next action: `/gsd:new-milestone`
+Next action: Define requirements → create roadmap
