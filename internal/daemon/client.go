@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
 // DaemonClient is a typed Go client that communicates with the daemon API
@@ -151,6 +153,18 @@ func (c *DaemonClient) ShutdownDaemon() error {
 // ToggleWebServing enables or disables web serving for a session.
 func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
+}
+
+// ListTailnetPeers returns discovered tailnet peers running AgentHub.
+func (c *DaemonClient) ListTailnetPeers() ([]tailnet.Peer, error) {
+	var peers []tailnet.Peer
+	if err := c.doJSON(http.MethodGet, "/tailnet/peers", nil, &peers); err != nil {
+		return nil, err
+	}
+	if peers == nil {
+		peers = []tailnet.Peer{}
+	}
+	return peers, nil
 }
 
 // doJSON is a shared request/response helper. It marshals body (if non-nil),

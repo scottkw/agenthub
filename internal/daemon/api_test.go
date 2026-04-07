@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
 // testDaemon creates an API server with a fresh engine on a temp socket.
@@ -367,4 +369,73 @@ func TestClientCreateSessionWithArgs(t *testing.T) {
 	if id == "" {
 		t.Fatal("CreateSession with args returned empty ID")
 	}
+}
+
+func TestHandleTailnetPeers(t *testing.T) {
+	t.Run("returns cached peers as JSON array", func(t *testing.T) {
+		api, _, socketPath := testDaemon(t)
+
+		testPeers := []tailnet.Peer{
+			{Hostname: "mac1", DNSName: "mac1.tail.ts.net.", TailscaleIPs: []string{"100.64.0.1"}, OS: "macOS", Online: true},
+			{Hostname: "linux2", DNSName: "linux2.tail.ts.net.", TailscaleIPs: []string{"100.64.0.2"}, OS: "linux", Online: true},
+		}
+		// Pre-populate cache to avoid needing a live Tailscale daemon.
+		api.tailnetCache.set(testPeers)
+
+		status, body := rawGet(t, socketPath, "/tailnet/peers")
+		if status != 200 {
+			t.Errorf("GET /tailnet/peers: want 200, got %d; body: %s", status, body)
+		}
+
+		var peers []tailnet.Peer
+		if err := json.Unmarshal(body, &peers); err != nil {
+			t.Fatalf("decode peers response: %v", err)
+		}
+		if len(peers) != 2 {
+			t.Errorf("want 2 peers, got %d", len(peers))
+		}
+		if peers[0].Hostname != "mac1" {
+			t.Errorf("first peer hostname: want %q, got %q", "mac1", peers[0].Hostname)
+		}
+	})
+
+	t.Run("returns empty array when no Tailscale daemon available", func(t *testing.T) {
+		api, _, socketPath := testDaemon(t)
+
+		// Pre-set cache with empty slice to simulate unavailable Tailscale.
+		api.tailnetCache.set([]tailnet.Peer{})
+
+		status, body := rawGet(t, socketPath, "/tailnet/peers")
+		if status != 200 {
+			t.Errorf("GET /tailnet/peers empty: want 200, got %d; body: %s", status, body)
+		}
+
+		var peers []tailnet.Peer
+		if err := json.Unmarshal(body, &peers); err != nil {
+			t.Fatalf("decode empty peers response: %v", err)
+		}
+		if len(peers) != 0 {
+			t.Errorf("want 0 peers, got %d", len(peers))
+		}
+	})
+
+	t.Run("client ListTailnetPeers returns cached peers", func(t *testing.T) {
+		api, client, _ := testDaemon(t)
+
+		testPeers := []tailnet.Peer{
+			{Hostname: "node1", DNSName: "node1.tail.ts.net.", TailscaleIPs: []string{"100.64.0.3"}, OS: "linux", Online: true},
+		}
+		api.tailnetCache.set(testPeers)
+
+		peers, err := client.ListTailnetPeers()
+		if err != nil {
+			t.Fatalf("ListTailnetPeers: %v", err)
+		}
+		if len(peers) != 1 {
+			t.Errorf("want 1 peer, got %d", len(peers))
+		}
+		if peers[0].Hostname != "node1" {
+			t.Errorf("peer hostname: want %q, got %q", "node1", peers[0].Hostname)
+		}
+	})
 }
