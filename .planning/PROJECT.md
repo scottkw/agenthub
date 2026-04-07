@@ -99,6 +99,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Standard app menus (File, Edit, Window, Help) with keyboard shortcuts — v1.9 Phase 49
 - ✓ Welcome screen version from release build (no hardcoded VERSION) — v1.9 Phase 49
 - ✓ Welcome logo rounded corners — v1.9 Phase 49
+- ✓ Tailscale peer discovery: `internal/tailnet` package with injectable deps, concurrent probe pool (cap 5), daemon `GET /tailnet/peers` with 30s cache — v1.9 Phase 50
 
 ## Current Milestone: v1.9 Remote Sessions & App Polish
 
@@ -113,7 +114,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 in progress (2026-04-07): Phase 49 complete — macOS app menus (File, Edit, Window, Help) with native clipboard shortcuts, build-time version injection via ldflags across all 6 build paths, and welcome screen version from Go backend binding. 9 milestones shipped (v1.0–v1.8), 49 phases, 88 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
+v1.9 in progress (2026-04-07): Phase 50 complete — `internal/tailnet` package provides peer discovery via local tailscaled and concurrent HTTP probing (capped at 5 goroutines). Daemon exposes `GET /tailnet/peers` with 30-second cache. Foundation for remote session GUI (Phase 52) and CLI (Phase 53). 9 milestones shipped (v1.0–v1.8), 50 phases, 90 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), and in-GUI daemon management panel.
 
 ### Out of Scope
 
