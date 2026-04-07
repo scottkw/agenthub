@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
 status: executing
-stopped_at: Completed 51-03-PLAN.md
-last_updated: "2026-04-07T18:41:49.440Z"
-last_activity: 2026-04-07 -- Phase 51 Plan 01 complete
+stopped_at: Completed 51-02-PLAN.md
+last_updated: "2026-04-07T18:42:17.329Z"
+last_activity: 2026-04-07
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 ## Current Position
 
 Phase: 51 (auto-update-checker) — EXECUTING
-Plan: 2 of 3
-Status: Executing Phase 51
-Last activity: 2026-04-07 -- Phase 51 Plan 01 complete
+Plan: 3 of 3
+Status: Ready to execute
+Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -44,6 +44,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plan | Duration (s) | Tasks | Files |
 |-------|------|-------------|-------|-------|
 | 51-auto-update-checker | 01 | 172 | 1 | 4 |
+| Phase 51-auto-update-checker P02 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 51-auto-update-checker]: Masterminds/semver/v3 used directly for version comparison (transitive dep of go-selfupdate, cleaner than constructing Release struct)
 - [Phase 51-auto-update-checker]: Timestamp persisted on all non-error paths (including no-update) to prevent re-checking on rapid startup
 - [Phase 51]: Manually added Wails bindings (App.d.ts + App.js) for GetLastUpdateInfo/CheckForUpdates as parallel plan workaround
+- [Phase 51-auto-update-checker]: 5-second initial delay before first update check avoids startup race with frontend event subscription
+- [Phase 51-auto-update-checker]: startUpdatePoller called in both daemon-success and failure paths — update checks are daemon-independent
 
 ### Pending Todos
 
@@ -93,7 +96,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07T18:41:44.262Z
-Stopped at: Completed 51-03-PLAN.md
+Last session: 2026-04-07T18:42:17.325Z
+Stopped at: Completed 51-02-PLAN.md
 Resume file: None
 Next action: Execute 51-02-PLAN.md

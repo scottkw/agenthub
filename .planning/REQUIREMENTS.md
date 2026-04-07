@@ -17,10 +17,10 @@ Requirements for milestone v1.9: Remote Sessions & App Polish. Each maps to road
 
 ### Auto-Update
 
-- [ ] **UPD-01**: App checks GitHub releases for newer versions on startup and periodically
-- [ ] **UPD-02**: User sees a notification banner when an update is available with version info
-- [ ] **UPD-03**: User can trigger update with one click (opens download page for macOS DMG, or triggers platform-appropriate action)
-- [ ] **UPD-04**: User can check for updates manually from the Help menu
+- [x] **UPD-01**: App checks GitHub releases for newer versions on startup and periodically
+- [x] **UPD-02**: User sees a notification banner when an update is available with version info
+- [x] **UPD-03**: User can trigger update with one click (opens download page for macOS DMG, or triggers platform-appropriate action)
+- [x] **UPD-04**: User can check for updates manually from the Help menu
 
 ### Tailscale Onboarding
 
@@ -73,10 +73,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VER-02 | Phase 49 | Complete |
 | UI-01 | Phase 49 | Complete |
 | REM-01 | Phase 50 | Complete |
-| UPD-01 | Phase 51 | Pending |
-| UPD-02 | Phase 51 | Pending |
-| UPD-03 | Phase 51 | Pending |
-| UPD-04 | Phase 51 | Pending |
+| UPD-01 | Phase 51 | Complete |
+| UPD-02 | Phase 51 | Complete |
+| UPD-03 | Phase 51 | Complete |
+| UPD-04 | Phase 51 | Complete |
 | REM-02 | Phase 52 | Pending |
 | REM-03 | Phase 52 | Pending |
 | REM-04 | Phase 53 | Pending |

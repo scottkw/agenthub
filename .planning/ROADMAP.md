@@ -191,9 +191,9 @@ Plans:
   5. Remote sessions panel is accessible from the main tab bar or navigation without requiring CLI knowledge
 **Plans**: 3 plans
 Plans:
-- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
-- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
-- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
+- [x] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [x] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [x] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 **UI hint**: yes
 
 ### Phase 53: Remote Sessions CLI
