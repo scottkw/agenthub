@@ -2,16 +2,22 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/updater"
 	"github.com/scottkw/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
@@ -26,6 +32,21 @@ type SessionInfo struct {
 	State     string `json:"state"`
 	CreatedAt string `json:"createdAt"`
 	Hostname  string `json:"hostname"`
+}
+
+// RemoteSession is a session on a remote tailnet peer.
+type RemoteSession struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	CLIType string `json:"cliType"`
+	Status  string `json:"status"`
+	URL     string `json:"url"`
+}
+
+// RemotePeerSessions groups sessions by peer hostname.
+type RemotePeerSessions struct {
+	Hostname string          `json:"hostname"`
+	Sessions []RemoteSession `json:"sessions"`
 }
 
 // App holds all application state and exposes the Wails-bound methods.
@@ -415,6 +436,84 @@ func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return webserver.CheckHealth(ctx)
+}
+
+// GetRemoteSessions discovers tailnet peers and fetches their session lists.
+// Returns an empty slice if the daemon is unreachable or no peers are found.
+// Individual peer fetch failures are silently omitted.
+func (a *App) GetRemoteSessions() []RemotePeerSessions {
+	if a.client == nil {
+		return []RemotePeerSessions{}
+	}
+	peers, err := a.client.ListTailnetPeers()
+	if err != nil || len(peers) == 0 {
+		return []RemotePeerSessions{}
+	}
+
+	var mu sync.Mutex
+	results := make([]RemotePeerSessions, 0)
+
+	g, gctx := errgroup.WithContext(context.Background())
+	g.SetLimit(5)
+	for _, p := range peers {
+		p := p
+		g.Go(func() error {
+			ctx, cancel := context.WithTimeout(gctx, 5*time.Second)
+			defer cancel()
+			fqdn := strings.TrimSuffix(p.DNSName, ".")
+			sessionsURL := fmt.Sprintf("https://%s:%d/api/sessions", fqdn, tailnet.DefaultProbePort)
+			sessions := fetchRemoteSessions(ctx, sessionsURL, fqdn, tailnet.DefaultProbePort)
+			if len(sessions) > 0 {
+				mu.Lock()
+				results = append(results, RemotePeerSessions{Hostname: p.Hostname, Sessions: sessions})
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+	_ = g.Wait()
+	return results
+}
+
+// fetchRemoteSessions fetches /api/sessions from a single peer and builds URLs.
+func fetchRemoteSessions(ctx context.Context, apiURL, fqdn string, port int) []RemoteSession {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var items []struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		CLIType string `json:"cli_type"`
+		Status  string `json:"status"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil
+	}
+	sessions := make([]RemoteSession, 0, len(items))
+	for _, item := range items {
+		sessions = append(sessions, RemoteSession{
+			ID:      item.ID,
+			Name:    item.Name,
+			CLIType: item.CLIType,
+			Status:  item.Status,
+			URL:     fmt.Sprintf("https://%s:%d/sessions/%s", fqdn, port, item.ID),
+		})
+	}
+	return sessions
 }
 
 // startTrayPoller starts a background goroutine that refreshes tray state
