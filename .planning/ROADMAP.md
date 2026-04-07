@@ -221,11 +221,10 @@ Plans:
   2. Direct download links to the official Tailscale installer for the current platform are visible and clickable in the health modal
   3. After Tailscale is installed, the health modal shows a step-by-step "next steps" guide covering how to enable HTTPS certs in the Tailscale admin panel
   4. User can attempt an auto-install via a "Try Auto-Install" button that runs `brew install --cask tailscale-app` on macOS with visible progress output (manual fallback shown for other platforms)
-**Plans**: 3 plans
+**Plans**: 2 plans
 Plans:
-- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
-- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
-- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
+- [ ] 54-01-PLAN.md — Go AutoInstallTailscale method, findBrew helper, test, Wails bindings
+- [ ] 54-02-PLAN.md — HealthModal enhancement (copyable commands, download links, auto-install UX, next-steps guide), CSS, App.tsx wiring, tests
 **UI hint**: yes
 
 ## Progress
@@ -246,7 +245,7 @@ Plans:
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 53 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 54 | v1.9 | 0/? | Not started | - |
+| 54 | v1.9 | 0/2 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
