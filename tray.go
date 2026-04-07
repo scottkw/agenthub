@@ -41,6 +41,7 @@ var trayCallbackApp *App
 func onTrayShow() {
 	if trayCallbackApp != nil && trayCallbackApp.ctx != nil {
 		runtime.WindowShow(trayCallbackApp.ctx)
+		trayCallbackApp.setDockVisible(true)
 	}
 }
 
@@ -73,6 +74,7 @@ func onTraySession(idx C.int) {
 		i := int(idx)
 		if i >= 0 && i < len(sessions) {
 			runtime.WindowShow(trayCallbackApp.ctx)
+			trayCallbackApp.setDockVisible(true)
 			runtime.EventsEmit(trayCallbackApp.ctx, "tray:focus-session", sessions[i].ID)
 		}
 	}()

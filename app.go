@@ -46,6 +46,7 @@ func NewApp() *App {
 // Shows the window now that the static HTML splash is rendered and visible.
 func (a *App) domReady(ctx context.Context) {
 	runtime.WindowShow(ctx)
+	a.setDockVisible(true)
 }
 
 // startup is called when Wails initialises the app.
@@ -122,6 +123,7 @@ func (a *App) beforeClose(ctx context.Context) bool {
 	// Wails stores the frontend under the "frontend" key; skip the call when
 	// running outside the Wails event loop (tests, CLI helpers).
 	if ctx.Value("frontend") != nil {
+		a.setDockVisible(false)
 		runtime.WindowHide(ctx)
 	}
 	return true // prevent the default quit behaviour — hide window instead
