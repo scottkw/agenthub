@@ -120,7 +120,7 @@
 <details>
 <summary>🚧 v1.9 Remote Sessions & App Polish (Phases 49-54) — ACTIVE</summary>
 
-- [ ] **Phase 49: App Menus & Version Injection** — Plans: TBD
+- [ ] **Phase 49: App Menus & Version Injection** — 2 plans (Wave 1: Go backend + menus, Wave 2: frontend version + CSS)
 - [ ] **Phase 50: Tailscale Peer Discovery** — Plans: TBD
 - [ ] **Phase 51: Auto-Update Checker** — Plans: TBD
 - [ ] **Phase 52: Remote Sessions GUI Panel** — Plans: TBD
@@ -141,7 +141,10 @@
   3. Welcome screen displays the version injected at build time (e.g., "v1.9.0") instead of a hardcoded placeholder
   4. `wails build -ldflags "-X main.Version=v1.9.0"` produces a binary where the version propagates to the Welcome tab
   5. Welcome logo/title graphic has visibly rounded corners
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 **UI hint**: yes
 
 ### Phase 50: Tailscale Peer Discovery
@@ -154,7 +157,10 @@
   3. `ProbePeer()` correctly identifies a peer running AgentHub by probing its Tailscale HTTPS `/api/sessions` endpoint with a 2-second timeout
   4. Peer probes run concurrently (goroutine pool capped at 5) and do not block the calling goroutine
   5. Daemon exposes `GET /tailnet/peers` route returning discovered peers with a 30-second result cache
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 
 ### Phase 51: Auto-Update Checker
 **Goal**: Users are notified of available updates and can navigate to the download page with one click
@@ -166,7 +172,10 @@
   3. Clicking "Download" opens the GitHub releases page in the system browser (no in-place binary replacement)
   4. Help menu contains a "Check for Updates" item that triggers an immediate version check
   5. Update check is rate-limited to once per hour (persisted last-check timestamp) and handles 429/non-200 responses silently
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 **UI hint**: yes
 
 ### Phase 52: Remote Sessions GUI Panel
@@ -179,7 +188,10 @@
   3. User can click "Open" on any remote session to open that session's Tailscale HTTPS web terminal URL in the system browser
   4. Panel shows a clear "No remote peers found" state when no tailnet peers are running AgentHub
   5. Remote sessions panel is accessible from the main tab bar or navigation without requiring CLI knowledge
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 **UI hint**: yes
 
 ### Phase 53: Remote Sessions CLI
@@ -191,7 +203,10 @@
   2. Remote sessions appear in the list with their host prefix (e.g., `macbook.tail:session-id`) distinct from local sessions
   3. `agenthub attach <remote-session-id>` connects to a remote session via the WebSocket relay without requiring SSH or manual URL construction
   4. CLI attach banner shows the remote hostname clearly so the user knows they are connected to a non-local machine
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 
 ### Phase 54: Tailscale Onboarding Enhancement
 **Goal**: New users who lack Tailscale can find and follow installation steps without leaving the app
@@ -202,7 +217,10 @@
   2. Direct download links to the official Tailscale installer for the current platform are visible and clickable in the health modal
   3. After Tailscale is installed, the health modal shows a step-by-step "next steps" guide covering how to enable HTTPS certs in the Tailscale admin panel
   4. User can attempt an auto-install via a "Try Auto-Install" button that runs `brew install --cask tailscale-app` on macOS with visible progress output (manual fallback shown for other platforms)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 **UI hint**: yes
 
 ## Progress
