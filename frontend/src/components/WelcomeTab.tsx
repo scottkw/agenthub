@@ -1,8 +1,14 @@
-import React from 'react'
-
-const VERSION = '1.0.0'
+import React, { useEffect, useState } from 'react'
+import { GetVersion } from '../wailsjs/go/main/App'
 
 export function WelcomeTab(): React.ReactElement {
+  const [version, setVersion] = useState('dev')
+  useEffect(() => {
+    GetVersion()
+      .then((v) => setVersion(v))
+      .catch(() => setVersion('dev'))
+  }, [])
+
   return (
     <div className="welcome-tab">
       <div className="welcome-tab__content">
@@ -13,7 +19,7 @@ export function WelcomeTab(): React.ReactElement {
           draggable={false}
         />
         <p className="welcome-tab__tagline">AI Coding Session Manager</p>
-        <p className="welcome-tab__version">v{VERSION}</p>
+        <p className="welcome-tab__version">{version}</p>
 
         <div className="welcome-tab__section">
           <h3 className="welcome-tab__heading">Get Started</h3>

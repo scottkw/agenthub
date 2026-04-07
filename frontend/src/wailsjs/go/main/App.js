@@ -36,3 +36,6 @@ export const OpenDirectoryDialog  = (defaultDir)            => Call('main.App.Op
 
 // Tailscale health bound method
 export const GetTailscaleStatus   = ()                      => Call('main.App.GetTailscaleStatus', [])
+
+// Version bound method
+export const GetVersion           = ()                      => Call('main.App.GetVersion', [])

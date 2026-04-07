@@ -1010,6 +1010,7 @@ body {
   width: 280px;
   max-width: 80%;
   margin-bottom: 16px;
+  border-radius: 8px;
 }
 
 .welcome-tab__tagline {

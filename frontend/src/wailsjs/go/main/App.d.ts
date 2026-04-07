@@ -45,6 +45,9 @@ export function RetryDaemon(): Promise<void>
 // Directory dialog bound method
 export function OpenDirectoryDialog(defaultDir: string): Promise<string>
 
+// Version bound method
+export function GetVersion(): Promise<string>
+
 // Tailscale health bound method
 export function GetTailscaleStatus(): Promise<{
   installed: boolean
