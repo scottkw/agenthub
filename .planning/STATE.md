@@ -5,7 +5,7 @@ milestone_name: null
 status: between_milestones
 stopped_at: Completed v1.8 milestone
 last_updated: "2026-04-06T22:00:00.000Z"
-last_activity: 2026-04-06
+last_activity: 2026-04-07
 progress:
   total_phases: 0
   completed_phases: 0
@@ -53,9 +53,15 @@ None.
 
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260406-nqy | Dynamic dock icon visibility - show when window visible, hide when minimized/closed to tray | 2026-04-07 | 82e501c | [260406-nqy-dynamic-dock-icon-visibility-show-when-w](./quick/260406-nqy-dynamic-dock-icon-visibility-show-when-w/) |
+
 ## Session Continuity
 
-Last session: 2026-04-06
-Stopped at: Completed v1.8 milestone
+Last session: 2026-04-07
+Stopped at: Completed quick task 260406-nqy: Dynamic dock icon visibility
 Resume file: None
 Next action: `/gsd:new-milestone`
