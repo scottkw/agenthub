@@ -46,3 +46,6 @@ export const CheckForUpdates      = ()                      => Call('main.App.Ch
 
 // Remote sessions bound method
 export const GetRemoteSessions    = ()                      => Call('main.App.GetRemoteSessions', [])
+
+// Auto-install Tailscale bound method
+export const AutoInstallTailscale = ()                      => Call('main.App.AutoInstallTailscale', [])

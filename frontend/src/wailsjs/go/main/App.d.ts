@@ -84,3 +84,6 @@ export interface RemotePeerSessions {
 }
 
 export function GetRemoteSessions(): Promise<RemotePeerSessions[]>
+
+// Auto-install Tailscale bound method
+export function AutoInstallTailscale(): Promise<void>
