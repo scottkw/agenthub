@@ -26,10 +26,10 @@ Run with no arguments to launch the desktop GUI.
 
 Commands:
   new <agent> <path> [-- <extra-args>...]     Create a new terminal session
-  list [--json] [--local]                      List all active sessions
+  list [--json] [--local]                     List local and remote sessions
   kill <id>                                   Kill a session
   rename <id> <name>                          Rename a session
-  attach <id>                                 Attach to a session (interactive PTY)
+  attach <id>                                 Attach to a local or remote session
   serve <id>                                  Enable web sharing for a session
   unserve <id>                                Disable web sharing for a session
   web                                         Open the web dashboard
@@ -43,6 +43,11 @@ Commands:
     daemon start                              Start the system service
     daemon stop                               Stop the system service
     daemon status [--json]                    Show daemon status
+
+Remote Sessions:
+  list                                        Shows local + remote sessions grouped by host
+  list --local                                Shows only local sessions
+  attach <hostname:session-id>                Attach to a remote session (e.g., macbook:abc123)
 
 Run 'agenthub <command> --help' for command-specific flags.
 `)

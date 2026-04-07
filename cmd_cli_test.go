@@ -526,6 +526,38 @@ func TestCmdList_JSON_WithHostField(t *testing.T) {
 	}
 }
 
+// TestUsage_RemoteSessionDocs verifies that the usage text documents remote
+// session features including the Remote Sessions section, hostname:session-id
+// example, --local flag, and updated descriptions (REM-05).
+func TestUsage_RemoteSessionDocs(t *testing.T) {
+	// Read cmd_cli.go source to verify usage text content.
+	// Since usage() writes to os.Stderr directly, we use source inspection.
+	src, err := os.ReadFile("cmd_cli.go")
+	if err != nil {
+		t.Fatalf("failed to read cmd_cli.go: %v", err)
+	}
+	content := string(src)
+
+	checks := []struct {
+		name   string
+		needle string
+	}{
+		{"Remote Sessions section header", "Remote Sessions:"},
+		{"hostname:session-id example", "hostname:session-id"},
+		{"--local flag in list line", "--local"},
+		{"List local and remote sessions", "List local and remote sessions"},
+		{"Attach to a local or remote session", "Attach to a local or remote session"},
+		{"macbook:abc123 example", "macbook:abc123"},
+	}
+	for _, tc := range checks {
+		t.Run(tc.name, func(t *testing.T) {
+			if !strings.Contains(content, tc.needle) {
+				t.Errorf("cmd_cli.go usage missing %q", tc.needle)
+			}
+		})
+	}
+}
+
 // TestSplitDashDash verifies all boundary cases for the -- separator.
 func TestSplitDashDash(t *testing.T) {
 	cases := []struct {
