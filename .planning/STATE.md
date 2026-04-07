@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
 status: executing
-stopped_at: Completed 51-02-PLAN.md
-last_updated: "2026-04-07T18:51:20.322Z"
+stopped_at: Completed 52-01-PLAN.md — GetRemoteSessions Wails binding
+last_updated: "2026-04-07T19:38:23.759Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 10
+  completed_plans: 9
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 51 — auto-update-checker
+**Current focus:** Phase 52 — remote-sessions-gui-panel
 
 ## Current Position
 
-Phase: 52
-Plan: Not started
+Phase: 52 (remote-sessions-gui-panel) — EXECUTING
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-07
 
@@ -45,6 +45,7 @@ Progress: [░░░░░░░░░░] 0%
 |-------|------|-------------|-------|-------|
 | 51-auto-update-checker | 01 | 172 | 1 | 4 |
 | Phase 51-auto-update-checker P02 | 3 | 2 tasks | 3 files |
+| Phase 52-remote-sessions-gui-panel P01 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 51]: Manually added Wails bindings (App.d.ts + App.js) for GetLastUpdateInfo/CheckForUpdates as parallel plan workaround
 - [Phase 51-auto-update-checker]: 5-second initial delay before first update check avoids startup race with frontend event subscription
 - [Phase 51-auto-update-checker]: startUpdatePoller called in both daemon-success and failure paths — update checks are daemon-independent
+- [Phase 52-remote-sessions-gui-panel]: GetRemoteSessions silently omits peers that fail — partial success is normal for distributed discovery
 
 ### Pending Todos
 
@@ -96,7 +98,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07T18:42:17.325Z
-Stopped at: Completed 51-02-PLAN.md
+Last session: 2026-04-07T19:38:14.703Z
+Stopped at: Completed 52-01-PLAN.md — GetRemoteSessions Wails binding
 Resume file: None
 Next action: Execute 51-02-PLAN.md

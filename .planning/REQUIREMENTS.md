@@ -10,8 +10,8 @@ Requirements for milestone v1.9: Remote Sessions & App Polish. Each maps to road
 ### Remote Sessions
 
 - [x] **REM-01**: User can discover AgentHub instances running on other tailnet peers automatically
-- [ ] **REM-02**: User can view a list of remote sessions with host, session name, agent type, and status in a dedicated GUI panel
-- [ ] **REM-03**: User can open a remote session in the web browser directly from the GUI remote panel
+- [x] **REM-02**: User can view a list of remote sessions with host, session name, agent type, and status in a dedicated GUI panel
+- [x] **REM-03**: User can open a remote session in the web browser directly from the GUI remote panel
 - [ ] **REM-04**: CLI `agenthub list` shows local and remote sessions grouped by host by default
 - [ ] **REM-05**: User can attach to a remote session from the CLI via `agenthub attach <id>` using the WebSocket relay
 
@@ -77,8 +77,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UPD-02 | Phase 51 | Complete |
 | UPD-03 | Phase 51 | Complete |
 | UPD-04 | Phase 51 | Complete |
-| REM-02 | Phase 52 | Pending |
-| REM-03 | Phase 52 | Pending |
+| REM-02 | Phase 52 | Complete |
+| REM-03 | Phase 52 | Complete |
 | REM-04 | Phase 53 | Pending |
 | REM-05 | Phase 53 | Pending |
 | TS-01 | Phase 54 | Pending |
