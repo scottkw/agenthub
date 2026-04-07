@@ -1,391 +1,211 @@
 # Pitfalls Research
 
-**Domain:** GitHub Distribution & CI/CD — Wails desktop app migrating from Gitea to GitHub with automated release pipelines, Homebrew tap, and WinGet distribution
-**Researched:** 2026-04-03
-**Confidence:** HIGH — CI/CD pitfalls verified from official docs, GitHub Issues, and community post-mortems; Homebrew docs read directly; WinGet submission process verified from microsoft/winget-pkgs discussions
+**Domain:** Go/Wails desktop app — remote tailnet session discovery, auto-update, Tailscale install assistance, app menus
+**Researched:** 2026-04-06
+**Confidence:** HIGH (architecture is fully readable; pitfalls verified against live code and official docs)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Git History Lost When Pushing to GitHub Without `--mirror`
+### Pitfall 1: Wails App Menu Conflicts with Existing Native CGO Tray
 
 **What goes wrong:**
-A simple `git remote add github <url> && git push github main` only pushes the current branch. All other branches, all tags (including v1.0–v1.7 release tags), and reflog data are left behind on Gitea. Release-please, GitHub Releases, and Homebrew cask update workflows all depend on tags being present to identify the "latest" version.
+Adding a Wails `options.App.Menu` while the existing native CGO `NSStatusBar` tray is already running causes duplicate ObjC class registration or silent menu handler failures. The app already uses a `.m` file (`tray_objc.m`) with an `NSMenuDelegate` for the tray. Wails also installs its own `NSMenu` for the app menu bar. If `wails.Run()` is given a `Menu:` option, the two ObjC menu systems may conflict — particularly if both try to set the `NSApplication` delegate or respond to the same `menuWillOpen:` selector.
+
+The Wails docs explicitly warn that on macOS, `AppMenu.Append(menu.AppMenu())` must be the first call, followed immediately by `menu.EditMenu()`, and that order matters for correct placement. Missing `EditMenu` silently disables all standard text shortcuts (Cmd+C, Cmd+V, Cmd+Z) in the xterm.js terminal and any other text areas.
 
 **Why it happens:**
-`git push` without flags only pushes the configured branch. Tags are not pushed automatically. Developers testing the migration push one branch, confirm it looks right, and call it done — without realizing tags are missing.
+Developers add a `Menu:` field to `options.App` and verify it visually, but don't test keyboard shortcuts in the terminal. The existing tray code's `NSMenuDelegate` is on a different `NSMenu` instance, but shared `NSApplication` delegate state can interfere.
 
 **How to avoid:**
-Use a bare clone + mirror push:
-```bash
-git clone --bare <gitea-url> agenthub-migration.git
-cd agenthub-migration.git
-git push --mirror <github-url>
-```
-After the mirror push, verify on GitHub:
-- `git ls-remote --tags origin` shows all v1.0–v1.7 tags
-- `git log --oneline --decorate` on main shows full history
-- GitHub's commit count on the repo page matches Gitea's
+- Add the Wails menu in `main.go` inside `runGUI()` as a `Menu:` option field — not via cgo.
+- Use the exact macOS ordering: `NewMenu()` → `AppMenu.Append(menu.AppMenu())` → `AppMenu.Append(menu.EditMenu())` before any custom submenus.
+- Test Cmd+C/Cmd+V inside an xterm.js terminal after adding the app menu.
+- Do not attempt to register a second `NSMenuDelegate` in ObjC for the app menu bar; let Wails manage the menu bar and keep the tray's delegate isolated to its `NSStatusItem` menu.
 
 **Warning signs:**
-- GitHub repo shows fewer commits than Gitea
-- `git tag` on a fresh clone of the GitHub remote returns nothing
-- Release-please creates a v0.0.0 release PR instead of starting from v1.7.x
-- Homebrew tap automation reports "could not find latest tag"
+- Standard keyboard shortcuts (Cmd+C, Cmd+V, Cmd+Z) stop working in terminals after adding the menu.
+- `wails build` completes but the menu items fire no callbacks.
+- Linker errors mentioning duplicate symbol `@implementation` for menu-related ObjC classes.
 
-**Phase to address:** Phase: Git Migration — run mirror push as the first step, before any CI workflows reference the repo.
+**Phase to address:** Whichever phase implements standard app menus.
 
 ---
 
-### Pitfall 2: Wails macOS Builds Cannot Cross-Compile — Must Use `macos-latest` Runner (Now Arm64)
+### Pitfall 2: Tailnet Peer Port Scanning — Blocking the Main Thread and False Positives
 
 **What goes wrong:**
-Wails v2 macOS builds require native CGO compilation. There is no cross-compile path from Linux to macOS for a Wails app. If the CI matrix tries to build the `.app` bundle on `ubuntu-latest`, it will fail with CGO linker errors because macOS frameworks (CoreFoundation, AppKit, WebKit) are not available. Additionally, as of 2024, `macos-latest` maps to `macos-14` which is ARM64 (Apple Silicon). A universal binary requires explicit `GOARCH=amd64` + `GOARCH=arm64` builds and `lipo` to merge them.
+Discovering which tailnet peers are running an AgentHub daemon requires probing each peer's HTTP API port. If this probe runs synchronously on the Wails startup goroutine or blocks the daemon API handler, the app freezes. Worse, if the probe has no timeout, a single offline peer that Tailscale still lists as a known node causes the entire discovery to hang indefinitely.
+
+A secondary failure: Tailscale's `local.Client.Status()` returns all peers that have ever been in the tailnet, including offline ones. The `PeerStatus.Online` field indicates whether the node is currently connected to the Tailscale control plane — but a node can be "online" in Tailscale's view yet have its AgentHub daemon stopped. Both checks are necessary.
 
 **Why it happens:**
-Developers copy a Go cross-compile pattern (which works for pure-Go or simple CGO) and expect it to work for Wails. The existing `build.sh` works locally on a Mac but GitHub Actions uses a specific runner image that changed architecture in mid-2024.
+Developers call `local.Client{}.Status()`, iterate all peers, and issue HTTP probes assuming that `Online: true` means the daemon is reachable. They forget timeouts, and they issue probes from a goroutine that blocks the UI response path.
 
 **How to avoid:**
-- `macos-14` and `macos-latest` are ARM64. Use `macos-13` for an Intel runner if needed, or build both architectures on `macos-latest` (ARM64) using Rosetta + `GOARCH=amd64`.
-- The existing `build.sh` already handles cross-arch via `-arch` flags — replicate that logic in CI.
-- Explicitly specify `runs-on: macos-14` (not `macos-latest`) to avoid the mapping changing under you in a future GitHub Actions update.
-- Linux builds must use Docker cross-compilation (as `build.sh` already does with `wailsapp/cc` images); Windows builds require `windows-latest` runner.
+- Run peer discovery in a background goroutine, never on the Wails event loop or daemon API goroutine.
+- Use `http.Client{Timeout: 2 * time.Second}` for each probe — never the default zero-timeout client.
+- Filter peers with `peer.Online` before probing, but treat `Online` as a hint, not a guarantee.
+- Issue probes concurrently with `sync.WaitGroup` and a worker pool capped at ~5 goroutines.
+- Emit results back to the frontend via `runtime.EventsEmit` as they arrive, not as a single blocking list.
+- Cache results with a TTL (e.g., 30s) so re-opening the remote panel does not re-probe on every render.
 
 **Warning signs:**
-- CI macOS job fails with: `ld: framework not found CoreFoundation`
-- CI produces only an `amd64` binary but `file` shows `Mach-O 64-bit executable arm64`
-- `wails build` succeeds locally but produces a different binary size in CI
+- Remote session panel takes >5s to appear.
+- App freezes on startup when one tailnet peer is offline.
+- Probe goroutine leak visible in `runtime.NumGoroutine()` growing over time.
 
-**Phase to address:** Phase: GitHub Actions CI — define explicit runner versions in the matrix; never use `macos-latest` for production builds.
+**Phase to address:** Tailnet peer discovery phase.
 
 ---
 
-### Pitfall 3: macOS Signing Fails With "Code Has No Resources But Signature Indicates They Must Be Present"
+### Pitfall 3: Remote Daemon HTTP API Is Unix-Socket-Only — No TCP Endpoint Exists for Remote Peers
 
 **What goes wrong:**
-The `codesign` step succeeds, but notarization or Gatekeeper validation fails with: `code has no resources but signature indicates they must be present`. This is a Wails-specific bug present through at least v2.9.2 where `CFBundleExecutable` in `Info.plist` uses `.Name` (the project name) but the actual binary in the bundle uses `.OutputFilename` (which may have different casing or a custom name).
+The existing daemon serves its control API exclusively over a Unix socket (`internal/daemon/api.go`). The web server binds to the Tailscale IP with HTTPS (Let's Encrypt via Tailscale daemon). For remote session access, the app needs to call the remote daemon's HTTP API over the tailnet — but the daemon API is a Unix socket, not a TCP port. There is no remote-accessible HTTP endpoint for the daemon API on peer machines.
+
+Developers assume they can open `http://<tailscale-ip>:<daemon-port>/sessions` and get the remote session list. This endpoint does not exist.
 
 **Why it happens:**
-In Wails v2, the binary name embedded in the `.app` bundle comes from the `wails.json` `name` field, while the actual executable on disk uses `outputfilename`. If these differ (e.g., `name: "AgentHub"` vs `outputfilename: "agenthub"`), the plist and binary name mismatch causes codesign to create a signature that references a file that doesn't exist.
+The daemon API and the web server are separate. The web server (Tailscale HTTPS, port 443) serves the xterm.js terminal UI — not a JSON session list API. The JSON API is Unix socket only. It is easy to conflate the two.
 
 **How to avoid:**
-- Ensure `name` and `outputfilename` in `wails.json` are consistent in casing (or explicitly match).
-- After `wails build`, verify before signing: `codesign -vvv --strict --verify build/bin/AgentHub.app` — this reports the mismatch immediately.
-- Apply the fix from Wails PR #3789: use `OutputFilename` (not `Name`) for `CFBundleExecutable` in the post-build plist, or patch the plist in CI after build and before signing.
-- Use `ditto` (not `zip`) when archiving for notarization — `ditto -c -k --keepParent AgentHub.app AgentHub.zip` preserves macOS extended attributes; `zip` destroys them, breaking the signature.
+Add a new lightweight HTTP/JSON endpoint exposed on the web server (not the Unix socket) specifically for remote peer discovery. For example, `GET /api/sessions` on the existing Tailscale HTTPS web server. This endpoint is already behind Tailscale network-only binding, so it is safe to expose without additional auth. The remote GUI calls this via the peer's Tailscale FQDN URL (e.g., `https://peer.tail.ts.net/api/sessions`).
+
+Do not try to expose or tunnel the Unix socket remotely.
 
 **Warning signs:**
-- `codesign` exits 0 but `xcrun notarytool submit` returns "Invalid"
-- `codesign -vvv --strict --verify` prints "code has no resources but signature indicates they must be present"
-- Notarization log (retrieved with `xcrun notarytool log <uuid>`) shows CFBundleExecutable mismatch
+- Remote discovery code references `daemon.NewDaemonClient` with a remote IP — this will never work.
+- Connection refused errors when probing remote peers on the daemon's port.
+- Confusion between "relay port" (TCP, localhost only) and "web server port" (Tailscale HTTPS, accessible on tailnet).
 
-**Phase to address:** Phase: macOS Signing & Notarization — verify plist consistency before signing; add codesign verify step to CI before notarization submission.
+**Phase to address:** Tailnet peer discovery and remote session API phase. This is a design decision that must be made before writing any discovery code.
 
 ---
 
-### Pitfall 4: macOS Notarization Uses Altool in Old Docs — altool Was Decommissioned in 2023
+### Pitfall 4: Auto-Update Binary Replacement Fails on macOS App Bundle and Windows
 
 **What goes wrong:**
-Any CI script or community blog post from before late 2023 uses `xcrun altool --notarize-app` for Apple notarization. This command now returns: "Notarization of MacOS applications using altool has been decommissioned. Please use notarytool." The entire signing/notarization job fails with no useful error about what to replace it with.
+The distributed binary on macOS is a `.app` bundle, not a bare executable. Self-update libraries like `go-selfupdate` target the running executable path (`os.Executable()`), which inside a `.app` bundle resolves to `AgentHub.app/Contents/MacOS/agenthub`. Replacing only that file leaves the bundle in an inconsistent state — the bundle's `Info.plist` version string, the icon resources, and any framework links are unchanged. The user's macOS sees a version mismatch. Gatekeeper may also block the replaced inner binary on macOS Sequoia, which tightened override controls.
+
+On Windows, the running `.exe` is locked by the OS. The standard rename trick (rename old binary, write new binary to original path) fails with "Access is denied" when using `os.Rename()` on the running executable. The release pipeline ships an NSIS installer; self-updating by patching a standalone exe bypasses the installer and leaves registry entries stale.
 
 **Why it happens:**
-Apple deprecated altool in WWDC 2022 and decommissioned it fully in Fall 2023. Old Wails documentation, the Wails signing guide, and many community workflows still reference altool. Developers copy these examples without checking the current status.
+Self-update libraries document the Unix rename pattern and "target the running executable" as the default. macOS bundle structure is not accounted for. Windows file locking is platform-specific and only surfaces at runtime.
 
 **How to avoid:**
-Use exclusively `xcrun notarytool` for all notarization steps:
-```bash
-xcrun notarytool store-credentials "notarytool-profile" \
-  --apple-id "$APPLE_ID" \
-  --team-id "$TEAM_ID" \
-  --password "$APP_SPECIFIC_PASSWORD"
-
-xcrun notarytool submit AgentHub.zip \
-  --keychain-profile "notarytool-profile" \
-  --wait
-
-xcrun stapler staple AgentHub.app
-```
-Store credentials in the runner's keychain at the start of the job, not in the submit command itself.
+- For macOS: implement "notify and open in browser" rather than in-place bundle patching. Point the user to the GitHub release page or the Homebrew cask update command (`brew upgrade --cask agenthub`). The Homebrew cask tap already auto-updates on release (v1.8 milestone).
+- For Windows: point to the GitHub release download page or trigger the NSIS installer download. Do not attempt to replace a running `.exe` on Windows.
+- For Linux: bare binary or `.deb` — `go-selfupdate` rename pattern works here. Direct binary replacement is safe on Linux.
+- Auto-update checker should only check and notify; the actual update mechanism differs per platform.
+- Use `filepath.EvalSymlinks(os.Executable())` before determining the update target path.
 
 **Warning signs:**
-- Any CI step runs `altool --notarize-app`
-- Apple returns "altool has been decommissioned" error mid-workflow
-- Notarization step hangs indefinitely (symptom of altool timeout, not notarytool's `--wait`)
+- `os.Executable()` returns a path inside `/var/folders/` (temp sandbox) on macOS rather than the `.app` bundle path.
+- Tests of the update path pass on Linux CI but fail silently on macOS test runs.
+- Windows CI builds succeed but `os.Rename()` returns "Access is denied" in a smoke test.
 
-**Phase to address:** Phase: macOS Signing & Notarization — write all notarization steps using notarytool from day one; do not copy any CI template that references altool.
+**Phase to address:** Auto-update checker/installer phase.
 
 ---
 
-### Pitfall 5: Hardened Runtime (`--options runtime`) Breaks Apps Requiring Dynamic Code
+### Pitfall 5: GitHub Releases API Rate Limiting Breaks Unauthenticated Update Checks
 
 **What goes wrong:**
-The `--options runtime` flag on `codesign` enables Hardened Runtime, which is required for Apple notarization. However, Hardened Runtime disables JIT compilation, disables unsigned dynamic libraries, and restricts certain POSIX capabilities. Wails apps that use CGO with Objective-C (AgentHub's tray implementation) or any dynamic linking at runtime may encounter unexpected crashes or permission denials after notarization.
+The GitHub Releases REST API (`https://api.github.com/repos/scottkw/agenthub/releases/latest`) has a rate limit of 60 requests/hour for unauthenticated requests, keyed by the originating IP. If multiple users share a NAT (corporate network, university), they share the same quota. Multiple AgentHub instances checking at startup exhaust the limit quickly, and all instances receive HTTP 429 — which, if not handled, surfaces as a misleading error dialog.
 
 **Why it happens:**
-Notarization requires Hardened Runtime. Developers add `--options runtime` to pass notarization, ship the build, and only discover runtime failures when users report crashes on first launch.
+Update checks are easy to write against the GitHub API without authentication. The rate limit feels fine in development (single IP, rare checks). The failure only appears in multi-user scenarios or when the check interval is too aggressive (e.g., on every app launch).
 
 **How to avoid:**
-After signing with `--options runtime`, test the signed `.app` bundle before notarizing:
-```bash
-open -n ./build/bin/AgentHub.app
-```
-Test all critical flows: tray creation, daemon connection, session creation, Tailscale health check. If a specific capability is required (e.g., `com.apple.security.cs.allow-jit`), add an entitlements plist:
-```bash
-codesign --force --deep --sign "$CERT_NAME" \
-  --options runtime \
-  --entitlements entitlements.plist \
-  AgentHub.app
-```
+- Check at most once per session startup and no more than once per hour — persist the last-check timestamp to disk.
+- Handle HTTP 429 and all non-200 responses gracefully: log and silently skip, never show an error to the user.
+- Send `If-None-Match` with the cached ETag value; a 304 Not Modified response does not count against rate limits.
+- No authentication token is needed or appropriate here — just backoff and caching.
 
 **Warning signs:**
-- App crashes immediately on launch after notarization (not before)
-- macOS Console.app shows `AMFI: code signature validation failed`
-- App works when launched from Xcode/unsigned context but not from Finder/Gatekeeper
+- HTTP 403 or 429 responses from `api.github.com` in logs.
+- Users on shared networks see "update check failed" errors at startup.
+- Update checker fires on every window focus event rather than with a time gate.
 
-**Phase to address:** Phase: macOS Signing & Notarization — test signed app locally before submitting for notarization; add entitlements plist if CGO dynamic features are required.
+**Phase to address:** Auto-update checker phase.
 
 ---
 
-### Pitfall 6: `GITHUB_TOKEN` Cannot Push to External Repos — Homebrew Tap Update Fails Silently
+### Pitfall 6: Tailscale Install Assistance — `brew install` Subprocess Requires a Terminal
 
 **What goes wrong:**
-The distribution workflow that auto-updates the Homebrew tap (`scottkw/homebrew-agenthub`) after a release cannot use the built-in `GITHUB_TOKEN`. `GITHUB_TOKEN` is scoped to the repository where the workflow is running (`scottkw/agenthub`). Any attempt to push to `scottkw/homebrew-agenthub` fails with a 403 Forbidden error — and if the workflow doesn't check the push exit code, it silently completes "successfully" while the tap is not updated.
+Attempting to run `brew install tailscale` as a subprocess from inside the GUI and stream its output to the app fails because:
+1. Homebrew detects that it is not running in an interactive terminal (no TTY) and suppresses progress bars; the `NONINTERACTIVE=1` flag helps with prompts but does not solve the sudo requirement.
+2. Tailscale service setup requires sudo — prompting for a password from inside a Wails WebView context has no safe mechanism.
+3. On Apple Silicon, Homebrew lives at `/opt/homebrew/bin/brew`; on Intel it is `/usr/local/bin/brew`. If the daemon's PATH augmentation does not include both, `exec.LookPath("brew")` fails silently.
+
+The correct pattern for Tailscale install assistance is: detect whether Tailscale is installed and connected (already done in the health check system), then display the appropriate platform-specific installation command for the user to copy and run — not attempt to run it silently in the background.
 
 **Why it happens:**
-GitHub Actions auto-generates `GITHUB_TOKEN` per workflow run, scoped to one repo. This is intentional for security. Developers assume that being the same GitHub account/org owner means the token has broader access.
+It is tempting to give users a one-click install. The Tailscale install assistance feature sounds like "run brew install on their behalf." The sudo and TTY constraints make this unsafe and unreliable.
 
 **How to avoid:**
-Create a dedicated Personal Access Token (classic PAT, not fine-grained) with `public_repo` scope. Store it as a secret in the main repo (e.g., `HOMEBREW_TAP_PAT`). Use it explicitly in the workflow when pushing to the tap repo:
-```yaml
-- uses: actions/checkout@v4
-  with:
-    repository: scottkw/homebrew-agenthub
-    token: ${{ secrets.HOMEBREW_TAP_PAT }}
-```
-Verify the push succeeds by checking the exit code and failing the workflow loudly if it does not.
+- Show a copyable shell command, not a "click to install" button that runs a subprocess.
+- For macOS: offer `brew install tailscale` or the Tailscale download URL.
+- For Linux: show `curl -fsSL https://tailscale.com/install.sh | sh` or the appropriate package manager command.
+- For Windows: show the Tailscale MSI download URL.
+- Use `os/exec` at most to run `brew --version` to detect if Homebrew is installed, not to install packages.
+- The existing health check modal (v1.2) already handles platform-specific guidance; v1.9 enhances that, not replaces it with automation.
 
 **Warning signs:**
-- Distribution workflow shows green checkmark but tap repo has no new commit
-- GitHub API returns 403 or "Resource not accessible by integration" in the workflow logs
-- Tap formula still shows the old version after a release
+- Subprocess running brew hangs waiting for TTY input.
+- `exec.Command("brew", "install", "tailscale").Run()` appears to succeed but Tailscale service is not started.
+- `exec.LookPath("brew")` returns `""` when GUI is launched from Finder even on a machine with Homebrew installed.
 
-**Phase to address:** Phase: Homebrew Tap — create and store PAT before writing the workflow; test the cross-repo push in isolation.
+**Phase to address:** Tailscale install assistance phase.
 
 ---
 
-### Pitfall 7: WinGet Submission Requires a Pre-Existing Manual Entry for the First Version
+### Pitfall 7: Remote Session Attach Requires Web Server WebSocket — Not the Relay Port
 
 **What goes wrong:**
-Automated WinGet submission via `winget-releaser` or `wingetcreate update` only works for packages already present in the winget-pkgs community repository. The action exits with "Package not found" on the first submission for a new package identifier. There is no automated path for the initial submission — it must be done manually via a hand-crafted PR to `microsoft/winget-pkgs`.
+The existing attach mechanism (`cmd_attach.go`) connects to the local daemon's relay server over `127.0.0.1:<relay-port>` via WebSocket. The relay port is ephemeral and localhost-only. Remote attach must go through the Tailscale HTTPS web server's WebSocket endpoint — which is already serving terminals over Tailscale HTTPS for browser access. Developers who naively copy the local relay client and point it at the remote IP and relay port get a connection refused, because the relay server binds to `127.0.0.1` by design (`api.go` line 66).
 
 **Why it happens:**
-Developers see `vedantmgoyal9/winget-releaser` and assume it handles everything including the initial submission. The README states "At least one version of your package should already be present in the Windows Package Manager Community Repository" — a prerequisite that is easy to miss.
+The relay port and the web server port are both in the daemon, both do WebSocket. Developers conflate "attach uses WebSocket" with "just point the WebSocket client at the remote web server." But the relay is an internal loopback-only server; the web server is the externally accessible endpoint.
 
 **How to avoid:**
-Phase the WinGet work into two parts:
-1. **Manual initial submission:** Create the v1.8.0 manifest by hand (3 YAML files: version, installer, defaultLocale). Submit a PR to `microsoft/winget-pkgs`. Wait for review and merge (typically a few hours to 1 day).
-2. **Automated subsequent updates:** After the initial merge, use `wingetcreate update` in CI for all subsequent versions.
-
-For the initial submission, use `wingetcreate new <installer-url>` to generate the manifest skeleton, then review and correct fields before submitting.
+- The remote GUI panel that shows peer sessions should link users to the existing web terminal URL — the Tailscale HTTPS URL already works in a browser for remote access. This is the zero-new-code path for remote viewing.
+- For CLI remote attach, proxy through the web server's WebSocket endpoint, which already speaks the binary relay protocol — rather than inventing a new remote relay protocol.
+- Map out the data path before writing code: local relay stays unchanged; remote path reuses the existing web WebSocket endpoint.
+- Expose a session discovery API endpoint on the web server; use the existing WebSocket for remote attach.
 
 **Warning signs:**
-- `wingetcreate update` fails with "Could not find package" or 404 on package lookup
-- Automated distribution workflow triggers on release but WinGet job fails immediately
-- WinGet CI runs but no PR appears in microsoft/winget-pkgs
+- Remote attach code references `relay-port` endpoint or `relay.NewServer` for cross-machine connections.
+- Tests pass locally (because relay is on loopback) but time out against a real remote peer.
+- Connection refused on the remote machine's relay port.
 
-**Phase to address:** Phase: WinGet Distribution — document the two-phase approach; do not automate the initial submission.
+**Phase to address:** Remote session attach phase; must be designed before implementation begins.
 
 ---
 
-### Pitfall 8: WinGet PAT Must Be Classic (Not Fine-Grained) and `winget-releaser` Requires `public_repo` Scope
+### Pitfall 8: VERSION Embedding — Wails Dev vs. Production Build Mismatch
 
 **What goes wrong:**
-The `vedantmgoyal9/winget-releaser` action requires a Personal Access Token to submit PRs to `microsoft/winget-pkgs`. Fine-grained PATs are not supported by the action as of 2024. Additionally, the PAT must have `public_repo` scope at minimum. Submitters who use fine-grained PATs or insufficient scopes get a `403 Forbidden: Must have admin rights to Repository` error from the Octokit client inside the action.
+The WelcomeTab currently hard-codes the version string (noted as tech debt in PROJECT.md). The correct approach is to inject the version at build time via `-ldflags "-X main.Version=..."`. In dev mode (`wails dev`), these ldflags are not applied, so the version shows as empty string or a placeholder. If the frontend reads the version via a Wails binding (`GetVersion()` → `app.Version`), the dev vs. production split causes confusion: tests see `""`, production sees `"v1.9.0"`.
 
 **Why it happens:**
-GitHub has been transitioning from classic to fine-grained PATs, and many developers default to fine-grained. The underlying issue is that `microsoft/winget-pkgs` requires the action to fork the repo, which requires specific permissions that fine-grained PATs handle differently.
+Developers fix the hard-coded string with a Go variable but forget to set it for `wails dev`. CI builds use `build.sh` which passes ldflags; local dev uses `wails dev` which does not.
 
 **How to avoid:**
-- Generate a **classic PAT** (not fine-grained) at https://github.com/settings/tokens
-- Grant `public_repo` scope
-- Store as `WINGET_TOKEN` secret in the main repo
-- Pass it to the releaser action via `token: ${{ secrets.WINGET_TOKEN }}`
+- Expose `GetVersion()` as a Wails binding that returns the ldflags-injected variable, falling back to `"dev"` when empty.
+- Document the fallback explicitly so the frontend renders `"dev"` in development rather than blank.
+- Update `build.sh` and the CI release workflow to pass `-X main.Version=$(git describe --tags --abbrev=0)` consistently.
+- Add a frontend test that verifies the `GetVersion()` binding exists and returns a non-empty string.
 
 **Warning signs:**
-- Error: "Must have admin rights to Repository" despite having `public_repo` on a fine-grained PAT
-- PR creation step fails but `wingetcreate` manifest generation succeeds
-- Using a fine-grained PAT scoped to `microsoft/winget-pkgs` specifically (this does not work)
+- Welcome screen shows blank version in production build.
+- `wails dev` and `wails build` produce different version display behavior with no documented fallback.
+- `go test ./...` passes but version binding is never exercised.
 
-**Phase to address:** Phase: WinGet Distribution — generate and test the classic PAT before writing the workflow.
-
----
-
-### Pitfall 9: release-please `release-type: go` Ignores `version-file` — Version Not Updated Automatically
-
-**What goes wrong:**
-Setting `release-type: go` with a `version-file` pointing to a custom Go file (e.g., `internal/version/version.go`) results in release-please doing nothing to update the version in that file. The release PR is created correctly, but the Go source file's version constant is not bumped. Shipping this means the `version` shown in the app's UI (`WelcomeTab.tsx` and the CLI) stays hardcoded at the old version.
-
-**Why it happens:**
-There was a documented bug in release-please where `version-file` was silently ignored for Go projects (Issue #2541, fixed in PR #2542). However, depending on which version of the action is pinned, the fix may not be present. Additionally, `release-type: go` only knows how to update `go.mod` module lines — it does not understand arbitrary Go constant files.
-
-**How to avoid:**
-Use `release-type: simple` combined with `extra-files` to update any non-standard version location:
-```json
-{
-  "release-type": "simple",
-  "extra-files": [
-    "internal/version/version.go"
-  ]
-}
-```
-In `internal/version/version.go`, annotate the version constant with the release-please marker:
-```go
-// x-release-please-version
-const Version = "1.8.0"
-```
-Also update `WelcomeTab.tsx` via `extra-files` if it hardcodes `VERSION`. Verify the release PR actually modifies both files before merging.
-
-**Warning signs:**
-- Release-please PR shows changelog and tag bump but no diff in Go source files
-- App shows old version string after a release
-- `git log internal/version/version.go` shows no commits from release-please
-
-**Phase to address:** Phase: release-please Setup — configure `release-type: simple` with `extra-files` annotations on all version-bearing files before the first release.
-
----
-
-### Pitfall 10: release-please Analyzes Only Commits Since the Last Release Tag — Non-Conventional Commits Are Invisible
-
-**What goes wrong:**
-AgentHub's commit history from Gitea uses a mix of commit styles (from PROJECT.md: `chore:`, `docs:`, `fix:` prefixes are present but not consistently). When release-please scans the history from the last tag, any commit without a recognized conventional commit prefix (`feat:`, `fix:`, `perf:`, `chore:`, etc.) is ignored. If none of the commits since the last tag are recognized, release-please creates no release PR at all — it silently does nothing, waiting for the next push.
-
-**Why it happens:**
-release-please is strict about conventional commits. It does not attempt to infer intent from commit message content. Existing AgentHub commits like "port icon build to build.sh" (no prefix) or merge commits are skipped entirely.
-
-**How to avoid:**
-- Audit the commit history from the last Gitea tag to HEAD for conventional commit compliance before enabling release-please.
-- Do not rely on release-please to retroactively create a release for non-conforming history. Instead, manually create a v1.8.0 GitHub Release tag to establish a baseline, then enforce conventional commits in all future work.
-- Add a commit-message linter (commitlint) to the CI PR workflow to enforce the format before merge.
-- Document the commit format in CONTRIBUTING.md or the project README.
-
-**Warning signs:**
-- release-please action runs on every push to main but never creates or updates a release PR
-- `release-please bootstrap` output shows "no commits to release" despite recent work
-- GitHub Release is created manually but release-please then immediately wants to create another release PR for the same commits
-
-**Phase to address:** Phase: release-please Setup — audit commit history before enabling; create a baseline tag manually; add commitlint to CI.
-
----
-
-### Pitfall 11: Homebrew Cask Requires `.app` Bundle — Wails Outputs Different Formats Per Platform
-
-**What goes wrong:**
-Homebrew casks for macOS desktop apps require a `.app` bundle distributed as a DMG, PKG, or ZIP. Wails `wails build` for macOS produces an `.app` directory (not a DMG by default). The `url` field in the cask must point to a downloadable archive — not a GitHub Release asset that is just the raw `.app` directory. If the release job uploads the `.app` directly (without wrapping it), users get a download failure or a broken installation.
-
-**Why it happens:**
-Wails does not automatically create a DMG. The existing `build.sh` uses `ditto` to create a ZIP for notarization but does not produce a DMG installer. Homebrew casks work with ZIP archives of `.app` bundles but most professional distributions use DMGs (with drag-to-Applications UX).
-
-**How to avoid:**
-Decide on distribution format early and be consistent:
-- **ZIP of .app** (simpler): Archive with `ditto -c -k --keepParent AgentHub.app AgentHub-macos.zip`. The cask `url` points to this ZIP; the `app "AgentHub.app"` stanza extracts and moves it.
-- **DMG** (better UX): Use `create-dmg` or `hdiutil` in the CI release job to create a DMG with an Applications symlink. The cask uses `pkg "AgentHub.dmg"` or specifies the app inside the volume.
-
-For AgentHub, ZIP is the simpler choice given the existing `ditto` pipeline. Document the format choice in the packaging template so the cask `url` and the CI upload name stay in sync.
-
-**Warning signs:**
-- Homebrew reports "No cask artifact" during `brew install`
-- The release asset is an `.app` directory uploaded as-is (GitHub releases don't support directory uploads — it would be silently omitted or broken)
-- Cask `sha256` check fails because the locally brewed archive differs from what the CI uploaded
-
-**Phase to address:** Phase: Homebrew Tap — define the release artifact format (ZIP) before writing the cask; test `brew install` from the tap before publicizing.
-
----
-
-### Pitfall 12: Homebrew Cask for an App With Both GUI and CLI Binary — `binary` Stanza May Crash the App
-
-**What goes wrong:**
-AgentHub ships a single binary that dispatches to GUI (no args), CLI (subcommands), and daemon modes. A naive cask might install the `.app` bundle AND add a `binary` stanza pointing to the executable inside the bundle (e.g., `binary "#{appdir}/AgentHub.app/Contents/MacOS/agenthub"`). This is technically correct for a pure CLI binary inside an app, but for apps with Wails/Electron-like WebView backends, launching the binary directly (outside the `.app` bundle context) often fails because the bundle's resources are not accessible via the binary's relative paths.
-
-**Why it happens:**
-Community examples show adding a `binary` stanza to expose CLI functionality. Developers assume a Go binary is relocatable. Wails apps embed resources relative to the bundle structure and expect to find `Resources/` and `Frameworks/` adjacent to the executable.
-
-**How to avoid:**
-- Test the `binary` stanza path by running the binary directly outside the bundle before including it in the cask.
-- If `agenthub` CLI mode works from `Contents/MacOS/agenthub` (it likely does, since CLI mode does not initialize Wails), include the `binary` stanza.
-- If CLI mode fails when invoked outside the bundle, create a thin wrapper script at a PATH location instead, or document that users should run via `/Applications/AgentHub.app/Contents/MacOS/agenthub`.
-- Add a `zap` stanza to clean up the daemon socket and preferences on uninstall.
-
-**Warning signs:**
-- `agenthub` CLI commands work in development but fail after Homebrew install
-- Error references missing `Resources/` path when invoked from the symlinked `binary` location
-- App crashes with "no such file or directory" for embedded assets
-
-**Phase to address:** Phase: Homebrew Tap — test CLI invocation via the `binary` stanza path before publishing the cask.
-
----
-
-### Pitfall 13: Artifact Naming Collisions in Multi-Platform Release Matrix
-
-**What goes wrong:**
-A GitHub Actions matrix that runs macOS, Linux, and Windows jobs in parallel all uploading to `actions/upload-artifact` with the same artifact name (e.g., `agenthub-release`) will silently overwrite each other. Only the last job's artifact survives. When the release job later downloads and attaches assets to the GitHub Release, only one platform's binary is present.
-
-**Why it happens:**
-Matrix jobs run concurrently. `actions/upload-artifact` with `if-no-files-found: warn` (the default) does not error on collisions. Developers test with a single platform and don't notice the problem until all three platforms run simultaneously.
-
-**How to avoid:**
-Include the platform and architecture in the artifact name:
-```yaml
-- uses: actions/upload-artifact@v4
-  with:
-    name: agenthub-${{ matrix.os }}-${{ matrix.arch }}
-    path: dist/
-```
-In the release job, download all artifacts with a wildcard:
-```yaml
-- uses: actions/download-artifact@v4
-  with:
-    pattern: agenthub-*
-    merge-multiple: true
-```
-Use a consistent file naming scheme in the uploaded files too: `agenthub-darwin-arm64`, `agenthub-linux-amd64`, `agenthub-windows-amd64.exe`.
-
-**Warning signs:**
-- GitHub Release has only one platform's binary after a multi-platform CI run
-- CI logs show "artifact already exists" or earlier uploads being overwritten
-- `actions/download-artifact` downloads only 1 file despite 3 platform jobs completing
-
-**Phase to address:** Phase: GitHub Actions CI — use platform-specific artifact names from the first workflow iteration.
-
----
-
-### Pitfall 14: WinGet Windows Installer Must Be an `.exe` or `.msix` — Raw Go Binary Is Rejected
-
-**What goes wrong:**
-The WinGet manifest requires `InstallerType` to be one of: `exe`, `msi`, `msix`, `appx`, `zip`, `inno`, `nullsoft`, `wix`, `burn`, `portable`. Uploading the raw Wails-produced `.exe` binary (not wrapped in an installer) requires `InstallerType: portable` and `PortableCommandAlias` to be set. If this is omitted, the manifest schema validation fails with "Invalid InstallerType" during the automated winget-pkgs PR checks.
-
-**Why it happens:**
-A raw Wails `.exe` is a self-contained binary, not an installer. Developers assume `exe` means any executable file. `InstallerType: exe` specifically means a self-extracting/setup executable that handles installation, not a portable binary.
-
-**How to avoid:**
-For a portable binary distribution:
-```yaml
-InstallerType: portable
-PortableCommandAlias: agenthub
-```
-Or create a proper NSIS/WiX installer in the CI pipeline. For v1.8, `portable` is the correct choice — it tells winget to place the binary in the user's WinGet portable directory and add it to PATH.
-
-Validate the manifest locally before submitting:
-```bash
-winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
-```
-
-**Warning signs:**
-- `winget validate` reports "Invalid installer type" on the manifest
-- The winget-pkgs automated PR check bot reports schema validation failure
-- Users report `winget install` errors about unexpected installer type
-
-**Phase to address:** Phase: WinGet Distribution — use `InstallerType: portable` from the start; validate manifests locally before submission.
+**Phase to address:** Welcome screen polish phase.
 
 ---
 
@@ -393,12 +213,12 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Hardcoded version string in `WelcomeTab.tsx` | No tooling setup needed | Version display is wrong after every release unless manually updated | Never — annotate with `x-release-please-version` marker and add to `extra-files` |
-| Single PAT shared for Homebrew tap + WinGet | Fewer secrets to manage | One PAT rotation breaks both distribution channels | Acceptable for sole maintainer if PAT expiry is tracked |
-| Manual initial WinGet submission only, no automation | Avoids complexity | Must remember to run automation on next release | Never acceptable — automate v2 submission immediately after manual v1 merge |
-| Using `macos-latest` instead of pinned `macos-14` | Always uses newest runner | Runner architecture changes break CI unexpectedly | Never for release builds — pin runner versions |
-| ZIP of `.app` instead of DMG | Simpler CI pipeline | Less polished install UX (no drag-to-Applications) | Acceptable for initial distribution; DMG can be added later |
-| Classic PAT for cross-repo operations | Works with all actions | Must be manually rotated; no auto-expiry enforcement | Acceptable — calendar reminder to rotate PAT annually |
+| Show all peers regardless of `Online` field | Simpler discovery code | Users see stale peers that fail to connect | Never — always filter on `PeerStatus.Online` |
+| Sequential peer probe with no timeout | Simple sequential code | Discovery hangs N×2s if N peers are offline | Never — always concurrent with timeout |
+| Hard-code update channel to unauthenticated GitHub API | Zero config | Rate limit failures on shared networks | Acceptable only if check is TTL-gated client-side (1/hr + ETag caching) |
+| Show "checking for updates..." on every launch | Reassures user | Triggers 429 at scale; annoying if not dismissed quickly | Never — gate behind 1-hour TTL |
+| Copy local attach code for remote attach | Fast to ship | Wrong protocol target; fails at first real remote test | Never — design the remote data path before coding |
+| Bundle Tailscale install as subprocess | "One click" experience | Fails on TTY check, requires sudo, breaks on non-Homebrew paths | Never — copyable commands are safer and more reliable |
 
 ---
 
@@ -406,16 +226,14 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `actions/upload-artifact` with matrix | Same artifact name across matrix legs overwrites | Use `${{ matrix.os }}-${{ matrix.arch }}` in artifact name |
-| macOS `codesign` | Use `zip` to archive before notarization | Use `ditto -c -k --keepParent` — `zip` strips extended attributes |
-| macOS notarization | Use `altool` (decommissioned 2023) | Use `xcrun notarytool submit --wait` exclusively |
-| Apple signing in CI | Pass secrets as direct env vars to codesign | Import p12 certificate into a temporary keychain; never write cert file to disk unprotected |
-| `GITHUB_TOKEN` for tap push | Assume `GITHUB_TOKEN` works for cross-repo push | Create a classic PAT with `public_repo` scope stored as a separate secret |
-| release-please `release-type: go` | Expect `version-file` to be updated | Use `release-type: simple` + `extra-files` with `x-release-please-version` markers |
-| WinGet `winget-releaser` action | Use fine-grained PAT | Use classic PAT with `public_repo` scope |
-| Homebrew tap SHA256 | Use filename-prefixed output from `shasum` | Use bare hex: `shasum -a 256 file.zip | awk '{ print $1 }'` |
-| WinGet `InstallerType` | Use `exe` for a raw portable binary | Use `InstallerType: portable` for a self-contained executable |
-| Wails build in CI | Use `go build` with `-tags wailsassets` | Use `wails build` command — it handles frontend bundling, embed tags, and plist generation |
+| Tailscale `local.Client.Status()` | Trust `Online: true` means AgentHub daemon is reachable | `Online` = connected to control plane only; still HTTP-probe before treating as available |
+| Tailscale `local.Client.Status()` | Include exit nodes and relay nodes in peer list | Filter to peers with `TailscaleIPs` set and `Online: true`; skip subnet routers |
+| GitHub Releases API | Call on every startup event | Cache last-check timestamp to disk; skip if checked within 1 hour |
+| GitHub Releases API | Show error dialog on API failure | Silently log; update check is best-effort |
+| Wails app menu + existing cgo tray | Add `Menu:` to Wails options and assume no conflict | Verify that `NSMenuDelegate` methods on the tray's `NSStatusItem` menu do not interfere with the app menu bar delegate; test keyboard shortcuts |
+| Wails app menu on macOS | Append custom items before `AppMenu()` and `EditMenu()` | Always: `NewMenu()` → `AppMenu.Append(menu.AppMenu())` → `AppMenu.Append(menu.EditMenu())` → then custom items |
+| Remote daemon API | Call Unix socket endpoint from remote machine | Expose a read-only JSON sessions endpoint on the Tailscale HTTPS web server instead |
+| `os.Executable()` for update target | Use the raw path for binary replacement | Run `filepath.EvalSymlinks(os.Executable())` and decide per-platform strategy before writing any replacement code |
 
 ---
 
@@ -423,10 +241,10 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Building all 3 platforms sequentially | Release CI takes 45+ minutes | Use matrix strategy for parallel platform builds | Every release if not parallelized |
-| Re-downloading Go dependencies on every CI run | Slow builds, potential rate limits | Cache `~/.cache/go-build` and `~/go/pkg/mod` with `actions/cache@v4` using go.sum hash as key | High-frequency CI runs |
-| macOS notarization `--wait` polling without timeout | Job hangs indefinitely if Apple's servers have issues | Set a CI job timeout; Apple notarization normally takes <2 minutes; 10 minutes is a safe upper bound | Apple service incidents |
-| WinGet submission waits for merge in CI | CI job stays open for 2+ hours waiting for human review | Fire-and-forget: submit the PR and let it be merged asynchronously; do not block release on WinGet merge | Every release with WinGet automation |
+| Sequential peer probe with no timeout | Discovery panel takes N×2s where N = offline peers | Concurrent probes, `http.Client{Timeout: 2s}`, worker pool | Immediately if any peer is offline |
+| Uncached peer probe on every panel open | Repeated 2s probes each time user opens remote tab | Cache result with 30s TTL | Immediately if user opens panel rapidly |
+| GitHub API check on every app focus | Multiple 429 responses per day | 1-hour TTL + ETag conditional requests | 2+ users on same NAT, or aggressive focus cycling |
+| Streaming brew output with no timeout | GUI freezes if brew hangs waiting for TTY | Do not stream brew output; copy-to-clipboard pattern only | Immediately on any Homebrew install attempt from GUI |
 
 ---
 
@@ -434,11 +252,11 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Writing the p12 certificate to disk in CI | Certificate leaked in CI logs or artifact uploads | Import directly into keychain: `security import cert.p12 -k ~/Library/Keychains/signing.keychain-db` — never write the decoded cert to a file |
-| Storing Apple notarization credentials as CI secrets without app-specific password | Main Apple ID password exposure | Always use an app-specific password from https://appleid.apple.com — not the main Apple ID password |
-| Using a PAT with `repo` (full) scope instead of `public_repo` | Broader than necessary access | Scope PATs to `public_repo` only for public repository operations |
-| Embedding signing credentials in workflow YAML | Credentials in version control | All signing credentials must be GitHub Actions secrets, never in workflow files or committed config |
-| Release artifacts not verified with SHA256 before distribution | Supply chain tampering | Generate `SHA256SUMS` file in the release job and upload it as a release asset; Homebrew cask must verify it |
+| Exposing daemon Unix socket API over TCP for remote access | Any tailnet peer gains full session control (create/kill/rename) | Never expose daemon Unix socket API over TCP; expose only read-only session list via Tailscale HTTPS web server |
+| Downloading auto-update binary over plain HTTP | MITM can deliver malicious binary | Always download from `https://github.com/scottkw/agenthub/releases/`; verify SHA256 from `checksums.txt` |
+| Trusting release asset filename for platform detection | Wrong platform binary if redirect is malicious | Parse OS/arch from `os.GOOS`/`os.GOARCH` in Go; verify against checksums.txt before any execution |
+| Silently running downloaded binary before checksum check | Arbitrary code execution if download is corrupted | Verify SHA256 from `checksums.txt` before exec |
+| TLS skip-verify for tailnet peer connections | Connection to impersonated peer | Use standard `http.Client` which validates TLS; never use `InsecureSkipVerify` |
 
 ---
 
@@ -446,27 +264,29 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| WinGet first-time install shows no progress | Users think install is frozen | `InstallerType: portable` shows minimal UI — document expected behavior in release notes |
-| Homebrew `brew upgrade agenthub` removes running daemon | Running sessions terminated mid-work | Add a `caveats` stanza in the cask warning users to quit the app before upgrading |
-| GitHub Release notes are auto-generated by release-please (commit-style) | Technical jargon, not user-facing changelog | Supplement release-please CHANGELOG.md with a human-written "What's new" section in the GitHub Release body |
-| Notarization stapling not done — users see "damaged app" on first launch | App appears broken on download | Always run `xcrun stapler staple` after notarization and verify with `spctl --assess --type exec AgentHub.app` |
+| Show all tailnet peers including offline ones | User clicks a peer, gets connection error with no explanation | Only show peers where `Online: true` AND HTTP probe succeeded; show last-seen for recently offline peers |
+| "Update available" modal that blocks workflow | Interrupts coding session | Non-blocking notification in toolbar/tray; user dismisses and updates later |
+| "Checking for update..." spinner that never resolves | User thinks app is broken | 5s timeout on update check; show nothing if check fails |
+| Tailscale install instructions as a plain text block | User must manually transcribe the brew command | Each command in a code block with a copy-to-clipboard button |
+| Remote session panel mixes local and remote sessions | Confusing which sessions are local vs. remote | Group by machine hostname with clear visual separation |
+| Version "v1.9.0" in Welcome tab that does not match the running binary | Erodes trust; looks sloppy | Use `GetVersion()` binding so displayed version is always the actual build version |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Git migration:** `git ls-remote --tags https://github.com/scottkw/agenthub` shows all v1.0–v1.7 tags — not just the latest.
-- [ ] **CI macOS build:** The release artifact is a universal binary (`file AgentHub.app/Contents/MacOS/agenthub` shows `Mach-O universal binary with 2 architectures`), not arm64-only.
-- [ ] **Signing:** `codesign -vvv --strict --verify AgentHub.app` exits 0 before notarization submission.
-- [ ] **Notarization:** `spctl --assess --verbose --type exec AgentHub.app` outputs "accepted" after stapling — not before.
-- [ ] **Homebrew tap:** `brew install scottkw/agenthub/agenthub` on a clean machine succeeds and the app launches.
-- [ ] **Homebrew tap:** `agenthub --help` works after install (CLI binary accessible via `binary` stanza or wrapper).
-- [ ] **Homebrew tap:** After a new release, `brew upgrade agenthub` fetches the new version (tap formula SHA256 and URL updated by CI).
-- [ ] **WinGet:** `winget install scottkw.AgentHub` works on a clean Windows machine after the initial PR merges.
-- [ ] **WinGet validation:** `winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/` exits 0 locally before PR submission.
-- [ ] **release-please:** The release PR diff shows version bumps in ALL version-bearing files (Go source, WelcomeTab.tsx, CHANGELOG.md) — not just go.mod.
-- [ ] **Artifact naming:** GitHub Release page for v1.8.0 shows exactly 3 platform binaries (macOS, Linux, Windows) — not 1 or 2.
-- [ ] **SHA256SUMS:** SHA256SUMS file is present in the GitHub Release and values match the uploaded binaries.
+- [ ] **App menus:** Menus appear visually but Cmd+C/Cmd+V broken in terminal — verify `menu.EditMenu()` appended and ordering is correct
+- [ ] **App menus:** Menu items have click handlers registered but callbacks fire on wrong goroutine — Wails menu callbacks run on AppKit thread; use `runtime.*` functions only
+- [ ] **Peer discovery:** Shows peer list but includes offline machines — verify `PeerStatus.Online` filter and HTTP probe before display
+- [ ] **Peer discovery:** Works on dev machine but hangs in a real tailnet — verify concurrent probes with timeouts, not sequential
+- [ ] **Remote session list:** Lists sessions but clicking "attach" does nothing — verify remote attach target is web server WebSocket, not localhost relay
+- [ ] **Auto-update checker:** Shows "update available" on every launch — verify TTL cache is persisted to disk, not just in-memory
+- [ ] **Auto-update download:** Download succeeds but binary not executable after write — verify `os.Chmod(path, 0755)` after writing new binary on Unix
+- [ ] **Auto-update macOS:** Binary placed at `os.Executable()` path but version not reflected in Finder — full `.app` bundle must be replaced, not just the inner binary; prefer "open download page" approach
+- [ ] **Tailscale install guidance:** Shows instructions but no copy button — ensure copyable code blocks in UI
+- [ ] **VERSION in Welcome tab:** Shows correct version in `wails build` but blank in `wails dev` — verify fallback to `"dev"` when ldflags are not set
+- [ ] **Windows build:** Self-update path compiled but untested — verify Windows-specific `os.Rename()` failure is caught and falls back to "open download page" notification
+- [ ] **Linux/Windows tray stubs:** Adding app menu does not crash Linux/Windows builds — verify `tray_linux.go` and `tray_windows.go` stubs compile after any new tray-related changes
 
 ---
 
@@ -474,14 +294,12 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Git history not migrated (tags missing) | LOW | Re-run `git push --mirror` from a bare clone; force-push tags to GitHub |
-| Signing fails (plist/binary name mismatch) | LOW | Patch `Info.plist` `CFBundleExecutable` in post-build CI step; re-sign and re-notarize |
-| altool used for notarization | LOW | Replace all `altool` commands with `notarytool` equivalents; no code changes required |
-| Homebrew tap not updated after release | LOW | Manually update the cask formula with new SHA256 and URL; commit to tap repo |
-| WinGet manifest schema rejection | MEDIUM | Fix the manifest YAML, resubmit PR; no release rollback needed; fix is same day |
-| Artifact collision (only 1 platform uploaded) | LOW | Re-run the failed release job with corrected artifact names; re-attach assets to the GitHub Release |
-| release-please not bumping version files | LOW | Add `x-release-please-version` markers to files; update `extra-files` config; next release will pick them up |
-| Notarization staple missing | MEDIUM | Re-download the app, re-staple: `xcrun stapler staple AgentHub.app`; re-upload release asset |
+| App menu breaks keyboard shortcuts | LOW | Reorder `AppMenu()` and `EditMenu()` appends; rebuild |
+| App menu + cgo tray conflict causes crash | HIGH | Remove Wails Menu from options; re-implement as custom ObjC menu or scope to only the Wails menu bar |
+| Remote API design wrong (Unix socket exposed over TCP) | HIGH | Add new endpoint to web server; update all callers; existing daemon API unchanged |
+| Sequential peer probes freeze UI | MEDIUM | Add goroutine pool and timeout; no protocol changes needed |
+| Auto-update corrupts binary on rollback failure | HIGH | Provide user with manual download URL; add rollback verification step |
+| VERSION blank in production | LOW | Fix ldflags in `build.sh`; add fallback to `"dev"` in Go code |
 
 ---
 
@@ -489,43 +307,30 @@ winget validate --manifest manifests/s/scottkw/AgentHub/1.8.0/
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Git history lost (no --mirror) | Git Migration | `git ls-remote --tags` shows v1.0–v1.7 tags on GitHub |
-| Wails macOS cross-compile (wrong runner) | GitHub Actions CI | CI macOS job uses pinned `macos-14`; builds universal binary |
-| Wails plist/binary name mismatch for signing | macOS Signing & Notarization | `codesign -vvv --strict --verify` exits 0 in CI |
-| altool decommissioned (use notarytool) | macOS Signing & Notarization | No `altool` reference in any workflow YAML |
-| Hardened Runtime breaking CGO features | macOS Signing & Notarization | Signed app tested manually before notarization submission |
-| GITHUB_TOKEN cross-repo failure | Homebrew Tap | Distribution workflow actually commits to tap repo after release |
-| WinGet first submission is manual | WinGet Distribution | v1.8.0 manifest merged to winget-pkgs before automation is enabled |
-| WinGet PAT must be classic | WinGet Distribution | Classic PAT with `public_repo` stored as secret; workflow uses it |
-| release-please version-file ignored | release-please Setup | Release PR diff shows version change in Go source and TSX files |
-| Non-conventional commit history | release-please Setup | Baseline tag set manually; commitlint in CI from first PR |
-| Homebrew cask needs ZIP not raw .app | Homebrew Tap | `brew install` succeeds on a clean machine from the tap |
-| Homebrew binary stanza crashes app | Homebrew Tap | `agenthub --help` works from symlinked binary path |
-| Artifact naming collision | GitHub Actions CI | Release has all 3 platform binaries attached |
-| WinGet InstallerType: portable required | WinGet Distribution | `winget validate` passes locally; no schema errors in PR check |
+| Wails menu + cgo tray conflict | App menus phase | Cmd+C/Cmd+V works in terminal after menu added; no crash on startup |
+| Tailnet peer probe blocking / no timeout | Peer discovery phase | Discovery completes in <3s even with 2 offline peers; no goroutine leak in tests |
+| Remote daemon API misuse | Peer discovery design step | Remote peer endpoint uses web server HTTPS URL, not a TCP daemon port |
+| Auto-update binary replacement failure | Auto-update phase | macOS shows download link; Linux actually replaces binary; Windows shows download link |
+| GitHub API rate limiting | Auto-update phase | Check interval TTL-gated; 429 response produces silent log, not error dialog |
+| Tailscale install subprocess failure | Tailscale install guidance phase | No `exec.Command("brew install")` in codebase; only copyable text shown |
+| Remote attach wrong protocol target | Remote attach phase | Attach uses web server WebSocket URL, not relay port |
+| VERSION blank in Welcome tab | Welcome screen polish phase | `wails dev` shows "dev"; `wails build` shows tag from ldflags |
 
 ---
 
 ## Sources
 
-- Wails cross-platform build guide: https://wails.io/docs/guides/crossplatform-build/
-- Wails v2.9.2 binary signing bug (CFBundleExecutable mismatch): https://github.com/wailsapp/wails/issues/3868
-- macOS code signing and notarization in GitHub Actions: https://federicoterzi.com/blog/automatic-code-signing-and-notarization-for-macos-apps-using-github-actions/
-- Apple notarytool (altool decommissioned Fall 2023): https://developer.apple.com/news/releases/
-- GitHub-hosted runner architecture (macos-14 = arm64): https://github.com/actions/runner-images/issues/9741
-- release-please Go version-file bug (Issue #2541, fixed in PR #2542): https://github.com/googleapis/release-please/issues/2541
-- release-please customizing with extra-files: https://github.com/googleapis/release-please/blob/main/docs/customizing.md
-- GITHUB_TOKEN cross-repo access limitation: https://docs.github.com/actions/security-guides/automatic-token-authentication
-- WinGet submission process and timeline: https://github.com/microsoft/winget-pkgs/discussions/19502
-- WinGet releaser action (requires classic PAT): https://github.com/vedantmgoyal9/winget-releaser
-- WinGet PAT permission error (classic required): https://github.com/microsoft/winget-create/issues/130
-- WinGet manifest schema docs: https://learn.microsoft.com/en-us/windows/package-manager/package/manifest
-- Homebrew Cask Cookbook (required fields, binary stanza risks): https://docs.brew.sh/Cask-Cookbook
-- Homebrew Electron binary stanza crash issue: https://github.com/Homebrew/homebrew-cask/issues/252423
-- ditto vs zip for notarization (extended attributes): https://www.kencochrane.com/2020/08/01/build-and-sign-golang-binaries-for-macos-with-github-actions/
-- Automating Homebrew tap updates with GitHub Actions: https://builtfast.dev/blog/automating-homebrew-tap-updates-with-github-actions/
-- Git mirror push (preserving history): https://gist.github.com/niksumeiko/8972566
+- Tailscale Go SDK `tailscale.com/client/tailscale` — `LocalClient.Status()`, `PeerStatus.Online` — [pkg.go.dev](https://pkg.go.dev/tailscale.com/client/tailscale)
+- Tailscale ipnstate package — `PeerStatus` structure and `Online` field — [pkg.go.dev](https://pkg.go.dev/tailscale.com/ipn/ipnstate)
+- Wails v2 Menus documentation — macOS EditMenu ordering requirement — [wails.io](https://wails.io/docs/reference/menus/)
+- Wails v2 GitHub Issue #3865 — menu and systray conflict in Wails v3 alpha — [github.com/wailsapp/wails](https://github.com/wailsapp/wails/issues/3865)
+- Wails v2 PR #3847 — fixed macOS menu example with correct AppMenu/EditMenu ordering — [github.com/wailsapp/wails](https://github.com/wailsapp/wails/pull/3847)
+- GitHub API rate limits documentation — 60 req/hr unauthenticated — [docs.github.com](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
+- go-selfupdate (creativeprojects) — rollback failure behavior, Windows exe notes — [github.com/creativeprojects/go-selfupdate](https://github.com/creativeprojects/go-selfupdate)
+- golang/go Issue #21997 — Windows rename vs. running binary behavior — [github.com/golang/go](https://github.com/golang/go/issues/21997)
+- Homebrew non-interactive discussion — `NONINTERACTIVE=1` and TTY constraints — [github.com/orgs/Homebrew/discussions/3199](https://github.com/orgs/Homebrew/discussions/3199)
+- Project codebase: `internal/daemon/api.go` (Unix socket only, relay binds to `127.0.0.1`), `tray.go` (native cgo NSStatusBar), `main.go` (wails.Run options, no Menu field currently), `internal/daemon/types.go` (SessionInfo struct)
 
 ---
-*Pitfalls research for: AgentHub v1.8 — GitHub Distribution & CI/CD*
-*Researched: 2026-04-03*
+*Pitfalls research for: Go/Wails desktop app v1.9 — remote tailnet sessions, auto-update, Tailscale install, app menus*
+*Researched: 2026-04-06*
