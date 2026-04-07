@@ -38,16 +38,24 @@ Declared values (must be multiples of 4):
 | xs | 4px | Icon gaps, inline button padding |
 | sm | 8px | Panel gap between elements, footer padding, row gap in copy-row |
 | md | 16px | Body padding, section padding, button horizontal padding |
-| lg | 20px | Modal body/header padding (matches existing `.health-modal__body { padding: 20px }`) |
 | xl | 24px | Section breaks within panel |
 | 2xl | 32px | — |
 | 3xl | 48px | — |
 
-Exceptions:
+### Legacy Exceptions (pre-existing, not new)
+
+These values are grandfathered from the existing `.health-modal*` CSS contract. They must NOT be used for any new CSS rules introduced in this phase. New rules use standard scale values only.
+
+| Value | Source | Rule |
+|-------|--------|------|
+| 20px | `.health-modal__body { padding: 20px }` — existing rule in `style.css` | Do not modify this rule; do not use 20px in new rules |
+
+### Structural Exceptions (non-padding layout values)
+
 - Modal width: 520px (fixed), max-width: 95vw — matches existing `.health-modal` contract
 - Modal max-height: 80vh with `overflow-y: auto` on body — existing contract
 - Copy button and code block in same `.health-modal__copy-row`: `gap: 8px`, `align-items: flex-start`
-- Progress output area padding: `10px 12px` (matches existing `.health-modal__code--block`)
+- Progress output area padding: `8px 12px` — standardized from legacy `10px 12px` (existing `.health-modal__code--block` used 10px; new `.health-modal__install-output` uses 8px, rounded down to nearest multiple of 4)
 - Auto-install progress `<pre>` max-height: 160px with `overflow-y: auto`
 
 Source: `frontend/src/style.css` — all values extracted from existing `.health-modal*` rules.
@@ -113,7 +121,7 @@ All classes follow existing BEM namespace `.health-modal__*`.
 | `.health-modal__download-link` | Anchor tag styled as a link, opens via `onOpenURL` prop | New — `color: #7aa2f7; font-size: 13px; text-decoration: underline; cursor: pointer` |
 | `.health-modal__btn--auto-install` | "Try Auto-Install" button; macOS-only, same fill as `--check` | New — identical sizing to `.health-modal__btn--check` |
 | `.health-modal__btn--auto-install--running` | Disabled state during brew streaming | New — `opacity: 0.6; cursor: not-allowed` |
-| `.health-modal__install-output` | Scrollable `<pre>` block for brew stdout lines | New — `font-family: "Cascadia Code", "Fira Code", monospace; font-size: 11px; background: #16161e; border: 1px solid #292e42; border-radius: 4px; padding: 10px 12px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; color: #a9b1d6` |
+| `.health-modal__install-output` | Scrollable `<pre>` block for brew stdout lines | New — `font-family: "Cascadia Code", "Fira Code", monospace; font-size: 11px; background: #16161e; border: 1px solid #292e42; border-radius: 4px; padding: 8px 12px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; color: #a9b1d6` |
 | `.health-modal__install-output--error` | Applied when install exits non-zero | New — `border-color: #f7768e` |
 | `.health-modal__install-output--success` | Applied when install exits zero | New — `border-color: #9ece6a` |
 | `.health-modal__steps` | Ordered list for NoCerts next-steps guide | New — `display: flex; flex-direction: column; gap: 8px; padding-left: 0; list-style: none` |
