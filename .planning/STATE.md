@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: executing
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-04-07T16:15:46.224Z"
+status: verifying
+stopped_at: Completed 49-02-PLAN.md
+last_updated: "2026-04-07T16:22:20.463Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 
 Phase: 49 (app-menus-version-injection) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Menu ordering required: `NewMenu()` → `AppMenu()` → `EditMenu()` → custom submenus (Wails pitfall)
 - [Phase 49]: Package-level appCtx for menu callback context avoids closure complexity in Wails
 - [Phase 49]: appMenu() ordering: AppMenu first per STATE.md Wails pitfall; FileMenu/HelpSubMenu commented out in v2.10.2 — use AddSubmenu() instead
+- [Phase 49]: CSS ?raw import returns empty string in Vitest jsdom — use readFileSync for CSS assertions (matches TabBar/TerminalPanel test convention)
 
 ### Pending Todos
 
@@ -71,10 +72,11 @@ None.
 | 260406-op4 | Tray icon A matches app icon A - monochrome for macOS, full color for other OSes | 2026-04-07 | 45ffbd2 | [260406-op4-tray-icon-a-matches-app-icon-a-monochrom](./quick/260406-op4-tray-icon-a-matches-app-icon-a-monochrom/) |
 | 260406-s0e | Fix CLI detection - export AugmentServicePath and call in GUI startup | 2026-04-07 | eb90fa6 | [260406-s0e-fix-cli-detection-app-shows-no-clis-dete](./quick/260406-s0e-fix-cli-detection-app-shows-no-clis-dete/) |
 | Phase 49 P01 | 155 | 2 tasks | 4 files |
+| Phase 49 P02 | 390 | 2 tasks | 5 files |
 
 ## Session Continuity
 
-Last session: 2026-04-07T16:15:46.219Z
-Stopped at: Completed 49-01-PLAN.md
+Last session: 2026-04-07T16:22:20.459Z
+Stopped at: Completed 49-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 49`

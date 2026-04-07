@@ -144,7 +144,7 @@
 **Plans**: 2 plans
 Plans:
 - [x] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
-- [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
+- [x] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 **UI hint**: yes
 
 ### Phase 50: Tailscale Peer Discovery
@@ -159,7 +159,7 @@ Plans:
   5. Daemon exposes `GET /tailnet/peers` route returning discovered peers with a 30-second result cache
 **Plans**: 2 plans
 Plans:
-- [ ] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
+- [x] 49-01-PLAN.md — Go menus, version variable, GetVersion binding, build scripts
 - [ ] 49-02-PLAN.md — Frontend version display, logo border-radius, test updates
 
 ### Phase 51: Auto-Update Checker
@@ -236,7 +236,7 @@ Plans:
 | 35 | v1.6 | 1/1 | Complete | 2026-03-31 |
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
-| 49 | v1.9 | 1/2 | In Progress|  |
+| 49 | v1.9 | 2/2 | Complete   | 2026-04-07 |
 | 50 | v1.9 | 0/? | Not started | - |
 | 51 | v1.9 | 0/? | Not started | - |
 | 52 | v1.9 | 0/? | Not started | - |

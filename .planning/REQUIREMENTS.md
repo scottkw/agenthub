@@ -33,8 +33,8 @@ Requirements for milestone v1.9: Remote Sessions & App Polish. Each maps to road
 - [x] **MENU-01**: App has standard menus (File, Edit, Window, Help) with platform-appropriate keyboard shortcuts
 - [x] **MENU-02**: Edit menu enables Cmd+C/Cmd+V clipboard operations in terminal tabs (currently silently broken on macOS)
 - [x] **VER-01**: App version is injected at build time via ldflags (no hardcoded VERSION constant)
-- [ ] **VER-02**: Welcome screen displays the build-injected version automatically
-- [ ] **UI-01**: Welcome logo/title graphic has slightly rounded corners
+- [x] **VER-02**: Welcome screen displays the build-injected version automatically
+- [x] **UI-01**: Welcome logo/title graphic has slightly rounded corners
 
 ## Future Requirements
 
@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MENU-01 | Phase 49 | Complete |
 | MENU-02 | Phase 49 | Complete |
 | VER-01 | Phase 49 | Complete |
-| VER-02 | Phase 49 | Pending |
-| UI-01 | Phase 49 | Pending |
+| VER-02 | Phase 49 | Complete |
+| UI-01 | Phase 49 | Complete |
 | REM-01 | Phase 50 | Pending |
 | UPD-01 | Phase 51 | Pending |
 | UPD-02 | Phase 51 | Pending |
