@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: executing
-stopped_at: Completed 54-01-PLAN.md
-last_updated: "2026-04-07T22:08:48.378Z"
+status: verifying
+stopped_at: Completed 54-02-PLAN.md
+last_updated: "2026-04-07T22:14:49.252Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 
 Phase: 54 (tailscale-onboarding-enhancement) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
@@ -51,6 +51,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 53-remote-sessions-cli P01 | 615 | 2 tasks | 4 files |
 | Phase 53-remote-sessions-cli P02 | 249 | 2 tasks | 4 files |
 | Phase 54-tailscale-onboarding-enhancement P01 | 81 | 2 tasks | 4 files |
+| Phase 54-tailscale-onboarding-enhancement P02 | 183 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 53-remote-sessions-cli]: cmdAttachRemoteWithClient pattern: injectable HTTP client + base URL for testable WSS attach — mirrors fetchPeerSessionsWithClient from Plan 01
 - [Phase 54-tailscale-onboarding-enhancement]: goruntime alias for stdlib runtime avoids collision with wails/v2/pkg/runtime already imported as runtime
 - [Phase 54-tailscale-onboarding-enhancement]: cmd.Stderr = cmd.Stdout merges stderr into stdout pipe for single-goroutine brew output streaming via AutoInstallTailscale
+- [Phase 54-tailscale-onboarding-enhancement]: installProgress/installStatus/installError state managed by App.tsx (EventsOn subscriber); HealthModal is a pure display component
+- [Phase 54-tailscale-onboarding-enhancement]: onOpenURL prop (not BrowserOpenURL import) in HealthModal keeps component Vitest-testable
 
 ### Pending Todos
 
@@ -112,7 +115,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07T22:08:48.364Z
-Stopped at: Completed 54-01-PLAN.md
+Last session: 2026-04-07T22:14:49.248Z
+Stopped at: Completed 54-02-PLAN.md
 Resume file: None
 Next action: Execute 51-02-PLAN.md

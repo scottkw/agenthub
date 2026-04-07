@@ -224,7 +224,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 54-01-PLAN.md — Go AutoInstallTailscale method, findBrew helper, test, Wails bindings
-- [ ] 54-02-PLAN.md — HealthModal enhancement (copyable commands, download links, auto-install UX, next-steps guide), CSS, App.tsx wiring, tests
+- [x] 54-02-PLAN.md — HealthModal enhancement (copyable commands, download links, auto-install UX, next-steps guide), CSS, App.tsx wiring, tests
 **UI hint**: yes
 
 ## Progress
@@ -245,7 +245,7 @@ Plans:
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 53 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 54 | v1.9 | 1/2 | In Progress|  |
+| 54 | v1.9 | 2/2 | Complete   | 2026-04-07 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
