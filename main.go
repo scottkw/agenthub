@@ -35,6 +35,7 @@ func main() {
 }
 
 func runGUI() {
+	daemon.AugmentServicePath() // Ensure CLIs in /usr/local/bin, Homebrew, volta, nvm are on PATH
 	app := NewApp()
 
 	err := wails.Run(&options.App{

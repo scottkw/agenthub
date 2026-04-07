@@ -6,11 +6,12 @@ import (
 	"strings"
 )
 
-// augmentServicePath prepends well-known user tool directories to the process
+// AugmentServicePath prepends well-known user tool directories to the process
 // PATH so that CLIs installed via nvm, volta, or Homebrew are found when the
-// daemon runs as a launchd/systemd user service (which does not source shell
-// init files). Called once at daemon startup before any session is created.
-func augmentServicePath() {
+// daemon runs as a launchd/systemd user service (or when the GUI app is
+// launched from Finder/Dock), which do not source shell init files. Called
+// once at startup before any exec.LookPath or session is created.
+func AugmentServicePath() {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return

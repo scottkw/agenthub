@@ -19,7 +19,7 @@ func TestAugmentServicePath_AddsExistingDirs(t *testing.T) {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
-	augmentServicePath()
+	AugmentServicePath()
 
 	got := os.Getenv("PATH")
 	if !strings.Contains(got, voltaBin) {
@@ -37,7 +37,7 @@ func TestAugmentServicePath_SkipsNonexistent(t *testing.T) {
 	t.Setenv("PATH", original)
 
 	// No .volta, no .nvm, no homebrew dirs created — all non-existent
-	augmentServicePath()
+	AugmentServicePath()
 
 	got := os.Getenv("PATH")
 	// PATH may include /opt/homebrew/bin or /usr/local/bin if they actually
@@ -123,7 +123,7 @@ func TestAugmentServicePath_PrependsNotAppends(t *testing.T) {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
-	augmentServicePath()
+	AugmentServicePath()
 
 	got := os.Getenv("PATH")
 	voltaIdx := strings.Index(got, voltaBin)
