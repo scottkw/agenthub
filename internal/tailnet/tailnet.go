@@ -121,7 +121,6 @@ func probeAll(ctx context.Context, peers []Peer, fn probeFunc) []Peer {
 	g.SetLimit(5)
 
 	for _, p := range peers {
-		p := p // capture loop variable (pre-Go 1.22 requirement; harmless in 1.26)
 		g.Go(func() error {
 			if fn(gctx, p) {
 				mu.Lock()

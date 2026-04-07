@@ -9,6 +9,7 @@ require (
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55
 	github.com/wailsapp/wails/v2 v2.10.2
+	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.42.0
 	golang.org/x/term v0.41.0
 	tailscale.com v1.96.3
@@ -57,7 +58,6 @@ require (
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 )
