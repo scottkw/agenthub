@@ -36,8 +36,8 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, tight inline spacing |
-| sm | 8px | Stack gaps between install items, button padding (6px vertical rounds to 8px tier) |
-| md | 16px | Banner horizontal padding, section spacing |
+| sm | 8px | Stack gaps between install items, button padding (vertical) |
+| md | 16px | Banner horizontal padding, section spacing, button padding (horizontal) |
 | lg | 24px | Panel padding |
 | xl | 32px | Welcome tab content horizontal padding |
 | 2xl | 48px | Welcome tab content vertical padding |
@@ -45,7 +45,6 @@ Declared values (must be multiples of 4):
 
 Exceptions:
 - Banner vertical padding: 12px (existing `.ct-disclosure` precedent — fits between sm and md)
-- Button vertical padding: 6px (existing button pattern — sub-grid rounding for compact inline use)
 - Welcome tab logo margin-bottom: 16px (existing)
 - Update banner margin-bottom before first section: 24px (lg) — banner sits above the "Get Started" section
 
@@ -67,7 +66,7 @@ All sizes sourced from existing Welcome tab CSS:
 - Version / meta: `.welcome-tab__version` → 12px (line 1023); `.welcome-tab__code` → 12px (line 1078)
 - Section heading: `.welcome-tab__heading` → 11px, weight 600, uppercase (lines 1037-1042)
 
-The update banner text uses body (13px, 400) and the version arrow string (`v1.9.0 → v1.9.1`) uses the same weight. The "Download" button label uses 13px weight 600 (matching `.new-session-modal__btn--create` pattern).
+The update banner text uses body (13px, 400) and the version arrow string (`v1.9.0 → v1.9.1`) uses the same weight. The "Download Update" button label uses 13px weight 600 (matching `.new-session-modal__btn--create` pattern).
 
 ---
 
@@ -83,7 +82,7 @@ The update banner text uses body (13px, 400) and the version arrow string (`v1.9
 | Destructive | `#f7768e` | Dismiss button hover state only (secondary action, no primary destructive action in this phase) |
 
 Accent (`#7aa2f7`) reserved for:
-- "Download" CTA button background (primary action)
+- "Download Update" CTA button background (primary action)
 - Active tab border-bottom indicator
 - Input focus border
 - Link text color (`.welcome-tab__link`, `.welcome-tab__install-label`)
@@ -94,7 +93,7 @@ The update banner specifically:
 - Banner border: `1px solid #292e42`
 - Version text color: `#a9b1d6` (secondary text)
 - Arrow `→` separator: `#565f89` (muted)
-- Download button: `background #7aa2f7`, `color #1a1b26`, weight 600
+- Download Update button: `background #7aa2f7`, `color #1a1b26`, weight 600
 - Dismiss button: `background transparent`, `color #565f89`, `border: 1px solid #292e42` — matches cancel button pattern
 - Dismiss button hover: `color #c0caf5`, `border-color #3b4261`
 
@@ -136,16 +135,16 @@ Message text:
 Actions row:
 - `display: flex; gap: 8px; flex-shrink: 0`
 
-Download button (`.update-banner__btn--download`):
+Download Update button (`.update-banner__btn--download`):
 - `background-color: #7aa2f7; color: #1a1b26; font-weight: 600`
-- `padding: 6px 16px; border-radius: 4px; font-size: 13px`
+- `padding: 8px 16px; border-radius: 4px; font-size: 13px`
 - `border: none; cursor: pointer; font-family: inherit`
 - Hover: `background-color: #89b4fa`
 
 Dismiss button (`.update-banner__btn--dismiss`):
 - `background-color: transparent; color: #565f89`
 - `border: 1px solid #292e42`
-- `padding: 6px 16px; border-radius: 4px; font-size: 13px`
+- `padding: 8px 16px; border-radius: 4px; font-size: 13px`
 - `cursor: pointer; font-family: inherit`
 - Hover: `color: #c0caf5; border-color: #3b4261`
 
@@ -165,7 +164,7 @@ No CSS contract — this is a native Wails menu item added via `helpMenu.AddText
 | Visible | `update:available` event received OR `GetLastUpdateInfo()` returns non-null on mount | Render `.update-banner` |
 | Dismissed | User clicks "Dismiss" | `setUpdate(null)` — banner hidden for session; re-appears on next startup if update still available |
 
-### Download Button Behavior
+### Download Update Button Behavior
 
 - Calls `BrowserOpenURL('https://github.com/scottkw/agenthub/releases')` via Wails JS runtime
 - No in-place binary replacement (out of scope per REQUIREMENTS.md)
@@ -190,7 +189,7 @@ No CSS contract — this is a native Wails menu item added via `helpMenu.AddText
 
 | Element | Copy |
 |---------|------|
-| Primary CTA | "Download" |
+| Primary CTA | "Download Update" |
 | Banner message | "Update available: {currentVersion} → {latestVersion}" |
 | Banner message (version emphasis) | Versions shown in brighter color (`#c0caf5`); arrow muted (`#565f89`) |
 | Dismiss action | "Dismiss" |
@@ -204,7 +203,7 @@ Notes:
 - No progress indicator — update check is background-only; user does not see loading state
 - No confirmation dialog for destructive actions — no destructive actions in this phase
 
-Source: ROADMAP.md Success Criteria 2 ("banner appears in the Welcome tab showing current version, new version, and a 'Download' button"), REQUIREMENTS.md UPD-02/UPD-03.
+Source: ROADMAP.md Success Criteria 2 ("banner appears in the Welcome tab showing current version, new version, and a 'Download' button"), REQUIREMENTS.md UPD-02/UPD-03. CTA updated to "Download Update" (noun added for clarity).
 
 ---
 
@@ -233,7 +232,7 @@ No third-party component registries. All UI is custom CSS + React. No new npm pa
 ## Accessibility Notes
 
 - Banner uses semantic HTML — `<div role="alert" aria-live="polite">` so screen readers announce the update
-- Download button: `type="button"` to prevent accidental form submission
+- Download Update button: `type="button"` to prevent accidental form submission
 - Dismiss button: `type="button"`, `aria-label="Dismiss update notification"`
 - Color contrast: `#7aa2f7` on `#1a1b26` background meets WCAG AA for large text (button label); `#a9b1d6` on `#16161e` meets AA for body text
 
