@@ -10,15 +10,30 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/menu"
+	"github.com/wailsapp/wails/v2/pkg/menu/keys"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+// Version is injected at build time via:
+//
+//	wails build -ldflags "-X main.Version=v1.9.0"
+//
+// Falls back to "dev" in local dev builds.
+var Version = "dev"
+
+// appCtx holds the Wails runtime context for use in menu callbacks.
+// Set in app.startup() after Wails initialises.
+var appCtx context.Context
 
 func main() {
 	// GUI mode: no args, or first arg is a flag (except help).
@@ -47,6 +62,7 @@ func runGUI() {
 		HideWindowOnClose: true,
 		StartHidden:       true,
 		BackgroundColour:  &options.RGBA{R: 0x1a, G: 0x1b, B: 0x26, A: 0xff},
+		Menu:              appMenu(),
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
@@ -60,6 +76,36 @@ func runGUI() {
 	})
 	if err != nil {
 		panic(err)
+	}
+}
+
+// appMenu constructs the macOS application menu bar.
+// Ordering is critical on macOS: AppMenu must be first, then EditMenu, then
+// custom submenus. See STATE.md accumulated context for the ordering pitfall.
+func appMenu() *menu.Menu {
+	m := menu.NewMenu()
+	// 1. AppMenu MUST be first on macOS (STATE.md pitfall)
+	m.Append(menu.AppMenu())
+	// 2. File menu (custom — FileMenuRole is commented out in v2.10.2)
+	fileMenu := m.AddSubmenu("File")
+	fileMenu.AddText("New Session", keys.CmdOrCtrl("n"), nil)
+	fileMenu.AddSeparator()
+	fileMenu.AddText("Close Tab", keys.CmdOrCtrl("w"), nil)
+	// 3. EditMenu — enables Cmd+C/V/X/Z via native NSMenu (MENU-02)
+	m.Append(menu.EditMenu())
+	// 4. Window menu
+	m.Append(menu.WindowMenu())
+	// 5. Help menu (custom — HelpSubMenuRole is commented out in v2.10.2)
+	helpMenu := m.AddSubmenu("Help")
+	helpMenu.AddText("AgentHub on GitHub", nil, openGitHubCallback)
+	return m
+}
+
+// openGitHubCallback opens the AgentHub GitHub repository in the default browser.
+// Uses the package-level appCtx set during app.startup().
+func openGitHubCallback(_ *menu.CallbackData) {
+	if appCtx != nil {
+		runtime.BrowserOpenURL(appCtx, "https://github.com/scottkw/agenthub")
 	}
 }
 

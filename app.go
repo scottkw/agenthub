@@ -52,6 +52,7 @@ func (a *App) domReady(ctx context.Context) {
 // startup is called when Wails initialises the app.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	appCtx = ctx // expose to menu callbacks (openGitHubCallback)
 
 	// Start system tray icon immediately — it must be visible regardless of
 	// daemon state. The poller will set the error icon if daemon is unreachable.
@@ -84,6 +85,12 @@ func (a *App) GetDaemonError() string {
 		return a.daemonErr.Error()
 	}
 	return ""
+}
+
+// GetVersion returns the application version injected at build time.
+// Returns "dev" in local development builds.
+func (a *App) GetVersion() string {
+	return Version
 }
 
 // RetryDaemon re-attempts daemon spawn after a startup failure.
