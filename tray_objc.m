@@ -122,6 +122,20 @@ void updateTrayTooltip(const char *tooltip) {
     });
 }
 
+// setDockVisible shows or hides the macOS Dock icon by toggling the
+// application activation policy between Regular (visible) and Accessory (hidden).
+// When showing, the app is also activated so the window comes forward.
+void setDockVisible(int visible) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (visible) {
+            [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+            [NSApp activateIgnoringOtherApps:YES];
+        } else {
+            [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+        }
+    });
+}
+
 // setTraySessionData updates the session names/IDs used by the menu delegate.
 void setTraySessionData(const char **names, const char **ids, int count) {
     // Copy strings synchronously — names/ids are Go pointers freed after cgo returns.

@@ -15,6 +15,7 @@ void removeStatusItem(void);
 void updateTrayIcon(const void *iconData, int iconLen);
 void updateTrayTooltip(const char *tooltip);
 void setTraySessionData(const char **names, const char **ids, int count);
+void setDockVisible(int visible);
 */
 import "C"
 
@@ -87,6 +88,16 @@ func trayTooltip(n int) string {
 		return "AgentHub \u2014 1 session"
 	default:
 		return fmt.Sprintf("AgentHub \u2014 %d sessions", n)
+	}
+}
+
+// setDockVisible shows or hides the macOS Dock icon by toggling the application
+// activation policy. Call with true when showing the window, false when hiding.
+func (a *App) setDockVisible(visible bool) {
+	if visible {
+		C.setDockVisible(1)
+	} else {
+		C.setDockVisible(0)
 	}
 }
 
