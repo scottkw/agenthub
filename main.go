@@ -35,6 +35,10 @@ var Version = "dev"
 // Set in app.startup() after Wails initialises.
 var appCtx context.Context
 
+// appInstance holds the App pointer for use in menu callbacks that need
+// App methods (not just the Wails runtime context).
+var appInstance *App
+
 func main() {
 	// GUI mode: no args, or first arg is a flag (except help).
 	if len(os.Args) == 1 || strings.HasPrefix(os.Args[1], "-") {
@@ -98,6 +102,7 @@ func appMenu() *menu.Menu {
 	// 5. Help menu (custom — HelpSubMenuRole is commented out in v2.10.2)
 	helpMenu := m.AddSubmenu("Help")
 	helpMenu.AddText("AgentHub on GitHub", nil, openGitHubCallback)
+	helpMenu.AddText("Check for Updates", nil, checkForUpdatesCallback)
 	return m
 }
 
@@ -106,6 +111,14 @@ func appMenu() *menu.Menu {
 func openGitHubCallback(_ *menu.CallbackData) {
 	if appCtx != nil {
 		runtime.BrowserOpenURL(appCtx, "https://github.com/scottkw/agenthub")
+	}
+}
+
+// checkForUpdatesCallback triggers an immediate update check from the Help menu.
+// Runs in a goroutine to avoid blocking the UI thread.
+func checkForUpdatesCallback(_ *menu.CallbackData) {
+	if appInstance != nil {
+		go appInstance.CheckForUpdates()
 	}
 }
 
