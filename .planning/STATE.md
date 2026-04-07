@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
 status: executing
-stopped_at: "Completed 51-01-PLAN.md"
-last_updated: "2026-04-07T18:33:00.000Z"
+stopped_at: Completed 51-03-PLAN.md
+last_updated: "2026-04-07T18:41:49.440Z"
 last_activity: 2026-04-07 -- Phase 51 Plan 01 complete
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 50-tailscale-peer-discovery]: discoverFunc injectable type enables test isolation without live Tailscale daemon
 - [Phase 51-auto-update-checker]: Masterminds/semver/v3 used directly for version comparison (transitive dep of go-selfupdate, cleaner than constructing Release struct)
 - [Phase 51-auto-update-checker]: Timestamp persisted on all non-error paths (including no-update) to prevent re-checking on rapid startup
+- [Phase 51]: Manually added Wails bindings (App.d.ts + App.js) for GetLastUpdateInfo/CheckForUpdates as parallel plan workaround
 
 ### Pending Todos
 
@@ -72,7 +73,9 @@ None.
 ### Blockers/Concerns
 
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
+
 <<<<<<< HEAD
+
 - Confirm Tailscale Let's Encrypt certs are FQDN-only (no IP SANs) before finalizing Phase 50 probe TLS mode
 
 ### Quick Tasks Completed
@@ -90,7 +93,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-07T18:33:00.000Z
-Stopped at: Completed 51-01-PLAN.md
-Resume file: .planning/phases/51-auto-update-checker/51-01-SUMMARY.md
+Last session: 2026-04-07T18:41:44.262Z
+Stopped at: Completed 51-03-PLAN.md
+Resume file: None
 Next action: Execute 51-02-PLAN.md

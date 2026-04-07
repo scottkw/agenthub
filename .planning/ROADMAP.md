@@ -174,9 +174,9 @@ Plans:
   5. Update check is rate-limited to once per hour (persisted last-check timestamp) and handles 429/non-200 responses silently
 **Plans**: 3 plans
 Plans:
-- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
-- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
-- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
+- [x] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [x] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [x] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 **UI hint**: yes
 
 ### Phase 52: Remote Sessions GUI Panel
@@ -242,7 +242,7 @@ Plans:
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 51 | v1.9 | 0/3 | Not started | - |
+| 51 | v1.9 | 3/3 | Complete   | 2026-04-07 |
 | 52 | v1.9 | 0/? | Not started | - |
 | 53 | v1.9 | 0/? | Not started | - |
 | 54 | v1.9 | 0/? | Not started | - |
