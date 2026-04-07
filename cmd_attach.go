@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
+	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/relay"
-	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/tailnet"
 	"golang.org/x/term"
 )
 
@@ -21,7 +25,6 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: agenthub attach <session-id>")
 	}
-	sessionID := args[0]
 
 	// Parse optional --detach-key flag. Default: Ctrl-backslash (0x1C).
 	detachKey := byte(0x1C)
@@ -37,6 +40,12 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 				}
 			}
 		}
+	}
+
+	// Detect remote session ID format (hostname:session-id).
+	hostname, sessionID, isRemote := parseRemoteID(args[0])
+	if isRemote {
+		return cmdAttachRemote(client, hostname, sessionID, detachKey)
 	}
 
 	// Must be run in an interactive terminal.
@@ -103,6 +112,111 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	err = attachSession(ctx, conn, os.Stdin, os.Stdout, detachKey)
 	printDetachMessage(os.Stderr)
 	return err
+}
+
+// cmdAttachRemote handles attaching to a session on a remote tailnet peer.
+// It resolves the hostname to FQDN via tailnet peer discovery, verifies the
+// session exists on the remote peer, and connects via WSS relay.
+func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, detachKey byte) error {
+	// Must be run in an interactive terminal.
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return fmt.Errorf("attach: stdin is not a terminal")
+	}
+
+	// Resolve hostname to FQDN via tailnet peer discovery.
+	peers, err := client.ListTailnetPeers()
+	if err != nil {
+		return fmt.Errorf("attach: discover peers: %w", err)
+	}
+	fqdn, found := resolveRemotePeer(peers, hostname)
+	if !found {
+		return buildUnknownHostError(hostname, peers)
+	}
+
+	// Construct base URL for fetching sessions and WSS relay.
+	baseURL := fmt.Sprintf("https://%s:%d", fqdn, tailnet.DefaultProbePort)
+
+	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey)
+}
+
+// cmdAttachRemoteWithClient is the testable core of the remote attach flow.
+// It accepts an HTTP client and base URL for testing with httptest servers.
+// If httpClient is nil, a production TLS client is used.
+func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte) error {
+	// Verify the session exists on the remote peer and get its metadata.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var remoteSessions []CLIRemoteSession
+	var fetchErr error
+	if httpClient != nil {
+		remoteSessions, fetchErr = fetchPeerSessionsWithClient(ctx, baseURL, httpClient)
+	} else {
+		remoteSessions, fetchErr = fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+	}
+	_ = fetchErr // fetchPeerSessions returns empty slice on error
+
+	var session *CLIRemoteSession
+	for _, s := range remoteSessions {
+		s := s
+		if s.ID == sessionID {
+			session = &s
+			break
+		}
+	}
+	if session == nil {
+		return fmt.Errorf("attach: session %q not found on remote host %q", sessionID, hostname)
+	}
+
+	// Construct WSS URL to remote peer's relay.
+	wsURL := fmt.Sprintf("wss://%s:%d/sessions/%s/ws", fqdn, tailnet.DefaultProbePort, sessionID)
+
+	// Create signal context (same as local attach).
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGHUP)
+	defer stop()
+
+	conn, _, err := websocket.Dial(sigCtx, wsURL, nil)
+	if err != nil {
+		return fmt.Errorf("attach: dial remote relay: %w", err)
+	}
+	defer conn.CloseNow()
+
+	// Print banner with remote hostname shown clearly.
+	printAttachBanner(os.Stderr, session.Name, session.CLIType, hostname)
+
+	// Put terminal in raw mode (same as local attach).
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return fmt.Errorf("attach: raw mode: %w", err)
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState) //nolint:errcheck
+
+	// Send initial resize.
+	cols, rows, err := term.GetSize(int(os.Stdin.Fd()))
+	if err == nil {
+		frame := makeClientResizeFrame(uint16(cols), uint16(rows))
+		_ = conn.Write(sigCtx, websocket.MessageBinary, frame)
+	}
+
+	// Start resize watcher (platform-specific).
+	watchResize(sigCtx, conn)
+
+	err = attachSession(sigCtx, conn, os.Stdin, os.Stdout, detachKey)
+	printDetachMessage(os.Stderr)
+	return err
+}
+
+// buildUnknownHostError creates a helpful error message when a hostname
+// doesn't match any tailnet peer, listing available peer hostnames.
+func buildUnknownHostError(hostname string, peers []tailnet.Peer) error {
+	var names []string
+	for _, p := range peers {
+		names = append(names, p.Hostname)
+	}
+	if len(names) == 0 {
+		return fmt.Errorf("attach: unknown remote host %q — no tailnet peers found", hostname)
+	}
+	return fmt.Errorf("attach: unknown remote host %q\nAvailable peers: %s", hostname, strings.Join(names, ", "))
 }
 
 // attachSession is the testable core of the attach flow. It runs two I/O
