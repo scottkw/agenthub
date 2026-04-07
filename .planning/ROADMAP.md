@@ -124,7 +124,7 @@
 - [ ] **Phase 50: Tailscale Peer Discovery** — 2 plans (Wave 1: tailnet package + TDD, Wave 2: daemon route + cache)
 - [ ] **Phase 51: Auto-Update Checker** — 3 plans (Wave 1: updater package TDD, Wave 2: app wiring + frontend banner)
 - [ ] **Phase 52: Remote Sessions GUI Panel** — 3 plans (Wave 1: Go binding + frontend component, Wave 2: App.tsx wiring)
-- [ ] **Phase 53: Remote Sessions CLI** — Plans: TBD
+- [ ] **Phase 53: Remote Sessions CLI** — 2 plans (Wave 1: remote helpers + list, Wave 2: remote attach + usage)
 - [ ] **Phase 54: Tailscale Onboarding Enhancement** — Plans: TBD
 
 </details>
@@ -207,11 +207,10 @@ Plans:
   2. Remote sessions appear in the list with their host prefix (e.g., `macbook.tail:session-id`) distinct from local sessions
   3. `agenthub attach <remote-session-id>` connects to a remote session via the WebSocket relay without requiring SSH or manual URL construction
   4. CLI attach banner shows the remote hostname clearly so the user knows they are connected to a non-local machine
-**Plans**: 3 plans
+**Plans**: 2 plans
 Plans:
-- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
-- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
-- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
+- [ ] 53-01-PLAN.md — Remote session helpers + enhanced cmdList with grouped host display
+- [ ] 53-02-PLAN.md — Remote cmdAttach via WSS relay + usage text update
 
 ### Phase 54: Tailscale Onboarding Enhancement
 **Goal**: New users who lack Tailscale can find and follow installation steps without leaving the app
@@ -246,7 +245,7 @@ Plans:
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
-| 53 | v1.9 | 0/? | Not started | - |
+| 53 | v1.9 | 0/2 | Not started | - |
 | 54 | v1.9 | 0/? | Not started | - |
 
 ---
