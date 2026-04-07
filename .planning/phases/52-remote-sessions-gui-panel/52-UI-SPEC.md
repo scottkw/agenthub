@@ -31,23 +31,28 @@ No shadcn gate applies — this is not a React/Vite project using shadcn; it is 
 
 ## Spacing Scale
 
-Declared values (must be multiples of 4):
+Declared values for new design decisions (must be multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| xs | 4px | Tab bar control gap (`.tab-bar__controls gap: 2px` is exception — see below) |
-| sm | 8px | Row gaps, button padding horizontal, section label margin-bottom |
+| xs | 4px | Section label margin-bottom |
+| sm | 8px | Row gap within peer group, button padding horizontal, peer-header padding-bottom |
 | md | 16px | Panel padding (horizontal), section padding |
 | lg | 24px | Panel padding (`.daemon-panel` uses `padding: 24px`) |
 | xl | 32px | Not used in panel layer; reserved for page-level layout |
 | 2xl | 48px | Not used in panel layer |
 | 3xl | 64px | Not used in panel layer |
 
-Exceptions:
-- Tab bar control gap: `2px` (observed in `.tab-bar__controls`, not on 4-point scale — match this exactly for the new Remote button)
-- Session row gap: `10px` (observed in `.daemon-panel__session-row gap: 10px` — match exactly for `.remote-panel__session-row`)
-- Session row padding: `10px 12px` (observed in `.daemon-panel__session-row` — match exactly)
-- Badge/chip padding: `2px 8px` (observed in `.daemon-panel__cli` and `.daemon-panel__hostname`)
+### CSS Compatibility Constraints (not design choices — match existing CSS verbatim)
+
+These values exist in the current `style.css` for the `.daemon-panel` and `.tab-bar` blocks that this phase must visually match. They are read-only measurements — not new spacing decisions, and not subject to the 4-point grid rule for this phase.
+
+| Source element | CSS property | Value | Notes |
+|----------------|-------------|-------|-------|
+| `.tab-bar__controls` | `gap` | `2px` | Existing tab bar gap — new Remote button must sit inside this same container unchanged |
+| `.daemon-panel__session-row` | `gap` | `10px` | Row content gap — `.remote-panel__session-row` must match for visual consistency |
+| `.daemon-panel__session-row` | `padding` | `10px 12px` | Row padding — `.remote-panel__session-row` must match for visual consistency |
+| `.daemon-panel__cli` / `.daemon-panel__hostname` | `padding` | `2px 8px` | Badge chip padding — `.remote-panel__cli` must match |
 
 **Source:** `frontend/src/style.css` — `.daemon-panel`, `.daemon-panel__session-row`, `.tab-bar__controls` rules.
 
@@ -55,16 +60,20 @@ Exceptions:
 
 ## Typography
 
+Two weights maximum. Size differentiates roles within the same weight tier.
+
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body / session name | 13px | 500 (medium) | 1.5 |
-| Label / badge chip | 11px | 400 (regular) | 1.0 (single-line chips) |
-| Panel heading | 16px | 600 (semibold) | 1.2 |
-| Section sub-label (uppercase) | 11px | 600 (semibold) | 1.0 |
+| Panel heading / title | 16px | 600 (semibold) | 1.2 |
+| Body / session name (`.remote-panel__name`) | 13px | 400 (regular) | 1.5 |
+| Label / badge chip (`.remote-panel__cli`) | 11px | 400 (regular) | 1.0 (single-line chips) |
+| Section sub-label uppercase (`.remote-panel__peer-header`) | 11px | 600 (semibold) | 1.0 |
+
+Visual differentiation between session name (13px/400) and peer section header (11px/600 uppercase + `letter-spacing: 0.08em`) is achieved through size, case, and tracking — not a third weight.
 
 Font family for all text: inherited from `body` (`"Cascadia Code"`, `"Fira Code"`, monospace).
 
-**Source:** `frontend/src/style.css` — `.daemon-panel__title` (16px/600), `.daemon-panel__name` (13px/500), `.daemon-panel__cli` (11px), `.new-session-modal__section-label` (11px/600 uppercase).
+**Source:** `frontend/src/style.css` — `.daemon-panel__title` (16px/600), `.daemon-panel__name` (13px), `.daemon-panel__cli` (11px), `.new-session-modal__section-label` (11px/600 uppercase).
 
 ---
 
@@ -81,7 +90,7 @@ The project uses a Tokyo Night dark palette. All values are observed verbatim fr
 | Accent (10%) | `#7aa2f7` | Active tab underline, primary CTA button fill, focused input border, link text |
 | Destructive | `#f7768e` | Close button hover, kill button hover — destructive actions only |
 
-Accent reserved for: the "Open" button background (primary CTA per session row), active tab bottom border (tab bar), focused input border state only.
+Accent reserved for: the "Open Session" button background (primary CTA per session row), active tab bottom border (tab bar), focused input border state only.
 
 **Additional semantic colors used in session status dots (match exactly):**
 | Semantic | Value | Usage |
@@ -95,6 +104,14 @@ Accent reserved for: the "Open" button background (primary CTA per session row),
 | Secondary text | `#a9b1d6` | Body text, button labels |
 
 **Source:** `frontend/src/style.css` — `.daemon-panel__status--*`, `.tab--active`, `.settings-panel__btn--save`, `.ts-status__dot--*`.
+
+---
+
+## Focal Points
+
+**Primary visual anchor per row:** the accent-fill "Open Session" button (`.remote-panel__btn--open`, background `#7aa2f7`, color `#1a1b26`) is the only element in each row with a filled background, making it the dominant call-to-action and the first element the eye is drawn to.
+
+**Structural anchor:** the peer hostname header (`.remote-panel__peer-header`, 11px/600 uppercase, muted `#565f89`, underlined with a `#292e42` border) groups rows into peer sections and provides the vertical scanning anchor when reading down the panel.
 
 ---
 
@@ -125,6 +142,8 @@ The `.remote-panel` BEM block is new to this phase. It mirrors `.daemon-panel` e
 .remote-panel__session-row:hover — border-color #3b4261
 ```
 
+Note: `gap: 10px` and `padding: 10px 12px` on `.remote-panel__session-row` are CSS compatibility constraints (see Spacing section), not new grid decisions.
+
 ### Session row contents
 ```
 .remote-panel__status                       — 8x8px circle (border-radius 50%), flex-shrink 0
@@ -132,7 +151,7 @@ The `.remote-panel` BEM block is new to this phase. It mirrors `.daemon-panel` e
 .remote-panel__status--idle                 — background #22c55e
 .remote-panel__status--waiting              — background #f59e0b
 .remote-panel__status--errored              — background #ef4444
-.remote-panel__name                         — font-size 13px, color #c0caf5, font-weight 500,
+.remote-panel__name                         — font-size 13px, color #c0caf5, font-weight 400,
                                               min-width 0, overflow hidden, text-overflow ellipsis,
                                               white-space nowrap
 .remote-panel__cli                          — font-size 11px, color #565f89, background #1e2030,
@@ -189,7 +208,7 @@ All copy is derived from REQUIREMENTS.md (REM-02, REM-03) and mirrors existing p
 
 | Element | Copy |
 |---------|------|
-| Primary CTA (per-session button) | `Open` |
+| Primary CTA (per-session button) | `Open Session` |
 | Tab name | `Remote` |
 | Panel heading (none displayed — no panel title needed; peer hostnames serve as headings) | — |
 | Loading state | `Probing peers...` |
@@ -216,8 +235,8 @@ All copy is derived from REQUIREMENTS.md (REM-02, REM-03) and mirrors existing p
 - Silent refresh: when `peers.length > 0`, subsequent 30s refreshes update data without showing spinner (no flicker).
 - Polling stops immediately when the Remote Sessions tab is deactivated (useEffect cleanup clears interval and sets `cancelled = true`).
 
-### 3. Open Button
-- Clicking `Open` on a session row calls `BrowserOpenURL(session.url)` from the Wails runtime.
+### 3. Open Session Button
+- Clicking `Open Session` on a session row calls `BrowserOpenURL(session.url)` from the Wails runtime.
 - `session.url` is a fully-constructed HTTPS URL (`https://{fqdn}:7443/sessions/{id}`) returned by the Go binding.
 - No confirmation dialog — opening a URL in a browser is non-destructive.
 
