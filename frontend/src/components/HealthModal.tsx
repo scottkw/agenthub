@@ -12,39 +12,136 @@ interface HealthModalProps {
   health: TailscaleHealth | null
   platform: string // 'darwin' | 'linux' | 'windows'
   onCheckAgain: () => void
+  onOpenURL: (url: string) => void
+  onAutoInstall?: () => void
+  installProgress: string[]
+  installStatus: 'idle' | 'running' | 'success' | 'error'
+  installError?: string
 }
 
-function NotInstalledPanel({ platform }: { platform: string }): React.ReactElement {
+const MACOS_INSTALL_CMD = 'brew install --cask tailscale-app'
+const MACOS_DOWNLOAD_URL = 'https://tailscale.com/download/macos'
+const LINUX_INSTALL_CMD = 'curl -fsSL https://tailscale.com/install.sh | sh'
+const LINUX_DOWNLOAD_URL = 'https://tailscale.com/download/linux'
+const WINDOWS_INSTALL_CMD = 'winget install Tailscale.Tailscale'
+const WINDOWS_DOWNLOAD_URL = 'https://tailscale.com/download/windows'
+
+function CopyableCommand({ command }: { command: string }): React.ReactElement {
+  const [copied, setCopied] = React.useState(false)
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(command).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <div className="health-modal__copy-row">
+      <code className="health-modal__code health-modal__code--block">{command}</code>
+      <button
+        className={copied ? 'health-modal__btn--copy health-modal__btn--copy--active' : 'health-modal__btn--copy'}
+        onClick={handleCopy}
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
+function NotInstalledPanel({
+  platform,
+  onOpenURL,
+  onAutoInstall,
+  installProgress,
+  installStatus,
+  installError: _installError,
+}: {
+  platform: string
+  onOpenURL: (url: string) => void
+  onAutoInstall?: () => void
+  installProgress: string[]
+  installStatus: 'idle' | 'running' | 'success' | 'error'
+  installError?: string
+}): React.ReactElement {
   return (
     <div className="health-modal__panel">
       <p className="health-modal__title">Tailscale is not installed or not running.</p>
       {platform === 'darwin' && (
         <>
-          <p className="health-modal__text">
-            Install Tailscale from the Mac App Store or tailscale.com/download.
+          <p className="health-modal__text">Install with Homebrew:</p>
+          <CopyableCommand command={MACOS_INSTALL_CMD} />
+          <p className="health-modal__text" style={{ marginTop: '8px' }}>
+            <a
+              className="health-modal__download-link"
+              onClick={() => onOpenURL(MACOS_DOWNLOAD_URL)}
+            >
+              Download for Mac
+            </a>
           </p>
-          <p className="health-modal__text">
-            Once installed, look for the Tailscale icon in your menu bar and sign in.
-          </p>
+          {onAutoInstall && (
+            <p className="health-modal__text" style={{ marginTop: '8px' }}>
+              <button
+                className={
+                  installStatus === 'running'
+                    ? 'health-modal__btn--auto-install health-modal__btn--auto-install--running'
+                    : 'health-modal__btn--auto-install'
+                }
+                onClick={onAutoInstall}
+                disabled={installStatus === 'running'}
+              >
+                {installStatus === 'running' ? 'Installing...' : 'Try Auto-Install'}
+              </button>
+            </p>
+          )}
+          {installStatus !== 'idle' && (
+            <pre
+              className={
+                installStatus === 'success'
+                  ? 'health-modal__install-output health-modal__install-output--success'
+                  : installStatus === 'error'
+                  ? 'health-modal__install-output health-modal__install-output--error'
+                  : 'health-modal__install-output'
+              }
+            >
+              {installProgress.join('\n')}
+            </pre>
+          )}
+          {installStatus === 'success' && (
+            <p className="health-modal__text" style={{ marginTop: '8px' }}>
+              Next: open Tailscale from your menu bar and sign in, then click Check Again.
+            </p>
+          )}
+          {installStatus === 'error' && (
+            <p className="health-modal__text" style={{ marginTop: '8px' }}>
+              Auto-install failed. Use the manual command above, or download directly.
+            </p>
+          )}
         </>
       )}
       {platform === 'linux' && (
         <>
-          <p className="health-modal__text">Install Tailscale with your package manager:</p>
-          <code className="health-modal__code health-modal__code--block">
-            curl -fsSL https://tailscale.com/install.sh | sh
-          </code>
-          <p className="health-modal__text">Then run:</p>
-          <code className="health-modal__code">sudo tailscale up</code>
+          <p className="health-modal__text">Install with the official script:</p>
+          <CopyableCommand command={LINUX_INSTALL_CMD} />
+          <p className="health-modal__text" style={{ marginTop: '8px' }}>
+            <a
+              className="health-modal__download-link"
+              onClick={() => onOpenURL(LINUX_DOWNLOAD_URL)}
+            >
+              Download for Linux
+            </a>
+          </p>
         </>
       )}
       {platform === 'windows' && (
         <>
-          <p className="health-modal__text">
-            Download and install Tailscale from tailscale.com/download.
-          </p>
-          <p className="health-modal__text">
-            Once installed, find Tailscale in the system tray and sign in.
+          <p className="health-modal__text">Install with winget:</p>
+          <CopyableCommand command={WINDOWS_INSTALL_CMD} />
+          <p className="health-modal__text" style={{ marginTop: '8px' }}>
+            <a
+              className="health-modal__download-link"
+              onClick={() => onOpenURL(WINDOWS_DOWNLOAD_URL)}
+            >
+              Download for Windows
+            </a>
           </p>
         </>
       )}
@@ -81,9 +178,11 @@ function NotConnectedPanel({ platform }: { platform: string }): React.ReactEleme
 function NoCertsPanel({
   platform: _platform,
   onCheckAgain,
+  onOpenURL,
 }: {
   platform: string
   onCheckAgain: () => void
+  onOpenURL: (url: string) => void
 }): React.ReactElement {
   return (
     <>
@@ -91,9 +190,41 @@ function NoCertsPanel({
         <p className="health-modal__title">
           Tailscale is connected but HTTPS certificates are not enabled.
         </p>
-        <p className="health-modal__text">1. Go to the Tailscale admin console: tailscale.com/admin</p>
-        <p className="health-modal__text">2. Navigate to DNS &rarr; HTTPS Certificates</p>
-        <p className="health-modal__text">3. Enable HTTPS and save</p>
+        <ol className="health-modal__steps">
+          <li className="health-modal__step">
+            <span className="health-modal__step-number">1</span>
+            <span>
+              Go to the Tailscale admin console:{' '}
+              <a
+                className="health-modal__download-link"
+                onClick={() => onOpenURL('https://login.tailscale.com/admin/dns')}
+              >
+                DNS settings
+              </a>
+            </span>
+          </li>
+          <li className="health-modal__step">
+            <span className="health-modal__step-number">2</span>
+            <span>Enable MagicDNS if it is not already enabled.</span>
+          </li>
+          <li className="health-modal__step">
+            <span className="health-modal__step-number">3</span>
+            <span>Under HTTPS Certificates, click Enable HTTPS.</span>
+          </li>
+          <li className="health-modal__step">
+            <span className="health-modal__step-number">4</span>
+            <span>
+              Acknowledge the Certificate Transparency disclosure — your device hostname will
+              appear in public CT logs.
+            </span>
+          </li>
+          <li className="health-modal__step">
+            <span className="health-modal__step-number">5</span>
+            <span>
+              Return here and click Check Again — AgentHub will detect certs automatically.
+            </span>
+          </li>
+        </ol>
         <div className="ct-disclosure">
           <p className="ct-disclosure__text">
             When you enable HTTPS, Tailscale will provision a Let&apos;s Encrypt certificate for
@@ -116,6 +247,11 @@ export function HealthModal({
   health,
   platform,
   onCheckAgain,
+  onOpenURL,
+  onAutoInstall,
+  installProgress,
+  installStatus,
+  installError,
 }: HealthModalProps): React.ReactElement | null {
   if (health === null) return null
 
@@ -132,10 +268,19 @@ export function HealthModal({
           <h2>Tailscale Setup Required</h2>
         </div>
         <div className="health-modal__body">
-          {!isInstalled && <NotInstalledPanel platform={platform} />}
+          {!isInstalled && (
+            <NotInstalledPanel
+              platform={platform}
+              onOpenURL={onOpenURL}
+              onAutoInstall={onAutoInstall}
+              installProgress={installProgress}
+              installStatus={installStatus}
+              installError={installError}
+            />
+          )}
           {isInstalled && !isConnected && <NotConnectedPanel platform={platform} />}
           {isInstalled && isConnected && !hasCerts && (
-            <NoCertsPanel platform={platform} onCheckAgain={onCheckAgain} />
+            <NoCertsPanel platform={platform} onCheckAgain={onCheckAgain} onOpenURL={onOpenURL} />
           )}
         </div>
       </div>
