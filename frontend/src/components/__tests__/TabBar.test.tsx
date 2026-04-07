@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -133,6 +133,46 @@ describe('UILAY-01 toolbar button dimensions (style.css)', () => {
     expect(ruleStart).toBeGreaterThan(-1)
     const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
     expect(ruleBlock).toContain('font-size: 18px')
+  })
+})
+
+describe('TabBar globe button (52-03-01)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('renders a button with class tab-bar__btn--remote', () => {
+    ;({ container, root } = renderTabBar())
+    expect(container.querySelector('.tab-bar__btn--remote')).not.toBeNull()
+  })
+
+  it('clicking the globe button calls onOpenRemoteSessions', () => {
+    const onOpenRemoteSessions = vi.fn()
+    ;({ container, root } = renderTabBar())
+    // Re-render with a spy
+    flushSync(() => {
+      root.render(
+        React.createElement(TabBar, {
+          tabs: [],
+          activeId: null,
+          onSelect: () => {},
+          onClose: () => {},
+          onRename: () => {},
+          onAdd: () => {},
+          onSettings: () => {},
+          onOpenDaemonManager: () => {},
+          onOpenRemoteSessions,
+        })
+      )
+    })
+    const btn = container.querySelector('.tab-bar__btn--remote') as HTMLButtonElement
+    expect(btn).not.toBeNull()
+    btn.click()
+    expect(onOpenRemoteSessions).toHaveBeenCalledTimes(1)
   })
 })
 
