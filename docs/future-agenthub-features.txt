@@ -1,13 +1,7 @@
 Future AgentHub Features
 ========================
 
-- Need to update the icons to better clearer images.  Probably need to stick with white backgrounds rather than transparent.
-- Need Github repo, Winget setup, and Homebrew repo with Github Action to sync from primary
-- Need Update Available checker and installer
-- Tailscale checker should give the user the option to install it and guidance on how to configure it
 - Include Headscale and a Tailscale client.  Give the user the option to use an already installed Tailscale connection (if a client is present) or use the built in Headscale server and client.
-- The GUI and the CLI need to be able to connect to a remote session without needing to SSH into the remote host.  The connections should work like the web-based terminals do.  The user should just be able to list the available sessions running on any hosts available via Tailscale.
 - Add a TUI option to the unified executable that mimics the GUI as closely as possible.
 - Support for or a fork of the inter-session Claude Peers mcp server
-- Welcome screen's version needs to follow the release version number automatically
 - Linux and Windows system tray icons and functionality (currently only macOS)

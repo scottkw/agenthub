@@ -48,6 +48,18 @@ export function OpenDirectoryDialog(defaultDir: string): Promise<string>
 // Version bound method
 export function GetVersion(): Promise<string>
 
+// Update checker bound methods
+export function GetLastUpdateInfo(): Promise<{
+  currentVersion: string;
+  latestVersion: string;
+  releaseURL: string;
+} | null>
+export function CheckForUpdates(): Promise<{
+  currentVersion: string;
+  latestVersion: string;
+  releaseURL: string;
+} | null>
+
 // Tailscale health bound method
 export function GetTailscaleStatus(): Promise<{
   installed: boolean

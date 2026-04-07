@@ -1,5 +1,20 @@
 # Milestones
 
+## v1.9 Remote Sessions & App Polish (Active: 2026-04-06)
+
+**Phases planned:** 6 phases (49-54)
+**Requirements:** 17
+
+**Target features:**
+- Standard app menus (File, Edit, Window, Help) with working macOS clipboard in terminals
+- Build-time version injection via ldflags; Welcome screen shows real version
+- Tailscale peer discovery (`internal/tailnet` package) and remote session GUI panel
+- Auto-update checker with startup notification and Help menu trigger (detect-only, open browser)
+- Remote session CLI list and attach via WebSocket relay
+- Tailscale onboarding enhancement: per-platform install commands with copy-to-clipboard
+
+---
+
 ## v1.8 GitHub Distribution & CI/CD (Shipped: 2026-04-06)
 
 **Phases completed:** 5 phases, 9 plans, 11 tasks

@@ -39,3 +39,7 @@ export const GetTailscaleStatus   = ()                      => Call('main.App.Ge
 
 // Version bound method
 export const GetVersion           = ()                      => Call('main.App.GetVersion', [])
+
+// Update checker bound methods
+export const GetLastUpdateInfo    = ()                      => Call('main.App.GetLastUpdateInfo', [])
+export const CheckForUpdates      = ()                      => Call('main.App.CheckForUpdates', [])
