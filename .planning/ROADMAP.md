@@ -122,7 +122,7 @@
 
 - [ ] **Phase 49: App Menus & Version Injection** — 2 plans (Wave 1: Go backend + menus, Wave 2: frontend version + CSS)
 - [ ] **Phase 50: Tailscale Peer Discovery** — 2 plans (Wave 1: tailnet package + TDD, Wave 2: daemon route + cache)
-- [ ] **Phase 51: Auto-Update Checker** — Plans: TBD
+- [ ] **Phase 51: Auto-Update Checker** — 3 plans (Wave 1: updater package TDD, Wave 2: app wiring + frontend banner)
 - [ ] **Phase 52: Remote Sessions GUI Panel** — Plans: TBD
 - [ ] **Phase 53: Remote Sessions CLI** — Plans: TBD
 - [ ] **Phase 54: Tailscale Onboarding Enhancement** — Plans: TBD
@@ -172,7 +172,11 @@ Plans:
   3. Clicking "Download" opens the GitHub releases page in the system browser (no in-place binary replacement)
   4. Help menu contains a "Check for Updates" item that triggers an immediate version check
   5. Update check is rate-limited to once per hour (persisted last-check timestamp) and handles 429/non-200 responses silently
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 **UI hint**: yes
 
 ### Phase 52: Remote Sessions GUI Panel
@@ -185,7 +189,11 @@ Plans:
   3. User can click "Open" on any remote session to open that session's Tailscale HTTPS web terminal URL in the system browser
   4. Panel shows a clear "No remote peers found" state when no tailnet peers are running AgentHub
   5. Remote sessions panel is accessible from the main tab bar or navigation without requiring CLI knowledge
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 **UI hint**: yes
 
 ### Phase 53: Remote Sessions CLI
@@ -197,7 +205,11 @@ Plans:
   2. Remote sessions appear in the list with their host prefix (e.g., `macbook.tail:session-id`) distinct from local sessions
   3. `agenthub attach <remote-session-id>` connects to a remote session via the WebSocket relay without requiring SSH or manual URL construction
   4. CLI attach banner shows the remote hostname clearly so the user knows they are connected to a non-local machine
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 
 ### Phase 54: Tailscale Onboarding Enhancement
 **Goal**: New users who lack Tailscale can find and follow installation steps without leaving the app
@@ -208,7 +220,11 @@ Plans:
   2. Direct download links to the official Tailscale installer for the current platform are visible and clickable in the health modal
   3. After Tailscale is installed, the health modal shows a step-by-step "next steps" guide covering how to enable HTTPS certs in the Tailscale admin panel
   4. User can attempt an auto-install via a "Try Auto-Install" button that runs `brew install --cask tailscale-app` on macOS with visible progress output (manual fallback shown for other platforms)
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
+- [ ] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
+- [ ] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
 **UI hint**: yes
 
 ## Progress
@@ -226,7 +242,7 @@ Plans:
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 51 | v1.9 | 0/? | Not started | - |
+| 51 | v1.9 | 0/3 | Not started | - |
 | 52 | v1.9 | 0/? | Not started | - |
 | 53 | v1.9 | 0/? | Not started | - |
 | 54 | v1.9 | 0/? | Not started | - |
