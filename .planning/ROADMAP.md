@@ -209,7 +209,7 @@ Plans:
   4. CLI attach banner shows the remote hostname clearly so the user knows they are connected to a non-local machine
 **Plans**: 2 plans
 Plans:
-- [ ] 53-01-PLAN.md — Remote session helpers + enhanced cmdList with grouped host display
+- [x] 53-01-PLAN.md — Remote session helpers + enhanced cmdList with grouped host display
 - [ ] 53-02-PLAN.md — Remote cmdAttach via WSS relay + usage text update
 
 ### Phase 54: Tailscale Onboarding Enhancement
@@ -245,7 +245,7 @@ Plans:
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
-| 53 | v1.9 | 0/2 | Not started | - |
+| 53 | v1.9 | 1/2 | In Progress|  |
 | 54 | v1.9 | 0/? | Not started | - |
 
 ---
