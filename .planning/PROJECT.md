@@ -114,7 +114,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 in progress (2026-04-07): Phase 51 complete — auto-update checker detects newer GitHub releases on startup and hourly, displays a dismissible banner in WelcomeTab with one-click download to releases page, and adds Help menu "Check for Updates" item. Phase 50 provided `internal/tailnet` peer discovery. 9 milestones shipped (v1.0–v1.8), 51 phases, 93 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, and update notifications.
+v1.9 in progress (2026-04-07): Phase 52 complete — Remote Sessions GUI panel lets users discover tailnet peers and their web-served sessions via a globe button in the tab bar, with 30s polling, loading/empty/populated states, and one-click BrowserOpenURL to open remote sessions. Phase 51 added auto-update checker, Phase 50 provided `internal/tailnet` peer discovery. 9 milestones shipped (v1.0–v1.8), 52 phases, 96 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, and remote session discovery.
 
 ### Out of Scope
 
@@ -223,4 +223,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after Phase 51 completion*
+*Last updated: 2026-04-07 after Phase 52 completion*
