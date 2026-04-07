@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: ready_to_plan
-stopped_at: null
-last_updated: "2026-04-06T22:30:00.000Z"
-last_activity: 2026-04-06
+status: executing
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-04-07T16:15:46.224Z"
+last_activity: 2026-04-07
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 49 — App Menus & Version Injection
+**Current focus:** Phase 49 — app-menus-version-injection
 
 ## Current Position
 
-Phase: 49 of 54 (App Menus & Version Injection)
-Plan: — of — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-06 — v1.9 roadmap created (6 phases, 17 requirements)
+Phase: 49 (app-menus-version-injection) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -50,6 +50,8 @@ Progress: [░░░░░░░░░░] 0%
 - Brew subprocess auto-install excluded from scope — show copyable commands only (TTY/sudo/PATH issues)
 - `creativeprojects/go-selfupdate@v1.5.2` chosen over rhysd predecessor (active maintenance, Dec 2025)
 - Menu ordering required: `NewMenu()` → `AppMenu()` → `EditMenu()` → custom submenus (Wails pitfall)
+- [Phase 49]: Package-level appCtx for menu callback context avoids closure complexity in Wails
+- [Phase 49]: appMenu() ordering: AppMenu first per STATE.md Wails pitfall; FileMenu/HelpSubMenu commented out in v2.10.2 — use AddSubmenu() instead
 
 ### Pending Todos
 
@@ -68,10 +70,11 @@ None.
 | 260406-nqy | Dynamic dock icon visibility - show when window visible, hide when minimized/closed to tray | 2026-04-07 | 82e501c | [260406-nqy-dynamic-dock-icon-visibility-show-when-w](./quick/260406-nqy-dynamic-dock-icon-visibility-show-when-w/) |
 | 260406-op4 | Tray icon A matches app icon A - monochrome for macOS, full color for other OSes | 2026-04-07 | 45ffbd2 | [260406-op4-tray-icon-a-matches-app-icon-a-monochrom](./quick/260406-op4-tray-icon-a-matches-app-icon-a-monochrom/) |
 | 260406-s0e | Fix CLI detection - export AugmentServicePath and call in GUI startup | 2026-04-07 | eb90fa6 | [260406-s0e-fix-cli-detection-app-shows-no-clis-dete](./quick/260406-s0e-fix-cli-detection-app-shows-no-clis-dete/) |
+| Phase 49 P01 | 155 | 2 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-04-06
-Stopped at: v1.9 roadmap created — 6 phases (49-54), 17 requirements mapped
+Last session: 2026-04-07T16:15:46.219Z
+Stopped at: Completed 49-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 49`
