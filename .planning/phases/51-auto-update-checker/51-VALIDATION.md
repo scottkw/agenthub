@@ -40,16 +40,16 @@ created: 2026-04-07
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 51-01-01 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_DevVersionSkip` | W0 (Plan 01 creates) | pending |
-| 51-01-02 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_NewerVersionFound` | W0 (Plan 01 creates) | pending |
-| 51-01-03 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_AlreadyLatest` | W0 (Plan 01 creates) | pending |
-| 51-01-04 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_DetectError` | W0 (Plan 01 creates) | pending |
-| 51-01-05 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_RateLimit` | W0 (Plan 01 creates) | pending |
-| 51-01-06 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_RateLimitBypass` | W0 (Plan 01 creates) | pending |
-| 51-02-01 | 02 | 2 | UPD-01 | build | `go build -tags dev -o /dev/null .` | existing | pending |
-| 51-02-02 | 02 | 2 | UPD-04 | build+vet | `go vet ./...` | existing | pending |
-| 51-03-01 | 03 | 2 | UPD-02 | unit | `pnpm --dir frontend test` (WelcomeTab.test.tsx) | W0 (Plan 03 extends) | pending |
-| 51-03-02 | 03 | 2 | UPD-03 | unit | `pnpm --dir frontend test` (BrowserOpenURL test) | W0 (Plan 03 extends) | pending |
+| 51-01-01 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_DevVersionSkip` | internal/updater/updater_test.go | green |
+| 51-01-02 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_NewerVersionFound` | internal/updater/updater_test.go | green |
+| 51-01-03 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_AlreadyLatest` | internal/updater/updater_test.go | green |
+| 51-01-04 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_DetectError` | internal/updater/updater_test.go | green |
+| 51-01-05 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_RateLimit` | internal/updater/updater_test.go | green |
+| 51-01-06 | 01 | 1 | UPD-01 | unit | `go test ./internal/updater/ -run TestCheck_RateLimitBypass` | internal/updater/updater_test.go | green |
+| 51-02-01 | 02 | 2 | UPD-01 | build+vet | `go vet ./...` | existing | green |
+| 51-02-02 | 02 | 2 | UPD-04 | build+vet | `go vet ./...` | existing | green |
+| 51-03-01 | 03 | 2 | UPD-02 | unit | `pnpm --dir frontend test` (WelcomeTab.test.tsx) | frontend/src/components/__tests__/WelcomeTab.test.tsx | green |
+| 51-03-02 | 03 | 2 | UPD-03 | unit | `pnpm --dir frontend test` (BrowserOpenURL test) | frontend/src/components/__tests__/WelcomeTab.test.tsx | green |
 
 *Status: pending / green / red / flaky*
 
@@ -87,3 +87,21 @@ Note on UPD-04 test coverage: The `CheckForUpdates()` bound method is tested ind
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved
+
+---
+
+## Validation Audit 2026-04-07
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Evidence:**
+- `go test ./internal/updater/... -v -count=1` — 8/8 PASS (0.028s)
+- `go vet ./...` — clean (no issues)
+- `pnpm --dir frontend test` — 232/232 PASS (5.40s, 11 test files)
+- `go build -tags dev` linker error is pre-existing macOS env issue (`_OBJC_CLASS_$_UTType`), unrelated to phase 51 changes
+
+All 10 verification map entries updated from `pending` → `green`.
