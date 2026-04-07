@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: executing
-stopped_at: Completed 50-01-PLAN.md
-last_updated: "2026-04-07T17:31:42.886Z"
+status: verifying
+stopped_at: Completed 50-02-PLAN.md
+last_updated: "2026-04-07T17:36:49.679Z"
 last_activity: 2026-04-07
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 
 Phase: 50 (tailscale-peer-discovery) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-07
 
 Progress: [░░░░░░░░░░] 0%
@@ -56,6 +56,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 50-tailscale-peer-discovery]: injectable statusFunc pattern for tailnet package (mirrors webserver/tailscale.go)
 - [Phase 50-tailscale-peer-discovery]: rewriteTransport RoundTripper for httptest probe testing without modifying production URL logic
 - [Phase 50-tailscale-peer-discovery]: No InsecureSkipVerify — Tailscale LE certs are FQDN-only and publicly trusted
+- [Phase 50-tailscale-peer-discovery]: Full Mutex for tailnetCache.getOrRefresh prevents thundering herd on cache expiry
+- [Phase 50-tailscale-peer-discovery]: discoverFunc injectable type enables test isolation without live Tailscale daemon
 
 ### Pending Todos
 
@@ -77,10 +79,11 @@ None.
 | Phase 49 P01 | 155 | 2 tasks | 4 files |
 | Phase 49 P02 | 390 | 2 tasks | 5 files |
 | Phase 50-tailscale-peer-discovery P01 | 952 | 1 tasks | 2 files |
+| Phase 50-tailscale-peer-discovery P02 | 2 | 2 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-04-07T17:31:42.882Z
-Stopped at: Completed 50-01-PLAN.md
+Last session: 2026-04-07T17:36:49.675Z
+Stopped at: Completed 50-02-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 49`
