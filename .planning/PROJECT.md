@@ -100,6 +100,8 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Welcome screen version from release build (no hardcoded VERSION) — v1.9 Phase 49
 - ✓ Welcome logo rounded corners — v1.9 Phase 49
 - ✓ Tailscale peer discovery: `internal/tailnet` package with injectable deps, concurrent probe pool (cap 5), daemon `GET /tailnet/peers` with 30s cache — v1.9 Phase 50
+- ✓ CLI remote session list: `agenthub list` shows local + remote sessions grouped by HOST column, `--local` and `--json` flags — v1.9 Phase 53
+- ✓ CLI remote session attach: `agenthub attach hostname:session-id` connects via WSS relay over Tailscale HTTPS — v1.9 Phase 53
 
 ## Current Milestone: v1.9 Remote Sessions & App Polish
 
@@ -114,7 +116,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 in progress (2026-04-07): Phase 52 complete — Remote Sessions GUI panel lets users discover tailnet peers and their web-served sessions via a globe button in the tab bar, with 30s polling, loading/empty/populated states, and one-click BrowserOpenURL to open remote sessions. Phase 51 added auto-update checker, Phase 50 provided `internal/tailnet` peer discovery. 9 milestones shipped (v1.0–v1.8), 52 phases, 96 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, and remote session discovery.
+v1.9 in progress (2026-04-07): Phase 53 complete — CLI remote sessions: `agenthub list` shows local and remote sessions grouped by HOST column with `--local`/`--json` flags; `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS. Shared helpers in `cmd_remote.go` (parseRemoteID, resolveRemotePeer, fetchPeerSessions). Phase 52 added GUI remote session panel, Phase 51 auto-update checker, Phase 50 peer discovery. 9 milestones shipped (v1.0–v1.8), 53 phases, 98 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, and remote session discovery via both GUI and CLI.
 
 ### Out of Scope
 
@@ -223,4 +225,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after Phase 52 completion*
+*Last updated: 2026-04-07 after Phase 53 completion*
