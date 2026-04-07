@@ -494,6 +494,19 @@ func TestNilClientGetSessionStatus(t *testing.T) {
 	}
 }
 
+// TestNilClientGetRemoteSessions verifies GetRemoteSessions returns an empty slice
+// (not nil, no panic) when the daemon client is nil.
+func TestNilClientGetRemoteSessions(t *testing.T) {
+	app := testAppNoDaemon(t)
+	peers := app.GetRemoteSessions()
+	if peers == nil {
+		t.Fatal("GetRemoteSessions with nil client returned nil, want empty slice")
+	}
+	if len(peers) != 0 {
+		t.Errorf("expected 0 peers, got %d", len(peers))
+	}
+}
+
 // --- RetryDaemon tests ---
 
 // TestPollSessionStatus_ImmediateFirstCall verifies that pollSessionStatus

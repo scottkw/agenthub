@@ -68,3 +68,19 @@ export function GetTailscaleStatus(): Promise<{
   ip: string
   domain: string
 }>
+
+// Remote sessions bound method
+export interface RemoteSession {
+  id: string
+  name: string
+  cliType: string
+  status: string
+  url: string
+}
+
+export interface RemotePeerSessions {
+  hostname: string
+  sessions: RemoteSession[]
+}
+
+export function GetRemoteSessions(): Promise<RemotePeerSessions[]>

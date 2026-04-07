@@ -43,3 +43,6 @@ export const GetVersion           = ()                      => Call('main.App.Ge
 // Update checker bound methods
 export const GetLastUpdateInfo    = ()                      => Call('main.App.GetLastUpdateInfo', [])
 export const CheckForUpdates      = ()                      => Call('main.App.CheckForUpdates', [])
+
+// Remote sessions bound method
+export const GetRemoteSessions    = ()                      => Call('main.App.GetRemoteSessions', [])
