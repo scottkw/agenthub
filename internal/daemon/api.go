@@ -11,25 +11,28 @@ import (
 	"time"
 
 	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
 )
 
 // API serves the daemon HTTP API over a Unix socket.
 type API struct {
-	engine    *SessionEngine
-	mux       *http.ServeMux
-	ln        net.Listener
-	relayPort int                  // TCP port the relay server is listening on
-	relayLn   net.Listener         // TCP listener for the relay server
-	mu        sync.RWMutex         // guards webServer
-	webServer *webserver.WebServer // nil when not running
+	engine       *SessionEngine
+	mux          *http.ServeMux
+	ln           net.Listener
+	relayPort    int                  // TCP port the relay server is listening on
+	relayLn      net.Listener         // TCP listener for the relay server
+	mu           sync.RWMutex         // guards webServer
+	webServer    *webserver.WebServer // nil when not running
+	tailnetCache *tailnetCache
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
 func NewAPI(engine *SessionEngine) *API {
 	a := &API{
-		engine: engine,
-		mux:    http.NewServeMux(),
+		engine:       engine,
+		mux:          http.NewServeMux(),
+		tailnetCache: &tailnetCache{},
 	}
 	a.registerRoutes()
 	return a
@@ -53,6 +56,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /webserver/status", a.handleWebServerStatus)
 	a.mux.HandleFunc("POST /sessions/{id}/web-serve", a.handleWebServe)
 	a.mux.HandleFunc("POST /shutdown", a.handleShutdown)
+	// Tailnet peer discovery.
+	a.mux.HandleFunc("GET /tailnet/peers", a.handleTailnetPeers)
 }
 
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
@@ -333,4 +338,11 @@ func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 		ws.DisableSession(id)
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	peers := a.tailnetCache.getOrRefresh(ctx, tailnet.DiscoverAndProbe)
+	writeJSON(w, http.StatusOK, peers)
 }
