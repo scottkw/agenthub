@@ -245,7 +245,7 @@ Plans:
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 52 | v1.9 | 3/3 | Complete    | 2026-04-07 |
 | 53 | v1.9 | 2/2 | Complete    | 2026-04-07 |
-| 54 | v1.9 | 2/2 | Complete   | 2026-04-07 |
+| 54 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

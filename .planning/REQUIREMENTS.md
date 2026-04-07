@@ -24,9 +24,9 @@ Requirements for milestone v1.9: Remote Sessions & App Polish. Each maps to road
 
 ### Tailscale Onboarding
 
-- [ ] **TS-01**: User sees enhanced install guidance with platform-specific instructions and download links when Tailscale is not installed
+- [x] **TS-01**: User sees enhanced install guidance with platform-specific instructions and download links when Tailscale is not installed
 - [x] **TS-02**: User can attempt auto-install of Tailscale from the health modal (brew install on macOS, with manual fallback)
-- [ ] **TS-03**: User sees step-by-step configuration guidance after Tailscale install (enable HTTPS certs, etc.)
+- [x] **TS-03**: User sees step-by-step configuration guidance after Tailscale install (enable HTTPS certs, etc.)
 
 ### App Menus & Polish
 
@@ -81,9 +81,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REM-03 | Phase 52 | Complete |
 | REM-04 | Phase 53 | Complete |
 | REM-05 | Phase 53 | Complete |
-| TS-01 | Phase 54 | Pending |
+| TS-01 | Phase 54 | Complete |
 | TS-02 | Phase 54 | Complete |
-| TS-03 | Phase 54 | Pending |
+| TS-03 | Phase 54 | Complete |
 
 **Coverage:**
 - v1.9 requirements: 17 total
