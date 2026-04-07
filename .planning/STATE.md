@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Remote Sessions & App Polish
-status: verifying
-stopped_at: Completed 50-02-PLAN.md
-last_updated: "2026-04-07T17:41:17.349Z"
-last_activity: 2026-04-07
+status: executing
+stopped_at: "Completed 51-01-PLAN.md"
+last_updated: "2026-04-07T18:33:00.000Z"
+last_activity: 2026-04-07 -- Phase 51 Plan 01 complete
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 50 — tailscale-peer-discovery
+**Current focus:** Phase 51 — auto-update-checker
 
 ## Current Position
 
-Phase: 51
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-07
+Phase: 51 (auto-update-checker) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 51
+Last activity: 2026-04-07 -- Phase 51 Plan 01 complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -40,6 +40,10 @@ Progress: [░░░░░░░░░░] 0%
 - v1.8 phases: 5
 - v1.8 timeline: 2026-04-03 → 2026-04-06 (3 days)
 - Cumulative: 48 phases, 86 plans across 9 milestones
+
+| Phase | Plan | Duration (s) | Tasks | Files |
+|-------|------|-------------|-------|-------|
+| 51-auto-update-checker | 01 | 172 | 1 | 4 |
 
 ## Accumulated Context
 
@@ -58,6 +62,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 50-tailscale-peer-discovery]: No InsecureSkipVerify — Tailscale LE certs are FQDN-only and publicly trusted
 - [Phase 50-tailscale-peer-discovery]: Full Mutex for tailnetCache.getOrRefresh prevents thundering herd on cache expiry
 - [Phase 50-tailscale-peer-discovery]: discoverFunc injectable type enables test isolation without live Tailscale daemon
+- [Phase 51-auto-update-checker]: Masterminds/semver/v3 used directly for version comparison (transitive dep of go-selfupdate, cleaner than constructing Release struct)
+- [Phase 51-auto-update-checker]: Timestamp persisted on all non-error paths (including no-update) to prevent re-checking on rapid startup
 
 ### Pending Todos
 
@@ -66,7 +72,7 @@ None.
 ### Blockers/Concerns
 
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
-- Validate `go-selfupdate ParseSlug("scottkw/agenthub")` matches v1.8 artifact naming before finalizing Phase 51
+<<<<<<< HEAD
 - Confirm Tailscale Let's Encrypt certs are FQDN-only (no IP SANs) before finalizing Phase 50 probe TLS mode
 
 ### Quick Tasks Completed
@@ -80,10 +86,11 @@ None.
 | Phase 49 P02 | 390 | 2 tasks | 5 files |
 | Phase 50-tailscale-peer-discovery P01 | 952 | 1 tasks | 2 files |
 | Phase 50-tailscale-peer-discovery P02 | 2 | 2 tasks | 4 files |
+| Phase 51-auto-update-checker P01 | 172 | 1 tasks | 4 files |
 
 ## Session Continuity
 
-Last session: 2026-04-07T17:36:49.675Z
-Stopped at: Completed 50-02-PLAN.md
-Resume file: None
-Next action: `/gsd:plan-phase 49`
+Last session: 2026-04-07T18:33:00.000Z
+Stopped at: Completed 51-01-PLAN.md
+Resume file: .planning/phases/51-auto-update-checker/51-01-SUMMARY.md
+Next action: Execute 51-02-PLAN.md
