@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/updater"
 	"github.com/scottkw/agenthub/internal/webserver"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -35,6 +37,9 @@ type App struct {
 	trayInit  bool                 // true once initTray has been called
 	daemonErr error                // non-nil when EnsureDaemon failed at startup
 	quitting  bool                 // true when tray Quit was clicked; lets beforeClose allow exit
+	// Update checker state
+	lastUpdate   *updater.UpdateInfo
+	lastUpdateMu sync.Mutex
 }
 
 // NewApp creates a new App without starting any subsystems.
@@ -52,7 +57,8 @@ func (a *App) domReady(ctx context.Context) {
 // startup is called when Wails initialises the app.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	appCtx = ctx // expose to menu callbacks (openGitHubCallback)
+	appCtx = ctx       // expose to menu callbacks (openGitHubCallback)
+	appInstance = a    // expose to menu callbacks (checkForUpdatesCallback)
 
 	// Start system tray icon immediately — it must be visible regardless of
 	// daemon state. The poller will set the error icon if daemon is unreachable.
@@ -66,6 +72,7 @@ func (a *App) startup(ctx context.Context) {
 		runtime.EventsEmit(ctx, "daemon:error", err.Error())
 		// Start tray poller even on failure — it will show error icon state.
 		a.startTrayPoller(ctx)
+		a.startUpdatePoller(ctx) // update checks don't depend on daemon
 		return
 	}
 	a.client = daemon.NewDaemonClient(socketPath)
@@ -75,6 +82,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// Start Tailscale health check background poller.
 	a.startHealthPoller(ctx)
+
+	// Start update checker background poller.
+	a.startUpdatePoller(ctx)
 }
 
 // GetDaemonError returns the startup error message, or "" if startup succeeded.
@@ -445,6 +455,69 @@ func (a *App) refreshTrayState() {
 		sessions = a.ListSessions()
 	}
 	a.updateTray(sessions, connected)
+}
+
+// startUpdatePoller checks for updates on startup and every hour.
+// Follows the startHealthPoller/startTrayPoller goroutine+ticker pattern.
+func (a *App) startUpdatePoller(ctx context.Context) {
+	go func() {
+		// Initial check after 5-second delay to avoid startup race
+		// (frontend needs time to mount and subscribe to events).
+		select {
+		case <-time.After(5 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+		a.runUpdateCheck(ctx, false)
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				a.runUpdateCheck(ctx, false)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// runUpdateCheck performs a single update check and emits an event if a newer version is found.
+func (a *App) runUpdateCheck(ctx context.Context, force bool) {
+	info, err := updater.Check(ctx, configDir(), "scottkw/agenthub", Version, updater.DefaultDetect, force)
+	if err != nil || info == nil {
+		return
+	}
+	a.lastUpdateMu.Lock()
+	a.lastUpdate = info
+	a.lastUpdateMu.Unlock()
+	runtime.EventsEmit(ctx, "update:available", info)
+}
+
+// GetLastUpdateInfo returns the latest update info, or nil if no update is available.
+// Called by frontend on mount to handle the startup race condition where
+// update:available events may fire before React subscribes.
+func (a *App) GetLastUpdateInfo() *updater.UpdateInfo {
+	a.lastUpdateMu.Lock()
+	defer a.lastUpdateMu.Unlock()
+	return a.lastUpdate
+}
+
+// CheckForUpdates performs an immediate update check, bypassing the rate limit.
+// Called from Help > Check for Updates menu item.
+func (a *App) CheckForUpdates() *updater.UpdateInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	info, _ := updater.Check(ctx, configDir(), "scottkw/agenthub", Version, updater.DefaultDetect, true)
+	if info != nil {
+		a.lastUpdateMu.Lock()
+		a.lastUpdate = info
+		a.lastUpdateMu.Unlock()
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "update:available", info)
+		}
+	}
+	return info
 }
 
 // startHealthPoller starts a background goroutine that polls Tailscale health
