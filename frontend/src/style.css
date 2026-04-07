@@ -875,6 +875,73 @@ body {
   margin-top: 8px;
 }
 
+/* -- Update Banner ------------------------------------------------- */
+
+.update-banner {
+  background: #16161e;
+  border: 1px solid #292e42;
+  border-left: 3px solid #7aa2f7;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.update-banner__message {
+  font-size: 13px;
+  color: #a9b1d6;
+  line-height: 1.5;
+}
+
+.update-banner__version {
+  color: #c0caf5;
+}
+
+.update-banner__arrow {
+  color: #565f89;
+}
+
+.update-banner__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.update-banner__btn--download {
+  background-color: #7aa2f7;
+  color: #1a1b26;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.update-banner__btn--download:hover {
+  background-color: #89b4fa;
+}
+
+.update-banner__btn--dismiss {
+  background-color: transparent;
+  color: #565f89;
+  border: 1px solid #292e42;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.update-banner__btn--dismiss:hover {
+  color: #c0caf5;
+  border-color: #3b4261;
+}
+
 /* ── Health Modal ─────────────────────────────────────────── */
 .health-modal-overlay {
   position: fixed;
