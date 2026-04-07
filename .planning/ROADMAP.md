@@ -123,7 +123,7 @@
 - [ ] **Phase 49: App Menus & Version Injection** — 2 plans (Wave 1: Go backend + menus, Wave 2: frontend version + CSS)
 - [ ] **Phase 50: Tailscale Peer Discovery** — 2 plans (Wave 1: tailnet package + TDD, Wave 2: daemon route + cache)
 - [ ] **Phase 51: Auto-Update Checker** — 3 plans (Wave 1: updater package TDD, Wave 2: app wiring + frontend banner)
-- [ ] **Phase 52: Remote Sessions GUI Panel** — Plans: TBD
+- [ ] **Phase 52: Remote Sessions GUI Panel** — 3 plans (Wave 1: Go binding + frontend component, Wave 2: App.tsx wiring)
 - [ ] **Phase 53: Remote Sessions CLI** — Plans: TBD
 - [ ] **Phase 54: Tailscale Onboarding Enhancement** — Plans: TBD
 
@@ -191,10 +191,12 @@ Plans:
   5. Remote sessions panel is accessible from the main tab bar or navigation without requiring CLI knowledge
 **Plans**: 3 plans
 Plans:
-- [x] 51-01-PLAN.md — internal/updater package with TDD (injectable detectFunc, rate-limiting, version skip)
-- [x] 51-02-PLAN.md — App wiring: update poller, bound methods, Help menu item
-- [x] 51-03-PLAN.md — Frontend update banner in WelcomeTab + CSS
+- [ ] 52-01-PLAN.md — Go GetRemoteSessions binding, Wails stubs, nil-client test
+- [ ] 52-02-PLAN.md — RemoteSessionsPanel component, BEM CSS, tests
+- [ ] 52-03-PLAN.md — TabBar remote-sessions type, App.tsx wiring + polling
 **UI hint**: yes
+
+
 
 ### Phase 53: Remote Sessions CLI
 **Goal**: CLI users can list and attach to remote sessions without leaving the terminal
@@ -243,7 +245,7 @@ Plans:
 | 49 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 50 | v1.9 | 2/2 | Complete    | 2026-04-07 |
 | 51 | v1.9 | 3/3 | Complete    | 2026-04-07 |
-| 52 | v1.9 | 0/? | Not started | - |
+| 52 | v1.9 | 0/3 | Not started | - |
 | 53 | v1.9 | 0/? | Not started | - |
 | 54 | v1.9 | 0/? | Not started | - |
 
