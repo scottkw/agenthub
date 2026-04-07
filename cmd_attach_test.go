@@ -3,15 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
 // setupAttachTest creates a relay HubManager + Server backed by io.Pipe pairs
@@ -322,6 +325,84 @@ func TestPrintAttachBanner_NoOptionalFields(t *testing.T) {
 	}
 	if !strings.Contains(output, "session-1") {
 		t.Errorf("banner missing session name; got: %s", output)
+	}
+}
+
+// TestCmdAttach_RemoteBannerShowsHostname verifies that printAttachBanner with
+// a remote hostname displays the hostname in the banner output (REM-05).
+func TestCmdAttach_RemoteBannerShowsHostname(t *testing.T) {
+	var buf bytes.Buffer
+	printAttachBanner(&buf, "remote-project", "claude", "macbook")
+	output := buf.String()
+	if !strings.Contains(output, "macbook") {
+		t.Errorf("banner missing remote hostname; got: %s", output)
+	}
+	if !strings.Contains(output, "remote-project") {
+		t.Errorf("banner missing session name; got: %s", output)
+	}
+	if !strings.Contains(output, "claude") {
+		t.Errorf("banner missing CLI type; got: %s", output)
+	}
+}
+
+// TestCmdAttach_RemoteSessionNotFound verifies the error message when a session
+// does not exist on the remote peer (REM-05).
+func TestCmdAttach_RemoteSessionNotFound(t *testing.T) {
+	// Create an httptest TLS server that returns zero sessions.
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode([]struct{}{})
+	}))
+	defer ts.Close()
+
+	err := cmdAttachRemoteWithClient(
+		"macbook", "nonexistent-session",
+		"macbook.ts.net", ts.URL, ts.Client(), byte(0x1C),
+	)
+	if err == nil {
+		t.Fatal("expected error for missing remote session, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found on remote host") {
+		t.Errorf("expected error containing %q, got %q", "not found on remote host", err.Error())
+	}
+	if !strings.Contains(err.Error(), "nonexistent-session") {
+		t.Errorf("expected error containing session ID, got %q", err.Error())
+	}
+}
+
+// TestCmdAttach_UnknownRemoteHost verifies the error message when the hostname
+// doesn't match any tailnet peer (REM-05).
+func TestCmdAttach_UnknownRemoteHost(t *testing.T) {
+	peers := []tailnet.Peer{
+		{Hostname: "macbook", DNSName: "macbook.ts.net.", Online: true},
+		{Hostname: "desktop", DNSName: "desktop.ts.net.", Online: true},
+	}
+	err := buildUnknownHostError("laptop", peers)
+	if err == nil {
+		t.Fatal("expected error for unknown host, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown remote host") {
+		t.Errorf("expected error containing %q, got %q", "unknown remote host", err.Error())
+	}
+	if !strings.Contains(err.Error(), "laptop") {
+		t.Errorf("expected error containing hostname %q, got %q", "laptop", err.Error())
+	}
+	if !strings.Contains(err.Error(), "macbook") {
+		t.Errorf("expected error containing available peer %q, got %q", "macbook", err.Error())
+	}
+	if !strings.Contains(err.Error(), "desktop") {
+		t.Errorf("expected error containing available peer %q, got %q", "desktop", err.Error())
+	}
+}
+
+// TestCmdAttach_UnknownRemoteHost_NoPeers verifies the error when no peers exist.
+func TestCmdAttach_UnknownRemoteHost_NoPeers(t *testing.T) {
+	err := buildUnknownHostError("laptop", nil)
+	if err == nil {
+		t.Fatal("expected error for unknown host, got nil")
+	}
+	if !strings.Contains(err.Error(), "no tailnet peers found") {
+		t.Errorf("expected error containing %q, got %q", "no tailnet peers found", err.Error())
 	}
 }
 
