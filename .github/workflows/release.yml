@@ -43,6 +43,9 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
+      - name: Pre-build frontend
+        run: cd frontend && pnpm install && pnpm build
+
       - name: Build macOS app
         run: |
           wails build -platform darwin/universal -tags wailsassets \
@@ -142,6 +145,10 @@ jobs:
           choco install nsis -y
           echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
 
+      - name: Pre-build frontend
+        shell: bash
+        run: cd frontend && pnpm install && pnpm build
+
       - name: Build Windows artifacts
         shell: bash
         run: |
@@ -197,6 +204,9 @@ jobs:
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Pre-build frontend
+        run: cd frontend && pnpm install && pnpm build
 
       - name: Build Linux binary
         run: |
