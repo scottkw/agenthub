@@ -150,37 +150,6 @@ body {
   color: #f7768e;
 }
 
-/* ─── Tab bar controls (+ and gear) ─────────────────────────────── */
-.tab-bar__controls {
-  display: flex;
-  align-items: center;
-  padding: 0 4px;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.tab-bar__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: none;
-  background: transparent;
-  color: #9aa5ce;
-  cursor: pointer;
-  font-size: 20px;
-  border-radius: 4px;
-  transition: background-color 0.1s, color 0.1s;
-}
-.tab-bar__btn:hover {
-  background-color: #1e2030;
-  color: #c0caf5;
-}
-.tab-bar__btn--remote {
-  font-size: 17px; /* emoji renders larger than text at same font-size */
-}
-
 /* --- Sidebar (Phase 55) ------------------------------------------------- */
 .sidebar {
   display: flex;

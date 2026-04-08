@@ -79,36 +79,6 @@ describe('TabBar', () => {
   })
 })
 
-describe('UILAY-01 toolbar button dimensions (style.css)', () => {
-  it('tab-bar has height 42px so the bar is visually substantial', () => {
-    const ruleStart = cssRaw.indexOf('.tab-bar {')
-    expect(ruleStart).toBeGreaterThan(-1)
-    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
-    expect(ruleBlock).toContain('height: 42px')
-  })
-
-  it('tab-bar__btn has width 38px to meet the 38x38px click-target requirement', () => {
-    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
-    expect(ruleStart).toBeGreaterThan(-1)
-    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
-    expect(ruleBlock).toContain('width: 38px')
-  })
-
-  it('tab-bar__btn has height 38px to meet the 38x38px click-target requirement', () => {
-    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
-    expect(ruleStart).toBeGreaterThan(-1)
-    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
-    expect(ruleBlock).toContain('height: 38px')
-  })
-
-  it('tab-bar__btn has font-size 20px so icons are visually large', () => {
-    const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
-    expect(ruleStart).toBeGreaterThan(-1)
-    const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
-    expect(ruleBlock).toContain('font-size: 20px')
-  })
-})
-
 
 describe('TabBar context menu', () => {
   let container: HTMLElement
