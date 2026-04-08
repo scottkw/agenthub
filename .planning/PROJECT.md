@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Remote sessions display hostname, agent type, and connection state in both web terminal status bars and CLI attach banners. Health checks detect Tailscale state and guide users through setup with platform-specific instructions. Live status indicators show whether each CLI is running, waiting, or errored. Includes branded app icons, a splash screen with the title logo, a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI).
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Remote sessions across tailnet peers are discoverable via both GUI (Remote Sessions panel with auto-refresh) and CLI (`agenthub list` with HOST column, `agenthub attach hostname:id` via WSS relay). Standard macOS app menus with Cmd+C/V clipboard in terminal tabs. Auto-update checker polls GitHub releases and shows notification banner with one-click download. Health checks detect Tailscale state and guide users through setup with platform-specific install commands, macOS auto-install via Homebrew, and post-install HTTPS cert configuration guide. Live status indicators show whether each CLI is running, waiting, or errored. Includes branded app icons, a splash screen with the title logo, a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI). Distributed via GitHub releases (DMG, EXE+NSIS, tar.gz+deb), Homebrew cask, and WinGet.
 
 ## Core Value
 
@@ -89,34 +89,24 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ distribute.yml auto-updates Homebrew tap + submits WinGet manifests on release — v1.8 Phases 47-48
 - ✓ WinGet distribution infrastructure (WINGET_TOKEN, winget-pkgs fork, populate-manifests.sh) — v1.8 Phase 48
 
-### Active
-
-- [ ] Remote session discovery and access across tailnet (GUI panel + CLI)
-- [ ] Auto-discover AgentHub daemons on tailnet peers
-- [ ] Attach to remote sessions from GUI and CLI without SSH
-- [ ] Update checker with one-click download and install from GitHub releases
-- [ ] Tailscale install assistance (auto-install + manual instructions)
 - ✓ Standard app menus (File, Edit, Window, Help) with keyboard shortcuts — v1.9 Phase 49
+- ✓ Cmd+C/V clipboard operations in terminal tabs — v1.9 Phase 49
 - ✓ Welcome screen version from release build (no hardcoded VERSION) — v1.9 Phase 49
 - ✓ Welcome logo rounded corners — v1.9 Phase 49
 - ✓ Tailscale peer discovery: `internal/tailnet` package with injectable deps, concurrent probe pool (cap 5), daemon `GET /tailnet/peers` with 30s cache — v1.9 Phase 50
-- ✓ CLI remote session list: `agenthub list` shows local + remote sessions grouped by HOST column, `--local` and `--json` flags — v1.9 Phase 53
+- ✓ Auto-update checker: GitHub releases polling on startup + hourly, notification banner, Help menu trigger, one-click download — v1.9 Phase 51
+- ✓ Remote Sessions GUI panel: tailnet peer grouping, loading states, 30s auto-refresh, one-click browser open — v1.9 Phase 52
+- ✓ CLI remote session list: `agenthub list` shows local + remote sessions grouped by HOST column — v1.9 Phase 53
 - ✓ CLI remote session attach: `agenthub attach hostname:session-id` connects via WSS relay over Tailscale HTTPS — v1.9 Phase 53
+- ✓ Tailscale onboarding: platform-specific install commands with copy-to-clipboard, macOS auto-install via Homebrew, post-install HTTPS cert guide — v1.9 Phase 54
 
-## Current Milestone: v1.9 Remote Sessions & App Polish
+### Active
 
-**Goal:** Enable seamless remote session access across tailnet devices and polish the desktop app with standard menus, auto-update, and improved onboarding.
-
-**Target features:**
-- Remote session access via tailnet (auto-discover, GUI panel, CLI unified list)
-- Update checker & one-click installer from GitHub releases
-- Tailscale install & setup guidance with auto-install option
-- Standard app menus (File, Edit, Window, Help)
-- Welcome screen version from build, logo rounded corners
+(None — planning next milestone)
 
 ## Current State
 
-v1.9 in progress (2026-04-07): Phase 54 complete — Tailscale onboarding enhancement: HealthModal shows platform-specific install commands (brew/curl/winget) with copy-to-clipboard, download links, macOS auto-install via Homebrew with streaming progress, and numbered next-steps guide for HTTPS certificate setup (MagicDNS prerequisite, admin DNS link). Phase 53 added CLI remote sessions, Phase 52 GUI remote panel, Phase 51 auto-update checker, Phase 50 peer discovery. 9 milestones shipped (v1.0–v1.8), 54 phases, 100 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, remote session indicators (web + CLI), in-GUI daemon management panel, update notifications, remote session discovery via both GUI and CLI, and guided Tailscale onboarding.
+v1.9 shipped (2026-04-08). 10 milestones shipped (v1.0–v1.9), 54 phases, 100 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, and guided Tailscale onboarding with auto-install.
 
 ### Out of Scope
 
@@ -139,14 +129,15 @@ v1.9 in progress (2026-04-07): Phase 54 complete — Tailscale onboarding enhanc
 
 ## Context
 
-Shipped v1.8 with ~31K Go + ~10K TS/TSX.
-Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service.
-Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus.
-Go test suite: 200+ tests race-clean across 6 packages.
-Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, and web status bar components.
+Shipped v1.9 with ~31K Go + ~10K TS/TSX.
+Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate.
+Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS.
+Go test suite: 200+ tests race-clean across 8 packages (added internal/tailnet, internal/updater).
+Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, and web status bar components.
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
+Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
-Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed.
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed; dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback).
 
 ## Constraints
 
@@ -205,6 +196,17 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | ObjC @implementation in separate .m file (not cgo blocks) | Go cgo blocks cause duplicate symbol linker errors during `go test` | ✓ Good — clean compilation for both build and test |
 | Split nil-client guard in refreshTrayState | Single compound guard skipped tray update entirely on startup failure | ✓ Good — tray shows error icon when daemon unreachable |
 | Post-build cp of pre-built ICNS into bundle | wails build produces 3-size ICNS (361KB); pre-built 10-entry iconfile.icns (590KB) needed for Retina | ✓ Good — full Retina coverage in production builds |
+| Package-level appCtx for menu callback context | Avoids closure complexity in Wails menu API | ✓ Good — clean callback wiring |
+| Injectable statusFunc for tailnet package | Mirrors webserver/tailscale.go pattern; enables daemon-free unit testing | ✓ Good — fast, deterministic tests |
+| Full Mutex for tailnetCache.getOrRefresh | Prevents thundering herd on 30s cache expiry | ✓ Good — single concurrent refresh |
+| Masterminds/semver for version comparison | Transitive dep of go-selfupdate; cleaner than constructing Release struct | ✓ Good — direct, minimal code |
+| 5-second initial delay for update poller | Avoids startup race with frontend event subscription | ✓ Good — reliable event delivery |
+| onOpen callback prop for RemoteSessionsPanel | Not direct BrowserOpenURL import; keeps component testable | ✓ Good — clean test isolation |
+| loading+peers.length>0 shows data not spinner | Prevents 30s refresh flicker | ✓ Good — smooth UX |
+| listOutput struct for CLI --json | Breaking change from flat array; enables local/remote grouping | ⚠️ Revisit — document migration for JSON consumers |
+| goruntime alias for stdlib runtime | Avoids collision with wails/v2/pkg/runtime already imported as runtime | ✓ Good — clean namespace |
+| cmd.Stderr = cmd.Stdout for brew streaming | Merges stderr into stdout pipe for single-goroutine output streaming | ✓ Good — simple, reliable |
+| installProgress state in App.tsx not HealthModal | EventsOn subscriber pattern; HealthModal is pure display component | ✓ Good — clean separation |
 
 ---
 ## Evolution
@@ -225,4 +227,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after Phase 53 completion*
+*Last updated: 2026-04-08 after v1.9 milestone*

@@ -405,6 +405,54 @@
 
 ---
 
+## Milestone: v1.9 — Remote Sessions & App Polish
+
+**Shipped:** 2026-04-08
+**Phases:** 6 | **Plans:** 14 | **Commits:** 111
+
+### What Was Built
+- Standard macOS app menus (File, Edit, Window, Help) with Cmd+C/V clipboard in terminal tabs and build-time version injection via ldflags
+- Tailscale peer discovery (`internal/tailnet`) with injectable deps, concurrent probe pool (cap 5), and daemon `GET /tailnet/peers` with 30s thundering-herd-safe cache
+- Auto-update checker polling GitHub releases on startup + hourly, notification banner in WelcomeTab, Help menu "Check for Updates" item
+- Remote Sessions GUI panel with tailnet peer grouping, loading states, 30s auto-refresh, and one-click browser open
+- CLI remote sessions: unified `agenthub list` with HOST column, `agenthub attach hostname:session-id` via WSS relay
+- Tailscale onboarding: platform-specific install commands with copy-to-clipboard, macOS auto-install via Homebrew with streaming progress, HTTPS cert setup guide
+
+### What Worked
+- Milestone audit passed first attempt: 17/17 requirements, 6/6 phases, 4/4 E2E flows — strong requirements traceability
+- Injectable dependency patterns (statusFunc, detectFunc, discoverFunc) enabled comprehensive unit testing across all 3 new Go packages without live Tailscale/GitHub
+- Props-down component pattern (RemoteSessionsPanel, HealthModal enhancements) kept components testable with zero new framework bindings
+- 2-day timeline for 6 phases (14 plans) — fastest multi-feature milestone by velocity
+- Parallel plan execution across phases worked well (e.g., Phase 51 plans 02+03 simultaneously, Phase 52 plans 01+02 simultaneously)
+- All Nyquist validation compliant (6/6) — first milestone with 100% Nyquist compliance from the start
+
+### What Was Inefficient
+- SUMMARY frontmatter missing `requirements_completed` for 9 of 17 requirements (Phases 49, 51) — recurring systemic issue since v1.1
+- Summary one_liner extraction still inconsistent — some returned prefixes ("One-liner:", "Task 1:") instead of clean descriptions, causing messy MILESTONES.md auto-generation
+- Dead `installError` state in App.tsx — 3 lines of unused code from Phase 54 (benign but untidy)
+- STATE.md accumulated merge conflict markers (<<<<<<< HEAD) — not caught during phase transitions
+
+### Patterns Established
+- `goruntime` alias for stdlib `runtime` when `wails/v2/pkg/runtime` already imported as `runtime`
+- `cmd.Stderr = cmd.Stdout` for single-goroutine subprocess output streaming via Go pipes
+- `loading+peers.length>0` pattern: show stale data during refresh instead of spinner flicker
+- `fetchPeerSessionsWithClient` / `cmdAttachRemoteWithClient` injectable client pattern for httptest TLS in CLI tests
+- `listOutput` struct for JSON output with grouped local/remote sections (breaking change from flat array)
+
+### Key Lessons
+1. Injectable dependency patterns (statusFunc, detectFunc, discoverFunc) are now the standard approach for all new Go packages — proven across 6 milestones
+2. Parallel plan execution within and across phases significantly reduces wall-clock time — v1.9 was 2 days for work that would have taken 4+ sequentially
+3. SUMMARY frontmatter one_liner extraction needs tooling fixes — the auto-generated MILESTONES.md accomplishments are consistently low quality
+4. All Nyquist validation being compliant from the start (vs retroactive in v1.8) shows the validate-phase workflow is maturing
+5. STATE.md merge conflicts from concurrent phase transitions need a cleanup step in the transition workflow
+
+### Cost Observations
+- Model mix: ~70% sonnet (execution), ~25% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~4 sessions across 2 days
+- Notable: Fastest multi-feature milestone — 6 phases in 2 days, consistent with increasing automation and parallelization
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -420,6 +468,7 @@
 | v1.6 | 14 | 1 | Bounded rAF retry loop replacing double-rAF, proposeDimensions() readiness gate |
 | v1.7 | 88 | 8 | Native cgo tray, NSMenuDelegate dynamic menus, split nil-guard pattern, mid-milestone audit gap closure |
 | v1.8 | ~18 | 5 | CI/CD infrastructure, GitHub Actions pipelines, package manager distribution, dev-browser automation |
+| v1.9 | 111 | 6 | Remote session discovery (GUI+CLI), auto-update checker, Tailscale onboarding, app menus, parallel plan execution |
 
 ### Cumulative Quality
 
@@ -434,6 +483,7 @@
 | v1.6 | 200+ (race-clean) | 150 | ~73,000 | 3 (0 blockers, stale comments/docs) |
 | v1.7 | 200+ (race-clean) | 150+ | ~15,100 | 4 (0 blockers; WelcomeTab auto-dismiss, hardcoded VERSION, Linux/Windows tray stubs, SUMMARY frontmatter) |
 | v1.8 | 200+ (race-clean) | 150+ | ~41,000 | 3 (0 blockers; WinGet first submission deferred, ROADMAP checkbox drift, VERIFICATION human items) |
+| v1.9 | 200+ (race-clean) | 160+ | ~41,000 | 4 (0 blockers; SUMMARY frontmatter gaps, dead installError state, unused CheckForUpdates TS binding, STATE.md merge markers) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -454,3 +504,6 @@
 15. CI/CD milestones are configuration-heavy, code-light — correctness depends on external integration verification, not unit tests (v1.8)
 16. dev-browser automation is effective for GitHub web UI credential/setup workflows — saves manual context switching (v1.8)
 17. Human-action checkpoint plans need explicit prerequisite state documentation — "no release exists" blocked Task 2 but wasn't in depends_on (v1.8)
+18. Parallel plan execution within and across phases is the single biggest velocity lever — v1.9 shipped 14 plans in 2 days vs v1.3's 15 plans in 8 days (v1.9)
+19. 100% Nyquist compliance from the start (not retroactive) is achievable and should be the default — v1.9 was first milestone to achieve this (v1.9)
+20. SUMMARY frontmatter one_liner auto-extraction is unreliable across 10 milestones — needs tooling fix or manual curation at completion time (v1.1-v1.9)

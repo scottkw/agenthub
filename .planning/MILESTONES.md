@@ -1,17 +1,20 @@
 # Milestones
 
-## v1.9 Remote Sessions & App Polish (Active: 2026-04-06)
+## v1.9 Remote Sessions & App Polish (Shipped: 2026-04-08)
 
-**Phases planned:** 6 phases (49-54)
-**Requirements:** 17
+**Phases completed:** 6 phases, 14 plans, 17 tasks
+**Requirements:** 17/17 satisfied
+**Commits:** 111 | **Timeline:** 2 days (2026-04-06 → 2026-04-07)
+**Source changes:** 36 files, +3,499 / -97 lines
 
-**Target features:**
-- Standard app menus (File, Edit, Window, Help) with working macOS clipboard in terminals
-- Build-time version injection via ldflags; Welcome screen shows real version
-- Tailscale peer discovery (`internal/tailnet` package) and remote session GUI panel
-- Auto-update checker with startup notification and Help menu trigger (detect-only, open browser)
-- Remote session CLI list and attach via WebSocket relay
-- Tailscale onboarding enhancement: per-platform install commands with copy-to-clipboard
+**Key accomplishments:**
+
+- Standard macOS app menus (File, Edit, Window, Help) with Cmd+C/V clipboard in terminal tabs and build-time version injection via ldflags
+- Tailscale peer discovery (`internal/tailnet`) with injectable deps, concurrent probe pool (cap 5), and daemon `GET /tailnet/peers` with 30s thundering-herd-safe cache
+- Auto-update checker polling GitHub releases on startup + hourly, notification banner in WelcomeTab, and Help menu "Check for Updates" item
+- Remote Sessions GUI panel with tailnet peer grouping, loading states, 30s auto-refresh, and one-click browser open via BrowserOpenURL
+- CLI remote sessions: unified `agenthub list` with HOST column grouping, `agenthub attach hostname:session-id` via WSS relay with hostname banner
+- Tailscale onboarding enhancement: platform-specific install commands with copy-to-clipboard, macOS auto-install via Homebrew with streaming progress, and numbered HTTPS cert setup guide
 
 ---
 
