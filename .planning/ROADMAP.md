@@ -133,7 +133,7 @@
 ### v1.10 Collapsible Sidebar Navigation (In Progress)
 
 - [x] **Phase 55: Sidebar Component & Icons** - Build collapsible sidebar with Heroicons, toggle, and localStorage persistence (completed 2026-04-08)
-- [ ] **Phase 56: Navigation Wiring & Tab Bar Cleanup** - Wire sidebar actions into app, migrate navigation from toolbar, remove tab bar action buttons
+- [x] **Phase 56: Navigation Wiring & Tab Bar Cleanup** - Wire sidebar actions into app, migrate navigation from toolbar, remove tab bar action buttons (completed 2026-04-08)
 
 ## Phase Details
 
@@ -164,9 +164,9 @@ Plans:
   4. User can click New Tab in the sidebar to create a new terminal session (opens new-session modal)
   5. User can click Settings (pinned to sidebar bottom) to open the Settings panel
   6. Tab bar no longer has action buttons on the right — only session tabs
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 56-01-PLAN.md — Write NAV/TAB source-inspection tests, remove dead CSS and obsolete UILAY-01 tests
+- [x] 56-01-PLAN.md — Write NAV/TAB source-inspection tests, remove dead CSS and obsolete UILAY-01 tests
 **UI hint**: yes
 
 ## Progress
@@ -187,7 +187,7 @@ Phases execute in numeric order: 55 -> 56
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55. Sidebar Component & Icons | v1.10 | 2/2 | Complete    | 2026-04-08 |
-| 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/1 | Not started | - |
+| 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 1/1 | Complete   | 2026-04-08 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
