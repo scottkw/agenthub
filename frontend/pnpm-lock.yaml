@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@heroicons/react':
+        specifier: ^2.2.0
+        version: 2.2.0(react@19.2.4)
       '@xterm/addon-clipboard':
         specifier: ^0.2.0
         version: 0.2.0
@@ -149,6 +152,11 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@heroicons/react@2.2.0':
+    resolution: {integrity: sha512-LMcepvRaS9LYHJGsF0zzmgKCUim/X3N/DQKc4jepAXJ7l8QxJ1PmxJzqplF2Z3FE4PqBAIGyJAQ/w4B5dsqbtQ==}
+    peerDependencies:
+      react: '>= 16 || ^19.0.0-rc'
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -858,6 +866,10 @@ snapshots:
     optional: true
 
   '@exodus/bytes@1.15.0': {}
+
+  '@heroicons/react@2.2.0(react@19.2.4)':
+    dependencies:
+      react: 19.2.4
 
   '@jridgewell/resolve-uri@3.1.2': {}
 

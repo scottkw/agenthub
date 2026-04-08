@@ -128,11 +128,11 @@ describe('UILAY-01 toolbar button dimensions (style.css)', () => {
     expect(ruleBlock).toContain('height: 38px')
   })
 
-  it('tab-bar__btn has font-size 18px so icons are visually large', () => {
+  it('tab-bar__btn has font-size 20px so icons are visually large', () => {
     const ruleStart = cssRaw.indexOf('.tab-bar__btn {')
     expect(ruleStart).toBeGreaterThan(-1)
     const ruleBlock = cssRaw.slice(ruleStart, cssRaw.indexOf('}', ruleStart) + 1)
-    expect(ruleBlock).toContain('font-size: 18px')
+    expect(ruleBlock).toContain('font-size: 20px')
   })
 })
 
