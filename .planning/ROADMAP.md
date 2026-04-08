@@ -13,6 +13,7 @@
 - ✅ **v1.8 GitHub Distribution & CI/CD** — Phases 44-48 (shipped 2026-04-06)
 - ✅ **v1.9 Remote Sessions & App Polish** — Phases 49-54 (shipped 2026-04-08)
 - ✅ **v1.10 Collapsible Sidebar Navigation** — Phases 55-56 (shipped 2026-04-08)
+- 🚧 **v1.11 Local Network & UX Polish** — Phases 57-60 (in progress)
 
 ## Phases
 
@@ -138,6 +139,63 @@
 
 </details>
 
+### 🚧 v1.11 Local Network & UX Polish (In Progress)
+
+**Milestone Goal:** Enable local network operation when Tailscale is unavailable, auto-serve sessions, and polish the UI with settings-as-tab, sidebar label rename, and Claude Code native path detection fix.
+
+- [ ] **Phase 57: Quick Wins** — Claude Code detection fix + sidebar "New Session" label rename
+- [ ] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab
+- [ ] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions
+- [ ] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings
+
+## Phase Details
+
+### Phase 57: Quick Wins
+**Goal**: Users can launch Claude Code installed via Anthropic native installer, and the sidebar shows "New Session" instead of "New Tab"
+**Depends on**: Phase 56
+**Requirements**: DET-01, UI-01
+**Success Criteria** (what must be TRUE):
+  1. User can create a Claude Code session when Claude is installed at ~/.local/bin/claude (macOS/Linux) or %USERPROFILE%\.local\bin\claude.exe (Windows)
+  2. Sidebar displays "New Session" label in expanded mode (not "New Tab")
+  3. Sidebar tooltip/collapsed state also reflects "New Session" label
+**Plans**: TBD
+
+### Phase 58: Settings as Sidebar Tab
+**Goal**: Users can access Settings by clicking the sidebar Settings item, which opens a persistent tab — identical in feel to Home, Remote, and Sessions panels
+**Depends on**: Phase 57
+**Requirements**: UI-02
+**Success Criteria** (what must be TRUE):
+  1. Clicking Settings in the sidebar opens a Settings tab in the tab bar (not a modal overlay)
+  2. Settings tab persists across navigation — clicking Settings again focuses the existing tab, not a second one
+  3. No modal overlay appears anywhere in the app for Settings
+  4. All Settings functionality (save paths, Tailscale status, web server controls) works identically inside the tab
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 59: Auto-Serve Sessions
+**Goal**: The web server starts automatically when the daemon launches and every new session has web serving enabled by default — users never need to manually start the server or toggle per-session serving
+**Depends on**: Phase 57
+**Requirements**: SERVE-01, SERVE-02
+**Success Criteria** (what must be TRUE):
+  1. Web server is running immediately after daemon start with no user action required
+  2. Every new session created while the server is running has its web toggle enabled (web-served) by default
+  3. Session list in the daemon panel shows web toggle ON for newly created sessions
+  4. Daemon restart (stop + start) re-starts the web server automatically
+**Plans**: TBD
+
+### Phase 60: Local Network Fallback
+**Goal**: Users without Tailscale can serve sessions over the local network using self-signed TLS and a randomly generated password, with the password visible in the Settings tab and a persistent nudge banner encouraging Tailscale installation
+**Depends on**: Phase 58, Phase 59
+**Requirements**: NET-01, NET-02, NET-03, NET-04, NET-05
+**Success Criteria** (what must be TRUE):
+  1. Web server starts and serves sessions over HTTPS on the local network IP when Tailscale is not available
+  2. Browser connection in local mode prompts for credentials and accepts the generated password (HTTP Basic Auth)
+  3. User can see the generated password in the Settings tab under a clearly labeled field
+  4. A nudge banner appears in the app on each launch when running in local network mode, recommending Tailscale installation
+  5. Nudge banner does not shrink or displace the terminal area (renders outside the terminal flex container)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -153,6 +211,10 @@
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
+| 57. Quick Wins | v1.11 | 0/TBD | Not started | - |
+| 58. Settings as Sidebar Tab | v1.11 | 0/TBD | Not started | - |
+| 59. Auto-Serve Sessions | v1.11 | 0/TBD | Not started | - |
+| 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

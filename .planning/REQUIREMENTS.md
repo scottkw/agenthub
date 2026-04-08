@@ -60,22 +60,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DET-01 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| SERVE-01 | — | Pending |
-| SERVE-02 | — | Pending |
-| NET-01 | — | Pending |
-| NET-02 | — | Pending |
-| NET-03 | — | Pending |
-| NET-04 | — | Pending |
-| NET-05 | — | Pending |
+| DET-01 | Phase 57 | Pending |
+| UI-01 | Phase 57 | Pending |
+| UI-02 | Phase 58 | Pending |
+| SERVE-01 | Phase 59 | Pending |
+| SERVE-02 | Phase 59 | Pending |
+| NET-01 | Phase 60 | Pending |
+| NET-02 | Phase 60 | Pending |
+| NET-03 | Phase 60 | Pending |
+| NET-04 | Phase 60 | Pending |
+| NET-05 | Phase 60 | Pending |
 
 **Coverage:**
 - v1.11 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation (v1.11 Phases 57-60)*
