@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,9 @@ import (
 // testSetup creates a real daemon API on a short socket path and returns a DaemonClient.
 func testSetup(t *testing.T) *daemon.DaemonClient {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("testSetup uses Unix domain sockets")
+	}
 	engine := daemon.NewSessionEngine()
 	api := daemon.NewAPI(engine)
 	// Use short socket path to avoid macOS 103-char sun_path limit.

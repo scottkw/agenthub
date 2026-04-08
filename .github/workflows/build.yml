@@ -71,7 +71,7 @@ jobs:
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
-          build-tags: ${{ matrix.build.webkit_tag || '' }}
+          build-tags: ${{ matrix.build.webkit_tag }}
           wails-build-webview2: embed
           nsis: ${{ matrix.build.os == 'windows-latest' }}
 
