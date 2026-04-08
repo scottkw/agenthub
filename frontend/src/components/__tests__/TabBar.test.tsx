@@ -1,11 +1,5 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { describe, it, expect, afterEach } from 'vitest'
 import React from 'react'
-
-const __dir = dirname(fileURLToPath(import.meta.url))
-const cssRaw = readFileSync(resolve(__dir, '../../style.css'), 'utf-8')
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { TabBar } from '../TabBar'
