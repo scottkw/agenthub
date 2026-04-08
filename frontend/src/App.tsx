@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { TabBar, type Tab } from './components/TabBar'
+import { Sidebar } from './components/Sidebar'
 import { TerminalPanel } from './components/TerminalPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import {
@@ -396,6 +397,16 @@ function App(): React.ReactElement {
     setActiveId(REMOTE_SESSIONS_TAB.id)
   }, [tabs])
 
+  const handleHome = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'welcome')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, WELCOME_TAB])
+    setActiveId(WELCOME_TAB.id)
+  }, [tabs])
+
   const retryInit = useCallback(async () => {
     setDaemonError(null)
     try {
@@ -441,20 +452,24 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
-      <TabBar
-        tabs={tabs}
-        activeId={activeId}
-        onSelect={setActiveId}
-        onClose={handleCloseTab}
-        onRename={handleRenameTab}
+      <Sidebar
+        onHome={handleHome}
+        onOpenRemoteSessions={handleOpenRemoteSessions}
+        onOpenDaemonManager={handleOpenDaemonManager}
         onAdd={handleAddTab}
         onSettings={() => setShowSettings(true)}
-        onOpenDaemonManager={handleOpenDaemonManager}
-        onOpenRemoteSessions={handleOpenRemoteSessions}
-        sessionStatuses={sessionStatuses}
       />
+      <div className="app__content">
+        <TabBar
+          tabs={tabs}
+          activeId={activeId}
+          onSelect={setActiveId}
+          onClose={handleCloseTab}
+          onRename={handleRenameTab}
+          sessionStatuses={sessionStatuses}
+        />
 
-      <div className="terminal-container">
+        <div className="terminal-container">
         {activeId === WELCOME_TAB.id && (
           <WelcomeTab />
         )}
@@ -540,6 +555,7 @@ function App(): React.ReactElement {
               </div>
             )
           })}
+        </div>
       </div>
 
       {showNewSessionModal && (

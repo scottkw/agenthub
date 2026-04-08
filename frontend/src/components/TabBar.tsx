@@ -14,10 +14,6 @@ interface TabBarProps {
   onSelect: (id: string) => void
   onClose: (id: string) => void
   onRename: (id: string, name: string) => void
-  onAdd: () => void
-  onSettings: () => void
-  onOpenDaemonManager: () => void
-  onOpenRemoteSessions: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -31,10 +27,6 @@ export function TabBar({
   onSelect,
   onClose,
   onRename,
-  onAdd,
-  onSettings,
-  onOpenDaemonManager,
-  onOpenRemoteSessions,
   sessionStatuses,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -150,41 +142,6 @@ export function TabBar({
             </button>
           </div>
         ))}
-      </div>
-
-      <div className="tab-bar__controls">
-        <button
-          className="tab-bar__btn tab-bar__btn--remote"
-          onClick={onOpenRemoteSessions}
-          title="Remote sessions"
-          aria-label="Remote sessions"
-        >
-          &#127760;{/* globe icon */}
-        </button>
-        <button
-          className="tab-bar__btn tab-bar__btn--sessions"
-          onClick={onOpenDaemonManager}
-          title="Daemon sessions"
-          aria-label="Daemon sessions"
-        >
-          &#9776;{/* hamburger/list icon ☰ */}
-        </button>
-        <button
-          className="tab-bar__btn tab-bar__btn--add"
-          onClick={onAdd}
-          title="New terminal tab"
-          aria-label="New terminal tab"
-        >
-          +
-        </button>
-        <button
-          className="tab-bar__btn tab-bar__btn--settings"
-          onClick={onSettings}
-          title="Settings"
-          aria-label="Settings"
-        >
-          &#9881;{/* gear icon */}
-        </button>
       </div>
 
       {contextMenu && tabs.some(t => t.id === contextMenu.tabId) && (

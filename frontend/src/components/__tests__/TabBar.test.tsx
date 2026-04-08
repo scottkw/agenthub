@@ -17,10 +17,6 @@ interface TabBarProps {
   onSelect: (id: string) => void
   onClose: (id: string) => void
   onRename: (id: string, name: string) => void
-  onAdd: () => void
-  onSettings: () => void
-  onOpenDaemonManager: () => void
-  onOpenRemoteSessions: () => void
   sessionStatuses?: Record<string, string>
 }
 
@@ -36,10 +32,6 @@ function renderTabBar() {
         onSelect: () => {},
         onClose: () => {},
         onRename: () => {},
-        onAdd: () => {},
-        onSettings: () => {},
-        onOpenDaemonManager: () => {},
-        onOpenRemoteSessions: () => {},
       })
     )
   })
@@ -59,10 +51,6 @@ function renderTabBarWithTabs(overrides: Partial<TabBarProps> = {}) {
     onSelect: () => {},
     onClose: () => {},
     onRename: () => {},
-    onAdd: () => {},
-    onSettings: () => {},
-    onOpenDaemonManager: () => {},
-    onOpenRemoteSessions: () => {},
     ...overrides,
   }
   flushSync(() => {
@@ -83,21 +71,6 @@ describe('TabBar', () => {
   it('renders tab-bar root element', () => {
     ;({ container, root } = renderTabBar())
     expect(container.querySelector('.tab-bar')).not.toBeNull()
-  })
-
-  it('renders tab-bar__controls section', () => {
-    ;({ container, root } = renderTabBar())
-    expect(container.querySelector('.tab-bar__controls')).not.toBeNull()
-  })
-
-  it('renders add button with tab-bar__btn--add class', () => {
-    ;({ container, root } = renderTabBar())
-    expect(container.querySelector('.tab-bar__btn--add')).not.toBeNull()
-  })
-
-  it('renders settings button with tab-bar__btn--settings class', () => {
-    ;({ container, root } = renderTabBar())
-    expect(container.querySelector('.tab-bar__btn--settings')).not.toBeNull()
   })
 
   it('renders tab-list container', () => {
@@ -136,45 +109,6 @@ describe('UILAY-01 toolbar button dimensions (style.css)', () => {
   })
 })
 
-describe('TabBar globe button (52-03-01)', () => {
-  let container: HTMLElement
-  let root: ReturnType<typeof createRoot>
-
-  afterEach(() => {
-    root.unmount()
-    container.remove()
-  })
-
-  it('renders a button with class tab-bar__btn--remote', () => {
-    ;({ container, root } = renderTabBar())
-    expect(container.querySelector('.tab-bar__btn--remote')).not.toBeNull()
-  })
-
-  it('clicking the globe button calls onOpenRemoteSessions', () => {
-    const onOpenRemoteSessions = vi.fn()
-    ;({ container, root } = renderTabBar())
-    // Re-render with a spy
-    flushSync(() => {
-      root.render(
-        React.createElement(TabBar, {
-          tabs: [],
-          activeId: null,
-          onSelect: () => {},
-          onClose: () => {},
-          onRename: () => {},
-          onAdd: () => {},
-          onSettings: () => {},
-          onOpenDaemonManager: () => {},
-          onOpenRemoteSessions,
-        })
-      )
-    })
-    const btn = container.querySelector('.tab-bar__btn--remote') as HTMLButtonElement
-    expect(btn).not.toBeNull()
-    btn.click()
-    expect(onOpenRemoteSessions).toHaveBeenCalledTimes(1)
-  })
-})
 
 describe('TabBar context menu', () => {
   let container: HTMLElement
