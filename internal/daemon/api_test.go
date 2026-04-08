@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,9 @@ import (
 // Returns the API, a DaemonClient connected to it, and the socket path.
 func testDaemon(t *testing.T) (*API, *DaemonClient, string) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("testDaemon uses Unix domain sockets")
+	}
 	engine := NewSessionEngine()
 	api := NewAPI(engine)
 	// Use short socket path — macOS t.TempDir() paths exceed the 103-char limit.

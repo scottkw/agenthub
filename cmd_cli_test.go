@@ -208,6 +208,9 @@ func TestCmdRename_MissingArgs(t *testing.T) {
 // Used for cmdServe/cmdUnserve tests that require a running web server.
 func testSetupWithWebServer(t *testing.T) *daemon.DaemonClient {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("testSetupWithWebServer uses Unix domain sockets")
+	}
 	engine := daemon.NewSessionEngine()
 	api := daemon.NewAPI(engine)
 	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), time.Now().UnixNano()%10000)
