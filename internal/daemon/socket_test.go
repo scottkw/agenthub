@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -31,13 +32,21 @@ func TestSocketPathDefault(t *testing.T) {
 	if path == "" {
 		t.Fatal("DefaultSocketPath returned empty string")
 	}
-	// On non-Windows: should end in "agenthub/daemon.sock"
-	if !strings.HasSuffix(path, filepath.Join("agenthub", "daemon.sock")) {
-		t.Errorf("DefaultSocketPath = %q, want suffix %q", path, filepath.Join("agenthub", "daemon.sock"))
+	if runtime.GOOS == "windows" {
+		if !strings.HasSuffix(path, "agenthub-daemon") {
+			t.Errorf("DefaultSocketPath = %q, want suffix %q", path, "agenthub-daemon")
+		}
+	} else {
+		if !strings.HasSuffix(path, filepath.Join("agenthub", "daemon.sock")) {
+			t.Errorf("DefaultSocketPath = %q, want suffix %q", path, filepath.Join("agenthub", "daemon.sock"))
+		}
 	}
 }
 
 func TestSocketPathLength(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket length limit does not apply to Windows named pipes")
+	}
 	// Path <= 103 chars: no error.
 	short := "/" + strings.Repeat("a", 10) + "/d.sock"
 	if err := ValidateSocketPath(short); err != nil {
@@ -59,6 +68,9 @@ func TestCleanupStaleSocket_NoFile(t *testing.T) {
 }
 
 func TestCleanupStaleSocket_StaleFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets")
+	}
 	path := shortSocketPath(t, "stale.sock")
 
 	// Create a socket file with nothing listening.
@@ -81,6 +93,9 @@ func TestCleanupStaleSocket_StaleFile(t *testing.T) {
 }
 
 func TestCleanupStaleSocket_ActiveSocket(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets")
+	}
 	path := shortSocketPath(t, "active.sock")
 
 	// Start a real listener — daemon is "running".

@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -19,6 +20,9 @@ func shortProcTestSocket(t *testing.T, name string) string {
 }
 
 func TestEnsureDaemon_AlreadyRunning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets")
+	}
 	// Start an in-process daemon API to simulate a running daemon.
 	socketPath := shortProcTestSocket(t, "already")
 	engine := NewSessionEngine()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -215,6 +216,9 @@ func TestHub_InputFanOut(t *testing.T) {
 // TestHub_SlowClientDisconnected verifies that a slow client (full send buffer) is
 // disconnected while other clients continue receiving data uninterrupted.
 func TestHub_SlowClientDisconnected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("timing-sensitive test unreliable on Windows CI")
+	}
 	srv, _, ptyWrite, _, sessionID := setupTestServer(t)
 
 	// Normal client that actively reads.

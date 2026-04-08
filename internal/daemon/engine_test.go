@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -205,6 +206,9 @@ func TestEngineListSessionsHostname(t *testing.T) {
 }
 
 func TestEngineResolveCLI(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix path /bin/cat")
+	}
 	e := NewSessionEngine()
 
 	// By default: returns name as-is.

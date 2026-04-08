@@ -3,11 +3,15 @@ package daemon
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestAugmentServicePath_AddsExistingDirs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix PATH separator")
+	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	original := "/usr/bin:/bin"
@@ -112,6 +116,9 @@ func TestNvmActiveBin_NoNvm(t *testing.T) {
 }
 
 func TestAugmentServicePath_PrependsNotAppends(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix PATH separator")
+	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	original := "/usr/bin:/bin"

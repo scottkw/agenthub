@@ -3,12 +3,16 @@ package pty
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 // TestDetectCLIs_FindsInstalledCLIs verifies that DetectCLIs returns a CLI
 // when its binary is present on PATH.
 func TestDetectCLIs_FindsInstalledCLIs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stubs not executable on Windows")
+	}
 	dir := t.TempDir()
 
 	// Write a stub "claude" executable.
