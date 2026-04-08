@@ -102,7 +102,23 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(None — planning next milestone)
+- Collapsible left sidebar replacing top toolbar action buttons — hamburger toggle, icons-only when collapsed, icons + text labels when expanded
+- Sidebar items: Home (Welcome tab), Remote Sessions, New Tab at top; Settings pinned to bottom
+- All icons from Heroicons (MIT-licensed open-source SVG icon set)
+- Sessions button gets a new icon (hamburger becomes sidebar toggle)
+- Sidebar collapsed/expanded state persisted in localStorage
+- Tab strip stays horizontal along top, control buttons removed from tab bar
+
+## Current Milestone: v1.10 Collapsible Sidebar Navigation
+
+**Goal:** Replace top toolbar action buttons with a collapsible left sidebar using Heroicons, improving navigation clarity and freeing tab bar space.
+
+**Target features:**
+- Collapsible left sidebar with hamburger toggle
+- Sidebar items: Home, Remote Sessions, New Tab (top); Settings (bottom)
+- Heroicons SVG icons throughout
+- localStorage persistence of sidebar state
+- Tab bar retains session tabs only
 
 ## Current State
 
@@ -227,4 +243,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.9 milestone*
+*Last updated: 2026-04-08 after v1.10 milestone started*

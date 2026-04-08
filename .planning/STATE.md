@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Remote Sessions & App Polish
-status: complete
-stopped_at: Milestone v1.9 archived
+milestone: v1.10
+milestone_name: Collapsible Sidebar Navigation
+status: active
+stopped_at: null
 last_updated: "2026-04-08"
 last_activity: 2026-04-08
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** v1.10 Collapsible Sidebar Navigation
 
 ## Current Position
 
-Phase: v1.9 complete
-Plan: All complete
-Status: Milestone shipped
-Last activity: 2026-04-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-08 — Milestone v1.10 started
 
 Progress: [██████████] 100%
 
