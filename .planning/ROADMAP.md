@@ -147,7 +147,10 @@
   3. All sidebar icons are Heroicons SVGs (no Unicode characters)
   4. Sessions item uses a server-stack icon (hamburger is the sidebar toggle, not sessions)
   5. Sidebar remembers its collapsed/expanded state after closing and reopening the app
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 55-01-PLAN.md — Install Heroicons, fix stale TabBar test, create Sidebar RED tests
+- [ ] 55-02-PLAN.md — Implement Sidebar component, restructure App layout, remove TabBar action buttons
 **UI hint**: yes
 
 ### Phase 56: Navigation Wiring & Tab Bar Cleanup
@@ -181,7 +184,7 @@ Phases execute in numeric order: 55 -> 56
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
-| 55. Sidebar Component & Icons | v1.10 | 0/0 | Not started | - |
+| 55. Sidebar Component & Icons | v1.10 | 0/2 | Planning | - |
 | 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/0 | Not started | - |
 
 ---
