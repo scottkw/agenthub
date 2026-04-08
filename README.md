@@ -4,11 +4,12 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Tab, and Settings. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
 ### Terminal & Sessions
+- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Tab (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; state persists in localStorage
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
 - **Background daemon** — Sessions live in a standalone daemon process; closing the GUI hides the window while sessions and the system tray remain active
 - **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, and OpenCode on startup — including when launched from Finder/Dock (augments PATH with Homebrew, nvm, volta, and other common install locations); supports custom CLI path overrides
@@ -130,8 +131,9 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 
 | Component | Purpose |
 |-----------|---------|
-| `App.tsx` | Root layout, daemon client, session management, event wiring |
-| `TabBar.tsx` | Tab strip with status dots, rename, close |
+| `App.tsx` | Root layout, daemon client, session management, sidebar + content flex layout |
+| `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Remote, Sessions, New Tab, Settings |
+| `TabBar.tsx` | Tab strip with status dots, rename, close (session tabs only — no action buttons) |
 | `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
 | `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
 | `DaemonManagerPanel.tsx` | Session list with kill, web toggle, hostname badges |
@@ -302,11 +304,13 @@ GitHub Actions automates building, releasing, and distributing AgentHub:
 ### Desktop (GUI)
 
 1. **Launch AgentHub** — run `agenthub` with no arguments to open the GUI
-2. **Create a session** — click `+` to open the new session modal; select a CLI, working directory, and optional arguments
-3. **Use the terminal** — full interactive terminal with the selected CLI
-4. **Manage sessions** — use the Sessions tab to view all sessions, kill them, or toggle web access
-5. **Web serve** — toggle web access per session; Tailscale health check runs automatically
-6. **System tray** — close the window to hide; use the tray menu to switch sessions or quit
+2. **Navigate via sidebar** — use the collapsible left sidebar for all navigation; toggle collapsed/expanded with the hamburger icon
+3. **Create a session** — click New Tab in the sidebar to open the new session modal; select a CLI, working directory, and optional arguments
+4. **Use the terminal** — full interactive terminal with the selected CLI
+5. **Manage sessions** — click Sessions in the sidebar to view all sessions, kill them, or toggle web access
+6. **Remote sessions** — click Remote in the sidebar to discover and open sessions on other tailnet machines
+7. **Web serve** — toggle web access per session; Tailscale health check runs automatically
+8. **System tray** — close the window to hide; use the tray menu to switch sessions or quit
 
 ### CLI
 
