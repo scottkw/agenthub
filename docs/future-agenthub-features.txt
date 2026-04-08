@@ -5,3 +5,4 @@ Future AgentHub Features
 - Add a TUI option to the unified executable that mimics the GUI as closely as possible.
 - Support for or a fork of the inter-session Claude Peers mcp server
 - Linux and Windows system tray icons and functionality (currently only macOS)
+- If a Tailscale is not found, give the user the abillity to operate on the local network, but all connections would need to be encrypted with a self-signed certificate and a random system generated password for all connections

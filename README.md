@@ -4,7 +4,7 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
@@ -17,7 +17,20 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
 - **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
+- **Standard app menus** — File, Edit, Window, Help menus with keyboard shortcuts; Cmd+C/V clipboard in terminal tabs
 - **Welcome tab** — Branded splash screen with version info, platform-specific installation instructions, and getting-started guide
+
+### Remote Sessions
+- **Tailscale peer discovery** — Automatically discovers AgentHub instances running on other machines in your tailnet
+- **Remote Sessions panel** — GUI tab showing sessions grouped by peer hostname with loading states and 30-second auto-refresh
+- **CLI remote list** — `agenthub list` shows local and remote sessions grouped by HOST column
+- **CLI remote attach** — `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS
+- **One-click open** — Click any remote session to open it in your browser
+
+### Auto-Update
+- **Update checker** — Polls GitHub releases on startup and hourly for new versions
+- **Notification banner** — In-app banner when an update is available with one-click download
+- **Help menu trigger** — Manual check via Help > Check for Updates
 
 ### System Tray (macOS)
 - **Menu bar icon** — Monochrome template icon adapts to light/dark mode
@@ -48,6 +61,11 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
 - **Health checks** — Detects Tailscale installation, connection, and cert readiness with platform-specific setup guidance
+
+### Tailscale Onboarding
+- **Guided setup** — Platform-specific install commands with copy-to-clipboard buttons and download links
+- **macOS auto-install** — One-click Tailscale installation via Homebrew directly from the health modal
+- **Post-install guide** — Step-by-step HTTPS certificate configuration after Tailscale is installed
 
 ### Settings
 - **Tabbed settings panel** — CLI Paths and Web Server tabs
@@ -86,6 +104,10 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 │  │  │  Status  │  │ QR Code  │  │   Service     │  │  │
 │  │  │ Detector │  │ Generator│  │   Manager     │  │  │
 │  │  └──────────┘  └──────────┘  └───────────────┘  │  │
+│  │  ┌──────────┐  ┌──────────┐                     │  │
+│  │  │ Tailnet  │  │ Update   │                     │  │
+│  │  │ Peers    │  │ Checker  │                     │  │
+│  │  └──────────┘  └──────────┘                     │  │
 │  └──────────────────────────────────────────────────┘  │
 │                   HTTP/JSON API                         │
 └────────────────────────────────────────────────────────┘
@@ -99,6 +121,8 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `internal/pty` | PTY process management, CLI detection |
 | `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub |
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
+| `internal/tailnet` | Tailscale peer discovery, concurrent probe pool, cached peer list |
+| `internal/updater` | GitHub release polling, semantic version comparison, update notifications |
 | `internal/webserver` | HTTPS server via Tailscale, dashboard, health checks |
 | `web/` | Embedded HTML assets (dashboard + terminal pages) |
 
@@ -111,6 +135,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
 | `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
 | `DaemonManagerPanel.tsx` | Session list with kill, web toggle, hostname badges |
+| `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
 | `SettingsPanel.tsx` | Tabbed settings with Tailscale status |
@@ -292,6 +317,7 @@ agenthub new claude-code ~/project -- --arg  # Pass extra CLI arguments
 agenthub list                                # List all sessions
 agenthub list --json                         # Machine-readable output
 agenthub attach <id>                         # Attach to session (Ctrl-\ to detach)
+agenthub attach hostname:<id>                # Attach to remote session via Tailscale
 agenthub kill <id>                           # Terminate a session
 agenthub rename <id> "my session"            # Rename a session
 
@@ -340,6 +366,8 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
 | TLS | Tailscale Let's Encrypt via `GetCertificate` |
+| Peer discovery | [tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) |
+| Auto-update | [go-selfupdate](https://github.com/creativeprojects/go-selfupdate), [Masterminds/semver](https://github.com/Masterminds/semver) |
 | Service manager | [kardianos/service](https://github.com/kardianos/service) |
 | CI | GitHub Actions (4-runner matrix) |
 
