@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.10
-milestone_name: Collapsible Sidebar Navigation
-status: complete
-stopped_at: Milestone v1.10 shipped
-last_updated: "2026-04-08T18:00:00.000Z"
+milestone: v1.11
+milestone_name: Local Network & UX Polish
+status: planning
+stopped_at: Defining requirements
+last_updated: "2026-04-08T20:00:00.000Z"
 last_activity: 2026-04-08
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** Defining v1.11 requirements
 
 ## Current Position
 
-Phase: 56 (final)
-Plan: All complete
-Status: Milestone v1.10 shipped
-Last activity: 2026-04-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-08 — Milestone v1.11 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 

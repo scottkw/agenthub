@@ -111,7 +111,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active requirements — planning next milestone)
+(Defined in REQUIREMENTS.md for v1.11)
+
+## Current Milestone: v1.11 Local Network & UX Polish
+
+**Goal:** Enable local network operation when Tailscale is unavailable, auto-serve sessions, and polish the UI with settings-as-tab, label rename, and Claude Code detection fix.
+
+**Target features:**
+- Local network fallback with self-signed TLS + random password when Tailscale not found, with persistent nudge banner
+- Auto-start web server and auto-enable web serving for all new sessions (both modes)
+- Settings converted from modal to sidebar tab (like Home/Remote/Sessions)
+- "New Tab" sidebar label renamed to "New Session"
+- Claude Code detection for Anthropic native install paths
 
 ## Current State
 
@@ -236,4 +247,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.10 milestone*
+*Last updated: 2026-04-08 after v1.11 milestone started*
