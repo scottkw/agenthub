@@ -1,27 +1,24 @@
 # Feature Research
 
-**Domain:** Remote terminal session access, auto-update, Tailscale onboarding, and app polish for a Go/Wails desktop app
-**Researched:** 2026-04-06
-**Confidence:** HIGH (Tailscale LocalClient API verified via pkg.go.dev; Wails menu API verified; go-selfupdate API verified via pkg.go.dev; macOS menu conventions from Apple docs)
+**Domain:** Desktop app for AI coding CLI management — v1.11 new features
+**Researched:** 2026-04-08
+**Confidence:** HIGH (official docs + codebase verified)
 
 ---
 
-## v1.9 Milestone: Remote Sessions & App Polish
+## v1.11 Milestone: Local Network & UX Polish
 
-### Scope
+### Context: What Already Exists
 
-This section covers only what is NEW in v1.9. Existing features already shipped:
-tabbed terminal UI, web serving via Tailscale Let's Encrypt, CLI with 13 commands,
-daemon architecture with Unix socket IPC, system tray, splash screen, GitHub distribution.
+This is a SUBSEQUENT MILESTONE. The following are already built and are NOT scope for v1.11:
 
-Focus areas:
-1. **Remote session discovery and access** — enumerate tailnet peers, probe their AgentHub daemons, list/access remote sessions
-2. **Auto-update** — check GitHub releases for newer version, notify user, open download link
-3. **Tailscale install guidance** — improve existing health modal with direct install links
-4. **Standard app menus** — File, Edit, Window, Help (Wails menu API)
-5. **Welcome screen polish** — real build-time version, logo rounded corners
-
-Prior milestone research (v1.8) preserved at bottom.
+- Tailscale-only networking with Let's Encrypt TLS (server binds to Tailscale IP, FQDN-based URLs)
+- Manual web server start in Settings modal (Settings > Web Server tab > Start Web Server button)
+- Per-session web enable toggle (on/off per session in Daemon Manager panel)
+- Settings as a modal dialog with two tabs: CLI Paths and Web Server
+- Sidebar "New Tab" label with `PlusIcon`
+- Claude Code detection via `exec.LookPath("claude")` with PATH augmentation
+  for nvm/Volta/Homebrew (`/opt/homebrew/bin`, `~/.volta/bin`, `/usr/local/bin`)
 
 ---
 
@@ -31,26 +28,24 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Remote session listing per peer | If the app serves sessions over Tailscale, users expect to see what's running on other machines too | MEDIUM | `local.Client{}.Status()` returns `ipnstate.Status` with `Peer map` containing `PeerStatus{HostName, DNSName, TailscaleIPs}`. Probe each peer's AgentHub HTTP port asynchronously. Return cached results; refresh on interval. Already use `local.Client{}` for health checks in v1.2. |
-| Remote sessions visible in GUI panel | Unified view of local + remote sessions is the core promise of a multi-machine workflow tool | MEDIUM | Extend existing DaemonManagerPanel tab. Add peer hostname column. Group by machine or show flat list with hostname. Link each remote session to its web terminal URL. |
-| Update available notification | Any app distributed via GitHub Releases should notify when a newer version exists | LOW | Background goroutine on startup. Compare embedded build version to GitHub latest release tag. Surface as badge or banner in WelcomeTab or tray menu. Non-intrusive — do not block or pop modal. |
-| Build-time version displayed in app | WelcomeTab currently shows hardcoded version string (v1.7 tech debt). Users notice when version is wrong after updating. | LOW | Inject via `-ldflags "-X main.Version=$(git describe --tags)"` in build.sh and CI. Expose via Wails binding. Fix WelcomeTab.tsx to read from backend. |
-| Standard Edit menu (clipboard shortcuts) | On macOS, Cmd+C / Cmd+V / Cmd+Z silently fail in WebView without a registered Edit menu. This is a known macOS/WebView behavior that breaks terminal copy/paste. | LOW | Wails v2 provides `menu.EditMenu()` convenience method — one line. Without this, clipboard in xterm.js terminal and text fields is broken for many users. P1 blocker. |
-| Standard Window menu | macOS users expect Cmd+M (minimize), Cmd+W (close) to work. Missing Window menu is a macOS convention violation. | LOW | Wails v2 provides `menu.WindowMenu()`. Standard macOS behavior. |
-| Help menu with About | Standard macOS convention. Users look in Help for version info, documentation link, support. | LOW | Custom Help menu: "About AgentHub" (version dialog or modal), "Documentation" (opens GitHub README in browser), "Report Issue" (opens GitHub issues). |
-| Tailscale install link in health modal | Health modal (v1.2) already has platform-specific instructions. Users need a direct download link, not just text instructions. | LOW | Add `https://tailscale.com/download` link per platform to existing health modal. macOS: Homebrew cask or App Store. Linux: `tailscale.com/install.sh`. Windows: MSI download link. |
+| Local network fallback when Tailscale absent | Users without Tailscale still want web access from other devices on LAN; Tailscale is optional for many | MEDIUM | Re-introduces self-signed TLS (CA+leaf) scoped to local mode only; requires password since LAN is not zero-trust |
+| Password protection in local mode | Self-signed cert cannot use network membership as access control; LAN is not Tailscale's zero-trust | LOW | Single random password per server start; shown in UI; HTTP Basic Auth middleware on web server |
+| Nudge banner when running in local mode | User needs to know they are in a degraded security mode and how to upgrade | LOW | Persistent non-dismissable banner while local mode is active; links to Tailscale setup |
+| Auto-start web server on daemon start | Having to manually start the web server each launch is friction for users who always want web access | LOW | Configurable boolean setting; if on, daemon calls StartWebServer during RunDaemon startup |
+| Auto-enable web serving for new sessions | Per-session toggle defaults to off; users who always want sessions served must toggle each one manually | LOW | Configurable boolean setting; if on, CreateSession calls EnableSession immediately |
+| Settings as sidebar tab | Settings modal interrupts workflow; other sidebar items (Home, Remote, Sessions) are persistent tabs — Settings should match | MEDIUM | Removes isOpen/onClose modal props; SettingsPanel becomes a full-height tab like DaemonManagerPanel |
+| "New Session" label on sidebar | "New Tab" is ambiguous — the PlusIcon opens a new session modal, not a browser tab | LOW | Pure label and aria-label rename; no behavior change |
+| Claude Code native install path detection | Native installer places binary at ~/.local/bin/claude which is not in PATH under launchd/Finder launches | LOW | Add ~/.local/bin to AugmentServicePath candidates in internal/daemon/path.go |
 
 ---
 
 ## Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required, but valued.
-
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Zero-config remote peer discovery | No IP, no hostname, no port required — peers discovered automatically via Tailscale LocalClient peer enumeration | MEDIUM | `local.Client{}.Status()` → iterate `status.Peer` map → for each peer with `TailscaleIPs`, probe `http://<ip>:<agentHubPort>/api/sessions` with 1-2s timeout. Runs in background goroutines. Falls back gracefully on probe failure. This is fundamentally simpler than SSH tunneling, relay servers, or any credentials-based approach. |
-| Unified remote+local session list | Single `agenthub list` command shows all reachable sessions across all tailnet peers, with hostname column | MEDIUM | CLI aggregates: local daemon API (existing) + HTTP probes to peer AgentHub daemons (new). `--local` flag for local-only. Hostname shown in `list` output table. |
-| One-click access to remote sessions | Clicking a remote session in GUI opens its web terminal URL directly in the browser | LOW | Remote session items in panel carry the web URL (already served by peer's AgentHub). No new protocol — browser handles the connection through Tailscale. |
+| Dual-mode web serving (Tailscale + local fallback) | AgentHub works everywhere — with or without Tailscale — unlike tools locked to a single networking model | MEDIUM | Mode auto-selected at server start based on Tailscale health; user sees which mode is active |
+| Persistent non-blocking nudge for mode downgrade | Informs without blocking; user can still work while Tailscale setup happens in background | LOW | Top banner, not modal; stays visible but does not gate functionality |
+| Zero-config auto-serve | Sessions immediately accessible over the web from the moment they are created, if server is running | LOW | Requires auto-start + auto-enable both enabled; when combined, the server starts itself and new sessions are served with no user action |
 
 ---
 
@@ -58,88 +53,77 @@ Features that set the product apart. Not required, but valued.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Auto-replace binary on update (silent self-update) | Seamless "no action" update experience like Chrome | macOS Gatekeeper quarantines binaries downloaded programmatically; replacing a signed+notarized binary with a self-downloaded one silently breaks the app for users. Windows SmartScreen similar. | Notify of update + open GitHub releases page in browser. Homebrew/WinGet handle updates via their own channels for package-manager users. |
-| Full Tailscale management UI | Convenience of not switching to Tailscale app | Out of scope (explicitly in PROJECT.md). Each Tailscale API change breaks the management UI. | Show health status (existing v1.2), add install links to health modal. Tailscale's own GUI handles ongoing management. |
-| mDNS/Bonjour discovery alongside Tailscale | Find peers without Tailscale dependency | Product is Tailscale-native; adding mDNS introduces a parallel discovery path with different security model. Tailscale is the auth layer. | Tailscale peer list via LocalClient is the only discovery mechanism. |
-| Polling all peers synchronously on every tray menu open | Always-fresh remote session count in tray menu | NSMenuDelegate `menuWillOpen:` is on the main thread; network latency on probe would freeze the menu. | Background goroutine refreshes peer probe cache on a 30s interval. Tray menu reads from cache. |
-| Remote attach via new custom protocol | Rich bidirectional terminal over Tailscale without browser | WebSocket relay already exists and works for browsers. Building a second transport is duplicate work. | Remote CLI attach via existing WebSocket relay: `agenthub attach <peer>/<session-id>` routes through `wss://<peer-fqdn>/ws/<session-id>` — existing protocol, new routing only. |
-| Tailscale Services API for port advertisement | Programmatic service discovery via Tailscale's own infrastructure | Tailscale Services is alpha (2025), not stable, not recommended for production use. LocalClient peer probing is simpler and already-used infrastructure. | HTTP probe pattern using existing `local.Client{}` and consistent AgentHub port. |
+| Per-session password in local mode | Finer-grained access control | High complexity; per-session token system was removed in v1.2 for good reason | Single server-level password covers all sessions; per-session web-enable toggle is the per-session gate |
+| User-configurable password in local mode | Power users want their own password | Credential management burden; users reuse weak passwords | Random generated password shown in UI; regenerates on each server start |
+| Dismissable local-mode nudge banner | "Don't show again" reduces visual noise | Silently hides the security downgrade; users forget they are in unverified mode | Visually lightweight banner (not modal) so it is tolerable but remains informative |
+| Auto-serve defaulting to on without explicit opt-in | Maximize convenience | Silently exposes all sessions over the network without user awareness | Present auto-serve as a setting the user enables; default off; show clear indicator when active |
+| Settings as floating panel (not full tab) | Intermediate option between modal and tab | Creates a third navigation pattern inconsistent with everything else in the sidebar | Commit to sidebar tab pattern fully, consistent with Home, Remote, Sessions |
+| Tailscale-to-local fallback at runtime | Graceful degradation if Tailscale disconnects mid-session | High complexity; race conditions with active browser clients; not a common scenario | Covered in future consideration; for v1.11, mode is selected at StartWebServer time only |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Remote Session Discovery
-    └──requires──> Tailscale LocalClient.Status() [already used in v1.2 health checks]
-                       └──requires──> Tailscale installed and connected [existing health gate]
-    └──requires──> AgentHub daemon port consistent across installs [existing: same binary = same default port]
+[Local network fallback]
+    requires --> [Self-signed TLS (CA + leaf)]   (removed in v1.2; must be re-added, scoped to local mode)
+    requires --> [Random password generation]     (in-memory; no persistence needed)
+    requires --> [LAN IP binding]                 (net.InterfaceAddrs or 0.0.0.0)
+    requires --> [HTTP Basic Auth middleware]      (on web server routes when in local mode)
+    produces --> [Nudge banner]                   (displayed when local mode is active)
 
-Remote Session GUI Panel
-    └──requires──> Remote Session Discovery (probe results)
-    └──requires──> Existing DaemonManagerPanel [v1.7 already built, extend it]
+[Auto-start web server]
+    requires --> [Mode selection logic]           (Tailscale health check at startup; picks Tailscale or local)
+    enhances --> [Auto-enable sessions]           (natural pair; server must be running first)
 
-Remote Session CLI List
-    └──requires──> Remote Session Discovery (probe results)
-    └──requires──> Existing CLI list command [v1.3, extend with --remote flag]
+[Auto-enable sessions]
+    requires --> [Web server running]             (no-op if server not started)
+    weak-dep --> [Auto-start web server]          (typically paired; either can be enabled independently)
 
-Remote Attach via WebSocket
-    └──requires──> Remote Session Discovery (know peer FQDN + session ID)
-    └──requires──> Existing WebSocket relay on remote peer [v1.0, already serves browser sessions]
-    └──enhances──> Remote Session CLI List
+[Settings as sidebar tab]
+    replaces --> [Settings as modal dialog]       (modal pattern removed; tab pattern added)
+    requires --> [Sidebar navigation wiring]      (onSettings callback behavior changes from modal open to tab switch)
+    conflict --> [isOpen / onClose props]          (removed from SettingsPanel)
 
-Auto-Update Notification (GUI)
-    └──requires──> Build-time version injection [tech debt fix — prerequisite]
-    └──requires──> GitHub Releases API access [new: go-selfupdate library]
-    └──produces──> Version string + AssetURL for download link
+[Claude Code native path detection]
+    enhances --> [AugmentServicePath]             (add ~/.local/bin to existing candidates list)
+    standalone --> no dependency on other v1.11 features
 
-Build-time Version Fix
-    └──required by──> Auto-Update Notification (need real version to compare)
-    └──required by──> Welcome screen version display (fix hardcoded WelcomeTab.tsx)
-    └──blocks nothing if done first
-
-Standard App Menus
-    └──requires──> Wails menu.Menu struct passed in options [not currently set]
-    └──no conflicts with existing features
-    └──fixes──> clipboard in xterm.js on macOS (implicit dependency)
-
-Tailscale Install Link
-    └──enhances──> Existing health modal [v1.2]
-    └──no new dependencies
+["New Session" label rename]
+    standalone --> pure string change in Sidebar.tsx
 ```
 
 ### Dependency Notes
 
-- **Remote session discovery builds on existing Tailscale LocalClient:** The `local.Client{}` zero-value is already used in `internal/daemon` for health checks (v1.2). `Status()` call adds peer enumeration with zero new dependencies.
-- **Build-time version must be fixed before auto-update check:** Comparing `"0.0.0-dev"` or `"v1.7.0"` (hardcoded) against GitHub latest release produces wrong results. Fix version injection first, then wire auto-update.
-- **Standard menus are additive:** No existing feature conflicts with adding Wails menus. The `options.Menu` field is currently unset. Adding it does not change existing behavior except fixing clipboard.
-- **Remote attach can be deferred:** Remote session listing (discovery + GUI panel + CLI list) delivers primary value. Remote attach is a follow-on feature once listing is reliable.
+- **Local network fallback requires self-signed TLS**: The CA+leaf infrastructure was deleted in v1.2 (Phases 15-17). It must be re-introduced using Go stdlib `crypto/x509` + `crypto/tls`. The existing `TLSConfig` override field in `webserver.Config` makes this a clean seam — pass a generated `*tls.Config` instead of Tailscale's `GetCertificate` hook.
+- **Password ties to local mode only**: Tailscale mode retains zero-auth (network membership = access control). Password HTTP Basic Auth middleware only applies when the server binds to LAN IP with self-signed cert.
+- **Auto-serve pair**: Auto-start and auto-enable are independent boolean settings but nearly always wanted together. Each can be enabled without the other; the combination produces the fully hands-off experience.
+- **Settings-as-tab replaces modal entirely**: `SettingsPanel` currently returns null when `isOpen` is false. Converting to a tab removes the `isOpen`/`onClose` props entirely; the panel renders as a tab body unconditionally when the tab is active. The `onSettings` callback in `Sidebar` changes from calling `setSettingsOpen(true)` to switching the active panel state.
 
 ---
 
-## MVP Definition for v1.9
+## MVP Definition for v1.11
 
-### Launch With (v1.9 — minimum to call milestone complete)
+### Launch With
 
-- [ ] **Build-time version injection** — ldflags in build.sh, VERSION exposed via Wails binding, WelcomeTab reads from backend. Prerequisite for everything else.
-- [ ] **Remote session discovery** — background goroutine, `local.Client{}.Status()` peer enumeration, parallel HTTP probes, 30s refresh cache.
-- [ ] **Remote session GUI panel** — extend DaemonManagerPanel with remote peers section; show peer hostname, session list, status, web terminal link.
-- [ ] **Auto-update check** — background check via `creativeprojects/go-selfupdate`; show update available banner in WelcomeTab with "Download" button opening browser.
-- [ ] **Standard app menus** — `menu.AppMenu()`, `menu.EditMenu()`, `menu.WindowMenu()`, custom File (New Session, Quit), custom Help (About, Documentation, Report Issue). Fixes macOS clipboard.
-- [ ] **Tailscale install link improvement** — add direct download URLs to existing health modal per platform.
-- [ ] **Welcome logo rounded corners** — CSS `border-radius` on logo image. Trivial polish.
+- [ ] Local network fallback: self-signed TLS + single random password, binding to local network interface
+- [ ] Nudge banner: persistent non-dismissable banner when in local mode, links to Tailscale setup
+- [ ] Auto-start web server: boolean setting (default: off); if on, server starts at daemon boot
+- [ ] Auto-enable sessions: boolean setting (default: off); if on, EnableSession called at CreateSession
+- [ ] Settings as sidebar tab: modal removed, SettingsPanel rendered as persistent tab
+- [ ] "New Session" label: rename sidebar label and aria-label from "New Tab" to "New Session"
+- [ ] Claude Code native path: add ~/.local/bin (and Windows equivalent) to AugmentServicePath candidates
 
-### Add After Core Works (v1.9.x)
+### Add After Validation (v1.11.x)
 
-- [ ] **Remote session CLI list** — `agenthub list --remote` or unified list with hostname column. Depends on discovery being reliable.
-- [ ] **Remote attach from CLI** — `agenthub attach <peer>/<id>` routing through remote peer's WebSocket relay. Higher complexity, lower urgency.
+- [ ] Per-session auto-serve override in new-session modal (currently global setting; per-session override is a future refinement)
+- [ ] Tailscale-to-local fallback at runtime (if Tailscale disconnects while server is running, graceful mode switch without dropping active browser sessions)
 
 ### Future Consideration (v2+)
 
-- [ ] **Remote session QR from GUI** — fetch QR data from remote peer API. Web dashboard on remote machine already has QRs; low incremental value.
-- [ ] **In-app Tailscale auto-install** — run brew/winget/apt commands in a new terminal tab. High complexity, low frequency use case.
-- [ ] **Tailscale Services integration** — use Tailscale's alpha endpoint advertisement API instead of HTTP probing. Not stable; revisit when GA.
-- [ ] **Peer-to-peer update push** — push binary updates to remote machines. Significant security surface; not aligned with current auth model.
+- [ ] mDNS/Bonjour advertisement of local server for LAN device discovery without manual URL sharing
+- [ ] Certificate pinning UI for browsers connecting to local-mode server (reduce cert warning friction)
+- [ ] Persistent auto-serve preference saved across restarts (not just session lifetime)
 
 ---
 
@@ -147,113 +131,129 @@ Tailscale Install Link
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Standard Edit menu (fixes clipboard) | HIGH — broken clipboard in terminal is a P0 bug for many users | LOW — `menu.EditMenu()` one line | P1 |
-| Build-time version injection | HIGH — prerequisite for update checker and accurate welcome screen | LOW — ldflags already used in CLI binary | P1 |
-| Remote session discovery | HIGH — core milestone value proposition | MEDIUM — LocalClient + parallel HTTP probes + cache | P1 |
-| Remote session GUI panel | HIGH — primary user-facing remote feature | MEDIUM — extend DaemonManagerPanel | P1 |
-| Auto-update notification | HIGH — expected in any distributed desktop app | MEDIUM — go-selfupdate + Wails event + WelcomeTab badge | P1 |
-| Standard Window menu | MEDIUM — convention violation without it | LOW — `menu.WindowMenu()` one line | P1 |
-| Help menu | MEDIUM — users look here for version + docs | LOW — custom menu items, `BrowserOpenURL` | P1 |
-| Tailscale install link | MEDIUM — reduces new user friction | LOW — add URLs to existing health modal | P2 |
-| Remote session CLI list | MEDIUM — useful for power users | MEDIUM — aggregate local + remote in list command | P2 |
-| Welcome logo rounded corners | LOW — cosmetic polish | LOW — CSS change | P2 |
-| Remote attach from CLI | MEDIUM — useful but edge case | HIGH — WebSocket proxy routing | P3 |
+| Local network fallback + password | HIGH | MEDIUM | P1 |
+| Nudge banner (local mode) | MEDIUM | LOW | P1 |
+| Auto-start web server | HIGH | LOW | P1 |
+| Auto-enable sessions | HIGH | LOW | P1 |
+| Settings as sidebar tab | MEDIUM | MEDIUM | P1 |
+| "New Session" label rename | LOW | LOW | P1 (trivial; do with settings-as-tab phase) |
+| Claude Code native path detection | MEDIUM | LOW | P1 |
+
+All features are P1. This milestone is small and tightly scoped; no P2/P3 items exist.
 
 **Priority key:**
-- P1: Must have for v1.9 milestone to ship
-- P2: Should have, include if time permits
-- P3: Nice to have, defer to v2.0
+- P1: Must have for v1.11 milestone to ship
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
 ---
 
-## Key Implementation Decisions
+## Implementation Notes by Feature
 
-### Remote Session Discovery — Design
+### Local Network Fallback + Password
 
-**Discovery mechanism:** Call `local.Client{}.Status(ctx)` → iterate `status.Peer` (type `map[key.NodePublic]*ipnstate.PeerStatus`). Each `PeerStatus` has:
-- `HostName string` — bare hostname (e.g. `"my-macbook"`)
-- `DNSName string` — FQDN from MagicDNS (e.g. `"my-macbook.tail1234.ts.net"`)
-- `TailscaleIPs []netip.Addr` — Tailscale IP addresses (e.g. `100.x.x.x`)
-- `Online bool` — whether peer is online
+**How other apps do it:**
+- Bitwarden self-hosted: self-signed cert + user-configured password
+- Caddy local HTTPS: auto-generates local CA, installs to trust store (invasive — not appropriate here)
+- Typical LAN web apps: random generated token shown in UI, single challenge
 
-**Probe strategy:** For each online peer, `GET http://<TailscaleIP>:<agentHubPort>/api/sessions` with 1-2s timeout. Run probes concurrently in goroutines. If probe fails (peer offline, no AgentHub), skip silently. Cache results. Refresh every 30s and on demand.
+**Recommended approach for AgentHub:**
+1. On `StartWebServer`, check Tailscale health. If healthy: existing Tailscale+Let's Encrypt path unchanged. If unhealthy: generate self-signed CA+leaf (Go stdlib `crypto/x509` + `crypto/tls`), generate 16-char random alphanumeric password, bind to all interfaces or local LAN IP.
+2. Password stored in-memory in `WebServer` struct; regenerated each time server starts.
+3. Server adds Basic Auth middleware when in local mode. Challenge header: `WWW-Authenticate: Basic realm="AgentHub"`.
+4. `BaseURL` in local mode uses machine's local IP (detected via `net.InterfaceAddrs`, preferring 192.168.x or 10.x range), not FQDN.
+5. Web dashboard shows password prominently (copyable text field) when server is in local mode.
+6. `WebServer` struct gains a `mode` field (`"tailscale"` or `"local"`) set at `Start()`.
 
-**Port convention:** AgentHub daemon HTTP port must be consistent (same binary = same default). Expose the port in settings so users who changed it can configure discovery target port.
+**Self-signed cert generation:** Pure Go stdlib — no external deps. `crypto/rand` for key generation, `crypto/x509` for cert template, `crypto/tls` for in-memory `tls.Certificate`. Valid for 1 year.
 
-**Security:** No new auth needed. Tailscale network membership is the auth layer (established v1.2). Remote AgentHub HTTP API already requires no separate auth for tailnet members.
+**Confidence:** HIGH — all stdlib capabilities, well-documented pattern.
 
-### Auto-Update — Library Choice
+### Nudge Banner
 
-**Use `creativeprojects/go-selfupdate`** (not `rhysd/go-github-selfupdate`). Reasons:
-- Fork of rhysd with active maintenance
-- Separates detection from installation: `DetectLatest()` returns `*Release{AssetURL, Version}` without touching the binary
-- GitHub source provider built-in: `selfupdate.ParseSlug("scottkw/agenthub")`
-- Cross-platform asset naming detection (matches `agenthub-{version}-{os}-{arch}.{ext}` convention already in use)
+**Expected behavior:**
+- Displayed as a top banner in the desktop GUI when the web server is in local mode.
+- Content: "Running in local network mode (Tailscale not found). Connection is not verified. Install Tailscale for trusted access." with a "Set up Tailscale" link.
+- Non-dismissable while server is in local mode; disappears if server is stopped or restarted in Tailscale mode.
+- Does NOT block any functionality; purely informational.
 
-**Update flow:** Background goroutine at startup → `DetectLatest()` → if `latest.GreaterThan(currentVersion)` → emit Wails event with version + release URL → frontend shows badge in WelcomeTab + "Download" button → `runtime.BrowserOpenURL(releasePageURL)`.
+**Implementation:** Wails event emitted from daemon when local mode is active; frontend shows/hides banner based on event. Or: `GetWebServerStatus()` response includes a `mode` field; frontend polls status (already does this via 3s REST poll) and shows banner when mode is `"local"`.
 
-**No silent binary replacement.** macOS Gatekeeper quarantines programmatically downloaded binaries. Homebrew and WinGet users update via `brew upgrade` / `winget upgrade`.
+**Confidence:** HIGH — existing REST polling pattern can carry the mode flag.
 
-### Standard App Menus — Wails API
+### Auto-Start Web Server
 
-Wails v2 `menu` package provides:
-- `menu.AppMenu()` — macOS Application menu (app name, Preferences, Hide, Quit)
-- `menu.EditMenu()` — Edit with Cut/Copy/Paste/Select All/Undo/Redo — **fixes macOS WebView clipboard**
-- `menu.WindowMenu()` — Minimize/Zoom/Close
+**Expected behavior:**
+- Setting: `AutoStartWebServer bool` in daemon settings.
+- When true: during `RunDaemon()` startup, after initial health check, daemon calls the same logic as `StartWebServer` IPC handler.
+- Mode selection follows the same Tailscale health check path as manual start.
+- If server fails to auto-start (e.g. port in use), daemon logs error but continues running; GUI shows no server running.
 
-Set via `options.App{Menu: appMenu}` in `wails.Run()`. Dynamic updates via `runtime.MenuUpdateApplicationMenu(ctx)`.
+**Confidence:** HIGH — straightforward extension of existing RunDaemon startup sequence.
 
-**File menu:** New Session (Cmd+N, emits Wails event to frontend), separator, Quit (Cmd+Q).
+### Auto-Enable Sessions
 
-**Help menu:** About AgentHub (shows version modal or runtime.MessageDialog), Documentation (opens GitHub), Report Issue (opens GitHub issues).
+**Expected behavior:**
+- Setting: `AutoServeNewSessions bool` in daemon settings.
+- When true: `CreateSession()` in daemon engine calls `ws.EnableSession(sessionID)` immediately after creating the session.
+- No-op if web server is not running at the time of session creation.
+- Sessions created before auto-serve is enabled are NOT retroactively enabled (avoids surprise exposure).
 
-### Version Injection
+**Confidence:** HIGH — one additional call in CreateSession code path; already has the ws reference.
 
-**Backend:** `-ldflags "-X github.com/scottkw/agenthub/cmd.Version=$(git describe --tags --always)"` in build.sh and CI. Expose via Wails method binding `GetVersion() string`.
+### Settings as Sidebar Tab
 
-**Frontend:** WelcomeTab.tsx calls `GetVersion()` on mount instead of using hardcoded constant. This also provides the version string for the auto-update comparison.
+**Pattern in comparable desktop apps:**
+- VS Code: Settings is a persistent tab, not a modal; survives navigation between other tabs.
+- Warp terminal: Settings is a top-level navigable view accessed from the sidebar.
+- Consensus: modals interrupt; tabs allow free navigation without losing context.
+
+**Recommended approach for AgentHub:**
+1. Add `'settings'` to the active panel union type in App.tsx (currently `'home' | 'remote' | 'sessions' | null`).
+2. Change `onSettings` in Sidebar to emit a panel switch event rather than opening a modal.
+3. Remove `isOpen`, `onClose` props from `SettingsPanel`; it renders unconditionally when active.
+4. The Settings tab is closed by navigating to any other sidebar item (same pattern as Sessions, Remote).
+5. Remove the footer `Close` button from SettingsPanel (navigation replaces it), or convert it to "Back" that switches to the previous panel.
+6. `settings-overlay` and `settings-panel` modal CSS classes become tab-body CSS (no overlay, no fixed position).
+
+**Confidence:** HIGH — established Wails/React tab pattern, mirrors existing DaemonManagerPanel behavior.
+
+### Claude Code Native Path Detection
+
+**Official install paths (from code.claude.com/docs/en/setup — HIGH confidence):**
+- macOS/Linux native installer: `~/.local/bin/claude` (uninstall removes `~/.local/bin/claude` and `~/.local/share/claude`)
+- Windows native installer: `%USERPROFILE%\.local\bin\claude.exe`
+- macOS Homebrew cask: `/opt/homebrew/bin/claude` (already in AugmentServicePath candidates)
+- npm (deprecated): wherever npm -g installs; typically `~/.nvm/.../bin` (already handled by nvmActiveBin)
+
+**Current gap:** `~/.local/bin` is NOT in the current `AugmentServicePath` candidates list in `internal/daemon/path.go`. It is commonly absent from PATH when the daemon runs as a launchd service or when the app is launched from Finder/Dock, because shell init files (which add `~/.local/bin` to PATH via the install script) are not sourced.
+
+**Fix:** Add `filepath.Join(home, ".local", "bin")` to the candidates slice. On all platforms (macOS, Linux, Windows), `os.UserHomeDir()` returns the correct home directory and `~/.local/bin` is the correct subdirectory for native Claude Code installs.
+
+**Confidence:** HIGH — confirmed by official Claude Code uninstall documentation listing exact paths.
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | GitHub Desktop | VS Code Remote | Our Approach |
-|---------|---------------|----------------|--------------|
-| Auto-update | Silent download + restart prompt; shows version in About | Extension auto-update; editor update via prompt | Notify + open browser (avoids Gatekeeper complications) |
-| Remote sessions | Not applicable | VS Code Tunnels requires microsoft.com auth | Zero-config via Tailscale peer enumeration — no auth, no accounts |
-| App menus | Full standard macOS menus | Full standard macOS menus | Currently missing in v1.8; add in v1.9 via Wails menu API |
-| Peer discovery | Not applicable | Server URL required | Automatic via `local.Client{}.Status()` |
+| Feature | OpenCode | AgentHub v1.10 | AgentHub v1.11 Plan |
+|---------|----------|----------------|---------------------|
+| Local network access | Requires manual `opencode web` separate server; no GUI toggle | Tailscale-only | Automatic fallback to self-signed+password LAN mode |
+| Auto-serve on session create | Proposed in GitHub issue #11997 (not shipped) | Manual toggle per session | Optional auto-enable setting |
+| Settings navigation | Modal | Modal | Sidebar tab (persistent) |
+| Claude Code detection | PATH only | PATH + common npm managers | PATH + npm managers + ~/.local/bin native path |
 
 ---
 
 ## Sources
 
-- [Tailscale local package — LocalClient.Status()](https://pkg.go.dev/tailscale.com/client/local) — `Status()` method verified; returns `*ipnstate.Status` with peer map (HIGH confidence)
-- [ipnstate package — PeerStatus fields](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — `HostName`, `TailscaleIPs`, `DNSName`, `Online` fields confirmed via GitHub source (HIGH confidence)
-- [creativeprojects/go-selfupdate](https://pkg.go.dev/github.com/creativeprojects/go-selfupdate) — `DetectLatest()` API verified, separates detection from install (HIGH confidence)
-- [Wails v2 menu package](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/menu) — `EditMenu()`, `AppMenu()`, `WindowMenu()` confirmed (HIGH confidence)
-- [Tailscale Services feature](https://tailscale.com/docs/features/services) — alpha endpoint discovery, not used for v1.9 (MEDIUM confidence)
-- [Tailscale install docs](https://tailscale.com/docs/install) — per-platform install methods for health modal links (HIGH confidence)
-- [Apple macOS keyboard shortcuts](https://support.apple.com/en-us/102650) — standard menu shortcut conventions (HIGH confidence)
+- [Claude Code Advanced Setup](https://code.claude.com/docs/en/setup) — native install path `~/.local/bin/claude` confirmed by uninstall instructions (HIGH confidence)
+- [Claude Code GitHub issue #10970](https://github.com/anthropics/claude-code/issues/10970) — `~/.local/bin` PATH issue for Homebrew users; confirms native vs Homebrew path distinction (MEDIUM confidence)
+- [OpenCode GitHub issue #11997](https://github.com/anomalyco/opencode/issues/11997) — auto-start web server proposal with implementation notes (MEDIUM confidence; different product)
+- AgentHub codebase read directly: `internal/pty/detect.go`, `internal/daemon/path.go`, `internal/webserver/server.go`, `frontend/src/components/SettingsPanel.tsx`, `frontend/src/components/Sidebar.tsx` (HIGH confidence)
+- UX research: settings-as-tab pattern validated by VS Code, Warp terminal, and modal-vs-tab UX analysis (MEDIUM confidence)
 
 ---
 
-## Prior Milestone Research (v1.8 — GitHub Distribution & CI/CD)
-
-The v1.8 research covered release-please auto-versioning, multi-platform release pipeline, Homebrew
-cask tap (scottkw/homebrew-agenthub), WinGet submission infrastructure, artifact naming conventions,
-and packaging templates. All v1.8 features shipped as of 2026-04-06.
-
-Key decisions from v1.8 relevant to v1.9:
-- Artifact naming: `agenthub-{version}-{os}-{arch}.{ext}` — used by go-selfupdate asset detection
-- GitHub repo: `scottkw/agenthub` — used as `selfupdate.ParseSlug("scottkw/agenthub")`
-- release-please PAT requirement — release tags don't trigger downstream workflows with GITHUB_TOKEN
-- WinGet submission is async (hours to ~1 day for Microsoft moderation)
-- ditto for macOS archive (preserves signing xattrs)
-
-See git history for full v1.8 FEATURES.md content.
-
----
-
-*Feature research for: AgentHub v1.9 — Remote Sessions, Auto-Update, Menus, and App Polish*
-*Researched: 2026-04-06*
+*Feature research for: AgentHub v1.11 — Local Network Fallback, Auto-Serve, Settings-as-Tab, Label Rename, Native Path Detection*
+*Researched: 2026-04-08*

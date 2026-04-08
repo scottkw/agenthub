@@ -1,691 +1,443 @@
 # Architecture Research
 
-**Domain:** Remote Session Access, Auto-Update, App Polish — AgentHub v1.9 (Wails v2 Desktop App)
-**Researched:** 2026-04-06
-**Confidence:** HIGH — existing codebase inspected directly; Tailscale local.Client API and Wails menu API verified via official pkg.go.dev docs
+**Domain:** Local network fallback, auto-serve sessions, settings-as-tab, sidebar rename, Claude Code native path detection — AgentHub v1.11
+**Researched:** 2026-04-08
+**Confidence:** HIGH — based on direct code inspection of all affected files
 
 ---
 
-## System Overview
+## Existing Architecture (v1.10 baseline)
 
-### Existing Architecture (v1.8 baseline)
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  agenthub binary (single executable per platform)                        │
-│                                                                           │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────────┐ │
-│  │  GUI (Wails v2)  │  │  CLI commands    │  │  daemon subcommand     │ │
-│  │  App{} thin shell│  │  runCLI()        │  │  RunDaemon()           │ │
-│  │  DaemonClient    │  │  DaemonClient    │  │                        │ │
-│  └────────┬─────────┘  └────────┬─────────┘  └────────────────────────┘ │
-│           │ Unix socket          │ Unix socket                           │
-│           └──────────────────────┘                                       │
-│                                  │                                       │
-│  ┌───────────────────────────────▼───────────────────────────────────┐  │
-│  │  daemon (internal/daemon) — independent OS process                 │  │
-│  │                                                                     │  │
-│  │  SessionEngine  ←→  API (HTTP/Unix socket)  ←→  DaemonClient      │  │
-│  │       │                                                             │  │
-│  │  relay.HubManager  ←→  relay.Server (TCP, internal)               │  │
-│  │       │                                                             │  │
-│  │  webserver.WebServer (HTTPS, Tailscale IP, Let's Encrypt TLS)      │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-│                                                                           │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  System tray (NSStatusBar cgo on macOS; stubs on Linux/Windows)   │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
-                    │ TLS (100.x.x.x Tailscale IP, :7443)
-                    ▼
-           ┌──────────────────┐
-           │  Remote browser  │  (any tailnet device)
-           │  Web dashboard   │
-           └──────────────────┘
-```
-
-### v1.9 Target Architecture (new components highlighted)
+### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  agenthub binary                                                          │
-│                                                                           │
-│  ┌──────────────────┐  ┌──────────────────┐                             │
-│  │  GUI (Wails v2)  │  │  CLI commands    │                             │
-│  │  + App Menu ★    │  │  + remote ★      │                             │
-│  │  + RemotePanel ★ │  │  + update ★      │                             │
-│  │  + UpdateChecker ★│  │                  │                             │
-│  └────────┬─────────┘  └──────────────────┘                             │
-│           │ Unix socket                                                   │
-│           ▼                                                               │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │  daemon (internal/daemon)                                        │    │
-│  │                                                                   │    │
-│  │  + GET /tailnet/peers ★   → PeerDiscovery (internal/tailnet ★)  │    │
-│  │  + GET /tailnet/sessions ★  ← HTTP probe to peer's AgentHub     │    │
-│  │                                                                   │    │
-│  │  existing: SessionEngine, relay.Server, webserver.WebServer      │    │
-│  └─────────────────────────────────────────────────────────────────┘    │
-│                                                                           │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  internal/updater ★   — GitHub release checker + asset download  │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│  ┌──────────────────────────────────────────────────────────────────┐   │
-│  │  internal/tailscale ★  — install detection, platform-specific    │   │
-│  │                          install instructions & auto-install      │   │
-│  └──────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        agenthub binary                               │
+├──────────────────────┬──────────────────────┬───────────────────────┤
+│  GUI mode (Wails)    │  CLI mode            │  Daemon mode          │
+│  app.go (App struct) │  cmd_*.go            │  internal/daemon/     │
+│  ↕ DaemonClient      │  ↕ DaemonClient      │  service.go           │
+└──────────────────────┴──────────────────────┴───────────────────────┘
+         │                       │                        │
+         └───────────────────────┴────────────────────────┘
+                                 │ Unix socket (named pipe on Windows)
+                    ┌────────────┴───────────────┐
+                    │     daemon API              │
+                    │  internal/daemon/api.go     │
+                    │  POST /webserver/start      │
+                    │  POST /webserver/stop       │
+                    │  POST /sessions/{id}/web-serve
+                    │  GET  /sessions             │
+                    │  POST /sessions             │
+                    └────────────┬───────────────┘
+                                 │
+                    ┌────────────┴───────────────┐
+                    │     SessionEngine           │
+                    │  internal/daemon/engine.go  │
+                    │  Registry + HubManager      │
+                    └────────────┬───────────────┘
+                                 │
+         ┌───────────────────────┼─────────────────────┐
+         │                       │                     │
+┌────────┴───────┐  ┌────────────┴──────┐  ┌──────────┴──────┐
+│ WebServer      │  │ Relay server      │  │ PTY backend     │
+│ internal/      │  │ internal/relay/   │  │ internal/pty/   │
+│ webserver/     │  │ (TCP random port) │  │ detect.go       │
+│ server.go      │  │                   │  │ engine.go       │
+│ Binds: TS IP   │  │ Binds: 127.0.0.1  │  │                 │
+│ TLS: TS certs  │  │                   │  │                 │
+└────────────────┘  └───────────────────┘  └─────────────────┘
 ```
 
-★ = new in v1.9
+### Frontend Architecture (React/Wails)
+
+```
+App.tsx (root state owner)
+├── Sidebar.tsx          — navigation, collapsed state in localStorage
+│     items: Home | Remote | Sessions | New Tab | Settings (bottom)
+├── TabBar.tsx           — tab strip (session tabs only after v1.10)
+└── terminal-container   — content area, one component per tab type
+      ├── WelcomeTab               (type: 'welcome')
+      ├── DaemonManagerPanel       (type: 'daemon-manager')
+      ├── RemoteSessionsPanel      (type: 'remote-sessions')
+      ├── TerminalPanel × N        (type: undefined / session tab)
+      └── StatusBar × N            (paired with each TerminalPanel)
+
+Overlays (rendered outside terminal-container):
+├── SettingsPanel        — isOpen boolean, rendered as modal overlay
+├── HealthModal          — triggered by Tailscale health state
+├── NewSessionModal      — triggered by New Tab action
+└── QRModal              — triggered by StatusBar QR button
+```
+
+### Key Boundaries
+
+| Boundary | Protocol | Notes |
+|----------|----------|-------|
+| Frontend ↔ App.go | Wails bindings (JS→Go) + EventsEmit (Go→JS) | Defined in app.go, exposed as wailsjs TS types |
+| App.go ↔ Daemon | HTTP/JSON over Unix socket | DaemonClient in internal/daemon/client.go |
+| Daemon ↔ WebServer | In-process method calls | WebServer owned by API struct (a.webServer) |
+| Browser ↔ WebServer | WSS + HTTP over TLS | Tailscale IP:port, Let's Encrypt certs |
+| CLI ↔ Daemon | Same HTTP/JSON over Unix socket | Same DaemonClient used by GUI |
 
 ---
 
-## Component Responsibilities
+## v1.11 Feature Integration Analysis
 
-### Existing Components (Unchanged Interfaces)
+### Feature 1: Local Network Fallback (Self-Signed TLS + Password)
 
-| Component | Package | Responsibility |
-|-----------|---------|----------------|
-| `App{}` | root | Thin Wails shell; all session ops delegated via DaemonClient |
-| `DaemonClient` | `internal/daemon` | HTTP client over Unix socket; typed Go methods |
-| `API` | `internal/daemon` | HTTP/JSON server on Unix socket; routes to SessionEngine |
-| `SessionEngine` | `internal/daemon` | Session lifecycle, PTY management, status tracking |
-| `relay.Server` | `internal/relay` | WebSocket relay for terminal I/O (local TCP, 127.0.0.1) |
-| `webserver.WebServer` | `internal/webserver` | HTTPS dashboard on Tailscale IP with Let's Encrypt TLS |
-| `CheckHealth()` | `internal/webserver` | Tailscale health check via `local.Client{}` |
+**What needs to change:**
 
-### New Components (v1.9)
+The current `StartWebServer` in `app.go` gates startup on three Tailscale conditions (Connected, IP available, HasCerts). When Tailscale is absent, the function returns an error and no server starts. The v1.11 fallback needs an alternative path that:
 
-| Component | Package | Responsibility |
-|-----------|---------|----------------|
-| `PeerDiscovery` | `internal/tailnet` | Query `local.Client{}.Status()` for peers; probe each peer for AgentHub |
-| `PeerSessionList` | `internal/tailnet` | HTTP GET to remote peer's web server `/api/sessions` endpoint |
-| `Updater` | `internal/updater` | Check GitHub releases API for newer version; download asset; apply |
-| App Menu | root `main.go` | Wails `options.App.Menu` with AppMenu + EditMenu + File + Window + Help |
-| `RemoteSessionsPanel` | `frontend/src/components` | React panel showing discovered remote peers and their sessions |
-| `UpdateNotification` | `frontend/src/components` | React banner/modal for available update, download progress |
+1. Generates a self-signed CA + leaf cert (the infrastructure removed in v1.2 must be re-added)
+2. Binds to the LAN IP (not the Tailscale IP)
+3. Adds password middleware (removed in v1.2 Phase 16)
+
+**Integration points:**
+
+```
+app.go: StartWebServer()
+  └── currently: gates on h.Connected && h.IP != "" && h.HasCerts
+  └── new: if Tailscale healthy → Tailscale path (unchanged)
+           else → fallback path: generate self-signed cert, bind LAN IP, add password
+
+internal/webserver/server.go: WebServer struct + Config
+  └── Config needs: Mode field (tailscale | local), Password string
+  └── setupRoutes(): add auth middleware for local mode only
+
+internal/webserver/: new file selfcert.go
+  └── GenerateSelfSignedCert(ip string) (*tls.Config, error)
+  └── Uses crypto/x509, crypto/ecdsa, crypto/rand — stdlib only, no new deps
+
+internal/daemon/api.go: handleWebServerStart
+  └── WebServerStartRequest: add Mode, Password fields
+  └── Passes through to WebServer Config
+
+internal/daemon/types.go:
+  └── WebServerStartRequest: add Mode string, Password string fields
+
+Password middleware:
+  └── http.Handler wrapper checking Authorization header or cookie
+  └── Single random password generated at server start (not stored persistently)
+  └── Pass password back in WebServerStartResponse for display to user
+
+Frontend: SettingsTab (after Feature 3 converts Settings to tab)
+  └── When Tailscale absent: show "Local Network" mode info + generated password display
+  └── Persistent nudge banner in App.tsx: shows when webServer is in local mode
+```
+
+**New components:**
+- `internal/webserver/selfcert.go` — self-signed cert generation (stdlib crypto, no new deps)
+- `internal/webserver/auth.go` — password middleware (wraps http.Handler, checks Authorization or session cookie)
+
+**Modified components:**
+- `internal/webserver/server.go` — Config gains Mode + Password; Start() branches on Mode
+- `internal/daemon/types.go` — WebServerStartRequest adds Mode, Password; WebServerStatusResponse adds Mode
+- `internal/daemon/api.go` — handleWebServerStart passes Mode/Password; handleWebServerStatus returns Mode
+- `app.go` — StartWebServer detects fallback condition, generates random password, passes to daemon
+- `frontend/src/App.tsx` — nudge banner state (`webServerMode: 'tailscale' | 'local' | null`)
+- `frontend/src/components/SettingsPanel.tsx` — password display section for local mode
+
+**Password generation:** `crypto/rand` (already a stdlib dep), 16 bytes → base64url → 22 chars. Generated in `app.go` at call time, passed to daemon, stored only in daemon's in-memory WebServer struct. Never written to disk.
+
+**LAN IP resolution:** `net.InterfaceAddrs()` scanning for first non-loopback IPv4. This is the same approach removed in v1.2 (`network.go`). Re-add as a small helper function in `app.go` or a new `internal/webserver/localip.go`.
+
+**Nudge banner:** A new string field `webServerMode` in App.tsx state. When mode is `'local'`, render a persistent banner above the tab bar showing the password and a note that Tailscale would provide a more secure alternative. Banner does not dismiss until Tailscale becomes available or user stops the server.
 
 ---
 
-## Recommended Project Structure (New Files)
+### Feature 2: Auto-Serve Sessions
+
+**What "auto-serve" means:**
+- When web server starts: automatically enable web serving for all existing sessions
+- When a new session is created: automatically enable web serving if server is running
+
+**Integration points:**
 
 ```
-internal/
-├── tailnet/                     # NEW — tailnet peer discovery
-│   ├── discovery.go             # PeerDiscovery: Status() → filter AgentHub peers
-│   ├── discovery_test.go
-│   ├── probe.go                 # HTTP probe to /api/sessions on remote web server
-│   └── probe_test.go
-│
-├── updater/                     # NEW — auto-update
-│   ├── updater.go               # CheckLatest(), Download(), Apply()
-│   └── updater_test.go
-│
-└── daemon/
-    ├── api.go                   # MODIFY — add GET /tailnet/peers, GET /tailnet/sessions
-    ├── client.go                # MODIFY — add GetTailnetPeers(), GetTailnetSessions()
-    └── types.go                 # MODIFY — add PeerInfo, RemoteSessionInfo types
+app.go: StartWebServer()
+  └── After server starts successfully, iterate all sessions via ListSessions()
+  └── Call client.ToggleWebServing(id, true) for each
+  └── Emit session:web-enabled for each to sync frontend state
 
-frontend/src/components/
-├── RemoteSessionsPanel.tsx      # NEW — remote peer discovery UI
-├── UpdateBanner.tsx             # NEW — update available notification
-└── __tests__/
-    ├── RemoteSessionsPanel.test.tsx
-    └── UpdateBanner.test.tsx
+app.go: CreateSession()
+  └── After daemon returns new session ID, check client.GetWebServerStatus()
+  └── If running: call client.ToggleWebServing(newID, true)
+  └── Emit session:web-enabled {sessionId, url} Wails event
+
+Frontend App.tsx: useEffect event subscription block
+  └── Add handler for session:web-enabled event
+  └── Updates webEnabled[sessionId] = true and sessionURLs[sessionId] = url
 ```
+
+**Recommended approach:** Handle auto-serve in `app.go` on the backend side for both cases. This keeps the frontend stateless about this policy and avoids a race where the frontend might call ToggleWebServing before the session relay hub is ready.
+
+**New Wails event:**
+```
+session:web-enabled  { sessionId: string, url: string }
+```
+
+Frontend subscribes in the existing `useEffect` event subscription block alongside `session:status`. When received, updates both `webEnabled` and `sessionURLs` state maps.
 
 ---
 
-## Feature Architecture: Remote Session Discovery
+### Feature 3: Settings as Sidebar Tab
 
-### Data Model
+**Current state:** Settings is a modal overlay (`SettingsPanel` with `isOpen` prop). Sidebar `onSettings` callback calls `setShowSettings(true)`. The component renders as `<div className="settings-overlay">` covering the full app.
+
+**Target state:** Settings is a persistent tab in the tab system, like `WelcomeTab`, `DaemonManagerPanel`, and `RemoteSessionsPanel`.
+
+**Integration points:**
+
+```
+frontend/src/App.tsx:
+  └── Add SETTINGS_TAB constant: { id: '__settings__', name: 'Settings', type: 'settings' }
+  └── Add handleOpenSettings: same pattern as handleOpenDaemonManager (find-or-add + focus)
+  └── Sidebar: onSettings prop → handleOpenSettings (currently sets showSettings=true)
+  └── terminal-container: add {activeId === SETTINGS_TAB.id && <SettingsPanel ... />}
+  └── Remove showSettings state
+  └── Remove bottom-of-JSX SettingsPanel overlay render
+  └── Load webEnabled/serverRunning state when settings tab becomes active
+      (poll pattern like daemon-manager, or just load on mount)
+
+frontend/src/components/SettingsPanel.tsx:
+  └── Remove settings-overlay and settings-panel wrapper divs
+  └── Remove isOpen prop — rendered only when tab is active (JSX conditional)
+  └── Remove onClose prop — closing is standard tab close (handleCloseTab)
+  └── Remove settings-panel__header close button
+  └── Remove settings-panel__footer Close button
+  └── Load state on mount (useEffect with no isOpen guard)
+  └── Content becomes full tab panel, not a modal
+
+frontend/src/components/Sidebar.tsx:
+  └── aria-label "Settings" already correct
+  └── No prop interface changes needed
+```
+
+**Tab type expansion:** The `Tab` type in `TabBar.tsx` needs a new `type: 'settings'` variant. The tab-close behavior for settings tab removes it from the array (user can reopen via sidebar). This is the same pattern as all other singleton tabs — no special handling needed.
+
+**SettingsPanel state loading:** Currently triggered by `isOpen` in a `useEffect`. After conversion, trigger on mount — the JSX conditional means the component mounts/unmounts on tab activation (same as WelcomeTab pattern). The `isOpen` guard on the `useEffect` can be removed entirely.
+
+---
+
+### Feature 4: Sidebar Label "New Tab" → "New Session"
+
+**Minimal change:** Two strings in `Sidebar.tsx`.
+
+```
+frontend/src/components/Sidebar.tsx:
+  aria-label="New Tab"  →  aria-label="New Session"
+  <span className="sidebar__label">New Tab</span>
+  →
+  <span className="sidebar__label">New Session</span>
+```
+
+No other production files affected. The `onAdd` prop name is internal and does not need to change.
+
+**Test impact:** Any vitest test in `frontend/src/components/__tests__/` asserting the "New Tab" label text needs updating.
+
+---
+
+### Feature 5: Claude Code Native Install Path Detection
+
+**Current state:** `internal/pty/detect.go` uses `exec.LookPath("claude")` — finds the binary only if it is on the augmented PATH. Claude Code installed via the Anthropic native installer on macOS places the binary at `~/.claude/local/claude`, which is not a standard PATH location and not currently in `AugmentServicePath`.
+
+**Known native install paths:**
+- macOS/Linux: `~/.claude/local/claude` (Anthropic native installer)
+- Windows: `%LOCALAPPDATA%\AnthropicClaude\claude.exe` or `%APPDATA%\Claude\claude.exe`
+
+**Integration points:**
+
+```
+internal/pty/detect.go: DetectCLIs() and DetectCLI()
+  └── After LookPath fails for "claude", probe claudeNativePaths() candidates
+  └── New helper: claudeNativePaths() []string — platform-specific paths via runtime.GOOS
+  └── If candidate exists and is executable: use that path
+
+internal/daemon/path.go: AugmentServicePath()
+  └── Add filepath.Join(home, ".claude", "local") to candidate prepend list
+  └── Covers session creation (exec.LookPath at PTY spawn time) not just detection
+```
+
+**Implementation approach for detect.go:**
+
+The `knownCLIs` loop in `DetectCLIs` gains a per-CLI fallback mechanism. Rather than coupling the fallback directly into the loop, add an optional `FallbackPaths func() []string` field to `CLISpec`, or simply special-case "claude" after the loop:
 
 ```go
-// internal/tailnet/discovery.go
-
-// PeerInfo represents a tailnet peer running AgentHub.
-type PeerInfo struct {
-    Hostname   string   // HostName from PeerStatus
-    TailscaleIP string  // First TailscaleIPs entry
-    DNSName    string   // FQDN from DNSName (trim trailing dot)
-    Online     bool     // PeerStatus.Online
-    AgentHubURL string  // Discovered HTTPS URL if AgentHub web server running
-}
-
-// RemoteSessionInfo is a session on a remote peer.
-type RemoteSessionInfo struct {
-    PeerHostname string
-    PeerURL      string
-    ID           string
-    Name         string
-    CLIType      string
-    Status       string
-    Hostname     string  // same as PeerHostname, from session metadata
-}
+// After the LookPath loop, check native paths for claude specifically.
+// Only if claude was not found via PATH.
 ```
 
-### Discovery Flow
+Either approach is valid. The special-case is simpler; the `FallbackPaths` field is more extensible if other CLIs add native installers later. Given only Claude Code has a known native installer issue today, the simpler special-case is preferred (avoid the 3-example abstraction rule).
 
-```
-GUI polls GetTailnetPeers() every 30s (or on-demand button)
-    │
-    ▼
-DaemonClient.GetTailnetPeers()
-    │ HTTP GET /tailnet/peers (over Unix socket)
-    ▼
-API.handleTailnetPeers()
-    │
-    ▼
-internal/tailnet.DiscoverPeers(ctx)
-    │
-    ├── local.Client{}.Status(ctx)    ← existing Tailscale daemon call
-    │         returns *ipnstate.Status with Peer map
-    │
-    ├── filter: peer.Online == true
-    │           peer is not self (compare against status.Self.HostName)
-    │
-    └── for each online peer:
-            ProbePeer(ctx, peer.TailscaleIPs[0])
-                │ HTTP GET https://<tailscale-ip>:<port>/api/sessions
-                │ (try known ports: 7443, 443, 8443)
-                │ TLS: skip cert verify for IP-addressed probe (cert is for FQDN)
-                ├── success → peer is running AgentHub, has sessions
-                └── timeout/error → peer not running AgentHub (skip)
-```
-
-**Key insight:** The existing web server's `/api/sessions` endpoint (already serving for the web dashboard) is the probe target. No new server-side protocol is needed. Remote discovery reuses the existing web serving infrastructure.
-
-**TLS probe note:** When probing by Tailscale IP (100.x.x.x), the Let's Encrypt cert will not match the IP address — it's issued to the FQDN. Use `tls.Config{InsecureSkipVerify: true}` with a short 3s timeout for the probe. This is acceptable because: (1) we're probing only tailnet IPs (network-layer authenticated), (2) we only want to know if AgentHub is running, not establish a secure session yet.
-
-### Attach to Remote Session (GUI)
-
-Remote session attach opens the existing web terminal URL in the user's browser:
-
-```
-User clicks "Open" on remote session in RemoteSessionsPanel
-    │
-    ▼
-Wails runtime.BrowserOpenURL(remoteSession.AgentHubURL + "/terminal/" + sessionID)
-    │
-    ▼
-Browser opens → wss://peer-hostname.ts.net:7443/sessions/<id>/ws
-    (uses existing web dashboard terminal — no new protocol)
-```
-
-**Rationale:** Browser-based attach reuses the entire existing web serving + xterm.js web terminal stack. No new WebSocket relay protocol needed. The remote peer's web server handles TLS (its own Let's Encrypt cert) and serves the terminal to the browser.
-
-### Attach to Remote Session (CLI)
-
-`agenthub remote list` and `agenthub remote attach <peer> <id>`:
-
-```
-agenthub remote attach hostname session-id
-    │
-    ├── Discover peer's AgentHub URL (same probe as GUI)
-    ├── GET https://peer-fqdn:7443/api/sessions/<id>  (verify exists)
-    └── Open ws relay: connect to peer's relay WebSocket
-            wss://peer-fqdn:7443/sessions/<id>/ws
-            Proxy stdin/stdout (same as local cmdAttach, but remote WebSocket source)
-```
-
-**CLI attach to remote uses the same existing WebSocket protocol** — the relay binary framing (MsgInput, MsgResize2, MsgOutput) already handles remote clients (this is what the web browser does). The CLI just becomes another WebSocket client.
-
-### New Daemon API Routes
-
-```
-GET /tailnet/peers
-    → []PeerInfo (all online tailnet peers, AgentHub probe results included)
-    → 200 OK; empty array if Tailscale not running
-
-GET /tailnet/sessions
-    → []RemoteSessionInfo (all sessions across all AgentHub peers)
-    → Aggregates probe results from all responding peers
-    → 200 OK; empty array if no peers found
-```
-
-These are pure read operations. The daemon calls `internal/tailnet.DiscoverPeers()` which calls `local.Client{}.Status()` — same zero-value client pattern already used in `webserver.CheckHealth()`.
+**Confidence note on paths:** The path `~/.claude/local/claude` is based on community reports as of early 2026. Verify against the actual Anthropic installer output on a test machine before shipping. Structure the code to easily add more paths.
 
 ---
 
-## Feature Architecture: Auto-Update
-
-### Library Choice
-
-**Use `creativeprojects/go-selfupdate`** (not `rhysd/go-github-selfupdate`).
-
-Rationale:
-- `creativeprojects/go-selfupdate` supports GitHub + has active maintenance (last commit 2025)
-- Has checksum validation support (`ChecksumValidator` with `checksums.txt`) — AgentHub already publishes `checksums.txt` in releases (v1.8 Phase 46)
-- `rhysd/go-github-selfupdate` is less actively maintained and lacks checksum validation
-
-**This is a checker + downloader, not an in-process patcher.** For a macOS `.app` bundle, in-process binary replacement is unreliable (the running binary is inside an `.app` bundle, the bundle needs to be replaced atomically). The correct pattern for a GUI app:
+## Component Dependency Map
 
 ```
-Check → notify user → download to temp file → open Finder to downloaded location
+WebServer Config (server.go)
+  ← handleWebServerStart (api.go)
+    ← WebServerStartRequest (types.go)
+      ← client.StartWebServer (client.go)
+        ← App.StartWebServer (app.go)
+          ← Frontend: handleToggleServer (SettingsTab)
+
+New in v1.11:
+  selfcert.go → server.go (TLSConfig branch for local mode)
+  auth.go → server.go (middleware wrap for local mode)
+  localip helper → app.go (fallback IP resolution)
+  App.StartWebServer → auto-toggle all existing sessions after start
+  App.CreateSession → auto-toggle new session if server running
+  session:web-enabled event → App.tsx state sync
 ```
-
-Not: check → replace own binary → restart. That pattern fails on macOS due to Gatekeeper and bundle signing.
-
-### Update Check Flow
-
-```
-App startup (app.startup) or user-initiated (Help > Check for Updates)
-    │
-    ▼
-internal/updater.CheckLatest(ctx, "scottkw/agenthub", currentVersion)
-    │ calls GitHub releases API: GET https://api.github.com/repos/scottkw/agenthub/releases/latest
-    ├── latest.Version > currentVersion → returns UpdateInfo{Version, URL, ReleaseNotes}
-    └── up to date → returns nil
-    │
-    ▼
-Wails: runtime.EventsEmit(ctx, "update:available", UpdateInfo{...})
-    │
-    ▼
-Frontend: UpdateBanner shows version + release notes + "Download" button
-    │
-    ▼
-User clicks Download
-    │
-    ▼
-App.DownloadUpdate(url) — Wails-bound method
-    ├── Downloads to ~/Downloads/agenthub-vX.Y.Z-darwin-universal.zip
-    ├── Emits "update:progress" events during download
-    └── On complete: runtime.BrowserOpenURL(downloadPath) → opens Finder
-        (or on Windows: exec.Command("explorer", downloadPath))
-        (on Linux: exec.Command("xdg-open", downloadPath))
-```
-
-### Version Constant
-
-`var Version string` already planned in main.go (v1.8 Phase 45 ldflags pattern). The updater reads this. In dev builds where `Version` is empty, skip the update check (or treat as "0.0.0-dev").
-
-### New Daemon API Routes for Updater
-
-The updater runs in the GUI process (App{}), not the daemon. Reason: the daemon is a long-running service that may run as a system service; update checks should be triggered by the user-facing GUI. No new daemon routes needed for the updater.
-
----
-
-## Feature Architecture: Tailscale Install Assistance
-
-### Current State
-
-`internal/webserver/tailscale.go` already has `CheckHealth()` which returns `TailscaleHealth{Installed, Connected, HasCerts, IP, Domain}`. The `HealthModal.tsx` component displays platform-specific instructions.
-
-### v1.9 Addition: Auto-Install
-
-For macOS and Linux, offer a one-click install:
-
-```go
-// internal/tailscale/install.go (new, or add to webserver/tailscale.go)
-
-func InstallTailscale(ctx context.Context) error {
-    switch runtime.GOOS {
-    case "darwin":
-        // Option 1: Homebrew (if available)
-        if _, err := exec.LookPath("brew"); err == nil {
-            return exec.CommandContext(ctx, "brew", "install", "--cask", "tailscale").Run()
-        }
-        // Option 2: Open download page
-        return openBrowser("https://tailscale.com/download/mac")
-    case "linux":
-        // Tailscale install script (curl | sh pattern — prompt user first)
-        return openBrowser("https://tailscale.com/download/linux")
-    case "windows":
-        // Open download page (MSI installer)
-        return openBrowser("https://tailscale.com/download/windows")
-    }
-}
-```
-
-**For auto-install via Homebrew on macOS:** This is viable — `brew install --cask tailscale` works silently. But it requires prompting the user first (security: running a command that installs software without consent is bad UX). Pattern: confirm dialog → execute brew install → show progress → re-run CheckHealth on completion.
-
-**For Linux/Windows:** Direct auto-install is not safe to do without elevated permissions and user confirmation. Open the browser to the Tailscale download page — same as current behavior.
-
-### Wails-bound Methods (additions to App{})
-
-```go
-func (a *App) InstallTailscale() error        // triggers install per platform
-func (a *App) GetTailscaleInstallMethod() string  // returns "homebrew", "pkg", "browser"
-```
-
----
-
-## Feature Architecture: Standard App Menus
-
-### Wails v2 Menu API
-
-Wails v2 provides native application menus via `options.App.Menu`:
-
-```go
-// main.go — in runGUI(), set Menu field in options.App:
-
-import (
-    "github.com/wailsapp/wails/v2/pkg/menu"
-    "github.com/wailsapp/wails/v2/pkg/menu/keys"
-)
-
-func buildAppMenu(app *App) *menu.Menu {
-    appMenu := menu.NewMenu()
-
-    // macOS: AppMenu (About, Services, Hide, Quit) — required for macOS conventions
-    appMenu.Append(menu.AppMenu())
-
-    // File menu
-    fileMenu := appMenu.AddSubmenu("File")
-    fileMenu.AddText("New Session", keys.CmdOrCtrl("n"), func(_ *menu.CallbackData) {
-        runtime.EventsEmit(app.ctx, "menu:new-session")
-    })
-    fileMenu.AddSeparator()
-    fileMenu.AddText("Close Window", keys.CmdOrCtrl("w"), func(_ *menu.CallbackData) {
-        runtime.WindowHide(app.ctx)
-    })
-
-    // Edit menu — macOS requires this for Cmd+C/V/Z to work in text fields
-    appMenu.Append(menu.EditMenu())
-
-    // Window menu
-    appMenu.Append(menu.WindowMenu())  // Minimize, Zoom, etc.
-
-    // Help menu
-    helpMenu := appMenu.AddSubmenu("Help")
-    helpMenu.AddText("Check for Updates...", nil, func(_ *menu.CallbackData) {
-        runtime.EventsEmit(app.ctx, "menu:check-updates")
-    })
-    helpMenu.AddText("AgentHub on GitHub", nil, func(_ *menu.CallbackData) {
-        runtime.BrowserOpenURL(app.ctx, "https://github.com/scottkw/agenthub")
-    })
-
-    return appMenu
-}
-```
-
-Then in `runGUI()`:
-
-```go
-app := NewApp()
-err := wails.Run(&options.App{
-    // ... existing fields ...
-    Menu: buildAppMenu(app),
-})
-```
-
-### Menu Callbacks and Frontend Events
-
-Menu callbacks use `runtime.EventsEmit` to send events to the React frontend. The frontend subscribes with `EventsOn`. This is the existing pattern for tray events (`tray:focus-session`) — apply the same pattern for menu events.
-
-New frontend events to handle:
-- `menu:new-session` → open NewSessionModal
-- `menu:check-updates` → trigger update check and show UpdateBanner
-
-### Platform Notes
-
-**macOS:** `menu.AppMenu()` and `menu.EditMenu()` are mandatory. Without `AppMenu()`, the app has no About item and Cmd+Q is broken. Without `EditMenu()`, Cmd+C/V/Z do not work in any text input inside the WebView. This is a Wails-specific requirement verified in the Wails menu package docs.
-
-**Windows/Linux:** The menu renders as a native application menu bar. `AppMenu()` is macOS-only (it renders nothing on other platforms — Wails handles this gracefully).
-
-**LSUIElement conflict:** The app currently hides from the Dock using `LSUIElement = 1`. On macOS, `LSUIElement` apps conventionally do not have a menu bar. However, Wails renders the menu bar regardless of `LSUIElement`. This is acceptable for AgentHub — the menu bar is useful when the window is visible. No code change needed.
-
----
-
-## Data Flow
-
-### Remote Discovery Flow (GUI)
-
-```
-[RemoteSessionsPanel mounts or user clicks Refresh]
-    │
-    ▼
-GetTailnetPeers() → Wails binding → App.GetTailnetPeers()
-    │
-    ▼
-DaemonClient.GetTailnetPeers() → HTTP GET /tailnet/peers (Unix socket)
-    │
-    ▼
-API.handleTailnetPeers() → tailnet.DiscoverPeers(ctx)
-    │
-    ├── local.Client{}.Status(ctx) → peer map (hostname, IPs, online)
-    │
-    └── for each online peer:
-            tailnet.ProbePeer(ctx, ip, knownPorts)
-                HTTP GET https://<ip>:<port>/api/sessions
-                3s timeout, InsecureSkipVerify (IP-addressed probe)
-                → success: PeerInfo{AgentHubURL, sessions}
-    │
-    ▼
-[]PeerInfo serialized as JSON → DaemonClient → App → Wails → React state
-    │
-    ▼
-RemoteSessionsPanel renders: peer cards with session lists
-    │
-    ▼
-User clicks "Open Session"
-    │
-    ▼
-runtime.BrowserOpenURL(peerURL + "/terminal/" + sessionID)
-```
-
-### Update Check Flow
-
-```
-App.startup() goroutine
-    │
-    ▼
-updater.CheckLatest(ctx, "scottkw/agenthub", Version)
-    (non-blocking, 5s timeout)
-    │
-    ├── no update → done
-    └── update available
-            │
-            ▼
-        runtime.EventsEmit(ctx, "update:available", UpdateInfo{
-            Version: "v1.9.0",
-            ReleaseNotesURL: "https://github.com/scottkw/agenthub/releases/tag/v1.9.0",
-            DownloadURL: "https://github.com/scottkw/agenthub/releases/download/v1.9.0/agenthub-darwin-universal.zip",
-        })
-            │
-            ▼
-        Frontend: UpdateBanner appears at top of window
-        User clicks "Download" → App.DownloadUpdate(url)
-            │
-            ▼
-        Download to ~/Downloads/ with progress events
-            │
-            ▼
-        Open Finder/Explorer to downloaded file
-```
-
----
-
-## Integration Points
-
-### New vs. Modified Components
-
-| Component | Action | What Changes |
-|-----------|--------|-------------|
-| `internal/daemon/api.go` | **MODIFY** | Add `GET /tailnet/peers`, `GET /tailnet/sessions` route handlers |
-| `internal/daemon/client.go` | **MODIFY** | Add `GetTailnetPeers()`, `GetTailnetSessions()` typed client methods |
-| `internal/daemon/types.go` | **MODIFY** | Add `PeerInfo`, `RemoteSessionInfo` types |
-| `app.go` | **MODIFY** | Add `GetTailnetPeers()`, `GetTailnetSessions()`, `CheckForUpdate()`, `DownloadUpdate()`, `InstallTailscale()` Wails-bound methods |
-| `main.go` (runGUI) | **MODIFY** | Add `Menu: buildAppMenu(app)` to `options.App{}` |
-| `tray_objc.m` / `tray.go` | **NO CHANGE** | Tray menus remain NSMenuDelegate-based; standard app menus are separate |
-| `internal/webserver/tailscale.go` | **MODIFY** | Add `InstallTailscale()` or extend health check |
-| `frontend/src/App.tsx` | **MODIFY** | Add `EventsOn` handlers for `menu:*` and `update:*` events; add RemoteSessionsPanel tab |
-| `frontend/src/components/DaemonManagerPanel.tsx` | **MODIFY** | May absorb RemoteSessionsPanel, or RemoteSessionsPanel is a separate tab |
-
-### New Files
-
-| File | Purpose |
-|------|---------|
-| `internal/tailnet/discovery.go` | PeerDiscovery using local.Client{}.Status() |
-| `internal/tailnet/discovery_test.go` | Tests with injectable statusFunc |
-| `internal/tailnet/probe.go` | HTTP probe to remote AgentHub web server |
-| `internal/tailnet/probe_test.go` | Tests with httptest server |
-| `internal/updater/updater.go` | GitHub releases check + download |
-| `internal/updater/updater_test.go` | Tests with mock GitHub API |
-| `frontend/src/components/RemoteSessionsPanel.tsx` | Remote peers + sessions UI |
-| `frontend/src/components/UpdateBanner.tsx` | Update notification UI |
-
-### Daemon IPC: New Routes
-
-| Route | Method | Handler | Returns |
-|-------|--------|---------|---------|
-| `/tailnet/peers` | GET | `handleTailnetPeers` | `[]PeerInfo` |
-| `/tailnet/sessions` | GET | `handleTailnetSessions` | `[]RemoteSessionInfo` |
-
-These routes trigger active network probing. Each call to `GET /tailnet/peers` does:
-1. One `local.Client{}.Status()` call (fast, local socket)
-2. One HTTP probe per online peer (concurrent, 3s timeout each)
-
-**Caching:** The daemon should cache peer discovery results for 30 seconds. Concurrent GUI polls and CLI calls within the window return cached results without re-probing. Implement as a simple `sync.Mutex`-protected struct with a `lastProbed time.Time` and `cachedPeers []PeerInfo`.
 
 ---
 
 ## Build Order (Phase Dependencies)
 
+**Phase ordering rationale:** Each feature is largely independent at the component level. Settings-as-tab affects the UI surface that will display the local-mode password, so it should land before the local network fallback UI work. The Claude Code detection fix and sidebar rename are purely isolated changes — safest to do first.
+
 ```
-Phase A: Standard App Menus
-  (pure Wails API, no new packages, no external deps)
-  Modifies: main.go (buildAppMenu), app.go (menu event dispatch)
-  Unblocks: nothing (self-contained)
-      │
-      ▼  (can start in parallel with Phase A)
+Phase A: Claude Code native path detection
+  Files: internal/pty/detect.go, internal/daemon/path.go
+  Risk: LOW — additive change, existing tests cover detect.go
+  No frontend changes.
+  Can ship alone.
 
-Phase B: Version from Build + Welcome Screen Polish
-  (prerequisite: var Version string in main.go, already planned in v1.8)
-  Modifies: main.go, WelcomeTab.tsx, wails.json
-  Unblocks: Phase D (UpdateChecker needs Version)
+Phase B: Sidebar label rename ("New Tab" → "New Session")
+  Files: frontend/src/components/Sidebar.tsx, 1 test file (if asserting label text)
+  Risk: VERY LOW — two string changes
+  No backend changes.
+  Can ship alone.
 
-Phase C: internal/tailnet package (PeerDiscovery + Probe)
-  (no UI deps; builds and tests independently)
-  Creates: internal/tailnet/discovery.go, probe.go, tests
-  Unblocks: Phase E (daemon routes need this package)
+Phase C: Settings as sidebar tab
+  Files: frontend/src/App.tsx, frontend/src/components/SettingsPanel.tsx,
+         frontend/src/components/TabBar.tsx (type union), Sidebar.tsx (handler wiring)
+  Risk: LOW — follows identical pattern to DaemonManagerPanel tab
+  Recommended after Phase B so sidebar is fully consistent.
+  No backend changes.
 
-Phase D: internal/updater package + UpdateBanner frontend
-  (needs: Phase B for Version constant)
-  Creates: internal/updater/updater.go, UpdateBanner.tsx
-  Unblocks: Phase F (app.go needs updater)
+Phase D: Auto-serve sessions
+  Files: app.go (StartWebServer + CreateSession), App.tsx (event handler)
+  Risk: MEDIUM — changes behavior of session creation; must not break no-server case
+  New Wails event: session:web-enabled
+  No new backend packages.
+  Recommend after Phase C so the result is visible in the Settings tab.
 
-Phase E: Daemon API routes for tailnet (/tailnet/peers, /tailnet/sessions)
-  (needs: Phase C for internal/tailnet)
-  Modifies: internal/daemon/api.go, client.go, types.go
-  Unblocks: Phase F (GUI needs daemon routes)
-
-Phase F: GUI Remote Sessions Panel + Update Integration + Tailscale Install
-  (needs: Phase B, D, E)
-  Creates: RemoteSessionsPanel.tsx
-  Modifies: App.tsx, app.go, HealthModal.tsx
+Phase E: Local network fallback (self-signed TLS + password)
+  Files: internal/webserver/selfcert.go (NEW), internal/webserver/auth.go (NEW),
+         internal/webserver/server.go, internal/daemon/types.go, internal/daemon/api.go,
+         app.go (StartWebServer fallback branch), SettingsPanel.tsx (password display),
+         App.tsx (nudge banner)
+  Risk: HIGH — most complex; re-adds removed infrastructure; new middleware
+  Depends on: Phase C (settings UI is a tab before adding password display to it)
+              Phase D (auto-serve works before layering in local mode)
 ```
-
-**Critical path:** C → E → F. Phases A and B are independent and can ship first.
 
 ---
 
-## Architectural Patterns
+## Data Flow Changes
 
-### Pattern 1: Injectable statusFunc for Tailnet Discovery (Mirrors Existing Health Check)
-
-**What:** `internal/tailnet/discovery.go` uses the same injectable `statusFunc` pattern as `internal/webserver/tailscale.go`. The production code calls `local.Client{}.Status()` via an injected function; tests pass a fake.
-
-**Why:** `local.Client{}.Status()` requires a live tailscaled socket. All tests must be runnable without Tailscale installed (CI on GitHub Actions). The injectable function pattern is already proven in `tailscale_test.go`.
-
-```go
-type statusFunc func(ctx context.Context) (*ipnstate.Status, error)
-
-func discoverPeers(ctx context.Context, fn statusFunc) ([]PeerInfo, error) { ... }
-
-func DiscoverPeers(ctx context.Context) ([]PeerInfo, error) {
-    var lc local.Client
-    return discoverPeers(ctx, lc.Status)
-}
+### Current: Web Server Start Flow
+```
+User clicks Start → SettingsPanel.handleToggleServer()
+  → StartWebServer(port) [Wails binding]
+    → app.go: check Tailscale health (must be Connected + HasCerts)
+    → client.StartWebServer(h.IP, port, h.FQDN)
+      → POST /webserver/start {ip, port, fqdn}
+        → webserver.NewWebServer(Config{BindIP, Port, FQDN})
+        → ws.Start() — tls.Listen on TS IP with lc.GetCertificate
 ```
 
-### Pattern 2: Reuse Existing Web Server as Remote Discovery Target
+### v1.11: Web Server Start Flow (with fallback + auto-serve)
+```
+User clicks Start (or future: auto-trigger on startup)
+  → app.go: check Tailscale health
+    → if healthy: existing Tailscale path (unchanged)
+    → if not healthy:
+        password = generatePassword()              // crypto/rand, 22 chars
+        ip = resolveLocalIP()                      // net.InterfaceAddrs scan
+        → client.StartWebServer(ip, port, ip, "local", password)
+          → POST /webserver/start {ip, port, fqdn:ip, mode:"local", password}
+            → webserver.NewWebServer(Config{BindIP, Port, FQDN, Mode:"local", Password})
+            → ws.Start() — tls.Listen with selfcert TLSConfig + auth middleware wrap
+  → After start (either mode): iterate ListSessions(), ToggleWebServing each
+  → Emit session:web-enabled {sessionId, url} for each
+  → Emit webserver:started {url, mode, password} to frontend
+Frontend: receives webserver:started → updates webServerRunning, webServerMode, localPassword state
+Frontend: receives session:web-enabled → updates webEnabled[id] and sessionURLs[id]
+```
 
-**What:** Remote peers are discovered by probing their existing `/api/sessions` HTTP endpoint (already part of `webserver.WebServer`). No new server-side protocol needed.
-
-**Why:** The web server already serves sessions over HTTPS on the Tailscale IP. The endpoint is already authenticated by tailnet membership (same rationale as the web dashboard). Adding a new discovery protocol would require versioning, backward compat, and additional server code.
-
-**Trade-off:** Probe uses `InsecureSkipVerify` because certs are issued to the FQDN, not the IP. This is acceptable because the Tailscale network provides the transport-layer authentication. The data in the probe response (session list) is not sensitive.
-
-### Pattern 3: Wails Menu Events for Menu→Frontend Communication
-
-**What:** Menu item callbacks call `runtime.EventsEmit(ctx, "menu:event-name")`. Frontend subscribes with `EventsOn("menu:event-name", handler)`. This is the same pattern as `tray:focus-session`.
-
-**Why:** Wails menu callbacks run on the main OS thread. Attempting to call JavaScript or React state directly from a menu callback is not safe. Emitting a Wails event is the correct cross-thread communication mechanism.
-
-### Pattern 4: GUI-Only Update Checker (Not Daemon)
-
-**What:** The update checker (`internal/updater`) is called from `App{}` (GUI process), not from the daemon.
-
-**Why:** The daemon may run as a system service (launchd/systemd) with no user session. Update notifications require a user-visible UI. Performing downloads in a system service context creates permission complications (where to write files, how to notify the user). Keeping the updater in the GUI process is simpler and correct.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: In-Process Binary Self-Replace on macOS
-
-**What people do:** Use `go-selfupdate`'s `UpdateTo()` to replace the running executable in-place.
-
-**Why it's wrong for AgentHub:** The Wails binary is embedded inside an `.app` bundle. Replacing the binary inside a running `.app` while it is open is unreliable. macOS Gatekeeper may reject the replacement if the code signature changes. The daemon is a separate OS process that holds the socket — restarting just the GUI is not sufficient.
-
-**Do this instead:** Download the update to `~/Downloads/`, open Finder to the location, and instruct the user to quit AgentHub, drag the new `.app` to Applications, and relaunch. This is the standard macOS update UX for non-Sparkle apps.
-
-### Anti-Pattern 2: Probing Peers via their FQDN TLS Connection
-
-**What people do:** Probe `https://peer-hostname.ts.net:7443/api/sessions` using the FQDN for discovery.
-
-**Why it's wrong:** MagicDNS resolution may not work in all tailnet configurations (e.g., MagicDNS disabled, custom DNS). Probing by Tailscale IP (from `PeerStatus.TailscaleIPs[0]`) is more reliable.
-
-**Do this instead:** Probe by IP with `InsecureSkipVerify`, then construct the FQDN-based URL (from `PeerStatus.DNSName`, stripping trailing dot) for the actual browser attach URL where TLS verification is needed.
-
-### Anti-Pattern 3: Blocking GUI Startup on Peer Discovery
-
-**What people do:** Run peer discovery synchronously during app startup.
-
-**Why it's wrong:** Discovery requires a Tailscale daemon call + N concurrent HTTP probes with 3s timeouts each. With 10 tailnet peers, worst-case discovery takes 3 seconds. Blocking startup on this makes the GUI feel slow.
-
-**Do this instead:** Run peer discovery in a goroutine. Update the RemoteSessionsPanel reactively when results arrive (use Wails events or React polling). Show a loading spinner while discovery runs.
-
-### Anti-Pattern 4: Adding a New Discovery Protocol Instead of Reusing /api/sessions
-
-**What people do:** Design a new UDP broadcast or mDNS protocol for AgentHub peer discovery.
-
-**Why it's wrong:** Tailscale already provides peer enumeration via `local.Client{}.Status()`. No additional discovery protocol is needed. The existing `/api/sessions` HTTP endpoint already serves the data. A new protocol adds complexity, versioning concerns, and firewall port issues.
-
-**Do this instead:** Use `local.Client{}.Status()` for peer enumeration and HTTP probe to existing `/api/sessions` for AgentHub detection.
+### v1.11: Session Creation Flow (with auto-serve)
+```
+createTab() → CreateSession() [Wails]
+  → app.go: daemon.CreateSession(...)
+  → check client.GetWebServerStatus()
+  → if running: client.ToggleWebServing(newID, true)
+  → Emit session:web-enabled {sessionId, url}
+Frontend: receives event → webEnabled[sessionId] = true, sessionURLs[sessionId] = url
+```
 
 ---
 
-## Scaling Considerations
+## Anti-Patterns to Avoid
 
-| Scale | Consideration |
-|-------|--------------|
-| 1-5 tailnet peers | No issues; discovery is fast |
-| 10-50 peers | Concurrent probing with 3s timeout keeps total under 5s; cache results for 30s |
-| 50+ peers | Most large tailnets have non-AgentHub devices; filter by port responsiveness quickly; cache is essential |
+### Anti-Pattern 1: Storing password on disk
 
-Peer count is bounded by the tailnet size — typical developer tailnets have 5-20 devices. This is not a scaling concern in practice.
+**What people do:** Write the local-mode password to config dir for persistence across daemon restarts.
+**Why it's wrong:** Self-signed TLS with a static persistent password becomes a weak permanent credential. The password should be regenerated each time the server starts.
+**Do this instead:** Generate password in memory at `StartWebServer` call time; pass to daemon via the start request; stored only in the in-memory WebServer struct. If daemon restarts, server stops and user must re-enable (generating a new password).
+
+### Anti-Pattern 2: Reusing CT disclosure gate for self-signed certs
+
+**What people do:** Reuse the existing `ct_disclosed` sentinel file and `HasCTDisclosure` flow for local mode.
+**Why it's wrong:** The CT disclosure is specifically about Let's Encrypt publishing hostnames to public Certificate Transparency logs. Self-signed certs have no CT log exposure. Gating local mode on the CT disclosure confuses users.
+**Do this instead:** Local mode bypasses the CT check entirely. The SettingsTab Web Server section shows a different message for local mode: "Using self-signed certificate for local network access. Tailscale provides browser-trusted certificates without this limitation."
+
+### Anti-Pattern 3: Making SettingsPanel a permanent tab entry
+
+**What people do:** Add the Settings tab to the initial `tabs` state array so it always appears in the tab bar.
+**Why it's wrong:** The pattern in this codebase (WelcomeTab, DaemonManagerPanel, RemoteSessionsPanel) is "singleton tab, find-or-add on demand." Making Settings permanent pollutes the initial tab bar.
+**Do this instead:** Follow the existing singleton pattern: `handleOpenSettings` finds existing settings tab or adds it, then focuses. The tab can be closed and reopened via sidebar.
+
+### Anti-Pattern 4: Frontend-side auto-serve decision
+
+**What people do:** In `createTab()`, check the frontend `webServerRunning` state to decide whether to call `ToggleWebServing`.
+**Why it's wrong:** Race condition — `webServerRunning` is stale React state. A new server might have just started, or the state might not reflect the daemon's current truth.
+**Do this instead:** Have `app.go CreateSession` check `client.GetWebServerStatus()` on the backend side and auto-toggle there. Emit a `session:web-enabled` event to sync frontend state.
+
+---
+
+## Integration Summary Table
+
+| Feature | New Files | Modified Files | New Wails Events |
+|---------|-----------|----------------|-----------------|
+| Claude Code paths | — | `internal/pty/detect.go`, `internal/daemon/path.go` | none |
+| Sidebar rename | — | `Sidebar.tsx`, 1 test file | none |
+| Settings as tab | — | `App.tsx`, `SettingsPanel.tsx`, `TabBar.tsx` | none |
+| Auto-serve sessions | — | `app.go`, `App.tsx` | `session:web-enabled` |
+| Local network fallback | `selfcert.go`, `auth.go` | `server.go`, `types.go`, `api.go`, `app.go`, `SettingsPanel.tsx`, `App.tsx` | `webserver:started` |
 
 ---
 
 ## Sources
 
-- `internal/daemon/api.go` direct inspection — confirmed existing routes, route registration pattern, `writeJSON` helper (HIGH confidence)
-- `internal/daemon/client.go` direct inspection — confirmed `doJSON` pattern, typed method signatures (HIGH confidence)
-- `internal/daemon/types.go` direct inspection — confirmed type shapes for new types to follow (HIGH confidence)
-- `internal/webserver/tailscale.go` direct inspection — confirmed injectable `statusFunc` pattern and `local.Client{}` zero-value usage (HIGH confidence)
-- `internal/webserver/server.go` direct inspection — confirmed `/api/sessions` endpoint exists as probe target (HIGH confidence)
-- `app.go` direct inspection — confirmed Wails binding pattern, `pollSessionStatus` goroutine pattern for async ops (HIGH confidence)
-- `main.go` direct inspection — confirmed `options.App{}` structure, confirmed no `Menu` field currently set (HIGH confidence)
-- [tailscale.com/ipn/ipnstate#PeerStatus](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — `PeerStatus.HostName`, `TailscaleIPs`, `DNSName`, `Online` fields confirmed (HIGH confidence)
-- [tailscale.com/client/local#Client.Status](https://pkg.go.dev/tailscale.com/client/local) — `Status()` vs `StatusWithoutPeers()` semantics confirmed (HIGH confidence)
-- [Wails menu package](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/menu) — `AppMenu()`, `EditMenu()`, `WindowMenu()` predefined menus confirmed; `AddSubmenu()`, `AddText()` API confirmed (HIGH confidence)
-- [creativeprojects/go-selfupdate](https://pkg.go.dev/github.com/creativeprojects/go-selfupdate) — `DetectLatest()`, `UpdateTo()`, `ChecksumValidator` API confirmed; GitHub source provider confirmed (MEDIUM confidence — not yet in go.mod, API shape verified)
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/webserver/server.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/webserver/tailscale.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/api.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/engine.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/types.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/pty/detect.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/path.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/app.go`
+- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/App.tsx`
+- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/components/SettingsPanel.tsx`
+- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/components/Sidebar.tsx`
+- Project context: `/Users/ken/dev/agenthub/.planning/PROJECT.md`
 
 ---
-
-*Architecture research for: AgentHub v1.9 — Remote Sessions, Auto-Update, App Polish*
-*Researched: 2026-04-06*
+*Architecture research for: AgentHub v1.11 — local network fallback, auto-serve, settings-as-tab, sidebar rename, Claude Code detection*
+*Researched: 2026-04-08*

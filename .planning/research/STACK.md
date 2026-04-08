@@ -1,176 +1,207 @@
 # Stack Research
 
-**Domain:** Remote Session Discovery, Auto-Update, Tailscale Install Assistance, App Menus — AgentHub v1.9
-**Researched:** 2026-04-06
-**Confidence:** HIGH (all libraries verified against pkg.go.dev and official docs as of research date)
+**Domain:** Desktop app (Go/Wails) — v1.11 new feature additions
+**Researched:** 2026-04-08
+**Confidence:** HIGH
+
+## Context: What This Research Covers
+
+This is a subsequent-milestone research file. The existing stack (Go/Wails v2, React,
+xterm.js, nhooyr/websocket, go-pty, kardianos/service, tailscale.com/client/local) is
+validated and not re-researched here. This file covers only what is NEW for v1.11:
+
+1. Self-signed TLS cert generation (local network fallback)
+2. Random password generation and display
+3. Auto-serve on session creation
+4. Claude Code native install path detection fix
 
 ---
 
-## Scope
+## Feature 1: Self-Signed TLS Cert Generation
 
-This file covers ONLY the new capabilities needed for v1.9. The existing stack (Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, kardianos/service, skip2/go-qrcode, tailscale.com/client/local, native macOS cgo NSStatusBar) is validated and unchanged.
+**Verdict:** No new library needed. Go standard library covers this completely.
 
----
+### Required packages (all already imported in codebase)
 
-## New Dependencies Required
+| Package | Source | Already in codebase? |
+|---------|--------|----------------------|
+| `crypto/ecdsa` | Go stdlib | YES — `app_test.go`, `internal/webserver/server_test.go` |
+| `crypto/elliptic` | Go stdlib | YES — `app_test.go` |
+| `crypto/rand` | Go stdlib | YES — `internal/pty/native.go`, tests |
+| `crypto/tls` | Go stdlib | YES — `internal/webserver/server.go` |
+| `crypto/x509` | Go stdlib | YES — tests |
+| `crypto/x509/pkix` | Go stdlib | YES — tests |
+| `encoding/pem` | Go stdlib | YES — tests |
+| `math/big` | Go stdlib | YES — tests |
 
-### Remote Session Discovery (Tailnet Peer Scanning)
+### Why no external library
 
-**Verdict: No new dependencies.** `tailscale.com/client/local` — already in `go.mod` at `tailscale.com v1.96.3` — exposes everything needed.
+The test suite in `app_test.go` and `internal/webserver/server_test.go` already
+generates self-signed ECDSA certs with the CA+leaf pattern using only stdlib.
+The same code pattern moves into production in a new `internal/webserver/localnet.go`
+file. No new dependency needed.
 
-The key API path:
+### Cert generation pattern (confirmed from existing test code)
 
 ```go
-lc := &local.Client{}                          // already used for health checks
-status, err := lc.Status(ctx)                  // returns *ipnstate.Status
-for _, peer := range status.Peer {             // Peer is map[key.NodePublic]*ipnstate.PeerStatus
-    // peer.HostName      — machine hostname
-    // peer.DNSName       — FQDN with MagicDNS suffix (e.g. "machine.tail12345.ts.net.")
-    // peer.TailscaleIPs  — []netip.Addr, use [0] for primary IPv4
-    // peer.Online        — bool, connected to control plane
-    // peer.Active        — bool, packet sent in past ~2 minutes
-    // peer.OS            — operating system string
+// ECDSA P-256 key, self-signed, SANs = machine LAN IPs
+key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+tmpl := &x509.Certificate{
+    SerialNumber: big.NewInt(1),
+    Subject:      pkix.Name{CommonName: "AgentHub Local"},
+    NotBefore:    time.Now(),
+    NotAfter:     time.Now().Add(365 * 24 * time.Hour),
+    KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+    ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+    IPAddresses:  localIPs, // from net.InterfaceAddrs()
+}
+certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+tlsCfg := &tls.Config{
+    Certificates: []tls.Certificate{{
+        Certificate: [][]byte{certDER},
+        PrivateKey:  key,
+    }},
+    MinVersion: tls.VersionTLS12,
 }
 ```
 
-To probe whether a peer is running AgentHub, make an HTTP request to `http://<tailscale-ip>:<daemon-port>/health` or a new `/peers` endpoint on the daemon's Unix socket API. This is pure Go `net/http` — no new library needed.
+### Integration point
 
-**Integration:** The daemon's existing health check polling in `internal/daemon` is the right place to add a `ScanPeers()` function. Expose via the existing HTTP/JSON Unix socket protocol as a new endpoint. GUI consumes it like any other daemon endpoint.
+`webserver.Config` already supports a `TLSConfig *tls.Config` override field (used for
+tests). Local-network mode passes a locally-generated `*tls.Config` through this same
+field. The `BindIP` field becomes `"0.0.0.0"` in local mode instead of the Tailscale
+IP. `BaseURL()` returns `https://<first-LAN-IP>:<port>` in local mode.
 
----
-
-### Update Checker — Version Check + Download Link
-
-**Recommended: `github.com/creativeprojects/go-selfupdate` v1.5.2**
-
-Use it in **version-check-only mode** (no in-place binary replacement on macOS). For a signed DMG-distributed app, in-place binary replacement breaks code signing. The right pattern for this app:
-
-1. Call `DetectLatest()` to check current vs. latest version.
-2. If newer: surface the new version + download URL in the UI.
-3. User clicks "Download" → open the GitHub release page in browser (`pkg/browser` already in go.mod as an indirect dep via Wails).
-4. User downloads the DMG and installs normally.
-
-**Do NOT use `UpdateSelf()` or `UpdateTo()` on macOS.** Replacing a signed binary invalidates the signature. The Homebrew auto-update path (`brew upgrade --cask agenthub`) is the correct in-place update mechanism for Homebrew users.
-
-```go
-import "github.com/creativeprojects/go-selfupdate"
-
-func CheckForUpdate(ctx context.Context, current string) (*selfupdate.Release, error) {
-    latest, found, err := selfupdate.DetectLatest(ctx, selfupdate.ParseSlug("scottkw/agenthub"))
-    if err != nil || !found {
-        return nil, err
-    }
-    if latest.GreaterThan(current) {
-        return latest, nil   // caller surfaces latest.Version() and latest.AssetURL in UI
-    }
-    return nil, nil  // already up to date
-}
-```
-
-Asset naming must match what the action produces. go-selfupdate expects:
-`agenthub_{darwin|linux|windows}_{amd64|arm64}{.tar.gz|.zip}` — which the existing release pipeline already produces for the CLI binary. The GUI DMG is separate; the update checker should point users to the GitHub releases page, not try to manage the DMG itself.
-
-**Why not `google/go-github` (v84)?** go-github is a full GitHub API client (~50K LOC). For a single `GET /repos/scottkw/agenthub/releases/latest` call it's massive overkill. go-selfupdate wraps exactly this call with version comparison built in, is MIT-licensed, and is a negligible import size.
-
-**Why not `rhysd/go-github-selfupdate`?** The creativeprojects fork is the actively maintained successor — supports Gitea, Gitlab, and HTTP sources, has universal binary support for macOS, and released v1.5.2 in December 2025. rhysd's original sees infrequent maintenance.
-
-**Installation:**
-```bash
-go get github.com/creativeprojects/go-selfupdate@v1.5.2
-```
+No structural changes to `WebServer` are required.
 
 ---
 
-### Tailscale Install Assistance
+## Feature 2: Random Password Generation
 
-**Verdict: No new dependencies.** Platform detection and install command generation is pure Go stdlib.
+**Verdict:** No new library needed. `crypto/rand` is sufficient.
 
-Detection strategy per platform:
+### Implementation
 
-| Platform | Detection | Install Command to Surface |
-|----------|-----------|--------------------------|
-| macOS | `exec.LookPath("tailscale")` | `brew install --cask tailscale-app` |
-| macOS (no brew) | `stat /Applications/Tailscale.app` fails | Direct URL: `https://tailscale.com/download/mac` |
-| Linux | `exec.LookPath("tailscale")` | `curl -fsSL https://tailscale.com/install.sh \| sh` |
-| Windows | `exec.LookPath("tailscale.exe")` | `winget install tailscale.tailscale` |
-
-For **auto-install on macOS**, run `brew install --cask tailscale-app` via `exec.Command` if Homebrew is detected (`exec.LookPath("brew")`). Otherwise, open the download URL via `runtime.BrowserOpenURL(ctx, "https://tailscale.com/download")` — Wails runtime already handles this.
-
-**No subprocess shell needed.** `exec.Command("brew", "install", "--cask", "tailscale-app")` works directly. Pipe stdout/stderr to the UI via a channel for progress display.
-
-The existing `tailscale.com/client/local` `Status()` call already surfaces whether Tailscale is installed and connected — if `Status()` returns a connection error, Tailscale is either not installed or tailscaled is not running.
-
----
-
-### Standard App Menus (File, Edit, Window, Help)
-
-**Verdict: No new dependencies.** Wails v2 (`github.com/wailsapp/wails/v2 v2.10.2`, already in go.mod) includes a full menu system at `github.com/wailsapp/wails/v2/pkg/menu`.
-
-**Go API:**
+18 random bytes encoded as URL-safe base64 = 24 characters, ~143 bits of entropy.
+Adequate for a temporary local-network session password.
 
 ```go
 import (
-    "github.com/wailsapp/wails/v2/pkg/menu"
-    "github.com/wailsapp/wails/v2/pkg/menu/keys"
-    rt "github.com/wailsapp/wails/v2/pkg/runtime"
+    "crypto/rand"
+    "encoding/base64"
 )
 
-func buildAppMenu(ctx context.Context) *menu.Menu {
-    appMenu := menu.NewMenu()
-
-    if runtime.GOOS == "darwin" {
-        appMenu.Append(menu.AppMenu())   // macOS: About, Services, Hide, Quit
+func generatePassword() string {
+    b := make([]byte, 18)
+    if _, err := rand.Read(b); err != nil {
+        panic("crypto/rand unavailable: " + err.Error())
     }
-
-    // File menu
-    fileMenu := appMenu.AddSubmenu("File")
-    fileMenu.AddText("New Session", keys.CmdOrCtrl("n"), func(_ *menu.CallbackData) {
-        rt.EventsEmit(ctx, "menu:new-session")
-    })
-    fileMenu.AddSeparator()
-    fileMenu.AddText("Close Window", keys.CmdOrCtrl("w"), func(_ *menu.CallbackData) {
-        rt.WindowHide(ctx)
-    })
-
-    if runtime.GOOS == "darwin" {
-        appMenu.Append(menu.EditMenu())  // macOS: Undo, Redo, Cut, Copy, Paste, Select All
-    }
-
-    // Window menu
-    appMenu.Append(menu.WindowMenu())    // Minimize, Zoom (macOS); Minimize, Maximize (Win/Lin)
-
-    // Help menu
-    helpMenu := appMenu.AddSubmenu("Help")
-    helpMenu.AddText("AgentHub on GitHub", nil, func(_ *menu.CallbackData) {
-        rt.BrowserOpenURL(ctx, "https://github.com/scottkw/agenthub")
-    })
-    helpMenu.AddText("Check for Updates...", nil, func(_ *menu.CallbackData) {
-        rt.EventsEmit(ctx, "menu:check-updates")
-    })
-
-    return appMenu
+    return base64.URLEncoding.EncodeToString(b)
 }
 ```
 
-Set at startup via `options.App{Menu: buildAppMenu(ctx)}`. Dynamic update (e.g. after session list changes) via `rt.MenuUpdateApplicationMenu(ctx)`.
+### Storage and display
 
-**Platform behavior:**
-- **macOS**: Menu bar appears at top of screen. `AppMenu()` and `EditMenu()` are macOS-only helpers — include them only on `darwin`. `EditMenu()` is required to enable Cmd+C/V/Z in text inputs.
-- **Windows/Linux**: Menu bar appears at top of the application window. `AppMenu()` is not applicable. `EditMenu()` provides standard Edit shortcuts inline.
+The password lives only in the daemon's in-memory `API` state alongside `webServer`.
+It is:
+- Generated once when local-network mode starts (`handleWebServerStart`)
+- Returned in `WebServerStartResponse` (new `Password string` field, `omitempty`)
+- Exposed via `WebServerStatusResponse` so GUI can display it after restart
+- Never written to disk — regenerated on each `POST /webserver/start`
 
-**Critical:** Do NOT call `AppMenu()` or `EditMenu()` unconditionally — they are macOS-specific menu structures that will produce unexpected behavior or blank entries on Windows/Linux.
+### Auth middleware
+
+Standard `net/http` middleware: check `Authorization: Bearer <password>` header.
+Applied only when `webServer` is in local-network mode. Tailscale mode stays
+unauthenticated (tailnet membership = access control).
+
+```go
+func passwordMiddleware(password string, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if r.Header.Get("Authorization") != "Bearer "+password {
+            http.Error(w, "unauthorized", http.StatusUnauthorized)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+```
+
+No external auth library. The codebase explicitly removed password auth in v1.2;
+re-adding it as a minimal stdlib middleware is correct and intentional.
 
 ---
 
-## Summary: What Needs to Be Added
+## Feature 3: Auto-Serve on Session Creation
 
-| New Dependency | Version | For What | Notes |
-|----------------|---------|----------|-------|
-| `github.com/creativeprojects/go-selfupdate` | v1.5.2 | Update checker | One new direct dep |
+**Verdict:** Pure logic change. No new stack additions.
 
-Everything else — peer discovery, Tailscale install detection, app menus — uses libraries already in `go.mod`.
+### Current flow (manual)
 
-**No new frontend dependencies.** The GUI surfaces new backend data (peer list, update status, install progress) through the existing Wails event system and daemon IPC pattern.
+1. `POST /sessions` creates session, returns ID
+2. User separately calls `POST /webserver/start` if needed
+3. User separately calls `POST /sessions/{id}/web-serve` with `{"enabled": true}`
+
+### New flow (auto)
+
+1. `POST /sessions` creates session, returns ID
+2. In `handleCreateSession`: if `a.webServer != nil`, call `a.webServer.EnableSession(id)` immediately
+3. Auto-start the web server: if no webServer is running, start it automatically
+   (using the appropriate mode — Tailscale or local-network — depending on health state)
+
+### Config impact
+
+The `API` struct needs an `autoServe bool` field or the behavior is always-on. The
+`WebServerStartRequest` (IPC type) may gain an `AutoServe bool` field so the GUI can
+configure this at startup. No new library, no new IPC patterns — this is logic-only
+within `internal/daemon/api.go`.
+
+---
+
+## Feature 4: Claude Code Native Install Path Detection
+
+**Verdict:** Pure path augmentation change in `internal/daemon/path.go`. No new library.
+
+### Problem
+
+The Anthropic native installer places the `claude` binary at:
+
+| Platform | Path |
+|----------|------|
+| macOS / Linux / WSL | `~/.local/bin/claude` |
+| Windows | `%USERPROFILE%\.local\bin\claude.exe` |
+
+**Source:** Official Anthropic docs — https://code.claude.com/docs/en/setup, uninstall
+section explicitly says `rm -f ~/.local/bin/claude`. Verified on this machine: binary
+exists at `/Users/ken/.local/bin/claude` and is the active `claude` in PATH.
+
+The current `AugmentServicePath()` in `internal/daemon/path.go` prepends only:
+- `~/.volta/bin`
+- `/opt/homebrew/bin`
+- `/usr/local/bin`
+- `/home/linuxbrew/.linuxbrew/bin`
+- nvm active bin
+
+`~/.local/bin` is missing. When the daemon runs as a launchd service (or is launched
+from Finder), the shell's PATH is not sourced, so `exec.LookPath("claude")` returns
+`ErrCLINotFound` even when the native-installed binary is present.
+
+### Fix — single insertion
+
+```go
+// In AugmentServicePath(), add as first candidate:
+candidates := []string{
+    filepath.Join(home, ".local", "bin"),   // Anthropic native installer (claude)
+    filepath.Join(home, ".volta", "bin"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    "/home/linuxbrew/.linuxbrew/bin",
+    nvmActiveBin(home),
+}
+```
+
+`filepath.Join(home, ".local", "bin")` is correct on all three platforms
+(`os.UserHomeDir()` returns `%USERPROFILE%` on Windows, which expands correctly).
 
 ---
 
@@ -178,51 +209,78 @@ Everything else — peer discovery, Tailscale install detection, app menus — u
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **`google/go-github`** | Full GitHub API client (~50K LOC) for a single releases check call | `go-selfupdate` which wraps exactly that call |
-| **`rhysd/go-github-selfupdate`** | Predecessor — infrequent maintenance since 2022; creativeprojects fork is the active successor | `creativeprojects/go-selfupdate@v1.5.2` |
-| **`go-selfupdate` UpdateSelf() / UpdateTo() on macOS** | Replaces signed binary in-place, breaking notarized code signature | Check version only; open release page in browser for DMG download |
-| **`fyne.io/systray` or any third-party tray library** | Duplicate symbol linker error with Wails AppDelegate — confirmed blocker from v1.7 | Native macOS cgo NSStatusBar (already implemented) |
-| **`tsnet` (tailscale.com/tsnet)** | Creates a second Tailscale node — wrong for reading the host machine's existing tailnet state | `tailscale.com/client/local` (already in go.mod) |
-| **Tailscale API key / control plane API** | Requires OAuth or API token setup, user-visible credentials, calls cloud API | `local.Client{}.Status()` queries the local tailscaled daemon directly — no auth, works offline |
-| **Shell scripts for Tailscale detection** | `os/exec` with a shell subproc is fragile and slow | `exec.LookPath("tailscale")` + `exec.Command("brew", ...)` directly |
+| External self-signed cert library | Subprocess dep, no API surface | Go stdlib `crypto/x509` |
+| `crypto/md5` or `math/rand` for passwords | Not cryptographically secure | `crypto/rand` |
+| External auth library (gorilla/sessions etc.) | 10,000+ LOC for a single Bearer check | stdlib `net/http` middleware (~10 lines) |
+| Persistent cert storage (disk writes) | Complicates restart; unnecessary for local fallback | In-memory `tls.Config`, regenerate on each server start |
+| Storing password in settings file | Plaintext credential on disk; overkill for session-scoped access | In-memory only, regenerate each server start |
+| `net.InterfaceAddrs()` replacement library | Already in stdlib | `net.InterfaceAddrs()` directly |
+| `tsnet` for local binding | Creates a second Tailscale node; wrong tool | Standard `net.Listen("tcp", "0.0.0.0:<port>")` |
 
 ---
 
-## Integration Points with Existing Stack
+## New Files
 
-| Feature | Integration Point | Pattern |
-|---------|------------------|---------|
-| Peer discovery | `internal/daemon` — new `ScanPeers()` func → new `/api/peers` endpoint on Unix socket | Same HTTP/JSON IPC as existing session endpoints |
-| Update check | Background goroutine in daemon or GUI; expose via Wails event `update:available` | Non-blocking; check at startup + periodic (e.g. daily) |
-| Tailscale install | GUI `HealthModal` or new `SetupModal`; backend detects, frontend shows platform-specific instructions + optional auto-install button | Extend existing health check system |
-| App menus | `main.go` (Wails startup) — pass `Menu:` in `options.App`; menu callbacks emit Wails events | No daemon involvement; pure GUI layer |
-| "Check for Updates" menu item | Wails event `menu:check-updates` → frontend calls `CheckForUpdate` binding → backend returns version info | Standard Wails binding call pattern |
+| File | Purpose |
+|------|---------|
+| `internal/webserver/localnet.go` | `GenerateLocalCert() *tls.Config`, `LocalLANIPs() []net.IP` |
+| `internal/webserver/localnet_test.go` | Tests for cert generation and IP enumeration |
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `internal/daemon/path.go` | Add `~/.local/bin` to `AugmentServicePath()` candidates |
+| `internal/daemon/path_test.go` | Test coverage for `~/.local/bin` candidate |
+| `internal/daemon/api.go` | Auto-serve logic in `handleCreateSession`; `Password` in `WebServerStartResponse` / `WebServerStatusResponse` |
+| `internal/daemon/client.go` | Expose `Password` from `WebServerStatus()` response |
+| `internal/daemon/types.go` | `WebServerStartRequest.Mode` field (tailscale vs localnet) |
+| `internal/webserver/server.go` | Password auth middleware wired when in local-network mode |
+| `app.go` | Wire local-network fallback to `StartWebServer` Wails binding |
+| Frontend | Nudge banner (Tailscale not found), display local URL + password |
 
 ---
 
-## Version Compatibility
+## Installation
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `creativeprojects/go-selfupdate@v1.5.2` | `go 1.21+` | Published Dec 19, 2025. No known conflicts with existing deps. |
-| `wailsapp/wails/v2 v2.10.2` `pkg/menu` | All platforms | `AppMenu()` / `EditMenu()` are macOS-only — guard with `runtime.GOOS == "darwin"` |
-| `tailscale.com/client/local` (via `tailscale.com v1.96.3`) | tailscaled 1.x | `Status()` returns `*ipnstate.PeerStatus` per peer with `HostName`, `DNSName`, `TailscaleIPs`, `Online`, `Active`, `OS` |
+No new `go get` commands. All new capabilities use Go standard library packages
+already imported in this module.
+
+```bash
+# Confirm no new deps introduced:
+go mod tidy
+```
+
+---
+
+## Stack Patterns by Variant
+
+**Tailscale healthy (installed + connected + certs enabled) — unchanged:**
+- `local.Client{}.GetCertificate` hook for TLS
+- Bind to Tailscale IP only
+- No password, no nudge banner
+
+**Tailscale not healthy — new local-network fallback:**
+- `GenerateLocalCert()` from `internal/webserver/localnet.go` for TLS
+- Bind to `0.0.0.0` (all LAN interfaces)
+- Generate password via `crypto/rand`
+- Show persistent nudge banner in GUI pointing to Tailscale onboarding
+- Both modes share the same `WebServer` struct, same session enable/disable API
 
 ---
 
 ## Sources
 
-- [pkg.go.dev/github.com/creativeprojects/go-selfupdate](https://pkg.go.dev/github.com/creativeprojects/go-selfupdate) — v1.5.2 confirmed, Dec 19 2025, `DetectLatest` API verified. HIGH confidence.
-- [pkg.go.dev/tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) — `Status()`, `WhoIs()` methods verified. HIGH confidence.
-- [pkg.go.dev/tailscale.com/ipn/ipnstate](https://pkg.go.dev/tailscale.com/ipn/ipnstate) — `PeerStatus` fields: `HostName`, `DNSName`, `TailscaleIPs`, `Online`, `Active`, `OS`. HIGH confidence.
-- [pkg.go.dev/github.com/wailsapp/wails/v2/pkg/menu](https://pkg.go.dev/github.com/wailsapp/wails/v2/pkg/menu) — `AppMenu()`, `EditMenu()`, `WindowMenu()` helpers; `AddText`, `AddSeparator`, `AddSubmenu` builder API. HIGH confidence.
-- [wails.io/docs/reference/menus/](https://wails.io/docs/reference/menus/) — `MenuSetApplicationMenu`, `MenuUpdateApplicationMenu`, options.App `Menu:` field. MEDIUM confidence (403 on direct fetch; content confirmed via search results).
-- [wails.io/docs/reference/runtime/menu/](https://wails.io/docs/reference/runtime/menu/) — Runtime menu update API. HIGH confidence.
-- [tailscale.com/docs/install](https://tailscale.com/docs/install) — Platform install commands verified (brew cask, winget, install.sh). HIGH confidence.
-- [formulae.brew.sh/cask/tailscale-app](https://formulae.brew.sh/cask/tailscale-app) — `tailscale-app` cask name confirmed. HIGH confidence.
-- [creativeprojects/go-selfupdate GitHub](https://github.com/creativeprojects/go-selfupdate) — DMG not supported (zip/tar only); asset naming convention `{name}_{goos}_{goarch}`; macOS universal binary via `UniversalArch`. HIGH confidence.
+- Official Anthropic Claude Code docs — https://code.claude.com/docs/en/setup
+  Confirms native install path `~/.local/bin/claude` (macOS/Linux). HIGH confidence.
+- Verified on local machine at `/Users/ken/.local/bin/claude`. HIGH confidence.
+- Existing `app_test.go` and `internal/webserver/server_test.go` — confirm Go stdlib
+  self-signed cert generation pattern works in this codebase. HIGH confidence.
+- `internal/daemon/path.go` — source of the omission (no `~/.local/bin`). HIGH confidence.
+- `internal/webserver/server.go` — `TLSConfig` override field already present and wired;
+  confirms local cert injection approach requires no structural change. HIGH confidence.
 
 ---
 
-*Stack research for: Remote Sessions & App Polish — AgentHub v1.9*
-*Researched: 2026-04-06*
+*Stack research for: AgentHub v1.11 — local network fallback, auto-serve, Claude Code detection*
+*Researched: 2026-04-08*
