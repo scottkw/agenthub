@@ -453,6 +453,43 @@
 
 ---
 
+## Milestone: v1.10 — Collapsible Sidebar Navigation
+
+**Shipped:** 2026-04-08
+**Phases:** 2 | **Plans:** 3
+
+### What Was Built
+- Collapsible left sidebar with Heroicons SVG icons replacing top toolbar action buttons
+- App layout restructured to flex-row (Sidebar + app__content)
+- All 5 navigation items (Home, Remote, Sessions, New Tab, Settings) wired to corresponding tabs/panels
+- Tab bar cleaned up — action buttons removed, retains session tabs only
+- Sidebar state persistence via localStorage
+
+### What Worked
+- TDD approach: 13 RED tests for Sidebar written first, then implementation made them pass
+- Source-inspection (?raw) pattern continued for Phase 56 nav wiring tests — avoids Wails runtime mocking
+- Small milestone scope (2 phases, 1 day) executed cleanly with minimal overhead
+- Milestone audit passed on first attempt — 11/11 requirements, 6/6 E2E flows
+
+### What Was Inefficient
+- Nyquist validation still partial (draft VALIDATION.md files for both phases) — systemic gap continues
+- 56-01-SUMMARY.md used `provides` in dependency_graph instead of `requirements_completed` frontmatter — recurring SUMMARY drift
+
+### Patterns Established
+- Heroicons as the standard icon library for sidebar navigation (replacing Unicode characters)
+- Sidebar as the primary navigation mechanism; tab bar for session management only
+
+### Key Lessons
+- UI restructuring milestones are fast when the component architecture is clean — Sidebar was a pure addition, TabBar cleanup was pure subtraction
+- @heroicons/react provides a scalable icon system that avoids the Unicode icon inconsistency problems
+
+### Cost Observations
+- Model mix: ~60% sonnet (execution), ~35% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~2 sessions in 1 day
+- Notable: Smallest feature milestone yet — 2 phases, 3 plans, completed in a single day
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -469,6 +506,7 @@
 | v1.7 | 88 | 8 | Native cgo tray, NSMenuDelegate dynamic menus, split nil-guard pattern, mid-milestone audit gap closure |
 | v1.8 | ~18 | 5 | CI/CD infrastructure, GitHub Actions pipelines, package manager distribution, dev-browser automation |
 | v1.9 | 111 | 6 | Remote session discovery (GUI+CLI), auto-update checker, Tailscale onboarding, app menus, parallel plan execution |
+| v1.10 | 21 | 2 | Heroicons sidebar, flex-row layout restructure, tab bar cleanup, TDD-first UI milestone |
 
 ### Cumulative Quality
 
@@ -484,6 +522,7 @@
 | v1.7 | 200+ (race-clean) | 150+ | ~15,100 | 4 (0 blockers; WelcomeTab auto-dismiss, hardcoded VERSION, Linux/Windows tray stubs, SUMMARY frontmatter) |
 | v1.8 | 200+ (race-clean) | 150+ | ~41,000 | 3 (0 blockers; WinGet first submission deferred, ROADMAP checkbox drift, VERIFICATION human items) |
 | v1.9 | 200+ (race-clean) | 160+ | ~41,000 | 4 (0 blockers; SUMMARY frontmatter gaps, dead installError state, unused CheckForUpdates TS binding, STATE.md merge markers) |
+| v1.10 | 200+ (race-clean) | 268 | ~41,200 | 1 minor (SUMMARY frontmatter drift in 56-01) |
 
 ### Top Lessons (Verified Across Milestones)
 

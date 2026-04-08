@@ -111,22 +111,11 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active requirements — v1.10 milestone complete)
-
-## Current Milestone: v1.10 Collapsible Sidebar Navigation
-
-**Goal:** Replace top toolbar action buttons with a collapsible left sidebar using Heroicons, improving navigation clarity and freeing tab bar space.
-
-**Target features:**
-- Collapsible left sidebar with hamburger toggle
-- Sidebar items: Home, Remote Sessions, New Tab (top); Settings (bottom)
-- Heroicons SVG icons throughout
-- localStorage persistence of sidebar state
-- Tab bar retains session tabs only
+(No active requirements — planning next milestone)
 
 ## Current State
 
-v1.10 complete (2026-04-08). 11 milestones shipped (v1.0–v1.10), 56 phases completed, 103 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
+v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 56 phases completed, 103 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
 
 ### Out of Scope
 
@@ -247,4 +236,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after Phase 56 (navigation-wiring-tab-bar-cleanup) complete*
+*Last updated: 2026-04-08 after v1.10 milestone*

@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.10 Collapsible Sidebar Navigation (Shipped: 2026-04-08)
+
+**Phases completed:** 2 phases, 3 plans, 4 tasks
+**Requirements:** 11/11 satisfied
+**Commits:** 21 | **Timeline:** 1 day (2026-04-08)
+**Source changes:** 26 files, +3,243 / -205 lines
+
+**Key accomplishments:**
+
+- Collapsible left sidebar with Heroicons SVG icons (@heroicons/react 2.2.0) replacing toolbar action buttons
+- App layout restructured to flex-row with Sidebar + app__content, collapsed (48px) and expanded (200px) modes
+- All 5 navigation items wired: Home, Remote, Sessions, New Tab, Settings — each opens corresponding tab/panel
+- Tab bar cleaned up: action buttons removed, retains session tabs only; dead CSS and obsolete tests removed
+- Sidebar collapsed/expanded state persists via localStorage across app restarts
+
+---
+
 ## v1.9 Remote Sessions & App Polish (Shipped: 2026-04-08)
 
 **Phases completed:** 6 phases, 14 plans, 17 tasks
