@@ -147,7 +147,7 @@ jobs:
 
       - name: Ensure frontend/dist exists for embed
         shell: bash
-        run: mkdir -p frontend/dist
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
       - name: Build Windows artifacts
         shell: bash
