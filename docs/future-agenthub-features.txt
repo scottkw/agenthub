@@ -6,3 +6,9 @@ Future AgentHub Features
 - Support for or a fork of the inter-session Claude Peers mcp server
 - Linux and Windows system tray icons and functionality (currently only macOS)
 - If a Tailscale is not found, give the user the abillity to operate on the local network, but all connections would need to be encrypted with a self-signed certificate and a random system generated password for all connections
+- AgentHub web server should start automatically and when a new session is created it should have web enabled automatically
+- When attaching to a session using the CLI, I get no tmux style status bar informing me of what I am attached; it appears that web-based sessions do get this; we need to make it work in the CLI as well
+- Needs to support themes
+- Need to change the settings modal to a tab like Home, Remote, and Sessions
+- Change "New Tab" label in sidebar to "New Session"
+- Need to fix GitHub Action builds/releases
