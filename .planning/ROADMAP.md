@@ -12,6 +12,7 @@
 - ✅ **v1.7 Daemon UX & Branding** — Phases 36-43 (shipped 2026-04-03)
 - ✅ **v1.8 GitHub Distribution & CI/CD** — Phases 44-48 (shipped 2026-04-06)
 - ✅ **v1.9 Remote Sessions & App Polish** — Phases 49-54 (shipped 2026-04-08)
+- [ ] **v1.10 Collapsible Sidebar Navigation** — Phases 55-56 (in progress)
 
 ## Phases
 
@@ -129,7 +130,44 @@
 
 </details>
 
+### v1.10 Collapsible Sidebar Navigation (In Progress)
+
+- [ ] **Phase 55: Sidebar Component & Icons** - Build collapsible sidebar with Heroicons, toggle, and localStorage persistence
+- [ ] **Phase 56: Navigation Wiring & Tab Bar Cleanup** - Wire sidebar actions into app, migrate navigation from toolbar, remove tab bar action buttons
+
+## Phase Details
+
+### Phase 55: Sidebar Component & Icons
+**Goal**: Users see a collapsible left sidebar with Heroicons replacing the top toolbar action buttons
+**Depends on**: Phase 54
+**Requirements**: ICON-01, ICON-02, SIDE-01, SIDE-02, SIDE-03
+**Success Criteria** (what must be TRUE):
+  1. User sees a left sidebar with navigation icons instead of top toolbar buttons
+  2. User can click a hamburger button to toggle the sidebar between collapsed (icons only, 48px) and expanded (icons + text labels, 200px)
+  3. All sidebar icons are Heroicons SVGs (no Unicode characters)
+  4. Sessions item uses a server-stack icon (hamburger is the sidebar toggle, not sessions)
+  5. Sidebar remembers its collapsed/expanded state after closing and reopening the app
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 56: Navigation Wiring & Tab Bar Cleanup
+**Goal**: Users navigate the app entirely via the sidebar, and the tab bar shows only session tabs
+**Depends on**: Phase 55
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, TAB-01
+**Success Criteria** (what must be TRUE):
+  1. User can click Home in the sidebar to open the Welcome tab
+  2. User can click Remote in the sidebar to open the Remote Sessions panel
+  3. User can click Sessions in the sidebar to open the Daemon Manager panel
+  4. User can click New Tab in the sidebar to create a new terminal session (opens new-session modal)
+  5. User can click Settings (pinned to sidebar bottom) to open the Settings panel
+  6. Tab bar no longer has action buttons on the right — only session tabs
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 55 -> 56
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -143,6 +181,8 @@
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
+| 55. Sidebar Component & Icons | v1.10 | 0/0 | Not started | - |
+| 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/0 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

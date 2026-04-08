@@ -47,23 +47,23 @@ None — this is a focused UI restructure milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SIDE-01 | — | Pending |
-| SIDE-02 | — | Pending |
-| SIDE-03 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| NAV-04 | — | Pending |
-| NAV-05 | — | Pending |
-| ICON-01 | — | Pending |
-| ICON-02 | — | Pending |
-| TAB-01 | — | Pending |
+| SIDE-01 | Phase 55 | Pending |
+| SIDE-02 | Phase 55 | Pending |
+| SIDE-03 | Phase 55 | Pending |
+| NAV-01 | Phase 56 | Pending |
+| NAV-02 | Phase 56 | Pending |
+| NAV-03 | Phase 56 | Pending |
+| NAV-04 | Phase 56 | Pending |
+| NAV-05 | Phase 56 | Pending |
+| ICON-01 | Phase 55 | Pending |
+| ICON-02 | Phase 55 | Pending |
+| TAB-01 | Phase 56 | Pending |
 
 **Coverage:**
 - v1.10 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation*
