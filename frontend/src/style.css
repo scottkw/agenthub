@@ -159,15 +159,18 @@ body {
   height: 38px;
   border: none;
   background: transparent;
-  color: #565f89;
+  color: #9aa5ce;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   border-radius: 4px;
   transition: background-color 0.1s, color 0.1s;
 }
 .tab-bar__btn:hover {
   background-color: #1e2030;
   color: #c0caf5;
+}
+.tab-bar__btn--remote {
+  font-size: 17px; /* emoji renders larger than text at same font-size */
 }
 
 /* ─── Terminal container ─────────────────────────────────────────── */
