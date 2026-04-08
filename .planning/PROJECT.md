@@ -100,14 +100,17 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ CLI remote session attach: `agenthub attach hostname:session-id` connects via WSS relay over Tailscale HTTPS — v1.9 Phase 53
 - ✓ Tailscale onboarding: platform-specific install commands with copy-to-clipboard, macOS auto-install via Homebrew, post-install HTTPS cert guide — v1.9 Phase 54
 
+- ✓ Collapsible left sidebar with Heroicons SVG icons replacing top toolbar action buttons — v1.10 Phase 55
+- ✓ Sidebar items: Home, Remote, Sessions, New Tab at top; Settings pinned to bottom — v1.10 Phase 55
+- ✓ All sidebar icons from @heroicons/react (MIT-licensed open-source SVG icon set) — v1.10 Phase 55
+- ✓ Sidebar toggle (Bars3Icon) and Sessions (ServerStackIcon) replacing Unicode icons — v1.10 Phase 55
+- ✓ Sidebar collapsed/expanded state persisted in localStorage — v1.10 Phase 55
+- ✓ Tab bar action buttons removed, retains session tabs only — v1.10 Phase 55
+
 ### Active
 
-- Collapsible left sidebar replacing top toolbar action buttons — hamburger toggle, icons-only when collapsed, icons + text labels when expanded
-- Sidebar items: Home (Welcome tab), Remote Sessions, New Tab at top; Settings pinned to bottom
-- All icons from Heroicons (MIT-licensed open-source SVG icon set)
-- Sessions button gets a new icon (hamburger becomes sidebar toggle)
-- Sidebar collapsed/expanded state persisted in localStorage
-- Tab strip stays horizontal along top, control buttons removed from tab bar
+- Navigation wiring: sidebar items open their corresponding tabs/panels
+- Tab bar cleanup: remaining styling and layout adjustments after sidebar integration
 
 ## Current Milestone: v1.10 Collapsible Sidebar Navigation
 
@@ -122,7 +125,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 shipped (2026-04-08). 10 milestones shipped (v1.0–v1.9), 54 phases, 100 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, and guided Tailscale onboarding with auto-install.
+v1.9 shipped (2026-04-08). 10 milestones shipped (v1.0–v1.9), 54 phases completed + Phase 55 done, 102 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons.
 
 ### Out of Scope
 
@@ -243,4 +246,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.10 milestone started*
+*Last updated: 2026-04-08 after Phase 55 (sidebar-component-icons) complete*
