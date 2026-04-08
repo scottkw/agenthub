@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http/httptest"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
