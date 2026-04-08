@@ -164,7 +164,9 @@ Plans:
   4. User can click New Tab in the sidebar to create a new terminal session (opens new-session modal)
   5. User can click Settings (pinned to sidebar bottom) to open the Settings panel
   6. Tab bar no longer has action buttons on the right — only session tabs
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 56-01-PLAN.md — Write NAV/TAB source-inspection tests, remove dead CSS and obsolete UILAY-01 tests
 **UI hint**: yes
 
 ## Progress
@@ -185,7 +187,7 @@ Phases execute in numeric order: 55 -> 56
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55. Sidebar Component & Icons | v1.10 | 2/2 | Complete    | 2026-04-08 |
-| 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/0 | Not started | - |
+| 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/1 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
