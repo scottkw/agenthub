@@ -132,7 +132,7 @@
 
 ### v1.10 Collapsible Sidebar Navigation (In Progress)
 
-- [ ] **Phase 55: Sidebar Component & Icons** - Build collapsible sidebar with Heroicons, toggle, and localStorage persistence
+- [x] **Phase 55: Sidebar Component & Icons** - Build collapsible sidebar with Heroicons, toggle, and localStorage persistence (completed 2026-04-08)
 - [ ] **Phase 56: Navigation Wiring & Tab Bar Cleanup** - Wire sidebar actions into app, migrate navigation from toolbar, remove tab bar action buttons
 
 ## Phase Details
@@ -147,10 +147,10 @@
   3. All sidebar icons are Heroicons SVGs (no Unicode characters)
   4. Sessions item uses a server-stack icon (hamburger is the sidebar toggle, not sessions)
   5. Sidebar remembers its collapsed/expanded state after closing and reopening the app
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 55-01-PLAN.md — Install Heroicons, fix stale TabBar test, create Sidebar RED tests
-- [ ] 55-02-PLAN.md — Implement Sidebar component, restructure App layout, remove TabBar action buttons
+- [x] 55-02-PLAN.md — Implement Sidebar component, restructure App layout, remove TabBar action buttons
 **UI hint**: yes
 
 ### Phase 56: Navigation Wiring & Tab Bar Cleanup
@@ -184,7 +184,7 @@ Phases execute in numeric order: 55 -> 56
 | 36-43 | v1.7 | 10/10 | Complete | 2026-04-03 |
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
-| 55. Sidebar Component & Icons | v1.10 | 1/2 | In Progress|  |
+| 55. Sidebar Component & Icons | v1.10 | 2/2 | Complete   | 2026-04-08 |
 | 56. Navigation Wiring & Tab Bar Cleanup | v1.10 | 0/0 | Not started | - |
 
 ---

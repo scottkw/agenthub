@@ -9,9 +9,9 @@ Requirements for Collapsible Sidebar Navigation milestone. Each maps to roadmap 
 
 ### Sidebar Layout
 
-- [ ] **SIDE-01**: User sees a collapsible left sidebar with navigation icons instead of top toolbar buttons
-- [ ] **SIDE-02**: User can toggle sidebar between collapsed (icons only, 48px) and expanded (icons + text labels, 200px) via hamburger button
-- [ ] **SIDE-03**: Sidebar collapsed/expanded state persists across app restarts via localStorage
+- [x] **SIDE-01**: User sees a collapsible left sidebar with navigation icons instead of top toolbar buttons
+- [x] **SIDE-02**: User can toggle sidebar between collapsed (icons only, 48px) and expanded (icons + text labels, 200px) via hamburger button
+- [x] **SIDE-03**: Sidebar collapsed/expanded state persists across app restarts via localStorage
 
 ### Sidebar Navigation
 
@@ -23,8 +23,8 @@ Requirements for Collapsible Sidebar Navigation milestone. Each maps to roadmap 
 
 ### Icons
 
-- [ ] **ICON-01**: All sidebar icons use Heroicons (MIT-licensed open-source SVGs) instead of Unicode characters
-- [ ] **ICON-02**: Sessions uses a distinct icon (server-stack) since hamburger is now the sidebar toggle
+- [x] **ICON-01**: All sidebar icons use Heroicons (MIT-licensed open-source SVGs) instead of Unicode characters
+- [x] **ICON-02**: Sessions uses a distinct icon (server-stack) since hamburger is now the sidebar toggle
 
 ### Tab Bar
 
@@ -47,16 +47,16 @@ None — this is a focused UI restructure milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SIDE-01 | Phase 55 | Pending |
-| SIDE-02 | Phase 55 | Pending |
-| SIDE-03 | Phase 55 | Pending |
+| SIDE-01 | Phase 55 | Complete |
+| SIDE-02 | Phase 55 | Complete |
+| SIDE-03 | Phase 55 | Complete |
 | NAV-01 | Phase 56 | Pending |
 | NAV-02 | Phase 56 | Pending |
 | NAV-03 | Phase 56 | Pending |
 | NAV-04 | Phase 56 | Pending |
 | NAV-05 | Phase 56 | Pending |
-| ICON-01 | Phase 55 | Pending |
-| ICON-02 | Phase 55 | Pending |
+| ICON-01 | Phase 55 | Complete |
+| ICON-02 | Phase 55 | Complete |
 | TAB-01 | Phase 56 | Pending |
 
 **Coverage:**
