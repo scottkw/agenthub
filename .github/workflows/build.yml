@@ -79,9 +79,9 @@ jobs:
       - name: Build with Wails
         shell: bash
         run: |
-          TAGS=""
+          TAGS="-tags wailsassets"
           if [ -n "${{ matrix.build.webkit_tag }}" ]; then
-            TAGS="-tags ${{ matrix.build.webkit_tag }}"
+            TAGS="-tags ${{ matrix.build.webkit_tag }},wailsassets"
           fi
           WEBVIEW2=""
           if [ "${{ runner.os }}" = "Windows" ]; then

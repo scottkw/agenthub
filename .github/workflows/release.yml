@@ -45,7 +45,7 @@ jobs:
 
       - name: Build macOS app
         run: |
-          wails build -platform darwin/universal \
+          wails build -platform darwin/universal -tags wailsassets \
             -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Copy branded ICNS into bundle
@@ -145,7 +145,7 @@ jobs:
       - name: Build Windows artifacts
         shell: bash
         run: |
-          wails build -platform windows/amd64 -webview2 download -nsis \
+          wails build -platform windows/amd64 -webview2 download -nsis -tags wailsassets \
             -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Rename artifacts with version
@@ -200,7 +200,7 @@ jobs:
 
       - name: Build Linux binary
         run: |
-          wails build -platform linux/amd64 -tags webkit2_41 \
+          wails build -platform linux/amd64 -tags webkit2_41,wailsassets \
             -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Create tar.gz
