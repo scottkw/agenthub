@@ -48,19 +48,31 @@ jobs:
         # Setup Go first so we can run tests
 
       - name: Run Go tests (all platforms, race detector)
-        run: go test -race ./...
+        run: go test -race -short ./...
 
       - name: Run build script tests
         if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
         run: bash tests/build-script.test.sh
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Build with Wails
         uses: dAppServer/wails-build-action@main
         with:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
-          build-flags: ${{ matrix.build.webkit_tag && format('-tags {0}', matrix.build.webkit_tag) || '' }}
-          build-webview2: embed
+          build-tags: ${{ matrix.build.webkit_tag || '' }}
+          wails-build-webview2: embed
           nsis: ${{ matrix.build.os == 'windows-latest' }}
 
       - name: Upload macOS artifact

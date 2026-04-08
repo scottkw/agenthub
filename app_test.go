@@ -31,6 +31,9 @@ var testSockSeq atomic.Int64
 // and wires the client, simulating what startup() does without the subprocess.
 func testApp(t *testing.T) *App {
 	t.Helper()
+	if goruntime.GOOS == "windows" {
+		t.Skip("testApp uses Unix domain sockets")
+	}
 
 	// Start an in-process daemon API for tests (no real subprocess).
 	engine := daemon.NewSessionEngine()
@@ -71,6 +74,9 @@ func testApp(t *testing.T) *App {
 // web server without a real Tailscale connection.
 func testAppWithDirectWebServer(t *testing.T, tlsCfg *tls.Config) (*App, func(sessionID string) error) {
 	t.Helper()
+	if goruntime.GOOS == "windows" {
+		t.Skip("testAppWithDirectWebServer uses Unix domain sockets")
+	}
 
 	engine := daemon.NewSessionEngine()
 	api := daemon.NewAPI(engine)

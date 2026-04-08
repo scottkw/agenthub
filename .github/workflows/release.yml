@@ -23,12 +23,34 @@ jobs:
         with:
           submodules: true
 
-      - name: Build macOS app with Wails
-        uses: dAppServer/wails-build-action@main
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          build-name: agenthub
-          build-platform: darwin/universal
-          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build macOS app
+        run: |
+          wails build -platform darwin/universal \
+            -ldflags "-X main.Version=${{ github.ref_name }}"
+
+      - name: Copy branded ICNS into bundle
+        run: |
+          cp build/appicon.icns build/bin/agenthub.app/Contents/Resources/iconfile.icns 2>/dev/null || true
 
       - name: Import certificate to keychain
         run: |
@@ -95,14 +117,34 @@ jobs:
         with:
           submodules: true
 
-      - name: Build Windows artifacts with Wails
-        uses: dAppServer/wails-build-action@main
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          build-name: agenthub
-          build-platform: windows/amd64
-          build-webview2: embed
-          nsis: true
-          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build Windows artifacts
+        shell: bash
+        run: |
+          wails build -platform windows/amd64 -webview2 download -nsis \
+            -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Rename artifacts with version
         shell: bash
@@ -134,13 +176,30 @@ jobs:
           sudo apt-get install -y build-essential pkg-config \
             libgtk-3-dev libwebkit2gtk-4.1-dev
 
-      - name: Build Linux binary with Wails
-        uses: dAppServer/wails-build-action@main
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          build-name: agenthub
-          build-platform: linux/amd64
-          build-flags: -tags webkit2_41
-          go-build-args: -ldflags "-X main.Version=${{ github.ref_name }}"
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Build Linux binary
+        run: |
+          wails build -platform linux/amd64 -tags webkit2_41 \
+            -ldflags "-X main.Version=${{ github.ref_name }}"
 
       - name: Create tar.gz
         run: |
