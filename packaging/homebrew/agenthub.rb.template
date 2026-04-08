@@ -10,6 +10,7 @@ cask "agenthub" do
   depends_on macos: ">= :ventura"
 
   app "agenthub.app"
+  binary "#{appdir}/agenthub.app/Contents/MacOS/agenthub"
 
   zap trash: [
     "~/Library/Application Support/agenthub",
