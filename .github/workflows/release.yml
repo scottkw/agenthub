@@ -43,8 +43,8 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Pre-build frontend
-        run: cd frontend && pnpm install && pnpm build
+      - name: Ensure frontend/dist exists for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
       - name: Build macOS app
         run: |
@@ -145,9 +145,9 @@ jobs:
           choco install nsis -y
           echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
 
-      - name: Pre-build frontend
+      - name: Ensure frontend/dist exists for embed
         shell: bash
-        run: cd frontend && pnpm install && pnpm build
+        run: mkdir -p frontend/dist
 
       - name: Build Windows artifacts
         shell: bash
@@ -205,8 +205,8 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Pre-build frontend
-        run: cd frontend && pnpm install && pnpm build
+      - name: Ensure frontend/dist exists for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
       - name: Build Linux binary
         run: |
