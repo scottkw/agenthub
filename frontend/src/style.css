@@ -41,12 +41,20 @@ body {
   font-family: '"Cascadia Code"', '"MesloLGS NF"', '"Fira Code"', monospace;
 }
 
-/* ─── App layout (flex column, full height) ─────────────────────── */
+/* ─── App layout (flex row, full height) ────────────────────────── */
 .app {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100%;
   width: 100%;
+}
+
+.app__content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
 }
 
 /* ─── Tab bar ───────────────────────────────────────────────────── */
@@ -171,6 +179,79 @@ body {
 }
 .tab-bar__btn--remote {
   font-size: 17px; /* emoji renders larger than text at same font-size */
+}
+
+/* --- Sidebar (Phase 55) ------------------------------------------------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 200px;
+  background-color: #16161e;
+  border-right: 1px solid #292e42;
+  transition: width 0.15s ease;
+  overflow: hidden;
+}
+
+.sidebar--collapsed {
+  width: 48px;
+}
+
+.sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin: 4px;
+  border: none;
+  background: transparent;
+  color: #9aa5ce;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.1s, color 0.1s;
+}
+.sidebar__toggle:hover {
+  background-color: #1e2030;
+  color: #c0caf5;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #9aa5ce;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  border-radius: 0;
+  transition: background-color 0.1s, color 0.1s;
+}
+.sidebar__item:hover {
+  background-color: #1e2030;
+  color: #c0caf5;
+}
+
+.sidebar__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.sidebar__label {
+  font-size: 13px;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sidebar__bottom {
+  margin-top: auto;
 }
 
 /* ─── Terminal container ─────────────────────────────────────────── */
