@@ -106,11 +106,12 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Sidebar toggle (Bars3Icon) and Sessions (ServerStackIcon) replacing Unicode icons — v1.10 Phase 55
 - ✓ Sidebar collapsed/expanded state persisted in localStorage — v1.10 Phase 55
 - ✓ Tab bar action buttons removed, retains session tabs only — v1.10 Phase 55
+- ✓ Navigation wiring: all sidebar items (Home, Remote, Sessions, New Tab, Settings) open their corresponding tabs/panels — v1.10 Phase 56
+- ✓ Tab bar cleanup: dead tab-bar CSS and obsolete tests removed after sidebar integration — v1.10 Phase 56
 
 ### Active
 
-- Navigation wiring: sidebar items open their corresponding tabs/panels
-- Tab bar cleanup: remaining styling and layout adjustments after sidebar integration
+(No active requirements — v1.10 milestone complete)
 
 ## Current Milestone: v1.10 Collapsible Sidebar Navigation
 
@@ -125,7 +126,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.9 shipped (2026-04-08). 10 milestones shipped (v1.0–v1.9), 54 phases completed + Phase 55 done, 102 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons.
+v1.10 complete (2026-04-08). 11 milestones shipped (v1.0–v1.10), 56 phases completed, 103 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
 
 ### Out of Scope
 
@@ -246,4 +247,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after Phase 55 (sidebar-component-icons) complete*
+*Last updated: 2026-04-08 after Phase 56 (navigation-wiring-tab-bar-cleanup) complete*
