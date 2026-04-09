@@ -14,12 +14,12 @@ Requirements for milestone v1.11: Local Network & UX Polish.
 ### UI Polish
 
 - [x] **UI-01**: Sidebar displays "New Session" instead of "New Tab"
-- [ ] **UI-02**: User can access Settings as a sidebar tab (not a modal), consistent with Home/Remote/Sessions panels
+- [x] **UI-02**: User can access Settings as a sidebar tab (not a modal), consistent with Home/Remote/Sessions panels
 
 ### Auto-Serve
 
-- [ ] **SERVE-01**: Web server starts automatically when daemon launches (no manual start required)
-- [ ] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
+- [x] **SERVE-01**: Web server starts automatically when daemon launches (no manual start required)
+- [x] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
 
 ### Local Network
 
@@ -62,9 +62,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DET-01 | Phase 57 | Complete |
 | UI-01 | Phase 57 | Complete |
-| UI-02 | Phase 58 | Pending |
-| SERVE-01 | Phase 59 | Pending |
-| SERVE-02 | Phase 59 | Pending |
+| UI-02 | Phase 58 | Complete |
+| SERVE-01 | Phase 59 | Complete |
+| SERVE-02 | Phase 59 | Complete |
 | NET-01 | Phase 60 | Pending |
 | NET-02 | Phase 60 | Pending |
 | NET-03 | Phase 60 | Pending |

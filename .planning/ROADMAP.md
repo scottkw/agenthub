@@ -145,7 +145,7 @@
 
 - [x] **Phase 57: Quick Wins** — Claude Code detection fix + sidebar "New Session" label rename (completed 2026-04-09)
 - [x] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab (completed 2026-04-09)
-- [ ] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions
+- [x] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions (completed 2026-04-09)
 - [ ] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings
 
 ## Phase Details
@@ -186,9 +186,9 @@ Plans:
   2. Every new session created while the server is running has its web toggle enabled (web-served) by default
   3. Session list in the daemon panel shows web toggle ON for newly created sessions
   4. Daemon restart (stop + start) re-starts the web server automatically
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 59-01-PLAN.md — Auto-start web server at daemon launch + auto-enable web serving for new sessions
+- [x] 59-01-PLAN.md — Auto-start web server at daemon launch + auto-enable web serving for new sessions
 
 ### Phase 60: Local Network Fallback
 **Goal**: Users without Tailscale can serve sessions over the local network using self-signed TLS and a randomly generated password, with the password visible in the Settings tab and a persistent nudge banner encouraging Tailscale installation
@@ -222,7 +222,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
-| 59. Auto-Serve Sessions | v1.11 | 0/1 | Not started | - |
+| 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete   | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
 
 ---

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: Local Network & UX Polish
 status: verifying
-stopped_at: Phase 59 UI-SPEC approved
-last_updated: "2026-04-09T18:37:54.541Z"
+stopped_at: Completed 59-01-PLAN.md
+last_updated: "2026-04-09T18:55:22.733Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 58 — settings-as-sidebar-tab
+**Current focus:** Phase 59 — auto-serve-sessions
 
 ## Current Position
 
-Phase: 59
-Plan: Not started
+Phase: 59 (auto-serve-sessions) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-09
 
@@ -56,6 +56,8 @@ Recent decisions for v1.11:
 - [Phase 57-quick-wins]: No refactor phase needed — two-char rename is complete with GREEN commit
 - [Phase 57-quick-wins]: ~/.local/bin placed as first AugmentServicePath candidate so Anthropic native installer binary takes precedence
 - [Phase 58-settings-as-sidebar-tab]: SettingsTab replaces SettingsPanel modal — inline panel with onWebServerStateChange callback, no modal shell or close button
+- [Phase 59-01]: Enrichment in handleListSessions (not engine.go) keeps WebEnabled out of SessionEngine which has no web server reference
+- [Phase 59-01]: AutoStartWebServer is idempotent: returns nil when webServer already set, enabling safe repeat calls
 
 ### Pending Todos
 
@@ -69,7 +71,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-09T18:37:54.537Z
-Stopped at: Phase 59 UI-SPEC approved
-Resume file: .planning/phases/59-auto-serve-sessions/59-UI-SPEC.md
+Last session: 2026-04-09T18:55:22.729Z
+Stopped at: Completed 59-01-PLAN.md
+Resume file: None
 Next action: /gsd:plan-phase 57
