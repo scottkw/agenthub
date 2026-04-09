@@ -222,7 +222,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
-| 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete   | 2026-04-09 |
+| 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
 
 ---
