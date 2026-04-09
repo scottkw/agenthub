@@ -158,7 +158,10 @@
   1. User can create a Claude Code session when Claude is installed at ~/.local/bin/claude (macOS/Linux) or %USERPROFILE%\.local\bin\claude.exe (Windows)
   2. Sidebar displays "New Session" label in expanded mode (not "New Tab")
   3. Sidebar tooltip/collapsed state also reflects "New Session" label
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 57-01-PLAN.md — Add ~/.local/bin to AugmentServicePath for Claude Code native installer detection
+- [ ] 57-02-PLAN.md — Rename sidebar "New Tab" to "New Session"
 
 ### Phase 58: Settings as Sidebar Tab
 **Goal**: Users can access Settings by clicking the sidebar Settings item, which opens a persistent tab — identical in feel to Home, Remote, and Sessions panels
@@ -211,7 +214,7 @@
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
-| 57. Quick Wins | v1.11 | 0/TBD | Not started | - |
+| 57. Quick Wins | v1.11 | 0/2 | Not started | - |
 | 58. Settings as Sidebar Tab | v1.11 | 0/TBD | Not started | - |
 | 59. Auto-Serve Sessions | v1.11 | 0/TBD | Not started | - |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
