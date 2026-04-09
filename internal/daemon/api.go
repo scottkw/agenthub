@@ -135,6 +135,38 @@ func (a *API) SetWebServerForTest(ws *webserver.WebServer) {
 	a.mu.Unlock()
 }
 
+// AutoStartWebServer starts the web server if not already running.
+// Called from runDaemonCore at startup; mirrors handleWebServerStart without HTTP.
+// Returns nil if the server is already running (idempotent).
+func (a *API) AutoStartWebServer(ip string, port int, fqdn string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.webServer != nil {
+		return nil // already running
+	}
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: ip,
+		Port:   port,
+		FQDN:   fqdn,
+	}, a.engine.Manager())
+	if err != nil {
+		return err
+	}
+	ws.SetSessionResolver(func(sessionID string) (name, cliType, status, hostname string) {
+		for _, s := range a.engine.ListSessions() {
+			if s.ID == sessionID {
+				return s.Name, s.CLI, a.engine.GetSessionStatus(sessionID), s.Hostname
+			}
+		}
+		return sessionID, "", "", ""
+	})
+	if err := ws.Start(); err != nil {
+		return err
+	}
+	a.webServer = ws
+	return nil
+}
+
 // writeJSON writes v as a JSON response with the given status code.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -162,6 +194,17 @@ func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	if sessions == nil {
 		sessions = []SessionInfo{}
 	}
+
+	// Enrich with web-enabled state from the running web server (SERVE-02).
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws != nil {
+		for i := range sessions {
+			sessions[i].WebEnabled = ws.IsSessionEnabled(sessions[i].ID)
+		}
+	}
+
 	writeJSON(w, http.StatusOK, sessions)
 }
 
@@ -178,6 +221,15 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Auto-enable web serving for this session if the web server is running (SERVE-02).
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws != nil {
+		ws.EnableSession(id)
+	}
+
 	writeJSON(w, http.StatusCreated, CreateResponse{ID: id})
 }
 

@@ -87,8 +87,8 @@ func (ws *WebServer) DisableSession(sessionID string) {
 	ws.mu.Unlock()
 }
 
-// isSessionEnabled returns true if the session is marked as web-enabled.
-func (ws *WebServer) isSessionEnabled(sessionID string) bool {
+// IsSessionEnabled returns true if the session is marked as web-enabled.
+func (ws *WebServer) IsSessionEnabled(sessionID string) bool {
 	ws.mu.RLock()
 	ok := ws.webEnabled[sessionID]
 	ws.mu.RUnlock()
@@ -208,7 +208,7 @@ func (ws *WebServer) setupRoutes() {
 
 	// GET /sessions/{id} — checks web-enabled toggle only
 	mux.HandleFunc("GET /sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if !ws.isSessionEnabled(r.PathValue("id")) {
+		if !ws.IsSessionEnabled(r.PathValue("id")) {
 			http.NotFound(w, r)
 			return
 		}
@@ -217,7 +217,7 @@ func (ws *WebServer) setupRoutes() {
 
 	// GET /sessions/{id}/ws — checks web-enabled toggle only; WebSocket upgrade
 	mux.HandleFunc("GET /sessions/{id}/ws", func(w http.ResponseWriter, r *http.Request) {
-		if !ws.isSessionEnabled(r.PathValue("id")) {
+		if !ws.IsSessionEnabled(r.PathValue("id")) {
 			http.NotFound(w, r)
 			return
 		}
@@ -261,7 +261,7 @@ func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) 
 // Returns full session metadata for a single web-enabled session.
 func (ws *WebServer) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if !ws.isSessionEnabled(id) {
+	if !ws.IsSessionEnabled(id) {
 		http.NotFound(w, r)
 		return
 	}
@@ -301,7 +301,7 @@ func (ws *WebServer) handleTerminalPage(w http.ResponseWriter, r *http.Request) 
 // web-enabled.
 func (ws *WebServer) handleSessionQR(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
-	if !ws.isSessionEnabled(sessionID) {
+	if !ws.IsSessionEnabled(sessionID) {
 		http.NotFound(w, r)
 		return
 	}

@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/scottkw/agenthub/internal/webserver"
 )
 
 // RunDaemon is the daemon's main entry point. It creates a signal context and
@@ -45,6 +47,22 @@ func runDaemonCore(ctx context.Context) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "daemon: listening on %s\n", socketPath)
+
+	// Auto-start web server if Tailscale is connected (SERVE-01).
+	{
+		ctx5s, cancel := context.WithTimeout(ctx, 5*time.Second)
+		h := webserver.CheckHealth(ctx5s)
+		cancel()
+		if h.Connected && h.HasCerts && h.IP != "" {
+			if err := api.AutoStartWebServer(h.IP, 7443, h.Domain); err != nil {
+				fmt.Fprintf(os.Stderr, "daemon: auto-start web server: %v\n", err)
+			} else {
+				fmt.Fprintf(os.Stderr, "daemon: web server auto-started on %s\n", h.IP)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "daemon: Tailscale not ready, skipping web server auto-start\n")
+		}
+	}
 
 	<-ctx.Done()
 

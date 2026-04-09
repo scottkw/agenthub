@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/scottkw/agenthub/internal/tailnet"
+	"github.com/scottkw/agenthub/internal/webserver"
 )
 
 // testDaemon creates an API server with a fresh engine on a temp socket.
@@ -372,6 +373,93 @@ func TestClientCreateSessionWithArgs(t *testing.T) {
 	}
 	if id == "" {
 		t.Fatal("CreateSession with args returned empty ID")
+	}
+}
+
+func TestAutoStartWebServer_AlreadyRunning(t *testing.T) {
+	api, _, _ := testDaemon(t)
+	// Inject a fake web server so a.webServer != nil.
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+	// AutoStartWebServer should no-op when already running.
+	err = api.AutoStartWebServer("100.64.0.1", 7443, "test.ts.net")
+	if err != nil {
+		t.Errorf("AutoStartWebServer with existing server: want nil, got %v", err)
+	}
+}
+
+func TestCreateSession_AutoWebEnable(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	// Create a WebServer (without Start — no TLS needed for EnableSession).
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+
+	// Create a session — it should be auto-enabled.
+	status, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"auto-web","workDir":""}`)
+	if status != 201 {
+		t.Fatalf("POST /sessions: want 201, got %d; body: %s", status, body)
+	}
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	// GET /sessions should show WebEnabled=true for this session.
+	_, listBody := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(listBody, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	found := false
+	for _, s := range sessions {
+		if s.ID == cr.ID {
+			found = true
+			if !s.WebEnabled {
+				t.Errorf("session %s: want WebEnabled=true, got false", cr.ID)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("session %s not found in list", cr.ID)
+	}
+}
+
+func TestCreateSession_NoAutoEnable(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	// No web server set — create a session.
+	status, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"no-web","workDir":""}`)
+	if status != 201 {
+		t.Fatalf("POST /sessions: want 201, got %d; body: %s", status, body)
+	}
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	// GET /sessions should show WebEnabled=false.
+	_, listBody := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(listBody, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	for _, s := range sessions {
+		if s.ID == cr.ID && s.WebEnabled {
+			t.Errorf("session %s: want WebEnabled=false, got true", cr.ID)
+		}
 	}
 }
 
