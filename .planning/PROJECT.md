@@ -108,6 +108,8 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Tab bar action buttons removed, retains session tabs only — v1.10 Phase 55
 - ✓ Navigation wiring: all sidebar items (Home, Remote, Sessions, New Tab, Settings) open their corresponding tabs/panels — v1.10 Phase 56
 - ✓ Tab bar cleanup: dead tab-bar CSS and obsolete tests removed after sidebar integration — v1.10 Phase 56
+- ✓ Claude Code detection for ~/.local/bin (Anthropic native installer path) — v1.11 Phase 57
+- ✓ Sidebar "New Tab" label renamed to "New Session" — v1.11 Phase 57
 
 ### Active
 
@@ -126,7 +128,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 56 phases completed, 103 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
+v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 57 phases completed, 105 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
 
 ### Out of Scope
 
@@ -247,4 +249,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after v1.11 milestone started*
+*Last updated: 2026-04-09 after Phase 57 (quick-wins) complete*
