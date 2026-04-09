@@ -340,6 +340,14 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Stop any previously running server to avoid leaking its listener.
+	a.mu.Lock()
+	if a.webServer != nil {
+		_ = a.webServer.Stop()
+		a.webServer = nil
+	}
+	a.mu.Unlock()
+
 	ws, err := webserver.NewWebServer(webserver.Config{
 		BindIP:   req.IP,
 		Port:     req.Port,
