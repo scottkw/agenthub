@@ -80,10 +80,10 @@ export function Sidebar({
       <button
         className="sidebar__item"
         onClick={onAdd}
-        aria-label="New Tab"
+        aria-label="New Session"
       >
         <PlusIcon className="sidebar__icon" />
-        {!collapsed && <span className="sidebar__label">New Tab</span>}
+        {!collapsed && <span className="sidebar__label">New Session</span>}
       </button>
 
       <div className="sidebar__bottom">
