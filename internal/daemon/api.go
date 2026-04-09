@@ -150,6 +150,10 @@ func (a *API) SetLocalPassword(pwd string) {
 // Called from runDaemonCore at startup; mirrors handleWebServerStart without HTTP.
 // Returns nil if the server is already running (idempotent).
 func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password string) error {
+	// Local mode requires a non-empty password to prevent unauthenticated access.
+	if mode == "local" && password == "" {
+		return fmt.Errorf("AutoStartWebServer: local mode requires a non-empty password")
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.webServer != nil {
@@ -328,6 +332,12 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.IP = lanIP
+	}
+
+	// Local mode requires a non-empty password to prevent unauthenticated access.
+	if req.Mode == "local" && req.Password == "" {
+		http.Error(w, "local mode requires a non-empty password", http.StatusBadRequest)
+		return
 	}
 
 	ws, err := webserver.NewWebServer(webserver.Config{
