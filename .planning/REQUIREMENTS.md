@@ -13,7 +13,7 @@ Requirements for milestone v1.11: Local Network & UX Polish.
 
 ### UI Polish
 
-- [ ] **UI-01**: Sidebar displays "New Session" instead of "New Tab"
+- [x] **UI-01**: Sidebar displays "New Session" instead of "New Tab"
 - [ ] **UI-02**: User can access Settings as a sidebar tab (not a modal), consistent with Home/Remote/Sessions panels
 
 ### Auto-Serve
@@ -61,7 +61,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DET-01 | Phase 57 | Pending |
-| UI-01 | Phase 57 | Pending |
+| UI-01 | Phase 57 | Complete |
 | UI-02 | Phase 58 | Pending |
 | SERVE-01 | Phase 59 | Pending |
 | SERVE-02 | Phase 59 | Pending |

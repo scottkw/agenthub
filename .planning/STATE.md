@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: Local Network & UX Polish
-status: ready_to_plan
-stopped_at: Roadmap created — ready to plan Phase 57
-last_updated: "2026-04-08T20:00:00.000Z"
-last_activity: 2026-04-08
+status: verifying
+stopped_at: Completed 57-quick-wins-57-01-PLAN.md
+last_updated: "2026-04-09T00:15:00.173Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v1.11 Phase 57 — Quick Wins (DET-01, UI-01)
+**Current focus:** Phase 57 — quick-wins
 
 ## Current Position
 
-Phase: 57 of 60 (Quick Wins)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-08 — v1.11 roadmap created (4 phases, Phases 57-60)
+Phase: 57 (quick-wins) — EXECUTING
+Plan: 2 of 2
+Status: Phase complete — ready for verification
+Last activity: 2026-04-09
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -48,10 +48,13 @@ Progress: [░░░░░░░░░░] 0%
 (Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
 
 Recent decisions for v1.11:
+
 - Phase 60: Use P256 (not P521) for self-signed TLS — Chrome rejects P521 with cryptic error
 - Phase 60: Password lifetime = daemon lifetime (generated once in runDaemonCore, not per server start)
 - Phase 60: Nudge banner renders as sibling to app__content, never inside terminal flex container
 - Phase 58: Settings-as-tab follows DaemonManagerPanel singleton pattern (find-or-add, not push)
+- [Phase 57-quick-wins]: No refactor phase needed — two-char rename is complete with GREEN commit
+- [Phase 57-quick-wins]: ~/.local/bin placed as first AugmentServicePath candidate so Anthropic native installer binary takes precedence
 
 ### Pending Todos
 
@@ -65,7 +68,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-08
-Stopped at: v1.11 roadmap created
+Last session: 2026-04-09T00:15:00.169Z
+Stopped at: Completed 57-quick-wins-57-01-PLAN.md
 Resume file: None
 Next action: /gsd:plan-phase 57
