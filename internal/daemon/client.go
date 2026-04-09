@@ -107,14 +107,25 @@ func (c *DaemonClient) GetRelayPort() (int, error) {
 	return resp.Port, nil
 }
 
-// StartWebServer tells the daemon to start the Tailscale web server.
-func (c *DaemonClient) StartWebServer(ip string, port int, fqdn string) (string, error) {
-	req := WebServerStartRequest{IP: ip, Port: port, FQDN: fqdn}
+// StartWebServer tells the daemon to start the web server.
+// mode is "tailscale" or "local"; password is non-empty for local mode.
+func (c *DaemonClient) StartWebServer(ip string, port int, fqdn, mode, password string) (string, error) {
+	req := WebServerStartRequest{IP: ip, Port: port, FQDN: fqdn, Mode: mode, Password: password}
 	var resp WebServerStartResponse
 	if err := c.doJSON(http.MethodPost, "/webserver/start", req, &resp); err != nil {
 		return "", err
 	}
 	return resp.URL, nil
+}
+
+// GetLocalNetworkPassword returns the generated local-mode password from the daemon.
+// Returns empty string when the daemon is in Tailscale mode (no password needed).
+func (c *DaemonClient) GetLocalNetworkPassword() (string, error) {
+	var resp map[string]string
+	if err := c.doJSON(http.MethodGet, "/webserver/local-password", nil, &resp); err != nil {
+		return "", err
+	}
+	return resp["password"], nil
 }
 
 // StopWebServer tells the daemon to stop the Tailscale web server.

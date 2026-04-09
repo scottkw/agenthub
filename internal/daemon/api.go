@@ -22,9 +22,10 @@ type API struct {
 	ln           net.Listener
 	relayPort    int                  // TCP port the relay server is listening on
 	relayLn      net.Listener         // TCP listener for the relay server
-	mu           sync.RWMutex         // guards webServer
+	mu           sync.RWMutex         // guards webServer and localPassword
 	webServer    *webserver.WebServer // nil when not running
 	tailnetCache *tailnetCache
+	localPassword string // generated once per daemon lifetime; non-empty in local mode
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -58,6 +59,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("POST /shutdown", a.handleShutdown)
 	// Tailnet peer discovery.
 	a.mux.HandleFunc("GET /tailnet/peers", a.handleTailnetPeers)
+	// Local mode password endpoint.
+	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
 }
 
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
@@ -135,19 +138,29 @@ func (a *API) SetWebServerForTest(ws *webserver.WebServer) {
 	a.mu.Unlock()
 }
 
+// SetLocalPassword stores the generated local-mode password. Called once from
+// runDaemonCore before any web server is started. Thread-safe.
+func (a *API) SetLocalPassword(pwd string) {
+	a.mu.Lock()
+	a.localPassword = pwd
+	a.mu.Unlock()
+}
+
 // AutoStartWebServer starts the web server if not already running.
 // Called from runDaemonCore at startup; mirrors handleWebServerStart without HTTP.
 // Returns nil if the server is already running (idempotent).
-func (a *API) AutoStartWebServer(ip string, port int, fqdn string) error {
+func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.webServer != nil {
 		return nil // already running
 	}
 	ws, err := webserver.NewWebServer(webserver.Config{
-		BindIP: ip,
-		Port:   port,
-		FQDN:   fqdn,
+		BindIP:   ip,
+		Port:     port,
+		FQDN:     fqdn,
+		Mode:     mode,
+		Password: password,
 	}, a.engine.Manager())
 	if err != nil {
 		return err
@@ -307,10 +320,22 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// In local mode, resolve LAN IP if caller did not provide one.
+	if req.Mode == "local" && req.IP == "" {
+		lanIP, err := webserver.GetLANIP()
+		if err != nil {
+			http.Error(w, "no LAN IP found: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		req.IP = lanIP
+	}
+
 	ws, err := webserver.NewWebServer(webserver.Config{
-		BindIP: req.IP,
-		Port:   req.Port,
-		FQDN:   req.FQDN,
+		BindIP:   req.IP,
+		Port:     req.Port,
+		FQDN:     req.FQDN,
+		Mode:     req.Mode,
+		Password: req.Password,
 	}, a.engine.Manager())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -364,7 +389,15 @@ func (a *API) handleWebServerStatus(w http.ResponseWriter, r *http.Request) {
 		Running: true,
 		URL:     ws.BaseURL(),
 		Addr:    ws.Addr(),
+		Mode:    ws.Mode(),
 	})
+}
+
+func (a *API) handleGetLocalPassword(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	pwd := a.localPassword
+	a.mu.RUnlock()
+	writeJSON(w, http.StatusOK, map[string]string{"password": pwd})
 }
 
 func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {

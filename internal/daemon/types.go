@@ -56,9 +56,11 @@ type RelayPortResponse struct {
 
 // WebServerStartRequest is the request body for POST /webserver/start.
 type WebServerStartRequest struct {
-	IP   string `json:"ip"`
-	Port int    `json:"port"`
-	FQDN string `json:"fqdn"`
+	IP       string `json:"ip"`
+	Port     int    `json:"port"`
+	FQDN     string `json:"fqdn"`
+	Mode     string `json:"mode"`     // "tailscale" | "local"
+	Password string `json:"password"` // non-empty for local mode
 }
 
 // WebServerStartResponse is the response body for POST /webserver/start.
@@ -71,6 +73,7 @@ type WebServerStatusResponse struct {
 	Running bool   `json:"running"`
 	URL     string `json:"url"`
 	Addr    string `json:"addr"`
+	Mode    string `json:"mode"` // "tailscale" | "local" | ""
 }
 
 // WebServeRequest is the request body for POST /sessions/{id}/web-serve.

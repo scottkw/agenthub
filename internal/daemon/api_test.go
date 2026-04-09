@@ -389,7 +389,7 @@ func TestAutoStartWebServer_AlreadyRunning(t *testing.T) {
 	}
 	api.SetWebServerForTest(ws)
 	// AutoStartWebServer should no-op when already running.
-	err = api.AutoStartWebServer("100.64.0.1", 7443, "test.ts.net")
+	err = api.AutoStartWebServer("100.64.0.1", 7443, "test.ts.net", "tailscale", "")
 	if err != nil {
 		t.Errorf("AutoStartWebServer with existing server: want nil, got %v", err)
 	}
@@ -460,6 +460,40 @@ func TestCreateSession_NoAutoEnable(t *testing.T) {
 		if s.ID == cr.ID && s.WebEnabled {
 			t.Errorf("session %s: want WebEnabled=false, got true", cr.ID)
 		}
+	}
+}
+
+func TestGetLocalPassword(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	api.SetLocalPassword("abc123")
+
+	status, body := rawGet(t, socketPath, "/webserver/local-password")
+	if status != 200 {
+		t.Errorf("GET /webserver/local-password: want 200, got %d", status)
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode local-password response: %v", err)
+	}
+	if resp["password"] != "abc123" {
+		t.Errorf("local password: want %q, got %q", "abc123", resp["password"])
+	}
+}
+
+func TestGetLocalPassword_TailscaleMode(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	// No SetLocalPassword called — Tailscale mode, password should be empty.
+
+	status, body := rawGet(t, socketPath, "/webserver/local-password")
+	if status != 200 {
+		t.Errorf("GET /webserver/local-password (tailscale mode): want 200, got %d", status)
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode local-password response: %v", err)
+	}
+	if resp["password"] != "" {
+		t.Errorf("local password in tailscale mode: want empty, got %q", resp["password"])
 	}
 }
 
