@@ -55,6 +55,15 @@ describe('Sidebar component (SIDE-01)', () => {
     expect(sessionsBtn).not.toBeNull()
     expect(sessionsBtn!.classList.contains('sidebar__item')).toBe(true)
   })
+
+  it('renders "New Session" label and aria-label for the add button (UI-01)', () => {
+    ;({ container, root } = renderSidebar())
+    const addBtn = container.querySelector('button[aria-label="New Session"]')
+    expect(addBtn).not.toBeNull()
+    const label = addBtn!.querySelector('.sidebar__label')
+    expect(label).not.toBeNull()
+    expect(label!.textContent).toBe('New Session')
+  })
 })
 
 describe('Sidebar toggle (SIDE-02)', () => {
