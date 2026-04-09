@@ -9,7 +9,7 @@ Requirements for milestone v1.11: Local Network & UX Polish.
 
 ### CLI Detection
 
-- [ ] **DET-01**: User can launch Claude Code sessions when Claude is installed via Anthropic native installer (~/.local/bin/claude on macOS/Linux, %USERPROFILE%\.local\bin\claude.exe on Windows)
+- [x] **DET-01**: User can launch Claude Code sessions when Claude is installed via Anthropic native installer (~/.local/bin/claude on macOS/Linux, %USERPROFILE%\.local\bin\claude.exe on Windows)
 
 ### UI Polish
 
@@ -60,7 +60,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DET-01 | Phase 57 | Pending |
+| DET-01 | Phase 57 | Complete |
 | UI-01 | Phase 57 | Complete |
 | UI-02 | Phase 58 | Pending |
 | SERVE-01 | Phase 59 | Pending |
