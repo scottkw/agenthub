@@ -115,6 +115,31 @@ func TestNvmActiveBin_NoNvm(t *testing.T) {
 	}
 }
 
+func TestAugmentServicePath_AddsLocalBin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix PATH separator")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	original := "/usr/bin:/bin"
+	t.Setenv("PATH", original)
+
+	localBin := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(localBin, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	AugmentServicePath()
+
+	got := os.Getenv("PATH")
+	if !strings.Contains(got, localBin) {
+		t.Errorf("PATH should contain %s, got %s", localBin, got)
+	}
+	if !strings.HasSuffix(got, original) {
+		t.Errorf("PATH should end with original %s, got %s", original, got)
+	}
+}
+
 func TestAugmentServicePath_PrependsNotAppends(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses Unix PATH separator")
