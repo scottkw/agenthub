@@ -111,6 +111,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Claude Code detection for ~/.local/bin (Anthropic native installer path) — v1.11 Phase 57
 - ✓ Sidebar "New Tab" label renamed to "New Session" — v1.11 Phase 57
 - ✓ Settings converted from modal overlay to sidebar tab (singleton pattern, consistent with Home/Remote/Sessions) — v1.11 Phase 58
+- ✓ Local network fallback: self-signed TLS (P256+IP SAN), HTTP Basic Auth with generated password, LAN IP selection excluding Tailscale CGNAT, mode-aware server dispatch, daemon fallback wiring, password display in Settings with copy, persistent nudge banner — v1.11 Phase 60
 
 ### Active
 
@@ -129,7 +130,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 59 phases completed, 107 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch when Tailscale is connected; new sessions are web-served by default.
+v1.11 in progress (2026-04-09). 11 milestones shipped (v1.0–v1.10), 60 phases completed, 110 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Persistent nudge banner recommends Tailscale when in local mode.
 
 ### Out of Scope
 
