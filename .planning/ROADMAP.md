@@ -200,9 +200,11 @@ Plans:
   3. User can see the generated password in the Settings tab under a clearly labeled field
   4. A nudge banner appears in the app on each launch when running in local network mode, recommending Tailscale installation
   5. Nudge banner does not shrink or displace the terminal area (renders outside the terminal flex container)
-**Plans**: TBD
+**Plans**: 3 plans
 Plans:
-- [ ] TBD
+- [ ] 60-01-PLAN.md — Webserver local mode infrastructure (selfcert, auth, localip, server.go)
+- [ ] 60-02-PLAN.md — Daemon integration (password, mode params, API endpoint, Wails bindings)
+- [ ] 60-03-PLAN.md — Frontend (nudge banner, settings password display, HealthModal fix, layout)
 **UI hint**: yes
 
 ## Progress
@@ -223,7 +225,7 @@ Plans:
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
-| 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
+| 60. Local Network Fallback | v1.11 | 0/3 | In progress | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
