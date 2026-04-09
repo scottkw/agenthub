@@ -411,6 +411,9 @@ func (a *API) handleWebServerStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetLocalPassword returns the local-mode password over the Unix socket.
+// The socket is owned by the current user (0600) so only same-UID processes
+// can reach this endpoint. This is the intended access-control model.
 func (a *API) handleGetLocalPassword(w http.ResponseWriter, r *http.Request) {
 	a.mu.RLock()
 	pwd := a.localPassword
