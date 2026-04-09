@@ -172,7 +172,9 @@ Plans:
   2. Settings tab persists across navigation — clicking Settings again focuses the existing tab, not a second one
   3. No modal overlay appears anywhere in the app for Settings
   4. All Settings functionality (save paths, Tailscale status, web server controls) works identically inside the tab
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
 **UI hint**: yes
 
 ### Phase 59: Auto-Serve Sessions
@@ -184,7 +186,9 @@ Plans:
   2. Every new session created while the server is running has its web toggle enabled (web-served) by default
   3. Session list in the daemon panel shows web toggle ON for newly created sessions
   4. Daemon restart (stop + start) re-starts the web server automatically
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
 
 ### Phase 60: Local Network Fallback
 **Goal**: Users without Tailscale can serve sessions over the local network using self-signed TLS and a randomly generated password, with the password visible in the Settings tab and a persistent nudge banner encouraging Tailscale installation
@@ -196,7 +200,9 @@ Plans:
   3. User can see the generated password in the Settings tab under a clearly labeled field
   4. A nudge banner appears in the app on each launch when running in local network mode, recommending Tailscale installation
   5. Nudge banner does not shrink or displace the terminal area (renders outside the terminal flex container)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
 **UI hint**: yes
 
 ## Progress
