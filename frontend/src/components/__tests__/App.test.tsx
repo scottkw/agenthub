@@ -120,7 +120,7 @@ describe('App', () => {
       expect(raw).toContain('onCheckAgain={handleCheckHealthAgain}')
     })
 
-    it('passes tailscaleHealth prop to SettingsPanel', () => {
+    it('passes tailscaleHealth prop to SettingsTab', () => {
       expect(raw).toContain('tailscaleHealth={tailscaleHealth}')
     })
 

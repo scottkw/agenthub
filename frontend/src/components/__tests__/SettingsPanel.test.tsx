@@ -2,8 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
-import { SettingsPanel } from '../SettingsPanel'
-import rawSettings from '../SettingsPanel.tsx?raw'
+import { SettingsTab } from '../SettingsTab'
+import rawSettings from '../SettingsTab.tsx?raw'
 
 vi.mock('../../wailsjs/go/main/App', () => ({
   UpdateCLIPath: vi.fn(),
@@ -15,9 +15,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   AcknowledgeCTDisclosure: vi.fn(),
 }))
 
-interface SettingsPanelProps {
-  isOpen: boolean
-  onClose: () => void
+interface SettingsTabProps {
   clis: Array<{ Name: string; Path: string }>
   tailscaleHealth: {
     installed: boolean
@@ -26,21 +24,21 @@ interface SettingsPanelProps {
     ip: string
     domain: string
   } | null
+  onWebServerStateChange: () => Promise<void>
 }
 
-function renderSettingsPanel(props: Partial<SettingsPanelProps> = {}) {
-  const defaults: SettingsPanelProps = {
-    isOpen: true,
-    onClose: vi.fn(),
+function renderSettingsTab(props: Partial<SettingsTabProps> = {}) {
+  const defaults: SettingsTabProps = {
     clis: [{ Name: 'claude', Path: '/usr/bin/claude' }],
     tailscaleHealth: null,
+    onWebServerStateChange: vi.fn().mockResolvedValue(undefined),
   }
   const merged = { ...defaults, ...props }
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   flushSync(() => {
-    root.render(React.createElement(SettingsPanel, merged as any))
+    root.render(React.createElement(SettingsTab, merged as any))
   })
   return { container, root }
 }
@@ -54,7 +52,7 @@ function clickTabByText(container: HTMLElement, text: string) {
   })
 }
 
-describe('SettingsPanel', () => {
+describe('SettingsTab', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
 
@@ -64,7 +62,7 @@ describe('SettingsPanel', () => {
   })
 
   it('renders exactly two tab buttons: "CLI Paths" and "Web Server"', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const tabs = container.querySelectorAll('.settings-panel__tab-btn')
     expect(tabs.length).toBe(2)
     const tabTexts = Array.from(tabs).map((t) => t.textContent?.trim())
@@ -72,7 +70,7 @@ describe('SettingsPanel', () => {
   })
 
   it('CLI Paths tab button has active class on initial render', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const tabs = container.querySelectorAll('.settings-panel__tab-btn')
     const cliTab = Array.from(tabs).find((t) => t.textContent?.trim() === 'CLI Paths')
     expect(cliTab?.classList.contains('settings-panel__tab-btn--active')).toBe(true)
@@ -80,32 +78,32 @@ describe('SettingsPanel', () => {
   })
 
   it('CLI Paths content is visible on initial render', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const table = container.querySelector('.settings-panel__table')
     expect(table).not.toBeNull()
   })
 
   it('Web Server content is NOT in the DOM on initial render', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const selects = container.querySelectorAll('.settings-panel__select')
     expect(selects.length).toBe(0)
   })
 
   it('Security tab does not exist', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const tabs = container.querySelectorAll('.settings-panel__tab-btn')
     const securityTab = Array.from(tabs).find((t) => t.textContent?.trim() === 'Security')
     expect(securityTab).toBeUndefined()
   })
 
   it('no password input rendered (Security tab removed)', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     const passwordInputs = container.querySelectorAll('input[type="password"]')
     expect(passwordInputs.length).toBe(0)
   })
 
   it('clicking Web Server tab shows network interface and port, hides CLI table', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     clickTabByText(container, 'Web Server')
     // Web Server content present
     const description = container.querySelector('.settings-panel__description')
@@ -123,7 +121,7 @@ describe('SettingsPanel', () => {
   })
 
   it('Start Web Server button is disabled when CT not disclosed', () => {
-    ;({ container, root } = renderSettingsPanel())
+    ;({ container, root } = renderSettingsTab())
     clickTabByText(container, 'Web Server')
     const buttons = container.querySelectorAll('button')
     const startBtn = Array.from(buttons).find((b) => b.textContent?.includes('Start Web Server'))
@@ -131,34 +129,33 @@ describe('SettingsPanel', () => {
     expect((startBtn as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('footer contains exactly one button with text "Close"', () => {
-    ;({ container, root } = renderSettingsPanel())
+  it('has no modal footer (tab renders inline, no close button)', () => {
+    ;({ container, root } = renderSettingsTab())
     const footer = container.querySelector('.settings-panel__footer')
-    expect(footer).not.toBeNull()
-    const footerButtons = footer!.querySelectorAll('button')
-    expect(footerButtons.length).toBe(1)
-    expect(footerButtons[0].textContent?.trim()).toBe('Close')
+    expect(footer).toBeNull()
   })
 
-  it('Close button has class settings-panel__btn--cancel (secondary style)', () => {
-    ;({ container, root } = renderSettingsPanel())
-    const footer = container.querySelector('.settings-panel__footer')
-    const closeBtn = footer?.querySelector('button')
-    expect(closeBtn?.classList.contains('settings-panel__btn--cancel')).toBe(true)
+  it('has no modal overlay (tab renders inline, no settings-overlay)', () => {
+    ;({ container, root } = renderSettingsTab())
+    const overlay = container.querySelector('.settings-overlay')
+    expect(overlay).toBeNull()
   })
 
-  it('CLI Paths tab contains a "Save Paths" button inline, not in footer', () => {
-    ;({ container, root } = renderSettingsPanel())
-    const footer = container.querySelector('.settings-panel__footer')
+  it('outer wrapper has class settings-tab', () => {
+    ;({ container, root } = renderSettingsTab())
+    const tab = container.querySelector('.settings-tab')
+    expect(tab).not.toBeNull()
+  })
+
+  it('CLI Paths tab contains a "Save Paths" button inline', () => {
+    ;({ container, root } = renderSettingsTab())
     const body = container.querySelector('.settings-panel__body')
-    const footerBtnTexts = Array.from(footer!.querySelectorAll('button')).map((b) => b.textContent?.trim())
-    expect(footerBtnTexts).not.toContain('Save Paths')
     const savePathsBtn = Array.from(body!.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Save Paths')
     expect(savePathsBtn).not.toBeUndefined()
   })
 
   describe('Tailscale Status Indicator', () => {
-    it('SettingsPanel accepts tailscaleHealth prop', () => {
+    it('SettingsTab accepts tailscaleHealth prop', () => {
       expect(rawSettings).toContain('tailscaleHealth')
     })
 
@@ -175,7 +172,7 @@ describe('SettingsPanel', () => {
     })
 
     it('shows "Connected" text for healthy state', () => {
-      ;({ container, root } = renderSettingsPanel({
+      ;({ container, root } = renderSettingsTab({
         tailscaleHealth: { installed: true, connected: true, hasCerts: true, ip: '100.64.0.1', domain: 'host.ts.net' },
       }))
       clickTabByText(container, 'Web Server')
@@ -184,7 +181,7 @@ describe('SettingsPanel', () => {
     })
 
     it('shows "Checking..." when tailscaleHealth is null', () => {
-      ;({ container, root } = renderSettingsPanel({ tailscaleHealth: null }))
+      ;({ container, root } = renderSettingsTab({ tailscaleHealth: null }))
       clickTabByText(container, 'Web Server')
       const statusText = container.querySelector('.ts-status__text')
       expect(statusText?.textContent).toBe('Checking\u2026')

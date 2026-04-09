@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { TabBar, type Tab } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
 import { TerminalPanel } from './components/TerminalPanel'
-import { SettingsPanel } from './components/SettingsPanel'
+import { SettingsTab } from './components/SettingsTab'
 import {
   CreateSession,
   ListSessions,
@@ -40,10 +40,10 @@ function App(): React.ReactElement {
   const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
   const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
   const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
+  const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
   const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
   const [tabCounter, setTabCounter] = useState(1)
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
@@ -216,14 +216,24 @@ function App(): React.ReactElement {
     }
   }, [tabCounter])
 
+  const handleOpenSettings = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'settings')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, SETTINGS_TAB])
+    setActiveId(SETTINGS_TAB.id)
+  }, [tabs])
+
   const handleAddTab = useCallback(() => {
     if (detectedCLIs.length === 0) {
       // No CLIs found — open settings so the user can configure a path.
-      setShowSettings(true)
+      handleOpenSettings()
       return
     }
     setShowNewSessionModal(true)
-  }, [detectedCLIs])
+  }, [detectedCLIs, handleOpenSettings])
 
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
@@ -286,15 +296,6 @@ function App(): React.ReactElement {
       console.warn('[App] ToggleWebServing failed:', err)
     }
   }, [webEnabled])
-
-  // Re-check server running state when settings panel closes (user may have started/stopped server).
-  const handleSettingsClose = useCallback(async () => {
-    setShowSettings(false)
-    try {
-      const running = await IsWebServerRunning()
-      setWebServerRunning(running)
-    } catch (_) { /* ignore */ }
-  }, [])
 
   const handleFontSizeChange = useCallback((sessionId: string, delta: number) => {
     setFontSizes((prev) => {
@@ -457,7 +458,7 @@ function App(): React.ReactElement {
         onOpenRemoteSessions={handleOpenRemoteSessions}
         onOpenDaemonManager={handleOpenDaemonManager}
         onAdd={handleAddTab}
-        onSettings={() => setShowSettings(true)}
+        onSettings={handleOpenSettings}
       />
       <div className="app__content">
         <TabBar
@@ -490,7 +491,17 @@ function App(): React.ReactElement {
             onOpen={handleOpenRemoteSession}
           />
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions').length === 0 && (
+        {activeId === SETTINGS_TAB.id && (
+          <SettingsTab
+            clis={detectedCLIs}
+            tailscaleHealth={tailscaleHealth}
+            onWebServerStateChange={async () => {
+              const running = await IsWebServerRunning()
+              setWebServerRunning(running)
+            }}
+          />
+        )}
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -529,7 +540,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions') return null
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings') return null
             const isActive = tab.id === activeId
             return (
               <div
@@ -577,13 +588,6 @@ function App(): React.ReactElement {
           onClose={() => setQrSessionId(null)}
         />
       )}
-
-      <SettingsPanel
-        isOpen={showSettings}
-        onClose={handleSettingsClose}
-        clis={detectedCLIs}
-        tailscaleHealth={tailscaleHealth}
-      />
 
       <HealthModal
         health={tailscaleHealth}
