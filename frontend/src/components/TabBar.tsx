@@ -5,7 +5,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
-  type?: 'terminal' | 'welcome' | 'daemon-manager' | 'remote-sessions'
+  type?: 'terminal' | 'welcome' | 'daemon-manager' | 'remote-sessions' | 'settings'
 }
 
 interface TabBarProps {
