@@ -302,6 +302,12 @@ function App(): React.ReactElement {
     try {
       const running = await IsWebServerRunning()
       setWebServerRunning(running)
+      if (!running) {
+        setWebServerMode(null)
+      } else {
+        const mode = await GetWebServerMode()
+        setWebServerMode(mode === 'tailscale' || mode === 'local' ? mode : null)
+      }
     } catch (_) { /* ignore */ }
   }, [])
 
