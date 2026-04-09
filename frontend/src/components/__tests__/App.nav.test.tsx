@@ -53,23 +53,22 @@ describe('NAV-04: New Tab sidebar button opens new-session modal', () => {
   })
 })
 
-describe('NAV-05: Settings sidebar button opens Settings tab', () => {
+describe('NAV-05: Settings sidebar button opens Settings panel', () => {
   it('wires onSettings prop to Sidebar', () => {
     expect(raw).toContain('onSettings={')
   })
 
-  it('onSettings is wired to handleOpenSettings', () => {
-    expect(raw).toContain('onSettings={handleOpenSettings}')
+  it('onSettings triggers showSettings state', () => {
+    expect(raw).toContain('setShowSettings(true)')
   })
 
-  it('defines SETTINGS_TAB constant with type settings', () => {
-    expect(raw).toContain("SETTINGS_TAB")
-    expect(raw).toContain("type: 'settings'")
+  it('renders SettingsPanel component', () => {
+    expect(raw).toContain('<SettingsPanel')
   })
 
-  it('renders SettingsTab when activeId matches SETTINGS_TAB', () => {
-    expect(raw).toContain('activeId === SETTINGS_TAB.id')
-    expect(raw).toContain('<SettingsTab')
+  it('SettingsPanel receives isOpen and onClose props', () => {
+    expect(raw).toContain('isOpen={showSettings}')
+    expect(raw).toContain('onClose={handleSettingsClose}')
   })
 })
 
