@@ -27,7 +27,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Go backend serving both the desktop app and web interface on the same process — v1.0
 - ✓ Live status indicators (running/waiting/idle/errored) per session — v1.0
 - ✓ Build script (`build.sh`) for per-platform and all-platform compilation with macOS signing — v1.1
-- ✓ Tabbed settings modal with inline Save Paths and single Close footer — v1.1
+- ✓ Tabbed settings modal with inline Save Paths and single Close footer — v1.1 (modal replaced by sidebar tab in v1.11 Phase 58)
 - ✓ Web dashboard visual redesign with card layout, status dots, CLI badges — v1.1
 - ✓ Per-tab status bar replacing header overlay for web status/URL/controls — v1.1
 - ✓ Tab renaming (double-click + right-click context menu) with web dashboard propagation — v1.1
@@ -110,6 +110,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Tab bar cleanup: dead tab-bar CSS and obsolete tests removed after sidebar integration — v1.10 Phase 56
 - ✓ Claude Code detection for ~/.local/bin (Anthropic native installer path) — v1.11 Phase 57
 - ✓ Sidebar "New Tab" label renamed to "New Session" — v1.11 Phase 57
+- ✓ Settings converted from modal overlay to sidebar tab (singleton pattern, consistent with Home/Remote/Sessions) — v1.11 Phase 58
 
 ### Active
 
@@ -128,7 +129,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 57 phases completed, 105 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar.
+v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 58 phases completed, 106 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal).
 
 ### Out of Scope
 
@@ -249,4 +250,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-09 after Phase 57 (quick-wins) complete*
+*Last updated: 2026-04-09 after Phase 58 (settings-as-sidebar-tab) complete*
