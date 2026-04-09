@@ -26,6 +26,12 @@ type Config struct {
 	FQDN string
 	// TLSConfig is an override for tests; nil in production (uses lc.GetCertificate).
 	TLSConfig *tls.Config
+	// Mode controls which start path to use: "tailscale" (default) or "local".
+	// In "local" mode the server uses a self-signed cert and HTTP Basic Auth.
+	Mode string
+	// Password is the HTTP Basic Auth password used when Mode == "local".
+	// Must be non-empty when Mode is "local".
+	Password string
 }
 
 // sessionListItem is the JSON shape returned by GET /api/sessions and GET /api/sessions/{id}/info.
@@ -109,10 +115,22 @@ func (ws *WebServer) webEnabledSessions() []string {
 }
 
 // Start opens the TLS listener and begins serving.
-// In production, uses Tailscale's lc.GetCertificate hook.
-// In tests, uses the TLSConfig override from Config.
-// If config.Port is taken, falls back to a random port.
+// Dispatches to startLocal() or startTailscale() based on Config.Mode.
 func (ws *WebServer) Start() error {
+	switch ws.config.Mode {
+	case "local":
+		return ws.startLocal()
+	default:
+		return ws.startTailscale()
+	}
+}
+
+// Mode returns the server's configured mode ("tailscale" or "local").
+func (ws *WebServer) Mode() string { return ws.config.Mode }
+
+// startTailscale opens a TLS listener using Tailscale's lc.GetCertificate hook
+// (or the TLSConfig test override). Falls back to a random port on EADDRINUSE.
+func (ws *WebServer) startTailscale() error {
 	tlsCfg := ws.config.TLSConfig
 	if tlsCfg == nil {
 		var lc local.Client
@@ -146,6 +164,45 @@ func (ws *WebServer) Start() error {
 	return nil
 }
 
+// startLocal opens a TLS listener using a self-signed certificate for
+// ws.config.BindIP, wraps the mux with HTTP Basic Auth, and begins serving.
+// Falls back to a random port on EADDRINUSE.
+func (ws *WebServer) startLocal() error {
+	tlsCfg, err := GenerateSelfSignedCert(ws.config.BindIP)
+	if err != nil {
+		return fmt.Errorf("webserver: generate self-signed cert: %w", err)
+	}
+	// Test override: if a TLSConfig was provided, use it instead.
+	if ws.config.TLSConfig != nil {
+		tlsCfg = ws.config.TLSConfig
+	}
+
+	// Try configured port first; fall back to :0 (random) on EADDRINUSE.
+	port := ws.config.Port
+	addr := fmt.Sprintf("%s:%d", ws.config.BindIP, port)
+	ln, err := tls.Listen("tcp", addr, tlsCfg)
+	if err != nil {
+		var opErr *net.OpError
+		if errors.As(err, &opErr) && port != 0 {
+			// Port in use — try random port
+			addr = fmt.Sprintf("%s:0", ws.config.BindIP)
+			ln, err = tls.Listen("tcp", addr, tlsCfg)
+		}
+		if err != nil {
+			return fmt.Errorf("webserver: listen: %w", err)
+		}
+	}
+
+	ws.mu.Lock()
+	ws.listener = ln
+	ws.mu.Unlock()
+
+	// Wrap the mux with Basic Auth so unauthenticated requests get 401.
+	handler := basicAuthMiddleware(ws.config.Password)(ws.mux)
+	go http.Serve(ln, handler) //nolint:errcheck
+	return nil
+}
+
 // Stop closes the listener, stopping the HTTP server.
 func (ws *WebServer) Stop() error {
 	ws.mu.RLock()
@@ -168,7 +225,9 @@ func (ws *WebServer) Addr() string {
 	return ln.Addr().String()
 }
 
-// BaseURL returns the base HTTPS URL using the configured FQDN (e.g. https://hostname.ts.net:7443).
+// BaseURL returns the base HTTPS URL for the server.
+// In "local" mode it uses the bind IP (e.g. https://192.168.1.50:7443).
+// In "tailscale" mode (or when Mode is unset) it uses the FQDN (e.g. https://hostname.ts.net:7443).
 func (ws *WebServer) BaseURL() string {
 	ws.mu.RLock()
 	ln := ws.listener
@@ -179,6 +238,9 @@ func (ws *WebServer) BaseURL() string {
 	_, port, err := net.SplitHostPort(ln.Addr().String())
 	if err != nil {
 		return ""
+	}
+	if ws.config.Mode == "local" {
+		return fmt.Sprintf("https://%s:%s", ws.config.BindIP, port)
 	}
 	return fmt.Sprintf("https://%s:%s", ws.config.FQDN, port)
 }

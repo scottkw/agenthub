@@ -551,3 +551,136 @@ func TestSessionAccessWithoutAuth(t *testing.T) {
 		t.Errorf("expected 200 for web-enabled session without auth, got %d", resp.StatusCode)
 	}
 }
+
+// insecureClient returns an *http.Client that skips TLS certificate verification.
+// Used for local-mode tests where the self-signed cert is not in a trusted pool.
+func insecureClient() *http.Client {
+	return &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	}}
+}
+
+// TestLocalModeStart verifies that a WebServer in local mode starts, requires
+// Basic Auth, and returns 200 when correct credentials are supplied.
+func TestLocalModeStart(t *testing.T) {
+	manager := relay.NewHubManager()
+	tlsCfg, _ := selfSignedTLSForTest(t)
+	cfg := webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		Mode:      "local",
+		Password:  "testpass",
+		TLSConfig: tlsCfg, // override so we don't need GenerateSelfSignedCert in test
+	}
+	ws, err := webserver.NewWebServer(cfg, manager)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+
+	client := insecureClient()
+	base := ws.BaseURL()
+
+	// Request without auth → 401
+	resp, err := client.Get(base + "/dashboard")
+	if err != nil {
+		t.Fatalf("GET /dashboard (no auth): %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("no auth: expected 401, got %d", resp.StatusCode)
+	}
+
+	// Request with correct password → 200
+	req, _ := http.NewRequest(http.MethodGet, base+"/dashboard", nil)
+	req.SetBasicAuth("user", "testpass")
+	resp2, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET /dashboard (with auth): %v", err)
+	}
+	resp2.Body.Close()
+	if resp2.StatusCode != http.StatusOK {
+		t.Errorf("with auth: expected 200, got %d", resp2.StatusCode)
+	}
+}
+
+// TestBaseURL_LocalMode verifies that BaseURL() returns an IP-based URL (not FQDN)
+// when Mode is "local".
+func TestBaseURL_LocalMode(t *testing.T) {
+	tlsCfg, _ := selfSignedTLSForTest(t)
+	cfg := webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "myhost.example.ts.net",
+		Mode:      "local",
+		Password:  "testpass",
+		TLSConfig: tlsCfg,
+	}
+	ws, err := webserver.NewWebServer(cfg, relay.NewHubManager())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Stop()
+
+	base := ws.BaseURL()
+	if !strings.HasPrefix(base, "https://127.0.0.1:") {
+		t.Errorf("local mode BaseURL should use BindIP, got %q", base)
+	}
+	if strings.Contains(base, "myhost.example.ts.net") {
+		t.Errorf("local mode BaseURL should not contain FQDN, got %q", base)
+	}
+}
+
+// TestBaseURL_TailscaleMode verifies that BaseURL() returns an FQDN-based URL
+// when Mode is "tailscale" (existing behavior preserved).
+func TestBaseURL_TailscaleMode(t *testing.T) {
+	tlsCfg, _ := selfSignedTLSForTest(t)
+	cfg := webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "myhost.example.ts.net",
+		Mode:      "tailscale",
+		TLSConfig: tlsCfg,
+	}
+	ws, err := webserver.NewWebServer(cfg, relay.NewHubManager())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Stop()
+
+	base := ws.BaseURL()
+	if !strings.HasPrefix(base, "https://myhost.example.ts.net:") {
+		t.Errorf("tailscale mode BaseURL should use FQDN, got %q", base)
+	}
+}
+
+// TestMode_Accessor verifies that the Mode() accessor returns the configured mode.
+func TestMode_Accessor(t *testing.T) {
+	tlsCfg, _ := selfSignedTLSForTest(t)
+	for _, mode := range []string{"local", "tailscale", ""} {
+		cfg := webserver.Config{
+			BindIP:    "127.0.0.1",
+			Port:      0,
+			FQDN:      "host.ts.net",
+			Mode:      mode,
+			Password:  "pw",
+			TLSConfig: tlsCfg,
+		}
+		ws, err := webserver.NewWebServer(cfg, relay.NewHubManager())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := ws.Mode(); got != mode {
+			t.Errorf("Mode() = %q, want %q", got, mode)
+		}
+	}
+}
