@@ -139,7 +139,7 @@
 
 </details>
 
-### 🚧 v1.11 Local Network & UX Polish (In Progress)
+### v1.11 Local Network & UX Polish (In Progress)
 
 **Milestone Goal:** Enable local network operation when Tailscale is unavailable, auto-serve sessions, and polish the UI with settings-as-tab, sidebar label rename, and Claude Code native path detection fix.
 
@@ -186,9 +186,9 @@ Plans:
   2. Every new session created while the server is running has its web toggle enabled (web-served) by default
   3. Session list in the daemon panel shows web toggle ON for newly created sessions
   4. Daemon restart (stop + start) re-starts the web server automatically
-**Plans**: 1 plan
+**Plans:** 1 plan
 Plans:
-- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
+- [ ] 59-01-PLAN.md — Auto-start web server at daemon launch + auto-enable web serving for new sessions
 
 ### Phase 60: Local Network Fallback
 **Goal**: Users without Tailscale can serve sessions over the local network using self-signed TLS and a randomly generated password, with the password visible in the Settings tab and a persistent nudge banner encouraging Tailscale installation
@@ -200,9 +200,9 @@ Plans:
   3. User can see the generated password in the Settings tab under a clearly labeled field
   4. A nudge banner appears in the app on each launch when running in local network mode, recommending Tailscale installation
   5. Nudge banner does not shrink or displace the terminal area (renders outside the terminal flex container)
-**Plans**: 1 plan
+**Plans**: TBD
 Plans:
-- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
+- [ ] TBD
 **UI hint**: yes
 
 ## Progress
@@ -222,7 +222,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
-| 59. Auto-Serve Sessions | v1.11 | 0/TBD | Not started | - |
+| 59. Auto-Serve Sessions | v1.11 | 0/1 | Not started | - |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
 
 ---
