@@ -18,6 +18,7 @@ func AugmentServicePath() {
 	}
 
 	candidates := []string{
+		filepath.Join(home, ".local", "bin"), // Anthropic native installer (macOS/Linux)
 		filepath.Join(home, ".volta", "bin"),
 		"/opt/homebrew/bin",
 		"/usr/local/bin",
