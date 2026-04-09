@@ -210,7 +210,8 @@ func (a *App) pollSessionStatus(sessionID string) {
 					"status":    s,
 				})
 			}
-			if s == string(status.StatusErrored) {
+			switch s {
+			case string(status.StatusErrored), string(status.StatusRunning):
 				return
 			}
 		}
