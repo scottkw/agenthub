@@ -129,7 +129,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 58 phases completed, 106 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal).
+v1.10 shipped (2026-04-08). 11 milestones shipped (v1.0–v1.10), 59 phases completed, 107 plans total. Codebase: ~31K Go + ~10K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch when Tailscale is connected; new sessions are web-served by default.
 
 ### Out of Scope
 
@@ -250,4 +250,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-09 after Phase 58 (settings-as-sidebar-tab) complete*
+*Last updated: 2026-04-09 after Phase 59 (auto-serve-sessions) complete*
