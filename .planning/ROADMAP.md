@@ -144,7 +144,7 @@
 **Milestone Goal:** Enable local network operation when Tailscale is unavailable, auto-serve sessions, and polish the UI with settings-as-tab, sidebar label rename, and Claude Code native path detection fix.
 
 - [x] **Phase 57: Quick Wins** — Claude Code detection fix + sidebar "New Session" label rename (completed 2026-04-09)
-- [ ] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab
+- [x] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab (completed 2026-04-09)
 - [ ] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions
 - [ ] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings
 
@@ -174,7 +174,7 @@ Plans:
   4. All Settings functionality (save paths, Tailscale status, web server controls) works identically inside the tab
 **Plans**: 1 plan
 Plans:
-- [ ] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
+- [x] 58-01-PLAN.md — Convert Settings modal to singleton sidebar tab
 **UI hint**: yes
 
 ### Phase 59: Auto-Serve Sessions
@@ -221,7 +221,7 @@ Plans:
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
-| 58. Settings as Sidebar Tab | v1.11 | 0/TBD | Not started | - |
+| 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete   | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 0/TBD | Not started | - |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
 
