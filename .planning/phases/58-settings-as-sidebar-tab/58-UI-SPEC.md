@@ -39,12 +39,13 @@ Standard 8-point scale applied from existing codebase patterns:
 | xs | 4px | Icon gaps, inline padding (e.g. `.sidebar__icon` gap) |
 | sm | 8px | Compact element spacing, cell padding, button vertical padding |
 | md | 16px | Default element spacing, tab button padding horizontal, section padding |
-| lg | 20px | Panel body padding (matches existing `.settings-panel__body` padding) |
-| xl | 24px | Section header padding (used in modal header; retained in tab layout) |
-| 2xl | 32px | Not currently used — available for layout expansion |
-| 3xl | 48px | Not currently used — available for layout expansion |
+| lg | 24px | Section header padding (used in modal header; retained in tab layout) |
+| xl | 32px | Not currently used — available for layout expansion |
+| 2xl | 48px | Not currently used — available for layout expansion |
+| 3xl | 64px | Not currently used — available for layout expansion |
 
 Exceptions:
+- `.settings-panel__body` uses `padding: 20px` — this is a preserved legacy CSS value from the existing implementation. It is NOT a new design token and does not belong to the spacing scale. Do not introduce a `lg: 20px` token. Retain the literal `20px` in the CSS rule as-is.
 - Settings tab internal sub-tabs (CLI Paths / Web Server) use `padding: 8px 16px` per existing `.settings-panel__tab-btn` rule — retain as-is.
 - Tab bar height is fixed at 42px (existing `.tab-bar` rule) — not subject to spacing scale.
 
@@ -62,6 +63,8 @@ Exceptions:
 | Caption | 11px | 400 regular | 1.3 | Code snippets inside panels (`.settings-panel__code`), fine-print details |
 
 Weights declared: regular (400) and semibold (600) only.
+
+Note on Caption/Label/Body density: Caption (11px), Label (12px), and Body (13px) are 1px apart. This is intentional — all three sizes are preserved verbatim from the existing `SettingsPanel` implementation to avoid visual regression. The monospace font stack (Cascadia Code / Fira Code) renders these three sizes with sufficient x-height differentiation at typical desktop display densities (1x–2x DPR). The distinction between Caption and Label is reinforced by context (code block vs. form field label) rather than size alone. Do not increase any of these sizes; doing so would break the existing compact panel layout.
 
 **Source:** Measured from `style.css` — `.settings-panel__header h2` is 16px, `.settings-panel__tab-btn` is 13px, `.settings-panel__label` is 13px, `.settings-panel__description` is 12px, `.settings-panel__code` is 11px. Weights inferred from existing rules (no explicit font-weight declarations — all inherit browser default 400 except h2 which renders at 600 by default in WebKit).
 
@@ -192,6 +195,8 @@ Every interactive element must have these states specified:
 
 ## Layout Contract
 
+Primary visual anchor: sub-tab selector row (CLI Paths / Web Server).
+
 ```
 .app
   .sidebar (existing — no change)
@@ -211,7 +216,7 @@ SettingsTab internal layout:
   .settings-panel__tabs              (sub-tab row — retain existing class)
     .settings-panel__tab-btn         (CLI Paths)
     .settings-panel__tab-btn         (Web Server)
-  .settings-panel__body              (flex column, padding 20px, flex: 1)
+  .settings-panel__body              (flex column, padding 20px [legacy value — not a token], flex: 1)
     {cli-paths content or web-server content}
 ```
 
