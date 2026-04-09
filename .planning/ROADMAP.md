@@ -146,7 +146,7 @@
 - [x] **Phase 57: Quick Wins** — Claude Code detection fix + sidebar "New Session" label rename (completed 2026-04-09)
 - [x] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab (completed 2026-04-09)
 - [x] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions (completed 2026-04-09)
-- [ ] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings
+- [x] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings (completed 2026-04-09)
 
 ## Phase Details
 
@@ -202,9 +202,9 @@ Plans:
   5. Nudge banner does not shrink or displace the terminal area (renders outside the terminal flex container)
 **Plans**: 3 plans
 Plans:
-- [ ] 60-01-PLAN.md — Webserver local mode infrastructure (selfcert, auth, localip, server.go)
-- [ ] 60-02-PLAN.md — Daemon integration (password, mode params, API endpoint, Wails bindings)
-- [ ] 60-03-PLAN.md — Frontend (nudge banner, settings password display, HealthModal fix, layout)
+- [x] 60-01-PLAN.md — Webserver local mode infrastructure (selfcert, auth, localip, server.go)
+- [x] 60-02-PLAN.md — Daemon integration (password, mode params, API endpoint, Wails bindings)
+- [x] 60-03-PLAN.md — Frontend (nudge banner, settings password display, HealthModal fix, layout)
 **UI hint**: yes
 
 ## Progress
@@ -225,7 +225,7 @@ Plans:
 | 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
-| 60. Local Network Fallback | v1.11 | 0/3 | In progress | - |
+| 60. Local Network Fallback | v1.11 | 3/3 | Complete    | 2026-04-09 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
