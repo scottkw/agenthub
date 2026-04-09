@@ -203,7 +203,7 @@ func cmdWebStart(client *daemon.DaemonClient, _ []string, out io.Writer) error {
 	if !h.HasCerts {
 		return fmt.Errorf("Tailscale HTTPS certificates not enabled")
 	}
-	url, err := client.StartWebServer(h.IP, port, h.Domain)
+	url, err := client.StartWebServer(h.IP, port, h.Domain, "tailscale", "")
 	if err != nil {
 		return fmt.Errorf("agenthub web start: %w", err)
 	}

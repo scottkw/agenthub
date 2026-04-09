@@ -320,24 +320,47 @@ func configDir() string {
 	return dir
 }
 
-// StartWebServer tells the daemon to start the Tailscale web server.
-// Returns an error if Tailscale is not connected with HTTPS certs enabled.
+// StartWebServer tells the daemon to start the web server.
+// Uses Tailscale mode when connected with certs; falls back to local mode otherwise.
 func (a *App) StartWebServer(port int) error {
 	if a.client == nil {
 		return fmt.Errorf("daemon not connected")
 	}
 	h := a.GetTailscaleStatus()
-	if !h.Connected {
-		return fmt.Errorf("Tailscale is not connected")
+	if h.Connected && h.IP != "" && h.HasCerts {
+		_, err := a.client.StartWebServer(h.IP, port, h.Domain, "tailscale", "")
+		return err
 	}
-	if h.IP == "" {
-		return fmt.Errorf("Tailscale IP not available")
-	}
-	if !h.HasCerts {
-		return fmt.Errorf("Tailscale HTTPS certificates not enabled — enable in Tailscale admin")
-	}
-	_, err := a.client.StartWebServer(h.IP, port, h.Domain)
+	// Local mode fallback — daemon already holds the generated password.
+	pwd, _ := a.client.GetLocalNetworkPassword()
+	_, err := a.client.StartWebServer("", port, "", "local", pwd)
 	return err
+}
+
+// GetLocalNetworkPassword returns the generated LAN access password from the daemon,
+// or empty string if not in local mode or daemon is unreachable.
+func (a *App) GetLocalNetworkPassword() string {
+	if a.client == nil {
+		return ""
+	}
+	pwd, err := a.client.GetLocalNetworkPassword()
+	if err != nil {
+		return ""
+	}
+	return pwd
+}
+
+// GetWebServerMode returns the web server mode ("tailscale", "local", or "").
+// Returns "" when the web server is not running or daemon is unreachable.
+func (a *App) GetWebServerMode() string {
+	if a.client == nil {
+		return ""
+	}
+	resp, err := a.client.GetWebServerStatus()
+	if err != nil || !resp.Running {
+		return ""
+	}
+	return resp.Mode
 }
 
 // StopWebServer tells the daemon to stop the web server.

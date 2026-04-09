@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/signal"
@@ -48,19 +50,37 @@ func runDaemonCore(ctx context.Context) {
 	}
 	fmt.Fprintf(os.Stderr, "daemon: listening on %s\n", socketPath)
 
-	// Auto-start web server if Tailscale is connected (SERVE-01).
+	// Generate local-mode password once per daemon lifetime (NET-01).
+	localPassword, err := generateLocalPassword()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "daemon: %v\n", err)
+		return // abort — cannot serve without a secure password
+	}
+	api.SetLocalPassword(localPassword)
+
+	// Auto-start web server: Tailscale mode if available, local mode fallback (NET-01, SERVE-01).
 	{
 		ctx5s, cancel := context.WithTimeout(ctx, 5*time.Second)
 		h := webserver.CheckHealth(ctx5s)
 		cancel()
 		if h.Connected && h.HasCerts && h.IP != "" {
-			if err := api.AutoStartWebServer(h.IP, 7443, h.Domain); err != nil {
+			if err := api.AutoStartWebServer(h.IP, 7443, h.Domain, "tailscale", ""); err != nil {
 				fmt.Fprintf(os.Stderr, "daemon: auto-start web server: %v\n", err)
 			} else {
-				fmt.Fprintf(os.Stderr, "daemon: web server auto-started on %s\n", h.IP)
+				fmt.Fprintf(os.Stderr, "daemon: web server auto-started on %s (tailscale)\n", h.IP)
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "daemon: Tailscale not ready, skipping web server auto-start\n")
+			// Local mode fallback
+			lanIP, lanErr := webserver.GetLANIP()
+			if lanErr != nil {
+				fmt.Fprintf(os.Stderr, "daemon: local mode: no LAN IP: %v\n", lanErr)
+			} else {
+				if err := api.AutoStartWebServer(lanIP, 7443, "", "local", localPassword); err != nil {
+					fmt.Fprintf(os.Stderr, "daemon: auto-start web server (local): %v\n", err)
+				} else {
+					fmt.Fprintf(os.Stderr, "daemon: web server auto-started on %s (local mode)\n", lanIP)
+				}
+			}
 		}
 	}
 
@@ -69,6 +89,16 @@ func runDaemonCore(ctx context.Context) {
 	fmt.Fprintf(os.Stderr, "daemon: shutting down\n")
 	_ = api.Stop()
 	engine.Manager().Shutdown()
+}
+
+// generateLocalPassword generates a cryptographically random 16-byte password
+// encoded as base64url (~22 characters). Called once per daemon lifetime.
+func generateLocalPassword() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate local password: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil // ~22 chars
 }
 
 // EnsureDaemon checks if the daemon is reachable on socketPath. If not, it
