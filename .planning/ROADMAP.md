@@ -214,7 +214,7 @@ Plans:
 | 44-48 | v1.8 | 9/9 | Complete | 2026-04-06 |
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
-| 57. Quick Wins | v1.11 | 2/2 | Complete   | 2026-04-09 |
+| 57. Quick Wins | v1.11 | 2/2 | Complete    | 2026-04-09 |
 | 58. Settings as Sidebar Tab | v1.11 | 0/TBD | Not started | - |
 | 59. Auto-Serve Sessions | v1.11 | 0/TBD | Not started | - |
 | 60. Local Network Fallback | v1.11 | 0/TBD | Not started | - |
