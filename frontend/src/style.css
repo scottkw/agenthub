@@ -41,10 +41,10 @@ body {
   font-family: '"Cascadia Code"', '"MesloLGS NF"', '"Fira Code"', monospace;
 }
 
-/* ─── App layout (flex row, full height) ────────────────────────── */
+/* ─── App layout (flex column — banner above row) ───────────────── */
 .app {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100%;
   width: 100%;
 }

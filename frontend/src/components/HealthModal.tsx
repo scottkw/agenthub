@@ -17,6 +17,7 @@ interface HealthModalProps {
   installProgress: string[]
   installStatus: 'idle' | 'running' | 'success' | 'error'
   installError?: string
+  webServerRunning?: boolean
 }
 
 const MACOS_INSTALL_CMD = 'brew install --cask tailscale-app'
@@ -252,8 +253,13 @@ export function HealthModal({
   installProgress,
   installStatus,
   installError,
+  webServerRunning,
 }: HealthModalProps): React.ReactElement | null {
   if (health === null) return null
+
+  // When web server is running (even in local mode), don't block the UI.
+  // The nudge banner handles the "suggest Tailscale" messaging.
+  if (webServerRunning) return null
 
   const isInstalled = health.installed
   const isConnected = health.connected

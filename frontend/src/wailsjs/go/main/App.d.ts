@@ -8,7 +8,6 @@ export interface SessionInfo {
   state: string
   createdAt: string
   hostname: string
-  webEnabled: boolean
 }
 
 export interface DetectedCLI {
@@ -88,3 +87,7 @@ export function GetRemoteSessions(): Promise<RemotePeerSessions[]>
 
 // Auto-install Tailscale bound method
 export function AutoInstallTailscale(): Promise<void>
+
+// Local network fallback bound methods (Phase 60)
+export function GetLocalNetworkPassword(): Promise<string>
+export function GetWebServerMode(): Promise<string>
