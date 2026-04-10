@@ -169,7 +169,9 @@
   1. When sidebar is collapsed, each icon appears horizontally and vertically centered within its button
   2. Icon centering holds across all 5 sidebar items (Home, Remote, Sessions, New Session, Settings)
   3. Expanding the sidebar does not break centering or cause icon jump
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 63-01-PLAN.md — CSS centering rule + SBR-01 test
 **UI hint**: yes
 
 ### Phase 64: Terminal Padding
@@ -222,7 +224,7 @@
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
-| 63. Sidebar Icon Centering | v1.12 | 0/? | Not started | - |
+| 63. Sidebar Icon Centering | v1.12 | 0/1 | Not started | - |
 | 64. Terminal Padding | v1.12 | 0/? | Not started | - |
 | 65. Terminal Theming | v1.12 | 0/? | Not started | - |
 | 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
