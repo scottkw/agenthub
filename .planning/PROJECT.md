@@ -129,7 +129,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.11 shipped (2026-04-10). 12 milestones shipped (v1.0–v1.11), 62 phases completed, 112 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode.
+v1.12 in progress (2026-04-10). 12 milestones shipped (v1.0–v1.11), 63 phases completed, 113 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode. Phase 63 complete — sidebar icons now visually centered in collapsed 48px rail.
 
 ### Out of Scope
 
@@ -257,4 +257,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after v1.12 milestone started*
+*Last updated: 2026-04-10 after Phase 63 (Sidebar Icon Centering) completed*
