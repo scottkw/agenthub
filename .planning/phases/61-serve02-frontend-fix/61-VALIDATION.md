@@ -1,9 +1,9 @@
 ---
 phase: 61
 slug: serve02-frontend-fix
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-09
 ---
 
@@ -38,9 +38,10 @@ created: 2026-04-09
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 61-01-01 | 01 | 1 | SERVE-02 | — | N/A | integration | `go build -tags wailsassets ./...` | ✅ | ⬜ pending |
-| 61-01-02 | 01 | 1 | SERVE-02 | — | N/A | type-check | `cd frontend && npx tsc --noEmit` | ✅ | ⬜ pending |
-| 61-01-03 | 01 | 1 | SERVE-02 | — | N/A | manual | StatusBar visual verification | N/A | ⬜ pending |
+| 61-01-01 | 01 | 1 | SERVE-02 | — | N/A | integration | `go build -tags wailsassets ./...` | ✅ | ✅ green |
+| 61-01-02 | 01 | 1 | SERVE-02 | — | N/A | type-check | `cd frontend && npx tsc --noEmit` | ✅ | ✅ green |
+| 61-01-03 | 01 | 1 | SERVE-02 | — | N/A | manual | StatusBar visual verification | N/A | ✅ green |
+| 61-01-03-auto | 01 | 1 | SERVE-02 | — | N/A | unit (source-string) | `npx vitest run src/components/__tests__/App.serve02.test.tsx` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -62,11 +63,23 @@ created: 2026-04-09
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-10
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |
+
+Tests added: `frontend/src/components/__tests__/App.serve02.test.tsx` (18 tests covering webEnabled seeding in init, createTab, retryInit).
