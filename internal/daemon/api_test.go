@@ -565,3 +565,54 @@ func TestHandleTailnetPeers(t *testing.T) {
 		}
 	})
 }
+
+// TestAutoStartWebServer_CreatesNewServer verifies the positive path of
+// AutoStartWebServer: when a.webServer is nil, a successful call sets it to
+// non-nil and GET /webserver/status subsequently returns running=true (SERVE-01).
+func TestAutoStartWebServer_CreatesNewServer(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+
+	// Precondition: no web server running yet.
+	statusBefore, bodyBefore := rawGet(t, socketPath, "/webserver/status")
+	if statusBefore != 200 {
+		t.Fatalf("GET /webserver/status: want 200, got %d", statusBefore)
+	}
+	var respBefore WebServerStatusResponse
+	if err := json.Unmarshal(bodyBefore, &respBefore); err != nil {
+		t.Fatalf("decode status before: %v", err)
+	}
+	if respBefore.Running {
+		t.Fatal("precondition failed: web server already running before AutoStartWebServer call")
+	}
+
+	// Call AutoStartWebServer with local mode on loopback — no Tailscale certs needed.
+	err := api.AutoStartWebServer("127.0.0.1", 0, "", "local", "testpassword")
+	if err != nil {
+		t.Fatalf("AutoStartWebServer: unexpected error: %v", err)
+	}
+
+	// Postcondition: GET /webserver/status must report running=true.
+	statusAfter, bodyAfter := rawGet(t, socketPath, "/webserver/status")
+	if statusAfter != 200 {
+		t.Fatalf("GET /webserver/status after start: want 200, got %d", statusAfter)
+	}
+	var respAfter WebServerStatusResponse
+	if err := json.Unmarshal(bodyAfter, &respAfter); err != nil {
+		t.Fatalf("decode status after: %v", err)
+	}
+	if !respAfter.Running {
+		t.Errorf("AutoStartWebServer: want web server running=true, got false")
+	}
+}
+
+// TestAutoStartWebServer_LocalModeRequiresPassword verifies that calling
+// AutoStartWebServer with mode="local" and an empty password returns an error
+// instead of starting a server without authentication (SERVE-01 guard).
+func TestAutoStartWebServer_LocalModeRequiresPassword(t *testing.T) {
+	api, _, _ := testDaemon(t)
+
+	err := api.AutoStartWebServer("127.0.0.1", 0, "", "local", "")
+	if err == nil {
+		t.Error("AutoStartWebServer(local, empty password): want non-nil error, got nil")
+	}
+}
