@@ -43,7 +43,7 @@ describe('NAV-03: Sessions sidebar button opens Daemon Manager panel', () => {
   })
 })
 
-describe('NAV-04: New Tab sidebar button opens new-session modal', () => {
+describe('NAV-04: New Session sidebar button opens new-session modal', () => {
   it('wires onAdd={handleAddTab} to Sidebar', () => {
     expect(raw).toContain('onAdd={handleAddTab}')
   })
@@ -53,17 +53,21 @@ describe('NAV-04: New Tab sidebar button opens new-session modal', () => {
   })
 })
 
-describe('NAV-05: Settings sidebar button opens Settings panel', () => {
+describe('NAV-05: Settings sidebar button opens Settings tab', () => {
   it('wires onSettings prop to Sidebar', () => {
     expect(raw).toContain('onSettings={')
   })
 
-  it('onSettings callback calls setShowSettings(true)', () => {
-    expect(raw).toContain('setShowSettings(true)')
+  it('find-or-create pattern checks t.type === settings', () => {
+    expect(raw).toContain("t.type === 'settings'")
   })
 
-  it('SettingsPanel receives isOpen={showSettings}', () => {
-    expect(raw).toContain('isOpen={showSettings}')
+  it('uses SETTINGS_TAB constant', () => {
+    expect(raw).toContain('SETTINGS_TAB')
+  })
+
+  it('renders SettingsTab component', () => {
+    expect(raw).toContain('<SettingsTab')
   })
 })
 

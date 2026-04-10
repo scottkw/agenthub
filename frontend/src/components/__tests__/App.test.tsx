@@ -75,25 +75,17 @@ describe('App', () => {
     })
   })
 
-  describe('Tailscale health integration (HEALTH-04)', () => {
+  describe('Tailscale health and local network integration', () => {
     it('imports GetTailscaleStatus from wailsjs bindings', () => {
       expect(raw).toContain('GetTailscaleStatus')
     })
 
-    it('imports Environment from wailsjs runtime', () => {
-      expect(raw).toContain('Environment')
-    })
-
-    it('imports HealthModal component', () => {
-      expect(raw).toContain("import { HealthModal } from './components/HealthModal'")
+    it('imports LocalNetworkBanner component', () => {
+      expect(raw).toContain("import { LocalNetworkBanner } from './components/LocalNetworkBanner'")
     })
 
     it('calls GetTailscaleStatus in Promise.all init', () => {
       expect(raw).toContain('GetTailscaleStatus()')
-    })
-
-    it('calls Environment() in Promise.all init', () => {
-      expect(raw).toContain('Environment()')
     })
 
     it('subscribes to tailscale:health event', () => {
@@ -104,28 +96,12 @@ describe('App', () => {
       expect(raw).toContain('offHealth()')
     })
 
-    it('renders HealthModal in JSX', () => {
-      expect(raw).toContain('<HealthModal')
+    it('renders LocalNetworkBanner in JSX', () => {
+      expect(raw).toContain('<LocalNetworkBanner')
     })
 
-    it('passes health prop to HealthModal', () => {
-      expect(raw).toContain('health={tailscaleHealth}')
-    })
-
-    it('passes platform prop to HealthModal', () => {
-      expect(raw).toContain('platform={platform}')
-    })
-
-    it('passes onCheckAgain prop to HealthModal', () => {
-      expect(raw).toContain('onCheckAgain={handleCheckHealthAgain}')
-    })
-
-    it('passes tailscaleHealth prop to SettingsPanel', () => {
+    it('passes tailscaleHealth prop to SettingsTab', () => {
       expect(raw).toContain('tailscaleHealth={tailscaleHealth}')
-    })
-
-    it('stores platform from Environment().platform', () => {
-      expect(raw).toContain('env.platform')
     })
   })
 
