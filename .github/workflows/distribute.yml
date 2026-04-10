@@ -63,6 +63,7 @@ jobs:
 
   submit-winget:
     runs-on: ubuntu-latest
+    continue-on-error: true  # WinGet first submission pending — remove after accepted
     steps:
       - uses: vedantmgoyal9/winget-releaser@main
         with:
