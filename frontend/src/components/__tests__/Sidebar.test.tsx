@@ -161,6 +161,40 @@ describe('Sidebar localStorage persistence (SIDE-03)', () => {
   })
 })
 
+describe('Sidebar icon centering precondition (SBR-01)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+    localStorage.clear()
+  })
+
+  it('collapsed sidebar items contain only an SVG icon (no label span)', () => {
+    ;({ container, root } = renderSidebar())
+    const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
+    act(() => { toggleBtn.click() })
+    const items = container.querySelectorAll('.sidebar__item')
+    items.forEach((item) => {
+      expect(item.querySelector('svg')).not.toBeNull()
+      expect(item.querySelector('.sidebar__label')).toBeNull()
+    })
+  })
+
+  it('all 5 sidebar items remain in DOM when collapsed', () => {
+    ;({ container, root } = renderSidebar())
+    const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
+    act(() => { toggleBtn.click() })
+    const items = container.querySelectorAll('.sidebar__item')
+    expect(items.length).toBe(5)
+  })
+})
+
 describe('Sidebar icons (ICON-01, ICON-02)', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
