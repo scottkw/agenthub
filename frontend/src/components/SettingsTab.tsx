@@ -7,6 +7,7 @@ import {
   IsWebServerRunning,
   HasCTDisclosure,
   AcknowledgeCTDisclosure,
+  GetLocalNetworkPassword,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 
@@ -19,6 +20,7 @@ interface SettingsTabProps {
     ip: string
     domain: string
   } | null
+  webServerMode?: 'tailscale' | 'local' | null
   onWebServerStateChange: () => Promise<void>
 }
 
@@ -28,7 +30,7 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell.
  */
-export function SettingsTab({ clis, tailscaleHealth, onWebServerStateChange }: SettingsTabProps): React.ReactElement {
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange }: SettingsTabProps): React.ReactElement {
   const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
@@ -49,6 +51,9 @@ export function SettingsTab({ clis, tailscaleHealth, onWebServerStateChange }: S
   const [serverLoading, setServerLoading] = useState(false)
   const [ctDisclosed, setCTDisclosed] = useState(false)
   const [ctError, setCTError] = useState<string | null>(null)
+  // Local network password display
+  const [localPassword, setLocalPassword] = useState('')
+  const [copied, setCopied] = useState(false)
 
   // Load web serving state on mount.
   useEffect(() => {
@@ -71,6 +76,22 @@ export function SettingsTab({ clis, tailscaleHealth, onWebServerStateChange }: S
     }
     void loadWebState()
   }, [])
+
+  // Fetch LAN password when in local mode and server is running.
+  useEffect(() => {
+    if (webServerMode === 'local' && isServerRunning) {
+      GetLocalNetworkPassword().then(setLocalPassword).catch(() => setLocalPassword(''))
+    } else {
+      setLocalPassword('')
+    }
+  }, [webServerMode, isServerRunning])
+
+  async function handleCopyPassword() {
+    if (!localPassword) return
+    await navigator.clipboard.writeText(localPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   function tailscaleStatusClass(h: SettingsTabProps['tailscaleHealth']): string {
     if (!h) return ''
@@ -285,6 +306,34 @@ export function SettingsTab({ clis, tailscaleHealth, onWebServerStateChange }: S
                 </p>
               )}
             </div>
+
+            {/* LAN Password — only shown in local network mode */}
+            {webServerMode === 'local' && isServerRunning && (
+              <>
+                <div className="settings-web-server__mode-indicator">
+                  Web server mode: Local network (self-signed TLS)
+                </div>
+                <div className="settings-web-server__password-label">
+                  LAN Access Credentials
+                </div>
+                <div className="settings-web-server__credential-hint">
+                  Username: <span className="settings-web-server__credential-value">leave blank or enter anything</span>
+                </div>
+                <div className="settings-web-server__password-label">
+                  Password
+                </div>
+                <div
+                  className="settings-web-server__password-field"
+                  onClick={() => void handleCopyPassword()}
+                  title="Click to copy password"
+                >
+                  <span>{localPassword || 'Loading\u2026'}</span>
+                  <span className={`settings-web-server__copy-hint${copied ? ' settings-web-server__copy-hint--copied' : ''}`}>
+                    {copied ? 'Copied!' : '(click to copy)'}
+                  </span>
+                </div>
+              </>
+            )}
           </>
         )}
 

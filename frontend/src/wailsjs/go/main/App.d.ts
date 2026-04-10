@@ -88,6 +88,6 @@ export function GetRemoteSessions(): Promise<RemotePeerSessions[]>
 // Auto-install Tailscale bound method
 export function AutoInstallTailscale(): Promise<void>
 
-// Local network fallback bound methods (Phase 60)
+// Local network mode bound methods
 export function GetLocalNetworkPassword(): Promise<string>
 export function GetWebServerMode(): Promise<string>

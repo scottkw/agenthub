@@ -50,6 +50,6 @@ export const GetRemoteSessions    = ()                      => Call('main.App.Ge
 // Auto-install Tailscale bound method
 export const AutoInstallTailscale = ()                      => Call('main.App.AutoInstallTailscale', [])
 
-// Local network fallback bound methods (Phase 60)
+// Local network mode bound methods
 export const GetLocalNetworkPassword = ()                   => Call('main.App.GetLocalNetworkPassword', [])
 export const GetWebServerMode        = ()                   => Call('main.App.GetWebServerMode', [])
