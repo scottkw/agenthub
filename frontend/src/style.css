@@ -205,6 +205,10 @@ body {
   background-color: #1e2030;
   color: #c0caf5;
 }
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding: 8px 0;
+}
 
 .sidebar__icon {
   width: 20px;
