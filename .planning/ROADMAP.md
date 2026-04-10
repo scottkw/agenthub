@@ -234,6 +234,7 @@ Plans:
   3. All test assertions in `App.test.tsx` and `App.nav.test.tsx` pass (no stale references to HealthModal or modal SettingsPanel)
   4. `App.nav.test.tsx` describe label reads "New Session" (not "New Tab")
   5. NET-01 through NET-05 checkboxes marked `[x]` in REQUIREMENTS.md
+**Plans:** 1 plan
 Plans:
 - [ ] 62-01-PLAN.md — Delete dead components, fix stale tests, update requirement checkboxes
 
