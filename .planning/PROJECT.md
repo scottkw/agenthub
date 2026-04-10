@@ -130,7 +130,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.11 in progress (2026-04-10). 11 milestones shipped (v1.0–v1.10), 61 phases completed, 111 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode. Phase 61 restored the webEnabled seeding chain (app.go → App.d.ts → App.tsx) broken by a quick task rewrite.
+v1.11 in progress (2026-04-10). 11 milestones shipped (v1.0–v1.10), 62 phases completed, 112 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode. Phase 62 closed tech debt — deleted orphaned SettingsPanel/HealthModal components, cleaned CSS, fixed 11 stale test assertions.
 
 ### Out of Scope
 
@@ -161,7 +161,7 @@ Frontend test suite: vitest source-inspection tests covering args field, termina
 Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
 Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
-Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed; dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback).
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed; dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review.
 
 ## Constraints
 
@@ -251,4 +251,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 61 (serve02-frontend-fix) complete*
+*Last updated: 2026-04-10 after Phase 62 (tech-debt-cleanup) complete*
