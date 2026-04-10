@@ -41,8 +41,9 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Major section breaks |
 | 3xl | 64px | Page-level spacing |
 
-Exceptions:
-- **Terminal padding: 6px vertical / 8px horizontal** — 6px is not a multiple of 4 but is intentional. The vertical value is 6px (not 8px) to preserve terminal row density at the 14px default font size. The horizontal value of 8px matches the app's sm spacing rhythm. Source: RESEARCH.md recommendation, matching `.sidebar__item` and `.tab-status-bar` horizontal rhythm.
+Exceptions: none. All values are multiples of 4.
+
+**Terminal padding:** `8px` on all sides (symmetric). Uses the `sm` token (8px), matching `.sidebar__item` and `.tab-status-bar` horizontal rhythm. The CSS rule is `.xterm { padding: 8px; }`.
 
 ---
 
@@ -94,15 +95,15 @@ This is a pure CSS polish phase. The entire visual change is:
 ```css
 /* Inset terminal text from the container edges (PAD-01). */
 .xterm {
-  padding: 6px 8px;
+  padding: 8px;
 }
 ```
 
 **Location:** `frontend/src/style.css` — xterm overrides block (after line 11, before the Reset section)
 
 **Visual outcome:**
-- Top inset: 6px gap between terminal text and top edge of `.terminal-container`
-- Bottom inset: 6px gap between terminal text and top of status bar
+- Top inset: 8px gap between terminal text and top edge of `.terminal-container`
+- Bottom inset: 8px gap between terminal text and top of status bar
 - Left inset: 8px gap between terminal text and left edge
 - Right inset: 8px gap between terminal text and right edge
 - All four edges consistent across every open terminal session (single selector covers all xterm instances)
@@ -138,7 +139,7 @@ No component registry used. No new npm dependencies added. Source: RESEARCH.md �
 
 ## Interaction Contract
 
-No new interactions introduced. Existing terminal interactions (typing, scrolling, resizing) are unchanged. The only behavioral consequence is that `fitTerminal()` will compute 2 fewer columns (16px removed from horizontal space for `padH = 8 + 8`) and 1–2 fewer rows (12px removed from vertical space for `padV = 6 + 6`) compared to the pre-padding state. This is correct and expected — the terminal fits within the padded area.
+No new interactions introduced. Existing terminal interactions (typing, scrolling, resizing) are unchanged. The only behavioral consequence is that `fitTerminal()` will compute 2 fewer columns (16px removed from horizontal space for `padH = 8 + 8`) and 2 fewer rows (16px removed from vertical space for `padV = 8 + 8`) compared to the pre-padding state. This is correct and expected — the terminal fits within the padded area.
 
 ---
 
