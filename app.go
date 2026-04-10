@@ -29,12 +29,13 @@ import (
 
 // SessionInfo is the JSON-serialisable representation of a session returned by ListSessions.
 type SessionInfo struct {
-	ID        string `json:"id"`
-	CLI       string `json:"cli"`
-	Name      string `json:"name"`
-	State     string `json:"state"`
-	CreatedAt string `json:"createdAt"`
-	Hostname  string `json:"hostname"`
+	ID         string `json:"id"`
+	CLI        string `json:"cli"`
+	Name       string `json:"name"`
+	State      string `json:"state"`
+	CreatedAt  string `json:"createdAt"`
+	Hostname   string `json:"hostname"`
+	WebEnabled bool   `json:"webEnabled"`
 }
 
 // RemoteSession is a session on a remote tailnet peer.
@@ -231,12 +232,13 @@ func (a *App) ListSessions() []SessionInfo {
 	result := make([]SessionInfo, len(sessions))
 	for i, s := range sessions {
 		result[i] = SessionInfo{
-			ID:        s.ID,
-			CLI:       s.CLI,
-			Name:      s.Name,
-			State:     s.State,
-			CreatedAt: s.CreatedAt,
-			Hostname:  s.Hostname,
+			ID:         s.ID,
+			CLI:        s.CLI,
+			Name:       s.Name,
+			State:      s.State,
+			CreatedAt:  s.CreatedAt,
+			Hostname:   s.Hostname,
+			WebEnabled: s.WebEnabled,
 		}
 	}
 	return result

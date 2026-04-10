@@ -8,6 +8,7 @@ export interface SessionInfo {
   state: string
   createdAt: string
   hostname: string
+  webEnabled: boolean
 }
 
 export interface DetectedCLI {
