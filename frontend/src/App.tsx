@@ -28,6 +28,7 @@ import { NewSessionModal } from './components/NewSessionModal'
 import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
+import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -106,6 +107,29 @@ function App(): React.ReactElement {
           setWebServerMode(validMode)
           if (validMode) setWebServerRunning(true)
         }).catch(() => setWebServerMode(null))
+
+        // If web server isn't running yet, poll briefly — the daemon may still
+        // be starting it (local-mode fallback takes a moment after init).
+        if (!running) {
+          let attempts = 0
+          const poll = setInterval(async () => {
+            attempts++
+            try {
+              const nowRunning = await IsWebServerRunning()
+              if (nowRunning) {
+                setWebServerRunning(true)
+                const mode = await GetWebServerMode()
+                const validMode = mode === 'tailscale' || mode === 'local' ? mode : null
+                setWebServerMode(validMode)
+                clearInterval(poll)
+              } else if (attempts >= 10) {
+                clearInterval(poll)
+              }
+            } catch {
+              clearInterval(poll)
+            }
+          }, 500)
+        }
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -423,6 +447,13 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
+      {webServerMode === 'local' && (
+        <LocalNetworkBanner
+          visible={true}
+          onOpenURL={BrowserOpenURL}
+        />
+      )}
+      <div className="app__row">
       <Sidebar
         onHome={handleHome}
         onOpenRemoteSessions={handleOpenRemoteSessions}
@@ -547,6 +578,7 @@ function App(): React.ReactElement {
           })}
         </div>
       </div>
+      </div>{/* end app__row */}
 
       {showNewSessionModal && (
         <NewSessionModal
