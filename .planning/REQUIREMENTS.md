@@ -19,7 +19,7 @@ Requirements for milestone v1.11: Local Network & UX Polish.
 ### Auto-Serve
 
 - [x] **SERVE-01**: Web server starts automatically when daemon launches (no manual start required)
-- [ ] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
+- [x] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
 
 ### Local Network
 
@@ -64,7 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-01 | Phase 57 | Complete |
 | UI-02 | Phase 58 | Complete |
 | SERVE-01 | Phase 59 | Complete |
-| SERVE-02 | Phase 61 | Pending |
+| SERVE-02 | Phase 61 | Complete |
 | NET-01 | Phase 60 | Complete |
 | NET-02 | Phase 60 | Complete |
 | NET-03 | Phase 60 | Complete |

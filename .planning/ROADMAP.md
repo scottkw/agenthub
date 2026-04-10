@@ -147,7 +147,7 @@
 - [x] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab (completed 2026-04-09)
 - [x] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions (completed 2026-04-09)
 - [x] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings (completed 2026-04-09)
-- [ ] **Phase 61: SERVE-02 Frontend Integration Fix** — Restore webEnabled seeding chain broken by quick task rewrite (app.go, App.d.ts, App.tsx)
+- [x] **Phase 61: SERVE-02 Frontend Integration Fix** — Restore webEnabled seeding chain broken by quick task rewrite (app.go, App.d.ts, App.tsx) (completed 2026-04-10)
 - [ ] **Phase 62: Quick Task Tech Debt Cleanup** — Delete orphaned components, fix stale tests, update requirement checkboxes
 
 ## Phase Details
@@ -220,8 +220,8 @@ Plans:
   3. `App.tsx:createTab()` calls `setWebEnabled` after `CreateSession` when web server is running
   4. `App.tsx:init()` seeds `webEnabled` map from session list on window restore
   5. StatusBar shows correct web toggle state for newly created and restored sessions
-**Plans:** 1 plan
-- [ ] 61-01-PLAN.md — Restore webEnabled seeding in Go bindings, TypeScript types, and React state
+**Plans:** 1/1 plans complete
+- [x] 61-01-PLAN.md — Restore webEnabled seeding in Go bindings, TypeScript types, and React state
 
 ### Phase 62: Quick Task Tech Debt Cleanup
 **Goal**: Remove dead code left by quick task 260409-vop rewrite, fix all stale test assertions, and update requirement checkboxes to reflect actual completion state
@@ -256,7 +256,7 @@ Plans:
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 3/3 | Complete    | 2026-04-09 |
-| 61. SERVE-02 Frontend Fix | v1.11 | 0/1 | Pending     | — |
+| 61. SERVE-02 Frontend Fix | v1.11 | 1/1 | Complete   | 2026-04-10 |
 | 62. Tech Debt Cleanup | v1.11 | 0/1 | Pending     | — |
 
 ---
