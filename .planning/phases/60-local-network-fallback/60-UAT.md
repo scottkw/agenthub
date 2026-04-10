@@ -3,7 +3,7 @@ status: complete
 phase: 60-local-network-fallback
 source: [60-01-SUMMARY.md, 60-02-SUMMARY.md, 60-03-SUMMARY.md]
 started: 2026-04-09T23:00:00Z
-updated: 2026-04-09T23:15:00Z
+updated: 2026-04-09T23:30:00Z
 ---
 
 ## Current Test
@@ -30,13 +30,17 @@ result: pass
 
 ### 5. Browser Basic Auth Prompt
 expected: From a device on the same LAN, navigating to https://<LAN-IP>:7443 shows a browser credential dialog. Entering the generated password (any username) grants access. Wrong passwords return 401 Unauthorized.
-result: issue
+result: issue → fixed
 reported: "This works, but the sign in dialog expects a username and password while only a password is provided by the app."
 severity: minor
+fix: "Added 'LAN Access Credentials' header with username hint ('leave blank or enter anything') above the password field in SettingsPanel.tsx"
 
 ### 6. HealthModal Suppressed When Running
 expected: When the web server is running (in any mode), the HealthModal does not appear. The banner (if in local mode) handles messaging instead.
-result: pass
+result: issue → fixed
+reported: "HealthModal 'Tailscale Setup Required' appeared on cold start despite local mode web server running. Race condition: init() checked IsWebServerRunning() before daemon finished starting the server."
+severity: major
+fix: "Added 500ms poll (up to 5s) in App.tsx init() to recheck web server status when not running at startup. Also syncs webServerRunning=true when GetWebServerMode() returns a valid mode."
 
 ### 7. No Banner in Tailscale Mode
 expected: When Tailscale is connected and web server is running in tailscale mode, the LocalNetworkBanner is completely absent (no DOM element). HealthModal behaves normally.
@@ -45,20 +49,12 @@ result: pass
 ## Summary
 
 total: 7
-passed: 6
-issues: 1
+passed: 5
+issues: 2 (both fixed)
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-- truth: "Browser Basic Auth dialog should make clear what credentials to enter"
-  status: failed
-  reason: "User reported: This works, but the sign in dialog expects a username and password while only a password is provided by the app."
-  severity: minor
-  test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+[all gaps resolved — fixes applied directly during UAT]
