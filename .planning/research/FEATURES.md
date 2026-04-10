@@ -1,24 +1,24 @@
 # Feature Research
 
-**Domain:** Desktop app for AI coding CLI management — v1.11 new features
-**Researched:** 2026-04-08
-**Confidence:** HIGH (official docs + codebase verified)
+**Domain:** UI/UX polish for Go/Wails + React + xterm.js desktop terminal app (v1.12)
+**Researched:** 2026-04-10
+**Confidence:** HIGH (xterm.js API verified via official docs; CSS padding approach verified via xterm.js issue history; TokyoNight colors verified via upstream source; codebase read directly)
 
 ---
 
-## v1.11 Milestone: Local Network & UX Polish
+## Context: What Already Exists
 
-### Context: What Already Exists
+This is a SUBSEQUENT MILESTONE. The following are already built and are NOT scope for v1.12:
 
-This is a SUBSEQUENT MILESTONE. The following are already built and are NOT scope for v1.11:
-
-- Tailscale-only networking with Let's Encrypt TLS (server binds to Tailscale IP, FQDN-based URLs)
-- Manual web server start in Settings modal (Settings > Web Server tab > Start Web Server button)
-- Per-session web enable toggle (on/off per session in Daemon Manager panel)
-- Settings as a modal dialog with two tabs: CLI Paths and Web Server
-- Sidebar "New Tab" label with `PlusIcon`
-- Claude Code detection via `exec.LookPath("claude")` with PATH augmentation
-  for nvm/Volta/Homebrew (`/opt/homebrew/bin`, `~/.volta/bin`, `/usr/local/bin`)
+- Tabbed xterm.js terminal sessions with per-tab font size (Shift+= / Shift+-)
+- Collapsible left sidebar with Heroicons SVG icons (width: 200px expanded, 48px collapsed)
+- Web serving with Tailscale HTTPS or local network (self-signed TLS + password) fallback
+- Per-session QR codes and web dashboard
+- Settings as sidebar tab (Web Server subtab shows running URL as a plain anchor)
+- `BrowserOpenURL()` already imported and called in App.tsx (for remote session open)
+- `navigator.clipboard.writeText()` already used in SettingsTab (for LAN password copy)
+- TokyoNight Night palette already hardcoded as the app theme (bg `#1a1b26`, fg `#c0caf5`)
+- Custom `fitTerminal()` in TerminalPanel.tsx already reads CSS padding from `term.element` via `getComputedStyle` and subtracts it from available width/height — padding-aware fit is already implemented
 
 ---
 
@@ -28,14 +28,10 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Local network fallback when Tailscale absent | Users without Tailscale still want web access from other devices on LAN; Tailscale is optional for many | MEDIUM | Re-introduces self-signed TLS (CA+leaf) scoped to local mode only; requires password since LAN is not zero-trust |
-| Password protection in local mode | Self-signed cert cannot use network membership as access control; LAN is not Tailscale's zero-trust | LOW | Single random password per server start; shown in UI; HTTP Basic Auth middleware on web server |
-| Nudge banner when running in local mode | User needs to know they are in a degraded security mode and how to upgrade | LOW | Persistent non-dismissable banner while local mode is active; links to Tailscale setup |
-| Auto-start web server on daemon start | Having to manually start the web server each launch is friction for users who always want web access | LOW | Configurable boolean setting; if on, daemon calls StartWebServer during RunDaemon startup |
-| Auto-enable web serving for new sessions | Per-session toggle defaults to off; users who always want sessions served must toggle each one manually | LOW | Configurable boolean setting; if on, CreateSession calls EnableSession immediately |
-| Settings as sidebar tab | Settings modal interrupts workflow; other sidebar items (Home, Remote, Sessions) are persistent tabs — Settings should match | MEDIUM | Removes isOpen/onClose modal props; SettingsPanel becomes a full-height tab like DaemonManagerPanel |
-| "New Session" label on sidebar | "New Tab" is ambiguous — the PlusIcon opens a new session modal, not a browser tab | LOW | Pure label and aria-label rename; no behavior change |
-| Claude Code native install path detection | Native installer places binary at ~/.local/bin/claude which is not in PATH under launchd/Finder launches | LOW | Add ~/.local/bin to AugmentServicePath candidates in internal/daemon/path.go |
+| Terminal padding (inset) | Professional terminal emulators (VS Code, iTerm2, Warp, Ghostty) all pad text so it does not touch container edges. Text flush to edges looks unfinished. | LOW | No built-in padding option in `@xterm/xterm` 6.x (confirmed via official ITerminalOptions docs — no `padding` property exists). The approach is CSS: add `padding: 6px` to `.xterm` in style.css. The existing custom `fitTerminal()` already reads `paddingLeft/Right/Top/Bottom` from `getComputedStyle(term.element!)` (TerminalPanel.tsx lines 24-29) and subtracts them from cols/rows — the fit logic is already padding-aware. |
+| Web server URL opens in default browser | Every desktop app affords clicking a URL to open in the system browser. Wails WebView does NOT open external URLs from `<a href target="_blank">` — it renders in-app or does nothing. The current SettingsTab renders `<a href={serverURL} target="_blank" rel="noreferrer">` (line 305) which is broken for this purpose. | LOW | `BrowserOpenURL(url)` is the Wails runtime call that opens the system browser. Pattern already established in App.tsx line 412 (`BrowserOpenURL(url)` in `handleOpenRemoteSession`). Fix is replacing the anchor with a button or styled link calling `BrowserOpenURL(serverURL)`. |
+| Copy-to-clipboard for web server URL | Any URL displayed in a settings UI is expected to be copyable with one click. There is no copy button for `serverURL` today. | LOW | `navigator.clipboard.writeText()` + 1.5s "Copied!" feedback already implemented for LAN password in SettingsTab (lines 89-93, 330-333). Identical pattern applies to the server URL. |
+| Sidebar icons centered when collapsed | When sidebar collapses to 48px, icons should center horizontally. Current `.sidebar__item` uses `padding: 8px` with no `justify-content` set, so items default to `flex-start`. Icon (`20px` wide) sits left-aligned inside `48px` button — visually off-center. The toggle button (`.sidebar__toggle`) already uses `justify-content: center` — items should match. | LOW | Pure CSS fix: `.sidebar--collapsed .sidebar__item { justify-content: center; padding-left: 0; padding-right: 0; }`. No JS changes. |
 
 ---
 
@@ -43,9 +39,9 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Dual-mode web serving (Tailscale + local fallback) | AgentHub works everywhere — with or without Tailscale — unlike tools locked to a single networking model | MEDIUM | Mode auto-selected at server start based on Tailscale health; user sees which mode is active |
-| Persistent non-blocking nudge for mode downgrade | Informs without blocking; user can still work while Tailscale setup happens in background | LOW | Top banner, not modal; stays visible but does not gate functionality |
-| Zero-config auto-serve | Sessions immediately accessible over the web from the moment they are created, if server is running | LOW | Requires auto-start + auto-enable both enabled; when combined, the server starts itself and new sessions are served with no user action |
+| Terminal theme presets | The app already uses TokyoNight Night palette. Offering curated theme variants (TokyoNight Storm/Moon, Dracula, Catppuccin Mocha) in Settings lets users personalize without leaving the app. xterm.js `theme` option accepts a full `ITheme` object — all 16 ANSI colors + foreground/background/cursor — as a live-swappable option on any existing terminal instance. | MEDIUM | `term.options.theme = newTheme` updates a live terminal (confirmed via xterm.js ITheme docs). Theme should be stored in `localStorage` and applied at terminal creation and on change. Since all TerminalPanels need the theme, lift theme state to App level (same pattern as `fontSize`). Define a `THEMES` const map in a `themes.ts` file. |
+| QR code for web server dashboard URL | Per-session QR codes already exist. A QR code for the dashboard root URL in Settings completes the trio (open, copy, QR) and lets users instantly load the dashboard on a phone without typing the URL. | LOW | Backend needs `GetWebServerQRCode()` Go binding using the same `skip2/go-qrcode` library already used in `GetSessionQRCode`. The dashboard URL is the same as `GetWebServerURL()`. Frontend can reuse the existing `QRModal` component or render an inline base64 SVG/PNG. |
+| Font family selection | Developers have strong preferences for terminal fonts. Current font stack is hardcoded as `"Cascadia Code", "MesloLGS NF", "Fira Code", monospace`. A curated dropdown of 4 fonts in Settings lets users match their IDE. | MEDIUM | xterm.js `fontFamily` option accepts a CSS font-family string. Font change requires `fitTerminal()` re-trigger because char width changes. Lift `fontFamily` to App-level state (like `fontSize`). List only fonts likely pre-installed on developer machines; always fall back to `monospace`. No font download needed. |
 
 ---
 
@@ -53,77 +49,87 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Per-session password in local mode | Finer-grained access control | High complexity; per-session token system was removed in v1.2 for good reason | Single server-level password covers all sessions; per-session web-enable toggle is the per-session gate |
-| User-configurable password in local mode | Power users want their own password | Credential management burden; users reuse weak passwords | Random generated password shown in UI; regenerates on each server start |
-| Dismissable local-mode nudge banner | "Don't show again" reduces visual noise | Silently hides the security downgrade; users forget they are in unverified mode | Visually lightweight banner (not modal) so it is tolerable but remains informative |
-| Auto-serve defaulting to on without explicit opt-in | Maximize convenience | Silently exposes all sessions over the network without user awareness | Present auto-serve as a setting the user enables; default off; show clear indicator when active |
-| Settings as floating panel (not full tab) | Intermediate option between modal and tab | Creates a third navigation pattern inconsistent with everything else in the sidebar | Commit to sidebar tab pattern fully, consistent with Home, Remote, Sessions |
-| Tailscale-to-local fallback at runtime | Graceful degradation if Tailscale disconnects mid-session | High complexity; race conditions with active browser clients; not a common scenario | Covered in future consideration; for v1.11, mode is selected at StartWebServer time only |
+| Full custom theme editor (color picker per ANSI slot) | Power users want exact control | 16 color pickers + fg/bg/cursor = complex UI, high maintenance, rarely used by most users, difficult to persist safely | Curated preset themes (4-5 options) cover 95% of use cases at 5% of implementation cost |
+| Per-tab theme selection | Some users want different themes per project | Multiplies state management: theme stored per session, synced with backend, reflected on re-attach — enormous scope for marginal gain | Global theme preference is sufficient; tabs inherit app theme |
+| Custom font upload or install | Users with rare fonts want to use them | Requires OS-level font installation, cross-platform paths, security concerns; out of scope for a desktop app that avoids managing system state | Ship 4-5 well-known pre-installed fonts; document others |
+| Animated theme transitions | Looks polished in mockups | xterm.js re-renders full canvas on theme change; CSS transitions on canvas elements have no effect — theme swap is always instant | Instant swap is the correct behavior; no workaround is appropriate |
+| Configurable padding per side (top/left/right/bottom) | Fine-grained control | Adds UI complexity for very limited visual gain; uniform padding of 4-8px looks correct in all orientations | Single uniform padding constant set to a tuned value (6-8px) |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Local network fallback]
-    requires --> [Self-signed TLS (CA + leaf)]   (removed in v1.2; must be re-added, scoped to local mode)
-    requires --> [Random password generation]     (in-memory; no persistence needed)
-    requires --> [LAN IP binding]                 (net.InterfaceAddrs or 0.0.0.0)
-    requires --> [HTTP Basic Auth middleware]      (on web server routes when in local mode)
-    produces --> [Nudge banner]                   (displayed when local mode is active)
+Terminal Padding (CSS)
+    depends on --> Custom fitTerminal() [already exists — already reads CSS padding]
+    depends on --> .xterm CSS class [add padding: 6px]
+    no JS changes needed
 
-[Auto-start web server]
-    requires --> [Mode selection logic]           (Tailscale health check at startup; picks Tailscale or local)
-    enhances --> [Auto-enable sessions]           (natural pair; server must be running first)
+Sidebar Icon Centering
+    depends on --> .sidebar--collapsed CSS class [already exists]
+    no JS changes needed
 
-[Auto-enable sessions]
-    requires --> [Web server running]             (no-op if server not started)
-    weak-dep --> [Auto-start web server]          (typically paired; either can be enabled independently)
+Web Server URL: Open in Browser
+    depends on --> BrowserOpenURL() [already imported in App.tsx]
+    depends on --> isServerRunning + serverURL state [already in SettingsTab]
 
-[Settings as sidebar tab]
-    replaces --> [Settings as modal dialog]       (modal pattern removed; tab pattern added)
-    requires --> [Sidebar navigation wiring]      (onSettings callback behavior changes from modal open to tab switch)
-    conflict --> [isOpen / onClose props]          (removed from SettingsPanel)
+Web Server URL: Copy to Clipboard
+    depends on --> navigator.clipboard.writeText [already used in SettingsTab]
+    depends on --> serverURL state [already in SettingsTab]
+    enhances --> Open in Browser (both operate on same URL, presented together)
 
-[Claude Code native path detection]
-    enhances --> [AugmentServicePath]             (add ~/.local/bin to existing candidates list)
-    standalone --> no dependency on other v1.11 features
+Web Server QR Code
+    depends on --> GetWebServerURL() [already exists]
+    depends on --> skip2/go-qrcode [already in go.mod]
+    requires --> new Go binding: GetWebServerQRCode()
+    reuses --> QRModal component or inline base64 image pattern
+    enhances --> Open in Browser + Copy URL (completes the URL access trio)
 
-["New Session" label rename]
-    standalone --> pure string change in Sidebar.tsx
+Terminal Theme Presets
+    depends on --> xterm.js ITheme object [accepted by Terminal constructor and term.options.theme]
+    depends on --> localStorage [for persistence across sessions]
+    requires --> THEMES const map in themes.ts
+    requires --> theme state lifted to App level (like fontSize)
+    requires --> Settings UI: theme selector dropdown
+    enhances --> Terminal Padding (both are terminal appearance; same settings section)
+
+Font Family Selection
+    depends on --> xterm.js fontFamily option [accepted by Terminal constructor]
+    requires --> fontFamily state lifted to App level (like fontSize)
+    requires --> fitTerminal() re-trigger on font change (char width changes)
+    requires --> Settings UI: font family dropdown
+    enhances --> Terminal Theme (both are terminal appearance settings)
 ```
 
 ### Dependency Notes
 
-- **Local network fallback requires self-signed TLS**: The CA+leaf infrastructure was deleted in v1.2 (Phases 15-17). It must be re-introduced using Go stdlib `crypto/x509` + `crypto/tls`. The existing `TLSConfig` override field in `webserver.Config` makes this a clean seam — pass a generated `*tls.Config` instead of Tailscale's `GetCertificate` hook.
-- **Password ties to local mode only**: Tailscale mode retains zero-auth (network membership = access control). Password HTTP Basic Auth middleware only applies when the server binds to LAN IP with self-signed cert.
-- **Auto-serve pair**: Auto-start and auto-enable are independent boolean settings but nearly always wanted together. Each can be enabled without the other; the combination produces the fully hands-off experience.
-- **Settings-as-tab replaces modal entirely**: `SettingsPanel` currently returns null when `isOpen` is false. Converting to a tab removes the `isOpen`/`onClose` props entirely; the panel renders as a tab body unconditionally when the tab is active. The `onSettings` callback in `Sidebar` changes from calling `setSettingsOpen(true)` to switching the active panel state.
+- **Terminal Padding requires no JS changes:** `fitTerminal()` in TerminalPanel.tsx lines 24-29 already calls `getComputedStyle(term.element!)` and subtracts computed `paddingLeft/Right/Top/Bottom` from parent dimensions before calculating cols/rows. Adding CSS padding to `.xterm` automatically flows through the existing calculation.
+- **Theme change does NOT require fitTerminal re-trigger:** Color changes don't affect character dimensions. Font family changes DO require it — char width changes with different fonts.
+- **All web server UX features share existing SettingsTab state:** `isServerRunning` and `serverURL` are already in SettingsTab. No new data fetching needed for open/copy/QR.
+- **Theme and fontSize share the same lift pattern:** `fontSize` is already lifted to App-level state and passed as a prop to each TerminalPanel. Theme follows the identical pattern.
 
 ---
 
-## MVP Definition for v1.11
+## MVP Definition for v1.12
 
-### Launch With
+### Launch With (all v1.12 scope)
 
-- [ ] Local network fallback: self-signed TLS + single random password, binding to local network interface
-- [ ] Nudge banner: persistent non-dismissable banner when in local mode, links to Tailscale setup
-- [ ] Auto-start web server: boolean setting (default: off); if on, server starts at daemon boot
-- [ ] Auto-enable sessions: boolean setting (default: off); if on, EnableSession called at CreateSession
-- [ ] Settings as sidebar tab: modal removed, SettingsPanel rendered as persistent tab
-- [ ] "New Session" label: rename sidebar label and aria-label from "New Tab" to "New Session"
-- [ ] Claude Code native path: add ~/.local/bin (and Windows equivalent) to AugmentServicePath candidates
+- [ ] Terminal padding — CSS only, immediate visual quality improvement, zero risk
+- [ ] Sidebar icon centering when collapsed — CSS only, pure fix
+- [ ] Web server URL: Open in Browser button — replaces broken anchor with `BrowserOpenURL`
+- [ ] Web server URL: Copy to clipboard — reuses established clipboard pattern
+- [ ] Web server QR code — one new Go binding + reuse existing QR infrastructure
+- [ ] Terminal theme presets — TokyoNight Night (current) + Storm/Moon + 1-2 other popular themes
 
-### Add After Validation (v1.11.x)
+### Add After Validation (v1.12.x)
 
-- [ ] Per-session auto-serve override in new-session modal (currently global setting; per-session override is a future refinement)
-- [ ] Tailscale-to-local fallback at runtime (if Tailscale disconnects while server is running, graceful mode switch without dropping active browser sessions)
+- [ ] Font family selection — useful but depends on users having target fonts installed; validate demand with v1.12 theme feedback before adding
+- [ ] Additional theme presets (Catppuccin Mocha, One Dark) — can add as point releases without a full milestone
 
 ### Future Consideration (v2+)
 
-- [ ] mDNS/Bonjour advertisement of local server for LAN device discovery without manual URL sharing
-- [ ] Certificate pinning UI for browsers connecting to local-mode server (reduce cert warning friction)
-- [ ] Persistent auto-serve preference saved across restarts (not just session lifetime)
+- [ ] Per-tab theme or font override — complex state propagation; defer until explicitly requested
+- [ ] Custom theme editor — high complexity, low priority
 
 ---
 
@@ -131,129 +137,122 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Local network fallback + password | HIGH | MEDIUM | P1 |
-| Nudge banner (local mode) | MEDIUM | LOW | P1 |
-| Auto-start web server | HIGH | LOW | P1 |
-| Auto-enable sessions | HIGH | LOW | P1 |
-| Settings as sidebar tab | MEDIUM | MEDIUM | P1 |
-| "New Session" label rename | LOW | LOW | P1 (trivial; do with settings-as-tab phase) |
-| Claude Code native path detection | MEDIUM | LOW | P1 |
-
-All features are P1. This milestone is small and tightly scoped; no P2/P3 items exist.
+| Sidebar icon centering | MEDIUM | LOW | P1 |
+| Terminal padding | HIGH | LOW | P1 |
+| Web server URL: open in browser | HIGH | LOW | P1 |
+| Web server URL: copy to clipboard | HIGH | LOW | P1 |
+| Web server QR code | MEDIUM | LOW | P1 |
+| Terminal theme presets | MEDIUM | MEDIUM | P1 |
+| Font family selection | LOW | MEDIUM | P2 |
 
 **Priority key:**
-- P1: Must have for v1.11 milestone to ship
-- P2: Should have, add when possible
-- P3: Nice to have, future consideration
+- P1: Target for v1.12 milestone
+- P2: Add after validation, not blocking v1.12
 
 ---
 
 ## Implementation Notes by Feature
 
-### Local Network Fallback + Password
+### Terminal Padding
 
-**How other apps do it:**
-- Bitwarden self-hosted: self-signed cert + user-configured password
-- Caddy local HTTPS: auto-generates local CA, installs to trust store (invasive — not appropriate here)
-- Typical LAN web apps: random generated token shown in UI, single challenge
+**Root cause of current state:** No padding CSS is applied to `.xterm`. Terminal renders edge-to-edge within its container.
 
-**Recommended approach for AgentHub:**
-1. On `StartWebServer`, check Tailscale health. If healthy: existing Tailscale+Let's Encrypt path unchanged. If unhealthy: generate self-signed CA+leaf (Go stdlib `crypto/x509` + `crypto/tls`), generate 16-char random alphanumeric password, bind to all interfaces or local LAN IP.
-2. Password stored in-memory in `WebServer` struct; regenerated each time server starts.
-3. Server adds Basic Auth middleware when in local mode. Challenge header: `WWW-Authenticate: Basic realm="AgentHub"`.
-4. `BaseURL` in local mode uses machine's local IP (detected via `net.InterfaceAddrs`, preferring 192.168.x or 10.x range), not FQDN.
-5. Web dashboard shows password prominently (copyable text field) when server is in local mode.
-6. `WebServer` struct gains a `mode` field (`"tailscale"` or `"local"`) set at `Start()`.
+**Fix:** In `style.css`, add:
+```css
+.xterm {
+  padding: 6px;
+}
+```
 
-**Self-signed cert generation:** Pure Go stdlib — no external deps. `crypto/rand` for key generation, `crypto/x509` for cert template, `crypto/tls` for in-memory `tls.Certificate`. Valid for 1 year.
+**Why this works:** `fitTerminal()` reads `getComputedStyle(term.element!)` and explicitly extracts `paddingLeft`, `paddingRight`, `paddingTop`, `paddingBottom`, then:
+- `padH = paddingLeft + paddingRight` subtracted from `parentW` before cols calculation
+- `padV = paddingTop + paddingBottom` subtracted from `parentH` before rows calculation
 
-**Confidence:** HIGH — all stdlib capabilities, well-documented pattern.
+This means cols/rows are calculated for the content area (inside padding), not the full container. PTY is resized correctly.
 
-### Nudge Banner
+**Tuned value:** 6-8px is standard for terminal emulators. VS Code Terminal uses approximately 6px horizontal padding. Warp uses ~8px.
 
-**Expected behavior:**
-- Displayed as a top banner in the desktop GUI when the web server is in local mode.
-- Content: "Running in local network mode (Tailscale not found). Connection is not verified. Install Tailscale for trusted access." with a "Set up Tailscale" link.
-- Non-dismissable while server is in local mode; disappears if server is stopped or restarted in Tailscale mode.
-- Does NOT block any functionality; purely informational.
+**Risk:** Very low. The scrollbar is already hidden via `.xterm-viewport { scrollbar-width: none }` so scrollbar width (which PR #1208 identified as a concern) is 0px and does not create a mismatch.
 
-**Implementation:** Wails event emitted from daemon when local mode is active; frontend shows/hides banner based on event. Or: `GetWebServerStatus()` response includes a `mode` field; frontend polls status (already does this via 3s REST poll) and shows banner when mode is `"local"`.
+### Sidebar Icon Centering
 
-**Confidence:** HIGH — existing REST polling pattern can carry the mode flag.
+**Root cause:** `.sidebar__item` sets `display: flex; align-items: center; gap: 8px; padding: 8px`. No `justify-content` is set, so it defaults to `flex-start`. When label is hidden (collapsed state), the icon (`20px`) sits at the left edge of the `48px`-wide button with 8px left padding, placing icon center at `8 + 10 = 18px` from left edge — not centered in 48px.
 
-### Auto-Start Web Server
+**Fix:**
+```css
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+```
 
-**Expected behavior:**
-- Setting: `AutoStartWebServer bool` in daemon settings.
-- When true: during `RunDaemon()` startup, after initial health check, daemon calls the same logic as `StartWebServer` IPC handler.
-- Mode selection follows the same Tailscale health check path as manual start.
-- If server fails to auto-start (e.g. port in use), daemon logs error but continues running; GUI shows no server running.
+**Toggle button reference:** `.sidebar__toggle` already uses `justify-content: center` and produces a correctly centered icon. Items should match.
 
-**Confidence:** HIGH — straightforward extension of existing RunDaemon startup sequence.
+### Web Server URL UX (Open, Copy, QR)
 
-### Auto-Enable Sessions
+**Current state:** `SettingsTab.tsx` line 303-306:
+```jsx
+{isServerRunning && serverURL && (
+  <p className="settings-panel__url">
+    Server running at: <a href={serverURL} target="_blank" rel="noreferrer">{serverURL}</a>
+  </p>
+)}
+```
 
-**Expected behavior:**
-- Setting: `AutoServeNewSessions bool` in daemon settings.
-- When true: `CreateSession()` in daemon engine calls `ws.EnableSession(sessionID)` immediately after creating the session.
-- No-op if web server is not running at the time of session creation.
-- Sessions created before auto-serve is enabled are NOT retroactively enabled (avoids surprise exposure).
+This anchor does not open the system browser in Wails WebView.
 
-**Confidence:** HIGH — one additional call in CreateSession code path; already has the ws reference.
+**Target UX:** When server is running, show a compact row:
+- URL text (truncated if long)
+- "Open" icon button → `BrowserOpenURL(serverURL)`
+- "Copy" icon button → `navigator.clipboard.writeText(serverURL)` + "Copied!" feedback
+- "QR" icon button or toggle → shows QR code for dashboard URL
 
-### Settings as Sidebar Tab
+**QR code for dashboard:** Add to `App.go`:
+```go
+func (a *App) GetWebServerDashboardQRCode() (string, error) {
+    url, err := a.daemon.GetWebServerURL()
+    if err != nil { return "", err }
+    return generateQRCode(url) // same as GetSessionQRCode logic
+}
+```
 
-**Pattern in comparable desktop apps:**
-- VS Code: Settings is a persistent tab, not a modal; survives navigation between other tabs.
-- Warp terminal: Settings is a top-level navigable view accessed from the sidebar.
-- Consensus: modals interrupt; tabs allow free navigation without losing context.
+Frontend uses `GetWebServerDashboardQRCode()` when user clicks the QR button; displays base64 PNG inline (same pattern as `GetSessionQRCode` in QRModal).
 
-**Recommended approach for AgentHub:**
-1. Add `'settings'` to the active panel union type in App.tsx (currently `'home' | 'remote' | 'sessions' | null`).
-2. Change `onSettings` in Sidebar to emit a panel switch event rather than opening a modal.
-3. Remove `isOpen`, `onClose` props from `SettingsPanel`; it renders unconditionally when active.
-4. The Settings tab is closed by navigating to any other sidebar item (same pattern as Sessions, Remote).
-5. Remove the footer `Close` button from SettingsPanel (navigation replaces it), or convert it to "Back" that switches to the previous panel.
-6. `settings-overlay` and `settings-panel` modal CSS classes become tab-body CSS (no overlay, no fixed position).
+### Terminal Theme Presets
 
-**Confidence:** HIGH — established Wails/React tab pattern, mirrors existing DaemonManagerPanel behavior.
+**xterm.js ITheme API (confirmed from official docs):**
+All properties are optional strings (CSS color values). Setting `term.options.theme` on an existing terminal immediately re-renders with new colors.
 
-### Claude Code Native Path Detection
+**TokyoNight Night colors (verified from folke/tokyonight.nvim upstream):**
+- background: `#1a1b26`, foreground: `#c0caf5`, cursor: `#c0caf5`
+- black: `#15161e`, red: `#f7768e`, green: `#9ece6a`, yellow: `#e0af68`
+- blue: `#7aa2f7`, magenta: `#bb9af7`, cyan: `#7dcfff`, white: `#a9b1d6`
+- brightBlack: `#414868`, brightRed: `#ff899d`, brightGreen: `#9fe044`
+- brightYellow: `#faba4a`, brightBlue: `#8db0ff`, brightMagenta: `#c7a9ff`
+- brightCyan: `#a4daff`, brightWhite: `#c0caf5`
 
-**Official install paths (from code.claude.com/docs/en/setup — HIGH confidence):**
-- macOS/Linux native installer: `~/.local/bin/claude` (uninstall removes `~/.local/bin/claude` and `~/.local/share/claude`)
-- Windows native installer: `%USERPROFILE%\.local\bin\claude.exe`
-- macOS Homebrew cask: `/opt/homebrew/bin/claude` (already in AugmentServicePath candidates)
-- npm (deprecated): wherever npm -g installs; typically `~/.nvm/.../bin` (already handled by nvmActiveBin)
+**Implementation plan:**
+1. Create `frontend/src/lib/themes.ts` with a `THEMES` const record mapping theme name to `ITheme` object. Include TokyoNight Night (current hardcoded colors), TokyoNight Storm (bg `#24283b`), and 1-2 others.
+2. Add `theme` state to App.tsx (string key), initialized from `localStorage.getItem('terminal-theme') ?? 'tokyonight-night'`.
+3. Pass `theme` as a prop to each `TerminalPanel` (like `fontSize`).
+4. In `TerminalPanel`, apply `theme: THEMES[theme]` at terminal creation and via `useEffect` on theme prop change.
+5. Add theme selector `<select>` to SettingsTab (new "Appearance" subtab or inline in CLI Paths tab).
 
-**Current gap:** `~/.local/bin` is NOT in the current `AugmentServicePath` candidates list in `internal/daemon/path.go`. It is commonly absent from PATH when the daemon runs as a launchd service or when the app is launched from Finder/Dock, because shell init files (which add `~/.local/bin` to PATH via the install script) are not sourced.
-
-**Fix:** Add `filepath.Join(home, ".local", "bin")` to the candidates slice. On all platforms (macOS, Linux, Windows), `os.UserHomeDir()` returns the correct home directory and `~/.local/bin` is the correct subdirectory for native Claude Code installs.
-
-**Confidence:** HIGH — confirmed by official Claude Code uninstall documentation listing exact paths.
-
----
-
-## Competitor Feature Analysis
-
-| Feature | OpenCode | AgentHub v1.10 | AgentHub v1.11 Plan |
-|---------|----------|----------------|---------------------|
-| Local network access | Requires manual `opencode web` separate server; no GUI toggle | Tailscale-only | Automatic fallback to self-signed+password LAN mode |
-| Auto-serve on session create | Proposed in GitHub issue #11997 (not shipped) | Manual toggle per session | Optional auto-enable setting |
-| Settings navigation | Modal | Modal | Sidebar tab (persistent) |
-| Claude Code detection | PATH only | PATH + common npm managers | PATH + npm managers + ~/.local/bin native path |
+**Scope clarification:** `PROJECT.md` listed "Font/theme customization beyond size" as deferred in earlier milestones. v1.12 milestone explicitly includes "Terminal theming (popular theme support for fonts and colors)" — this is intentionally scoped in.
 
 ---
 
 ## Sources
 
-- [Claude Code Advanced Setup](https://code.claude.com/docs/en/setup) — native install path `~/.local/bin/claude` confirmed by uninstall instructions (HIGH confidence)
-- [Claude Code GitHub issue #10970](https://github.com/anthropics/claude-code/issues/10970) — `~/.local/bin` PATH issue for Homebrew users; confirms native vs Homebrew path distinction (MEDIUM confidence)
-- [OpenCode GitHub issue #11997](https://github.com/anomalyco/opencode/issues/11997) — auto-start web server proposal with implementation notes (MEDIUM confidence; different product)
-- AgentHub codebase read directly: `internal/pty/detect.go`, `internal/daemon/path.go`, `internal/webserver/server.go`, `frontend/src/components/SettingsPanel.tsx`, `frontend/src/components/Sidebar.tsx` (HIGH confidence)
-- UX research: settings-as-tab pattern validated by VS Code, Warp terminal, and modal-vs-tab UX analysis (MEDIUM confidence)
+- xterm.js ITerminalOptions official docs (no padding option confirmed): https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/
+- xterm.js ITheme official docs (all theme properties confirmed): https://xtermjs.org/docs/api/terminal/interfaces/itheme/
+- xterm.js padding CSS approach (merged PR, v3.1.0): https://github.com/xtermjs/xterm.js/issues/946 and https://github.com/xtermjs/xterm.js/pull/1208
+- TokyoNight Night ANSI colors (verified upstream): https://github.com/folke/tokyonight.nvim/blob/main/extras/alacritty/tokyonight_night.toml
+- Copy-to-clipboard UX patterns: https://cloudscape.design/components/copy-to-clipboard/
+- AgentHub codebase read directly: `TerminalPanel.tsx`, `Sidebar.tsx`, `SettingsTab.tsx`, `App.tsx`, `style.css`, `App.d.ts` (HIGH confidence)
 
 ---
 
-*Feature research for: AgentHub v1.11 — Local Network Fallback, Auto-Serve, Settings-as-Tab, Label Rename, Native Path Detection*
-*Researched: 2026-04-08*
+*Feature research for: AgentHub v1.12 — Terminal Padding, Theming, Web Server Link UX, Sidebar Icon Centering*
+*Researched: 2026-04-10*

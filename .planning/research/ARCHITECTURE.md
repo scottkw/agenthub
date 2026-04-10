@@ -1,443 +1,335 @@
 # Architecture Research
 
-**Domain:** Local network fallback, auto-serve sessions, settings-as-tab, sidebar rename, Claude Code native path detection — AgentHub v1.11
-**Researched:** 2026-04-08
-**Confidence:** HIGH — based on direct code inspection of all affected files
+**Domain:** UI/UX polish features for Go/Wails + React + xterm.js desktop app
+**Researched:** 2026-04-10
+**Confidence:** HIGH (all integration points verified from live codebase)
 
----
-
-## Existing Architecture (v1.10 baseline)
+## Standard Architecture
 
 ### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        agenthub binary                               │
-├──────────────────────┬──────────────────────┬───────────────────────┤
-│  GUI mode (Wails)    │  CLI mode            │  Daemon mode          │
-│  app.go (App struct) │  cmd_*.go            │  internal/daemon/     │
-│  ↕ DaemonClient      │  ↕ DaemonClient      │  service.go           │
-└──────────────────────┴──────────────────────┴───────────────────────┘
-         │                       │                        │
-         └───────────────────────┴────────────────────────┘
-                                 │ Unix socket (named pipe on Windows)
-                    ┌────────────┴───────────────┐
-                    │     daemon API              │
-                    │  internal/daemon/api.go     │
-                    │  POST /webserver/start      │
-                    │  POST /webserver/stop       │
-                    │  POST /sessions/{id}/web-serve
-                    │  GET  /sessions             │
-                    │  POST /sessions             │
-                    └────────────┬───────────────┘
-                                 │
-                    ┌────────────┴───────────────┐
-                    │     SessionEngine           │
-                    │  internal/daemon/engine.go  │
-                    │  Registry + HubManager      │
-                    └────────────┬───────────────┘
-                                 │
-         ┌───────────────────────┼─────────────────────┐
-         │                       │                     │
-┌────────┴───────┐  ┌────────────┴──────┐  ┌──────────┴──────┐
-│ WebServer      │  │ Relay server      │  │ PTY backend     │
-│ internal/      │  │ internal/relay/   │  │ internal/pty/   │
-│ webserver/     │  │ (TCP random port) │  │ detect.go       │
-│ server.go      │  │                   │  │ engine.go       │
-│ Binds: TS IP   │  │ Binds: 127.0.0.1  │  │                 │
-│ TLS: TS certs  │  │                   │  │                 │
-└────────────────┘  └───────────────────┘  └─────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        React Frontend (WebView)                   │
+├────────────┬────────────────────────────────────┬────────────────┤
+│  Sidebar   │  App.tsx (root state + wiring)      │  TabBar        │
+│  (nav)     │  - tab state                        │  (session tabs)│
+│            │  - font sizes per session           │                │
+│            │  - web serving state per session    │                │
+│            │  - theme per session (NEW)           │                │
+│            │  - padding per session (NEW)         │                │
+├────────────┴──────────┬─────────────────────────┴────────────────┤
+│   terminal-container  │  Non-terminal panels                      │
+│   ┌──────────────┐    │  (Welcome, DaemonManager,                 │
+│   │ TerminalPanel│    │   RemoteSessions, Settings)               │
+│   │  xterm.js    │    │                                           │
+│   │  FitAddon    │    │                                           │
+│   └──────────────┘    │                                           │
+│   ┌──────────────┐    │                                           │
+│   │  StatusBar   │    │                                           │
+│   │  (32px flex) │    │                                           │
+│   └──────────────┘    │                                           │
+├───────────────────────┴───────────────────────────────────────────┤
+│              Wails Runtime Bindings (JS to Go bridge)             │
+│  BrowserOpenURL · ClipboardSetText · EventsOn                     │
+│  Go-generated App.* bindings (GetWebServerURL, GetSessionQRCode…) │
+├───────────────────────────────────────────────────────────────────┤
+│                     Go Backend (App struct)                        │
+│  GetWebServerURL · GetSessionQRCode · GetWebServerMode            │
+│  GetLocalNetworkPassword · StartWebServer · StopWebServer         │
+│  DaemonClient (Unix socket) → internal/daemon SessionEngine       │
+│  internal/webserver · skip2/go-qrcode                            │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-### Frontend Architecture (React/Wails)
+### Component Responsibilities
 
+| Component | Responsibility | Integration Notes |
+|-----------|----------------|-------------------|
+| `App.tsx` | Root state: tabs, fontSizes, webEnabled, sessionURLs | Owns new state: `themes` and `paddings` per session |
+| `Sidebar.tsx` | Navigation: collapsed (48px) / expanded (200px), localStorage | CSS-only fix for icon centering when collapsed |
+| `TerminalPanel.tsx` | xterm.js lifecycle, fit, font size prop | Receives `theme` and `padding` props; pass to `new Terminal({})` |
+| `StatusBar.tsx` | 32px flex bar per terminal tab — web on/off, URL, QR button | Add open-in-browser button and copy-URL button |
+| `SettingsTab.tsx` | CLI paths and web server config (two sub-tabs) | Add Appearance sub-tab for theme/padding defaults |
+| `QRModal.tsx` | Modal showing session QR code (base64 PNG) | QR for dashboard URL is a new second use case |
+| `App.go` | Wails-bound methods: GetWebServerURL, GetSessionQRCode | Add `GetDashboardQRCode()` for the dashboard URL QR |
+
+## Feature Integration Points
+
+### Feature 1: Terminal Padding
+
+**What it is:** An inset margin so terminal text does not touch the container edges.
+
+**Integration surface:**
+
+- `TerminalPanel.tsx` has a custom `fitTerminal()` function that already reads `paddingLeft/Right/Top/Bottom` from `window.getComputedStyle(term.element!)`. This means CSS padding on the xterm element flows through `fitTerminal()` automatically — cols and rows are recalculated after subtracting `padH` and `padV`. This was built intentionally to support padding.
+- The container `<div ref={containerRef}>` currently has `style={{ flex: 1, width: '100%', minHeight: 0 }}`. The xterm element rendered inside it (accessed as `term.element`) receives the padding.
+
+**The correct approach:** Apply padding via `term.element.style.padding` after `term.open()`. The custom `fitTerminal` reads this via `window.getComputedStyle(term.element!)`. Do not apply padding to the outer container div — that div's padding is not what `fitTerminal` reads.
+
+**New state in App.tsx:**
+```typescript
+const DEFAULT_PADDING = 8  // px
+const [paddings, setPaddings] = useState<Record<string, number>>({})
 ```
-App.tsx (root state owner)
-├── Sidebar.tsx          — navigation, collapsed state in localStorage
-│     items: Home | Remote | Sessions | New Tab | Settings (bottom)
-├── TabBar.tsx           — tab strip (session tabs only after v1.10)
-└── terminal-container   — content area, one component per tab type
-      ├── WelcomeTab               (type: 'welcome')
-      ├── DaemonManagerPanel       (type: 'daemon-manager')
-      ├── RemoteSessionsPanel      (type: 'remote-sessions')
-      ├── TerminalPanel × N        (type: undefined / session tab)
-      └── StatusBar × N            (paired with each TerminalPanel)
 
-Overlays (rendered outside terminal-container):
-├── SettingsPanel        — isOpen boolean, rendered as modal overlay
-├── HealthModal          — triggered by Tailscale health state
-├── NewSessionModal      — triggered by New Tab action
-└── QRModal              — triggered by StatusBar QR button
+**TerminalPanel prop addition:**
+```typescript
+interface TerminalPanelProps {
+  // ...existing...
+  padding: number  // px inset, applied to term.element.style.padding after open()
+}
 ```
 
-### Key Boundaries
+**fitTerminal compatibility:** No changes to `fitTerminal` logic. The function already subtracts `padH`/`padV` from parent dimensions when computing cols/rows.
 
-| Boundary | Protocol | Notes |
-|----------|----------|-------|
-| Frontend ↔ App.go | Wails bindings (JS→Go) + EventsEmit (Go→JS) | Defined in app.go, exposed as wailsjs TS types |
-| App.go ↔ Daemon | HTTP/JSON over Unix socket | DaemonClient in internal/daemon/client.go |
-| Daemon ↔ WebServer | In-process method calls | WebServer owned by API struct (a.webServer) |
-| Browser ↔ WebServer | WSS + HTTP over TLS | Tailscale IP:port, Let's Encrypt certs |
-| CLI ↔ Daemon | Same HTTP/JSON over Unix socket | Same DaemonClient used by GUI |
+**Settings UI:** Global default lives in a new "Appearance" sub-tab of `SettingsTab`. Store default in `localStorage` so it persists, same pattern as `sidebar-collapsed`.
 
 ---
 
-## v1.11 Feature Integration Analysis
+### Feature 2: Terminal Theming
 
-### Feature 1: Local Network Fallback (Self-Signed TLS + Password)
+**What it is:** Selectable color themes (e.g., Tokyo Night, Dracula, Solarized Dark) applied to xterm.js terminal color palette and background.
 
-**What needs to change:**
+**Integration surface:**
 
-The current `StartWebServer` in `app.go` gates startup on three Tailscale conditions (Connected, IP available, HasCerts). When Tailscale is absent, the function returns an error and no server starts. The v1.11 fallback needs an alternative path that:
+- `TerminalPanel.tsx` currently hardcodes `theme: { background: '#1a1b26' }` in the `new Terminal({})` constructor. The xterm.js `ITheme` interface supports: `background`, `foreground`, `cursor`, `cursorAccent`, `selectionBackground`, `selectionForeground`, plus 16 ANSI colors (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and bright variants).
+- xterm.js supports runtime theme changes via `term.options.theme = newTheme` without destroying the terminal instance. Scrollback is preserved.
 
-1. Generates a self-signed CA + leaf cert (the infrastructure removed in v1.2 must be re-added)
-2. Binds to the LAN IP (not the Tailscale IP)
-3. Adds password middleware (removed in v1.2 Phase 16)
+**The correct approach:**
 
-**Integration points:**
+1. Define theme objects as constants in a new `frontend/src/lib/themes.ts` file. No backend involvement.
+2. Pass `theme` string key as a prop to `TerminalPanel`. The panel maps it to the xterm `ITheme` object.
+3. Font family is kept separate — it already implicitly comes from the hardcoded `fontFamily` string. Theme selection does not need to change font family.
 
-```
-app.go: StartWebServer()
-  └── currently: gates on h.Connected && h.IP != "" && h.HasCerts
-  └── new: if Tailscale healthy → Tailscale path (unchanged)
-           else → fallback path: generate self-signed cert, bind LAN IP, add password
-
-internal/webserver/server.go: WebServer struct + Config
-  └── Config needs: Mode field (tailscale | local), Password string
-  └── setupRoutes(): add auth middleware for local mode only
-
-internal/webserver/: new file selfcert.go
-  └── GenerateSelfSignedCert(ip string) (*tls.Config, error)
-  └── Uses crypto/x509, crypto/ecdsa, crypto/rand — stdlib only, no new deps
-
-internal/daemon/api.go: handleWebServerStart
-  └── WebServerStartRequest: add Mode, Password fields
-  └── Passes through to WebServer Config
-
-internal/daemon/types.go:
-  └── WebServerStartRequest: add Mode string, Password string fields
-
-Password middleware:
-  └── http.Handler wrapper checking Authorization header or cookie
-  └── Single random password generated at server start (not stored persistently)
-  └── Pass password back in WebServerStartResponse for display to user
-
-Frontend: SettingsTab (after Feature 3 converts Settings to tab)
-  └── When Tailscale absent: show "Local Network" mode info + generated password display
-  └── Persistent nudge banner in App.tsx: shows when webServer is in local mode
+**New state in App.tsx:**
+```typescript
+const DEFAULT_THEME = 'tokyo-night'
+const [themes, setThemes] = useState<Record<string, string>>({})
 ```
 
-**New components:**
-- `internal/webserver/selfcert.go` — self-signed cert generation (stdlib crypto, no new deps)
-- `internal/webserver/auth.go` — password middleware (wraps http.Handler, checks Authorization or session cookie)
+**TerminalPanel prop addition:**
+```typescript
+interface TerminalPanelProps {
+  // ...existing...
+  theme: string  // key into THEMES map defined in lib/themes.ts
+}
+```
 
-**Modified components:**
-- `internal/webserver/server.go` — Config gains Mode + Password; Start() branches on Mode
-- `internal/daemon/types.go` — WebServerStartRequest adds Mode, Password; WebServerStatusResponse adds Mode
-- `internal/daemon/api.go` — handleWebServerStart passes Mode/Password; handleWebServerStatus returns Mode
-- `app.go` — StartWebServer detects fallback condition, generates random password, passes to daemon
-- `frontend/src/App.tsx` — nudge banner state (`webServerMode: 'tailscale' | 'local' | null`)
-- `frontend/src/components/SettingsPanel.tsx` — password display section for local mode
+**Runtime theme switching effect (same pattern as fontSize):**
+```typescript
+useEffect(() => {
+  if (!termRef.current) return
+  termRef.current.options.theme = THEMES[theme] ?? THEMES['tokyo-night']
+}, [theme])
+```
 
-**Password generation:** `crypto/rand` (already a stdlib dep), 16 bytes → base64url → 22 chars. Generated in `app.go` at call time, passed to daemon, stored only in daemon's in-memory WebServer struct. Never written to disk.
+**Theme file structure:**
+```typescript
+// frontend/src/lib/themes.ts
+import type { ITheme } from '@xterm/xterm'
+export const THEMES: Record<string, ITheme> = {
+  'tokyo-night':   { background: '#1a1b26', foreground: '#a9b1d6', ... },
+  'dracula':       { background: '#282a36', foreground: '#f8f8f2', ... },
+  'solarized-dark': { ... },
+  'github-dark':   { ... },
+}
+export const THEME_KEYS = Object.keys(THEMES) as string[]
+```
 
-**LAN IP resolution:** `net.InterfaceAddrs()` scanning for first non-loopback IPv4. This is the same approach removed in v1.2 (`network.go`). Re-add as a small helper function in `app.go` or a new `internal/webserver/localip.go`.
+**Settings UI:** Theme picker dropdown in the "Appearance" sub-tab of `SettingsTab`. The selected theme is stored in `localStorage` as the global default. Per-session overrides use `themes: Record<string, string>` state in `App.tsx`.
 
-**Nudge banner:** A new string field `webServerMode` in App.tsx state. When mode is `'local'`, render a persistent banner above the tab bar showing the password and a note that Tailscale would provide a more secure alternative. Banner does not dismiss until Tailscale becomes available or user stops the server.
+**No backend changes.** Themes are pure frontend.
 
 ---
 
-### Feature 2: Auto-Serve Sessions
+### Feature 3: Web Server Link Improvements (Open in Browser, Copy URL, Dashboard QR)
 
-**What "auto-serve" means:**
-- When web server starts: automatically enable web serving for all existing sessions
-- When a new session is created: automatically enable web serving if server is running
+**What it is:** In `SettingsTab` → Web Server sub-tab, when the server is running and the URL is shown, add: (a) open in default browser button, (b) copy-to-clipboard button, (c) QR code button for the dashboard URL.
 
-**Integration points:**
+**Integration surface:**
 
-```
-app.go: StartWebServer()
-  └── After server starts successfully, iterate all sessions via ListSessions()
-  └── Call client.ToggleWebServing(id, true) for each
-  └── Emit session:web-enabled for each to sync frontend state
+- `SettingsTab.tsx` already renders `serverURL` with an `<a>` tag when running. Inside Wails WebView, `target="_blank"` on anchor tags is unreliable — it does not reliably open the system browser. The correct call is `BrowserOpenURL(url)` from the Wails runtime.
+- `BrowserOpenURL` is already imported and used in `App.tsx` and `WelcomeTab.tsx`. Adding it to `SettingsTab.tsx` is a one-line import change.
+- `ClipboardSetText` is already in the Wails runtime bindings (`wailsjs/wailsjs/runtime/runtime.js:200`). It returns `Promise<boolean>`. The existing LAN password copy in `SettingsTab` uses `navigator.clipboard.writeText` — that should be replaced with `ClipboardSetText` for consistency and cross-platform reliability within Wails.
+- For dashboard QR: the existing `GetSessionQRCode(sessionId)` generates QR for a session URL. A new `GetDashboardQRCode()` method encodes `serverURL` (the dashboard root, not a session path).
 
-app.go: CreateSession()
-  └── After daemon returns new session ID, check client.GetWebServerStatus()
-  └── If running: call client.ToggleWebServing(newID, true)
-  └── Emit session:web-enabled {sessionId, url} Wails event
-
-Frontend App.tsx: useEffect event subscription block
-  └── Add handler for session:web-enabled event
-  └── Updates webEnabled[sessionId] = true and sessionURLs[sessionId] = url
-```
-
-**Recommended approach:** Handle auto-serve in `app.go` on the backend side for both cases. This keeps the frontend stateless about this policy and avoids a race where the frontend might call ToggleWebServing before the session relay hub is ready.
-
-**New Wails event:**
-```
-session:web-enabled  { sessionId: string, url: string }
-```
-
-Frontend subscribes in the existing `useEffect` event subscription block alongside `session:status`. When received, updates both `webEnabled` and `sessionURLs` state maps.
-
----
-
-### Feature 3: Settings as Sidebar Tab
-
-**Current state:** Settings is a modal overlay (`SettingsPanel` with `isOpen` prop). Sidebar `onSettings` callback calls `setShowSettings(true)`. The component renders as `<div className="settings-overlay">` covering the full app.
-
-**Target state:** Settings is a persistent tab in the tab system, like `WelcomeTab`, `DaemonManagerPanel`, and `RemoteSessionsPanel`.
-
-**Integration points:**
-
-```
-frontend/src/App.tsx:
-  └── Add SETTINGS_TAB constant: { id: '__settings__', name: 'Settings', type: 'settings' }
-  └── Add handleOpenSettings: same pattern as handleOpenDaemonManager (find-or-add + focus)
-  └── Sidebar: onSettings prop → handleOpenSettings (currently sets showSettings=true)
-  └── terminal-container: add {activeId === SETTINGS_TAB.id && <SettingsPanel ... />}
-  └── Remove showSettings state
-  └── Remove bottom-of-JSX SettingsPanel overlay render
-  └── Load webEnabled/serverRunning state when settings tab becomes active
-      (poll pattern like daemon-manager, or just load on mount)
-
-frontend/src/components/SettingsPanel.tsx:
-  └── Remove settings-overlay and settings-panel wrapper divs
-  └── Remove isOpen prop — rendered only when tab is active (JSX conditional)
-  └── Remove onClose prop — closing is standard tab close (handleCloseTab)
-  └── Remove settings-panel__header close button
-  └── Remove settings-panel__footer Close button
-  └── Load state on mount (useEffect with no isOpen guard)
-  └── Content becomes full tab panel, not a modal
-
-frontend/src/components/Sidebar.tsx:
-  └── aria-label "Settings" already correct
-  └── No prop interface changes needed
-```
-
-**Tab type expansion:** The `Tab` type in `TabBar.tsx` needs a new `type: 'settings'` variant. The tab-close behavior for settings tab removes it from the array (user can reopen via sidebar). This is the same pattern as all other singleton tabs — no special handling needed.
-
-**SettingsPanel state loading:** Currently triggered by `isOpen` in a `useEffect`. After conversion, trigger on mount — the JSX conditional means the component mounts/unmounts on tab activation (same as WelcomeTab pattern). The `isOpen` guard on the `useEffect` can be removed entirely.
-
----
-
-### Feature 4: Sidebar Label "New Tab" → "New Session"
-
-**Minimal change:** Two strings in `Sidebar.tsx`.
-
-```
-frontend/src/components/Sidebar.tsx:
-  aria-label="New Tab"  →  aria-label="New Session"
-  <span className="sidebar__label">New Tab</span>
-  →
-  <span className="sidebar__label">New Session</span>
-```
-
-No other production files affected. The `onAdd` prop name is internal and does not need to change.
-
-**Test impact:** Any vitest test in `frontend/src/components/__tests__/` asserting the "New Tab" label text needs updating.
-
----
-
-### Feature 5: Claude Code Native Install Path Detection
-
-**Current state:** `internal/pty/detect.go` uses `exec.LookPath("claude")` — finds the binary only if it is on the augmented PATH. Claude Code installed via the Anthropic native installer on macOS places the binary at `~/.claude/local/claude`, which is not a standard PATH location and not currently in `AugmentServicePath`.
-
-**Known native install paths:**
-- macOS/Linux: `~/.claude/local/claude` (Anthropic native installer)
-- Windows: `%LOCALAPPDATA%\AnthropicClaude\claude.exe` or `%APPDATA%\Claude\claude.exe`
-
-**Integration points:**
-
-```
-internal/pty/detect.go: DetectCLIs() and DetectCLI()
-  └── After LookPath fails for "claude", probe claudeNativePaths() candidates
-  └── New helper: claudeNativePaths() []string — platform-specific paths via runtime.GOOS
-  └── If candidate exists and is executable: use that path
-
-internal/daemon/path.go: AugmentServicePath()
-  └── Add filepath.Join(home, ".claude", "local") to candidate prepend list
-  └── Covers session creation (exec.LookPath at PTY spawn time) not just detection
-```
-
-**Implementation approach for detect.go:**
-
-The `knownCLIs` loop in `DetectCLIs` gains a per-CLI fallback mechanism. Rather than coupling the fallback directly into the loop, add an optional `FallbackPaths func() []string` field to `CLISpec`, or simply special-case "claude" after the loop:
-
+**Go backend change — add one new Wails method to `app.go`:**
 ```go
-// After the LookPath loop, check native paths for claude specifically.
-// Only if claude was not found via PATH.
+// GetDashboardQRCode generates a QR code for the web dashboard root URL and
+// returns it as a base64-encoded PNG. Returns error if server not running.
+func (a *App) GetDashboardQRCode() (string, error) {
+    if a.client == nil {
+        return "", fmt.Errorf("daemon not connected")
+    }
+    resp, err := a.client.GetWebServerStatus()
+    if err != nil || !resp.Running {
+        return "", fmt.Errorf("web server not running")
+    }
+    png, err := qrcode.Encode(resp.URL, qrcode.Medium, 256)
+    if err != nil {
+        return "", fmt.Errorf("GetDashboardQRCode: encode: %w", err)
+    }
+    return base64.StdEncoding.EncodeToString(png), nil
+}
 ```
 
-Either approach is valid. The special-case is simpler; the `FallbackPaths` field is more extensible if other CLIs add native installers later. Given only Claude Code has a known native installer issue today, the simpler special-case is preferred (avoid the 3-example abstraction rule).
+This is a minimal addition — it calls `qrcode.Encode` (already imported as `skip2/go-qrcode`) with `resp.URL` instead of a session URL. No daemon IPC changes.
 
-**Confidence note on paths:** The path `~/.claude/local/claude` is based on community reports as of early 2026. Verify against the actual Anthropic installer output on a test machine before shipping. Structure the code to easily add more paths.
+**Wails binding generation:** `wails generate module` (or dev server restart) auto-generates the updated `frontend/src/wailsjs/go/main/App.js` and `.d.ts` with `GetDashboardQRCode`.
+
+**Frontend (SettingsTab.tsx):** Import `BrowserOpenURL`, `ClipboardSetText` from Wails runtime; import `GetDashboardQRCode` from generated bindings. Add three controls in the server-running section. The QR display can reuse the `QRModal` pattern inline or as a new `DashboardQRModal` component.
+
+**QR modal approach:** The existing `QRModal` accepts `sessionId` and calls `GetSessionQRCode(sessionId)` internally. The simplest extension is a second variant `DashboardQRModal` that accepts no `sessionId` and calls `GetDashboardQRCode()`. Alternatively, generalize `QRModal` with an optional `fetchFn` prop — but that adds complexity. Prefer a separate focused component.
 
 ---
 
-## Component Dependency Map
+### Feature 4: Sidebar Icon Centering When Collapsed
 
-```
-WebServer Config (server.go)
-  ← handleWebServerStart (api.go)
-    ← WebServerStartRequest (types.go)
-      ← client.StartWebServer (client.go)
-        ← App.StartWebServer (app.go)
-          ← Frontend: handleToggleServer (SettingsTab)
+**What it is:** When the sidebar is collapsed (48px wide), icons should be horizontally centered within the 48px column. Currently, `.sidebar__toggle` uses `justify-content: center` and is centered. `.sidebar__item` uses `display: flex; align-items: center; gap: 8px; padding: 8px; width: 100%` but does NOT have `justify-content: center` — so the icon aligns to the left edge of the padding box, with 8px left padding. The 20px icon at 8px left pad leaves 20px right of center: visually off-center.
 
-New in v1.11:
-  selfcert.go → server.go (TLSConfig branch for local mode)
-  auth.go → server.go (middleware wrap for local mode)
-  localip helper → app.go (fallback IP resolution)
-  App.StartWebServer → auto-toggle all existing sessions after start
-  App.CreateSession → auto-toggle new session if server running
-  session:web-enabled event → App.tsx state sync
+**Root cause confirmed in `style.css` lines 188-207:** `.sidebar__item` has no `justify-content` declaration. `.sidebar__toggle` (line 169-182) has `justify-content: center` — that button looks correct. The item buttons are missing it.
+
+**The fix — CSS modifier class (zero JSX changes):**
+```css
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding: 8px 0;
+}
 ```
 
----
+The `padding: 8px 0` removes horizontal padding when collapsed — otherwise 8px left+right padding plus 20px icon = 36px in a 48px column, centering within the remaining 12px instead of the full 48px. With `padding: 0` horizontally, `justify-content: center` distributes the full 48px correctly.
 
-## Build Order (Phase Dependencies)
-
-**Phase ordering rationale:** Each feature is largely independent at the component level. Settings-as-tab affects the UI surface that will display the local-mode password, so it should land before the local network fallback UI work. The Claude Code detection fix and sidebar rename are purely isolated changes — safest to do first.
-
-```
-Phase A: Claude Code native path detection
-  Files: internal/pty/detect.go, internal/daemon/path.go
-  Risk: LOW — additive change, existing tests cover detect.go
-  No frontend changes.
-  Can ship alone.
-
-Phase B: Sidebar label rename ("New Tab" → "New Session")
-  Files: frontend/src/components/Sidebar.tsx, 1 test file (if asserting label text)
-  Risk: VERY LOW — two string changes
-  No backend changes.
-  Can ship alone.
-
-Phase C: Settings as sidebar tab
-  Files: frontend/src/App.tsx, frontend/src/components/SettingsPanel.tsx,
-         frontend/src/components/TabBar.tsx (type union), Sidebar.tsx (handler wiring)
-  Risk: LOW — follows identical pattern to DaemonManagerPanel tab
-  Recommended after Phase B so sidebar is fully consistent.
-  No backend changes.
-
-Phase D: Auto-serve sessions
-  Files: app.go (StartWebServer + CreateSession), App.tsx (event handler)
-  Risk: MEDIUM — changes behavior of session creation; must not break no-server case
-  New Wails event: session:web-enabled
-  No new backend packages.
-  Recommend after Phase C so the result is visible in the Settings tab.
-
-Phase E: Local network fallback (self-signed TLS + password)
-  Files: internal/webserver/selfcert.go (NEW), internal/webserver/auth.go (NEW),
-         internal/webserver/server.go, internal/daemon/types.go, internal/daemon/api.go,
-         app.go (StartWebServer fallback branch), SettingsPanel.tsx (password display),
-         App.tsx (nudge banner)
-  Risk: HIGH — most complex; re-adds removed infrastructure; new middleware
-  Depends on: Phase C (settings UI is a tab before adding password display to it)
-              Phase D (auto-serve works before layering in local mode)
-```
+The `.sidebar--collapsed` class is already on the `<nav>` element (verified in `Sidebar.tsx` line 44). CSS descendant selector works without JSX changes.
 
 ---
 
 ## Data Flow Changes
 
-### Current: Web Server Start Flow
+### Terminal Padding/Theming Data Flow
+
 ```
-User clicks Start → SettingsPanel.handleToggleServer()
-  → StartWebServer(port) [Wails binding]
-    → app.go: check Tailscale health (must be Connected + HasCerts)
-    → client.StartWebServer(h.IP, port, h.FQDN)
-      → POST /webserver/start {ip, port, fqdn}
-        → webserver.NewWebServer(Config{BindIP, Port, FQDN})
-        → ws.Start() — tls.Listen on TS IP with lc.GetCertificate
+localStorage ('terminal-padding', 'terminal-theme' keys)
+    ↓ initial value in useState
+App.tsx state: paddings{sessionId: number}, themes{sessionId: string}
+    ↓ props to each TerminalPanel instance
+TerminalPanel.tsx
+    useEffect([sessionId]):
+      term.open(containerRef.current)
+      term.element.style.padding = padding + 'px'    <- applied once on creation
+    useEffect([padding]):
+      term.element.style.padding = padding + 'px'    <- applied on change
+    useEffect([theme]):
+      term.options.theme = THEMES[theme]             <- applied on change
+    fitTerminal() reads getComputedStyle(term.element)
+      padH = paddingLeft + paddingRight
+      padV = paddingTop + paddingBottom              <- already subtracted
+    cols/rows computed correctly with padding subtracted
 ```
 
-### v1.11: Web Server Start Flow (with fallback + auto-serve)
+### Dashboard QR / URL Controls Data Flow
+
 ```
-User clicks Start (or future: auto-trigger on startup)
-  → app.go: check Tailscale health
-    → if healthy: existing Tailscale path (unchanged)
-    → if not healthy:
-        password = generatePassword()              // crypto/rand, 22 chars
-        ip = resolveLocalIP()                      // net.InterfaceAddrs scan
-        → client.StartWebServer(ip, port, ip, "local", password)
-          → POST /webserver/start {ip, port, fqdn:ip, mode:"local", password}
-            → webserver.NewWebServer(Config{BindIP, Port, FQDN, Mode:"local", Password})
-            → ws.Start() — tls.Listen with selfcert TLSConfig + auth middleware wrap
-  → After start (either mode): iterate ListSessions(), ToggleWebServing each
-  → Emit session:web-enabled {sessionId, url} for each
-  → Emit webserver:started {url, mode, password} to frontend
-Frontend: receives webserver:started → updates webServerRunning, webServerMode, localPassword state
-Frontend: receives session:web-enabled → updates webEnabled[id] and sessionURLs[id]
+SettingsTab.tsx (serverURL state, already populated from GetWebServerURL)
+    "Open Dashboard" → BrowserOpenURL(serverURL)      [Wails runtime, sync]
+    "Copy URL"       → ClipboardSetText(serverURL)    [Wails runtime, async]
+    "QR" button      → setState: showDashboardQR=true
+                           ↓
+                   DashboardQRModal mounts
+                   GetDashboardQRCode() called         [new Go binding]
+                           ↓
+                   app.go GetDashboardQRCode()
+                   client.GetWebServerStatus() → resp.URL
+                   qrcode.Encode(resp.URL, qrcode.Medium, 256) → PNG bytes
+                   base64.StdEncoding.EncodeToString(png) → string returned
+                           ↓
+                   <img src="data:image/png;base64,…"> displayed in modal
 ```
 
-### v1.11: Session Creation Flow (with auto-serve)
-```
-createTab() → CreateSession() [Wails]
-  → app.go: daemon.CreateSession(...)
-  → check client.GetWebServerStatus()
-  → if running: client.ToggleWebServing(newID, true)
-  → Emit session:web-enabled {sessionId, url}
-Frontend: receives event → webEnabled[sessionId] = true, sessionURLs[sessionId] = url
-```
+## Component Inventory: New vs Modified
 
----
+| Component/File | Status | Change Summary |
+|----------------|--------|----------------|
+| `frontend/src/lib/themes.ts` | **NEW** | xterm ITheme constants for all supported themes |
+| `frontend/src/components/DashboardQRModal.tsx` | **NEW** | Modal for dashboard URL QR; calls `GetDashboardQRCode()` |
+| `frontend/src/components/TerminalPanel.tsx` | **MODIFIED** | Add `theme: string` and `padding: number` props; add `useEffect([theme])` and `useEffect([padding])` effects |
+| `frontend/src/components/SettingsTab.tsx` | **MODIFIED** | Add Appearance sub-tab (theme picker, padding slider); add open/copy/QR controls in web-server sub-tab |
+| `frontend/src/App.tsx` | **MODIFIED** | Add `themes` and `paddings` state; pass new props to `TerminalPanel` |
+| `frontend/src/style.css` | **MODIFIED** | Add `.sidebar--collapsed .sidebar__item { justify-content: center; padding: 8px 0 }` |
+| `app.go` | **MODIFIED** | Add `GetDashboardQRCode()` method |
+| `frontend/src/wailsjs/go/main/App.js` + `.d.ts` | **REGENERATED** | Auto-generated after new Go method |
+| `frontend/src/components/StatusBar.tsx` | **MODIFIED** (optional) | If open-in-browser / copy buttons are wanted at session level (not just dashboard level) |
+
+## Recommended Build Order
+
+**Ordered by dependency chain and risk:**
+
+1. **Sidebar icon centering (Feature 4)** — CSS-only, one rule, zero risk, zero dependencies. Proves the `.sidebar--collapsed` descendant selector approach before any code changes.
+
+2. **Terminal padding (Feature 1)** — Pure frontend. The `fitTerminal` custom function already handles padding subtraction. Add `DEFAULT_PADDING` constant, `paddings` state in `App.tsx`, `padding` prop in `TerminalPanel`. Apply via `term.element.style.padding` in the mount effect. Validate that terminal fills correctly after resize with padding active. Add global default to `localStorage` in Appearance sub-tab (first version of new settings sub-tab).
+
+3. **Terminal theming (Feature 2)** — Pure frontend, depends on Feature 1 only for the shared Appearance sub-tab UI. Create `lib/themes.ts`, add `theme` prop to `TerminalPanel`, add theme picker to Appearance sub-tab. Validate runtime theme switching without terminal destruction.
+
+4. **Web server link improvements (Feature 3)** — The only feature touching Go backend. Do last so the binding layer is touched once and in isolation. Add `GetDashboardQRCode` to `app.go`, regenerate bindings, update `SettingsTab.tsx` with open/copy/QR controls, add `DashboardQRModal` component.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Storing password on disk
+### Anti-Pattern 1: Applying Padding to the Container Div Instead of the xterm Element
 
-**What people do:** Write the local-mode password to config dir for persistence across daemon restarts.
-**Why it's wrong:** Self-signed TLS with a static persistent password becomes a weak permanent credential. The password should be regenerated each time the server starts.
-**Do this instead:** Generate password in memory at `StartWebServer` call time; pass to daemon via the start request; stored only in the in-memory WebServer struct. If daemon restarts, server stops and user must re-enable (generating a new password).
+**What people do:** Add `padding` to the `containerRef` outer div in TerminalPanel.
+**Why it's wrong:** `fitTerminal` reads `window.getComputedStyle(term.element!)` — not the container div. Padding on the container shrinks available space but `fitTerminal` calculates parent width from the container (not the xterm element's own box), causing mismatched sizing.
+**Do this instead:** Apply padding via `term.element.style.padding = padding + 'px'` after `term.open()`. The custom `fitTerminal` already subtracts `padH`/`padV` from its calculations.
 
-### Anti-Pattern 2: Reusing CT disclosure gate for self-signed certs
+### Anti-Pattern 2: Destroying and Recreating the Terminal Instance for Theme Changes
 
-**What people do:** Reuse the existing `ct_disclosed` sentinel file and `HasCTDisclosure` flow for local mode.
-**Why it's wrong:** The CT disclosure is specifically about Let's Encrypt publishing hostnames to public Certificate Transparency logs. Self-signed certs have no CT log exposure. Gating local mode on the CT disclosure confuses users.
-**Do this instead:** Local mode bypasses the CT check entirely. The SettingsTab Web Server section shows a different message for local mode: "Using self-signed certificate for local network access. Tailscale provides browser-trusted certificates without this limitation."
+**What people do:** Tear down the `Terminal` instance and recreate it to apply a new theme.
+**Why it's wrong:** Loses the scrollback buffer, closes the relay client WebSocket, and triggers the bounded rAF retry loop (20 attempts, ~333ms) on every theme change.
+**Do this instead:** `term.options.theme = THEMES[theme]` — xterm.js applies theme changes live without recreation, identical to how `term.options.fontSize = fontSize` works for the existing font size feature.
 
-### Anti-Pattern 3: Making SettingsPanel a permanent tab entry
+### Anti-Pattern 3: Using `<a target="_blank">` for Dashboard URL in Wails WebView
 
-**What people do:** Add the Settings tab to the initial `tabs` state array so it always appears in the tab bar.
-**Why it's wrong:** The pattern in this codebase (WelcomeTab, DaemonManagerPanel, RemoteSessionsPanel) is "singleton tab, find-or-add on demand." Making Settings permanent pollutes the initial tab bar.
-**Do this instead:** Follow the existing singleton pattern: `handleOpenSettings` finds existing settings tab or adds it, then focuses. The tab can be closed and reopened via sidebar.
+**What people do:** Render `<a href={serverURL} target="_blank">` expecting it to open the system browser.
+**Why it's wrong:** Wails WebView's handling of `target="_blank"` is platform-dependent and unreliable. Links may not open the OS default browser.
+**Do this instead:** `BrowserOpenURL(serverURL)` from the Wails runtime. Already used for remote sessions in `App.tsx:412` and for GitHub releases in `WelcomeTab.tsx:65`.
 
-### Anti-Pattern 4: Frontend-side auto-serve decision
+### Anti-Pattern 4: Applying `justify-content: center` to All Sidebar Items Unconditionally
 
-**What people do:** In `createTab()`, check the frontend `webServerRunning` state to decide whether to call `ToggleWebServing`.
-**Why it's wrong:** Race condition — `webServerRunning` is stale React state. A new server might have just started, or the state might not reflect the daemon's current truth.
-**Do this instead:** Have `app.go CreateSession` check `client.GetWebServerStatus()` on the backend side and auto-toggle there. Emit a `session:web-enabled` event to sync frontend state.
+**What people do:** Add `justify-content: center` to `.sidebar__item` globally (not scoped to collapsed state).
+**Why it's wrong:** In expanded state, icon and label are flex children — centering both together shifts the text away from the left-aligned nav pattern and looks wrong.
+**Do this instead:** Scope the rule to `.sidebar--collapsed .sidebar__item`. The existing `.sidebar--collapsed` class is on the `<nav>` element, making descendant selectors the right mechanism.
+
+## Integration Points Summary
+
+### Wails Runtime Bindings (already available, no changes to bindings layer)
+
+| Binding | Import Path | Used For in v1.12 |
+|---------|-------------|-------------------|
+| `BrowserOpenURL(url)` | `wailsjs/wailsjs/runtime/runtime` | Open dashboard in OS browser (new use in SettingsTab) |
+| `ClipboardSetText(text)` | `wailsjs/wailsjs/runtime/runtime` | Copy server URL to clipboard |
+
+### Go App Methods (existing — no changes)
+
+| Method | Used For |
+|--------|----------|
+| `GetWebServerURL()` | Dashboard URL source — already called in SettingsTab |
+| `GetSessionQRCode(sessionId)` | Session QR (unchanged) |
+| `IsWebServerRunning()` | Gate for showing link controls |
+
+### Go App Methods (new)
+
+| Method | Location | Notes |
+|--------|----------|-------|
+| `GetDashboardQRCode()` | `app.go` | Calls `qrcode.Encode(resp.URL, ...)` — uses already-imported `skip2/go-qrcode` and `base64` |
+
+### Internal Module Boundaries (no changes needed)
+
+| Boundary | Status |
+|----------|--------|
+| `App.go` → `DaemonClient` → daemon HTTP | `GetDashboardQRCode` reuses `client.GetWebServerStatus()` — no new daemon API endpoints |
+| `TerminalPanel` → `fitTerminal` | Padding flows through existing computed-style reading — no changes to `fitTerminal` |
+| `SettingsTab` → Wails runtime | `BrowserOpenURL` import added; `ClipboardSetText` added |
 
 ---
 
-## Integration Summary Table
-
-| Feature | New Files | Modified Files | New Wails Events |
-|---------|-----------|----------------|-----------------|
-| Claude Code paths | — | `internal/pty/detect.go`, `internal/daemon/path.go` | none |
-| Sidebar rename | — | `Sidebar.tsx`, 1 test file | none |
-| Settings as tab | — | `App.tsx`, `SettingsPanel.tsx`, `TabBar.tsx` | none |
-| Auto-serve sessions | — | `app.go`, `App.tsx` | `session:web-enabled` |
-| Local network fallback | `selfcert.go`, `auth.go` | `server.go`, `types.go`, `api.go`, `app.go`, `SettingsPanel.tsx`, `App.tsx` | `webserver:started` |
-
----
-
-## Sources
-
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/webserver/server.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/webserver/tailscale.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/api.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/engine.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/types.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/pty/detect.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/internal/daemon/path.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/app.go`
-- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/App.tsx`
-- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/components/SettingsPanel.tsx`
-- Direct code inspection: `/Users/ken/dev/agenthub/frontend/src/components/Sidebar.tsx`
-- Project context: `/Users/ken/dev/agenthub/.planning/PROJECT.md`
-
----
-*Architecture research for: AgentHub v1.11 — local network fallback, auto-serve, settings-as-tab, sidebar rename, Claude Code detection*
-*Researched: 2026-04-08*
+*Architecture research for: AgentHub v1.12 UI/UX Polish milestone*
+*Researched: 2026-04-10*

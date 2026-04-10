@@ -1,207 +1,200 @@
 # Stack Research
 
-**Domain:** Desktop app (Go/Wails) — v1.11 new feature additions
-**Researched:** 2026-04-08
+**Domain:** UI/UX polish — terminal theming, terminal padding, web server link UX, sidebar icon centering
+**Researched:** 2026-04-10
 **Confidence:** HIGH
 
 ## Context: What This Research Covers
 
-This is a subsequent-milestone research file. The existing stack (Go/Wails v2, React,
-xterm.js, nhooyr/websocket, go-pty, kardianos/service, tailscale.com/client/local) is
-validated and not re-researched here. This file covers only what is NEW for v1.11:
+This is a subsequent-milestone research file for v1.12. The existing stack (Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, kardianos/service, tailscale.com/client/local) is validated and not re-researched here. This file covers only what is NEW for v1.12:
 
-1. Self-signed TLS cert generation (local network fallback)
-2. Random password generation and display
-3. Auto-serve on session creation
-4. Claude Code native install path detection fix
+1. Terminal theming (popular color schemes for xterm.js)
+2. Terminal padding (inset so text doesn't touch edges)
+3. Web server link UX (open in browser, copy URL, QR code for dashboard)
+4. Sidebar icon centering when collapsed
 
----
-
-## Feature 1: Self-Signed TLS Cert Generation
-
-**Verdict:** No new library needed. Go standard library covers this completely.
-
-### Required packages (all already imported in codebase)
-
-| Package | Source | Already in codebase? |
-|---------|--------|----------------------|
-| `crypto/ecdsa` | Go stdlib | YES — `app_test.go`, `internal/webserver/server_test.go` |
-| `crypto/elliptic` | Go stdlib | YES — `app_test.go` |
-| `crypto/rand` | Go stdlib | YES — `internal/pty/native.go`, tests |
-| `crypto/tls` | Go stdlib | YES — `internal/webserver/server.go` |
-| `crypto/x509` | Go stdlib | YES — tests |
-| `crypto/x509/pkix` | Go stdlib | YES — tests |
-| `encoding/pem` | Go stdlib | YES — tests |
-| `math/big` | Go stdlib | YES — tests |
-
-### Why no external library
-
-The test suite in `app_test.go` and `internal/webserver/server_test.go` already
-generates self-signed ECDSA certs with the CA+leaf pattern using only stdlib.
-The same code pattern moves into production in a new `internal/webserver/localnet.go`
-file. No new dependency needed.
-
-### Cert generation pattern (confirmed from existing test code)
-
-```go
-// ECDSA P-256 key, self-signed, SANs = machine LAN IPs
-key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-tmpl := &x509.Certificate{
-    SerialNumber: big.NewInt(1),
-    Subject:      pkix.Name{CommonName: "AgentHub Local"},
-    NotBefore:    time.Now(),
-    NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-    KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-    ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-    IPAddresses:  localIPs, // from net.InterfaceAddrs()
-}
-certDER, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-tlsCfg := &tls.Config{
-    Certificates: []tls.Certificate{{
-        Certificate: [][]byte{certDER},
-        PrivateKey:  key,
-    }},
-    MinVersion: tls.VersionTLS12,
-}
-```
-
-### Integration point
-
-`webserver.Config` already supports a `TLSConfig *tls.Config` override field (used for
-tests). Local-network mode passes a locally-generated `*tls.Config` through this same
-field. The `BindIP` field becomes `"0.0.0.0"` in local mode instead of the Tailscale
-IP. `BaseURL()` returns `https://<first-LAN-IP>:<port>` in local mode.
-
-No structural changes to `WebServer` are required.
+**Existing bindings already in place — no new setup needed:**
+- `BrowserOpenURL(url: string): void` — Wails runtime, already in `wailsjs/wailsjs/runtime/runtime.d.ts`
+- `ClipboardSetText(text: string): Promise<boolean>` — Wails runtime, already in same file
+- `@xterm/xterm ^6.0.0` — already installed
+- `@xterm/addon-fit ^0.11.0` — already installed (project uses custom `fitTerminal()` over stock FitAddon)
+- `@heroicons/react ^2.2.0` — already installed
+- `skip2/go-qrcode` — already in `go.mod`
 
 ---
 
-## Feature 2: Random Password Generation
+## Feature 1: Terminal Theming
 
-**Verdict:** No new library needed. `crypto/rand` is sufficient.
+**Verdict:** One new npm package needed.
 
-### Implementation
+### Recommended: `xterm-theme@1.1.0`
 
-18 random bytes encoded as URL-safe base64 = 24 characters, ~143 bits of entropy.
-Adequate for a temporary local-network session password.
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| `xterm-theme` | 1.1.0 | 217 iTerm2-derived theme definitions for xterm.js | Plain JS objects matching `ITheme` interface exactly; no runtime coupling; tree-shakeable; MIT license |
 
-```go
-import (
-    "crypto/rand"
-    "encoding/base64"
-)
-
-func generatePassword() string {
-    b := make([]byte, 18)
-    if _, err := rand.Read(b); err != nil {
-        panic("crypto/rand unavailable: " + err.Error())
-    }
-    return base64.URLEncoding.EncodeToString(b)
-}
+**Installation:**
+```bash
+cd frontend && pnpm add xterm-theme@1.1.0
 ```
 
-### Storage and display
+**Compatibility:** HIGH confidence. `xterm-theme` exports plain JS objects with keys matching xterm.js `ITheme` (`foreground`, `background`, `cursor`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and bright variants). The xterm.js `ITheme` interface is stable across v5 and v6. Although the package lists `xterm` (deprecated) as a peer dep, it is pure data — no xterm.js runtime imports. pnpm may warn about the peer dep; use `--legacy-peer-deps` if needed.
 
-The password lives only in the daemon's in-memory `API` state alongside `webServer`.
-It is:
-- Generated once when local-network mode starts (`handleWebServerStart`)
-- Returned in `WebServerStartResponse` (new `Password string` field, `omitempty`)
-- Exposed via `WebServerStatusResponse` so GUI can display it after restart
-- Never written to disk — regenerated on each `POST /webserver/start`
+**Themes to expose (recommended initial set of 10):**
 
-### Auth middleware
+| Name in package | Display name | Style |
+|----------------|-------------|-------|
+| `Dracula` | Dracula | Dark, purple tones — most popular dark theme |
+| `OneHalfDark` | One Half Dark | Dark, popular VS Code default |
+| `OneHalfLight` | One Half Light | Light version |
+| `Solarized Dark` | Solarized Dark | Classic, readable dark |
+| `Solarized Light` | Solarized Light | Classic light |
+| `Tomorrow Night` | Tomorrow Night | Dark, easy on eyes |
+| `Monokai Soda` | Monokai | Dark, developer favourite |
+| `Material` | Material | Google Material colors |
+| `Gruvbox Dark` | Gruvbox | Retro warm dark |
+| `ayu` | Ayu | Modern minimal dark |
 
-Standard `net/http` middleware: check `Authorization: Bearer <password>` header.
-Applied only when `webServer` is in local-network mode. Tailscale mode stays
-unauthenticated (tailnet membership = access control).
-
-```go
-func passwordMiddleware(password string, next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        if r.Header.Get("Authorization") != "Bearer "+password {
-            http.Error(w, "unauthorized", http.StatusUnauthorized)
-            return
-        }
-        next.ServeHTTP(w, r)
-    })
-}
+**Current state in TerminalPanel.tsx:**
+```typescript
+const term = new Terminal({
+  theme: { background: '#1a1b26' },  // ← replace with full ITheme from xterm-theme
+  ...
+})
 ```
 
-No external auth library. The codebase explicitly removed password auth in v1.2;
-re-adding it as a minimal stdlib middleware is correct and intentional.
+**Integration pattern:**
+```typescript
+import { Dracula, OneHalfDark, SolarizedDark } from 'xterm-theme'
+
+// At creation:
+const term = new Terminal({ theme: Dracula, ... })
+
+// Runtime change (no terminal recreation needed):
+term.options.theme = OneHalfDark
+```
+
+**Persistence:** Store selected theme name in `localStorage`. Pass as prop `App.tsx → TerminalPanel`. Apply at `new Terminal({ theme: selectedTheme })` and on user change via `term.options.theme = newTheme`.
 
 ---
 
-## Feature 3: Auto-Serve on Session Creation
+## Feature 2: Terminal Padding
 
-**Verdict:** Pure logic change. No new stack additions.
+**Verdict:** No new library. CSS-only change. Custom `fitTerminal()` already handles padding correctly.
 
-### Current flow (manual)
+**Key discovery:** The project does NOT use stock `FitAddon.fit()`. It has a custom `fitTerminal()` function that already reads CSS padding from the terminal element:
 
-1. `POST /sessions` creates session, returns ID
-2. User separately calls `POST /webserver/start` if needed
-3. User separately calls `POST /sessions/{id}/web-serve` with `{"enabled": true}`
+```typescript
+// Existing code in TerminalPanel.tsx — already accounts for padding:
+const elStyle = window.getComputedStyle(term.element!)
+const padH = parseInt(elStyle.paddingLeft) + parseInt(elStyle.paddingRight)
+const padV = parseInt(elStyle.paddingTop) + parseInt(elStyle.paddingBottom)
 
-### New flow (auto)
+const cols = Math.max(2, Math.floor((parentW - padH) / dims.css.cell.width))
+const rows = Math.max(1, Math.floor((parentH - padV) / dims.css.cell.height))
+```
 
-1. `POST /sessions` creates session, returns ID
-2. In `handleCreateSession`: if `a.webServer != nil`, call `a.webServer.EnableSession(id)` immediately
-3. Auto-start the web server: if no webServer is running, start it automatically
-   (using the appropriate mode — Tailscale or local-network — depending on health state)
+This means adding CSS padding to `.xterm` element automatically produces correct terminal sizing with no JS changes. This is the correct insertion point because `fitTerminal()` reads from `term.element!` (the `.xterm` div, not the container).
 
-### Config impact
-
-The `API` struct needs an `autoServe bool` field or the behavior is always-on. The
-`WebServerStartRequest` (IPC type) may gain an `AutoServe bool` field so the GUI can
-configure this at startup. No new library, no new IPC patterns — this is logic-only
-within `internal/daemon/api.go`.
-
----
-
-## Feature 4: Claude Code Native Install Path Detection
-
-**Verdict:** Pure path augmentation change in `internal/daemon/path.go`. No new library.
-
-### Problem
-
-The Anthropic native installer places the `claude` binary at:
-
-| Platform | Path |
-|----------|------|
-| macOS / Linux / WSL | `~/.local/bin/claude` |
-| Windows | `%USERPROFILE%\.local\bin\claude.exe` |
-
-**Source:** Official Anthropic docs — https://code.claude.com/docs/en/setup, uninstall
-section explicitly says `rm -f ~/.local/bin/claude`. Verified on this machine: binary
-exists at `/Users/ken/.local/bin/claude` and is the active `claude` in PATH.
-
-The current `AugmentServicePath()` in `internal/daemon/path.go` prepends only:
-- `~/.volta/bin`
-- `/opt/homebrew/bin`
-- `/usr/local/bin`
-- `/home/linuxbrew/.linuxbrew/bin`
-- nvm active bin
-
-`~/.local/bin` is missing. When the daemon runs as a launchd service (or is launched
-from Finder), the shell's PATH is not sourced, so `exec.LookPath("claude")` returns
-`ErrCLINotFound` even when the native-installed binary is present.
-
-### Fix — single insertion
-
-```go
-// In AugmentServicePath(), add as first candidate:
-candidates := []string{
-    filepath.Join(home, ".local", "bin"),   // Anthropic native installer (claude)
-    filepath.Join(home, ".volta", "bin"),
-    "/opt/homebrew/bin",
-    "/usr/local/bin",
-    "/home/linuxbrew/.linuxbrew/bin",
-    nvmActiveBin(home),
+**Implementation:** One CSS rule:
+```css
+.xterm {
+  padding: 8px 12px;
 }
 ```
 
-`filepath.Join(home, ".local", "bin")` is correct on all three platforms
-(`os.UserHomeDir()` returns `%USERPROFILE%` on Windows, which expands correctly).
+**Why not a config option:** xterm.js `ITerminalOptions` has no `padding` property. The feature request (GitHub issue #946) was closed in v3.1.0 via a PR that made xterm aware of CSS padding in mouse coordinate calculation — but there is no `padding: N` option in `ITerminalOptions`. CSS is the only approach, and it works correctly here because the custom fitter already reads it.
+
+**No new Go changes. No new npm packages.**
+
+---
+
+## Feature 3: Web Server Link UX
+
+**Verdict:** No new libraries. All bindings already exist. Two areas to update: `StatusBar.tsx` (session URLs) and `SettingsTab.tsx` (dashboard URL). One new Go binding needed for dashboard QR.
+
+### Session URL (StatusBar.tsx) — current state
+
+```typescript
+// Current: opens inside Wails WebView — WRONG for URLs
+<a className="tab-status-bar__url" href={sessionURL} target="_blank" rel="noreferrer">
+  {sessionURL}
+</a>
+```
+
+`target="_blank"` in Wails WebView opens within the WebKit view, not the system browser. `BrowserOpenURL` is the correct API.
+
+### Changes needed
+
+**StatusBar.tsx:**
+- Replace `<a href>` with text span + "Open" button calling `BrowserOpenURL(sessionURL)` from Wails runtime
+- Add copy icon button calling `ClipboardSetText(sessionURL)` from Wails runtime
+
+**SettingsTab.tsx:**
+- Replace `<a href={serverURL}>` with text + "Open" button calling `BrowserOpenURL(serverURL)`
+- Add "Copy" button calling `ClipboardSetText(serverURL)`
+- Add "QR" button showing QR code modal for the dashboard URL
+
+**QR for dashboard URL:** `skip2/go-qrcode` already exists. The existing `QRModal.tsx` and `GetSessionQR(id)` binding exist for per-session QR. Add one new Go binding `GetWebServerQR() (string, error)` in `App.go` that generates a QR PNG (base64) for the web server dashboard URL. This reuses the exact same `skip2/go-qrcode` pattern already in the codebase.
+
+**Import pattern for Wails runtime bindings:**
+```typescript
+import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
+```
+
+Both are already exported from the runtime file — no `wails generate` needed.
+
+### clipboard: `ClipboardSetText` vs `navigator.clipboard.writeText`
+
+SettingsTab already uses `navigator.clipboard.writeText(localPassword)` for the password copy button. Either approach works in Wails (WebKit runs in a secure context). For the URL copy buttons, `ClipboardSetText` from the Wails runtime is preferred — it uses the OS clipboard API directly and is consistent with desktop patterns. Keep the existing password copy as-is to avoid unnecessary churn.
+
+---
+
+## Feature 4: Sidebar Icon Centering
+
+**Verdict:** Pure CSS fix. No library, no JS changes.
+
+**Problem:** When sidebar is collapsed, `.sidebar__item` has `display: flex; align-items: center; gap: 8px; padding: 8px`. With no `justify-content`, it defaults to `flex-start`, which pushes icons left instead of centering them in the 48px collapsed sidebar.
+
+**Current CSS:**
+```css
+.sidebar--collapsed {
+  width: 48px;
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;  /* vertical — correct */
+  gap: 8px;
+  padding: 8px;
+  width: 100%;
+  text-align: left;
+  /* NO justify-content: defaults to flex-start → icon hugs left edge */
+}
+```
+
+**Fix:**
+```css
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding: 8px 0;
+}
+```
+
+`padding: 8px 0` removes horizontal padding in collapsed state, ensuring the icon sits at the geometric center of the 48px sidebar.
+
+The `.sidebar__toggle` already has `justify-content: center` (correct). Only `.sidebar__item` needs this fix.
+
+---
+
+## Summary: New Dependencies
+
+| Type | Item | Action |
+|------|------|--------|
+| npm | `xterm-theme@1.1.0` | `pnpm add xterm-theme@1.1.0` in `frontend/` |
+| Go | none | No new packages — all bindings already exist |
+| CSS | none | Changes to existing `style.css` only |
+| Wails bindings | `GetWebServerQR()` | New method in `App.go`, generated binding in `wailsjs/` |
 
 ---
 
@@ -209,78 +202,41 @@ candidates := []string{
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| External self-signed cert library | Subprocess dep, no API surface | Go stdlib `crypto/x509` |
-| `crypto/md5` or `math/rand` for passwords | Not cryptographically secure | `crypto/rand` |
-| External auth library (gorilla/sessions etc.) | 10,000+ LOC for a single Bearer check | stdlib `net/http` middleware (~10 lines) |
-| Persistent cert storage (disk writes) | Complicates restart; unnecessary for local fallback | In-memory `tls.Config`, regenerate on each server start |
-| Storing password in settings file | Plaintext credential on disk; overkill for session-scoped access | In-memory only, regenerate each server start |
-| `net.InterfaceAddrs()` replacement library | Already in stdlib | `net.InterfaceAddrs()` directly |
-| `tsnet` for local binding | Creates a second Tailscale node; wrong tool | Standard `net.Listen("tcp", "0.0.0.0:<port>")` |
+| `react-color` or color picker libraries | Out of scope; this is a theme selector, not a color editor | `<select>` over predefined themes from `xterm-theme` |
+| Stock `FitAddon.fit()` for padding | Subtracts hardcoded 14px scrollbar width; ignores CSS padding | Existing custom `fitTerminal()` in `TerminalPanel.tsx` — already handles padding |
+| `ITerminalOptions.padding` | Does not exist in xterm.js API | CSS on `.xterm { padding: 8px 12px }` |
+| `<a href target="_blank">` for opening URLs in Wails | Opens inside WebKit WebView, not system browser | `BrowserOpenURL(url)` from Wails runtime |
+| New QR library | `skip2/go-qrcode` already present | Reuse existing pattern with new `GetWebServerQR()` binding |
+| External CSS framework for sidebar fix | 2-line CSS change | `.sidebar--collapsed .sidebar__item { justify-content: center }` |
+| `navigator.clipboard.writeText()` for new URL copy buttons | Works but less idiomatic for desktop | `ClipboardSetText()` Wails runtime binding |
+| Storing theme in Go/backend | UI preference, no backend relevance | `localStorage` key in frontend only |
 
 ---
 
-## New Files
+## Version Compatibility
 
-| File | Purpose |
-|------|---------|
-| `internal/webserver/localnet.go` | `GenerateLocalCert() *tls.Config`, `LocalLANIPs() []net.IP` |
-| `internal/webserver/localnet_test.go` | Tests for cert generation and IP enumeration |
-
-## Files Modified
-
-| File | Change |
-|------|--------|
-| `internal/daemon/path.go` | Add `~/.local/bin` to `AugmentServicePath()` candidates |
-| `internal/daemon/path_test.go` | Test coverage for `~/.local/bin` candidate |
-| `internal/daemon/api.go` | Auto-serve logic in `handleCreateSession`; `Password` in `WebServerStartResponse` / `WebServerStatusResponse` |
-| `internal/daemon/client.go` | Expose `Password` from `WebServerStatus()` response |
-| `internal/daemon/types.go` | `WebServerStartRequest.Mode` field (tailscale vs localnet) |
-| `internal/webserver/server.go` | Password auth middleware wired when in local-network mode |
-| `app.go` | Wire local-network fallback to `StartWebServer` Wails binding |
-| Frontend | Nudge banner (Tailscale not found), display local URL + password |
-
----
-
-## Installation
-
-No new `go get` commands. All new capabilities use Go standard library packages
-already imported in this module.
-
-```bash
-# Confirm no new deps introduced:
-go mod tidy
-```
-
----
-
-## Stack Patterns by Variant
-
-**Tailscale healthy (installed + connected + certs enabled) — unchanged:**
-- `local.Client{}.GetCertificate` hook for TLS
-- Bind to Tailscale IP only
-- No password, no nudge banner
-
-**Tailscale not healthy — new local-network fallback:**
-- `GenerateLocalCert()` from `internal/webserver/localnet.go` for TLS
-- Bind to `0.0.0.0` (all LAN interfaces)
-- Generate password via `crypto/rand`
-- Show persistent nudge banner in GUI pointing to Tailscale onboarding
-- Both modes share the same `WebServer` struct, same session enable/disable API
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `xterm-theme@1.1.0` | `@xterm/xterm@^6.0.0` | Compatible as pure data; ITheme interface stable across v5/v6; no runtime coupling |
+| `@xterm/xterm@^6.0.0` (existing) | Custom `fitTerminal()` with CSS padding | Verified: custom fitter reads `getComputedStyle(term.element!)` padding |
+| Wails runtime `BrowserOpenURL` | Wails v2.10.2 (existing) | Already declared in `runtime.d.ts`; no version change |
+| Wails runtime `ClipboardSetText` | Wails v2.10.2 (existing) | Already declared in `runtime.d.ts`; no version change |
 
 ---
 
 ## Sources
 
-- Official Anthropic Claude Code docs — https://code.claude.com/docs/en/setup
-  Confirms native install path `~/.local/bin/claude` (macOS/Linux). HIGH confidence.
-- Verified on local machine at `/Users/ken/.local/bin/claude`. HIGH confidence.
-- Existing `app_test.go` and `internal/webserver/server_test.go` — confirm Go stdlib
-  self-signed cert generation pattern works in this codebase. HIGH confidence.
-- `internal/daemon/path.go` — source of the omission (no `~/.local/bin`). HIGH confidence.
-- `internal/webserver/server.go` — `TLSConfig` override field already present and wired;
-  confirms local cert injection approach requires no structural change. HIGH confidence.
+- https://xtermjs.org/docs/api/terminal/interfaces/itheme/ — ITheme fields confirmed (HIGH confidence, official docs)
+- https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/ — Confirmed no `padding` option exists (HIGH confidence, official docs)
+- https://github.com/xtermjs/xterm.js/discussions/5299 — FitAddon does not handle CSS padding; custom implementation required (MEDIUM confidence, maintainer response)
+- https://github.com/xtermjs/xterm.js/issues/946 — Padding via CSS on `.xterm` element is the supported approach; merged in v3.1.0 (MEDIUM confidence, issue resolution)
+- https://github.com/ysk2014/xterm-theme/blob/master/src/index.js — 217 themes enumerated by direct source inspection; all export plain objects (HIGH confidence, source code)
+- Wails v2 docs — `ClipboardSetText` and `BrowserOpenURL` confirmed as runtime bindings (HIGH confidence, official Wails docs)
+- `/Users/ken/dev/agenthub/frontend/src/wailsjs/wailsjs/runtime/runtime.d.ts` — Both bindings already declared in this repo (HIGH confidence, direct file inspection)
+- `/Users/ken/dev/agenthub/frontend/src/components/TerminalPanel.tsx` — Custom `fitTerminal()` already reads `paddingLeft/paddingRight/paddingTop/paddingBottom` from `getComputedStyle(term.element!)` (HIGH confidence, direct code inspection)
+- `/Users/ken/dev/agenthub/frontend/src/style.css` lines 154–224 — Sidebar CSS confirms missing `justify-content` on `.sidebar__item` (HIGH confidence, direct code inspection)
 
 ---
 
-*Stack research for: AgentHub v1.11 — local network fallback, auto-serve, Claude Code detection*
-*Researched: 2026-04-08*
+*Stack research for: AgentHub v1.12 UI/UX Polish*
+*Researched: 2026-04-10*

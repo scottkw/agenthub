@@ -1,206 +1,220 @@
 # Pitfalls Research
 
-**Domain:** Go/Wails desktop app — dual-mode networking (Tailscale + local fallback), auto-serve sessions, modal-to-tab conversion, CLI path detection for multiple install methods
-**Researched:** 2026-04-08
-**Confidence:** HIGH (architecture fully readable from live codebase; external claims verified against official Claude Code docs and Go standard library)
+**Domain:** Go/Wails desktop app — UI/UX polish (terminal padding, terminal theming, web server link actions, sidebar icon centering)
+**Researched:** 2026-04-10
+**Confidence:** HIGH (codebase fully readable; xterm.js issues verified against GitHub tracker; Wails runtime verified against official docs)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Dual-Mode Web Server — Two Listeners, One Config Struct
+### Pitfall 1: Terminal Padding Breaks FitAddon Column Count
 
 **What goes wrong:**
-The current `webserver.Config` embeds Tailscale-specific fields: `BindIP` (Tailscale 100.x.x.x address), `FQDN` (MagicDNS hostname for Let's Encrypt), and a `GetCertificate` hook from `local.Client`. Reintroducing local-network serving by adding an `if !tailscale { useLocalCert }` branch inside `Start()` creates a single method that now silently selects two incompatible code paths. The failure mode is subtle: `Start()` succeeds but `BaseURL()` returns the wrong scheme/host for the active mode, QR codes encode the wrong URL, and the StatusBar shows an unreachable link.
+The existing `fitTerminal()` custom function reads `term.element` padding via `getComputedStyle` and subtracts it from available width/height before calculating cols/rows. This means CSS padding applied to the `.xterm` element is already accounted for in the custom fitter. However, padding applied to the *container* (`containerRef.current`) rather than the `.xterm` element is NOT accounted for — `fitTerminal` reads the parent's width from `getComputedStyle(parent).width`, which is the full container width including its own padding.
 
-A second failure: the existing `server.go` computes `BaseURL()` using `ws.config.FQDN`. If Tailscale mode returns a `.ts.net` hostname and local mode returns a LAN IP, but both go through the same `BaseURL()` function, one mode will always produce the wrong URL — and the bug will not appear in unit tests that only exercise one code path.
+The result: the terminal overflows the container by exactly the container's padding value, or — if the terminal clips — the right edge of text is cut off. Both regressions are invisible in unit tests since jsdom reports zero for all layout measurements.
+
+There is a secondary failure: the project already uses a custom `fitTerminal()` that bypasses `FitAddon.fit()` precisely because `FitAddon.fit()` hardcodes `DEFAULT_SCROLL_BAR_WIDTH = 14px` even when the scrollbar is hidden via CSS. Adding `options.scrollback: 0` or `overflow: hidden` after the fact to hide the scrollbar will interact with this workaround in an unpredictable way.
 
 **Why it happens:**
-The existing Config struct and Start() method are Tailscale-only by design (v1.2 removed all self-signed infrastructure). When reintroducing local mode, developers modify the existing struct in-place rather than introducing a discriminated union or a mode flag, and the two modes share fields that have incompatible meanings.
+Padding is typically added to the inner `.xterm` element (the recommended approach) but developers may add it to the React container div for convenience. The custom `fitTerminal()` reads the parent's `width` from computed style — which does NOT subtract the parent's own padding. The inner `.xterm` padding IS correctly subtracted. So: container padding → overflow; `.xterm` padding → correct.
+
+The existing comment in `TerminalPanel.tsx` ("FitAddon.fit() always subtracts DEFAULT_SCROLL_BAR_WIDTH (14px) even when the scrollbar is hidden") explains why the custom fitter exists — but a developer unfamiliar with this can accidentally revert to `FitAddon.fit()` when adding padding, restoring the scrollbar gap regression.
 
 **How to avoid:**
-- Add an explicit `Mode` field (or a separate `LocalConfig` struct) so callers cannot accidentally supply a `FQDN` for local mode or omit a password for local mode.
-- Implement `Start()` as two private methods (`startTailscale`, `startLocal`) with a dispatcher — no conditional branching inside a single method.
-- Make `BaseURL()` return a string that is computed lazily from the actual listener address AND the active mode, not from the config struct.
-- Unit-test both modes independently: Tailscale tests inject a mock `TLSConfig`; local tests use a real self-signed cert generated in-memory.
-- Add a compile-time check that prevents `Config.FQDN` from being non-empty when `Mode == Local`.
+- Apply padding only via `xterm.js` `options.scrollback` and `options.padding` — NOT via CSS on the container div.
+- `xterm.js` exposes `terminal.options` as a live settable object: set `term.options` (or `term.setOption` in older API) with the padding value. The internal `FitAddon` source (`FitAddon.ts`) reads `elementStyle.paddingLeft/Right/Top/Bottom` and subtracts them before dividing by cell dimensions — so padding set this way is handled correctly.
+- Do NOT add CSS `padding` to `containerRef.current` (the React div). It must remain a zero-padding flex container so the parent's width measurement is accurate.
+- After changing `term.options.fontSize` (or any dimension-affecting option), call `fitTerminal(term)` immediately — the existing `useEffect([fontSize])` already does this; verify padding changes follow the same pattern.
+- The `ResizeObserver` on the container will fire on any layout change including sidebar expand/collapse — confirm it fires and re-fits correctly after the container's parent width changes.
 
 **Warning signs:**
-- `BaseURL()` returns an FQDN-style URL when the server was started in local mode.
-- QR code contains the Tailscale hostname even though Tailscale is not connected.
-- `IsWebServerRunning()` returns `true` but `GetWebServerURL()` returns `""` — the two modes disagree on "running" state.
+- Terminal text is clipped on the right side (terminal overflows into container padding area).
+- One or two blank columns appear on the right (FitAddon reverting to subtracting scrollbar width).
+- `term.cols` differs from `Math.floor((containerWidth - 2*padding) / cellWidth)` by more than 1.
+- Sidebar expand/collapse causes terminal to not fill the new width until a window resize occurs.
 
-**Phase to address:** Local network fallback phase (first v1.11 phase). The mode abstraction must be locked in before anything else touches the web server.
+**Phase to address:** Terminal padding phase. The padding value must be applied via `terminal.options`, not CSS, and the existing `fitTerminal` function must remain in use (not replaced by `FitAddon.fit()`).
 
 ---
 
-### Pitfall 2: Self-Signed Certificate — P521 Curve Rejected by Browsers
+### Pitfall 2: Font Change Requires Re-Fit and Triggers a Timing Gap
 
 **What goes wrong:**
-Go's `crypto/tls/generate_cert.go` generates ECDSA keys with curve P521 by default. P521 is not supported in Chrome, Chromium, or Firefox — the browser returns a cryptic `remote error: tls: illegal parameter` error with no indication that the curve is the cause. Users see a connection error, not a certificate warning, so the "click through the warning" workaround does not apply.
+When a user selects a new terminal font (e.g., switching from "Cascadia Code" to "JetBrains Mono"), three sequential steps must happen in the correct order:
 
-Previously (v1.0), AgentHub's self-signed CA+leaf generation also used P256, but that code was deleted in v1.2 and is not available for copy-paste reference.
+1. `term.options.fontFamily = 'JetBrains Mono'` — triggers xterm to invalidate its character size cache and rebuild the texture atlas.
+2. The CharSizeService inside xterm.js must remeasure the new font's cell dimensions. This is asynchronous — the service measures by rendering a hidden span in the DOM and reading its metrics. Until this completes, `dims.css.cell.width` and `dims.css.cell.height` return the old values.
+3. Only after CharSizeService has updated should `fitTerminal()` be called — otherwise it calculates cols/rows using the old font's cell dimensions, producing incorrect terminal dimensions with the new font.
+
+The existing rAF retry loop (which polls `fitAddonRef.current?.proposeDimensions()`) was built for a specific scenario: the terminal is hidden via `display:none` when opened, so CharSizeService returns zero until the panel becomes visible. The font-change scenario is different: CharSizeService returns *non-zero* but *stale* values. The retry loop exits immediately on seeing non-zero, before the new font dimensions are available.
+
+A separate font-loading failure: web fonts (non-system fonts) may not be loaded by the time `term.options.fontFamily` is set. xterm.js uses canvas rendering and does not wait for `document.fonts.ready`. If the font is referenced but not yet downloaded, xterm renders with the fallback monospace font but reports dimensions for that fallback — so all content renders at the wrong width.
 
 **Why it happens:**
-Go examples and generate_cert.go documentation do not prominently flag curve support limitations. Developers generate a cert, test it in curl (which accepts P521), and declare it working — without testing in Chrome.
+Web font loading is asynchronous and xterm.js provides no built-in callback for "font ready." Canvas rendering does not automatically trigger a re-render when a web font becomes available (unlike DOM text nodes which benefit from font-swap). Developers test with system fonts (Courier New, monospace) during development and never encounter the race condition because system fonts are always already loaded.
 
 **How to avoid:**
-- Generate self-signed certificates using P256 (`elliptic.P256()`), not P521.
-- Generate an in-memory CA + leaf pair (two separate certs) rather than a single self-signed cert: some TLS clients reject certs that act as both CA and leaf.
-- Test the generated cert by opening it in Chrome immediately during development — do not rely on curl or Go's own TLS client.
-- Use `x509.Certificate{IsCA: true, ...}` for the CA cert and a separate leaf cert signed by that CA.
-- Store only the in-memory cert (no disk writes); regenerate on each daemon start to avoid stale keys.
+- For web font loading: use `document.fonts.load('14px "JetBrains Mono"')` (returns a Promise) before setting `term.options.fontFamily`. Only after the promise resolves should `fontFamily` be updated and `fitTerminal()` called.
+- For post-change re-fit timing: after setting `term.options.fontFamily`, schedule `fitTerminal()` in a `requestAnimationFrame` callback, not synchronously. This gives xterm one frame to remeasure after the font option change. If using a web font, wait for `document.fonts.load()` resolution, THEN schedule the rAF.
+- Persist the chosen font name in `localStorage` (e.g., `terminal-font-family`). On terminal creation in `useEffect([sessionId])`, read from localStorage and set the initial `fontFamily` in the `Terminal` constructor — this fires before `term.open()`, so CharSizeService measures the correct font from the start.
+- When applying a saved font at startup, still call `document.fonts.load()` first if the font is a web font, since the terminal opens immediately on app launch before web fonts may be cached.
+- The `FontFace` API and `@font-face` CSS declarations must be included in the app's CSS or dynamically injected before `document.fonts.load()` will resolve.
 
 **Warning signs:**
-- Browser shows `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` or `ERR_BAD_SSL_CLIENT_AUTH_CERT` instead of the expected "certificate is not trusted" warning.
-- `tls: illegal parameter` appears in Go server logs.
-- Curl succeeds but Chrome fails — this is the P521 signature.
+- Columns are correct for the old font, wrong for the new font — text wraps too early or extends past the terminal edge.
+- `fitTerminal()` fires with the correct new font but the wrong cell width.
+- Font appears correct visually but the PTY still renders to the old column count — PTY dimensions were set before the re-fit.
+- On app restart, the selected font works correctly (because it was set in the Terminal constructor), but switching fonts mid-session produces misaligned output.
 
-**Phase to address:** Local network fallback phase. Cert generation is the first implementation step; must get the curve right before building anything on top.
+**Phase to address:** Terminal theming phase. Font family changes require the `document.fonts.load()` pre-flight and a rAF-deferred re-fit. This is additive to the per-tab font size logic, not a replacement.
 
 ---
 
-### Pitfall 3: Password Authentication — Shared State Between Daemon and Web Server
+### Pitfall 3: Theme Persistence Requires Separate Storage from Font Sizing
 
 **What goes wrong:**
-The local-mode password needs to be:
-1. Generated once per daemon start (not re-rolled on each web server start/stop cycle).
-2. Accessible to the web server middleware for request validation.
-3. Retrievable by the GUI so it can display it to the user.
-4. NOT stored in plain text in a config file world-readable at `~/.config/agenthub/`.
+The existing per-tab font size uses a `fontSizes` map keyed by session ID stored in React state (`App.tsx`). Terminal themes are not per-tab settings — they are global app preferences (all terminal tabs use the same color theme). Storing the selected theme in the same `fontSizes` pattern (per-tab, in React state) creates divergent theme state across tabs and means the theme is lost on app restart because React state does not persist.
 
-The common failure is generating the password inside `StartWebServer()` and storing it only in the `WebServer` struct. When the GUI calls `GetWebServerURL()` or the daemon API returns the URL, the password is not included. Then developers add the password to the URL as a query param (`?pw=...`) — which lands in browser history, server logs, and QR codes that are screen-captured.
+A related failure: `xterm.js` v5 renamed `ITheme.selection` to `ITheme.selectionBackground`. Theme definitions copied from online resources or older xterm.js examples may use the old key name — the property is silently ignored (no runtime error), and the selection color shows as transparent, which is visually broken but not obviously wrong.
 
-A second failure: if the password is rolled on each `StopWebServer/StartWebServer` cycle, existing browser sessions are invalidated without user notification.
+A third failure: applying a new theme to an already-open terminal requires `term.options.theme = newTheme` (full theme object assignment) — not `term.options.theme.background = '#...'`. Partial assignment of individual color properties does not trigger xterm's internal color cache invalidation, so the change may not appear until the next terminal clear.
 
 **Why it happens:**
-Password generation is simple (`crypto/rand`), so it gets added at the most convenient call site rather than the architecturally correct one. Auth middleware is an afterthought.
+Developers conflate per-session-sizing (appropriate per-tab) with per-session-theming (not appropriate — all tabs should match). The `fontSizes` map is convenient but wrong for global prefs. ITheme key renames are a common xterm.js API version gotcha.
 
 **How to avoid:**
-- Generate the password once in `runDaemonCore()` at daemon startup — it lives as long as the daemon process, not as long as any individual web server instance.
-- Pass the password to `WebServer` at construction time (`NewWebServer(cfg, manager, password string)`), not at start time.
-- Never embed the password in the URL. Use HTTP Basic Auth or a custom header — Basic Auth is widely supported by browsers (they prompt the user) and by curl.
-- Store the password in memory only; never write it to disk.
-- Expose `GetLocalPassword()` as a daemon API endpoint so the GUI can show it in the Settings tab without embedding it in every URL.
-- Document that rolling the password requires a daemon restart (not just a web server restart) so UX copy is accurate.
+- Store the selected theme name (not the full theme object) in `localStorage` under a single key (`terminal-theme`). All `TerminalPanel` instances read from this on mount and apply the theme in the `Terminal` constructor.
+- When the user changes the theme, update `localStorage` and then iterate over all open `termRef.current` instances to apply the new theme. This requires either a React context or an event dispatch pattern — avoid storing theme in `App.tsx` state if it would cause all tabs to remount.
+- Use `term.options.theme = { ...newTheme }` (new object) not property mutation. This guarantees the setter fires and xterm rebuilds its color cache.
+- Validate theme objects against the xterm.js v5 `ITheme` interface: required key is `selectionBackground` (not `selection`). A compile-time TypeScript `ITheme` import from `@xterm/xterm` will catch this at build time.
+- Ship a small number of curated themes (5-8) as static TypeScript objects conforming to `ITheme` rather than parsing external theme files at runtime. This avoids format compatibility issues.
 
 **Warning signs:**
-- Password appears in `sessionURLs` values stored in React state (it should not be in the URL).
-- `GetWebServerURL()` returns different values before and after `StopWebServer/StartWebServer`.
-- Auth check is implemented as URL query param comparison rather than header comparison.
+- Text selection color is transparent or invisible — indicates `selection` (old API) being used instead of `selectionBackground`.
+- Theme change works on the active tab but other tabs still show the old theme.
+- Theme is lost after app restart (not persisted to localStorage).
+- `term.options.theme.background = '#...'` mutations have no visual effect.
 
-**Phase to address:** Local network fallback phase — password design must be part of the initial architecture, not added after the fact.
+**Phase to address:** Terminal theming phase. Theme storage must be global (`localStorage`), not per-tab React state.
 
 ---
 
-### Pitfall 4: Auto-Serve — Existing Sessions Are Not Retroactively Served
+### Pitfall 4: Web Server Link Opening Silently Fails Without Error Feedback
 
 **What goes wrong:**
-Auto-serve means "all new sessions are automatically web-enabled when created." If the implementation only changes `CreateSession` to call `EnableSession(id)` after creation, then sessions that exist when the user upgrades (or sessions created before the web server starts) are never auto-served. The user creates a session, the web server starts late, and the session is not served.
+`runtime.BrowserOpenURL(ctx, url)` calls `github.com/pkg/browser.OpenURL` internally. This function can fail (no default browser configured, sandboxed environment, missing `xdg-open` on Linux) but `BrowserOpenURL` does not return an error and does not log the failure. The Go function signature is `BrowserOpenURL(ctx, url string)` with no return value — the error is swallowed.
 
-A second failure: the current `webEnabled` map in `WebServer` and the `webEnabled` state in React are separate. If auto-serve calls `EnableSession` at the daemon level but the React state is not seeded from the daemon on load, the toggle in the `StatusBar` shows OFF even though the session is being served. Users click it off, accidentally unserving their session.
+On Linux, `xdg-open` may not be installed in minimal environments. On macOS inside a sandboxed app bundle (not the case for Wails apps, but worth noting), `NSWorkspace.openURL` can be restricted. The frontend has no way to know the URL failed to open.
+
+A second failure: the Wails JS binding `BrowserOpenURL(url)` is available on the frontend as `window.go.main.App.BrowserOpenURL(url)`. Calling it on the URL string obtained from the web server may produce a call with an empty string if the web server URL is not yet populated in state — the browser silently opens a blank tab or nothing happens with no error.
 
 **Why it happens:**
-Auto-serve is typically implemented as "new sessions default to enabled." The existing session restoration on app launch (`init()` → `ListSessions()`) was written for a world where web-enabled state is per-user-toggle. It does not know to treat "all sessions are served" as the default.
+`BrowserOpenURL` was designed as a fire-and-forget convenience. Its silent failure mode is documented in the Wails GitHub issue tracker but not prominently in the official docs. Developers test on macOS (where `open` always works) and never encounter the silent failure on Linux.
 
 **How to avoid:**
-- Track auto-serve as a daemon-level setting: when enabled, `ListSessions()` response should include a `webEnabled` field per session that the daemon authoratively knows — not the frontend guessing from local state.
-- On `init()`, after `ListSessions()`, also call `GetWebEnabled(sessionId)` for each session (or return it in `ListSessions` response) and seed `webEnabled` state from those values.
-- Do not rely on the React state as the source of truth for web-enabled state across window hide/show cycles.
-- The nudge banner for Tailscale should not appear for sessions that are already served over Tailscale — distinguish "local mode auto-served" from "Tailscale mode auto-served."
+- Wrap the Wails binding call in the frontend with a guard: check that the URL string is non-empty before calling `BrowserOpenURL`. Show a toast or inline error if the URL is empty.
+- On the Go side, expose a `OpenWebServerURL() error` method on `App` that calls `BrowserOpenURL` and logs the result (even though `BrowserOpenURL` swallows the error). Use `exec.Command("open", url)` on macOS directly if silent failure is observed in production — this at least surfaces the stderr.
+- For the copy-to-clipboard path, use `runtime.ClipboardSetText(ctx, url)` which returns `(bool, error)` in Go and a Promise in JS. Surface failure to the user: "Could not copy to clipboard" with the URL displayed as plain text so they can copy manually.
+- Do not use the clipboard path as a fallback for failed browser opening — they are independent actions triggered by separate buttons.
 
 **Warning signs:**
-- `StatusBar` shows web toggle OFF for a session that is actually being served.
-- Sessions created before the web server starts are never auto-served even when auto-serve is on.
-- Restoring the app window after it was hidden shows all sessions as web-disabled even though the daemon has them web-enabled.
+- Clicking "Open in Browser" has no visible effect on Linux.
+- No error is shown in the frontend when `BrowserOpenURL` fails.
+- The URL displayed in the StatusBar or Settings is empty when the web server hasn't started yet, and clicking "Open" with an empty URL triggers a call that silently does nothing.
+- `ClipboardSetText` returns `false` on macOS M1 (known issue in Wails v2.4.1 — verify the Wails version in use).
 
-**Phase to address:** Auto-serve phase. Must extend `ListSessions` response to include web-enabled state before any frontend auto-serve work.
+**Phase to address:** Web server link actions phase. Guards on empty URL and error surfacing for clipboard must be part of the initial implementation.
 
 ---
 
-### Pitfall 5: Settings Modal-to-Tab Conversion — State Lifecycle Mismatch
+### Pitfall 5: Clipboard in Wails Context — Platform Inconsistency
 
 **What goes wrong:**
-The current `SettingsPanel` uses `isOpen` as its lifecycle gate: it loads web server state in a `useEffect([isOpen])` hook, returns `null` when `isOpen` is false, and resets local state (selectedPort, serverLoading, ctDisclosed) on each open. Converting it to a persistent sidebar tab means:
+`runtime.ClipboardSetText` has documented failures on macOS M1/M2 (Wails v2.4.1) where the function returns success but the clipboard remains empty. The root cause was a missing `LANG` environment variable for the underlying `pbcopy`/`pbpaste` subprocess — this was fixed in a subsequent Wails release, but the exact version where the fix landed is not consistently documented.
 
-1. The component is always mounted — the `useEffect([isOpen])` pattern no longer works. Web server state will not reload when the tab is re-focused.
-2. `if (!isOpen) return null` is the current null-check against stale operations. Remove it and async callbacks (handleToggleServer) can fire against unmounted-equivalent state.
-3. The Settings tab will appear in `tabs` state as a Tab object, but it has no `sessionId`. Tab-keyed logic (webEnabled, sessionURLs, fontSizes) will not break the Settings tab, but stale state across the settings tab and terminal tabs could expose subtle bugs.
-4. The sidebar currently triggers `onSettings` which calls `setShowSettings(true)`. This will need to change to a tab navigation call — similar to `handleOpenDaemonManager`. If the old `setShowSettings` call sites (including the "no CLIs found" path in `handleAddTab`) are not all updated, Settings can open as both a modal overlay and a tab simultaneously.
+On Linux under Wayland (as opposed to XWayland), clipboard operations require `wl-clipboard` (`wl-copy`) to be installed. Wails on Linux defaults to GTK/X11 via XWayland when `GDK_BACKEND` is not set — but if the user is running a pure Wayland compositor and `GDK_BACKEND=wayland` is set, clipboard operations may fail or produce garbled text.
+
+The JS-side clipboard API (`navigator.clipboard.writeText`) is an alternative but requires the page to have focus — in Wails, the WebView typically does have focus, so this may work. However, Wails' security model may restrict `navigator.clipboard` access depending on how `AllowedHosts` is configured.
 
 **Why it happens:**
-The modal pattern (mount/unmount on open) is fundamentally different from the tab pattern (always mounted, focus-based visibility). Developers convert the container (`showSettings` → tab navigation) but leave the component's internal lifecycle assumptions unchanged.
+Clipboard is a system-level operation that Wails delegates to platform-native utilities. Each platform has different prerequisites, and Wails abstracts over them imperfectly. Developers test on macOS, miss the Wayland/Linux case entirely.
 
 **How to avoid:**
-- Replace `useEffect([isOpen])` with `useEffect([activeId === SETTINGS_TAB.id])` — load state when tab becomes active, not when a modal opens.
-- Remove the `if (!isOpen) return null` guard and replace it with CSS visibility (already the pattern for terminal tabs: `display: isActive ? 'flex' : 'none'`).
-- Search all call sites of `setShowSettings(true)` (there are at least two: sidebar `onSettings` and `handleAddTab` when no CLIs are detected) and replace each with the tab navigation pattern.
-- Add a `SETTINGS_TAB` constant alongside `WELCOME_TAB`, `DAEMON_MANAGER_TAB`, `REMOTE_SESSIONS_TAB` — the Settings tab is a singleton tab just like the others.
-- Verify that `handleSettingsClose` (which calls `IsWebServerRunning()`) is replaced or removed — the tab pattern has no "close" action that needs cleanup.
+- Use `runtime.ClipboardSetText` on the Go side (not `navigator.clipboard` on the JS side) so the Wails runtime handles platform differences.
+- Always show the URL as selectable plain text alongside the "Copy" button, as a fallback for clipboard failure.
+- After calling ClipboardSetText, show a visual confirmation ("Copied!") on the button — change button text or icon for 2 seconds. This tells the user the operation was attempted even if they need to verify the clipboard manually.
+- Test clipboard on the Linux build in CI (even a basic `xclip` availability check) — do not assume macOS testing is sufficient.
+- Avoid using `navigator.clipboard.writeText` as the primary mechanism; it is less reliable in Wails WebView than `runtime.ClipboardSetText`.
 
 **Warning signs:**
-- Settings opens as an overlay AND a tab simultaneously (old `setShowSettings` path not updated).
-- Web server state in Settings tab is stale after the user starts/stops the server from another trigger.
-- `handleAddTab`'s "no CLIs" path still calls `setShowSettings(true)` after migration, causing a broken overlay with no backdrop.
+- "Copied!" toast shows but paste in another app yields nothing (macOS M1 LANG bug — check Wails version).
+- Clipboard copy works in GUI but not in test environment (headless Linux without X server).
+- Clipboard behavior differs between macOS and Linux builds during manual QA.
 
-**Phase to address:** Settings-as-tab phase. This is a pure frontend refactor; all call sites must be audited before the `SettingsPanel` internals are changed.
+**Phase to address:** Web server link actions phase. Clipboard failure UX (showing the URL as plain text) should be the default design, not an afterthought.
 
 ---
 
-### Pitfall 6: Claude Code Path Detection — Native Installer at ~/.local/bin Is Not on Default PATH in Service Mode
+### Pitfall 6: QR Code for Dashboard URL — URL Staleness and State Coupling
 
 **What goes wrong:**
-The Anthropic native installer places the Claude Code binary at `~/.local/bin/claude` (macOS/Linux) or `%USERPROFILE%\.local\bin\claude.exe` (Windows). `~/.local/bin` is not on the default `PATH` in all shell configurations — and critically, it is NOT added to PATH by macOS launchd or Linux systemd user service units, which is exactly where the AgentHub daemon runs.
+The project already uses `skip2/go-qrcode` on the Go side for per-session QR codes. The v1.12 feature adds a QR code for the web server *dashboard* URL (not per-session). The dashboard URL is the same regardless of Tailscale vs. local mode — but the host, port, and scheme differ between the two modes.
 
-The existing `AugmentServicePath()` already handles nvm, Volta, and Homebrew paths. Adding `~/.local/bin` to the augmentation candidates is the correct fix. However, there is a second failure: if `DetectCLIs()` is called before `AugmentServicePath()` runs (e.g., in a test harness), `~/.local/bin/claude` will not be found. The order dependency is invisible because tests set up their own PATH.
+A common failure: the QR code component is rendered with a URL captured at mount time. If the web server restarts (mode switch, Tailscale connects mid-session), the QR code encodes the stale URL. The user scans it, connects to the old address, and gets a connection refused error.
+
+A second failure: placing the QR code rendering in the frontend (React-side, using a library like `react-qr-code` or `qrcode.react`) means the URL must be passed as a prop from the parent. If the parent's web server URL state is populated by a polling Wails binding (`GetWebServerURL` called periodically), there is a window between state update and QR render where the old QR is displayed alongside the new URL text.
 
 **Why it happens:**
-`~/.local/bin` is a relatively new convention (XDG Base Directory Specification). Older tools and shell configs do not include it. The native installer does add it to `~/.bashrc` or `~/.zshrc` for interactive shells — but service-mode processes do not source those files.
+State updates in React are batched. The URL text and the QR code image derive from the same state variable, so they should update together — but if the QR component reads from a stale prop reference or uses `useMemo` with incorrect dependencies, they can diverge.
 
 **How to avoid:**
-- Add `filepath.Join(home, ".local", "bin")` to the `candidates` list in `AugmentServicePath()`.
-- For Windows, add `filepath.Join(userProfile, ".local", "bin")` — this requires detecting `USERPROFILE` env var, not `HOME`.
-- Additionally, check for the Homebrew cask location: `brew --cask claude-code` installs the binary differently from the native installer (typically as a symlink in `/opt/homebrew/bin/` or `/usr/local/bin/`). The existing Homebrew path augmentation in `AugmentServicePath()` already covers this case — no change needed there.
-- Test `DetectCLIs()` after `AugmentServicePath()` runs. Add a test that stubs `~/.local/bin` by prepending a temp dir to PATH and verifies `DetectCLIs` returns Claude Code.
-- The fix for `AugmentServicePath` is one line; the important discipline is ensuring it runs before `DetectCLIs` in the daemon startup sequence.
+- Derive the QR code URL from the same state variable as the URL text displayed alongside it. Do not store the QR URL separately.
+- If generating the QR image on the Go side (using `skip2/go-qrcode`), return the base64-encoded PNG alongside the URL from the same API call so they are atomically consistent.
+- If generating the QR image in the frontend, use `qrcode.react` or `react-qr-code` with the URL string as the `value` prop — React's reconciliation ensures the QR updates when the URL state updates.
+- Do not use `useMemo` to cache the QR code unless the URL string is a dependency of the memo.
+- When the web server is not running, do not render the QR code at all — render a disabled/greyed state instead.
 
 **Warning signs:**
-- Claude Code is installed and works in the terminal, but AgentHub shows it as "not detected."
-- `exec.LookPath("claude")` returns `""` in a subprocess but `which claude` in a terminal returns a path.
-- macOS: `claude` is at `~/.local/bin/claude` but AgentHub was launched from the Dock (not a terminal), so PATH does not include `~/.local/bin`.
+- URL text shows the new address but QR encodes the old address after a mode switch.
+- QR code is rendered for an empty URL (scanning it yields an empty string or invalid URL).
+- QR code does not update when Tailscale connects and the web server URL changes from LAN IP to FQDN.
 
-**Phase to address:** Claude Code detection fix phase. One-line change to `AugmentServicePath` plus a test; low risk but must be verified against both install methods (native and Homebrew).
+**Phase to address:** Web server link actions phase. QR code must derive from the same state as URL text.
 
 ---
 
-### Pitfall 7: Nudge Banner — Infinite Re-Render and Stale Tailscale State
+### Pitfall 7: Sidebar Icon Centering — Collapsed State Misalignment
 
 **What goes wrong:**
-The nudge banner ("You're on local network — connect Tailscale for a better experience") needs to:
-- Appear when `tailscaleHealth.installed === false` or `tailscaleHealth.connected === false`.
-- Disappear when Tailscale connects (health poller fires a `tailscale:health` event).
-- Be dismissible per-session (or globally) by the user.
+The current `sidebar__item` CSS uses `display: flex; align-items: center; gap: 8px; padding: 8px`. When collapsed (sidebar width 48px), the label span is conditionally removed via `{!collapsed && <span>}`. The icon (20px) plus left padding (8px) = 28px. The remaining 20px (48 - 28) goes to the right side — the icon is not centered.
 
-The failure modes are:
-1. If the banner is rendered inside the `terminal-wrapper` div (alongside TerminalPanel and StatusBar), adding it will break the flex layout that governs terminal fill — a regression that has been fixed twice already (v1.1 CSS flex chain fix, v1.6 rAF retry loop). The terminal height will shrink by the banner height with no compensating adjustment.
-2. If dismiss state is kept only in React local state, every window hide/show cycle resets it — the user dismisses the banner, closes and reopens the app, and it reappears.
-3. If the banner listens for `tailscale:health` events but the event fires before the component subscribes (the 5-second startup delay in the health poller is a known pattern), the banner never disappears even after Tailscale connects.
+To center the icon, the item needs `justify-content: center` when collapsed. But `justify-content: center` in expanded state would center the icon+label group, not left-align the text as currently designed.
+
+Applying `justify-content: center` globally breaks the expanded state. Using a CSS class modifier (`.sidebar--collapsed .sidebar__item { justify-content: center; }`) is the correct approach, but developers often miss that `padding` also affects centering: with `padding: 8px` on both sides and `justify-content: center`, the effective centering is correct (8px left + 20px icon + 8px right = 36px, centered in 48px). However if the icon has `flex-shrink: 0` (it does) and there is no `justify-content: center`, the icon will left-align in the 32px remaining after left padding.
+
+A second failure: the sidebar toggle button (`sidebar__toggle`) is styled separately from `sidebar__item` and is already correctly centered (`display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin: 4px`). It looks correct while the nav items look off — creating an inconsistent appearance that confuses users about the intended design.
+
+The `sidebar__bottom` uses `margin-top: auto` to pin Settings to the bottom. When collapsed, the Settings icon must also be centered. If `justify-content` is only applied to `.sidebar__item` via a collapsed class modifier but not propagated into `.sidebar__bottom .sidebar__item`, Settings may remain misaligned.
 
 **Why it happens:**
-Banner UI is typically slotted inside the nearest parent container. The terminal flex layout is fragile (see PROJECT.md tech debt notes: "double-rAF for initial terminal fit" and "bounded rAF retry loop"). Adding height to that container without accounting for it in the `rows` calculation breaks terminal fill silently.
+The `justify-content` vs `align-items` distinction is frequently confused (`align-items` centers on the cross axis, `justify-content` centers on the main axis). For a `flex-direction: row` item, centering horizontally requires `justify-content: center`, not `align-items: center`. The sidebar toggle is centered because it has explicit `justify-content: center` — the nav items lack it.
 
 **How to avoid:**
-- Render the nudge banner as a sibling to `app__content`, not inside the `terminal-wrapper`. A fixed-position or sticky banner at the top of the main content area avoids all flex layout interactions.
-- Store dismiss state in `localStorage` (like the sidebar collapsed state) so it persists across window hide/show.
-- The banner dismissal should be session-scoped (stored as `dismissed-local-nudge: true`) not tab-scoped.
-- If the banner triggers a health recheck, gate it with the same TTL as the normal health poller — do not create a second concurrent polling loop.
+- Add `.sidebar--collapsed .sidebar__item { justify-content: center; }` to the CSS. This targets only the collapsed state.
+- Remove or set `gap` to 0 in collapsed state: `.sidebar--collapsed .sidebar__item { gap: 0; }` — the gap is irrelevant when no label is present but 8px gap on a 20px icon in 48px sidebar adds 8px to the right of the icon (since the label flexes to zero), visually off-centering it. Setting `gap: 0` when collapsed ensures the calculation is `(48px - 20px) / 2 = 14px each side`, but only if padding is also 0 or equal on both sides.
+- Verify that `padding: 8px` on `sidebar__item` already provides equal horizontal padding (8px left + 20px icon + 8px right = 36px, inside a 48px sidebar leaves 6px unaccounted for). The correct fix is `justify-content: center` so the flex engine centers the icon within the remaining space after padding — `(48px - 16px padding - 20px icon) / 2 = 6px extra` distributed equally.
+- The cleanest solution: when collapsed, set `justify-content: center; padding-left: 0; padding-right: 0` on sidebar items, and let the 20px icon center inside 48px. The toggle button already demonstrates this pattern.
+- Write a Sidebar test (extending `Sidebar.test.tsx`) that verifies the collapsed class is applied and the icon is the only child rendered — not centering itself (jsdom can't measure layout), but at minimum verifying no label is in the DOM.
 
 **Warning signs:**
-- Terminal height shrinks after the nudge banner appears.
-- rAF retry loop fires extra iterations because `proposeDimensions()` returns stale values after the banner changes layout height.
-- Banner reappears on every app launch even after the user dismissed it.
+- Collapsed sidebar shows icons slightly left-of-center (gap between icon right edge and sidebar right edge smaller than gap between icon left edge and sidebar left edge).
+- Toggle button is centered but nav items are not — inconsistent alignment within the sidebar.
+- Settings icon in `sidebar__bottom` is misaligned even after fixing nav items (forgot to propagate the fix to the bottom section).
+- Animated transition from expanded to collapsed shows icon jumping left then staying left instead of smoothly centering.
 
-**Phase to address:** Local network fallback phase — the banner is part of the local fallback feature. Its layout placement must be considered alongside the flex chain, not as an afterthought.
+**Phase to address:** Sidebar icon centering phase. Pure CSS change — zero backend changes, minimal frontend code change, but must cover all sidebar item selectors including `sidebar__bottom`.
 
 ---
 
@@ -208,13 +222,14 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Embed password in session URL query param | Easy to share via copy | Password in browser history, logs, QR images | Never — use HTTP Basic Auth or a header |
-| Roll password on every `StartWebServer` call | Simple state management | Browser sessions invalidated without warning | Never — tie password to daemon lifetime |
-| Regenerate self-signed cert on every `StartWebServer` | Simpler code | New cert on each start means browsers prompt for trust re-acceptance repeatedly | Never — generate once per daemon start, cache in memory |
-| Skip self-signed cert in-memory and write to disk | Persistent across restarts | World-readable key file in `~/.config/agenthub/`; stale cert if hostname changes | Never — keep in memory only |
-| Leave `setShowSettings(true)` call sites in handleAddTab | Avoids touching unrelated code | Settings opens as modal overlay after modal→tab migration | Never — all call sites must migrate together |
-| Reuse existing `webEnabled` React state for auto-serve default | No new API needed | React state diverges from daemon's authoritative state across hide/show cycles | Never — daemon must be authoritative |
-| Use P521 curve in self-signed cert (Go default) | Zero extra code | Silent browser TLS handshake failure (not a certificate warning) | Never — always use P256 |
+| Apply terminal padding via CSS on container div | Trivial one-line CSS change | `fitTerminal()` calculates wrong cols — text overflows or is clipped | Never — use `terminal.options` only |
+| Revert to `FitAddon.fit()` when adding padding | Removes custom fitter complexity | Restores the scrollbar gap regression (14px permanent right gap) | Never — custom fitter must stay |
+| Store selected theme in per-tab React state | Mirrors existing `fontSizes` pattern | Theme diverges across tabs; lost on app restart | Never — theme is global, not per-tab |
+| Set `term.options.theme.background = '#...'` (mutation) | Simple one-liner | Does not trigger xterm color cache invalidation; change may not appear | Never — always assign a new theme object |
+| Skip `document.fonts.load()` for web fonts | Simpler font change code | Font renders at wrong cell width until page reload | Never for web fonts; OK for system fonts (always available) |
+| Generate QR code once at modal open | Simpler lifecycle | QR encodes stale URL if web server restarts between modal open and scan | Acceptable if modal is torn down and recreated on each open (not kept in DOM) |
+| `BrowserOpenURL` without empty-string guard | One fewer line of code | Silent no-op if URL is empty | Never — always guard against empty URL |
+| Show only "Copy" button without displaying URL text | Cleaner UI | No fallback when clipboard fails | Never — always show URL as selectable text |
 
 ---
 
@@ -222,14 +237,16 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `crypto/tls` self-signed cert | Use default `generate_cert.go` curve (P521) | Explicitly pass `elliptic.P256()` to `ecdsa.GenerateKey` |
-| `crypto/tls` self-signed cert | Generate one cert that is both CA and leaf | Generate CA cert + leaf cert signed by CA; store CA for client trust, serve leaf |
-| Local web server bind address | Bind to `0.0.0.0` to be reachable on LAN | Bind to the specific LAN IP, not `0.0.0.0` — avoids accidentally serving on Tailscale interface too |
-| Dual-mode web server | Check `if tailscale { } else { }` inside `Start()` | Separate code paths at construction time via `Config.Mode` field; `Start()` is mode-unaware |
-| `AugmentServicePath()` + Claude native install | Only augment Homebrew and nvm paths | Also prepend `~/.local/bin` (macOS/Linux) and `%USERPROFILE%\.local\bin` (Windows) |
-| Settings modal → tab | Leave `isOpen`-triggered `useEffect` in place | Replace with `activeId === SETTINGS_TAB.id` trigger; remove `if (!isOpen) return null` guard |
-| Nudge banner in `terminal-wrapper` | Slot banner inside terminal flex container | Render banner as sibling of `app__content`, never inside `terminal-wrapper` |
-| HTTP Basic Auth for local password | Roll password per web server start | Password lives with daemon lifetime; `NewWebServer` receives password at construction |
+| xterm.js padding | Add CSS `padding` to container div | Set via `terminal.options` so FitAddon/custom fitter reads padding from the `.xterm` element |
+| xterm.js padding + custom `fitTerminal()` | Replace custom fitter with `FitAddon.fit()` thinking padding is now handled internally | Keep custom fitter; `FitAddon.fit()` hardcodes scrollbar width subtraction regardless |
+| xterm.js font change | Set `fontFamily` and immediately call `fitTerminal()` synchronously | Wait one `requestAnimationFrame` after `fontFamily` change so CharSizeService remeasures |
+| Web fonts + xterm.js | Reference `fontFamily` before font is loaded | `document.fonts.load('14px "FontName"')` → Promise resolves → set `fontFamily` → rAF → `fitTerminal()` |
+| xterm.js ITheme v5 | Use `selection` key (xterm.js v4 API) | Use `selectionBackground` key; import `ITheme` from `@xterm/xterm` for compile-time validation |
+| xterm.js theme assignment | `term.options.theme.background = '#...'` (property mutation) | `term.options.theme = { ...newTheme }` (new object) to trigger cache invalidation |
+| `runtime.BrowserOpenURL` | Pass empty string when web server not started | Guard with `if (url !== '') { BrowserOpenURL(url) }` |
+| `runtime.ClipboardSetText` | Trust return value as definitive success | Always show URL as selectable text alongside copy button as fallback |
+| Sidebar collapsed CSS | Add `justify-content: center` globally | Scope to `.sidebar--collapsed .sidebar__item` only; expanded state needs left alignment |
+| Sidebar bottom item | Fix only top nav items | `sidebar__bottom .sidebar__item` also needs `justify-content: center` in collapsed state |
 
 ---
 
@@ -237,9 +254,10 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Two concurrent health pollers (existing + nudge banner) | CPU usage creeps up; Tailscale API hammered every few seconds | Banner reads from existing `tailscaleHealth` state, does not start its own poll | Immediately if banner adds a `setInterval` for its own health check |
-| Self-signed cert regenerated on each web server start/stop | 50-200ms cert generation delay each time | Generate once at daemon startup; pass to `NewWebServer` | Every start/stop cycle |
-| Auto-serve calls `ToggleWebServing` per session at daemon start | N IPC calls on startup for N existing sessions | Daemon tracks "auto-serve enabled" flag natively; no per-session call needed at startup | Grows linearly with session count |
+| Font change triggers rAF retry loop that exits early | Terminal dims calculated with old font cell width after font change | rAF retry loop is for zero-dimension case; font change needs single rAF after change, not the retry loop | Every font change in theming phase |
+| QR code re-renders on every URL poll interval | QR image flickers every 3 seconds | Derive QR from stable state; only update when URL actually changes (use `useMemo` with URL as dep) | Any QR code component inside a polling parent |
+| Multiple `ResizeObserver` callbacks when sidebar animates | `fitTerminal()` fires ~9 frames during 150ms transition | `ResizeObserver` is already in place and fires naturally; this is acceptable for smooth transition | Sidebar with `transition: width 0.15s` — expected behavior |
+| `document.fonts.load()` called on every font switch | Slight delay per font switch (network round-trip for web fonts) | Cache loaded font names in a Set; skip `fonts.load()` for already-loaded fonts | Every theme switch if fonts are not cached |
 
 ---
 
@@ -247,12 +265,9 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Embed password in session URL | Browser history, logs, shared URLs expose password | HTTP Basic Auth header only; password never in URL |
-| Write self-signed key to disk at `~/.config/agenthub/` | World-readable private key; key persists after password is changed | In-memory only; regenerate on daemon start |
-| Bind local web server to `0.0.0.0` instead of specific LAN IP | Server reachable on all interfaces including Tailscale | Detect LAN IP explicitly; bind to that address |
-| Use same password for all sessions | One compromised session URL exposes all sessions | Single password protects the dashboard; per-session auth is over-engineering |
-| Show password in plain text in Settings tab without masking | Screen sharing / shoulder surfing | Default masked; toggle to reveal; never log password |
-| Accept connections without validating `Origin` header in local mode | CSRF from a malicious local web page | Add `Origin` check in WebSocket `AcceptOptions` for local mode (unlike Tailscale mode which relies on network-level auth) |
+| Include web server URL (with Basic Auth password embedded) in QR code | QR image captured in screenshot, shared, exposes password | Dashboard QR uses URL without credentials — Tailscale mode needs no creds; local mode uses Basic Auth header not URL param |
+| `BrowserOpenURL` with user-controlled URL string | URL injection (javascript:, file: schemes) — blocked by Wails PR #4484 URL validation | Wails v2 validates URL scheme in `BrowserOpenURL`; frontend should still validate before calling |
+| External font CDN in `@font-face` (Google Fonts, etc.) | Font request reveals user IP to third party; breaks offline use | Bundle fonts as static assets in `frontend/public/fonts/` and serve from Wails embed |
 
 ---
 
@@ -260,31 +275,30 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Auto-serve enables web serving without starting the web server | Sessions appear served but no URL is shown; toggle is ON but server is off | Auto-serve and web server start are atomic: starting the server auto-enables all new sessions |
-| Nudge banner appears even when user is intentionally using local mode | Feels like a bug report rather than a feature | Banner is dismissible and stays dismissed (localStorage); not shown again unless Tailscale status changes from "was connected" to "not connected" |
-| Settings tab does not indicate which mode the web server is in | User cannot tell if they're in Tailscale mode or local mode | Settings "Web Server" tab shows active mode explicitly: "Tailscale (Let's Encrypt)" or "Local Network (self-signed)" |
-| "New Tab" label in sidebar misleads users expecting browser behavior | Users expect a browser tab; this creates a new terminal session | Rename to "New Session" (the v1.11 label rename requirement) |
-| Local mode password shown once then inaccessible | User forgets password; no recovery without restarting daemon | Password always retrievable from Settings > Web Server tab (masked, with reveal toggle) |
-| QR code in local mode encodes an FQDN URL (Tailscale HTTPS) | User scans QR code on mobile; connection fails because Tailscale is not connected | QR code URL must match current active mode; local mode QR uses LAN IP + port |
+| Terminal padding applied inconsistently (some tabs have it, some don't) | Visual jank when switching tabs | Padding is a global terminal option set at `Terminal` constructor time — all tabs use the same value |
+| Theme switch rerenders all terminal tabs causing brief flicker | Feels buggy | Apply theme via `term.options.theme = newTheme` without dismounting the panel; xterm updates in-place without a DOM remount |
+| "Copied!" confirmation shown even when clipboard API fails | User trusts confirmation and doesn't try again | Show confirmation only after verifying — for JS-side clipboard, the Promise rejects on failure; for Wails-side, rely on a truthy return value but add fallback text display |
+| QR code shown when web server is stopped | Confusing — QR encodes a URL that returns connection refused | Hide QR code button/section entirely when web server is not running |
+| Sidebar icons misaligned in collapsed state | Feels unfinished; reduces confidence in the app | Fix `justify-content` in CSS before shipping any other sidebar visual changes |
+| Font selector lists fonts not installed on system | User picks "JetBrains Mono", gets fallback monospace rendering | Either bundle all offered fonts as web fonts in `frontend/public/fonts/` or detect availability with `document.fonts.check()` before listing |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Self-signed cert:** Cert generated and TLS listener starts — verify in Chrome (not curl) that connection shows "not trusted" warning (not a cryptic TLS error)
-- [ ] **Self-signed cert curve:** Cert generated — verify with `openssl x509 -in cert.pem -text | grep 'Public Key Algorithm'` that it says `id-ecPublicKey` with `prime256v1`, not `secp521r1`
-- [ ] **Local web server bind:** Server starts — verify it is NOT reachable from the Tailscale IP (`curl https://100.x.x.x:7443` should fail) when in local mode
-- [ ] **Password auth:** Server starts with password — verify a request without the `Authorization: Basic ...` header returns `401`, not `200`
-- [ ] **Auto-serve:** New session created — verify `IsWebEnabled(sessionId)` returns true AND StatusBar shows URL without user clicking the toggle
-- [ ] **Auto-serve on restore:** App window re-shown after hide — verify sessions that were auto-served still show as web-enabled in StatusBar
-- [ ] **Settings as tab:** Settings tab opens — verify opening Settings via sidebar does NOT show a modal overlay simultaneously
-- [ ] **Settings as tab:** "No CLIs found" path — verify `handleAddTab` opens the Settings tab (not a modal overlay) when no CLIs are detected
-- [ ] **Settings tab lifecycle:** Tab is always mounted — verify web server state loads when tab becomes active (not just once at mount)
-- [ ] **Claude Code native install:** `claude` installed at `~/.local/bin/claude` — verify DetectCLIs returns it when app is launched from Finder (not terminal)
-- [ ] **Nudge banner layout:** Banner visible — verify terminal fill is unaffected (no height shrinkage in the terminal panel)
-- [ ] **Nudge banner persist:** Banner dismissed — verify it does not reappear after window hide/show cycle
-- [ ] **QR code mode consistency:** In local mode, QR button clicked — verify QR encodes a LAN IP URL, not a `.ts.net` URL
-- [ ] **"New Session" label:** Sidebar rendered — verify collapsed state shows icon only (no label), expanded state shows "New Session" (not "New Tab")
+- [ ] **Terminal padding:** Padding applied — verify `term.cols` matches `Math.floor((containerWidth - 2*padding) / cellWidth)` within ±1
+- [ ] **Terminal padding + FitAddon:** After adding padding — verify the custom `fitTerminal()` is still being used (not `fitAddon.fit()`) by checking that no `14px` scrollbar gap appears on the right
+- [ ] **Terminal padding + sidebar transition:** Collapse and expand sidebar — verify terminal re-fits to the new container width after the transition completes
+- [ ] **Font change timing:** Switch font — verify `term.cols` matches the new font's cell width, not the old font's, by checking the PTY still renders correctly after font change
+- [ ] **Web font loading:** Pick a web font that's NOT a system font — verify it loads before the terminal renders by checking there is no flash of wrong-font-width output
+- [ ] **Theme ITheme API:** Apply a theme with `selectionBackground` set — select some text in the terminal and verify the selection color is visible (not transparent)
+- [ ] **Theme persistence:** Change theme, close and reopen the app window — verify the theme is still applied to new terminal sessions (was persisted to localStorage)
+- [ ] **Theme all tabs:** Change theme with 3 tabs open — verify all 3 tabs show the new theme, not just the active one
+- [ ] **Browser open empty URL:** Web server not running, click "Open in Browser" — verify nothing happens (or an error is shown), not a browser tab opening `about:blank` or `undefined`
+- [ ] **Clipboard fallback:** Simulate clipboard failure (test in environment without clipboard) — verify the URL is displayed as selectable text so user can copy manually
+- [ ] **QR URL currency:** Start web server in local mode, verify QR encodes LAN IP URL; then connect Tailscale and let server restart in Tailscale mode — verify QR now encodes the FQDN URL
+- [ ] **Sidebar icons collapsed:** Collapse sidebar — verify all icons (Home, Remote, Sessions, New Session, Settings) are horizontally centered within the 48px width
+- [ ] **Sidebar Settings icon:** Settings is in `sidebar__bottom` — verify Settings icon is ALSO centered when collapsed, not just the top nav items
 
 ---
 
@@ -292,13 +306,14 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Wrong TLS curve (P521) in production | LOW | Change `elliptic.P521()` to `elliptic.P256()` in cert generation; daemon restart regenerates cert |
-| Password embedded in URL (in production) | HIGH | Change auth mechanism to Basic Auth header; invalidate all existing shared URLs; bump a minor version with release notes |
-| Dual-mode code paths tangled in Start() | MEDIUM | Extract `startTailscale()` and `startLocal()` private methods; no external API change needed |
-| Settings opens as both modal and tab | LOW | Find all `setShowSettings(true)` call sites; replace each with tab navigation; remove modal rendering from JSX |
-| Auto-serve state diverges from daemon | MEDIUM | Extend `ListSessions` response to include per-session `webEnabled` field; seed React state from that on init |
-| Nudge banner breaks terminal layout | LOW | Move banner outside `terminal-wrapper` to sibling position; no Go changes needed |
-| Claude Code not detected after native install | LOW | Add `~/.local/bin` to `AugmentServicePath`; daemon restart re-runs detection |
+| Terminal padding via CSS container (wrong approach) | LOW | Move padding from container CSS to `terminal.options`; remove CSS padding; re-fit all open terminals |
+| FitAddon.fit() accidentally restored | LOW | Restore custom `fitTerminal()` call; remove `fitAddon.fit()` call |
+| Wrong font dims after font change (no rAF delay) | LOW | Add `requestAnimationFrame` wrapper around `fitTerminal()` call in font change handler |
+| Web font not bundled (breaks offline, leaks IP) | MEDIUM | Download font files, add to `frontend/public/fonts/`, update `@font-face` declarations in CSS |
+| Theme using old `selection` key (no selection color) | LOW | Replace `selection` with `selectionBackground` in all theme objects; TypeScript import of `ITheme` catches this |
+| QR encoding stale URL | LOW | Ensure QR derives from same state variable as URL text; React re-renders both together |
+| Sidebar icon off-center | LOW | Add `.sidebar--collapsed .sidebar__item { justify-content: center; }` to style.css; verify for both nav items and sidebar__bottom |
+| Clipboard silent failure | LOW | Add URL-as-text display as permanent UI element alongside copy button; no code fix needed |
 
 ---
 
@@ -306,26 +321,35 @@ Banner UI is typically slotted inside the nearest parent container. The terminal
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Dual-mode Config struct ambiguity | Local network fallback (first phase) | Both modes have explicit `Mode` field; `BaseURL()` correct for each mode |
-| P521 TLS curve rejected by browsers | Local network fallback (cert generation step) | Chrome opens local web terminal with "not trusted" warning (not TLS error) |
-| Password in URL | Local network fallback (auth design step) | No `pw=` query param anywhere; Basic Auth header used; `401` returned without credentials |
-| Password state vs. daemon lifetime | Local network fallback (password architecture step) | Same password survives `StopWebServer/StartWebServer` cycle |
-| Auto-serve state not seeded from daemon | Auto-serve phase | StatusBar shows correct state after app window re-show |
-| Settings modal + tab conflict | Settings-as-tab phase | Zero `setShowSettings` calls remain in App.tsx after migration |
-| Settings tab lifecycle (`isOpen` → `activeId`) | Settings-as-tab phase | Web server state refreshes when tab is re-focused |
-| Claude native install not detected | Claude Code detection phase | Claude Code at `~/.local/bin` found when app launched from Finder |
-| Nudge banner breaks terminal flex layout | Local network fallback (banner rendering step) | Terminal fill unchanged after banner appears; no extra rAF iterations |
+| Terminal padding breaks FitAddon cols | Terminal padding phase | `term.cols` correct; no right-side gap; sidebar toggle triggers re-fit |
+| FitAddon.fit() accidentally restored | Terminal padding phase | Custom `fitTerminal()` in TerminalPanel.tsx still used; no `fitAddon.fit()` call |
+| Font change needs rAF delay | Terminal theming phase | Cols correct after font switch; PTY receives correct resize |
+| Web font race condition | Terminal theming phase | `document.fonts.load()` called before `fontFamily` set for non-system fonts |
+| ITheme `selection` → `selectionBackground` | Terminal theming phase | Selection text visible; TypeScript build passes with `ITheme` import |
+| Theme must be global not per-tab | Terminal theming phase | All open tabs update simultaneously; theme persists after restart |
+| `BrowserOpenURL` silent failure | Web server links phase | Empty URL guarded in frontend; Linux tested |
+| Clipboard failure — no fallback text | Web server links phase | URL displayed as selectable text alongside copy button |
+| QR encodes stale URL | Web server links phase | QR updates when web server URL changes |
+| Sidebar icons not centered when collapsed | Sidebar centering phase | All icons (including Settings in bottom) centered in 48px sidebar |
 
 ---
 
 ## Sources
 
-- Anthropic Claude Code official docs — installation paths: `~/.local/bin/claude` (native), `~/.local/share/claude` (data), Homebrew and WinGet as alternatives — [code.claude.com/docs/en/setup](https://code.claude.com/docs/en/setup) — HIGH confidence (official docs, verified 2026-04-08)
-- Go `crypto/tls` — P521 curve not supported in Chrome/Firefox: `remote error: tls: illegal parameter` — [github.com/golang/go/issues/19901](https://github.com/golang/go/issues/19901) — HIGH confidence (official Go issue)
-- Go `crypto/tls` — CA+leaf single-cert scheme rejected by some TLS clients — [go.dev/src/crypto/tls/generate_cert.go](https://go.dev/src/crypto/tls/generate_cert.go) — HIGH confidence (official Go source)
-- Project codebase: `internal/webserver/server.go` (Config struct, Start(), BaseURL()), `internal/webserver/tailscale.go` (CheckHealth, TailscaleHealth), `internal/daemon/path.go` (AugmentServicePath, known PATH candidates), `internal/pty/detect.go` (DetectCLIs, LookPath only), `frontend/src/App.tsx` (showSettings state, setShowSettings call sites, webEnabled React state), `frontend/src/components/SettingsPanel.tsx` (isOpen lifecycle pattern), `frontend/src/components/Sidebar.tsx` (New Tab label) — HIGH confidence (live codebase)
-- PROJECT.md — v1.2 decision log: "Self-signed certificate infrastructure removed"; v1.1 flex chain fix; v1.6 rAF retry loop — HIGH confidence (project history)
+- xterm.js GitHub — FitAddon padding subtraction source: `addons/addon-fit/src/FitAddon.ts` (reads `elementStyle.paddingLeft/Right/Top/Bottom` from `.xterm` element; subtracts from parent dimensions) — HIGH confidence (official source, verified 2026-04-10)
+- xterm.js GitHub Discussion #5299 — FitAddon does not fit to last pixel row; workaround uses `_core._renderService.dimensions.css.cell.height` private API — MEDIUM confidence (community discussion, 2025-01-19)
+- xterm.js GitHub Issue #4841 — FitAddon resizes incorrectly; integer vs. float rounding; timing dependency on `term.open()` before `fit()` — HIGH confidence (official tracker)
+- xterm.js GitHub Issue #1164 — Web fonts and canvas renderer: font must be loaded before `Terminal.open()`; Firefox aggressively skips font download; no built-in font-ready callback — HIGH confidence (official tracker)
+- xterm.js GitHub Issue #1499 — `setOption('fontSize')` and font weight changes interact; CharSizeService remeasures asynchronously — HIGH confidence (official tracker)
+- xterm.js Release 5.0.0 — `ITheme.selection` renamed to `ITheme.selectionBackground`; `selectionInactiveBackground` added — HIGH confidence (official release notes)
+- xterm.js docs — `ITheme` interface: `selectionBackground`, `selectionInactiveBackground` — HIGH confidence (official docs)
+- Wails GitHub Issue #3261 — `BrowserOpenURL` calls `pkg/browser.OpenURL`; errors silently ignored; no fallback — HIGH confidence (official tracker)
+- Wails GitHub Issue #2534 — `ClipboardSetText` returns success but clipboard empty on macOS M1 (v2.4.1) — HIGH confidence (official tracker)
+- Wails GitHub PR #4484 — URL validation added to `BrowserOpenURL` (blocks `javascript:`, `data:`, `file:`, `ftp:` schemes) — HIGH confidence (official PR)
+- Wails docs — `runtime.ClipboardSetText`, `runtime.BrowserOpenURL` signatures — HIGH confidence (official docs)
+- Project codebase — `frontend/src/components/TerminalPanel.tsx` (custom `fitTerminal()` function, rAF retry loop, `ResizeObserver`, `fontSize` useEffect), `frontend/src/components/Sidebar.tsx` (collapsed state logic, conditional label render), `frontend/src/style.css` (sidebar CSS — `sidebar__item` uses `display: flex; align-items: center; gap: 8px; padding: 8px`; no `justify-content: center` on items) — HIGH confidence (live codebase, read 2026-04-10)
+- PROJECT.md — Key decisions: "Bounded rAF retry loop polling proposeDimensions() ✓ Good"; "Frontend cols/rows estimation at session creation ✓ Good"; "ResizeObserver + requestAnimationFrame for fit() ✓ Good"; tech debt note: "FitAddon has required careful handling" — HIGH confidence (project history)
 
 ---
-*Pitfalls research for: Go/Wails desktop app v1.11 — local network fallback, auto-serve, settings-as-tab, label rename, Claude Code detection*
-*Researched: 2026-04-08*
+*Pitfalls research for: Go/Wails desktop app v1.12 — terminal padding, terminal theming, web server link actions, sidebar icon centering*
+*Researched: 2026-04-10*
