@@ -182,7 +182,9 @@ Plans:
   1. Terminal text has a visible gap between the content and all four edges of the terminal container
   2. Padding is consistent across all open terminal sessions
   3. Terminal still fills its container and resizes correctly — no height regression or blank strips
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 64-01-PLAN.md — CSS padding rule + PAD-01 test
 **UI hint**: yes
 
 ### Phase 65: Terminal Theming
@@ -225,7 +227,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63. Sidebar Icon Centering | v1.12 | 1/1 | Complete    | 2026-04-10 |
-| 64. Terminal Padding | v1.12 | 0/? | Not started | - |
+| 64. Terminal Padding | v1.12 | 0/1 | Planning    | - |
 | 65. Terminal Theming | v1.12 | 0/? | Not started | - |
 | 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
 
