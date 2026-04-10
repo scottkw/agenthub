@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { TabBar, type Tab } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
 import { TerminalPanel } from './components/TerminalPanel'
-import { SettingsPanel } from './components/SettingsPanel'
+import { SettingsTab } from './components/SettingsTab'
 import {
   CreateSession,
   ListSessions,
@@ -18,17 +18,17 @@ import {
   RetryDaemon,
   GetDaemonError,
   GetRemoteSessions,
-  AutoInstallTailscale,
+  GetWebServerMode,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
-import { EventsOn, Environment, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
+import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
 import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
-import { HealthModal } from './components/HealthModal'
 import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
+import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 
 const DEFAULT_FONT_SIZE = 14
 
@@ -40,10 +40,10 @@ function App(): React.ReactElement {
   const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
   const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
   const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
+  const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
   const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
   const [tabCounter, setTabCounter] = useState(1)
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
@@ -53,6 +53,8 @@ function App(): React.ReactElement {
   const [sessionURLs, setSessionURLs] = useState<Record<string, string>>({})
   // Track web server running state
   const [webServerRunning, setWebServerRunning] = useState(false)
+  // Track web server mode: 'tailscale' | 'local' | null
+  const [webServerMode, setWebServerMode] = useState<'tailscale' | 'local' | null>(null)
   // Track live status per session: sessionId -> status string
   const [sessionStatuses, setSessionStatuses] = useState<Record<string, string>>({})
   // Track which session's QR modal is open (null = none)
@@ -67,12 +69,7 @@ function App(): React.ReactElement {
     ip: string
     domain: string
   } | null>(null)
-  const [platform, setPlatform] = useState<string>('linux')
   const [daemonError, setDaemonError] = useState<string | null>(null)
-  // Auto-install Tailscale state
-  const [installProgress, setInstallProgress] = useState<string[]>([])
-  const [installStatus, setInstallStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle')
-  const [installError, setInstallError] = useState<string | undefined>(undefined)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
   const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
@@ -92,19 +89,47 @@ function App(): React.ReactElement {
         return
       }
       try {
-        const [port, clis, sessions, running, health, env] = await Promise.all([
+        const [port, clis, sessions, running, health] = await Promise.all([
           GetRelayPort(),
           DetectCLIs(),
           ListSessions(),
           IsWebServerRunning(),
           GetTailscaleStatus(),
-          Environment(),
         ])
         setRelayPort(port)
         setDetectedCLIs(clis)
         setWebServerRunning(running)
         setTailscaleHealth(health)
-        setPlatform(env.platform)
+
+        // Fetch web server mode for local-network-fallback UI
+        GetWebServerMode().then(mode => {
+          const validMode = mode === 'tailscale' || mode === 'local' ? mode : null
+          setWebServerMode(validMode)
+          if (validMode) setWebServerRunning(true)
+        }).catch(() => setWebServerMode(null))
+
+        // If web server isn't running yet, poll briefly — the daemon may still
+        // be starting it (local-mode fallback takes a moment after init).
+        if (!running) {
+          let attempts = 0
+          const poll = setInterval(async () => {
+            attempts++
+            try {
+              const nowRunning = await IsWebServerRunning()
+              if (nowRunning) {
+                setWebServerRunning(true)
+                const mode = await GetWebServerMode()
+                const validMode = mode === 'tailscale' || mode === 'local' ? mode : null
+                setWebServerMode(validMode)
+                clearInterval(poll)
+              } else if (attempts >= 10) {
+                clearInterval(poll)
+              }
+            } catch {
+              clearInterval(poll)
+            }
+          }, 500)
+        }
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -125,6 +150,29 @@ function App(): React.ReactElement {
               })
               .catch(() => { /* status unavailable — leave unset */ })
           })
+
+          // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
+          if (running) {
+            const enabledMap: Record<string, boolean> = {}
+            const urlMap: Record<string, string> = {}
+            let serverURL: string | undefined
+            try {
+              serverURL = await GetWebServerURL()
+            } catch (_) { /* ignore */ }
+
+            sessions.forEach((s) => {
+              if (s.webEnabled) {
+                enabledMap[s.id] = true
+                if (serverURL) {
+                  urlMap[s.id] = `${serverURL}/sessions/${s.id}`
+                }
+              }
+            })
+            if (Object.keys(enabledMap).length > 0) {
+              setWebEnabled(enabledMap)
+              setSessionURLs(urlMap)
+            }
+          }
         }
       } catch (err) {
         console.error('[App] init failed:', err)
@@ -165,25 +213,11 @@ function App(): React.ReactElement {
       })
     })
 
-    const cancelInstallProgress = EventsOn('tailscale:install:progress', (line: string) => {
-      setInstallProgress(prev => [...prev, line])
-    })
-    const cancelInstallDone = EventsOn('tailscale:install:done', (result: { success: boolean; error?: string }) => {
-      if (result.success) {
-        setInstallStatus('success')
-      } else {
-        setInstallStatus('error')
-        setInstallError(result.error ?? 'Unknown error')
-      }
-    })
-
     return () => {
       offStatus()
       offHealth()
       offDaemonError()
       cancelTrayFocus()
-      cancelInstallProgress()
-      cancelInstallDone()
     }
   }, [])
 
@@ -211,19 +245,40 @@ function App(): React.ReactElement {
       }
       setTabs((prev) => [...prev, tab])
       setActiveId(sessionId)
+
+      // Auto-seed webEnabled state for new sessions when web server is running (SERVE-02).
+      if (webServerRunning) {
+        setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
+        try {
+          const url = await GetWebServerURL()
+          if (url) {
+            setSessionURLs((prev) => ({ ...prev, [sessionId]: `${url}/sessions/${sessionId}` }))
+          }
+        } catch (_) { /* URL fetch failure is non-fatal */ }
+      }
     } catch (err) {
       console.error('[App] CreateSession failed:', err)
     }
-  }, [tabCounter])
+  }, [tabCounter, webServerRunning])
+
+  const handleOpenSettings = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'settings')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, SETTINGS_TAB])
+    setActiveId(SETTINGS_TAB.id)
+  }, [tabs])
 
   const handleAddTab = useCallback(() => {
     if (detectedCLIs.length === 0) {
       // No CLIs found — open settings so the user can configure a path.
-      setShowSettings(true)
+      handleOpenSettings()
       return
     }
     setShowNewSessionModal(true)
-  }, [detectedCLIs])
+  }, [detectedCLIs, handleOpenSettings])
 
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
@@ -287,42 +342,12 @@ function App(): React.ReactElement {
     }
   }, [webEnabled])
 
-  // Re-check server running state when settings panel closes (user may have started/stopped server).
-  const handleSettingsClose = useCallback(async () => {
-    setShowSettings(false)
-    try {
-      const running = await IsWebServerRunning()
-      setWebServerRunning(running)
-    } catch (_) { /* ignore */ }
-  }, [])
-
   const handleFontSizeChange = useCallback((sessionId: string, delta: number) => {
     setFontSizes((prev) => {
       const current = prev[sessionId] ?? DEFAULT_FONT_SIZE
       const next = Math.max(6, Math.min(32, current + delta))
       return { ...prev, [sessionId]: next }
     })
-  }, [])
-
-  const handleCheckHealthAgain = useCallback(async () => {
-    try {
-      const health = await GetTailscaleStatus()
-      setTailscaleHealth(health)
-    } catch (err) {
-      console.error('[App] GetTailscaleStatus failed:', err)
-    }
-  }, [])
-
-  const handleAutoInstallTailscale = useCallback(async () => {
-    setInstallProgress([])
-    setInstallStatus('running')
-    setInstallError(undefined)
-    try {
-      await AutoInstallTailscale()
-    } catch (err) {
-      setInstallStatus('error')
-      setInstallError(String(err))
-    }
   }, [])
 
   // Poll sessions when the daemon-manager panel tab is active.
@@ -416,19 +441,23 @@ function App(): React.ReactElement {
       return
     }
     try {
-      const [port, clis, sessions, running, health, env] = await Promise.all([
+      const [port, clis, sessions, running, health] = await Promise.all([
         GetRelayPort(),
         DetectCLIs(),
         ListSessions(),
         IsWebServerRunning(),
         GetTailscaleStatus(),
-        Environment(),
       ])
       setRelayPort(port)
       setDetectedCLIs(clis)
       setWebServerRunning(running)
       setTailscaleHealth(health)
-      setPlatform(env.platform)
+
+      // Fetch web server mode for local-network-fallback UI
+      GetWebServerMode().then(mode => {
+        setWebServerMode(mode === 'tailscale' || mode === 'local' ? mode : null)
+      }).catch(() => setWebServerMode(null))
+
       if (sessions.length > 0) {
         const restoredTabs: Tab[] = sessions.map((s) => ({
           id: s.id,
@@ -443,6 +472,29 @@ function App(): React.ReactElement {
             .then((st) => setSessionStatuses((prev) => ({ ...prev, [s.id]: st })))
             .catch(() => {})
         })
+
+        // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
+        if (running) {
+          const enabledMap: Record<string, boolean> = {}
+          const urlMap: Record<string, string> = {}
+          let serverURL: string | undefined
+          try {
+            serverURL = await GetWebServerURL()
+          } catch (_) { /* ignore */ }
+
+          sessions.forEach((s) => {
+            if (s.webEnabled) {
+              enabledMap[s.id] = true
+              if (serverURL) {
+                urlMap[s.id] = `${serverURL}/sessions/${s.id}`
+              }
+            }
+          })
+          if (Object.keys(enabledMap).length > 0) {
+            setWebEnabled(enabledMap)
+            setSessionURLs(urlMap)
+          }
+        }
       }
     } catch (err) {
       console.error('[App] retry init failed:', err)
@@ -452,12 +504,19 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
+      {webServerMode === 'local' && (
+        <LocalNetworkBanner
+          visible={true}
+          onOpenURL={BrowserOpenURL}
+        />
+      )}
+      <div className="app__row">
       <Sidebar
         onHome={handleHome}
         onOpenRemoteSessions={handleOpenRemoteSessions}
         onOpenDaemonManager={handleOpenDaemonManager}
         onAdd={handleAddTab}
-        onSettings={() => setShowSettings(true)}
+        onSettings={handleOpenSettings}
       />
       <div className="app__content">
         <TabBar
@@ -490,7 +549,26 @@ function App(): React.ReactElement {
             onOpen={handleOpenRemoteSession}
           />
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions').length === 0 && (
+        {activeId === SETTINGS_TAB.id && (
+          <SettingsTab
+            clis={detectedCLIs}
+            tailscaleHealth={tailscaleHealth}
+            webServerMode={webServerMode}
+            onWebServerStateChange={async () => {
+              try {
+                const running = await IsWebServerRunning()
+                setWebServerRunning(running)
+                if (!running) {
+                  setWebServerMode(null)
+                } else {
+                  const mode = await GetWebServerMode()
+                  setWebServerMode(mode === 'tailscale' || mode === 'local' ? mode : null)
+                }
+              } catch (_) { /* ignore */ }
+            }}
+          />
+        )}
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -529,7 +607,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions') return null
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings') return null
             const isActive = tab.id === activeId
             return (
               <div
@@ -557,6 +635,7 @@ function App(): React.ReactElement {
           })}
         </div>
       </div>
+      </div>{/* end app__row */}
 
       {showNewSessionModal && (
         <NewSessionModal
@@ -577,24 +656,6 @@ function App(): React.ReactElement {
           onClose={() => setQrSessionId(null)}
         />
       )}
-
-      <SettingsPanel
-        isOpen={showSettings}
-        onClose={handleSettingsClose}
-        clis={detectedCLIs}
-        tailscaleHealth={tailscaleHealth}
-      />
-
-      <HealthModal
-        health={tailscaleHealth}
-        platform={platform}
-        onCheckAgain={handleCheckHealthAgain}
-        onOpenURL={BrowserOpenURL}
-        onAutoInstall={handleAutoInstallTailscale}
-        installProgress={installProgress}
-        installStatus={installStatus}
-        installError={installError}
-      />
     </div>
   )
 }
