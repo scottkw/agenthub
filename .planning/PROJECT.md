@@ -117,7 +117,15 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active requirements — planning next milestone)
+## Current Milestone: v1.12 UI/UX Polish
+
+**Goal:** Improve terminal visual quality, web server accessibility, and overall UI polish.
+
+**Target features:**
+- Terminal padding (inset around terminal content so text doesn't touch edges)
+- Web server link opens in default browser, copy-to-clipboard for URL, and QR code for web server dashboard URL
+- Terminal theming (popular theme support for fonts and colors)
+- Sidebar icon centering when collapsed
 
 ## Current State
 
@@ -249,4 +257,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after v1.11 milestone complete*
+*Last updated: 2026-04-10 after v1.12 milestone started*
