@@ -53,7 +53,9 @@ None.
 
 ### Quick Tasks Completed
 
-(Cleared at milestone boundary)
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
 
 ### Blockers/Concerns
 
