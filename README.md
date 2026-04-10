@@ -61,20 +61,15 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, QR code thumbnails, and direct connect links
 - **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
-- **Health checks** — Detects Tailscale installation, connection, and cert readiness with platform-specific setup guidance
+- **Health checks** — Detects Tailscale installation, connection, and cert readiness (`agenthub health` CLI command)
 - **Nudge banner** — Persistent in-app banner recommending Tailscale installation when running in local network mode
-
-### Tailscale Onboarding
-- **Guided setup** — Platform-specific install commands with copy-to-clipboard buttons and download links
-- **macOS auto-install** — One-click Tailscale installation via Homebrew directly from the health modal
-- **Post-install guide** — Step-by-step HTTPS certificate configuration after Tailscale is installed
 
 ### Settings
 - **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
 - **Custom CLI paths** — Override auto-detected paths per CLI
 - **Web server controls** — Start/stop web server with mode-aware status display
 - **Local network password** — View the generated password with click-to-copy when running in local network mode
-- **Tailscale health display** — Color-coded status indicators with platform-specific setup instructions
+- **Tailscale status indicator** — Color-coded dot showing Tailscale connection state (Connected / Not Connected / Not Installed)
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
 
 ### Platform
@@ -183,7 +178,7 @@ All releases include a `checksums.txt` with SHA256 hashes for verification.
 - **Go** 1.22+ ([go.dev/dl](https://go.dev/dl/))
 - **Node.js** 18+ and **pnpm** ([pnpm.io](https://pnpm.io/installation))
 - **Wails CLI** v2 (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`)
-- **Tailscale** — required for web serving features ([tailscale.com](https://tailscale.com))
+- **Tailscale** (optional) — enables zero-config web serving with browser-trusted TLS; without it, local network mode uses self-signed TLS + password auth ([tailscale.com](https://tailscale.com))
 
 ### Platform-specific
 
