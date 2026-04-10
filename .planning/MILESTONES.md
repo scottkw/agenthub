@@ -1,5 +1,30 @@
 # Milestones
 
+## v1.11 Local Network & UX Polish (Shipped: 2026-04-10)
+
+**Phases completed:** 6 phases, 9 plans, 6 tasks
+
+**Requirements:** 10/10 satisfied
+**Commits:** 57 | **Timeline:** 2 days (2026-04-08 → 2026-04-10)
+**Source changes:** 31 files, +1,651 / -980 lines
+
+**Key accomplishments:**
+
+- Claude Code native installer detection: `~/.local/bin` added as first AugmentServicePath candidate for Anthropic native installer discovery
+- Settings converted from modal overlay to singleton sidebar tab (SettingsTab.tsx), consistent with Home/Remote/Sessions panels
+- Web server auto-starts on daemon launch; new sessions auto-enabled for web serving in both Tailscale and local modes
+- Local network fallback: self-signed TLS (P256 + IP SAN), HTTP Basic Auth with generated password, LAN IP selection, persistent nudge banner, password display in Settings
+- Frontend webEnabled seeding chain restored across all 5 IPC layers (Go bindings → TypeScript types → React state) for correct StatusBar display
+- Tech debt cleanup: deleted orphaned SettingsPanel/HealthModal components, fixed 11 stale test assertions
+
+**Known tech debt (7 items, all non-blocking):**
+- SUMMARY frontmatter missing `requirements_completed` for phases 59, 60, 61
+- App.tsx `retryInit()` missing `webServerRunning` override (narrow race, no data loss)
+- App.tsx stale closure risk in `createTab` useCallback (WR-01)
+- App.tsx init/retryInit code duplication (WR-02)
+
+---
+
 ## v1.10 Collapsible Sidebar Navigation (Shipped: 2026-04-08)
 
 **Phases completed:** 2 phases, 3 plans, 4 tasks

@@ -111,26 +111,17 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Claude Code detection for ~/.local/bin (Anthropic native installer path) — v1.11 Phase 57
 - ✓ Sidebar "New Tab" label renamed to "New Session" — v1.11 Phase 57
 - ✓ Settings converted from modal overlay to sidebar tab (singleton pattern, consistent with Home/Remote/Sessions) — v1.11 Phase 58
+- ✓ Web server auto-starts on daemon launch (no manual start required) — v1.11 Phase 59
+- ✓ New sessions auto-enabled for web serving when web server running — v1.11 Phases 59+61
 - ✓ Local network fallback: self-signed TLS (P256+IP SAN), HTTP Basic Auth with generated password, LAN IP selection excluding Tailscale CGNAT, mode-aware server dispatch, daemon fallback wiring, password display in Settings with copy, persistent nudge banner — v1.11 Phase 60
 
 ### Active
 
-(Defined in REQUIREMENTS.md for v1.11)
-
-## Current Milestone: v1.11 Local Network & UX Polish
-
-**Goal:** Enable local network operation when Tailscale is unavailable, auto-serve sessions, and polish the UI with settings-as-tab, label rename, and Claude Code detection fix.
-
-**Target features:**
-- Local network fallback with self-signed TLS + random password when Tailscale not found, with persistent nudge banner
-- Auto-start web server and auto-enable web serving for all new sessions (both modes)
-- Settings converted from modal to sidebar tab (like Home/Remote/Sessions)
-- "New Tab" sidebar label renamed to "New Session"
-- Claude Code detection for Anthropic native install paths
+(No active requirements — planning next milestone)
 
 ## Current State
 
-v1.11 in progress (2026-04-10). 11 milestones shipped (v1.0–v1.10), 62 phases completed, 112 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode. Phase 62 closed tech debt — deleted orphaned SettingsPanel/HealthModal components, cleaned CSS, fixed 11 stale test assertions.
+v1.11 shipped (2026-04-10). 12 milestones shipped (v1.0–v1.11), 62 phases completed, 112 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode.
 
 ### Out of Scope
 
@@ -231,6 +222,13 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | goruntime alias for stdlib runtime | Avoids collision with wails/v2/pkg/runtime already imported as runtime | ✓ Good — clean namespace |
 | cmd.Stderr = cmd.Stdout for brew streaming | Merges stderr into stdout pipe for single-goroutine output streaming | ✓ Good — simple, reliable |
 | installProgress state in App.tsx not HealthModal | EventsOn subscriber pattern; HealthModal is pure display component | ✓ Good — clean separation |
+| P256 (not P521) for self-signed TLS | Chrome rejects P521 with cryptic error; P256 universally supported | ✓ Good — works in all browsers |
+| Password lifetime = daemon lifetime | Generated once in runDaemonCore via crypto/rand, not per server start | ✓ Good — stable credential across restarts |
+| Nudge banner as sibling to app__content | Never inside terminal flex container — avoids displacing terminal area | ✓ Good — clean layout separation |
+| Settings-as-tab follows singleton pattern | find-or-add (not push) — consistent with DaemonManagerPanel | ✓ Good — no duplicate tabs |
+| Enrichment in handleListSessions (not engine.go) | Keeps WebEnabled out of SessionEngine which has no web server reference | ✓ Good — clean module boundary |
+| WebEnabled on app.go SessionInfo (not daemon.SessionInfo) | Maintains Wails API surface separation from daemon types | ✓ Good — clean type hierarchy |
+| Mirror backend state in frontend (no ToggleWebServing in createTab) | Daemon already auto-enables; frontend is display-only for web state | ✓ Good — single source of truth |
 
 ---
 ## Evolution
@@ -251,4 +249,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-10 after Phase 62 (tech-debt-cleanup) complete*
+*Last updated: 2026-04-10 after v1.11 milestone complete*
