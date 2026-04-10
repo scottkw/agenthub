@@ -1,9 +1,9 @@
 ---
 phase: 58
 slug: settings-as-sidebar-tab
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-08
 ---
 
@@ -38,9 +38,9 @@ created: 2026-04-08
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 58-01-01 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ⬜ pending |
-| 58-01-02 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ⬜ pending |
-| 58-01-03 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ⬜ pending |
+| 58-01-01 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ✅ green |
+| 58-01-02 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ✅ green |
+| 58-01-03 | 01 | 1 | UI-02 | build | `cd frontend && npm run build` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -65,11 +65,28 @@ created: 2026-04-08
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-10
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 7 |
+| Resolved | 7 |
+| Escalated | 0 |
+
+**New test files:**
+- `frontend/src/components/__tests__/SettingsTab.test.tsx` — 14 tests (exports, props, no modal shell, wrapper, mount-based effect)
+- `frontend/src/components/__tests__/App.dead-modal.test.tsx` — 8 tests (dead modal code removed, new wiring present)
+- `frontend/src/components/__tests__/style.settings.test.ts` — 6 tests (modal CSS removed, .settings-tab added, inner classes retained)
+
+**Implementation fix:** Removed leftover `.settings-panel__header`, `.settings-panel__close`, `.settings-panel__footer` CSS blocks and added `.settings-tab` class in `style.css`.
