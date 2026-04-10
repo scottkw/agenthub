@@ -148,7 +148,7 @@
 - [x] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions (completed 2026-04-09)
 - [x] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings (completed 2026-04-09)
 - [x] **Phase 61: SERVE-02 Frontend Integration Fix** — Restore webEnabled seeding chain broken by quick task rewrite (app.go, App.d.ts, App.tsx) (completed 2026-04-10)
-- [ ] **Phase 62: Quick Task Tech Debt Cleanup** — Delete orphaned components, fix stale tests, update requirement checkboxes
+- [x] **Phase 62: Quick Task Tech Debt Cleanup** — Delete orphaned components, fix stale tests, update requirement checkboxes (completed 2026-04-10)
 
 ## Phase Details
 
@@ -234,9 +234,9 @@ Plans:
   3. All test assertions in `App.test.tsx` and `App.nav.test.tsx` pass (no stale references to HealthModal or modal SettingsPanel)
   4. `App.nav.test.tsx` describe label reads "New Session" (not "New Tab")
   5. NET-01 through NET-05 checkboxes marked `[x]` in REQUIREMENTS.md
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 62-01-PLAN.md — Delete dead components, fix stale tests, update requirement checkboxes
+- [x] 62-01-PLAN.md — Delete dead components, fix stale tests, update requirement checkboxes
 
 ## Progress
 
@@ -258,7 +258,7 @@ Plans:
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 3/3 | Complete    | 2026-04-09 |
 | 61. SERVE-02 Frontend Fix | v1.11 | 1/1 | Complete    | 2026-04-10 |
-| 62. Tech Debt Cleanup | v1.11 | 0/1 | Pending     | — |
+| 62. Tech Debt Cleanup | v1.11 | 1/1 | Complete    | 2026-04-10 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
