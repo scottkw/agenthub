@@ -19,15 +19,15 @@ Requirements for milestone v1.11: Local Network & UX Polish.
 ### Auto-Serve
 
 - [x] **SERVE-01**: Web server starts automatically when daemon launches (no manual start required)
-- [x] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
+- [ ] **SERVE-02**: New sessions have web serving enabled automatically when the web server is running
 
 ### Local Network
 
-- [ ] **NET-01**: User can serve sessions over the local network with self-signed TLS when Tailscale is not available
-- [ ] **NET-02**: Local network mode generates a random password for all web connections via HTTP Basic Auth
-- [ ] **NET-03**: Web server binds to a local network interface when operating in local mode
-- [ ] **NET-04**: User sees a persistent nudge banner on each launch recommending Tailscale installation when in local mode
-- [ ] **NET-05**: User can view the generated password in the UI (settings/status area)
+- [x] **NET-01**: User can serve sessions over the local network with self-signed TLS when Tailscale is not available
+- [x] **NET-02**: Local network mode generates a random password for all web connections via HTTP Basic Auth
+- [x] **NET-03**: Web server binds to a local network interface when operating in local mode
+- [x] **NET-04**: User sees a persistent nudge banner on each launch recommending Tailscale installation when in local mode
+- [x] **NET-05**: User can view the generated password in the UI (settings/status area)
 
 ## Future Requirements
 
@@ -64,12 +64,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-01 | Phase 57 | Complete |
 | UI-02 | Phase 58 | Complete |
 | SERVE-01 | Phase 59 | Complete |
-| SERVE-02 | Phase 59 | Complete |
-| NET-01 | Phase 60 | Pending |
-| NET-02 | Phase 60 | Pending |
-| NET-03 | Phase 60 | Pending |
-| NET-04 | Phase 60 | Pending |
-| NET-05 | Phase 60 | Pending |
+| SERVE-02 | Phase 61 | Pending |
+| NET-01 | Phase 60 | Complete |
+| NET-02 | Phase 60 | Complete |
+| NET-03 | Phase 60 | Complete |
+| NET-04 | Phase 60 | Complete |
+| NET-05 | Phase 60 | Complete |
 
 **Coverage:**
 - v1.11 requirements: 10 total

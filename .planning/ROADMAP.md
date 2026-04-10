@@ -13,7 +13,7 @@
 - ✅ **v1.8 GitHub Distribution & CI/CD** — Phases 44-48 (shipped 2026-04-06)
 - ✅ **v1.9 Remote Sessions & App Polish** — Phases 49-54 (shipped 2026-04-08)
 - ✅ **v1.10 Collapsible Sidebar Navigation** — Phases 55-56 (shipped 2026-04-08)
-- 🚧 **v1.11 Local Network & UX Polish** — Phases 57-60 (in progress)
+- 🚧 **v1.11 Local Network & UX Polish** — Phases 57-62 (in progress)
 
 ## Phases
 
@@ -147,6 +147,8 @@
 - [x] **Phase 58: Settings as Sidebar Tab** — Convert Settings from modal overlay to persistent sidebar tab (completed 2026-04-09)
 - [x] **Phase 59: Auto-Serve Sessions** — Auto-start web server on daemon launch; auto-enable web serving for new sessions (completed 2026-04-09)
 - [x] **Phase 60: Local Network Fallback** — Self-signed TLS + password auth for LAN access when Tailscale unavailable; persistent nudge banner; password display in Settings (completed 2026-04-09)
+- [ ] **Phase 61: SERVE-02 Frontend Integration Fix** — Restore webEnabled seeding chain broken by quick task rewrite (app.go, App.d.ts, App.tsx)
+- [ ] **Phase 62: Quick Task Tech Debt Cleanup** — Delete orphaned components, fix stale tests, update requirement checkboxes
 
 ## Phase Details
 
@@ -207,6 +209,34 @@ Plans:
 - [x] 60-03-PLAN.md — Frontend (nudge banner, settings password display, HealthModal fix, layout)
 **UI hint**: yes
 
+### Phase 61: SERVE-02 Frontend Integration Fix
+**Goal**: Restore the webEnabled seeding chain so the frontend correctly reflects backend auto-enable state for new and restored sessions
+**Depends on**: Phase 59
+**Requirements**: SERVE-02
+**Gap Closure:** Closes SERVE-02 partial, integration gap (Phase 59→Frontend), flow gap (session restore with web-enabled state)
+**Success Criteria** (what must be TRUE):
+  1. `app.go:ListSessions()` maps `WebEnabled` field to frontend `SessionInfo`
+  2. `App.d.ts` `SessionInfo` interface includes `webEnabled` boolean field
+  3. `App.tsx:createTab()` calls `setWebEnabled` after `CreateSession` when web server is running
+  4. `App.tsx:init()` seeds `webEnabled` map from session list on window restore
+  5. StatusBar shows correct web toggle state for newly created and restored sessions
+Plans:
+- [ ] 61-01-PLAN.md — Restore webEnabled seeding in Go bindings, TypeScript types, and React state
+
+### Phase 62: Quick Task Tech Debt Cleanup
+**Goal**: Remove dead code left by quick task 260409-vop rewrite, fix all stale test assertions, and update requirement checkboxes to reflect actual completion state
+**Depends on**: Phase 61
+**Requirements**: (none — tech debt closure)
+**Gap Closure:** Closes integration gap (orphaned SettingsPanel.tsx), tech debt from quick-260409-vop, Phase 57, Phase 60
+**Success Criteria** (what must be TRUE):
+  1. `SettingsPanel.tsx` deleted (orphaned, superseded by `SettingsTab.tsx`)
+  2. `HealthModal.tsx` and `HealthModal.test.tsx` deleted (dead code, no longer imported)
+  3. All test assertions in `App.test.tsx` and `App.nav.test.tsx` pass (no stale references to HealthModal or modal SettingsPanel)
+  4. `App.nav.test.tsx` describe label reads "New Session" (not "New Tab")
+  5. NET-01 through NET-05 checkboxes marked `[x]` in REQUIREMENTS.md
+Plans:
+- [ ] 62-01-PLAN.md — Delete dead components, fix stale tests, update requirement checkboxes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -226,6 +256,8 @@ Plans:
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 3/3 | Complete    | 2026-04-09 |
+| 61. SERVE-02 Frontend Fix | v1.11 | 0/1 | Pending     | — |
+| 62. Tech Debt Cleanup | v1.11 | 0/1 | Pending     | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
