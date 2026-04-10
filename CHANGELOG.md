@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.11.0](https://github.com/scottkw/agenthub/compare/v1.10.0...v1.11.0) (2026-04-10)
+
+
+### Features
+
+* **57-01:** add ~/.local/bin to AugmentServicePath candidates ([3bba922](https://github.com/scottkw/agenthub/commit/3bba922b9aab9fbfab055579627106975310b6f4))
+* **57-02:** rename 'New Tab' to 'New Session' in sidebar (UI-01) ([6141823](https://github.com/scottkw/agenthub/commit/6141823e25c368c3dd819af0555fb296e40e6bcf))
+* **58-01:** create SettingsTab component and extend Tab type union ([bfd0b82](https://github.com/scottkw/agenthub/commit/bfd0b8259476427ab5b59360531a2ae0e23fd4cc))
+* **58-01:** wire Settings singleton tab, remove modal code, update tests ([17888c0](https://github.com/scottkw/agenthub/commit/17888c0d4390fd0de3a6341aa4c14a34bb8e21fc))
+* **59-01:** daemon auto-start web server and auto-enable sessions ([d093677](https://github.com/scottkw/agenthub/commit/d093677ee1e3d805fe30b50cd403e8f4acd5687c))
+* **59-01:** frontend webEnabled state seeding for new and restored sessions ([817ebbd](https://github.com/scottkw/agenthub/commit/817ebbd70e92e2b6171e22cdba6da8a609b8d885))
+* **60-01:** webserver local mode infrastructure ([657d3f8](https://github.com/scottkw/agenthub/commit/657d3f8e46416786c450363eb444c1132829456a))
+* **60-02:** extend daemon types, API, client with mode/password + local-password endpoint ([e73e0cd](https://github.com/scottkw/agenthub/commit/e73e0cd233c699b553d12187f89125699fe28889))
+* **60-02:** password generation, local mode fallback in runDaemonCore, Wails bindings ([85b7ee0](https://github.com/scottkw/agenthub/commit/85b7ee0c5ab8b3f60a6c2610d2d75fdcacd2d848))
+* **60-03:** add LocalNetworkBanner component and CSS ([ebcb762](https://github.com/scottkw/agenthub/commit/ebcb7623ab11602ed169e3f1c7d0bce7647b75ce))
+* **60-03:** integrate banner, password display, HealthModal fix ([53e5beb](https://github.com/scottkw/agenthub/commit/53e5beb3ad654bb5db8f3a1b466b907dd4976215))
+* **61-01:** add WebEnabled to Go and TypeScript type chain ([955f245](https://github.com/scottkw/agenthub/commit/955f2456918dcdce34795351140487085e2f610d))
+* **61-01:** restore webEnabled seeding in init, createTab, and retryInit ([57484a2](https://github.com/scottkw/agenthub/commit/57484a2b4333702ecc64c95cc6e7380378750d76))
+* **quick-260409-vop:** add SettingsTab with webServerMode and LAN password support ([e604fcd](https://github.com/scottkw/agenthub/commit/e604fcdb2256e68d4e1cf9e475d7a5872224c37f))
+
+
+### Bug Fixes
+
+* **60:** CR-01 validate non-empty password for local-mode web server ([659741e](https://github.com/scottkw/agenthub/commit/659741eaafac4acccac6c5793e8e9eb89f1ded7b))
+* **60:** WR-01 clear webServerMode state when web server stops ([7713f8a](https://github.com/scottkw/agenthub/commit/7713f8aba914e4b7853747c01c7b8380cb3fee96))
+* **60:** WR-02 stop existing web server before starting new one ([29558d9](https://github.com/scottkw/agenthub/commit/29558d9bd1ca08fa295bdf3050aad5b3e964db16))
+* **60:** WR-03 stop polling goroutine when session reaches running state ([94bfea5](https://github.com/scottkw/agenthub/commit/94bfea5f347093e792fb1772a6e65a98781e9471))
+* **60:** WR-04 document threat model for local password endpoint ([df7d419](https://github.com/scottkw/agenthub/commit/df7d419a7914c2749d0bf122a7cf9926ac7be0e1))
+* **62-01:** fix stale test assertions and delete orphaned SettingsPanel test ([3a3ac8f](https://github.com/scottkw/agenthub/commit/3a3ac8ff9442ff8b98f8a747482c0b056a28df5a))
+* **docs:** remove deleted HealthModal features from README ([7ed45d0](https://github.com/scottkw/agenthub/commit/7ed45d0464b64b17b1739be607b528387151d316))
+* **phase-58:** remove leftover modal CSS, add .settings-tab class ([af385d3](https://github.com/scottkw/agenthub/commit/af385d33371311a066f76c2cead886cd7b57be48))
+* **quick-260409-vop:** remove HealthModal flash, switch Settings from modal to inline tab ([f5f8143](https://github.com/scottkw/agenthub/commit/f5f8143f660dc858b619b7cab26c5b6c2ac18446))
+* **quick-260409-vop:** restore app__row wrapper and LocalNetworkBanner ([9295a98](https://github.com/scottkw/agenthub/commit/9295a987c75efeee4bff017d3c150fb363153d3f))
+* **test:** update StartWebServer test for local mode fallback ([e004fbc](https://github.com/scottkw/agenthub/commit/e004fbcb7f8c91d3a23c66d21d9569b88d279acc))
+
 ## [1.10.0](https://github.com/scottkw/agenthub/compare/v1.9.0...v1.10.0) (2026-04-08)
 
 
