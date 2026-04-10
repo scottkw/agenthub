@@ -150,6 +150,29 @@ function App(): React.ReactElement {
               })
               .catch(() => { /* status unavailable — leave unset */ })
           })
+
+          // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
+          if (running) {
+            const enabledMap: Record<string, boolean> = {}
+            const urlMap: Record<string, string> = {}
+            let serverURL: string | undefined
+            try {
+              serverURL = await GetWebServerURL()
+            } catch (_) { /* ignore */ }
+
+            sessions.forEach((s) => {
+              if (s.webEnabled) {
+                enabledMap[s.id] = true
+                if (serverURL) {
+                  urlMap[s.id] = `${serverURL}/sessions/${s.id}`
+                }
+              }
+            })
+            if (Object.keys(enabledMap).length > 0) {
+              setWebEnabled(enabledMap)
+              setSessionURLs(urlMap)
+            }
+          }
         }
       } catch (err) {
         console.error('[App] init failed:', err)
@@ -222,10 +245,21 @@ function App(): React.ReactElement {
       }
       setTabs((prev) => [...prev, tab])
       setActiveId(sessionId)
+
+      // Auto-seed webEnabled state for new sessions when web server is running (SERVE-02).
+      if (webServerRunning) {
+        setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
+        try {
+          const url = await GetWebServerURL()
+          if (url) {
+            setSessionURLs((prev) => ({ ...prev, [sessionId]: `${url}/sessions/${sessionId}` }))
+          }
+        } catch (_) { /* URL fetch failure is non-fatal */ }
+      }
     } catch (err) {
       console.error('[App] CreateSession failed:', err)
     }
-  }, [tabCounter])
+  }, [tabCounter, webServerRunning])
 
   const handleOpenSettings = useCallback(() => {
     const existing = tabs.find((t) => t.type === 'settings')
@@ -438,6 +472,29 @@ function App(): React.ReactElement {
             .then((st) => setSessionStatuses((prev) => ({ ...prev, [s.id]: st })))
             .catch(() => {})
         })
+
+        // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
+        if (running) {
+          const enabledMap: Record<string, boolean> = {}
+          const urlMap: Record<string, string> = {}
+          let serverURL: string | undefined
+          try {
+            serverURL = await GetWebServerURL()
+          } catch (_) { /* ignore */ }
+
+          sessions.forEach((s) => {
+            if (s.webEnabled) {
+              enabledMap[s.id] = true
+              if (serverURL) {
+                urlMap[s.id] = `${serverURL}/sessions/${s.id}`
+              }
+            }
+          })
+          if (Object.keys(enabledMap).length > 0) {
+            setWebEnabled(enabledMap)
+            setSessionURLs(urlMap)
+          }
+        }
       }
     } catch (err) {
       console.error('[App] retry init failed:', err)
