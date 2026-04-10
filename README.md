@@ -4,15 +4,15 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Tab, and Settings. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (as a full sidebar tab). Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
 ### Terminal & Sessions
-- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Tab (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; state persists in localStorage
+- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Session (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; state persists in localStorage
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
 - **Background daemon** — Sessions live in a standalone daemon process; closing the GUI hides the window while sessions and the system tray remain active
-- **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, and OpenCode on startup — including when launched from Finder/Dock (augments PATH with Homebrew, nvm, volta, and other common install locations); supports custom CLI path overrides
+- **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, and OpenCode on startup — including when launched from Finder/Dock (augments PATH with `~/.local/bin`, Homebrew, nvm, volta, and other common install locations); supports custom CLI path overrides
 - **New session modal** — Select a CLI and pick a working directory with a native folder browser; remembers your last-used directory
 - **CLI argument passing** — Pass extra arguments to CLIs with `--` separator syntax (e.g., `agenthub new claude ~/dir -- --arg1`); arguments are remembered per CLI
 - **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
@@ -55,13 +55,14 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
 
 ### Web Serving
-- **Tailscale networking** — Web server binds exclusively to Tailscale interface with Let's Encrypt TLS via `tsnet`
-- **Zero-config security** — Tailscale network membership is the access control; no passwords or tokens needed
+- **Auto-serve** — Web server starts automatically on daemon launch; new sessions are web-served by default
+- **Dual-mode networking** — Tailscale mode (Let's Encrypt TLS, zero-config security) when available; local network fallback (self-signed TLS + HTTP Basic Auth with generated password) when Tailscale is unavailable
 - **Per-session toggle** — Enable/disable web access per session from GUI or CLI (`agenthub serve/unserve`)
 - **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, QR code thumbnails, and direct connect links
 - **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
 - **Health checks** — Detects Tailscale installation, connection, and cert readiness with platform-specific setup guidance
+- **Nudge banner** — Persistent in-app banner recommending Tailscale installation when running in local network mode
 
 ### Tailscale Onboarding
 - **Guided setup** — Platform-specific install commands with copy-to-clipboard buttons and download links
@@ -69,8 +70,10 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Post-install guide** — Step-by-step HTTPS certificate configuration after Tailscale is installed
 
 ### Settings
-- **Tabbed settings panel** — CLI Paths and Web Server tabs
+- **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
 - **Custom CLI paths** — Override auto-detected paths per CLI
+- **Web server controls** — Start/stop web server with mode-aware status display
+- **Local network password** — View the generated password with click-to-copy when running in local network mode
 - **Tailscale health display** — Color-coded status indicators with platform-specific setup instructions
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
 
@@ -98,8 +101,8 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 │  │              Daemon (background process)           │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
 │  │  │ Session  │  │ WebSocket │  │  Web Server   │  │  │
-│  │  │ Engine   │  │ Relay Hub │  │ (Tailscale    │  │  │
-│  │  │ (go-pty) │  │ (fan-out) │  │  TLS + FQDN) │  │  │
+│  │  │ Engine   │  │ Relay Hub │  │ (Tailscale or │  │  │
+│  │  │ (go-pty) │  │ (fan-out) │  │  Local TLS)  │  │  │
 │  │  └──────────┘  └──────────┘  └───────────────┘  │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
 │  │  │  Status  │  │ QR Code  │  │   Service     │  │  │
@@ -124,7 +127,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
 | `internal/tailnet` | Tailscale peer discovery, concurrent probe pool, cached peer list |
 | `internal/updater` | GitHub release polling, semantic version comparison, update notifications |
-| `internal/webserver` | HTTPS server via Tailscale, dashboard, health checks |
+| `internal/webserver` | HTTPS server (Tailscale or local self-signed TLS), dashboard, health checks, Basic Auth |
 | `web/` | Embedded HTML assets (dashboard + terminal pages) |
 
 **Frontend (`frontend/`):**
@@ -132,7 +135,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | Component | Purpose |
 |-----------|---------|
 | `App.tsx` | Root layout, daemon client, session management, sidebar + content flex layout |
-| `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Remote, Sessions, New Tab, Settings |
+| `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Remote, Sessions, New Session, Settings |
 | `TabBar.tsx` | Tab strip with status dots, rename, close (session tabs only — no action buttons) |
 | `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
 | `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
@@ -140,8 +143,8 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
-| `SettingsPanel.tsx` | Tabbed settings with Tailscale status |
-| `HealthModal.tsx` | Tailscale health check with platform-specific instructions |
+| `SettingsTab.tsx` | Settings as sidebar tab: CLI paths, web server controls, local network password |
+| `LocalNetworkBanner.tsx` | Persistent nudge banner recommending Tailscale when in local network mode |
 | `QRModal.tsx` | QR code display for web-served sessions |
 
 ## Installation
@@ -305,11 +308,11 @@ GitHub Actions automates building, releasing, and distributing AgentHub:
 
 1. **Launch AgentHub** — run `agenthub` with no arguments to open the GUI
 2. **Navigate via sidebar** — use the collapsible left sidebar for all navigation; toggle collapsed/expanded with the hamburger icon
-3. **Create a session** — click New Tab in the sidebar to open the new session modal; select a CLI, working directory, and optional arguments
-4. **Use the terminal** — full interactive terminal with the selected CLI
+3. **Create a session** — click New Session in the sidebar to open the new session modal; select a CLI, working directory, and optional arguments
+4. **Use the terminal** — full interactive terminal with the selected CLI; new sessions are automatically web-served
 5. **Manage sessions** — click Sessions in the sidebar to view all sessions, kill them, or toggle web access
 6. **Remote sessions** — click Remote in the sidebar to discover and open sessions on other tailnet machines
-7. **Web serve** — toggle web access per session; Tailscale health check runs automatically
+7. **Web serve** — web server starts automatically; toggle web access per session as needed
 8. **System tray** — close the window to hide; use the tray menu to switch sessions or quit
 
 ### CLI
@@ -369,7 +372,7 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
-| TLS | Tailscale Let's Encrypt via `GetCertificate` |
+| TLS | Tailscale Let's Encrypt via `GetCertificate`; self-signed P256 for local network mode |
 | Peer discovery | [tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) |
 | Auto-update | [go-selfupdate](https://github.com/creativeprojects/go-selfupdate), [Masterminds/semver](https://github.com/Masterminds/semver) |
 | Service manager | [kardianos/service](https://github.com/kardianos/service) |
