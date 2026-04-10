@@ -256,7 +256,7 @@ Plans:
 | 58. Settings as Sidebar Tab | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 59. Auto-Serve Sessions | v1.11 | 1/1 | Complete    | 2026-04-09 |
 | 60. Local Network Fallback | v1.11 | 3/3 | Complete    | 2026-04-09 |
-| 61. SERVE-02 Frontend Fix | v1.11 | 1/1 | Complete   | 2026-04-10 |
+| 61. SERVE-02 Frontend Fix | v1.11 | 1/1 | Complete    | 2026-04-10 |
 | 62. Tech Debt Cleanup | v1.11 | 0/1 | Pending     | — |
 
 ---
