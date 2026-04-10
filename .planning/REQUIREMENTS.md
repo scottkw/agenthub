@@ -54,20 +54,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PAD-01 | — | Pending |
-| WEB-01 | — | Pending |
-| WEB-02 | — | Pending |
-| WEB-03 | — | Pending |
-| THM-01 | — | Pending |
-| THM-02 | — | Pending |
-| THM-03 | — | Pending |
-| SBR-01 | — | Pending |
+| SBR-01 | Phase 63 | Pending |
+| PAD-01 | Phase 64 | Pending |
+| THM-01 | Phase 65 | Pending |
+| THM-02 | Phase 65 | Pending |
+| THM-03 | Phase 65 | Pending |
+| WEB-01 | Phase 66 | Pending |
+| WEB-02 | Phase 66 | Pending |
+| WEB-03 | Phase 66 | Pending |
 
 **Coverage:**
 - v1.12 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-10*
-*Last updated: 2026-04-10 after initial definition*
+*Last updated: 2026-04-10 after roadmap creation*

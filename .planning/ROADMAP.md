@@ -14,6 +14,7 @@
 - ✅ **v1.9 Remote Sessions & App Polish** — Phases 49-54 (shipped 2026-04-08)
 - ✅ **v1.10 Collapsible Sidebar Navigation** — Phases 55-56 (shipped 2026-04-08)
 - ✅ **v1.11 Local Network & UX Polish** — Phases 57-62 (shipped 2026-04-10)
+- 🔄 **v1.12 UI/UX Polish** — Phases 63-66 (active)
 
 ## Phases
 
@@ -151,6 +152,60 @@
 
 </details>
 
+### v1.12 UI/UX Polish (Phases 63-66) — ACTIVE
+
+- [ ] **Phase 63: Sidebar Icon Centering** - Center sidebar icons visually when collapsed
+- [ ] **Phase 64: Terminal Padding** - Inset terminal content from edges with consistent padding
+- [ ] **Phase 65: Terminal Theming** - Full xterm-theme library with persistence and live apply
+- [ ] **Phase 66: Web Server Link UX** - Browser open, clipboard copy, and QR code for web dashboard URL
+
+## Phase Details
+
+### Phase 63: Sidebar Icon Centering
+**Goal**: Sidebar icons are visually centered in the collapsed rail
+**Depends on**: Nothing (CSS-only, fully isolated)
+**Requirements**: SBR-01
+**Success Criteria** (what must be TRUE):
+  1. When sidebar is collapsed, each icon appears horizontally and vertically centered within its button
+  2. Icon centering holds across all 5 sidebar items (Home, Remote, Sessions, New Session, Settings)
+  3. Expanding the sidebar does not break centering or cause icon jump
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 64: Terminal Padding
+**Goal**: Terminal content is inset from the edge of its container so text does not touch the frame
+**Depends on**: Phase 63
+**Requirements**: PAD-01
+**Success Criteria** (what must be TRUE):
+  1. Terminal text has a visible gap between the content and all four edges of the terminal container
+  2. Padding is consistent across all open terminal sessions
+  3. Terminal still fills its container and resizes correctly — no height regression or blank strips
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 65: Terminal Theming
+**Goal**: Users can choose a terminal color theme that persists and applies live to all sessions
+**Depends on**: Phase 64
+**Requirements**: THM-01, THM-02, THM-03
+**Success Criteria** (what must be TRUE):
+  1. User can open Settings and see a theme selector with options from the xterm-theme library
+  2. Selecting a theme immediately changes the colors in all open terminal sessions without reload
+  3. After restarting the app, the previously selected theme is still active
+  4. The theme selector is usable with a reasonable number of named options (no blank or broken entries)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 66: Web Server Link UX
+**Goal**: Users can act on the web server dashboard URL directly from the Settings tab
+**Depends on**: Phase 65
+**Requirements**: WEB-01, WEB-02, WEB-03
+**Success Criteria** (what must be TRUE):
+  1. Clicking the web server URL in Settings opens the dashboard in the user's default browser
+  2. A copy button next to the URL writes the URL to the system clipboard
+  3. A QR code for the dashboard URL is visible in Settings, scannable by a mobile device
+  4. All three actions (open, copy, QR) work in both Tailscale mode and local network mode
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -167,6 +222,10 @@
 | 49-54 | v1.9 | 14/14 | Complete | 2026-04-08 |
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
+| 63. Sidebar Icon Centering | v1.12 | 0/? | Not started | - |
+| 64. Terminal Padding | v1.12 | 0/? | Not started | - |
+| 65. Terminal Theming | v1.12 | 0/? | Not started | - |
+| 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

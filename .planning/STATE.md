@@ -7,7 +7,7 @@ stopped_at: null
 last_updated: "2026-04-10T18:00:00.000Z"
 last_activity: 2026-04-10
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-10)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Defining requirements for v1.12
+**Current focus:** v1.12 UI/UX Polish — sidebar centering, terminal padding, terminal theming, web server link UX
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 63 — Sidebar Icon Centering (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-10 — Milestone v1.12 started
+Status: Roadmap defined, ready to plan Phase 63
+Last activity: 2026-04-10 — v1.12 roadmap created (4 phases, 8 requirements)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 0% (0/4 phases)
 
 ## Performance Metrics
 
@@ -46,6 +46,14 @@ Progress: [░░░░░░░░░░] 0%
 ### Decisions
 
 (Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
+
+### v1.12 Phase Ordering Rationale
+
+Research-recommended ordering (risk-ascending, dependency-driven):
+1. Phase 63: Sidebar icon centering — CSS-only, zero risk, zero dependencies
+2. Phase 64: Terminal padding — CSS-only, creates Appearance settings foundation
+3. Phase 65: Terminal theming — pure frontend, extends Appearance tab built in Phase 64
+4. Phase 66: Web server link UX — only Go-touching phase, isolated last to minimize risk
 
 ### Pending Todos
 
@@ -66,6 +74,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-10
-Stopped at: Milestone v1.11 complete
+Stopped at: v1.12 roadmap creation
 Resume file: None
-Next action: /gsd-new-milestone
+Next action: /gsd-plan-phase 63
