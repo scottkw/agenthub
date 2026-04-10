@@ -490,6 +490,54 @@
 
 ---
 
+## Milestone: v1.11 — Local Network & UX Polish
+
+**Shipped:** 2026-04-10
+**Phases:** 6 | **Plans:** 9 | **Commits:** 57
+
+### What Was Built
+- Claude Code native installer detection (`~/.local/bin` as first AugmentServicePath candidate) for Anthropic native installer discovery
+- Sidebar "New Tab" label renamed to "New Session" with aria-label and vitest verification
+- Settings converted from modal overlay to singleton sidebar tab (SettingsTab.tsx), consistent with Home/Remote/Sessions panels
+- Web server auto-starts on daemon launch; new sessions auto-enabled for web serving in both Tailscale and local modes
+- Local network fallback: self-signed TLS (P256 + IP SAN), HTTP Basic Auth with generated password, LAN IP selection excluding Tailscale CGNAT, persistent nudge banner, password display in Settings with click-to-copy
+- Frontend webEnabled seeding chain restored across all 5 IPC layers (Go bindings → TypeScript types → React state)
+- Tech debt cleanup: deleted orphaned SettingsPanel/HealthModal components, fixed 11 stale test assertions
+
+### What Worked
+- Milestone audit identified two real gaps (SERVE-02 frontend wiring, orphaned components) — gap closure phases (61, 62) shipped same day as audit
+- Quick task (260409-vop) accelerated Phase 58+60 frontend work by resolving HealthModal flash and Settings modal→tab conversion ahead of formal phases
+- Mode-aware server dispatch (Tailscale vs local) with daemon-lifetime password generation was clean architecture — single `AutoStartWebServer` entry point handles both paths
+- All 6 phases Nyquist compliant from the start — second consecutive milestone with 100% Nyquist compliance
+- 2-day timeline for 6 phases (9 plans) — consistent with v1.9/v1.10 velocity
+
+### What Was Inefficient
+- SUMMARY frontmatter missing `requirements_completed` for phases 59, 60, 61 — the systemic issue continues (now 8 milestones running)
+- Quick task 260409-vop rewrote SettingsPanel→SettingsTab before Phase 58 formally planned it — caused downstream confusion (60-03-SUMMARY references "SettingsPanel.tsx" when SettingsTab.tsx was the actual file)
+- Phase 61 was a 1-plan fix for a wiring gap that Phase 59 should have caught — the `WebEnabled` field missing from `app.go SessionInfo` was a type-chain oversight
+- `retryInit()` missing `webServerRunning` override that `init()` has — near-identical functions diverged during Phase 61 implementation
+
+### Patterns Established
+- Mode-aware web server: `AutoStartWebServer(mode, password)` dispatches to `startTailscale()` or `startLocal()` based on Tailscale health check
+- P256 self-signed certs with IP SAN for local network HTTPS — Chrome-compatible, no CA install needed
+- HTTP Basic Auth middleware with `crypto/rand` base64url password, daemon-lifetime scope
+- `LocalNetworkBanner` as conditional sibling to `app__content` — never inside terminal flex container
+- Singleton tab pattern (find-or-add) now standard for all non-session tabs (Home, Remote, Sessions, Settings)
+
+### Key Lessons
+1. Quick tasks that overlap with planned phases create naming/reference confusion in downstream plans — either fold quick task work into the phase or clearly document the overlap
+2. Type-chain wiring (Go struct → daemon API → Wails binding → TypeScript type → React state) needs an explicit checklist — omitting one layer creates subtle bugs that pass unit tests
+3. Near-identical functions (`init`/`retryInit`) inevitably diverge — extract shared logic or use a single function with a retry flag
+4. Milestone audits that run after all phases complete (not just mid-milestone) continue to find real gaps — Phases 61 and 62 were both audit-driven
+5. SUMMARY frontmatter `requirements_completed` drift is confirmed across 8 milestones — at this point, the field should be auto-populated from VERIFICATION.md during phase completion
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution), ~30% opus (audit/completion), ~5% haiku (synthesis)
+- Sessions: ~4 sessions across 2 days
+- Notable: Quick task 260409-vop provided a head start on frontend work, but created plan reference drift that required manual cleanup
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -507,6 +555,7 @@
 | v1.8 | ~18 | 5 | CI/CD infrastructure, GitHub Actions pipelines, package manager distribution, dev-browser automation |
 | v1.9 | 111 | 6 | Remote session discovery (GUI+CLI), auto-update checker, Tailscale onboarding, app menus, parallel plan execution |
 | v1.10 | 21 | 2 | Heroicons sidebar, flex-row layout restructure, tab bar cleanup, TDD-first UI milestone |
+| v1.11 | 57 | 6 | Local network fallback, auto-serve sessions, settings-as-tab, audit-driven gap closure (61, 62) |
 
 ### Cumulative Quality
 
@@ -523,6 +572,7 @@
 | v1.8 | 200+ (race-clean) | 150+ | ~41,000 | 3 (0 blockers; WinGet first submission deferred, ROADMAP checkbox drift, VERIFICATION human items) |
 | v1.9 | 200+ (race-clean) | 160+ | ~41,000 | 4 (0 blockers; SUMMARY frontmatter gaps, dead installError state, unused CheckForUpdates TS binding, STATE.md merge markers) |
 | v1.10 | 200+ (race-clean) | 268 | ~41,200 | 1 minor (SUMMARY frontmatter drift in 56-01) |
+| v1.11 | 200+ (race-clean) | 268+ | ~43,000 | 7 (0 blockers; SUMMARY frontmatter gaps, retryInit asymmetry, stale closure risk, init/retryInit duplication) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -545,4 +595,6 @@
 17. Human-action checkpoint plans need explicit prerequisite state documentation — "no release exists" blocked Task 2 but wasn't in depends_on (v1.8)
 18. Parallel plan execution within and across phases is the single biggest velocity lever — v1.9 shipped 14 plans in 2 days vs v1.3's 15 plans in 8 days (v1.9)
 19. 100% Nyquist compliance from the start (not retroactive) is achievable and should be the default — v1.9 was first milestone to achieve this (v1.9)
+20. Quick tasks that overlap with planned phases create naming/reference confusion — fold into the phase or document the overlap explicitly (v1.11)
+21. Type-chain wiring across 5+ IPC layers needs an explicit checklist — omitting one layer creates subtle state bugs that pass unit tests (v1.11)
 20. SUMMARY frontmatter one_liner auto-extraction is unreliable across 10 milestones — needs tooling fix or manual curation at completion time (v1.1-v1.9)
