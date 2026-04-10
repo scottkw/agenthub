@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 Phase: 60
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-09
+Last activity: 2026-04-10 - Completed quick task 260409-vop: Remove flashing Tailscale check modal and fix Settings displaying as modal instead of tab
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -62,6 +62,12 @@ Recent decisions for v1.11:
 ### Pending Todos
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260409-vop | Remove flashing Tailscale check modal and fix Settings displaying as modal instead of tab | 2026-04-10 | f5f8143 | [260409-vop-remove-flashing-tailscale-check-modal-an](./quick/260409-vop-remove-flashing-tailscale-check-modal-an/) |
 
 ### Blockers/Concerns
 
