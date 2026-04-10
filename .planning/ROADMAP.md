@@ -220,7 +220,7 @@ Plans:
   3. `App.tsx:createTab()` calls `setWebEnabled` after `CreateSession` when web server is running
   4. `App.tsx:init()` seeds `webEnabled` map from session list on window restore
   5. StatusBar shows correct web toggle state for newly created and restored sessions
-Plans:
+**Plans:** 1 plan
 - [ ] 61-01-PLAN.md — Restore webEnabled seeding in Go bindings, TypeScript types, and React state
 
 ### Phase 62: Quick Task Tech Debt Cleanup
