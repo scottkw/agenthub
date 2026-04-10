@@ -1,9 +1,9 @@
 ---
 phase: 59
 slug: auto-serve-sessions
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-09
 ---
 
@@ -40,11 +40,11 @@ created: 2026-04-09
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 59-01-01 | 01 | 0 | SERVE-01 | unit (Go) | `go test ./internal/daemon/... -run TestAutoStartWebServer` | ❌ W0 | ⬜ pending |
-| 59-01-02 | 01 | 0 | SERVE-01 | unit (Go) | `go test ./internal/daemon/... -run TestAutoStartWebServer_NoTailscale` | ❌ W0 | ⬜ pending |
-| 59-01-03 | 01 | 0 | SERVE-02 | unit (Go) | `go test ./internal/daemon/... -run TestCreateSession_AutoWebEnable` | ❌ W0 | ⬜ pending |
-| 59-01-04 | 01 | 0 | SERVE-02 | unit (Go) | `go test ./internal/daemon/... -run TestCreateSession_NoAutoEnable` | ❌ W0 | ⬜ pending |
-| 59-01-05 | 01 | 1 | SERVE-02 | unit (TS) | `cd frontend && pnpm test --run App` | ✅ partial | ⬜ pending |
+| 59-01-01 | 01 | 0 | SERVE-01 | unit (Go) | `go test ./internal/daemon/... -run TestAutoStartWebServer_CreatesNewServer` | ✅ | ✅ green |
+| 59-01-02 | 01 | 0 | SERVE-01 | unit (Go) | `go test ./internal/daemon/... -run TestAutoStartWebServer_LocalModeRequiresPassword` | ✅ | ✅ green |
+| 59-01-03 | 01 | 0 | SERVE-02 | unit (Go) | `go test ./internal/daemon/... -run TestCreateSession_AutoWebEnable` | ✅ | ✅ green |
+| 59-01-04 | 01 | 0 | SERVE-02 | unit (Go) | `go test ./internal/daemon/... -run TestCreateSession_NoAutoEnable` | ✅ | ✅ green |
+| 59-01-05 | 01 | 1 | SERVE-02 | unit (TS) | `cd frontend && pnpm test -- --run` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,12 +52,13 @@ created: 2026-04-09
 
 ## Wave 0 Requirements
 
-- [ ] `internal/daemon/api_test.go` — `TestAutoStartWebServer`: inject `SetWebServerForTest` pattern; verify auto-start on daemon launch
-- [ ] `internal/daemon/api_test.go` — `TestAutoStartWebServer_NoTailscale`: verify no auto-start when Tailscale not connected
-- [ ] `internal/daemon/api_test.go` — `TestCreateSession_AutoWebEnable`: create session with web server pre-set; verify session auto-enabled
-- [ ] `internal/daemon/api_test.go` — `TestCreateSession_NoAutoEnable`: create session without web server; verify no auto-enable
+- [x] `internal/daemon/api_test.go` — `TestAutoStartWebServer_CreatesNewServer`: verify AutoStartWebServer creates and starts a web server in local mode when none exists
+- [x] `internal/daemon/api_test.go` — `TestAutoStartWebServer_LocalModeRequiresPassword`: verify local mode with empty password returns error (guards unauthenticated access)
+- [x] `internal/daemon/api_test.go` — `TestAutoStartWebServer_AlreadyRunning`: verify idempotent no-op when web server already set
+- [x] `internal/daemon/api_test.go` — `TestCreateSession_AutoWebEnable`: create session with web server pre-set; verify session auto-enabled
+- [x] `internal/daemon/api_test.go` — `TestCreateSession_NoAutoEnable`: create session without web server; verify no auto-enable
 
-*Frontend tests use existing App.test.tsx infrastructure — extend rather than create from scratch.*
+*Frontend tests use existing App.test.tsx infrastructure — 246 tests pass including webEnabled props.*
 
 ---
 
@@ -70,13 +71,21 @@ created: 2026-04-09
 
 ---
 
+## Validation Audit 2026-04-10
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 2 |
+| Resolved | 2 |
+| Escalated | 0 |
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete
