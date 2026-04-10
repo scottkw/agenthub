@@ -313,31 +313,11 @@ body {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
-.settings-panel__header {
+.settings-tab {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #292e42;
-}
-.settings-panel__header h2 {
-  font-size: 16px;
-  color: #c0caf5;
-  font-weight: 600;
-}
-.settings-panel__close {
-  background: transparent;
-  border: none;
-  color: #565f89;
-  font-size: 20px;
-  cursor: pointer;
-  line-height: 1;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.settings-panel__close:hover {
-  color: #f7768e;
-  background-color: #3b4261;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .settings-panel__tabs {
@@ -436,12 +416,6 @@ body {
   margin-top: 16px;
 }
 
-.settings-panel__footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 12px 20px;
-  border-top: 1px solid #292e42;
-}
 .settings-panel__btn {
   padding: 6px 16px;
   border-radius: 4px;
@@ -1477,6 +1451,17 @@ body {
   font-size: 12px;
   color: #565f89;
   margin-bottom: 4px;
+}
+
+.settings-web-server__credential-hint {
+  font-size: 12px;
+  color: #565f89;
+  margin-bottom: 8px;
+}
+
+.settings-web-server__credential-value {
+  color: #7a88b0;
+  font-style: italic;
 }
 
 .settings-web-server__password-field {
