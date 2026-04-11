@@ -37,6 +37,7 @@ export function AcknowledgeCTDisclosure(): Promise<void>
 
 // QR code and status bound methods
 export function GetSessionQRCode(sessionID: string): Promise<string>
+export function GetWebServerQRCode(): Promise<string>
 export function GetSessionStatus(sessionID: string): Promise<string>
 
 // Daemon error and retry bound methods

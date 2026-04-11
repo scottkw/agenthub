@@ -25,6 +25,7 @@ export const AcknowledgeCTDisclosure = ()                   => Call('main.App.Ac
 
 // QR code and status bound methods
 export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
+export const GetWebServerQRCode   = ()                      => Call('main.App.GetWebServerQRCode', [])
 export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])
 
 // Daemon error and retry bound methods

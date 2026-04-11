@@ -365,6 +365,45 @@ func TestGetSessionQRCode_NoServer(t *testing.T) {
 	}
 }
 
+func TestGetWebServerQRCode(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	tlsCfg := selfSignedTLSForAppTest(t)
+	app, startWebServer := testAppWithDirectWebServer(t, tlsCfg)
+
+	if err := startWebServer("test-session-id"); err != nil {
+		t.Fatalf("startWebServer: %v", err)
+	}
+
+	b64, err := app.GetWebServerQRCode()
+	if err != nil {
+		t.Fatalf("GetWebServerQRCode: %v", err)
+	}
+	if b64 == "" {
+		t.Fatal("GetWebServerQRCode returned empty string")
+	}
+
+	pngBytes, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		t.Fatalf("base64 decode: %v", err)
+	}
+	if len(pngBytes) < 4 {
+		t.Fatalf("decoded PNG too short: %d bytes", len(pngBytes))
+	}
+	if pngBytes[0] != 0x89 || pngBytes[1] != 'P' || pngBytes[2] != 'N' || pngBytes[3] != 'G' {
+		t.Errorf("expected PNG magic bytes, got %v", pngBytes[:4])
+	}
+}
+
+func TestGetWebServerQRCode_NoServer(t *testing.T) {
+	app := testApp(t)
+	_, err := app.GetWebServerQRCode()
+	if err == nil {
+		t.Error("expected GetWebServerQRCode to return error when web server is not running")
+	}
+}
+
 func TestGetTailscaleStatus(t *testing.T) {
 	app := testApp(t)
 	h := app.GetTailscaleStatus()

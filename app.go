@@ -444,6 +444,23 @@ func (a *App) GetSessionQRCode(sessionID string) (string, error) {
 	return base64.StdEncoding.EncodeToString(png), nil
 }
 
+// GetWebServerQRCode returns a base64-encoded PNG QR code for the web server dashboard URL.
+// Returns an error if the daemon is disconnected or the web server is not running.
+func (a *App) GetWebServerQRCode() (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
+	resp, err := a.client.GetWebServerStatus()
+	if err != nil || !resp.Running {
+		return "", fmt.Errorf("web server not running")
+	}
+	png, err := qrcode.Encode(resp.URL, qrcode.Medium, 256)
+	if err != nil {
+		return "", fmt.Errorf("GetWebServerQRCode: encode: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(png), nil
+}
+
 // OpenDirectoryDialog opens a native OS folder picker and returns the selected path.
 // Returns "" if the user cancels. Falls back to the user's home directory when
 // defaultDir is empty.
