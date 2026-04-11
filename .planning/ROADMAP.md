@@ -156,7 +156,7 @@
 
 - [x] **Phase 63: Sidebar Icon Centering** - Center sidebar icons visually when collapsed (completed 2026-04-10)
 - [x] **Phase 64: Terminal Padding** - Inset terminal content from edges with consistent padding (completed 2026-04-11)
-- [ ] **Phase 65: Terminal Theming** - Full xterm-theme library with persistence and live apply
+- [x] **Phase 65: Terminal Theming** - Full xterm-theme library with persistence and live apply (completed 2026-04-11)
 - [ ] **Phase 66: Web Server Link UX** - Browser open, clipboard copy, and QR code for web dashboard URL
 
 ## Phase Details
@@ -198,7 +198,7 @@ Plans:
   4. The theme selector is usable with a reasonable number of named options (no blank or broken entries)
 **Plans**: 1 plan
 Plans:
-- [ ] 65-01-PLAN.md — Install xterm-theme, wire theme state, Appearance tab, live apply, tests
+- [x] 65-01-PLAN.md — Install xterm-theme, wire theme state, Appearance tab, live apply, tests
 **UI hint**: yes
 
 ### Phase 66: Web Server Link UX
@@ -230,7 +230,7 @@ Plans:
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63. Sidebar Icon Centering | v1.12 | 1/1 | Complete    | 2026-04-10 |
 | 64. Terminal Padding | v1.12 | 1/1 | Complete    | 2026-04-11 |
-| 65. Terminal Theming | v1.12 | 0/? | Not started | - |
+| 65. Terminal Theming | v1.12 | 1/1 | Complete    | 2026-04-11 |
 | 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
 
 ---
