@@ -9,8 +9,15 @@ import {
   HasCTDisclosure,
   AcknowledgeCTDisclosure,
   GetLocalNetworkPassword,
+  GetWebServerQRCode,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
+import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
+import {
+  ArrowTopRightOnSquareIcon,
+  ClipboardDocumentIcon,
+  QrCodeIcon,
+} from '@heroicons/react/24/outline'
 
 const THEME_NAMES = Object.keys(xtermThemes).sort()
 
@@ -61,6 +68,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [localPassword, setLocalPassword] = useState('')
   const [copied, setCopied] = useState(false)
 
+  // URL action row state (WEB-01/02/03)
+  const [urlCopied, setUrlCopied] = useState(false)
+  const [showDashQR, setShowDashQR] = useState(false)
+  const [dashQRb64, setDashQRb64] = useState<string | null>(null)
+  const [qrError, setQrError] = useState<string | null>(null)
+
   // Load web serving state on mount.
   useEffect(() => {
     async function loadWebState() {
@@ -92,11 +105,45 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     }
   }, [webServerMode, isServerRunning])
 
+  // Reset QR state when server stops.
+  useEffect(() => {
+    if (!isServerRunning) {
+      setShowDashQR(false)
+      setDashQRb64(null)
+      setQrError(null)
+    }
+  }, [isServerRunning])
+
   async function handleCopyPassword() {
     if (!localPassword) return
     await navigator.clipboard.writeText(localPassword)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  async function handleCopyURL() {
+    if (!serverURL) return
+    await ClipboardSetText(serverURL)
+    setUrlCopied(true)
+    setTimeout(() => setUrlCopied(false), 1500)
+  }
+
+  async function handleToggleDashQR() {
+    if (showDashQR) {
+      setShowDashQR(false)
+      return
+    }
+    setQrError(null)
+    if (!dashQRb64) {
+      try {
+        const b64 = await GetWebServerQRCode()
+        setDashQRb64(b64)
+      } catch {
+        setQrError('QR unavailable \u2014 tap to retry')
+        return
+      }
+    }
+    setShowDashQR(true)
   }
 
   function tailscaleStatusClass(h: SettingsTabProps['tailscaleHealth']): string {
@@ -315,9 +362,45 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
               </button>
               {serverError && <p className="settings-panel__error">{serverError}</p>}
               {isServerRunning && serverURL && (
-                <p className="settings-panel__url">
-                  Server running at: <a href={serverURL} target="_blank" rel="noreferrer">{serverURL}</a>
-                </p>
+                <>
+                  <div className="settings-web-server__url-row">
+                    <span className="settings-web-server__url-text">{serverURL}</span>
+                    <button
+                      className="settings-web-server__action-btn"
+                      onClick={() => BrowserOpenURL(serverURL)}
+                      aria-label="Open dashboard in browser"
+                    >
+                      <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
+                      Open
+                    </button>
+                    <button
+                      className={`settings-web-server__action-btn${urlCopied ? ' settings-web-server__action-btn--copy-done' : ''}`}
+                      onClick={handleCopyURL}
+                      aria-label="Copy dashboard URL to clipboard"
+                    >
+                      <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
+                      {urlCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button
+                      className={`settings-web-server__action-btn${showDashQR ? ' settings-web-server__action-btn--active' : ''}`}
+                      onClick={handleToggleDashQR}
+                      aria-label={showDashQR ? 'Hide QR code' : 'Show QR code'}
+                    >
+                      <QrCodeIcon style={{ width: 14, height: 14 }} />
+                      {showDashQR ? 'Hide QR' : 'QR'}
+                    </button>
+                  </div>
+                  {qrError && <p className="settings-panel__error">{qrError}</p>}
+                  {showDashQR && dashQRb64 && (
+                    <img
+                      src={`data:image/png;base64,${dashQRb64}`}
+                      width={200}
+                      height={200}
+                      alt="QR code for dashboard URL"
+                      className="settings-web-server__qr"
+                    />
+                  )}
+                </>
               )}
             </div>
 

@@ -1520,3 +1520,63 @@ body {
 .settings-web-server__copy-hint--copied {
   color: #9ece6a;
 }
+
+/* --- Settings web server URL action row (Phase 66 -- WEB-01/02/03) --- */
+.settings-web-server__url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.settings-web-server__url-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: 13px;
+  color: #7aa2f7;
+  text-decoration: none;
+}
+
+.settings-web-server__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #292e42;
+  background: transparent;
+  color: #565f89;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  gap: 4px;
+}
+
+.settings-web-server__action-btn:hover {
+  color: #c0caf5;
+  border-color: #3b4261;
+}
+
+.settings-web-server__action-btn--active {
+  background-color: rgba(122, 162, 247, 0.12);
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+}
+
+.settings-web-server__action-btn--copy-done {
+  color: #9ece6a;
+  border-color: #9ece6a;
+}
+
+.settings-web-server__qr {
+  display: block;
+  margin-top: 16px;
+  border-radius: 8px;
+  width: 200px;
+  height: 200px;
+}
