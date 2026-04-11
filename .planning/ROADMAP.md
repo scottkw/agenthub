@@ -157,7 +157,7 @@
 - [x] **Phase 63: Sidebar Icon Centering** - Center sidebar icons visually when collapsed (completed 2026-04-10)
 - [x] **Phase 64: Terminal Padding** - Inset terminal content from edges with consistent padding (completed 2026-04-11)
 - [x] **Phase 65: Terminal Theming** - Full xterm-theme library with persistence and live apply (completed 2026-04-11)
-- [ ] **Phase 66: Web Server Link UX** - Browser open, clipboard copy, and QR code for web dashboard URL
+- [x] **Phase 66: Web Server Link UX** - Browser open, clipboard copy, and QR code for web dashboard URL (completed 2026-04-11)
 
 ## Phase Details
 
@@ -212,7 +212,7 @@ Plans:
   4. All three actions (open, copy, QR) work in both Tailscale mode and local network mode
 **Plans**: 1 plan
 Plans:
-- [ ] 66-01-PLAN.md — Go QR method + Wails stubs + URL action row with Open/Copy/QR buttons + CSS + tests
+- [x] 66-01-PLAN.md — Go QR method + Wails stubs + URL action row with Open/Copy/QR buttons + CSS + tests
 **UI hint**: yes
 
 ## Progress
@@ -234,7 +234,7 @@ Plans:
 | 63. Sidebar Icon Centering | v1.12 | 1/1 | Complete    | 2026-04-10 |
 | 64. Terminal Padding | v1.12 | 1/1 | Complete    | 2026-04-11 |
 | 65. Terminal Theming | v1.12 | 1/1 | Complete    | 2026-04-11 |
-| 66. Web Server Link UX | v1.12 | 0/1 | Not started | - |
+| 66. Web Server Link UX | v1.12 | 1/1 | Complete    | 2026-04-11 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
