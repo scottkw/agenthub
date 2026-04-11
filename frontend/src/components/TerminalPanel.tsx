@@ -17,16 +17,15 @@ function fitTerminal(term: Terminal): void {
   const parent = term.element?.parentElement
   if (!parent) return
 
+  // Use clientWidth/Height minus padding for an unambiguous content-box size.
+  // getComputedStyle().width can return border-box values with box-sizing:border-box,
+  // which would include the container padding and make cols/rows too large.
   const parentStyle = window.getComputedStyle(parent)
-  const parentW = parseInt(parentStyle.width)
-  const parentH = parseInt(parentStyle.height)
+  const parentW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight)
+  const parentH = parent.clientHeight - parseFloat(parentStyle.paddingTop) - parseFloat(parentStyle.paddingBottom)
 
-  const elStyle = window.getComputedStyle(term.element!)
-  const padH = parseInt(elStyle.paddingLeft) + parseInt(elStyle.paddingRight)
-  const padV = parseInt(elStyle.paddingTop) + parseInt(elStyle.paddingBottom)
-
-  const cols = Math.max(2, Math.floor((parentW - padH) / dims.css.cell.width))
-  const rows = Math.max(1, Math.floor((parentH - padV) / dims.css.cell.height))
+  const cols = Math.max(2, Math.floor(parentW / dims.css.cell.width))
+  const rows = Math.max(1, Math.floor(parentH / dims.css.cell.height))
 
   if (term.rows !== rows || term.cols !== cols) {
     core._renderService.clear()

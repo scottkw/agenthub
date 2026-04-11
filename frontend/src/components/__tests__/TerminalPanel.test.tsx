@@ -163,7 +163,9 @@ describe('PAD-01 terminal padding', () => {
     expect(raw).toContain('terminal-session-container')
   })
 
-  it('fitTerminal reads paddingLeft from term.element (padding-aware)', () => {
+  it('fitTerminal subtracts parent padding from clientWidth/Height for accurate sizing', () => {
+    expect(raw).toContain('clientWidth')
+    expect(raw).toContain('clientHeight')
     expect(raw).toContain('paddingLeft')
     expect(raw).toContain('paddingRight')
     expect(raw).toContain('paddingTop')
