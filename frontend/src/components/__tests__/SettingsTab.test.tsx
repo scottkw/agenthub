@@ -79,3 +79,55 @@ describe('UI-02 Gap 5: Mount-based useEffect', () => {
     expect(raw).not.toContain('isOpen')
   })
 })
+
+describe('THM-01: Appearance tab with theme selector', () => {
+  it('imports xterm-theme library', () => {
+    expect(raw).toContain("from 'xterm-theme'")
+  })
+
+  it('computes THEME_NAMES at module level', () => {
+    expect(raw).toContain('THEME_NAMES = Object.keys(xtermThemes).sort()')
+  })
+
+  it('activeTab state union includes appearance', () => {
+    expect(raw).toContain("'appearance'")
+  })
+
+  it('has Appearance tab button with correct CSS class', () => {
+    expect(raw).toContain("activeTab === 'appearance'")
+    expect(raw).toContain('settings-panel__tab-btn')
+  })
+
+  it('props include selectedTheme', () => {
+    // selectedTheme: string must appear in the interface block
+    // (indexOf('}') would find nested tailscaleHealth's brace, so search the full source)
+    expect(raw).toContain('selectedTheme: string')
+  })
+
+  it('props include onThemeChange callback', () => {
+    // onThemeChange must appear in the interface block
+    expect(raw).toContain('onThemeChange: (name: string) => void')
+  })
+
+  it('renders theme select with THEME_NAMES options', () => {
+    expect(raw).toContain('THEME_NAMES.map')
+  })
+
+  it('select value is bound to selectedTheme prop', () => {
+    expect(raw).toContain('value={selectedTheme}')
+  })
+
+  it('select onChange calls onThemeChange', () => {
+    expect(raw).toContain('onThemeChange(e.target.value)')
+  })
+
+  it('displays theme names with underscores replaced by spaces', () => {
+    expect(raw).toContain("name.replace(/_/g, ' ')")
+  })
+
+  it('Appearance tab button has aria-selected attribute', () => {
+    // The tab button must include aria-selected for accessibility
+    const appearanceSection = raw.slice(raw.indexOf("'appearance'"))
+    expect(appearanceSection).toContain('aria-selected')
+  })
+})

@@ -154,9 +154,8 @@ describe('PAD-01 terminal padding', () => {
     expect(cssRaw).toMatch(/\.terminal-session-container\s*\{[^}]*padding:\s*8px/)
   })
 
-  it('.terminal-session-container has background-color matching theme', () => {
-    expect(cssRaw).toMatch(/\.terminal-session-container\s*\{[^}]*background-color:\s*#1a1b26/)
-    expect(raw).toContain("background: '#1a1b26'")
+  it('.terminal-session-container does NOT have hardcoded background-color (dynamic via inline style)', () => {
+    expect(cssRaw).not.toMatch(/\.terminal-session-container\s*\{[^}]*background-color:/)
   })
 
   it('container div has terminal-session-container class', () => {
@@ -170,5 +169,45 @@ describe('PAD-01 terminal padding', () => {
     expect(raw).toContain('paddingRight')
     expect(raw).toContain('paddingTop')
     expect(raw).toContain('paddingBottom')
+  })
+})
+
+describe('THM-03: live theme application', () => {
+  it('imports ITheme type from @xterm/xterm', () => {
+    expect(raw).toContain('ITheme')
+  })
+
+  it('TerminalPanelProps includes theme: ITheme', () => {
+    const interfaceStart = raw.indexOf('interface TerminalPanelProps')
+    const interfaceEnd = raw.indexOf('}', interfaceStart)
+    const interfaceBlock = raw.slice(interfaceStart, interfaceEnd + 1)
+    expect(interfaceBlock).toContain('theme: ITheme')
+  })
+
+  it('passes theme to Terminal constructor (not hardcoded background)', () => {
+    // Must NOT have the old hardcoded theme
+    expect(raw).not.toContain("theme: { background: '#1a1b26' }")
+    // Must pass the theme prop to constructor
+    const constructorBlock = raw.slice(raw.indexOf('new Terminal('), raw.indexOf('new Terminal(') + 300)
+    expect(constructorBlock).toContain('theme')
+  })
+
+  it('has useEffect that assigns options.theme = theme', () => {
+    expect(raw).toContain('options.theme = theme')
+  })
+
+  it('theme effect has [theme] dependency array', () => {
+    // Find the theme assignment and verify its effect has [theme] dependency
+    const themeEffectStart = raw.indexOf('options.theme = theme')
+    expect(themeEffectStart).toBeGreaterThan(-1)
+    const afterThemeAssign = raw.slice(themeEffectStart)
+    // The next dependency array should be [theme]
+    const nextDepArray = afterThemeAssign.match(/\}, \[(\w+)\]\)/)
+    expect(nextDepArray).not.toBeNull()
+    expect(nextDepArray![1]).toBe('theme')
+  })
+
+  it('sets backgroundColor from theme.background in inline style', () => {
+    expect(raw).toContain("theme.background ?? '#1a1b26'")
   })
 })

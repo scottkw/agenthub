@@ -105,6 +105,50 @@ describe('App', () => {
     })
   })
 
+  describe('THM-02/03: terminal theme state', () => {
+    it('imports xterm-theme library', () => {
+      expect(raw).toContain("from 'xterm-theme'")
+    })
+
+    it('imports ITheme type from @xterm/xterm', () => {
+      expect(raw).toContain('ITheme')
+    })
+
+    it('defines THEME_STORAGE_KEY constant', () => {
+      expect(raw).toContain("THEME_STORAGE_KEY = 'agenthub:terminalTheme'")
+    })
+
+    it('defines DEFAULT_THEME_NAME constant as Tomorrow_Night', () => {
+      expect(raw).toContain("DEFAULT_THEME_NAME = 'Tomorrow_Night'")
+    })
+
+    it('initializes terminalThemeName from localStorage', () => {
+      expect(raw).toContain('localStorage.getItem(THEME_STORAGE_KEY)')
+    })
+
+    it('derives terminalTheme ITheme object from theme name', () => {
+      expect(raw).toContain('terminalTheme')
+      expect(raw).toContain('xtermThemes')
+    })
+
+    it('handleThemeChange writes to localStorage and updates state', () => {
+      expect(raw).toContain('localStorage.setItem(THEME_STORAGE_KEY, name)')
+      expect(raw).toContain('setTerminalThemeName(name)')
+    })
+
+    it('passes theme prop to TerminalPanel', () => {
+      expect(raw).toContain('theme={terminalTheme}')
+    })
+
+    it('passes selectedTheme prop to SettingsTab', () => {
+      expect(raw).toContain('selectedTheme={terminalThemeName}')
+    })
+
+    it('passes onThemeChange prop to SettingsTab', () => {
+      expect(raw).toContain('onThemeChange={handleThemeChange}')
+    })
+  })
+
   describe('daemon error handling (Phase 26)', () => {
     it('imports RetryDaemon from wailsjs bindings', () => {
       expect(raw).toContain('RetryDaemon')
