@@ -154,6 +154,12 @@ describe('PAD-01 terminal padding', () => {
     expect(cssRaw).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/)
   })
 
+  it('.xterm rule has background-color matching theme so padding blends in', () => {
+    // CSS background must match the theme background set in TerminalPanel.tsx
+    expect(cssRaw).toMatch(/\.xterm\s*\{[^}]*background-color:\s*#1a1b26/)
+    expect(raw).toContain("background: '#1a1b26'")
+  })
+
   it('fitTerminal reads paddingLeft from term.element (padding-aware)', () => {
     expect(raw).toContain('paddingLeft')
     expect(raw).toContain('paddingRight')

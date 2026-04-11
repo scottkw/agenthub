@@ -10,9 +10,11 @@
   display: none;                   /* WebKit (Wails, Chrome, Safari) */
 }
 
-/* Inset terminal text from the container edges (PAD-01). */
+/* Inset terminal text from the container edges (PAD-01).
+   Background must match xterm theme so padding blends in. */
 .xterm {
   padding: 8px;
+  background-color: #1a1b26;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────── */
