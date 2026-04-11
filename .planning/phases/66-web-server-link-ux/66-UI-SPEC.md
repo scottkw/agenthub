@@ -38,17 +38,15 @@ Declared values (multiples of 4 only):
 |-------|-------|-------|
 | xs | 4px | Icon-to-label gaps within a button, inline separators |
 | sm | 8px | Gap between URL text and action buttons; margin-top for URL row |
-| md | 16px | Field group bottom margin; horizontal button padding |
+| md | 16px | Field group bottom margin; horizontal button padding; margin-top for QR block below URL row |
 | lg | 24px | Section-level vertical separation |
 | xl | 32px | Not used in this phase |
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions:
-- Action buttons use 6px top/bottom padding (matches existing `.settings-panel__btn` at `padding: 6px 16px`). This is a pre-existing token — do not change it.
-- QR image: 200×200px fixed size (multiple of 8; matches existing QR modal at 256×256 but reduced to fit inline panel without a modal).
+Exceptions: none.
 
-Source: RESEARCH.md Pitfall 4 (panel width constraint); existing `.settings-panel__btn` CSS.
+Note on `.settings-panel__btn` (existing class, not added in this phase): the existing `.settings-panel__btn` rule uses `padding: 6px 16px`. This 6px vertical padding is an inherited value from the pre-existing design system and is not a new CSS class introduced in Phase 66. It does not appear in the new CSS classes table below and is not changed by this phase.
 
 ---
 
@@ -56,18 +54,18 @@ Source: RESEARCH.md Pitfall 4 (panel width constraint); existing `.settings-pane
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body / URL text | 12px | 400 | 1.5 |
+| Body / URL text | 13px | 400 | 1.5 |
 | Label (field group heading) | 13px | 600 | 1.2 |
 | Button text | 13px | 400 (cancel) / 600 (primary) | 1.0 |
 | Hint / sub-label text | 11px | 400 | 1.4 |
 
 Notes:
-- 12px for URL text matches existing `.settings-panel__url` at `font-size: 12px`.
+- URL text in `.settings-web-server__url-text` uses 13px (not 12px) — this is a new class, so we align it with the 13px body scale rather than inheriting the old `.settings-panel__url` 12px. This eliminates the 11/12/13 staircase and creates a clean two-level scale: 11px (hint) and 13px (all other text).
 - 13px label with weight 600 matches existing `.settings-panel__label`.
 - No Display size used in this phase — the phase adds inline affordances within an existing tab, not a new page.
 - Font family: always `font-family: inherit` on new elements (all existing settings panel elements use `inherit`; the root sets the monospace stack).
 
-Source: `style.css` lines 476-482 (label), 514-517 (url), 439-446 (btn).
+Source: `style.css` lines 476-482 (label), 439-446 (btn). URL text size changed from 12px to 13px per typography consolidation (checker flag resolved).
 
 ---
 
@@ -117,7 +115,7 @@ overflow: hidden
 text-overflow: ellipsis
 white-space: nowrap
 min-width: 0
-font-size: 12px
+font-size: 13px
 color: #7aa2f7
 text-decoration: none
 ```
@@ -167,11 +165,13 @@ border-color: #9ece6a
 
 ```
 display: block
-margin-top: 12px
+margin-top: 16px
 border-radius: 8px
 width: 200px
 height: 200px
 ```
+
+`margin-top: 16px` (md token) provides a full field-group step of separation between the URL action row and the QR image — enough visual breathing room given the 200px image height. `8px` (sm token) was considered but produces insufficient separation between the compact button row and the large image block.
 
 The QR image is a white-background PNG from go-qrcode. The `border-radius: 8px` matches the existing `.qr-modal img` pattern.
 
@@ -210,7 +210,7 @@ Icons are 14×14px (size-3.5 equivalent) within the compact action buttons.
 - Toggle-off: set `showDashQR = false`. Do NOT clear `dashQRb64`.
 - Server restart invalidation: a `useEffect([isServerRunning])` resets both `showDashQR` and `dashQRb64` when `isServerRunning` becomes false.
 - While QR is fetching: show button in loading state — label "Loading..." (no spinner needed; fetch is fast on localhost Go call).
-- If fetch fails: show inline error text below the URL row: "QR unavailable" in `#f7768e`.
+- If fetch fails: show inline error text below the URL row: "QR unavailable — tap to retry" in `#f7768e`. The QR button returns to its idle "QR" state (no active style) and remains clickable. Clicking the QR button again re-attempts `GetWebServerQRCode()`. The error text clears as soon as a new fetch is initiated.
 
 ### Open Button
 
@@ -233,7 +233,7 @@ Icons are 14×14px (size-3.5 equivalent) within the compact action buttons.
 | Server running, copy just clicked | Copy button shows "Copied!" in green for 1500ms, then reverts. |
 | Server running, QR fetching | QR button shows "Loading...", disabled. |
 | Server running, QR visible | QR button shows "Hide QR" (active style). 200×200 QR image renders below the URL row. |
-| Server running, QR fetch failed | "QR unavailable" error text in `#f7768e` below URL row. QR button reverts to "QR" (no active style). |
+| Server running, QR fetch failed | Inline error "QR unavailable — tap to retry" in `#f7768e` below URL row. QR button reverts to idle "QR" state, remains clickable. Clicking it retries the fetch. |
 | Server stopped while QR visible | QR image disappears, QR button resets to "QR", `dashQRb64` cleared. |
 
 ---
@@ -253,10 +253,10 @@ Icons are 14×14px (size-3.5 equivalent) within the compact action buttons.
 | QR button aria-label (toggle on) | "Show QR code" |
 | QR button aria-label (toggle off) | "Hide QR code" |
 | QR image alt | "QR code for dashboard URL" |
-| QR fetch error | "QR unavailable" |
+| QR fetch error | "QR unavailable — tap to retry" |
+| QR fetch error resolution | Error clears when user clicks the QR button to retry. The QR button remains active (clickable) in the failed state. No restart required — retry happens in-place. |
 | Empty state heading | n/a — this phase has no empty state (the whole URL row is hidden when server is not running) |
 | Server not running state | Uses existing "Start Web Server" button — no change |
-| Error state (server stop during fetch) | "QR unavailable" — shown inline, no modal |
 
 No destructive actions in this phase.
 
@@ -285,7 +285,7 @@ Changes required for this phase (from RESEARCH.md architecture section):
 | `frontend/src/wailsjs/go/main/App.d.ts` | Add `GetWebServerQRCode` type declaration |
 | `frontend/src/wailsjs/go/main/App.js` | Add `GetWebServerQRCode` stub |
 | `frontend/src/components/SettingsTab.tsx` | Replace URL paragraph with action row; add state; import Wails APIs + Heroicons |
-| `frontend/src/style.css` | Add 4 new classes: `settings-web-server__url-row`, `settings-web-server__url-text`, `settings-web-server__action-btn`, `settings-web-server__action-btn--copy-done`, `settings-web-server__qr` |
+| `frontend/src/style.css` | Add 5 new classes: `settings-web-server__url-row`, `settings-web-server__url-text`, `settings-web-server__action-btn`, `settings-web-server__action-btn--copy-done`, `settings-web-server__qr` |
 
 ---
 
