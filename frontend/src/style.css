@@ -14,10 +14,11 @@
    Padding lives on the container, not .xterm, because .xterm-viewport
    is position:absolute and would cover .xterm padding.  fitTerminal()
    reads the parent's content-box width/height which already excludes
-   this padding — no JS changes needed. */
+   this padding — no JS changes needed.
+   background-color is set dynamically by TerminalPanel via inline style
+   to match the active terminal theme. Fallback is #1a1b26. */
 .terminal-session-container {
   padding: 8px;
-  background-color: #1a1b26;
   overflow: hidden;
 }
 

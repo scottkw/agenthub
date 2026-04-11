@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
+import type { ITheme } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -39,6 +40,7 @@ interface TerminalPanelProps {
   relayPort: number
   fontSize: number
   onFontSizeChange: (delta: number) => void
+  theme: ITheme
 }
 
 /**
@@ -46,7 +48,7 @@ interface TerminalPanelProps {
  * All panels render simultaneously; inactive ones are hidden via display:none
  * to preserve the terminal buffer state without destroying the DOM node.
  */
-export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange }: TerminalPanelProps): React.ReactElement {
+export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange, theme }: TerminalPanelProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
@@ -62,7 +64,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
       cursorBlink: true,
       fontFamily: '"Cascadia Code", "MesloLGS NF", "Fira Code", monospace',
       fontSize,
-      theme: { background: '#1a1b26' },
+      theme,
     })
 
     const fitAddon = new FitAddon()
@@ -183,6 +185,12 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     fitTerminal(termRef.current)
   }, [fontSize])
 
+  // Apply theme changes from the controlled prop (THM-03).
+  useEffect(() => {
+    if (!termRef.current) return
+    termRef.current.options.theme = theme
+  }, [theme])
+
   return (
     <div
       ref={containerRef}
@@ -191,6 +199,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
         flex: 1,
         width: '100%',
         minHeight: 0,
+        backgroundColor: theme.background ?? '#1a1b26',
       }}
     />
   )

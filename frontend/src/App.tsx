@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import * as xtermThemes from 'xterm-theme'
+import type { ITheme } from '@xterm/xterm'
 import { TabBar, type Tab } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
 import { TerminalPanel } from './components/TerminalPanel'
@@ -31,6 +33,8 @@ import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 
 const DEFAULT_FONT_SIZE = 14
+const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
+const DEFAULT_THEME_NAME = 'Tomorrow_Night'
 
 /**
  * App is the root component — it owns all tab state and wires
@@ -75,6 +79,18 @@ function App(): React.ReactElement {
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
+
+  // Terminal theme (global — same theme for all sessions)
+  const [terminalThemeName, setTerminalThemeName] = useState<string>(
+    () => localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_THEME_NAME
+  )
+  const terminalTheme: ITheme = (xtermThemes as Record<string, ITheme>)[terminalThemeName]
+    ?? (xtermThemes as Record<string, ITheme>)[DEFAULT_THEME_NAME]
+
+  const handleThemeChange = useCallback((name: string) => {
+    localStorage.setItem(THEME_STORAGE_KEY, name)
+    setTerminalThemeName(name)
+  }, [])
 
   // On mount: hide static HTML splash and initialize.
   useEffect(() => {
@@ -554,6 +570,8 @@ function App(): React.ReactElement {
             clis={detectedCLIs}
             tailscaleHealth={tailscaleHealth}
             webServerMode={webServerMode}
+            selectedTheme={terminalThemeName}
+            onThemeChange={handleThemeChange}
             onWebServerStateChange={async () => {
               try {
                 const running = await IsWebServerRunning()
@@ -621,6 +639,7 @@ function App(): React.ReactElement {
                   relayPort={relayPort}
                   fontSize={fontSizes[tab.sessionId] ?? DEFAULT_FONT_SIZE}
                   onFontSizeChange={(delta) => handleFontSizeChange(tab.sessionId, delta)}
+                  theme={terminalTheme}
                 />
                 <StatusBar
                   sessionId={tab.sessionId}

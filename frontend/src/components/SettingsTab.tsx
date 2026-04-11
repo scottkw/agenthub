@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import * as xtermThemes from 'xterm-theme'
 import {
   UpdateCLIPath,
   StartWebServer,
@@ -11,6 +12,8 @@ import {
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 
+const THEME_NAMES = Object.keys(xtermThemes).sort()
+
 interface SettingsTabProps {
   clis: DetectedCLI[]
   tailscaleHealth: {
@@ -22,6 +25,8 @@ interface SettingsTabProps {
   } | null
   webServerMode?: 'tailscale' | 'local' | null
   onWebServerStateChange: () => Promise<void>
+  selectedTheme: string
+  onThemeChange: (name: string) => void
 }
 
 /**
@@ -30,8 +35,8 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange }: SettingsTabProps): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server'>('cli-paths')
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange }: SettingsTabProps): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server' | 'appearance'>('cli-paths')
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -174,6 +179,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           aria-selected={activeTab === 'web-server'}
         >
           Web Server
+        </button>
+        <button
+          className={`settings-panel__tab-btn ${activeTab === 'appearance' ? 'settings-panel__tab-btn--active' : ''}`}
+          onClick={() => setActiveTab('appearance')}
+          role="tab"
+          aria-selected={activeTab === 'appearance'}
+        >
+          Appearance
         </button>
       </div>
 
@@ -335,6 +348,21 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
               </>
             )}
           </>
+        )}
+
+        {activeTab === 'appearance' && (
+          <div className="settings-panel__field-group">
+            <label className="settings-panel__label">Terminal Theme</label>
+            <select
+              className="settings-panel__path-input"
+              value={selectedTheme}
+              onChange={(e) => onThemeChange(e.target.value)}
+            >
+              {THEME_NAMES.map(name => (
+                <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
         )}
 
       </div>
