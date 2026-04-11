@@ -10,6 +10,11 @@
   display: none;                   /* WebKit (Wails, Chrome, Safari) */
 }
 
+/* Inset terminal text from the container edges (PAD-01). */
+.xterm {
+  padding: 8px;
+}
+
 /* ─── Reset ─────────────────────────────────────────────────────── */
 * {
   margin: 0;
