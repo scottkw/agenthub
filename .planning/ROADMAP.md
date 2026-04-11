@@ -155,7 +155,7 @@
 ### v1.12 UI/UX Polish (Phases 63-66) — ACTIVE
 
 - [x] **Phase 63: Sidebar Icon Centering** - Center sidebar icons visually when collapsed (completed 2026-04-10)
-- [ ] **Phase 64: Terminal Padding** - Inset terminal content from edges with consistent padding
+- [x] **Phase 64: Terminal Padding** - Inset terminal content from edges with consistent padding (completed 2026-04-11)
 - [ ] **Phase 65: Terminal Theming** - Full xterm-theme library with persistence and live apply
 - [ ] **Phase 66: Web Server Link UX** - Browser open, clipboard copy, and QR code for web dashboard URL
 
@@ -184,7 +184,7 @@ Plans:
   3. Terminal still fills its container and resizes correctly — no height regression or blank strips
 **Plans**: 1 plan
 Plans:
-- [ ] 64-01-PLAN.md — CSS padding rule + PAD-01 test
+- [x] 64-01-PLAN.md — CSS padding rule + PAD-01 test
 **UI hint**: yes
 
 ### Phase 65: Terminal Theming
@@ -196,7 +196,9 @@ Plans:
   2. Selecting a theme immediately changes the colors in all open terminal sessions without reload
   3. After restarting the app, the previously selected theme is still active
   4. The theme selector is usable with a reasonable number of named options (no blank or broken entries)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 65-01-PLAN.md — Install xterm-theme, wire theme state, Appearance tab, live apply, tests
 **UI hint**: yes
 
 ### Phase 66: Web Server Link UX
@@ -227,7 +229,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63. Sidebar Icon Centering | v1.12 | 1/1 | Complete    | 2026-04-10 |
-| 64. Terminal Padding | v1.12 | 0/1 | Planning    | - |
+| 64. Terminal Padding | v1.12 | 1/1 | Complete    | 2026-04-11 |
 | 65. Terminal Theming | v1.12 | 0/? | Not started | - |
 | 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
 
