@@ -18,6 +18,7 @@
 .terminal-session-container {
   padding: 8px;
   background-color: #1a1b26;
+  overflow: hidden;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────── */
