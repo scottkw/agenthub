@@ -148,3 +148,16 @@ describe('TERM-01/02 initial fit not synchronous', () => {
     }
   })
 })
+
+describe('PAD-01 terminal padding', () => {
+  it('.xterm rule has padding: 8px for inset from edges', () => {
+    expect(cssRaw).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/)
+  })
+
+  it('fitTerminal reads paddingLeft from term.element (padding-aware)', () => {
+    expect(raw).toContain('paddingLeft')
+    expect(raw).toContain('paddingRight')
+    expect(raw).toContain('paddingTop')
+    expect(raw).toContain('paddingBottom')
+  })
+})
