@@ -117,6 +117,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Sidebar icon centering: flexbox alignment fix for collapsed 48px rail — v1.12 Phase 63
 - ✓ Terminal padding: 8px inset with dynamic background matching terminal theme — v1.12 Phase 64
 - ✓ Terminal theming: 157 xterm-theme color schemes, Settings > Appearance tab, live apply via useEffect, localStorage persistence — v1.12 Phase 65
+- ✓ Web server link UX: Open in browser, copy URL to clipboard, inline QR code display for dashboard URL in Settings tab — v1.12 Phase 66
 
 ### Active
 
@@ -260,4 +261,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after Phase 65 (Terminal Theming) completed*
+*Last updated: 2026-04-11 after Phase 66 (Web Server Link UX) completed*
