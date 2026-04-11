@@ -150,14 +150,17 @@ describe('TERM-01/02 initial fit not synchronous', () => {
 })
 
 describe('PAD-01 terminal padding', () => {
-  it('.xterm rule has padding: 8px for inset from edges', () => {
-    expect(cssRaw).toMatch(/\.xterm\s*\{[^}]*padding:\s*8px/)
+  it('.terminal-session-container has padding: 8px for inset from edges', () => {
+    expect(cssRaw).toMatch(/\.terminal-session-container\s*\{[^}]*padding:\s*8px/)
   })
 
-  it('.xterm rule has background-color matching theme so padding blends in', () => {
-    // CSS background must match the theme background set in TerminalPanel.tsx
-    expect(cssRaw).toMatch(/\.xterm\s*\{[^}]*background-color:\s*#1a1b26/)
+  it('.terminal-session-container has background-color matching theme', () => {
+    expect(cssRaw).toMatch(/\.terminal-session-container\s*\{[^}]*background-color:\s*#1a1b26/)
     expect(raw).toContain("background: '#1a1b26'")
+  })
+
+  it('container div has terminal-session-container class', () => {
+    expect(raw).toContain('terminal-session-container')
   })
 
   it('fitTerminal reads paddingLeft from term.element (padding-aware)', () => {

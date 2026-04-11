@@ -11,8 +11,11 @@
 }
 
 /* Inset terminal text from the container edges (PAD-01).
-   Background must match xterm theme so padding blends in. */
-.xterm {
+   Padding lives on the container, not .xterm, because .xterm-viewport
+   is position:absolute and would cover .xterm padding.  fitTerminal()
+   reads the parent's content-box width/height which already excludes
+   this padding — no JS changes needed. */
+.terminal-session-container {
   padding: 8px;
   background-color: #1a1b26;
 }

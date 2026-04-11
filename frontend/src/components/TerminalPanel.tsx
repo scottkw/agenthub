@@ -187,6 +187,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
   return (
     <div
       ref={containerRef}
+      className="terminal-session-container"
       style={{
         flex: 1,
         width: '100%',
