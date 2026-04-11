@@ -354,7 +354,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           <div className="settings-panel__field-group">
             <label className="settings-panel__label">Terminal Theme</label>
             <select
-              className="settings-panel__path-input"
+              className="settings-panel__path-input settings-panel__theme-select"
               value={selectedTheme}
               onChange={(e) => onThemeChange(e.target.value)}
             >

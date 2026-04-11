@@ -420,6 +420,10 @@ body {
 .settings-panel__path-input:focus {
   border-color: #7aa2f7;
 }
+.settings-panel__theme-select {
+  width: auto;
+  max-width: 260px;
+}
 .settings-panel__error {
   margin-top: 12px;
   color: #f7768e;
