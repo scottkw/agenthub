@@ -117,9 +117,9 @@ describe('FILL-01..06 rAF retry loop initial fit', () => {
     expect(raw).not.toContain('document.fonts.ready')
   })
 
-  it('retains [isActive, theme] as the dependency array', () => {
-    // The fit/activation effect depends on isActive and theme
-    expect(raw).toContain('[isActive, theme]')
+  it('retains [isActive] as the sole dependency', () => {
+    // The fit/activation effect depends only on isActive
+    expect(raw).toContain('[isActive])')
   })
 
   it('retains ResizeObserver for subsequent resize handling', () => {

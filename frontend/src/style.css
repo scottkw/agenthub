@@ -423,7 +423,6 @@ body {
 .settings-panel__theme-select {
   width: auto;
   max-width: 260px;
-  overflow-y: auto;
 }
 .settings-panel__error {
   margin-top: 12px;

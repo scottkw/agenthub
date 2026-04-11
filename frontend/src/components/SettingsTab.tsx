@@ -358,8 +358,6 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
               className="settings-panel__path-input settings-panel__theme-select"
               value={selectedTheme}
               onChange={(e) => onThemeChange(e.target.value)}
-              onInput={(e) => onThemeChange((e.target as HTMLSelectElement).value)}
-              size={12}
             >
               {THEME_NAMES.map(name => (
                 <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
