@@ -192,6 +192,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     if (!termRef.current) return
     termRef.current.options.theme = theme
     termRef.current.clearTextureAtlas()
+    termRef.current.refresh(0, termRef.current.rows - 1)
   }, [theme])
 
   return (
