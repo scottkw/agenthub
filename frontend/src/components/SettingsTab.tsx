@@ -27,6 +27,8 @@ interface SettingsTabProps {
   onWebServerStateChange: () => Promise<void>
   selectedTheme: string
   onThemeChange: (name: string) => void
+  activeTab: 'cli-paths' | 'web-server' | 'appearance'
+  onActiveTabChange: (tab: 'cli-paths' | 'web-server' | 'appearance') => void
 }
 
 /**
@@ -35,8 +37,7 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange }: SettingsTabProps): React.ReactElement {
-  const [activeTab, setActiveTab] = useState<'cli-paths' | 'web-server' | 'appearance'>('cli-paths')
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, activeTab, onActiveTabChange: setActiveTab }: SettingsTabProps): React.ReactElement {
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}

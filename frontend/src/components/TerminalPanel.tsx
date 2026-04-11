@@ -186,9 +186,11 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
   }, [fontSize])
 
   // Apply theme changes from the controlled prop (THM-03).
+  // refresh(0, rows-1) forces a full repaint so hidden panels update when revealed.
   useEffect(() => {
     if (!termRef.current) return
     termRef.current.options.theme = theme
+    termRef.current.refresh(0, termRef.current.rows - 1)
   }, [theme])
 
   return (

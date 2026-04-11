@@ -92,6 +92,9 @@ function App(): React.ReactElement {
     setTerminalThemeName(name)
   }, [])
 
+  // Settings sub-tab state lifted here so it persists when SettingsTab unmounts
+  const [settingsActiveTab, setSettingsActiveTab] = useState<'cli-paths' | 'web-server' | 'appearance'>('cli-paths')
+
   // On mount: hide static HTML splash and initialize.
   useEffect(() => {
     const splashEl = document.getElementById('splash-static')
@@ -572,6 +575,8 @@ function App(): React.ReactElement {
             webServerMode={webServerMode}
             selectedTheme={terminalThemeName}
             onThemeChange={handleThemeChange}
+            activeTab={settingsActiveTab}
+            onActiveTabChange={setSettingsActiveTab}
             onWebServerStateChange={async () => {
               try {
                 const running = await IsWebServerRunning()
