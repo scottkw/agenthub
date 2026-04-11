@@ -210,7 +210,10 @@ Plans:
   2. A copy button next to the URL writes the URL to the system clipboard
   3. A QR code for the dashboard URL is visible in Settings, scannable by a mobile device
   4. All three actions (open, copy, QR) work in both Tailscale mode and local network mode
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 66-01-PLAN.md — Go QR method + Wails stubs + URL action row with Open/Copy/QR buttons + CSS + tests
+**UI hint**: yes
 
 ## Progress
 
@@ -231,7 +234,7 @@ Plans:
 | 63. Sidebar Icon Centering | v1.12 | 1/1 | Complete    | 2026-04-10 |
 | 64. Terminal Padding | v1.12 | 1/1 | Complete    | 2026-04-11 |
 | 65. Terminal Theming | v1.12 | 1/1 | Complete    | 2026-04-11 |
-| 66. Web Server Link UX | v1.12 | 0/? | Not started | - |
+| 66. Web Server Link UX | v1.12 | 0/1 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
