@@ -117,9 +117,9 @@ describe('FILL-01..06 rAF retry loop initial fit', () => {
     expect(raw).not.toContain('document.fonts.ready')
   })
 
-  it('retains [isActive] as the sole dependency', () => {
-    // Find the isActive effect — it must end with }, [isActive])
-    expect(raw).toContain('[isActive]')
+  it('retains [isActive, theme] as the dependency array', () => {
+    // The fit/activation effect depends on isActive and theme
+    expect(raw).toContain('[isActive, theme]')
   })
 
   it('retains ResizeObserver for subsequent resize handling', () => {
@@ -196,15 +196,9 @@ describe('THM-03: live theme application', () => {
     expect(raw).toContain('options.theme = theme')
   })
 
-  it('theme effect has [theme] dependency array', () => {
-    // Find the theme assignment and verify its effect has [theme] dependency
-    const themeEffectStart = raw.indexOf('options.theme = theme')
-    expect(themeEffectStart).toBeGreaterThan(-1)
-    const afterThemeAssign = raw.slice(themeEffectStart)
-    // The next dependency array should be [theme]
-    const nextDepArray = afterThemeAssign.match(/\}, \[(\w+)\]\)/)
-    expect(nextDepArray).not.toBeNull()
-    expect(nextDepArray![1]).toBe('theme')
+  it('dedicated theme effect has [theme] dependency array', () => {
+    // The standalone theme effect (THM-03) must exist with [theme] dep
+    expect(raw).toContain('}, [theme])')
   })
 
   it('sets backgroundColor from theme.background in inline style', () => {

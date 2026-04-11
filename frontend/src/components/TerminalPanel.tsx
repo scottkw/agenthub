@@ -136,6 +136,8 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
   }, [sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
+  // Also re-apply theme — theme changes while hidden (display:none) can't repaint,
+  // so we force a refresh when becoming visible.
   useEffect(() => {
     if (!isActive || !containerRef.current) return
 
@@ -164,6 +166,12 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
       }
     }
 
+    // Re-apply theme on activation — hidden panels can't repaint during theme changes
+    if (termRef.current) {
+      termRef.current.options.theme = theme
+      termRef.current.refresh(0, termRef.current.rows - 1)
+    }
+
     // Initial rAF: ensure display:none -> flex layout change is committed
     rafId = requestAnimationFrame(() => tryFit(0))
 
@@ -176,7 +184,7 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
       if (rafId !== undefined) cancelAnimationFrame(rafId)
       ro.disconnect()
     }
-  }, [isActive])
+  }, [isActive, theme])
 
   // Apply font size changes from the controlled prop.
   useEffect(() => {

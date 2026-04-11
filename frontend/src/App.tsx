@@ -568,7 +568,7 @@ function App(): React.ReactElement {
             onOpen={handleOpenRemoteSession}
           />
         )}
-        {activeId === SETTINGS_TAB.id && (
+        <div style={{ display: activeId === SETTINGS_TAB.id ? 'block' : 'none' }}>
           <SettingsTab
             clis={detectedCLIs}
             tailscaleHealth={tailscaleHealth}
@@ -590,7 +590,7 @@ function App(): React.ReactElement {
               } catch (_) { /* ignore */ }
             }}
           />
-        )}
+        </div>
         {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings').length === 0 && (
           <div style={{
             background: '#16161e',
