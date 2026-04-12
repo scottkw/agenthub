@@ -167,7 +167,7 @@
 
 - [x] **Phase 67: Cross-Platform System Tray** - Linux and Windows tray icon, session menu, and app lifecycle (GitHub #11) (completed 2026-04-12)
 - [x] **Phase 68: Agent & Tailscale Discovery + Install Instructions** - Comprehensive binary search paths on all platforms, plus Homebrew one-liner fix (GitHub #14, #15) (completed 2026-04-12)
-- [ ] **Phase 69: Settings Scrollable Layout** - Convert Settings tab from sub-tabs to single scrollable page with section headers (GitHub #16)
+- [x] **Phase 69: Settings Scrollable Layout** - Convert Settings tab from sub-tabs to single scrollable page with section headers (GitHub #16) (completed 2026-04-12)
 
 ## Phase Details
 
@@ -214,7 +214,7 @@ Plans:
   3. All settings that existed before the layout change (theme picker, web server URL actions, save paths) remain present and fully functional after the refactor
 **Plans**: 1 plan
 Plans:
-- [ ] 69-01-PLAN.md — Refactor SettingsTab to scrollable layout with section headers + update tests
+- [x] 69-01-PLAN.md — Refactor SettingsTab to scrollable layout with section headers + update tests
 **UI hint**: yes
 
 ## Progress
@@ -236,7 +236,7 @@ Plans:
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67 | v1.13 | 2/2 | Complete    | 2026-04-12 |
 | 68 | v1.13 | 2/2 | Complete    | 2026-04-12 |
-| 69 | v1.13 | 0/1 | Not started | - |
+| 69 | v1.13 | 1/1 | Complete    | 2026-04-12 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
