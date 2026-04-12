@@ -87,24 +87,6 @@ func TestBeforeCloseReturnsTrue(t *testing.T) {
 	}
 }
 
-// TestTrayTooltip verifies the tooltip string formatting with em dash.
-func TestTrayTooltip(t *testing.T) {
-	tests := []struct {
-		n    int
-		want string
-	}{
-		{0, "AgentHub \u2014 no sessions"},
-		{1, "AgentHub \u2014 1 session"},
-		{3, "AgentHub \u2014 3 sessions"},
-	}
-	for _, tt := range tests {
-		got := trayTooltip(tt.n)
-		if got != tt.want {
-			t.Errorf("trayTooltip(%d) = %q, want %q", tt.n, got, tt.want)
-		}
-	}
-}
-
 // TestTrayQuitNilClient verifies onTrayQuit with nil app/client doesn't panic.
 func TestTrayQuitNilClient(t *testing.T) {
 	old := trayCallbackApp

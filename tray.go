@@ -21,7 +21,6 @@ import "C"
 
 import (
 	_ "embed"
-	"fmt"
 	"unsafe"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -78,19 +77,6 @@ func onTraySession(idx C.int) {
 			runtime.EventsEmit(trayCallbackApp.ctx, "tray:focus-session", sessions[i].ID)
 		}
 	}()
-}
-
-// trayTooltip returns the tooltip string for the given session count.
-// Uses an em dash (U+2014) as specified in the UI-SPEC copywriting contract.
-func trayTooltip(n int) string {
-	switch n {
-	case 0:
-		return "AgentHub \u2014 no sessions"
-	case 1:
-		return "AgentHub \u2014 1 session"
-	default:
-		return fmt.Sprintf("AgentHub \u2014 %d sessions", n)
-	}
 }
 
 // setDockVisible shows or hides the macOS Dock icon by toggling the application
