@@ -183,7 +183,10 @@
   4. The Linux and Windows tray icon reflects connected vs error states (matching macOS icon states) when the daemon is reachable or unreachable
   5. Closing the Linux or Windows app window hides it rather than quitting — the daemon continues running and the tray icon remains
   6. Selecting Quit from the Linux or Windows tray menu stops the daemon and fully exits the application
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 67-01-PLAN.md — Shared tray helpers + Linux D-Bus StatusNotifierItem tray
+- [ ] 67-02-PLAN.md — Windows Shell_NotifyIcon tray + cross-platform verification
 **UI hint**: yes
 
 ### Phase 68: Agent & Tailscale Discovery + Install Instructions
@@ -226,7 +229,7 @@
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
-| 67 | v1.13 | 0/TBD | Not started | - |
+| 67 | v1.13 | 0/2 | Not started | - |
 | 68 | v1.13 | 0/TBD | Not started | - |
 | 69 | v1.13 | 0/TBD | Not started | - |
 
