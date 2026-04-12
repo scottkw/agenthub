@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.12.0](https://github.com/scottkw/agenthub/compare/v1.11.0...v1.12.0) (2026-04-12)
+
+
+### Features
+
+* **63-01:** center sidebar icons when collapsed ([aed142d](https://github.com/scottkw/agenthub/commit/aed142d711ce1b732572a47f222c94c01adbe5fd))
+* **64-01:** add .xterm padding: 8px for terminal inset (PAD-01) ([c49e49b](https://github.com/scottkw/agenthub/commit/c49e49b209999364a59a458f0257fbd33a8f5165))
+* **65-01:** add terminal color theme support with xterm-theme library ([ea7d447](https://github.com/scottkw/agenthub/commit/ea7d4477839c8cd2718b8c33e9d4b0b58671028c))
+* **66-01:** add GetWebServerQRCode Go method and Wails binding stubs ([deb5d6a](https://github.com/scottkw/agenthub/commit/deb5d6aa6dd6fb370ca8d8b2caf113b810d1d88d))
+* **66-01:** add URL action row with Open, Copy, QR buttons to Settings tab ([9bdb0cf](https://github.com/scottkw/agenthub/commit/9bdb0cfb81345a335ae0f0509842c4f933803184))
+
+
+### Bug Fixes
+
+* **65:** add onInput handler for theme listbox selection in WebKit ([0c68247](https://github.com/scottkw/agenthub/commit/0c682478e08f02e56a61a3e5ddfa7207b7137fe4))
+* **65:** constrain theme dropdown width to avoid oversized select ([e3ea0a7](https://github.com/scottkw/agenthub/commit/e3ea0a7e692987ebf89c2aedf04a17b7bdf12456))
+* **65:** force repaint after clearing texture atlas for active panel ([8020ee8](https://github.com/scottkw/agenthub/commit/8020ee88b1c107a9650d7650abab45bd4de164e1))
+* **65:** theme applies on all panels, settings tab persists across navigation ([2f693eb](https://github.com/scottkw/agenthub/commit/2f693eb3e852c4c6cd695fb95b79d678d0ddbdc7))
+* **65:** theme applies to all sessions, settings tab state persists ([c2a021a](https://github.com/scottkw/agenthub/commit/c2a021a942c02f63b2c95da0fb7378446856d9e9))
+* **65:** use clearTextureAtlas for WebGL theme updates, revert to dropdown ([7e539f6](https://github.com/scottkw/agenthub/commit/7e539f69a8d25ab981cdb7c2035a8d479ce701ef))
+* **65:** use scrollable listbox for theme selector instead of full-height dropdown ([dd83277](https://github.com/scottkw/agenthub/commit/dd832776bbbac6518ea1e9f594183306096ad721))
+* **PAD-01:** add overflow:hidden to terminal container to clip canvas bleed ([7e37334](https://github.com/scottkw/agenthub/commit/7e3733435a8ebc8545c72b91f85c4b0453461c6a))
+* **PAD-01:** match .xterm background-color to theme so padding blends in ([893407c](https://github.com/scottkw/agenthub/commit/893407c15fba036f6855a79dbcd004572c760991))
+* **PAD-01:** move padding from .xterm to container so inset is visible ([f347471](https://github.com/scottkw/agenthub/commit/f347471c5ac479f1c0c4a36275a9e2d1ecb038d8))
+* **PAD-01:** use clientWidth minus padding for unambiguous content-box size ([6d99268](https://github.com/scottkw/agenthub/commit/6d9926885433ba1e2c0ef1ad97df9eac8150df83))
+
 ## [1.11.0](https://github.com/scottkw/agenthub/compare/v1.10.0...v1.11.0) (2026-04-10)
 
 
