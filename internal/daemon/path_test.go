@@ -170,3 +170,57 @@ func TestAugmentServicePath_PrependsNotAppends(t *testing.T) {
 		t.Errorf("volta bin (%d) should appear BEFORE original PATH (%d) in %s", voltaIdx, origIdx, got)
 	}
 }
+
+func TestAugmentServicePath_Cargo(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix PATH separator")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	original := "/usr/bin:/bin"
+	t.Setenv("PATH", original)
+
+	cargoBin := filepath.Join(home, ".cargo", "bin")
+	if err := os.MkdirAll(cargoBin, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	AugmentServicePath()
+
+	got := os.Getenv("PATH")
+	if !strings.Contains(got, cargoBin) {
+		t.Errorf("PATH should contain %s, got %s", cargoBin, got)
+	}
+}
+
+func TestAugmentServicePath_FlatpakUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix PATH separator")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	original := "/usr/bin:/bin"
+	t.Setenv("PATH", original)
+
+	flatpakBin := filepath.Join(home, ".local", "share", "flatpak", "exports", "bin")
+	if err := os.MkdirAll(flatpakBin, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+
+	AugmentServicePath()
+
+	got := os.Getenv("PATH")
+	if !strings.Contains(got, flatpakBin) {
+		t.Errorf("PATH should contain %s, got %s", flatpakBin, got)
+	}
+}
+
+func TestPlatformExtraBins_NonWindows(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test is for non-Windows only")
+	}
+	got := platformExtraBins()
+	if got != nil {
+		t.Errorf("platformExtraBins on non-Windows should return nil, got %v", got)
+	}
+}
