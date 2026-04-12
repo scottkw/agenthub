@@ -4,7 +4,7 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (as a full sidebar tab). Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (as a full sidebar tab). Terminal sessions support 157 color themes from the xterm-theme library with live switching and persistence. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
@@ -15,6 +15,8 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, and OpenCode on startup — including when launched from Finder/Dock (augments PATH with `~/.local/bin`, Homebrew, nvm, volta, and other common install locations); supports custom CLI path overrides
 - **New session modal** — Select a CLI and pick a working directory with a native folder browser; remembers your last-used directory
 - **CLI argument passing** — Pass extra arguments to CLIs with `--` separator syntax (e.g., `agenthub new claude ~/dir -- --arg1`); arguments are remembered per CLI
+- **Terminal theming** — 157 color themes from the xterm-theme library; select in Settings > Appearance, applies live to all open sessions, persists across restarts
+- **Terminal padding** — 8px inset around terminal content with dynamic background matching the active theme
 - **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
 - **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
@@ -66,8 +68,10 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 
 ### Settings
 - **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
+- **Appearance tab** — Theme selector with 157 named color schemes; selected theme applies live to all terminals and persists in localStorage
 - **Custom CLI paths** — Override auto-detected paths per CLI
 - **Web server controls** — Start/stop web server with mode-aware status display
+- **Web server URL actions** — Open dashboard in browser, copy URL to clipboard, and display inline QR code — all from the Settings tab
 - **Local network password** — View the generated password with click-to-copy when running in local network mode
 - **Tailscale status indicator** — Color-coded dot showing Tailscale connection state (Connected / Not Connected / Not Installed)
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
@@ -132,13 +136,13 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `App.tsx` | Root layout, daemon client, session management, sidebar + content flex layout |
 | `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Remote, Sessions, New Session, Settings |
 | `TabBar.tsx` | Tab strip with status dots, rename, close (session tabs only — no action buttons) |
-| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size |
+| `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size, theme support |
 | `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
 | `DaemonManagerPanel.tsx` | Session list with kill, web toggle, hostname badges |
 | `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
-| `SettingsTab.tsx` | Settings as sidebar tab: CLI paths, web server controls, local network password |
+| `SettingsTab.tsx` | Settings as sidebar tab: Appearance (theme selector), CLI paths, web server controls with URL actions (open/copy/QR), local network password |
 | `LocalNetworkBanner.tsx` | Persistent nudge banner recommending Tailscale when in local network mode |
 | `QRModal.tsx` | QR code display for web-served sessions |
 
@@ -364,6 +368,7 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | Backend | Go 1.22+ |
 | Frontend | React 19, TypeScript, Vite |
 | Terminal | [xterm.js](https://xtermjs.org) v6 |
+| Terminal themes | [xterm-theme](https://www.npmjs.com/package/xterm-theme) — 157 iTerm2-compatible color schemes |
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
