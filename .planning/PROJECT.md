@@ -140,7 +140,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.12 shipped (2026-04-11). 13 milestones shipped (v1.0–v1.12), 66 phases completed, 116 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) with Appearance sub-tab for terminal theme selection. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme.
+v1.13 in progress (2026-04-12). 13 milestones shipped (v1.0–v1.12), 67 phases completed, 118 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) with Appearance sub-tab for terminal theme selection. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. System tray now cross-platform: Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — both with shared menu helpers from tray_common.go.
 
 ### Out of Scope
 
@@ -276,4 +276,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after v1.13 milestone start*
+*Last updated: 2026-04-12 after Phase 67 (cross-platform system tray) complete*
