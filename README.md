@@ -59,13 +59,13 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 
 ### Web Serving
 - **Auto-serve** — Web server starts automatically on daemon launch; new sessions are web-served by default
-- **Dual-mode networking** — Tailscale mode (Let's Encrypt TLS, zero-config security) when available; local network fallback (self-signed TLS + HTTP Basic Auth with generated password) when Tailscale is unavailable
+- **Dual-mode networking** — Tailscale mode (Let's Encrypt TLS, zero-config security) when available; local network fallback (self-signed TLS + HTTP Basic Auth with generated password) when Tailscale is unavailable. Automatically upgrades from local to Tailscale mode when Tailscale connects after startup
 - **Per-session toggle** — Enable/disable web access per session from GUI or CLI (`agenthub serve/unserve`)
 - **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, QR code thumbnails, and direct connect links
 - **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
 - **Health checks** — Detects Tailscale installation, connection, and cert readiness (`agenthub health` CLI command)
-- **Nudge banner** — Persistent in-app banner recommending Tailscale installation when running in local network mode
+- **Nudge banner** — Context-aware in-app banner: recommends Tailscale installation when not detected; shows "upgrading to Tailscale..." when Tailscale connects and the server is restarting
 
 ### Settings
 - **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
@@ -143,7 +143,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
 | `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Appearance, Web Server, Paths); theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides, local network password |
-| `LocalNetworkBanner.tsx` | Persistent nudge banner recommending Tailscale when in local network mode |
+| `LocalNetworkBanner.tsx` | Context-aware nudge banner: recommends Tailscale install or shows upgrade-in-progress when Tailscale connects |
 | `QRModal.tsx` | QR code display for web-served sessions |
 
 ## Installation
