@@ -60,9 +60,9 @@ Declared values (multiples of 4 only):
 | 2xl | 48px | Welcome content top/bottom padding |
 | 3xl | 64px | Major page-level spacing |
 
-Exceptions: 6px padding on `.welcome-tab__code` (existing, do not change — matches existing border-radius rhythm).
+No spacing changes in this phase — INST-01 is a string replacement only.
 
-**Source:** `style.css` lines 1013–1094 (verified in codebase). Do not alter spacing in this phase — INST-01 is a string replacement only.
+**Source:** `style.css` lines 1013–1094 (verified in codebase).
 
 ---
 
@@ -123,7 +123,7 @@ Accent reserved for: platform label text (`.welcome-tab__install-label`), hyperl
 
 No new components. No new CSS classes. No new style rules.
 
-**Existing class to use:** `.welcome-tab__code` — defined in `style.css` lines 1085–1094. Applies monospace font, 12px, `#a9b1d6` text color, `#16161e` background, 1px `#292e42` border, 4px border-radius, 6px/10px padding.
+**Existing class to use:** `.welcome-tab__code` — defined in `style.css` lines 1085–1094. Applies monospace font, 12px, `#a9b1d6` text color, `#16161e` background, 1px `#292e42` border, 4px border-radius.
 
 ---
 
