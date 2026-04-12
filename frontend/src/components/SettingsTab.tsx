@@ -403,6 +403,22 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </table>
         )}
 
+        <div className="settings-panel__field-group" style={{ marginTop: '0.75rem' }}>
+          <label className="settings-panel__label">Tailscale</label>
+          <div className="ts-status" style={{ fontSize: '0.85rem' }}>
+            {tailscaleHealth
+              ? (tailscaleHealth.connected
+                  ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
+                  : tailscaleHealth.installed
+                    ? 'Installed but not connected'
+                    : 'Not detected')
+              : 'Checking\u2026'}
+          </div>
+          <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
+            AgentHub connects to Tailscale automatically via the local daemon socket. No path configuration needed.
+          </p>
+        </div>
+
         {error && <p className="settings-panel__error">{error}</p>}
 
         <div className="settings-panel__save-paths-row">

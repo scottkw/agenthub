@@ -179,3 +179,30 @@ describe('SETT-03: All content groups present simultaneously', () => {
     expect(raw).toContain('Save Paths')
   })
 })
+
+describe('TAILSCALE-PATH-01: Tailscale status in Paths section', () => {
+  it('renders Tailscale label in Paths section', () => {
+    expect(raw).toContain('Tailscale')
+  })
+
+  it('shows connected status with domain or ip when tailscaleHealth.connected is true', () => {
+    expect(raw).toContain('tailscaleHealth.connected')
+    expect(raw).toContain('tailscaleHealth.domain || tailscaleHealth.ip')
+  })
+
+  it('shows installed-but-not-connected message', () => {
+    expect(raw).toContain('Installed but not connected')
+  })
+
+  it('shows not detected message', () => {
+    expect(raw).toContain('Not detected')
+  })
+
+  it('shows description about daemon socket connection', () => {
+    expect(raw).toContain('local daemon socket')
+  })
+
+  it('shows No path configuration needed', () => {
+    expect(raw).toContain('No path configuration needed')
+  })
+})

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import * as xtermThemes from 'xterm-theme'
 import type { ITheme } from '@xterm/xterm'
 import { TabBar, type Tab } from './components/TabBar'
@@ -74,6 +74,8 @@ function App(): React.ReactElement {
     domain: string
   } | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
+  // Ref for the background upgrade poller (local -> tailscale mode transition)
+  const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
   const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
@@ -213,6 +215,45 @@ function App(): React.ReactElement {
       domain: string
     }) => {
       setTailscaleHealth(h)
+      // If Tailscale just became fully healthy, poll for the backend to upgrade
+      // from local mode to tailscale mode (daemon's upgradeToTailscale goroutine).
+      if (h.connected && h.hasCerts && h.ip) {
+        setWebServerMode(prev => {
+          if (prev === 'local') {
+            // Clear any existing poller before starting a new one.
+            if (upgradePollerRef.current !== null) {
+              clearInterval(upgradePollerRef.current)
+            }
+            let attempts = 0
+            upgradePollerRef.current = setInterval(async () => {
+              attempts++
+              try {
+                const mode = await GetWebServerMode()
+                if (mode === 'tailscale') {
+                  setWebServerMode('tailscale')
+                  if (upgradePollerRef.current !== null) {
+                    clearInterval(upgradePollerRef.current)
+                    upgradePollerRef.current = null
+                  }
+                } else if (attempts >= 10) {
+                  if (upgradePollerRef.current !== null) {
+                    clearInterval(upgradePollerRef.current)
+                    upgradePollerRef.current = null
+                  }
+                }
+              } catch {
+                if (attempts >= 10) {
+                  if (upgradePollerRef.current !== null) {
+                    clearInterval(upgradePollerRef.current)
+                    upgradePollerRef.current = null
+                  }
+                }
+              }
+            }, 3000)
+          }
+          return prev
+        })
+      }
     })
 
     const offDaemonError = EventsOn('daemon:error', (msg: string) => {
@@ -234,6 +275,10 @@ function App(): React.ReactElement {
       offHealth()
       offDaemonError()
       cancelTrayFocus()
+      if (upgradePollerRef.current !== null) {
+        clearInterval(upgradePollerRef.current)
+        upgradePollerRef.current = null
+      }
     }
   }, [])
 
@@ -523,6 +568,7 @@ function App(): React.ReactElement {
       {webServerMode === 'local' && (
         <LocalNetworkBanner
           visible={true}
+          tailscaleConnected={!!(tailscaleHealth?.connected && tailscaleHealth?.hasCerts && tailscaleHealth?.ip)}
           onOpenURL={BrowserOpenURL}
         />
       )}

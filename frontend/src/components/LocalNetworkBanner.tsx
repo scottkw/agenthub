@@ -2,6 +2,7 @@ import React from 'react'
 
 interface LocalNetworkBannerProps {
   visible: boolean
+  tailscaleConnected: boolean
   onOpenURL: (url: string) => void
 }
 
@@ -10,17 +11,34 @@ interface LocalNetworkBannerProps {
  * local network mode (not Tailscale). Recommends installing Tailscale for
  * end-to-end encrypted remote access.
  *
+ * When tailscaleConnected is true, Tailscale has been detected but the server
+ * hasn't upgraded yet — show an "upgrading" message instead of the install CTA.
+ *
  * Rendered above the sidebar+content row (never inside terminal-container).
  * Visible only when webServerMode === 'local'.
  */
-export function LocalNetworkBanner({ visible, onOpenURL }: LocalNetworkBannerProps): React.ReactElement | null {
+export function LocalNetworkBanner({ visible, tailscaleConnected, onOpenURL }: LocalNetworkBannerProps): React.ReactElement | null {
   if (!visible) return null
+
+  if (tailscaleConnected) {
+    return (
+      <div className="local-network-banner" role="status">
+        <span className="local-network-banner__icon">{'\u26a0'}</span>
+        <span className="local-network-banner__message">
+          Local network mode active &mdash; upgrading to Tailscale&hellip;
+        </span>
+        <span className="local-network-banner__sub">
+          Tailscale detected. Web server is restarting with end-to-end encryption.
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div className="local-network-banner" role="status">
       <span className="local-network-banner__icon">{'\u26a0'}</span>
       <span className="local-network-banner__message">
-        Local network mode active — your sessions are accessible on your LAN.
+        Local network mode active &mdash; your sessions are accessible on your LAN.
       </span>
       <span className="local-network-banner__sub">
         Install Tailscale for end-to-end encrypted remote access.
