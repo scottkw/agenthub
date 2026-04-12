@@ -30,7 +30,7 @@ describe('WelcomeTab (BRND-02)', () => {
   })
 
   it('includes installation instructions for macOS', () => {
-    expect(raw).toContain('brew install agenthub')
+    expect(raw).toContain('brew tap scottkw/agenthub && brew install --cask agenthub')
   })
 
   it('includes installation instructions for Linux', () => {
