@@ -7,8 +7,8 @@ tags: [xterm, css, terminal, padding, vitest]
 # Dependency graph
 requires: []
 provides:
-  - ".xterm { padding: 8px } rule in style.css xterm overrides block"
-  - "PAD-01 vitest test asserting .xterm padding rule exists in style.css"
+  - ".terminal-session-container { padding: 8px } rule in style.css (moved from .xterm in post-plan fix)"
+  - "PAD-01 vitest test asserting .terminal-session-container padding rule exists in style.css"
 affects: [65-terminal-theming]
 
 # Tech tracking
@@ -16,6 +16,8 @@ tech-stack:
   added: []
   patterns:
     - "Source-inspection test pattern: cssRaw.toMatch(regex) for asserting CSS rules without DOM"
+post_plan_corrections:
+    - "Selector moved from .xterm to .terminal-session-container during execution (commits f347471, 893407c, 7e37334) — .xterm-viewport is position:absolute and covers .xterm padding"
 
 key-files:
   created: []
@@ -28,7 +30,7 @@ key-decisions:
   - "CSS-only change: fitTerminal() already subtracts padding via getComputedStyle, no JS changes needed"
 
 patterns-established:
-  - "PAD-01 test uses cssRaw.toMatch(/\\.xterm\\s*\\{[^}]*padding:\\s*8px/) — regex-based CSS rule assertion"
+  - "PAD-01 test uses cssRaw.toMatch(/\\.terminal-session-container\\s*\\{[^}]*padding:\\s*8px/) — regex-based CSS rule assertion"
 
 requirements-completed: [PAD-01]
 
@@ -39,7 +41,7 @@ completed: 2026-04-11
 
 # Phase 64 Plan 01: Terminal Padding Summary
 
-**8px symmetric CSS padding added to .xterm selector so terminal text has a visible inset from all four container edges**
+**8px symmetric CSS padding added to .terminal-session-container selector so terminal text has a visible inset from all four container edges**
 
 ## Performance
 
@@ -51,7 +53,7 @@ completed: 2026-04-11
 
 ## Accomplishments
 
-- Added `.xterm { padding: 8px; }` to the xterm overrides block in `style.css` — text no longer renders flush against frame edges
+- Added `.terminal-session-container { padding: 8px; }` to the xterm overrides block in `style.css` — text no longer renders flush against frame edges (initially `.xterm`, corrected in post-plan fix commits)
 - Added PAD-01 describe block in `TerminalPanel.test.tsx` with two tests: CSS rule assertion (TDD driver) and fitTerminal padding-awareness structural check
 - Full frontend test suite stays green: 268 tests, 17 files, 0 failures
 
@@ -66,7 +68,7 @@ _TDD: RED commit first, then GREEN commit after CSS rule added._
 
 ## Files Created/Modified
 
-- `frontend/src/style.css` — `.xterm { padding: 8px; }` inserted after scrollbar-hide rules, before Reset section (line 13-17)
+- `frontend/src/style.css` — `.terminal-session-container { padding: 8px; }` in xterm overrides block (moved from `.xterm` in post-plan fix)
 - `frontend/src/components/__tests__/TerminalPanel.test.tsx` — PAD-01 describe block appended (2 tests)
 
 ## Decisions Made

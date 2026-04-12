@@ -29,8 +29,8 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | Terminal text has a visible 8px gap between content and all four edges of the terminal container | VERIFIED | `.xterm { padding: 8px; }` exists at line 14 of `frontend/src/style.css`, with PAD-01 comment at line 13. PAD-01 regex test passes. |
-| 2 | Padding is consistent across all open terminal sessions (single .xterm selector) | VERIFIED | Single `.xterm` selector in `style.css` — applies uniformly via xterm.js `term.open()`. No per-instance override. |
+| 1 | Terminal text has a visible 8px gap between content and all four edges of the terminal container | VERIFIED | `.terminal-session-container { padding: 8px; }` exists in `frontend/src/style.css`. PAD-01 regex test passes. (Moved from `.xterm` in post-plan fix commits f347471, 893407c, 7e37334.) |
+| 2 | Padding is consistent across all open terminal sessions (single .terminal-session-container selector) | VERIFIED | Single `.terminal-session-container` selector in `style.css` — applies uniformly to each session's wrapper div. No per-instance override. |
 | 3 | Terminal still fills its container and resizes correctly — fitTerminal() already subtracts padding | VERIFIED | `TerminalPanel.tsx` lines 24-26: `getComputedStyle(term.element!)` reads `paddingLeft/Right/Top/Bottom` and subtracts them from parent dimensions before computing cols/rows. Structural test asserts these properties exist. |
 
 **Score:** 3/3 truths verified
@@ -39,14 +39,14 @@ human_verification:
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `frontend/src/style.css` | `.xterm` padding rule in xterm overrides block | VERIFIED | `.xterm { padding: 8px; }` at line 14, preceded by PAD-01 comment at line 13. Confirmed within xterm overrides block (after scrollbar-hide rules, before Reset section). |
-| `frontend/src/components/__tests__/TerminalPanel.test.tsx` | PAD-01 structural test asserting .xterm padding rule exists | VERIFIED | `describe('PAD-01 terminal padding', ...)` block at line 152 with 2 tests: CSS regex assertion and fitTerminal padding-awareness check. Both pass. |
+| `frontend/src/style.css` | `.terminal-session-container` padding rule in xterm overrides block | VERIFIED | `.terminal-session-container { padding: 8px; }` in style.css, within xterm overrides block. Moved from `.xterm` in post-plan fix. |
+| `frontend/src/components/__tests__/TerminalPanel.test.tsx` | PAD-01 structural test asserting .terminal-session-container padding rule exists | VERIFIED | `describe('PAD-01 terminal padding', ...)` block with tests: CSS regex assertion for `.terminal-session-container` and fitTerminal padding-awareness check. Both pass. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `frontend/src/style.css` | `frontend/src/components/TerminalPanel.tsx` | CSS class `.xterm` applied by `term.open()` — `fitTerminal()` reads padding via `getComputedStyle(term.element!)` | WIRED | Confirmed: `TerminalPanel.tsx` lines 24-26 call `getComputedStyle(term.element!)` and use `padH`/`padV` computed from all four padding properties before sizing cols/rows. The CSS rule is the upstream value that flows through this call. |
+| `frontend/src/style.css` | `frontend/src/components/TerminalPanel.tsx` | CSS class `.terminal-session-container` on wrapper div — `fitTerminal()` reads padding via `getComputedStyle(term.element!)` | WIRED | Confirmed: `TerminalPanel.tsx` calls `getComputedStyle(term.element!)` and uses `padH`/`padV` from all four padding properties before sizing cols/rows. The `.terminal-session-container` CSS rule is the upstream value. |
 
 ### Data-Flow Trace (Level 4)
 
@@ -56,7 +56,7 @@ Not applicable — this phase produces a CSS-only change with no dynamic data fl
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| `.xterm { padding: 8px }` rule exists in style.css | `grep -n ".xterm {" frontend/src/style.css` | Line 14: `.xterm {` | PASS |
+| `.terminal-session-container { padding: 8px }` rule exists in style.css | `grep -n ".terminal-session-container {" frontend/src/style.css` | `.terminal-session-container {` | PASS |
 | PAD-01 comment precedes rule | `grep -n "PAD-01" frontend/src/style.css` | Line 13: `/* Inset terminal text from the container edges (PAD-01). */` | PASS |
 | Test suite passes including PAD-01 | `npx vitest run --reporter=verbose` | 268 passed, 17 files, 0 failures | PASS |
 | Both task commits exist in git history | `git show --oneline -s b4197e0 c49e49b` | `b4197e0 test(64-01): add failing PAD-01 test` and `c49e49b feat(64-01): add .xterm padding: 8px` | PASS |
