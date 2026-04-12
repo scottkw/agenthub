@@ -4,13 +4,13 @@ milestone: v1.13
 milestone_name: Cross-Platform Fixes & UX
 status: planning
 stopped_at: Roadmap created — v1.13 phases 67-69 defined
-last_updated: "2026-04-12T03:07:50.667Z"
+last_updated: "2026-04-12T04:04:24.639Z"
 last_activity: 2026-04-12
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-11)
 
 ## Current Position
 
-Phase: 68 of 69 (agent & tailscale discovery + install instructions)
+Phase: 69 of 69 (settings scrollable layout)
 Plan: Not started
 Status: Ready to plan
 Last activity: 2026-04-12

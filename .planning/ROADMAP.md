@@ -166,7 +166,7 @@
 ### v1.13 Cross-Platform Fixes & UX (Phases 67-69)
 
 - [x] **Phase 67: Cross-Platform System Tray** - Linux and Windows tray icon, session menu, and app lifecycle (GitHub #11) (completed 2026-04-12)
-- [ ] **Phase 68: Agent & Tailscale Discovery + Install Instructions** - Comprehensive binary search paths on all platforms, plus Homebrew one-liner fix (GitHub #14, #15)
+- [x] **Phase 68: Agent & Tailscale Discovery + Install Instructions** - Comprehensive binary search paths on all platforms, plus Homebrew one-liner fix (GitHub #14, #15) (completed 2026-04-12)
 - [ ] **Phase 69: Settings Scrollable Layout** - Convert Settings tab from sub-tabs to single scrollable page with section headers (GitHub #16)
 
 ## Phase Details
@@ -200,8 +200,8 @@ Plans:
   3. The Welcome screen macOS install section shows a single `brew tap scottkw/agenthub && brew install --cask agenthub` command that can be copied in one action
 **Plans**: 2 plans
 Plans:
-- [ ] 68-01-PLAN.md — Cross-platform PATH augmentation (snap, flatpak, cargo, Windows paths)
-- [ ] 68-02-PLAN.md — macOS Homebrew install command update
+- [x] 68-01-PLAN.md — Cross-platform PATH augmentation (snap, flatpak, cargo, Windows paths)
+- [x] 68-02-PLAN.md — macOS Homebrew install command update
 
 ### Phase 69: Settings Scrollable Layout
 **Goal**: The Settings tab presents all settings in a single scrollable page organized by labeled sections, replacing the current sub-tab structure
@@ -233,7 +233,7 @@ Plans:
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67 | v1.13 | 2/2 | Complete    | 2026-04-12 |
-| 68 | v1.13 | 0/2 | Not started | - |
+| 68 | v1.13 | 2/2 | Complete    | 2026-04-12 |
 | 69 | v1.13 | 0/TBD | Not started | - |
 
 ---
