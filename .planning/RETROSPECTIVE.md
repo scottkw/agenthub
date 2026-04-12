@@ -538,6 +538,48 @@
 
 ---
 
+## Milestone: v1.12 — UI/UX Polish
+
+**Shipped:** 2026-04-11
+**Phases:** 4 | **Plans:** 4 | **Commits:** 48
+
+### What Was Built
+- CSS flexbox centering for sidebar icons in collapsed 48px rail
+- 8px symmetric terminal padding with dynamic background matching terminal theme
+- 157 xterm-theme color schemes with live apply, localStorage persistence, and Settings > Appearance tab
+- Web server URL actions: open in browser, copy to clipboard, inline QR code in Settings
+
+### What Worked
+- Research-driven phase ordering (risk-ascending, dependency-driven): CSS-only phases first, Go-touching phase last — zero regressions
+- All 4 phases CSS/frontend-heavy, allowing rapid execution with immediate visual feedback
+- Milestone audit passed on first try (after one minor doc cleanup commit) — 8/8 requirements satisfied with zero gaps
+- Full Nyquist compliance across all 4 phases from the start
+- xterm-theme library provided 157 themes with zero custom infrastructure needed
+
+### What Was Inefficient
+- Phase 65 (terminal theming) required 6 fix commits for WebGL texture atlas cache, Wails WebKit listbox behavior, and settings tab state persistence — more than the feature code itself
+- SUMMARY frontmatter one-liner extraction continues to produce malformed output (phases 63 and 66 had blank or garbled one-liners)
+- Phase 66 QR code needed Go backend method despite frontend-focused milestone — could have been pre-identified during research
+
+### Patterns Established
+- `clearTextureAtlas()` + `refresh()` pattern for WebGL theme switching — required for any xterm.js theme change
+- `fs.readFileSync` for CSS source-inspection tests (not Vite `?raw` imports) — established as project-wide pattern
+- QR cache lifetime tied to server lifecycle (not UI toggle state) — avoids unnecessary re-fetches
+
+### Key Lessons
+1. WebGL renderers cache glyph textures aggressively — theme changes require explicit atlas clearing, not just `options.theme` updates
+2. Wails WebKit `<select>` elements behave differently from Chromium — `onInput` handler needed alongside `onChange` for reliable selection
+3. CSS-only phases (63, 64) execute in minutes; phases touching Go backend (66) take 3-5x longer even for simple features
+4. Small UI polish milestones (4 phases, 2 days) are efficient — focused scope with clear visual acceptance criteria
+5. SUMMARY frontmatter one_liner extraction is still unreliable — confirmed across 13 milestones now; needs tooling fix
+
+### Cost Observations
+- Model mix: ~60% sonnet (execution), ~35% opus (audit/completion/retro), ~5% haiku (synthesis)
+- Sessions: ~3 sessions across 2 days
+- Notable: Phase 63 (CSS centering) completed in ~5 minutes — fastest phase in project history
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -556,6 +598,7 @@
 | v1.9 | 111 | 6 | Remote session discovery (GUI+CLI), auto-update checker, Tailscale onboarding, app menus, parallel plan execution |
 | v1.10 | 21 | 2 | Heroicons sidebar, flex-row layout restructure, tab bar cleanup, TDD-first UI milestone |
 | v1.11 | 57 | 6 | Local network fallback, auto-serve sessions, settings-as-tab, audit-driven gap closure (61, 62) |
+| v1.12 | 48 | 4 | UI polish milestone, risk-ascending phase ordering, xterm-theme integration, WebGL atlas clearing pattern |
 
 ### Cumulative Quality
 
@@ -573,6 +616,7 @@
 | v1.9 | 200+ (race-clean) | 160+ | ~41,000 | 4 (0 blockers; SUMMARY frontmatter gaps, dead installError state, unused CheckForUpdates TS binding, STATE.md merge markers) |
 | v1.10 | 200+ (race-clean) | 268 | ~41,200 | 1 minor (SUMMARY frontmatter drift in 56-01) |
 | v1.11 | 200+ (race-clean) | 268+ | ~43,000 | 7 (0 blockers; SUMMARY frontmatter gaps, retryInit asymmetry, stale closure risk, init/retryInit duplication) |
+| v1.12 | 200+ (race-clean) | 270+ | ~43,700 | 4 cosmetic (SUMMARY frontmatter `provides` vs `requirements-completed`, VERIFICATION doc string) |
 
 ### Top Lessons (Verified Across Milestones)
 

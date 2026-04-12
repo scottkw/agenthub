@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Remote sessions across tailnet peers are discoverable via both GUI (Remote Sessions panel with auto-refresh) and CLI (`agenthub list` with HOST column, `agenthub attach hostname:id` via WSS relay). Standard macOS app menus with Cmd+C/V clipboard in terminal tabs. Auto-update checker polls GitHub releases and shows notification banner with one-click download. Health checks detect Tailscale state and guide users through setup with platform-specific install commands, macOS auto-install via Homebrew, and post-install HTTPS cert configuration guide. Live status indicators show whether each CLI is running, waiting, or errored. Includes branded app icons, a splash screen with the title logo, a polished UI with tabbed settings, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI). Distributed via GitHub releases (DMG, EXE+NSIS, tar.gz+deb), Homebrew cask, and WinGet.
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Falls back to local network serving with self-signed TLS and generated password when Tailscale is unavailable. Remote sessions across tailnet peers are discoverable via both GUI (Remote Sessions panel with auto-refresh) and CLI (`agenthub list` with HOST column, `agenthub attach hostname:id` via WSS relay). Standard macOS app menus with Cmd+C/V clipboard in terminal tabs. Auto-update checker polls GitHub releases and shows notification banner with one-click download. Health checks detect Tailscale state and guide users through setup with platform-specific install commands, macOS auto-install via Homebrew, and post-install HTTPS cert configuration guide. Live status indicators show whether each CLI is running, waiting, or errored. Terminal sessions support 157 color themes from the xterm-theme library with live apply and persistence. Includes branded app icons, a splash screen with the title logo, a polished UI with collapsible sidebar navigation, tabbed settings with Appearance tab for theme selection, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. Settings tab provides web server URL actions — open in browser, copy to clipboard, and QR code display. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI). Distributed via GitHub releases (DMG, EXE+NSIS, tar.gz+deb), Homebrew cask, and WinGet.
 
 ## Core Value
 
@@ -121,19 +121,11 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-## Current Milestone: v1.12 UI/UX Polish
-
-**Goal:** Improve terminal visual quality, web server accessibility, and overall UI polish.
-
-**Target features:**
-- Terminal padding (inset around terminal content so text doesn't touch edges)
-- Web server link opens in default browser, copy-to-clipboard for URL, and QR code for web server dashboard URL
-- Terminal theming (popular theme support for fonts and colors)
-- Sidebar icon centering when collapsed
+(Planning next milestone — use `/gsd-new-milestone` to define)
 
 ## Current State
 
-v1.12 in progress (2026-04-11). 12 milestones shipped (v1.0–v1.11), 65 phases completed, 115 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal). Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default with frontend state correctly reflecting backend auto-enable. Persistent nudge banner recommends Tailscale when in local mode. Phase 63 complete — sidebar icons visually centered in collapsed 48px rail. Phase 64 complete — terminal padding with 8px inset and dynamic background. Phase 65 complete — terminal theming with 157 xterm-theme color schemes, live apply, Settings > Appearance tab, localStorage persistence.
+v1.12 shipped (2026-04-11). 13 milestones shipped (v1.0–v1.12), 66 phases completed, 116 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) with Appearance sub-tab for terminal theme selection. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme.
 
 ### Out of Scope
 
@@ -152,16 +144,18 @@ v1.12 in progress (2026-04-11). 12 milestones shipped (v1.0–v1.11), 65 phases 
 - Non-Tailscale VPN support — removed in v1.2; Tailscale-only networking
 - Tab color coding per CLI type — deferred to future milestone
 - Status heuristic patterns for non-Claude CLIs — deferred to future milestone
-- Font/theme customization beyond size — per-tab font size covers the immediate need
+- Custom theme editor — 157 built-in xterm-theme schemes cover the need; custom editing adds complexity
+- Per-tab theme overrides — global theme sufficient; per-tab adds UI complexity
+- Font family selection — web font loading race adds complexity; validate demand first
 
 ## Context
 
-Shipped v1.9 with ~31K Go + ~10K TS/TSX.
-Tech stack: Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate.
+Shipped v1.12 with ~32K Go + ~11K TS/TSX.
+Tech stack: Go/Wails v2, React, xterm.js, xterm-theme@1.1.0, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS.
 Go test suite: 200+ tests race-clean across 8 packages (added internal/tailnet, internal/updater).
-Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, and web status bar components.
-Networking: Tailscale-only — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer.
+Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, web status bar, sidebar, and settings tab (web link UX) components.
+Networking: Tailscale primary — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer. Local network fallback with self-signed TLS + generated password when Tailscale unavailable.
 Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
 Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed; dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review.
@@ -241,6 +235,12 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Enrichment in handleListSessions (not engine.go) | Keeps WebEnabled out of SessionEngine which has no web server reference | ✓ Good — clean module boundary |
 | WebEnabled on app.go SessionInfo (not daemon.SessionInfo) | Maintains Wails API surface separation from daemon types | ✓ Good — clean type hierarchy |
 | Mirror backend state in frontend (no ToggleWebServing in createTab) | Daemon already auto-enables; frontend is display-only for web state | ✓ Good — single source of truth |
+| `.terminal-session-container` padding (not `.xterm`) | Padding on outer container avoids xterm.js FitAddon measurement interference | ✓ Good — clean separation, no resize regression |
+| xterm-theme@1.1.0 for terminal themes | 157 iTerm2-compatible themes, MIT-licensed, well-maintained | ✓ Good — broad selection, no custom theme infrastructure needed |
+| localStorage for theme persistence | Same pattern as sidebar collapse state; no backend round-trip needed | ✓ Good — instant restore on app launch |
+| clearTextureAtlas + refresh for WebGL theme updates | WebGL renderer caches glyph textures; must clear atlas when theme colors change | ✓ Good — reliable live theme switching |
+| QR cache cleared only on server stop (not hide/show) | Avoids re-fetch on repeated toggle; server URL doesn't change while running | ✓ Good — minimal network calls |
+| fs.readFileSync for CSS inspection tests (not ?raw) | vitest/jsdom does not support Vite ?raw imports; readFileSync is established project pattern | ✓ Good — stable test approach |
 
 ---
 ## Evolution
@@ -261,4 +261,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after Phase 66 (Web Server Link UX) completed*
+*Last updated: 2026-04-11 after v1.12 milestone*

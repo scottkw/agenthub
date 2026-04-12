@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.12 UI/UX Polish (Shipped: 2026-04-11)
+
+**Phases completed:** 4 phases, 4 plans
+**Requirements:** 8/8 satisfied
+**Commits:** 48 | **Timeline:** 2 days (2026-04-10 → 2026-04-11)
+**Source changes:** 43 files, +4,667 / -82 lines
+
+**Key accomplishments:**
+
+- CSS flexbox centering for sidebar icons in collapsed 48px rail (SBR-01)
+- 8px symmetric terminal padding with dynamic background matching terminal theme (PAD-01)
+- 157 xterm-theme color schemes with live apply, localStorage persistence, and Settings > Appearance tab (THM-01/02/03)
+- Web server URL actions: open in browser, copy to clipboard, and inline QR code in Settings (WEB-01/02/03)
+
+---
+
 ## v1.11 Local Network & UX Polish (Shipped: 2026-04-10)
 
 **Phases completed:** 6 phases, 9 plans, 6 tasks
@@ -18,6 +34,7 @@
 - Tech debt cleanup: deleted orphaned SettingsPanel/HealthModal components, fixed 11 stale test assertions
 
 **Known tech debt (7 items, all non-blocking):**
+
 - SUMMARY frontmatter missing `requirements_completed` for phases 59, 60, 61
 - App.tsx `retryInit()` missing `webServerRunning` override (narrow race, no data loss)
 - App.tsx stale closure risk in `createTab` useCallback (WR-01)

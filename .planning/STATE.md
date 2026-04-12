@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: UI/UX Polish
-status: executing
-stopped_at: Phase 66 UI-SPEC approved
-last_updated: "2026-04-11T23:57:54.998Z"
+status: completed
+stopped_at: Milestone complete
+last_updated: "2026-04-12T00:45:00.000Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 4
@@ -18,43 +18,34 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-10)
+See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 66 — web-server-link-ux
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 66
-Plan: Not started
-Status: Executing Phase 66
+Phase: 66 (last completed)
+Plan: All complete
+Status: v1.12 milestone shipped
 Last activity: 2026-04-11
 
-Progress: [░░░░░░░░░░] 0% (0/4 phases)
+Progress: [██████████] 100% (4/4 phases)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v1.11 plans completed: 9
-- v1.11 phases: 6
-- v1.11 timeline: 2026-04-08 → 2026-04-10 (2 days)
-- Cumulative: 62 phases, 112 plans across 12 milestones
+- v1.12 plans completed: 4
+- v1.12 phases: 4
+- v1.12 timeline: 2026-04-10 → 2026-04-11 (2 days)
+- Cumulative: 66 phases, 116 plans across 13 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
 (Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
-
-### v1.12 Phase Ordering Rationale
-
-Research-recommended ordering (risk-ascending, dependency-driven):
-
-1. Phase 63: Sidebar icon centering — CSS-only, zero risk, zero dependencies
-2. Phase 64: Terminal padding — CSS-only, creates Appearance settings foundation
-3. Phase 65: Terminal theming — pure frontend, extends Appearance tab built in Phase 64
-4. Phase 66: Web server link UX — only Go-touching phase, isolated last to minimize risk
 
 ### Pending Todos
 
@@ -74,7 +65,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-11T22:43:25.409Z
-Stopped at: Phase 66 UI-SPEC approved
-Resume file: .planning/phases/66-web-server-link-ux/66-UI-SPEC.md
-Next action: /gsd-plan-phase 63
+Last session: 2026-04-12T00:45:00.000Z
+Stopped at: v1.12 milestone complete
+Resume file: N/A
+Next action: /gsd-new-milestone
