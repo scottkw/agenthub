@@ -121,7 +121,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(Planning next milestone — use `/gsd-new-milestone` to define)
+<!-- Current scope: v1.13 Cross-Platform Fixes & UX -->
+
+- [ ] Linux/Windows system tray icons and functionality (GitHub #11)
+- [ ] Welcome screen Homebrew install command combines tap+install (GitHub #14)
+- [ ] Comprehensive search for agent and Tailscale install locations (GitHub #15)
+- [ ] Settings page converted to single scrollable layout with section headers (GitHub #16)
+
+## Current Milestone: v1.13 Cross-Platform Fixes & UX
+
+**Goal:** Fix cross-platform tray icons, improve agent/tool discovery, streamline Settings layout, and polish install instructions.
+
+**Target features:**
+- Linux/Windows system tray icons and functionality (#11)
+- Welcome screen Homebrew install command combines tap+install (#14)
+- Comprehensive search for agent and Tailscale install locations (#15)
+- Settings page converted to single scrollable layout with section headers (#16)
 
 ## Current State
 
@@ -261,4 +276,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after v1.12 milestone*
+*Last updated: 2026-04-11 after v1.13 milestone start*
