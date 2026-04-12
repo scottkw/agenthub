@@ -212,7 +212,9 @@ Plans:
   1. Opening Settings shows a single scrollable page — no sub-tabs or tab switcher controls are visible
   2. Each group of settings (Appearance, Web Server, Paths, etc.) has a visible section header that acts as a visual separator
   3. All settings that existed before the layout change (theme picker, web server URL actions, save paths) remain present and fully functional after the refactor
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 69-01-PLAN.md — Refactor SettingsTab to scrollable layout with section headers + update tests
 **UI hint**: yes
 
 ## Progress
@@ -234,7 +236,7 @@ Plans:
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67 | v1.13 | 2/2 | Complete    | 2026-04-12 |
 | 68 | v1.13 | 2/2 | Complete    | 2026-04-12 |
-| 69 | v1.13 | 0/TBD | Not started | - |
+| 69 | v1.13 | 0/1 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
