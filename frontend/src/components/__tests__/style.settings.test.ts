@@ -36,7 +36,25 @@ describe('UI-02 Gap 7: CSS cleanup — inner classes retained', () => {
     expect(css).toContain('.settings-panel__body')
   })
 
-  it('retains .settings-panel__tabs (inner tab nav)', () => {
-    expect(css).toContain('.settings-panel__tabs')
+  it('does NOT contain .settings-panel__tabs (tab nav removed)', () => {
+    expect(css).not.toContain('.settings-panel__tabs')
+  })
+
+  it('does NOT contain .settings-panel__tab-btn (tab button removed)', () => {
+    expect(css).not.toContain('.settings-panel__tab-btn')
+  })
+})
+
+describe('SETT-02: Section header CSS', () => {
+  it('contains .settings-panel__body h3 rule', () => {
+    expect(css).toContain('.settings-panel__body h3')
+  })
+
+  it('contains h3:first-child override rule', () => {
+    expect(css).toContain('.settings-panel__body h3:first-child')
+  })
+
+  it('h3 rule includes section divider border', () => {
+    expect(css).toContain('border-top: 1px solid #292e42')
   })
 })
