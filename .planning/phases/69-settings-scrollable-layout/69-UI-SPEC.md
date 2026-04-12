@@ -32,14 +32,13 @@ No shadcn gate applies — this is not a React/Next.js/Vite project using shadcn
 
 ## Spacing Scale
 
-Declared values (multiples of 4 only):
+Declared values (multiples of 4 only, standard set {4, 8, 16, 24, 32, 48, 64}):
 
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding (e.g. table cell padding-top/bottom) |
 | sm | 8px | Element row gaps, compact padding (e.g. `.settings-panel__row` gap) |
 | md | 16px | Field group bottom margin, button padding horizontal |
-| lg | 20px | Panel body padding (`.settings-panel__body` padding: 20px) |
 | xl | 24px | Section header top margin (new — first `h3` after the first gets `margin-top: 24px`) |
 | 2xl | 32px | Not used in settings panel |
 | 3xl | 64px | Not used in settings panel |
@@ -47,7 +46,8 @@ Declared values (multiples of 4 only):
 Source: style.css codebase read (lines 370–510).
 
 Exceptions:
-- Section header top spacing: 24px `margin-top` on `h3` elements that follow content (i.e. all except the first), with `padding-top: 20px` and a `border-top: 1px solid #292e42` divider. First `h3` has `margin-top: 0; padding-top: 0; border-top: none`. This is additive CSS on the existing `.settings-panel__body h3` stub.
+- **Inherited exception:** `.settings-panel__body` padding: 20px — sourced from existing CSS, not modified in this phase. This value is a multiple of 4 but is not in the standard spacing set {4, 8, 16, 24, 32, 48, 64}. It is preserved as-is and does not appear as a named token in the table above.
+- Section header top spacing: 24px `margin-top` on `h3` elements that follow content (i.e. all except the first), with `padding-top: 20px` and a `border-top: 1px solid #292e42` divider. First `h3` has `margin-top: 0; padding-top: 0; border-top: none`. This is additive CSS on the existing `.settings-panel__body h3` stub. (Note: the `padding-top: 20px` in this rule is also an inherited deviation kept for visual continuity with the surrounding 20px body padding.)
 - Save Paths button row: `margin-top: 16px` (existing `.settings-panel__save-paths-row` rule — unchanged).
 
 ---
@@ -137,6 +137,10 @@ No new components are introduced. No new npm packages are introduced.
 ---
 
 ## Interaction Contract
+
+### Primary Visual Anchor
+
+Primary visual anchor: the "Appearance" section header and theme picker row, as the first element the user sees on scroll into view. This establishes immediate context and reflects the most common reason users open Settings.
 
 ### Scroll Behavior
 - The `.settings-panel__body` container (`flex: 1; overflow-y: auto; padding: 20px`) is the sole scroll region.
