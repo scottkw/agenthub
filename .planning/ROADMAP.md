@@ -198,7 +198,10 @@ Plans:
   1. Starting a Claude Code, Codex, Gemini CLI, or OpenCode session succeeds when the agent was installed via nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, or a native installer — without the user manually configuring PATH
   2. The Tailscale health check correctly detects Tailscale when installed via Homebrew, a system package manager, or the Windows default installer location
   3. The Welcome screen macOS install section shows a single `brew tap scottkw/agenthub && brew install --cask agenthub` command that can be copied in one action
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 68-01-PLAN.md — Cross-platform PATH augmentation (snap, flatpak, cargo, Windows paths)
+- [ ] 68-02-PLAN.md — macOS Homebrew install command update
 
 ### Phase 69: Settings Scrollable Layout
 **Goal**: The Settings tab presents all settings in a single scrollable page organized by labeled sections, replacing the current sub-tab structure
@@ -230,7 +233,7 @@ Plans:
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67 | v1.13 | 2/2 | Complete    | 2026-04-12 |
-| 68 | v1.13 | 0/TBD | Not started | - |
+| 68 | v1.13 | 0/2 | Not started | - |
 | 69 | v1.13 | 0/TBD | Not started | - |
 
 ---
