@@ -13,6 +13,32 @@ import (
 	"github.com/scottkw/agenthub/internal/webserver"
 )
 
+// upgradeToTailscale polls Tailscale health every 15s. When Tailscale becomes
+// fully healthy (Connected + HasCerts + IP), it restarts the web server in
+// Tailscale mode. Exits after a successful upgrade or when ctx is cancelled.
+func upgradeToTailscale(ctx context.Context, api *API) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			h := webserver.CheckHealth(checkCtx)
+			cancel()
+			if h.Connected && h.HasCerts && h.IP != "" {
+				if err := api.RestartWebServer(h.IP, 7443, h.Domain, "tailscale", ""); err != nil {
+					fmt.Fprintf(os.Stderr, "daemon: upgrade to tailscale: %v\n", err)
+					continue // retry on next tick
+				}
+				fmt.Fprintf(os.Stderr, "daemon: web server upgraded from local to tailscale on %s\n", h.IP)
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 // RunDaemon is the daemon's main entry point. It creates a signal context and
 // delegates to runDaemonCore. Called from main.go when os.Args[1] == "daemon".
 func RunDaemon() {
@@ -81,6 +107,9 @@ func runDaemonCore(ctx context.Context) {
 					fmt.Fprintf(os.Stderr, "daemon: web server auto-started on %s (local mode)\n", lanIP)
 				}
 			}
+			// Launch background upgrader: watches for Tailscale to become healthy
+			// and upgrades the web server from local to Tailscale mode automatically.
+			go upgradeToTailscale(ctx, api)
 		}
 	}
 

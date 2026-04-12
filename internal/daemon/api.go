@@ -146,6 +146,21 @@ func (a *API) SetLocalPassword(pwd string) {
 	a.mu.Unlock()
 }
 
+// RestartWebServer stops the current web server (if any) and starts a new one with
+// the given config. Used internally for mode upgrades (local -> tailscale).
+// Unlike AutoStartWebServer, it always replaces the running server — it is not idempotent.
+func (a *API) RestartWebServer(ip string, port int, fqdn, mode, password string) error {
+	a.mu.Lock()
+	if a.webServer != nil {
+		_ = a.webServer.Stop()
+		a.webServer = nil
+	}
+	a.mu.Unlock()
+	// Reuse AutoStartWebServer which creates, configures, and starts the server.
+	// It's safe because we just set webServer to nil above.
+	return a.AutoStartWebServer(ip, port, fqdn, mode, password)
+}
+
 // AutoStartWebServer starts the web server if not already running.
 // Called from runDaemonCore at startup; mirrors handleWebServerStart without HTTP.
 // Returns nil if the server is already running (idempotent).

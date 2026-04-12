@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -56,4 +57,68 @@ func TestRunDaemon_Exports(t *testing.T) {
 	// the functions exist and are exported.
 	var _ func() = RunDaemon
 	var _ func(string) error = EnsureDaemon
+}
+
+func TestRestartWebServer_StopsAndStarts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets")
+	}
+	socketPath := shortProcTestSocket(t, "restart")
+	engine := NewSessionEngine()
+	api := NewAPI(engine)
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("api.Start: %v", err)
+	}
+	defer api.Stop()
+
+	// RestartWebServer with local mode needs a password and LAN IP.
+	// Use a local-mode restart which requires a non-empty password.
+	// We call it twice; second call should also succeed (stop + start).
+	pwd := "testpassword123"
+	if err := api.RestartWebServer("127.0.0.1", 0, "", "local", pwd); err != nil {
+		t.Fatalf("RestartWebServer (first call): %v", err)
+	}
+
+	// Verify the web server is now running in local mode.
+	api.mu.RLock()
+	ws := api.webServer
+	api.mu.RUnlock()
+	if ws == nil {
+		t.Fatal("expected webServer to be non-nil after RestartWebServer")
+	}
+	if ws.Mode() != "local" {
+		t.Errorf("expected mode 'local', got %q", ws.Mode())
+	}
+
+	// Call again — should stop the running server and start a new one.
+	if err := api.RestartWebServer("127.0.0.1", 0, "", "local", pwd); err != nil {
+		t.Fatalf("RestartWebServer (second call): %v", err)
+	}
+}
+
+func TestUpgradeToTailscale_ExitsOnCancel(t *testing.T) {
+	// upgradeToTailscale must exit promptly when ctx is cancelled.
+	socketPath := shortProcTestSocket(t, "upgrade")
+	engine := NewSessionEngine()
+	api := NewAPI(engine)
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("api.Start: %v", err)
+	}
+	defer api.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		upgradeToTailscale(ctx, api)
+		close(done)
+	}()
+
+	// Cancel immediately — goroutine should exit within a reasonable time.
+	cancel()
+	select {
+	case <-done:
+		// success
+	case <-time.After(3 * time.Second):
+		t.Fatal("upgradeToTailscale did not exit after context cancellation")
+	}
 }
