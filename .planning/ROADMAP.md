@@ -165,7 +165,7 @@
 
 ### v1.13 Cross-Platform Fixes & UX (Phases 67-69)
 
-- [ ] **Phase 67: Cross-Platform System Tray** - Linux and Windows tray icon, session menu, and app lifecycle (GitHub #11)
+- [x] **Phase 67: Cross-Platform System Tray** - Linux and Windows tray icon, session menu, and app lifecycle (GitHub #11) (completed 2026-04-12)
 - [ ] **Phase 68: Agent & Tailscale Discovery + Install Instructions** - Comprehensive binary search paths on all platforms, plus Homebrew one-liner fix (GitHub #14, #15)
 - [ ] **Phase 69: Settings Scrollable Layout** - Convert Settings tab from sub-tabs to single scrollable page with section headers (GitHub #16)
 
@@ -185,8 +185,8 @@
   6. Selecting Quit from the Linux or Windows tray menu stops the daemon and fully exits the application
 **Plans**: 2 plans
 Plans:
-- [ ] 67-01-PLAN.md — Shared tray helpers + Linux D-Bus StatusNotifierItem tray
-- [ ] 67-02-PLAN.md — Windows Shell_NotifyIcon tray + cross-platform verification
+- [x] 67-01-PLAN.md — Shared tray helpers + Linux D-Bus StatusNotifierItem tray
+- [x] 67-02-PLAN.md — Windows Shell_NotifyIcon tray + cross-platform verification
 **UI hint**: yes
 
 ### Phase 68: Agent & Tailscale Discovery + Install Instructions
@@ -229,7 +229,7 @@ Plans:
 | 55-56 | v1.10 | 3/3 | Complete | 2026-04-08 |
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
-| 67 | v1.13 | 0/2 | Not started | - |
+| 67 | v1.13 | 2/2 | Complete    | 2026-04-12 |
 | 68 | v1.13 | 0/TBD | Not started | - |
 | 69 | v1.13 | 0/TBD | Not started | - |
 
