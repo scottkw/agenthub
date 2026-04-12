@@ -34,17 +34,15 @@ interface SettingsTabProps {
   onWebServerStateChange: () => Promise<void>
   selectedTheme: string
   onThemeChange: (name: string) => void
-  activeTab: 'cli-paths' | 'web-server' | 'appearance'
-  onActiveTabChange: (tab: 'cli-paths' | 'web-server' | 'appearance') => void
 }
 
 /**
  * Inline settings tab for configuring custom CLI executable paths and web serving.
  * Lists all detected CLIs with an input field for path overrides, plus a Web Server
  * section for CT disclosure and server start/stop.
- * Renders as a sidebar tab — no modal shell.
+ * Renders as a sidebar tab — no modal shell. Single scrollable page with section headers.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, activeTab, onActiveTabChange: setActiveTab }: SettingsTabProps): React.ReactElement {
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange }: SettingsTabProps): React.ReactElement {
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -211,243 +209,211 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
   return (
     <div className="settings-tab">
-      <div className="settings-panel__tabs" role="tablist">
-        <button
-          className={`settings-panel__tab-btn ${activeTab === 'cli-paths' ? 'settings-panel__tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('cli-paths')}
-          role="tab"
-          aria-selected={activeTab === 'cli-paths'}
-        >
-          CLI Paths
-        </button>
-        <button
-          className={`settings-panel__tab-btn ${activeTab === 'web-server' ? 'settings-panel__tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('web-server')}
-          role="tab"
-          aria-selected={activeTab === 'web-server'}
-        >
-          Web Server
-        </button>
-        <button
-          className={`settings-panel__tab-btn ${activeTab === 'appearance' ? 'settings-panel__tab-btn--active' : ''}`}
-          onClick={() => setActiveTab('appearance')}
-          role="tab"
-          aria-selected={activeTab === 'appearance'}
-        >
-          Appearance
-        </button>
-      </div>
-
       <div className="settings-panel__body">
-        {activeTab === 'cli-paths' && (
-          <>
-            {/* CLI Paths Section */}
-            {clis.length === 0 ? (
-              <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
-            ) : (
-              <table className="settings-panel__table">
-                <thead>
-                  <tr>
-                    <th>CLI</th>
-                    <th>Path</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clis.map((cli) => (
-                    <tr key={cli.Name}>
-                      <td className="settings-panel__cli-name">{cli.Name}</td>
-                      <td>
-                        <input
-                          className="settings-panel__path-input"
-                          type="text"
-                          value={customPaths[cli.Name] ?? cli.Path}
-                          onChange={(e) =>
-                            setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
-                          }
-                          placeholder={cli.Path || `Path to ${cli.Name}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {/* Appearance section (SETT-02) */}
+        <h3>Appearance</h3>
+        <div className="settings-panel__field-group">
+          <label className="settings-panel__label">Terminal Theme</label>
+          <select
+            className="settings-panel__path-input settings-panel__theme-select"
+            value={selectedTheme}
+            onChange={(e) => onThemeChange(e.target.value)}
+          >
+            {THEME_NAMES.map(name => (
+              <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Web Server section (SETT-02) */}
+        <h3>Web Server</h3>
+        <p className="settings-panel__description">
+          Enable HTTPS access to terminal sessions from your Tailscale network.
+        </p>
+
+        {/* Tailscale Status Indicator */}
+        <div className="settings-panel__field-group">
+          <label className="settings-panel__label">Tailscale Status</label>
+          <div className="ts-status">
+            {tailscaleHealth && (
+              <span className={`ts-status__dot ts-status__dot--${tailscaleStatusClass(tailscaleHealth)}`} />
             )}
-
-            {error && <p className="settings-panel__error">{error}</p>}
-
-            <div className="settings-panel__save-paths-row">
-              <button
-                className="settings-panel__btn settings-panel__btn--save"
-                onClick={handleSaveCLIPaths}
-                disabled={saving}
-              >
-                {saving ? 'Saving\u2026' : 'Save Paths'}
-              </button>
-            </div>
-          </>
-        )}
-
-        {activeTab === 'web-server' && (
-          <>
-            <p className="settings-panel__description">
-              Enable HTTPS access to terminal sessions from your Tailscale network.
-            </p>
-
-            {/* Tailscale Status Indicator */}
-            <div className="settings-panel__field-group">
-              <label className="settings-panel__label">Tailscale Status</label>
-              <div className="ts-status">
-                {tailscaleHealth && (
-                  <span className={`ts-status__dot ts-status__dot--${tailscaleStatusClass(tailscaleHealth)}`} />
-                )}
-                <span className="ts-status__text">{tailscaleStatusText(tailscaleHealth)}</span>
-              </div>
-            </div>
-
-            {/* CT Disclosure Banner */}
-            <div className={`ct-disclosure ${ctDisclosed ? 'ct-disclosure--acknowledged' : ''}`}>
-              <label className="settings-panel__label">Certificate Transparency</label>
-              {ctDisclosed ? (
-                <p className="ct-disclosure__text">
-                  <span style={{ color: '#9ece6a' }}>&#10003;</span> Certificate Transparency acknowledged
-                </p>
-              ) : (
-                <>
-                  <p className="ct-disclosure__text">
-                    When you start the web server, Tailscale will provision a Let&apos;s Encrypt TLS certificate
-                    for your device&apos;s hostname (e.g., <code className="settings-panel__code">hostname.ts.net</code>).
-                    This hostname will be permanently visible in public Certificate Transparency logs.
-                    This is normal and expected for any Let&apos;s Encrypt certificate.
-                  </p>
-                  <button
-                    className="ct-disclosure__btn settings-panel__btn settings-panel__btn--save"
-                    onClick={handleAcknowledgeCT}
-                  >
-                    I Understand
-                  </button>
-                  {ctError && <p className="settings-panel__error">{ctError}</p>}
-                </>
-              )}
-            </div>
-
-            {/* Port */}
-            <div className="settings-panel__field-group">
-              <label className="settings-panel__label">Port</label>
-              <input
-                className="settings-panel__path-input settings-panel__port-input"
-                type="number"
-                value={selectedPort}
-                onChange={(e) => setSelectedPort(Number(e.target.value))}
-                disabled={isServerRunning}
-                min={1}
-                max={65535}
-              />
-            </div>
-
-            {/* Start/Stop Server */}
-            <div className="settings-panel__field-group">
-              <button
-                className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
-                onClick={handleToggleServer}
-                disabled={serverLoading || (!isServerRunning && !ctDisclosed)}
-                title={
-                  !ctDisclosed && !isServerRunning
-                    ? 'Acknowledge the Certificate Transparency disclosure first'
-                    : undefined
-                }
-              >
-                {serverLoading
-                  ? (isServerRunning ? 'Stopping\u2026' : 'Starting\u2026')
-                  : (isServerRunning ? 'Stop Web Server' : 'Start Web Server')}
-              </button>
-              {serverError && <p className="settings-panel__error">{serverError}</p>}
-              {isServerRunning && serverURL && (
-                <>
-                  <div className="settings-web-server__url-row">
-                    <span className="settings-web-server__url-text">{serverURL}</span>
-                    <button
-                      className="settings-web-server__action-btn"
-                      onClick={() => BrowserOpenURL(serverURL)}
-                      aria-label="Open dashboard in browser"
-                    >
-                      <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
-                      Open
-                    </button>
-                    <button
-                      className={`settings-web-server__action-btn${urlCopied ? ' settings-web-server__action-btn--copy-done' : ''}`}
-                      onClick={handleCopyURL}
-                      aria-label="Copy dashboard URL to clipboard"
-                    >
-                      <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
-                      {urlCopied ? 'Copied!' : 'Copy'}
-                    </button>
-                    <button
-                      className={`settings-web-server__action-btn${showDashQR ? ' settings-web-server__action-btn--active' : ''}`}
-                      onClick={handleToggleDashQR}
-                      aria-label={showDashQR ? 'Hide QR code' : 'Show QR code'}
-                    >
-                      <QrCodeIcon style={{ width: 14, height: 14 }} />
-                      {showDashQR ? 'Hide QR' : 'QR'}
-                    </button>
-                  </div>
-                  {qrError && <p className="settings-panel__error">{qrError}</p>}
-                  {showDashQR && dashQRb64 && (
-                    <img
-                      src={`data:image/png;base64,${dashQRb64}`}
-                      width={200}
-                      height={200}
-                      alt="QR code for dashboard URL"
-                      className="settings-web-server__qr"
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* LAN Password — only shown in local network mode */}
-            {webServerMode === 'local' && isServerRunning && (
-              <>
-                <div className="settings-web-server__mode-indicator">
-                  Web server mode: Local network (self-signed TLS)
-                </div>
-                <div className="settings-web-server__password-label">
-                  LAN Access Credentials
-                </div>
-                <div className="settings-web-server__credential-hint">
-                  Username: <span className="settings-web-server__credential-value">leave blank or enter anything</span>
-                </div>
-                <div className="settings-web-server__password-label">
-                  Password
-                </div>
-                <div
-                  className="settings-web-server__password-field"
-                  onClick={() => void handleCopyPassword()}
-                  title="Click to copy password"
-                >
-                  <span>{localPassword || 'Loading\u2026'}</span>
-                  <span className={`settings-web-server__copy-hint${copied ? ' settings-web-server__copy-hint--copied' : ''}`}>
-                    {copied ? 'Copied!' : '(click to copy)'}
-                  </span>
-                </div>
-              </>
-            )}
-          </>
-        )}
-
-        {activeTab === 'appearance' && (
-          <div className="settings-panel__field-group">
-            <label className="settings-panel__label">Terminal Theme</label>
-            <select
-              className="settings-panel__path-input settings-panel__theme-select"
-              value={selectedTheme}
-              onChange={(e) => onThemeChange(e.target.value)}
-            >
-              {THEME_NAMES.map(name => (
-                <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+            <span className="ts-status__text">{tailscaleStatusText(tailscaleHealth)}</span>
           </div>
+        </div>
+
+        {/* CT Disclosure Banner */}
+        <div className={`ct-disclosure ${ctDisclosed ? 'ct-disclosure--acknowledged' : ''}`}>
+          <label className="settings-panel__label">Certificate Transparency</label>
+          {ctDisclosed ? (
+            <p className="ct-disclosure__text">
+              <span style={{ color: '#9ece6a' }}>&#10003;</span> Certificate Transparency acknowledged
+            </p>
+          ) : (
+            <>
+              <p className="ct-disclosure__text">
+                When you start the web server, Tailscale will provision a Let&apos;s Encrypt TLS certificate
+                for your device&apos;s hostname (e.g., <code className="settings-panel__code">hostname.ts.net</code>).
+                This hostname will be permanently visible in public Certificate Transparency logs.
+                This is normal and expected for any Let&apos;s Encrypt certificate.
+              </p>
+              <button
+                className="ct-disclosure__btn settings-panel__btn settings-panel__btn--save"
+                onClick={handleAcknowledgeCT}
+              >
+                I Understand
+              </button>
+              {ctError && <p className="settings-panel__error">{ctError}</p>}
+            </>
+          )}
+        </div>
+
+        {/* Port */}
+        <div className="settings-panel__field-group">
+          <label className="settings-panel__label">Port</label>
+          <input
+            className="settings-panel__path-input settings-panel__port-input"
+            type="number"
+            value={selectedPort}
+            onChange={(e) => setSelectedPort(Number(e.target.value))}
+            disabled={isServerRunning}
+            min={1}
+            max={65535}
+          />
+        </div>
+
+        {/* Start/Stop Server */}
+        <div className="settings-panel__field-group">
+          <button
+            className={`settings-panel__btn ${isServerRunning ? 'settings-panel__btn--cancel' : 'settings-panel__btn--save'}`}
+            onClick={handleToggleServer}
+            disabled={serverLoading || (!isServerRunning && !ctDisclosed)}
+            title={
+              !ctDisclosed && !isServerRunning
+                ? 'Acknowledge the Certificate Transparency disclosure first'
+                : undefined
+            }
+          >
+            {serverLoading
+              ? (isServerRunning ? 'Stopping\u2026' : 'Starting\u2026')
+              : (isServerRunning ? 'Stop Web Server' : 'Start Web Server')}
+          </button>
+          {serverError && <p className="settings-panel__error">{serverError}</p>}
+          {isServerRunning && serverURL && (
+            <>
+              <div className="settings-web-server__url-row">
+                <span className="settings-web-server__url-text">{serverURL}</span>
+                <button
+                  className="settings-web-server__action-btn"
+                  onClick={() => BrowserOpenURL(serverURL)}
+                  aria-label="Open dashboard in browser"
+                >
+                  <ArrowTopRightOnSquareIcon style={{ width: 14, height: 14 }} />
+                  Open
+                </button>
+                <button
+                  className={`settings-web-server__action-btn${urlCopied ? ' settings-web-server__action-btn--copy-done' : ''}`}
+                  onClick={handleCopyURL}
+                  aria-label="Copy dashboard URL to clipboard"
+                >
+                  <ClipboardDocumentIcon style={{ width: 14, height: 14 }} />
+                  {urlCopied ? 'Copied!' : 'Copy'}
+                </button>
+                <button
+                  className={`settings-web-server__action-btn${showDashQR ? ' settings-web-server__action-btn--active' : ''}`}
+                  onClick={handleToggleDashQR}
+                  aria-label={showDashQR ? 'Hide QR code' : 'Show QR code'}
+                >
+                  <QrCodeIcon style={{ width: 14, height: 14 }} />
+                  {showDashQR ? 'Hide QR' : 'QR'}
+                </button>
+              </div>
+              {qrError && <p className="settings-panel__error">{qrError}</p>}
+              {showDashQR && dashQRb64 && (
+                <img
+                  src={`data:image/png;base64,${dashQRb64}`}
+                  width={200}
+                  height={200}
+                  alt="QR code for dashboard URL"
+                  className="settings-web-server__qr"
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* LAN Password — only shown in local network mode */}
+        {webServerMode === 'local' && isServerRunning && (
+          <>
+            <div className="settings-web-server__mode-indicator">
+              Web server mode: Local network (self-signed TLS)
+            </div>
+            <div className="settings-web-server__password-label">
+              LAN Access Credentials
+            </div>
+            <div className="settings-web-server__credential-hint">
+              Username: <span className="settings-web-server__credential-value">leave blank or enter anything</span>
+            </div>
+            <div className="settings-web-server__password-label">
+              Password
+            </div>
+            <div
+              className="settings-web-server__password-field"
+              onClick={() => void handleCopyPassword()}
+              title="Click to copy password"
+            >
+              <span>{localPassword || 'Loading\u2026'}</span>
+              <span className={`settings-web-server__copy-hint${copied ? ' settings-web-server__copy-hint--copied' : ''}`}>
+                {copied ? 'Copied!' : '(click to copy)'}
+              </span>
+            </div>
+          </>
         )}
+
+        {/* Paths section (SETT-02) */}
+        <h3>Paths</h3>
+        {clis.length === 0 ? (
+          <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
+        ) : (
+          <table className="settings-panel__table">
+            <thead>
+              <tr>
+                <th>CLI</th>
+                <th>Path</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clis.map((cli) => (
+                <tr key={cli.Name}>
+                  <td className="settings-panel__cli-name">{cli.Name}</td>
+                  <td>
+                    <input
+                      className="settings-panel__path-input"
+                      type="text"
+                      value={customPaths[cli.Name] ?? cli.Path}
+                      onChange={(e) =>
+                        setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
+                      }
+                      placeholder={cli.Path || `Path to ${cli.Name}`}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {error && <p className="settings-panel__error">{error}</p>}
+
+        <div className="settings-panel__save-paths-row">
+          <button
+            className="settings-panel__btn settings-panel__btn--save"
+            onClick={handleSaveCLIPaths}
+            disabled={saving}
+          >
+            {saving ? 'Saving\u2026' : 'Save Paths'}
+          </button>
+        </div>
 
       </div>
     </div>
