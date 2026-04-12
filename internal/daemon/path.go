@@ -7,10 +7,12 @@ import (
 )
 
 // AugmentServicePath prepends well-known user tool directories to the process
-// PATH so that CLIs installed via nvm, volta, or Homebrew are found when the
-// daemon runs as a launchd/systemd user service (or when the GUI app is
-// launched from Finder/Dock), which do not source shell init files. Called
-// once at startup before any exec.LookPath or session is created.
+// PATH so that CLIs installed via nvm, volta, Homebrew, snap, flatpak, cargo,
+// or native installers are found when the daemon runs as a launchd/systemd
+// user service (or when the GUI app is launched from Finder/Dock), which do
+// not source shell init files. On Windows, also adds npm, pnpm, and Tailscale
+// default install paths. Called once at startup before any exec.LookPath or
+// session is created.
 func AugmentServicePath() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -18,13 +20,18 @@ func AugmentServicePath() {
 	}
 
 	candidates := []string{
-		filepath.Join(home, ".local", "bin"), // Anthropic native installer (macOS/Linux)
-		filepath.Join(home, ".volta", "bin"),
-		"/opt/homebrew/bin",
-		"/usr/local/bin",
-		"/home/linuxbrew/.linuxbrew/bin",
-		nvmActiveBin(home),
+		filepath.Join(home, ".local", "bin"),                                         // Anthropic native installer (macOS/Linux)
+		filepath.Join(home, ".volta", "bin"),                                         // Volta (any platform)
+		"/opt/homebrew/bin",                                                          // macOS ARM Homebrew
+		"/usr/local/bin",                                                             // macOS Intel Homebrew, Tailscale
+		"/home/linuxbrew/.linuxbrew/bin",                                             // Linux Homebrew
+		nvmActiveBin(home),                                                           // nvm active version
+		filepath.Join(home, ".cargo", "bin"),                                         // cargo (any platform)
+		"/snap/bin",                                                                  // snap (Linux)
+		"/var/lib/flatpak/exports/bin",                                               // flatpak system (Linux)
+		filepath.Join(home, ".local", "share", "flatpak", "exports", "bin"),          // flatpak user (Linux)
 	}
+	candidates = append(candidates, platformExtraBins()...)
 
 	current := os.Getenv("PATH")
 	var extra []string
