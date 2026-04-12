@@ -119,28 +119,19 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Terminal theming: 157 xterm-theme color schemes, Settings > Appearance tab, live apply via useEffect, localStorage persistence — v1.12 Phase 65
 - ✓ Web server link UX: Open in browser, copy URL to clipboard, inline QR code display for dashboard URL in Settings tab — v1.12 Phase 66
 
+- ✓ Cross-platform system tray: Linux D-Bus StatusNotifierItem (GNOME/KDE/XFCE) and Windows Shell_NotifyIcon with shared menu helpers, dynamic session list, status icons, hide-on-close, and Quit lifecycle — v1.13 Phase 67
+- ✓ Comprehensive agent CLI discovery: daemon PATH augmentation for snap, flatpak, cargo, npm, pnpm, and Windows native installer paths via build-tagged platform files — v1.13 Phase 68
+- ✓ Tailscale detection across platforms: Homebrew, system package manager, and Windows default install location — v1.13 Phase 68
+- ✓ macOS Homebrew install command: single copyable `brew tap scottkw/agenthub && brew install --cask agenthub` on Welcome screen — v1.13 Phase 68
+- ✓ Settings scrollable layout: single page with h3 section headers (Appearance, Web Server, Paths) replacing sub-tab navigation — v1.13 Phase 69
+
 ### Active
 
-<!-- Current scope: v1.13 Cross-Platform Fixes & UX -->
-
-- [ ] Linux/Windows system tray icons and functionality (GitHub #11)
-- [ ] Welcome screen Homebrew install command combines tap+install (GitHub #14)
-- [ ] Comprehensive search for agent and Tailscale install locations (GitHub #15)
-- [ ] Settings page converted to single scrollable layout with section headers (GitHub #16)
-
-## Current Milestone: v1.13 Cross-Platform Fixes & UX
-
-**Goal:** Fix cross-platform tray icons, improve agent/tool discovery, streamline Settings layout, and polish install instructions.
-
-**Target features:**
-- Linux/Windows system tray icons and functionality (#11)
-- Welcome screen Homebrew install command combines tap+install (#14)
-- Comprehensive search for agent and Tailscale install locations (#15)
-- Settings page converted to single scrollable layout with section headers (#16)
+(None — planning next milestone)
 
 ## Current State
 
-v1.13 in progress (2026-04-12). 13 milestones shipped (v1.0–v1.12), 69 phases completed, 121 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. System tray now cross-platform: Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — both with shared menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
+v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases completed, 126 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. System tray is fully cross-platform: macOS uses native cgo NSStatusBar, Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — all sharing menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
 
 ### Out of Scope
 
@@ -165,7 +156,7 @@ v1.13 in progress (2026-04-12). 13 milestones shipped (v1.0–v1.12), 69 phases 
 
 ## Context
 
-Shipped v1.12 with ~32K Go + ~11K TS/TSX.
+Shipped v1.13 with ~32K Go + ~11K TS/TSX.
 Tech stack: Go/Wails v2, React, xterm.js, xterm-theme@1.1.0, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS.
 Go test suite: 200+ tests race-clean across 8 packages (added internal/tailnet, internal/updater).
@@ -173,7 +164,7 @@ Frontend test suite: vitest source-inspection tests covering args field, termina
 Networking: Tailscale primary — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer. Local network fallback with self-signed TLS + generated password when Tailscale unavailable.
 Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
-Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); Linux/Windows tray stubs needed; dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review.
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review. Linux/Windows tray requires human UAT on live desktop environments (9 items). SUMMARY frontmatter missing `requirements_completed` across multiple plan summaries.
 
 ## Constraints
 
@@ -194,7 +185,7 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Tailscale network = access control | Phase 16 removed password + tokens; only tailnet members can reach the server | ✓ Good — simpler, no auth UI/middleware to maintain |
 | go-pty (aymanbagabas) over creack/pty | Windows ConPTY support required from day one | ✓ Good — cross-platform PTY with single API |
 | Binary framing protocol for WS relay | Distinguishes output/resize/input frames; enables scrollback replay | ✓ Good — clean separation of message types |
-| Native macOS cgo NSStatusBar for tray | fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol) | ⚠️ Revisit — platform-specific code, Linux/Windows stubs needed |
+| Native macOS cgo NSStatusBar for tray | fyne.io/systray conflicts with Wails AppDelegate (duplicate symbol) | ✓ Good — resolved in v1.13: Linux uses D-Bus SNI, Windows uses Shell_NotifyIcon |
 | In-process Unix socket before process separation | Phase 19 validates module boundary and protocol without fork complexity | ✓ Good — full test coverage of API contract; Phase 20 changed only socket path |
 | CreateSession calls engine directly (not client) | onStatus callback wraps runtime.EventsEmit — callbacks can't serialize over HTTP | ✓ Good — clean exception, documented in code |
 | Function injection for service control (`serviceControlFunc`) | Enables daemon-free unit testing without mocks or interfaces | ✓ Good — fast, deterministic tests |
@@ -256,6 +247,12 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | clearTextureAtlas + refresh for WebGL theme updates | WebGL renderer caches glyph textures; must clear atlas when theme colors change | ✓ Good — reliable live theme switching |
 | QR cache cleared only on server stop (not hide/show) | Avoids re-fetch on repeated toggle; server URL doesn't change while running | ✓ Good — minimal network calls |
 | fs.readFileSync for CSS inspection tests (not ?raw) | vitest/jsdom does not support Vite ?raw imports; readFileSync is established project pattern | ✓ Good — stable test approach |
+| D-Bus StatusNotifierItem for Linux tray (not fyne.io/systray) | fyne.io/systray conflicts with Wails AppDelegate; D-Bus SNI is the freedesktop.org standard supported by GNOME/KDE/XFCE | ✓ Good — zero library conflicts, godbus/dbus/v5 already indirect dep |
+| Shell_NotifyIcon Win32 API for Windows tray | Matches the low-level native approach used for macOS; no third-party library conflicts | ✓ Good — full control, HWND_MESSAGE for invisible window |
+| Shared tray_common.go for BuildMenuItems + TrayTooltip | Platform tray files (macOS/Linux/Windows) share menu construction and tooltip logic | ✓ Good — DRY, single test file covers shared logic |
+| Runtime PNG-to-HICON via GDI CreateDIBSection | Reuses existing PNG assets embedded in binary; no .ico files needed | ✓ Good — fewer build artifacts |
+| Build-tagged path_windows.go / path_other.go for platform paths | Follows existing codebase convention (process_windows.go, socket_windows.go) | ✓ Good — clean compilation per platform |
+| h3 section headers (not tabs) for Settings layout | Single scrollable page is simpler UX than sub-tab switching for ~3 sections | ✓ Good — fewer clicks, easier scanning |
 
 ---
 ## Evolution
@@ -276,4 +273,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 after Phase 69 (settings scrollable layout) complete*
+*Last updated: 2026-04-12 after v1.13 milestone*

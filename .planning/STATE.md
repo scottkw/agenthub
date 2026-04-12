@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.13
 milestone_name: Cross-Platform Fixes & UX
-status: planning
-stopped_at: Roadmap created — v1.13 phases 67-69 defined
-last_updated: "2026-04-12T18:51:25.942Z"
+status: complete
+stopped_at: Milestone v1.13 archived
+last_updated: "2026-04-12"
 last_activity: 2026-04-12
 progress:
   total_phases: 3
@@ -18,36 +18,34 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-11)
+See: .planning/PROJECT.md (updated 2026-04-12)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 67 — Cross-Platform System Tray
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 69 of 69 (settings scrollable layout)
-Plan: Not started
-Status: Ready to plan
+Phase: All complete (69 phases across 14 milestones)
+Plan: N/A
+Status: Milestone v1.13 shipped
 Last activity: 2026-04-12
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v1.12 plans completed: 4
-- v1.12 phases: 4
-- v1.12 timeline: 2026-04-10 → 2026-04-11 (2 days)
-- Cumulative: 66 phases, 116 plans across 13 milestones
+- v1.13 plans completed: 5
+- v1.13 phases: 3
+- v1.13 timeline: 2026-04-11 → 2026-04-12 (2 days)
+- Cumulative: 69 phases, 126 plans across 14 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
 (Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
-
-Key constraint for Phase 67: fyne.io/systray was previously rejected due to Wails AppDelegate duplicate symbol conflict. Any Linux/Windows tray solution must not conflict with the existing native macOS cgo NSStatusBar implementation.
 
 ### Pending Todos
 
@@ -64,11 +62,10 @@ None.
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
 - Phase 60 (local network): LAN IP selection heuristic on multi-interface machines (VPN + Wi-Fi) needs explicit preference order — document in code
 - Phase 57 (DET-01): Windows native installer path (%USERPROFILE%\.local\bin\claude.exe) not yet verified against actual Windows install
-- Phase 67: fyne.io/systray conflicts with Wails AppDelegate — need alternative tray approach for Linux/Windows that keeps macOS path unchanged
 
 ## Session Continuity
 
-Last session: 2026-04-11
-Stopped at: Roadmap created — v1.13 phases 67-69 defined
+Last session: 2026-04-12
+Stopped at: Milestone v1.13 archived
 Resume file: N/A
-Next action: /gsd-plan-phase 67
+Next action: /gsd-new-milestone

@@ -580,6 +580,50 @@
 
 ---
 
+## Milestone: v1.13 — Cross-Platform Fixes & UX
+
+**Shipped:** 2026-04-12
+**Phases:** 3 | **Plans:** 5 | **Commits:** 11
+
+### What Was Built
+- Cross-platform system tray: Linux D-Bus StatusNotifierItem (GNOME/KDE/XFCE) and Windows Shell_NotifyIcon Win32 API with shared menu helpers (tray_common.go)
+- Comprehensive agent CLI discovery: daemon PATH augmentation extended for snap, flatpak, cargo, npm, pnpm, and Windows native installer paths
+- Tailscale detection across platforms: Homebrew, system package manager, Windows default install location
+- macOS Homebrew install command: single copyable `brew tap scottkw/agenthub && brew install --cask agenthub`
+- Settings scrollable layout: single page with h3 section headers replacing sub-tab navigation
+
+### What Worked
+- All 3 phases fully independent (no cross-phase dependencies) — enabled parallel execution
+- Build-tagged platform files (path_windows.go, path_other.go) followed existing codebase convention — no new patterns needed
+- Shared tray_common.go extracted common logic (BuildMenuItems, TrayTooltip) so platform files are thin wrappers
+- godbus/dbus/v5 was already an indirect dependency via Tailscale — promotion to direct added zero new deps
+- Milestone audit passed on first try with 13/13 requirements satisfied at code level
+
+### What Was Inefficient
+- SUMMARY frontmatter `one_liner` field blank across all 5 summaries — milestone completion CLI extracted nothing useful (14th consecutive milestone with this issue)
+- Phase 67 Plan 02 (Windows tray) completed in 3 minutes of AI time but requires human UAT on Windows — asymmetric verification effort
+- 9 human UAT items accumulated (Linux/Windows tray + Settings visual) — cannot be automated from macOS development host
+
+### Patterns Established
+- D-Bus StatusNotifierItem + dbusmenu protocol for Linux system tray — freedesktop.org standard
+- Shell_NotifyIcon + HWND_MESSAGE + WM_USER message loop for Windows tray
+- Graceful degradation when StatusNotifierWatcher absent — export SNI service for auto-discovery hosts
+- Runtime PNG-to-HICON conversion via GDI CreateDIBSection (no .ico files needed)
+
+### Key Lessons
+1. Platform tray implementations are thin when shared helpers handle menu construction — tray_common.go made Linux and Windows implementations small and testable
+2. Build-tagged files are the right pattern for platform-specific PATH lists — runtime.GOOS checks would complicate testing
+3. Human UAT items for cross-platform work are unavoidable when developing on a single platform — track them as tech debt, not blockers
+4. Settings layout simplification (tabs → scroll) reduced code complexity while improving UX — fewer React components, fewer state transitions
+5. SUMMARY frontmatter one_liner extraction is confirmed broken — needs tooling fix or deprecation after 14 milestones of empty output
+
+### Cost Observations
+- Model mix: ~70% sonnet (execution), ~25% opus (audit/completion), ~5% haiku
+- Sessions: 2 sessions across 1 day
+- Notable: Fastest 3-phase milestone — all phases completed same day, total ~30 minutes AI execution time
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -599,6 +643,7 @@
 | v1.10 | 21 | 2 | Heroicons sidebar, flex-row layout restructure, tab bar cleanup, TDD-first UI milestone |
 | v1.11 | 57 | 6 | Local network fallback, auto-serve sessions, settings-as-tab, audit-driven gap closure (61, 62) |
 | v1.12 | 48 | 4 | UI polish milestone, risk-ascending phase ordering, xterm-theme integration, WebGL atlas clearing pattern |
+| v1.13 | 11 | 3 | Cross-platform tray (D-Bus SNI + Shell_NotifyIcon), shared tray helpers, build-tagged platform paths, settings scroll refactor |
 
 ### Cumulative Quality
 
@@ -617,6 +662,7 @@
 | v1.10 | 200+ (race-clean) | 268 | ~41,200 | 1 minor (SUMMARY frontmatter drift in 56-01) |
 | v1.11 | 200+ (race-clean) | 268+ | ~43,000 | 7 (0 blockers; SUMMARY frontmatter gaps, retryInit asymmetry, stale closure risk, init/retryInit duplication) |
 | v1.12 | 200+ (race-clean) | 270+ | ~43,700 | 4 cosmetic (SUMMARY frontmatter `provides` vs `requirements-completed`, VERIFICATION doc string) |
+| v1.13 | 200+ (race-clean) | 270+ | ~43,000 | 11 (9 human UAT, 2 metadata; 0 blockers) |
 
 ### Top Lessons (Verified Across Milestones)
 

@@ -1,5 +1,27 @@
 # Milestones
 
+## v1.13 Cross-Platform Fixes & UX (Shipped: 2026-04-12)
+
+**Phases completed:** 3 phases, 5 plans
+**Requirements:** 13/13 satisfied
+**Commits:** 11 | **Timeline:** 2 days (2026-04-11 → 2026-04-12)
+**Source changes:** 68 files, +3,604 / -6,569 lines
+
+**Key accomplishments:**
+
+- Cross-platform system tray: Linux D-Bus StatusNotifierItem (GNOME/KDE/XFCE) and Windows Shell_NotifyIcon Win32 API with shared menu helpers (tray_common.go), dynamic session list, status icons, hide-on-close, and Quit lifecycle
+- Comprehensive agent CLI discovery: daemon PATH augmentation extended with snap, flatpak, cargo, npm, pnpm, and Windows native installer paths via build-tagged platform files (path_windows.go, path_other.go)
+- Tailscale detection across platforms: Homebrew, system package manager, and Windows default install location (`C:\Program Files\Tailscale\tailscale.exe`)
+- macOS Homebrew install command updated to single copyable `brew tap scottkw/agenthub && brew install --cask agenthub` on Welcome screen
+- Settings tab refactored from sub-tab navigation to single scrollable page with h3 section headers (Appearance, Web Server, Paths) and CSS dividers
+
+**Known tech debt (non-blocking):**
+
+- 9 human UAT items: Linux/Windows tray testing requires live desktop environments; Settings visual verification requires running app
+- SUMMARY frontmatter missing `requirements_completed` field across 4/5 plan summaries
+
+---
+
 ## v1.12 UI/UX Polish (Shipped: 2026-04-11)
 
 **Phases completed:** 4 phases, 4 plans
