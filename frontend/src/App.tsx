@@ -611,7 +611,7 @@ function App(): React.ReactElement {
             onOpen={handleOpenRemoteSession}
           />
         )}
-        <div style={{ display: activeId === SETTINGS_TAB.id ? 'block' : 'none' }}>
+        <div style={{ display: activeId === SETTINGS_TAB.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
           <SettingsTab
             clis={detectedCLIs}
             tailscaleHealth={tailscaleHealth}
