@@ -65,25 +65,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TRAY-01 | TBD | Pending |
-| TRAY-02 | TBD | Pending |
-| TRAY-03 | TBD | Pending |
-| TRAY-04 | TBD | Pending |
-| TRAY-05 | TBD | Pending |
-| TRAY-06 | TBD | Pending |
-| INST-01 | TBD | Pending |
-| DISC-01 | TBD | Pending |
-| DISC-02 | TBD | Pending |
-| DISC-03 | TBD | Pending |
-| SETT-01 | TBD | Pending |
-| SETT-02 | TBD | Pending |
-| SETT-03 | TBD | Pending |
+| TRAY-01 | Phase 67 | Pending |
+| TRAY-02 | Phase 67 | Pending |
+| TRAY-03 | Phase 67 | Pending |
+| TRAY-04 | Phase 67 | Pending |
+| TRAY-05 | Phase 67 | Pending |
+| TRAY-06 | Phase 67 | Pending |
+| INST-01 | Phase 68 | Pending |
+| DISC-01 | Phase 68 | Pending |
+| DISC-02 | Phase 68 | Pending |
+| DISC-03 | Phase 68 | Pending |
+| SETT-01 | Phase 69 | Pending |
+| SETT-02 | Phase 69 | Pending |
+| SETT-03 | Phase 69 | Pending |
 
 **Coverage:**
 - v1.13 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 (pending roadmap)
+- Mapped to phases: 13
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after initial definition*
+*Last updated: 2026-04-11 after roadmap creation*

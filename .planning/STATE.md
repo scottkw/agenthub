@@ -7,7 +7,7 @@ stopped_at: null
 last_updated: "2026-04-11T12:00:00.000Z"
 last_activity: 2026-04-11
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-11)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Defining requirements
+**Current focus:** Phase 67 — Cross-Platform System Tray
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-11 — Milestone v1.13 started
+Phase: 67 of 69 (Cross-Platform System Tray)
+Plan: — of —
+Status: Ready to plan
+Last activity: 2026-04-11 — Roadmap created for v1.13
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -47,6 +47,8 @@ Progress: [░░░░░░░░░░] 0%
 
 (Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
 
+Key constraint for Phase 67: fyne.io/systray was previously rejected due to Wails AppDelegate duplicate symbol conflict. Any Linux/Windows tray solution must not conflict with the existing native macOS cgo NSStatusBar implementation.
+
 ### Pending Todos
 
 None.
@@ -62,10 +64,11 @@ None.
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
 - Phase 60 (local network): LAN IP selection heuristic on multi-interface machines (VPN + Wi-Fi) needs explicit preference order — document in code
 - Phase 57 (DET-01): Windows native installer path (%USERPROFILE%\.local\bin\claude.exe) not yet verified against actual Windows install
+- Phase 67: fyne.io/systray conflicts with Wails AppDelegate — need alternative tray approach for Linux/Windows that keeps macOS path unchanged
 
 ## Session Continuity
 
-Last session: 2026-04-12T00:45:00.000Z
-Stopped at: v1.12 milestone complete
+Last session: 2026-04-11
+Stopped at: Roadmap created — v1.13 phases 67-69 defined
 Resume file: N/A
-Next action: /gsd-new-milestone
+Next action: /gsd-plan-phase 67
