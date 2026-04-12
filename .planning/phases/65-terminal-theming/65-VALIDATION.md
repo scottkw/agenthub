@@ -1,10 +1,11 @@
 ---
 phase: 65
 slug: terminal-theming
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-11
+audited: 2026-04-11
 ---
 
 # Phase 65 — Validation Strategy
@@ -38,9 +39,9 @@ created: 2026-04-11
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 65-01-01 | 01 | 1 | THM-01 | — | N/A | unit | `pnpm test` | ✅ SettingsTab.test.tsx | ⬜ pending |
-| 65-01-02 | 01 | 1 | THM-02 | — | N/A | unit | `pnpm test` | ✅ App.test.tsx | ⬜ pending |
-| 65-01-03 | 01 | 1 | THM-03 | — | N/A | unit | `pnpm test` | ✅ TerminalPanel.test.tsx | ⬜ pending |
+| 65-01-01 | 01 | 1 | THM-01 | — | N/A | unit | `pnpm test` | ✅ SettingsTab.test.tsx | ✅ green |
+| 65-01-02 | 01 | 1 | THM-02 | — | N/A | unit | `pnpm test` | ✅ App.test.tsx | ✅ green |
+| 65-01-03 | 01 | 1 | THM-03 | — | N/A | unit | `pnpm test` | ✅ TerminalPanel.test.tsx | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -63,11 +64,23 @@ Existing infrastructure covers all phase requirements. No new test files needed;
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-11
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 3 requirements (THM-01, THM-02, THM-03) have automated source-inspection tests passing green. 323 tests across 18 files, 0 failures. No gaps detected.
