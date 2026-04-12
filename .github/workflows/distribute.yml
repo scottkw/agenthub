@@ -3,6 +3,14 @@ name: Distribute
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.13)'
+        required: true
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   update-homebrew-tap:
@@ -11,9 +19,9 @@ jobs:
       - name: Extract version
         id: version
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Download checksums with retry
         uses: nick-fields/retry@v3
@@ -23,13 +31,13 @@ jobs:
           retry_wait_seconds: 60
           command: |
             curl -fsSL \
-              "https://github.com/scottkw/agenthub/releases/download/${{ github.ref_name }}/checksums.txt" \
+              "https://github.com/scottkw/agenthub/releases/download/${RELEASE_TAG}/checksums.txt" \
               -o checksums.txt
 
       - name: Extract DMG SHA256
         id: sha256
         run: |
-          SHA256=$(grep "agenthub-${{ github.ref_name }}-darwin-universal.dmg" checksums.txt | awk '{ print $1 }')
+          SHA256=$(grep "agenthub-${RELEASE_TAG}-darwin-universal.dmg" checksums.txt | awk '{ print $1 }')
           if [ -z "$SHA256" ]; then
             echo "ERROR: SHA256 not found in checksums.txt"
             cat checksums.txt
@@ -70,3 +78,4 @@ jobs:
           identifier: scottkw.agenthub
           installers-regex: 'agenthub-v[\d.]+-windows-amd64-installer\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
+          release-tag: ${{ env.RELEASE_TAG }}

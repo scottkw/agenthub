@@ -275,3 +275,4 @@ jobs:
             artifacts/*.deb
             artifacts/checksums.txt
           fail_on_unmatched_files: true
+          token: ${{ secrets.TAP_DEPLOY_TOKEN }}
