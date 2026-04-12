@@ -569,6 +569,7 @@ function App(): React.ReactElement {
         <LocalNetworkBanner
           visible={true}
           tailscaleConnected={!!(tailscaleHealth?.connected && tailscaleHealth?.hasCerts && tailscaleHealth?.ip)}
+          tailscaleInstalled={!!(tailscaleHealth?.installed || detectedCLIs.some(c => c.Name === 'tailscale'))}
           onOpenURL={BrowserOpenURL}
         />
       )}

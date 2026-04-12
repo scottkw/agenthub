@@ -191,18 +191,14 @@ describe('TAILSCALE-PATH-01: Tailscale status in Paths section', () => {
   })
 
   it('shows installed-but-not-connected message', () => {
-    expect(raw).toContain('Installed but not connected')
+    expect(raw).toContain('Daemon running but not connected')
   })
 
   it('shows not detected message', () => {
     expect(raw).toContain('Not detected')
   })
 
-  it('shows description about daemon socket connection', () => {
-    expect(raw).toContain('local daemon socket')
-  })
-
-  it('shows No path configuration needed', () => {
-    expect(raw).toContain('No path configuration needed')
+  it('has tailscale path input', () => {
+    expect(raw).toContain('Path to tailscale')
   })
 })

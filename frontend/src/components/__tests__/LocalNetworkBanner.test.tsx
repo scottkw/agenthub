@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { LocalNetworkBanner } from '../LocalNetworkBanner'
 
-function renderBanner(props: { visible: boolean; tailscaleConnected: boolean; onOpenURL: (url: string) => void }) {
+function renderBanner(props: { visible: boolean; tailscaleConnected: boolean; tailscaleInstalled: boolean; onOpenURL: (url: string) => void }) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -23,27 +23,26 @@ describe('LocalNetworkBanner', () => {
     container?.remove()
   })
 
-  it('renders banner content when visible and tailscale not connected', () => {
+  it('renders Install Tailscale when not installed and not connected', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
     expect(container.textContent).toContain('Local network mode active')
     expect(container.textContent).toContain('Install Tailscale')
-    const statusEl = container.querySelector('[role="status"]')
-    expect(statusEl).not.toBeNull()
+    const ctaBtn = container.querySelector('button')
+    expect(ctaBtn?.textContent).toContain('Install Tailscale')
   })
 
   it('returns null when not visible', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: false, tailscaleConnected: false, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: false, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
     expect(container.firstChild).toBeNull()
   })
 
   it('calls onOpenURL with tailscale download link when CTA clicked', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, onOpenURL }))
-    const buttons = container.querySelectorAll('button')
-    const ctaBtn = Array.from(buttons).find((b) => b.textContent?.includes('Install Tailscale'))
-    expect(ctaBtn).not.toBeUndefined()
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
+    const ctaBtn = container.querySelector('button')
+    expect(ctaBtn).not.toBeNull()
     flushSync(() => {
       ctaBtn!.click()
     })
@@ -52,34 +51,44 @@ describe('LocalNetworkBanner', () => {
 
   it('banner has role="status" for accessibility', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
     const statusEl = container.querySelector('[role="status"]')
     expect(statusEl).not.toBeNull()
   })
 
   it('banner contains warning icon', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
     expect(container.textContent).toContain('\u26a0')
   })
 
   it('shows upgrading message when tailscaleConnected is true', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: true, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: true, tailscaleInstalled: true, onOpenURL }))
     expect(container.textContent).toContain('upgrading to Tailscale')
     expect(container.textContent).toContain('Tailscale detected')
   })
 
   it('does not show CTA button when tailscaleConnected is true', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: true, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: true, tailscaleInstalled: true, onOpenURL }))
     const buttons = container.querySelectorAll('button')
     expect(buttons.length).toBe(0)
   })
 
-  it('shows Install Tailscale button when tailscaleConnected is false', () => {
+  it('shows "Start Tailscale" message when installed but not connected', () => {
     const onOpenURL = vi.fn()
-    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, onOpenURL }))
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: true, onOpenURL }))
+    expect(container.textContent).toContain('Tailscale is installed but not connected')
+    expect(container.textContent).toContain('Start Tailscale')
+    // No install CTA button when installed
+    const buttons = container.querySelectorAll('button')
+    expect(buttons.length).toBe(0)
+  })
+
+  it('shows Install Tailscale button only when not installed', () => {
+    const onOpenURL = vi.fn()
+    ;({ container, root } = renderBanner({ visible: true, tailscaleConnected: false, tailscaleInstalled: false, onOpenURL }))
     const buttons = container.querySelectorAll('button')
     const ctaBtn = Array.from(buttons).find((b) => b.textContent?.includes('Install Tailscale'))
     expect(ctaBtn).not.toBeUndefined()

@@ -168,6 +168,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           await UpdateCLIPath(cli.Name, path.trim())
         }
       }
+      // Save tailscale path even if not in detected CLIs list
+      const tsCustom = customPaths['tailscale'] ?? ''
+      const tsCli = clis.find(c => c.Name === 'tailscale')
+      if (tsCustom.trim() !== '' && tsCustom !== (tsCli?.Path ?? '')) {
+        await UpdateCLIPath('tailscale', tsCustom.trim())
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -403,21 +409,46 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </table>
         )}
 
-        <div className="settings-panel__field-group" style={{ marginTop: '0.75rem' }}>
-          <label className="settings-panel__label">Tailscale</label>
-          <div className="ts-status" style={{ fontSize: '0.85rem' }}>
-            {tailscaleHealth
-              ? (tailscaleHealth.connected
-                  ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
-                  : tailscaleHealth.installed
-                    ? 'Installed but not connected'
-                    : 'Not detected')
-              : 'Checking\u2026'}
-          </div>
-          <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
-            AgentHub connects to Tailscale automatically via the local daemon socket. No path configuration needed.
-          </p>
-        </div>
+        {/* Tailscale path row — always shown even if not in detected CLIs */}
+        {(() => {
+          const tsCli = clis.find(c => c.Name === 'tailscale')
+          const tsPath = customPaths['tailscale'] ?? tsCli?.Path ?? ''
+          return (
+            <table className="settings-panel__table" style={{ marginTop: '0.75rem' }}>
+              <thead>
+                <tr>
+                  <th>Tool</th>
+                  <th>Path</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="settings-panel__cli-name">tailscale</td>
+                  <td>
+                    <input
+                      className="settings-panel__path-input"
+                      type="text"
+                      value={tsPath}
+                      onChange={(e) =>
+                        setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
+                      }
+                      placeholder={tsCli?.Path || 'Path to tailscale'}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )
+        })()}
+        <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
+          {tailscaleHealth
+            ? (tailscaleHealth.connected
+                ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
+                : tailscaleHealth.installed
+                  ? 'Daemon running but not connected'
+                  : 'Not detected \u2014 enter path above or install from tailscale.com')
+            : 'Checking\u2026'}
+        </p>
 
         {error && <p className="settings-panel__error">{error}</p>}
 
