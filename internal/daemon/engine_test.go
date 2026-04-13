@@ -253,8 +253,8 @@ func (s *spyBackend) Kill(string) error             { return nil }
 func (s *spyBackend) List() []*pty.Session           { return nil }
 
 // TestCreateSession_OpenCodeEnv asserts that CreateSession injects
-// OPENCODE_TUI_CONFIG into the PTY environment when cli == "opencode".
-// Wave 0: RED state — current engine.go does not set CreateRequest.Env.
+// OPENCODE_TUI_CONFIG into the PTY environment when cli == "opencode",
+// and that non-opencode CLIs do NOT receive the env var.
 func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	spy := &spyBackend{}
 	e := NewSessionEngine()
@@ -270,6 +270,11 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	for _, entry := range spy.lastReq.Env {
 		if strings.HasPrefix(entry, "OPENCODE_TUI_CONFIG=") {
 			found = true
+			// Verify the value matches the engine's config path.
+			wantEnv := "OPENCODE_TUI_CONFIG=" + e.opencodeTUIConfig
+			if entry != wantEnv {
+				t.Errorf("env var = %q, want %q", entry, wantEnv)
+			}
 			break
 		}
 	}
@@ -290,6 +295,22 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	for _, entry := range spy2.lastReq.Env {
 		if strings.HasPrefix(entry, "OPENCODE_TUI_CONFIG=") {
 			t.Errorf("CreateSession(claude): OPENCODE_TUI_CONFIG should NOT be in Env for non-opencode CLIs")
+		}
+	}
+
+	// Verify codex also does NOT get the env var.
+	spy3 := &spyBackend{}
+	e3 := NewSessionEngine()
+	e3.backend = spy3
+
+	_, err = e3.CreateSession(context.Background(), "codex", "test-codex", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(codex): %v", err)
+	}
+
+	for _, entry := range spy3.lastReq.Env {
+		if strings.HasPrefix(entry, "OPENCODE_TUI_CONFIG=") {
+			t.Errorf("CreateSession(codex): OPENCODE_TUI_CONFIG should NOT be in Env for non-opencode CLIs")
 		}
 	}
 }

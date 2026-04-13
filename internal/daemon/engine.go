@@ -84,9 +84,16 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 		rows = 24
 	}
 
+	// Per-agent environment configuration.
+	var env []string
+	if cli == "opencode" && e.opencodeTUIConfig != "" {
+		env = append(env, "OPENCODE_TUI_CONFIG="+e.opencodeTUIConfig)
+	}
+
 	sess, err := e.backend.Create(ctx, pty.CreateRequest{
 		CLI:     cliPath,
 		Args:    args,
+		Env:     env,
 		Cols:    cols,
 		Rows:    rows,
 		WorkDir: workDir,
