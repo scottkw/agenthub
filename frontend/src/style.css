@@ -182,9 +182,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
+  width: 48px;
   height: 38px;
-  margin: 4px;
+  margin: 4px 0;
   border: none;
   background: transparent;
   color: #9aa5ce;
@@ -200,8 +200,8 @@ body {
 .sidebar__item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 0;
+  padding: 8px 0;
   width: 100%;
   border: none;
   background: transparent;
@@ -217,15 +217,15 @@ body {
   background-color: #1e2030;
   color: #c0caf5;
 }
-.sidebar--collapsed .sidebar__item {
-  justify-content: center;
-  padding: 8px 0;
-}
+/* Phase 63 collapsed override removed in Phase 70 — the fixed icon slot
+   (margin: 0 14px on .sidebar__icon) makes it unnecessary. */
 
 .sidebar__icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  /* Fixed 48px icon slot: 14px + 20px + 14px = 48px. Center = 24px in both states. */
+  margin: 0 14px;
 }
 
 .sidebar__label {
