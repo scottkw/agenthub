@@ -166,6 +166,12 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
+// NotifyThemeChange tells the daemon to signal active OpenCode sessions
+// to re-query the terminal palette. Returns nil on success (204 No Content).
+func (c *DaemonClient) NotifyThemeChange() error {
+	return c.doJSON(http.MethodPost, "/theme/notify", nil, nil)
+}
+
 // ListTailnetPeers returns discovered tailnet peers running AgentHub.
 func (c *DaemonClient) ListTailnetPeers() ([]tailnet.Peer, error) {
 	var peers []tailnet.Peer

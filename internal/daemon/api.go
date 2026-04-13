@@ -57,6 +57,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /webserver/status", a.handleWebServerStatus)
 	a.mux.HandleFunc("POST /sessions/{id}/web-serve", a.handleWebServe)
 	a.mux.HandleFunc("POST /shutdown", a.handleShutdown)
+	// Theme change notification — signals active OpenCode sessions.
+	a.mux.HandleFunc("POST /theme/notify", a.handleNotifyThemeChange)
 	// Tailnet peer discovery.
 	a.mux.HandleFunc("GET /tailnet/peers", a.handleTailnetPeers)
 	// Local mode password endpoint.
@@ -219,6 +221,14 @@ func (a *API) handleShutdown(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(50 * time.Millisecond)
 		os.Exit(0)
 	}()
+}
+
+func (a *API) handleNotifyThemeChange(w http.ResponseWriter, r *http.Request) {
+	if err := a.engine.NotifyThemeChange(r.Context()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {

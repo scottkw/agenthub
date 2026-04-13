@@ -383,6 +383,16 @@ func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
 	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
+// NotifyThemeChange signals active OpenCode terminal sessions to re-query
+// the terminal palette after a theme change in Settings > Appearance.
+// Fire-and-forget from the frontend — errors are logged, not surfaced to UI.
+func (a *App) NotifyThemeChange() error {
+	if a.client == nil {
+		return nil // daemon not connected; no sessions to signal
+	}
+	return a.client.NotifyThemeChange()
+}
+
 // GetWebServerURL returns the base HTTPS URL of the running web server,
 // or an empty string if the server is not running.
 func (a *App) GetWebServerURL() string {

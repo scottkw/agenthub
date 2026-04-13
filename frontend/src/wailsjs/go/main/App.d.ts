@@ -93,3 +93,6 @@ export function AutoInstallTailscale(): Promise<void>
 // Local network mode bound methods
 export function GetLocalNetworkPassword(): Promise<string>
 export function GetWebServerMode(): Promise<string>
+
+// Theme notification bound method
+export function NotifyThemeChange(): Promise<void>

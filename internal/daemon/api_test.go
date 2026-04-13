@@ -616,3 +616,38 @@ func TestAutoStartWebServer_LocalModeRequiresPassword(t *testing.T) {
 		t.Error("AutoStartWebServer(local, empty password): want non-nil error, got nil")
 	}
 }
+
+func TestHandleNotifyThemeChange(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+
+	// POST /theme/notify with no active sessions should return 204.
+	status, _ := rawPost(t, socketPath, "/theme/notify", "")
+	if status != 204 {
+		t.Errorf("POST /theme/notify (empty engine): want 204, got %d", status)
+	}
+}
+
+func TestHandleNotifyThemeChange_WithSessions(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+
+	// Create a session (uses real PTY via cat).
+	createStatus, createBody := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"notify-test","workDir":""}`)
+	if createStatus != 201 {
+		t.Fatalf("POST /sessions: want 201, got %d; body: %s", createStatus, createBody)
+	}
+
+	// POST /theme/notify should return 204 even with active sessions.
+	// cat is not opencode, so no signal is sent — but the route should succeed.
+	status, _ := rawPost(t, socketPath, "/theme/notify", "")
+	if status != 204 {
+		t.Errorf("POST /theme/notify (with cat session): want 204, got %d", status)
+	}
+}
+
+func TestClientNotifyThemeChange(t *testing.T) {
+	_, client, _ := testDaemon(t)
+	err := client.NotifyThemeChange()
+	if err != nil {
+		t.Errorf("client.NotifyThemeChange: want nil, got %v", err)
+	}
+}

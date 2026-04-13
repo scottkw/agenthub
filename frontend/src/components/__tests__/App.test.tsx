@@ -194,6 +194,21 @@ describe('App', () => {
   })
 })
 
+describe('THM-05: NotifyThemeChange wiring', () => {
+  it('imports NotifyThemeChange from wailsjs bindings', () => {
+    expect(raw).toContain('NotifyThemeChange')
+  })
+
+  it('handleThemeChange calls NotifyThemeChange', () => {
+    const themeHandler = raw.slice(raw.indexOf('handleThemeChange'))
+    expect(themeHandler).toContain('NotifyThemeChange()')
+  })
+
+  it('NotifyThemeChange call has .catch for error handling', () => {
+    expect(raw).toContain("NotifyThemeChange().catch")
+  })
+})
+
 // ARGS-02: Args threading from modal to CreateSession
 describe('ARGS-02: args threading', () => {
   it('onConfirm passes args to createTab', () => {

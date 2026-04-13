@@ -54,3 +54,6 @@ export const AutoInstallTailscale = ()                      => Call('main.App.Au
 // Local network mode bound methods
 export const GetLocalNetworkPassword = ()                   => Call('main.App.GetLocalNetworkPassword', [])
 export const GetWebServerMode        = ()                   => Call('main.App.GetWebServerMode', [])
+
+// Theme notification bound method
+export const NotifyThemeChange       = ()                   => Call('main.App.NotifyThemeChange', [])

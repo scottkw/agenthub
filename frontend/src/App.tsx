@@ -21,6 +21,7 @@ import {
   GetDaemonError,
   GetRemoteSessions,
   GetWebServerMode,
+  NotifyThemeChange,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -92,6 +93,9 @@ function App(): React.ReactElement {
   const handleThemeChange = useCallback((name: string) => {
     localStorage.setItem(THEME_STORAGE_KEY, name)
     setTerminalThemeName(name)
+    // Signal active OpenCode sessions to re-query terminal palette (SIGUSR2).
+    // Fire-and-forget: errors logged to console, never block UI.
+    NotifyThemeChange().catch(err => console.warn('NotifyThemeChange failed:', err))
   }, [])
 
   // On mount: hide static HTML splash and initialize.
