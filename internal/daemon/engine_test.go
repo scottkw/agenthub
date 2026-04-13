@@ -315,6 +315,89 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	}
 }
 
+// TestNotifyThemeChange_BroadcastsToOpenCodeOnly verifies that NotifyThemeChange
+// only attempts to signal sessions where sessionCLIs[id] == "opencode".
+func TestNotifyThemeChange_BroadcastsToOpenCodeOnly(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+
+	// Create an opencode session and a claude session.
+	_, err := e.CreateSession(context.Background(), "opencode", "oc-tab", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(opencode): %v", err)
+	}
+	_, err = e.CreateSession(context.Background(), "claude", "cl-tab", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(claude): %v", err)
+	}
+
+	// NotifyThemeChange should not panic even though spy sessions have nil cmd.
+	// The Signal call will fail (nil process), which is logged and skipped.
+	err = e.NotifyThemeChange(context.Background())
+	if err != nil {
+		t.Errorf("NotifyThemeChange: want nil error, got %v", err)
+	}
+}
+
+// TestNotifyThemeChange_NoOpenCodeSessions verifies no-op when no opencode sessions exist.
+func TestNotifyThemeChange_NoOpenCodeSessions(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+
+	// Create only non-opencode sessions.
+	_, _ = e.CreateSession(context.Background(), "claude", "cl", "", nil, 80, 24, nil)
+	_, _ = e.CreateSession(context.Background(), "codex", "cx", "", nil, 80, 24, nil)
+
+	err := e.NotifyThemeChange(context.Background())
+	if err != nil {
+		t.Errorf("NotifyThemeChange with no opencode: want nil, got %v", err)
+	}
+}
+
+// TestNotifyThemeChange_EmptyEngine verifies no-op on fresh engine with no sessions.
+func TestNotifyThemeChange_EmptyEngine(t *testing.T) {
+	e := NewSessionEngine()
+	err := e.NotifyThemeChange(context.Background())
+	if err != nil {
+		t.Errorf("NotifyThemeChange on empty engine: want nil, got %v", err)
+	}
+}
+
+// TestSessionCLIs_TrackedAndCleanedUp verifies sessionCLIs map is populated
+// in CreateSession and cleaned up in KillSession.
+func TestSessionCLIs_TrackedAndCleanedUp(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+
+	id, err := e.CreateSession(context.Background(), "opencode", "oc", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Check sessionCLIs populated.
+	e.mu.RLock()
+	cli, ok := e.sessionCLIs[id]
+	e.mu.RUnlock()
+	if !ok {
+		t.Fatal("sessionCLIs not populated for session")
+	}
+	if cli != "opencode" {
+		t.Errorf("sessionCLIs[%s] = %q, want %q", id, cli, "opencode")
+	}
+
+	// Kill and verify cleanup.
+	_ = e.KillSession(id)
+	e.mu.RLock()
+	_, ok = e.sessionCLIs[id]
+	e.mu.RUnlock()
+	if ok {
+		t.Error("sessionCLIs not cleaned up after KillSession")
+	}
+}
+
 // TestOpenCodeTUIConfig asserts that ensureOpenCodeTUIConfig writes a managed
 // opencode-tui.json with the correct content (theme set to "system" for terminal passthrough).
 func TestOpenCodeTUIConfig(t *testing.T) {

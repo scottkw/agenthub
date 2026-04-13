@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,9 +25,10 @@ type SessionEngine struct {
 	backend  pty.SessionBackend
 	manager  *relay.HubManager
 
-	mu       sync.RWMutex
-	tabNames map[string]string // sessionID -> display name
-	cliPaths map[string]string // cli name -> custom path override
+	mu          sync.RWMutex
+	tabNames    map[string]string // sessionID -> display name
+	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
+	cliPaths    map[string]string // cli name -> custom path override
 
 	statusMu        sync.RWMutex
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
@@ -66,6 +68,7 @@ func NewSessionEngine() *SessionEngine {
 		backend:           pty.NewNativePTYBackend(),
 		manager:           relay.NewHubManager(),
 		tabNames:          make(map[string]string),
+		sessionCLIs:       make(map[string]string),
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
@@ -112,6 +115,7 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 
 	e.mu.Lock()
 	e.tabNames[id] = name
+	e.sessionCLIs[id] = cli // raw CLI name, NOT cliPath
 	e.mu.Unlock()
 
 	go status.Watch(hub, id, cli, func(sid string, s status.SessionStatus) {
@@ -173,6 +177,7 @@ func (e *SessionEngine) KillSession(id string) error {
 
 	e.mu.Lock()
 	delete(e.tabNames, id)
+	delete(e.sessionCLIs, id)
 	e.mu.Unlock()
 
 	e.statusMu.Lock()
@@ -241,4 +246,28 @@ func (e *SessionEngine) Registry() *pty.SessionRegistry {
 // Backend returns the session backend (needed for resize in relay).
 func (e *SessionEngine) Backend() pty.SessionBackend {
 	return e.backend
+}
+
+// NotifyThemeChange signals all active OpenCode sessions to re-query the
+// terminal palette. On POSIX this sends SIGUSR2; on Windows this is a no-op.
+// Errors on individual sessions are logged and do not abort the broadcast.
+// Safe to call when no opencode sessions exist (returns nil).
+func (e *SessionEngine) NotifyThemeChange(ctx context.Context) error {
+	sessions := e.registry.List()
+
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	for _, sess := range sessions {
+		if e.sessionCLIs[sess.ID] != "opencode" {
+			continue
+		}
+		if sess.State != pty.StateRunning {
+			continue
+		}
+		if err := signalThemeChange(sess); err != nil {
+			log.Printf("[warn] NotifyThemeChange: session %s: %v", sess.ID, err)
+		}
+	}
+	return nil
 }

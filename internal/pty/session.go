@@ -3,6 +3,7 @@ package pty
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -79,4 +80,17 @@ func (s *Session) Write(p []byte) (int, error) {
 // String returns a human-readable description of the session.
 func (s *Session) String() string {
 	return fmt.Sprintf("Session{ID: %q, CLI: %q}", s.ID, s.CLI)
+}
+
+// Signal sends the given signal to the session's child process.
+// Returns an error if the process has not been started or has already exited.
+// The caller must hold no lock on s.mu — this method acquires it internally.
+func (s *Session) Signal(sig os.Signal) error {
+	s.mu.Lock()
+	cmd := s.cmd
+	s.mu.Unlock()
+	if cmd == nil || cmd.Process == nil {
+		return fmt.Errorf("session %s: process not running", s.ID)
+	}
+	return cmd.Process.Signal(sig)
 }
