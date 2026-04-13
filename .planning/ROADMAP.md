@@ -176,7 +176,7 @@
 ### v1.14 UI Polish (In Progress)
 
 - [x] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20) (completed 2026-04-13)
-- [ ] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17)
+- [x] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17) (completed 2026-04-13)
 - [ ] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23)
 - [ ] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21)
 
@@ -205,10 +205,10 @@ Plans:
   3. OpenCode theme behavior matches Claude Code, Codex, and Gemini CLI -- same theme produces visually consistent results across all four agents
 **Plans**: 4 plans
 Plans:
-- [ ] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
-- [ ] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
-- [ ] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
-- [ ] 71-04-PLAN.md — Manual UAT: visual theme switching verification
+- [x] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
+- [x] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
+- [x] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
+- [x] 71-04-PLAN.md — Manual UAT: visual theme switching verification
 **UI hint**: yes
 
 ### Phase 72: UI Contrast Improvement
@@ -222,9 +222,9 @@ Plans:
   4. Welcome screen content text (tagline, instructions, version) is legible without straining
 **Plans**: 4 plans
 Plans:
-- [ ] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
-- [ ] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
-- [ ] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
+- [x] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
+- [x] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
+- [x] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
 - [ ] 71-04-PLAN.md — Manual UAT: visual theme switching verification
 **UI hint**: yes
 
@@ -239,8 +239,8 @@ Plans:
   4. At least one light-background and one dark-background theme survive the audit (user has both options)
 **Plans**: 4 plans
 Plans:
-- [ ] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
-- [ ] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
+- [x] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
+- [x] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
 - [ ] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
 - [ ] 71-04-PLAN.md — Manual UAT: visual theme switching verification
 **UI hint**: yes
@@ -264,7 +264,7 @@ Plans:
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
-| 71. OpenCode Theming Fix | v1.14 | 0/4 | Planned | - |
+| 71. OpenCode Theming Fix | v1.14 | 4/4 | Complete   | 2026-04-13 |
 | 72. UI Contrast Improvement | v1.14 | 0/0 | Not started | - |
 | 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
 
