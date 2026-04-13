@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/scottkw/agenthub/internal/pty"
+	"github.com/scottkw/agenthub/internal/relay"
 )
 
 func TestNewSessionEngine(t *testing.T) {
@@ -424,5 +425,118 @@ func TestOpenCodeTUIConfig(t *testing.T) {
 	path2 := ensureOpenCodeTUIConfig(dir)
 	if path2 != path {
 		t.Errorf("second call path = %q, want %q", path2, path)
+	}
+}
+
+// hubReadUntil subscribes to the session's relay hub and waits until the
+// marker string appears in the output frames, or the timeout elapses.
+// Returns true if the marker was found within the timeout.
+//
+// It replays the scrollback snapshot first (to catch output that arrived before
+// subscribing), then drains new frames from the hub channel until the deadline.
+//
+// Frame format: [1-byte type | payload...]. MsgOutput (0x01) frames contain PTY
+// text. The scrollback stores concatenated raw frames; we strip the MsgOutput
+// prefix bytes (0x01) to recover the text content.
+func hubReadUntil(t *testing.T, e *SessionEngine, id, marker string, timeout time.Duration) bool {
+	t.Helper()
+	hub, ok := e.manager.Get(id)
+	if !ok {
+		t.Errorf("hubReadUntil: hub not found for session %s", id)
+		return false
+	}
+
+	sub := &relay.Subscriber{
+		Msgs:      make(chan []byte, 512),
+		CloseSlow: func() {},
+	}
+	// Subscribe before snapshot to avoid a race where new frames arrive between
+	// snapshot and subscribe.
+	hub.Subscribe(sub)
+	defer hub.Unsubscribe(sub)
+
+	// Replay scrollback: concatenated MakeOutputFrame bytes.
+	// MsgOutput is 0x01, which won't appear in ASCII terminal text markers.
+	// Strip all 0x01 bytes to recover the payload text.
+	var collected strings.Builder
+	for _, b := range hub.ScrollbackSnapshot() {
+		if b != relay.MsgOutput {
+			collected.WriteByte(b)
+		}
+	}
+	if strings.Contains(collected.String(), marker) {
+		return true
+	}
+
+	// Drain new frames from the subscriber channel until marker found or timeout.
+	deadline := time.After(timeout)
+	for {
+		select {
+		case frame := <-sub.Msgs:
+			// Frame: [type byte | payload...]
+			if len(frame) > 1 {
+				collected.Write(frame[1:])
+			}
+			if strings.Contains(collected.String(), marker) {
+				return true
+			}
+		case <-deadline:
+			return false
+		}
+	}
+}
+
+// TestNotifyThemeChange_RealProcess_Integration spawns a real shell process
+// that traps SIGUSR2 and writes a marker to stdout. NotifyThemeChange is then
+// called and the test verifies the marker appears, proving end-to-end signal
+// delivery through the PTY layer.
+//
+// Gated: POSIX only (SIGUSR2 does not exist on Windows).
+// Gated: Skipped in -short mode (spawns real PTY, takes ~2s).
+func TestNotifyThemeChange_RealProcess_Integration(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGUSR2 not available on Windows")
+	}
+	if testing.Short() {
+		t.Skip("integration test: skipped in -short mode")
+	}
+
+	e := NewSessionEngine()
+
+	// Map "opencode" -> /bin/sh so ResolveCLI returns a valid executable.
+	if err := e.UpdateCLIPath("opencode", "/bin/sh"); err != nil {
+		t.Fatalf("UpdateCLIPath: %v", err)
+	}
+
+	// Create session with cli="opencode" (stored in sessionCLIs as "opencode").
+	// Args: -c with a script that traps SIGUSR2 and prints a marker.
+	script := `trap 'echo SIGUSR2_RECEIVED' USR2; echo READY; while true; do sleep 0.1; done`
+	id, err := e.CreateSession(
+		context.Background(),
+		"opencode",
+		"sigusr2-test",
+		"",
+		[]string{"-c", script},
+		80, 24,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	// Wait for READY marker (process started and trap is installed).
+	if !hubReadUntil(t, e, id, "READY", 5*time.Second) {
+		t.Fatal("process did not print READY within 5s")
+	}
+
+	// Send SIGUSR2 via NotifyThemeChange.
+	if err := e.NotifyThemeChange(context.Background()); err != nil {
+		t.Fatalf("NotifyThemeChange: %v", err)
+	}
+
+	// Read output and look for SIGUSR2_RECEIVED marker.
+	if !hubReadUntil(t, e, id, "SIGUSR2_RECEIVED", 5*time.Second) {
+		t.Error("SIGUSR2 marker not found in output after NotifyThemeChange")
 	}
 }
