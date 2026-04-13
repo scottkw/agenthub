@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/scottkw/agenthub/internal/pty"
@@ -16,7 +17,8 @@ import (
 // It is intentionally free of Wails imports — callers supply an onStatus
 // callback if they need event emission.
 type SessionEngine struct {
-	hostname string // machine hostname, captured at startup
+	hostname          string // machine hostname, captured at startup
+	opencodeTUIConfig string // path to managed opencode-tui.json (set at init)
 
 	registry *pty.SessionRegistry
 	backend  pty.SessionBackend
@@ -30,17 +32,42 @@ type SessionEngine struct {
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
 }
 
+// daemonConfigDir returns ~/.config/agenthub/, creating it if needed.
+// Mirrors app.go configDir() — internal packages cannot import main.
+func daemonConfigDir() string {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		base = os.TempDir()
+	}
+	dir := filepath.Join(base, "agenthub")
+	_ = os.MkdirAll(dir, 0700)
+	return dir
+}
+
+// ensureOpenCodeTUIConfig writes a managed tui.json that forces OpenCode's
+// "system" theme. The system theme uses ANSI palette colors (0-15), making
+// OpenCode respect xterm.js theme remapping. The file is overwritten on every
+// call (content is a hardcoded constant, no user data). Returns the file path.
+func ensureOpenCodeTUIConfig(dir string) string {
+	path := filepath.Join(dir, "opencode-tui.json")
+	content := []byte("{\"$schema\":\"https://opencode.ai/tui.json\",\"theme\":\"system\"}\n")
+	_ = os.WriteFile(path, content, 0644)
+	return path
+}
+
 // NewSessionEngine creates a SessionEngine with all subsystems initialised.
 func NewSessionEngine() *SessionEngine {
 	hostname, _ := os.Hostname()
+	tuiConfig := ensureOpenCodeTUIConfig(daemonConfigDir())
 	return &SessionEngine{
-		hostname:        hostname,
-		registry:        pty.NewSessionRegistry(),
-		backend:         pty.NewNativePTYBackend(),
-		manager:         relay.NewHubManager(),
-		tabNames:        make(map[string]string),
-		cliPaths:        make(map[string]string),
-		sessionStatuses: make(map[string]status.SessionStatus),
+		hostname:          hostname,
+		opencodeTUIConfig: tuiConfig,
+		registry:          pty.NewSessionRegistry(),
+		backend:           pty.NewNativePTYBackend(),
+		manager:           relay.NewHubManager(),
+		tabNames:          make(map[string]string),
+		cliPaths:          make(map[string]string),
+		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
 }
 

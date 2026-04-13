@@ -294,20 +294,31 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	}
 }
 
-// TestOpenCodeTUIConfig asserts that a managed opencode-tui.json file is written
-// with the correct content (theme set to "system" for terminal passthrough).
-// Wave 0: RED state — no code writes this file yet.
+// TestOpenCodeTUIConfig asserts that ensureOpenCodeTUIConfig writes a managed
+// opencode-tui.json with the correct content (theme set to "system" for terminal passthrough).
 func TestOpenCodeTUIConfig(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "opencode-tui.json")
+	path := ensureOpenCodeTUIConfig(dir)
 
-	// Plan 02 will add ensureOpenCodeTUIConfig(dir) that writes this file.
-	// For now, assert the file exists — this will FAIL (RED state).
+	// Verify path is correct
+	expected := filepath.Join(dir, "opencode-tui.json")
+	if path != expected {
+		t.Errorf("path = %q, want %q", path, expected)
+	}
+
+	// Verify file content
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("managed opencode-tui.json not found: %v", err)
 	}
-	if !strings.Contains(string(data), `"theme":"system"`) {
-		t.Errorf("expected theme:system in tui.json, got: %s", data)
+	want := `{"$schema":"https://opencode.ai/tui.json","theme":"system"}` + "\n"
+	if string(data) != want {
+		t.Errorf("content = %q, want %q", string(data), want)
+	}
+
+	// Verify idempotent (second call does not error)
+	path2 := ensureOpenCodeTUIConfig(dir)
+	if path2 != path {
+		t.Errorf("second call path = %q, want %q", path2, path)
 	}
 }
