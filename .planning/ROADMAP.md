@@ -175,7 +175,7 @@
 
 ### v1.14 UI Polish (In Progress)
 
-- [ ] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20)
+- [x] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20) (completed 2026-04-13)
 - [ ] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17)
 - [ ] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23)
 - [ ] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21)
@@ -190,9 +190,9 @@
   1. Sidebar icons stay in the same horizontal position whether collapsed (48px rail) or expanded (200px panel)
   2. No perceived horizontal jump or shift when clicking the hamburger toggle button
   3. Transition between collapsed and expanded states is smooth (no layout reflow flicker)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 70-01-PLAN.md — Fixed icon-slot CSS fix + position-stability tests
+- [x] 70-01-PLAN.md — Fixed icon-slot CSS fix + position-stability tests
 **UI hint**: yes
 
 ### Phase 71: OpenCode Theming Fix
@@ -248,7 +248,7 @@ Plans:
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
-| 70. Sidebar Icon Position Stability | v1.14 | 0/1 | Not started | - |
+| 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 0/0 | Not started | - |
 | 72. UI Contrast Improvement | v1.14 | 0/0 | Not started | - |
 | 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
