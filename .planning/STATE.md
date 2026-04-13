@@ -4,8 +4,8 @@ milestone: v1.14
 milestone_name: UI Polish
 status: executing
 stopped_at: Roadmap created for v1.14 — 4 phases (70-73)
-last_updated: "2026-04-13T21:00:18.616Z"
-last_activity: 2026-04-13 -- Phase 71 planning complete
+last_updated: "2026-04-13T21:06:45.665Z"
+last_activity: 2026-04-13 -- Phase 71 execution started
 progress:
   total_phases: 4
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v1.14 UI Polish — Phase 70 ready to plan
+**Current focus:** Phase 71 — opencode-theming-fix
 
 ## Current Position
 
-Phase: 71 of 73 (opencode theming fix)
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-13 -- Phase 71 planning complete
+Phase: 71 (opencode-theming-fix) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 71
+Last activity: 2026-04-13 -- Phase 71 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
