@@ -2,9 +2,14 @@ package daemon
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/scottkw/agenthub/internal/pty"
 )
 
 func TestNewSessionEngine(t *testing.T) {
@@ -224,5 +229,85 @@ func TestEngineResolveCLI(t *testing.T) {
 	got = e.ResolveCLI("claude")
 	if got != "/bin/cat" {
 		t.Errorf("ResolveCLI after update: got %q, want %q", got, "/bin/cat")
+	}
+}
+
+// spyBackend records the CreateRequest from the most recent Create call.
+// Used by Wave 0 tests to assert on env injection without launching a real PTY.
+type spyBackend struct {
+	lastReq pty.CreateRequest
+}
+
+func (s *spyBackend) Create(_ context.Context, req pty.CreateRequest) (*pty.Session, error) {
+	s.lastReq = req
+	return &pty.Session{
+		ID:        "spy-id",
+		CLI:       req.CLI,
+		State:     pty.StateRunning,
+		CreatedAt: time.Now(),
+	}, nil
+}
+
+func (s *spyBackend) Resize(string, int, int) error { return nil }
+func (s *spyBackend) Kill(string) error             { return nil }
+func (s *spyBackend) List() []*pty.Session           { return nil }
+
+// TestCreateSession_OpenCodeEnv asserts that CreateSession injects
+// OPENCODE_TUI_CONFIG into the PTY environment when cli == "opencode".
+// Wave 0: RED state — current engine.go does not set CreateRequest.Env.
+func TestCreateSession_OpenCodeEnv(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+
+	_, err := e.CreateSession(context.Background(), "opencode", "test-oc", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(opencode): %v", err)
+	}
+
+	// Assert OPENCODE_TUI_CONFIG was injected into the env.
+	var found bool
+	for _, entry := range spy.lastReq.Env {
+		if strings.HasPrefix(entry, "OPENCODE_TUI_CONFIG=") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("CreateSession(opencode): expected OPENCODE_TUI_CONFIG in Env, got %v", spy.lastReq.Env)
+	}
+
+	// Also verify that non-opencode CLIs do NOT get the env var.
+	spy2 := &spyBackend{}
+	e2 := NewSessionEngine()
+	e2.backend = spy2
+
+	_, err = e2.CreateSession(context.Background(), "claude", "test-claude", "", nil, 80, 24, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(claude): %v", err)
+	}
+
+	for _, entry := range spy2.lastReq.Env {
+		if strings.HasPrefix(entry, "OPENCODE_TUI_CONFIG=") {
+			t.Errorf("CreateSession(claude): OPENCODE_TUI_CONFIG should NOT be in Env for non-opencode CLIs")
+		}
+	}
+}
+
+// TestOpenCodeTUIConfig asserts that a managed opencode-tui.json file is written
+// with the correct content (theme set to "system" for terminal passthrough).
+// Wave 0: RED state — no code writes this file yet.
+func TestOpenCodeTUIConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "opencode-tui.json")
+
+	// Plan 02 will add ensureOpenCodeTUIConfig(dir) that writes this file.
+	// For now, assert the file exists — this will FAIL (RED state).
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("managed opencode-tui.json not found: %v", err)
+	}
+	if !strings.Contains(string(data), `"theme":"system"`) {
+		t.Errorf("expected theme:system in tui.json, got: %s", data)
 	}
 }
