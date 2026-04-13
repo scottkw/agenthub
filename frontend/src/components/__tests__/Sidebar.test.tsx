@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Sidebar } from '../Sidebar'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// CSS source for contract tests (jsdom has no layout engine — we inspect raw CSS text)
+// This is the established project pattern from SettingsTab, WelcomeTab, TerminalPanel tests.
+const cssRaw = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
 
 // Helper to render Sidebar with default no-op props
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
@@ -220,5 +226,56 @@ describe('Sidebar icons (ICON-01, ICON-02)', () => {
     const textContent = sessionsBtn!.textContent || ''
     // The button should not rely on Unicode symbols/emoji for the icon
     expect(textContent.trim()).not.toMatch(/^[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF]/)
+  })
+})
+
+describe('Sidebar icon position stability (SBR-02)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+    localStorage.clear()
+  })
+
+  it('all sidebar__icon elements exist in both expanded and collapsed states', () => {
+    // 1 toggle + 5 nav items = 6 sidebar__icon SVGs total
+    ;({ container, root } = renderSidebar())
+    const expandedIcons = container.querySelectorAll('svg.sidebar__icon')
+    expect(expandedIcons.length).toBeGreaterThanOrEqual(6)
+
+    const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
+    act(() => { toggleBtn.click() })
+
+    // After collapse, same icon count — icons are always in the DOM
+    const collapsedIcons = container.querySelectorAll('svg.sidebar__icon')
+    expect(collapsedIcons.length).toBe(expandedIcons.length)
+  })
+
+  it('sidebar__toggle contains exactly one sidebar__icon SVG', () => {
+    ;({ container, root } = renderSidebar())
+    // The toggle button uses the same .sidebar__icon class — it participates
+    // in the unified icon-alignment system (14px margin, 24px center)
+    const toggleIcons = container.querySelectorAll('.sidebar__toggle svg.sidebar__icon')
+    expect(toggleIcons.length).toBe(1)
+  })
+
+  it('CSS contract: .sidebar__icon has margin: 0 14px (fixed 48px icon slot — SBR-02)', () => {
+    // Verify the stylesheet declares the fixed-width icon slot.
+    // Math: 14px left + 20px icon + 14px right = 48px slot.
+    // Icon center = 14 + 10 = 24px in both expanded and collapsed states.
+    expect(cssRaw).toMatch(/\.sidebar__icon\s*\{[^}]*margin:\s*0\s+14px/)
+  })
+
+  it('CSS contract: .sidebar--collapsed .sidebar__item justify-content override is removed (anti-regression)', () => {
+    // The Phase 63 rule `.sidebar--collapsed .sidebar__item { justify-content: center }`
+    // caused the 6px icon shift bug. It must NOT be present after the Phase 70 fix.
+    // If this test fails, the override has been re-introduced.
+    expect(cssRaw).not.toMatch(/\.sidebar--collapsed\s+\.sidebar__item\s*\{[^}]*justify-content\s*:\s*center/)
   })
 })
