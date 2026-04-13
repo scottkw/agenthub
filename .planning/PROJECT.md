@@ -127,7 +127,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(None — planning next milestone)
+<!-- Current scope: v1.14 UI Polish -->
+
+- [ ] Brighter UI text with improved contrast (GitHub #23)
+- [ ] Theme usability audit across all agents; remove themes unusable with any CLI (GitHub #21)
+- [ ] Sidebar icons stay in fixed position when collapsing/expanding (GitHub #20)
+- [ ] OpenCode honors the selected terminal theme (GitHub #17)
+
+## Current Milestone: v1.14 UI Polish
+
+**Goal:** Improve GUI contrast, audit theme usability across all agents, stabilize sidebar icon positioning, and fix OpenCode theming.
+
+**Target features:**
+- Brighter UI text with improved contrast (#23)
+- Theme usability audit across all agents (#21)
+- Sidebar icons stay in fixed position when collapsing/expanding (#20)
+- OpenCode honors the selected terminal theme (#17)
 
 ## Current State
 
@@ -273,4 +288,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 after v1.13 milestone*
+*Last updated: 2026-04-13 — v1.14 milestone started*

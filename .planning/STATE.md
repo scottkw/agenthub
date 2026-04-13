@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.13
-milestone_name: Cross-Platform Fixes & UX
-status: complete
-stopped_at: Milestone v1.13 archived
-last_updated: "2026-04-12"
-last_activity: 2026-04-12
+milestone: v1.14
+milestone_name: UI Polish
+status: planning
+stopped_at: Milestone v1.14 started — defining requirements
+last_updated: "2026-04-13"
+last_activity: 2026-04-13
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-12)
+See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** v1.14 UI Polish — defining requirements
 
 ## Current Position
 
-Phase: All complete (69 phases across 14 milestones)
-Plan: N/A
-Status: Milestone v1.13 shipped
-Last activity: 2026-04-12
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-13 — Milestone v1.14 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -66,7 +66,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-12
-Stopped at: Milestone v1.13 archived
+Last session: 2026-04-13
+Stopped at: Milestone v1.14 started
 Resume file: N/A
-Next action: /gsd-new-milestone
+Next action: /gsd-discuss-phase 70 or /gsd-plan-phase 70
