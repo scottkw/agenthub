@@ -16,6 +16,7 @@
 - ✅ **v1.11 Local Network & UX Polish** — Phases 57-62 (shipped 2026-04-10)
 - ✅ **v1.12 UI/UX Polish** — Phases 63-66 (shipped 2026-04-11)
 - ✅ **v1.13 Cross-Platform Fixes & UX** — Phases 67-69 (shipped 2026-04-12)
+- **v1.14 UI Polish** — Phases 70-73 (in progress)
 
 ## Phases
 
@@ -172,6 +173,61 @@
 
 </details>
 
+### v1.14 UI Polish (In Progress)
+
+- [ ] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20)
+- [ ] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17)
+- [ ] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23)
+- [ ] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21)
+
+## Phase Details
+
+### Phase 70: Sidebar Icon Position Stability
+**Goal**: Sidebar icons remain visually stable when toggling between collapsed and expanded states
+**Depends on**: Phase 69 (v1.13 complete)
+**Requirements**: SBR-02
+**Success Criteria** (what must be TRUE):
+  1. Sidebar icons stay in the same horizontal position whether collapsed (48px rail) or expanded (200px panel)
+  2. No perceived horizontal jump or shift when clicking the hamburger toggle button
+  3. Transition between collapsed and expanded states is smooth (no layout reflow flicker)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 71: OpenCode Theming Fix
+**Goal**: OpenCode terminal sessions respect the globally selected theme, matching the behavior of the other three supported agents
+**Depends on**: Phase 70
+**Requirements**: THM-05
+**Success Criteria** (what must be TRUE):
+  1. Selecting a theme in Settings > Appearance applies the theme colors to an active OpenCode terminal session
+  2. A newly created OpenCode session starts with the currently selected theme applied
+  3. OpenCode theme behavior matches Claude Code, Codex, and Gemini CLI -- same theme produces visually consistent results across all four agents
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 72: UI Contrast Improvement
+**Goal**: All non-terminal GUI text is bright enough to read comfortably against the dark background, meeting WCAG AA contrast standards
+**Depends on**: Phase 71
+**Requirements**: UI-01
+**Success Criteria** (what must be TRUE):
+  1. Sidebar labels (Home, Remote, Sessions, New Session, Settings) have at least 4.5:1 contrast ratio against the sidebar background
+  2. Tab titles in the tab bar are clearly legible against the tab bar background
+  3. Settings page labels, section headers, and control text meet WCAG AA contrast (4.5:1 for normal text, 3:1 for large text)
+  4. Welcome screen content text (tagline, instructions, version) is legible without straining
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 73: Theme Usability Audit
+**Goal**: The theme picker only offers themes that produce readable, usable terminal output across all four supported agents
+**Depends on**: Phase 71 (OpenCode must honor themes before audit can evaluate it)
+**Requirements**: THM-04
+**Success Criteria** (what must be TRUE):
+  1. Every theme remaining in the picker renders readable foreground text in Claude Code, Codex, Gemini CLI, and OpenCode
+  2. Themes that produce unreadable text, invisible cursors, or indistinguishable ANSI colors in any of the 4 agents are removed from the picker
+  3. The theme picker lists only the surviving subset of the original 157 themes
+  4. At least one light-background and one dark-background theme survive the audit (user has both options)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -190,6 +246,10 @@
 | 57-62 | v1.11 | 9/9 | Complete | 2026-04-10 |
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
+| 70. Sidebar Icon Position Stability | v1.14 | 0/0 | Not started | - |
+| 71. OpenCode Theming Fix | v1.14 | 0/0 | Not started | - |
+| 72. UI Contrast Improvement | v1.14 | 0/0 | Not started | - |
+| 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

@@ -55,15 +55,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UI-01 | TBD | Pending |
-| THM-04 | TBD | Pending |
-| SBR-02 | TBD | Pending |
-| THM-05 | TBD | Pending |
+| SBR-02 | Phase 70 | Pending |
+| THM-05 | Phase 71 | Pending |
+| UI-01 | Phase 72 | Pending |
+| THM-04 | Phase 73 | Pending |
 
 **Coverage:**
 - v1.14 requirements: 4 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 4
+- Mapped to phases: 4
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-13*
