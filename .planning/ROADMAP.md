@@ -236,7 +236,9 @@ Plans:
   2. Themes that produce unreadable text, invisible cursors, or indistinguishable ANSI colors in any of the 4 agents are removed from the picker
   3. The theme picker lists only the surviving subset of the original 157 themes
   4. At least one light-background and one dark-background theme survive the audit (user has both options)
-**Plans**: [To be planned]
+**Plans**: 1 plan
+Plans:
+- [ ] 73-01-PLAN.md — Allowlist-only theme picker + localStorage fallback guard + tests
 **UI hint**: yes
 
 ## Progress
