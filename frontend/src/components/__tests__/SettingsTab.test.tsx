@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import raw from '../../components/SettingsTab.tsx?raw'
+import appRaw from '../../App.tsx?raw'
 
 // Source-inspection tests for SettingsTab.tsx (UI-02: Settings as sidebar tab).
 // Verifies the component was refactored from a modal into an inline sidebar tab.
@@ -85,8 +86,12 @@ describe('THM-01: Appearance section with theme selector', () => {
     expect(raw).toContain("from 'xterm-theme'")
   })
 
-  it('computes THEME_NAMES at module level', () => {
-    expect(raw).toContain('THEME_NAMES = Object.keys(xtermThemes).sort()')
+  it('defines ALLOWED_THEMES constant at module level', () => {
+    expect(raw).toContain('ALLOWED_THEMES: string[]')
+  })
+
+  it('sets THEME_NAMES to ALLOWED_THEMES', () => {
+    expect(raw).toContain('THEME_NAMES = ALLOWED_THEMES')
   })
 
   it('props include selectedTheme', () => {
@@ -200,5 +205,41 @@ describe('TAILSCALE-PATH-01: Tailscale status in Paths section', () => {
 
   it('has tailscale path input', () => {
     expect(raw).toContain('Path to tailscale')
+  })
+})
+
+describe('THM-04: Allowlist-only theme picker', () => {
+  it('ALLOWED_THEMES contains Tomorrow_Night (default theme survives audit)', () => {
+    expect(raw).toContain('"Tomorrow_Night"')
+  })
+
+  it('ALLOWED_THEMES contains at least one light-background theme (Novel)', () => {
+    expect(raw).toContain('"Novel"')
+  })
+
+  it('ALLOWED_THEMES contains at least one dark-background theme (Dracula)', () => {
+    expect(raw).toContain('"Dracula"')
+  })
+
+  it('does NOT contain "default" in ALLOWED_THEMES (namespace artifact excluded)', () => {
+    const allowlistStart = raw.indexOf('ALLOWED_THEMES: string[]')
+    const allowlistEnd = raw.indexOf(']', allowlistStart)
+    expect(allowlistStart).toBeGreaterThan(-1)
+    const allowlistBlock = raw.slice(allowlistStart, allowlistEnd + 1)
+    expect(allowlistBlock).not.toContain('"default"')
+  })
+
+  it('does NOT derive theme names from Object.keys(xtermThemes)', () => {
+    expect(raw).not.toContain('Object.keys(xtermThemes).sort()')
+  })
+})
+
+describe('THM-04: localStorage fallback guard in App.tsx', () => {
+  it('validates stored theme against ALLOWED_THEMES before using it', () => {
+    expect(appRaw).toContain('ALLOWED_THEMES.includes(stored)')
+  })
+
+  it('imports ALLOWED_THEMES from themes module', () => {
+    expect(appRaw).toContain('ALLOWED_THEMES')
   })
 })
