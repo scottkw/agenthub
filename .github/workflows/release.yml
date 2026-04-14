@@ -159,9 +159,9 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME}"
-          mv build/bin/agenthub-amd64-installer.exe \
+          mv build/bin/AgentHub-amd64-installer.exe \
             "build/bin/agenthub-${VERSION}-windows-amd64-installer.exe"
-          mv build/bin/agenthub.exe \
+          mv build/bin/AgentHub.exe \
             "build/bin/agenthub-${VERSION}-windows-amd64.exe"
 
       - name: Upload Windows artifacts
@@ -217,6 +217,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           TAR_NAME="agenthub-${VERSION}-linux-amd64.tar.gz"
+          mv build/bin/AgentHub build/bin/agenthub
           tar -czf "${TAR_NAME}" -C build/bin agenthub
           mv "${TAR_NAME}" build/bin/
 

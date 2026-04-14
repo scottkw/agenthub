@@ -110,7 +110,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agenthub-linux-amd64-ubuntu24
-          path: build/bin/agenthub
+          path: build/bin/AgentHub
           if-no-files-found: error
 
       - name: Upload Linux 22.04 artifact
@@ -118,7 +118,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agenthub-linux-amd64-ubuntu22
-          path: build/bin/agenthub
+          path: build/bin/AgentHub
           if-no-files-found: error
 
       - name: Upload Windows artifacts
@@ -127,6 +127,6 @@ jobs:
         with:
           name: agenthub-windows-amd64
           path: |
-            build/bin/agenthub-amd64-installer.exe
-            build/bin/agenthub.exe
+            build/bin/AgentHub-amd64-installer.exe
+            build/bin/AgentHub.exe
           if-no-files-found: error
