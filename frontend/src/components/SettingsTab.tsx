@@ -229,6 +229,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
               <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
             ))}
           </select>
+          <p className="settings-panel__description">Themes may not apply correctly to existing sessions. Only sessions created after selecting a new theme will display as intended.</p>
         </div>
 
         {/* Web Server section (SETT-02) */}
