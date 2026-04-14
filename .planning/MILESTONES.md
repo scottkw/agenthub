@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.14 UI Polish (Shipped: 2026-04-14)
+
+**Phases completed:** 4 phases, 9 plans
+**Requirements:** 4/4 satisfied (SBR-02, THM-05, UI-01, THM-04)
+**Commits:** 64 | **Timeline:** 2 days (2026-04-13 → 2026-04-14)
+**Source changes:** 69 files, +9,551 / -94 lines
+
+**Key accomplishments:**
+
+- Sidebar icons stay in fixed horizontal position during collapse/expand — fixed 48px icon slot via margin: 0 14px (Phase 70, SBR-02)
+- OpenCode honors selected terminal theme — managed tui.json with OPENCODE_TUI_CONFIG env injection, SIGUSR2 broadcast to active sessions for live theme switching (Phase 71, THM-05)
+- All GUI text meets WCAG AA 4.5:1 contrast — replaced all 32 `#565f89` text declarations with `#9aa5ce` across tab bar, settings, welcome, modals, and panels (Phase 72, UI-01)
+- Theme picker curated from 157 to 138 readable themes with WCAG-derived readability filtering and localStorage fallback guard for stale theme names (Phase 73, THM-04)
+
+---
+
 ## v1.13 Cross-Platform Fixes & UX (Shipped: 2026-04-12)
 
 **Phases completed:** 3 phases, 5 plans

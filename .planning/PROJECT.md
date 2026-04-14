@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Falls back to local network serving with self-signed TLS and generated password when Tailscale is unavailable. Remote sessions across tailnet peers are discoverable via both GUI (Remote Sessions panel with auto-refresh) and CLI (`agenthub list` with HOST column, `agenthub attach hostname:id` via WSS relay). Standard macOS app menus with Cmd+C/V clipboard in terminal tabs. Auto-update checker polls GitHub releases and shows notification banner with one-click download. Health checks detect Tailscale state and guide users through setup with platform-specific install commands, macOS auto-install via Homebrew, and post-install HTTPS cert configuration guide. Live status indicators show whether each CLI is running, waiting, or errored. Terminal sessions support 157 color themes from the xterm-theme library with live apply and persistence. Includes branded app icons, a splash screen with the title logo, a polished UI with collapsible sidebar navigation, tabbed settings with Appearance tab for theme selection, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. Settings tab provides web server URL actions — open in browser, copy to clipboard, and QR code display. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI). Distributed via GitHub releases (DMG, EXE+NSIS, tar.gz+deb), Homebrew cask, and WinGet.
+A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs — Claude Code, OpenCode, Codex, Gemini CLI, and others — in tabbed terminal sessions powered by xterm.js. Built with Go/Wails for the backend and React for the frontend. Runs as a tray-resident app with a system tray icon, dynamic session menu, and daemon management panel — no dock/taskbar icon. Every session can be served over the web via Tailscale with browser-trusted Let's Encrypt TLS, accessible from any tailnet device via URL or QR code — no passwords, no tokens, no certificate setup. Falls back to local network serving with self-signed TLS and generated password when Tailscale is unavailable. Remote sessions across tailnet peers are discoverable via both GUI (Remote Sessions panel with auto-refresh) and CLI (`agenthub list` with HOST column, `agenthub attach hostname:id` via WSS relay). Standard macOS app menus with Cmd+C/V clipboard in terminal tabs. Auto-update checker polls GitHub releases and shows notification banner with one-click download. Health checks detect Tailscale state and guide users through setup with platform-specific install commands, macOS auto-install via Homebrew, and post-install HTTPS cert configuration guide. Live status indicators show whether each CLI is running, waiting, or errored. Terminal sessions support 138 curated color themes (WCAG-audited from 157 xterm-theme candidates) with live apply and persistence. Includes branded app icons, a splash screen with the title logo, a polished UI with collapsible sidebar navigation, tabbed settings with Appearance tab for theme selection, per-tab font sizing, new-session modal with agent picker, folder browser, and per-agent argument memory, tab renaming with web dashboard propagation, and a cross-platform build script with macOS signing support. Settings tab provides web server URL actions — open in browser, copy to clipboard, and QR code display. CLI and GUI both support passing extra arguments to agents (`--` separator in CLI, text field in GUI). Distributed via GitHub releases (DMG, EXE+NSIS, tar.gz+deb), Homebrew cask, and WinGet.
 
 ## Core Value
 
@@ -125,28 +125,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ macOS Homebrew install command: single copyable `brew tap scottkw/agenthub && brew install --cask agenthub` on Welcome screen — v1.13 Phase 68
 - ✓ Settings scrollable layout: single page with h3 section headers (Appearance, Web Server, Paths) replacing sub-tab navigation — v1.13 Phase 69
 
+- ✓ Sidebar icons stay in fixed horizontal position during collapse/expand — fixed 48px icon slot via margin: 0 14px — v1.14 Phase 70
+- ✓ OpenCode honors selected terminal theme — managed tui.json with OPENCODE_TUI_CONFIG env injection, SIGUSR2 broadcast to active sessions — v1.14 Phase 71
+- ✓ All GUI text meets WCAG AA 4.5:1 contrast — #565f89 replaced with #9aa5ce across all surfaces — v1.14 Phase 72
+- ✓ Theme usability audit: curated allowlist of 138 readable themes (from 157), localStorage fallback guard — v1.14 Phase 73
+
 ### Active
 
-<!-- Current scope: v1.14 UI Polish -->
-
-- [ ] Brighter UI text with improved contrast (GitHub #23)
-- ✓ Theme usability audit: curated allowlist of 138 readable themes (from 157), localStorage fallback guard — v1.14 Phase 73
-- [ ] Sidebar icons stay in fixed position when collapsing/expanding (GitHub #20)
-- [ ] OpenCode honors the selected terminal theme (GitHub #17)
-
-## Current Milestone: v1.14 UI Polish
-
-**Goal:** Improve GUI contrast, audit theme usability across all agents, stabilize sidebar icon positioning, and fix OpenCode theming.
-
-**Target features:**
-- Brighter UI text with improved contrast (#23)
-- Theme usability audit across all agents (#21)
-- Sidebar icons stay in fixed position when collapsing/expanding (#20)
-- OpenCode honors the selected terminal theme (#17)
+(None — planning next milestone)
 
 ## Current State
 
-v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases completed, 126 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 138 curated xterm-theme color schemes (audited for WCAG-derived readability) with live apply, localStorage persistence, and fallback guard for stale theme names. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio — muted text (#565f89) replaced with #9aa5ce across all app surfaces (tab bar, settings, welcome, modals, panels). System tray is fully cross-platform: macOS uses native cgo NSStatusBar, Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — all sharing menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
+v1.14 shipped (2026-04-14). 15 milestones shipped (v1.0–v1.14), 73 phases completed, 135 plans total. Codebase: ~16K Go (incl. 8K tests) + ~7K TS/TSX/CSS (incl. 2.6K tests). App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 138 curated xterm-theme color schemes (audited for WCAG-derived readability across all 4 agents) with live apply, localStorage persistence, and fallback guard for stale theme names. OpenCode sessions honor the selected theme via managed tui.json and SIGUSR2 broadcast for live switching. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons stay in fixed horizontal position during collapse/expand (48px icon slot via margin). Terminal content padded with 8px inset and dynamic background matching theme. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio — muted text (#565f89) replaced with #9aa5ce across all app surfaces (tab bar, settings, welcome, modals, panels). System tray is fully cross-platform: macOS uses native cgo NSStatusBar, Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — all sharing menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
 
 ### Out of Scope
 
@@ -171,11 +161,11 @@ v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases comp
 
 ## Context
 
-Shipped v1.13 with ~32K Go + ~11K TS/TSX.
+Shipped v1.14 with ~16K Go (incl. 8K tests) + ~7K TS/TSX/CSS (incl. 2.6K tests).
 Tech stack: Go/Wails v2, React, xterm.js, xterm-theme@1.1.0, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate.
-Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS.
+Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI and CLI are both DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). Args thread through all 5 IPC layers to PTY. Frontend estimates terminal dimensions and passes cols/rows to backend at session creation. System tray uses native macOS cgo NSStatusBar (no third-party systray library) with NSMenuDelegate for dynamic menus. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS. OpenCode theme integration via managed tui.json and SIGUSR2 signal broadcast through daemon HTTP API.
 Go test suite: 200+ tests race-clean across 8 packages (added internal/tailnet, internal/updater).
-Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, web status bar, sidebar, and settings tab (web link UX) components.
+Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, web status bar, sidebar, settings tab (web link UX), WCAG contrast, and theme allowlist components.
 Networking: Tailscale primary — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer. Local network fallback with self-signed TLS + generated password when Tailscale unavailable.
 Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
@@ -268,6 +258,14 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Runtime PNG-to-HICON via GDI CreateDIBSection | Reuses existing PNG assets embedded in binary; no .ico files needed | ✓ Good — fewer build artifacts |
 | Build-tagged path_windows.go / path_other.go for platform paths | Follows existing codebase convention (process_windows.go, socket_windows.go) | ✓ Good — clean compilation per platform |
 | h3 section headers (not tabs) for Settings layout | Single scrollable page is simpler UX than sub-tab switching for ~3 sections | ✓ Good — fewer clicks, easier scanning |
+| Fixed 48px icon slot via margin: 0 14px | Same center (24px) in both collapsed and expanded sidebar states — no position shift | ✓ Good — pure CSS fix, no JS needed |
+| Managed tui.json for OpenCode theming | Write system theme to opencode config dir, inject OPENCODE_TUI_CONFIG env var per session | ✓ Good — OpenCode honors theme without upstream changes |
+| SIGUSR2 broadcast for live OpenCode theme switching | Frontend → Wails → daemon HTTP → engine broadcast → per-session signal delivery | ✓ Good — closes live theme switching gap for OpenCode sessions |
+| `daemonConfigDir()` duplicating `configDir()` | internal/daemon cannot import main package; mirrors same logic | ✓ Good — clean package boundary |
+| #9aa5ce replacing #565f89 for all GUI text | WCAG AA 4.5:1 contrast on all dark backgrounds (sidebar, tab bar, settings, welcome, modals) | ✓ Good — measurable accessibility improvement |
+| ALLOWED_THEMES in separate themes.ts module | Reusable sorted allowlist; SettingsTab imports names only, not full xterm-theme objects | ✓ Good — cleaner imports, single source of truth |
+| WCAG-derived readability criteria for theme audit | fg:bg >= 3.0, cursor:bg >= 2.0, at most 3 important ANSI colors below 2.5 | ✓ Good — 138/157 themes pass, both light and dark options survive |
+| localStorage fallback guard for stale theme names | App.tsx validates stored theme against allowlist before use; stale names fall back to Tomorrow_Night | ✓ Good — no broken state after theme removal |
 
 ---
 ## Evolution
@@ -288,4 +286,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 — Phase 73 complete (theme usability audit)*
+*Last updated: 2026-04-14 after v1.14 milestone*
