@@ -130,7 +130,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 <!-- Current scope: v1.14 UI Polish -->
 
 - [ ] Brighter UI text with improved contrast (GitHub #23)
-- [ ] Theme usability audit across all agents; remove themes unusable with any CLI (GitHub #21)
+- ✓ Theme usability audit: curated allowlist of 138 readable themes (from 157), localStorage fallback guard — v1.14 Phase 73
 - [ ] Sidebar icons stay in fixed position when collapsing/expanding (GitHub #20)
 - [ ] OpenCode honors the selected terminal theme (GitHub #17)
 
@@ -146,7 +146,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases completed, 126 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 157 xterm-theme color schemes with live apply and localStorage persistence. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio — muted text (#565f89) replaced with #9aa5ce across all app surfaces (tab bar, settings, welcome, modals, panels). System tray is fully cross-platform: macOS uses native cgo NSStatusBar, Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — all sharing menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
+v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases completed, 126 plans total. Codebase: ~32K Go + ~11K TS/TSX. App runs as a tray-resident daemon with branded icons, splash screen, standard macOS menus, remote session discovery (GUI panel + CLI), auto-update notifications, guided Tailscale onboarding with auto-install, and collapsible left sidebar with Heroicons SVG icons — all navigation wired through sidebar. Settings is a sidebar tab (not modal) presenting all settings on a single scrollable page organized by labeled section headers (Appearance, Web Server, Paths) — no sub-tabs. Web server auto-starts on daemon launch — Tailscale mode when available, local network fallback (self-signed TLS + generated password) when not. New sessions are web-served by default. Terminal sessions support 138 curated xterm-theme color schemes (audited for WCAG-derived readability) with live apply, localStorage persistence, and fallback guard for stale theme names. Settings tab provides web server URL actions (open in browser, copy to clipboard, QR code). Sidebar icons visually centered in collapsed rail. Terminal content padded with 8px inset and dynamic background matching theme. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio — muted text (#565f89) replaced with #9aa5ce across all app surfaces (tab bar, settings, welcome, modals, panels). System tray is fully cross-platform: macOS uses native cgo NSStatusBar, Linux uses D-Bus StatusNotifierItem protocol (GNOME/KDE/XFCE), Windows uses Shell_NotifyIcon Win32 API — all sharing menu helpers from tray_common.go. Daemon PATH augmentation discovers agent CLIs installed via cargo, snap, flatpak, npm, pnpm, and native installers across all platforms, plus Tailscale default install paths on Windows. Welcome screen macOS install command uses correct Homebrew tap + cask syntax.
 
 ### Out of Scope
 
@@ -165,7 +165,7 @@ v1.13 shipped (2026-04-12). 14 milestones shipped (v1.0–v1.13), 69 phases comp
 - Non-Tailscale VPN support — removed in v1.2; Tailscale-only networking
 - Tab color coding per CLI type — deferred to future milestone
 - Status heuristic patterns for non-Claude CLIs — deferred to future milestone
-- Custom theme editor — 157 built-in xterm-theme schemes cover the need; custom editing adds complexity
+- Custom theme editor — 138 curated xterm-theme schemes cover the need; custom editing adds complexity
 - Per-tab theme overrides — global theme sufficient; per-tab adds UI complexity
 - Font family selection — web font loading race adds complexity; validate demand first
 
@@ -288,4 +288,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 — Phase 72 complete (UI contrast improvement)*
+*Last updated: 2026-04-14 — Phase 73 complete (theme usability audit)*
