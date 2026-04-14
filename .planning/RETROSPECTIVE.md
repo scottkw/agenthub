@@ -624,6 +624,48 @@
 
 ---
 
+## Milestone: v1.14 — UI Polish
+
+**Shipped:** 2026-04-14
+**Phases:** 4 | **Plans:** 9 | **Commits:** 64
+
+### What Was Built
+- Sidebar icons fixed in horizontal position during collapse/expand via 48px icon slot margin
+- OpenCode theme integration: managed tui.json, OPENCODE_TUI_CONFIG env injection, SIGUSR2 broadcast for live theme switching
+- WCAG AA contrast: all 32 `#565f89` text declarations replaced with `#9aa5ce` across every GUI surface
+- Theme picker curated from 157 to 138 themes via WCAG-derived readability criteria, localStorage fallback guard for stale names
+
+### What Worked
+- Phase 71 (OpenCode theming) had the highest complexity — 5 plans covering test stubs, env injection, integration testing, manual UAT, and gap closure (SIGUSR2 broadcast). The gap closure plan (71-05) was identified during verification, not after-the-fact audit
+- CSS-only fix for sidebar icon stability (Phase 70) — clean, minimal, 5-minute execution
+- WCAG contrast tests written RED-first (Phase 72) caught exact number of failing selectors before the fix
+- Theme audit (Phase 73) used computed contrast ratios from research phase to build deterministic allowlist — no manual curation needed
+
+### What Was Inefficient
+- `gsd-tools audit-open` has a runtime bug (ReferenceError: output is not defined) — pre-close artifact audit had to be done manually
+- SUMMARY frontmatter one_liner extraction continues to produce empty output — 15th milestone with this broken tooling
+- Phase 70 roadmap checkbox marked `[ ]` despite being complete (same drift pattern as earlier milestones)
+
+### Patterns Established
+- Per-agent env injection via CreateRequest.Env for external CLI configuration (OpenCode tui.json)
+- SIGUSR2 signal pipeline: frontend → Wails binding → daemon HTTP → engine broadcast → per-session signal
+- ALLOWED_THEMES module pattern: sorted allowlist in separate file, imported by name only (not full theme objects)
+- localStorage fallback guard: validate stored value against current allowlist, silent fallback to default
+
+### Key Lessons
+1. External CLI integration (OpenCode) is harder than internal features — requires managed config files, env injection, and process signals instead of direct API calls
+2. WCAG contrast testing with computed ratios is automatable — RED-first test approach catches exact scope of changes needed
+3. Theme curation criteria must be evidence-based (computed contrast ratios), not subjective — 138/157 pass rate validates the criteria aren't too aggressive
+4. Signal-based live configuration updates (SIGUSR2) are the right pattern when the target process doesn't expose a config reload API
+5. `daemonConfigDir()` duplication is an acceptable cost of Go's package boundary — internal packages genuinely cannot import main
+
+### Cost Observations
+- Model mix: ~70% sonnet (execution), ~25% opus (audit/completion), ~5% haiku
+- Sessions: 2 sessions across 2 days
+- Notable: 4-phase milestone completed in 2 days with 9 plans — steady velocity matching v1.13
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -644,6 +686,7 @@
 | v1.11 | 57 | 6 | Local network fallback, auto-serve sessions, settings-as-tab, audit-driven gap closure (61, 62) |
 | v1.12 | 48 | 4 | UI polish milestone, risk-ascending phase ordering, xterm-theme integration, WebGL atlas clearing pattern |
 | v1.13 | 11 | 3 | Cross-platform tray (D-Bus SNI + Shell_NotifyIcon), shared tray helpers, build-tagged platform paths, settings scroll refactor |
+| v1.14 | 64 | 4 | Per-agent env injection (OpenCode tui.json), SIGUSR2 signal broadcast, WCAG contrast audit, curated theme allowlist |
 
 ### Cumulative Quality
 
@@ -663,6 +706,7 @@
 | v1.11 | 200+ (race-clean) | 268+ | ~43,000 | 7 (0 blockers; SUMMARY frontmatter gaps, retryInit asymmetry, stale closure risk, init/retryInit duplication) |
 | v1.12 | 200+ (race-clean) | 270+ | ~43,700 | 4 cosmetic (SUMMARY frontmatter `provides` vs `requirements-completed`, VERIFICATION doc string) |
 | v1.13 | 200+ (race-clean) | 270+ | ~43,000 | 11 (9 human UAT, 2 metadata; 0 blockers) |
+| v1.14 | 200+ (race-clean) | 280+ | ~23,000 | 3 (0 blockers; SUMMARY one_liner extraction broken, ROADMAP checkbox drift, audit-open bug) |
 
 ### Top Lessons (Verified Across Milestones)
 
