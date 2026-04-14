@@ -177,7 +177,7 @@
 
 - [ ] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20) (completed 2026-04-13)
 - [x] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17) (completed 2026-04-13)
-- [ ] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23)
+- [x] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23) (completed 2026-04-14)
 - [ ] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21)
 
 ## Phase Details
@@ -224,7 +224,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 72-01-PLAN.md — WCAG contrast regression test file (Wave 0 RED state)
-- [ ] 72-02-PLAN.md — Replace all #565f89 text colors with #9aa5ce + visual verification
+- [x] 72-02-PLAN.md — Replace all #565f89 text colors with #9aa5ce + visual verification
 **UI hint**: yes
 
 ### Phase 73: Theme Usability Audit
@@ -259,7 +259,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 5/5 | Complete   | 2026-04-13 |
-| 72. UI Contrast Improvement | v1.14 | 1/2 | In Progress|  |
+| 72. UI Contrast Improvement | v1.14 | 2/2 | Complete   | 2026-04-14 |
 | 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
 
 ---
