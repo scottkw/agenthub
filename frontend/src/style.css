@@ -347,7 +347,7 @@ body {
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 12px;
   margin-top: 24px;
   padding-top: 20px;
@@ -360,7 +360,7 @@ body {
 }
 
 .settings-panel__empty {
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 13px;
 }
 
@@ -371,7 +371,7 @@ body {
 }
 .settings-panel__table th {
   text-align: left;
-  color: #565f89;
+  color: #9aa5ce;
   font-weight: 500;
   padding: 4px 8px;
   border-bottom: 1px solid #292e42;
@@ -425,7 +425,7 @@ body {
 }
 .settings-panel__btn--cancel {
   background-color: transparent;
-  color: #565f89;
+  color: #9aa5ce;
   border: 1px solid #292e42;
 }
 .settings-panel__btn--cancel:hover {
@@ -461,7 +461,7 @@ body {
 }
 .settings-panel__description {
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
   line-height: 1.5;
   margin-bottom: 10px;
 }
@@ -493,7 +493,7 @@ body {
 .settings-panel__url {
   margin-top: 8px;
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
 }
 .settings-panel__url a {
   color: #7aa2f7;
@@ -571,7 +571,7 @@ body {
 .new-session-modal__close {
   background: transparent;
   border: none;
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 20px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -597,7 +597,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 8px;
 }
 .new-session-modal__agent-list {
@@ -640,7 +640,7 @@ body {
   border: 1px solid #292e42;
   border-radius: 4px;
   font-size: 13px;
-  color: #565f89;
+  color: #9aa5ce;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -718,7 +718,7 @@ body {
 .new-session-modal__btn--close {
   background: transparent;
   border: 1px solid #292e42;
-  color: #565f89;
+  color: #9aa5ce;
   padding: 6px 16px;
   border-radius: 4px;
   font-size: 13px;
@@ -916,7 +916,7 @@ body {
 }
 
 .update-banner__arrow {
-  color: #565f89;
+  color: #9aa5ce;
 }
 
 .update-banner__actions {
@@ -943,7 +943,7 @@ body {
 
 .update-banner__btn--dismiss {
   background-color: transparent;
-  color: #565f89;
+  color: #9aa5ce;
   border: 1px solid #292e42;
   padding: 8px 16px;
   border-radius: 4px;
@@ -1011,7 +1011,7 @@ body {
 
 .welcome-tab__version {
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 40px;
 }
 
@@ -1027,7 +1027,7 @@ body {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 10px;
   font-weight: 600;
 }
@@ -1099,7 +1099,7 @@ body {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 14px;
 }
 
@@ -1120,7 +1120,7 @@ body {
 
 .daemon-panel__count {
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
 }
 
 .daemon-panel__list {
@@ -1168,7 +1168,7 @@ body {
 
 .daemon-panel__cli {
   font-size: 11px;
-  color: #565f89;
+  color: #9aa5ce;
   background: #1e2030;
   padding: 2px 8px;
   border-radius: 3px;
@@ -1177,7 +1177,7 @@ body {
 
 .daemon-panel__hostname {
   font-size: 11px;
-  color: #565f89;
+  color: #9aa5ce;
   background: #1e2030;
   padding: 2px 8px;
   border-radius: 3px;
@@ -1245,7 +1245,7 @@ body {
   justify-content: center;
   gap: 10px;
   height: 100%;
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 14px;
 }
 
@@ -1272,13 +1272,13 @@ body {
 }
 
 .remote-panel__empty-title {
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 14px;
   font-weight: 600;
 }
 
 .remote-panel__empty-body {
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 13px;
 }
 
@@ -1294,7 +1294,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #565f89;
+  color: #9aa5ce;
   padding-bottom: 8px;
   border-bottom: 1px solid #292e42;
   margin-bottom: 4px;
@@ -1302,7 +1302,7 @@ body {
 
 .remote-panel__peer-meta {
   font-size: 11px;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 8px;
 }
 
@@ -1350,7 +1350,7 @@ body {
 
 .remote-panel__cli {
   font-size: 11px;
-  color: #565f89;
+  color: #9aa5ce;
   background: #1e2030;
   padding: 2px 8px;
   border-radius: 3px;
@@ -1415,7 +1415,7 @@ body {
 }
 
 .local-network-banner__sub {
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 12px;
 }
 
@@ -1448,13 +1448,13 @@ body {
 /* ─── Settings password field (Phase 60 — NET-05) ─────────────────── */
 .settings-web-server__password-label {
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 4px;
 }
 
 .settings-web-server__credential-hint {
   font-size: 12px;
-  color: #565f89;
+  color: #9aa5ce;
   margin-bottom: 8px;
 }
 
@@ -1528,7 +1528,7 @@ body {
   border-radius: 4px;
   border: 1px solid #292e42;
   background: transparent;
-  color: #565f89;
+  color: #9aa5ce;
   font-size: 11px;
   cursor: pointer;
   flex-shrink: 0;
