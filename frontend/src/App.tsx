@@ -32,6 +32,7 @@ import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
+import { ALLOWED_THEMES } from './themes'
 
 const DEFAULT_FONT_SIZE = 14
 const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
@@ -84,9 +85,12 @@ function App(): React.ReactElement {
   const [remoteLoading, setRemoteLoading] = useState(false)
 
   // Terminal theme (global — same theme for all sessions)
-  const [terminalThemeName, setTerminalThemeName] = useState<string>(
-    () => localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_THEME_NAME
-  )
+  const [terminalThemeName, setTerminalThemeName] = useState<string>(() => {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_THEME_NAME
+    if (ALLOWED_THEMES.includes(stored)) return stored
+    if (ALLOWED_THEMES.includes(DEFAULT_THEME_NAME)) return DEFAULT_THEME_NAME
+    return ALLOWED_THEMES[0] ?? DEFAULT_THEME_NAME
+  })
   const terminalTheme: ITheme = (xtermThemes as Record<string, ITheme>)[terminalThemeName]
     ?? (xtermThemes as Record<string, ITheme>)[DEFAULT_THEME_NAME]
 

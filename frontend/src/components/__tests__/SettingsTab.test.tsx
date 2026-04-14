@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import raw from '../../components/SettingsTab.tsx?raw'
 import appRaw from '../../App.tsx?raw'
+import themesRaw from '../../themes.ts?raw'
 
 // Source-inspection tests for SettingsTab.tsx (UI-02: Settings as sidebar tab).
 // Verifies the component was refactored from a modal into an inline sidebar tab.
@@ -82,12 +83,12 @@ describe('UI-02 Gap 5: Mount-based useEffect', () => {
 })
 
 describe('THM-01: Appearance section with theme selector', () => {
-  it('imports xterm-theme library', () => {
-    expect(raw).toContain("from 'xterm-theme'")
+  it('imports ALLOWED_THEMES from themes module', () => {
+    expect(raw).toContain("import { ALLOWED_THEMES } from '../themes'")
   })
 
-  it('defines ALLOWED_THEMES constant at module level', () => {
-    expect(raw).toContain('ALLOWED_THEMES: string[]')
+  it('defines ALLOWED_THEMES constant at module level in themes.ts', () => {
+    expect(themesRaw).toContain('ALLOWED_THEMES: string[]')
   })
 
   it('sets THEME_NAMES to ALLOWED_THEMES', () => {
@@ -210,22 +211,22 @@ describe('TAILSCALE-PATH-01: Tailscale status in Paths section', () => {
 
 describe('THM-04: Allowlist-only theme picker', () => {
   it('ALLOWED_THEMES contains Tomorrow_Night (default theme survives audit)', () => {
-    expect(raw).toContain('"Tomorrow_Night"')
+    expect(themesRaw).toContain('"Tomorrow_Night"')
   })
 
   it('ALLOWED_THEMES contains at least one light-background theme (Novel)', () => {
-    expect(raw).toContain('"Novel"')
+    expect(themesRaw).toContain('"Novel"')
   })
 
   it('ALLOWED_THEMES contains at least one dark-background theme (Dracula)', () => {
-    expect(raw).toContain('"Dracula"')
+    expect(themesRaw).toContain('"Dracula"')
   })
 
   it('does NOT contain "default" in ALLOWED_THEMES (namespace artifact excluded)', () => {
-    const allowlistStart = raw.indexOf('ALLOWED_THEMES: string[]')
-    const allowlistEnd = raw.indexOf(']', allowlistStart)
+    const allowlistStart = themesRaw.indexOf('ALLOWED_THEMES: string[]')
+    const allowlistEnd = themesRaw.indexOf(']', allowlistStart)
     expect(allowlistStart).toBeGreaterThan(-1)
-    const allowlistBlock = raw.slice(allowlistStart, allowlistEnd + 1)
+    const allowlistBlock = themesRaw.slice(allowlistStart, allowlistEnd + 1)
     expect(allowlistBlock).not.toContain('"default"')
   })
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import * as xtermThemes from 'xterm-theme'
+import { ALLOWED_THEMES } from '../themes'
 import {
   UpdateCLIPath,
   StartWebServer,
@@ -19,7 +19,7 @@ import {
   QrCodeIcon,
 } from '@heroicons/react/24/outline'
 
-const THEME_NAMES = Object.keys(xtermThemes).sort()
+const THEME_NAMES = ALLOWED_THEMES
 
 interface SettingsTabProps {
   clis: DetectedCLI[]
