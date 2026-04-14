@@ -53,7 +53,7 @@ jobs:
 
       - name: Copy branded ICNS into bundle
         run: |
-          cp build/appicon.icns build/bin/agenthub.app/Contents/Resources/iconfile.icns 2>/dev/null || true
+          cp build/appicon.icns build/bin/AgentHub.app/Contents/Resources/iconfile.icns 2>/dev/null || true
 
       - name: Import certificate to keychain
         run: |
@@ -73,7 +73,7 @@ jobs:
             --timestamp \
             --entitlements build/entitlements.plist \
             --sign "$MACOS_CERTIFICATE_NAME" \
-            build/bin/agenthub.app
+            build/bin/AgentHub.app
 
       - name: Notarize .app
         run: |
@@ -81,11 +81,11 @@ jobs:
             --apple-id "$MACOS_NOTARIZATION_APPLE_ID" \
             --team-id "$MACOS_NOTARIZATION_TEAM_ID" \
             --password "$MACOS_NOTARIZATION_PWD"
-          ditto -c -k --keepParent build/bin/agenthub.app build/bin/agenthub-notarize.zip
+          ditto -c -k --keepParent build/bin/AgentHub.app build/bin/agenthub-notarize.zip
           xcrun notarytool submit build/bin/agenthub-notarize.zip \
             --keychain-profile "agenthub-notarize" \
             --wait
-          xcrun stapler staple build/bin/agenthub.app
+          xcrun stapler staple build/bin/AgentHub.app
 
       - name: Create and sign DMG
         run: |
@@ -96,7 +96,7 @@ jobs:
             --volname "AgentHub" \
             --codesign "$MACOS_CERTIFICATE_NAME" \
             "${DMG_NAME}" \
-            build/bin/agenthub.app
+            build/bin/AgentHub.app
           mv "${DMG_NAME}" build/bin/
 
       - name: Cleanup keychain
