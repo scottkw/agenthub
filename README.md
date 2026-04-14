@@ -4,18 +4,18 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 157 color themes from the xterm-theme library with live switching and persistence. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 138 curated color themes (WCAG-audited from the xterm-theme library) with live switching and persistence — including OpenCode, which honors the selected theme via managed config and SIGUSR2 broadcast. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
 ### Terminal & Sessions
-- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Session (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; state persists in localStorage
+- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Session (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; icons stay in fixed horizontal position during transitions; state persists in localStorage
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
 - **Background daemon** — Sessions live in a standalone daemon process; closing the GUI hides the window while sessions and the system tray remain active
 - **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, and OpenCode on startup — including when launched from Finder/Dock (augments PATH with `~/.local/bin`, Homebrew, nvm, Volta, snap, flatpak, cargo, pipx, and platform-specific install locations on macOS, Linux, and Windows); supports custom CLI path overrides
 - **New session modal** — Select a CLI and pick a working directory with a native folder browser; remembers your last-used directory
 - **CLI argument passing** — Pass extra arguments to CLIs with `--` separator syntax (e.g., `agenthub new claude ~/dir -- --arg1`); arguments are remembered per CLI
-- **Terminal theming** — 157 color themes from the xterm-theme library; select in Settings > Appearance, applies live to all open sessions, persists across restarts
+- **Terminal theming** — 138 curated color themes (WCAG-audited for readability across all 4 CLIs); select in Settings > Appearance, applies live to all open sessions including OpenCode (via SIGUSR2 broadcast), persists across restarts with localStorage fallback guard for removed themes
 - **Terminal padding** — 8px inset around terminal content with dynamic background matching the active theme
 - **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
@@ -70,7 +70,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 ### Settings
 - **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
 - **Single scrollable page** — All settings on one page organized by section headers (Appearance, Web Server, Paths) with visual dividers — no sub-tabs
-- **Appearance section** — Theme selector with 157 named color schemes; selected theme applies live to all terminals and persists in localStorage
+- **Appearance section** — Theme selector with 138 curated color schemes; selected theme applies live to all terminals and persists in localStorage
 - **Web Server section** — Start/stop web server with mode-aware status display; URL actions (open in browser, copy to clipboard, inline QR code); local network password with click-to-copy
 - **Paths section** — Override auto-detected CLI paths per agent
 - **Tailscale status indicator** — Color-coded dot showing Tailscale connection state (Connected / Not Connected / Not Installed)
@@ -368,7 +368,7 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | Backend | Go 1.22+ |
 | Frontend | React 19, TypeScript, Vite |
 | Terminal | [xterm.js](https://xtermjs.org) v6 |
-| Terminal themes | [xterm-theme](https://www.npmjs.com/package/xterm-theme) — 157 iTerm2-compatible color schemes |
+| Terminal themes | [xterm-theme](https://www.npmjs.com/package/xterm-theme) — 138 curated schemes (WCAG-audited from 157 candidates) |
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |

@@ -229,7 +229,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
               <option key={name} value={name}>{name.replace(/_/g, ' ')}</option>
             ))}
           </select>
-          <p className="settings-panel__description">Themes may not apply correctly to existing sessions. Only sessions created after selecting a new theme will display as intended.</p>
+          <p className="settings-panel__description" style={{ marginTop: '0.5rem' }}>Themes may not apply correctly to existing sessions. Only sessions created after selecting a new theme will display as intended.</p>
         </div>
 
         {/* Web Server section (SETT-02) */}
@@ -247,6 +247,15 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             )}
             <span className="ts-status__text">{tailscaleStatusText(tailscaleHealth)}</span>
           </div>
+          <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
+            {tailscaleHealth
+              ? (tailscaleHealth.connected
+                  ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
+                  : tailscaleHealth.installed
+                    ? 'Daemon running but not connected'
+                    : 'Not detected \u2014 install from tailscale.com')
+              : 'Checking\u2026'}
+          </p>
         </div>
 
         {/* CT Disclosure Banner */}
@@ -410,10 +419,9 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </table>
         )}
 
-        {/* Tailscale path row — always shown even if not in detected CLIs */}
-        {(() => {
-          const tsCli = clis.find(c => c.Name === 'tailscale')
-          const tsPath = customPaths['tailscale'] ?? tsCli?.Path ?? ''
+        {/* Tailscale path row — only shown if not already in detected CLIs */}
+        {!clis.find(c => c.Name === 'tailscale') && (() => {
+          const tsPath = customPaths['tailscale'] ?? ''
           return (
             <table className="settings-panel__table" style={{ marginTop: '0.75rem' }}>
               <thead>
@@ -433,7 +441,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
                       onChange={(e) =>
                         setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
                       }
-                      placeholder={tsCli?.Path || 'Path to tailscale'}
+                      placeholder="Path to tailscale"
                     />
                   </td>
                 </tr>
@@ -441,15 +449,6 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             </table>
           )
         })()}
-        <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
-          {tailscaleHealth
-            ? (tailscaleHealth.connected
-                ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
-                : tailscaleHealth.installed
-                  ? 'Daemon running but not connected'
-                  : 'Not detected \u2014 enter path above or install from tailscale.com')
-            : 'Checking\u2026'}
-        </p>
 
         {error && <p className="settings-panel__error">{error}</p>}
 
