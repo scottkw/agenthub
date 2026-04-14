@@ -262,7 +262,7 @@ Plans:
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 5/5 | Complete   | 2026-04-13 |
 | 72. UI Contrast Improvement | v1.14 | 2/2 | Complete    | 2026-04-14 |
-| 73. Theme Usability Audit | v1.14 | 1/1 | Complete   | 2026-04-14 |
+| 73. Theme Usability Audit | v1.14 | 1/1 | Complete    | 2026-04-14 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
