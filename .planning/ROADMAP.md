@@ -223,7 +223,7 @@ Plans:
   4. Welcome screen content text (tagline, instructions, version) is legible without straining
 **Plans**: 2 plans
 Plans:
-- [ ] 72-01-PLAN.md — WCAG contrast regression test file (Wave 0 RED state)
+- [x] 72-01-PLAN.md — WCAG contrast regression test file (Wave 0 RED state)
 - [ ] 72-02-PLAN.md — Replace all #565f89 text colors with #9aa5ce + visual verification
 **UI hint**: yes
 
@@ -259,7 +259,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 5/5 | Complete   | 2026-04-13 |
-| 72. UI Contrast Improvement | v1.14 | 0/2 | Not started | - |
+| 72. UI Contrast Improvement | v1.14 | 1/2 | In Progress|  |
 | 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
 
 ---
