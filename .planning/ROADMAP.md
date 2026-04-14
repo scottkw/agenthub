@@ -178,7 +178,7 @@
 - [ ] **Phase 70: Sidebar Icon Position Stability** — Fix icon horizontal shift on sidebar collapse/expand (GitHub #20) (completed 2026-04-13)
 - [x] **Phase 71: OpenCode Theming Fix** — Investigate and fix OpenCode ignoring selected terminal theme (GitHub #17) (completed 2026-04-13)
 - [x] **Phase 72: UI Contrast Improvement** — Brighten UI text to meet WCAG AA contrast ratio (GitHub #23) (completed 2026-04-14)
-- [ ] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21)
+- [x] **Phase 73: Theme Usability Audit** — Evaluate all 157 themes across 4 agents, remove unusable themes from picker (GitHub #21) (completed 2026-04-14)
 
 ## Phase Details
 
@@ -238,7 +238,7 @@ Plans:
   4. At least one light-background and one dark-background theme survive the audit (user has both options)
 **Plans**: 1 plan
 Plans:
-- [ ] 73-01-PLAN.md — Allowlist-only theme picker + localStorage fallback guard + tests
+- [x] 73-01-PLAN.md — Allowlist-only theme picker + localStorage fallback guard + tests
 **UI hint**: yes
 
 ## Progress
@@ -262,7 +262,7 @@ Plans:
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 5/5 | Complete   | 2026-04-13 |
 | 72. UI Contrast Improvement | v1.14 | 2/2 | Complete    | 2026-04-14 |
-| 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
+| 73. Theme Usability Audit | v1.14 | 1/1 | Complete   | 2026-04-14 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
