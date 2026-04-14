@@ -221,12 +221,10 @@ Plans:
   2. Tab titles in the tab bar are clearly legible against the tab bar background
   3. Settings page labels, section headers, and control text meet WCAG AA contrast (4.5:1 for normal text, 3:1 for large text)
   4. Welcome screen content text (tagline, instructions, version) is legible without straining
-**Plans**: 4 plans
+**Plans**: 2 plans
 Plans:
-- [x] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
-- [x] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
-- [x] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
-- [x] 71-04-PLAN.md — Manual UAT: visual theme switching verification
+- [ ] 72-01-PLAN.md — WCAG contrast regression test file (Wave 0 RED state)
+- [ ] 72-02-PLAN.md — Replace all #565f89 text colors with #9aa5ce + visual verification
 **UI hint**: yes
 
 ### Phase 73: Theme Usability Audit
@@ -238,12 +236,7 @@ Plans:
   2. Themes that produce unreadable text, invisible cursors, or indistinguishable ANSI colors in any of the 4 agents are removed from the picker
   3. The theme picker lists only the surviving subset of the original 157 themes
   4. At least one light-background and one dark-background theme survive the audit (user has both options)
-**Plans**: 4 plans
-Plans:
-- [x] 71-01-PLAN.md — Wave 0 test stubs + fix pre-existing detect test
-- [x] 71-02-PLAN.md — Managed tui.json writer + per-CLI env var injection
-- [x] 71-03-PLAN.md — Integration test: empirical ANSI capture verification
-- [ ] 71-04-PLAN.md — Manual UAT: visual theme switching verification
+**Plans**: [To be planned]
 **UI hint**: yes
 
 ## Progress
@@ -266,7 +259,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70. Sidebar Icon Position Stability | v1.14 | 1/1 | Complete    | 2026-04-13 |
 | 71. OpenCode Theming Fix | v1.14 | 5/5 | Complete   | 2026-04-13 |
-| 72. UI Contrast Improvement | v1.14 | 0/0 | Not started | - |
+| 72. UI Contrast Improvement | v1.14 | 0/2 | Not started | - |
 | 73. Theme Usability Audit | v1.14 | 0/0 | Not started | - |
 
 ---
