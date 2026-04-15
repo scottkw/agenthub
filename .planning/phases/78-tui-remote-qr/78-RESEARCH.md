@@ -434,17 +434,19 @@ not enabled"  (remote: entry.URL)
 | A2 | Selection restoration by entry ID+kind is sufficient to prevent cursor jump on list rebuild | Pitfall 5 | Medium -- may need fallback to "clamp to nearest" |
 | A3 | Remote fetch can run in parallel with local fetch in tea.Batch without contention on m.client | Pitfall 4 | Low -- DaemonClient uses HTTP with connection pooling, safe for concurrent use |
 
-## Open Questions
+## Open Questions (RESOLVED) / Risks
 
 1. **Remote attach from TUI**
    - What we know: UI-SPEC says Enter on a remote session attaches via `hostname:id` syntax. `cmdAttachRemote` in `cmd_attach.go` handles this flow.
    - What's unclear: The current TUI `attachCmd` only handles local sessions (dials `ws://127.0.0.1:{port}`). Remote attach needs WSS to the peer's FQDN.
    - Recommendation: Extend `attachCmd` to accept a remote flag and WSS URL. Or inject a remote-attach callback similar to the remote-fetch callback. This is a functional extension of the attach flow from Plan 77-02.
+   - **RESOLVED:** Deferred with a toast ("Remote attach not yet supported") in Plan 01 Task 2 -- out of Phase 78 scope. To be handled by a future phase.
 
 2. **Sorting order of peer groups**
    - What we know: CLI `cmdList` iterates a map (undefined order). GUI sorts by hostname implicitly via React key ordering.
    - What's unclear: Should TUI sort peer groups alphabetically by hostname?
    - Recommendation: Sort alphabetically. This is deterministic and matches user expectations.
+   - **RESOLVED:** Alphabetical by hostname in Plan 01 Task 1 (cmd_tui.go fetchRemoteFn callback uses sort.Slice).
 
 ## Environment Availability
 
