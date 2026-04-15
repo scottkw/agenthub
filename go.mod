@@ -3,6 +3,9 @@ module github.com/scottkw/agenthub
 go 1.26.1
 
 require (
+	charm.land/bubbles/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.0.5
+	charm.land/lipgloss/v2 v2.0.3
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/aymanbagabas/go-pty v0.2.2
 	github.com/coder/websocket v1.8.14
@@ -19,9 +22,6 @@ require (
 )
 
 require (
-	charm.land/bubbles/v2 v2.1.0 // indirect
-	charm.land/bubbletea/v2 v2.0.5 // indirect
-	charm.land/lipgloss/v2 v2.0.3 // indirect
 	code.gitea.io/sdk/gitea v0.22.1 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/42wim/httpsig v1.2.3 // indirect
