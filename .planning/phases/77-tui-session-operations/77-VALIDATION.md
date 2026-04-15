@@ -49,8 +49,8 @@ linked_at: 2026-04-15
 | 77-02-T2 | 77-02 | 2 | TUI-03 | T-77-PATH, T-77-DOS | attachCmd uses sessionID by value; tea.Exec dispatched; errored sessions blocked; defer term.Restore | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
 | 77-03-T1 | 77-03 | 2 | TUI-05, TUI-06 | T-77-INJ | Kill dialog renders session name via fmt.Sprintf %q + Lip Gloss; no raw ANSI; FgDanger for title | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
 | 77-03-T2 | 77-03 | 2 | TUI-05, TUI-06 | T-77-DOS | Kill confirm state: default No, y/n shortcuts, toggle, session killed toast; rename: empty rejected, same-name no-op, nav suppressed | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
-| 77-04-T1 | 77-04 | 2 | TUI-04 | T-77-PATH, T-77-INJ | Agent names from DetectCLIs (controlled); dir/args via textinput (safe); no client-side path validation | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
-| 77-04-T2 | 77-04 | 2 | TUI-04 | T-77-DOS | Focus cycling modular arithmetic; agent cycling modular; textinput delegation single Update; DetectCLIs cached | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
+| 77-04-T1 | 77-04 | 3 | TUI-04 | T-77-PATH, T-77-INJ | Agent names from DetectCLIs (controlled); dir/args via textinput (safe); no client-side path validation | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
+| 77-04-T2 | 77-04 | 3 | TUI-04 | T-77-DOS | Focus cycling modular arithmetic; agent cycling modular; textinput delegation single Update; DetectCLIs cached | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

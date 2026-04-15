@@ -670,22 +670,25 @@ func (m Model) handleRenameKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 | A2 | `SIGWINCH` watcher goroutine from `watchResize()` will work during tea.Exec because the program is still alive | Pattern 1 | If SIGWINCH is blocked during Exec, terminal resize during attach won't propagate -- minor UX issue |
 | A3 | Extracting attach logic to `internal/attach` package will not break `cmd_attach.go` callers | Pitfall 5 | If extraction introduces import cycles, must use option (b) duplication instead |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **SIGWINCH during tea.Exec**
    - What we know: `tea.Exec` calls `releaseTerminal` which sets `ignoreSignals=1`. The `watchResize` goroutine from `cmd_attach.go` listens for SIGWINCH separately.
    - What's unclear: When the attach ExecCommand starts, does it need its own SIGWINCH watcher? The existing `watchResize()` in `cmd_attach.go` sets up its own signal channel.
    - Recommendation: The `attachCmd.Run()` should call `watchResize(ctx, conn)` to handle resize during attach, just like `cmd_attach.go` does. Bubble Tea's signal suppression is irrelevant because `watchResize` registers its own signal handler.
+   - **RESOLVED:** `attachCmd.Run()` calls `watchResize(ctx, conn)` to register its own SIGWINCH handler, independent of Bubble Tea's signal suppression. Implemented in Plan 77-02.
 
 2. **Shared attach logic extraction**
    - What we know: `attachSession()`, `stdinPump()`, `wsOutputPump()`, `lockedWriter`, and `makeClientResizeFrame()` are in `package main`.
    - What's unclear: Whether extracting to `internal/attach` will cause import cycles with other main-package functions.
    - Recommendation: Analyze imports. These functions depend on `relay`, `statusbar`, `websocket`, and `term` -- all internal packages. No cycle risk. `parseRemoteID` and remote-specific functions stay in main.
+   - **RESOLVED:** Extract to `internal/attach` package (option a). Dependencies are all internal packages with no cycle risk. `parseRemoteID` and remote-specific functions stay in main. Implemented in Plan 77-02.
 
 3. **textinput virtual cursor vs real cursor**
    - What we know: `textinput.New()` defaults to `useVirtualCursor: true` with `CursorBlock` shape.
    - What's unclear: Whether virtual cursor rendering conflicts with Bubble Tea's own cursor management during modal display.
    - Recommendation: Use default virtual cursor. If rendering issues appear, switch to real cursor via `ti.SetVirtualCursor(false)`.
+   - **RESOLVED:** Use default virtual cursor (`useVirtualCursor: true`). Fallback to `ti.SetVirtualCursor(false)` available if rendering issues appear. Plans 77-03 and 77-04 use `textinput.New()` defaults.
 
 ## Validation Architecture
 
