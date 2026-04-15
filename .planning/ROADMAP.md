@@ -187,7 +187,7 @@
 ### v2.0 Multi-Client, CLI UX & TUI Mode (In Progress)
 
 - [x] **Phase 74: Multi-Client Fan-Out** — Wire relay/Hub for simultaneous WebSocket clients, independent scrollback, read-only mode, connection metadata, and PTY resize arbitration (GitHub #13) (completed 2026-04-15)
-- [ ] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8)
+- [x] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8) (completed 2026-04-15)
 - [ ] **Phase 76: TUI Foundation** — `agenthub tui` command with Bubble Tea v2 session list, web server status footer, and help overlay (GitHub #7)
 - [ ] **Phase 77: TUI Session Operations** — Attach (suspend/resume raw PTY), create modal, kill confirmation, and rename from TUI (GitHub #7)
 - [ ] **Phase 78: TUI Remote & QR** — Remote tailnet sessions panel and ASCII QR code display in TUI (GitHub #7)
@@ -220,11 +220,11 @@ Plans:
   3. Running `agenthub attach ... | cat` produces no status bar output (suppressed when stdout is not a TTY)
   4. When a second client connects, the bar updates to show the viewer count (e.g. "2 viewers")
   5. Detaching or exiting removes the bar line and restores the terminal to its pre-attach state — no leftover artifacts
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 75-01-PLAN.md — MsgMeta protocol extension + Hub.BroadcastMeta + viewer count push in relay/webserver
 - [x] 75-02-PLAN.md — internal/statusbar package: Bar type with DECSTBM scroll region, format, tick loop, tests
-- [ ] 75-03-PLAN.md — CLI integration: lockedWriter, --status-top flag, bar wiring in local/remote attach, MsgMeta intercept
+- [x] 75-03-PLAN.md — CLI integration: lockedWriter, --status-top flag, bar wiring in local/remote attach, MsgMeta intercept
 
 ### Phase 76: TUI Foundation
 **Goal**: `agenthub tui` launches a usable terminal UI that lists all sessions with key metadata, shows web server status, and provides a discoverable help overlay
@@ -280,7 +280,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 75. CLI Status Bar | v2.0 | 2/3 | In Progress|  |
+| 75. CLI Status Bar | v2.0 | 3/3 | Complete   | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 0/? | Not started | - |
 | 77. TUI Session Operations | v2.0 | 0/? | Not started | - |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
