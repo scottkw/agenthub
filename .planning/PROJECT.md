@@ -132,7 +132,14 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(None — planning next milestone)
+## Current Milestone: v2.0 Multi-Client, CLI UX & TUI Mode
+
+**Goal:** Add multi-client session support, tmux-style CLI attach status bar, and a near-GUI-parity terminal UI mode.
+
+**Target features:**
+- Multi-client session connections — shared live output with independent scrollback per client (GitHub #13)
+- tmux-style persistent bottom status bar for CLI remote attach — session name, agent, host, detach hint, elapsed time (GitHub #8)
+- Near-GUI parity TUI mode — full terminal UI as alternative to desktop GUI (GitHub #7)
 
 ## Current State
 
@@ -286,4 +293,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 after v1.14 milestone*
+*Last updated: 2026-04-14 after v2.0 milestone start*
