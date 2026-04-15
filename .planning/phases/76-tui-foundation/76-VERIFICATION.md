@@ -1,9 +1,11 @@
 ---
 phase: 76-tui-foundation
 verified: 2026-04-15T14:00:00Z
-status: human_needed
+uat_resolved: 2026-04-15T14:35:00Z
+status: passed
 score: 19/19
 overrides_applied: 0
+human_verification_resolution: "All 7 human UAT items passed — see 76-HUMAN-UAT.md for evidence. Items 1–6 verified by user in live terminal; item 7 verified by orchestrator (original `tui | cat` test captures cat's exit, not tui's — correct test `tui < /dev/null > /dev/null 2>&1 ; echo \\$?` returns 1 as designed)."
 human_verification:
   - test: "Run `agenthub tui` in a real terminal, navigate the session list, press q to quit"
     expected: "Alt-screen enters cleanly, prior shell scrollback returns intact after quit"
