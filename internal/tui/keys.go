@@ -11,8 +11,10 @@ type KeyMap struct {
 	Refresh key.Binding
 	Top     key.Binding
 	Bottom  key.Binding
-	Attach  key.Binding // reserved -- Phase 77
-	New     key.Binding // reserved -- Phase 77
+	Attach  key.Binding
+	New     key.Binding
+	Kill    key.Binding // Phase 77
+	Rename  key.Binding // Phase 77
 }
 
 func defaultKeyMap() KeyMap {
@@ -34,8 +36,8 @@ func defaultKeyMap() KeyMap {
 			key.WithHelp("\u2193/j", "move down"),
 		),
 		Refresh: key.NewBinding(
-			key.WithKeys("r"),
-			key.WithHelp("r", "refresh list"),
+			key.WithKeys("R"),
+			key.WithHelp("R", "refresh list"),
 		),
 		Top: key.NewBinding(
 			key.WithKeys("g", "home"),
@@ -52,6 +54,14 @@ func defaultKeyMap() KeyMap {
 		New: key.NewBinding(
 			key.WithKeys("n"),
 			key.WithHelp("n", "new session"),
+		),
+		Kill: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "kill session"),
+		),
+		Rename: key.NewBinding(
+			key.WithKeys("r"),
+			key.WithHelp("r", "rename session"),
 		),
 	}
 }

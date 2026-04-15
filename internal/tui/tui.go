@@ -3,6 +3,7 @@ package tui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/pty"
 )
 
 // Run starts the Bubble Tea TUI program. Blocks until the user quits.
@@ -17,10 +18,11 @@ func Run(client *daemon.DaemonClient) error {
 // Assumes dark background until tea.BackgroundColorMsg arrives.
 func newModel(client *daemon.DaemonClient) Model {
 	return Model{
-		client:  client,
-		loading: true,
-		keys:    defaultKeyMap(),
-		styles:  newStyles(true), // assume dark until BackgroundColorMsg
+		client:       client,
+		loading:      true,
+		keys:         defaultKeyMap(),
+		styles:       newStyles(true), // assume dark until BackgroundColorMsg
+		detectedCLIs: pty.DetectCLIs(),
 	}
 }
 

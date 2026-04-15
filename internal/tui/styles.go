@@ -22,6 +22,14 @@ type Styles struct {
 	WebOff        color.Color
 	BorderNormal  color.Color
 	BorderAccent  color.Color
+
+	// Phase 77 modal + danger tokens
+	BgModal        color.Color
+	FgDanger       color.Color
+	FgInput        color.Color
+	BgInput        color.Color
+	FgPlaceholder  color.Color
+	FgFocusedLabel color.Color
 }
 
 // newStyles creates a Styles with adaptive colors for light or dark terminals.
@@ -42,5 +50,13 @@ func newStyles(hasDark bool) Styles {
 		WebOff:        ld(lipgloss.Color("#949494"), lipgloss.Color("#626262")),
 		BorderNormal:  ld(lipgloss.Color("#BCBCBC"), lipgloss.Color("#444444")),
 		BorderAccent:  ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
+
+		// Phase 77 modal + danger tokens
+		BgModal:        ld(lipgloss.Color("#F5F5F5"), lipgloss.Color("#1C1C1C")),
+		FgDanger:       ld(lipgloss.Color("#D70000"), lipgloss.Color("#FF5F5F")),
+		FgInput:        ld(lipgloss.Color("#000000"), lipgloss.Color("#FFFFFF")),
+		BgInput:        ld(lipgloss.Color("#E4E4E4"), lipgloss.Color("#303030")),
+		FgPlaceholder:  ld(lipgloss.Color("#949494"), lipgloss.Color("#626262")),
+		FgFocusedLabel: ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
 	}
 }
