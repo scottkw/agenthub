@@ -624,3 +624,162 @@ func TestUpdate_CreateSessionMsg(t *testing.T) {
 		t.Errorf("expected error toast, got %q", result2.toast)
 	}
 }
+
+// --- Phase 78: Remote Sessions Tests ---
+
+func testRemoteGroups() []ListRemoteGroup {
+	return []ListRemoteGroup{
+		{
+			Hostname: "laptop-work",
+			Sessions: []RemoteSessionEntry{
+				{ID: "r1", Name: "their-proj", CLIType: "claude", Status: "running", Hostname: "laptop-work", FQDN: "laptop-work.tail.ts.net", URL: "https://laptop-work.tail.ts.net:7443/sessions/r1"},
+				{ID: "r2", Name: "qa-review", CLIType: "opencode", Status: "idle", Hostname: "laptop-work", FQDN: "laptop-work.tail.ts.net", URL: "https://laptop-work.tail.ts.net:7443/sessions/r2"},
+			},
+		},
+	}
+}
+
+func TestUpdate_RemoteSessionsMsg(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local-session", CLI: "claude", Status: "running"},
+	}
+	m.rebuildUnifiedList()
+
+	// Send a remoteSessionsMsg with 1 group of 2 remote sessions
+	groups := testRemoteGroups()
+	updated, _ := m.Update(remoteSessionsMsg{groups: groups})
+	result := updated.(Model)
+
+	// Expect: 1 local + 1 divider + 2 remote = 4 entries
+	if len(result.unifiedList) != 4 {
+		t.Errorf("expected 4 unified list entries (1 local + 1 divider + 2 remote), got %d", len(result.unifiedList))
+	}
+	if result.unifiedList[0].kind != entryLocal {
+		t.Errorf("expected entry 0 to be entryLocal, got %d", result.unifiedList[0].kind)
+	}
+	if result.unifiedList[1].kind != entryDivider {
+		t.Errorf("expected entry 1 to be entryDivider, got %d", result.unifiedList[1].kind)
+	}
+	if result.unifiedList[2].kind != entryRemote {
+		t.Errorf("expected entry 2 to be entryRemote, got %d", result.unifiedList[2].kind)
+	}
+	if result.unifiedList[3].kind != entryRemote {
+		t.Errorf("expected entry 3 to be entryRemote, got %d", result.unifiedList[3].kind)
+	}
+	if len(result.remoteSessions) != 1 {
+		t.Errorf("expected 1 remote group, got %d", len(result.remoteSessions))
+	}
+}
+
+func TestUpdate_NavigationSkipsDividers(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local", CLI: "claude", Status: "running"},
+	}
+	m.remoteSessions = testRemoteGroups()
+	m.rebuildUnifiedList()
+	// List is: [local(0), divider(1), remote(2), remote(3)]
+	m.selected = 0
+
+	// Press j: should skip divider at index 1 and land on remote at index 2
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j'})
+	result := updated.(Model)
+	if result.selected != 2 {
+		t.Errorf("expected selected=2 (skip divider at 1), got %d", result.selected)
+	}
+
+	// Press k: should skip divider at index 1 and land back on local at index 0
+	updated2, _ := result.Update(tea.KeyPressMsg{Code: 'k'})
+	result2 := updated2.(Model)
+	if result2.selected != 0 {
+		t.Errorf("expected selected=0 (skip divider at 1 going up), got %d", result2.selected)
+	}
+}
+
+func TestUpdate_KillRemoteBlocked(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local", CLI: "claude", Status: "running"},
+	}
+	m.remoteSessions = testRemoteGroups()
+	m.rebuildUnifiedList()
+	// List: [local(0), divider(1), remote(2), remote(3)]
+	m.selected = 2 // remote session
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'd'})
+	result := updated.(Model)
+
+	if result.toast != "Cannot kill remote session" {
+		t.Errorf("expected 'Cannot kill remote session' toast, got %q", result.toast)
+	}
+	if result.modal != modalNone {
+		t.Errorf("expected modal=modalNone (no kill dialog for remote), got %d", result.modal)
+	}
+}
+
+func TestUpdate_RenameRemoteBlocked(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local", CLI: "claude", Status: "running"},
+	}
+	m.remoteSessions = testRemoteGroups()
+	m.rebuildUnifiedList()
+	// List: [local(0), divider(1), remote(2), remote(3)]
+	m.selected = 2 // remote session
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'r'})
+	result := updated.(Model)
+
+	if result.toast != "Cannot rename remote session" {
+		t.Errorf("expected 'Cannot rename remote session' toast, got %q", result.toast)
+	}
+	if result.editing {
+		t.Error("expected editing=false (rename blocked on remote session)")
+	}
+}
+
+func TestUpdate_SelectionRestoredAfterRebuild(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local", CLI: "claude", Status: "running"},
+	}
+	m.remoteSessions = testRemoteGroups()
+	m.rebuildUnifiedList()
+	// List: [local(0), divider(1), remote-r1(2), remote-r2(3)]
+	m.selected = 2 // select remote r1
+
+	// Send a new sessionsMsg with the same local sessions -- remote stays the same
+	updated, _ := m.Update(sessionsMsg{sessions: []daemon.SessionInfo{
+		{ID: "1", Name: "local", CLI: "claude", Status: "running"},
+	}})
+	result := updated.(Model)
+
+	// Selection should be restored to the remote session at index 2 (identity: r1:laptop-work)
+	if result.selected != 2 {
+		t.Errorf("expected selected=2 (remote r1 restored), got %d", result.selected)
+	}
+}
+
+func TestUpdate_UnifiedListEmpty(t *testing.T) {
+	m := testModel()
+	// No sessions, no remote groups
+	m.rebuildUnifiedList()
+
+	if len(m.unifiedList) != 0 {
+		t.Errorf("expected empty unifiedList, got %d entries", len(m.unifiedList))
+	}
+
+	// Navigation keys must not panic with empty list
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j'})
+	result := updated.(Model)
+	if result.selected != 0 {
+		t.Errorf("expected selected=0 with empty list, got %d", result.selected)
+	}
+
+	updated2, _ := m.Update(tea.KeyPressMsg{Code: 'k'})
+	result2 := updated2.(Model)
+	if result2.selected != 0 {
+		t.Errorf("expected selected=0 with empty list, got %d", result2.selected)
+	}
+}

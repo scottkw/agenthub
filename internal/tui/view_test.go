@@ -293,3 +293,104 @@ func TestView_NewSessionModal_NoAgents(t *testing.T) {
 		t.Error("modal should show '(none found)' when no CLIs detected")
 	}
 }
+
+// --- Phase 78: Remote Sessions View Tests ---
+
+func TestView_HeaderRemoteCount(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local-a", CLI: "claude", Status: "running"},
+		{ID: "2", Name: "local-b", CLI: "opencode", Status: "idle"},
+	}
+	m.remoteSessions = []ListRemoteGroup{
+		{
+			Hostname: "laptop-work",
+			Sessions: []RemoteSessionEntry{
+				{ID: "r1", Name: "remote-a", CLIType: "claude", Status: "running", Hostname: "laptop-work"},
+				{ID: "r2", Name: "remote-b", CLIType: "claude", Status: "idle", Hostname: "laptop-work"},
+				{ID: "r3", Name: "remote-c", CLIType: "codex", Status: "running", Hostname: "laptop-work"},
+			},
+		},
+	}
+	m.rebuildUnifiedList()
+
+	header := m.renderHeader()
+	if !strings.Contains(header, "2 local, 3 remote") {
+		t.Errorf("header should contain '2 local, 3 remote', got: %q", header)
+	}
+}
+
+func TestView_DividerRow(t *testing.T) {
+	m := testModel()
+	m.width = 80
+
+	// Plural: 2 sessions
+	row := m.renderDividerRow(&peerDivider{Hostname: "laptop-work", SessionCount: 2})
+	if !strings.Contains(row, "Remote: laptop-work (2 sessions)") {
+		t.Errorf("divider row missing hostname/count: %q", row)
+	}
+	if !strings.Contains(row, "\u2500") {
+		t.Errorf("divider row missing box-drawing char U+2500: %q", row)
+	}
+
+	// Singular: 1 session
+	row2 := m.renderDividerRow(&peerDivider{Hostname: "linux-box", SessionCount: 1})
+	if !strings.Contains(row2, "Remote: linux-box (1 session)") {
+		t.Errorf("divider row singular form wrong: %q", row2)
+	}
+}
+
+func TestView_RemoteSessionRow(t *testing.T) {
+	m := testModel()
+	m.width = 120
+
+	entry := &RemoteSessionEntry{
+		ID:       "r1",
+		Name:     "their-proj",
+		CLIType:  "claude",
+		Status:   "running",
+		Hostname: "laptop-work",
+		FQDN:     "laptop-work.tail.ts.net",
+		URL:      "https://laptop-work.tail.ts.net:7443/sessions/r1",
+	}
+
+	row := m.renderRemoteSessionRow(entry, 0)
+	if !strings.Contains(row, "their-proj") {
+		t.Errorf("remote session row missing session name: %q", row)
+	}
+	if !strings.Contains(row, "claude") {
+		t.Errorf("remote session row missing agent type: %q", row)
+	}
+	if !strings.Contains(row, "laptop-work") {
+		t.Errorf("remote session row missing hostname: %q", row)
+	}
+}
+
+func TestView_SessionListWithRemotes(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "local-session", CLI: "claude", Hostname: "macbook", Status: "running"},
+	}
+	m.remoteSessions = []ListRemoteGroup{
+		{
+			Hostname: "laptop-work",
+			Sessions: []RemoteSessionEntry{
+				{ID: "r1", Name: "remote-session", CLIType: "opencode", Status: "idle", Hostname: "laptop-work"},
+			},
+		},
+	}
+	m.rebuildUnifiedList()
+
+	v := m.View()
+	content := v.Content
+
+	if !strings.Contains(content, "local-session") {
+		t.Error("view should contain local session name")
+	}
+	if !strings.Contains(content, "remote-session") {
+		t.Error("view should contain remote session name")
+	}
+	if !strings.Contains(content, "Remote: laptop-work") {
+		t.Error("view should contain divider with peer hostname")
+	}
+}
