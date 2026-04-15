@@ -168,11 +168,13 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.toastExp = time.Now().Add(2 * time.Second)
 			return m, nil
 		}
-		// Attach dispatch placeholder — Plan 77-02 replaces with tea.Exec
-		m.toast = "Attaching..."
-		m.toastKind = toastInfo
-		m.toastExp = time.Now().Add(2 * time.Second)
-		return m, nil
+		cmd := &attachCmd{
+			client:    m.client,
+			sessionID: m.sessions[m.selected].ID,
+		}
+		return m, tea.Exec(cmd, func(err error) tea.Msg {
+			return attachDoneMsg{err: err}
+		})
 
 	case key.Matches(msg, m.keys.New):
 		return m.openNewSessionModal()
