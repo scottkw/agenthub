@@ -266,7 +266,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The TUI session list (or a dedicated panel) shows remote sessions from tailnet peers grouped the same way as the GUI Remote Sessions panel
   2. Triggering QR display for a session renders a readable ASCII QR code for the session's web URL directly in the terminal
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 78-01-PLAN.md — Remote sessions in unified list: types, fetch callback, divider rows, navigation, tests
+- [ ] 78-02-PLAN.md — QR code overlay: key reassignment (q->QR, Q->Quit), renderQROverlay, help/hint updates, tests
+- [ ] 78-03-PLAN.md — Integration tests: end-to-end remote + QR flow validation
 **UI hint**: yes
 
 ## Progress
@@ -292,7 +296,7 @@ Plans:
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 77. TUI Session Operations | v2.0 | 4/4 | Complete    | 2026-04-15 |
-| 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
+| 78. TUI Remote & QR | v2.0 | 0/3 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
