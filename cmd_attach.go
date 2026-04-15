@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -26,10 +27,16 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 		return fmt.Errorf("usage: agenthub attach <session-id>")
 	}
 
-	// Parse optional --detach-key flag. Default: Ctrl-backslash (0x1C).
+	// Parse optional flags. Default detach key: Ctrl-backslash (0x1C).
 	detachKey := byte(0x1C)
+	readOnly := false
+	clientName := ""
 	for _, arg := range args[1:] {
-		if len(arg) > 13 && arg[:13] == "--detach-key=" {
+		if arg == "--readonly" {
+			readOnly = true
+		} else if len(arg) > 9 && arg[:9] == "--client=" {
+			clientName = arg[9:]
+		} else if len(arg) > 13 && arg[:13] == "--detach-key=" {
 			val := arg[13:]
 			switch val {
 			case `ctrl-\`, "ctrl-backslash":
@@ -76,7 +83,23 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 		return fmt.Errorf("attach: session %q not found", sessionID)
 	}
 
-	wsURL := fmt.Sprintf("ws://127.0.0.1:%d/sessions/%s/ws", port, sessionID)
+	// MC-03, MC-05: build WebSocket URL with optional query params.
+	u := url.URL{
+		Scheme: "ws",
+		Host:   fmt.Sprintf("127.0.0.1:%d", port),
+		Path:   fmt.Sprintf("/sessions/%s/ws", sessionID),
+	}
+	q := url.Values{}
+	if readOnly {
+		q.Set("readonly", "1")
+	}
+	if clientName != "" {
+		q.Set("client", clientName)
+	}
+	if len(q) > 0 {
+		u.RawQuery = q.Encode()
+	}
+	wsURL := u.String()
 
 	// Create signal context that cancels on SIGTERM or SIGHUP.
 	// Do NOT catch SIGINT — in raw mode Ctrl-C is byte 0x03, not a signal.
