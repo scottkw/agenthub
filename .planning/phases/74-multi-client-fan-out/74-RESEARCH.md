@@ -462,7 +462,7 @@ func buildRelayURL(port int, sessionID, clientName string, readOnly bool) string
 | A2 | URL query parameters are preferred over a new binary MsgMeta frame type for passing client identity | Architecture Patterns — Pattern 5 | If future phases need post-connect metadata updates, query params won't work; acceptable for current scope |
 | A3 | `Hub.Resize(cols, rows int)` should remain as a public method (not removed) | Common Pitfalls — Pitfall 4 | Removing it breaks existing callers (relay/server.go call site); plan must update all call sites or keep the method |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `--readonly` also suppress scrollback replay or just input?**
    - What we know: MC-03 says "input suppressed, output received" — scrollback replay is output
