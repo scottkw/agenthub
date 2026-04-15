@@ -291,7 +291,7 @@ Plans:
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 77. TUI Session Operations | v2.0 | 4/4 | Complete   | 2026-04-15 |
+| 77. TUI Session Operations | v2.0 | 4/4 | Complete    | 2026-04-15 |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
 
 ---

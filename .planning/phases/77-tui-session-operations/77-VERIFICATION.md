@@ -1,7 +1,8 @@
 ---
 phase: 77-tui-session-operations
 verified: 2026-04-15T16:10:00Z
-status: human_needed
+status: passed
+uat_resolved_at: 2026-04-15T17:20:00Z
 score: 4/4
 overrides_applied: 0
 human_verification:
@@ -23,7 +24,7 @@ human_verification:
 
 **Phase Goal:** Users can perform the full session lifecycle from TUI -- attach to run, create new, kill, and rename -- without leaving the terminal interface
 **Verified:** 2026-04-15T16:10:00Z
-**Status:** human_needed
+**Status:** passed (UAT resolved 2026-04-15T17:20:00Z — all 4 human verification items confirmed by user)
 **Re-verification:** No -- initial verification
 
 ## Goal Achievement
