@@ -2,13 +2,14 @@ package daemon
 
 // SessionInfo is the JSON-serialisable representation of a session.
 type SessionInfo struct {
-	ID         string `json:"id"`
-	CLI        string `json:"cli"`
-	Name       string `json:"name"`
-	State      string `json:"state"`
-	CreatedAt  string `json:"createdAt"`
-	Hostname   string `json:"hostname"`
-	WebEnabled bool   `json:"webEnabled"`
+	ID          string `json:"id"`
+	CLI         string `json:"cli"`
+	Name        string `json:"name"`
+	State       string `json:"state"`
+	CreatedAt   string `json:"createdAt"`
+	Hostname    string `json:"hostname"`
+	WebEnabled  bool   `json:"webEnabled"`
+	ViewerCount int    `json:"viewerCount"` // MC-04: number of active WebSocket subscribers
 }
 
 // CreateRequest is the request body for POST /sessions.

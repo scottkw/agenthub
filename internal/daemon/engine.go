@@ -144,13 +144,23 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			state = "stopped"
 		}
 		name := e.tabNames[s.ID]
+
+		// MC-04: populate viewer count from hub subscriber count.
+		// manager.Get acquires HubManager.mu; SubscriberCount acquires hub.mu.
+		// Both are safe to call while holding e.mu.RLock (no lock ordering conflict).
+		viewerCount := 0
+		if hub, ok := e.manager.Get(s.ID); ok {
+			viewerCount = hub.SubscriberCount()
+		}
+
 		result = append(result, SessionInfo{
-			ID:        s.ID,
-			CLI:       s.CLI,
-			Name:      name,
-			State:     state,
-			CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Hostname:  e.hostname,
+			ID:          s.ID,
+			CLI:         s.CLI,
+			Name:        name,
+			State:       state,
+			CreatedAt:   s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Hostname:    e.hostname,
+			ViewerCount: viewerCount,
 		})
 	}
 	return result
