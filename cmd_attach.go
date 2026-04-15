@@ -208,7 +208,9 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	} else {
 		remoteSessions, fetchErr = fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
 	}
-	_ = fetchErr // fetchPeerSessions returns empty slice on error
+	if fetchErr != nil {
+		return fmt.Errorf("attach: cannot reach remote host %q: %w", hostname, fetchErr)
+	}
 
 	var session *CLIRemoteSession
 	for _, s := range remoteSessions {
