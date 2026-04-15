@@ -1,10 +1,11 @@
 ---
 phase: 74
 slug: multi-client-fan-out
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: audited
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-14
+audited: 2026-04-14
 ---
 
 # Phase 74 — Validation Strategy
@@ -38,12 +39,12 @@ created: 2026-04-14
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 74-01-01 | 01 | 1 | MC-01 | — | N/A | integration | `go test ./internal/relay/ -run TestHub_TwoClientsFanOut` | TBD | ⬜ pending |
-| 74-01-02 | 01 | 1 | MC-02 | — | N/A | unit | `go test ./internal/relay/ -run TestHub_IndependentScrollback` | TBD | ⬜ pending |
-| 74-01-03 | 01 | 1 | MC-03 | T-74-01 | ReadOnly client input discarded at hub | unit | `go test ./internal/relay/ -run TestHub_ReadOnlyClientInputDiscarded` | ❌ W0 | ⬜ pending |
-| 74-01-04 | 01 | 1 | MC-04 | — | N/A | integration | `go test ./internal/daemon/ -run TestAPI_ListSessionsViewerCount` | ❌ W0 | ⬜ pending |
-| 74-01-05 | 01 | 1 | MC-05 | — | N/A | unit | `go test ./internal/relay/ -run TestHub_ClientNameStoredOnSubscriber` | ❌ W0 | ⬜ pending |
-| 74-01-06 | 01 | 1 | MC-06 | — | N/A | unit | `go test ./internal/relay/ -run TestHub_ResizeMaxWinsPolicy` | ❌ W0 | ⬜ pending |
+| 74-01-01 | 01 | 1 | MC-01 | — | N/A | integration | `go test ./internal/relay/ -run TestHub_TwoClientsFanOut` | ✅ | ✅ green |
+| 74-01-02 | 01 | 1 | MC-02 | — | N/A | integration | `go test ./internal/relay/ -run TestHub_ReconnectScrollback` | ✅ | ✅ green |
+| 74-01-03 | 01 | 1 | MC-03 | T-74-01 | ReadOnly client input discarded at server | integration | `go test ./internal/relay/ -run TestServer_ReadOnlyClientInputDiscarded` | ✅ | ✅ green |
+| 74-01-04 | 01 | 1 | MC-04 | — | N/A | integration | `go test ./internal/daemon/ -run TestAPI_ListSessionsViewerCount` | ✅ | ✅ green |
+| 74-01-05 | 01 | 1 | MC-05 | — | N/A | unit+integration | `go test ./internal/relay/ -run 'TestHub_ClientNameStored\|TestServer_ClientNameQueryParam'` | ✅ | ✅ green |
+| 74-01-06 | 01 | 1 | MC-06 | — | N/A | unit | `go test ./internal/relay/ -run 'TestHub_ResizeMaxWins\|TestHub_ResizeClient'` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,10 +52,11 @@ created: 2026-04-14
 
 ## Wave 0 Requirements
 
-- [ ] `internal/relay/hub_test.go` — stubs for TestHub_ReadOnlyClientInputDiscarded, TestHub_ResizeMaxWinsPolicy, TestHub_ClientNameStoredOnSubscriber
-- [ ] `internal/daemon/api_test.go` — stub for TestAPI_ListSessionsViewerCount
+- [x] `internal/relay/hub_test.go` — TestHub_ReadOnlyFlagStored, TestHub_ResizeMaxWinsPolicy, TestHub_ClientNameStored, TestHub_ResizeClientNoOpWhenDimensionsUnchanged, TestHub_ResizeClientUnsubscribeDoesNotShrink
+- [x] `internal/relay/server_test.go` — TestServer_ReadOnlyClientInputDiscarded, TestServer_ReadOnlyClientReceivesOutput, TestServer_ClientNameQueryParam
+- [x] `internal/daemon/api_test.go` — TestAPI_ListSessionsViewerCount
 
-*Existing test infrastructure covers framework and fixtures.*
+*All Wave 0 tests implemented and passing.*
 
 ---
 
@@ -67,13 +69,25 @@ created: 2026-04-14
 
 ---
 
+## Validation Audit 2026-04-14
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 6 requirements have automated test coverage. Test name corrections applied (VALIDATION.md draft had placeholder names that differed from actual implementations). All tests green under `go test ./internal/relay/... ./internal/daemon/... -count=1 -timeout 30s -short`.
+
+---
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-04-14
