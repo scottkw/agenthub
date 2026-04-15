@@ -61,6 +61,7 @@ func (m Model) buildHelpContent() string {
 	sections = append(sections, groupStyle.Render("Sessions"))
 	sections = append(sections,
 		formatBinding("Enter", "Attach to session"),
+		formatBinding("q", "QR code / URL"),
 		formatBinding("n", "New session"),
 		formatBinding("d", "Kill session"),
 		formatBinding("r", "Rename session"),
@@ -71,7 +72,7 @@ func (m Model) buildHelpContent() string {
 	sections = append(sections, groupStyle.Render("General"))
 	sections = append(sections,
 		formatBinding("?", "Toggle help"),
-		formatBinding("q, Ctrl+C", "Quit"),
+		formatBinding("Q, Ctrl+C", "Quit"),
 	)
 
 	// Close hint

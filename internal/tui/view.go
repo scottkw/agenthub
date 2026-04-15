@@ -66,7 +66,10 @@ func (m Model) renderFull() string {
 	if m.modal == modalKillConfirm {
 		return m.renderKillConfirmModal()
 	}
-	// QR overlay (Phase 78 Plan 02 will add: if m.qrSession != nil { return m.renderQROverlay() })
+	// QR overlay (Phase 78)
+	if m.qrSession != nil {
+		return m.renderQROverlay()
+	}
 
 	return content
 }
@@ -327,7 +330,7 @@ func (m Model) renderWebStatus() string {
 	}
 
 	helpHint := lipgloss.NewStyle().Foreground(m.styles.FgAccent).Render("? Help")
-	quitHint := lipgloss.NewStyle().Foreground(m.styles.FgAccent).Render("q Quit")
+	quitHint := lipgloss.NewStyle().Foreground(m.styles.FgAccent).Render("Q Quit")
 
 	right := helpHint + "  " + quitHint
 
@@ -356,7 +359,7 @@ func (m Model) renderWebStatus() string {
 
 // renderHintBar renders the keybinding hint bar (bottom-most footer line).
 func (m Model) renderHintBar() string {
-	hint := "j/k Up/Down  Enter Attach  n New  d Kill  r Rename  ? Help  q Quit"
+	hint := "j/k Up/Down  Enter Attach  q QR  n New  d Kill  r Rename  ? Help  Q Quit"
 	return lipgloss.NewStyle().Foreground(m.styles.FgMuted).
 		Width(m.width).Render(hint)
 }

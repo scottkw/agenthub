@@ -15,13 +15,14 @@ type KeyMap struct {
 	New     key.Binding
 	Kill    key.Binding // Phase 77
 	Rename  key.Binding // Phase 77
+	QR      key.Binding // Phase 78
 }
 
 func defaultKeyMap() KeyMap {
 	return KeyMap{
 		Quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "quit"),
+			key.WithKeys("Q", "ctrl+c"),
+			key.WithHelp("Q", "quit"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
@@ -62,6 +63,10 @@ func defaultKeyMap() KeyMap {
 		Rename: key.NewBinding(
 			key.WithKeys("r"),
 			key.WithHelp("r", "rename session"),
+		),
+		QR: key.NewBinding(
+			key.WithKeys("q"),
+			key.WithHelp("q", "QR code / URL"),
 		),
 	}
 }
