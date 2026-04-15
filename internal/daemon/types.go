@@ -6,6 +6,7 @@ type SessionInfo struct {
 	CLI         string `json:"cli"`
 	Name        string `json:"name"`
 	State       string `json:"state"`
+	Status      string `json:"status"` // heuristic status: running/idle/waiting/errored
 	CreatedAt   string `json:"createdAt"`
 	Hostname    string `json:"hostname"`
 	WebEnabled  bool   `json:"webEnabled"`

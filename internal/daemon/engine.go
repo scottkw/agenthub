@@ -153,11 +153,20 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			viewerCount = hub.SubscriberCount()
 		}
 
+		// Heuristic status from detector (running/idle/waiting/errored).
+		heuristicStatus := string(status.StatusRunning) // conservative default
+		e.statusMu.RLock()
+		if hs, ok := e.sessionStatuses[s.ID]; ok {
+			heuristicStatus = string(hs)
+		}
+		e.statusMu.RUnlock()
+
 		result = append(result, SessionInfo{
 			ID:          s.ID,
 			CLI:         s.CLI,
 			Name:        name,
 			State:       state,
+			Status:      heuristicStatus,
 			CreatedAt:   s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			Hostname:    e.hostname,
 			ViewerCount: viewerCount,
