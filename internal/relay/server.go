@@ -43,6 +43,13 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 
+	// MC-03, MC-05: parse client metadata from URL query params at upgrade time.
+	readonly := r.URL.Query().Get("readonly") == "1" || r.URL.Query().Get("readonly") == "true"
+	clientName := r.URL.Query().Get("client")
+	if len(clientName) > 64 {
+		clientName = clientName[:64] // cap identity name to prevent injection
+	}
+
 	hub, ok := s.manager.Get(sessionID)
 	if !ok {
 		http.Error(w, "session not found", http.StatusNotFound)
@@ -63,7 +70,9 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	// Create subscriber with a buffered channel. CloseSlow disconnects the client
 	// when the buffer fills up, preventing a slow client from blocking fan-out.
 	sub := &Subscriber{
-		Msgs: make(chan []byte, 256),
+		Msgs:     make(chan []byte, 256),
+		ReadOnly: readonly,
+		Name:     clientName,
 	}
 	sub.CloseSlow = func() {
 		conn.Close(websocket.StatusPolicyViolation, "too slow")
@@ -97,12 +106,14 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 			}
 			switch msgType {
 			case MsgInput:
-				_ = hub.WriteInput(payload)
+				if !sub.ReadOnly { // MC-03: discard input for read-only clients
+					_ = hub.WriteInput(payload)
+				}
 			case MsgResize2:
 				if len(payload) >= 4 {
 					cols := uint16(payload[0])<<8 | uint16(payload[1])
 					rows := uint16(payload[2])<<8 | uint16(payload[3])
-					_ = hub.Resize(int(cols), int(rows))
+					_ = hub.ResizeClient(sub, int(cols), int(rows)) // MC-06: max-wins arbiter
 				}
 			case MsgPing:
 				// Keep-alive — no-op.

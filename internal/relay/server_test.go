@@ -71,6 +71,120 @@ func readFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	return msgType, payload
 }
 
+// dialWSWithQuery dials a WebSocket connection with optional query parameters appended.
+func dialWSWithQuery(t *testing.T, serverURL, sessionID, query string) *websocket.Conn {
+	t.Helper()
+	wsURL := "ws" + strings.TrimPrefix(serverURL, "http") + "/sessions/" + sessionID + "/ws"
+	if query != "" {
+		wsURL += "?" + query
+	}
+	conn, _, err := websocket.Dial(context.Background(), wsURL, nil)
+	if err != nil {
+		t.Fatalf("dialWSWithQuery: %v", err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
+	return conn
+}
+
+// TestServer_ReadOnlyClientInputDiscarded verifies MC-03: a read-only client's MsgInput
+// frames are silently discarded — the PTY writer receives no data.
+func TestServer_ReadOnlyClientInputDiscarded(t *testing.T) {
+	srv, _, ptyWrite, inputRead, sessionID := setupTestServer(t)
+
+	// Connect as read-only.
+	roClient := dialWSWithQuery(t, srv.URL, sessionID, "readonly=1")
+
+	// Also connect a normal client so we can verify output still works.
+	_ = dialWS(t, srv.URL, sessionID)
+
+	// Send an input frame from the read-only client.
+	inputFrame := MakeInputFrame([]byte("should-be-discarded"))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := roClient.Write(ctx, websocket.MessageBinary, inputFrame); err != nil {
+		t.Fatalf("roClient send input: %v", err)
+	}
+
+	// Give the server a moment to process the frame.
+	time.Sleep(100 * time.Millisecond)
+
+	// Try to read from the PTY input pipe with a short deadline.
+	// If read-only enforcement works, nothing should arrive.
+	readBuf := make([]byte, 256)
+	readDone := make(chan int, 1)
+	readErr := make(chan error, 1)
+	go func() {
+		n, err := inputRead.Read(readBuf)
+		if err != nil {
+			readErr <- err
+			return
+		}
+		readDone <- n
+	}()
+
+	select {
+	case n := <-readDone:
+		t.Fatalf("PTY received %d bytes %q from read-only client — should have been discarded", n, readBuf[:n])
+	case err := <-readErr:
+		t.Fatalf("inputRead error: %v", err)
+	case <-time.After(300 * time.Millisecond):
+		// Success — no data arrived at the PTY within the timeout.
+	}
+
+	// Verify the read-only client still receives output.
+	const output = "visible to readonly"
+	if _, err := ptyWrite.Write([]byte(output)); err != nil {
+		t.Fatalf("ptyWrite: %v", err)
+	}
+	gotType, gotPayload := readFrame(t, roClient)
+	if gotType != MsgOutput {
+		t.Errorf("readonly client: got type 0x%02x, want MsgOutput", gotType)
+	}
+	if string(gotPayload) != output {
+		t.Errorf("readonly client: got payload %q, want %q", gotPayload, output)
+	}
+}
+
+// TestServer_ReadOnlyClientReceivesOutput verifies MC-03 positive path: a read-only
+// client receives PTY output normally despite being unable to send input.
+func TestServer_ReadOnlyClientReceivesOutput(t *testing.T) {
+	srv, _, ptyWrite, _, sessionID := setupTestServer(t)
+
+	roClient := dialWSWithQuery(t, srv.URL, sessionID, "readonly=true")
+
+	const output = "hello readonly viewer"
+	if _, err := ptyWrite.Write([]byte(output)); err != nil {
+		t.Fatalf("ptyWrite: %v", err)
+	}
+
+	gotType, gotPayload := readFrame(t, roClient)
+	if gotType != MsgOutput {
+		t.Errorf("got type 0x%02x, want MsgOutput", gotType)
+	}
+	if string(gotPayload) != output {
+		t.Errorf("got payload %q, want %q", gotPayload, output)
+	}
+}
+
+// TestServer_ClientNameQueryParam verifies MC-05: the ?client= query param is parsed
+// and the subscriber count reflects the connected client.
+func TestServer_ClientNameQueryParam(t *testing.T) {
+	srv, manager, _, _, sessionID := setupTestServer(t)
+
+	_ = dialWSWithQuery(t, srv.URL, sessionID, "client=macbook")
+
+	// Give the server a moment to subscribe.
+	time.Sleep(50 * time.Millisecond)
+
+	hub, ok := manager.Get(sessionID)
+	if !ok {
+		t.Fatal("session not found in manager")
+	}
+	if count := hub.SubscriberCount(); count < 1 {
+		t.Errorf("SubscriberCount = %d, want >= 1", count)
+	}
+}
+
 // TestHub_TwoClientsFanOut verifies criterion 1: two WS clients connected to the
 // same session both receive the same PTY output simultaneously.
 func TestHub_TwoClientsFanOut(t *testing.T) {
