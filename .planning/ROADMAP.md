@@ -190,7 +190,7 @@
 - [x] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8) (completed 2026-04-15)
 - [x] **Phase 76: TUI Foundation** — `agenthub tui` command with Bubble Tea v2 session list, web server status footer, and help overlay (GitHub #7) (completed 2026-04-15)
 - [x] **Phase 77: TUI Session Operations** — Attach (suspend/resume raw PTY), create modal, kill confirmation, and rename from TUI (GitHub #7) (completed 2026-04-15)
-- [ ] **Phase 78: TUI Remote & QR** — Remote tailnet sessions panel and ASCII QR code display in TUI (GitHub #7)
+- [x] **Phase 78: TUI Remote & QR** — Remote tailnet sessions panel and ASCII QR code display in TUI (GitHub #7) (completed 2026-04-15)
 
 ## Phase Details
 
@@ -266,11 +266,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The TUI session list (or a dedicated panel) shows remote sessions from tailnet peers grouped the same way as the GUI Remote Sessions panel
   2. Triggering QR display for a session renders a readable ASCII QR code for the session's web URL directly in the terminal
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 78-01-PLAN.md — Remote sessions in unified list: types, fetch callback, divider rows, navigation, tests
 - [x] 78-02-PLAN.md — QR code overlay: key reassignment (q->QR, Q->Quit), renderQROverlay, help/hint updates, tests
-- [ ] 78-03-PLAN.md — Integration tests: end-to-end remote + QR flow validation
+- [x] 78-03-PLAN.md — Integration tests: end-to-end remote + QR flow validation
 **UI hint**: yes
 
 ## Progress
@@ -296,7 +296,7 @@ Plans:
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 77. TUI Session Operations | v2.0 | 4/4 | Complete    | 2026-04-15 |
-| 78. TUI Remote & QR | v2.0 | 2/3 | In Progress|  |
+| 78. TUI Remote & QR | v2.0 | 3/3 | Complete   | 2026-04-15 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
