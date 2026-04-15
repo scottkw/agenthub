@@ -1,135 +1,262 @@
 # Feature Research
 
-**Domain:** UI/UX polish for Go/Wails + React + xterm.js desktop terminal app (v1.12)
-**Researched:** 2026-04-10
-**Confidence:** HIGH (xterm.js API verified via official docs; CSS padding approach verified via xterm.js issue history; TokyoNight colors verified via upstream source; codebase read directly)
+**Domain:** Multi-client WebSocket session sharing, tmux-style CLI status bar, and near-GUI-parity TUI mode for AgentHub v2.0
+**Researched:** 2026-04-14
+**Confidence:** HIGH for multi-client and status bar (established patterns with verified prior art); MEDIUM for TUI mode (approach depends on PTY-in-TUI integration complexity)
 
 ---
 
-## Context: What Already Exists
+## Context: What Already Exists (v1.14 baseline)
 
-This is a SUBSEQUENT MILESTONE. The following are already built and are NOT scope for v1.12:
+This is a SUBSEQUENT MILESTONE. The following are already built and are NOT scope for v2.0:
 
-- Tabbed xterm.js terminal sessions with per-tab font size (Shift+= / Shift+-)
-- Collapsible left sidebar with Heroicons SVG icons (width: 200px expanded, 48px collapsed)
-- Web serving with Tailscale HTTPS or local network (self-signed TLS + password) fallback
-- Per-session QR codes and web dashboard
-- Settings as sidebar tab (Web Server subtab shows running URL as a plain anchor)
-- `BrowserOpenURL()` already imported and called in App.tsx (for remote session open)
-- `navigator.clipboard.writeText()` already used in SettingsTab (for LAN password copy)
-- TokyoNight Night palette already hardcoded as the app theme (bg `#1a1b26`, fg `#c0caf5`)
-- Custom `fitTerminal()` in TerminalPanel.tsx already reads CSS padding from `term.element` via `getComputedStyle` and subtracts it from available width/height — padding-aware fit is already implemented
+- Single-client WebSocket relay with binary framing (output/resize/input frame types)
+- Scrollback replay on connect (server sends buffered history on new connection)
+- CLI `agenthub attach <id>` with raw PTY proxy, detach key (Ctrl-\), resize propagation, Ctrl-C passthrough, signal-safe terminal restore
+- Web terminal status bar showing session name, agent type, hostname, REST-polled connection state
+- CLI attach shows connection banner and detach message on stderr — NO persistent status bar
+- GUI: tabbed terminals, collapsible sidebar, settings tab, remote sessions panel, 138 theme presets with live apply
+- Daemon over Unix socket; GUI and CLI are both DaemonClient consumers
+- Remote session discovery and WSS relay for tailnet peers (`agenthub attach hostname:id`)
+- Binary framing protocol distinguishes output/resize/input frames
 
 ---
 
-## Table Stakes (Users Expect These)
+## Feature Area 1: Multi-Client Session Connections (GitHub #13)
 
-Features users assume exist. Missing these = product feels incomplete.
+### What Users Expect from Multi-Client Sharing
+
+In established terminal multiplexers (tmux, GNU screen, tmate), attaching multiple clients to the same session means:
+- All clients see the same live output simultaneously — the PTY stdout is broadcast to every attached connection
+- Each client maintains its own scrollback position — one client scrolling back does not affect another client's view
+- All clients share the same PTY input — any client can type, all see the result (collaborative mode)
+- Read-only observer mode is available via a flag (`tmux attach -r`) — watches without ability to send input; useful for demos and pair-programming observation
+- New clients joining mid-session receive a scrollback replay of recent history, then stream live output from that point forward
+
+The key UX invariant: **independent scrollback per client, shared live output**. This is universally expected.
+
+### Table Stakes (Multi-Client)
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Terminal padding (inset) | Professional terminal emulators (VS Code, iTerm2, Warp, Ghostty) all pad text so it does not touch container edges. Text flush to edges looks unfinished. | LOW | No built-in padding option in `@xterm/xterm` 6.x (confirmed via official ITerminalOptions docs — no `padding` property exists). The approach is CSS: add `padding: 6px` to `.xterm` in style.css. The existing custom `fitTerminal()` already reads `paddingLeft/Right/Top/Bottom` from `getComputedStyle(term.element!)` (TerminalPanel.tsx lines 24-29) and subtracts them from cols/rows — the fit logic is already padding-aware. |
-| Web server URL opens in default browser | Every desktop app affords clicking a URL to open in the system browser. Wails WebView does NOT open external URLs from `<a href target="_blank">` — it renders in-app or does nothing. The current SettingsTab renders `<a href={serverURL} target="_blank" rel="noreferrer">` (line 305) which is broken for this purpose. | LOW | `BrowserOpenURL(url)` is the Wails runtime call that opens the system browser. Pattern already established in App.tsx line 412 (`BrowserOpenURL(url)` in `handleOpenRemoteSession`). Fix is replacing the anchor with a button or styled link calling `BrowserOpenURL(serverURL)`. |
-| Copy-to-clipboard for web server URL | Any URL displayed in a settings UI is expected to be copyable with one click. There is no copy button for `serverURL` today. | LOW | `navigator.clipboard.writeText()` + 1.5s "Copied!" feedback already implemented for LAN password in SettingsTab (lines 89-93, 330-333). Identical pattern applies to the server URL. |
-| Sidebar icons centered when collapsed | When sidebar collapses to 48px, icons should center horizontally. Current `.sidebar__item` uses `padding: 8px` with no `justify-content` set, so items default to `flex-start`. Icon (`20px` wide) sits left-aligned inside `48px` button — visually off-center. The toggle button (`.sidebar__toggle`) already uses `justify-content: center` — items should match. | LOW | Pure CSS fix: `.sidebar--collapsed .sidebar__item { justify-content: center; padding-left: 0; padding-right: 0; }`. No JS changes. |
+| Broadcast live output to all connected clients | Core of multi-client sharing — all viewers see the same live terminal | MEDIUM | Requires hub/fan-out: session engine maintains a list of connected sinks; PTY reader goroutine writes to all sinks. Already partially implied by binary framing protocol. |
+| Independent scrollback per client | tmux/screen convention — scrolling back on one client does not affect others | LOW | Scrollback position is maintained client-side by xterm.js and the CLI attach viewport; server only replays history on connect. No server-side scroll cursor needed. |
+| Scrollback replay for new joiner | Users joining mid-session expect to see recent history before the live stream | LOW | Already implemented for single-client. Extension: all new client connections get the same replay buffer before live streaming begins. |
+| Read-only attach mode | Observer/demo use case — watch without being able to type | LOW | `agenthub attach --readonly <id>` flag. Server closes the input direction; client still receives output. No new protocol frames needed — just reject input frames from read-only connections. |
+| Connection count visible in GUI | Users want to know how many clients are viewing a session | LOW | Status bar or session list shows e.g. "2 viewers". Daemon tracks connected client count per session. Already available via a counter in the session engine. |
 
----
-
-## Differentiators (Competitive Advantage)
+### Differentiators (Multi-Client)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Terminal theme presets | The app already uses TokyoNight Night palette. Offering curated theme variants (TokyoNight Storm/Moon, Dracula, Catppuccin Mocha) in Settings lets users personalize without leaving the app. xterm.js `theme` option accepts a full `ITheme` object — all 16 ANSI colors + foreground/background/cursor — as a live-swappable option on any existing terminal instance. | MEDIUM | `term.options.theme = newTheme` updates a live terminal (confirmed via xterm.js ITheme docs). Theme should be stored in `localStorage` and applied at terminal creation and on change. Since all TerminalPanels need the theme, lift theme state to App level (same pattern as `fontSize`). Define a `THEMES` const map in a `themes.ts` file. |
-| QR code for web server dashboard URL | Per-session QR codes already exist. A QR code for the dashboard root URL in Settings completes the trio (open, copy, QR) and lets users instantly load the dashboard on a phone without typing the URL. | LOW | Backend needs `GetWebServerQRCode()` Go binding using the same `skip2/go-qrcode` library already used in `GetSessionQRCode`. The dashboard URL is the same as `GetWebServerURL()`. Frontend can reuse the existing `QRModal` component or render an inline base64 SVG/PNG. |
-| Font family selection | Developers have strong preferences for terminal fonts. Current font stack is hardcoded as `"Cascadia Code", "MesloLGS NF", "Fira Code", monospace`. A curated dropdown of 4 fonts in Settings lets users match their IDE. | MEDIUM | xterm.js `fontFamily` option accepts a CSS font-family string. Font change requires `fitTerminal()` re-trigger because char width changes. Lift `fontFamily` to App-level state (like `fontSize`). List only fonts likely pre-installed on developer machines; always fall back to `monospace`. No font download needed. |
+| Per-client named identity in connection list | Pair-programming or demo use: see "MacBook Pro — CLI", "iPad — web" as watchers | MEDIUM | Client sends optional name at handshake (e.g. `?client=macbook`). Session engine tracks client metadata. Daemon API exposes per-session client list. GUI can show watchers list in session detail. |
+| Input locking (host takes exclusive control) | Host can lock input to prevent observers from typing even in non-read-only mode | HIGH | Complex state machine; likely a v2.x feature. Defer. |
 
----
-
-## Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features (Multi-Client)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Full custom theme editor (color picker per ANSI slot) | Power users want exact control | 16 color pickers + fg/bg/cursor = complex UI, high maintenance, rarely used by most users, difficult to persist safely | Curated preset themes (4-5 options) cover 95% of use cases at 5% of implementation cost |
-| Per-tab theme selection | Some users want different themes per project | Multiplies state management: theme stored per session, synced with backend, reflected on re-attach — enormous scope for marginal gain | Global theme preference is sufficient; tabs inherit app theme |
-| Custom font upload or install | Users with rare fonts want to use them | Requires OS-level font installation, cross-platform paths, security concerns; out of scope for a desktop app that avoids managing system state | Ship 4-5 well-known pre-installed fonts; document others |
-| Animated theme transitions | Looks polished in mockups | xterm.js re-renders full canvas on theme change; CSS transitions on canvas elements have no effect — theme swap is always instant | Instant swap is the correct behavior; no workaround is appropriate |
-| Configurable padding per side (top/left/right/bottom) | Fine-grained control | Adds UI complexity for very limited visual gain; uniform padding of 4-8px looks correct in all orientations | Single uniform padding constant set to a tuned value (6-8px) |
+| Synchronized scrollback across all clients | "Everyone sees the same scroll position" | Violates the core contract — independent scrollback is what users expect from terminal sharing; forces one user's navigation onto others | Keep scrollback independent (standard behavior) |
+| PTY resize negotiated across all clients | "Everyone sees the same terminal size" | Different client terminal sizes create conflict — tmux resolves this by using the smallest attached client's dimensions, causing unwanted shrinking for larger-screen clients | Let the owning PTY maintain its size; web clients respect their own viewport; document the limitation |
+
+---
+
+## Feature Area 2: tmux-Style CLI Attach Status Bar (GitHub #8)
+
+### What Users Expect from a tmux-Style Status Bar
+
+tmux's status bar is the canonical reference. Users familiar with tmux expect:
+- A persistent one-line bar fixed at the bottom of the terminal (never scrolls away)
+- Left side: session name in brackets, e.g. `[my-session]`
+- Right side: hostname, current time/date, agent type, elapsed time since attach
+- Center or left: keyboard hint for the primary action (detach key)
+- Visual separator between the status bar and terminal content (background color difference)
+- The bar does NOT flicker or disappear when terminal output scrolls
+- The bar updates on a timer (typically every 1-15 seconds for time display)
+- The bar is drawn using terminal control sequences (ANSI) directly to the terminal
+
+The "persistent overlay" pattern is well-established: reserve the last terminal row, use ANSI cursor positioning to redraw it in-place, and restore the cursor to the content area. GNU screen's `hardstatus` and tmux's `status` both follow this model.
+
+### Table Stakes (CLI Status Bar)
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Persistent bottom bar that survives terminal scrolling | The core feature — a status bar that doesn't scroll away | MEDIUM | Implemented by: (1) reserving the last row via terminal manipulation, OR (2) using terminal alternate screen mode with a reserved row. The simpler approach for a pass-through PTY: use ANSI escape sequences to reposition cursor and redraw the last line on a goroutine tick. Go's `golang.org/x/term` or direct ANSI writes to stderr work here. |
+| Session name, agent type, hostname | Matches existing CLI attach banner content — users already see these on connect; they expect them to persist | LOW | All three values already available in the attach command's session metadata from the daemon. |
+| Detach key hint | `[Ctrl-\] detach` is the minimum users need to see — prevents confusion about how to exit | LOW | Static string, rendered in the status bar right-hand section. |
+| Elapsed session time | How long the session has been running (not time since attach — time since session was created) | LOW | Session creation timestamp already in session metadata. Format: `1h23m` or `42m`. Refreshed by the status bar ticker goroutine. |
+| Status bar updates without corrupting terminal output | The bar refresh must not interleave with PTY output and produce garbled display | HIGH | This is the hard part. The status bar goroutine must synchronize with the PTY output relay. Two approaches: (a) alternate screen trick — not compatible with all agents, (b) use ANSI save/restore cursor + redraw only when safe. The typical pattern is to redraw on a timer from a separate goroutine using `\033[s` (save cursor), position to last row, write, `\033[u` (restore cursor). Works in practice but can produce rare visual glitches on very high-throughput output. |
+| Disabled in non-interactive / non-TTY mode | If stdout is not a terminal (piped), the status bar must be suppressed | LOW | Check `term.IsTerminal(int(os.Stdin.Fd()))` before enabling the status bar goroutine. Already implied by the existing raw PTY mode guard. |
+| Cleanup on detach / exit | On Ctrl-\ or normal exit, clear the status bar line and restore normal terminal state | LOW | Defer to signal handler / cleanup path already in the attach command. Clear the last row with spaces and restore cursor positioning. |
+
+### Differentiators (CLI Status Bar)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Connection state indicator in status bar | Shows "connected" vs "reconnecting" vs "relay latency Xms" live | MEDIUM | WebSocket connection state already tracked in attach; surface it in the status bar. Particularly valuable for remote Tailscale sessions where latency matters. |
+| Client count in status bar | "3 viewers" — lets the attaching user know others are watching | LOW | Daemon already tracks connected clients; add it to the session metadata polled or pushed to CLI attach. |
+| Configurable status bar position (top vs bottom) | Some users prefer top (like some tmux configs) | LOW | Simple positional parameter — use bottom as default; add `--status-top` flag for preference. |
+
+### Anti-Features (CLI Status Bar)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Full tmux-style window list in status bar | "Show all session names like tmux does" | AgentHub sessions are not windows in a multiplexer; showing all sessions makes the bar complex and wastes space | Show only the current session; session list is in the GUI/TUI |
+| Rich color themes for status bar | "Make it look like Starship prompt" | Adds configuration complexity; the status bar is functional, not decorative in this context | Ship one well-chosen color scheme (distinct from terminal background — a dark gray or colored band works); add configurable colors only if user demand is confirmed |
+| Mouse support in status bar | "Click to detach or switch session" | Mouse event handling in raw PTY mode is complex; breaks workflows that rely on terminal mouse for the AI agent running inside | Keyboard-only for status bar; mouse is for the AI agent |
+
+---
+
+## Feature Area 3: Near-GUI Parity TUI Mode (GitHub #7)
+
+### What Users Expect from "Near-GUI Parity TUI"
+
+Users who want a TUI alternative to the desktop GUI are typically:
+- Working over SSH and cannot run the desktop app on the remote machine
+- Preferring to stay in the terminal even when at a local machine
+- Using headless servers where a GUI is unavailable
+
+"Near-GUI parity" means the TUI covers the same functional surface as the GUI: creating sessions, listing them, attaching to them, killing them, renaming them, and accessing settings like web server status and theme. It does NOT mean pixel-perfect visual reproduction.
+
+Reference TUIs with similar scope (lazydocker, k9s, lazygit) share common UX patterns:
+- **Two-panel layout**: left panel is a scrollable list of items; right panel shows detail/output for the selected item
+- **Keyboard-first navigation**: arrow keys or j/k to move list selection, Enter to attach/drill in, q or Esc to go back, ? for help overlay
+- **Persistent bottom status bar** or top bar showing current mode, context, and key hints
+- **Modal dialogs** for create/rename/confirm-kill operations (pop up, capture input, dismiss)
+- **Live refresh**: list updates automatically (polling or event-driven) to reflect session state changes
+- **Help overlay**: pressing ? shows all keybindings for the current view
+
+### Table Stakes (TUI Mode)
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Session list panel | Core navigation: see all sessions, their agent, status (running/waiting/idle/errored), hostname | LOW | Maps directly to `agenthub list` output. Reuses daemon IPC. Rendered as a scrollable list with status indicators. |
+| Attach to session from list | Primary action: select a session and press Enter to attach | MEDIUM | Bubbletea suspends its own rendering, hands the terminal over to the raw PTY proxy (same code as `agenthub attach`), then resumes TUI when user detaches. This is the Bubbletea `tea.ExecProcess` or equivalent suspend pattern. |
+| Detach from session and return to TUI list | Round-trip: attach → work → detach → back to list | MEDIUM | Ctrl-\ to detach must return the user to the TUI list, not drop them to the shell. Requires the attach code to return cleanly to the TUI event loop. |
+| Create new session | Users need to be able to launch new AI agent sessions without leaving the TUI | MEDIUM | Modal form: agent picker (list), working directory (text input with path completion), optional extra args. On confirm, calls daemon CreateSession IPC. |
+| Kill session from list | Remove a session — with confirmation | LOW | Confirmation modal ("Kill session 'my-session'? [y/N]"). Calls daemon KillSession IPC. |
+| Rename session | Tab renaming expected by GUI users | LOW | Inline edit or modal text input. Calls daemon RenameSession IPC. |
+| Session status indicators | Replicate GUI running/waiting/idle/errored dots with color in the list | LOW | Map existing status values to colored characters or lipgloss-styled text. |
+| Web server status in TUI | Know whether the web server is running and what URL it's serving | LOW | Footer or status panel showing web server URL (Tailscale or local). |
+| Remote sessions panel | List sessions on tailnet peers (same as GUI remote sessions panel) | MEDIUM | Calls same tailnet peer probing code used by GUI. Displayed as a second list or grouped section in the session list. |
+| Help overlay | Standard TUI convention — ? shows keybindings | LOW | Static screen or scrollable modal showing all keybindings. |
+| Keyboard shortcuts matching CLI conventions | q/Esc to quit/back, j/k or arrows to navigate, Enter to select, ? for help | LOW | Standard TUI conventions — users who use lazygit, k9s will find them familiar. |
+
+### Differentiators (TUI Mode)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Embedded terminal viewport for session preview | See a live preview of session output in the right panel without full attach | HIGH | Requires embedding a terminal emulator (bubbleterm or equivalent) inside the Bubbletea viewport. This is the hardest feature in the TUI scope. Bubbleterm (`taigrr/bubbleterm`) provides PTY-in-bubbletea support but is early-stage. Full xterm.js rendering is not available in a terminal environment. ANSI pass-through via a viewport component is feasible but may produce rendering artifacts. Mark as a stretch goal. |
+| Theme selection in TUI settings panel | Change the theme without opening the desktop GUI | MEDIUM | TUI settings view mirrors GUI settings: show theme list, select to preview (in a color swatch), confirm to save. Writes to same config store as GUI. |
+| Start/stop web serving per session from TUI | Toggle web serving without the desktop GUI | LOW | Calls existing daemon web start/stop IPC. List action or sidebar toggle. |
+| QR code display in TUI | Show QR code for a session URL in the terminal | LOW | ASCII QR code (text/block character rendering) rather than an image. Several Go libraries support text-mode QR output. |
+
+### Anti-Features (TUI Mode)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Full xterm.js rendering inside TUI | "True terminal inside a terminal" | xterm.js requires a browser/WebView canvas — it cannot render in a terminal environment. Attempting to embed it creates double-encoding of ANSI sequences and garbled output. | Raw PTY attach (suspend TUI, hand off to raw mode, resume on detach) — this is the correct pattern and what tmux/screen do |
+| Mouse-driven TUI navigation | "Click to select sessions" | Mouse event handling in a TUI requires raw input mode changes that interfere with the AI agent's own mouse usage during attach | Keyboard-only navigation for the TUI shell; mouse support inside the session is handled by the attached agent |
+| Split-pane tiling in TUI | "Show two sessions side by side" | Already out of scope per PROJECT.md for GUI; doubly complex for TUI where terminal dimensions are more constrained | Single-session attach with quick switch via detach → reselect in list |
+| TUI replaces the daemon management panel | "Full daemon management from TUI" | Install/uninstall/start/stop of the system service is rare; adding to TUI adds surface area without proportional value | CLI subcommands (`agenthub daemon install/start/stop`) already handle this |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Terminal Padding (CSS)
-    depends on --> Custom fitTerminal() [already exists — already reads CSS padding]
-    depends on --> .xterm CSS class [add padding: 6px]
-    no JS changes needed
+Multi-Client Broadcast
+    depends on --> existing binary framing relay protocol
+    depends on --> existing scrollback buffer (already per-session ring buffer)
+    requires --> session engine: replace single-sink with multi-sink fan-out
+    requires --> session engine: per-connection write tracking (independent)
+    enables --> connection count display (GUI, CLI status bar, TUI)
+    enables --> read-only attach mode (input suppression per connection)
 
-Sidebar Icon Centering
-    depends on --> .sidebar--collapsed CSS class [already exists]
-    no JS changes needed
+Read-Only Attach Mode
+    depends on --> Multi-Client Broadcast (needs multi-sink to distinguish RO connections)
+    requires --> new connection metadata field: readonly bool
+    requires --> server rejects input frames from read-only connections
 
-Web Server URL: Open in Browser
-    depends on --> BrowserOpenURL() [already imported in App.tsx]
-    depends on --> isServerRunning + serverURL state [already in SettingsTab]
+CLI Status Bar
+    depends on --> existing CLI attach command (wraps it)
+    depends on --> existing session metadata (name, agent, hostname, created_at)
+    requires --> ANSI cursor-control status bar goroutine
+    requires --> timer/ticker for elapsed time refresh
+    enhances --> multi-client (can show viewer count in bar)
 
-Web Server URL: Copy to Clipboard
-    depends on --> navigator.clipboard.writeText [already used in SettingsTab]
-    depends on --> serverURL state [already in SettingsTab]
-    enhances --> Open in Browser (both operate on same URL, presented together)
+Connection Count in Daemon API
+    depends on --> Multi-Client Broadcast (count only meaningful when multi-client exists)
+    enables --> CLI status bar viewer count display
+    enables --> GUI session list viewer count badge
+    enables --> TUI session list viewer count
 
-Web Server QR Code
-    depends on --> GetWebServerURL() [already exists]
-    depends on --> skip2/go-qrcode [already in go.mod]
-    requires --> new Go binding: GetWebServerQRCode()
-    reuses --> QRModal component or inline base64 image pattern
-    enhances --> Open in Browser + Copy URL (completes the URL access trio)
+TUI Mode
+    depends on --> existing daemon IPC (all CRUD operations already available)
+    depends on --> existing CLI attach command (suspend TUI, delegate to raw PTY attach)
+    depends on --> existing tailnet peer probing (for remote sessions panel)
+    requires --> bubbletea + lipgloss + bubbles as new dependencies
+    requires --> session list model (polls daemon list endpoint)
+    requires --> modal components (create, rename, kill-confirm)
+    enhances --> CLI status bar (TUI returns to list after detach; status bar shows during attach)
 
-Terminal Theme Presets
-    depends on --> xterm.js ITheme object [accepted by Terminal constructor and term.options.theme]
-    depends on --> localStorage [for persistence across sessions]
-    requires --> THEMES const map in themes.ts
-    requires --> theme state lifted to App level (like fontSize)
-    requires --> Settings UI: theme selector dropdown
-    enhances --> Terminal Padding (both are terminal appearance; same settings section)
-
-Font Family Selection
-    depends on --> xterm.js fontFamily option [accepted by Terminal constructor]
-    requires --> fontFamily state lifted to App level (like fontSize)
-    requires --> fitTerminal() re-trigger on font change (char width changes)
-    requires --> Settings UI: font family dropdown
-    enhances --> Terminal Theme (both are terminal appearance settings)
+TUI Embedded Preview (stretch)
+    depends on --> TUI Mode (must exist first)
+    depends on --> bubbleterm or equivalent PTY-in-TUI library
+    conflicts with --> raw PTY attach (cannot be active simultaneously)
+    risk --> HIGH complexity, library maturity unknown
 ```
 
 ### Dependency Notes
 
-- **Terminal Padding requires no JS changes:** `fitTerminal()` in TerminalPanel.tsx lines 24-29 already calls `getComputedStyle(term.element!)` and subtracts computed `paddingLeft/Right/Top/Bottom` from parent dimensions before calculating cols/rows. Adding CSS padding to `.xterm` automatically flows through the existing calculation.
-- **Theme change does NOT require fitTerminal re-trigger:** Color changes don't affect character dimensions. Font family changes DO require it — char width changes with different fonts.
-- **All web server UX features share existing SettingsTab state:** `isServerRunning` and `serverURL` are already in SettingsTab. No new data fetching needed for open/copy/QR.
-- **Theme and fontSize share the same lift pattern:** `fontSize` is already lifted to App-level state and passed as a prop to each TerminalPanel. Theme follows the identical pattern.
+- **Multi-client is the foundation**: both the CLI status bar (viewer count) and TUI mode (session list shows viewers) benefit from multi-client. Implement multi-client before exposing viewer count in those surfaces.
+- **CLI status bar is independent of TUI**: the status bar is a feature of the existing `attach` command and does not require TUI mode. Ship it standalone if TUI mode is delayed.
+- **TUI mode delegates to existing attach**: the TUI does not reimplement the PTY proxy. It suspends itself, hands control to the raw attach code, then resumes. This is the correct pattern — the bubbletea `ExecProcess` API is designed for exactly this.
+- **Embedded preview is NOT required for TUI MVP**: listing sessions, attaching, creating, and killing sessions are the MVP. The embedded preview is a stretch goal that can follow.
 
 ---
 
-## MVP Definition for v1.12
+## MVP Definition for v2.0
 
-### Launch With (all v1.12 scope)
+### Launch With (v2.0 core)
 
-- [ ] Terminal padding — CSS only, immediate visual quality improvement, zero risk
-- [ ] Sidebar icon centering when collapsed — CSS only, pure fix
-- [ ] Web server URL: Open in Browser button — replaces broken anchor with `BrowserOpenURL`
-- [ ] Web server URL: Copy to clipboard — reuses established clipboard pattern
-- [ ] Web server QR code — one new Go binding + reuse existing QR infrastructure
-- [ ] Terminal theme presets — TokyoNight Night (current) + Storm/Moon + 1-2 other popular themes
+Multi-client:
+- [ ] Multi-sink fan-out broadcast to all connected WebSocket clients — core contract
+- [ ] Independent scrollback per client (no server-side change needed; replay-on-connect already works)
+- [ ] Connection count tracked in daemon and exposed via session metadata API
+- [ ] Read-only attach mode via `--readonly` flag on CLI attach
 
-### Add After Validation (v1.12.x)
+CLI status bar:
+- [ ] Persistent ANSI bottom bar with session name, agent, hostname, detach hint, elapsed time
+- [ ] Status bar goroutine that refreshes time every 10 seconds without corrupting terminal output
+- [ ] Status bar suppressed when stdout is not a TTY
+- [ ] Clean teardown on detach/exit (clear bar line, restore cursor)
 
-- [ ] Font family selection — useful but depends on users having target fonts installed; validate demand with v1.12 theme feedback before adding
-- [ ] Additional theme presets (Catppuccin Mocha, One Dark) — can add as point releases without a full milestone
+TUI mode:
+- [ ] `agenthub tui` command launches Bubbletea TUI
+- [ ] Session list panel with status indicators (running/waiting/idle/errored), agent, hostname, viewer count
+- [ ] Select session to attach (suspends TUI, raw PTY attach, resumes on detach)
+- [ ] Create new session modal (agent picker, working directory, extra args)
+- [ ] Kill session with confirmation
+- [ ] Rename session
+- [ ] Web server status in footer/status panel
+- [ ] Remote sessions panel (tailnet peer probing)
+- [ ] Help overlay (? key)
 
-### Future Consideration (v2+)
+### Add After Validation (v2.x)
 
-- [ ] Per-tab theme or font override — complex state propagation; defer until explicitly requested
-- [ ] Custom theme editor — high complexity, low priority
+- [ ] Connection count display in GUI session list badge — adds visibility without blocking v2.0
+- [ ] Per-client identity tracking (client name in connection list) — useful for pair programming
+- [ ] Configurable status bar position (top vs bottom) — user preference
+- [ ] TUI theme selection panel — mirrors GUI settings
+- [ ] ASCII QR code display in TUI — low complexity, nice to have
+- [ ] Embedded terminal preview in TUI — stretch goal; assess bubbleterm maturity after MVP ships
+
+### Future Consideration (v2.x+)
+
+- [ ] Input locking (host-exclusive control in multi-client) — complex state machine
+- [ ] Configurable status bar color theme — low priority
+- [ ] TUI start/stop web serving per session — add when TUI settings panel is built
 
 ---
 
@@ -137,122 +264,71 @@ Font Family Selection
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Sidebar icon centering | MEDIUM | LOW | P1 |
-| Terminal padding | HIGH | LOW | P1 |
-| Web server URL: open in browser | HIGH | LOW | P1 |
-| Web server URL: copy to clipboard | HIGH | LOW | P1 |
-| Web server QR code | MEDIUM | LOW | P1 |
-| Terminal theme presets | MEDIUM | MEDIUM | P1 |
-| Font family selection | LOW | MEDIUM | P2 |
+| Multi-client fan-out broadcast | HIGH | MEDIUM | P1 |
+| Connection count in daemon API | MEDIUM | LOW | P1 |
+| Read-only attach mode | MEDIUM | LOW | P1 |
+| CLI status bar (name/agent/host/time) | HIGH | MEDIUM | P1 |
+| Status bar corruption-free refresh | HIGH | HIGH | P1 (required to make bar viable) |
+| TUI session list + status | HIGH | MEDIUM | P1 |
+| TUI attach (suspend/resume pattern) | HIGH | MEDIUM | P1 |
+| TUI create/kill/rename | MEDIUM | MEDIUM | P1 |
+| TUI remote sessions panel | MEDIUM | MEDIUM | P1 |
+| TUI web server status display | LOW | LOW | P1 |
+| TUI help overlay | MEDIUM | LOW | P1 |
+| GUI viewer count badge | MEDIUM | LOW | P2 |
+| Per-client identity tracking | LOW | MEDIUM | P2 |
+| TUI theme selection | LOW | MEDIUM | P2 |
+| ASCII QR in TUI | LOW | LOW | P2 |
+| Embedded terminal preview in TUI | MEDIUM | HIGH | P3 |
+| Input locking (multi-client) | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Target for v1.12 milestone
-- P2: Add after validation, not blocking v1.12
+- P1: Required for v2.0 milestone
+- P2: Ship when P1 complete, before or alongside v2.1
+- P3: Future milestone, do not block on
 
 ---
 
-## Implementation Notes by Feature
+## Complexity Notes by Feature Area
 
-### Terminal Padding
+### Multi-Client (Medium overall)
 
-**Root cause of current state:** No padding CSS is applied to `.xterm`. Terminal renders edge-to-edge within its container.
+The underlying architecture change is replacing the single-sink write path in the session engine with a concurrent fan-out to a slice of registered sinks. This is a well-understood pattern. The hard part is concurrent write safety: each sink write must be non-blocking (if a slow client blocks the goroutine, fast clients are starved) so a goroutine-per-client with a buffered channel is preferred over a synchronous loop. The existing ring buffer for scrollback replay already provides the "replay on connect" behavior — the only change is supporting more than one live subscriber.
 
-**Fix:** In `style.css`, add:
-```css
-.xterm {
-  padding: 6px;
-}
-```
+### CLI Status Bar (Medium overall; one hard sub-problem)
 
-**Why this works:** `fitTerminal()` reads `getComputedStyle(term.element!)` and explicitly extracts `paddingLeft`, `paddingRight`, `paddingTop`, `paddingBottom`, then:
-- `padH = paddingLeft + paddingRight` subtracted from `parentW` before cols calculation
-- `padV = paddingTop + paddingBottom` subtracted from `parentH` before rows calculation
+The mechanical implementation (ANSI positioning, goroutine tick) is straightforward. The hard sub-problem is avoiding visual corruption when PTY output and status bar redraw interleave. The standard approach is:
+1. Write to stderr (status bar) while PTY output goes to stdout — this relies on the terminal merging two streams correctly, which is generally true in practice
+2. Use ANSI save cursor (`\033[s`) before redrawing the bar, restore cursor (`\033[u`) after — this keeps the content cursor in the right place
+3. Accept that very high-throughput output (e.g. `cat /dev/urandom | xxd`) may momentarily displace the bar — it self-corrects on the next tick
 
-This means cols/rows are calculated for the content area (inside padding), not the full container. PTY is resized correctly.
+This is exactly what tools like `shox` and `bottombar` do, and it's acceptable in practice.
 
-**Tuned value:** 6-8px is standard for terminal emulators. VS Code Terminal uses approximately 6px horizontal padding. Warp uses ~8px.
+### TUI Mode (Medium-High overall; one hard sub-problem)
 
-**Risk:** Very low. The scrollbar is already hidden via `.xterm-viewport { scrollbar-width: none }` so scrollbar width (which PR #1208 identified as a concern) is 0px and does not create a mismatch.
+The majority of TUI features map directly onto existing daemon IPC calls — session list, create, kill, rename, web server status, remote sessions. These are straightforward Bubbletea models calling existing Go functions.
 
-### Sidebar Icon Centering
+The hard sub-problem is the attach suspend/resume cycle. Bubbletea provides `tea.ExecProcess` (or `Program.Suspend()` + restore in v2) to hand control to a subprocess and resume after it exits. Using this to call the existing raw PTY attach code (not a subprocess — it's in-process) requires careful terminal state management: restore normal mode before entering raw PTY mode, and re-enter TUI mode cleanly when detaching. This is achievable but requires testing across macOS, Linux, and Windows (Windows ConPTY adds complexity).
 
-**Root cause:** `.sidebar__item` sets `display: flex; align-items: center; gap: 8px; padding: 8px`. No `justify-content` is set, so it defaults to `flex-start`. When label is hidden (collapsed state), the icon (`20px`) sits at the left edge of the `48px`-wide button with 8px left padding, placing icon center at `8 + 10 = 18px` from left edge — not centered in 48px.
-
-**Fix:**
-```css
-.sidebar--collapsed .sidebar__item {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-```
-
-**Toggle button reference:** `.sidebar__toggle` already uses `justify-content: center` and produces a correctly centered icon. Items should match.
-
-### Web Server URL UX (Open, Copy, QR)
-
-**Current state:** `SettingsTab.tsx` line 303-306:
-```jsx
-{isServerRunning && serverURL && (
-  <p className="settings-panel__url">
-    Server running at: <a href={serverURL} target="_blank" rel="noreferrer">{serverURL}</a>
-  </p>
-)}
-```
-
-This anchor does not open the system browser in Wails WebView.
-
-**Target UX:** When server is running, show a compact row:
-- URL text (truncated if long)
-- "Open" icon button → `BrowserOpenURL(serverURL)`
-- "Copy" icon button → `navigator.clipboard.writeText(serverURL)` + "Copied!" feedback
-- "QR" icon button or toggle → shows QR code for dashboard URL
-
-**QR code for dashboard:** Add to `App.go`:
-```go
-func (a *App) GetWebServerDashboardQRCode() (string, error) {
-    url, err := a.daemon.GetWebServerURL()
-    if err != nil { return "", err }
-    return generateQRCode(url) // same as GetSessionQRCode logic
-}
-```
-
-Frontend uses `GetWebServerDashboardQRCode()` when user clicks the QR button; displays base64 PNG inline (same pattern as `GetSessionQRCode` in QRModal).
-
-### Terminal Theme Presets
-
-**xterm.js ITheme API (confirmed from official docs):**
-All properties are optional strings (CSS color values). Setting `term.options.theme` on an existing terminal immediately re-renders with new colors.
-
-**TokyoNight Night colors (verified from folke/tokyonight.nvim upstream):**
-- background: `#1a1b26`, foreground: `#c0caf5`, cursor: `#c0caf5`
-- black: `#15161e`, red: `#f7768e`, green: `#9ece6a`, yellow: `#e0af68`
-- blue: `#7aa2f7`, magenta: `#bb9af7`, cyan: `#7dcfff`, white: `#a9b1d6`
-- brightBlack: `#414868`, brightRed: `#ff899d`, brightGreen: `#9fe044`
-- brightYellow: `#faba4a`, brightBlue: `#8db0ff`, brightMagenta: `#c7a9ff`
-- brightCyan: `#a4daff`, brightWhite: `#c0caf5`
-
-**Implementation plan:**
-1. Create `frontend/src/lib/themes.ts` with a `THEMES` const record mapping theme name to `ITheme` object. Include TokyoNight Night (current hardcoded colors), TokyoNight Storm (bg `#24283b`), and 1-2 others.
-2. Add `theme` state to App.tsx (string key), initialized from `localStorage.getItem('terminal-theme') ?? 'tokyonight-night'`.
-3. Pass `theme` as a prop to each `TerminalPanel` (like `fontSize`).
-4. In `TerminalPanel`, apply `theme: THEMES[theme]` at terminal creation and via `useEffect` on theme prop change.
-5. Add theme selector `<select>` to SettingsTab (new "Appearance" subtab or inline in CLI Paths tab).
-
-**Scope clarification:** `PROJECT.md` listed "Font/theme customization beyond size" as deferred in earlier milestones. v1.12 milestone explicitly includes "Terminal theming (popular theme support for fonts and colors)" — this is intentionally scoped in.
+The embedded terminal preview is the hardest sub-problem and is explicitly deferred to a stretch goal.
 
 ---
 
 ## Sources
 
-- xterm.js ITerminalOptions official docs (no padding option confirmed): https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/
-- xterm.js ITheme official docs (all theme properties confirmed): https://xtermjs.org/docs/api/terminal/interfaces/itheme/
-- xterm.js padding CSS approach (merged PR, v3.1.0): https://github.com/xtermjs/xterm.js/issues/946 and https://github.com/xtermjs/xterm.js/pull/1208
-- TokyoNight Night ANSI colors (verified upstream): https://github.com/folke/tokyonight.nvim/blob/main/extras/alacritty/tokyonight_night.toml
-- Copy-to-clipboard UX patterns: https://cloudscape.design/components/copy-to-clipboard/
-- AgentHub codebase read directly: `TerminalPanel.tsx`, `Sidebar.tsx`, `SettingsTab.tsx`, `App.tsx`, `style.css`, `App.d.ts` (HIGH confidence)
+- tmux status bar structure and format strings: https://tao-of-tmux.readthedocs.io/en/latest/manuscript/09-status-bar.html
+- tmux multi-client session sharing and read-only mode: https://hamvocke.com/blog/remote-pair-programming-with-tmux/
+- wemux multi-user tmux: https://github.com/zolrath/wemux
+- Bubbletea framework: https://github.com/charmbracelet/bubbletea
+- bubbleterm PTY-in-TUI: https://pkg.go.dev/github.com/taigrr/bubbleterm
+- lazydocker TUI patterns: https://github.com/jesseduffield/lazydocker
+- lazytui component-based TUI: https://github.com/DokaDev/lazytui
+- shox terminal status bar: https://github.com/liamg/shox
+- CLI UX best practices: https://evilmartians.com/chronicles/cli-ux-best-practices-3-patterns-for-improving-progress-displays
+- WebSocket broadcast architecture: https://websockets.readthedocs.io/en/stable/topics/broadcast.html
+- AgentHub PROJECT.md read directly (HIGH confidence)
 
 ---
 
-*Feature research for: AgentHub v1.12 — Terminal Padding, Theming, Web Server Link UX, Sidebar Icon Centering*
-*Researched: 2026-04-10*
+*Feature research for: AgentHub v2.0 — Multi-Client Sessions, CLI Status Bar, TUI Mode*
+*Researched: 2026-04-14*

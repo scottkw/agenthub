@@ -1,215 +1,179 @@
 # Stack Research
 
-**Domain:** UI/UX polish — terminal theming, terminal padding, web server link UX, sidebar icon centering
-**Researched:** 2026-04-10
-**Confidence:** HIGH
-
-## Context: What This Research Covers
-
-This is a subsequent-milestone research file for v1.12. The existing stack (Go/Wails v2, React, xterm.js, nhooyr/websocket, go-pty, kardianos/service, tailscale.com/client/local) is validated and not re-researched here. This file covers only what is NEW for v1.12:
-
-1. Terminal theming (popular color schemes for xterm.js)
-2. Terminal padding (inset so text doesn't touch edges)
-3. Web server link UX (open in browser, copy URL, QR code for dashboard)
-4. Sidebar icon centering when collapsed
-
-**Existing bindings already in place — no new setup needed:**
-- `BrowserOpenURL(url: string): void` — Wails runtime, already in `wailsjs/wailsjs/runtime/runtime.d.ts`
-- `ClipboardSetText(text: string): Promise<boolean>` — Wails runtime, already in same file
-- `@xterm/xterm ^6.0.0` — already installed
-- `@xterm/addon-fit ^0.11.0` — already installed (project uses custom `fitTerminal()` over stock FitAddon)
-- `@heroicons/react ^2.2.0` — already installed
-- `skip2/go-qrcode` — already in `go.mod`
+**Domain:** Multi-client WebSocket fan-out, CLI status bar, TUI mode for Go/Wails terminal manager
+**Researched:** 2026-04-14
+**Confidence:** HIGH (all versions verified via GitHub API and Go module proxy; architecture verified against existing codebase)
 
 ---
 
-## Feature 1: Terminal Theming
+## Context: What Already Exists
 
-**Verdict:** One new npm package needed.
+The relay fan-out infrastructure is **already implemented** (`internal/relay/`). `Hub` supports N subscribers per session via channel fan-out with slow-client drop. `Scrollback` provides 256 KiB ring buffer. `Server` handles subscribe-before-snapshot ordering to prevent gap. The multi-client feature (GitHub #13) is **a daemon wiring and protocol gap**, not a missing library — the relay layer already works.
 
-### Recommended: `xterm-theme@1.1.0`
+The status bar (GitHub #8) needs: ANSI cursor-save/restore sequences to render a persistent bottom bar without alternate screen, plus an elapsed-time ticker.
 
-| Library | Version | Purpose | Why Recommended |
-|---------|---------|---------|-----------------|
-| `xterm-theme` | 1.1.0 | 217 iTerm2-derived theme definitions for xterm.js | Plain JS objects matching `ITheme` interface exactly; no runtime coupling; tree-shakeable; MIT license |
+The TUI mode (GitHub #7) needs: a new binary entry point using a full TUI framework.
 
-**Installation:**
+---
+
+## Recommended Stack
+
+### Core Technologies
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `charm.land/bubbletea/v2` | v2.0.5 | TUI framework for TUI mode | MVU architecture composes naturally with Go; v2 Cursed Renderer handles resize and repaint correctly; 41k GitHub stars, active Charmbracelet org maintenance; far superior testing story vs tview |
+| `charm.land/lipgloss/v2` | v2.0.3 | Layout and styling for both status bar and TUI | CSS-like declarative API; works standalone (no Bubble Tea required) for the status bar use case; v2 deterministic rendering eliminates v1 I/O lock-up bugs |
+| `charm.land/bubbles/v2` | v2.1.0 | Pre-built TUI components | Viewport (scrollable content), list, table, spinner, text input — all compatible with Bubble Tea v2; avoids writing standard widgets from scratch |
+| `github.com/charmbracelet/x/ansi` | v0.11.7 | ANSI sequences for status bar | DECSC/DECRC cursor save-restore, MoveCursor, EraseLineLeft — needed to draw/clear the persistent bottom bar in pass-through raw mode without alternate screen |
+
+### Supporting Libraries
+
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `github.com/charmbracelet/x/exp/teatest` | v0.0.0-20260413... | Bubble Tea v2 test helper | Unit testing TUI models with `NewTestModel`, fixed terminal dimensions, golden output; use for every non-trivial Bubble Tea model |
+| `github.com/taigrr/bubbleterm` | v0.2.0 | PTY terminal widget inside Bubble Tea | Embeds a live PTY session as a scrollable Bubble Tea component; uses `creack/pty` (already in go.mod as indirect dep); needed for TUI mode to display agent sessions |
+| `golang.org/x/term` | already in go.mod | Terminal raw mode, size query | Already used in `cmd_attach.go`; needed for status bar elapsed ticker and resize signal handling |
+
+### Development Tools
+
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `tea.WithWindowSize(w,h)` | Hermetic test sizing | Pass `80, 24` in tests to get deterministic output without mocking a terminal |
+| `teatest.NewTestModel` | Bubble Tea model test harness | Captures program output for assertion; keep golden files with `text eol=lf` in `.gitattributes` to prevent CRLF corruption |
+
+---
+
+## Installation
+
 ```bash
-cd frontend && pnpm add xterm-theme@1.1.0
+# TUI framework (Bubble Tea v2 ecosystem)
+go get charm.land/bubbletea/v2@v2.0.5
+go get charm.land/lipgloss/v2@v2.0.3
+go get charm.land/bubbles/v2@v2.1.0
+
+# ANSI sequences (status bar)
+go get github.com/charmbracelet/x/ansi@v0.11.7
+
+# PTY terminal widget (TUI mode — embeds live sessions)
+go get github.com/taigrr/bubbleterm@v0.2.0
+
+# Testing
+go get github.com/charmbracelet/x/exp/teatest
 ```
 
-**Compatibility:** HIGH confidence. `xterm-theme` exports plain JS objects with keys matching xterm.js `ITheme` (`foreground`, `background`, `cursor`, `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and bright variants). The xterm.js `ITheme` interface is stable across v5 and v6. Although the package lists `xterm` (deprecated) as a peer dep, it is pure data — no xterm.js runtime imports. pnpm may warn about the peer dep; use `--legacy-peer-deps` if needed.
-
-**Themes to expose (recommended initial set of 10):**
-
-| Name in package | Display name | Style |
-|----------------|-------------|-------|
-| `Dracula` | Dracula | Dark, purple tones — most popular dark theme |
-| `OneHalfDark` | One Half Dark | Dark, popular VS Code default |
-| `OneHalfLight` | One Half Light | Light version |
-| `Solarized Dark` | Solarized Dark | Classic, readable dark |
-| `Solarized Light` | Solarized Light | Classic light |
-| `Tomorrow Night` | Tomorrow Night | Dark, easy on eyes |
-| `Monokai Soda` | Monokai | Dark, developer favourite |
-| `Material` | Material | Google Material colors |
-| `Gruvbox Dark` | Gruvbox | Retro warm dark |
-| `ayu` | Ayu | Modern minimal dark |
-
-**Current state in TerminalPanel.tsx:**
-```typescript
-const term = new Terminal({
-  theme: { background: '#1a1b26' },  // ← replace with full ITheme from xterm-theme
-  ...
-})
-```
-
-**Integration pattern:**
-```typescript
-import { Dracula, OneHalfDark, SolarizedDark } from 'xterm-theme'
-
-// At creation:
-const term = new Terminal({ theme: Dracula, ... })
-
-// Runtime change (no terminal recreation needed):
-term.options.theme = OneHalfDark
-```
-
-**Persistence:** Store selected theme name in `localStorage`. Pass as prop `App.tsx → TerminalPanel`. Apply at `new Terminal({ theme: selectedTheme })` and on user change via `term.options.theme = newTheme`.
+Note: `charm.land/*` and `github.com/charmbracelet/*` are mirrors — both resolve to the same module at the same version. Use `charm.land` vanity paths in import statements (it's the canonical v2 path per upstream).
 
 ---
 
-## Feature 2: Terminal Padding
+## Alternatives Considered
 
-**Verdict:** No new library. CSS-only change. Custom `fitTerminal()` already handles padding correctly.
-
-**Key discovery:** The project does NOT use stock `FitAddon.fit()`. It has a custom `fitTerminal()` function that already reads CSS padding from the terminal element:
-
-```typescript
-// Existing code in TerminalPanel.tsx — already accounts for padding:
-const elStyle = window.getComputedStyle(term.element!)
-const padH = parseInt(elStyle.paddingLeft) + parseInt(elStyle.paddingRight)
-const padV = parseInt(elStyle.paddingTop) + parseInt(elStyle.paddingBottom)
-
-const cols = Math.max(2, Math.floor((parentW - padH) / dims.css.cell.width))
-const rows = Math.max(1, Math.floor((parentH - padV) / dims.css.cell.height))
-```
-
-This means adding CSS padding to `.xterm` element automatically produces correct terminal sizing with no JS changes. This is the correct insertion point because `fitTerminal()` reads from `term.element!` (the `.xterm` div, not the container).
-
-**Implementation:** One CSS rule:
-```css
-.xterm {
-  padding: 8px 12px;
-}
-```
-
-**Why not a config option:** xterm.js `ITerminalOptions` has no `padding` property. The feature request (GitHub issue #946) was closed in v3.1.0 via a PR that made xterm aware of CSS padding in mouse coordinate calculation — but there is no `padding: N` option in `ITerminalOptions`. CSS is the only approach, and it works correctly here because the custom fitter already reads it.
-
-**No new Go changes. No new npm packages.**
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Bubble Tea v2 (TUI) | tview v0.42.0 | Never for this project — see detailed comparison below |
+| `x/ansi` (status bar) | Raw `fmt.Fprintf` with hardcoded ESC strings | Acceptable for a one-off, but `x/ansi` is already a transitive dep via charmbracelet packages and provides named constants that survive code review |
+| `bubbleterm` (PTY widget) | Roll custom ANSI-parsing widget | Only if bubbleterm proves too limited (it's pre-v1, spec coverage is incomplete); bubbleterm explicitly notes it may replace the internal emulator library — keep it behind an interface |
+| `charm.land/bubbles/v2` viewport | Custom scrollback viewer | Only if multi-column layout or mouse selection is needed; the bubbles viewport supports soft-wrap, gutters, and mouse wheel out of the box |
 
 ---
 
-## Feature 3: Web Server Link UX
+## TUI Framework Comparison: Bubble Tea v2 vs tview
 
-**Verdict:** No new libraries. All bindings already exist. Two areas to update: `StatusBar.tsx` (session URLs) and `SettingsTab.tsx` (dashboard URL). One new Go binding needed for dashboard QR.
+### Layout System
 
-### Session URL (StatusBar.tsx) — current state
+**Bubble Tea v2:** Layout is computed in the `View()` function using Lipgloss `Width()`, `Height()`, and `Join*` helpers. The model owns all dimensions; resize propagates as `tea.WindowSizeMsg`. Layout is code — no widget hierarchy, no retained tree. This integrates naturally with the existing Go codebase style.
 
-```typescript
-// Current: opens inside Wails WebView — WRONG for URLs
-<a className="tab-status-bar__url" href={sessionURL} target="_blank" rel="noreferrer">
-  {sessionURL}
-</a>
-```
+**tview:** Layout uses `Flex` and `Grid` primitives with a retained widget tree. `Grid` supports responsive breakpoints (show/hide columns at N chars wide). More familiar to developers coming from GUI frameworks, but requires managing a widget object graph with its own internal state.
 
-`target="_blank"` in Wails WebView opens within the WebKit view, not the system browser. `BrowserOpenURL` is the correct API.
+**Verdict for this project: Bubble Tea v2.** The daemon already manages session state as pure data structures. Projecting that state into a string via `View()` is simpler than mapping it onto a widget tree.
 
-### Changes needed
+### Widget Support
 
-**StatusBar.tsx:**
-- Replace `<a href>` with text span + "Open" button calling `BrowserOpenURL(sessionURL)` from Wails runtime
-- Add copy icon button calling `ClipboardSetText(sessionURL)` from Wails runtime
+**Bubble Tea v2 + Bubbles v2:** Viewport, list (with filtering), table, spinner, text input, textarea, progress bar, paginator. All components are pure `tea.Model` values — composable without lifecycle hooks.
 
-**SettingsTab.tsx:**
-- Replace `<a href={serverURL}>` with text + "Open" button calling `BrowserOpenURL(serverURL)`
-- Add "Copy" button calling `ClipboardSetText(serverURL)`
-- Add "QR" button showing QR code modal for the dashboard URL
+**tview:** Richer out-of-the-box widget set: TreeView, Form, DropDown, Modal, Pages. Useful for database browsers and admin UIs.
 
-**QR for dashboard URL:** `skip2/go-qrcode` already exists. The existing `QRModal.tsx` and `GetSessionQR(id)` binding exist for per-session QR. Add one new Go binding `GetWebServerQR() (string, error)` in `App.go` that generates a QR PNG (base64) for the web server dashboard URL. This reuses the exact same `skip2/go-qrcode` pattern already in the codebase.
+**Verdict: tview** has more widgets overall, but **Bubble Tea** has every widget this project needs. tview's extras (form, tree) are not used here.
 
-**Import pattern for Wails runtime bindings:**
-```typescript
-import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
-```
+### PTY Terminal Embedding (Critical for TUI Mode)
 
-Both are already exported from the runtime file — no `wails generate` needed.
+**Bubble Tea v2:** `bubbleterm` (v0.2.0) embeds a PTY as a Bubble Tea component. Parses ANSI sequences, maintains cursor state, renders frames as ANSI-preserved strings. Uses `creack/pty` which is already an indirect dep. The TUI mode requires displaying multiple live AI agent sessions — this is the critical path.
 
-### clipboard: `ClipboardSetText` vs `navigator.clipboard.writeText`
+**tview:** No native PTY widget. The `ANSIWriter()` helper translates a subset of ANSI color sequences into tview color tags, but does not handle cursor positioning, alternate screen, or full VT100 emulation. Embedding a live PTY session requires building a custom widget from scratch — no maintained third-party option was found in the 2025-2026 Go ecosystem.
 
-SettingsTab already uses `navigator.clipboard.writeText(localPassword)` for the password copy button. Either approach works in Wails (WebKit runs in a secure context). For the URL copy buttons, `ClipboardSetText` from the Wails runtime is preferred — it uses the OS clipboard API directly and is consistent with desktop patterns. Keep the existing password copy as-is to avoid unnecessary churn.
+**Verdict: Bubble Tea v2 wins.** This is disqualifying for tview. The TUI mode must display live AI coding agent output which uses full xterm-256color sequences (OpenCode, Claude Code both require this). tview's ANSI support covers colorized text only.
 
----
+### Theming
 
-## Feature 4: Sidebar Icon Centering
+**Bubble Tea v2 + Lipgloss v2:** Color profiles auto-detect terminal capabilities (true color, 256-color, ANSI, no-color). v2 styles are deterministic (v1 had I/O contention bugs with concurrent renders). The existing 138 xterm theme hex values feed directly into `lipgloss.Color()`.
 
-**Verdict:** Pure CSS fix. No library, no JS changes.
+**tview:** Theming via `tcell.Style` on individual primitives. No equivalent of Lipgloss style inheritance. No bulk theme apply.
 
-**Problem:** When sidebar is collapsed, `.sidebar__item` has `display: flex; align-items: center; gap: 8px; padding: 8px`. With no `justify-content`, it defaults to `flex-start`, which pushes icons left instead of centering them in the 48px collapsed sidebar.
+**Verdict: Bubble Tea v2.** Lipgloss v2 color profiles compose with the existing theme data with no conversion.
 
-**Current CSS:**
-```css
-.sidebar--collapsed {
-  width: 48px;
-}
+### Testing
 
-.sidebar__item {
-  display: flex;
-  align-items: center;  /* vertical — correct */
-  gap: 8px;
-  padding: 8px;
-  width: 100%;
-  text-align: left;
-  /* NO justify-content: defaults to flex-start → icon hugs left edge */
-}
-```
+**Bubble Tea v2:** `teatest` provides `NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))`. Send key messages, tick the clock, assert `FinalOutput()` against golden strings. `tea.WithWindowSize(w, h)` enables deterministic test sizes directly. MVU architecture means `Update()` is a pure function — unit testable with zero framework overhead.
 
-**Fix:**
-```css
-.sidebar--collapsed .sidebar__item {
-  justify-content: center;
-  padding: 8px 0;
-}
-```
+**tview:** `Application.Run()` panics when called from `go test` (rivo/tview issue #591, open 2021-present). Tests using `tcell.SimulationScreen` hit timeouts waiting for the event loop. No first-party test helper. Workarounds require running in a subprocess or manual event injection.
 
-`padding: 8px 0` removes horizontal padding in collapsed state, ensuring the icon sits at the geometric center of the 48px sidebar.
+**Verdict: Bubble Tea v2.** The tview testing limitation is a structural issue with no official fix. The existing AgentHub codebase has 8K lines of Go tests; adding an untestable UI layer is a regression.
 
-The `.sidebar__toggle` already has `justify-content: center` (correct). Only `.sidebar__item` needs this fix.
+### Community Health
+
+| Metric | Bubble Tea v2 | tview |
+|--------|--------------|-------|
+| GitHub Stars | 41,562 | 13,768 |
+| Last Updated | 2026-04-15 | 2026-04-15 |
+| Org Backing | Charmbracelet (company) | Individual maintainer (rivo) |
+| Versioning | Stable v2.0.5 | v0.42.0 (semver pre-v1 technically) |
+| Ecosystem | lipgloss, bubbles, wish, x/ansi | tcell only |
+
+Both are actively maintained. Bubble Tea wins on ecosystem breadth and organizational backing.
+
+### Summary Verdict: Use Bubble Tea v2
+
+The PTY embedding gap in tview is a hard blocker. The untestable Application.Run() is a second hard blocker. Bubble Tea v2 + bubbleterm covers the PTY case, integrates with the existing theme data via Lipgloss, and matches the project's testing standard.
 
 ---
 
-## Summary: New Dependencies
-
-| Type | Item | Action |
-|------|------|--------|
-| npm | `xterm-theme@1.1.0` | `pnpm add xterm-theme@1.1.0` in `frontend/` |
-| Go | none | No new packages — all bindings already exist |
-| CSS | none | Changes to existing `style.css` only |
-| Wails bindings | `GetWebServerQR()` | New method in `App.go`, generated binding in `wailsjs/` |
-
----
-
-## What NOT to Add
+## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `react-color` or color picker libraries | Out of scope; this is a theme selector, not a color editor | `<select>` over predefined themes from `xterm-theme` |
-| Stock `FitAddon.fit()` for padding | Subtracts hardcoded 14px scrollbar width; ignores CSS padding | Existing custom `fitTerminal()` in `TerminalPanel.tsx` — already handles padding |
-| `ITerminalOptions.padding` | Does not exist in xterm.js API | CSS on `.xterm { padding: 8px 12px }` |
-| `<a href target="_blank">` for opening URLs in Wails | Opens inside WebKit WebView, not system browser | `BrowserOpenURL(url)` from Wails runtime |
-| New QR library | `skip2/go-qrcode` already present | Reuse existing pattern with new `GetWebServerQR()` binding |
-| External CSS framework for sidebar fix | 2-line CSS change | `.sidebar--collapsed .sidebar__item { justify-content: center }` |
-| `navigator.clipboard.writeText()` for new URL copy buttons | Works but less idiomatic for desktop | `ClipboardSetText()` Wails runtime binding |
-| Storing theme in Go/backend | UI preference, no backend relevance | `localStorage` key in frontend only |
+| tview for TUI mode | No PTY/full-terminal embedding; Application.Run() untestable from go test | Bubble Tea v2 + bubbleterm |
+| Bubble Tea v1 (`github.com/charmbracelet/bubbletea` without `/v2`) | v2 is stable; v1 has known lipgloss I/O contention bugs; v2 Cursed Renderer is orders of magnitude more efficient | `charm.land/bubbletea/v2` |
+| gorilla/websocket for new code | Already replaced by coder/websocket; panics on concurrent writes | `github.com/coder/websocket` (already in go.mod) |
+| New fan-out library for multi-client | `internal/relay` Hub already implements multi-subscriber fan-out with slow-client drop and scrollback replay | Wire daemon to create Hub per session on creation, not on first attach |
+| Redis/NATS/external broker for fan-out | Unnecessary; all clients attach to the same daemon process | In-process Hub with `sync.Mutex` + buffered channel per subscriber (already built) |
+| `termkit/skeleton` for TUI tab management | GPL-3.0 license incompatible with project's likely MIT/BSD direction; 62 stars, pre-v1 | Implement tab routing directly in root Bubble Tea model (`currentTab int` + `[]tea.Model` slice) |
+| `bubbleterm` without an interface wrapper | v0.2.0 is pre-v1; README explicitly warns the emulator library may be swapped | Wrap behind a `TerminalWidget interface { Update(tea.Msg) (TerminalWidget, tea.Cmd); View() string }` |
+
+---
+
+## Stack Patterns by Feature
+
+**Multi-client fan-out (GitHub #13) — no new library needed:**
+- The `internal/relay` Hub already supports N subscribers
+- Current gap: Hub lifetime may be tied to the first client connection; Hub must be created at session creation time and persist across all client attach/detach cycles
+- Second client subscribes to existing Hub → gets scrollback replay automatically via existing `ScrollbackSnapshot()` + subscribe-before-snapshot pattern
+- Work: plumb Hub creation into the session engine's `CreateSession` path; manage Hub lifecycle in `HubManager`
+
+**tmux-style CLI status bar (GitHub #8) — lipgloss + x/ansi, no Bubble Tea:**
+- Use `github.com/charmbracelet/x/ansi` constants: `SaveCursor`, `MoveCursor(rows, 0)`, `EraseLineRight`, `RestoreCursor`
+- Use `charm.land/lipgloss/v2` to render the status line string: `[session | agent | host | HH:MM:SS | Ctrl-\\ to detach]`
+- Use `golang.org/x/term.GetSize()` for terminal width at render time
+- Goroutine: tick every second to update elapsed time; re-render on SIGWINCH
+- Write to `os.Stderr` to avoid mixing with raw PTY stdout stream
+- Pattern: `DECSC → CUP(rows,0) → EL → render → DECRC` — no alternate screen, no cursor flash
+
+**TUI mode (GitHub #7) — Bubble Tea v2 + bubbleterm:**
+- Entry: `agenthub tui` subcommand (or auto-detect headless environment)
+- Root model: tab bar (session tabs + New), active session panel fills `height - tabBarHeight - statusBarHeight`
+- Session panel: `bubbleterm.Model` receiving frames from daemon WebSocket connection
+- Session list sidebar: `bubbles/v2/list.Model`, toggleable
+- Footer: lipgloss-styled row showing agent type, hostname, web URL, session count
+- Daemon connectivity: reuse existing `daemon.DaemonClient` HTTP/JSON + relay WebSocket — TUI is a new front-end to the existing daemon, not a new daemon
 
 ---
 
@@ -217,26 +181,29 @@ The `.sidebar__toggle` already has `justify-content: center` (correct). Only `.s
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| `xterm-theme@1.1.0` | `@xterm/xterm@^6.0.0` | Compatible as pure data; ITheme interface stable across v5/v6; no runtime coupling |
-| `@xterm/xterm@^6.0.0` (existing) | Custom `fitTerminal()` with CSS padding | Verified: custom fitter reads `getComputedStyle(term.element!)` padding |
-| Wails runtime `BrowserOpenURL` | Wails v2.10.2 (existing) | Already declared in `runtime.d.ts`; no version change |
-| Wails runtime `ClipboardSetText` | Wails v2.10.2 (existing) | Already declared in `runtime.d.ts`; no version change |
+| `charm.land/bubbletea/v2@v2.0.5` | `charm.land/lipgloss/v2@v2.0.3` | v2 of both; designed together by Charmbracelet |
+| `charm.land/bubbles/v2@v2.1.0` | `charm.land/bubbletea/v2@v2.0.5` | bubbles v2 targets bubbletea v2; do not mix bubbles v1 with bubbletea v2 |
+| `github.com/taigrr/bubbleterm@v0.2.0` | `charm.land/bubbletea/v2` | Verify import path targets v2 before adding; if it imports bubbletea v1, wrap it or fork the relevant code |
+| `github.com/charmbracelet/x/ansi@v0.11.7` | standalone | No bubbletea dependency; safe in status bar code running outside any TUI framework |
+| `github.com/charmbracelet/x/exp/teatest` | `charm.land/bubbletea/v2` | `x/exp` = unstable API; pin to a commit if API drift causes breakage between milestone phases |
 
 ---
 
 ## Sources
 
-- https://xtermjs.org/docs/api/terminal/interfaces/itheme/ — ITheme fields confirmed (HIGH confidence, official docs)
-- https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/ — Confirmed no `padding` option exists (HIGH confidence, official docs)
-- https://github.com/xtermjs/xterm.js/discussions/5299 — FitAddon does not handle CSS padding; custom implementation required (MEDIUM confidence, maintainer response)
-- https://github.com/xtermjs/xterm.js/issues/946 — Padding via CSS on `.xterm` element is the supported approach; merged in v3.1.0 (MEDIUM confidence, issue resolution)
-- https://github.com/ysk2014/xterm-theme/blob/master/src/index.js — 217 themes enumerated by direct source inspection; all export plain objects (HIGH confidence, source code)
-- Wails v2 docs — `ClipboardSetText` and `BrowserOpenURL` confirmed as runtime bindings (HIGH confidence, official Wails docs)
-- `/Users/ken/dev/agenthub/frontend/src/wailsjs/wailsjs/runtime/runtime.d.ts` — Both bindings already declared in this repo (HIGH confidence, direct file inspection)
-- `/Users/ken/dev/agenthub/frontend/src/components/TerminalPanel.tsx` — Custom `fitTerminal()` already reads `paddingLeft/paddingRight/paddingTop/paddingBottom` from `getComputedStyle(term.element!)` (HIGH confidence, direct code inspection)
-- `/Users/ken/dev/agenthub/frontend/src/style.css` lines 154–224 — Sidebar CSS confirms missing `justify-content` on `.sidebar__item` (HIGH confidence, direct code inspection)
+- Context7 `/charmbracelet/bubbletea` — View struct, WindowSizeMsg, layout patterns, test sizing via `tea.WithWindowSize`
+- Context7 `/charmbracelet/lipgloss` — border styles, table rendering, color profiles
+- Context7 `/charmbracelet/bubbles` — viewport with soft-wrap and gutters, textarea, list
+- Context7 `/rivo/tview` — grid layout, flex, input field, focus delegation; no PTY widget found
+- GitHub API (2026-04-14): bubbletea 41,562 stars; tview 13,768 stars; lipgloss 11,050; bubbles 8,198
+- Go module proxy: bubbletea v2.0.5, lipgloss v2.0.3, bubbles v2.1.0, tview v0.42.0, tcell v3.1.2, x/ansi v0.11.7
+- https://pkg.go.dev/github.com/taigrr/bubbleterm — PTY terminal widget v0.2.0, 0BSD license, pre-v1
+- https://github.com/charmbracelet/bubbletea/discussions/1374 — Bubble Tea v2 confirmed: Cursed Renderer, Mode 2026 sync, `tea.WithWindowSize` test support
+- https://github.com/rivo/tview/issues/591 — Application.Run() panics under go test (open, structural)
+- https://github.com/rivo/tview/issues/326 — SimulationScreen testing hits timeouts (confirmed community pain)
+- Codebase: `internal/relay/hub.go`, `server.go`, `scrollback.go` — fan-out infrastructure exists; multi-client is a wiring gap not a library gap
 
 ---
 
-*Stack research for: AgentHub v1.12 UI/UX Polish*
-*Researched: 2026-04-10*
+*Stack research for: AgentHub v2.0 — multi-client sessions, CLI status bar, TUI mode*
+*Researched: 2026-04-14*

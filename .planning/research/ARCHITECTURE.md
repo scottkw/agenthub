@@ -1,335 +1,639 @@
 # Architecture Research
 
-**Domain:** UI/UX polish features for Go/Wails + React + xterm.js desktop app
-**Researched:** 2026-04-10
-**Confidence:** HIGH (all integration points verified from live codebase)
+**Domain:** Multi-client WebSocket relay, CLI status bar, TUI mode for Go/Wails desktop app
+**Researched:** 2026-04-14
+**Confidence:** HIGH
 
 ## Standard Architecture
 
-### System Overview
+### System Overview (Current v1.14)
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                        React Frontend (WebView)                   │
-├────────────┬────────────────────────────────────┬────────────────┤
-│  Sidebar   │  App.tsx (root state + wiring)      │  TabBar        │
-│  (nav)     │  - tab state                        │  (session tabs)│
-│            │  - font sizes per session           │                │
-│            │  - web serving state per session    │                │
-│            │  - theme per session (NEW)           │                │
-│            │  - padding per session (NEW)         │                │
-├────────────┴──────────┬─────────────────────────┴────────────────┤
-│   terminal-container  │  Non-terminal panels                      │
-│   ┌──────────────┐    │  (Welcome, DaemonManager,                 │
-│   │ TerminalPanel│    │   RemoteSessions, Settings)               │
-│   │  xterm.js    │    │                                           │
-│   │  FitAddon    │    │                                           │
-│   └──────────────┘    │                                           │
-│   ┌──────────────┐    │                                           │
-│   │  StatusBar   │    │                                           │
-│   │  (32px flex) │    │                                           │
-│   └──────────────┘    │                                           │
-├───────────────────────┴───────────────────────────────────────────┤
-│              Wails Runtime Bindings (JS to Go bridge)             │
-│  BrowserOpenURL · ClipboardSetText · EventsOn                     │
-│  Go-generated App.* bindings (GetWebServerURL, GetSessionQRCode…) │
-├───────────────────────────────────────────────────────────────────┤
-│                     Go Backend (App struct)                        │
-│  GetWebServerURL · GetSessionQRCode · GetWebServerMode            │
-│  GetLocalNetworkPassword · StartWebServer · StopWebServer         │
-│  DaemonClient (Unix socket) → internal/daemon SessionEngine       │
-│  internal/webserver · skip2/go-qrcode                            │
-└───────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                        agenthub binary                              │
+│                                                                     │
+│  dispatch: no args → GUI (Wails)                                   │
+│            subcommand → CLI                                         │
+│            "daemon" → daemon service                                │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │
+         ┌──────────────────┼──────────────────┐
+         │                  │                  │
+         ▼                  ▼                  ▼
+  ┌─────────────┐   ┌──────────────┐   ┌─────────────────┐
+  │  GUI (Wails)│   │  CLI cmds    │   │  Daemon service  │
+  │  React +    │   │  cmd_attach  │   │  internal/daemon │
+  │  xterm.js   │   │  cmd_cli     │   │  SessionEngine   │
+  └──────┬──────┘   └──────┬───────┘   └────────┬─────────┘
+         │                  │                    │
+         └──────────────────┼────────────────────┘
+                           │  DaemonClient (Unix socket)
+                           ▼
+               ┌────────────────────────┐
+               │    daemon HTTP API      │
+               │    (Unix socket)        │
+               │  /sessions, /health,    │
+               │  /relay-port, etc.      │
+               └────────────┬───────────┘
+                            │
+               ┌────────────┴───────────┐
+               │    SessionEngine        │
+               │  registry + backend +   │
+               │  HubManager + statuses  │
+               └────────────┬───────────┘
+                            │
+         ┌──────────────────┼───────────────────┐
+         │                  │                   │
+         ▼                  ▼                   ▼
+  ┌─────────────┐  ┌─────────────────┐  ┌──────────────┐
+  │ pty.Session  │  │  relay.Hub      │  │ status.Watch │
+  │ (PTY proc)   │  │  (broadcast)    │  │ (heuristics) │
+  │ aymanbagabas │  │  scrollback buf │  │              │
+  │  /go-pty     │  │  N subscribers  │  │              │
+  └─────────────┘  └─────────────────┘  └──────────────┘
+                            │
+               ┌────────────┴────────────┐
+               │    relay WebSocket       │
+               │    TCP :random           │
+               │    GET /sessions/{id}/ws │
+               └─────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Integration Notes |
-|-----------|----------------|-------------------|
-| `App.tsx` | Root state: tabs, fontSizes, webEnabled, sessionURLs | Owns new state: `themes` and `paddings` per session |
-| `Sidebar.tsx` | Navigation: collapsed (48px) / expanded (200px), localStorage | CSS-only fix for icon centering when collapsed |
-| `TerminalPanel.tsx` | xterm.js lifecycle, fit, font size prop | Receives `theme` and `padding` props; pass to `new Terminal({})` |
-| `StatusBar.tsx` | 32px flex bar per terminal tab — web on/off, URL, QR button | Add open-in-browser button and copy-URL button |
-| `SettingsTab.tsx` | CLI paths and web server config (two sub-tabs) | Add Appearance sub-tab for theme/padding defaults |
-| `QRModal.tsx` | Modal showing session QR code (base64 PNG) | QR for dashboard URL is a new second use case |
-| `App.go` | Wails-bound methods: GetWebServerURL, GetSessionQRCode | Add `GetDashboardQRCode()` for the dashboard URL QR |
-
-## Feature Integration Points
-
-### Feature 1: Terminal Padding
-
-**What it is:** An inset margin so terminal text does not touch the container edges.
-
-**Integration surface:**
-
-- `TerminalPanel.tsx` has a custom `fitTerminal()` function that already reads `paddingLeft/Right/Top/Bottom` from `window.getComputedStyle(term.element!)`. This means CSS padding on the xterm element flows through `fitTerminal()` automatically — cols and rows are recalculated after subtracting `padH` and `padV`. This was built intentionally to support padding.
-- The container `<div ref={containerRef}>` currently has `style={{ flex: 1, width: '100%', minHeight: 0 }}`. The xterm element rendered inside it (accessed as `term.element`) receives the padding.
-
-**The correct approach:** Apply padding via `term.element.style.padding` after `term.open()`. The custom `fitTerminal` reads this via `window.getComputedStyle(term.element!)`. Do not apply padding to the outer container div — that div's padding is not what `fitTerminal` reads.
-
-**New state in App.tsx:**
-```typescript
-const DEFAULT_PADDING = 8  // px
-const [paddings, setPaddings] = useState<Record<string, number>>({})
-```
-
-**TerminalPanel prop addition:**
-```typescript
-interface TerminalPanelProps {
-  // ...existing...
-  padding: number  // px inset, applied to term.element.style.padding after open()
-}
-```
-
-**fitTerminal compatibility:** No changes to `fitTerminal` logic. The function already subtracts `padH`/`padV` from parent dimensions when computing cols/rows.
-
-**Settings UI:** Global default lives in a new "Appearance" sub-tab of `SettingsTab`. Store default in `localStorage` so it persists, same pattern as `sidebar-collapsed`.
+| Component | Responsibility | Key File |
+|-----------|----------------|----------|
+| `main.go` | Binary dispatch (GUI/CLI/daemon) | `main.go` |
+| `internal/daemon/SessionEngine` | All session state: registry, hub manager, tab names, statuses | `engine.go` |
+| `internal/daemon/API` | HTTP JSON over Unix socket, relay startup | `api.go` |
+| `internal/daemon/DaemonClient` | Typed Go client for CLI and GUI over Unix socket | `client.go` |
+| `internal/relay/Hub` | Fan-out PTY output to N subscribers; owns scrollback | `hub.go` |
+| `internal/relay/HubManager` | Lifecycle of Hub instances keyed by session ID | `manager.go` |
+| `internal/relay/Server` | HTTP handler: upgrades to WebSocket, manages subscribe/replay cycle | `server.go` |
+| `internal/pty/Session` | Single PTY process, implements `io.ReadWriter` | `session.go` |
+| `cmd_attach.go` | Raw terminal mode, I/O pump, SIGWINCH watcher | `cmd_attach.go` |
+| Frontend (React/xterm.js) | Tabbed terminal, sidebar nav, settings, status bars | `frontend/src/` |
 
 ---
 
-### Feature 2: Terminal Theming
+## New Architecture: v2.0 Target
 
-**What it is:** Selectable color themes (e.g., Tokyo Night, Dracula, Solarized Dark) applied to xterm.js terminal color palette and background.
+### System Overview (Post v2.0)
 
-**Integration surface:**
-
-- `TerminalPanel.tsx` currently hardcodes `theme: { background: '#1a1b26' }` in the `new Terminal({})` constructor. The xterm.js `ITheme` interface supports: `background`, `foreground`, `cursor`, `cursorAccent`, `selectionBackground`, `selectionForeground`, plus 16 ANSI colors (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, and bright variants).
-- xterm.js supports runtime theme changes via `term.options.theme = newTheme` without destroying the terminal instance. Scrollback is preserved.
-
-**The correct approach:**
-
-1. Define theme objects as constants in a new `frontend/src/lib/themes.ts` file. No backend involvement.
-2. Pass `theme` string key as a prop to `TerminalPanel`. The panel maps it to the xterm `ITheme` object.
-3. Font family is kept separate — it already implicitly comes from the hardcoded `fontFamily` string. Theme selection does not need to change font family.
-
-**New state in App.tsx:**
-```typescript
-const DEFAULT_THEME = 'tokyo-night'
-const [themes, setThemes] = useState<Record<string, string>>({})
 ```
-
-**TerminalPanel prop addition:**
-```typescript
-interface TerminalPanelProps {
-  // ...existing...
-  theme: string  // key into THEMES map defined in lib/themes.ts
-}
+┌────────────────────────────────────────────────────────────────────┐
+│                        agenthub binary                              │
+│                                                                     │
+│  dispatch: no args → GUI (Wails)                                   │
+│            "tui" → TUI mode  ← NEW                                 │
+│            subcommand → CLI                                         │
+│            "daemon" → daemon service                                │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │
+    ┌───────────────────────┼───────────────────────┐
+    │           NEW         │                       │
+    ▼                       ▼                       ▼
+┌──────────────┐   ┌──────────────┐        ┌─────────────────┐
+│  TUI mode    │   │  GUI (Wails) │        │  CLI cmds        │
+│  bubbletea   │   │  React +     │        │  cmd_attach      │
+│  DaemonClient│   │  xterm.js    │        │  (+ status bar)  │
+│  WebSocket   │   │              │        │  ← MODIFIED      │
+└──────┬───────┘   └──────┬───────┘        └──────┬───────────┘
+       │                  │                        │
+       └──────────────────┼────────────────────────┘
+                         │  DaemonClient (Unix socket)
+                         ▼
+             ┌────────────────────────┐
+             │    daemon HTTP API      │
+             │    (Unix socket)        │
+             │  + GET /sessions/{id}   │
+             │    (client-count)       │  ← NEW optional field
+             └────────────┬───────────┘
+                          │
+             ┌────────────┴────────────┐
+             │    SessionEngine         │
+             │  (unchanged internally)  │
+             └────────────┬────────────┘
+                          │
+      ┌───────────────────┼───────────────────┐
+      │                   │                   │
+      ▼                   ▼                   ▼
+┌─────────────┐  ┌──────────────────┐  ┌──────────────┐
+│ pty.Session  │  │  relay.Hub        │  │ status.Watch │
+│ (unchanged)  │  │  N subscribers    │  │ (unchanged)  │
+│              │  │  (was: max 1)     │  │              │
+│              │  │  ← MULTI-CLIENT  │  │              │
+└─────────────┘  └──────────────────┘  └──────────────┘
+                          │
+             ┌────────────┴────────────┐
+             │    relay WebSocket       │
+             │    GET /sessions/{id}/ws │
+             │    Multiple conns OK     │  ← ALREADY WORKS
+             └─────────────────────────┘
 ```
-
-**Runtime theme switching effect (same pattern as fontSize):**
-```typescript
-useEffect(() => {
-  if (!termRef.current) return
-  termRef.current.options.theme = THEMES[theme] ?? THEMES['tokyo-night']
-}, [theme])
-```
-
-**Theme file structure:**
-```typescript
-// frontend/src/lib/themes.ts
-import type { ITheme } from '@xterm/xterm'
-export const THEMES: Record<string, ITheme> = {
-  'tokyo-night':   { background: '#1a1b26', foreground: '#a9b1d6', ... },
-  'dracula':       { background: '#282a36', foreground: '#f8f8f2', ... },
-  'solarized-dark': { ... },
-  'github-dark':   { ... },
-}
-export const THEME_KEYS = Object.keys(THEMES) as string[]
-```
-
-**Settings UI:** Theme picker dropdown in the "Appearance" sub-tab of `SettingsTab`. The selected theme is stored in `localStorage` as the global default. Per-session overrides use `themes: Record<string, string>` state in `App.tsx`.
-
-**No backend changes.** Themes are pure frontend.
 
 ---
 
-### Feature 3: Web Server Link Improvements (Open in Browser, Copy URL, Dashboard QR)
+## Feature 1: Multi-Client WebSocket Sessions (GitHub #13)
 
-**What it is:** In `SettingsTab` → Web Server sub-tab, when the server is running and the URL is shown, add: (a) open in default browser button, (b) copy-to-clipboard button, (c) QR code button for the dashboard URL.
+### Current State Analysis
 
-**Integration surface:**
+The relay architecture **already supports multiple clients** at the protocol level. `relay.Hub` has a `subscribers map[*Subscriber]struct{}` that fans out to N concurrent WebSocket connections. The `Subscribe`/`Unsubscribe` pattern is safe for concurrent use. `ScrollbackSnapshot` replays scrollback to each new joiner independently.
 
-- `SettingsTab.tsx` already renders `serverURL` with an `<a>` tag when running. Inside Wails WebView, `target="_blank"` on anchor tags is unreliable — it does not reliably open the system browser. The correct call is `BrowserOpenURL(url)` from the Wails runtime.
-- `BrowserOpenURL` is already imported and used in `App.tsx` and `WelcomeTab.tsx`. Adding it to `SettingsTab.tsx` is a one-line import change.
-- `ClipboardSetText` is already in the Wails runtime bindings (`wailsjs/wailsjs/runtime/runtime.js:200`). It returns `Promise<boolean>`. The existing LAN password copy in `SettingsTab` uses `navigator.clipboard.writeText` — that should be replaced with `ClipboardSetText` for consistency and cross-platform reliability within Wails.
-- For dashboard QR: the existing `GetSessionQRCode(sessionId)` generates QR for a session URL. A new `GetDashboardQRCode()` method encodes `serverURL` (the dashboard root, not a session path).
+The issue is **resize arbitration**: when multiple clients send `MsgResize2`, the PTY gets resized to whichever client last sent a resize event. Each client operates at a different terminal size, and there is no negotiation.
 
-**Go backend change — add one new Wails method to `app.go`:**
+### What Actually Needs to Change
+
+**relay/hub.go — No changes needed.** Fan-out already works for N clients.
+
+**relay/server.go — No changes needed.** Subscribe-before-snapshot pattern already prevents gaps for any number of joiners.
+
+**Resize arbitration — New policy needed.** Three viable policies:
+
+1. **First-wins:** Only the first subscriber can resize. Additional clients are read-only for resize. Simplest. Breaks experience for latecomers who want control.
+2. **Last-wins (current implicit behavior):** Any client can resize. Breaks other clients. Do not use.
+3. **Controlling client:** The client that sent the most recent `MsgInput` (i.e., the one typing) owns resize. Others are observers. Good default — matches tmux "active pane" semantics.
+
+**Recommended: Controlling-client resize policy.** Hub tracks `controllingClient *Subscriber` (or nil if no input yet). Resize frames from non-controlling clients are silently dropped. When a subscriber sends MsgInput, they become the controlling client.
+
 ```go
-// GetDashboardQRCode generates a QR code for the web dashboard root URL and
-// returns it as a base64-encoded PNG. Returns error if server not running.
-func (a *App) GetDashboardQRCode() (string, error) {
-    if a.client == nil {
-        return "", fmt.Errorf("daemon not connected")
+// In Hub — add to existing struct:
+controllingClient *Subscriber
+controlMu         sync.Mutex
+
+// In Hub.WriteInputFrom — called from server.go read pump:
+func (h *Hub) WriteInputFrom(sub *Subscriber, data []byte) error {
+    h.controlMu.Lock()
+    h.controllingClient = sub
+    h.controlMu.Unlock()
+    _, err := h.writer.Write(data)
+    return err
+}
+
+// In Hub.ResizeFrom — new method:
+func (h *Hub) ResizeFrom(sub *Subscriber, cols, rows int) error {
+    h.controlMu.Lock()
+    cc := h.controllingClient
+    h.controlMu.Unlock()
+    if cc != nil && cc != sub {
+        return nil // not the controlling client, ignore
     }
-    resp, err := a.client.GetWebServerStatus()
-    if err != nil || !resp.Running {
-        return "", fmt.Errorf("web server not running")
-    }
-    png, err := qrcode.Encode(resp.URL, qrcode.Medium, 256)
-    if err != nil {
-        return "", fmt.Errorf("GetDashboardQRCode: encode: %w", err)
-    }
-    return base64.StdEncoding.EncodeToString(png), nil
+    return h.resizeFn(cols, rows)
 }
 ```
 
-This is a minimal addition — it calls `qrcode.Encode` (already imported as `skip2/go-qrcode`) with `resp.URL` instead of a session URL. No daemon IPC changes.
+**daemon/api.go — Optional client-count exposure.** Add `ConnectedClients int` field to `SessionInfo` so GUI and TUI can show "3 clients attached". Hub needs a `SubscriberCount() int` method (already has `subscribers` map under `mu`).
 
-**Wails binding generation:** `wails generate module` (or dev server restart) auto-generates the updated `frontend/src/wailsjs/go/main/App.js` and `.d.ts` with `GetDashboardQRCode`.
+### Data Flow Change: Multi-Client Resize
 
-**Frontend (SettingsTab.tsx):** Import `BrowserOpenURL`, `ClipboardSetText` from Wails runtime; import `GetDashboardQRCode` from generated bindings. Add three controls in the server-running section. The QR display can reuse the `QRModal` pattern inline or as a new `DashboardQRModal` component.
-
-**QR modal approach:** The existing `QRModal` accepts `sessionId` and calls `GetSessionQRCode(sessionId)` internally. The simplest extension is a second variant `DashboardQRModal` that accepts no `sessionId` and calls `GetDashboardQRCode()`. Alternatively, generalize `QRModal` with an optional `fetchFn` prop — but that adds complexity. Prefer a separate focused component.
+```
+Client A (controlling — last typed)         Client B (observer)
+    MsgInput → WriteInputFrom(subA)              MsgInput → WriteInputFrom(subB) → subB becomes controlling
+    MsgResize2 → ResizeFrom(subA) → PTY          MsgResize2 → ResizeFrom(subB) → dropped (not controlling)
+    ← MsgOutput broadcast ←                  ← MsgOutput broadcast ←
+```
 
 ---
 
-### Feature 4: Sidebar Icon Centering When Collapsed
+## Feature 2: tmux-Style CLI Status Bar (GitHub #8)
 
-**What it is:** When the sidebar is collapsed (48px wide), icons should be horizontally centered within the 48px column. Currently, `.sidebar__toggle` uses `justify-content: center` and is centered. `.sidebar__item` uses `display: flex; align-items: center; gap: 8px; padding: 8px; width: 100%` but does NOT have `justify-content: center` — so the icon aligns to the left edge of the padding box, with 8px left padding. The 20px icon at 8px left pad leaves 20px right of center: visually off-center.
+### Problem
 
-**Root cause confirmed in `style.css` lines 188-207:** `.sidebar__item` has no `justify-content` declaration. `.sidebar__toggle` (line 169-182) has `justify-content: center` — that button looks correct. The item buttons are missing it.
+`cmd_attach.go` puts the terminal in raw mode and directly proxies PTY output to stdout. There is no reserved screen region — PTY output scrolls the full terminal height. A persistent status bar requires reserving the bottom 1 line while scrolling content above it.
 
-**The fix — CSS modifier class (zero JSX changes):**
-```css
-.sidebar--collapsed .sidebar__item {
-  justify-content: center;
-  padding: 8px 0;
-}
+### Mechanism: ANSI Scroll Region + Status Bar
+
+The standard mechanism used by tmux, vim, and htop: DECSTBM (`CSI r`) sets a scrolling region. By setting the scroll region to rows 1..N-1 (all but the last row), terminal output scrolls only within that region. The bottom row (row N) is outside the scroll region and persists.
+
+```
+Terminal: 80x24
+
+Scroll region: rows 1–23 (CSI 1;23 r)
+Bottom row 24: status bar — not scrolled
+
+┌─────────────────────────────────────────────────┐
+│ PTY output scrolls here (rows 1-23)              │
+│                                                  │
+│ $ claude "fix the bug"                           │
+│ Analyzing...                                     │
+│                                                  │
+│                                                  │
+├─────────────────────────────────────────────────┤
+│ my-session │ claude │ hostname │ 0:03:42 │ Ctrl-\ │  ← row 24, persists
+└─────────────────────────────────────────────────┘
 ```
 
-The `padding: 8px 0` removes horizontal padding when collapsed — otherwise 8px left+right padding plus 20px icon = 36px in a 48px column, centering within the remaining 12px instead of the full 48px. With `padding: 0` horizontally, `justify-content: center` distributes the full 48px correctly.
+### Implementation Plan
 
-The `.sidebar--collapsed` class is already on the `<nav>` element (verified in `Sidebar.tsx` line 44). CSS descendant selector works without JSX changes.
+**New package: `internal/statusbar`**
+
+Responsibilities:
+- Draw initial status bar at terminal bottom (save cursor, move to row N, write content, restore cursor)
+- Start `time.Ticker` to update elapsed time in place
+- Set DECSTBM scroll region on attach; restore full scroll region on detach
+- Handle SIGWINCH: recalculate row N, redraw bar at new position
+- Restore terminal state on all exit paths (panic-safe defer)
+
+```go
+// internal/statusbar/bar.go
+type Bar struct {
+    w       io.Writer   // typically os.Stderr (out-of-band, does not go to PTY)
+    session SessionMeta
+    ticker  *time.Ticker
+    start   time.Time
+    rows    int
+    cols    int
+    done    chan struct{}
+}
+
+type SessionMeta struct {
+    Name     string
+    CLI      string
+    Hostname string
+}
+
+func New(w io.Writer, meta SessionMeta, cols, rows int) *Bar
+func (b *Bar) Start()                // sets scroll region, draws bar, starts ticker
+func (b *Bar) Stop()                 // restores scroll region, clears bar
+func (b *Bar) Resize(cols, rows int) // called by SIGWINCH handler
+```
+
+**Modified: `cmd_attach.go`**
+
+Current flow:
+```
+raw mode → printAttachBanner → attachSession → printDetachMessage → restore raw
+```
+
+New flow:
+```
+raw mode → statusbar.New(meta, cols, rows) → bar.Start() →
+attachSession (proxies PTY output, bar.Resize on SIGWINCH) →
+bar.Stop() → printDetachMessage → restore raw
+```
+
+Key constraint: the PTY output pump (`wsOutputPump`) writes to `os.Stdout`. The status bar writes to `os.Stderr`. Both file descriptors point to the same terminal device (`/dev/tty`). Writing the scroll region escape to either works. Using stderr for control sequences keeps them out of any stdout capture and avoids interleaving with PTY content.
+
+**Modified: `cmd_attach_unix.go` (watchResize)**
+
+SIGWINCH handler must call `bar.Resize(newCols, newRows)` in addition to sending the resize frame to the WebSocket relay.
+
+**Terminal cleanup is critical.** The defer chain must ensure `bar.Stop()` runs on every exit path including panics. The scroll region must be reset to full terminal before `term.Restore`.
+
+**DECSTBM sequence details (HIGH confidence — standard ANSI):**
+- Set scroll region: `ESC [ top ; bottom r` where top=1, bottom=rows-1
+- Reset scroll region: `ESC [ r` (no parameters = full terminal)
+- Move cursor to row N, col 1: `ESC [ N ; 1 H`
+- Save/restore cursor: `ESC 7` / `ESC 8` (DEC — more widely supported than CSI s/u)
+- Clear to end of line: `ESC [ K`
+
+### Status Bar Content
+
+```
+ session-name │ claude │ hostname │ elapsed │ Ctrl-\ to detach
+```
+
+Width-aware: truncate session name if terminal is narrow. Elapsed time ticks every second. Use `\r` (carriage return without newline) when redrawing in place at the bottom row.
+
+---
+
+## Feature 3: TUI Mode (GitHub #7)
+
+### Binary Dispatch
+
+Current dispatch in `main.go`:
+```go
+if len(os.Args) == 1 || strings.HasPrefix(os.Args[1], "-") {
+    runGUI()
+    return
+}
+runCLI(os.Args[1:])
+```
+
+New dispatch:
+```go
+if len(os.Args) == 1 || strings.HasPrefix(os.Args[1], "-") {
+    runGUI()
+    return
+}
+if os.Args[1] == "tui" {
+    runTUI(os.Args[2:])  // new
+    return
+}
+runCLI(os.Args[1:])
+```
+
+This is a **non-breaking insertion** — "tui" was not a valid CLI subcommand before. No existing behavior changes.
+
+### TUI Architecture
+
+The TUI is a standalone Bubble Tea application that is a DaemonClient consumer, identical in role to the GUI. It communicates with the daemon over the Unix socket and the relay over WebSocket — the same paths the GUI and CLI use.
+
+**Not** a wrapper around `cmd_attach.go`. TUI mode is a full interactive UI, not a single-session attach.
+
+**Framework:** Bubbletea v2 + Lipgloss v2 + Bubbles (MEDIUM confidence — v2 is current as of 2026). The Charm stack is the dominant Go TUI ecosystem. No viable alternative for a feature-rich, layout-driven terminal UI in Go.
+
+### TUI Component Layout
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [AgentHub TUI]                                    [status line] │
+├──────────────┬──────────────────────────────────────────────────┤
+│  Sidebar     │                                                  │
+│  ─────────   │   Active pane: session terminal OR panel view   │
+│  > Sessions  │                                                  │
+│    s1: claude│   ┌──────────────────────────────────────────┐  │
+│    s2: gemini│   │  raw PTY passthrough (NOT xterm.js)      │  │
+│  > New       │   │  output from relay WebSocket             │  │
+│  > Remote    │   │  input forwarded as MsgInput             │  │
+│  > Settings  │   └──────────────────────────────────────────┘  │
+│              │                                                  │
+├──────────────┴──────────────────────────────────────────────────┤
+│  session-name │ agent │ host │ elapsed │ keybindings            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### TUI Terminal Viewport Strategy
+
+**Core problem:** xterm.js is a browser DOM component. The TUI runs in a real terminal. A different approach is needed for rendering PTY output.
+
+**Two options:**
+
+**Option A: Raw PTY passthrough within a constrained region.**
+Subscribe to relay WebSocket, receive `MsgOutput` frames, write raw bytes directly to stdout within a constrained region (DECSTBM scroll region, same technique as the status bar). The TUI chrome (sidebar, status bar, header) occupies reserved rows. PTY output fills the remaining rows. When the active session pane is focused, Bubbletea suspends its renderer and PTY takes over the constrained region.
+
+Pros: Perfect fidelity — all ANSI sequences from the AI agent render correctly. Same behavior as `cmd_attach`.
+Cons: Requires careful coordination — Bubbletea's renderer and raw PTY output fight for stdout. Needs suspend/resume lifecycle.
+
+**Option B: Soft-render PTY output via Bubbletea viewport.**
+Receive `MsgOutput` frames, strip ANSI, display as plain text in `bubbles/viewport`.
+
+Pros: Clean Bubbletea integration.
+Cons: Loses all terminal formatting. AI agent UIs (claude-code, opencode) are ANSI-heavy. Unacceptable for this product.
+
+**Recommended: Option A (raw passthrough with region isolation).**
+
+The implementation pattern:
+1. Bubbletea runs in alternate screen (`tea.WithAltScreen()`).
+2. When a session pane is active, Bubbletea calls `tea.Suspend()` (bubbletea v2 API), sets DECSTBM scroll region to constrain output to the pane region, subscribes to relay, and starts raw PTY passthrough.
+3. The status bar and sidebar chrome are rendered by Bubbletea before suspension via cursor positioning. The statusbar package handles the bottom row.
+4. On Ctrl-W (switch pane) or Ctrl-\ (detach from session): PTY passthrough stops, scroll region resets, Bubbletea calls `tea.Resume()`.
+
+This matches how `lazygit` and `k9s` handle embedded shell sessions — suspend the framework renderer while a subprocess/raw stream has terminal focus.
+
+The `internal/statusbar` package (built for Feature 2) is directly reusable for the TUI's pane chrome.
+
+### TUI Panels
+
+Mirror the GUI sidebar panels:
+
+| Panel | Content | Implementation |
+|-------|---------|----------------|
+| Sessions | List of running sessions with status dots | `bubbles/list` |
+| New Session | Agent picker, folder path, args | `bubbles/textinput` + custom |
+| Settings | Web server URL, Tailscale status, theme name (read-only display) | Static lipgloss view |
+| Remote | Tailnet peers and their sessions | `bubbles/list` |
+
+### TUI DaemonClient Usage
+
+TUI calls `daemon.NewDaemonClient(socketPath)` identically to CLI. It calls:
+- `ListSessions()` to populate sidebar
+- `CreateSession()` for new session flow
+- `KillSession()` for session termination
+- `GetRelayPort()` to find where to connect WebSocket
+
+No new daemon API endpoints are required for TUI functionality.
+
+---
+
+## Recommended Project Structure Changes
+
+```
+/
+├── main.go                    # add tui dispatch branch before runCLI
+├── cmd_attach.go              # integrate statusbar.Bar (Start/Stop)
+├── cmd_attach_unix.go         # pass Bar.Resize to SIGWINCH handler
+├── cmd_tui.go                 # NEW: runTUI() entry point
+├── internal/
+│   ├── relay/
+│   │   ├── hub.go             # add WriteInputFrom, ResizeFrom, SubscriberCount
+│   │   └── server.go          # use WriteInputFrom / ResizeFrom
+│   ├── statusbar/             # NEW package
+│   │   ├── bar.go             # Bar struct, Start, Stop, Resize
+│   │   └── bar_test.go
+│   ├── tui/                   # NEW package
+│   │   ├── app.go             # tea.Program setup, root model
+│   │   ├── session_pane.go    # suspend/resume + raw passthrough
+│   │   ├── sessions_list.go   # sidebar sessions panel
+│   │   ├── new_session.go     # new session flow
+│   │   ├── settings_view.go   # settings read-only view
+│   │   └── remote_view.go     # tailnet remote sessions
+│   └── daemon/
+│       └── engine.go          # add SubscriberCount to SessionInfo (optional)
+```
 
 ---
 
 ## Data Flow Changes
 
-### Terminal Padding/Theming Data Flow
+### Multi-Client Attach
 
 ```
-localStorage ('terminal-padding', 'terminal-theme' keys)
-    ↓ initial value in useState
-App.tsx state: paddings{sessionId: number}, themes{sessionId: string}
-    ↓ props to each TerminalPanel instance
-TerminalPanel.tsx
-    useEffect([sessionId]):
-      term.open(containerRef.current)
-      term.element.style.padding = padding + 'px'    <- applied once on creation
-    useEffect([padding]):
-      term.element.style.padding = padding + 'px'    <- applied on change
-    useEffect([theme]):
-      term.options.theme = THEMES[theme]             <- applied on change
-    fitTerminal() reads getComputedStyle(term.element)
-      padH = paddingLeft + paddingRight
-      padV = paddingTop + paddingBottom              <- already subtracted
-    cols/rows computed correctly with padding subtracted
+Client A (first, controlling)          Client B (joins later)
+    WS connect                              WS connect
+    Subscribe(subA)                         Subscribe(subB)
+    ScrollbackSnapshot → send               ScrollbackSnapshot → send
+    ← live MsgOutput broadcasts →       ← live MsgOutput broadcasts →
+    MsgInput → WriteInputFrom(subA)         MsgInput → WriteInputFrom(subB) → subB becomes controlling
+    MsgResize2 → ResizeFrom(subA) → PTY     MsgResize2 → ResizeFrom(subB) → dropped (not controlling)
 ```
 
-### Dashboard QR / URL Controls Data Flow
+### CLI Attach with Status Bar
 
 ```
-SettingsTab.tsx (serverURL state, already populated from GetWebServerURL)
-    "Open Dashboard" → BrowserOpenURL(serverURL)      [Wails runtime, sync]
-    "Copy URL"       → ClipboardSetText(serverURL)    [Wails runtime, async]
-    "QR" button      → setState: showDashboardQR=true
-                           ↓
-                   DashboardQRModal mounts
-                   GetDashboardQRCode() called         [new Go binding]
-                           ↓
-                   app.go GetDashboardQRCode()
-                   client.GetWebServerStatus() → resp.URL
-                   qrcode.Encode(resp.URL, qrcode.Medium, 256) → PNG bytes
-                   base64.StdEncoding.EncodeToString(png) → string returned
-                           ↓
-                   <img src="data:image/png;base64,…"> displayed in modal
+cmdAttach()
+  │
+  ├── term.MakeRaw()
+  ├── statusbar.New(meta, cols, rows)
+  ├── bar.Start()
+  │     ├── ESC[1;N-1 r    (set scroll region, reserve bottom row)
+  │     ├── ESC[N;1H        (move to bottom row)
+  │     └── write status content + start ticker goroutine
+  │
+  ├── go watchResize(ctx, conn, bar)   // SIGWINCH → bar.Resize + send resize frame
+  │
+  ├── attachSession(ctx, conn, stdin, stdout, detachKey)
+  │     ├── stdinPump → relay MsgInput frames
+  │     └── wsOutputPump → write MsgOutput bytes to stdout (within scroll region)
+  │
+  ├── bar.Stop()
+  │     ├── cancel ticker
+  │     ├── ESC[r            (reset scroll region to full terminal)
+  │     └── ESC[N;1H ESC[K   (clear status bar row)
+  │
+  └── term.Restore()
 ```
 
-## Component Inventory: New vs Modified
+### TUI Mode Data Flow
 
-| Component/File | Status | Change Summary |
-|----------------|--------|----------------|
-| `frontend/src/lib/themes.ts` | **NEW** | xterm ITheme constants for all supported themes |
-| `frontend/src/components/DashboardQRModal.tsx` | **NEW** | Modal for dashboard URL QR; calls `GetDashboardQRCode()` |
-| `frontend/src/components/TerminalPanel.tsx` | **MODIFIED** | Add `theme: string` and `padding: number` props; add `useEffect([theme])` and `useEffect([padding])` effects |
-| `frontend/src/components/SettingsTab.tsx` | **MODIFIED** | Add Appearance sub-tab (theme picker, padding slider); add open/copy/QR controls in web-server sub-tab |
-| `frontend/src/App.tsx` | **MODIFIED** | Add `themes` and `paddings` state; pass new props to `TerminalPanel` |
-| `frontend/src/style.css` | **MODIFIED** | Add `.sidebar--collapsed .sidebar__item { justify-content: center; padding: 8px 0 }` |
-| `app.go` | **MODIFIED** | Add `GetDashboardQRCode()` method |
-| `frontend/src/wailsjs/go/main/App.js` + `.d.ts` | **REGENERATED** | Auto-generated after new Go method |
-| `frontend/src/components/StatusBar.tsx` | **MODIFIED** (optional) | If open-in-browser / copy buttons are wanted at session level (not just dashboard level) |
-
-## Recommended Build Order
-
-**Ordered by dependency chain and risk:**
-
-1. **Sidebar icon centering (Feature 4)** — CSS-only, one rule, zero risk, zero dependencies. Proves the `.sidebar--collapsed` descendant selector approach before any code changes.
-
-2. **Terminal padding (Feature 1)** — Pure frontend. The `fitTerminal` custom function already handles padding subtraction. Add `DEFAULT_PADDING` constant, `paddings` state in `App.tsx`, `padding` prop in `TerminalPanel`. Apply via `term.element.style.padding` in the mount effect. Validate that terminal fills correctly after resize with padding active. Add global default to `localStorage` in Appearance sub-tab (first version of new settings sub-tab).
-
-3. **Terminal theming (Feature 2)** — Pure frontend, depends on Feature 1 only for the shared Appearance sub-tab UI. Create `lib/themes.ts`, add `theme` prop to `TerminalPanel`, add theme picker to Appearance sub-tab. Validate runtime theme switching without terminal destruction.
-
-4. **Web server link improvements (Feature 3)** — The only feature touching Go backend. Do last so the binding layer is touched once and in isolation. Add `GetDashboardQRCode` to `app.go`, regenerate bindings, update `SettingsTab.tsx` with open/copy/QR controls, add `DashboardQRModal` component.
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Applying Padding to the Container Div Instead of the xterm Element
-
-**What people do:** Add `padding` to the `containerRef` outer div in TerminalPanel.
-**Why it's wrong:** `fitTerminal` reads `window.getComputedStyle(term.element!)` — not the container div. Padding on the container shrinks available space but `fitTerminal` calculates parent width from the container (not the xterm element's own box), causing mismatched sizing.
-**Do this instead:** Apply padding via `term.element.style.padding = padding + 'px'` after `term.open()`. The custom `fitTerminal` already subtracts `padH`/`padV` from its calculations.
-
-### Anti-Pattern 2: Destroying and Recreating the Terminal Instance for Theme Changes
-
-**What people do:** Tear down the `Terminal` instance and recreate it to apply a new theme.
-**Why it's wrong:** Loses the scrollback buffer, closes the relay client WebSocket, and triggers the bounded rAF retry loop (20 attempts, ~333ms) on every theme change.
-**Do this instead:** `term.options.theme = THEMES[theme]` — xterm.js applies theme changes live without recreation, identical to how `term.options.fontSize = fontSize` works for the existing font size feature.
-
-### Anti-Pattern 3: Using `<a target="_blank">` for Dashboard URL in Wails WebView
-
-**What people do:** Render `<a href={serverURL} target="_blank">` expecting it to open the system browser.
-**Why it's wrong:** Wails WebView's handling of `target="_blank"` is platform-dependent and unreliable. Links may not open the OS default browser.
-**Do this instead:** `BrowserOpenURL(serverURL)` from the Wails runtime. Already used for remote sessions in `App.tsx:412` and for GitHub releases in `WelcomeTab.tsx:65`.
-
-### Anti-Pattern 4: Applying `justify-content: center` to All Sidebar Items Unconditionally
-
-**What people do:** Add `justify-content: center` to `.sidebar__item` globally (not scoped to collapsed state).
-**Why it's wrong:** In expanded state, icon and label are flex children — centering both together shifts the text away from the left-aligned nav pattern and looks wrong.
-**Do this instead:** Scope the rule to `.sidebar--collapsed .sidebar__item`. The existing `.sidebar--collapsed` class is on the `<nav>` element, making descendant selectors the right mechanism.
-
-## Integration Points Summary
-
-### Wails Runtime Bindings (already available, no changes to bindings layer)
-
-| Binding | Import Path | Used For in v1.12 |
-|---------|-------------|-------------------|
-| `BrowserOpenURL(url)` | `wailsjs/wailsjs/runtime/runtime` | Open dashboard in OS browser (new use in SettingsTab) |
-| `ClipboardSetText(text)` | `wailsjs/wailsjs/runtime/runtime` | Copy server URL to clipboard |
-
-### Go App Methods (existing — no changes)
-
-| Method | Used For |
-|--------|----------|
-| `GetWebServerURL()` | Dashboard URL source — already called in SettingsTab |
-| `GetSessionQRCode(sessionId)` | Session QR (unchanged) |
-| `IsWebServerRunning()` | Gate for showing link controls |
-
-### Go App Methods (new)
-
-| Method | Location | Notes |
-|--------|----------|-------|
-| `GetDashboardQRCode()` | `app.go` | Calls `qrcode.Encode(resp.URL, ...)` — uses already-imported `skip2/go-qrcode` and `base64` |
-
-### Internal Module Boundaries (no changes needed)
-
-| Boundary | Status |
-|----------|--------|
-| `App.go` → `DaemonClient` → daemon HTTP | `GetDashboardQRCode` reuses `client.GetWebServerStatus()` — no new daemon API endpoints |
-| `TerminalPanel` → `fitTerminal` | Padding flows through existing computed-style reading — no changes to `fitTerminal` |
-| `SettingsTab` → Wails runtime | `BrowserOpenURL` import added; `ClipboardSetText` added |
+```
+runTUI()
+  │
+  ├── daemon.EnsureDaemon(socketPath)
+  ├── daemon.NewDaemonClient(socketPath)
+  ├── tea.NewProgram(model, tea.WithAltScreen())
+  └── p.Run()
+       │
+       ├── Init: fetch sessions list from daemon
+       ├── Update loop:
+       │     ├── KeyMsg → navigate sidebar / switch panes / pass input to relay
+       │     ├── SessionListMsg → refresh from daemon poll
+       │     └── RelayOutputMsg → (session pane active) write raw to constrained region
+       └── View:
+             ├── sidebar (lipgloss columns)
+             ├── status bar (bottom row via statusbar package)
+             └── session pane: tea.Suspend() → raw passthrough → tea.Resume()
+```
 
 ---
 
-*Architecture research for: AgentHub v1.12 UI/UX Polish milestone*
-*Researched: 2026-04-10*
+## Architectural Patterns
+
+### Pattern 1: Subscribe-Before-Snapshot (existing, unchanged)
+
+**What:** New WebSocket clients subscribe to the Hub before taking a scrollback snapshot. Frames in-flight between snapshot and first live message arrive via the buffered `Msgs` channel — no gap.
+**When to use:** Every new connection in `relay/server.go`. Already correct for N clients.
+**Trade-offs:** Adds ~256 buffered frames per subscriber in memory. Acceptable.
+
+### Pattern 2: Controlling-Client Resize Arbitration (new)
+
+**What:** Track which subscriber last sent `MsgInput`. Only that subscriber's resize frames reach the PTY.
+**When to use:** Whenever N > 1 clients are connected to a session.
+**Trade-offs:** First client to type wins. Latecomers who want control must type first. Simple, no negotiation protocol needed.
+
+### Pattern 3: DECSTBM Scroll Region for Status Bar (new)
+
+**What:** Set terminal scroll region to rows 1..N-1, reserve row N for persistent status bar content that does not scroll.
+**When to use:** CLI attach (default on) and TUI mode chrome.
+**Trade-offs:** Requires tracking terminal rows and handling SIGWINCH. Must be restored on all exit paths or the terminal is left in a broken scroll region state.
+
+### Pattern 4: Bubbletea Suspend/Resume for Raw PTY (new)
+
+**What:** Call `tea.Suspend()` to temporarily yield terminal control to raw PTY passthrough, then `tea.Resume()` to return to Bubbletea rendering.
+**When to use:** TUI session pane when user focuses a terminal session.
+**Trade-offs:** Requires bubbletea v2 (`tea.Suspend`/`tea.Resume` API). Adds a mode-switching state machine to the TUI model. Each suspension must save/restore scroll region state.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Last-Wins Resize with Multiple Clients
+
+**What people do:** Let any connected client send `MsgResize2` and resize the PTY unconditionally.
+**Why it's wrong:** A client at 40x12 resizes the PTY, breaking the session for the 80x24 client who is actively typing.
+**Do this instead:** Controlling-client resize policy — only the subscriber that last sent MsgInput can resize.
+
+### Anti-Pattern 2: Writing Status Bar Escapes to Stdout
+
+**What people do:** Interleave status bar ANSI escape sequences with PTY output on the same stdout stream.
+**Why it's wrong:** PTY output is a raw byte stream. Status bar sequences can be split mid-ANSI-sequence by concurrent PTY output arriving from the WebSocket pump.
+**Do this instead:** Write all status bar control sequences to `/dev/tty` directly (or `os.Stderr` which references the same terminal device). Status bar writes are independent of the stdout PTY stream.
+
+### Anti-Pattern 3: Soft-Rendering PTY Output in Bubbletea Viewport
+
+**What people do:** Strip ANSI from PTY output and display as plain text in `bubbles/viewport`.
+**Why it's wrong:** AI coding CLIs (claude-code, opencode, gemini) use rich ANSI UIs — progress indicators, colored diff, interactive prompts. Stripping ANSI makes the TUI unusable for the product's core value.
+**Do this instead:** Raw passthrough within a constrained scroll region (Pattern 4).
+
+### Anti-Pattern 4: Forgetting Scroll Region Cleanup
+
+**What people do:** Set DECSTBM, start status bar, let the program panic or receive SIGKILL — scroll region is never reset.
+**Why it's wrong:** User's terminal is left with a truncated scroll region. All subsequent shell output is confined to rows 1..N-1 until the user manually resets with `reset` or `tput rmcup`.
+**Do this instead:** `defer bar.Stop()` immediately after `bar.Start()`. `bar.Stop()` must be deferred before `term.Restore` so it runs while the terminal is still in raw mode.
+
+---
+
+## Build Order Rationale
+
+The three features have a natural dependency ordering:
+
+```
+Phase 1: Multi-client resize arbitration
+  Touches: relay/hub.go, relay/server.go
+  No deps on other new features.
+  Can ship independently — improves existing web client behavior.
+
+Phase 2: CLI status bar
+  Touches: internal/statusbar (new), cmd_attach.go, cmd_attach_unix.go
+  No deps on Phase 1.
+  Can run in parallel with Phase 1.
+
+Phase 3: TUI mode
+  Touches: internal/tui (new), cmd_tui.go, main.go
+  Depends on Phase 2: reuses internal/statusbar for pane chrome.
+  Benefits from Phase 1: multi-client behavior is correct when TUI + browser both connect.
+  New go.mod deps: bubbletea v2, lipgloss v2, bubbles.
+  Largest scope — build last.
+```
+
+Phases 1 and 2 are independent and can be built in parallel. Phase 3 depends on both.
+
+---
+
+## Integration Points
+
+### Existing Components — No Change Required
+
+| Component | Why Unchanged |
+|-----------|--------------|
+| `relay.Hub` broadcast | Already fans out to N subscribers correctly |
+| `relay.Scrollback` | Already replays independently per subscriber |
+| `relay/server.go` subscribe-before-snapshot | Already race-safe for N clients |
+| `daemon/API` Unix socket | TUI uses same DaemonClient as CLI |
+| `internal/pty/Session` | PTY is unaware of client count |
+| `internal/tailnet` | TUI remote view calls same `ListTailnetPeers` |
+| `internal/webserver` | Unchanged — TUI connects as relay client, not web server |
+
+### Existing Components — Modified
+
+| Component | Change | Risk |
+|-----------|--------|------|
+| `relay/hub.go` | Add `WriteInputFrom`, `ResizeFrom`, `SubscriberCount` | LOW — additive; existing `WriteInput` delegates |
+| `relay/server.go` | Use `WriteInputFrom`/`ResizeFrom` in read pump | LOW — same logic, new signature |
+| `cmd_attach.go` | Wrap `attachSession` with `statusbar.Bar` | LOW — wraps existing flow, clean defer chain |
+| `cmd_attach_unix.go` | Pass Bar to SIGWINCH handler | LOW — one additional call |
+| `main.go` | Add `tui` dispatch branch before `runCLI` | LOW — non-breaking insertion |
+
+### New Components
+
+| Component | Role |
+|-----------|------|
+| `internal/statusbar` | ANSI scroll region, status bar draw, elapsed ticker, cleanup |
+| `internal/tui` | Bubbletea app: root model, sidebar views, raw passthrough pane |
+| `cmd_tui.go` | `runTUI()` entry point, daemon ensure, tea.Program setup |
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 1-3 clients/session | No changes needed beyond resize arbitration |
+| 10+ clients/session | Hub's 256-frame per-subscriber buffer may need tuning; consider reducing to 64 per subscriber to limit memory |
+| 100+ clients/session | Not a target use case for local desktop tool; if needed, add subscriber eviction policy |
+
+---
+
+## Sources
+
+- Existing codebase: `internal/relay/hub.go`, `internal/relay/server.go`, `cmd_attach.go`, `main.go` — authoritative for current state (HIGH confidence, verified directly)
+- [charmbracelet/bubbletea GitHub](https://github.com/charmbracelet/bubbletea) — Framework architecture, Suspend/Resume API (HIGH confidence)
+- [charmbracelet/lipgloss GitHub](https://github.com/charmbracelet/lipgloss) — Layout styling (HIGH confidence)
+- [charmbracelet/bubbles](https://github.com/charmbracelet/bubbles) — viewport, list, textinput components (HIGH confidence)
+- [Charm v2 release announcement](https://lobste.rs/s/1to8sq/charm_v2_major_releases_for_bubble_tea_lip) — v2 release confirmation (MEDIUM confidence)
+- [ANSI Escape Codes reference](https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797) — DECSTBM, cursor sequences (HIGH confidence — standard ANSI/VT100)
+- [BubbleTea TUI patterns 2026](https://dasroot.net/posts/2026/03/build-tui-apps-go-bubbletea/) — Current ecosystem patterns (MEDIUM confidence)
+
+---
+*Architecture research for: AgentHub v2.0 multi-client, CLI status bar, TUI mode*
+*Researched: 2026-04-14*
