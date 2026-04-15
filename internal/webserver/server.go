@@ -419,7 +419,11 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 
 	// Subscribe FIRST — anti-race pattern.
 	hub.Subscribe(sub)
-	defer hub.Unsubscribe(sub)
+	relay.NotifyViewerCount(hub) // push updated viewer count to all clients
+	defer func() {
+		hub.Unsubscribe(sub)
+		relay.NotifyViewerCount(hub)
+	}()
 	defer conn.CloseNow()
 
 	// Replay scrollback snapshot to bring the client up to date.

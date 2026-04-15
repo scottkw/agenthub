@@ -81,7 +81,11 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	// Subscribe FIRST — anti-race pattern. Frames arrive in Msgs from now on,
 	// so the snapshot taken below cannot cause a gap in the output stream.
 	hub.Subscribe(sub)
-	defer hub.Unsubscribe(sub)
+	NotifyViewerCount(hub) // push updated viewer count to all clients
+	defer func() {
+		hub.Unsubscribe(sub)
+		NotifyViewerCount(hub)
+	}()
 	defer conn.CloseNow()
 
 	// Replay scrollback snapshot to bring the client up to date.
@@ -136,6 +140,15 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// NotifyViewerCount pushes a MsgMeta frame with the current viewer count
+// to all subscribers. Must be called AFTER Subscribe/Unsubscribe returns
+// (outside hub.mu) to avoid deadlock.
+func NotifyViewerCount(hub *Hub) {
+	count := hub.SubscriberCount()
+	frame := MakeMeta(MetaPayload{ViewerCount: &count})
+	hub.BroadcastMeta(frame)
 }
 
 // handleListSessions returns a JSON array of currently registered session IDs.

@@ -2,7 +2,10 @@
 // and fan-out hub for PTY session relay over WebSocket.
 package relay
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+)
 
 // Message type bytes — single-byte prefix for every framed message.
 const (
@@ -12,6 +15,10 @@ const (
 	MsgInput   byte = 0x10 // Client keyboard input → PTY stdin
 	MsgResize2 byte = 0x11 // Alternative resize format (reserved)
 	MsgPing    byte = 0x12 // Keep-alive ping
+
+	// MsgMeta is the server-to-client metadata push channel (JSON payload).
+	// Reserved range 0x20-0x2F for future server-push frame types.
+	MsgMeta byte = 0x20
 )
 
 // MakeOutputFrame prepends the MsgOutput type byte to data.
@@ -48,4 +55,19 @@ func ParseFrame(frame []byte) (msgType byte, payload []byte, err error) {
 		return 0, nil, errors.New("relay: empty frame")
 	}
 	return frame[0], frame[1:], nil
+}
+
+// MetaPayload is the extensible JSON payload for MsgMeta frames.
+// All fields are pointers so omitempty works correctly for partial updates.
+type MetaPayload struct {
+	ViewerCount *int `json:"viewerCount,omitempty"`
+}
+
+// MakeMeta encodes a MetaPayload as a MsgMeta frame.
+func MakeMeta(p MetaPayload) []byte {
+	b, _ := json.Marshal(p) // MetaPayload is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgMeta
+	copy(frame[1:], b)
+	return frame
 }

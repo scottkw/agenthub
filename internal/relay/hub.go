@@ -166,6 +166,22 @@ func (h *Hub) broadcast(frame []byte) {
 	}
 }
 
+// BroadcastMeta sends a metadata frame to all subscribers using a non-blocking
+// send. Slow subscribers have CloseSlow called — MsgMeta must never block the
+// PTY drain loop. Used by relay.Server and webserver to push viewer count updates.
+func (h *Hub) BroadcastMeta(frame []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for sub := range h.subscribers {
+		select {
+		case sub.Msgs <- frame:
+		default:
+			go sub.CloseSlow()
+		}
+	}
+}
+
 // Shutdown signals that the hub has stopped. Safe to call multiple times.
 func (h *Hub) Shutdown() {
 	h.closeOnce.Do(func() {
