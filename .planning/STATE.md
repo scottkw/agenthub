@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Multi-Client, CLI UX & TUI Mode
 status: executing
-stopped_at: Completed 77-03-PLAN.md
-last_updated: "2026-04-15T15:39:51.532Z"
+stopped_at: Completed 77-02-PLAN.md
+last_updated: "2026-04-15T15:45:07.125Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-14)
 ## Current Position
 
 Phase: 77 (tui-session-operations) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-15
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 77]: Priority-based key dispatch: editing > kill confirm > new session modal > help > main view
 - [Phase 77]: Refresh key reassigned from r to R; r now triggers rename, d triggers kill confirmation
 - [Phase 77]: Kill dialog uses FgDanger for title per UI-SPEC danger context
+- [Phase 77]: Extract shared attach logic to internal/attach/ package (Option A) — clean import by both CLI and TUI
 
 ### Pending Todos
 
@@ -66,6 +67,7 @@ None.
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
 | Phase 77 P01 | 9min | 2 tasks | 13 files |
 | Phase 77 P03 | 6min | 2 tasks | 4 files |
+| Phase 77 P02 | 13min | 2 tasks | 14 files |
 
 ### Blockers/Concerns
 
@@ -75,7 +77,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T15:39:51.528Z
-Stopped at: Completed 77-03-PLAN.md
+Last session: 2026-04-15T15:45:07.121Z
+Stopped at: Completed 77-02-PLAN.md
 Resume file: None
 Next action: /gsd-plan-phase 74
