@@ -79,7 +79,6 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	var session *daemon.SessionInfo
 	for _, s := range sessions {
 		if s.ID == sessionID {
-			s := s // capture loop variable
 			session = &s
 			break
 		}
@@ -214,7 +213,6 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 
 	var session *CLIRemoteSession
 	for _, s := range remoteSessions {
-		s := s
 		if s.ID == sessionID {
 			session = &s
 			break

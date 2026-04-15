@@ -42,7 +42,6 @@ func (a *attachCmd) Run() error {
 	}
 	var session *daemon.SessionInfo
 	for _, s := range sessions {
-		s := s
 		if s.ID == a.sessionID {
 			session = &s
 			break
