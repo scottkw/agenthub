@@ -360,6 +360,88 @@ func TestRename_SameNameNoOp(t *testing.T) {
 	}
 }
 
+func TestUpdate_KillSessionMsg(t *testing.T) {
+	m := testModel()
+
+	// Success
+	updated, cmd := m.Update(killSessionMsg{err: nil})
+	result := updated.(Model)
+	if result.toast != "Session killed" {
+		t.Errorf("expected 'Session killed' toast, got %q", result.toast)
+	}
+	if result.toastKind != toastSuccess {
+		t.Errorf("expected toastSuccess, got %d", result.toastKind)
+	}
+	if cmd == nil {
+		t.Error("expected refresh cmd after kill")
+	}
+
+	// Error
+	updated2, _ := m.Update(killSessionMsg{err: fmt.Errorf("not found")})
+	result2 := updated2.(Model)
+	if result2.toast != "Kill failed: not found" {
+		t.Errorf("expected error toast, got %q", result2.toast)
+	}
+	if result2.toastKind != toastError {
+		t.Errorf("expected toastError, got %d", result2.toastKind)
+	}
+}
+
+func TestUpdate_RenameSessionMsg(t *testing.T) {
+	m := testModel()
+
+	// Success — refresh cmd returned
+	updated, cmd := m.Update(renameSessionMsg{err: nil})
+	result := updated.(Model)
+	if cmd == nil {
+		t.Error("expected refresh cmd after rename")
+	}
+	_ = result
+
+	// Error
+	updated2, _ := m.Update(renameSessionMsg{err: fmt.Errorf("daemon error")})
+	result2 := updated2.(Model)
+	if result2.toast != "Rename failed: daemon error" {
+		t.Errorf("expected error toast, got %q", result2.toast)
+	}
+}
+
+func TestUpdate_NewSessionModalOpen(t *testing.T) {
+	m := testModel()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	result := updated.(Model)
+	if result.modal != modalNewSession {
+		t.Errorf("expected modal=modalNewSession after n key, got %d", result.modal)
+	}
+}
+
+func TestUpdate_RenameStart(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "my-session", CLI: "claude", Status: "running"},
+	}
+	m.selected = 0
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'r'})
+	result := updated.(Model)
+	if !result.editing {
+		t.Error("expected editing=true after r")
+	}
+	if result.editSessionID != "1" {
+		t.Errorf("expected editSessionID='1', got %q", result.editSessionID)
+	}
+	if result.editOriginal != "my-session" {
+		t.Errorf("expected editOriginal='my-session', got %q", result.editOriginal)
+	}
+	if result.editInput.Value() != "my-session" {
+		t.Errorf("expected editInput prefilled with 'my-session', got %q", result.editInput.Value())
+	}
+	if cmd == nil {
+		t.Error("expected Focus cmd from textinput")
+	}
+}
+
 func TestRename_NavigationSuppressed(t *testing.T) {
 	m := testModel()
 	m.sessions = []daemon.SessionInfo{{ID: "1"}, {ID: "2"}}

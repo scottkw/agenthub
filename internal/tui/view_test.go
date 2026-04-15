@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	"github.com/scottkw/agenthub/internal/daemon"
 )
 
@@ -175,6 +176,50 @@ func TestView_HintBar(t *testing.T) {
 		if !strings.Contains(hint, want) {
 			t.Errorf("hint bar missing %q", want)
 		}
+	}
+}
+
+func TestView_KillConfirmDialog(t *testing.T) {
+	m := testModel()
+	m.modal = modalKillConfirm
+	m.killTarget = &daemon.SessionInfo{ID: "1", Name: "my-session"}
+	m.killFocusYes = false
+
+	v := m.View()
+	content := v.Content
+
+	checks := []string{
+		"Kill Session",
+		"Kill session",
+		"my-session",
+		"This will terminate the running process",
+		"No",
+		"Yes",
+	}
+	for _, want := range checks {
+		if !strings.Contains(content, want) {
+			t.Errorf("kill confirm dialog missing %q", want)
+		}
+	}
+}
+
+func TestView_InlineRename(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "old-name", CLI: "claude", Hostname: "mac", Status: "running"},
+	}
+	m.selected = 0
+	m.editing = true
+	m.editSessionID = "1"
+	m.editInput = textinput.New()
+	m.editInput.SetValue("new-name")
+
+	v := m.View()
+	content := v.Content
+
+	// The textinput view should render the value
+	if !strings.Contains(content, "new-name") {
+		t.Error("inline rename should show textinput value 'new-name'")
 	}
 }
 
