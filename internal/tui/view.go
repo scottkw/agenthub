@@ -69,11 +69,6 @@ func (m Model) renderFull() string {
 	return content
 }
 
-// STUB: replaced by Plan 77-04 with full new-session modal rendering
-func (m Model) renderNewSessionModal() string {
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "New Session (loading...)")
-}
-
 // renderHeader renders "AgentHub" (bold) + session count, right-aligned.
 func (m Model) renderHeader() string {
 	title := lipgloss.NewStyle().Bold(true).

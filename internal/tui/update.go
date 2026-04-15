@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -274,21 +276,140 @@ func (m Model) executeKill() (tea.Model, tea.Cmd) {
 }
 
 // handleNewSessionKey handles keys when new-session modal is open.
-// STUB: full implementation in Plan 77-04.
 func (m Model) handleNewSessionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
-	if s == "esc" {
+
+	// Intercept modal-level keys BEFORE delegating to textinput
+	switch {
+	case s == "esc":
 		m.modal = modalNone
 		return m, nil
+
+	case s == "enter":
+		return m.submitNewSession()
+
+	case s == "tab":
+		return m.cycleFocus(true)
+
+	case s == "shift+tab":
+		return m.cycleFocus(false)
+
+	case (s == "left" || s == "right") && m.focusedField == 0:
+		// Agent picker cycling
+		m = m.cycleAgent(s == "right")
+		return m, nil
 	}
+
+	// Delegate to focused textinput (if text field is focused)
+	switch m.focusedField {
+	case 1:
+		var cmd tea.Cmd
+		m.dirInput, cmd = m.dirInput.Update(msg)
+		return m, cmd
+	case 2:
+		var cmd tea.Cmd
+		m.argsInput, cmd = m.argsInput.Update(msg)
+		return m, cmd
+	}
+
 	return m, nil
 }
 
 // openNewSessionModal initializes the new-session modal state.
-// STUB: full field initialization in Plan 77-04.
 func (m Model) openNewSessionModal() (tea.Model, tea.Cmd) {
 	m.modal = modalNewSession
 	m.focusedField = 0
 	m.agentIdx = 0
+
+	// Initialize directory input with current working directory
+	cwd, _ := os.Getwd()
+	if cwd == "" {
+		cwd = "/"
+	}
+
+	modalInnerWidth := max(50, min(70, m.width-10)) - 6 // border(2) + padding(4)
+	labelWidth := 14                                    // "  Arguments:  " is the widest label
+
+	m.dirInput = textinput.New()
+	m.dirInput.Placeholder = cwd
+	m.dirInput.SetValue(cwd)
+	m.dirInput.SetWidth(modalInnerWidth - labelWidth)
+	m.dirInput.Prompt = ""
+	m.dirInput.CharLimit = 256
+
+	m.argsInput = textinput.New()
+	m.argsInput.Placeholder = "--model opus (optional)"
+	m.argsInput.SetWidth(modalInnerWidth - labelWidth)
+	m.argsInput.Prompt = ""
+	m.argsInput.CharLimit = 256
+
+	// Agent field starts focused (no textinput to focus)
+	// Blur both text inputs initially
+	m.dirInput.Blur()
+	m.argsInput.Blur()
+
 	return m, nil
+}
+
+// cycleFocus moves focus between modal form fields (agent/directory/arguments).
+func (m Model) cycleFocus(forward bool) (tea.Model, tea.Cmd) {
+	// Blur current field
+	switch m.focusedField {
+	case 1:
+		m.dirInput.Blur()
+	case 2:
+		m.argsInput.Blur()
+	}
+
+	if forward {
+		m.focusedField = (m.focusedField + 1) % 3
+	} else {
+		m.focusedField = (m.focusedField + 2) % 3
+	}
+
+	// Focus new field
+	var cmd tea.Cmd
+	switch m.focusedField {
+	case 1:
+		cmd = m.dirInput.Focus()
+	case 2:
+		cmd = m.argsInput.Focus()
+	}
+	return m, cmd
+}
+
+// submitNewSession validates form fields and dispatches session creation.
+func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
+	// Validate agent
+	if len(m.detectedCLIs) == 0 {
+		m.toast = "Agent is required"
+		m.toastKind = toastError
+		m.toastExp = time.Now().Add(2 * time.Second)
+		return m, nil
+	}
+
+	// Validate directory
+	workDir := strings.TrimSpace(m.dirInput.Value())
+	if workDir == "" {
+		m.toast = "Directory is required"
+		m.toastKind = toastError
+		m.toastExp = time.Now().Add(2 * time.Second)
+		return m, nil
+	}
+
+	cli := m.detectedCLIs[m.agentIdx].Name
+	name := filepath.Base(workDir)
+
+	// Parse arguments (split on spaces, simple)
+	argsStr := strings.TrimSpace(m.argsInput.Value())
+	var args []string
+	if argsStr != "" {
+		args = strings.Fields(argsStr)
+	}
+
+	m.modal = modalNone
+	m.toast = "Creating session..."
+	m.toastKind = toastInfo
+	m.toastExp = time.Now().Add(10 * time.Second)
+	return m, createSession(m.client, cli, name, workDir, args)
 }
