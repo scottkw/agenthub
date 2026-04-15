@@ -382,6 +382,13 @@ func (ws *WebServer) handleSessionQR(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 
+	// MC-03, MC-05: parse client metadata from URL query params at upgrade time.
+	readonly := r.URL.Query().Get("readonly") == "1" || r.URL.Query().Get("readonly") == "true"
+	clientName := r.URL.Query().Get("client")
+	if len(clientName) > 64 {
+		clientName = clientName[:64] // cap identity name to prevent injection
+	}
+
 	hub, ok := ws.manager.Get(sessionID)
 	if !ok {
 		// Session is web-enabled but not yet in the hub (e.g. just enabled, not started)
@@ -402,7 +409,9 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	sub := &relay.Subscriber{
-		Msgs: make(chan []byte, 256),
+		Msgs:     make(chan []byte, 256),
+		ReadOnly: readonly,
+		Name:     clientName,
 	}
 	sub.CloseSlow = func() {
 		conn.Close(websocket.StatusPolicyViolation, "too slow")
@@ -435,12 +444,14 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 			}
 			switch msgType {
 			case relay.MsgInput:
-				_ = hub.WriteInput(payload)
+				if !sub.ReadOnly { // MC-03: discard input for read-only clients
+					_ = hub.WriteInput(payload)
+				}
 			case relay.MsgResize2:
 				if len(payload) >= 4 {
 					cols := uint16(payload[0])<<8 | uint16(payload[1])
 					rows := uint16(payload[2])<<8 | uint16(payload[3])
-					_ = hub.Resize(int(cols), int(rows))
+					_ = hub.ResizeClient(sub, int(cols), int(rows)) // MC-06: max-wins arbiter
 				}
 			case relay.MsgPing:
 				// Keep-alive — no-op.
