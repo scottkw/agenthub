@@ -235,10 +235,10 @@ Plans:
   2. The session list displays each session's name, status indicator, agent type, hostname, and current viewer count
   3. The footer/status area shows whether the web server is running (and its URL if active)
   4. Pressing `?` displays a help overlay listing all keybindings for the current view; pressing `?` again or `Esc` closes it
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
 - [x] 76-01-PLAN.md — Dependencies + daemon Status enrichment + TUI package scaffolding (model, styles, keys, cmds)
-- [ ] 76-02-PLAN.md — TUI core rendering engine: entry point, Update, View, help overlay, unit tests
+- [x] 76-02-PLAN.md — TUI core rendering engine: entry point, Update, View, help overlay, unit tests
 - [ ] 76-03-PLAN.md — CLI wiring: cmd_tui.go, main.go dispatch, usage string
 **UI hint**: yes
 
@@ -285,7 +285,7 @@ Plans:
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 76. TUI Foundation | v2.0 | 1/3 | In Progress|  |
+| 76. TUI Foundation | v2.0 | 2/3 | In Progress|  |
 | 77. TUI Session Operations | v2.0 | 0/? | Not started | - |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
 
