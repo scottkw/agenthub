@@ -104,12 +104,13 @@ func (m Model) renderQROverlay() string {
 }
 
 // sessionURL returns the web URL for the selected list entry, or "" if unavailable.
-// Local sessions: URL from webStatus.URL + session ID (only if web server is running).
+// Local sessions: URL from webStatus.URL + session ID (requires global web server
+// running AND per-session WebEnabled flag — `agenthub unserve` clears WebEnabled).
 // Remote sessions: pre-built URL from RemoteSessionEntry.URL field.
 func (m Model) sessionURL(entry listEntry) string {
 	switch entry.kind {
 	case entryLocal:
-		if entry.session == nil || !m.webStatus.Running || m.webStatus.URL == "" {
+		if entry.session == nil || !m.webStatus.Running || m.webStatus.URL == "" || !entry.session.WebEnabled {
 			return ""
 		}
 		return fmt.Sprintf("%s/sessions/%s", m.webStatus.URL, entry.session.ID)

@@ -125,7 +125,7 @@ func TestUpdate_QuitKeyReassignment(t *testing.T) {
 func TestUpdate_QROpen(t *testing.T) {
 	m := testModel()
 	m.sessions = []daemon.SessionInfo{
-		{ID: "s1", Name: "test-session", CLI: "claude", Status: "running"},
+		{ID: "s1", Name: "test-session", CLI: "claude", Status: "running", WebEnabled: true},
 	}
 	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
 	m.width = 80
@@ -184,7 +184,7 @@ func TestUpdate_QRNoURL(t *testing.T) {
 func TestUpdate_QRTerminalTooSmall(t *testing.T) {
 	m := testModel()
 	m.sessions = []daemon.SessionInfo{
-		{ID: "s1", Name: "test", CLI: "claude", Status: "running"},
+		{ID: "s1", Name: "test", CLI: "claude", Status: "running", WebEnabled: true},
 	}
 	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
 	m.width = 50  // below 55 minimum
@@ -198,6 +198,31 @@ func TestUpdate_QRTerminalTooSmall(t *testing.T) {
 	}
 	if result.toast != "Terminal too small to display QR code" {
 		t.Errorf("expected too-small toast, got %q", result.toast)
+	}
+}
+
+// TestUpdate_QRUnservedSession asserts that pressing q on a local session whose
+// per-session WebEnabled flag is false (e.g. after `agenthub unserve`) shows the
+// "not enabled" toast instead of opening the QR overlay, even when the global
+// web server is running. Regression guard for UAT bug where unserve was ignored
+// because sessionURL() only checked webStatus.Running, not session.WebEnabled.
+func TestUpdate_QRUnservedSession(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "s1", Name: "test-session", CLI: "claude", Status: "running", WebEnabled: false},
+	}
+	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
+	m.width = 80
+	m.height = 30
+	m.rebuildUnifiedList()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'q'})
+	result := updated.(Model)
+	if result.qrSession != nil {
+		t.Error("expected qrSession=nil when session WebEnabled=false")
+	}
+	if result.toast != "Web serving not enabled for this session" {
+		t.Errorf("expected web-not-enabled toast, got %q", result.toast)
 	}
 }
 

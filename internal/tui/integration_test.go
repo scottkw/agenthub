@@ -18,9 +18,10 @@ func TestTUIRemoteAndQR_FullFlow(t *testing.T) {
 	m.height = 30
 	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
 
-	// Step 1: Load local sessions
+	// Step 1: Load local sessions. s1 has WebEnabled:true because step 6 opens QR on it;
+	// s2 stays unserved which also guards that QR is a per-session concern.
 	localSessions := []daemon.SessionInfo{
-		{ID: "s1", Name: "my-session", CLI: "claude", Hostname: "macbook-pro", Status: "running"},
+		{ID: "s1", Name: "my-session", CLI: "claude", Hostname: "macbook-pro", Status: "running", WebEnabled: true},
 		{ID: "s2", Name: "docs-check", CLI: "opencode", Hostname: "macbook-pro", Status: "idle"},
 	}
 	updated, _ := m.Update(sessionsMsg{sessions: localSessions})
