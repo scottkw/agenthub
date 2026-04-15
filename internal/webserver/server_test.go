@@ -241,19 +241,30 @@ func TestWebServerWSS(t *testing.T) {
 	}
 	defer conn.CloseNow()
 
-	// Write output to hub — should arrive as MsgOutput frame
+	// Write output to hub — should arrive as MsgOutput frame.
+	// Note: NotifyViewerCount sends a MsgMeta frame immediately on subscribe,
+	// so we skip any leading MsgMeta frames and wait for the first MsgOutput.
 	testData := []byte("hello from hub")
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		pw.Write(testData)
 	}()
 
-	msgType, msg, err := conn.Read(ctx)
-	if err != nil {
-		t.Fatalf("Read from WSS: %v", err)
-	}
-	if msgType != websocket.MessageBinary {
-		t.Errorf("expected binary message, got %v", msgType)
+	var msg []byte
+	for {
+		msgType, m, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("Read from WSS: %v", err)
+		}
+		if msgType != websocket.MessageBinary {
+			t.Errorf("expected binary message, got %v", msgType)
+			break
+		}
+		if len(m) > 0 && m[0] == relay.MsgMeta {
+			continue // skip server-push metadata frames
+		}
+		msg = m
+		break
 	}
 	if len(msg) == 0 || msg[0] != relay.MsgOutput {
 		t.Errorf("expected MsgOutput frame, got %v", msg)

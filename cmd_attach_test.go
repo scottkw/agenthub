@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/statusbar"
 	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
@@ -113,7 +116,7 @@ func TestAttachSession_DetachKey(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- attachSession(ctx, conn, stdinR, &stdout, 0x1C)
+		done <- attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
 	// Write the detach key byte — this should cause a clean return.
@@ -158,7 +161,7 @@ func TestAttachSession_OutputReceived(t *testing.T) {
 	defer cancel()
 
 	// Run attachSession — it will receive the scrollback snapshot then context times out.
-	_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C)
+	_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 
 	if !strings.Contains(stdout.String(), payload) {
 		t.Errorf("stdout does not contain scrollback %q; got: %q", payload, stdout.String())
@@ -199,7 +202,7 @@ func TestAttachSession_LiveOutput(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C)
+		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
 	// Brief delay to ensure attachSession goroutines are running.
@@ -238,7 +241,7 @@ func TestAttachSession_CtrlCPassthrough(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C)
+		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
 	// Brief delay to ensure stdinPump is running.
@@ -357,7 +360,7 @@ func TestCmdAttach_RemoteSessionNotFound(t *testing.T) {
 
 	err := cmdAttachRemoteWithClient(
 		"macbook", "nonexistent-session",
-		"macbook.ts.net", ts.URL, ts.Client(), byte(0x1C),
+		"macbook.ts.net", ts.URL, ts.Client(), byte(0x1C), false,
 	)
 	if err == nil {
 		t.Fatal("expected error for missing remote session, got nil")
@@ -430,7 +433,7 @@ func TestAttachSession_InputForwarded(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C)
+		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
 	// Brief delay to ensure stdinPump is running.
@@ -459,4 +462,89 @@ func TestAttachSession_InputForwarded(t *testing.T) {
 		t.Error("PTY did not receive input within 5s")
 	}
 	cancel()
+}
+
+// TestWsOutputPump_MsgMeta verifies that MsgMeta frames are parsed correctly
+// and that bar.SetViewerCount can be called without panicking (SB-04).
+func TestWsOutputPump_MsgMeta(t *testing.T) {
+	var stdout safeBuf
+
+	// Create a minimal bar to receive viewer count updates.
+	bar := statusbar.New(&stdout, statusbar.Options{
+		SessionName: "test",
+		AgentType:   "claude",
+		Hostname:    "host",
+		CreatedAt:   time.Now(),
+		Position:    statusbar.Bottom,
+		Fd:          os.Stdout.Fd(),
+	})
+	// Don't call Start() -- we just need Set methods to work.
+
+	// Send a MsgMeta frame with viewer count.
+	count := 3
+	frame := relay.MakeMeta(relay.MetaPayload{ViewerCount: &count})
+
+	// Verify the MsgMeta parsing logic directly.
+	msgType, payload, ferr := relay.ParseFrame(frame)
+	if ferr != nil {
+		t.Fatalf("ParseFrame error: %v", ferr)
+	}
+	if msgType != relay.MsgMeta {
+		t.Errorf("expected MsgMeta (0x%02x), got 0x%02x", relay.MsgMeta, msgType)
+	}
+	var meta relay.MetaPayload
+	if err := json.Unmarshal(payload, &meta); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if meta.ViewerCount == nil || *meta.ViewerCount != 3 {
+		t.Errorf("expected viewerCount=3, got %v", meta.ViewerCount)
+	}
+
+	// Verify bar.SetViewerCount doesn't panic on a non-started bar.
+	bar.SetViewerCount(*meta.ViewerCount)
+}
+
+// TestLockedWriter_ConcurrentWrites verifies that lockedWriter serializes
+// concurrent writes without interleaving (prevents PTY/bar output corruption).
+func TestLockedWriter_ConcurrentWrites(t *testing.T) {
+	var buf safeBuf
+	lw := &lockedWriter{w: &buf}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			msg := fmt.Sprintf("msg-%03d\n", n)
+			_, _ = lw.Write([]byte(msg))
+		}(i)
+	}
+	wg.Wait()
+
+	// All 100 messages should be present and none should be interleaved.
+	output := buf.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != 100 {
+		t.Errorf("expected 100 lines, got %d", len(lines))
+	}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "msg-") || len(line) != 7 {
+			t.Errorf("garbled line detected: %q", line)
+		}
+	}
+}
+
+// TestWsOutputPump_IgnoresUnknownFrameTypes verifies that frames with unknown
+// type bytes are silently ignored (existing behavior preserved after MsgMeta addition).
+func TestWsOutputPump_IgnoresUnknownFrameTypes(t *testing.T) {
+	// Verify that frames with unknown types are silently ignored.
+	// This is existing behavior but worth asserting since we added MsgMeta handling.
+	unknownFrame := []byte{0xFF, 0x01, 0x02}
+	msgType, _, err := relay.ParseFrame(unknownFrame)
+	if err != nil {
+		t.Fatalf("ParseFrame should not error on unknown type: %v", err)
+	}
+	if msgType == relay.MsgOutput || msgType == relay.MsgMeta {
+		t.Errorf("unknown frame type 0xFF should not match known types")
+	}
 }
