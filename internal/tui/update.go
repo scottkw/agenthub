@@ -37,10 +37,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.err = nil
 		m.sessions = msg.sessions
-		// Clamp selection if sessions list shrank
-		if m.selected >= len(m.sessions) {
-			m.selected = max(0, len(m.sessions)-1)
-		}
+		m.rebuildUnifiedList()
+		return m, nil
+
+	case remoteSessionsMsg:
+		m.remoteSessions = msg.groups
+		m.rebuildUnifiedList()
 		return m, nil
 
 	case webStatusMsg:
@@ -53,6 +55,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(
 			fetchSessions(m.client),
 			fetchWebStatus(m.client),
+			fetchRemoteSessions(m.fetchRemoteFn),
 			nextTick(),
 		)
 
@@ -139,24 +142,33 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Down):
-		if m.selected < len(m.sessions)-1 {
-			m.selected++
+		for i := m.selected + 1; i < len(m.unifiedList); i++ {
+			if m.unifiedList[i].kind != entryDivider {
+				m.selected = i
+				break
+			}
 		}
 		return m, nil
 
 	case key.Matches(msg, m.keys.Up):
-		if m.selected > 0 {
-			m.selected--
+		for i := m.selected - 1; i >= 0; i-- {
+			if m.unifiedList[i].kind != entryDivider {
+				m.selected = i
+				break
+			}
 		}
 		return m, nil
 
 	case key.Matches(msg, m.keys.Top):
-		m.selected = 0
+		m.selected = m.firstSelectableIndex()
 		return m, nil
 
 	case key.Matches(msg, m.keys.Bottom):
-		if len(m.sessions) > 0 {
-			m.selected = len(m.sessions) - 1
+		for i := len(m.unifiedList) - 1; i >= 0; i-- {
+			if m.unifiedList[i].kind != entryDivider {
+				m.selected = i
+				break
+			}
 		}
 		return m, nil
 
@@ -164,48 +176,77 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(fetchSessions(m.client), fetchWebStatus(m.client))
 
 	case key.Matches(msg, m.keys.Attach):
-		if len(m.sessions) == 0 {
+		if len(m.unifiedList) == 0 {
 			m.toast = "Session not available"
 			m.toastKind = toastError
 			m.toastExp = time.Now().Add(2 * time.Second)
 			return m, nil
 		}
-		s := m.sessions[m.selected]
-		switch s.Status {
-		case "running", "idle", "waiting":
-			// OK to attach
+		entry := m.unifiedList[m.selected]
+		switch entry.kind {
+		case entryLocal:
+			s := entry.session
+			switch s.Status {
+			case "running", "idle", "waiting":
+				// OK to attach
+			default:
+				m.toast = "Session not available"
+				m.toastKind = toastError
+				m.toastExp = time.Now().Add(2 * time.Second)
+				return m, nil
+			}
+			cmd := &attachCmd{client: m.client, sessionID: s.ID}
+			return m, tea.Exec(cmd, func(err error) tea.Msg {
+				return attachDoneMsg{err: err}
+			})
+		case entryRemote:
+			// Remote attach deferred: display only in Phase 78 scope
+			m.toast = "Remote attach not yet supported"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
 		default:
-			m.toast = "Session not available"
-			m.toastKind = toastError
-			m.toastExp = time.Now().Add(2 * time.Second)
 			return m, nil
 		}
-		cmd := &attachCmd{
-			client:    m.client,
-			sessionID: m.sessions[m.selected].ID,
-		}
-		return m, tea.Exec(cmd, func(err error) tea.Msg {
-			return attachDoneMsg{err: err}
-		})
 
 	case key.Matches(msg, m.keys.New):
 		return m.openNewSessionModal()
 
 	case key.Matches(msg, m.keys.Kill):
-		if len(m.sessions) == 0 {
+		if len(m.unifiedList) == 0 {
 			return m, nil
 		}
-		s := m.sessions[m.selected]
+		entry := m.unifiedList[m.selected]
+		if entry.kind == entryRemote {
+			m.toast = "Cannot kill remote session"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		if entry.kind != entryLocal || entry.session == nil {
+			return m, nil
+		}
+		s := *entry.session
 		m.modal = modalKillConfirm
 		m.killTarget = &s
 		m.killFocusYes = false
 		return m, nil
 
 	case key.Matches(msg, m.keys.Rename):
-		if len(m.sessions) == 0 {
+		if len(m.unifiedList) == 0 {
 			return m, nil
 		}
-		s := m.sessions[m.selected]
+		entry := m.unifiedList[m.selected]
+		if entry.kind == entryRemote {
+			m.toast = "Cannot rename remote session"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		if entry.kind != entryLocal || entry.session == nil {
+			return m, nil
+		}
+		s := entry.session
 		m.editing = true
 		m.editSessionID = s.ID
 		m.editOriginal = s.Name
@@ -218,6 +259,80 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+// rebuildUnifiedList constructs the unified list from local sessions and remote groups.
+// Restores selection by entry identity to prevent cursor jump on refresh.
+func (m *Model) rebuildUnifiedList() {
+	// Remember current selection identity
+	var selID string
+	var selKind listEntryKind
+	if m.selected >= 0 && m.selected < len(m.unifiedList) {
+		cur := m.unifiedList[m.selected]
+		selKind = cur.kind
+		switch cur.kind {
+		case entryLocal:
+			if cur.session != nil {
+				selID = cur.session.ID
+			}
+		case entryRemote:
+			if cur.remote != nil {
+				selID = cur.remote.ID + ":" + cur.remote.Hostname
+			}
+		}
+	}
+
+	var list []listEntry
+	// Local sessions first
+	for i := range m.sessions {
+		list = append(list, listEntry{kind: entryLocal, session: &m.sessions[i]})
+	}
+	// Remote groups (already sorted alphabetically by hostname from fetchRemoteFn)
+	for _, g := range m.remoteSessions {
+		if len(g.Sessions) == 0 {
+			continue
+		}
+		list = append(list, listEntry{kind: entryDivider, divider: &peerDivider{
+			Hostname:     g.Hostname,
+			SessionCount: len(g.Sessions),
+		}})
+		for i := range g.Sessions {
+			list = append(list, listEntry{kind: entryRemote, remote: &g.Sessions[i]})
+		}
+	}
+	m.unifiedList = list
+
+	// Restore selection by identity
+	restored := false
+	if selID != "" {
+		for i, e := range m.unifiedList {
+			switch {
+			case e.kind == selKind && e.kind == entryLocal && e.session != nil && e.session.ID == selID:
+				m.selected = i
+				restored = true
+			case e.kind == selKind && e.kind == entryRemote && e.remote != nil && (e.remote.ID+":"+e.remote.Hostname) == selID:
+				m.selected = i
+				restored = true
+			}
+			if restored {
+				break
+			}
+		}
+	}
+	if !restored {
+		// Clamp to first selectable entry
+		m.selected = m.firstSelectableIndex()
+	}
+}
+
+// firstSelectableIndex returns the index of the first non-divider entry, or 0 if empty.
+func (m Model) firstSelectableIndex() int {
+	for i, e := range m.unifiedList {
+		if e.kind != entryDivider {
+			return i
+		}
+	}
+	return 0
 }
 
 // handleRenameKey handles keys when inline rename is active.

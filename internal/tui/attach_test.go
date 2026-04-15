@@ -28,6 +28,7 @@ func TestUpdate_AttachDispatch(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -41,6 +42,7 @@ func TestUpdate_AttachErroredSession(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "test", CLI: "claude", Status: "errored"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

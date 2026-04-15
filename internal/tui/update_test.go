@@ -126,6 +126,7 @@ func TestUpdate_KeyNavigation(t *testing.T) {
 		{ID: "2", Name: "s2"},
 		{ID: "3", Name: "s3"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	// Move down
@@ -207,6 +208,7 @@ func TestUpdate_KeyReassignment(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	// r should enter rename mode, not refresh
@@ -232,6 +234,7 @@ func TestUpdate_KillConfirmOpen(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	updated, _ := m.Update(tea.KeyPressMsg{Code: 'd'})
@@ -422,6 +425,7 @@ func TestUpdate_RenameStart(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "my-session", CLI: "claude", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 
 	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'r'})

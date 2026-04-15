@@ -17,6 +17,7 @@ func TestView_SessionList(t *testing.T) {
 		{ID: "1", Name: "my-session", CLI: "claude", Hostname: "macbook-pro", Status: "running", ViewerCount: 2},
 		{ID: "2", Name: "another", CLI: "opencode", Hostname: "linux-vm", Status: "idle", ViewerCount: 0},
 	}
+	m.rebuildUnifiedList()
 
 	v := m.View()
 	content := v.Content
@@ -119,6 +120,7 @@ func TestView_SingleSession(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "test", CLI: "claude", Hostname: "host", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 
 	v := m.View()
 	content := v.Content
@@ -209,6 +211,7 @@ func TestView_InlineRename(t *testing.T) {
 	m.sessions = []daemon.SessionInfo{
 		{ID: "1", Name: "old-name", CLI: "claude", Hostname: "mac", Status: "running"},
 	}
+	m.rebuildUnifiedList()
 	m.selected = 0
 	m.editing = true
 	m.editSessionID = "1"

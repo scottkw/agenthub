@@ -66,6 +66,7 @@ func (m Model) renderFull() string {
 	if m.modal == modalKillConfirm {
 		return m.renderKillConfirmModal()
 	}
+	// QR overlay (Phase 78 Plan 02 will add: if m.qrSession != nil { return m.renderQROverlay() })
 
 	return content
 }
@@ -76,10 +77,24 @@ func (m Model) renderHeader() string {
 		Foreground(m.styles.FgNormal).
 		Render("AgentHub")
 
-	count := fmt.Sprintf("%d sessions", len(m.sessions))
-	if len(m.sessions) == 1 {
-		count = "1 session"
+	// Count local and remote sessions separately
+	localCount := len(m.sessions)
+	remoteCount := 0
+	for _, e := range m.unifiedList {
+		if e.kind == entryRemote {
+			remoteCount++
+		}
 	}
+
+	var count string
+	if remoteCount > 0 {
+		count = fmt.Sprintf("%d local, %d remote", localCount, remoteCount)
+	} else if localCount == 1 {
+		count = "1 session"
+	} else {
+		count = fmt.Sprintf("%d sessions", localCount)
+	}
+
 	countStyled := lipgloss.NewStyle().
 		Foreground(m.styles.FgMuted).
 		Render(count)
@@ -129,8 +144,8 @@ func (m Model) renderSessionList() string {
 			lipgloss.NewStyle().Foreground(m.styles.FgMuted).Render("Loading sessions..."))
 	}
 
-	// Empty state
-	if len(m.sessions) == 0 {
+	// Empty state: show when no local sessions and no remote sessions
+	if len(m.sessions) == 0 && len(m.remoteSessions) == 0 {
 		emptyText := lipgloss.JoinVertical(lipgloss.Center,
 			lipgloss.NewStyle().Bold(true).Foreground(m.styles.FgNormal).Render("No sessions"),
 			lipgloss.NewStyle().Foreground(m.styles.FgMuted).Render("Press n to create a new session"),
@@ -144,7 +159,15 @@ func (m Model) renderSessionList() string {
 
 	var rows []string
 	for i := start; i < end; i++ {
-		rows = append(rows, m.renderSessionRow(m.sessions[i], i))
+		entry := m.unifiedList[i]
+		switch entry.kind {
+		case entryLocal:
+			rows = append(rows, m.renderSessionRow(*entry.session, i))
+		case entryRemote:
+			rows = append(rows, m.renderRemoteSessionRow(entry.remote, i))
+		case entryDivider:
+			rows = append(rows, m.renderDividerRow(entry.divider))
+		}
 	}
 
 	// Pad remaining lines to fill the list area
@@ -160,7 +183,7 @@ func (m Model) renderSessionList() string {
 
 // visibleRange calculates the start and end indices for the visible session window.
 func (m Model) visibleRange(listHeight int) (int, int) {
-	total := len(m.sessions)
+	total := len(m.unifiedList)
 	if total <= listHeight {
 		return 0, total
 	}
@@ -224,6 +247,65 @@ func (m Model) renderSessionRow(s daemon.SessionInfo, idx int) string {
 		Foreground(m.styles.FgNormal).
 		Width(m.width).
 		Render(row)
+}
+
+// renderRemoteSessionRow renders a single remote session row with the same column layout
+// as renderSessionRow, reading from a RemoteSessionEntry instead of daemon.SessionInfo.
+func (m Model) renderRemoteSessionRow(r *RemoteSessionEntry, idx int) string {
+	isSelected := idx == m.selected
+
+	cursor := "  "
+	if isSelected {
+		cursor = "> "
+	}
+
+	glyph, glyphColor := statusGlyph(r.Status, m.styles)
+	styledGlyph := lipgloss.NewStyle().Foreground(glyphColor).Render(glyph)
+
+	nameWidth := m.nameColWidth()
+	name := truncate(r.Name, nameWidth)
+	agent := truncate(r.CLIType, 12)
+	host := truncate(r.Hostname, 20)
+
+	// Remote sessions do not expose viewer count — leave blank
+	row := fmt.Sprintf("%s%s %-*s  %-12s  %-20s  %7s",
+		cursor, styledGlyph, nameWidth, name, agent, host, "")
+
+	if isSelected {
+		return lipgloss.NewStyle().
+			Background(m.styles.BgSelected).
+			Foreground(m.styles.FgSelected).
+			Width(m.width).
+			Render(row)
+	}
+	return lipgloss.NewStyle().
+		Foreground(m.styles.FgNormal).
+		Width(m.width).
+		Render(row)
+}
+
+// renderDividerRow renders a section divider row between peer groups per UI-SPEC.
+// Format: "  ── Remote: {hostname} ({N} session/sessions) ──────..."
+func (m Model) renderDividerRow(d *peerDivider) string {
+	label := "session"
+	if d.SessionCount != 1 {
+		label = "sessions"
+	}
+	text := fmt.Sprintf("Remote: %s (%d %s)", d.Hostname, d.SessionCount, label)
+	prefix := "  \u2500\u2500 " // two leading spaces + box-drawing horizontal chars
+	suffix := " "
+	labelStr := prefix + text + suffix
+
+	// Accent-colored label portion
+	labelPart := lipgloss.NewStyle().Foreground(m.styles.FgAccent).Render(labelStr)
+
+	// Fill remaining width with box-drawing chars in muted color
+	fillLen := m.width - lipgloss.Width(labelStr)
+	if fillLen > 0 {
+		fillPart := lipgloss.NewStyle().Foreground(m.styles.FgMuted).Render(strings.Repeat("\u2500", fillLen))
+		return labelPart + fillPart
+	}
+	return labelPart
 }
 
 // renderFooter renders the two footer lines: web status and keybinding hints.
