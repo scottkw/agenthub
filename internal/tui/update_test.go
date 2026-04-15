@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/pty"
 )
 
 func testModel() Model {
@@ -454,5 +455,168 @@ func TestRename_NavigationSuppressed(t *testing.T) {
 	result := updated.(Model)
 	if result.selected != 0 {
 		t.Errorf("expected selected=0 (j captured by rename), got %d", result.selected)
+	}
+}
+
+func TestModal_FocusCycle(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	// Tab: agent(0) -> dir(1)
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	result := updated.(Model)
+	if result.focusedField != 1 {
+		t.Errorf("expected focusedField=1 after Tab, got %d", result.focusedField)
+	}
+
+	// Tab: dir(1) -> args(2)
+	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	result = updated.(Model)
+	if result.focusedField != 2 {
+		t.Errorf("expected focusedField=2 after Tab, got %d", result.focusedField)
+	}
+
+	// Tab: args(2) -> agent(0) (wraps)
+	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	result = updated.(Model)
+	if result.focusedField != 0 {
+		t.Errorf("expected focusedField=0 after Tab wrap, got %d", result.focusedField)
+	}
+}
+
+func TestModal_AgentCycle(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+		{Name: "opencode", DisplayName: "OpenCode", Path: "/usr/bin/opencode"},
+	}
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	// Right arrow: claude(0) -> opencode(1)
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	result := updated.(Model)
+	if result.agentIdx != 1 {
+		t.Errorf("expected agentIdx=1 after Right, got %d", result.agentIdx)
+	}
+
+	// Right arrow: opencode(1) -> claude(0) (wraps)
+	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	result = updated.(Model)
+	if result.agentIdx != 0 {
+		t.Errorf("expected agentIdx=0 after Right wrap, got %d", result.agentIdx)
+	}
+
+	// Left arrow: claude(0) -> opencode(1) (wraps backward)
+	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	result = updated.(Model)
+	if result.agentIdx != 1 {
+		t.Errorf("expected agentIdx=1 after Left wrap, got %d", result.agentIdx)
+	}
+}
+
+func TestModal_SubmitValidation(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 1
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+	}
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.dirInput.SetValue("") // empty directory
+	m.argsInput = textinput.New()
+
+	// Submit with empty directory
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if result.toast != "Directory is required" {
+		t.Errorf("expected 'Directory is required' toast, got %q", result.toast)
+	}
+	if result.modal != modalNewSession {
+		t.Error("modal should stay open on validation failure")
+	}
+}
+
+func TestModal_SubmitNoAgents(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.detectedCLIs = nil // no agents
+	m.dirInput = textinput.New()
+	m.dirInput.SetValue("/some/dir")
+	m.argsInput = textinput.New()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if result.toast != "Agent is required" {
+		t.Errorf("expected 'Agent is required' toast, got %q", result.toast)
+	}
+}
+
+func TestModal_SubmitSuccess(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+	}
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.dirInput.SetValue("/Users/ken/dev/project")
+	m.argsInput = textinput.New()
+	m.argsInput.SetValue("--model opus")
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if result.modal != modalNone {
+		t.Error("modal should close on successful submit")
+	}
+	if result.toast != "Creating session..." {
+		t.Errorf("expected 'Creating session...' toast, got %q", result.toast)
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd (createSession)")
+	}
+}
+
+func TestModal_Cancel(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	result := updated.(Model)
+	if result.modal != modalNone {
+		t.Error("modal should close on Esc")
+	}
+}
+
+func TestUpdate_CreateSessionMsg(t *testing.T) {
+	m := testModel()
+
+	// Success
+	updated, cmd := m.Update(createSessionMsg{id: "new-id", err: nil})
+	result := updated.(Model)
+	if result.toast != "Session created" {
+		t.Errorf("expected 'Session created' toast, got %q", result.toast)
+	}
+	if result.toastKind != toastSuccess {
+		t.Errorf("expected toastSuccess, got %d", result.toastKind)
+	}
+	if cmd == nil {
+		t.Error("expected refresh cmd after create")
+	}
+
+	// Error
+	updated2, _ := m.Update(createSessionMsg{err: fmt.Errorf("port in use")})
+	result2 := updated2.(Model)
+	if result2.toast != "Create failed: port in use" {
+		t.Errorf("expected error toast, got %q", result2.toast)
 	}
 }

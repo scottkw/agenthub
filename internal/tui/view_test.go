@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/pty"
 )
 
 func TestView_SessionList(t *testing.T) {
@@ -240,5 +241,52 @@ func TestView_ToastKind(t *testing.T) {
 	web = m.renderWebStatus()
 	if !strings.Contains(web, "Test toast") {
 		t.Error("error toast not rendered")
+	}
+}
+
+func TestView_NewSessionModal(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+	}
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.dirInput.SetValue("/Users/ken/dev")
+	m.argsInput = textinput.New()
+
+	v := m.View()
+	content := v.Content
+
+	checks := []string{
+		"New Session",
+		"Agent:",
+		"Directory:",
+		"Arguments:",
+		"Tab: next field",
+		"Enter: create",
+		"Esc: cancel",
+	}
+	for _, want := range checks {
+		if !strings.Contains(content, want) {
+			t.Errorf("new session modal missing %q", want)
+		}
+	}
+}
+
+func TestView_NewSessionModal_NoAgents(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = nil
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	v := m.View()
+	content := v.Content
+
+	if !strings.Contains(content, "(none found)") {
+		t.Error("modal should show '(none found)' when no CLIs detected")
 	}
 }
