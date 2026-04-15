@@ -3,7 +3,7 @@ status: partial
 phase: 77-tui-session-operations
 source: [77-VERIFICATION.md]
 started: 2026-04-15T16:15:00Z
-updated: 2026-04-15T17:00:00Z
+updated: 2026-04-15T17:10:00Z
 ---
 
 ## Current Test
@@ -14,7 +14,7 @@ updated: 2026-04-15T17:00:00Z
 
 ### 1. Attach to a running session from TUI and detach with Ctrl-\
 expected: TUI suspends, raw PTY attach runs with status bar, Ctrl-\ returns to TUI with session list refreshed
-result: [pending]
+result: passed (2026-04-15 — verified by user)
 
 ### 2. Create a new session via n key modal
 expected: Modal opens with agent picker, directory pre-filled, Tab cycles focus, Enter creates session, list refreshes with new entry
@@ -31,9 +31,9 @@ result: passed (2026-04-15 — verified by user)
 ## Summary
 
 total: 4
-passed: 2
+passed: 3
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
