@@ -47,14 +47,18 @@ func AttachSession(ctx context.Context, conn *websocket.Conn, stdin io.Reader, s
 		wsDone <- result{WsOutputPump(ctx, conn, stdout, bar, onFrame)}
 	}()
 
+	var pumpErr error
 	select {
-	case <-stdinDone:
-	case <-wsDone:
+	case r := <-stdinDone:
+		pumpErr = r.err
+	case r := <-wsDone:
+		pumpErr = r.err
 	case <-ctx.Done():
+		// Context cancelled — not an error from the pumps.
 	}
 
 	conn.Close(websocket.StatusNormalClosure, "detach") //nolint:errcheck
-	return nil
+	return pumpErr
 }
 
 // StdinPump reads from r, scans for the detach key, and forwards input to the
