@@ -88,14 +88,153 @@ func TestUpdate_WindowSizeMsg(t *testing.T) {
 func TestUpdate_KeyQuit(t *testing.T) {
 	m := testModel()
 
-	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q'})
+	// Phase 78: quit is now Q (Shift+Q), not lowercase q
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'Q'})
 	if cmd == nil {
-		t.Fatal("expected quit command, got nil")
+		t.Fatal("expected quit command from Q, got nil")
 	}
 	// tea.Quit returns a special command -- executing it produces tea.QuitMsg
 	msg := cmd()
 	if _, ok := msg.(tea.QuitMsg); !ok {
-		t.Errorf("expected tea.QuitMsg, got %T", msg)
+		t.Errorf("expected tea.QuitMsg from Q, got %T", msg)
+	}
+}
+
+func TestUpdate_QuitKeyReassignment(t *testing.T) {
+	m := testModel()
+	// q should NOT quit anymore -- it's the QR trigger now
+	// With no sessions, q should be a no-op (empty list guard)
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q'})
+	if cmd != nil {
+		msg := cmd()
+		if _, ok := msg.(tea.QuitMsg); ok {
+			t.Error("q should not quit -- it should trigger QR now")
+		}
+	}
+	// Q (Shift) should still quit
+	_, cmd2 := m.Update(tea.KeyPressMsg{Code: 'Q'})
+	if cmd2 == nil {
+		t.Fatal("Q should produce a quit command")
+	}
+	msg2 := cmd2()
+	if _, ok := msg2.(tea.QuitMsg); !ok {
+		t.Errorf("expected QuitMsg from Q, got %T", msg2)
+	}
+}
+
+func TestUpdate_QROpen(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "s1", Name: "test-session", CLI: "claude", Status: "running"},
+	}
+	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
+	m.width = 80
+	m.height = 30
+	m.rebuildUnifiedList()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'q'})
+	result := updated.(Model)
+	if result.qrSession == nil {
+		t.Fatal("expected qrSession to be set after q on web-served session")
+	}
+	if result.qrContent == "" {
+		t.Error("expected non-empty qrContent")
+	}
+	if result.qrURL != "https://test.ts.net/sessions/s1" {
+		t.Errorf("expected URL 'https://test.ts.net/sessions/s1', got %q", result.qrURL)
+	}
+}
+
+func TestUpdate_QRClose(t *testing.T) {
+	m := testModel()
+	m.qrSession = &sessionRef{ID: "s1", Name: "test", URL: "https://test.ts.net/sessions/s1"}
+	m.qrContent = "qr-data"
+	m.qrURL = "https://test.ts.net/sessions/s1"
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	result := updated.(Model)
+	if result.qrSession != nil {
+		t.Error("expected qrSession=nil after Esc")
+	}
+	if result.qrContent != "" {
+		t.Error("expected qrContent cleared after Esc")
+	}
+}
+
+func TestUpdate_QRNoURL(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "s1", Name: "test-session", CLI: "claude", Status: "running"},
+	}
+	m.webStatus = daemon.WebServerStatusResponse{Running: false}
+	m.width = 80
+	m.height = 30
+	m.rebuildUnifiedList()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'q'})
+	result := updated.(Model)
+	if result.qrSession != nil {
+		t.Error("expected qrSession=nil when web server not running")
+	}
+	if result.toast != "Web serving not enabled for this session" {
+		t.Errorf("expected web-not-enabled toast, got %q", result.toast)
+	}
+}
+
+func TestUpdate_QRTerminalTooSmall(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "s1", Name: "test", CLI: "claude", Status: "running"},
+	}
+	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
+	m.width = 50  // below 55 minimum
+	m.height = 20 // below 25 minimum
+	m.rebuildUnifiedList()
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'q'})
+	result := updated.(Model)
+	if result.qrSession != nil {
+		t.Error("expected qrSession=nil when terminal too small")
+	}
+	if result.toast != "Terminal too small to display QR code" {
+		t.Errorf("expected too-small toast, got %q", result.toast)
+	}
+}
+
+func TestUpdate_QRSwallowsKeys(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{{ID: "1", Name: "s1"}, {ID: "2", Name: "s2"}}
+	m.rebuildUnifiedList()
+	m.selected = 0
+	m.qrSession = &sessionRef{ID: "s1", Name: "test", URL: "https://test.ts.net/sessions/s1"}
+	m.qrContent = "qr-data"
+	m.qrURL = "https://test.ts.net/sessions/s1"
+
+	// j key should be swallowed while QR overlay is open
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j'})
+	result := updated.(Model)
+	if result.selected != 0 {
+		t.Errorf("expected selected=0 (j swallowed by QR overlay), got %d", result.selected)
+	}
+	if result.qrSession == nil {
+		t.Error("expected QR overlay to remain open after j")
+	}
+}
+
+func TestUpdate_QRQuitFromOverlay(t *testing.T) {
+	m := testModel()
+	m.qrSession = &sessionRef{ID: "s1", Name: "test", URL: "https://test.ts.net/sessions/s1"}
+	m.qrContent = "qr-data"
+	m.qrURL = "https://test.ts.net/sessions/s1"
+
+	// Q should quit even from QR overlay
+	_, cmd := m.Update(tea.KeyPressMsg{Code: 'Q'})
+	if cmd == nil {
+		t.Fatal("expected quit command from Q while QR overlay is open")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Errorf("expected tea.QuitMsg from Q in QR overlay, got %T", msg)
 	}
 }
 

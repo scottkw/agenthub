@@ -31,6 +31,7 @@ func TestHelpOverlay_ContainsBindings(t *testing.T) {
 		"Jump to last",
 		"Refresh list",
 		"Attach to session",
+		"QR code / URL",
 		"New session",
 		"Kill session",
 		"Rename session",
@@ -41,6 +42,21 @@ func TestHelpOverlay_ContainsBindings(t *testing.T) {
 		if !strings.Contains(content, binding) {
 			t.Errorf("help content missing binding description %q", binding)
 		}
+	}
+}
+
+func TestHelp_QRBinding(t *testing.T) {
+	m := testModel()
+	content := m.buildHelpContent()
+	if !strings.Contains(content, "QR code / URL") {
+		t.Error("help missing 'QR code / URL' binding")
+	}
+	if !strings.Contains(content, "Q, Ctrl+C") {
+		t.Error("help missing 'Q, Ctrl+C' quit binding")
+	}
+	// Old quit binding should not be present
+	if strings.Contains(content, "q, Ctrl+C") {
+		t.Error("help still contains old 'q, Ctrl+C' quit binding")
 	}
 }
 

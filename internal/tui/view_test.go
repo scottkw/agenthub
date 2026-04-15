@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/pty"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func TestView_SessionList(t *testing.T) {
@@ -174,10 +175,39 @@ func TestStatusGlyph(t *testing.T) {
 func TestView_HintBar(t *testing.T) {
 	m := testModel()
 	hint := m.renderHintBar()
-	required := []string{"Enter Attach", "n New", "d Kill", "r Rename", "? Help", "q Quit"}
+	// Phase 78: q->QR, Q->Quit
+	required := []string{"Enter Attach", "q QR", "n New", "d Kill", "r Rename", "? Help", "Q Quit"}
 	for _, want := range required {
 		if !strings.Contains(hint, want) {
 			t.Errorf("hint bar missing %q", want)
+		}
+	}
+	// Old quit hint must not appear
+	if strings.Contains(hint, "q Quit") {
+		t.Error("hint bar should not contain old 'q Quit' -- quit is now Q")
+	}
+}
+
+func TestView_QROverlayContent(t *testing.T) {
+	m := testModel()
+	m.width = 80
+	m.height = 30
+
+	url := "https://test.ts.net/sessions/abc123"
+	q, err := qrcode.New(url, qrcode.Medium)
+	if err != nil {
+		t.Fatalf("qrcode.New failed: %v", err)
+	}
+
+	m.qrSession = &sessionRef{ID: "abc123", Name: "my-session", URL: url}
+	m.qrContent = q.ToSmallString(false)
+	m.qrURL = url
+
+	overlay := m.renderQROverlay()
+	checks := []string{"QR: my-session", url, "Esc: close"}
+	for _, want := range checks {
+		if !strings.Contains(overlay, want) {
+			t.Errorf("QR overlay missing %q", want)
 		}
 	}
 }
