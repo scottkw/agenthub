@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"encoding/json"
 	"io"
 	"sync"
 	"testing"
@@ -487,4 +488,60 @@ func TestHub_ResizeClientUnsubscribeDoesNotShrink(t *testing.T) {
 	}
 
 	w.Close()
+}
+
+func TestBroadcastMeta_NonBlocking(t *testing.T) {
+	// Create a hub with a no-op reader/writer.
+	pr, pw := io.Pipe()
+	defer pr.Close()
+	defer pw.Close()
+	hub := NewHub("test-meta", pr, pw, 1024, nil)
+
+	// Create a subscriber with a buffered channel.
+	closedSlow := make(chan struct{}, 1)
+	sub := &Subscriber{
+		Msgs: make(chan []byte, 256),
+		CloseSlow: func() {
+			closedSlow <- struct{}{}
+		},
+	}
+	hub.Subscribe(sub)
+	defer hub.Unsubscribe(sub)
+
+	count := 2
+	frame := MakeMeta(MetaPayload{ViewerCount: &count})
+	hub.BroadcastMeta(frame)
+
+	select {
+	case msg := <-sub.Msgs:
+		msgType, payload, err := ParseFrame(msg)
+		if err != nil {
+			t.Fatalf("ParseFrame error: %v", err)
+		}
+		if msgType != MsgMeta {
+			t.Errorf("expected MsgMeta (0x%02x), got 0x%02x", MsgMeta, msgType)
+		}
+		var meta MetaPayload
+		if err := json.Unmarshal(payload, &meta); err != nil {
+			t.Fatalf("unmarshal error: %v", err)
+		}
+		if meta.ViewerCount == nil || *meta.ViewerCount != 2 {
+			t.Errorf("expected viewerCount=2, got %v", meta.ViewerCount)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for BroadcastMeta frame")
+	}
+
+	// Verify non-blocking: fill the channel, then BroadcastMeta should not block.
+	for i := 0; i < 256; i++ {
+		sub.Msgs <- []byte{0x00}
+	}
+	hub.BroadcastMeta(frame) // should trigger CloseSlow, not block
+
+	select {
+	case <-closedSlow:
+		// Expected — slow subscriber was closed.
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for CloseSlow on full channel")
+	}
 }

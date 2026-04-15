@@ -71,6 +71,20 @@ func readFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	return msgType, payload
 }
 
+// readDataFrame reads frames from conn, skipping any MsgMeta frames, and returns
+// the first non-meta frame. This is used in tests that predate MsgMeta and only
+// care about PTY output frames.
+func readDataFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
+	t.Helper()
+	for {
+		msgType, payload := readFrame(t, conn)
+		if msgType == MsgMeta {
+			continue // skip viewer-count push frames
+		}
+		return msgType, payload
+	}
+}
+
 // dialWSWithQuery dials a WebSocket connection with optional query parameters appended.
 func dialWSWithQuery(t *testing.T, serverURL, sessionID, query string) *websocket.Conn {
 	t.Helper()
@@ -136,7 +150,7 @@ func TestServer_ReadOnlyClientInputDiscarded(t *testing.T) {
 	if _, err := ptyWrite.Write([]byte(output)); err != nil {
 		t.Fatalf("ptyWrite: %v", err)
 	}
-	gotType, gotPayload := readFrame(t, roClient)
+	gotType, gotPayload := readDataFrame(t, roClient)
 	if gotType != MsgOutput {
 		t.Errorf("readonly client: got type 0x%02x, want MsgOutput", gotType)
 	}
@@ -157,7 +171,7 @@ func TestServer_ReadOnlyClientReceivesOutput(t *testing.T) {
 		t.Fatalf("ptyWrite: %v", err)
 	}
 
-	gotType, gotPayload := readFrame(t, roClient)
+	gotType, gotPayload := readDataFrame(t, roClient)
 	if gotType != MsgOutput {
 		t.Errorf("got type 0x%02x, want MsgOutput", gotType)
 	}
@@ -200,8 +214,8 @@ func TestHub_TwoClientsFanOut(t *testing.T) {
 	}
 
 	// Both clients must receive MsgOutput with "hello world".
-	gotTypeA, gotPayloadA := readFrame(t, clientA)
-	gotTypeB, gotPayloadB := readFrame(t, clientB)
+	gotTypeA, gotPayloadA := readDataFrame(t, clientA)
+	gotTypeB, gotPayloadB := readDataFrame(t, clientB)
 
 	if gotTypeA != MsgOutput {
 		t.Errorf("clientA: got type 0x%02x, want MsgOutput (0x%02x)", gotTypeA, MsgOutput)
@@ -229,7 +243,7 @@ func TestHub_ReconnectScrollback(t *testing.T) {
 	if _, err := ptyWrite.Write([]byte(before)); err != nil {
 		t.Fatalf("ptyWrite before: %v", err)
 	}
-	readFrame(t, clientA) // consume — confirms receipt; clientA has it.
+	readDataFrame(t, clientA) // consume — confirms receipt; clientA has it.
 
 	// Disconnect clientA.
 	clientA.CloseNow()
@@ -246,11 +260,9 @@ func TestHub_ReconnectScrollback(t *testing.T) {
 	// Client B connects — simulates reconnect.
 	clientB := dialWS(t, srv.URL, sessionID)
 
-	// The first message client B receives is the scrollback snapshot.
-	// The snapshot contains ALL prior framed output concatenated.
-	// We need to read all snapshot bytes in one or more reads, but in our
-	// server implementation the snapshot is sent as a single binary message.
-	snapshotType, snapshotPayload := readFrame(t, clientB)
+	// The first message client B receives may be a MsgMeta frame (viewer count update).
+	// Skip meta frames to get to the scrollback snapshot (MsgOutput).
+	snapshotType, snapshotPayload := readDataFrame(t, clientB)
 	if snapshotType != MsgOutput {
 		t.Errorf("snapshot msg type: got 0x%02x, want MsgOutput", snapshotType)
 	}
@@ -274,7 +286,7 @@ func TestHub_ReconnectScrollback(t *testing.T) {
 		t.Fatalf("ptyWrite after: %v", err)
 	}
 
-	liveType, livePayload := readFrame(t, clientB)
+	liveType, livePayload := readDataFrame(t, clientB)
 	if liveType != MsgOutput {
 		t.Errorf("live msg type: got 0x%02x, want MsgOutput", liveType)
 	}
@@ -315,8 +327,8 @@ func TestHub_InputFanOut(t *testing.T) {
 	}
 
 	// Both clients receive the output.
-	typeA, payloadA := readFrame(t, clientA)
-	typeB, payloadB := readFrame(t, clientB)
+	typeA, payloadA := readDataFrame(t, clientA)
+	typeB, payloadB := readDataFrame(t, clientB)
 
 	if typeA != MsgOutput || string(payloadA) != response {
 		t.Errorf("clientA: got type=0x%02x payload=%q, want MsgOutput %q", typeA, payloadA, response)
@@ -328,17 +340,38 @@ func TestHub_InputFanOut(t *testing.T) {
 
 // TestHub_SlowClientDisconnected verifies that a slow client (full send buffer) is
 // disconnected while other clients continue receiving data uninterrupted.
+//
+// Design: slowClient never reads, so its 256-slot Msgs channel fills. normalClient
+// reads actively in a concurrent goroutine so its channel stays drained.
+// MsgMeta frames are sent on each subscribe event (SB-04), so slowClient receives
+// 2 MsgMeta frames before the flood — we account for this by flooding with 300
+// frames (> 256-2=254 remaining slots) to guarantee overflow.
 func TestHub_SlowClientDisconnected(t *testing.T) {
 	if testing.Short() {
 		t.Skip("timing-sensitive under race detector and CI")
 	}
 	srv, _, ptyWrite, _, sessionID := setupTestServer(t)
 
-	// Normal client that actively reads.
+	// Normal client that actively reads — drains concurrently with the flood so
+	// its 256-slot Msgs channel never fills.
 	normalClient := dialWS(t, srv.URL, sessionID)
 
 	// Slow client — we dial it but never read from it, so its 256-entry channel fills up.
 	slowClient := dialWS(t, srv.URL, sessionID)
+
+	// Drain normalClient concurrently so its Msgs channel never overflows.
+	normalDone := make(chan struct{})
+	go func() {
+		defer close(normalDone)
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, _, err := normalClient.Read(ctx)
+			cancel()
+			if err != nil {
+				return
+			}
+		}
+	}()
 
 	// Flood the PTY pipe with 300 distinct messages to overflow the slow client's buffer.
 	// We write each message individually to maximize frame count.
@@ -350,22 +383,8 @@ func TestHub_SlowClientDisconnected(t *testing.T) {
 		}
 	}
 
-	// Read at least 256 frames on the normal client to confirm it's still alive.
-	// We use a liberal timeout per-read to tolerate goroutine scheduling.
-	received := 0
-	for received < 256 {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		_, _, err := normalClient.Read(ctx)
-		cancel()
-		if err != nil {
-			t.Fatalf("normalClient stopped receiving at frame %d: %v", received, err)
-		}
-		received++
-	}
-
 	// Slow client should have been disconnected (CloseSlow closes the WS connection).
-	// Drain any buffered frames until we get the close error — the server sent a
-	// StatusPolicyViolation close frame which will eventually appear as a read error.
+	// Drain any buffered frames until we get the close error.
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)

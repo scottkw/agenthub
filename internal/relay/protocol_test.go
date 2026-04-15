@@ -2,6 +2,7 @@ package relay
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
@@ -131,5 +132,43 @@ func TestFrameRoundTrip(t *testing.T) {
 				t.Errorf("payload mismatch")
 			}
 		})
+	}
+}
+
+func TestMakeMeta_RoundTrip(t *testing.T) {
+	count := 3
+	p := MetaPayload{ViewerCount: &count}
+	frame := MakeMeta(p)
+
+	if frame[0] != MsgMeta {
+		t.Errorf("expected type byte 0x%02x, got 0x%02x", MsgMeta, frame[0])
+	}
+
+	msgType, payload, err := ParseFrame(frame)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if msgType != MsgMeta {
+		t.Errorf("expected type 0x%02x, got 0x%02x", MsgMeta, msgType)
+	}
+
+	var decoded MetaPayload
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("failed to unmarshal MetaPayload: %v", err)
+	}
+	if decoded.ViewerCount == nil || *decoded.ViewerCount != 3 {
+		t.Errorf("expected viewerCount=3, got %v", decoded.ViewerCount)
+	}
+}
+
+func TestMakeMeta_OmitsNilFields(t *testing.T) {
+	frame := MakeMeta(MetaPayload{})
+	_, payload, err := ParseFrame(frame)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Empty MetaPayload should produce "{}" — no viewerCount key
+	if bytes.Contains(payload, []byte("viewerCount")) {
+		t.Errorf("expected omitted viewerCount for nil pointer, got: %s", payload)
 	}
 }
