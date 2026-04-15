@@ -30,10 +30,10 @@ Requirements for v2.0 milestone. Each maps to roadmap phases.
 
 - [ ] **TUI-01**: `agenthub tui` command launches a Bubble Tea terminal UI
 - [ ] **TUI-02**: Session list panel shows all sessions with status indicators, agent type, hostname, and viewer count
-- [ ] **TUI-03**: User can attach to a session from the list (TUI suspends, raw PTY attach, TUI resumes on detach)
-- [ ] **TUI-04**: User can create a new session via modal (agent picker, working directory, extra args)
-- [ ] **TUI-05**: User can kill a session with confirmation dialog
-- [ ] **TUI-06**: User can rename a session via inline edit or modal
+- [x] **TUI-03**: User can attach to a session from the list (TUI suspends, raw PTY attach, TUI resumes on detach)
+- [x] **TUI-04**: User can create a new session via modal (agent picker, working directory, extra args)
+- [x] **TUI-05**: User can kill a session with confirmation dialog
+- [x] **TUI-06**: User can rename a session via inline edit or modal
 - [ ] **TUI-07**: Remote sessions panel shows tailnet peer sessions with same grouping as GUI
 - [ ] **TUI-08**: Web server status displayed in footer/status area
 - [ ] **TUI-09**: Help overlay (? key) shows all keybindings for current view
@@ -90,10 +90,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TUI-02 | Phase 76 | Pending |
 | TUI-08 | Phase 76 | Pending |
 | TUI-09 | Phase 76 | Pending |
-| TUI-03 | Phase 77 | Pending |
-| TUI-04 | Phase 77 | Pending |
-| TUI-05 | Phase 77 | Pending |
-| TUI-06 | Phase 77 | Pending |
+| TUI-03 | Phase 77 | Complete |
+| TUI-04 | Phase 77 | Complete |
+| TUI-05 | Phase 77 | Complete |
+| TUI-06 | Phase 77 | Complete |
 | TUI-07 | Phase 78 | Pending |
 | TUI-10 | Phase 78 | Pending |
 
