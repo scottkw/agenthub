@@ -189,7 +189,7 @@
 - [x] **Phase 74: Multi-Client Fan-Out** — Wire relay/Hub for simultaneous WebSocket clients, independent scrollback, read-only mode, connection metadata, and PTY resize arbitration (GitHub #13) (completed 2026-04-15)
 - [x] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8) (completed 2026-04-15)
 - [x] **Phase 76: TUI Foundation** — `agenthub tui` command with Bubble Tea v2 session list, web server status footer, and help overlay (GitHub #7) (completed 2026-04-15)
-- [ ] **Phase 77: TUI Session Operations** — Attach (suspend/resume raw PTY), create modal, kill confirmation, and rename from TUI (GitHub #7)
+- [x] **Phase 77: TUI Session Operations** — Attach (suspend/resume raw PTY), create modal, kill confirmation, and rename from TUI (GitHub #7) (completed 2026-04-15)
 - [ ] **Phase 78: TUI Remote & QR** — Remote tailnet sessions panel and ASCII QR code display in TUI (GitHub #7)
 
 ## Phase Details
@@ -251,12 +251,12 @@ Plans:
   2. A new-session modal lets the user pick an agent, set a working directory, and provide extra arguments — creating the session and returning to the list
   3. Pressing the kill key on a session shows a confirmation dialog; confirming removes the session from the list
   4. The user can rename a session via an inline edit field or modal, with the updated name immediately reflected in the list
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 77-01-PLAN.md — Scaffolding: model state, styles, keybindings (r=rename, R=refresh), cmds, help, view, update dispatch + tests
 - [x] 77-02-PLAN.md — Attach flow: extract internal/attach/ package, ExecCommand implementation, tea.Exec wiring
 - [x] 77-03-PLAN.md — Kill confirmation dialog + inline rename rendering + tests
-- [ ] 77-04-PLAN.md — New-session modal: agent picker, text inputs, focus cycling, submit validation + tests
+- [x] 77-04-PLAN.md — New-session modal: agent picker, text inputs, focus cycling, submit validation + tests
 **UI hint**: yes
 
 ### Phase 78: TUI Remote & QR
@@ -291,7 +291,7 @@ Plans:
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 77. TUI Session Operations | v2.0 | 3/4 | In Progress|  |
+| 77. TUI Session Operations | v2.0 | 4/4 | Complete   | 2026-04-15 |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
 
 ---

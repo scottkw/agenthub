@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Multi-Client, CLI UX & TUI Mode
-status: executing
-stopped_at: Completed 77-02-PLAN.md
-last_updated: "2026-04-15T15:45:07.125Z"
+status: verifying
+stopped_at: Completed 77-04-PLAN.md
+last_updated: "2026-04-15T15:53:10.627Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-14)
 
 Phase: 77 (tui-session-operations) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-15
 
 Progress: [░░░░░░░░░░] 0%
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 77]: Refresh key reassigned from r to R; r now triggers rename, d triggers kill confirmation
 - [Phase 77]: Kill dialog uses FgDanger for title per UI-SPEC danger context
 - [Phase 77]: Extract shared attach logic to internal/attach/ package (Option A) — clean import by both CLI and TUI
+- [Phase 77]: Modal-level keys intercepted before textinput delegation
 
 ### Pending Todos
 
@@ -68,6 +69,7 @@ None.
 | Phase 77 P01 | 9min | 2 tasks | 13 files |
 | Phase 77 P03 | 6min | 2 tasks | 4 files |
 | Phase 77 P02 | 13min | 2 tasks | 14 files |
+| Phase 77 P04 | 4min | 2 tasks | 5 files |
 
 ### Blockers/Concerns
 
@@ -77,7 +79,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T15:45:07.121Z
-Stopped at: Completed 77-02-PLAN.md
+Last session: 2026-04-15T15:53:10.624Z
+Stopped at: Completed 77-04-PLAN.md
 Resume file: None
 Next action: /gsd-plan-phase 74
