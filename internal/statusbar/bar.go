@@ -34,12 +34,14 @@ const (
 
 // Options configures the status bar content and placement.
 type Options struct {
-	SessionName string
-	AgentType   string
-	Hostname    string
-	CreatedAt   time.Time // session creation time for elapsed display
-	Position    Position  // Bottom (default) or Top
-	Fd          uintptr   // file descriptor for term.GetSize (os.Stdout.Fd())
+	SessionName  string
+	AgentType    string
+	Hostname     string
+	CreatedAt    time.Time // session creation time for elapsed display
+	Position     Position  // Bottom (default) or Top
+	Fd           uintptr   // file descriptor for term.GetSize (os.Stdout.Fd())
+	FallbackCols int       // fallback terminal width when GetSize fails (e.g. in tests); 0 = skip draw
+	FallbackRows int       // fallback terminal height when GetSize fails; 0 = skip draw
 }
 
 // Bar renders a persistent one-row ANSI status bar using DECSTBM scroll regions.
@@ -84,10 +86,24 @@ func sanitize(s string) string {
 	return b.String()
 }
 
+// getSize returns the terminal dimensions. When term.GetSize fails (e.g. in
+// non-TTY test environments), it falls back to FallbackCols/FallbackRows if
+// both are non-zero. Returns ok=false when no size is available.
+func (b *Bar) getSize() (cols, rows int, ok bool) {
+	c, r, err := term.GetSize(int(b.opts.Fd))
+	if err == nil {
+		return c, r, true
+	}
+	if b.opts.FallbackCols > 0 && b.opts.FallbackRows > 0 {
+		return b.opts.FallbackCols, b.opts.FallbackRows, true
+	}
+	return 0, 0, false
+}
+
 // Start sets up the DECSTBM scroll region and begins the 1-second ticker goroutine.
 func (b *Bar) Start() {
-	cols, rows, err := term.GetSize(int(b.opts.Fd))
-	if err != nil {
+	cols, rows, ok := b.getSize()
+	if !ok {
 		return // graceful no-op if terminal size unavailable
 	}
 	b.mu.Lock()
@@ -125,8 +141,8 @@ func (b *Bar) tickLoop() {
 }
 
 func (b *Bar) draw() {
-	cols, rows, err := term.GetSize(int(b.opts.Fd))
-	if err != nil {
+	cols, rows, ok := b.getSize()
+	if !ok {
 		return // skip draw cycle if terminal size unavailable
 	}
 
