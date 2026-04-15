@@ -73,40 +73,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MC-01 | — | Pending |
-| MC-02 | — | Pending |
-| MC-03 | — | Pending |
-| MC-04 | — | Pending |
-| MC-05 | — | Pending |
-| MC-06 | — | Pending |
-| SB-01 | — | Pending |
-| SB-02 | — | Pending |
-| SB-03 | — | Pending |
-| SB-04 | — | Pending |
-| SB-05 | — | Pending |
-| SB-06 | — | Pending |
-| SB-07 | — | Pending |
-| TUI-01 | — | Pending |
-| TUI-02 | — | Pending |
-| TUI-03 | — | Pending |
-| TUI-04 | — | Pending |
-| TUI-05 | — | Pending |
-| TUI-06 | — | Pending |
-| TUI-07 | — | Pending |
-| TUI-08 | — | Pending |
-| TUI-09 | — | Pending |
-| TUI-10 | — | Pending |
+| MC-01 | Phase 74 | Pending |
+| MC-02 | Phase 74 | Pending |
+| MC-03 | Phase 74 | Pending |
+| MC-04 | Phase 74 | Pending |
+| MC-05 | Phase 74 | Pending |
+| MC-06 | Phase 74 | Pending |
+| SB-01 | Phase 75 | Pending |
+| SB-02 | Phase 75 | Pending |
+| SB-03 | Phase 75 | Pending |
+| SB-04 | Phase 75 | Pending |
+| SB-05 | Phase 75 | Pending |
+| SB-06 | Phase 75 | Pending |
+| SB-07 | Phase 75 | Pending |
+| TUI-01 | Phase 76 | Pending |
+| TUI-02 | Phase 76 | Pending |
+| TUI-08 | Phase 76 | Pending |
+| TUI-09 | Phase 76 | Pending |
+| TUI-03 | Phase 77 | Pending |
+| TUI-04 | Phase 77 | Pending |
+| TUI-05 | Phase 77 | Pending |
+| TUI-06 | Phase 77 | Pending |
+| TUI-07 | Phase 78 | Pending |
+| TUI-10 | Phase 78 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23
+- Mapped to phases: 23
+- Unmapped: 0
 
 **GitHub Issues:**
-- #13 → MC-01 through MC-06
-- #8 → SB-01 through SB-07
-- #7 → TUI-01 through TUI-10
+- #13 → MC-01 through MC-06 → Phase 74
+- #8 → SB-01 through SB-07 → Phase 75
+- #7 → TUI-01 through TUI-10 → Phases 76-78
 
 ---
 *Requirements defined: 2026-04-14*
-*Last updated: 2026-04-14 after initial definition*
+*Last updated: 2026-04-14 — traceability filled after roadmap creation*

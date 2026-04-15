@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: "Multi-Client, CLI UX & TUI Mode"
 status: active
-stopped_at: Defining requirements
+stopped_at: Roadmap created — ready to plan Phase 74
 last_updated: "2026-04-14"
 last_activity: 2026-04-14
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-14)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Defining v2.0 requirements
+**Current focus:** v2.0 — Multi-Client, CLI UX & TUI Mode (Phases 74-78)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 74 — Multi-Client Fan-Out (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-14 — Milestone v2.0 started
+Status: Ready to plan
+Last activity: 2026-04-14 — Roadmap created for v2.0
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -45,7 +45,11 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-(Cleared at milestone boundary — full log in PROJECT.md Key Decisions table)
+- v2.0 phases ordered: multi-client (74) → CLI status bar (75) → TUI foundation (76) → TUI operations (77) → TUI remote+QR (78)
+- Phases 74 and 75 are parallelizable by implementation but ordered sequentially so status bar can show viewer count (needs MC-04) and SB reuses `internal/statusbar` package that TUI also depends on
+- TUI depends on both multi-client (viewer count display) and status bar (shared package) — phases 76-78 must follow 74-75
+- Build order rationale: multi-client is relay/Hub wiring work; CLI status bar is a new `internal/statusbar` package; TUI is Bubble Tea v2 with suspend/resume for raw PTY handoff
+- GitHub issues mapped: #13 → Phase 74, #8 → Phase 75, #7 → Phases 76-78
 
 ### Pending Todos
 
@@ -67,6 +71,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-14
-Stopped at: Milestone v1.14 archived
+Stopped at: v2.0 roadmap created
 Resume file: N/A
-Next action: /gsd-new-milestone
+Next action: /gsd-plan-phase 74
