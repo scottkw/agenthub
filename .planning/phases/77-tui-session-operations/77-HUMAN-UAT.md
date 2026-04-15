@@ -3,7 +3,7 @@ status: partial
 phase: 77-tui-session-operations
 source: [77-VERIFICATION.md]
 started: 2026-04-15T16:15:00Z
-updated: 2026-04-15T16:50:00Z
+updated: 2026-04-15T17:00:00Z
 ---
 
 ## Current Test
@@ -26,14 +26,14 @@ result: [pending]
 
 ### 4. Rename a session via r key inline edit
 expected: Name column replaced with textinput pre-filled with current name, Enter submits, new name reflected immediately
-result: [pending]
+result: passed (2026-04-15 — verified by user)
 
 ## Summary
 
 total: 4
-passed: 1
+passed: 2
 issues: 0
-pending: 3
+pending: 2
 skipped: 0
 blocked: 0
 
