@@ -165,9 +165,13 @@ func (m Model) renderSessionList() string {
 		entry := m.unifiedList[i]
 		switch entry.kind {
 		case entryLocal:
-			rows = append(rows, m.renderSessionRow(*entry.session, i))
+			if entry.session != nil {
+				rows = append(rows, m.renderSessionRow(*entry.session, i))
+			}
 		case entryRemote:
-			rows = append(rows, m.renderRemoteSessionRow(entry.remote, i))
+			if entry.remote != nil {
+				rows = append(rows, m.renderRemoteSessionRow(entry.remote, i))
+			}
 		case entryDivider:
 			rows = append(rows, m.renderDividerRow(entry.divider))
 		}
