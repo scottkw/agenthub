@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,25 +14,12 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/attach"
 	"github.com/scottkw/agenthub/internal/daemon"
-	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/statusbar"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"golang.org/x/term"
 )
-
-// lockedWriter serialises concurrent writes to an underlying io.Writer.
-// Used to prevent interleaving of PTY output and status bar draw sequences.
-type lockedWriter struct {
-	mu sync.Mutex
-	w  io.Writer
-}
-
-func (lw *lockedWriter) Write(p []byte) (int, error) {
-	lw.mu.Lock()
-	defer lw.mu.Unlock()
-	return lw.w.Write(p)
-}
 
 // cmdAttach connects the local terminal to a running daemon session via the
 // relay WebSocket server. It sets the terminal to raw mode, relays all I/O,
@@ -131,8 +117,8 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	}
 	defer conn.CloseNow()
 
-	// Wrap stdout in a lockedWriter to serialize PTY output and bar draws.
-	stdout := &lockedWriter{w: os.Stdout}
+	// Wrap stdout in a LockedWriter to serialize PTY output and bar draws.
+	stdout := attach.NewLockedWriter(os.Stdout)
 
 	// Create status bar if stdout is a TTY (SB-03).
 	var bar *statusbar.Bar
@@ -170,14 +156,14 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	// Send initial resize so PTY dimensions match the local terminal.
 	cols, rows, err := term.GetSize(int(os.Stdin.Fd()))
 	if err == nil {
-		frame := makeClientResizeFrame(uint16(cols), uint16(rows))
+		frame := attach.MakeClientResizeFrame(uint16(cols), uint16(rows))
 		_ = conn.Write(ctx, websocket.MessageBinary, frame)
 	}
 
 	// Start platform-specific SIGWINCH watcher (no-op on Windows).
 	watchResize(ctx, conn)
 
-	err = attachSession(ctx, conn, os.Stdin, stdout, detachKey, bar, nil)
+	err = attach.AttachSession(ctx, conn, os.Stdin, stdout, detachKey, bar, nil)
 	printDetachMessage(os.Stderr)
 	return err
 }
@@ -249,8 +235,8 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	}
 	defer conn.CloseNow()
 
-	// Wrap stdout in a lockedWriter.
-	stdout := &lockedWriter{w: os.Stdout}
+	// Wrap stdout in a LockedWriter.
+	stdout := attach.NewLockedWriter(os.Stdout)
 
 	// Create status bar if stdout is a TTY (SB-03).
 	var bar *statusbar.Bar
@@ -283,7 +269,7 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	// Send initial resize.
 	cols, rows, err := term.GetSize(int(os.Stdin.Fd()))
 	if err == nil {
-		frame := makeClientResizeFrame(uint16(cols), uint16(rows))
+		frame := attach.MakeClientResizeFrame(uint16(cols), uint16(rows))
 		_ = conn.Write(sigCtx, websocket.MessageBinary, frame)
 	}
 
@@ -325,7 +311,7 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 		}()
 	}
 
-	err = attachSession(sigCtx, conn, os.Stdin, stdout, detachKey, bar, onFrame)
+	err = attach.AttachSession(sigCtx, conn, os.Stdin, stdout, detachKey, bar, onFrame)
 	printDetachMessage(os.Stderr)
 	return err
 }
@@ -341,113 +327,6 @@ func buildUnknownHostError(hostname string, peers []tailnet.Peer) error {
 		return fmt.Errorf("attach: unknown remote host %q — no tailnet peers found", hostname)
 	}
 	return fmt.Errorf("attach: unknown remote host %q\nAvailable peers: %s", hostname, strings.Join(names, ", "))
-}
-
-// attachSession is the testable core of the attach flow. It runs two I/O
-// pumps concurrently and returns when either completes or ctx is cancelled.
-func attachSession(ctx context.Context, conn *websocket.Conn, stdin io.Reader, stdout io.Writer, detachKey byte, bar *statusbar.Bar, onFrame func()) error {
-	type result struct{ err error }
-
-	stdinDone := make(chan result, 1)
-	wsDone := make(chan result, 1)
-
-	go func() {
-		stdinDone <- result{stdinPump(ctx, conn, stdin, detachKey)}
-	}()
-	go func() {
-		wsDone <- result{wsOutputPump(ctx, conn, stdout, bar, onFrame)}
-	}()
-
-	select {
-	case <-stdinDone:
-	case <-wsDone:
-	case <-ctx.Done():
-	}
-
-	conn.Close(websocket.StatusNormalClosure, "detach") //nolint:errcheck
-	return nil
-}
-
-// stdinPump reads from r, scans for the detach key, and forwards input to the
-// relay via MakeInputFrame. It returns nil on clean detach.
-func stdinPump(ctx context.Context, conn *websocket.Conn, r io.Reader, detachKey byte) error {
-	buf := make([]byte, 32*1024)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		n, err := r.Read(buf)
-		if n > 0 {
-			// Scan for detach key.
-			detachIdx := -1
-			for i := 0; i < n; i++ {
-				if buf[i] == detachKey {
-					detachIdx = i
-					break
-				}
-			}
-
-			if detachIdx >= 0 {
-				// Send bytes before the detach key (if any), then detach cleanly.
-				if detachIdx > 0 {
-					frame := relay.MakeInputFrame(buf[:detachIdx])
-					if werr := conn.Write(ctx, websocket.MessageBinary, frame); werr != nil {
-						return werr
-					}
-				}
-				return nil // clean detach
-			}
-
-			// No detach key found — send entire buffer as one frame.
-			frame := relay.MakeInputFrame(buf[:n])
-			if werr := conn.Write(ctx, websocket.MessageBinary, frame); werr != nil {
-				return werr
-			}
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-}
-
-// wsOutputPump reads WebSocket messages from conn and writes MsgOutput
-// payloads to w. It handles the initial scrollback snapshot (first message,
-// which may be large) and subsequent live frames. MsgMeta frames update the
-// bar viewer count (SB-04). onFrame is called on every received frame to
-// track connection liveness (SB-05).
-func wsOutputPump(ctx context.Context, conn *websocket.Conn, w io.Writer, bar *statusbar.Bar, onFrame func()) error {
-	for {
-		_, msg, err := conn.Read(ctx)
-		if err != nil {
-			return err
-		}
-		if onFrame != nil {
-			onFrame()
-		}
-
-		msgType, payload, ferr := relay.ParseFrame(msg)
-		if ferr != nil {
-			continue
-		}
-		switch msgType {
-		case relay.MsgOutput:
-			if _, werr := w.Write(payload); werr != nil {
-				return werr
-			}
-		case relay.MsgMeta:
-			// SB-04: update bar with viewer count from server push.
-			if bar != nil {
-				var meta relay.MetaPayload
-				if err := json.Unmarshal(payload, &meta); err == nil && meta.ViewerCount != nil {
-					bar.SetViewerCount(*meta.ViewerCount)
-				}
-			}
-		}
-	}
 }
 
 // printAttachBanner writes the connection banner to w (typically os.Stderr).
@@ -473,16 +352,4 @@ func printAttachBanner(w io.Writer, name, cli, hostname string) {
 // printDetachMessage writes the detach confirmation to w (typically os.Stderr).
 func printDetachMessage(w io.Writer) {
 	fmt.Fprintf(w, "\nDetached.\n")
-}
-
-// makeClientResizeFrame builds a MsgResize2 frame for client-to-server resize.
-// Uses MsgResize2 (0x11) which the server's read pump handles at relay/server.go.
-// Do NOT use relay.MakeResizeFrame() — it uses MsgResize (0x02) which the
-// server ignores for client-originated resize messages.
-func makeClientResizeFrame(cols, rows uint16) []byte {
-	return []byte{
-		relay.MsgResize2,
-		byte(cols >> 8), byte(cols),
-		byte(rows >> 8), byte(rows),
-	}
 }

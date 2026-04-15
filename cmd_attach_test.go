@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/attach"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/statusbar"
 	"github.com/scottkw/agenthub/internal/tailnet"
@@ -75,14 +76,14 @@ func TestCmdAttach_MissingArgs(t *testing.T) {
 	}
 }
 
-// TestMakeClientResizeFrame verifies that makeClientResizeFrame encodes the
+// TestMakeClientResizeFrame verifies that MakeClientResizeFrame encodes the
 // resize frame using MsgResize2 (0x11) with big-endian cols and rows (CLI-06).
 func TestMakeClientResizeFrame(t *testing.T) {
 	// Basic case: cols=120, rows=40 -> [0x11, 0, 120, 0, 40]
-	got := makeClientResizeFrame(120, 40)
+	got := attach.MakeClientResizeFrame(120, 40)
 	want := []byte{relay.MsgResize2, 0, 120, 0, 40}
 	if !bytes.Equal(got, want) {
-		t.Errorf("makeClientResizeFrame(120, 40) = %v, want %v", got, want)
+		t.Errorf("MakeClientResizeFrame(120, 40) = %v, want %v", got, want)
 	}
 
 	// Verify first byte is MsgResize2 (0x11), NOT MsgResize (0x02).
@@ -94,15 +95,15 @@ func TestMakeClientResizeFrame(t *testing.T) {
 	}
 
 	// Big-endian encoding: cols=256 -> [1, 0]; rows=512 -> [2, 0]
-	got2 := makeClientResizeFrame(256, 512)
+	got2 := attach.MakeClientResizeFrame(256, 512)
 	want2 := []byte{relay.MsgResize2, 1, 0, 2, 0}
 	if !bytes.Equal(got2, want2) {
-		t.Errorf("makeClientResizeFrame(256, 512) = %v, want %v", got2, want2)
+		t.Errorf("MakeClientResizeFrame(256, 512) = %v, want %v", got2, want2)
 	}
 }
 
 // TestAttachSession_DetachKey verifies that sending the detach key byte causes
-// attachSession to return nil (clean detach without error) (CLI-07).
+// AttachSession to return nil (clean detach without error) (CLI-07).
 func TestAttachSession_DetachKey(t *testing.T) {
 	serverURL, _, _, _, sessionID := setupAttachTest(t)
 	conn := dialTestWS(t, serverURL, sessionID)
@@ -116,11 +117,11 @@ func TestAttachSession_DetachKey(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
+		done <- attach.AttachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
 	// Write the detach key byte — this should cause a clean return.
-	// Small delay to ensure attachSession goroutines are running.
+	// Small delay to ensure AttachSession goroutines are running.
 	time.Sleep(10 * time.Millisecond)
 	if _, err := stdinW.Write([]byte{0x1C}); err != nil {
 		t.Fatalf("stdinW.Write detach key: %v", err)
@@ -129,10 +130,10 @@ func TestAttachSession_DetachKey(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Errorf("attachSession returned error %v, want nil (clean detach)", err)
+			t.Errorf("AttachSession returned error %v, want nil (clean detach)", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Error("attachSession did not return within 5s after detach key")
+		t.Error("AttachSession did not return within 5s after detach key")
 	}
 }
 
@@ -160,8 +161,8 @@ func TestAttachSession_OutputReceived(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	// Run attachSession — it will receive the scrollback snapshot then context times out.
-	_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
+	// Run AttachSession — it will receive the scrollback snapshot then context times out.
+	_ = attach.AttachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 
 	if !strings.Contains(stdout.String(), payload) {
 		t.Errorf("stdout does not contain scrollback %q; got: %q", payload, stdout.String())
@@ -187,13 +188,13 @@ func (s *safeBuf) String() string {
 }
 
 // TestAttachSession_LiveOutput verifies that output written to the PTY after
-// connecting is received by attachSession and written to stdout (CLI-05).
+// connecting is received by AttachSession and written to stdout (CLI-05).
 func TestAttachSession_LiveOutput(t *testing.T) {
 	serverURL, _, ptyWrite, _, sessionID := setupAttachTest(t)
 	conn := dialTestWS(t, serverURL, sessionID)
 
 	// Use a mutex-protected buffer to avoid the data race between
-	// wsOutputPump (writes) and the polling loop (reads).
+	// WsOutputPump (writes) and the polling loop (reads).
 	var stdout safeBuf
 	stdinR, stdinW := io.Pipe()
 	t.Cleanup(func() { stdinR.Close(); stdinW.Close() })
@@ -202,10 +203,10 @@ func TestAttachSession_LiveOutput(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
+		_ = attach.AttachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
-	// Brief delay to ensure attachSession goroutines are running.
+	// Brief delay to ensure AttachSession goroutines are running.
 	time.Sleep(20 * time.Millisecond)
 
 	// Write live PTY output.
@@ -241,10 +242,10 @@ func TestAttachSession_CtrlCPassthrough(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
+		_ = attach.AttachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
-	// Brief delay to ensure stdinPump is running.
+	// Brief delay to ensure StdinPump is running.
 	time.Sleep(20 * time.Millisecond)
 
 	// Write Ctrl-C byte to stdin pipe.
@@ -433,10 +434,10 @@ func TestAttachSession_InputForwarded(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = attachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
+		_ = attach.AttachSession(ctx, conn, stdinR, &stdout, 0x1C, nil, nil)
 	}()
 
-	// Brief delay to ensure stdinPump is running.
+	// Brief delay to ensure StdinPump is running.
 	time.Sleep(20 * time.Millisecond)
 
 	// Write keyboard input.
@@ -504,11 +505,11 @@ func TestWsOutputPump_MsgMeta(t *testing.T) {
 	bar.SetViewerCount(*meta.ViewerCount)
 }
 
-// TestLockedWriter_ConcurrentWrites verifies that lockedWriter serializes
+// TestLockedWriter_ConcurrentWrites verifies that LockedWriter serializes
 // concurrent writes without interleaving (prevents PTY/bar output corruption).
 func TestLockedWriter_ConcurrentWrites(t *testing.T) {
 	var buf safeBuf
-	lw := &lockedWriter{w: &buf}
+	lw := attach.NewLockedWriter(&buf)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
