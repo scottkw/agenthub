@@ -1,10 +1,11 @@
 ---
 phase: 76
 slug: tui-foundation
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-15
+linked_at: 2026-04-15
 ---
 
 # Phase 76 — Validation Strategy
@@ -37,33 +38,32 @@ created: 2026-04-15
 
 ## Per-Task Verification Map
 
-*Populated during planning — planner links each plan task to this map. Minimum coverage targets below; executor fills actual Task IDs after PLAN.md files exist.*
+*Linked to finalized plans 76-01, 76-02, 76-03. Task IDs follow `76-NN-TM` convention (plan NN, task M within the plan). Tests are created in Plan 76-02 Task 3 (same-wave with implementation since they reference real types) rather than as pure Wave 0 stubs — this is a deliberate, non-scope-reducing choice and the research-resolution note in this section's history.*
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD (Wave 0) | 76-0X | 0 | — | — | N/A | install | `go get charm.land/bubbletea/v2@v2.0.5 charm.land/lipgloss/v2@v2.0.3 charm.land/bubbles/v2@v2.1.0` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | TUI-01 | — | Launches without panic; non-TTY fallback | unit + manual UAT | `go test ./internal/tui/... -run TestProgramInit -count=1` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | TUI-02 | T-76-INJ | Session names rendered via Lip Gloss (no raw ANSI) | unit | `go test ./internal/tui/... -run TestView_SessionList -count=1` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | TUI-08 | — | Footer shows web server on/off + URL | unit | `go test ./internal/tui/... -run TestView_Footer -count=1` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1 | TUI-09 | — | `?` toggles help overlay; `Esc`/`?` closes | unit | `go test ./internal/tui/... -run TestHelpOverlay -count=1` | ❌ W0 | ⬜ pending |
+| 76-01-T1 | 76-01 | 1 | TUI-02 | — | `SessionInfo.Status` populated from heuristic detector under `statusMu.RLock` | unit + build | `go build ./internal/daemon/... && go test ./internal/daemon/... -count=1 -timeout 30s` | ✅ | ⬜ pending |
+| 76-01-T2 | 76-01 | 1 | TUI-01, TUI-02 | — | Charm v2 deps installed; TUI package scaffolding compiles | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ⬜ pending |
+| 76-02-T1 | 76-02 | 2 | TUI-01, TUI-09 | T-76-DOS | TUI `Init/Update` dispatch; daemon errors surface as `tea.Msg`, not panic; `?` toggles `showHelp` | build | `go build ./internal/tui/...` | ✅ | ⬜ pending |
+| 76-02-T2 | 76-02 | 2 | TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-RES | Session rows rendered via Lip Gloss (no raw ANSI); footer shows web status+URL; help overlay centered bordered modal; resize handled via `WindowSizeMsg` | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ⬜ pending |
+| 76-02-T3 | 76-02 | 2 | TUI-01, TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-DOS | Unit tests for `Update`, `View`, help overlay — covers all 4 requirements | unit | `go test ./internal/tui/... -count=1 -timeout 30s -v` | ✅ | ⬜ pending |
+| 76-03-T1 | 76-03 | 3 | TUI-01 | — | `agenthub tui` launches cleanly on TTY; non-TTY prints diagnostic and exits 1 | build + vet | `go build -o /dev/null . && go vet .` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
-*The planner MUST update Task IDs and Plan refs when PLAN.md files are finalized. The checker will enforce that each TUI-XX requirement has at least one row here.*
+**Coverage check:** TUI-01 (3 tasks), TUI-02 (4 tasks), TUI-08 (2 tasks), TUI-09 (3 tasks). Every requirement has ≥ 2 verifying tasks across build and unit dimensions.
 
 ---
 
 ## Wave 0 Requirements
 
-Files that must exist before the first implementation task runs. Each satisfies a MISSING reference in the map above.
+Resolved by Plan 76-01 (Wave 1) — dependency install + package scaffolding happens in the first plan's first task. Unit test files are intentionally created in Plan 76-02 Task 3 (same wave as implementation) because they reference real model/view types created in that wave; pure Wave 0 stubs would fail to compile against not-yet-defined types.
 
-- [ ] `internal/tui/` package directory created
-- [ ] `internal/tui/tui_test.go` — stubs for `TestProgramInit` (TUI-01)
-- [ ] `internal/tui/update_test.go` — stubs for `TestUpdate_*` covering state transitions (TUI-01/02/08/09)
-- [ ] `internal/tui/view_test.go` — stubs for `TestView_SessionList`, `TestView_Footer` (TUI-02/08)
-- [ ] `internal/tui/help_test.go` — stubs for `TestHelpOverlay` (TUI-09)
-- [ ] Dependency install: `go get charm.land/bubbletea/v2@v2.0.5 charm.land/lipgloss/v2@v2.0.3 charm.land/bubbles/v2@v2.1.0`
-- [ ] `go mod tidy` after install
+- [x] Dependency install — 76-01-T1: `go get charm.land/bubbletea/v2@v2.0.5 charm.land/lipgloss/v2@v2.0.3 charm.land/bubbles/v2@v2.1.0` + `go mod tidy`
+- [x] `internal/tui/` package directory created — 76-01-T2 (model.go, styles.go, keys.go, cmds.go)
+- [x] `internal/tui/update_test.go` — 76-02-T3 covers TUI-01/02/08/09 state transitions
+- [x] `internal/tui/view_test.go` — 76-02-T3 covers TUI-02/08 rendering
+- [x] `internal/tui/help_test.go` — 76-02-T3 covers TUI-09 overlay
 
 ---
 

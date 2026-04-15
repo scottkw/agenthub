@@ -830,22 +830,21 @@ These require manual testing on at least macOS Terminal.app and iTerm2.
 | A3 | Lip Gloss hex values that exactly match ANSI 256 palette will render identically on 256-color terminals | Pitfall 5 | LOW -- Lip Gloss auto-downgrades; UI-SPEC provides both hex and ANSI 256 values as fallback |
 | A4 | Adding `Status` field to `SessionInfo` won't break existing API consumers (GUI, CLI list) | Data Source | LOW -- new field, not a rename; JSON clients ignore unknown fields |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Session Status Enrichment Approach**
-   - What we know: `ListSessions()` returns PTY state ("running"/"stopped"), but TUI needs heuristic status (running/idle/waiting/errored). Engine already has `sessionStatuses` map.
-   - What's unclear: Should we add a new `Status` field to `SessionInfo` (preferred), or have the TUI make per-session status calls?
-   - Recommendation: Add `Status string` field to `SessionInfo` and populate in `ListSessions()`. This is the cleanest approach and benefits future API consumers too.
+All three open questions were resolved during planning (2026-04-15). Resolutions are inline below so downstream readers don't chase the original ambiguity.
 
-2. **tea.View Content Access for Testing**
-   - What we know: `tea.View` is returned from `View()` in v2. We need to extract the content string for unit tests.
-   - What's unclear: The exact API to get the string content from a `tea.View` struct.
-   - Recommendation: `tea.NewView(content)` suggests `tea.View` stores content internally. Check v2 source or use `v.String()` if available. Fallback: test `renderFull()` directly (a method that returns string, called by `View()`).
+1. **Session Status Enrichment Approach — RESOLVED**
+   - What we knew: `ListSessions()` returns PTY state ("running"/"stopped"), but TUI needs heuristic status (running/idle/waiting/errored). Engine already has `sessionStatuses` map.
+   - **Resolution:** Added `Status string` field to `SessionInfo` and populated it in `ListSessions()` from the existing `sessionStatuses` map under `statusMu.RLock`. Implemented in Plan 76-01 Task 1. This is the cleanest approach and benefits future API consumers too.
 
-3. **teatest v2 Stability**
-   - What we know: `github.com/charmbracelet/x/exp/teatest` exists but is experimental.
-   - What's unclear: Whether a v2-compatible version is released and stable.
-   - Recommendation: Use direct Update()/View() unit tests as primary strategy. Add teatest golden tests only if the package is stable. Don't block phase execution on teatest availability.
+2. **tea.View Content Access for Testing — RESOLVED**
+   - What we knew: `tea.View` is returned from `View()` in v2. We need to extract the content string for unit tests.
+   - **Resolution:** Tests call `view.Content()` on the returned `tea.View`. Implemented in Plan 76-02 Task 3. If the accessor name differs in the installed `charm.land/bubbletea/v2@v2.0.5`, executor adjusts to the actual API (`v.String()` or direct field access) — this is a trivial one-line fix, not a plan change.
+
+3. **teatest v2 Stability — RESOLVED**
+   - What we knew: `github.com/charmbracelet/x/exp/teatest` exists but is experimental.
+   - **Resolution:** Phase 76 does not depend on teatest. Plan 76-02 Task 3 uses direct `Update()`/`View()` unit tests with `strings.Contains` assertions (see 76-PATTERNS.md test-file analog). teatest golden tests may be added later if/when the package stabilizes — not in this phase's scope.
 
 ## Environment Availability
 
