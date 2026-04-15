@@ -1,26 +1,26 @@
 ---
 phase: 77-tui-session-operations
-fixed_at: 2026-04-15T16:12:53Z
+fixed_at: 2026-04-15T16:45:00Z
 review_path: .planning/phases/77-tui-session-operations/77-REVIEW.md
-iteration: 1
-findings_in_scope: 6
-fixed: 6
+iteration: 2
+findings_in_scope: 9
+fixed: 9
 skipped: 0
 status: all_fixed
 ---
 
 # Phase 77: Code Review Fix Report
 
-**Fixed at:** 2026-04-15T16:12:53Z
+**Fixed at:** 2026-04-15T16:45:00Z
 **Source review:** .planning/phases/77-tui-session-operations/77-REVIEW.md
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 6
-- Fixed: 6
+- Findings in scope: 9
+- Fixed: 9
 - Skipped: 0
 
-## Fixed Issues
+## Iteration 1 -- Critical + Warning Fixes
 
 ### CR-01: Silently Discarded fetchErr Masks Remote Connection Failures
 
@@ -58,12 +58,32 @@ status: all_fixed
 **Commit:** 4f766ac
 **Applied fix:** Extracted a shared `injectBorderTitle()` helper function in `view.go` that strips ANSI codes from the border line before computing insertion positions, then reconstructs the line with separately-styled prefix/suffix segments. This prevents corrupting ANSI escape sequences that lipgloss may embed in the border line (for `BorderForeground` coloring). All three call sites (help overlay, new session modal, kill confirm modal) were updated to use the new helper.
 
+## Iteration 2 -- Info Fixes
+
+### IN-01: Unnecessary Loop Variable Capture in Go 1.26
+
+**Files modified:** `cmd_attach.go`, `internal/tui/attach.go`
+**Commit:** 0756d5d
+**Applied fix:** Removed three `s := s` loop variable capture lines that are unnecessary since Go 1.22+ (project uses Go 1.26.1). The loop variable is now scoped per iteration by default, making these captures dead code noise.
+
+### IN-02: renderWebStatus Uses len(sep) Instead of lipgloss.Width(sep)
+
+**Files modified:** `internal/tui/view.go`
+**Commit:** 9642080
+**Applied fix:** Changed `len(sep)` to `lipgloss.Width(sep)` in the gap calculation for consistency with the rest of the function. For the current ASCII separator `" | "` the result is identical, but this ensures correctness if the separator ever changes to include Unicode or styled text.
+
+### IN-03: Redundant Build Tag Delegation on Windows
+
+**Files modified:** `cmd_attach_resize.go` (new), `cmd_attach_unix.go` (deleted), `cmd_attach_windows.go` (deleted)
+**Commit:** 62ff647
+**Applied fix:** Merged `cmd_attach_unix.go` and `cmd_attach_windows.go` into a single `cmd_attach_resize.go` without build tags. Both files had identical function bodies (`attach.WatchResize(ctx, conn)`) since the platform-specific behavior is already handled by `internal/attach/attach_unix.go` and `internal/attach/attach_windows.go`. The extra layer of build-tag indirection added no value.
+
 ## Skipped Issues
 
 None -- all findings were fixed.
 
 ---
 
-_Fixed: 2026-04-15T16:12:53Z_
+_Fixed: 2026-04-15T16:45:00Z_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
