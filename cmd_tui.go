@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/scottkw/agenthub/internal/daemon"
+	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/tui"
 	"golang.org/x/term"
 )
@@ -21,5 +25,37 @@ func cmdTUI(client *daemon.DaemonClient) error {
 		return fmt.Errorf("cannot connect to daemon: %w", err)
 	}
 
-	return tui.Run(client)
+	// fetchRemoteFn is a callback that fetches remote sessions from tailnet peers.
+	// It wraps package-main functions (fetchPeerSessions, ListTailnetPeers) to avoid
+	// an import cycle between internal/tui and package main.
+	fetchRemoteFn := func(ctx context.Context) []tui.ListRemoteGroup {
+		peers, _ := client.ListTailnetPeers()
+		if len(peers) == 0 {
+			return nil
+		}
+		groupMap := make(map[string][]tui.RemoteSessionEntry)
+		for _, p := range peers {
+			fqdn := strings.TrimSuffix(p.DNSName, ".")
+			peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+			for _, s := range peerSessions {
+				groupMap[p.Hostname] = append(groupMap[p.Hostname], tui.RemoteSessionEntry{
+					ID:       s.ID,
+					Name:     s.Name,
+					CLIType:  s.CLIType,
+					Status:   s.Status,
+					Hostname: p.Hostname,
+					FQDN:     fqdn,
+					URL:      fmt.Sprintf("https://%s:%d/sessions/%s", fqdn, tailnet.DefaultProbePort, s.ID),
+				})
+			}
+		}
+		var groups []tui.ListRemoteGroup
+		for hostname, sess := range groupMap {
+			groups = append(groups, tui.ListRemoteGroup{Hostname: hostname, Sessions: sess})
+		}
+		sort.Slice(groups, func(i, j int) bool { return groups[i].Hostname < groups[j].Hostname })
+		return groups
+	}
+
+	return tui.Run(client, fetchRemoteFn)
 }

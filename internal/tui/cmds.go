@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -53,5 +54,19 @@ func renameSession(client *daemon.DaemonClient, id, name string) tea.Cmd {
 	return func() tea.Msg {
 		err := client.RenameSession(id, name)
 		return renameSessionMsg{err: err}
+	}
+}
+
+// fetchRemoteSessions returns a tea.Cmd that fetches remote sessions via the injected callback.
+// Returns empty remoteSessionsMsg if callback is nil (no tailnet configured).
+func fetchRemoteSessions(fn FetchRemoteFn) tea.Cmd {
+	return func() tea.Msg {
+		if fn == nil {
+			return remoteSessionsMsg{}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		groups := fn(ctx)
+		return remoteSessionsMsg{groups: groups}
 	}
 }

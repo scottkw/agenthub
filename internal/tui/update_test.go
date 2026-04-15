@@ -11,7 +11,7 @@ import (
 )
 
 func testModel() Model {
-	m := newModel(nil) // nil client -- tests don't make HTTP calls
+	m := newModel(nil, nil) // nil client, nil fetchRemoteFn -- tests don't make HTTP calls
 	m.width = 120
 	m.height = 24
 	m.hasDark = true

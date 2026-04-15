@@ -8,21 +8,24 @@ import (
 
 // Run starts the Bubble Tea TUI program. Blocks until the user quits.
 // Returns nil on clean exit, or an error if the program fails.
-func Run(client *daemon.DaemonClient) error {
-	p := tea.NewProgram(newModel(client))
+// fetchRemoteFn is an optional callback for fetching remote tailnet sessions;
+// pass nil if tailnet is not configured.
+func Run(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn) error {
+	p := tea.NewProgram(newModel(client, fetchRemoteFn))
 	_, err := p.Run()
 	return err
 }
 
 // newModel creates the initial Model with default state.
 // Assumes dark background until tea.BackgroundColorMsg arrives.
-func newModel(client *daemon.DaemonClient) Model {
+func newModel(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn) Model {
 	return Model{
-		client:       client,
-		loading:      true,
-		keys:         defaultKeyMap(),
-		styles:       newStyles(true), // assume dark until BackgroundColorMsg
-		detectedCLIs: pty.DetectCLIs(),
+		client:        client,
+		loading:       true,
+		keys:          defaultKeyMap(),
+		styles:        newStyles(true), // assume dark until BackgroundColorMsg
+		detectedCLIs:  pty.DetectCLIs(),
+		fetchRemoteFn: fetchRemoteFn,
 	}
 }
 
@@ -30,12 +33,14 @@ func newModel(client *daemon.DaemonClient) Model {
 // 1. Request background color detection (for adaptive styles)
 // 2. Fetch sessions from daemon
 // 3. Fetch web server status from daemon
-// 4. Start the 2-second polling tick
+// 4. Fetch remote tailnet sessions (if configured)
+// 5. Start the 2-second polling tick
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		tea.RequestBackgroundColor,
 		fetchSessions(m.client),
 		fetchWebStatus(m.client),
+		fetchRemoteSessions(m.fetchRemoteFn),
 		nextTick(),
 	)
 }
