@@ -285,3 +285,206 @@ func TestHubScrollbackContainsAllFrames(t *testing.T) {
 
 	ptyWriter.Close()
 }
+
+// ---------------------------------------------------------------------------
+// Tests for multi-client fan-out extensions (Phase 74, Plan 01)
+// ---------------------------------------------------------------------------
+
+func TestHub_SubscriberCountTracksConcurrentSubscribers(t *testing.T) {
+	hub, _ := makeTestHub(t)
+
+	if got := hub.SubscriberCount(); got != 0 {
+		t.Fatalf("initial SubscriberCount = %d, want 0", got)
+	}
+
+	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+
+	hub.Subscribe(sub1)
+	if got := hub.SubscriberCount(); got != 1 {
+		t.Fatalf("after 1 Subscribe: SubscriberCount = %d, want 1", got)
+	}
+
+	hub.Subscribe(sub2)
+	if got := hub.SubscriberCount(); got != 2 {
+		t.Fatalf("after 2 Subscribes: SubscriberCount = %d, want 2", got)
+	}
+
+	hub.Unsubscribe(sub1)
+	if got := hub.SubscriberCount(); got != 1 {
+		t.Fatalf("after Unsubscribe sub1: SubscriberCount = %d, want 1", got)
+	}
+
+	hub.Unsubscribe(sub2)
+	if got := hub.SubscriberCount(); got != 0 {
+		t.Fatalf("after Unsubscribe sub2: SubscriberCount = %d, want 0", got)
+	}
+}
+
+func TestHub_ReadOnlyFlagStored(t *testing.T) {
+	hub, _ := makeTestHub(t)
+
+	sub := &Subscriber{
+		Msgs:      make(chan []byte, 256),
+		CloseSlow: func() {},
+		ReadOnly:  true,
+	}
+	hub.Subscribe(sub)
+
+	if !sub.ReadOnly {
+		t.Error("expected sub.ReadOnly to be true")
+	}
+}
+
+func TestHub_ClientNameStored(t *testing.T) {
+	hub, _ := makeTestHub(t)
+
+	sub := &Subscriber{
+		Msgs:      make(chan []byte, 256),
+		CloseSlow: func() {},
+		Name:      "macbook",
+	}
+	hub.Subscribe(sub)
+
+	if sub.Name != "macbook" {
+		t.Errorf("expected sub.Name = %q, got %q", "macbook", sub.Name)
+	}
+}
+
+func TestHub_ResizeMaxWinsPolicy(t *testing.T) {
+	r, w := io.Pipe()
+
+	var mu sync.Mutex
+	var resizeCalls [][]int
+
+	hub := NewHub("test-resize-max", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		mu.Lock()
+		resizeCalls = append(resizeCalls, []int{cols, rows})
+		mu.Unlock()
+		return nil
+	})
+
+	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	hub.Subscribe(sub1)
+	hub.Subscribe(sub2)
+
+	// sub1 claims 220x50 — triggers resize to 220x50
+	if err := hub.ResizeClient(sub1, 220, 50); err != nil {
+		t.Fatalf("ResizeClient(sub1, 220, 50) error: %v", err)
+	}
+
+	// sub2 claims 80x24 — max is still 220x50, no resize
+	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
+		t.Fatalf("ResizeClient(sub2, 80, 24) error: %v", err)
+	}
+
+	// sub1 claims 240x60 — triggers resize to 240x60
+	if err := hub.ResizeClient(sub1, 240, 60); err != nil {
+		t.Fatalf("ResizeClient(sub1, 240, 60) error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(resizeCalls) != 2 {
+		t.Fatalf("expected 2 resizeFn calls, got %d: %v", len(resizeCalls), resizeCalls)
+	}
+	if resizeCalls[0][0] != 220 || resizeCalls[0][1] != 50 {
+		t.Errorf("resizeCalls[0] = %v, want [220, 50]", resizeCalls[0])
+	}
+	if resizeCalls[1][0] != 240 || resizeCalls[1][1] != 60 {
+		t.Errorf("resizeCalls[1] = %v, want [240, 60]", resizeCalls[1])
+	}
+
+	w.Close()
+}
+
+func TestHub_ResizeClientNoOpWhenDimensionsUnchanged(t *testing.T) {
+	r, w := io.Pipe()
+
+	var mu sync.Mutex
+	var resizeCalls int
+
+	hub := NewHub("test-resize-noop", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		mu.Lock()
+		resizeCalls++
+		mu.Unlock()
+		return nil
+	})
+
+	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	hub.Subscribe(sub)
+
+	// First call — triggers resize
+	if err := hub.ResizeClient(sub, 80, 24); err != nil {
+		t.Fatalf("first ResizeClient error: %v", err)
+	}
+
+	// Second call with same dimensions — no resize
+	if err := hub.ResizeClient(sub, 80, 24); err != nil {
+		t.Fatalf("second ResizeClient error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if resizeCalls != 1 {
+		t.Errorf("expected 1 resizeFn call, got %d", resizeCalls)
+	}
+
+	w.Close()
+}
+
+func TestHub_ResizeClientUnsubscribeDoesNotShrink(t *testing.T) {
+	r, w := io.Pipe()
+
+	var mu sync.Mutex
+	var resizeCalls [][]int
+
+	hub := NewHub("test-resize-unsub", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		mu.Lock()
+		resizeCalls = append(resizeCalls, []int{cols, rows})
+		mu.Unlock()
+		return nil
+	})
+
+	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	hub.Subscribe(sub1)
+	hub.Subscribe(sub2)
+
+	// sub1 claims 220x50 — triggers resize
+	if err := hub.ResizeClient(sub1, 220, 50); err != nil {
+		t.Fatalf("ResizeClient(sub1, 220, 50) error: %v", err)
+	}
+
+	// sub2 claims 80x24 — no resize (max still 220x50)
+	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
+		t.Fatalf("ResizeClient(sub2, 80, 24) error: %v", err)
+	}
+
+	// Unsubscribe sub1 — removes the 220x50 contributor
+	hub.Unsubscribe(sub1)
+
+	// sub2 claims 80x24 again — now max is 80x24 which differs from ptyCols=220/ptyRows=50
+	// so resize IS called with (80, 24)
+	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
+		t.Fatalf("ResizeClient(sub2, 80, 24) after unsub error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(resizeCalls) != 2 {
+		t.Fatalf("expected 2 resizeFn calls, got %d: %v", len(resizeCalls), resizeCalls)
+	}
+	if resizeCalls[0][0] != 220 || resizeCalls[0][1] != 50 {
+		t.Errorf("resizeCalls[0] = %v, want [220, 50]", resizeCalls[0])
+	}
+	if resizeCalls[1][0] != 80 || resizeCalls[1][1] != 24 {
+		t.Errorf("resizeCalls[1] = %v, want [80, 24]", resizeCalls[1])
+	}
+
+	w.Close()
+}
