@@ -191,6 +191,8 @@ func runCLI(args []string) {
 	case "daemon":
 		// Only "daemon status" reaches here (others handled above).
 		err = cmdDaemonStatus(client, cmdArgs[1:], os.Stdout)
+	case "tui":
+		err = cmdTUI(client)
 	default:
 		fmt.Fprintf(os.Stderr, "agenthub: unknown command %q\nRun 'agenthub --help' for usage.\n", cmd)
 		os.Exit(1)
