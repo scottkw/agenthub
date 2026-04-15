@@ -1,7 +1,7 @@
 ---
 phase: 78-tui-remote-qr
 verified: 2026-04-15T00:00:00Z
-status: human_needed
+status: passed
 score: 2/2
 overrides_applied: 0
 human_verification:
@@ -17,7 +17,7 @@ human_verification:
 
 **Phase Goal:** TUI surfaces remote tailnet peer sessions alongside local sessions and provides QR code access to any session's web URL without leaving the terminal
 **Verified:** 2026-04-15
-**Status:** human_needed
+**Status:** passed (human UAT closed 2026-04-15)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
