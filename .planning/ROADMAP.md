@@ -296,7 +296,7 @@ Plans:
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 77. TUI Session Operations | v2.0 | 4/4 | Complete    | 2026-04-15 |
-| 78. TUI Remote & QR | v2.0 | 3/3 | Complete   | 2026-04-15 |
+| 78. TUI Remote & QR | v2.0 | 3/3 | Complete    | 2026-04-15 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
