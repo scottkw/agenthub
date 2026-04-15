@@ -251,11 +251,11 @@ Plans:
   2. A new-session modal lets the user pick an agent, set a working directory, and provide extra arguments — creating the session and returning to the list
   3. Pressing the kill key on a session shows a confirmation dialog; confirming removes the session from the list
   4. The user can rename a session via an inline edit field or modal, with the updated name immediately reflected in the list
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 Plans:
 - [x] 77-01-PLAN.md — Scaffolding: model state, styles, keybindings (r=rename, R=refresh), cmds, help, view, update dispatch + tests
 - [ ] 77-02-PLAN.md — Attach flow: extract internal/attach/ package, ExecCommand implementation, tea.Exec wiring
-- [ ] 77-03-PLAN.md — Kill confirmation dialog + inline rename rendering + tests
+- [x] 77-03-PLAN.md — Kill confirmation dialog + inline rename rendering + tests
 - [ ] 77-04-PLAN.md — New-session modal: agent picker, text inputs, focus cycling, submit validation + tests
 **UI hint**: yes
 
@@ -291,7 +291,7 @@ Plans:
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
 | 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 77. TUI Session Operations | v2.0 | 1/4 | In Progress|  |
+| 77. TUI Session Operations | v2.0 | 2/4 | In Progress|  |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
 
 ---
