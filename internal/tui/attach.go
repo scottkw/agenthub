@@ -100,7 +100,8 @@ func (a *attachCmd) Run() error {
 	}
 
 	// Start platform-specific resize watcher (SIGWINCH on Unix, no-op on Windows).
-	go attach.WatchResize(ctx, conn)
+	// WatchResize manages its own goroutine internally.
+	attach.WatchResize(ctx, conn)
 
 	// 0x1C is Ctrl-\ (the detach key).
 	return attach.AttachSession(ctx, conn, a.stdin, lw, 0x1C, bar, nil)
