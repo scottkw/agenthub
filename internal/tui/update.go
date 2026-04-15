@@ -164,7 +164,17 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(fetchSessions(m.client), fetchWebStatus(m.client))
 
 	case key.Matches(msg, m.keys.Attach):
-		if len(m.sessions) == 0 || m.sessions[m.selected].Status == "errored" {
+		if len(m.sessions) == 0 {
+			m.toast = "Session not available"
+			m.toastKind = toastError
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		s := m.sessions[m.selected]
+		switch s.Status {
+		case "running", "idle", "waiting":
+			// OK to attach
+		default:
 			m.toast = "Session not available"
 			m.toastKind = toastError
 			m.toastExp = time.Now().Add(2 * time.Second)
