@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/scottkw/agenthub/internal/daemon"
 )
 
@@ -297,6 +298,41 @@ func truncate(s string, maxWidth int) string {
 		return string([]rune(s)[:maxWidth])
 	}
 	return string([]rune(s)[:maxWidth-3]) + "..."
+}
+
+// injectBorderTitle splices a styled title into the top border line of a
+// lipgloss-rendered box. It strips ANSI codes from the border before computing
+// the insertion position so that escape sequences are not corrupted, then
+// re-applies borderColor to the non-title portions of the line.
+func injectBorderTitle(bordered string, title string, borderColor color.Color) string {
+	lines := strings.Split(bordered, "\n")
+	if len(lines) == 0 {
+		return bordered
+	}
+
+	topBorder := lines[0]
+	titleWidth := lipgloss.Width(title)
+	borderWidth := lipgloss.Width(topBorder)
+	if borderWidth <= titleWidth+4 {
+		return bordered
+	}
+
+	// Strip ANSI to get clean border runes for safe splicing.
+	clean := ansi.Strip(topBorder)
+	runes := []rune(clean)
+	insertPos := 3 // after corner + 2 border chars (e.g., "╭──")
+	if insertPos+titleWidth > len(runes) {
+		return bordered
+	}
+
+	// Build: prefix border chars + title + suffix border chars.
+	// Each segment gets its own styling so ANSI codes don't overlap.
+	prefix := string(runes[:insertPos])
+	suffix := string(runes[insertPos+titleWidth:])
+
+	borderStyle := lipgloss.NewStyle().Foreground(borderColor)
+	lines[0] = borderStyle.Render(prefix) + title + borderStyle.Render(suffix)
+	return strings.Join(lines, "\n")
 }
 
 // statusGlyph maps a session status string to a Unicode glyph and color.

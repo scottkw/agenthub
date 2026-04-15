@@ -26,21 +26,8 @@ func (m Model) renderHelpOverlay() string {
 		Foreground(m.styles.BorderAccent).
 		Render(" Keybindings ")
 
-	// Replace first line's center with title
-	lines := strings.Split(bordered, "\n")
-	if len(lines) > 0 {
-		topBorder := lines[0]
-		titleWidth := lipgloss.Width(title)
-		borderWidth := lipgloss.Width(topBorder)
-		if borderWidth > titleWidth+4 {
-			insertPos := 3 // after "---"
-			runes := []rune(topBorder)
-			titleRunes := []rune(title)
-			copy(runes[insertPos:insertPos+len(titleRunes)], titleRunes)
-			lines[0] = string(runes)
-		}
-		bordered = strings.Join(lines, "\n")
-	}
+	// Inject title into top border using ANSI-safe helper.
+	bordered = injectBorderTitle(bordered, title, m.styles.BorderNormal)
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center, bordered)

@@ -21,26 +21,12 @@ func (m Model) renderNewSessionModal() string {
 		Background(m.styles.BgModal).
 		Render(content)
 
-	// Add title to top border: "New Session" in accent color
+	// Inject title into top border using ANSI-safe helper.
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(m.styles.BorderAccent).
 		Render(" New Session ")
-
-	lines := strings.Split(bordered, "\n")
-	if len(lines) > 0 {
-		topBorder := lines[0]
-		titleWidth := lipgloss.Width(title)
-		borderWidth := lipgloss.Width(topBorder)
-		if borderWidth > titleWidth+4 {
-			insertPos := 3
-			runes := []rune(topBorder)
-			titleRunes := []rune(title)
-			copy(runes[insertPos:insertPos+len(titleRunes)], titleRunes)
-			lines[0] = string(runes)
-		}
-		bordered = strings.Join(lines, "\n")
-	}
+	bordered = injectBorderTitle(bordered, title, m.styles.BorderNormal)
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center, bordered)
@@ -170,20 +156,7 @@ func (m Model) renderKillConfirmModal() string {
 		Foreground(m.styles.FgDanger).
 		Render(" Kill Session ")
 
-	lines := strings.Split(bordered, "\n")
-	if len(lines) > 0 {
-		topBorder := lines[0]
-		titleWidth := lipgloss.Width(title)
-		borderWidth := lipgloss.Width(topBorder)
-		if borderWidth > titleWidth+4 {
-			insertPos := 3
-			runes := []rune(topBorder)
-			titleRunes := []rune(title)
-			copy(runes[insertPos:insertPos+len(titleRunes)], titleRunes)
-			lines[0] = string(runes)
-		}
-		bordered = strings.Join(lines, "\n")
-	}
+	bordered = injectBorderTitle(bordered, title, m.styles.BorderNormal)
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center, bordered)
