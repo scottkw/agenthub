@@ -74,11 +74,6 @@ func (m Model) renderNewSessionModal() string {
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "New Session (loading...)")
 }
 
-// STUB: replaced by Plan 77-03 with full kill confirmation rendering
-func (m Model) renderKillConfirmModal() string {
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "Kill Session (loading...)")
-}
-
 // renderHeader renders "AgentHub" (bold) + session count, right-aligned.
 func (m Model) renderHeader() string {
 	title := lipgloss.NewStyle().Bold(true).
