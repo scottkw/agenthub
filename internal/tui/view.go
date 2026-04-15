@@ -264,7 +264,7 @@ func (m Model) renderWebStatus() string {
 	}
 
 	sep := " | "
-	gap := m.width - lipgloss.Width(webPart) - len(sep) - lipgloss.Width(right)
+	gap := m.width - lipgloss.Width(webPart) - lipgloss.Width(sep) - lipgloss.Width(right)
 	if gap < 0 {
 		gap = 0
 	}
