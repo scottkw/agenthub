@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/scottkw/agenthub/internal/daemon"
 )
@@ -178,13 +179,11 @@ func TestUpdate_SelectionClampOnShrink(t *testing.T) {
 
 func TestUpdate_ReservedKeysShowToast(t *testing.T) {
 	m := testModel()
-	m.sessions = []daemon.SessionInfo{{ID: "1", Name: "s1"}}
-
-	// Enter key (reserved)
+	// No sessions — attach shows "Session not available"
 	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	result := updated.(Model)
-	if result.toast != "Coming in next update" {
-		t.Errorf("expected toast for Enter key, got %q", result.toast)
+	if result.toast != "Session not available" {
+		t.Errorf("expected 'Session not available' toast for Enter with no sessions, got %q", result.toast)
 	}
 }
 
@@ -199,5 +198,179 @@ func TestUpdate_HelpSwallowsKeys(t *testing.T) {
 	result := updated.(Model)
 	if result.selected != 0 {
 		t.Errorf("expected selected=0 (j swallowed), got %d", result.selected)
+	}
+}
+
+func TestUpdate_KeyReassignment(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
+	}
+	m.selected = 0
+
+	// r should enter rename mode, not refresh
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'r'})
+	result := updated.(Model)
+	if !result.editing {
+		t.Error("expected editing=true after r key (rename)")
+	}
+	if result.editSessionID != "1" {
+		t.Errorf("expected editSessionID='1', got %q", result.editSessionID)
+	}
+
+	// R (shift+r) should trigger refresh (returns a cmd)
+	m2 := testModel()
+	_, cmd := m2.Update(tea.KeyPressMsg{Code: 'R'})
+	if cmd == nil {
+		t.Error("expected non-nil cmd from R key (refresh)")
+	}
+}
+
+func TestUpdate_KillConfirmOpen(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
+	}
+	m.selected = 0
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'd'})
+	result := updated.(Model)
+	if result.modal != modalKillConfirm {
+		t.Errorf("expected modal=modalKillConfirm, got %d", result.modal)
+	}
+	if result.killTarget == nil {
+		t.Fatal("expected killTarget to be set")
+	}
+	if result.killTarget.ID != "1" {
+		t.Errorf("expected killTarget.ID='1', got %q", result.killTarget.ID)
+	}
+	if result.killFocusYes {
+		t.Error("expected killFocusYes=false (default No)")
+	}
+}
+
+func TestKill_QuickYes(t *testing.T) {
+	m := testModel()
+	m.modal = modalKillConfirm
+	m.killTarget = &daemon.SessionInfo{ID: "1", Name: "test"}
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: 'y'})
+	result := updated.(Model)
+	if result.modal != modalNone {
+		t.Error("expected modal closed after y")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd (killSession)")
+	}
+}
+
+func TestKill_Cancel(t *testing.T) {
+	m := testModel()
+	m.modal = modalKillConfirm
+	m.killTarget = &daemon.SessionInfo{ID: "1", Name: "test"}
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	result := updated.(Model)
+	if result.modal != modalNone {
+		t.Error("expected modal closed after n")
+	}
+	if result.killTarget != nil {
+		t.Error("expected killTarget=nil after cancel")
+	}
+}
+
+func TestKill_ToggleFocus(t *testing.T) {
+	m := testModel()
+	m.modal = modalKillConfirm
+	m.killTarget = &daemon.SessionInfo{ID: "1", Name: "test"}
+	m.killFocusYes = false
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	result := updated.(Model)
+	if !result.killFocusYes {
+		t.Error("expected killFocusYes=true after right arrow")
+	}
+}
+
+func TestRename_SubmitAndCancel(t *testing.T) {
+	m := testModel()
+	m.editing = true
+	m.editSessionID = "1"
+	m.editOriginal = "old-name"
+	m.editInput = textinput.New()
+	m.editInput.SetValue("new-name")
+
+	// Submit
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if result.editing {
+		t.Error("expected editing=false after enter")
+	}
+	if cmd == nil {
+		t.Error("expected non-nil cmd (renameSession)")
+	}
+
+	// Cancel
+	m2 := testModel()
+	m2.editing = true
+	m2.editOriginal = "old-name"
+	m2.editInput = textinput.New()
+	m2.editInput.SetValue("changed")
+
+	updated2, _ := m2.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	result2 := updated2.(Model)
+	if result2.editing {
+		t.Error("expected editing=false after esc")
+	}
+}
+
+func TestRename_EmptyRejected(t *testing.T) {
+	m := testModel()
+	m.editing = true
+	m.editSessionID = "1"
+	m.editOriginal = "old-name"
+	m.editInput = textinput.New()
+	m.editInput.SetValue("")
+
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if !result.editing {
+		t.Error("expected editing=true (empty name rejected)")
+	}
+	if result.toast != "Name cannot be empty" {
+		t.Errorf("expected empty name toast, got %q", result.toast)
+	}
+}
+
+func TestRename_SameNameNoOp(t *testing.T) {
+	m := testModel()
+	m.editing = true
+	m.editSessionID = "1"
+	m.editOriginal = "same-name"
+	m.editInput = textinput.New()
+	m.editInput.SetValue("same-name")
+
+	updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result := updated.(Model)
+	if result.editing {
+		t.Error("expected editing=false")
+	}
+	if cmd != nil {
+		t.Error("expected nil cmd for same-name (no API call)")
+	}
+}
+
+func TestRename_NavigationSuppressed(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{{ID: "1"}, {ID: "2"}}
+	m.selected = 0
+	m.editing = true
+	m.editInput = textinput.New()
+
+	// j key should be captured by textinput, not move selection
+	updated, _ := m.Update(tea.KeyPressMsg{Code: 'j'})
+	result := updated.(Model)
+	if result.selected != 0 {
+		t.Errorf("expected selected=0 (j captured by rename), got %d", result.selected)
 	}
 }

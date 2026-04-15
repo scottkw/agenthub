@@ -12,7 +12,7 @@ func TestHelpOverlay_ContainsGroups(t *testing.T) {
 
 	content := m.buildHelpContent()
 
-	groups := []string{"Navigation", "Actions", "General"}
+	groups := []string{"Navigation", "Sessions", "General"}
 	for _, group := range groups {
 		if !strings.Contains(content, group) {
 			t.Errorf("help content missing group %q", group)
@@ -32,6 +32,8 @@ func TestHelpOverlay_ContainsBindings(t *testing.T) {
 		"Refresh list",
 		"Attach to session",
 		"New session",
+		"Kill session",
+		"Rename session",
 		"Toggle help",
 		"Quit",
 	}
@@ -52,18 +54,18 @@ func TestHelpOverlay_ContainsCloseHint(t *testing.T) {
 	}
 }
 
-func TestHelpOverlay_NoReservedHiddenKeys(t *testing.T) {
+func TestHelp_UpdatedBindings(t *testing.T) {
 	m := testModel()
-
 	content := m.buildHelpContent()
 
-	// d and e should NOT appear in help (reserved and hidden per UI-SPEC)
-	// The safest check: neither "Kill" nor "Rename" should appear
-	if strings.Contains(content, "Kill") {
-		t.Error("help should not contain Kill action (Phase 77)")
+	required := []string{"Kill session", "Rename session", "Sessions"}
+	for _, want := range required {
+		if !strings.Contains(content, want) {
+			t.Errorf("help content missing %q", want)
+		}
 	}
-	if strings.Contains(content, "Rename") {
-		t.Error("help should not contain Rename action (Phase 77)")
+	if strings.Contains(content, "Actions") {
+		t.Error("help should use 'Sessions' group, not 'Actions'")
 	}
 }
 

@@ -58,7 +58,25 @@ func (m Model) renderFull() string {
 		footer,
 	)
 
+	// Modal overlays (rendered on top of content)
+	if m.modal == modalNewSession {
+		return m.renderNewSessionModal()
+	}
+	if m.modal == modalKillConfirm {
+		return m.renderKillConfirmModal()
+	}
+
 	return content
+}
+
+// STUB: replaced by Plan 77-04 with full new-session modal rendering
+func (m Model) renderNewSessionModal() string {
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "New Session (loading...)")
+}
+
+// STUB: replaced by Plan 77-03 with full kill confirmation rendering
+func (m Model) renderKillConfirmModal() string {
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "Kill Session (loading...)")
 }
 
 // renderHeader renders "AgentHub" (bold) + session count, right-aligned.
@@ -186,7 +204,14 @@ func (m Model) renderSessionRow(s daemon.SessionInfo, idx int) string {
 	// Column widths per UI-SPEC
 	nameWidth := m.nameColWidth()
 
-	name := truncate(s.Name, nameWidth)
+	// Inline rename: replace name with textinput view
+	var name string
+	if m.editing && s.ID == m.editSessionID {
+		name = m.editInput.View()
+	} else {
+		name = truncate(s.Name, nameWidth)
+	}
+
 	agent := truncate(s.CLI, 12)
 	host := truncate(s.Hostname, 20)
 	viewers := ""
@@ -233,9 +258,18 @@ func (m Model) renderWebStatus() string {
 
 	right := helpHint + "  " + quitHint
 
-	// Toast message (if active and not expired)
+	// Toast message (if active and not expired) with kind-based coloring
 	if m.toast != "" && time.Now().Before(m.toastExp) {
-		webPart = lipgloss.NewStyle().Foreground(m.styles.StatusWaiting).Render(m.toast)
+		var toastColor color.Color
+		switch m.toastKind {
+		case toastSuccess:
+			toastColor = m.styles.StatusRunning
+		case toastError:
+			toastColor = m.styles.StatusErrored
+		default:
+			toastColor = m.styles.FgMuted
+		}
+		webPart = lipgloss.NewStyle().Foreground(toastColor).Render(m.toast)
 	}
 
 	sep := " | "
@@ -249,7 +283,7 @@ func (m Model) renderWebStatus() string {
 
 // renderHintBar renders the keybinding hint bar (bottom-most footer line).
 func (m Model) renderHintBar() string {
-	hint := "j/k Up/Down  Enter Attach  n New  ? Help  q Quit"
+	hint := "j/k Up/Down  Enter Attach  n New  d Kill  r Rename  ? Help  q Quit"
 	return lipgloss.NewStyle().Foreground(m.styles.FgMuted).
 		Width(m.width).Render(hint)
 }

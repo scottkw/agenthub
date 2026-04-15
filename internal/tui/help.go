@@ -16,7 +16,7 @@ func (m Model) renderHelpOverlay() string {
 	bordered := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(m.styles.BorderNormal).
-		Width(overlayWidth - 2). // subtract border width
+		Width(overlayWidth-2). // subtract border width
 		Padding(1, 2).
 		Render(content)
 
@@ -66,15 +66,17 @@ func (m Model) buildHelpContent() string {
 		formatBinding("j/k, Up/Down", "Move up/down"),
 		formatBinding("g/Home", "Jump to first"),
 		formatBinding("G/End", "Jump to last"),
-		formatBinding("r", "Refresh list"),
+		formatBinding("R", "Refresh list"),
 	)
 
-	// Group 2: Actions (Enter and n shown as available per UI-SPEC)
+	// Group 2: Sessions
 	sections = append(sections, "")
-	sections = append(sections, groupStyle.Render("Actions"))
+	sections = append(sections, groupStyle.Render("Sessions"))
 	sections = append(sections,
 		formatBinding("Enter", "Attach to session"),
 		formatBinding("n", "New session"),
+		formatBinding("d", "Kill session"),
+		formatBinding("r", "Rename session"),
 	)
 
 	// Group 3: General

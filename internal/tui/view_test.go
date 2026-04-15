@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 )
@@ -163,5 +164,36 @@ func TestStatusGlyph(t *testing.T) {
 		if glyph != tt.wantGlyph {
 			t.Errorf("statusGlyph(%q) glyph = %q, want %q", tt.status, glyph, tt.wantGlyph)
 		}
+	}
+}
+
+func TestView_HintBar(t *testing.T) {
+	m := testModel()
+	hint := m.renderHintBar()
+	required := []string{"Enter Attach", "n New", "d Kill", "r Rename", "? Help", "q Quit"}
+	for _, want := range required {
+		if !strings.Contains(hint, want) {
+			t.Errorf("hint bar missing %q", want)
+		}
+	}
+}
+
+func TestView_ToastKind(t *testing.T) {
+	m := testModel()
+	m.toast = "Test toast"
+	m.toastExp = time.Now().Add(10 * time.Second)
+
+	// toastInfo should use FgMuted
+	m.toastKind = toastInfo
+	web := m.renderWebStatus()
+	if !strings.Contains(web, "Test toast") {
+		t.Error("toast not rendered in web status")
+	}
+
+	// toastError still renders the toast text
+	m.toastKind = toastError
+	web = m.renderWebStatus()
+	if !strings.Contains(web, "Test toast") {
+		t.Error("error toast not rendered")
 	}
 }
