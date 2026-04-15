@@ -266,6 +266,10 @@ func (m Model) handleKillConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 // executeKill sends the kill command and cleans up modal state.
 func (m Model) executeKill() (tea.Model, tea.Cmd) {
+	if m.killTarget == nil {
+		m.modal = modalNone
+		return m, nil
+	}
 	id := m.killTarget.ID
 	m.modal = modalNone
 	m.killTarget = nil
