@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -29,14 +30,22 @@ func cmdTUI(client *daemon.DaemonClient) error {
 	// It wraps package-main functions (fetchPeerSessions, ListTailnetPeers) to avoid
 	// an import cycle between internal/tui and package main.
 	fetchRemoteFn := func(ctx context.Context) []tui.ListRemoteGroup {
-		peers, _ := client.ListTailnetPeers()
+		peers, err := client.ListTailnetPeers()
+		if err != nil {
+			log.Printf("[warn] tailnet peer discovery failed: %v", err)
+			return nil
+		}
 		if len(peers) == 0 {
 			return nil
 		}
 		groupMap := make(map[string][]tui.RemoteSessionEntry)
 		for _, p := range peers {
 			fqdn := strings.TrimSuffix(p.DNSName, ".")
-			peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+			peerSessions, err := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+			if err != nil {
+				log.Printf("[warn] peer session fetch failed: peer=%s err=%v", fqdn, err)
+				continue
+			}
 			for _, s := range peerSessions {
 				groupMap[p.Hostname] = append(groupMap[p.Hostname], tui.RemoteSessionEntry{
 					ID:       s.ID,
