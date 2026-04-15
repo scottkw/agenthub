@@ -184,7 +184,7 @@
 
 </details>
 
-### 🚧 v2.0 Multi-Client, CLI UX & TUI Mode (In Progress)
+### v2.0 Multi-Client, CLI UX & TUI Mode (In Progress)
 
 - [ ] **Phase 74: Multi-Client Fan-Out** — Wire relay/Hub for simultaneous WebSocket clients, independent scrollback, read-only mode, connection metadata, and PTY resize arbitration (GitHub #13)
 - [ ] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8)
@@ -204,7 +204,11 @@
   3. A client connected with `--readonly` flag receives output but keystrokes are discarded — the PTY process is not disturbed
   4. `agenthub list` (or session metadata API) shows the current viewer count for each session
   5. When clients have different terminal sizes, PTY dimensions stabilize to the largest active client — no continuous resize loop occurs
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 74-01-PLAN.md — Hub core: Subscriber metadata fields, SubscriberCount, ResizeClient max-wins arbiter (TDD)
+- [ ] 74-02-PLAN.md — Server enforcement: query param parsing, read-only gating, ResizeClient in both relay + webserver read pumps
+- [ ] 74-03-PLAN.md — API + CLI: ViewerCount in SessionInfo, --readonly/--client flags on CLI attach
 
 ### Phase 75: CLI Status Bar
 **Goal**: `agenthub attach` displays a persistent status bar that shows session context and live state without corrupting terminal output, and cleans up completely on exit
@@ -272,7 +276,7 @@
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
-| 74. Multi-Client Fan-Out | v2.0 | 0/? | Not started | - |
+| 74. Multi-Client Fan-Out | v2.0 | 0/3 | Not started | - |
 | 75. CLI Status Bar | v2.0 | 0/? | Not started | - |
 | 76. TUI Foundation | v2.0 | 0/? | Not started | - |
 | 77. TUI Session Operations | v2.0 | 0/? | Not started | - |
