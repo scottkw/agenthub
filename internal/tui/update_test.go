@@ -145,6 +145,46 @@ func TestUpdate_QROpen(t *testing.T) {
 	}
 }
 
+// TestUpdate_QRServeAfterUnserve asserts that when a session's WebEnabled flag
+// flips from false to true via a subsequent sessionsMsg (simulating the 2s tick
+// after `agenthub serve`), pressing q opens the QR overlay — i.e. the unified
+// list picks up the fresh daemon state and is not stuck on the previous value.
+func TestUpdate_QRServeAfterUnserve(t *testing.T) {
+	m := testModel()
+	m.webStatus = daemon.WebServerStatusResponse{Running: true, URL: "https://test.ts.net"}
+	m.width = 80
+	m.height = 30
+
+	// Tick 1: session is unserved.
+	updated, _ := m.Update(sessionsMsg{sessions: []daemon.SessionInfo{
+		{ID: "s1", Name: "tmp", CLI: "bash", Status: "running", WebEnabled: false},
+	}})
+	m = updated.(Model)
+	updated, _ = m.Update(tea.KeyPressMsg{Code: 'q'})
+	r1 := updated.(Model)
+	if r1.qrSession != nil {
+		t.Fatal("tick1: expected no QR overlay when WebEnabled=false")
+	}
+	if r1.toast != "Web serving not enabled for this session" {
+		t.Errorf("tick1: expected web-not-enabled toast, got %q", r1.toast)
+	}
+
+	// Tick 2 (simulates the 2s refresh after user ran `agenthub serve`):
+	// daemon now returns WebEnabled=true for the same session id.
+	updated, _ = r1.Update(sessionsMsg{sessions: []daemon.SessionInfo{
+		{ID: "s1", Name: "tmp", CLI: "bash", Status: "running", WebEnabled: true},
+	}})
+	m2 := updated.(Model)
+	updated, _ = m2.Update(tea.KeyPressMsg{Code: 'q'})
+	r2 := updated.(Model)
+	if r2.qrSession == nil {
+		t.Fatal("tick2: expected QR overlay to open after WebEnabled flipped true")
+	}
+	if r2.qrURL != "https://test.ts.net/sessions/s1" {
+		t.Errorf("tick2: expected URL 'https://test.ts.net/sessions/s1', got %q", r2.qrURL)
+	}
+}
+
 func TestUpdate_QRClose(t *testing.T) {
 	m := testModel()
 	m.qrSession = &sessionRef{ID: "s1", Name: "test", URL: "https://test.ts.net/sessions/s1"}
