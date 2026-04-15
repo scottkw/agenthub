@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 // Update processes messages and returns the updated model and any commands.
@@ -119,7 +120,11 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.modal == modalNewSession {
 		return m.handleNewSessionKey(msg)
 	}
-	// Priority 4: Help overlay
+	// Priority 4: QR overlay (Phase 78)
+	if m.qrSession != nil {
+		return m.handleQRKey(msg)
+	}
+	// Priority 5: Help overlay
 	if m.showHelp {
 		if key.Matches(msg, m.keys.Help) || msg.String() == "esc" {
 			m.showHelp = false
@@ -127,8 +132,40 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	// Priority 5: Main view
+	// Priority 6: Main view
 	return m.handleMainKey(msg)
+}
+
+// handleQRKey handles keys when the QR overlay is open.
+// Esc or q closes the overlay; Q or ctrl+c quits; all other keys are swallowed.
+func (m Model) handleQRKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	s := msg.String()
+	switch {
+	case s == "esc", s == "q":
+		m.qrSession = nil
+		m.qrContent = ""
+		m.qrURL = ""
+		return m, nil
+	case s == "Q", s == "ctrl+c":
+		return m, tea.Quit
+	}
+	// Swallow all other keys while QR overlay is open
+	return m, nil
+}
+
+// entryID returns a unique string identifier for a list entry (used to restore selection).
+func entryID(e listEntry) string {
+	switch e.kind {
+	case entryLocal:
+		if e.session != nil {
+			return e.session.ID
+		}
+	case entryRemote:
+		if e.remote != nil {
+			return e.remote.ID
+		}
+	}
+	return ""
 }
 
 // handleMainKey handles key presses in the main session list view.
@@ -257,6 +294,51 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.editInput.CursorEnd()
 		cmd := m.editInput.Focus()
 		return m, cmd
+
+	case key.Matches(msg, m.keys.QR):
+		if len(m.unifiedList) == 0 {
+			return m, nil
+		}
+		entry := m.unifiedList[m.selected]
+		url := m.sessionURL(entry)
+		if url == "" {
+			m.toast = "Web serving not enabled for this session"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		// Check terminal size (55x25 minimum for QR overlay per UI-SPEC)
+		if m.width < 55 || m.height < 25 {
+			m.toast = "Terminal too small to display QR code"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(3 * time.Second)
+			return m, nil
+		}
+		q, err := qrcode.New(url, qrcode.Medium)
+		if err != nil {
+			m.toast = fmt.Sprintf("QR code generation failed: %s", err)
+			m.toastKind = toastError
+			m.toastExp = time.Now().Add(3 * time.Second)
+			return m, nil
+		}
+		var name string
+		isRemote := false
+		switch entry.kind {
+		case entryLocal:
+			name = entry.session.Name
+		case entryRemote:
+			name = entry.remote.Name
+			isRemote = true
+		}
+		m.qrSession = &sessionRef{
+			ID:       entryID(entry),
+			Name:     name,
+			IsRemote: isRemote,
+			URL:      url,
+		}
+		m.qrContent = q.ToSmallString(false)
+		m.qrURL = url
+		return m, nil
 	}
 	return m, nil
 }
