@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,15 +10,30 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/statusbar"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"golang.org/x/term"
 )
+
+// lockedWriter serialises concurrent writes to an underlying io.Writer.
+// Used to prevent interleaving of PTY output and status bar draw sequences.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (lw *lockedWriter) Write(p []byte) (int, error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
+	return lw.w.Write(p)
+}
 
 // cmdAttach connects the local terminal to a running daemon session via the
 // relay WebSocket server. It sets the terminal to raw mode, relays all I/O,
@@ -31,9 +47,12 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	detachKey := byte(0x1C)
 	readOnly := false
 	clientName := ""
+	statusTop := false
 	for _, arg := range args[1:] {
 		if arg == "--readonly" {
 			readOnly = true
+		} else if arg == "--status-top" {
+			statusTop = true
 		} else if len(arg) > 9 && arg[:9] == "--client=" {
 			clientName = arg[9:]
 		} else if len(arg) > 13 && arg[:13] == "--detach-key=" {
@@ -52,7 +71,7 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	// Detect remote session ID format (hostname:session-id).
 	hostname, sessionID, isRemote := parseRemoteID(args[0])
 	if isRemote {
-		return cmdAttachRemote(client, hostname, sessionID, detachKey)
+		return cmdAttachRemote(client, hostname, sessionID, detachKey, statusTop)
 	}
 
 	// Must be run in an interactive terminal.
@@ -112,8 +131,34 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	}
 	defer conn.CloseNow()
 
-	// Print connection banner to stderr before entering raw mode.
-	printAttachBanner(os.Stderr, session.Name, session.CLI, session.Hostname)
+	// Wrap stdout in a lockedWriter to serialize PTY output and bar draws.
+	stdout := &lockedWriter{w: os.Stdout}
+
+	// Create status bar if stdout is a TTY (SB-03).
+	var bar *statusbar.Bar
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		createdAt, _ := time.Parse(time.RFC3339, session.CreatedAt)
+		if createdAt.IsZero() {
+			createdAt = time.Now()
+		}
+		pos := statusbar.Bottom
+		if statusTop {
+			pos = statusbar.Top
+		}
+		bar = statusbar.New(stdout, statusbar.Options{
+			SessionName: session.Name,
+			AgentType:   session.CLI,
+			Hostname:    session.Hostname,
+			CreatedAt:   createdAt,
+			Position:    pos,
+			Fd:          os.Stdout.Fd(),
+		})
+		bar.Start()
+		defer bar.Stop()
+	} else {
+		// Non-TTY path: show one-shot banner on stderr (bar is suppressed).
+		printAttachBanner(os.Stderr, session.Name, session.CLI, session.Hostname)
+	}
 
 	// Put terminal in raw mode. Restore on every exit path.
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -132,7 +177,7 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	// Start platform-specific SIGWINCH watcher (no-op on Windows).
 	watchResize(ctx, conn)
 
-	err = attachSession(ctx, conn, os.Stdin, os.Stdout, detachKey)
+	err = attachSession(ctx, conn, os.Stdin, stdout, detachKey, bar, nil)
 	printDetachMessage(os.Stderr)
 	return err
 }
@@ -140,7 +185,7 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 // cmdAttachRemote handles attaching to a session on a remote tailnet peer.
 // It resolves the hostname to FQDN via tailnet peer discovery, verifies the
 // session exists on the remote peer, and connects via WSS relay.
-func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, detachKey byte) error {
+func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, detachKey byte, statusTop bool) error {
 	// Must be run in an interactive terminal.
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
 		return fmt.Errorf("attach: stdin is not a terminal")
@@ -159,13 +204,13 @@ func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, de
 	// Construct base URL for fetching sessions and WSS relay.
 	baseURL := fmt.Sprintf("https://%s:%d", fqdn, tailnet.DefaultProbePort)
 
-	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey)
+	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey, statusTop)
 }
 
 // cmdAttachRemoteWithClient is the testable core of the remote attach flow.
 // It accepts an HTTP client and base URL for testing with httptest servers.
 // If httpClient is nil, a production TLS client is used.
-func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte) error {
+func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte, statusTop bool) error {
 	// Verify the session exists on the remote peer and get its metadata.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -204,8 +249,29 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	}
 	defer conn.CloseNow()
 
-	// Print banner with remote hostname shown clearly.
-	printAttachBanner(os.Stderr, session.Name, session.CLIType, hostname)
+	// Wrap stdout in a lockedWriter.
+	stdout := &lockedWriter{w: os.Stdout}
+
+	// Create status bar if stdout is a TTY (SB-03).
+	var bar *statusbar.Bar
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		pos := statusbar.Bottom
+		if statusTop {
+			pos = statusbar.Top
+		}
+		bar = statusbar.New(stdout, statusbar.Options{
+			SessionName: session.Name,
+			AgentType:   session.CLIType,
+			Hostname:    hostname,
+			CreatedAt:   time.Now(), // CLIRemoteSession has no CreatedAt
+			Position:    pos,
+			Fd:          os.Stdout.Fd(),
+		})
+		bar.Start()
+		defer bar.Stop()
+	} else {
+		printAttachBanner(os.Stderr, session.Name, session.CLIType, hostname)
+	}
 
 	// Put terminal in raw mode (same as local attach).
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
@@ -224,7 +290,42 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	// Start resize watcher (platform-specific).
 	watchResize(sigCtx, conn)
 
-	err = attachSession(sigCtx, conn, os.Stdin, os.Stdout, detachKey)
+	// SB-05: connection state watcher for remote sessions.
+	// Sets "reconnecting" if no frame received for >5s.
+	var onFrame func()
+	if bar != nil {
+		var mu sync.Mutex
+		var lastFrame time.Time
+
+		onFrame = func() {
+			mu.Lock()
+			lastFrame = time.Now()
+			mu.Unlock()
+			bar.SetConnectionState("")
+		}
+		onFrame() // initialize with current time
+
+		// Watcher goroutine: set "reconnecting" if no frame for 5s.
+		go func() {
+			tick := time.NewTicker(time.Second)
+			defer tick.Stop()
+			for {
+				select {
+				case <-tick.C:
+					mu.Lock()
+					lf := lastFrame
+					mu.Unlock()
+					if time.Since(lf) > 5*time.Second {
+						bar.SetConnectionState("reconnecting")
+					}
+				case <-sigCtx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	err = attachSession(sigCtx, conn, os.Stdin, stdout, detachKey, bar, onFrame)
 	printDetachMessage(os.Stderr)
 	return err
 }
@@ -244,7 +345,7 @@ func buildUnknownHostError(hostname string, peers []tailnet.Peer) error {
 
 // attachSession is the testable core of the attach flow. It runs two I/O
 // pumps concurrently and returns when either completes or ctx is cancelled.
-func attachSession(ctx context.Context, conn *websocket.Conn, stdin io.Reader, stdout io.Writer, detachKey byte) error {
+func attachSession(ctx context.Context, conn *websocket.Conn, stdin io.Reader, stdout io.Writer, detachKey byte, bar *statusbar.Bar, onFrame func()) error {
 	type result struct{ err error }
 
 	stdinDone := make(chan result, 1)
@@ -254,7 +355,7 @@ func attachSession(ctx context.Context, conn *websocket.Conn, stdin io.Reader, s
 		stdinDone <- result{stdinPump(ctx, conn, stdin, detachKey)}
 	}()
 	go func() {
-		wsDone <- result{wsOutputPump(ctx, conn, stdout)}
+		wsDone <- result{wsOutputPump(ctx, conn, stdout, bar, onFrame)}
 	}()
 
 	select {
@@ -315,20 +416,35 @@ func stdinPump(ctx context.Context, conn *websocket.Conn, r io.Reader, detachKey
 
 // wsOutputPump reads WebSocket messages from conn and writes MsgOutput
 // payloads to w. It handles the initial scrollback snapshot (first message,
-// which may be large) and subsequent live frames.
-func wsOutputPump(ctx context.Context, conn *websocket.Conn, w io.Writer) error {
+// which may be large) and subsequent live frames. MsgMeta frames update the
+// bar viewer count (SB-04). onFrame is called on every received frame to
+// track connection liveness (SB-05).
+func wsOutputPump(ctx context.Context, conn *websocket.Conn, w io.Writer, bar *statusbar.Bar, onFrame func()) error {
 	for {
 		_, msg, err := conn.Read(ctx)
 		if err != nil {
 			return err
 		}
+		if onFrame != nil {
+			onFrame()
+		}
+
 		msgType, payload, ferr := relay.ParseFrame(msg)
 		if ferr != nil {
 			continue
 		}
-		if msgType == relay.MsgOutput {
+		switch msgType {
+		case relay.MsgOutput:
 			if _, werr := w.Write(payload); werr != nil {
 				return werr
+			}
+		case relay.MsgMeta:
+			// SB-04: update bar with viewer count from server push.
+			if bar != nil {
+				var meta relay.MetaPayload
+				if err := json.Unmarshal(payload, &meta); err == nil && meta.ViewerCount != nil {
+					bar.SetViewerCount(*meta.ViewerCount)
+				}
 			}
 		}
 	}
