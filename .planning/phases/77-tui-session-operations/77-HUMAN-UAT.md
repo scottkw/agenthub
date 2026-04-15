@@ -1,14 +1,14 @@
 ---
-status: partial
+status: resolved
 phase: 77-tui-session-operations
 source: [77-VERIFICATION.md]
 started: 2026-04-15T16:15:00Z
-updated: 2026-04-15T17:10:00Z
+updated: 2026-04-15T17:20:00Z
 ---
 
 ## Current Test
 
-[awaiting human testing]
+[all tests complete]
 
 ## Tests
 
@@ -22,7 +22,7 @@ result: passed (2026-04-15 — verified by user after fresh bin/agenthub build)
 
 ### 3. Kill a session via d key confirmation dialog
 expected: Confirmation dialog appears with session name, default focus on No, y confirms kill, session disappears from list
-result: [pending]
+result: passed (2026-04-15 — verified by user)
 
 ### 4. Rename a session via r key inline edit
 expected: Name column replaced with textinput pre-filled with current name, Enter submits, new name reflected immediately
@@ -31,9 +31,9 @@ result: passed (2026-04-15 — verified by user)
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
