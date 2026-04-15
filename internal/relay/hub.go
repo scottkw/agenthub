@@ -12,6 +12,17 @@ type Subscriber struct {
 	// CloseSlow is called in its own goroutine when the Msgs channel is full.
 	// Implementations should close the WebSocket and call Unsubscribe.
 	CloseSlow func()
+
+	// ReadOnly: if true, input frames from this client are discarded by the server read pump. (MC-03)
+	ReadOnly bool
+
+	// Name: optional client identity from ?client= query param. (MC-05)
+	Name string
+
+	// Cols, Rows: last reported terminal dimensions from this client.
+	// Read/written under hub.mu. (MC-06)
+	Cols int
+	Rows int
 }
 
 // Hub manages a single PTY session's output fan-out.
@@ -28,6 +39,10 @@ type Hub struct {
 	done        chan struct{}
 	closed      bool
 	closeOnce   sync.Once
+
+	// ptyCols, ptyRows: current PTY dimensions as set by the max-wins arbiter. (MC-06)
+	ptyCols int
+	ptyRows int
 }
 
 // NewHub constructs a Hub for the given session.
@@ -67,6 +82,47 @@ func (h *Hub) Unsubscribe(sub *Subscriber) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.subscribers, sub)
+}
+
+// SubscriberCount returns the number of currently subscribed clients. (MC-04)
+func (h *Hub) SubscriberCount() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subscribers)
+}
+
+// ResizeClient stores the subscriber's reported dimensions and calls resizeFn
+// only when the new maximum across all subscribers differs from the current PTY size.
+// Implements max-wins policy: PTY dimensions track the max of all active subscribers. (MC-06)
+//
+// resizeFn is called AFTER releasing hub.mu to avoid contending the broadcast
+// drain loop with a potentially blocking PTY resize syscall.
+func (h *Hub) ResizeClient(sub *Subscriber, cols, rows int) error {
+	h.mu.Lock()
+	sub.Cols = cols
+	sub.Rows = rows
+
+	maxCols, maxRows := 0, 0
+	for s := range h.subscribers {
+		if s.Cols > maxCols {
+			maxCols = s.Cols
+		}
+		if s.Rows > maxRows {
+			maxRows = s.Rows
+		}
+	}
+
+	needResize := (maxCols > 0 || maxRows > 0) && (maxCols != h.ptyCols || maxRows != h.ptyRows)
+	if needResize {
+		h.ptyCols = maxCols
+		h.ptyRows = maxRows
+	}
+	h.mu.Unlock() // release BEFORE calling resizeFn
+
+	if needResize && h.resizeFn != nil {
+		return h.resizeFn(maxCols, maxRows)
+	}
+	return nil
 }
 
 // Run is the drain goroutine. It reads from the PTY reader in 32 KiB chunks,
