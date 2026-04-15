@@ -220,10 +220,10 @@ Plans:
   3. Running `agenthub attach ... | cat` produces no status bar output (suppressed when stdout is not a TTY)
   4. When a second client connects, the bar updates to show the viewer count (e.g. "2 viewers")
   5. Detaching or exiting removes the bar line and restores the terminal to its pre-attach state — no leftover artifacts
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
-- [ ] 75-01-PLAN.md — MsgMeta protocol extension + Hub.BroadcastMeta + viewer count push in relay/webserver
-- [ ] 75-02-PLAN.md — internal/statusbar package: Bar type with DECSTBM scroll region, format, tick loop, tests
+- [x] 75-01-PLAN.md — MsgMeta protocol extension + Hub.BroadcastMeta + viewer count push in relay/webserver
+- [x] 75-02-PLAN.md — internal/statusbar package: Bar type with DECSTBM scroll region, format, tick loop, tests
 - [ ] 75-03-PLAN.md — CLI integration: lockedWriter, --status-top flag, bar wiring in local/remote attach, MsgMeta intercept
 
 ### Phase 76: TUI Foundation
@@ -280,7 +280,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 75. CLI Status Bar | v2.0 | 0/3 | Not started | - |
+| 75. CLI Status Bar | v2.0 | 2/3 | In Progress|  |
 | 76. TUI Foundation | v2.0 | 0/? | Not started | - |
 | 77. TUI Session Operations | v2.0 | 0/? | Not started | - |
 | 78. TUI Remote & QR | v2.0 | 0/? | Not started | - |
