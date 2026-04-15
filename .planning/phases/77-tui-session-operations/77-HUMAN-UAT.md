@@ -3,7 +3,7 @@ status: partial
 phase: 77-tui-session-operations
 source: [77-VERIFICATION.md]
 started: 2026-04-15T16:15:00Z
-updated: 2026-04-15T16:15:00Z
+updated: 2026-04-15T16:50:00Z
 ---
 
 ## Current Test
@@ -18,7 +18,7 @@ result: [pending]
 
 ### 2. Create a new session via n key modal
 expected: Modal opens with agent picker, directory pre-filled, Tab cycles focus, Enter creates session, list refreshes with new entry
-result: [pending]
+result: passed (2026-04-15 — verified by user after fresh bin/agenthub build)
 
 ### 3. Kill a session via d key confirmation dialog
 expected: Confirmation dialog appears with session name, default focus on No, y confirms kill, session disappears from list
@@ -31,9 +31,9 @@ result: [pending]
 ## Summary
 
 total: 4
-passed: 0
+passed: 1
 issues: 0
-pending: 4
+pending: 3
 skipped: 0
 blocked: 0
 
