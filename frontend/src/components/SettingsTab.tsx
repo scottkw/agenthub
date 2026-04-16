@@ -31,6 +31,9 @@ interface SettingsTabProps {
     hasCerts: boolean
     ip: string
     domain: string
+    binaryFound: boolean
+    daemonUp: boolean
+    platformHint: string
   } | null
   webServerMode?: 'tailscale' | 'local' | null
   onWebServerStateChange: () => Promise<void>
@@ -158,15 +161,17 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
   function tailscaleStatusClass(h: SettingsTabProps['tailscaleHealth']): string {
     if (!h) return ''
-    if (h.installed && h.connected) return 'ok'
-    if (h.installed) return 'warn'
+    if (h.connected) return 'ok'
+    if (h.daemonUp) return 'warn'
+    if (h.binaryFound) return 'warn'
     return 'error'
   }
 
   function tailscaleStatusText(h: SettingsTabProps['tailscaleHealth']): string {
     if (!h) return 'Checking\u2026'
-    if (h.installed && h.connected) return 'Connected'
-    if (h.installed) return 'Not Connected'
+    if (h.connected) return 'Connected'
+    if (h.daemonUp) return 'Not Connected'
+    if (h.binaryFound) return 'Daemon Stopped'
     return 'Not Installed'
   }
 
@@ -274,11 +279,54 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             {tailscaleHealth
               ? (tailscaleHealth.connected
                   ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
-                  : tailscaleHealth.installed
-                    ? 'Daemon running but not connected'
-                    : 'Not detected \u2014 install from tailscale.com')
+                  : tailscaleHealth.daemonUp
+                    ? 'Daemon running but not connected to a Tailscale network'
+                    : tailscaleHealth.binaryFound
+                      ? (tailscaleHealth.platformHint === 'darwin'
+                          ? 'Installed but not running \u2014 open Tailscale from Applications or the menu bar'
+                          : tailscaleHealth.platformHint === 'linux'
+                            ? 'Installed but not running \u2014 run: sudo systemctl start tailscaled'
+                            : tailscaleHealth.platformHint === 'windows'
+                              ? 'Installed but not running \u2014 open Tailscale from the Start menu or system tray'
+                              : 'Installed but daemon is not running')
+                      : 'Not detected \u2014 install from tailscale.com')
               : 'Checking\u2026'}
           </p>
+          {tailscaleHealth && !tailscaleHealth.connected && (
+            <details className="settings-panel__details" style={{ marginTop: '0.5rem' }}>
+              <summary style={{ cursor: 'pointer', color: '#7aa2f7', fontSize: '0.8rem' }}>Show diagnostics</summary>
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                {/* Step 1: Binary detected */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ color: tailscaleHealth.binaryFound ? '#9ece6a' : '#f7768e', fontFamily: 'monospace' }}>
+                    {tailscaleHealth.binaryFound ? '\u2713' : '\u2717'}
+                  </span>
+                  <span style={{ color: tailscaleHealth.binaryFound ? '#c0caf5' : '#f7768e' }}>Binary detected</span>
+                </div>
+                {/* Step 2: Daemon running */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ color: !tailscaleHealth.binaryFound ? '#414868' : tailscaleHealth.daemonUp ? '#9ece6a' : '#f7768e', fontFamily: 'monospace' }}>
+                    {!tailscaleHealth.binaryFound ? '\u2500' : tailscaleHealth.daemonUp ? '\u2713' : '\u2717'}
+                  </span>
+                  <span style={{ color: !tailscaleHealth.binaryFound ? '#414868' : tailscaleHealth.daemonUp ? '#c0caf5' : '#f7768e' }}>Daemon running</span>
+                </div>
+                {/* Step 3: Connected to Tailscale */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ color: !tailscaleHealth.daemonUp ? '#414868' : tailscaleHealth.connected ? '#9ece6a' : '#f7768e', fontFamily: 'monospace' }}>
+                    {!tailscaleHealth.daemonUp ? '\u2500' : tailscaleHealth.connected ? '\u2713' : '\u2717'}
+                  </span>
+                  <span style={{ color: !tailscaleHealth.daemonUp ? '#414868' : '#c0caf5' }}>Connected to Tailscale</span>
+                </div>
+                {/* Step 4: TLS certificates ready */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: !tailscaleHealth.connected ? '#414868' : tailscaleHealth.hasCerts ? '#9ece6a' : '#f59e0b', fontFamily: 'monospace' }}>
+                    {!tailscaleHealth.connected ? '\u2500' : tailscaleHealth.hasCerts ? '\u2713' : '\u2717'}
+                  </span>
+                  <span style={{ color: !tailscaleHealth.connected ? '#414868' : '#c0caf5' }}>TLS certificates ready</span>
+                </div>
+              </div>
+            </details>
+          )}
         </div>
 
         {/* CT Disclosure Banner */}
@@ -474,7 +522,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
                         onChange={(e) =>
                           setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
                         }
-                        placeholder="Path to tailscale"
+                        placeholder="Path to tailscale (leave blank to auto-detect)"
                       />
                       <button
                         className="settings-panel__browse-btn"

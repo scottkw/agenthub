@@ -197,7 +197,7 @@ describe('TAILSCALE-PATH-01: Tailscale status in Paths section', () => {
   })
 
   it('shows installed-but-not-connected message', () => {
-    expect(raw).toContain('Daemon running but not connected')
+    expect(raw).toContain('Daemon running but not connected to a Tailscale network')
   })
 
   it('shows not detected message', () => {
@@ -242,5 +242,59 @@ describe('THM-04: localStorage fallback guard in App.tsx', () => {
 
   it('imports ALLOWED_THEMES from themes module', () => {
     expect(appRaw).toContain('ALLOWED_THEMES')
+  })
+})
+
+describe('TS-01/TS-02: 4-state Tailscale detection', () => {
+  it('tailscaleHealth type includes binaryFound field', () => {
+    expect(raw).toContain('binaryFound: boolean')
+  })
+
+  it('tailscaleHealth type includes daemonUp field', () => {
+    expect(raw).toContain('daemonUp: boolean')
+  })
+
+  it('tailscaleHealth type includes platformHint field', () => {
+    expect(raw).toContain('platformHint: string')
+  })
+
+  it('shows Daemon Stopped status text', () => {
+    expect(raw).toContain("'Daemon Stopped'")
+  })
+
+  it('has Show diagnostics collapsible section', () => {
+    expect(raw).toContain('Show diagnostics')
+  })
+
+  it('diagnostics includes Binary detected step', () => {
+    expect(raw).toContain('Binary detected')
+  })
+
+  it('diagnostics includes Daemon running step', () => {
+    expect(raw).toContain('Daemon running')
+  })
+
+  it('diagnostics includes Connected to Tailscale step', () => {
+    expect(raw).toContain('Connected to Tailscale')
+  })
+
+  it('diagnostics includes TLS certificates ready step', () => {
+    expect(raw).toContain('TLS certificates ready')
+  })
+
+  it('has platform-specific instruction for macOS', () => {
+    expect(raw).toContain('open Tailscale from Applications or the menu bar')
+  })
+
+  it('has platform-specific instruction for Linux', () => {
+    expect(raw).toContain('sudo systemctl start tailscaled')
+  })
+
+  it('has platform-specific instruction for Windows', () => {
+    expect(raw).toContain('open Tailscale from the Start menu or system tray')
+  })
+
+  it('tailscale path placeholder includes auto-detect hint', () => {
+    expect(raw).toContain('leave blank to auto-detect')
   })
 })
