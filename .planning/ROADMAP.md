@@ -219,7 +219,7 @@
   5. Selecting a file or folder via the picker populates the corresponding input field with the selected path
 **Plans**: 2 plans
 Plans:
-- [ ] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
+- [x] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
 - [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
@@ -278,7 +278,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
-| 79. Settings Persistence & Path Browsing | v2.1 | 0/2 | Planning | - |
+| 79. Settings Persistence & Path Browsing | v2.1 | 1/2 | In Progress|  |
 | 80. Tailscale Detection | v2.1 | 0/? | Not started | - |
 | 81. Banner Notifications | v2.1 | 0/? | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
