@@ -516,7 +516,13 @@ func (a *App) OpenFileDialog(defaultDir string) (string, error) {
 func (a *App) GetTailscaleStatus() webserver.TailscaleHealth {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return webserver.CheckHealth(ctx)
+	customPath := ""
+	if a.client != nil {
+		if paths, err := a.client.GetCLIPaths(); err == nil {
+			customPath = paths["tailscale"]
+		}
+	}
+	return webserver.CheckHealthWithCustomPath(ctx, customPath)
 }
 
 // GetRemoteSessions discovers tailnet peers and fetches their session lists.
@@ -765,8 +771,14 @@ func (a *App) startHealthPoller(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
+				customPath := ""
+				if a.client != nil {
+					if paths, err := a.client.GetCLIPaths(); err == nil {
+						customPath = paths["tailscale"]
+					}
+				}
 				checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-				h := webserver.CheckHealth(checkCtx)
+				h := webserver.CheckHealthWithCustomPath(checkCtx, customPath)
 				cancel()
 				if h != last {
 					last = h
