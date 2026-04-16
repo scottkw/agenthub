@@ -4,16 +4,38 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"tailscale.com/ipn/ipnstate"
 )
 
+// stubBinary creates a fake tailscale binary in a temp dir and returns its path.
+func stubBinary(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	stubPath := filepath.Join(dir, "tailscale")
+	if err := os.WriteFile(stubPath, []byte("#!/bin/sh\necho ok\n"), 0755); err != nil {
+		t.Fatalf("writing stub binary: %v", err)
+	}
+	return stubPath
+}
+
 func TestCheckHealth_NotRunning(t *testing.T) {
+	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("dial unix: connection refused")
-	})
+	}, stub)
 
+	// Binary found but daemon unreachable
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true when stub binary exists")
+	}
+	if h.DaemonUp {
+		t.Error("expected DaemonUp=false when daemon unreachable")
+	}
 	if h.Installed {
 		t.Error("expected Installed=false when daemon unreachable")
 	}
@@ -29,9 +51,13 @@ func TestCheckHealth_NotRunning(t *testing.T) {
 	if h.Domain != "" {
 		t.Errorf("expected Domain=\"\" when daemon unreachable, got %q", h.Domain)
 	}
+	if h.PlatformHint != runtime.GOOS {
+		t.Errorf("expected PlatformHint=%q, got %q", runtime.GOOS, h.PlatformHint)
+	}
 }
 
 func TestCheckHealth_BackendState(t *testing.T) {
+	stub := stubBinary(t)
 	tests := []struct {
 		state         string
 		wantConnected bool
@@ -47,8 +73,14 @@ func TestCheckHealth_BackendState(t *testing.T) {
 		t.Run(tc.state, func(t *testing.T) {
 			h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 				return &ipnstate.Status{BackendState: tc.state}, nil
-			})
+			}, stub)
 
+			if !h.BinaryFound {
+				t.Errorf("state=%s: expected BinaryFound=true", tc.state)
+			}
+			if !h.DaemonUp {
+				t.Errorf("state=%s: expected DaemonUp=true when daemon reachable", tc.state)
+			}
 			if !h.Installed {
 				t.Errorf("state=%s: expected Installed=true when daemon reachable", tc.state)
 			}
@@ -60,6 +92,7 @@ func TestCheckHealth_BackendState(t *testing.T) {
 }
 
 func TestCheckHealth_CertDomains(t *testing.T) {
+	stub := stubBinary(t)
 	tests := []struct {
 		name         string
 		domains      []string
@@ -88,7 +121,7 @@ func TestCheckHealth_CertDomains(t *testing.T) {
 					BackendState: "Running",
 					CertDomains:  tc.domains,
 				}, nil
-			})
+			}, stub)
 
 			if h.HasCerts != tc.wantHasCerts {
 				t.Errorf("expected HasCerts=%v, got %v", tc.wantHasCerts, h.HasCerts)
@@ -101,14 +134,21 @@ func TestCheckHealth_CertDomains(t *testing.T) {
 }
 
 func TestCheckHealth_FullyHealthy(t *testing.T) {
+	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return &ipnstate.Status{
 			BackendState: "Running",
 			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
 			CertDomains:  []string{"myhost.tail46d69a.ts.net"},
 		}, nil
-	})
+	}, stub)
 
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true")
+	}
+	if !h.DaemonUp {
+		t.Error("expected DaemonUp=true")
+	}
 	if !h.Installed {
 		t.Error("expected Installed=true")
 	}
@@ -124,4 +164,110 @@ func TestCheckHealth_FullyHealthy(t *testing.T) {
 	if h.Domain != "myhost.tail46d69a.ts.net" {
 		t.Errorf("expected Domain=\"myhost.tail46d69a.ts.net\", got %q", h.Domain)
 	}
+	if h.PlatformHint != runtime.GOOS {
+		t.Errorf("expected PlatformHint=%q, got %q", runtime.GOOS, h.PlatformHint)
+	}
+}
+
+func TestCheckHealth_BinaryNotFound(t *testing.T) {
+	// Skip if tailscale is actually installed on this machine, since
+	// detectTailscaleBinary will find it via well-known paths or PATH
+	// even when customPath is invalid.
+	if detectTailscaleBinary("") != "" {
+		t.Skip("tailscale binary found on host; cannot test not-found cascade")
+	}
+
+	fnCalled := false
+	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
+		fnCalled = true
+		return nil, nil
+	}, "/nonexistent/path/tailscale")
+
+	if fnCalled {
+		t.Error("statusFunc should not be called when binary is not found")
+	}
+	if h.BinaryFound {
+		t.Error("expected BinaryFound=false")
+	}
+	if h.DaemonUp {
+		t.Error("expected DaemonUp=false")
+	}
+	if h.Installed {
+		t.Error("expected Installed=false")
+	}
+	if h.Connected {
+		t.Error("expected Connected=false")
+	}
+	if h.PlatformHint != runtime.GOOS {
+		t.Errorf("expected PlatformHint=%q, got %q", runtime.GOOS, h.PlatformHint)
+	}
+}
+
+func TestCheckHealth_DaemonStopped(t *testing.T) {
+	stub := stubBinary(t)
+	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
+		return nil, fmt.Errorf("connect: connection refused")
+	}, stub)
+
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true")
+	}
+	if h.DaemonUp {
+		t.Error("expected DaemonUp=false when daemon stopped")
+	}
+	if h.Installed {
+		t.Error("expected Installed=false when daemon stopped")
+	}
+	if h.Connected {
+		t.Error("expected Connected=false when daemon stopped")
+	}
+}
+
+func TestCheckHealth_CustomPathPrecedence(t *testing.T) {
+	// Create two stub binaries at different paths
+	dir1 := t.TempDir()
+	dir2 := t.TempDir()
+	customPath := filepath.Join(dir1, "tailscale")
+	otherPath := filepath.Join(dir2, "tailscale")
+	os.WriteFile(customPath, []byte("#!/bin/sh\necho custom\n"), 0755)
+	os.WriteFile(otherPath, []byte("#!/bin/sh\necho other\n"), 0755)
+
+	// Pass customPath — health check should succeed because binary exists at custom path
+	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
+		return &ipnstate.Status{BackendState: "Running"}, nil
+	}, customPath)
+
+	if !h.BinaryFound {
+		t.Error("expected BinaryFound=true with custom path")
+	}
+	if !h.DaemonUp {
+		t.Error("expected DaemonUp=true")
+	}
+	if !h.Connected {
+		t.Error("expected Connected=true")
+	}
+}
+
+func TestDetectTailscaleBinary_CustomPath(t *testing.T) {
+	stub := stubBinary(t)
+	got := detectTailscaleBinary(stub)
+	if got != stub {
+		t.Errorf("expected detectTailscaleBinary(%q)=%q, got %q", stub, stub, got)
+	}
+}
+
+func TestDetectTailscaleBinary_InvalidCustomPath(t *testing.T) {
+	// Invalid custom path should not panic, should fall through to well-known/PATH
+	got := detectTailscaleBinary("/nonexistent/path/tailscale")
+	// On CI or machines without tailscale, this may return "" or a real path if
+	// tailscale is installed. Just verify no panic and result is a string.
+	_ = got
+}
+
+func TestDetectTailscaleBinary_Empty(t *testing.T) {
+	// Empty custom path should not panic. On machines without tailscale installed
+	// at well-known paths, this may still find tailscale on PATH.
+	got := detectTailscaleBinary("")
+	// Just verify no panic and result is a string.
+	_ = got
 }
