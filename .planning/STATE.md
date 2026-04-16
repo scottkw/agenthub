@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Multi-Client, CLI UX & TUI Mode
-status: complete
-stopped_at: Milestone v2.0 archived
-last_updated: "2026-04-16T15:00:00.000Z"
+milestone: v2.1
+milestone_name: Bug Fixes & UX
+status: active
+stopped_at: Defining requirements
+last_updated: "2026-04-16T18:00:00.000Z"
 last_activity: 2026-04-16
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,15 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** Defining v2.1 requirements
 
 ## Current Position
 
-Milestone: v2.0 (shipped 2026-04-16)
-Status: Complete — milestone archived
-Last activity: 2026-04-16
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-16 — Milestone v2.1 started
 
 ## Performance Metrics
 

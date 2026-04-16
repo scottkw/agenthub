@@ -156,7 +156,16 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active milestone — next milestone not yet defined)
+## Current Milestone: v2.1 Bug Fixes & UX
+
+**Goal:** Fix settings persistence, Tailscale detection, and banner stacking bugs; add file browser buttons to path settings and minimize-to-tray startup option.
+
+**Target features:**
+- Settings paths persist between sessions with save confirmation feedback (GitHub #26)
+- Reliable Tailscale installation and connection state detection (GitHub #27)
+- Multiple banner notifications stack vertically (GitHub #28)
+- File browser buttons on Settings > Paths entry boxes (GitHub #31)
+- Setting to start app minimized to system tray (GitHub #25)
 
 ## Current State
 
@@ -328,4 +337,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after v2.0 milestone completion*
+*Last updated: 2026-04-16 after v2.1 milestone start*
