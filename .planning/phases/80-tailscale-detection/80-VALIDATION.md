@@ -41,7 +41,7 @@ created: 2026-04-16
 | 80-01-01 | 01 | 1 | TS-01 | — | N/A | unit | `go test ./internal/webserver/ -run TestCheckHealth` | ✅ | ⬜ pending |
 | 80-01-02 | 01 | 1 | TS-01 | — | N/A | unit | `go test ./internal/webserver/ -run TestDetectBinary` | ❌ W0 | ⬜ pending |
 | 80-01-03 | 01 | 1 | TS-02 | — | N/A | unit | `go test ./internal/webserver/ -run TestCheckHealth_DaemonStopped` | ❌ W0 | ⬜ pending |
-| 80-02-01 | 02 | 2 | TS-02 | — | N/A | integration | `go test ./... -run TestHealthPoller` | ❌ W0 | ⬜ pending |
+| 80-02-01 | 02 | 2 | TS-02 | — | N/A | manual | Browser: verify 4-state status in Settings > Web Server | N/A | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
