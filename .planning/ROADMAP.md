@@ -200,7 +200,7 @@
 
 **Milestone Goal:** Fix settings persistence, cross-platform Tailscale detection, banner stacking, and add path browsing and minimize-to-tray UX.
 
-- [ ] **Phase 79: Settings Persistence & Path Browsing** - Fix paths not saving and add native browse buttons in Settings > Paths
+- [x] **Phase 79: Settings Persistence & Path Browsing** - Fix paths not saving and add native browse buttons in Settings > Paths (completed 2026-04-16)
 - [ ] **Phase 80: Tailscale Detection** - Broaden Tailscale binary detection and connection state reliability across platforms
 - [ ] **Phase 81: Banner Notifications** - Fix banner stacking to vertical layout with independent dismiss
 - [ ] **Phase 82: Minimize to Tray** - Add minimize-to-tray toggle in Settings with persisted startup behavior
@@ -220,7 +220,7 @@
 **Plans**: 2 plans
 Plans:
 - [x] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
-- [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
+- [x] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ### Phase 80: Tailscale Detection
@@ -240,7 +240,7 @@ Plans:
   2. Each stacked banner has its own dismiss control and dismissing one does not affect the others
 **Plans**: 2 plans
 Plans:
-- [ ] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
+- [x] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
 - [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
@@ -278,7 +278,7 @@ Plans:
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
-| 79. Settings Persistence & Path Browsing | v2.1 | 1/2 | In Progress|  |
+| 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete   | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 0/? | Not started | - |
 | 81. Banner Notifications | v2.1 | 0/? | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
