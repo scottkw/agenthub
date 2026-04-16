@@ -42,12 +42,12 @@ linked_at: 2026-04-15
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 76-01-T1 | 76-01 | 1 | TUI-02 | — | `SessionInfo.Status` populated from heuristic detector under `statusMu.RLock` | unit + build | `go build ./internal/daemon/... && go test ./internal/daemon/... -count=1 -timeout 30s` | ✅ | ⬜ pending |
-| 76-01-T2 | 76-01 | 1 | TUI-01, TUI-02 | — | Charm v2 deps installed; TUI package scaffolding compiles | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ⬜ pending |
-| 76-02-T1 | 76-02 | 2 | TUI-01, TUI-09 | T-76-DOS | TUI `Init/Update` dispatch; daemon errors surface as `tea.Msg`, not panic; `?` toggles `showHelp` | build | `go build ./internal/tui/...` | ✅ | ⬜ pending |
-| 76-02-T2 | 76-02 | 2 | TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-RES | Session rows rendered via Lip Gloss (no raw ANSI); footer shows web status+URL; help overlay centered bordered modal; resize handled via `WindowSizeMsg` | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ⬜ pending |
-| 76-02-T3 | 76-02 | 2 | TUI-01, TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-DOS | Unit tests for `Update`, `View`, help overlay — covers all 4 requirements | unit | `go test ./internal/tui/... -count=1 -timeout 30s -v` | ✅ | ⬜ pending |
-| 76-03-T1 | 76-03 | 3 | TUI-01 | — | `agenthub tui` launches cleanly on TTY; non-TTY prints diagnostic and exits 1 | build + vet | `go build -o /dev/null . && go vet .` | ✅ | ⬜ pending |
+| 76-01-T1 | 76-01 | 1 | TUI-02 | — | `SessionInfo.Status` populated from heuristic detector under `statusMu.RLock` | unit + build | `go build ./internal/daemon/... && go test ./internal/daemon/... -count=1 -timeout 30s` | ✅ | ✅ green |
+| 76-01-T2 | 76-01 | 1 | TUI-01, TUI-02 | — | Charm v2 deps installed; TUI package scaffolding compiles | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ✅ green |
+| 76-02-T1 | 76-02 | 2 | TUI-01, TUI-09 | T-76-DOS | TUI `Init/Update` dispatch; daemon errors surface as `tea.Msg`, not panic; `?` toggles `showHelp` | build | `go build ./internal/tui/...` | ✅ | ✅ green |
+| 76-02-T2 | 76-02 | 2 | TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-RES | Session rows rendered via Lip Gloss (no raw ANSI); footer shows web status+URL; help overlay centered bordered modal; resize handled via `WindowSizeMsg` | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | ✅ | ✅ green |
+| 76-02-T3 | 76-02 | 2 | TUI-01, TUI-02, TUI-08, TUI-09 | T-76-INJ, T-76-DOS | Unit tests for `Update`, `View`, help overlay — covers all 4 requirements | unit | `go test ./internal/tui/... -count=1 -timeout 30s -v` | ✅ | ✅ green |
+| 76-03-T1 | 76-03 | 3 | TUI-01 | — | `agenthub tui` launches cleanly on TTY; non-TTY prints diagnostic and exits 1 | build + vet | `go build -o /dev/null . && go vet .` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -87,12 +87,31 @@ Each of the above MUST be listed as a human UAT item in `76-HUMAN-UAT.md` after 
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (test stubs + `go get` + `go mod tidy`)
-- [ ] No watch-mode flags (always `-count=1`)
-- [ ] Feedback latency < 30s
-- [ ] Manual UAT items from this file are mirrored in `76-HUMAN-UAT.md` after execution
-- [ ] `nyquist_compliant: true` set in frontmatter after planner links all Task IDs
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (test stubs + `go get` + `go mod tidy`)
+- [x] No watch-mode flags (always `-count=1`)
+- [x] Feedback latency < 30s
+- [x] Manual UAT items from this file are mirrored in `76-HUMAN-UAT.md` after execution
+- [x] `nyquist_compliant: true` set in frontmatter after planner links all Task IDs
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-16
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Commands verified:**
+- `go build ./internal/daemon/... && go test ./internal/daemon/...` — PASS
+- `go build ./internal/tui/... && go vet ./internal/tui/...` — PASS
+- `go build ./internal/tui/...` — PASS
+- `go test ./internal/tui/... -count=1 -timeout 30s -v` — PASS (78 tests green)
+- `go build -o /dev/null . && go vet .` — PASS
+
+**Requirement coverage:** TUI-01 (3 tasks), TUI-02 (4 tasks), TUI-08 (2 tasks), TUI-09 (3 tasks) — all COVERED with automated tests.
