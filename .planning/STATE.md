@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Bug Fixes & UX
 status: active
-stopped_at: Defining requirements
-last_updated: "2026-04-16T18:00:00.000Z"
+stopped_at: Roadmap created
+last_updated: "2026-04-16T00:00:00.000Z"
 last_activity: 2026-04-16
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Defining v2.1 requirements
+**Current focus:** Phase 79 — Settings Persistence & Path Browsing
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-16 — Milestone v2.1 started
+Phase: 79 of 82 (Settings Persistence & Path Browsing)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-04-16 — v2.1 roadmap created (4 phases, 12 requirements)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -65,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-16
-Stopped at: Milestone v2.0 archived
-Next action: /gsd-new-milestone
+Stopped at: v2.1 roadmap written — 4 phases (79-82), 12/12 requirements mapped
+Next action: /gsd-plan-phase 79

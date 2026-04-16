@@ -18,6 +18,7 @@
 - ✅ **v1.13 Cross-Platform Fixes & UX** — Phases 67-69 (shipped 2026-04-12)
 - ✅ **v1.14 UI Polish** — Phases 70-73 (shipped 2026-04-14)
 - ✅ **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (shipped 2026-04-16)
+- 🚧 **v2.1 Bug Fixes & UX** — Phases 79-82 (in progress)
 
 ## Phases
 
@@ -87,71 +88,71 @@
 - [x] Phase 31: CLI Arg Passthrough (1/1 plans) — completed 2026-03-26
 - [x] Phase 32: Daemon Startup Performance (2/2 plans) — completed 2026-03-26
 - [x] Phase 33: GUI Args Field (1/1 plans) — completed 2026-03-26
-- [x] Phase 34: Terminal Fill Fix (1/1 plans) — completed 2026-03-26
+- [x] Phase 34: PATH Augmentation (1/1 plans) — completed 2026-03-26
 
 </details>
 
 <details>
 <summary>✅ v1.6 Terminal Fill Fix v2 (Phase 35) — SHIPPED 2026-03-31</summary>
 
-- [x] Phase 35: Terminal Fill Fix v2 (1/1 plans) — completed 2026-03-26
+- [x] Phase 35: Terminal Fill Retry Loop (1/1 plans) — completed 2026-03-31
 
 </details>
 
 <details>
 <summary>✅ v1.7 Daemon UX & Branding (Phases 36-43) — SHIPPED 2026-04-03</summary>
 
-- [x] Phase 36: App Icons & Branding Assets (1/1 plans) — completed 2026-04-01
-- [x] Phase 37: Splash Screen (1/1 plans) — completed 2026-04-01
-- [x] Phase 38: Remote Session Metadata (1/1 plans) — completed 2026-04-01
-- [x] Phase 39: Remote Session Indicators (2/2 plans) — completed 2026-04-01
-- [x] Phase 40: Daemon Management Panel (1/1 plans) — completed 2026-04-02
-- [x] Phase 41: System Tray + Lifecycle (2/2 plans) — completed 2026-04-02
-- [x] Phase 42: Tray Startup-Failure Error Icon (1/1 plans) — completed 2026-04-03
-- [x] Phase 43: GUI Hostname Forwarding (1/1 plans) — completed 2026-04-03
+- [x] Phase 36: App Icon (1/1 plans) — completed 2026-04-02
+- [x] Phase 37: Splash Screen (1/1 plans) — completed 2026-04-02
+- [x] Phase 38: Hostname in Session API (1/1 plans) — completed 2026-04-02
+- [x] Phase 39: Web Terminal Status Bar (1/1 plans) — completed 2026-04-02
+- [x] Phase 40: CLI Attach Banner (1/1 plans) — completed 2026-04-02
+- [x] Phase 41: Daemon Manager Panel (1/1 plans) — completed 2026-04-02
+- [x] Phase 42: Daemon Shutdown + Tray Icons (2/2 plans) — completed 2026-04-02
+- [x] Phase 43: Tray Dynamic Session Menu (2/2 plans) — completed 2026-04-03
 
 </details>
 
 <details>
 <summary>✅ v1.8 GitHub Distribution & CI/CD (Phases 44-48) — SHIPPED 2026-04-06</summary>
 
-- [x] Phase 44: Git Migration to GitHub (2/2 plans) — completed 2026-04-04
-- [x] Phase 45: release-please + CI Signing Removal (2/2 plans) — completed 2026-04-04
-- [x] Phase 46: Release Build Pipeline (1/1 plans) — completed 2026-04-04
-- [x] Phase 47: Homebrew Tap + Packaging Templates (2/2 plans) — completed 2026-04-05
-- [x] Phase 48: WinGet Distribution (2/2 plans) — completed 2026-04-05
+- [x] Phase 44: Go Module Path Rewrite (1/1 plans) — completed 2026-04-04
+- [x] Phase 45: Release Please Setup (1/1 plans) — completed 2026-04-04
+- [x] Phase 46: Release Artifacts & One-Liner (2/2 plans) — completed 2026-04-05
+- [x] Phase 47: Homebrew + WinGet Manifests (2/2 plans) — completed 2026-04-05
+- [x] Phase 48: Distribution Workflow (3/3 plans) — completed 2026-04-05
 
 </details>
 
 <details>
 <summary>✅ v1.9 Remote Sessions & App Polish (Phases 49-54) — SHIPPED 2026-04-08</summary>
 
-- [x] Phase 49: App Menus & Version Injection (2/2 plans) — completed 2026-04-07
-- [x] Phase 50: Tailscale Peer Discovery (2/2 plans) — completed 2026-04-07
-- [x] Phase 51: Auto-Update Checker (3/3 plans) — completed 2026-04-07
-- [x] Phase 52: Remote Sessions GUI Panel (3/3 plans) — completed 2026-04-07
-- [x] Phase 53: Remote Sessions CLI (2/2 plans) — completed 2026-04-07
-- [x] Phase 54: Tailscale Onboarding Enhancement (2/2 plans) — completed 2026-04-07
+- [x] Phase 49: macOS App Menus (2/2 plans) — completed 2026-04-06
+- [x] Phase 50: Tailscale Peer Discovery (3/3 plans) — completed 2026-04-06
+- [x] Phase 51: Auto-Update Checker (2/2 plans) — completed 2026-04-06
+- [x] Phase 52: Remote Sessions GUI (3/3 plans) — completed 2026-04-07
+- [x] Phase 53: CLI Remote Sessions (2/2 plans) — completed 2026-04-07
+- [x] Phase 54: Tailscale Onboarding (2/2 plans) — completed 2026-04-07
 
 </details>
 
 <details>
 <summary>✅ v1.10 Collapsible Sidebar Navigation (Phases 55-56) — SHIPPED 2026-04-08</summary>
 
-- [x] Phase 55: Sidebar Component & Icons (2/2 plans) — completed 2026-04-08
-- [x] Phase 56: Navigation Wiring & Tab Bar Cleanup (1/1 plans) — completed 2026-04-08
+- [x] Phase 55: Sidebar Icons + Layout (2/2 plans) — completed 2026-04-08
+- [x] Phase 56: Tab Bar Cleanup (1/1 plans) — completed 2026-04-08
 
 </details>
 
 <details>
 <summary>✅ v1.11 Local Network & UX Polish (Phases 57-62) — SHIPPED 2026-04-10</summary>
 
-- [x] Phase 57: Quick Wins (2/2 plans) — completed 2026-04-09
-- [x] Phase 58: Settings as Sidebar Tab (1/1 plans) — completed 2026-04-09
-- [x] Phase 59: Auto-Serve Sessions (1/1 plans) — completed 2026-04-09
+- [x] Phase 57: Agent Discovery Paths (1/1 plans) — completed 2026-04-08
+- [x] Phase 58: Settings Tab Conversion (1/1 plans) — completed 2026-04-08
+- [x] Phase 59: Web Server Auto-Start (1/1 plans) — completed 2026-04-09
 - [x] Phase 60: Local Network Fallback (3/3 plans) — completed 2026-04-09
-- [x] Phase 61: SERVE-02 Frontend Integration Fix (1/1 plans) — completed 2026-04-10
-- [x] Phase 62: Quick Task Tech Debt Cleanup (1/1 plans) — completed 2026-04-10
+- [x] Phase 61: Frontend webEnabled Seeding (2/2 plans) — completed 2026-04-09
+- [x] Phase 62: Tech Debt Cleanup (1/1 plans) — completed 2026-04-10
 
 </details>
 
@@ -195,6 +196,59 @@
 
 </details>
 
+### 🚧 v2.1 Bug Fixes & UX (In Progress)
+
+**Milestone Goal:** Fix settings persistence, cross-platform Tailscale detection, banner stacking, and add path browsing and minimize-to-tray UX.
+
+- [ ] **Phase 79: Settings Persistence & Path Browsing** - Fix paths not saving and add native browse buttons in Settings > Paths
+- [ ] **Phase 80: Tailscale Detection** - Broaden Tailscale binary detection and connection state reliability across platforms
+- [ ] **Phase 81: Banner Notifications** - Fix banner stacking to vertical layout with independent dismiss
+- [ ] **Phase 82: Minimize to Tray** - Add minimize-to-tray toggle in Settings with persisted startup behavior
+
+## Phase Details
+
+### Phase 79: Settings Persistence & Path Browsing
+**Goal**: Users can reliably save agent and Tailscale paths in Settings, see save confirmation, and use native browse buttons to pick paths without typing
+**Depends on**: Phase 78
+**Requirements**: SET-01, SET-02, SET-03, SET-04, SET-05
+**Success Criteria** (what must be TRUE):
+  1. User modifies an agent path in Settings > Paths, restarts the app, and the modified path is still present
+  2. User modifies the Tailscale path in Settings > Paths, restarts the app, and the modified path is still present
+  3. User clicks Save and sees a visible confirmation (toast, flash, or inline indicator) before the button returns to idle
+  4. Each path field in Settings > Paths has a browse button that opens a native file/folder picker
+  5. Selecting a file or folder via the picker populates the corresponding input field with the selected path
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 80: Tailscale Detection
+**Goal**: Tailscale is reliably detected and its connection state correctly reported across all supported installation methods and platforms
+**Depends on**: Phase 79
+**Requirements**: TS-01, TS-02
+**Success Criteria** (what must be TRUE):
+  1. Tailscale installed via Homebrew, system package manager, Snap, Flatpak, or Windows default location is detected without manual configuration
+  2. Tailscale connection state (connected vs. disconnected) is correctly reported in the UI on macOS, Linux, and Windows
+
+### Phase 81: Banner Notifications
+**Goal**: Multiple active notification banners stack cleanly and remain individually dismissible
+**Depends on**: Phase 80
+**Requirements**: BAN-01, BAN-02
+**Success Criteria** (what must be TRUE):
+  1. When two or more banners are active simultaneously, they appear stacked vertically (one above the other) rather than side-by-side or overlapping
+  2. Each stacked banner has its own dismiss control and dismissing one does not affect the others
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 82: Minimize to Tray
+**Goal**: Users can configure the app to start hidden in the system tray, with the preference persisting across restarts
+**Depends on**: Phase 81
+**Requirements**: TRAY-01, TRAY-02, TRAY-03
+**Success Criteria** (what must be TRUE):
+  1. Settings contains a clearly labeled toggle for "Start minimized to system tray" (or equivalent)
+  2. When the toggle is enabled and the app is launched, the main window is not shown and only the tray icon is visible
+  3. The minimize-to-tray preference is saved and survives app restarts — toggling it off and restarting shows the window normally again
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -215,6 +269,10 @@
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
+| 79. Settings Persistence & Path Browsing | v2.1 | 0/? | Not started | - |
+| 80. Tailscale Detection | v2.1 | 0/? | Not started | - |
+| 81. Banner Notifications | v2.1 | 0/? | Not started | - |
+| 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

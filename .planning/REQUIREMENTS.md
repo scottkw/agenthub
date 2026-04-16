@@ -89,31 +89,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SET-01 | — | Pending |
-| SET-02 | — | Pending |
-| SET-03 | — | Pending |
-| TS-01 | — | Pending |
-| TS-02 | — | Pending |
-| BAN-01 | — | Pending |
-| BAN-02 | — | Pending |
-| SET-04 | — | Pending |
-| SET-05 | — | Pending |
-| TRAY-01 | — | Pending |
-| TRAY-02 | — | Pending |
-| TRAY-03 | — | Pending |
+| SET-01 | Phase 79 | Pending |
+| SET-02 | Phase 79 | Pending |
+| SET-03 | Phase 79 | Pending |
+| SET-04 | Phase 79 | Pending |
+| SET-05 | Phase 79 | Pending |
+| TS-01 | Phase 80 | Pending |
+| TS-02 | Phase 80 | Pending |
+| BAN-01 | Phase 81 | Pending |
+| BAN-02 | Phase 81 | Pending |
+| TRAY-01 | Phase 82 | Pending |
+| TRAY-02 | Phase 82 | Pending |
+| TRAY-03 | Phase 82 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 **GitHub Issues:**
-- #26 → SET-01, SET-02, SET-03
-- #27 → TS-01, TS-02
-- #28 → BAN-01, BAN-02
-- #31 → SET-04, SET-05
-- #25 → TRAY-01, TRAY-02, TRAY-03
+- #26 → SET-01, SET-02, SET-03 → Phase 79
+- #31 → SET-04, SET-05 → Phase 79
+- #27 → TS-01, TS-02 → Phase 80
+- #28 → BAN-01, BAN-02 → Phase 81
+- #25 → TRAY-01, TRAY-02, TRAY-03 → Phase 82
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after initial definition*
+*Last updated: 2026-04-16 after roadmap creation*
