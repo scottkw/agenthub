@@ -1,7 +1,8 @@
 ---
 phase: 82
 slug: minimize-to-tray
-status: draft
+status: approved
+reviewed_at: 2026-04-16
 shadcn_initialized: false
 preset: none
 created: 2026-04-16
