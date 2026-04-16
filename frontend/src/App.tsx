@@ -22,6 +22,7 @@ import {
   GetRemoteSessions,
   GetWebServerMode,
   NotifyThemeChange,
+  GetLastUpdateInfo,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -32,6 +33,8 @@ import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
+import { UpdateBanner } from './components/UpdateBanner'
+import type { UpdateInfo } from './components/UpdateBanner'
 import { ALLOWED_THEMES } from './themes'
 
 const DEFAULT_FONT_SIZE = 14
@@ -87,6 +90,13 @@ function App(): React.ReactElement {
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
 
+  // Update notification state (lifted from WelcomeTab — Phase 81 D-06)
+  const [update, setUpdate] = useState<UpdateInfo | null>(null)
+  // Local network banner dismiss state (session-only, D-04)
+  const [localBannerDismissed, setLocalBannerDismissed] = useState(false)
+  const [localBannerExiting, setLocalBannerExiting] = useState(false)
+  const [updateExiting, setUpdateExiting] = useState(false)
+
   // Terminal theme (global — same theme for all sessions)
   const [terminalThemeName, setTerminalThemeName] = useState<string>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_THEME_NAME
@@ -103,6 +113,22 @@ function App(): React.ReactElement {
     // Signal active OpenCode sessions to re-query terminal palette (SIGUSR2).
     // Fire-and-forget: errors logged to console, never block UI.
     NotifyThemeChange().catch(err => console.warn('NotifyThemeChange failed:', err))
+  }, [])
+
+  const handleDismissLocalBanner = useCallback(() => {
+    setLocalBannerExiting(true)
+    setTimeout(() => {
+      setLocalBannerDismissed(true)
+      setLocalBannerExiting(false)
+    }, 200)
+  }, [])
+
+  const handleDismissUpdate = useCallback(() => {
+    setUpdateExiting(true)
+    setTimeout(() => {
+      setUpdate(null)
+      setUpdateExiting(false)
+    }, 200)
   }, [])
 
   // On mount: hide static HTML splash and initialize.
@@ -471,6 +497,24 @@ function App(): React.ReactElement {
     }
   }, [activeId])
 
+  // Lift update:available subscription from WelcomeTab (Phase 81 D-06)
+  useEffect(() => {
+    GetLastUpdateInfo()
+      .then((info) => { if (info) setUpdate(info) })
+      .catch(() => {})
+    const offUpdate = EventsOn('update:available', (info: UpdateInfo) => {
+      setUpdate(info)
+    })
+    return () => { offUpdate() }
+  }, [])
+
+  // Reset dismissed state when entering local mode (D-04: reappear if conditions change)
+  useEffect(() => {
+    if (webServerMode === 'local') {
+      setLocalBannerDismissed(false)
+    }
+  }, [webServerMode])
+
   const handleOpenDaemonManager = useCallback(() => {
     // If daemon-manager tab already exists, just focus it.
     const existing = tabs.find((t) => t.type === 'daemon-manager')
@@ -579,16 +623,29 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
-      {webServerMode === 'local' && (
-        <LocalNetworkBanner
-          visible={true}
-          tailscaleConnected={!!(tailscaleHealth?.connected && tailscaleHealth?.hasCerts && tailscaleHealth?.ip)}
-          tailscaleInstalled={!!(tailscaleHealth?.installed || detectedCLIs.some(c => c.Name === 'tailscale'))}
-          tailscaleBinaryFound={!!(tailscaleHealth?.binaryFound)}
-          tailscaleDaemonUp={!!(tailscaleHealth?.daemonUp)}
-          platformHint={tailscaleHealth?.platformHint || ''}
-          onOpenURL={BrowserOpenURL}
-        />
+      {((webServerMode === 'local' && !localBannerDismissed) || update) && (
+        <div className="banner-stack">
+          {webServerMode === 'local' && !localBannerDismissed && (
+            <LocalNetworkBanner
+              visible={true}
+              tailscaleConnected={!!(tailscaleHealth?.connected && tailscaleHealth?.hasCerts && tailscaleHealth?.ip)}
+              tailscaleInstalled={!!(tailscaleHealth?.installed || detectedCLIs.some(c => c.Name === 'tailscale'))}
+              tailscaleBinaryFound={!!(tailscaleHealth?.binaryFound)}
+              tailscaleDaemonUp={!!(tailscaleHealth?.daemonUp)}
+              platformHint={tailscaleHealth?.platformHint || ''}
+              onOpenURL={BrowserOpenURL}
+              onDismiss={handleDismissLocalBanner}
+              className={localBannerExiting ? 'banner-exit' : undefined}
+            />
+          )}
+          {update && (
+            <UpdateBanner
+              update={update}
+              onDismiss={handleDismissUpdate}
+              className={updateExiting ? 'banner-exit' : undefined}
+            />
+          )}
+        </div>
       )}
       <div className="app__row">
       <Sidebar
