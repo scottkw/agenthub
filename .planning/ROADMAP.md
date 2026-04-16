@@ -17,7 +17,7 @@
 - ✅ **v1.12 UI/UX Polish** — Phases 63-66 (shipped 2026-04-11)
 - ✅ **v1.13 Cross-Platform Fixes & UX** — Phases 67-69 (shipped 2026-04-12)
 - ✅ **v1.14 UI Polish** — Phases 70-73 (shipped 2026-04-14)
-- 🚧 **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (in progress)
+- ✅ **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (shipped 2026-04-16)
 
 ## Phases
 
@@ -184,94 +184,16 @@
 
 </details>
 
-### v2.0 Multi-Client, CLI UX & TUI Mode (In Progress)
+<details>
+<summary>✅ v2.0 Multi-Client, CLI UX & TUI Mode (Phases 74-78) — SHIPPED 2026-04-16</summary>
 
-- [x] **Phase 74: Multi-Client Fan-Out** — Wire relay/Hub for simultaneous WebSocket clients, independent scrollback, read-only mode, connection metadata, and PTY resize arbitration (GitHub #13) (completed 2026-04-15)
-- [x] **Phase 75: CLI Status Bar** — Introduce `internal/statusbar` package with DECSTBM scroll-region bar, viewer count, connection state, placement flag, and clean teardown (GitHub #8) (completed 2026-04-15)
-- [x] **Phase 76: TUI Foundation** — `agenthub tui` command with Bubble Tea v2 session list, web server status footer, and help overlay (GitHub #7) (completed 2026-04-15)
-- [x] **Phase 77: TUI Session Operations** — Attach (suspend/resume raw PTY), create modal, kill confirmation, and rename from TUI (GitHub #7) (completed 2026-04-15)
-- [x] **Phase 78: TUI Remote & QR** — Remote tailnet sessions panel and ASCII QR code display in TUI (GitHub #7) (completed 2026-04-15)
+- [x] Phase 74: Multi-Client Fan-Out (3/3 plans) — completed 2026-04-15
+- [x] Phase 75: CLI Status Bar (3/3 plans) — completed 2026-04-15
+- [x] Phase 76: TUI Foundation (3/3 plans) — completed 2026-04-15
+- [x] Phase 77: TUI Session Operations (4/4 plans) — completed 2026-04-15
+- [x] Phase 78: TUI Remote & QR (3/3 plans) — completed 2026-04-15
 
-## Phase Details
-
-### Phase 74: Multi-Client Fan-Out
-**Goal**: Multiple WebSocket clients can connect to the same session simultaneously, with independent control over scrollback, read-only access, visible identity, and stable PTY dimensions
-**Depends on**: Phase 73 (v1.14 complete)
-**Requirements**: MC-01, MC-02, MC-03, MC-04, MC-05, MC-06
-**Success Criteria** (what must be TRUE):
-  1. Two browser tabs (or CLI attaches) connected to the same session both receive live PTY output without either dropping bytes
-  2. Each client can independently scroll its own scrollback without affecting what other clients see
-  3. A client connected with `--readonly` flag receives output but keystrokes are discarded — the PTY process is not disturbed
-  4. `agenthub list` (or session metadata API) shows the current viewer count for each session
-  5. When clients have different terminal sizes, PTY dimensions stabilize to the largest active client — no continuous resize loop occurs
-**Plans:** 3/3 plans complete
-Plans:
-- [x] 74-01-PLAN.md — Hub core: Subscriber metadata fields, SubscriberCount, ResizeClient max-wins arbiter (TDD)
-- [x] 74-02-PLAN.md — Server enforcement: query param parsing, read-only gating, ResizeClient in both relay + webserver read pumps
-- [x] 74-03-PLAN.md — API + CLI: ViewerCount in SessionInfo, --readonly/--client flags on CLI attach
-
-### Phase 75: CLI Status Bar
-**Goal**: `agenthub attach` displays a persistent status bar that shows session context and live state without corrupting terminal output, and cleans up completely on exit
-**Depends on**: Phase 74
-**Requirements**: SB-01, SB-02, SB-03, SB-04, SB-05, SB-06, SB-07
-**Success Criteria** (what must be TRUE):
-  1. Attaching to a session via CLI shows a bottom bar containing: session name, agent type, hostname, detach hint (Ctrl-\\), and elapsed time
-  2. The status bar refreshes on a timer and terminal output scrolls normally — no garbled lines or overwritten content
-  3. Running `agenthub attach ... | cat` produces no status bar output (suppressed when stdout is not a TTY)
-  4. When a second client connects, the bar updates to show the viewer count (e.g. "2 viewers")
-  5. Detaching or exiting removes the bar line and restores the terminal to its pre-attach state — no leftover artifacts
-**Plans:** 3/3 plans complete
-Plans:
-- [x] 75-01-PLAN.md — MsgMeta protocol extension + Hub.BroadcastMeta + viewer count push in relay/webserver
-- [x] 75-02-PLAN.md — internal/statusbar package: Bar type with DECSTBM scroll region, format, tick loop, tests
-- [x] 75-03-PLAN.md — CLI integration: lockedWriter, --status-top flag, bar wiring in local/remote attach, MsgMeta intercept
-
-### Phase 76: TUI Foundation
-**Goal**: `agenthub tui` launches a usable terminal UI that lists all sessions with key metadata, shows web server status, and provides a discoverable help overlay
-**Depends on**: Phase 75
-**Requirements**: TUI-01, TUI-02, TUI-08, TUI-09
-**Success Criteria** (what must be TRUE):
-  1. Running `agenthub tui` opens a full-screen Bubble Tea interface without error
-  2. The session list displays each session's name, status indicator, agent type, hostname, and current viewer count
-  3. The footer/status area shows whether the web server is running (and its URL if active)
-  4. Pressing `?` displays a help overlay listing all keybindings for the current view; pressing `?` again or `Esc` closes it
-**Plans:** 3/3 plans complete
-Plans:
-- [x] 76-01-PLAN.md — Dependencies + daemon Status enrichment + TUI package scaffolding (model, styles, keys, cmds)
-- [x] 76-02-PLAN.md — TUI core rendering engine: entry point, Update, View, help overlay, unit tests
-- [x] 76-03-PLAN.md — CLI wiring: cmd_tui.go, main.go dispatch, usage string
-**UI hint**: yes
-
-### Phase 77: TUI Session Operations
-**Goal**: Users can perform the full session lifecycle from TUI — attach to run, create new, kill, and rename — without leaving the terminal interface
-**Depends on**: Phase 76
-**Requirements**: TUI-03, TUI-04, TUI-05, TUI-06
-**Success Criteria** (what must be TRUE):
-  1. Pressing Enter (or configured attach key) on a session in the list suspends TUI, enters raw PTY attach, and resumes TUI cleanly after Ctrl-\ detach
-  2. A new-session modal lets the user pick an agent, set a working directory, and provide extra arguments — creating the session and returning to the list
-  3. Pressing the kill key on a session shows a confirmation dialog; confirming removes the session from the list
-  4. The user can rename a session via an inline edit field or modal, with the updated name immediately reflected in the list
-**Plans:** 4/4 plans complete
-Plans:
-- [x] 77-01-PLAN.md — Scaffolding: model state, styles, keybindings (r=rename, R=refresh), cmds, help, view, update dispatch + tests
-- [x] 77-02-PLAN.md — Attach flow: extract internal/attach/ package, ExecCommand implementation, tea.Exec wiring
-- [x] 77-03-PLAN.md — Kill confirmation dialog + inline rename rendering + tests
-- [x] 77-04-PLAN.md — New-session modal: agent picker, text inputs, focus cycling, submit validation + tests
-**UI hint**: yes
-
-### Phase 78: TUI Remote & QR
-**Goal**: TUI surfaces remote tailnet peer sessions alongside local sessions and provides QR code access to any session's web URL without leaving the terminal
-**Depends on**: Phase 77
-**Requirements**: TUI-07, TUI-10
-**Success Criteria** (what must be TRUE):
-  1. The TUI session list (or a dedicated panel) shows remote sessions from tailnet peers grouped the same way as the GUI Remote Sessions panel
-  2. Triggering QR display for a session renders a readable ASCII QR code for the session's web URL directly in the terminal
-**Plans:** 3/3 plans complete
-Plans:
-- [x] 78-01-PLAN.md — Remote sessions in unified list: types, fetch callback, divider rows, navigation, tests
-- [x] 78-02-PLAN.md — QR code overlay: key reassignment (q->QR, Q->Quit), renderQROverlay, help/hint updates, tests
-- [x] 78-03-PLAN.md — Integration tests: end-to-end remote + QR flow validation
-**UI hint**: yes
+</details>
 
 ## Progress
 
@@ -292,11 +214,7 @@ Plans:
 | 63-66 | v1.12 | 4/4 | Complete | 2026-04-11 |
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
-| 74. Multi-Client Fan-Out | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 75. CLI Status Bar | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 76. TUI Foundation | v2.0 | 3/3 | Complete    | 2026-04-15 |
-| 77. TUI Session Operations | v2.0 | 4/4 | Complete    | 2026-04-15 |
-| 78. TUI Remote & QR | v2.0 | 3/3 | Complete    | 2026-04-15 |
+| 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

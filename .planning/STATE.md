@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Multi-Client, CLI UX & TUI Mode
-status: executing
-stopped_at: Phase 78 UI-SPEC approved
-last_updated: "2026-04-15T21:35:37.091Z"
-last_activity: 2026-04-15
+status: complete
+stopped_at: Milestone v2.0 archived
+last_updated: "2026-04-16T15:00:00.000Z"
+last_activity: 2026-04-16
 progress:
   total_phases: 5
   completed_phases: 5
@@ -18,43 +18,33 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-14)
+See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 78 — tui-remote-qr
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 78
-Plan: Not started
-Status: Executing Phase 78
-Last activity: 2026-04-15
+Milestone: v2.0 (shipped 2026-04-16)
+Status: Complete — milestone archived
+Last activity: 2026-04-16
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v1.14 plans completed: 9
-- v1.14 phases: 4
-- v1.14 timeline: 2026-04-13 → 2026-04-14 (2 days)
-- Cumulative: 73 phases, 135 plans across 15 milestones
+- v2.0 plans completed: 16
+- v2.0 phases: 5
+- v2.0 timeline: 2026-04-14 → 2026-04-16 (3 days)
+- Cumulative: 78 phases, 151 plans across 16 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
-- v2.0 phases ordered: multi-client (74) → CLI status bar (75) → TUI foundation (76) → TUI operations (77) → TUI remote+QR (78)
-- Phases 74 and 75 are parallelizable by implementation but ordered sequentially so status bar can show viewer count (needs MC-04) and SB reuses `internal/statusbar` package that TUI also depends on
-- TUI depends on both multi-client (viewer count display) and status bar (shared package) — phases 76-78 must follow 74-75
-- Build order rationale: multi-client is relay/Hub wiring work; CLI status bar is a new `internal/statusbar` package; TUI is Bubble Tea v2 with suspend/resume for raw PTY handoff
-- GitHub issues mapped: #13 → Phase 74, #8 → Phase 75, #7 → Phases 76-78
-- [Phase 77]: Priority-based key dispatch: editing > kill confirm > new session modal > help > main view
-- [Phase 77]: Refresh key reassigned from r to R; r now triggers rename, d triggers kill confirmation
-- [Phase 77]: Kill dialog uses FgDanger for title per UI-SPEC danger context
-- [Phase 77]: Extract shared attach logic to internal/attach/ package (Option A) — clean import by both CLI and TUI
-- [Phase 77]: Modal-level keys intercepted before textinput delegation
+(Cleared at milestone boundary — full decision log in PROJECT.md Key Decisions table)
 
 ### Pending Todos
 
@@ -66,10 +56,6 @@ None.
 |---|-------------|------|--------|-----------|
 | 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
-| Phase 77 P01 | 9min | 2 tasks | 13 files |
-| Phase 77 P03 | 6min | 2 tasks | 4 files |
-| Phase 77 P02 | 13min | 2 tasks | 14 files |
-| Phase 77 P04 | 4min | 2 tasks | 5 files |
 
 ### Blockers/Concerns
 
@@ -79,7 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-15T17:57:27.193Z
-Stopped at: Phase 78 UI-SPEC approved
-Resume file: .planning/phases/78-tui-remote-qr/78-UI-SPEC.md
-Next action: /gsd-plan-phase 74
+Last session: 2026-04-16
+Stopped at: Milestone v2.0 archived
+Next action: /gsd-new-milestone

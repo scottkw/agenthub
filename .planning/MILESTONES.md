@@ -1,5 +1,24 @@
 # Milestones
 
+## v2.0 Multi-Client, CLI UX & TUI Mode (Shipped: 2026-04-16)
+
+**Phases completed:** 5 phases, 16 plans, 22 tasks
+**Requirements:** 23/23 satisfied (MC-01..MC-06, SB-01..SB-07, TUI-01..TUI-10)
+**Commits:** 116 | **Timeline:** 3 days (2026-04-14 → 2026-04-16)
+**Source changes:** 158 files, +30,146 / -8,674 lines
+
+**Key accomplishments:**
+
+- Multi-client fan-out: relay Hub supports simultaneous WebSocket clients with per-subscriber metadata, independent scrollback, read-only mode (`--readonly` flag), max-wins PTY resize arbitration, and viewer count API (Phase 74, MC-01..MC-06)
+- CLI status bar: persistent DECSTBM scroll-region bar with session name, agent type, hostname, detach hint, elapsed time, live viewer count via MsgMeta push frames, connection state tracking, `--status-top` flag, and clean teardown (Phase 75, SB-01..SB-07)
+- TUI foundation: `agenthub tui` launches full-screen Bubble Tea v2 interface with session list, heuristic status glyphs, web server status footer, `?` help overlay, adaptive color, and 2s tick refresh (Phase 76, TUI-01, TUI-02, TUI-08, TUI-09)
+- TUI session operations: attach (tea.Exec suspend/resume raw PTY), create (agent picker modal), kill (confirmation dialog), rename (inline edit) — shared `internal/attach/` package used by both CLI and TUI (Phase 77, TUI-03..TUI-06)
+- TUI remote & QR: unified local+remote session list with tailnet peer discovery, grouped by hostname with divider rows, ASCII QR code overlay for session web URLs via go-qrcode (Phase 78, TUI-07, TUI-10)
+
+**Known tech debt at close:** 21 items (metadata debt only — SUMMARY frontmatter missing requirements_completed across 4 phases, REQUIREMENTS.md checkboxes unchecked for 19/23 items; 0 code gaps)
+
+---
+
 ## v1.14 UI Polish (Shipped: 2026-04-14)
 
 **Phases completed:** 4 phases, 9 plans
