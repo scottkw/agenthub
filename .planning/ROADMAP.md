@@ -202,7 +202,7 @@
 
 - [x] **Phase 79: Settings Persistence & Path Browsing** - Fix paths not saving and add native browse buttons in Settings > Paths (completed 2026-04-16)
 - [x] **Phase 80: Tailscale Detection** - Broaden Tailscale binary detection and connection state reliability across platforms (completed 2026-04-16)
-- [ ] **Phase 81: Banner Notifications** - Fix banner stacking to vertical layout with independent dismiss
+- [x] **Phase 81: Banner Notifications** - Fix banner stacking to vertical layout with independent dismiss (completed 2026-04-16)
 - [ ] **Phase 82: Minimize to Tray** - Add minimize-to-tray toggle in Settings with persisted startup behavior
 
 ## Phase Details
@@ -245,7 +245,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 81-01-PLAN.md — Component layer: dismissible LocalNetworkBanner, standalone UpdateBanner, WelcomeTab cleanup, banner CSS
-- [ ] 81-02-PLAN.md — App integration: BannerStack wiring, state lifting, dismiss handlers, test updates
+- [x] 81-02-PLAN.md — App integration: BannerStack wiring, state lifting, dismiss handlers, test updates
 **UI hint**: yes
 
 ### Phase 82: Minimize to Tray
@@ -280,7 +280,7 @@ Plans:
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 81. Banner Notifications | v2.1 | 1/2 | In Progress|  |
+| 81. Banner Notifications | v2.1 | 2/2 | Complete   | 2026-04-16 |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
 
 ---
