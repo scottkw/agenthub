@@ -35,6 +35,9 @@ export const RetryDaemon          = ()                      => Call('main.App.Re
 // Directory dialog bound method
 export const OpenDirectoryDialog  = (defaultDir)            => Call('main.App.OpenDirectoryDialog', [defaultDir])
 
+// File dialog bound method (SET-04)
+export const OpenFileDialog       = (defaultDir)            => Call('main.App.OpenFileDialog', [defaultDir])
+
 // Tailscale health bound method
 export const GetTailscaleStatus   = ()                      => Call('main.App.GetTailscaleStatus', [])
 
@@ -54,6 +57,9 @@ export const AutoInstallTailscale = ()                      => Call('main.App.Au
 // Local network mode bound methods
 export const GetLocalNetworkPassword = ()                   => Call('main.App.GetLocalNetworkPassword', [])
 export const GetWebServerMode        = ()                   => Call('main.App.GetWebServerMode', [])
+
+// CLI paths getter bound method (SET-01/02)
+export const GetCLIPaths             = ()                   => Call('main.App.GetCLIPaths', [])
 
 // Theme notification bound method
 export const NotifyThemeChange       = ()                   => Call('main.App.NotifyThemeChange', [])

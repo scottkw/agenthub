@@ -47,6 +47,9 @@ export function RetryDaemon(): Promise<void>
 // Directory dialog bound method
 export function OpenDirectoryDialog(defaultDir: string): Promise<string>
 
+// File dialog bound method (SET-04)
+export function OpenFileDialog(defaultDir: string): Promise<string>
+
 // Version bound method
 export function GetVersion(): Promise<string>
 
@@ -93,6 +96,9 @@ export function AutoInstallTailscale(): Promise<void>
 // Local network mode bound methods
 export function GetLocalNetworkPassword(): Promise<string>
 export function GetWebServerMode(): Promise<string>
+
+// CLI paths getter bound method (SET-01/02)
+export function GetCLIPaths(): Promise<Record<string, string>>
 
 // Theme notification bound method
 export function NotifyThemeChange(): Promise<void>

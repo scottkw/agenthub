@@ -311,6 +311,15 @@ func (a *App) UpdateCLIPath(name, path string) error {
 	return a.client.UpdateCLIPath(name, path)
 }
 
+// GetCLIPaths returns all stored CLI path overrides. Used by Settings tab to
+// populate path inputs with persisted values on mount.
+func (a *App) GetCLIPaths() (map[string]string, error) {
+	if a.client == nil {
+		return nil, fmt.Errorf("daemon not connected")
+	}
+	return a.client.GetCLIPaths()
+}
+
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
 // Creates the directory if it does not exist.
 func configDir() string {
@@ -483,6 +492,22 @@ func (a *App) OpenDirectoryDialog(defaultDir string) (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title:            "Select Working Directory",
 		DefaultDirectory: defaultDir,
+	})
+}
+
+// OpenFileDialog opens a native OS file picker and returns the selected path.
+// Returns "" if the user cancels. Falls back to the user's home directory when
+// defaultDir is empty. Used by Settings > Paths browse buttons (SET-04).
+func (a *App) OpenFileDialog(defaultDir string) (string, error) {
+	if defaultDir == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			defaultDir = home
+		}
+	}
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            "Select Executable",
+		DefaultDirectory: defaultDir,
+		ShowHiddenFiles:  true,
 	})
 }
 
