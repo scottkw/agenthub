@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -20,6 +21,7 @@ import (
 type SessionEngine struct {
 	hostname          string // machine hostname, captured at startup
 	opencodeTUIConfig string // path to managed opencode-tui.json (set at init)
+	configDir         string // cached config dir for settings persistence
 
 	registry *pty.SessionRegistry
 	backend  pty.SessionBackend
@@ -57,12 +59,52 @@ func ensureOpenCodeTUIConfig(dir string) string {
 	return path
 }
 
+// daemonSettings is the persisted settings structure.
+type daemonSettings struct {
+	CLIPaths map[string]string `json:"cliPaths,omitempty"`
+}
+
+// settingsPath returns the path to settings.json inside the config dir.
+func settingsPath(dir string) string {
+	return filepath.Join(dir, "settings.json")
+}
+
+// loadSettingsFromDisk reads settings.json and populates engine state.
+// Missing file is not an error (first run).
+func (e *SessionEngine) loadSettingsFromDisk(dir string) {
+	data, err := os.ReadFile(settingsPath(dir))
+	if err != nil {
+		return // file not found or unreadable — not an error
+	}
+	var s daemonSettings
+	if json.Unmarshal(data, &s) == nil && s.CLIPaths != nil {
+		e.mu.Lock()
+		for k, v := range s.CLIPaths {
+			e.cliPaths[k] = v
+		}
+		e.mu.Unlock()
+	}
+}
+
+// saveSettingsToDisk writes current cliPaths to settings.json.
+// Caller holds e.mu.Lock().
+func (e *SessionEngine) saveSettingsToDisk() {
+	s := daemonSettings{CLIPaths: e.cliPaths}
+	data, err := json.Marshal(s)
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(settingsPath(e.configDir), data, 0600)
+}
+
 // NewSessionEngine creates a SessionEngine with all subsystems initialised.
 func NewSessionEngine() *SessionEngine {
 	hostname, _ := os.Hostname()
-	tuiConfig := ensureOpenCodeTUIConfig(daemonConfigDir())
-	return &SessionEngine{
+	cfgDir := daemonConfigDir()
+	tuiConfig := ensureOpenCodeTUIConfig(cfgDir)
+	e := &SessionEngine{
 		hostname:          hostname,
+		configDir:         cfgDir,
 		opencodeTUIConfig: tuiConfig,
 		registry:          pty.NewSessionRegistry(),
 		backend:           pty.NewNativePTYBackend(),
@@ -72,6 +114,8 @@ func NewSessionEngine() *SessionEngine {
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
+	e.loadSettingsFromDisk(cfgDir)
+	return e
 }
 
 // CreateSession spawns a new CLI session and returns its ID.
@@ -230,13 +274,14 @@ func (e *SessionEngine) ResolveCLI(name string) string {
 }
 
 // UpdateCLIPath stores a custom executable path for the named CLI.
-// The path must exist on disk.
+// The path must exist on disk. Persists to settings.json.
 func (e *SessionEngine) UpdateCLIPath(name, path string) error {
 	if _, err := os.Stat(path); err != nil {
 		return fmt.Errorf("custom CLI path %q: %w", path, err)
 	}
 	e.mu.Lock()
 	e.cliPaths[name] = path
+	e.saveSettingsToDisk()
 	e.mu.Unlock()
 	return nil
 }

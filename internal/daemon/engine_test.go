@@ -216,6 +216,9 @@ func TestEngineResolveCLI(t *testing.T) {
 		t.Skip("uses Unix path /bin/cat")
 	}
 	e := NewSessionEngine()
+	// Isolate from real settings.json that NewSessionEngine may have loaded.
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
 
 	// By default: returns name as-is.
 	got := e.ResolveCLI("claude")

@@ -25,6 +25,9 @@ func testDaemon(t *testing.T) (*API, *DaemonClient, string) {
 		t.Skip("testDaemon uses Unix domain sockets")
 	}
 	engine := NewSessionEngine()
+	// Isolate from real settings.json that NewSessionEngine may have loaded.
+	engine.configDir = t.TempDir()
+	engine.cliPaths = make(map[string]string)
 	api := NewAPI(engine)
 	// Use short socket path — macOS t.TempDir() paths exceed the 103-char limit.
 	socketPath := shortSocketPath(t, "api.sock")
