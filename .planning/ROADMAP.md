@@ -242,6 +242,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When two or more banners are active simultaneously, they appear stacked vertically (one above the other) rather than side-by-side or overlapping
   2. Each stacked banner has its own dismiss control and dismissing one does not affect the others
+**Plans**: 2 plans
+Plans:
+- [ ] 81-01-PLAN.md — Component layer: dismissible LocalNetworkBanner, standalone UpdateBanner, WelcomeTab cleanup, banner CSS
+- [ ] 81-02-PLAN.md — App integration: BannerStack wiring, state lifting, dismiss handlers, test updates
 **UI hint**: yes
 
 ### Phase 82: Minimize to Tray
@@ -276,7 +280,7 @@ Plans:
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 81. Banner Notifications | v2.1 | 0/? | Not started | - |
+| 81. Banner Notifications | v2.1 | 0/2 | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
 
 ---
