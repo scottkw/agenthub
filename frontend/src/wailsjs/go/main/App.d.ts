@@ -72,6 +72,9 @@ export function GetTailscaleStatus(): Promise<{
   hasCerts: boolean
   ip: string
   domain: string
+  binaryFound: boolean
+  daemonUp: boolean
+  platformHint: string
 }>
 
 // Remote sessions bound method

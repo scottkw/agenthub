@@ -74,6 +74,9 @@ function App(): React.ReactElement {
     hasCerts: boolean
     ip: string
     domain: string
+    binaryFound: boolean
+    daemonUp: boolean
+    platformHint: string
   } | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
   // Ref for the background upgrade poller (local -> tailscale mode transition)
@@ -221,6 +224,9 @@ function App(): React.ReactElement {
       hasCerts: boolean
       ip: string
       domain: string
+      binaryFound: boolean
+      daemonUp: boolean
+      platformHint: string
     }) => {
       setTailscaleHealth(h)
       // If Tailscale just became fully healthy, poll for the backend to upgrade
@@ -578,6 +584,9 @@ function App(): React.ReactElement {
           visible={true}
           tailscaleConnected={!!(tailscaleHealth?.connected && tailscaleHealth?.hasCerts && tailscaleHealth?.ip)}
           tailscaleInstalled={!!(tailscaleHealth?.installed || detectedCLIs.some(c => c.Name === 'tailscale'))}
+          tailscaleBinaryFound={!!(tailscaleHealth?.binaryFound)}
+          tailscaleDaemonUp={!!(tailscaleHealth?.daemonUp)}
+          platformHint={tailscaleHealth?.platformHint || ''}
           onOpenURL={BrowserOpenURL}
         />
       )}
