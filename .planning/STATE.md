@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Bug Fixes & UX
 status: executing
-stopped_at: Phase 80 context gathered
-last_updated: "2026-04-16T16:54:37.269Z"
-last_activity: 2026-04-16
+stopped_at: Phase 80 UI-SPEC approved
+last_updated: "2026-04-16T19:08:12.374Z"
+last_activity: 2026-04-16 -- Phase 80 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
+  total_plans: 4
   completed_plans: 2
-  percent: 100
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 79 — settings-persistence-path-browsing
+**Current focus:** Phase 80 — tailscale-detection
 
 ## Current Position
 
-Phase: 80
-Plan: Not started
-Status: Executing Phase 79
-Last activity: 2026-04-16
+Phase: 80 (tailscale-detection) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 80
+Last activity: 2026-04-16 -- Phase 80 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -66,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-16T16:54:37.264Z
-Stopped at: Phase 80 context gathered
+Last session: 2026-04-16T17:00:05.080Z
+Stopped at: Phase 80 UI-SPEC approved
 Next action: /gsd-plan-phase 79

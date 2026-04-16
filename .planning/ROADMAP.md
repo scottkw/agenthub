@@ -232,7 +232,7 @@ Plans:
   2. Tailscale connection state (connected vs. disconnected) is correctly reported in the UI on macOS, Linux, and Windows
 **Plans**: 2 plans
 Plans:
-- [ ] 80-01-PLAN.md — Backend 4-state health check + platform-specific binary detection
+- [x] 80-01-PLAN.md — Backend 4-state health check + platform-specific binary detection
 - [ ] 80-02-PLAN.md — Frontend 4-state UI + diagnostics checklist + banner update
 
 ### Phase 81: Banner Notifications
@@ -275,7 +275,7 @@ Plans:
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 80. Tailscale Detection | v2.1 | 0/2 | Not started | - |
+| 80. Tailscale Detection | v2.1 | 1/2 | In Progress|  |
 | 81. Banner Notifications | v2.1 | 0/? | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
 
