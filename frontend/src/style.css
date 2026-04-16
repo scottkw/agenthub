@@ -459,6 +459,38 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+.settings-panel__btn--saved {
+  background-color: #9ece6a;
+  color: #1a1b26;
+  font-weight: 600;
+  cursor: default;
+}
+.settings-panel__btn--saved:disabled {
+  opacity: 1;
+}
+
+.settings-panel__path-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-panel__browse-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid #292e42;
+  background: transparent;
+  color: #9aa5ce;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.settings-panel__browse-btn:hover {
+  color: #c0caf5;
+  border-color: #3b4261;
+}
 
 /* ─── Field groups & form elements ───────────────────────────────── */
 .settings-panel__field-group {
