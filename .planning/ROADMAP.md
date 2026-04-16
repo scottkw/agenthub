@@ -217,7 +217,10 @@
   3. User clicks Save and sees a visible confirmation (toast, flash, or inline indicator) before the button returns to idle
   4. Each path field in Settings > Paths has a browse button that opens a native file/folder picker
   5. Selecting a file or folder via the picker populates the corresponding input field with the selected path
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
+- [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ### Phase 80: Tailscale Detection
@@ -235,7 +238,10 @@
 **Success Criteria** (what must be TRUE):
   1. When two or more banners are active simultaneously, they appear stacked vertically (one above the other) rather than side-by-side or overlapping
   2. Each stacked banner has its own dismiss control and dismissing one does not affect the others
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
+- [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ### Phase 82: Minimize to Tray
@@ -246,7 +252,10 @@
   1. Settings contains a clearly labeled toggle for "Start minimized to system tray" (or equivalent)
   2. When the toggle is enabled and the app is launched, the main window is not shown and only the tray icon is visible
   3. The minimize-to-tray preference is saved and survives app restarts — toggling it off and restarting shows the window normally again
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
+- [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ## Progress
@@ -269,7 +278,7 @@
 | 67-69 | v1.13 | 5/5 | Complete | 2026-04-12 |
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
-| 79. Settings Persistence & Path Browsing | v2.1 | 0/? | Not started | - |
+| 79. Settings Persistence & Path Browsing | v2.1 | 0/2 | Planning | - |
 | 80. Tailscale Detection | v2.1 | 0/? | Not started | - |
 | 81. Banner Notifications | v2.1 | 0/? | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
