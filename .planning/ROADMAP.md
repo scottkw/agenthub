@@ -256,6 +256,10 @@ Plans:
   1. Settings contains a clearly labeled toggle for "Start minimized to system tray" (or equivalent)
   2. When the toggle is enabled and the app is launched, the main window is not shown and only the tray icon is visible
   3. The minimize-to-tray preference is saved and survives app restarts — toggling it off and restarting shows the window normally again
+**Plans**: 2 plans
+Plans:
+- [ ] 82-01-PLAN.md — Backend persistence, daemon API, Wails bindings, domReady gate
+- [ ] 82-02-PLAN.md — Frontend Behavior section with start-minimized toggle + CSS
 **UI hint**: yes
 
 ## Progress
@@ -281,7 +285,7 @@ Plans:
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 81. Banner Notifications | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
+| 82. Minimize to Tray | v2.1 | 0/2 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
