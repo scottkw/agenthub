@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { ALLOWED_THEMES } from '../themes'
 import {
   UpdateCLIPath,
+  GetCLIPaths,
+  OpenFileDialog,
   StartWebServer,
   StopWebServer,
   GetWebServerURL,
@@ -52,6 +54,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     return initial
   })
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Web serving state
@@ -92,6 +95,15 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       }
     }
     void loadWebState()
+  }, [])
+
+  // Load stored CLI path overrides from daemon on mount.
+  useEffect(() => {
+    GetCLIPaths().then(paths => {
+      if (paths && Object.keys(paths).length > 0) {
+        setCustomPaths(prev => ({ ...prev, ...paths }))
+      }
+    }).catch(() => {})
   }, [])
 
   // Fetch LAN password when in local mode and server is running.
@@ -174,10 +186,21 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       if (tsCustom.trim() !== '' && tsCustom !== (tsCli?.Path ?? '')) {
         await UpdateCLIPath('tailscale', tsCustom.trim())
       }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleBrowse(cliName: string) {
+    const current = customPaths[cliName] ?? ''
+    const dir = current ? current.replace(/[/\\][^/\\]*$/, '') : ''
+    const selected = await OpenFileDialog(dir)
+    if (selected) {
+      setCustomPaths(prev => ({ ...prev, [cliName]: selected }))
     }
   }
 
@@ -403,15 +426,24 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
                 <tr key={cli.Name}>
                   <td className="settings-panel__cli-name">{cli.Name}</td>
                   <td>
-                    <input
-                      className="settings-panel__path-input"
-                      type="text"
-                      value={customPaths[cli.Name] ?? cli.Path}
-                      onChange={(e) =>
-                        setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
-                      }
-                      placeholder={cli.Path || `Path to ${cli.Name}`}
-                    />
+                    <div className="settings-panel__path-row">
+                      <input
+                        className="settings-panel__path-input"
+                        type="text"
+                        value={customPaths[cli.Name] ?? cli.Path}
+                        onChange={(e) =>
+                          setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
+                        }
+                        placeholder={cli.Path || `Path to ${cli.Name}`}
+                      />
+                      <button
+                        className="settings-panel__browse-btn"
+                        onClick={() => void handleBrowse(cli.Name)}
+                        title="Browse for executable"
+                      >
+                        Browse
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -434,15 +466,24 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
                 <tr>
                   <td className="settings-panel__cli-name">tailscale</td>
                   <td>
-                    <input
-                      className="settings-panel__path-input"
-                      type="text"
-                      value={tsPath}
-                      onChange={(e) =>
-                        setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
-                      }
-                      placeholder="Path to tailscale"
-                    />
+                    <div className="settings-panel__path-row">
+                      <input
+                        className="settings-panel__path-input"
+                        type="text"
+                        value={tsPath}
+                        onChange={(e) =>
+                          setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
+                        }
+                        placeholder="Path to tailscale"
+                      />
+                      <button
+                        className="settings-panel__browse-btn"
+                        onClick={() => void handleBrowse('tailscale')}
+                        title="Browse for executable"
+                      >
+                        Browse
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -454,11 +495,11 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
         <div className="settings-panel__save-paths-row">
           <button
-            className="settings-panel__btn settings-panel__btn--save"
+            className={`settings-panel__btn ${saved ? 'settings-panel__btn--saved' : 'settings-panel__btn--save'}`}
             onClick={handleSaveCLIPaths}
-            disabled={saving}
+            disabled={saving || saved}
           >
-            {saving ? 'Saving\u2026' : 'Save Paths'}
+            {saving ? 'Saving\u2026' : saved ? 'Saved!' : 'Save Paths'}
           </button>
         </div>
 
