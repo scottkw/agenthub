@@ -666,6 +666,52 @@
 
 ---
 
+## Milestone: v2.0 — Multi-Client, CLI UX & TUI Mode
+
+**Shipped:** 2026-04-16
+**Phases:** 5 | **Plans:** 16 | **Commits:** 116
+
+### What Was Built
+- Multi-client WebSocket fan-out: per-subscriber metadata, independent scrollback, read-only mode, max-wins resize arbitration, viewer count API
+- CLI status bar: DECSTBM scroll-region bar with session context, live viewer count via MsgMeta push frames, --status-top flag, clean teardown
+- TUI foundation: Bubble Tea v2 terminal UI with session list, heuristic status glyphs, web server status footer, help overlay, adaptive color
+- TUI session operations: attach (tea.Exec suspend/resume), create modal, kill confirmation, inline rename — shared internal/attach/ package
+- TUI remote & QR: unified local+remote session list with tailnet peer grouping, ASCII QR code overlay for session web URLs
+
+### What Worked
+- TDD discipline on Phase 74 (Hub extensions): RED tests first, GREEN implementation, clean refactor — caught resize arbitration edge cases early
+- Shared internal/attach/ package extraction (Phase 77): CLI and TUI attach logic unified in one place, no duplication
+- Phase ordering (74→75→76→77→78): each phase's output was directly consumed by the next — status bar viewer count needs Hub metadata, TUI needs status bar package, etc.
+- 3-day execution for 5 phases/16 plans — fastest multi-phase milestone yet, enabled by well-defined requirements and phase boundaries
+- MsgMeta protocol extension cleanly reused existing binary framing — one new frame type (0x04) integrated across relay, webserver, and CLI attach
+- Bubble Tea v2 tea.Exec pattern for TUI→attach→TUI transitions worked perfectly first try — clean suspend/resume with no terminal state corruption
+
+### What Was Inefficient
+- SUMMARY frontmatter requirements_completed missing across 4 of 5 phases — metadata debt continues despite being a known issue since v1.1
+- REQUIREMENTS.md checkboxes only checked for 4/23 items (TUI-03..06) despite all being satisfied — traceability table Pending/Complete status not updated during execution
+- Phase 74 and 75 human UAT items (7 total) not resolved during milestone — live terminal/browser testing deferred
+- summary-extract CLI tool produced poor one-liners for many plans — auto-extraction quality remains unreliable
+
+### Patterns Established
+- MsgMeta push frame pattern for broadcasting session metadata changes to all subscribers — reusable for future metadata (e.g., input locking)
+- lockedWriter pattern for serializing concurrent writes to a shared terminal stdout — applicable anywhere multiple goroutines write to the same fd
+- Priority-based key dispatch (5-level) in TUI: modal states > overlay states > main view — extensible for future TUI features
+- FetchRemoteFn callback injection in TUI model — decouples tailnet discovery from TUI package, enables test isolation
+
+### Key Lessons
+1. Requirements traceability metadata (SUMMARY frontmatter, REQUIREMENTS.md checkboxes) needs automated tooling — manual updates continue to drift across every milestone
+2. Existing binary framing protocols are cheap to extend — adding MsgMeta was a one-liner type constant plus handler, not a protocol redesign
+3. Charm Bubble Tea v2 tea.Exec is the correct pattern for shelling out from TUI — alternatives (os.Exec, subprocess) would corrupt terminal state
+4. Unified lists (local+remote in one view) are better UX than split panels in terminal UI — simpler mental model, less navigation
+5. ASCII QR codes need terminal size guards — go-qrcode output can exceed small terminal viewports; 55×25 minimum prevents truncation
+
+### Cost Observations
+- Model mix: ~65% sonnet (execution), ~30% opus (planning/audit/completion), ~5% haiku
+- Sessions: ~4 sessions across 3 days
+- Notable: 16 plans in 3 days — highest daily throughput of any milestone (5.3 plans/day)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -687,6 +733,7 @@
 | v1.12 | 48 | 4 | UI polish milestone, risk-ascending phase ordering, xterm-theme integration, WebGL atlas clearing pattern |
 | v1.13 | 11 | 3 | Cross-platform tray (D-Bus SNI + Shell_NotifyIcon), shared tray helpers, build-tagged platform paths, settings scroll refactor |
 | v1.14 | 64 | 4 | Per-agent env injection (OpenCode tui.json), SIGUSR2 signal broadcast, WCAG contrast audit, curated theme allowlist |
+| v2.0 | 116 | 5 | Multi-client fan-out, DECSTBM status bar, Bubble Tea v2 TUI, shared attach package, unified local+remote list |
 
 ### Cumulative Quality
 
@@ -707,6 +754,7 @@
 | v1.12 | 200+ (race-clean) | 270+ | ~43,700 | 4 cosmetic (SUMMARY frontmatter `provides` vs `requirements-completed`, VERIFICATION doc string) |
 | v1.13 | 200+ (race-clean) | 270+ | ~43,000 | 11 (9 human UAT, 2 metadata; 0 blockers) |
 | v1.14 | 200+ (race-clean) | 280+ | ~23,000 | 3 (0 blockers; SUMMARY one_liner extraction broken, ROADMAP checkbox drift, audit-open bug) |
+| v2.0 | 280+ (race-clean) | 280+ | ~26,000 | 21 (0 blockers; 19 metadata drift, 2 scope deferrals) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -732,3 +780,5 @@
 20. Quick tasks that overlap with planned phases create naming/reference confusion — fold into the phase or document the overlap explicitly (v1.11)
 21. Type-chain wiring across 5+ IPC layers needs an explicit checklist — omitting one layer creates subtle state bugs that pass unit tests (v1.11)
 20. SUMMARY frontmatter one_liner auto-extraction is unreliable across 10 milestones — needs tooling fix or manual curation at completion time (v1.1-v1.9)
+21. Extending existing wire protocols (binary framing) is cheaper than designing new ones — MsgMeta added in v2.0 with one type constant and handler, no breaking changes (v2.0)
+22. Shared package extraction (internal/attach/) should happen at the second consumer, not later — CLI+TUI attach unified cleanly because extraction was planned in the phase (v2.0)
