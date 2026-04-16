@@ -196,7 +196,7 @@
 
 </details>
 
-### 🚧 v2.1 Bug Fixes & UX (In Progress)
+### v2.1 Bug Fixes & UX (In Progress)
 
 **Milestone Goal:** Fix settings persistence, cross-platform Tailscale detection, banner stacking, and add path browsing and minimize-to-tray UX.
 
@@ -230,6 +230,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Tailscale installed via Homebrew, system package manager, Snap, Flatpak, or Windows default location is detected without manual configuration
   2. Tailscale connection state (connected vs. disconnected) is correctly reported in the UI on macOS, Linux, and Windows
+**Plans**: 2 plans
+Plans:
+- [ ] 80-01-PLAN.md — Backend 4-state health check + platform-specific binary detection
+- [ ] 80-02-PLAN.md — Frontend 4-state UI + diagnostics checklist + banner update
 
 ### Phase 81: Banner Notifications
 **Goal**: Multiple active notification banners stack cleanly and remain individually dismissible
@@ -238,10 +242,6 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. When two or more banners are active simultaneously, they appear stacked vertically (one above the other) rather than side-by-side or overlapping
   2. Each stacked banner has its own dismiss control and dismissing one does not affect the others
-**Plans**: 2 plans
-Plans:
-- [x] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
-- [x] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ### Phase 82: Minimize to Tray
@@ -252,10 +252,6 @@ Plans:
   1. Settings contains a clearly labeled toggle for "Start minimized to system tray" (or equivalent)
   2. When the toggle is enabled and the app is launched, the main window is not shown and only the tray icon is visible
   3. The minimize-to-tray preference is saved and survives app restarts — toggling it off and restarting shows the window normally again
-**Plans**: 2 plans
-Plans:
-- [x] 79-01-PLAN.md — Backend persistence + Wails bindings (settings.json, OpenFileDialog, GetCLIPaths)
-- [ ] 79-02-PLAN.md — Frontend save confirmation + browse buttons + stored-path loading
 **UI hint**: yes
 
 ## Progress
@@ -279,7 +275,7 @@ Plans:
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 80. Tailscale Detection | v2.1 | 0/? | Not started | - |
+| 80. Tailscale Detection | v2.1 | 0/2 | Not started | - |
 | 81. Banner Notifications | v2.1 | 0/? | Not started | - |
 | 82. Minimize to Tray | v2.1 | 0/? | Not started | - |
 
