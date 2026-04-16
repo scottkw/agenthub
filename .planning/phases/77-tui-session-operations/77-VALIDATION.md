@@ -1,11 +1,12 @@
 ---
 phase: 77
 slug: tui-session-operations
-status: draft
+status: complete
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-04-15
 linked_at: 2026-04-15
+audited: 2026-04-16
 ---
 
 # Phase 77 — Validation Strategy
@@ -43,14 +44,14 @@ linked_at: 2026-04-15
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 77-01-T1 | 77-01 | 1 | TUI-03, TUI-04, TUI-05, TUI-06 | T-77-RACE | Model fields store session IDs (not indices); modal/editing state immutable during tick refresh | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
-| 77-01-T2 | 77-01 | 1 | TUI-03, TUI-04, TUI-05, TUI-06 | T-77-DOS, T-77-RACE | Priority-based key dispatch; kill/rename by ID not index; r=rename R=refresh reassignment | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
-| 77-02-T1 | 77-02 | 2 | TUI-03 | T-77-RACE, T-77-INJ | LockedWriter serializes concurrent writes; attach logic extracted; no inline duplication | unit + build | `go build ./... && go test ./internal/attach/... -count=1 -timeout 30s` | yes | ⬜ pending |
-| 77-02-T2 | 77-02 | 2 | TUI-03 | T-77-PATH, T-77-DOS | attachCmd uses sessionID by value; tea.Exec dispatched; errored sessions blocked; defer term.Restore | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
-| 77-03-T1 | 77-03 | 2 | TUI-05, TUI-06 | T-77-INJ | Kill dialog renders session name via fmt.Sprintf %q + Lip Gloss; no raw ANSI; FgDanger for title | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
-| 77-03-T2 | 77-03 | 2 | TUI-05, TUI-06 | T-77-DOS | Kill confirm state: default No, y/n shortcuts, toggle, session killed toast; rename: empty rejected, same-name no-op, nav suppressed | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
-| 77-04-T1 | 77-04 | 3 | TUI-04 | T-77-PATH, T-77-INJ | Agent names from DetectCLIs (controlled); dir/args via textinput (safe); no client-side path validation | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ⬜ pending |
-| 77-04-T2 | 77-04 | 3 | TUI-04 | T-77-DOS | Focus cycling modular arithmetic; agent cycling modular; textinput delegation single Update; DetectCLIs cached | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ⬜ pending |
+| 77-01-T1 | 77-01 | 1 | TUI-03, TUI-04, TUI-05, TUI-06 | T-77-RACE | Model fields store session IDs (not indices); modal/editing state immutable during tick refresh | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ✅ green |
+| 77-01-T2 | 77-01 | 1 | TUI-03, TUI-04, TUI-05, TUI-06 | T-77-DOS, T-77-RACE | Priority-based key dispatch; kill/rename by ID not index; r=rename R=refresh reassignment | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ✅ green |
+| 77-02-T1 | 77-02 | 2 | TUI-03 | T-77-RACE, T-77-INJ | LockedWriter serializes concurrent writes; attach logic extracted; no inline duplication | unit + build | `go build ./... && go test ./internal/attach/... -count=1 -timeout 30s` | yes | ✅ green |
+| 77-02-T2 | 77-02 | 2 | TUI-03 | T-77-PATH, T-77-DOS | attachCmd uses sessionID by value; tea.Exec dispatched; errored sessions blocked; defer term.Restore | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ✅ green |
+| 77-03-T1 | 77-03 | 2 | TUI-05, TUI-06 | T-77-INJ | Kill dialog renders session name via fmt.Sprintf %q + Lip Gloss; no raw ANSI; FgDanger for title | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ✅ green |
+| 77-03-T2 | 77-03 | 2 | TUI-05, TUI-06 | T-77-DOS | Kill confirm state: default No, y/n shortcuts, toggle, session killed toast; rename: empty rejected, same-name no-op, nav suppressed | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ✅ green |
+| 77-04-T1 | 77-04 | 3 | TUI-04 | T-77-PATH, T-77-INJ | Agent names from DetectCLIs (controlled); dir/args via textinput (safe); no client-side path validation | build + vet | `go build ./internal/tui/... && go vet ./internal/tui/...` | yes | ✅ green |
+| 77-04-T2 | 77-04 | 3 | TUI-04 | T-77-DOS | Focus cycling modular arithmetic; agent cycling modular; textinput delegation single Update; DetectCLIs cached | unit | `go test ./internal/tui/... -count=1 -timeout 30s` | yes | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -68,15 +69,15 @@ Every requirement has >= 2 verifying tasks.
 
 Wave 0 is handled by Plan 77-01 (Wave 1) — all scaffolding, types, and test infrastructure are created in the first plan.
 
-- [ ] No new `go get` needed (all deps already in go.mod from Phase 76)
-- [ ] `internal/tui/model.go` extended with Phase 77 state fields and message types (77-01-T1)
-- [ ] `internal/tui/update_test.go` extended with Phase 77 tests (77-01-T2)
-- [ ] `internal/tui/view_test.go` extended with Phase 77 tests (77-01-T2)
-- [ ] `internal/tui/help_test.go` updated for new help content (77-01-T2)
-- [ ] `internal/attach/` package directory created (77-02-T1)
-- [ ] `internal/tui/attach.go` — NEW file for ExecCommand (77-02-T2)
-- [ ] `internal/tui/modal.go` — NEW file for modal rendering (77-03-T1)
-- [ ] `internal/tui/attach_test.go` — NEW file for attach tests (77-02-T2)
+- [x] No new `go get` needed (all deps already in go.mod from Phase 76)
+- [x] `internal/tui/model.go` extended with Phase 77 state fields and message types (77-01-T1)
+- [x] `internal/tui/update_test.go` extended with Phase 77 tests (77-01-T2)
+- [x] `internal/tui/view_test.go` extended with Phase 77 tests (77-01-T2)
+- [x] `internal/tui/help_test.go` updated for new help content (77-01-T2)
+- [x] `internal/attach/` package directory created (77-02-T1)
+- [x] `internal/tui/attach.go` — NEW file for ExecCommand (77-02-T2)
+- [x] `internal/tui/modal.go` — NEW file for modal rendering (77-03-T1)
+- [x] `internal/tui/attach_test.go` — NEW file for attach tests (77-02-T2)
 
 ---
 
@@ -113,7 +114,29 @@ Each of the above MUST be listed as a human UAT item in `77-HUMAN-UAT.md` after 
 - [x] Wave 0 covers all MISSING references (test stubs + any new dependencies + `internal/attach/` extraction)
 - [x] No watch-mode flags (always `-count=1`)
 - [x] Feedback latency < 30s
-- [ ] Manual UAT items from this file are mirrored in `77-HUMAN-UAT.md` after execution
+- [x] Manual UAT items from this file are mirrored in `77-HUMAN-UAT.md` after execution
 - [x] `nyquist_compliant: true` set in frontmatter after planner links all Task IDs
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-16
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Audit details:**
+- All 8 verification tasks executed and confirmed green
+- `go build ./internal/tui/...` — PASS
+- `go vet ./internal/tui/...` — PASS
+- `go test ./internal/tui/...` — 78/78 PASS (0 fail)
+- `go test ./internal/attach/...` — 2/2 PASS (0 fail)
+- TUI-03: 7 tests (attach interface, stdin/stdout, dispatch, errored session, done, LockedWriter, ResizeFrame)
+- TUI-04: 10 tests (focus cycle, agent cycle, submit validation, no agents, submit success, cancel, create msg, modal open, view x2)
+- TUI-05: 7 tests (cancel, quick-yes, toggle focus, confirm open, kill msg, remote blocked, dialog view)
+- TUI-06: 8 tests (empty rejected, nav suppressed, same-name no-op, submit/cancel, rename msg, start, remote blocked, inline view)
+- Zero gaps — all requirements have automated verification coverage
