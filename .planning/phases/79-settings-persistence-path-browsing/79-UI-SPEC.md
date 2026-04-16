@@ -38,15 +38,13 @@ Declared values (must be multiples of 4):
 | xs | 4px | Table header padding, inline icon gaps |
 | sm | 8px | Table cell padding, path-input padding (6px 8px), row gaps |
 | md | 16px | Field-group bottom margin, save-row top margin |
-| lg | 20px | Settings panel body padding |
+| lg | 24px | Settings panel body padding |
 | xl | 24px | Section header top margin |
 | 2xl | 32px | — (not used in this phase) |
 | 3xl | 48px | — (not used in this phase) |
 
 Exceptions:
-- Path row flex gap: 6px (between input and browse button — matches existing 6px border-radius rhythm)
-- Section header margin-bottom: 12px (established value from `.settings-panel__body h3`)
-- Browse button padding: 4px 10px (compact inline action, not a primary CTA)
+- Section header margin-bottom: 12px (established value from `.settings-panel__body h3` — pre-existing, not introduced this phase)
 
 Source: RESEARCH.md CSS Examples section; confirmed in `style.css` lines 340–550.
 
@@ -57,12 +55,14 @@ Source: RESEARCH.md CSS Examples section; confirmed in `style.css` lines 340–5
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body / description | 12px | 400 | 1.5 |
-| Label / table header | 13px | 600 (labels), 500 (table th) | 1.2 |
-| Section heading (h3) | 13px | 400 (uppercase + letter-spacing) | 1.2 |
+| Label / section heading / table header | 13px | 600 | 1.2 |
+| Section heading (h3, uppercase) | 13px | 400 (uppercase + letter-spacing) | 1.2 |
 | CLI name / accent text | 13px | 400 | 1.2 |
 
 Notes:
-- Section headings use `text-transform: uppercase; letter-spacing: 0.08em` to visually distinguish from labels — not a different font size.
+- Two weights only: 400 (normal) and 600 (emphasis). No intermediate weight is used.
+- Table headers (`table th`) use weight 600 — same as labels. This aligns `th` with other emphasis elements.
+- Section headings use `text-transform: uppercase; letter-spacing: 0.08em` to visually distinguish from labels — not a different font size or a third weight.
 - Path inputs use 12px monospace (Cascadia Code) to match terminal aesthetic.
 - Browse button label: 12px, weight 400.
 - "Saved!" confirmation text: 13px, weight 600 (inherits from `.settings-panel__btn`).
@@ -95,6 +95,8 @@ Accent (10%) reserved for:
 
 Accent reserved for: Save button (blue), Saved confirmation (green), error messages (red), CLI name labels (blue), input focus ring (blue). Do NOT use accent colors for decorative purposes.
 
+**Primary focal point:** Save Paths button (blue accent `#7aa2f7`, right-aligned in the save row via `justify-content: flex-end`). All other interactive elements (path inputs, browse buttons) are visually subordinate.
+
 Source: `style.css` lines 320–570; RESEARCH.md CSS Examples section (saved/browse colors).
 
 ---
@@ -124,7 +126,7 @@ Flex container wrapping path `<input>` + browse `<button>` within a table cell.
 ```css
 .settings-panel__path-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 ```
@@ -134,7 +136,7 @@ Compact secondary action button, inline with path input. Visually subordinate to
 
 ```css
 .settings-panel__browse-btn {
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -151,7 +153,7 @@ Compact secondary action button, inline with path input. Visually subordinate to
 }
 ```
 
-Source: RESEARCH.md Pattern 3 and Pattern 4 CSS examples (verbatim from research).
+Source: RESEARCH.md Pattern 3 and Pattern 4 CSS examples (adapted — gap and padding corrected to multiples of 4).
 
 ---
 
