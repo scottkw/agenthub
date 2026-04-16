@@ -21,7 +21,7 @@ describe('WelcomeTab (BRND-02)', () => {
   })
 
   it('fetches version from Wails binding', () => {
-    expect(raw).toContain("import { GetVersion, GetLastUpdateInfo } from '../wailsjs/go/main/App'")
+    expect(raw).toContain("import { GetVersion } from '../wailsjs/go/main/App'")
     expect(raw).toContain('GetVersion()')
   })
 
@@ -59,66 +59,3 @@ describe('WelcomeTab CSS (UI-01)', () => {
   })
 })
 
-describe('update banner (UPD-02, UPD-03)', () => {
-  it('imports GetLastUpdateInfo from Wails bindings', () => {
-    expect(raw).toContain('GetLastUpdateInfo')
-  })
-
-  it('imports EventsOn from Wails runtime', () => {
-    expect(raw).toContain('EventsOn')
-  })
-
-  it('imports BrowserOpenURL from Wails runtime', () => {
-    expect(raw).toContain('BrowserOpenURL')
-  })
-
-  it('subscribes to update:available event', () => {
-    expect(raw).toContain("'update:available'")
-  })
-
-  it('renders update-banner with role="alert"', () => {
-    expect(raw).toContain('update-banner')
-    expect(raw).toContain('role="alert"')
-  })
-
-  it('renders Download Update button', () => {
-    expect(raw).toContain('Download Update')
-  })
-
-  it('renders Dismiss button with aria-label', () => {
-    expect(raw).toContain('Dismiss')
-    expect(raw).toContain('aria-label="Dismiss update notification"')
-  })
-
-  it('calls BrowserOpenURL with release URL on download click', () => {
-    expect(raw).toContain('BrowserOpenURL(update.releaseURL)')
-  })
-
-  it('dismisses banner by calling setUpdate(null)', () => {
-    expect(raw).toContain('setUpdate(null)')
-  })
-
-  it('calls GetLastUpdateInfo on mount', () => {
-    expect(raw).toContain('GetLastUpdateInfo()')
-  })
-
-  it('conditionally renders banner when update state is non-null', () => {
-    expect(raw).toContain('{update && (')
-  })
-
-  it('update-banner CSS block is defined in style.css', () => {
-    expect(cssRaw).toContain('.update-banner {')
-  })
-
-  it('update-banner has correct left accent border color', () => {
-    expect(cssRaw).toContain('border-left: 3px solid #7aa2f7')
-  })
-
-  it('download button has correct accent background', () => {
-    expect(cssRaw).toContain('background-color: #7aa2f7')
-  })
-
-  it('dismiss button is defined in style.css', () => {
-    expect(cssRaw).toContain('.update-banner__btn--dismiss {')
-  })
-})

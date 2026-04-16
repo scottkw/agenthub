@@ -12,6 +12,8 @@ interface LocalNetworkBannerProps {
   tailscaleDaemonUp: boolean
   platformHint: string
   onOpenURL: (url: string) => void
+  onDismiss?: () => void
+  className?: string
 }
 
 function renderBanner(props: Partial<LocalNetworkBannerProps> & { visible: boolean; onOpenURL: (url: string) => void }) {
@@ -142,5 +144,39 @@ describe('LocalNetworkBanner', () => {
       onOpenURL: vi.fn(),
     }))
     expect(container.textContent).toContain('Start menu or system tray')
+  })
+
+  it('renders dismiss button when onDismiss is provided', () => {
+    const onDismiss = vi.fn()
+    ;({ container, root } = renderBanner({ visible: true, onOpenURL: vi.fn(), onDismiss }))
+    const dismissBtn = container.querySelector('.local-network-banner__dismiss')
+    expect(dismissBtn).not.toBeNull()
+  })
+
+  it('does not render dismiss button when onDismiss is not provided', () => {
+    ;({ container, root } = renderBanner({ visible: true, onOpenURL: vi.fn() }))
+    const dismissBtn = container.querySelector('.local-network-banner__dismiss')
+    expect(dismissBtn).toBeNull()
+  })
+
+  it('calls onDismiss when dismiss button clicked', () => {
+    const onDismiss = vi.fn()
+    ;({ container, root } = renderBanner({ visible: true, onOpenURL: vi.fn(), onDismiss }))
+    const dismissBtn = container.querySelector('.local-network-banner__dismiss') as HTMLButtonElement
+    flushSync(() => { dismissBtn.click() })
+    expect(onDismiss).toHaveBeenCalledOnce()
+  })
+
+  it('applies className when provided', () => {
+    ;({ container, root } = renderBanner({ visible: true, onOpenURL: vi.fn(), className: 'banner-exit' }))
+    const banner = container.querySelector('.local-network-banner')
+    expect(banner?.classList.contains('banner-exit')).toBe(true)
+  })
+
+  it('dismiss button has correct aria-label', () => {
+    const onDismiss = vi.fn()
+    ;({ container, root } = renderBanner({ visible: true, onOpenURL: vi.fn(), onDismiss }))
+    const dismissBtn = container.querySelector('.local-network-banner__dismiss')
+    expect(dismissBtn?.getAttribute('aria-label')).toBe('Dismiss local network notification')
   })
 })

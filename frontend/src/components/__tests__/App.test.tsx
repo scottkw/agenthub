@@ -229,6 +229,78 @@ describe('THM-05: NotifyThemeChange wiring', () => {
   })
 })
 
+describe('BannerStack integration (BAN-01, BAN-02)', () => {
+  it('imports UpdateBanner component', () => {
+    expect(raw).toContain("import { UpdateBanner } from './components/UpdateBanner'")
+  })
+
+  it('imports UpdateInfo type', () => {
+    expect(raw).toContain("import type { UpdateInfo } from './components/UpdateBanner'")
+  })
+
+  it('imports GetLastUpdateInfo from wailsjs bindings', () => {
+    expect(raw).toContain('GetLastUpdateInfo')
+  })
+
+  it('declares update state at App level', () => {
+    expect(raw).toContain('useState<UpdateInfo | null>(null)')
+  })
+
+  it('declares localBannerDismissed state', () => {
+    expect(raw).toContain('localBannerDismissed')
+  })
+
+  it('declares localBannerExiting state', () => {
+    expect(raw).toContain('localBannerExiting')
+  })
+
+  it('declares updateExiting state', () => {
+    expect(raw).toContain('updateExiting')
+  })
+
+  it('defines handleDismissLocalBanner callback', () => {
+    expect(raw).toContain('handleDismissLocalBanner')
+  })
+
+  it('defines handleDismissUpdate callback', () => {
+    expect(raw).toContain('handleDismissUpdate')
+  })
+
+  it('renders banner-stack div', () => {
+    expect(raw).toContain('banner-stack')
+  })
+
+  it('renders LocalNetworkBanner inside banner-stack', () => {
+    const stackBlock = raw.slice(raw.indexOf('banner-stack'))
+    expect(stackBlock).toContain('<LocalNetworkBanner')
+  })
+
+  it('renders UpdateBanner inside banner-stack', () => {
+    const stackBlock = raw.slice(raw.indexOf('banner-stack'))
+    expect(stackBlock).toContain('<UpdateBanner')
+  })
+
+  it('subscribes to update:available event', () => {
+    expect(raw).toContain("EventsOn('update:available'")
+  })
+
+  it('passes onDismiss to LocalNetworkBanner', () => {
+    expect(raw).toContain('onDismiss={handleDismissLocalBanner}')
+  })
+
+  it('passes onDismiss to UpdateBanner', () => {
+    expect(raw).toContain('onDismiss={handleDismissUpdate}')
+  })
+
+  it('passes className with banner-exit for exit animation', () => {
+    expect(raw).toContain("localBannerExiting ? 'banner-exit' : undefined")
+  })
+
+  it('resets localBannerDismissed when webServerMode changes', () => {
+    expect(raw).toContain('setLocalBannerDismissed(false)')
+  })
+})
+
 // ARGS-02: Args threading from modal to CreateSession
 describe('ARGS-02: args threading', () => {
   it('onConfirm passes args to createTab', () => {
