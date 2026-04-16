@@ -103,6 +103,26 @@ describe('App', () => {
     it('passes tailscaleHealth prop to SettingsTab', () => {
       expect(raw).toContain('tailscaleHealth={tailscaleHealth}')
     })
+
+    it('passes tailscaleBinaryFound prop to LocalNetworkBanner', () => {
+      expect(raw).toContain('tailscaleBinaryFound={')
+    })
+
+    it('passes tailscaleDaemonUp prop to LocalNetworkBanner', () => {
+      expect(raw).toContain('tailscaleDaemonUp={')
+    })
+
+    it('passes platformHint prop to LocalNetworkBanner', () => {
+      expect(raw).toContain('platformHint={')
+    })
+
+    it('tailscaleHealth state includes binaryFound', () => {
+      expect(raw).toContain('binaryFound: boolean')
+    })
+
+    it('tailscaleHealth state includes daemonUp', () => {
+      expect(raw).toContain('daemonUp: boolean')
+    })
   })
 
   describe('THM-02/03: terminal theme state', () => {
