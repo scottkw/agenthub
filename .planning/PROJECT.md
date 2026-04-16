@@ -35,7 +35,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ New-session modal with agent picker, native folder browser, and last-folder memory — v1.1
 - ✓ Per-tab SHIFT+/SHIFT- font size adjustment — v1.1
 - ✓ Terminal fill: CSS flex chain fixed, fills after resize — v1.1 (initial-paint timing gap fully resolved in v1.6 Phase 35)
-- ✓ Tailscale health checks (installed, connected, certs enabled) with background polling — v1.2
+- ✓ Tailscale health checks (4-state: Not Installed / Daemon Stopped / Not Connected / Connected) with platform-specific binary detection and background polling — v1.2, upgraded v2.1 Phase 80
 - ✓ Health modal with platform-specific instructions (macOS/Linux/Windows) and Check Again auto-dismiss — v1.2
 - ✓ Let's Encrypt TLS via Tailscale daemon (`GetCertificate` hook, FQDN-based URLs) — v1.2
 - ✓ Certificate Transparency disclosure before first cert provisioning — v1.2
@@ -169,7 +169,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v2.0 shipped (2026-04-16). 16 milestones shipped (v1.0–v2.0), 78 phases completed, 151 plans total. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay.
+v2.0 shipped (2026-04-16). 16 milestones shipped (v1.0–v2.0), 78 phases completed, 151 plans total. Phase 80 complete — Tailscale detection upgraded to 4-state model with platform-specific binary detection. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay.
 
 ### Out of Scope
 
@@ -337,4 +337,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after v2.1 milestone start*
+*Last updated: 2026-04-16 after Phase 80 (Tailscale Detection) complete*
