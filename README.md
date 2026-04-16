@@ -4,7 +4,7 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Sessions survive GUI restarts, are controllable from the terminal, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 138 curated color themes (WCAG-audited from the xterm-theme library) with live switching and persistence — including OpenCode, which honors the selected theme via managed config and SIGUSR2 broadcast. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio. Remote sessions on other tailnet machines are discoverable from both the GUI and CLI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` — a full-screen Bubble Tea terminal UI). Sessions survive GUI restarts, are controllable from any interface, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. Multiple clients can connect to the same session simultaneously with independent scrollback, read-only mode, and stable PTY resize arbitration. CLI attach displays a persistent tmux-style status bar with session context and live viewer count. The TUI provides near-GUI parity: session list with status indicators, full session lifecycle (attach, create, kill, rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, and discoverable help. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 138 curated color themes (WCAG-audited from the xterm-theme library) with live switching and persistence — including OpenCode, which honors the selected theme via managed config and SIGUSR2 broadcast. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio. Remote sessions on other tailnet machines are discoverable from the GUI, CLI, and TUI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
@@ -23,11 +23,34 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 - **Standard app menus** — File, Edit, Window, Help menus with keyboard shortcuts; Cmd+C/V clipboard in terminal tabs
 - **Welcome tab** — Branded splash screen with version info, platform-specific installation instructions, and getting-started guide
 
+### Multi-Client Sessions
+- **Simultaneous connections** — Multiple WebSocket clients can connect to the same session and receive live output simultaneously
+- **Independent scrollback** — Each connected client maintains its own scrollback position without affecting other viewers
+- **Read-only mode** — Attach with `--readonly` flag to observe a session without sending input (`agenthub attach --readonly <id>`)
+- **Viewer count** — Session metadata API and CLI `agenthub list` show the current viewer count per session
+- **Client identity** — Clients can provide a name at connection (e.g., `agenthub attach --client=macbook <id>`)
+- **Resize arbitration** — Max-wins strategy: PTY dimensions stabilize to the largest active client, preventing resize thrashing
+
+### TUI Mode
+- **Full-screen terminal UI** — `agenthub tui` launches an interactive Bubble Tea v2 interface as an alternative to the desktop GUI
+- **Session list** — All sessions displayed with status glyphs (running/waiting/idle/errored), agent type, hostname, and viewer count
+- **Attach** — Press Enter on a session to suspend TUI and enter raw PTY attach with status bar; Ctrl-\ detaches and resumes TUI
+- **Create session** — Press `n` to open a modal with agent picker (Left/Right cycling), directory input, and argument field
+- **Kill session** — Press `d` for a confirmation dialog with danger-styled overlay; default-No for safety
+- **Rename session** — Press `r` for inline edit; Enter commits, Esc cancels
+- **Remote sessions** — Unified local+remote session list with tailnet peer grouping and hostname divider rows
+- **QR code overlay** — Press `q` to display an ASCII QR code for the selected session's web URL
+- **Web server status** — Footer shows whether the web server is running and its URL
+- **Help overlay** — Press `?` to see all keybindings for the current view
+- **Adaptive colors** — Automatically adapts to light/dark terminal backgrounds via Bubble Tea BackgroundColorMsg
+- **Auto-refresh** — Session list refreshes every 2 seconds with selection preserved by identity
+
 ### Remote Sessions
 - **Tailscale peer discovery** — Automatically discovers AgentHub instances running on other machines in your tailnet
 - **Remote Sessions panel** — GUI tab showing sessions grouped by peer hostname with loading states and 30-second auto-refresh
 - **CLI remote list** — `agenthub list` shows local and remote sessions grouped by HOST column
 - **CLI remote attach** — `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS
+- **TUI remote list** — `agenthub tui` shows remote sessions in a unified list with local sessions, grouped by peer hostname
 - **One-click open** — Click any remote session to open it in your browser
 
 ### Auto-Update
@@ -53,6 +76,7 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 ### CLI
 - **Full CLI** — `agenthub new`, `list`, `kill`, `rename`, `attach`, `web`, `health`, `qr`, `settings`
 - **Interactive attach** — `agenthub attach <id>` for full PTY proxy with raw I/O, resize propagation, Ctrl-C passthrough, scrollback replay, and configurable detach key (default Ctrl-\\, set with `--detach-key=`)
+- **Status bar** — Persistent tmux-style bottom bar during attach showing session name, agent type, hostname, detach hint, elapsed time, and live viewer count; refreshes without corrupting output (DECSTBM scroll region); suppressed when stdout is not a TTY; `--status-top` flag for top placement; clean teardown on detach
 - **Connection banner** — Attach displays session name, CLI type, and hostname before entering raw mode
 - **Machine-readable output** — `--json` flag on list, web status, health, and daemon status commands
 - **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
@@ -85,35 +109,38 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 ## Architecture
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                     Clients                             │
-│  ┌──────────────────┐    ┌───────────────────────────┐ │
-│  │   GUI (Wails)     │    │   CLI (agenthub <cmd>)    │ │
-│  │   React + xterm.js│    │   attach / list / new ... │ │
-│  └────────┬─────────┘    └──────────┬────────────────┘ │
-│           │     DaemonClient         │                  │
-│           └──────────┬───────────────┘                  │
-├──────────────────────┼──────────────────────────────────┤
-│              Unix Socket / Named Pipe                   │
-├──────────────────────┼──────────────────────────────────┤
-│  ┌───────────────────┴──────────────────────────────┐  │
-│  │              Daemon (background process)           │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
-│  │  │ Session  │  │ WebSocket │  │  Web Server   │  │  │
-│  │  │ Engine   │  │ Relay Hub │  │ (Tailscale or │  │  │
-│  │  │ (go-pty) │  │ (fan-out) │  │  Local TLS)  │  │  │
-│  │  └──────────┘  └──────────┘  └───────────────┘  │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │  │
-│  │  │  Status  │  │ QR Code  │  │   Service     │  │  │
-│  │  │ Detector │  │ Generator│  │   Manager     │  │  │
-│  │  └──────────┘  └──────────┘  └───────────────┘  │  │
-│  │  ┌──────────┐  ┌──────────┐                     │  │
-│  │  │ Tailnet  │  │ Update   │                     │  │
-│  │  │ Peers    │  │ Checker  │                     │  │
-│  │  └──────────┘  └──────────┘                     │  │
-│  └──────────────────────────────────────────────────┘  │
-│                   HTTP/JSON API                         │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         Clients                               │
+│  ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐ │
+│  │  GUI (Wails)  │  │ CLI (agenthub    │  │ TUI (agenthub  │ │
+│  │  React+xterm  │  │ <cmd>)           │  │ tui)           │ │
+│  │               │  │ attach/list/new  │  │ Bubble Tea v2  │ │
+│  └──────┬───────┘  └────────┬─────────┘  └──────┬─────────┘ │
+│         │       DaemonClient │                    │           │
+│         └────────────┬───────┴────────────────────┘           │
+├──────────────────────┼────────────────────────────────────────┤
+│              Unix Socket / Named Pipe                         │
+├──────────────────────┼────────────────────────────────────────┤
+│  ┌───────────────────┴────────────────────────────────────┐  │
+│  │                Daemon (background process)              │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌─────────────────────┐  │  │
+│  │  │ Session  │  │ WebSocket │  │    Web Server        │  │  │
+│  │  │ Engine   │  │ Relay Hub │  │  (Tailscale or      │  │  │
+│  │  │ (go-pty) │  │ (fan-out, │  │   Local TLS)        │  │  │
+│  │  │          │  │ multi-    │  │                     │  │  │
+│  │  │          │  │ client)   │  │                     │  │  │
+│  │  └──────────┘  └──────────┘  └─────────────────────┘  │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌─────────────────────┐  │  │
+│  │  │  Status  │  │ QR Code  │  │   Service Manager   │  │  │
+│  │  │ Detector │  │ Generator│  │                     │  │  │
+│  │  └──────────┘  └──────────┘  └─────────────────────┘  │  │
+│  │  ┌──────────┐  ┌──────────┐                            │  │
+│  │  │ Tailnet  │  │ Update   │                            │  │
+│  │  │ Peers    │  │ Checker  │                            │  │
+│  │  └──────────┘  └──────────┘                            │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                      HTTP/JSON API                            │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 **Go packages:**
@@ -122,8 +149,11 @@ A cross-platform desktop app and CLI for running AI coding CLIs — Claude Code,
 |---------|---------|
 | `internal/daemon` | Session engine, HTTP/JSON API, Unix socket server, DaemonClient |
 | `internal/pty` | PTY process management, CLI detection |
-| `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub |
+| `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub with multi-client support, per-subscriber metadata, read-only enforcement, max-wins resize arbitration |
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
+| `internal/statusbar` | DECSTBM scroll-region status bar for CLI attach with rune-safe formatting, viewer count, connection state, terminal injection prevention |
+| `internal/attach` | Shared attach logic for CLI and TUI — ANSI-safe border-title injection, allowlist attach-status guard, error-propagating AttachSession |
+| `internal/tui` | Bubble Tea v2 terminal UI — session list, modals (create/kill/rename), QR overlay, remote sessions, help overlay, adaptive colors |
 | `internal/tailnet` | Tailscale peer discovery, concurrent probe pool, cached peer list |
 | `internal/updater` | GitHub release polling, semantic version comparison, update notifications |
 | `internal/webserver` | HTTPS server (Tailscale or local self-signed TLS), dashboard, health checks, Basic Auth |
@@ -326,6 +356,11 @@ agenthub attach <id>                         # Attach to session (Ctrl-\ to deta
 agenthub attach hostname:<id>                # Attach to remote session via Tailscale
 agenthub kill <id>                           # Terminate a session
 agenthub rename <id> "my session"            # Rename a session
+agenthub attach --readonly <id>              # Read-only attach (observe without input)
+agenthub attach --client=macbook <id>        # Attach with client identity name
+
+# TUI mode
+agenthub tui                                 # Launch full-screen terminal UI
 
 # Web serving
 agenthub web start                    # Start the Tailscale web server
@@ -371,6 +406,7 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | Terminal themes | [xterm-theme](https://www.npmjs.com/package/xterm-theme) — 138 curated schemes (WCAG-audited from 157 candidates) |
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
+| TUI framework | [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) + [Lip Gloss v2](https://github.com/charmbracelet/lipgloss) + [Bubbles v2](https://github.com/charmbracelet/bubbles) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
 | TLS | Tailscale Let's Encrypt via `GetCertificate`; self-signed P256 for local network mode |
 | Peer discovery | [tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) |
