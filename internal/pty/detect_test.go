@@ -71,7 +71,7 @@ func TestDetectCLIs_AllMissing(t *testing.T) {
 // TestKnownCLIs_HasExpectedEntries verifies the package-level knownCLIs list
 // contains exactly the expected CLI names.
 func TestKnownCLIs_HasExpectedEntries(t *testing.T) {
-	expected := []string{"claude", "codex", "gemini", "opencode", "tailscale"}
+	expected := []string{"claude", "codex", "gemini", "opencode"}
 
 	if len(knownCLIs) != len(expected) {
 		t.Fatalf("expected %d known CLIs, got %d", len(expected), len(knownCLIs))
