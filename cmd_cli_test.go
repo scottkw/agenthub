@@ -218,6 +218,11 @@ func testSetupWithWebServer(t *testing.T) *daemon.DaemonClient {
 	if runtime.GOOS == "windows" {
 		t.Skip("testSetupWithWebServer uses Unix domain sockets")
 	}
+	if runtime.GOOS == "darwin" {
+		t.Setenv("HOME", t.TempDir())
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	}
 	engine := daemon.NewSessionEngine()
 	api := daemon.NewAPI(engine)
 	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), time.Now().UnixNano()%10000)

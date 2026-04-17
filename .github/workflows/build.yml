@@ -73,6 +73,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
+      - name: Run frontend tests
+        if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
+        run: cd frontend && pnpm install && pnpm test
+
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 

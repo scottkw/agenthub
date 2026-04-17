@@ -33,6 +33,12 @@ func testApp(t *testing.T) *App {
 	if goruntime.GOOS == "windows" {
 		t.Skip("testApp uses Unix domain sockets")
 	}
+	// Isolate config directory so settings.json doesn't leak between tests.
+	if goruntime.GOOS == "darwin" {
+		t.Setenv("HOME", t.TempDir())
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	}
 
 	// Start an in-process daemon API for tests (no real subprocess).
 	engine := daemon.NewSessionEngine()
@@ -75,6 +81,11 @@ func testAppWithDirectWebServer(t *testing.T, tlsCfg *tls.Config) (*App, func(se
 	t.Helper()
 	if goruntime.GOOS == "windows" {
 		t.Skip("testAppWithDirectWebServer uses Unix domain sockets")
+	}
+	if goruntime.GOOS == "darwin" {
+		t.Setenv("HOME", t.TempDir())
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	}
 
 	engine := daemon.NewSessionEngine()
