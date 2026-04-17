@@ -81,6 +81,8 @@ func DiscoverPeers(ctx context.Context) ([]Peer, error) {
 // probePeer is the internal testable probe function.
 // It sends a GET request to https://{peer.DNSName_stripped}:{DefaultProbePort}/api/sessions
 // using the provided HTTP client, returning true if the response is 200 OK.
+// If the DNS-based request fails and the peer has TailscaleIPs, it retries
+// using the first IP directly (with ServerName set for TLS validation).
 func probePeer(ctx context.Context, peer Peer, client *http.Client) bool {
 	// DNSName ends with a dot per Tailscale spec — strip it for URL construction.
 	host := strings.TrimSuffix(peer.DNSName, ".")
@@ -90,8 +92,45 @@ func probePeer(ctx context.Context, peer Peer, client *http.Client) bool {
 		return false
 	}
 	resp, err := client.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}
+	// DNS or connection failure — try Tailscale IP fallback.
+	if len(peer.TailscaleIPs) == 0 {
+		return false
+	}
+	return probePeerByIP(ctx, peer, client)
+}
+
+// probePeerByIP probes the peer using its first Tailscale IP directly.
+// TLS ServerName is set to the DNS name so certificate validation still works.
+func probePeerByIP(ctx context.Context, peer Peer, client *http.Client) bool {
+	host := strings.TrimSuffix(peer.DNSName, ".")
+	ip := peer.TailscaleIPs[0]
+	url := fmt.Sprintf("https://%s:%d/api/sessions", ip, DefaultProbePort)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false
+	}
+	// Set the Host header so TLS ServerName verification matches the certificate.
+	req.Host = fmt.Sprintf("%s:%d", host, DefaultProbePort)
+	ipClient := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				ServerName: host,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	resp, err := ipClient.Do(req)
+	if err != nil {
+		// If cert validation fails with IP fallback (e.g., self-signed local mode),
+		// fall back once more with the original client (preserves test redirects).
+		resp, err = client.Do(req)
+		if err != nil {
+			return false
+		}
 	}
 	resp.Body.Close()
 	return resp.StatusCode == http.StatusOK

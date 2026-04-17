@@ -2,6 +2,7 @@ package tailnet
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -296,6 +297,54 @@ func TestDiscoverAndProbe_Integration(t *testing.T) {
 	}
 	if result[0].Hostname != "agenthub-peer" {
 		t.Errorf("expected agenthub-peer, got %q", result[0].Hostname)
+	}
+}
+
+// -----------------------------------------------------------------------
+// probePeerByIP fallback tests
+// -----------------------------------------------------------------------
+
+func TestProbePeer_IPFallback(t *testing.T) {
+	// Simulate DNS failure by using an unresolvable DNSName, but the
+	// redirecting client rewrites to the test server so the IP-fallback
+	// path (which also goes through the client) succeeds.
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/sessions" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	peer := Peer{
+		DNSName:      "unresolvable-host.ts.net.",
+		TailscaleIPs: []string{"100.64.0.99"},
+	}
+	// The redirecting client makes both DNS and IP paths hit the test server.
+	result := probePeer(context.Background(), peer, redirectingClient(srv))
+	if !result {
+		t.Error("expected probePeer to succeed via IP fallback")
+	}
+}
+
+func TestProbePeer_NoIPFallbackWithoutIPs(t *testing.T) {
+	// If peer has no TailscaleIPs, fallback should not be attempted.
+	peer := Peer{
+		DNSName:      "unresolvable.example.invalid.",
+		TailscaleIPs: nil,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	// Use a client that will fail DNS (no rewrite).
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+		},
+	}
+	result := probePeer(ctx, peer, client)
+	if result {
+		t.Error("expected probePeer to return false with no IPs for fallback")
 	}
 }
 

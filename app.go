@@ -580,6 +580,11 @@ func (a *App) GetRemoteSessions() []RemotePeerSessions {
 			fqdn := strings.TrimSuffix(p.DNSName, ".")
 			sessionsURL := fmt.Sprintf("https://%s:%d/api/sessions", fqdn, tailnet.DefaultProbePort)
 			sessions := fetchRemoteSessions(ctx, sessionsURL, fqdn, tailnet.DefaultProbePort)
+			// DNS fallback: if DNS-based fetch failed and peer has IPs, try IP directly.
+			if len(sessions) == 0 && len(p.TailscaleIPs) > 0 {
+				ipURL := fmt.Sprintf("https://%s:%d/api/sessions", p.TailscaleIPs[0], tailnet.DefaultProbePort)
+				sessions = fetchRemoteSessionsByIP(ctx, ipURL, fqdn, tailnet.DefaultProbePort)
+			}
 			if len(sessions) > 0 {
 				mu.Lock()
 				results = append(results, RemotePeerSessions{Hostname: p.Hostname, Sessions: sessions})
@@ -603,6 +608,53 @@ func fetchRemoteSessions(ctx context.Context, apiURL, fqdn string, port int) []R
 	if err != nil {
 		return nil
 	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var items []struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		CLIType string `json:"cli_type"`
+		Status  string `json:"status"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil
+	}
+	sessions := make([]RemoteSession, 0, len(items))
+	for _, item := range items {
+		sessions = append(sessions, RemoteSession{
+			ID:      item.ID,
+			Name:    item.Name,
+			CLIType: item.CLIType,
+			Status:  item.Status,
+			URL:     fmt.Sprintf("https://%s:%d/sessions/%s", fqdn, port, item.ID),
+		})
+	}
+	return sessions
+}
+
+// fetchRemoteSessionsByIP is like fetchRemoteSessions but connects to the
+// Tailscale IP directly and sets TLS ServerName to the FQDN for cert validation.
+// Used as a fallback when DNS resolution for the peer hostname fails.
+func fetchRemoteSessionsByIP(ctx context.Context, apiURL, fqdn string, port int) []RemoteSession {
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				ServerName: fqdn,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil
+	}
+	req.Host = fmt.Sprintf("%s:%d", fqdn, port)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil
