@@ -3,6 +3,8 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -50,6 +52,47 @@ func TestEnsureDaemon_Timeout(t *testing.T) {
 	// Health should fail since nothing is listening.
 	if err := client.Health(); err == nil {
 		t.Fatal("expected Health to fail on empty socket path")
+	}
+}
+
+func TestEnsureDaemon_VersionMismatchDetected(t *testing.T) {
+	// Simulate an old daemon by using an httptest server that returns
+	// a stale version in the health response. This can't be tested with
+	// an in-process daemon because handler and caller share BuildVersion.
+	old := BuildVersion
+	BuildVersion = "v2.1.2"
+	t.Cleanup(func() { BuildVersion = old })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			// Simulate old daemon reporting v2.1.1
+			fmt.Fprint(w, `{"status":"ok","version":"v2.1.1"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+
+	client := &DaemonClient{
+		http: srv.Client(),
+		base: srv.URL,
+	}
+
+	ver := client.GetDaemonVersion()
+	if ver != "v2.1.1" {
+		t.Fatalf("expected daemon version %q, got %q", "v2.1.1", ver)
+	}
+	if ver == BuildVersion {
+		t.Fatal("version should differ (stale daemon)")
+	}
+}
+
+func TestGetDaemonVersion_Empty(t *testing.T) {
+	// A client pointing at nothing should return empty string.
+	client := NewDaemonClient("/tmp/nonexistent-daemon.sock")
+	if ver := client.GetDaemonVersion(); ver != "" {
+		t.Errorf("expected empty version from unreachable daemon, got %q", ver)
 	}
 }
 

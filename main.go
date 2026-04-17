@@ -40,6 +40,8 @@ var appCtx context.Context
 var appInstance *App
 
 func main() {
+	daemon.BuildVersion = Version
+
 	// GUI mode: no args, or first arg is a flag (except help).
 	if len(os.Args) == 1 || strings.HasPrefix(os.Args[1], "-") {
 		if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {

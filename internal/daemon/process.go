@@ -13,6 +13,11 @@ import (
 	"github.com/scottkw/agenthub/internal/webserver"
 )
 
+// BuildVersion is set by the main package at startup. The daemon embeds it in
+// the health response so that EnsureDaemon can detect stale daemons from older
+// builds and restart them.
+var BuildVersion string
+
 // upgradeToTailscale polls Tailscale health every 15s. When Tailscale becomes
 // fully healthy (Connected + HasCerts + IP), it restarts the web server in
 // Tailscale mode. Exits after a successful upgrade or when ctx is cancelled.
@@ -135,15 +140,34 @@ func generateLocalPassword() (string, error) {
 // as the first argument, then polls until the daemon is ready (max 3 seconds).
 func EnsureDaemon(socketPath string) error {
 	client := NewDaemonClient(socketPath)
+	needsSpawn := true
 	if err := client.Health(); err == nil {
-		// Daemon is reachable — verify relay is also ready.
-		if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
-			return nil // fully operational
+		// Daemon is reachable — check version compatibility first.
+		// Production builds (non-"dev") compare versions; a stale daemon from
+		// an older release won't have newly added API routes (e.g. start-minimized).
+		if BuildVersion != "" && BuildVersion != "dev" {
+			if ver := client.GetDaemonVersion(); ver != BuildVersion {
+				fmt.Fprintf(os.Stderr, "EnsureDaemon: version mismatch (daemon=%q, binary=%q), restarting\n", ver, BuildVersion)
+				_ = client.ShutdownDaemon()
+				time.Sleep(200 * time.Millisecond)
+				_ = CleanupStaleSocket(socketPath)
+				// fall through to spawn
+			} else {
+				needsSpawn = false
+			}
+		} else {
+			needsSpawn = false
 		}
-		// Stale daemon without relay support. Log and continue to spawn a new one.
-		// The stale process will exit on its own when the socket is replaced.
-		fmt.Fprintf(os.Stderr, "EnsureDaemon: stale daemon detected (relay not ready), respawning\n")
-		_ = CleanupStaleSocket(socketPath)
+		if !needsSpawn {
+			// Same version (or dev mode) — verify relay is also ready.
+			if port, relayErr := client.GetRelayPort(); relayErr == nil && port > 0 {
+				return nil // fully operational
+			}
+			// Stale daemon without relay support. Log and continue to spawn a new one.
+			// The stale process will exit on its own when the socket is replaced.
+			fmt.Fprintf(os.Stderr, "EnsureDaemon: stale daemon detected (relay not ready), respawning\n")
+			_ = CleanupStaleSocket(socketPath)
+		}
 	}
 
 	exe, err := os.Executable()

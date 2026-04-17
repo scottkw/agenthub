@@ -41,6 +41,16 @@ func (c *DaemonClient) Health() error {
 	return c.doJSON(http.MethodGet, "/health", nil, &h)
 }
 
+// GetDaemonVersion returns the version reported by the daemon's health endpoint.
+// Returns empty string if the daemon doesn't report a version (pre-v2.1.2).
+func (c *DaemonClient) GetDaemonVersion() string {
+	var h HealthResponse
+	if err := c.doJSON(http.MethodGet, "/health", nil, &h); err != nil {
+		return ""
+	}
+	return h.Version
+}
+
 // ListSessions returns all current sessions.
 func (c *DaemonClient) ListSessions() ([]SessionInfo, error) {
 	var sessions []SessionInfo

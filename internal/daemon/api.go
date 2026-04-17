@@ -211,7 +211,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
+	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok", Version: BuildVersion})
 }
 
 func (a *API) handleShutdown(w http.ResponseWriter, r *http.Request) {

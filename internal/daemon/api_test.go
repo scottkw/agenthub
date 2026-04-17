@@ -110,6 +110,10 @@ func rawPatch(t *testing.T, socketPath, path, body string) (int, []byte) {
 }
 
 func TestAPIHealth(t *testing.T) {
+	old := BuildVersion
+	BuildVersion = "v2.1.2-test"
+	t.Cleanup(func() { BuildVersion = old })
+
 	_, _, socketPath := testDaemon(t)
 	status, body := rawGet(t, socketPath, "/health")
 	if status != 200 {
@@ -121,6 +125,9 @@ func TestAPIHealth(t *testing.T) {
 	}
 	if h.Status != "ok" {
 		t.Errorf("health status: want %q, got %q", "ok", h.Status)
+	}
+	if h.Version != "v2.1.2-test" {
+		t.Errorf("health version: want %q, got %q", "v2.1.2-test", h.Version)
 	}
 }
 

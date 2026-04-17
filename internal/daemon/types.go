@@ -40,7 +40,8 @@ type StatusResponse struct {
 
 // HealthResponse is the response body for GET /health.
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status  string `json:"status"`
+	Version string `json:"version,omitempty"`
 }
 
 // CLIPathsResponse maps CLI name to custom path override.
