@@ -12,6 +12,8 @@ import {
   AcknowledgeCTDisclosure,
   GetLocalNetworkPassword,
   GetWebServerQRCode,
+  GetStartMinimized,
+  SetStartMinimized,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
@@ -78,6 +80,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [dashQRb64, setDashQRb64] = useState<string | null>(null)
   const [qrError, setQrError] = useState<string | null>(null)
 
+  // Start-minimized toggle state (TRAY-01)
+  const [startMinimized, setStartMinimized] = useState(false)
+  const [toggleLoaded, setToggleLoaded] = useState(false)
+  const [toggleSaving, setToggleSaving] = useState(false)
+  const [toggleError, setToggleError] = useState<string | null>(null)
+
   // Load web serving state on mount.
   useEffect(() => {
     async function loadWebState() {
@@ -126,6 +134,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setQrError(null)
     }
   }, [isServerRunning])
+
+  // Load start-minimized preference on mount (TRAY-01/TRAY-03).
+  useEffect(() => {
+    GetStartMinimized().then(val => {
+      setStartMinimized(val)
+      setToggleLoaded(true)
+    }).catch(() => setToggleLoaded(true))
+  }, [])
 
   async function handleCopyPassword() {
     if (!localPassword) return
@@ -219,6 +235,20 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     }
   }
 
+  async function handleToggleMinimized() {
+    const next = !startMinimized
+    setToggleSaving(true)
+    setToggleError(null)
+    try {
+      await SetStartMinimized(next)
+      setStartMinimized(next)
+    } catch (err) {
+      setToggleError('Could not save preference \u2014 ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setToggleSaving(false)
+    }
+  }
+
   async function handleToggleServer() {
     setServerError(null)
     setServerLoading(true)
@@ -244,6 +274,34 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   return (
     <div className="settings-tab">
       <div className="settings-panel__body">
+        {/* Behavior section (TRAY-01) */}
+        <h3>Behavior</h3>
+        <div className="settings-panel__field-group">
+          {toggleLoaded && (
+            <label
+              className={`settings-panel__toggle-row${startMinimized ? ' settings-panel__toggle-row--checked' : ''}`}
+              htmlFor="startMinimized"
+              style={toggleSaving ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+            >
+              <span className="settings-panel__toggle-track">
+                <span className="settings-panel__toggle-thumb" />
+              </span>
+              <span className="settings-panel__toggle-label">Start minimized to system tray</span>
+            </label>
+          )}
+          <input
+            type="checkbox"
+            id="startMinimized"
+            className="settings-panel__toggle-input"
+            checked={startMinimized}
+            onChange={() => void handleToggleMinimized()}
+          />
+          <p className="settings-panel__description">
+            When enabled, AgentHub launches with the window hidden. Click the tray icon to open it.
+          </p>
+          {toggleError && <p className="settings-panel__error">{toggleError}</p>}
+        </div>
+
         {/* Appearance section (SETT-02) */}
         <h3>Appearance</h3>
         <div className="settings-panel__field-group">
