@@ -195,17 +195,20 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     setSaving(true)
     setError(null)
     try {
+      // Save ALL non-empty paths unconditionally. The previous logic only
+      // saved paths that differed from the detected value, which meant
+      // correcting a stale stored override (e.g. "/bin/sh") back to the
+      // detected path was silently skipped — the stale value persisted.
       for (const cli of clis) {
-        const path = customPaths[cli.Name] ?? ''
-        if (path !== cli.Path && path.trim() !== '') {
-          await UpdateCLIPath(cli.Name, path.trim())
+        const path = (customPaths[cli.Name] ?? '').trim()
+        if (path !== '') {
+          await UpdateCLIPath(cli.Name, path)
         }
       }
       // Save tailscale path even if not in detected CLIs list
-      const tsCustom = customPaths['tailscale'] ?? ''
-      const tsCli = clis.find(c => c.Name === 'tailscale')
-      if (tsCustom.trim() !== '' && tsCustom !== (tsCli?.Path ?? '')) {
-        await UpdateCLIPath('tailscale', tsCustom.trim())
+      const tsCustom = (customPaths['tailscale'] ?? '').trim()
+      if (tsCustom !== '') {
+        await UpdateCLIPath('tailscale', tsCustom)
       }
       setSaved(true)
       setTimeout(() => setSaved(false), 1500)

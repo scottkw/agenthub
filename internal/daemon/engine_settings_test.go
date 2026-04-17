@@ -164,6 +164,55 @@ func TestStartMinimizedWithoutCLIPaths(t *testing.T) {
 	}
 }
 
+func TestLoadSettingsDropsStaleShellPaths(t *testing.T) {
+	dir := t.TempDir()
+
+	// Write settings.json with stale shell paths (e.g. "claude" → "/bin/sh")
+	data := []byte(`{"cliPaths":{"claude":"/bin/sh","opencode":"/bin/sh","sh":"/bin/sh"},"startMinimized":true}`)
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	// claude=/bin/sh should be dropped (basename "sh" ≠ "claude")
+	if _, ok := e.cliPaths["claude"]; ok {
+		t.Errorf("expected stale claude=/bin/sh to be dropped, got %q", e.cliPaths["claude"])
+	}
+	// opencode=/bin/sh should be dropped (basename "sh" ≠ "opencode")
+	if _, ok := e.cliPaths["opencode"]; ok {
+		t.Errorf("expected stale opencode=/bin/sh to be dropped, got %q", e.cliPaths["opencode"])
+	}
+	// sh=/bin/sh should be KEPT (basename "sh" == "sh")
+	if e.cliPaths["sh"] != "/bin/sh" {
+		t.Errorf("expected sh=/bin/sh to be kept, got %q", e.cliPaths["sh"])
+	}
+	// startMinimized should still load
+	if !e.GetStartMinimized() {
+		t.Error("expected startMinimized=true")
+	}
+
+	// Verify settings.json was rewritten without stale entries
+	rewritten, err := os.ReadFile(filepath.Join(dir, "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s daemonSettings
+	if err := json.Unmarshal(rewritten, &s); err != nil {
+		t.Fatalf("unmarshal rewritten: %v", err)
+	}
+	if _, ok := s.CLIPaths["claude"]; ok {
+		t.Error("rewritten settings.json still contains claude")
+	}
+	if _, ok := s.CLIPaths["opencode"]; ok {
+		t.Error("rewritten settings.json still contains opencode")
+	}
+}
+
 func TestSettingsFilePermissions(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support Unix file permissions")

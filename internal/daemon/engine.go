@@ -72,6 +72,14 @@ func settingsPath(dir string) string {
 	return filepath.Join(dir, "settings.json")
 }
 
+// knownShells maps basenames of common shell interpreters. A stored CLI path
+// whose basename is a shell and whose key is NOT that shell is almost certainly
+// stale/wrong (e.g. "claude" → "/bin/sh") and should be discarded on load.
+var knownShells = map[string]bool{
+	"sh": true, "bash": true, "zsh": true, "fish": true,
+	"csh": true, "tcsh": true, "dash": true, "ksh": true,
+}
+
 // loadSettingsFromDisk reads settings.json and populates engine state.
 // Missing file is not an error (first run).
 func (e *SessionEngine) loadSettingsFromDisk(dir string) {
@@ -84,12 +92,24 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 		return
 	}
 	e.mu.Lock()
+	dirty := false
 	if s.CLIPaths != nil {
 		for k, v := range s.CLIPaths {
+			base := filepath.Base(v)
+			if knownShells[base] && base != k {
+				log.Printf("daemon: dropping stale CLI path override %q=%q (shell mismatch)", k, v)
+				delete(s.CLIPaths, k)
+				dirty = true
+				continue
+			}
 			e.cliPaths[k] = v
 		}
 	}
 	e.startMinimized = s.StartMinimized
+	if dirty {
+		// Rewrite settings.json without the stale entries.
+		e.saveSettingsToDisk()
+	}
 	e.mu.Unlock()
 }
 
