@@ -169,7 +169,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v2.0 shipped (2026-04-16). 16 milestones shipped (v1.0–v2.0), 78 phases completed, 151 plans total. Phase 80 complete — Tailscale detection upgraded to 4-state model with platform-specific binary detection. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay.
+v2.1 in progress (2026-04-17). 16 milestones shipped (v1.0–v2.0), 82 phases completed. Phase 82 complete — minimize-to-tray toggle added to Settings with persisted startup behavior (start-minimized preference survives restarts via daemon settings.json). Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay.
 
 ### Out of Scope
 
@@ -337,4 +337,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 after Phase 80 (Tailscale Detection) complete*
+*Last updated: 2026-04-17 after Phase 82 (Minimize to Tray) complete*
