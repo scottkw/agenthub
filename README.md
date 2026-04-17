@@ -55,7 +55,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 
 ### Auto-Update
 - **Update checker** — Polls GitHub releases on startup and hourly for new versions
-- **Notification banner** — In-app banner when an update is available with one-click download
+- **Notification banner** — In-app banner when an update is available with one-click download; multiple banners stack vertically with independent dismiss controls
 - **Help menu trigger** — Manual check via Help > Check for Updates
 
 ### System Tray
@@ -65,6 +65,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Session count tooltip** — Shows active session count (e.g., "AgentHub — 3 sessions")
 - **Error state** — Tray icon switches to error state when daemon is unreachable
 - **Hide-on-close** — Closing the window hides the GUI; quit from tray to fully exit
+- **Start minimized** — Optional "Start minimized to system tray" toggle in Settings > Behavior; when enabled, the app launches hidden with only the tray icon visible — preference persists across restarts
 - **Dock hiding** — App hides from Dock and Cmd+Tab via LSUIElement (macOS)
 
 ### Daemon Management Panel
@@ -88,16 +89,17 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Web dashboard** — Dark-themed dashboard with session cards, live status dots, CLI badges, QR code thumbnails, and direct connect links
 - **Web terminal status bar** — Live session info with name, CLI type, hostname, and three-state connection indicator (connecting/connected/disconnected)
 - **QR codes** — Every web-served session gets a scannable QR code in the desktop app and CLI
-- **Health checks** — Detects Tailscale installation, connection, and cert readiness (`agenthub health` CLI command)
-- **Nudge banner** — Context-aware in-app banner: recommends Tailscale installation when not detected; shows "upgrading to Tailscale..." when Tailscale connects and the server is restarting
+- **Health checks** — 4-state Tailscale health cascade (binary found → daemon running → connected → certs ready) across Homebrew, system package managers, Snap, Flatpak, and Windows default paths (`agenthub health` CLI command)
+- **Nudge banner** — Context-aware in-app banner with 4-state detection: recommends Tailscale installation when binary not found; shows daemon-stopped instructions (platform-specific) when binary exists but daemon isn't running; shows "upgrading to Tailscale..." when Tailscale connects and the server is restarting; each banner is independently dismissible with fade-out animation
 
 ### Settings
 - **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
 - **Single scrollable page** — All settings on one page organized by section headers (Appearance, Web Server, Paths) with visual dividers — no sub-tabs
 - **Appearance section** — Theme selector with 138 curated color schemes; selected theme applies live to all terminals and persists in localStorage
 - **Web Server section** — Start/stop web server with mode-aware status display; URL actions (open in browser, copy to clipboard, inline QR code); local network password with click-to-copy
-- **Paths section** — Override auto-detected CLI paths per agent
-- **Tailscale status indicator** — Color-coded dot showing Tailscale connection state (Connected / Not Connected / Not Installed)
+- **Behavior section** — "Start minimized to system tray" toggle with non-optimistic save, loading state, and error feedback
+- **Paths section** — Override auto-detected CLI paths per agent; each path has a native browse button that opens a file picker; save confirmation shows a green "Saved!" indicator for 1.5 seconds
+- **Tailscale status indicator** — 4-state color-coded dot (Connected / Not Connected / Daemon Stopped / Not Installed) with collapsible diagnostics checklist showing binary detection, daemon status, connection state, and TLS readiness; platform-specific troubleshooting instructions for macOS, Linux, and Windows
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
 
 ### Platform
@@ -172,8 +174,9 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 | `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
-| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Appearance, Web Server, Paths); theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides, local network password |
-| `LocalNetworkBanner.tsx` | Context-aware nudge banner: recommends Tailscale install or shows upgrade-in-progress when Tailscale connects |
+| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Behavior, Appearance, Web Server, Paths); start-minimized toggle, theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides with native browse buttons, local network password |
+| `LocalNetworkBanner.tsx` | 4-state context-aware nudge banner with independent dismiss: not-installed, daemon-stopped, not-connected, and upgrade-in-progress states with platform-specific instructions |
+| `UpdateBanner.tsx` | Standalone update notification banner with version info, download button, and dismiss control |
 | `QRModal.tsx` | QR code display for web-served sessions |
 
 ## Installation
