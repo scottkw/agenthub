@@ -745,3 +745,57 @@ func TestAPI_ListSessionsViewerCount(t *testing.T) {
 		t.Errorf("ViewerCount after unsubscribe: want %d, got %d", baseline, found3.ViewerCount)
 	}
 }
+
+// TestAPIGetStartMinimized verifies GET /settings/start-minimized returns 200
+// with {"startMinimized": false} when no value has been set (TRAY-02).
+func TestAPIGetStartMinimized(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawGet(t, socketPath, "/settings/start-minimized")
+	if status != 200 {
+		t.Errorf("GET /settings/start-minimized: want 200, got %d; body: %s", status, body)
+	}
+	var resp map[string]bool
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode start-minimized response: %v", err)
+	}
+	if val, ok := resp["startMinimized"]; !ok {
+		t.Error("response missing 'startMinimized' key")
+	} else if val {
+		t.Errorf("initial startMinimized: want false, got true")
+	}
+}
+
+// TestAPISetStartMinimized verifies PATCH /settings/start-minimized returns 204
+// and the subsequent GET reflects the updated value (TRAY-02 / TRAY-03).
+func TestAPISetStartMinimized(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+
+	// PATCH to true — expect 204.
+	patchStatus, patchBody := rawPatch(t, socketPath, "/settings/start-minimized", `{"startMinimized":true}`)
+	if patchStatus != 204 {
+		t.Errorf("PATCH /settings/start-minimized: want 204, got %d; body: %s", patchStatus, patchBody)
+	}
+
+	// GET — expect true.
+	getStatus, getBody := rawGet(t, socketPath, "/settings/start-minimized")
+	if getStatus != 200 {
+		t.Errorf("GET /settings/start-minimized after PATCH: want 200, got %d", getStatus)
+	}
+	var resp map[string]bool
+	if err := json.Unmarshal(getBody, &resp); err != nil {
+		t.Fatalf("decode start-minimized response after PATCH: %v", err)
+	}
+	if !resp["startMinimized"] {
+		t.Errorf("startMinimized after PATCH true: want true, got false")
+	}
+}
+
+// TestAPISetStartMinimizedInvalidBody verifies PATCH /settings/start-minimized
+// with invalid JSON returns 400 (TRAY-02 input validation).
+func TestAPISetStartMinimizedInvalidBody(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, _ := rawPatch(t, socketPath, "/settings/start-minimized", `not-json`)
+	if status != 400 {
+		t.Errorf("PATCH /settings/start-minimized (invalid body): want 400, got %d", status)
+	}
+}
