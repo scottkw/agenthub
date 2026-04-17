@@ -580,6 +580,57 @@ body {
   color: #89b4fa;
 }
 
+/* Toggle / switch control (Phase 82) */
+.settings-panel__toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.settings-panel__toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  min-height: 44px;
+  user-select: none;
+}
+.settings-panel__toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: #16161e;
+  border: 1px solid #292e42;
+  flex-shrink: 0;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.settings-panel__toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #565f89;
+  transition: transform 0.15s, background-color 0.15s;
+}
+.settings-panel__toggle-row--checked .settings-panel__toggle-track {
+  background-color: #7aa2f7;
+  border-color: #7aa2f7;
+}
+.settings-panel__toggle-row--checked .settings-panel__toggle-thumb {
+  transform: translateX(16px);
+  background-color: #1a1b26;
+}
+.settings-panel__toggle-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: #c0caf5;
+  line-height: 1.5;
+}
+
 /* --- New Session Modal -------------------------------------------------- */
 .new-session-overlay {
   position: fixed;
