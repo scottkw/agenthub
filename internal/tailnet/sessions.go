@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -122,7 +121,6 @@ func doFetchSessions(ctx context.Context, url string, client *http.Client, host 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[debug] peer session fetch failed: url=%s err=%v", url, err)
 		return nil
 	}
 	defer resp.Body.Close()
