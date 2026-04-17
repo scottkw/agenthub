@@ -203,7 +203,7 @@
 - [x] **Phase 79: Settings Persistence & Path Browsing** - Fix paths not saving and add native browse buttons in Settings > Paths (completed 2026-04-16)
 - [x] **Phase 80: Tailscale Detection** - Broaden Tailscale binary detection and connection state reliability across platforms (completed 2026-04-16)
 - [x] **Phase 81: Banner Notifications** - Fix banner stacking to vertical layout with independent dismiss (completed 2026-04-16)
-- [ ] **Phase 82: Minimize to Tray** - Add minimize-to-tray toggle in Settings with persisted startup behavior
+- [x] **Phase 82: Minimize to Tray** - Add minimize-to-tray toggle in Settings with persisted startup behavior (completed 2026-04-17)
 
 ## Phase Details
 
@@ -259,7 +259,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 82-01-PLAN.md — Backend persistence, daemon API, Wails bindings, domReady gate
-- [ ] 82-02-PLAN.md — Frontend Behavior section with start-minimized toggle + CSS
+- [x] 82-02-PLAN.md — Frontend Behavior section with start-minimized toggle + CSS
 **UI hint**: yes
 
 ## Progress
@@ -285,7 +285,7 @@ Plans:
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 81. Banner Notifications | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 82. Minimize to Tray | v2.1 | 1/2 | In Progress|  |
+| 82. Minimize to Tray | v2.1 | 2/2 | Complete   | 2026-04-17 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
