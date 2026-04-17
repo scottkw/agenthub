@@ -361,7 +361,7 @@ func TestCmdAttach_RemoteSessionNotFound(t *testing.T) {
 
 	err := cmdAttachRemoteWithClient(
 		"macbook", "nonexistent-session",
-		"macbook.ts.net", ts.URL, ts.Client(), byte(0x1C), false,
+		"macbook.ts.net", ts.URL, ts.Client(), nil, byte(0x1C), false,
 	)
 	if err == nil {
 		t.Fatal("expected error for missing remote session, got nil")

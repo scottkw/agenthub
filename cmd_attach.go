@@ -176,39 +176,43 @@ func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, de
 		return fmt.Errorf("attach: stdin is not a terminal")
 	}
 
-	// Resolve hostname to FQDN via tailnet peer discovery.
+	// Resolve hostname to peer via tailnet peer discovery.
 	peers, err := client.ListTailnetPeers()
 	if err != nil {
 		return fmt.Errorf("attach: discover peers: %w", err)
 	}
-	fqdn, tailscaleIPs, found := resolveRemotePeerWithIPs(peers, hostname)
-	if !found {
+	var peer *tailnet.Peer
+	for _, p := range peers {
+		if strings.EqualFold(p.Hostname, hostname) {
+			peer = &p
+			break
+		}
+	}
+	if peer == nil {
 		return buildUnknownHostError(hostname, peers)
 	}
+	fqdn := strings.TrimSuffix(peer.DNSName, ".")
 
 	// Construct base URL for fetching sessions and WSS relay.
 	baseURL := fmt.Sprintf("https://%s:%d", fqdn, tailnet.DefaultProbePort)
 
-	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey, statusTop, tailscaleIPs...)
+	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, peer, detachKey, statusTop)
 }
 
 // cmdAttachRemoteWithClient is the testable core of the remote attach flow.
 // It accepts an HTTP client and base URL for testing with httptest servers.
-// If httpClient is nil, a production TLS client is used.
-func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte, statusTop bool, tailscaleIPs ...string) error {
+// If httpClient is nil, a production TLS client is used and peer is used for
+// IP-fallback fetch via tailnet.FetchPeerSessions.
+func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, peer *tailnet.Peer, detachKey byte, statusTop bool) error {
 	// Verify the session exists on the remote peer and get its metadata.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var remoteSessions []CLIRemoteSession
-	var fetchErr error
 	if httpClient != nil {
-		remoteSessions, fetchErr = fetchPeerSessionsWithClient(ctx, baseURL, httpClient)
-	} else {
-		remoteSessions, fetchErr = fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, tailscaleIPs...)
-	}
-	if fetchErr != nil {
-		return fmt.Errorf("attach: cannot reach remote host %q: %w", hostname, fetchErr)
+		remoteSessions = fetchPeerSessionsWithClient(ctx, baseURL, httpClient)
+	} else if peer != nil {
+		remoteSessions = fetchPeerSessions(ctx, *peer)
 	}
 
 	var session *CLIRemoteSession

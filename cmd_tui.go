@@ -3,10 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"sort"
-	"strings"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/tailnet"
@@ -26,44 +23,31 @@ func cmdTUI(client *daemon.DaemonClient) error {
 		return fmt.Errorf("cannot connect to daemon: %w", err)
 	}
 
-	// fetchRemoteFn is a callback that fetches remote sessions from tailnet peers.
-	// It wraps package-main functions (fetchPeerSessions, ListTailnetPeers) to avoid
-	// an import cycle between internal/tui and package main.
+	// fetchRemoteFn delegates to tailnet.FetchAllPeerSessions and converts
+	// to TUI types. Uses the shared concurrent fetch with IP fallback.
 	fetchRemoteFn := func(ctx context.Context) []tui.ListRemoteGroup {
 		peers, err := client.ListTailnetPeers()
-		if err != nil {
-			log.Printf("[warn] tailnet peer discovery failed: %v", err)
+		if err != nil || len(peers) == 0 {
 			return nil
 		}
-		if len(peers) == 0 {
-			return nil
-		}
-		groupMap := make(map[string][]tui.RemoteSessionEntry)
-		for _, p := range peers {
-			fqdn := strings.TrimSuffix(p.DNSName, ".")
-			peerSessions, err := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, p.TailscaleIPs...)
-			if err != nil {
-				log.Printf("[warn] peer session fetch failed: peer=%s err=%v", fqdn, err)
-				continue
-			}
-			for _, s := range peerSessions {
-				groupMap[p.Hostname] = append(groupMap[p.Hostname], tui.RemoteSessionEntry{
+		groups := tailnet.FetchAllPeerSessions(ctx, peers)
+		result := make([]tui.ListRemoteGroup, 0, len(groups))
+		for _, g := range groups {
+			entries := make([]tui.RemoteSessionEntry, 0, len(g.Sessions))
+			for _, s := range g.Sessions {
+				entries = append(entries, tui.RemoteSessionEntry{
 					ID:       s.ID,
 					Name:     s.Name,
 					CLIType:  s.CLIType,
 					Status:   s.Status,
-					Hostname: p.Hostname,
-					FQDN:     fqdn,
-					URL:      fmt.Sprintf("https://%s:%d/sessions/%s", fqdn, tailnet.DefaultProbePort, s.ID),
+					Hostname: s.Hostname,
+					FQDN:     s.FQDN,
+					URL:      s.URL,
 				})
 			}
+			result = append(result, tui.ListRemoteGroup{Hostname: g.Hostname, Sessions: entries})
 		}
-		var groups []tui.ListRemoteGroup
-		for hostname, sess := range groupMap {
-			groups = append(groups, tui.ListRemoteGroup{Hostname: hostname, Sessions: sess})
-		}
-		sort.Slice(groups, func(i, j int) bool { return groups[i].Hostname < groups[j].Hostname })
-		return groups
+		return result
 	}
 
 	return tui.Run(client, fetchRemoteFn)

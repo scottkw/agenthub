@@ -101,10 +101,7 @@ func TestFetchPeerSessions_Success(t *testing.T) {
 	defer ts.Close()
 
 	// Use the test server's TLS client to bypass self-signed cert.
-	sessions, err := fetchPeerSessionsWithClient(context.Background(), ts.URL, ts.Client())
-	if err != nil {
-		t.Fatalf("fetchPeerSessionsWithClient error: %v", err)
-	}
+	sessions := fetchPeerSessionsWithClient(context.Background(), ts.URL, ts.Client())
 	if len(sessions) != 2 {
 		t.Fatalf("expected 2 sessions, got %d", len(sessions))
 	}
@@ -132,10 +129,7 @@ func TestFetchPeerSessions_HTTPError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	sessions, err := fetchPeerSessionsWithClient(context.Background(), ts.URL, ts.Client())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	sessions := fetchPeerSessionsWithClient(context.Background(), ts.URL, ts.Client())
 	if len(sessions) != 0 {
 		t.Errorf("expected empty slice, got %d sessions", len(sessions))
 	}
@@ -155,10 +149,7 @@ func TestFetchPeerSessions_Timeout(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	sessions, err := fetchPeerSessionsWithClient(ctx, ts.URL, ts.Client())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	sessions := fetchPeerSessionsWithClient(ctx, ts.URL, ts.Client())
 	if len(sessions) != 0 {
 		t.Errorf("expected empty slice on timeout, got %d sessions", len(sessions))
 	}
@@ -166,13 +157,15 @@ func TestFetchPeerSessions_Timeout(t *testing.T) {
 
 // TestFetchPeerSessions_TLSConfig verifies the production fetchPeerSessions uses TLS 1.2+.
 func TestFetchPeerSessions_TLSConfig(t *testing.T) {
-	// This is a structural test: we call fetchPeerSessions with a URL that won't connect
+	// This is a structural test: we call fetchPeerSessions with a peer that won't connect
 	// and just verify it returns empty slice (not panic/error leak).
 	// The TLS config is verified by code inspection (acceptance criteria).
-	sessions, err := fetchPeerSessions(context.Background(), "localhost", 19999)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	peer := tailnet.Peer{
+		Hostname: "unreachable",
+		DNSName:  "unreachable.example.invalid.",
+		Online:   true,
 	}
+	sessions := fetchPeerSessions(context.Background(), peer)
 	if sessions == nil {
 		t.Error("expected non-nil empty slice, got nil")
 	}

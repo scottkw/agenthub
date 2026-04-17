@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -106,23 +105,22 @@ func cmdList(client *daemon.DaemonClient, args []string, out io.Writer) error {
 		if len(peers) > 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			// Group remote sessions by peer hostname.
-			groupMap := make(map[string][]CLIRemoteSession)
-			for _, p := range peers {
-				fqdn := strings.TrimSuffix(p.DNSName, ".")
-				peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, p.TailscaleIPs...)
-				for i := range peerSessions {
-					peerSessions[i].Hostname = p.Hostname
-					peerSessions[i].FQDN = fqdn
+			groups := tailnet.FetchAllPeerSessions(ctx, peers)
+			for _, g := range groups {
+				cliSessions := make([]CLIRemoteSession, 0, len(g.Sessions))
+				for _, s := range g.Sessions {
+					cliSessions = append(cliSessions, CLIRemoteSession{
+						ID:       s.ID,
+						Name:     s.Name,
+						CLIType:  s.CLIType,
+						Status:   s.Status,
+						Hostname: s.Hostname,
+						FQDN:     s.FQDN,
+					})
 				}
-				if len(peerSessions) > 0 {
-					groupMap[p.Hostname] = append(groupMap[p.Hostname], peerSessions...)
-				}
-			}
-			for hostname, sess := range groupMap {
 				remoteGroups = append(remoteGroups, listRemoteGroup{
-					Hostname: hostname,
-					Sessions: sess,
+					Hostname: g.Hostname,
+					Sessions: cliSessions,
 				})
 			}
 		}
