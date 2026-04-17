@@ -9,30 +9,30 @@ Requirements for v2.1 milestone. Each maps to roadmap phases.
 
 ### Settings Persistence (GitHub #26)
 
-- [ ] **SET-01**: User-modified agent paths persist across app restarts
-- [ ] **SET-02**: User-modified Tailscale path persists across app restarts
-- [ ] **SET-03**: Clicking Save shows visible confirmation feedback (toast, flash, or inline indicator)
+- [x] **SET-01**: User-modified agent paths persist across app restarts
+- [x] **SET-02**: User-modified Tailscale path persists across app restarts
+- [x] **SET-03**: Clicking Save shows visible confirmation feedback (toast, flash, or inline indicator)
 
 ### Tailscale Detection (GitHub #27)
 
-- [ ] **TS-01**: Tailscale is detected when installed via Homebrew, system package manager, Snap, Flatpak, or Windows default location
-- [ ] **TS-02**: Tailscale connection state (connected/disconnected) is reliably reported across all platforms
+- [x] **TS-01**: Tailscale is detected when installed via Homebrew, system package manager, Snap, Flatpak, or Windows default location
+- [x] **TS-02**: Tailscale connection state (connected/disconnected) is reliably reported across all platforms
 
 ### Banner Notifications (GitHub #28)
 
-- [ ] **BAN-01**: When multiple notifications are active, they stack vertically instead of side-by-side
-- [ ] **BAN-02**: Each stacked notification remains independently dismissible
+- [x] **BAN-01**: When multiple notifications are active, they stack vertically instead of side-by-side
+- [x] **BAN-02**: Each stacked notification remains independently dismissible
 
 ### Path File Browsing (GitHub #31)
 
-- [ ] **SET-04**: Each path entry in Settings > Paths has a browse button that opens a native file/folder picker
-- [ ] **SET-05**: Selecting a path via the browser populates the corresponding input field
+- [x] **SET-04**: Each path entry in Settings > Paths has a browse button that opens a native file/folder picker
+- [x] **SET-05**: Selecting a path via the browser populates the corresponding input field
 
 ### Minimize to Tray (GitHub #25)
 
-- [ ] **TRAY-01**: Settings includes a toggle for "Start minimized to system tray"
-- [ ] **TRAY-02**: When enabled, launching AgentHub opens with window hidden and only tray icon visible
-- [ ] **TRAY-03**: Minimize-to-tray preference persists across app restarts
+- [x] **TRAY-01**: Settings includes a toggle for "Start minimized to system tray"
+- [x] **TRAY-02**: When enabled, launching AgentHub opens with window hidden and only tray icon visible
+- [x] **TRAY-03**: Minimize-to-tray preference persists across app restarts
 
 ## Future Requirements
 
@@ -89,22 +89,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SET-01 | Phase 79 | Pending |
-| SET-02 | Phase 79 | Pending |
-| SET-03 | Phase 79 | Pending |
-| SET-04 | Phase 79 | Pending |
-| SET-05 | Phase 79 | Pending |
-| TS-01 | Phase 80 | Pending |
-| TS-02 | Phase 80 | Pending |
-| BAN-01 | Phase 81 | Pending |
-| BAN-02 | Phase 81 | Pending |
-| TRAY-01 | Phase 82 | Pending |
-| TRAY-02 | Phase 82 | Pending |
-| TRAY-03 | Phase 82 | Pending |
+| SET-01 | Phase 79 | Satisfied |
+| SET-02 | Phase 79 | Satisfied |
+| SET-03 | Phase 79 | Satisfied |
+| SET-04 | Phase 79 | Satisfied |
+| SET-05 | Phase 79 | Satisfied |
+| TS-01 | Phase 80 | Satisfied |
+| TS-02 | Phase 80 | Satisfied |
+| BAN-01 | Phase 81 | Satisfied |
+| BAN-02 | Phase 81 | Satisfied |
+| TRAY-01 | Phase 82 | Satisfied |
+| TRAY-02 | Phase 82 | Satisfied |
+| TRAY-03 | Phase 82 | Satisfied |
 
 **Coverage:**
 - v2.1 requirements: 12 total
-- Mapped to phases: 12
+- Satisfied: 12
 - Unmapped: 0
 
 **GitHub Issues:**
@@ -116,4 +116,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-04-16*
-*Last updated: 2026-04-16 after roadmap creation*
+*Last updated: 2026-04-17 after milestone audit gap closure*
