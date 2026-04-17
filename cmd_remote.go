@@ -44,10 +44,23 @@ func resolveRemotePeer(peers []tailnet.Peer, hostname string) (fqdn string, foun
 	return "", false
 }
 
+// resolveRemotePeerWithIPs is like resolveRemotePeer but also returns TailscaleIPs
+// for IP-based fallback when DNS resolution fails.
+func resolveRemotePeerWithIPs(peers []tailnet.Peer, hostname string) (fqdn string, tailscaleIPs []string, found bool) {
+	for _, p := range peers {
+		if strings.EqualFold(p.Hostname, hostname) {
+			return strings.TrimSuffix(p.DNSName, "."), p.TailscaleIPs, true
+		}
+	}
+	return "", nil, false
+}
+
 // fetchPeerSessions fetches /api/sessions from a single peer over HTTPS.
 // It uses TLS 1.2 minimum and a 5-second timeout. Returns empty slice on any error.
 // No InsecureSkipVerify — Tailscale Let's Encrypt certs are publicly trusted.
-func fetchPeerSessions(ctx context.Context, fqdn string, port int) ([]CLIRemoteSession, error) {
+// If DNS-based fetch fails and tailscaleIPs are provided, retries using the first IP
+// with TLS ServerName set to the FQDN for certificate validation.
+func fetchPeerSessions(ctx context.Context, fqdn string, port int, tailscaleIPs ...string) ([]CLIRemoteSession, error) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
@@ -55,7 +68,22 @@ func fetchPeerSessions(ctx context.Context, fqdn string, port int) ([]CLIRemoteS
 		},
 	}
 	url := fmt.Sprintf("https://%s:%d/api/sessions", fqdn, port)
-	return doFetchPeerSessions(ctx, url, client)
+	sessions, err := doFetchPeerSessions(ctx, url, client)
+	if len(sessions) > 0 || len(tailscaleIPs) == 0 {
+		return sessions, err
+	}
+	// DNS or connection failure — try Tailscale IP fallback.
+	ipClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				ServerName: fqdn,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	ipURL := fmt.Sprintf("https://%s:%d/api/sessions", tailscaleIPs[0], port)
+	return doFetchPeerSessionsWithHost(ctx, ipURL, ipClient, fmt.Sprintf("%s:%d", fqdn, port))
 }
 
 // fetchPeerSessionsWithClient is an internal helper that allows tests to inject
@@ -65,12 +93,28 @@ func fetchPeerSessionsWithClient(ctx context.Context, baseURL string, client *ht
 	return doFetchPeerSessions(ctx, url, client)
 }
 
+// doFetchPeerSessionsWithHost performs an HTTP request with a custom Host header.
+// Used for IP-fallback where TLS ServerName needs the FQDN but the URL uses an IP.
+func doFetchPeerSessionsWithHost(ctx context.Context, url string, client *http.Client, host string) ([]CLIRemoteSession, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return []CLIRemoteSession{}, nil
+	}
+	req.Host = host
+	return doFetchRequest(req, client)
+}
+
 // doFetchPeerSessions performs the actual HTTP request and JSON decode.
 func doFetchPeerSessions(ctx context.Context, url string, client *http.Client) ([]CLIRemoteSession, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return []CLIRemoteSession{}, nil
 	}
+	return doFetchRequest(req, client)
+}
+
+// doFetchRequest executes a prepared HTTP request and decodes the session list response.
+func doFetchRequest(req *http.Request, client *http.Client) ([]CLIRemoteSession, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		return []CLIRemoteSession{}, nil

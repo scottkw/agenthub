@@ -110,7 +110,7 @@ func cmdList(client *daemon.DaemonClient, args []string, out io.Writer) error {
 			groupMap := make(map[string][]CLIRemoteSession)
 			for _, p := range peers {
 				fqdn := strings.TrimSuffix(p.DNSName, ".")
-				peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+				peerSessions, _ := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, p.TailscaleIPs...)
 				for i := range peerSessions {
 					peerSessions[i].Hostname = p.Hostname
 					peerSessions[i].FQDN = fqdn

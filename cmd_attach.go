@@ -181,7 +181,7 @@ func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, de
 	if err != nil {
 		return fmt.Errorf("attach: discover peers: %w", err)
 	}
-	fqdn, found := resolveRemotePeer(peers, hostname)
+	fqdn, tailscaleIPs, found := resolveRemotePeerWithIPs(peers, hostname)
 	if !found {
 		return buildUnknownHostError(hostname, peers)
 	}
@@ -189,13 +189,13 @@ func cmdAttachRemote(client *daemon.DaemonClient, hostname, sessionID string, de
 	// Construct base URL for fetching sessions and WSS relay.
 	baseURL := fmt.Sprintf("https://%s:%d", fqdn, tailnet.DefaultProbePort)
 
-	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey, statusTop)
+	return cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL, nil, detachKey, statusTop, tailscaleIPs...)
 }
 
 // cmdAttachRemoteWithClient is the testable core of the remote attach flow.
 // It accepts an HTTP client and base URL for testing with httptest servers.
 // If httpClient is nil, a production TLS client is used.
-func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte, statusTop bool) error {
+func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpClient *http.Client, detachKey byte, statusTop bool, tailscaleIPs ...string) error {
 	// Verify the session exists on the remote peer and get its metadata.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -205,7 +205,7 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	if httpClient != nil {
 		remoteSessions, fetchErr = fetchPeerSessionsWithClient(ctx, baseURL, httpClient)
 	} else {
-		remoteSessions, fetchErr = fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+		remoteSessions, fetchErr = fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, tailscaleIPs...)
 	}
 	if fetchErr != nil {
 		return fmt.Errorf("attach: cannot reach remote host %q: %w", hostname, fetchErr)

@@ -41,7 +41,7 @@ func cmdTUI(client *daemon.DaemonClient) error {
 		groupMap := make(map[string][]tui.RemoteSessionEntry)
 		for _, p := range peers {
 			fqdn := strings.TrimSuffix(p.DNSName, ".")
-			peerSessions, err := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort)
+			peerSessions, err := fetchPeerSessions(ctx, fqdn, tailnet.DefaultProbePort, p.TailscaleIPs...)
 			if err != nil {
 				log.Printf("[warn] peer session fetch failed: peer=%s err=%v", fqdn, err)
 				continue
