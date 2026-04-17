@@ -154,22 +154,22 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Remote sessions panel in TUI shows tailnet peer sessions with hostname grouping — v2.0 Phase 78
 - ✓ ASCII QR code display for session web URL in TUI — v2.0 Phase 78
 
+- ✓ Settings persistence: CLI paths and Tailscale path saved to daemon `settings.json` via Wails bindings, survive app restarts — v2.1 Phase 79
+- ✓ Save confirmation: three-state button (Save/Saving.../Saved!) with 1.5s transient feedback — v2.1 Phase 79
+- ✓ Native file/folder picker: browse buttons on each path field via Wails `OpenFileDialog` with parent-directory default — v2.1 Phase 79
+- ✓ Tailscale 4-state health check: Not Installed / Daemon Stopped / Not Connected / Connected with platform-specific binary detection (Homebrew, Snap, Flatpak, Windows) — v2.1 Phase 80
+- ✓ Diagnostics checklist in Settings for Tailscale troubleshooting — v2.1 Phase 80
+- ✓ Banner vertical stacking: BannerStack container with flex-column layout, independent dismiss handlers, 200ms exit animation — v2.1 Phase 81
+- ✓ Dismissed-state reset on webServerMode change — v2.1 Phase 81
+- ✓ Start minimized to tray: toggle in Settings > Behavior, persisted via daemon settings.json, `domReady` gate prevents window show — v2.1 Phase 82
+
 ### Active
 
-## Current Milestone: v2.1 Bug Fixes & UX
-
-**Goal:** Fix settings persistence, Tailscale detection, and banner stacking bugs; add file browser buttons to path settings and minimize-to-tray startup option.
-
-**Target features:**
-- Settings paths persist between sessions with save confirmation feedback (GitHub #26)
-- Reliable Tailscale installation and connection state detection (GitHub #27)
-- Multiple banner notifications stack vertically (GitHub #28)
-- File browser buttons on Settings > Paths entry boxes (GitHub #31)
-- Setting to start app minimized to system tray (GitHub #25)
+(No active requirements — next milestone not yet defined)
 
 ## Current State
 
-v2.1 in progress (2026-04-17). 16 milestones shipped (v1.0–v2.0), 82 phases completed. Phase 82 complete — minimize-to-tray toggle added to Settings with persisted startup behavior (start-minimized preference survives restarts via daemon settings.json). Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay.
+v2.1 shipped (2026-04-17). 17 milestones shipped (v1.0–v2.1), 82 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
 
 ### Out of Scope
 
@@ -200,7 +200,7 @@ v2.1 in progress (2026-04-17). 16 milestones shipped (v1.0–v2.0), 82 phases co
 
 ## Context
 
-Shipped v2.0 with ~19K Go (incl. 9K tests) + ~7K TS/TSX/CSS (incl. 2.6K tests).
+Shipped v2.1 with ~19K Go (incl. 9K tests) + ~7K TS/TSX/CSS (incl. 2.6K tests).
 Tech stack: Go/Wails v2, React, xterm.js, xterm-theme@1.1.0, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate, charmbracelet/bubbletea/v2, charmbracelet/lipgloss/v2, charmbracelet/bubbles/v2.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `tui` launches Bubble Tea terminal UI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI, CLI, and TUI are all DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). `internal/relay` Hub manages per-session subscriber fan-out with metadata, read-only enforcement, and max-wins resize arbitration. `internal/statusbar` provides DECSTBM scroll-region status bar for CLI attach. `internal/tui` provides Bubble Tea v2 terminal UI with session list, modals, and QR overlay. `internal/attach` provides shared attach logic used by both CLI and TUI. System tray uses native macOS cgo NSStatusBar, Linux D-Bus StatusNotifierItem, Windows Shell_NotifyIcon — all sharing menu helpers. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS. OpenCode theme integration via managed tui.json and SIGUSR2 signal broadcast through daemon HTTP API.
 Go test suite: 280+ tests race-clean across 11 packages (added internal/statusbar, internal/tui, internal/attach).
@@ -317,6 +317,12 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Unified local+remote session list (not separate panels) | TUI shows local and remote sessions in one scrollable list with divider rows | ✓ Good — single mental model, matches CLI `agenthub list` grouping |
 | go-qrcode ToSmallString for ASCII QR in TUI | Half-block characters (▀▄█) render QR at half-height; 55×25 terminal size guard | ✓ Good — readable in standard terminal sizes |
 | Remote attach deferred (toast displayed) | TUI shows "not yet supported" for remote session attach — WSS relay attach is future scope | ✓ Good — clean scope boundary, no half-implementation |
+| Settings persistence via daemon settings.json | CLI paths, Tailscale path, and startMinimized all share `daemonSettings` struct with `saveSettingsToDisk()` | ✓ Good — single persistence layer, no per-feature storage |
+| Three-state Save button (idle/saving/saved) | Transient confirmation pattern — button shows "Saved!" for 1.5s then returns to idle | ✓ Good — no toast infrastructure needed |
+| 4-state Tailscale health cascade | Not Installed → Daemon Stopped → Not Connected → Connected; checked in priority order | ✓ Good — replaces binary installed/not-installed with actionable diagnostics |
+| BannerStack container for vertical stacking | Banners as flex-column siblings; independent dismiss via per-banner state in App.tsx | ✓ Good — clean separation, 200ms exit animation |
+| Non-optimistic toggle for startMinimized | `setStartMinimized` only called after `await SetStartMinimized` succeeds — state reverts on failure | ✓ Good — user never sees stale toggle state |
+| `domReady` conditional WindowShow | `app.go` checks startMinimized preference in `domReady()` before calling `WindowShow` | ✓ Good — window never appears when start-minimized enabled |
 
 ---
 ## Evolution
@@ -337,4 +343,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after Phase 82 (Minimize to Tray) complete*
+*Last updated: 2026-04-17 after v2.1 milestone*

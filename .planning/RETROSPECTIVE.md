@@ -712,6 +712,50 @@
 
 ---
 
+## Milestone: v2.1 — Bug Fixes & UX
+
+**Shipped:** 2026-04-17
+**Phases:** 4 | **Plans:** 8 | **Commits:** 91
+
+### What Was Built
+- Settings persistence: CLI paths and Tailscale path saved to daemon settings.json via Wails bindings with three-state Save button and native file/folder picker
+- Tailscale 4-state health check cascade with platform-specific binary detection (Homebrew, Snap, Flatpak, Windows) and diagnostics checklist
+- Banner vertical stacking with BannerStack container, independent dismiss handlers, and 200ms exit animation
+- Start-minimized-to-tray with Settings > Behavior toggle, persisted preference, and domReady conditional WindowShow gate
+
+### What Worked
+- All 4 phases shared the daemon `daemonSettings` struct for persistence — single storage layer, no per-feature duplication
+- Phase dependency chain (79→80→81→82) ensured each phase could build on the previous without integration surprises
+- 4-state Tailscale health cascade replaced the binary installed/not-installed check — actionable diagnostics for every failure mode
+- Non-optimistic toggle pattern (wait for API success before updating UI state) prevented stale toggle states
+- `toggleLoaded` flash-gate pattern prevented visual flash on page load — reusable for any async-loaded toggle
+- Milestone audit passed on first run (12/12 requirements, 14/14 integration points, 5/5 E2E flows)
+
+### What Was Inefficient
+- gsd-tools `summary-extract` one-liner auto-extraction continues to produce unusable output — had to manually curate accomplishments for MILESTONES.md (same issue since v1.14)
+- gsd-tools `audit-open` command has a ReferenceError bug (`output is not defined`) — had to manually check for open artifacts
+- Phase 80 Tailscale health check required decoupling `loadSettingsFromDisk()` to prevent startMinimized from interfering with CLIPaths loading — integration discovered during Phase 82 execution
+
+### Patterns Established
+- Three-state button pattern (idle → loading → confirmed → idle) for save actions — reusable for any async form submission
+- `toggleLoaded` gate for async-loaded toggles — prevents off→on flash by deferring render until initial value resolves
+- `domReady` conditional WindowShow — checks persisted preferences before showing main window
+- BannerStack flex-column container with per-banner dismiss state — extensible for future notification types
+- Platform-specific binary detection in separate `tailscale_paths.go` file following existing build-tagged pattern
+
+### Key Lessons
+1. Bug-fix milestones with tight scope (4 phases, 12 requirements) execute cleanly in 2 days — overhead is proportional to scope
+2. Non-optimistic UI patterns (wait for server confirmation) are worth the extra complexity — they prevent impossible UI states
+3. Shared persistence layers (`daemonSettings`) across phases need integration testing when multiple phases write to the same struct
+4. gsd-tools summary-extract and audit-open need maintenance — both produced errors/garbage output at milestone close
+
+### Cost Observations
+- Model mix: ~60% sonnet (execution), ~35% opus (planning/audit/completion), ~5% haiku
+- Sessions: ~3 sessions across 2 days
+- Notable: 8 plans in 2 days — 4 plans/day, consistent with recent milestones
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -734,6 +778,7 @@
 | v1.13 | 11 | 3 | Cross-platform tray (D-Bus SNI + Shell_NotifyIcon), shared tray helpers, build-tagged platform paths, settings scroll refactor |
 | v1.14 | 64 | 4 | Per-agent env injection (OpenCode tui.json), SIGUSR2 signal broadcast, WCAG contrast audit, curated theme allowlist |
 | v2.0 | 116 | 5 | Multi-client fan-out, DECSTBM status bar, Bubble Tea v2 TUI, shared attach package, unified local+remote list |
+| v2.1 | 91 | 4 | Settings persistence, 4-state Tailscale health, banner stacking, start-minimized-to-tray, non-optimistic toggle pattern |
 
 ### Cumulative Quality
 
@@ -755,6 +800,7 @@
 | v1.13 | 200+ (race-clean) | 270+ | ~43,000 | 11 (9 human UAT, 2 metadata; 0 blockers) |
 | v1.14 | 200+ (race-clean) | 280+ | ~23,000 | 3 (0 blockers; SUMMARY one_liner extraction broken, ROADMAP checkbox drift, audit-open bug) |
 | v2.0 | 280+ (race-clean) | 280+ | ~26,000 | 21 (0 blockers; 19 metadata drift, 2 scope deferrals) |
+| v2.1 | 280+ (race-clean) | 456 | ~26,300 | 2 (0 blockers; info-level .catch patterns) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -782,3 +828,5 @@
 20. SUMMARY frontmatter one_liner auto-extraction is unreliable across 10 milestones — needs tooling fix or manual curation at completion time (v1.1-v1.9)
 21. Extending existing wire protocols (binary framing) is cheaper than designing new ones — MsgMeta added in v2.0 with one type constant and handler, no breaking changes (v2.0)
 22. Shared package extraction (internal/attach/) should happen at the second consumer, not later — CLI+TUI attach unified cleanly because extraction was planned in the phase (v2.0)
+23. Non-optimistic UI toggles (wait for server success before updating state) prevent impossible UI states — worth the async complexity (v2.1)
+24. Shared persistence structs across phases need integration testing when multiple features write to the same storage layer (v2.1)

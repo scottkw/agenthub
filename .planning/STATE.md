@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Bug Fixes & UX
-status: executing
-stopped_at: Phase 82 UI-SPEC approved
-last_updated: "2026-04-17T13:08:35.813Z"
+status: completed
+stopped_at: Milestone v2.1 archived
+last_updated: "2026-04-17T15:00:00.000Z"
 last_activity: 2026-04-17
 progress:
   total_phases: 4
@@ -18,28 +18,28 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-16)
+See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 82 — minimize-to-tray
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 82
-Plan: Not started
-Status: Executing Phase 82
+Phase: 82 (last completed)
+Plan: All complete
+Status: Milestone v2.1 shipped
 Last activity: 2026-04-17
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v2.0 plans completed: 16
-- v2.0 phases: 5
-- v2.0 timeline: 2026-04-14 → 2026-04-16 (3 days)
-- Cumulative: 78 phases, 151 plans across 16 milestones
+- v2.1 plans completed: 8
+- v2.1 phases: 4
+- v2.1 timeline: 2026-04-16 → 2026-04-17 (2 days)
+- Cumulative: 82 phases, 159 plans across 17 milestones
 
 ## Accumulated Context
 
@@ -66,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-16T21:27:40.095Z
-Stopped at: Phase 82 UI-SPEC approved
-Next action: /gsd-plan-phase 79
+Last session: 2026-04-17
+Stopped at: Milestone v2.1 archived
+Next action: /gsd-new-milestone

@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.1 Bug Fixes & UX (Shipped: 2026-04-17)
+
+**Phases completed:** 4 phases, 8 plans, 19 tasks
+**Requirements:** 12/12 satisfied (SET-01..SET-05, TS-01..TS-02, BAN-01..BAN-02, TRAY-01..TRAY-03)
+**Commits:** 91 | **Timeline:** 2 days (2026-04-16 → 2026-04-17)
+**Source changes:** 82 files, +14,301 / -300 lines
+
+**Key accomplishments:**
+
+- Settings persistence: CLI paths saved to daemon `settings.json` with JSON file storage, three-state Save button (idle/saving/saved), and native file/folder picker via Wails `OpenFileDialog` bindings (Phase 79, SET-01..SET-05)
+- Tailscale detection: 4-state health check cascade (Not Installed → Daemon Stopped → Not Connected → Connected) with platform-specific binary detection for Homebrew, Snap, Flatpak, and Windows default install paths; diagnostics checklist in Settings (Phase 80, TS-01..TS-02)
+- Banner notifications: vertical stacking with BannerStack container, independent dismiss handlers with 200ms exit animation, lifted update state from WelcomeTab to App.tsx, dismissed-state reset on webServerMode change (Phase 81, BAN-01..BAN-02)
+- Minimize to tray: `startMinimized` toggle in Settings > Behavior section, persisted via daemon settings.json, conditional `WindowShow` in `domReady` gate, non-optimistic toggle state, `toggleLoaded` flash-gate prevents off→on flash on load (Phase 82, TRAY-01..TRAY-03)
+
+---
+
 ## v2.0 Multi-Client, CLI UX & TUI Mode (Shipped: 2026-04-16)
 
 **Phases completed:** 5 phases, 16 plans, 22 tasks
