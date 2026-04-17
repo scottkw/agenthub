@@ -285,7 +285,7 @@ Plans:
 | 79. Settings Persistence & Path Browsing | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 80. Tailscale Detection | v2.1 | 2/2 | Complete    | 2026-04-16 |
 | 81. Banner Notifications | v2.1 | 2/2 | Complete    | 2026-04-16 |
-| 82. Minimize to Tray | v2.1 | 2/2 | Complete   | 2026-04-17 |
+| 82. Minimize to Tray | v2.1 | 2/2 | Complete    | 2026-04-17 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
