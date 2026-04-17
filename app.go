@@ -73,10 +73,19 @@ func NewApp() *App {
 }
 
 // domReady is called by Wails after the WebView DOM is ready.
-// Shows the window now that the static HTML splash is rendered and visible.
+// Shows the window unless the persisted start-minimized preference is set.
+// Falls back to showing the window when the daemon is unreachable (safe default).
 func (a *App) domReady(ctx context.Context) {
-	runtime.WindowShow(ctx)
-	a.setDockVisible(true)
+	startMinimized := false
+	if a.client != nil {
+		if val, err := a.client.GetStartMinimized(); err == nil {
+			startMinimized = val
+		}
+	}
+	if !startMinimized {
+		runtime.WindowShow(ctx)
+		a.setDockVisible(true)
+	}
 }
 
 // startup is called when Wails initialises the app.
@@ -318,6 +327,27 @@ func (a *App) GetCLIPaths() (map[string]string, error) {
 		return nil, fmt.Errorf("daemon not connected")
 	}
 	return a.client.GetCLIPaths()
+}
+
+// GetStartMinimized returns the persisted start-minimized preference.
+// Returns false (show window) when daemon is not connected.
+func (a *App) GetStartMinimized() bool {
+	if a.client == nil {
+		return false
+	}
+	val, err := a.client.GetStartMinimized()
+	if err != nil {
+		return false
+	}
+	return val
+}
+
+// SetStartMinimized persists the start-minimized preference.
+func (a *App) SetStartMinimized(val bool) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.SetStartMinimized(val)
 }
 
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).

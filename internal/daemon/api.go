@@ -50,6 +50,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /sessions/{id}/status", a.handleGetSessionStatus)
 	a.mux.HandleFunc("GET /settings/cli-paths", a.handleGetCLIPaths)
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
+	a.mux.HandleFunc("GET /settings/start-minimized", a.handleGetStartMinimized)
+	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -335,6 +337,22 @@ func (a *API) handleUpdateCLIPath(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleGetStartMinimized(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"startMinimized": a.engine.GetStartMinimized()})
+}
+
+func (a *API) handleSetStartMinimized(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		StartMinimized bool `json:"startMinimized"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetStartMinimized(req.StartMinimized)
 	w.WriteHeader(http.StatusNoContent)
 }
 

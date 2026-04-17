@@ -98,6 +98,21 @@ func (c *DaemonClient) UpdateCLIPath(name, path string) error {
 	return c.doJSON(http.MethodPatch, "/settings/cli-paths/"+name, UpdateCLIPathRequest{Path: path}, nil)
 }
 
+// GetStartMinimized returns the persisted start-minimized preference.
+func (c *DaemonClient) GetStartMinimized() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/start-minimized", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp["startMinimized"], nil
+}
+
+// SetStartMinimized persists the start-minimized preference.
+func (c *DaemonClient) SetStartMinimized(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/start-minimized",
+		map[string]bool{"startMinimized": val}, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse

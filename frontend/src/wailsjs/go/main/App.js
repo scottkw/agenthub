@@ -63,3 +63,7 @@ export const GetCLIPaths             = ()                   => Call('main.App.Ge
 
 // Theme notification bound method
 export const NotifyThemeChange       = ()                   => Call('main.App.NotifyThemeChange', [])
+
+// Start-minimized bound methods (TRAY-02/03)
+export const GetStartMinimized       = ()                   => Call('main.App.GetStartMinimized', [])
+export const SetStartMinimized       = (val)                => Call('main.App.SetStartMinimized', [val])
