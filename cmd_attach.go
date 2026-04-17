@@ -234,6 +234,13 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 	defer stop()
 
 	conn, _, err := websocket.Dial(sigCtx, wsURL, nil)
+	if err != nil && peer != nil && len(peer.TailscaleIPs) > 0 {
+		// DNS fallback: try Tailscale IP with Host header for TLS SNI.
+		ipWSURL := fmt.Sprintf("wss://%s:%d/sessions/%s/ws", peer.TailscaleIPs[0], tailnet.DefaultProbePort, sessionID)
+		conn, _, err = websocket.Dial(sigCtx, ipWSURL, &websocket.DialOptions{
+			Host: fmt.Sprintf("%s:%d", fqdn, tailnet.DefaultProbePort),
+		})
+	}
 	if err != nil {
 		return fmt.Errorf("attach: dial remote relay: %w", err)
 	}
