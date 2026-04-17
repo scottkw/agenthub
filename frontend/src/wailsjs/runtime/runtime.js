@@ -26,3 +26,15 @@ export function EventsOff(eventName) {
     return window.runtime.EventsOff(eventName)
   }
 }
+
+export function BrowserOpenURL(url) {
+  if (window.runtime && window.runtime.BrowserOpenURL) {
+    window.runtime.BrowserOpenURL(url)
+  }
+}
+
+export function ClipboardSetText(text) {
+  if (window.runtime && window.runtime.ClipboardSetText) {
+    return window.runtime.ClipboardSetText(text)
+  }
+}

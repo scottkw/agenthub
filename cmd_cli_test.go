@@ -21,6 +21,13 @@ func testSetup(t *testing.T) *daemon.DaemonClient {
 	if runtime.GOOS == "windows" {
 		t.Skip("testSetup uses Unix domain sockets")
 	}
+	// Isolate config directory so settings.json from other tests doesn't leak.
+	tmpCfg := t.TempDir()
+	if runtime.GOOS == "darwin" {
+		t.Setenv("HOME", tmpCfg) // os.UserConfigDir uses ~/Library/Application Support
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", tmpCfg)
+	}
 	engine := daemon.NewSessionEngine()
 	api := daemon.NewAPI(engine)
 	// Use short socket path to avoid macOS 103-char sun_path limit.
