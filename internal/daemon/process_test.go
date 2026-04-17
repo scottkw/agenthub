@@ -97,6 +97,9 @@ func TestRestartWebServer_StopsAndStarts(t *testing.T) {
 }
 
 func TestUpgradeToTailscale_ExitsOnCancel(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets")
+	}
 	// upgradeToTailscale must exit promptly when ctx is cancelled.
 	socketPath := shortProcTestSocket(t, "upgrade")
 	engine := NewSessionEngine()

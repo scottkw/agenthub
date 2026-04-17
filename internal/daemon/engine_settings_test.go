@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -164,6 +165,9 @@ func TestStartMinimizedWithoutCLIPaths(t *testing.T) {
 }
 
 func TestSettingsFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not support Unix file permissions")
+	}
 	dir := t.TempDir()
 
 	fakeBin := filepath.Join(dir, "fake-bin")
