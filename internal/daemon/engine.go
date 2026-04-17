@@ -32,6 +32,8 @@ type SessionEngine struct {
 	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
 	cliPaths    map[string]string // cli name -> custom path override
 
+	startMinimized bool // persisted start-minimized preference
+
 	statusMu        sync.RWMutex
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
 }
@@ -61,7 +63,8 @@ func ensureOpenCodeTUIConfig(dir string) string {
 
 // daemonSettings is the persisted settings structure.
 type daemonSettings struct {
-	CLIPaths map[string]string `json:"cliPaths,omitempty"`
+	CLIPaths       map[string]string `json:"cliPaths,omitempty"`
+	StartMinimized bool              `json:"startMinimized,omitempty"`
 }
 
 // settingsPath returns the path to settings.json inside the config dir.
@@ -77,19 +80,26 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 		return // file not found or unreadable — not an error
 	}
 	var s daemonSettings
-	if json.Unmarshal(data, &s) == nil && s.CLIPaths != nil {
-		e.mu.Lock()
+	if json.Unmarshal(data, &s) != nil {
+		return
+	}
+	e.mu.Lock()
+	if s.CLIPaths != nil {
 		for k, v := range s.CLIPaths {
 			e.cliPaths[k] = v
 		}
-		e.mu.Unlock()
 	}
+	e.startMinimized = s.StartMinimized
+	e.mu.Unlock()
 }
 
-// saveSettingsToDisk writes current cliPaths to settings.json.
+// saveSettingsToDisk writes current settings to settings.json.
 // Caller holds e.mu.Lock().
 func (e *SessionEngine) saveSettingsToDisk() {
-	s := daemonSettings{CLIPaths: e.cliPaths}
+	s := daemonSettings{
+		CLIPaths:       e.cliPaths,
+		StartMinimized: e.startMinimized,
+	}
 	data, err := json.Marshal(s)
 	if err != nil {
 		return
@@ -295,6 +305,21 @@ func (e *SessionEngine) GetCLIPaths() map[string]string {
 		out[k] = v
 	}
 	return out
+}
+
+// GetStartMinimized returns the persisted start-minimized preference.
+func (e *SessionEngine) GetStartMinimized() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.startMinimized
+}
+
+// SetStartMinimized updates and persists the start-minimized preference.
+func (e *SessionEngine) SetStartMinimized(val bool) {
+	e.mu.Lock()
+	e.startMinimized = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
 }
 
 // Manager returns the HubManager (needed by webserver and relay server).
