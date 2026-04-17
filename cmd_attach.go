@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -235,10 +236,19 @@ func cmdAttachRemoteWithClient(hostname, sessionID, fqdn, baseURL string, httpCl
 
 	conn, _, err := websocket.Dial(sigCtx, wsURL, nil)
 	if err != nil && peer != nil && len(peer.TailscaleIPs) > 0 {
-		// DNS fallback: try Tailscale IP with Host header for TLS SNI.
+		// DNS fallback: connect to Tailscale IP with TLS ServerName set to the
+		// FQDN so SNI matches the Tailscale-provisioned Let's Encrypt certificate.
 		ipWSURL := fmt.Sprintf("wss://%s:%d/sessions/%s/ws", peer.TailscaleIPs[0], tailnet.DefaultProbePort, sessionID)
 		conn, _, err = websocket.Dial(sigCtx, ipWSURL, &websocket.DialOptions{
 			Host: fmt.Sprintf("%s:%d", fqdn, tailnet.DefaultProbePort),
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						ServerName: fqdn,
+						MinVersion: tls.VersionTLS12,
+					},
+				},
+			},
 		})
 	}
 	if err != nil {
