@@ -298,3 +298,48 @@ describe('TS-01/TS-02: 4-state Tailscale detection', () => {
     expect(raw).toContain('leave blank to auto-detect')
   })
 })
+
+describe('SET-01: Unified path table (single table for CLI + tailscale rows)', () => {
+  it('has exactly one settings-panel__table in the Paths section', () => {
+    const pathsStart = raw.indexOf('<h3>Paths</h3>')
+    const saveRow = raw.indexOf('settings-panel__save-paths-row', pathsStart)
+    expect(pathsStart).toBeGreaterThan(-1)
+    const pathsBlock = raw.slice(pathsStart, saveRow)
+    const tableMatches = pathsBlock.match(/className="settings-panel__table"/g) ?? []
+    expect(tableMatches.length).toBe(1)
+  })
+
+  it('tailscale path row is inside the same table as detected CLI rows', () => {
+    const tableStart = raw.indexOf('className="settings-panel__table"')
+    const tableEnd = raw.indexOf('</table>', tableStart)
+    expect(tableStart).toBeGreaterThan(-1)
+    const tableBlock = raw.slice(tableStart, tableEnd)
+    expect(tableBlock).toContain('clis.map')
+    expect(tableBlock).toContain("'tailscale'")
+  })
+
+  it('does NOT render a second table for tailscale with marginTop style', () => {
+    expect(raw).not.toContain("className=\"settings-panel__table\" style={{ marginTop: '0.75rem' }}")
+  })
+
+  it('merged table uses CLI as column header (not Tool)', () => {
+    const tableStart = raw.indexOf('className="settings-panel__table"')
+    const tableEnd = raw.indexOf('</table>', tableStart)
+    const tableBlock = raw.slice(tableStart, tableEnd)
+    expect(tableBlock).toContain('<th>CLI</th>')
+    expect(tableBlock).not.toContain('<th>Tool</th>')
+  })
+})
+
+describe('SET-02: No inline fontSize override on description elements', () => {
+  it('does NOT have fontSize: 0.8rem on any description paragraph', () => {
+    expect(raw).not.toContain("fontSize: '0.8rem'")
+  })
+
+  it('does NOT have marginTop: 0.25rem on Tailscale status description', () => {
+    const statusIdx = raw.indexOf('tailscaleStatusText(tailscaleHealth)')
+    expect(statusIdx).toBeGreaterThan(-1)
+    const nearStatus = raw.slice(statusIdx, statusIdx + 500)
+    expect(nearStatus).not.toContain("marginTop: '0.25rem'")
+  })
+})

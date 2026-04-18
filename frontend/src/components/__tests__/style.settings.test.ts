@@ -58,3 +58,21 @@ describe('SETT-02: Section header CSS', () => {
     expect(css).toContain('border-top: 1px solid #292e42')
   })
 })
+
+describe('SET-01: No duplicate settings-panel__table margin override', () => {
+  it('does NOT contain settings-panel__table--tailscale modifier class', () => {
+    expect(css).not.toContain('settings-panel__table--tailscale')
+  })
+})
+
+describe('SET-02: Description font-size rule is authoritative at 12px', () => {
+  it('contains .settings-panel__description rule', () => {
+    expect(css).toContain('.settings-panel__description')
+  })
+
+  it('.settings-panel__description uses font-size: 12px', () => {
+    const descIdx = css.indexOf('.settings-panel__description')
+    const descBlock = css.slice(descIdx, css.indexOf('}', descIdx))
+    expect(descBlock).toContain('font-size: 12px')
+  })
+})
