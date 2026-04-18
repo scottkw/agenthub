@@ -229,9 +229,9 @@
   2. CLI path entry boxes are flush with each other across all path rows
   3. All Settings sections (Appearance, Web Server, Paths, Behavior) share consistent header typography and spacing
   4. No section appears visually disconnected or misaligned when scrolling through the full Settings page
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 83-01-PLAN.md — Merge path tables, remove inline style overrides, visual verification
+- [x] 83-01-PLAN.md — Merge path tables, remove inline style overrides, visual verification
 **UI hint**: yes
 
 ### Phase 84: Session Auto-Close
@@ -294,7 +294,7 @@ Plans:
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
-| 83 | v3.0 | 0/1 | In progress | - |
+| 83 | v3.0 | 1/1 | Complete   | 2026-04-18 |
 | 84 | v3.0 | 0/? | Not started | - |
 | 85 | v3.0 | 0/? | Not started | - |
 | 86 | v3.0 | 0/? | Not started | - |
