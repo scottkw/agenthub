@@ -165,7 +165,17 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active requirements — next milestone not yet defined)
+#### Current Milestone: v3.0 Session Lifecycle & TUI Polish
+
+**Goal:** Improve session lifecycle (auto-close on agent exit, quit verification), fix Settings alignment bug, and bring TUI visual parity closer to the GUI.
+
+**GitHub Issues:** #34, #33, #32, #29
+
+**Target features:**
+- [ ] Fix Settings Path section column alignment (#34)
+- [ ] Sessions auto-close when agent process exits (#33)
+- [ ] Quit confirmation modal — option to kill daemon or leave running (#32)
+- [ ] TUI UI/UX overhaul with frames, tabs, and visual parity with GUI (#29)
 
 ## Current State
 
@@ -343,4 +353,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after v2.1 milestone*
+*Last updated: 2026-04-17 after v3.0 milestone start*

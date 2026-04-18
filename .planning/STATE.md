@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Bug Fixes & UX
-status: completed
-stopped_at: Milestone v2.1 archived
-last_updated: "2026-04-17T15:00:00.000Z"
+milestone: v3.0
+milestone_name: Session Lifecycle & TUI Polish
+status: active
+stopped_at: null
+last_updated: "2026-04-17T18:00:00.000Z"
 last_activity: 2026-04-17
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** v3.0 Session Lifecycle & TUI Polish
 
 ## Current Position
 
-Phase: 82 (last completed)
-Plan: All complete
-Status: Milestone v2.1 shipped
-Last activity: 2026-04-17
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-17 — Milestone v3.0 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -67,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Milestone v2.1 archived
-Next action: /gsd-new-milestone
+Stopped at: Milestone v3.0 — defining requirements
+Next action: Define requirements, then /gsd-plan-phase
