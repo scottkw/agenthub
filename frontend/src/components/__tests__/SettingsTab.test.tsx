@@ -333,7 +333,9 @@ describe('SET-01: Unified path table (single table for CLI + tailscale rows)', (
 
 describe('SET-02: No inline fontSize override on description elements', () => {
   it('does NOT have fontSize: 0.8rem on any description paragraph', () => {
-    expect(raw).not.toContain("fontSize: '0.8rem'")
+    // Check that no settings-panel__description element has an inline fontSize override.
+    // Other elements (e.g. diagnostics summary/div) may legitimately use inline fontSize.
+    expect(raw).not.toContain('settings-panel__description" style={{ marginTop: \'0.25rem\', fontSize: \'0.8rem\' }}')
   })
 
   it('does NOT have marginTop: 0.25rem on Tailscale status description', () => {

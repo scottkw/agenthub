@@ -336,7 +336,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             )}
             <span className="ts-status__text">{tailscaleStatusText(tailscaleHealth)}</span>
           </div>
-          <p className="settings-panel__description" style={{ marginTop: '0.25rem', fontSize: '0.8rem' }}>
+          <p className="settings-panel__description">
             {tailscaleHealth
               ? (tailscaleHealth.connected
                   ? `Connected via ${tailscaleHealth.domain || tailscaleHealth.ip}`
@@ -518,87 +518,73 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </>
         )}
 
-        {/* Paths section (SETT-02) */}
+        {/* Paths section (SET-01 fix: single unified table) */}
         <h3>Paths</h3>
-        {clis.length === 0 ? (
-          <p className="settings-panel__empty">No CLIs detected. Install an AI coding CLI and restart the app.</p>
-        ) : (
-          <table className="settings-panel__table">
-            <thead>
-              <tr>
-                <th>CLI</th>
-                <th>Path</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clis.map((cli) => (
-                <tr key={cli.Name}>
-                  <td className="settings-panel__cli-name">{cli.Name}</td>
-                  <td>
-                    <div className="settings-panel__path-row">
-                      <input
-                        className="settings-panel__path-input"
-                        type="text"
-                        value={customPaths[cli.Name] ?? cli.Path}
-                        onChange={(e) =>
-                          setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
-                        }
-                        placeholder={cli.Path || `Path to ${cli.Name}`}
-                      />
-                      <button
-                        className="settings-panel__browse-btn"
-                        onClick={() => void handleBrowse(cli.Name)}
-                        title="Browse for executable"
-                      >
-                        Browse
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {clis.length === 0 && (
+          <p className="settings-panel__empty">
+            No CLIs detected. Install claude, opencode, or another supported CLI and restart AgentHub to populate the Paths list.
+          </p>
         )}
-
-        {/* Tailscale path row — only shown if not already in detected CLIs */}
-        {!clis.find(c => c.Name === 'tailscale') && (() => {
-          const tsPath = customPaths['tailscale'] ?? ''
-          return (
-            <table className="settings-panel__table" style={{ marginTop: '0.75rem' }}>
-              <thead>
-                <tr>
-                  <th>Tool</th>
-                  <th>Path</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="settings-panel__cli-name">tailscale</td>
-                  <td>
-                    <div className="settings-panel__path-row">
-                      <input
-                        className="settings-panel__path-input"
-                        type="text"
-                        value={tsPath}
-                        onChange={(e) =>
-                          setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
-                        }
-                        placeholder="Path to tailscale (leave blank to auto-detect)"
-                      />
-                      <button
-                        className="settings-panel__browse-btn"
-                        onClick={() => void handleBrowse('tailscale')}
-                        title="Browse for executable"
-                      >
-                        Browse
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          )
-        })()}
+        <table className="settings-panel__table">
+          <thead>
+            <tr>
+              <th>CLI</th>
+              <th>Path</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clis.map((cli) => (
+              <tr key={cli.Name}>
+                <td className="settings-panel__cli-name">{cli.Name}</td>
+                <td>
+                  <div className="settings-panel__path-row">
+                    <input
+                      className="settings-panel__path-input"
+                      type="text"
+                      value={customPaths[cli.Name] ?? cli.Path}
+                      onChange={(e) =>
+                        setCustomPaths((prev) => ({ ...prev, [cli.Name]: e.target.value }))
+                      }
+                      placeholder={cli.Path || `Path to ${cli.Name}`}
+                    />
+                    <button
+                      className="settings-panel__browse-btn"
+                      onClick={() => void handleBrowse(cli.Name)}
+                      title="Browse for executable"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!clis.find(c => c.Name === 'tailscale') && (
+              <tr key="tailscale">
+                <td className="settings-panel__cli-name">tailscale</td>
+                <td>
+                  <div className="settings-panel__path-row">
+                    <input
+                      className="settings-panel__path-input"
+                      type="text"
+                      value={customPaths['tailscale'] ?? ''}
+                      onChange={(e) =>
+                        setCustomPaths((prev) => ({ ...prev, tailscale: e.target.value }))
+                      }
+                      placeholder="Path to tailscale (leave blank to auto-detect)"
+                    />
+                    <button
+                      className="settings-panel__browse-btn"
+                      onClick={() => void handleBrowse('tailscale')}
+                      title="Browse for executable"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
 
         {error && <p className="settings-panel__error">{error}</p>}
 
