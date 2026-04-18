@@ -42,14 +42,20 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not currently declared |
 | 3xl | 64px | Not currently declared |
 
-Exceptions:
-- Section header `padding-top: 20px` — 20px is between md (16) and lg (24); keep as-is, do not change
-- Field-group label `margin-bottom: 6px` — 6px is a minor baseline gap; keep as-is, do not change
-- Description `margin-bottom: 10px` — 10px is not on the 4pt scale; keep as-is for this phase (SET-02 audit only; do not re-space)
-- Section header `margin-bottom: 12px` — 12px is not on the 4pt scale; keep as-is
+Exceptions: none declared for this phase.
 
-> Source: `frontend/src/style.css` lines 362–513 (verified by RESEARCH.md). Phase 83 is a CSS alignment
-> fix, not a spacing system overhaul. Only fix the specific inconsistencies called out in SET-01/SET-02.
+> Audit-only note: The following existing CSS values are not on the 4pt scale and are present in
+> the codebase but are NOT being changed in this phase. They are listed here for transparency only
+> and are excluded from spacing contract enforcement:
+> - `.settings-panel__label` `margin-bottom: 6px` — existing value, not changed by SET-02
+> - `.settings-panel__description` `margin-bottom: 10px` — existing value, not changed by SET-02
+> - Section header `padding-top: 20px` — existing value, not changed by SET-02
+> - Section header `margin-bottom: 12px` — existing value, not changed by SET-02
+>
+> Phase 83 is a CSS alignment fix (table merge), not a spacing system overhaul. The spacing
+> contract above declares only the tokens actively used in new or modified layout.
+>
+> Source: `frontend/src/style.css` lines 362–513 (verified by RESEARCH.md).
 
 ---
 
@@ -63,6 +69,12 @@ Exceptions:
 | Code / monospace inline | 11px | 400 (regular) | 1.5 |
 
 Typography notes:
+- **Terminal UI aesthetic:** AgentHub embeds terminal sessions and its Settings panel deliberately
+  mirrors the density of a terminal interface. The 11/12/13px type scale is intentional — it matches
+  the monospace font stack and keeps the settings panel visually cohesive with the terminal pane.
+  These sizes are NOT an accessibility shortcut; they are a deliberate aesthetic choice for a
+  developer-facing tool. Minimum size is 11px (code/monospace), which is acceptable for
+  monospace UI contexts with high-contrast dark background (`#1a1b26`).
 - Section headers (`h3`) use 13px, `text-transform: uppercase`, `letter-spacing: 0.08em`, color `#9aa5ce`
 - Labels (`.settings-panel__label`) use 13px, `font-weight: 600`, color `#a9b1d6`
 - Body text defaults to the monospace stack from `body` — used for all form inputs and table cells
@@ -85,7 +97,7 @@ Typography notes:
 | Muted text | `#9aa5ce` | Section headers, descriptions, placeholder text, empty state |
 | Body text | `#c0caf5` | Default text on dark background |
 | Border | `#292e42` | Panel border, table cell dividers, section divider |
-| Border hover | `#3b4261` | Scrollbar thumb, cancel button hover border |
+| Border hover | `#3b4261` | Scrollbar thumb, Stop Web Server button hover border |
 | Border active | `#565f89` | Scrollbar thumb hover |
 
 Accent reserved for: save button background, input focus-border, CLI name text, hyperlinks — NOT for general interactive borders or icon color.
@@ -100,7 +112,8 @@ Accent reserved for: save button background, input focus-border, CLI name text, 
 | Element | Copy |
 |---------|------|
 | Primary CTA | "Save Paths" (existing `.settings-panel__btn--save` label — no change) |
-| Secondary CTA | "Cancel" (existing cancel button — no change) |
+| Secondary CTA | "Stop Web Server" (existing server toggle button using `.settings-panel__btn--cancel` style — no change to label) |
+| Tertiary action | "Start Web Server" (same button when server is stopped — no change) |
 | Browse action | "Browse" (existing browse button — no change) |
 | Empty state heading | "No CLIs detected." |
 | Empty state body | "Install claude, opencode, or another supported CLI and restart AgentHub to populate the Paths list." |
@@ -113,8 +126,28 @@ Empty-state handling note (from RESEARCH.md open question 2):
 - The tailscale row still renders in the table even when no coding CLIs are found
 - Empty-state message gates on `clis.length === 0`, not on total table row count
 
+> Note on secondary CTA label: The `settings-panel__btn--cancel` CSS class is applied to the
+> "Stop Web Server" button (a server state toggle), not to a dismiss/cancel action. There is no
+> generic "Cancel" button in the settings panel. The label "Cancel" from the original draft referred
+> to this CSS class name, not to a button labeled "Cancel". Corrected to reflect actual button copy.
+
 > Source: RESEARCH.md "Open Questions" section; REQUIREMENTS.md SET-01, SET-02. No new copywriting
 > required — this phase changes layout, not content.
+
+---
+
+## Visuals
+
+Primary visual anchor: the unified Paths table (`.settings-panel__table`). The table is the focal
+point of the settings panel for this phase — it is the component being structurally repaired (SET-01)
+and it occupies the most vertical space in the scrollable settings body. After the fix, the aligned
+CLI/Path columns should draw the eye down consistently from header to the last row (tailscale).
+
+All four section headers (`h3`) use identical typography and border treatment, creating a repeating
+visual rhythm. The Behavior section header is the only visual exception (no top border) due to the
+`h3:first-child` rule — this is an intentional hierarchy marker, not an inconsistency.
+
+> Source: `frontend/src/style.css` `.settings-panel__body h3` rule; SettingsTab.tsx DOM structure.
 
 ---
 
@@ -172,6 +205,7 @@ Settings body is already scrollable (`overflow-y: auto`). No scroll behavior cha
 | Path input | default, focus (border `#7aa2f7`), disabled |
 | Save Paths button | default, hover, disabled (`opacity: 0.6`), saved (green background) |
 | Browse button | default, hover (border `#3b4261`, text `#c0caf5`) |
+| Stop Web Server button | default, hover (border `#3b4261`, text `#c0caf5`) |
 | Settings body | scrolled, not-scrolled (same appearance) |
 
 No loading states, skeleton states, or error toast states in this phase.
