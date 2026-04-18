@@ -19,6 +19,7 @@
 - ✅ **v1.14 UI Polish** — Phases 70-73 (shipped 2026-04-14)
 - ✅ **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (shipped 2026-04-16)
 - ✅ **v2.1 Bug Fixes & UX** — Phases 79-82 (shipped 2026-04-17)
+- **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (in progress)
 
 ## Phases
 
@@ -206,6 +207,70 @@
 
 </details>
 
+<details open>
+<summary>v3.0 Session Lifecycle & TUI Polish (Phases 83-86) — IN PROGRESS</summary>
+
+- [ ] **Phase 83: Settings UI Alignment** — Path column and Settings sections visually consistent (#34)
+- [ ] **Phase 84: Session Auto-Close** — Session tab closes automatically when agent exits (#33)
+- [ ] **Phase 85: Quit Confirmation Modal** — GUI quit shows modal with session count and two exit modes (#32)
+- [ ] **Phase 86: TUI Visual Polish** — Bordered frames, tabbed nav, styled rows, TokyoNight palette (#29)
+
+</details>
+
+## Phase Details
+
+### Phase 83: Settings UI Alignment
+**Goal**: Users see a visually consistent Settings panel where all path entries and section headers are properly aligned
+**Depends on**: Phase 82 (Settings tab exists)
+**GitHub Issues**: #34
+**Requirements**: SET-01, SET-02
+**Success Criteria** (what must be TRUE):
+  1. The Tailscale path column header aligns horizontally with its entry boxes in the Paths section
+  2. CLI path entry boxes are flush with each other across all path rows
+  3. All Settings sections (Appearance, Web Server, Paths, Behavior) share consistent header typography and spacing
+  4. No section appears visually disconnected or misaligned when scrolling through the full Settings page
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 84: Session Auto-Close
+**Goal**: Users experience a clean, informed session tab closure when an agent process exits
+**Depends on**: Phase 83
+**GitHub Issues**: #33
+**Requirements**: SESS-01, SESS-02, SESS-03
+**Success Criteria** (what must be TRUE):
+  1. When an agent process exits, its session tab closes automatically without any manual intervention
+  2. Final terminal output from the exiting agent is visible before the tab disappears (brief flush delay)
+  3. A toast notification or visible indicator appears when the agent exits, giving the user context before close
+  4. The auto-close behavior does not truncate or drop terminal output still in flight at process exit
+**Plans**: TBD
+
+### Phase 85: Quit Confirmation Modal
+**Goal**: Users can choose exactly what happens when they quit the application, with full session context
+**Depends on**: Phase 83
+**GitHub Issues**: #32
+**Requirements**: APP-01, APP-02, APP-03
+**Success Criteria** (what must be TRUE):
+  1. Closing the GUI window (or selecting Quit from the tray menu) presents a confirmation modal rather than immediately exiting
+  2. The modal displays the current count of active sessions so the user knows what will be affected
+  3. The modal offers a "Quit GUI only" option that dismisses the window while leaving the daemon and sessions running
+  4. The modal offers a "Quit everything" option that stops both the GUI and the daemon (terminating all sessions)
+  5. Cancelling the modal returns the user to the running application with no state change
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 86: TUI Visual Polish
+**Goal**: Users experience a TUI that looks and feels as polished as the GUI — with structured layout, navigation, and consistent styling
+**Depends on**: Phase 84
+**GitHub Issues**: #29
+**Requirements**: TUI-01, TUI-02, TUI-03, TUI-04
+**Success Criteria** (what must be TRUE):
+  1. The session list is rendered inside bordered lipgloss frames with labeled section headers (not bare text rows)
+  2. Tab-key navigation moves focus through Home, Sessions, Remote, and Settings sections mirroring the GUI sidebar
+  3. Each session row displays agent type, a status glyph, hostname, and viewer count in a format matching the GUI session cards
+  4. The TUI uses the TokyoNight-derived color palette (backgrounds, accents, borders, text) consistently with the GUI theme
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -227,6 +292,10 @@
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
+| 83 | v3.0 | 0/? | Not started | - |
+| 84 | v3.0 | 0/? | Not started | - |
+| 85 | v3.0 | 0/? | Not started | - |
+| 86 | v3.0 | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

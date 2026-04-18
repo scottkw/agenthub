@@ -7,7 +7,7 @@ stopped_at: null
 last_updated: "2026-04-17T18:00:00.000Z"
 last_activity: 2026-04-17
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-17)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 83 — Settings UI Alignment
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-17 — Milestone v3.0 started
+Status: Ready to plan
+Last activity: 2026-04-17 — Roadmap created for v3.0
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 0% (0/4 phases)
 
 ## Performance Metrics
 
@@ -45,7 +45,10 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-(Cleared at milestone boundary — full decision log in PROJECT.md Key Decisions table)
+- v3.0 phases derived from 4 GitHub issue clusters: #34 (Settings), #33 (Session lifecycle), #32 (App quit), #29 (TUI polish)
+- Phase 83 and 85 both depend on Phase 82 completion (Settings tab and tray exist); ordered 83 first as it unblocks visual verification before adding modal behavior
+- Phase 86 (TUI Polish) placed last as it is visually independent but benefits from session lifecycle work (Phase 84) being stable first
+- Quit modal (Phase 85) uses "depends on Phase 83" rather than Phase 84 because it is a GUI-only feature with no dependency on session auto-close
 
 ### Pending Todos
 
@@ -67,5 +70,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Milestone v3.0 — defining requirements
-Next action: Define requirements, then /gsd-plan-phase
+Stopped at: Milestone v3.0 — roadmap created, ready to plan Phase 83
+Next action: /gsd-plan-phase 83

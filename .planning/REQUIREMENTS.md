@@ -76,24 +76,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SET-01 | — | Pending |
-| SET-02 | — | Pending |
-| SESS-01 | — | Pending |
-| SESS-02 | — | Pending |
-| SESS-03 | — | Pending |
-| APP-01 | — | Pending |
-| APP-02 | — | Pending |
-| APP-03 | — | Pending |
-| TUI-01 | — | Pending |
-| TUI-02 | — | Pending |
-| TUI-03 | — | Pending |
-| TUI-04 | — | Pending |
+| SET-01 | Phase 83 | Pending |
+| SET-02 | Phase 83 | Pending |
+| SESS-01 | Phase 84 | Pending |
+| SESS-02 | Phase 84 | Pending |
+| SESS-03 | Phase 84 | Pending |
+| APP-01 | Phase 85 | Pending |
+| APP-02 | Phase 85 | Pending |
+| APP-03 | Phase 85 | Pending |
+| TUI-01 | Phase 86 | Pending |
+| TUI-02 | Phase 86 | Pending |
+| TUI-03 | Phase 86 | Pending |
+| TUI-04 | Phase 86 | Pending |
 
 **Coverage:**
 - v3.0 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-17*
-*Last updated: 2026-04-17 after initial definition*
+*Last updated: 2026-04-17 — traceability filled after roadmap creation*
