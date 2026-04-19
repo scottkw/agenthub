@@ -24,6 +24,8 @@ import {
   NotifyThemeChange,
   GetLastUpdateInfo,
   GetAutoCloseSession,
+  QuitGUIOnly,
+  QuitAll,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -39,6 +41,7 @@ import type { UpdateInfo } from './components/UpdateBanner'
 import { ExitToast } from './components/ExitToast'
 import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
+import { QuitConfirmModal } from './components/QuitConfirmModal'
 import { ALLOWED_THEMES } from './themes'
 
 const DEFAULT_FONT_SIZE = 14
@@ -103,6 +106,9 @@ function App(): React.ReactElement {
 
   // Session exit state: per-session exit info for toast/banner/countdown (Phase 84)
   const [sessionExits, setSessionExits] = useState<Record<string, ExitState>>({})
+  // Quit confirmation modal state (Phase 85)
+  const [showQuitModal, setShowQuitModal] = useState(false)
+  const [quitSessions, setQuitSessions] = useState<Array<{ id: string; name: string; status: string }>>([])
   const countdownTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({})
   // Auto-close setting (D-11): loaded on mount, default true
   // Stored as a ref (not state) because it's only read inside the EventsOn callback
@@ -389,12 +395,31 @@ function App(): React.ReactElement {
       }
     )
 
+    // Subscribe to quit-requested event from Go backend (Phase 85)
+    const offQuit = EventsOn('app:quit-requested', () => {
+      setShowQuitModal(prev => {
+        if (prev) return prev  // Ignore if modal already showing (double-fire guard)
+        ListSessions().then(sessions => {
+          const activeSessions = sessions
+            .filter((s: SessionInfo) => s.state !== 'stopped')
+            .map((s: SessionInfo) => ({ id: s.id, name: s.name || s.cli, status: s.state || 'running' }))
+          setQuitSessions(activeSessions)
+          setShowQuitModal(true)
+        }).catch(() => {
+          setQuitSessions([])
+          setShowQuitModal(true)
+        })
+        return prev
+      })
+    })
+
     return () => {
       offStatus()
       offHealth()
       offDaemonError()
       cancelTrayFocus()
       offExit()
+      offQuit()
       // Clear all countdown timers
       Object.values(countdownTimers.current).forEach(clearInterval)
       countdownTimers.current = {}
@@ -926,6 +951,15 @@ function App(): React.ReactElement {
           sessionId={qrSessionId}
           sessionURL={sessionURLs[qrSessionId]}
           onClose={() => setQrSessionId(null)}
+        />
+      )}
+      {showQuitModal && (
+        <QuitConfirmModal
+          isOpen={showQuitModal}
+          sessions={quitSessions}
+          onQuitGUI={() => { setShowQuitModal(false); void QuitGUIOnly() }}
+          onQuitAll={() => { setShowQuitModal(false); void QuitAll() }}
+          onCancel={() => setShowQuitModal(false)}
         />
       )}
       <ExitToast
