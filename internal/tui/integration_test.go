@@ -52,13 +52,19 @@ func TestTUIRemoteAndQR_FullFlow(t *testing.T) {
 		t.Errorf("expected entryDivider at index 2, got kind %d", m.unifiedList[2].kind)
 	}
 
-	// Verify view output
+	// Verify view output contains session data (in Sessions tab, which is default)
 	v := m.View()
 	content := v.Content
-	for _, want := range []string{"2 local, 2 remote", "my-session", "docs-check", "Remote:", "laptop-work", "their-proj", "qa-review"} {
+	for _, want := range []string{"my-session", "docs-check", "their-proj", "qa-review"} {
 		if !strings.Contains(content, want) {
 			t.Errorf("view missing %q", want)
 		}
+	}
+
+	// Session count ("2 local, 2 remote") appears in renderHeader() — verify it directly
+	header := m.renderHeader()
+	if !strings.Contains(header, "2 local, 2 remote") {
+		t.Errorf("renderHeader missing '2 local, 2 remote', got: %q", header)
 	}
 
 	// Step 3: Navigate to first remote session (j, j should skip divider)

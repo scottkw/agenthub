@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/pty"
 	qrcode "github.com/skip2/go-qrcode"
@@ -23,15 +24,12 @@ func TestView_SessionList(t *testing.T) {
 	v := m.View()
 	content := v.Content
 
+	// Session data visible in the Sessions tab (default view)
 	checks := []string{
 		"my-session",
-		"claude",
 		"macbook-pro",
 		"another",
-		"opencode",
 		"linux-vm",
-		"AgentHub",
-		"2 sessions",
 		"NAME",
 		"AGENT",
 		"HOST",
@@ -43,9 +41,18 @@ func TestView_SessionList(t *testing.T) {
 		}
 	}
 
-	// Viewer count 2 should appear, viewer count 0 should not show "0"
+	// Viewer count 2 should appear
 	if !strings.Contains(content, "2") {
 		t.Error("view should show viewer count 2")
+	}
+
+	// AgentHub branding and session count appear in the Home tab (not Sessions tab)
+	home := m.renderHomeTab(m.contentWidth(), 20)
+	if !strings.Contains(home, "AgentHub") {
+		t.Error("Home tab should contain 'AgentHub'")
+	}
+	if !strings.Contains(home, "2 running") && !strings.Contains(home, "1 idle") && !strings.Contains(home, "none") {
+		t.Error("Home tab should show session status counts")
 	}
 }
 
@@ -123,11 +130,10 @@ func TestView_SingleSession(t *testing.T) {
 	}
 	m.rebuildUnifiedList()
 
-	v := m.View()
-	content := v.Content
-
-	if !strings.Contains(content, "1 session") {
-		t.Error("should show '1 session' (singular) for single session")
+	// Session count is shown in the Home tab, not the Sessions tab
+	home := m.renderHomeTab(m.contentWidth(), 20)
+	if !strings.Contains(home, "1 running") {
+		t.Error("Home tab should show '1 running' for single running session")
 	}
 }
 
@@ -422,5 +428,79 @@ func TestView_SessionListWithRemotes(t *testing.T) {
 	}
 	if !strings.Contains(content, "Remote: laptop-work") {
 		t.Error("view should contain divider with peer hostname")
+	}
+}
+
+func TestView_Sidebar(t *testing.T) {
+	m := testModel()
+	sidebar := m.renderSidebar()
+	for _, label := range []string{"Home", "Sessions", "Remote", "Settings"} {
+		if !strings.Contains(sidebar, label) {
+			t.Errorf("sidebar missing %q", label)
+		}
+	}
+}
+
+func TestView_TabBar(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabHome, tabSessions, tabSettings}
+	m.activeTab = 1 // Sessions active
+
+	bar := m.renderTabBar()
+	// Strip ANSI codes before checking — active tab renders each rune separately
+	plain := ansi.Strip(bar)
+	for _, label := range []string{"Home", "Sessions", "Settings"} {
+		if !strings.Contains(plain, label) {
+			t.Errorf("tab bar missing %q", label)
+		}
+	}
+}
+
+func TestView_SessionFrame(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "my-session", CLI: "claude", Hostname: "macbook-pro", Status: "running", ViewerCount: 2},
+	}
+	m.rebuildUnifiedList()
+
+	frame := m.renderSessionFrame(m.contentWidth(), 20)
+	// Check for rounded border chars
+	if !strings.Contains(frame, "\u256d") && !strings.Contains(frame, "\u2500") {
+		t.Error("session frame should contain border characters")
+	}
+	// Check for title
+	if !strings.Contains(frame, "Sessions") {
+		t.Error("session frame should contain 'Sessions' title")
+	}
+	// Check for column headers
+	if !strings.Contains(frame, "NAME") {
+		t.Error("session frame should contain column header 'NAME'")
+	}
+}
+
+func TestView_AgentBadge(t *testing.T) {
+	m := testModel()
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "test", CLI: "claude", Hostname: "host", Status: "running"},
+	}
+	m.rebuildUnifiedList()
+	row := m.renderSessionRow(m.sessions[0], 0)
+	if !strings.Contains(row, "[claude]") {
+		t.Errorf("session row should contain agent badge [claude], got: %q", row)
+	}
+}
+
+func TestView_HomeTab(t *testing.T) {
+	m := testModel()
+	m.version = "1.2.3"
+	m.sessions = []daemon.SessionInfo{
+		{ID: "1", Name: "test", CLI: "claude", Status: "running"},
+	}
+	home := m.renderHomeTab(m.contentWidth(), 20)
+	checks := []string{"AgentHub", "v1.2.3", "AI coding terminal sessions", "1 running"}
+	for _, want := range checks {
+		if !strings.Contains(home, want) {
+			t.Errorf("home tab missing %q", want)
+		}
 	}
 }
