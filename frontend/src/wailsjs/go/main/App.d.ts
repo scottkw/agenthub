@@ -113,3 +113,7 @@ export function SetStartMinimized(val: boolean): Promise<void>
 // Auto-close session bound methods (SESS-01/02)
 export function GetAutoCloseSession(): Promise<boolean>
 export function SetAutoCloseSession(val: boolean): Promise<void>
+
+// Quit confirmation bound methods (APP-01/02)
+export function QuitGUIOnly(): Promise<void>
+export function QuitAll(): Promise<void>

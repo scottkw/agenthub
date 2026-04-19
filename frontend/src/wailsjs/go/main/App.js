@@ -71,3 +71,7 @@ export const SetStartMinimized       = (val)                => Call('main.App.Se
 // Auto-close session bound methods (SESS-01/02)
 export const GetAutoCloseSession     = ()                   => Call('main.App.GetAutoCloseSession', [])
 export const SetAutoCloseSession     = (val)                => Call('main.App.SetAutoCloseSession', [val])
+
+// Quit confirmation bound methods (APP-01/02)
+export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
+export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])

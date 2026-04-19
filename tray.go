@@ -50,14 +50,10 @@ func onTrayQuit() {
 	// between the goroutine reading trayCallbackApp and tests restoring it.
 	app := trayCallbackApp
 	go func() {
-		if app != nil && app.client != nil {
-			_ = app.client.ShutdownDaemon()
-		}
-		if app != nil {
-			app.quitting = true // bypass beforeClose hide-on-close
-			if app.ctx != nil {
-				runtime.Quit(app.ctx)
-			}
+		if app != nil && app.ctx != nil {
+			runtime.WindowShow(app.ctx)      // D-08: auto-show if hidden
+			app.setDockVisible(true)
+			runtime.EventsEmit(app.ctx, "app:quit-requested", nil)
 		}
 	}()
 }
