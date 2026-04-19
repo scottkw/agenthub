@@ -244,9 +244,9 @@ Plans:
   2. Final terminal output from the exiting agent is visible before the tab disappears (brief flush delay)
   3. A toast notification or visible indicator appears when the agent exits, giving the user context before close
   4. The auto-close behavior does not truncate or drop terminal output still in flight at process exit
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
-- [ ] 84-01-PLAN.md — Backend exit detection, exit code capture, auto-close settings API
+- [x] 84-01-PLAN.md — Backend exit detection, exit code capture, auto-close settings API
 - [ ] 84-02-PLAN.md — Frontend components (ExitToast, ExitCountdownBanner), App.tsx wiring, TabBar countdown, Settings toggle
 - [ ] 84-03-PLAN.md — Frontend tests for ExitToast, ExitCountdownBanner, and App.tsx wiring
 
@@ -299,7 +299,7 @@ Plans:
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
 | 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
-| 84 | v3.0 | 0/3 | Not started | - |
+| 84 | v3.0 | 1/3 | In Progress|  |
 | 85 | v3.0 | 0/? | Not started | - |
 | 86 | v3.0 | 0/? | Not started | - |
 
