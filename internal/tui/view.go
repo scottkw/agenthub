@@ -104,7 +104,6 @@ func (m Model) renderSidebar() string {
 	content := strings.Join(rows, "\n")
 
 	return lipgloss.NewStyle().
-		Background(m.styles.BgSidebar).
 		Width(sideW).
 		Height(m.height).
 		Render(content)

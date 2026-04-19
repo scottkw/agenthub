@@ -1,6 +1,9 @@
 package pty
 
-import "sync"
+import (
+	"sort"
+	"sync"
+)
 
 // SessionRegistry is a thread-safe, in-memory store for active sessions.
 // Sessions persist in the registry independent of any UI or WebSocket lifecycle.
@@ -32,7 +35,8 @@ func (r *SessionRegistry) Get(id string) (*Session, bool) {
 	return s, ok
 }
 
-// List returns a snapshot of all sessions currently in the registry.
+// List returns a snapshot of all sessions currently in the registry,
+// sorted by creation time (oldest first) for stable display order.
 func (r *SessionRegistry) List() []*Session {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -40,6 +44,9 @@ func (r *SessionRegistry) List() []*Session {
 	for _, s := range r.sessions {
 		out = append(out, s)
 	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].CreatedAt.Before(out[j].CreatedAt)
+	})
 	return out
 }
 
