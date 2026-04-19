@@ -9,12 +9,14 @@ import (
 
 // killSession terminates the process group associated with a session.
 // On POSIX systems it sends SIGHUP to the process group for graceful shutdown,
-// cancels the context (triggers go-pty reaping via waitpid), polls for exit
-// up to 2 seconds, then sends SIGKILL if the process has not exited.
+// waits up to 2 seconds, then sends SIGKILL if the process has not exited.
 //
-// Context cancel is safe here because MarkKilled() has been called before this
-// function — the exit watcher goroutine will skip cmd.Wait() and not race with
-// go-pty's waitOnContext goroutine.
+// Note: The PTY is closed BEFORE calling Wait to prevent Wait from blocking
+// indefinitely when the PTY master is still open.
+//
+// Safe to call cmd.Wait() here because MarkKilled() has been set before this
+// function is called — the exit watcher goroutine checks IsKilled() and skips
+// its own cmd.Wait(), so there is no concurrent caller.
 func killSession(s *Session) error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		if s.pty != nil {
@@ -32,44 +34,41 @@ func killSession(s *Session) error {
 	// Graceful shutdown: SIGHUP to the entire process group.
 	_ = syscall.Kill(-pgid, syscall.SIGHUP)
 
-	// Close the PTY master — unblocks any pending reads on the PTY slave.
+	// Close the PTY master first — otherwise cmd.Wait() may block indefinitely
+	// waiting for the PTY slave to be closed, even after the child has exited.
 	if s.pty != nil {
 		_ = s.pty.Close()
 	}
 
-	// Cancel context — triggers go-pty's waitOnContext goroutine which calls
-	// waitpid to reap the leader process. This is safe because MarkKilled()
-	// prevents the exit watcher from racing with waitOnContext.
+	// Wait for process to exit, with 2-second timeout.
+	done := make(chan struct{})
+	go func() {
+		_ = s.cmd.Wait()
+		// Cache exit code under our mutex so ExitCode() can read it safely.
+		if s.cmd.ProcessState != nil {
+			s.SetExitCode(s.cmd.ProcessState.ExitCode())
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Exited cleanly.
+	case <-time.After(2 * time.Second):
+		// Force kill the process group.
+		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		// Wait again after SIGKILL.
+		select {
+		case <-done:
+		case <-time.After(1 * time.Second):
+			// Give up — process is truly stuck.
+		}
+	}
+
+	// Cancel the context.
 	if s.cancel != nil {
 		s.cancel()
 	}
 
-	// Poll for process group to exit (up to 2 seconds).
-	// go-pty's waitOnContext reaps the leader via waitpid; SIGHUP kills
-	// the remaining group members. Signal-0 probe returns ESRCH once all
-	// processes in the group are reaped.
-	if waitForProcessGroupExit(pgid, 2*time.Second) {
-		return nil
-	}
-
-	// Still alive — force kill the entire process group.
-	_ = syscall.Kill(-pgid, syscall.SIGKILL)
-
-	// Wait up to 1 more second for SIGKILL to take effect.
-	waitForProcessGroupExit(pgid, 1*time.Second)
-
 	return nil
-}
-
-// waitForProcessGroupExit polls until the process group is gone or timeout expires.
-// Returns true if the process group exited, false if still alive.
-func waitForProcessGroupExit(pgid int, timeout time.Duration) bool {
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if err := syscall.Kill(-pgid, 0); err != nil {
-			return true // Process group is gone.
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	return false
 }

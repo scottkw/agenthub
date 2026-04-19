@@ -83,6 +83,7 @@ func (b *NativePTYBackend) Create(ctx context.Context, req CreateRequest) (*Sess
 		pty:       p,
 		cmd:       cmd,
 		cancel:    cancel,
+		exitCode:  -1,
 	}
 
 	// On Windows, assign the process to a Job Object for reliable cleanup.

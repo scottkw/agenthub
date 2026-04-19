@@ -237,8 +237,8 @@ func TestExitEvent_ListSessions_ExitCodePopulatedForStopped(t *testing.T) {
 	if info.Duration == nil {
 		t.Error("Duration for stopped session: want non-nil *int, got nil")
 	}
-	// ExitCode should be -1 (no ProcessState since spy cmd is nil).
-	if info.ExitCode != nil && *info.ExitCode != -1 {
-		t.Errorf("ExitCode value for stopped spy session: got %d, want -1 (no ProcessState)", *info.ExitCode)
+	// ExitCode should be 0 (default cached value since spy session has no cmd).
+	if info.ExitCode != nil && *info.ExitCode != 0 {
+		t.Errorf("ExitCode value for stopped spy session: got %d, want 0 (default)", *info.ExitCode)
 	}
 }

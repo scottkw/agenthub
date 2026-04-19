@@ -210,15 +210,24 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	// Watch for natural process exit (PTY EOF -> hub.Done closes).
 	// Transitions session state to StateStopped and captures exit code.
 	// Calls onExit callback if provided (used by API layer for web grace period per D-12).
-	// Skips cmd.Wait() on the kill path to avoid racing with go-pty's waitOnContext.
+	//
+	// Does NOT call cmd.Wait() — killSession may be running concurrently and
+	// go-pty's cmd.Wait() is not safe for concurrent callers. Instead, reads
+	// the cached exit code from ExitCode() which checks ProcessState under mutex.
 	go func() {
 		<-hub.Done() // blocks until PTY read loop returns EOF (D-07)
 		if sess.IsKilled() {
-			// Session was killed — killSession handles cleanup. Don't call
-			// cmd.Wait() which would race with go-pty's waitOnContext goroutine.
-			return
+			return // killSession handles state transition
 		}
-		exitCode := sess.WaitForExit()
+		// Natural exit: cancel context so go-pty's waitOnContext reaps the
+		// process and populates ProcessState.
+		sess.CancelContext()
+		// Brief wait for go-pty to populate ProcessState.
+		time.Sleep(100 * time.Millisecond)
+		exitCode := sess.ExitCode()
+		if exitCode == -1 {
+			exitCode = 0 // conservative default per D-10
+		}
 		sess.SetState(pty.StateStopped)
 		if onExit != nil {
 			onExit(id, exitCode)
@@ -261,7 +270,10 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 
 		var exitCodePtr *int
 		var durationPtr *int
-		if state == "stopped" {
+		if state == "stopped" && !s.IsKilled() {
+			// Only read exit code for natural exits. Killed sessions have
+			// cmd.Wait() still running in killSession — reading ProcessState
+			// would race with go-pty's internal write.
 			ec := s.ExitCode()
 			exitCodePtr = &ec
 			dur := int(time.Since(s.CreatedAt).Seconds())

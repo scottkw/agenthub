@@ -57,9 +57,8 @@ type Session struct {
 	// which would race with go-pty's internal waitOnContext goroutine.
 	killed bool
 
-	// exitCode caches the exit code once the process has exited.
+	// exitCode caches the exit code once the process has exited (-1 = not set).
 	exitCode int
-	exitOnce sync.Once
 }
 
 // Read reads output from the underlying PTY.
@@ -135,33 +134,26 @@ func (s *Session) SetState(state SessionState) {
 	s.mu.Unlock()
 }
 
-// WaitForExit blocks until the underlying process exits and returns the exit code.
-// Returns 0 if cmd or ProcessState is nil (conservative default per D-10).
-// IMPORTANT: Only call from the natural exit path (after hub.Done fires). The kill
-// path must NOT call this — go-pty's cmd.Wait() is not safe to call concurrently
-// with its internal waitOnContext goroutine triggered by context cancellation.
-func (s *Session) WaitForExit() int {
-	s.exitOnce.Do(func() {
-		s.mu.Lock()
-		cmd := s.cmd
-		s.mu.Unlock()
-		if cmd == nil {
-			return
-		}
-		_ = cmd.Wait()
-		if cmd.ProcessState != nil {
-			s.exitCode = cmd.ProcessState.ExitCode()
-		}
-	})
-	return s.exitCode
+// CancelContext cancels the session's context, triggering go-pty's internal
+// waitOnContext goroutine to reap the process.
+func (s *Session) CancelContext() {
+	if s.cancel != nil {
+		s.cancel()
+	}
 }
 
-// ExitCode returns the exit code if the process has exited, or -1 if still running.
+// SetExitCode caches the exit code. Safe to call from any goroutine.
+func (s *Session) SetExitCode(code int) {
+	s.mu.Lock()
+	s.exitCode = code
+	s.mu.Unlock()
+}
+
+// ExitCode returns the cached exit code, or -1 if not yet set.
+// Does NOT read cmd.ProcessState directly — that field is written by go-pty
+// without our mutex and would race.
 func (s *Session) ExitCode() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.cmd != nil && s.cmd.ProcessState != nil {
-		return s.cmd.ProcessState.ExitCode()
-	}
-	return -1
+	return s.exitCode
 }
