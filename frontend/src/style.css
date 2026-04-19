@@ -1703,3 +1703,168 @@ body {
   width: 200px;
   height: 200px;
 }
+
+/* === Exit Toast (Phase 84) === */
+.exit-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.exit-toast__item {
+  pointer-events: all;
+  background: #1e2030;
+  border: 1px solid #292e42;
+  border-radius: 6px;
+  padding: 10px 14px;
+  min-width: 280px;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #c0caf5;
+  font-size: 13px;
+}
+
+.exit-toast__item--clean {
+  border-left: 3px solid #9ece6a;
+}
+
+.exit-toast__item--error {
+  border-left: 3px solid #f7768e;
+}
+
+.exit-toast__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.exit-toast__session-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #c0caf5;
+}
+
+.exit-toast__dismiss {
+  background: transparent;
+  border: none;
+  color: #9aa5ce;
+  padding: 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.exit-toast__dismiss:hover {
+  color: #c0caf5;
+}
+
+.exit-toast__meta {
+  font-size: 12px;
+  color: #9aa5ce;
+}
+
+.exit-toast__codes {
+  font-size: 12px;
+  color: #9aa5ce;
+}
+
+.exit-toast__exit-code--ok {
+  color: #9ece6a;
+}
+
+.exit-toast__exit-code--err {
+  color: #f7768e;
+}
+
+.exit-toast__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.exit-toast__countdown {
+  font-size: 11px;
+  color: #9ece6a;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+}
+
+.exit-toast__keep-open {
+  background: #7aa2f7;
+  color: #1a1b26;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+}
+
+.exit-toast__keep-open:hover {
+  background: #89b4fa;
+}
+
+/* === Exit Countdown Banner (Phase 84) === */
+.exit-countdown-banner {
+  background: #16161e;
+  border-top: 1px solid #292e42;
+  border-left: 3px solid #9ece6a;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #a9b1d6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.exit-countdown-banner__message {
+  flex: 1;
+}
+
+.exit-countdown-banner__countdown {
+  font-size: 11px;
+  color: #9ece6a;
+  font-variant-numeric: tabular-nums;
+}
+
+.exit-countdown-banner__keep-open {
+  background: #7aa2f7;
+  color: #1a1b26;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.exit-countdown-banner__keep-open:hover {
+  background: #89b4fa;
+}
+
+/* === Tab Countdown (Phase 84) === */
+.tab--exiting {
+  opacity: 0.5;
+  transition: opacity 150ms ease;
+}
+
+.tab__countdown {
+  font-size: 11px;
+  color: #9ece6a;
+  font-variant-numeric: tabular-nums;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
