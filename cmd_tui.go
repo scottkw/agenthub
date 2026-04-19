@@ -50,5 +50,5 @@ func cmdTUI(client *daemon.DaemonClient) error {
 		return result
 	}
 
-	return tui.Run(client, fetchRemoteFn)
+	return tui.Run(client, fetchRemoteFn, daemon.BuildVersion)
 }

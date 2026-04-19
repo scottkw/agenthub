@@ -10,15 +10,16 @@ import (
 // Returns nil on clean exit, or an error if the program fails.
 // fetchRemoteFn is an optional callback for fetching remote tailnet sessions;
 // pass nil if tailnet is not configured.
-func Run(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn) error {
-	p := tea.NewProgram(newModel(client, fetchRemoteFn))
+// version is the app build version string displayed on the Home tab.
+func Run(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn, version string) error {
+	p := tea.NewProgram(newModel(client, fetchRemoteFn, version))
 	_, err := p.Run()
 	return err
 }
 
 // newModel creates the initial Model with default state.
 // Assumes dark background until tea.BackgroundColorMsg arrives.
-func newModel(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn) Model {
+func newModel(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn, version string) Model {
 	return Model{
 		client:        client,
 		loading:       true,
@@ -26,6 +27,12 @@ func newModel(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn) Model {
 		styles:        newStyles(true), // assume dark until BackgroundColorMsg
 		detectedCLIs:  pty.DetectCLIs(),
 		fetchRemoteFn: fetchRemoteFn,
+		version:       version,
+		// Initial tab state: Sessions open by default (matches current UX)
+		openTabs:     []tabID{tabSessions},
+		activeTab:    0,
+		panesFocus:   focusContent,
+		sidebarFocus: 1, // 1 = Sessions
 	}
 }
 
