@@ -170,7 +170,7 @@ internal/
 app.go                          # Subscribe to onExit, emit session:exit Wails event
 ```
 
-### Pattern 1: Hub Done → Exit Detection
+### Pattern 1: Hub Done -> Exit Detection
 
 **What:** The relay hub's `done` channel closes when the PTY Read loop returns an error (EOF on natural process exit). This is already used by `status.Watch()`.
 
@@ -264,7 +264,7 @@ interface ExitState {
   exitCode: number
   duration: number
   finalStatus: string
-  countdown: number          // seconds remaining (5 → 0)
+  countdown: number          // seconds remaining (5 -> 0)
   cancelled: boolean         // true = user clicked "Keep Open"
 }
 
@@ -551,22 +551,25 @@ const offExit = EventsOn(
 
 **Critical gap:** The daemon has no mechanism to detect when a session's process exits naturally. `Session.State` will remain `StateRunning` even after the process exits, because nothing calls `registry.Remove()` or transitions `State` to `StateStopped` for natural exits. **The planner must include a backend task to add this exit detection.**
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **How does the daemon currently detect natural process exit?**
-   - What we know: `KillSession` calls `backend.Kill()` which calls `killSession()` (SIGHUP → Wait → SIGKILL). Natural exits are not handled in the daemon — `Session.State` stays `StateRunning`.
+1. **How does the daemon currently detect natural process exit?** (RESOLVED)
+   - What we know: `KillSession` calls `backend.Kill()` which calls `killSession()` (SIGHUP -> Wait -> SIGKILL). Natural exits are not handled in the daemon -- `Session.State` stays `StateRunning`.
    - What's unclear: Is there an existing goroutine that calls `cmd.Wait()` for natural exits, or does the process just become a zombie?
    - Recommendation: Add a goroutine in `SessionEngine.CreateSession` (or the backend's `Create`) that calls `cmd.Wait()` after hub.Done() fires and updates `sess.State = StateStopped`. This is prerequisite to any exit event emission.
+   - **Resolution:** Plan 01 Task 1 adds an exit watcher goroutine in `CreateSession` that blocks on `<-hub.Done()`, calls `sess.WaitForExit()` to capture the exit code, then transitions `sess.State = StateStopped`. An `onExit` callback is also invoked for the web grace period (D-12).
 
-2. **Should exit event go through daemon HTTP API or be detected in app.go polling?**
+2. **Should exit event go through daemon HTTP API or be detected in app.go polling?** (RESOLVED)
    - What we know: The GUI is a thin shell (app.go) that communicates with daemon via HTTP. The daemon knows when hub.Done() fires.
-   - What's unclear: The cleanest path — new daemon API endpoint or enhanced polling in app.go.
+   - What's unclear: The cleanest path -- new daemon API endpoint or enhanced polling in app.go.
    - Recommendation: Extend `SessionInfo` with `ExitCode *int` (nil = still running). When session exits naturally, daemon sets `State: "stopped"` and `ExitCode: &code`. The existing `pollSessionStatus` goroutine in app.go polls `ListSessions()` and detects `State: "stopped"`, then emits `session:exit`. This avoids new API routes.
+   - **Resolution:** Plan 01 implements the recommendation exactly. `SessionInfo` gains `ExitCode *int` and `Duration *int`. `pollSessionStatus` in app.go is rewritten to poll `ListSessions()` and detect `State == "stopped"`, then emit the `session:exit` Wails event. No new daemon API endpoints needed for exit detection.
 
-3. **How should `handleCloseTab` handle already-exited sessions?**
+3. **How should `handleCloseTab` handle already-exited sessions?** (RESOLVED)
    - What we know: `handleCloseTab` calls `KillSession` which sends SIGHUP. For dead processes, this returns an error.
    - What's unclear: Whether the error is fatal or silently ignorable.
    - Recommendation: In `KillSession` in the daemon, if the process is already dead, skip signal sending but still clean up registry entries. OR: add a `RemoveSession` API that only does registry cleanup without process signaling.
+   - **Resolution:** Plan 02 Task 2 handles this: `handleCloseTab` already catches `KillSession` errors with `console.warn` (line 394), so the SIGHUP failure for dead processes is silently ignored. For web serving (D-12), `handleCloseTab` now checks `sessionExits[id]` and skips `ToggleWebServing(id, false)` for naturally-exited sessions, letting the daemon's 10-second grace period timer handle web serving shutdown.
 
 ## Environment Availability
 
@@ -582,15 +585,15 @@ Step 2.6: SKIPPED (no external dependencies — purely code changes to existing 
 | Quick run command | `cd frontend && pnpm test` |
 | Full suite command | `cd frontend && pnpm test:coverage` |
 
-### Phase Requirements → Test Map
+### Phase Requirements -> Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| SESS-01 | Tab closes automatically after countdown | unit | `cd frontend && pnpm test -- ExitToast` | ❌ Wave 0 |
-| SESS-01 | "Keep Open" cancels countdown | unit | `cd frontend && pnpm test -- ExitCountdownBanner` | ❌ Wave 0 |
-| SESS-01 | Non-zero exit code skips auto-close (D-09) | unit | `cd frontend && pnpm test -- App.exit` | ❌ Wave 0 |
-| SESS-02 | Countdown starts after session:exit event (not before) | unit | `cd frontend && pnpm test -- App.exit` | ❌ Wave 0 |
-| SESS-03 | Toast appears and shows session name, CLI, exit code | unit | `cd frontend && pnpm test -- ExitToast` | ❌ Wave 0 |
-| SESS-03 | Toast visible when user is on different tab | unit | `cd frontend && pnpm test -- ExitToast` | ❌ Wave 0 |
+| SESS-01 | Tab closes automatically after countdown | unit | `cd frontend && pnpm test -- ExitToast` | No - Wave 0 |
+| SESS-01 | "Keep Open" cancels countdown | unit | `cd frontend && pnpm test -- ExitCountdownBanner` | No - Wave 0 |
+| SESS-01 | Non-zero exit code skips auto-close (D-09) | unit | `cd frontend && pnpm test -- App.exit` | No - Wave 0 |
+| SESS-02 | Countdown starts after session:exit event (not before) | unit | `cd frontend && pnpm test -- App.exit` | No - Wave 0 |
+| SESS-03 | Toast appears and shows session name, CLI, exit code | unit | `cd frontend && pnpm test -- ExitToast` | No - Wave 0 |
+| SESS-03 | Toast visible when user is on different tab | unit | `cd frontend && pnpm test -- ExitToast` | No - Wave 0 |
 
 ### Sampling Rate
 - **Per task commit:** `cd frontend && pnpm test`
@@ -598,11 +601,11 @@ Step 2.6: SKIPPED (no external dependencies — purely code changes to existing 
 - **Phase gate:** Full suite green before `/gsd-verify-work`
 
 ### Wave 0 Gaps
-- [ ] `frontend/src/components/__tests__/ExitToast.test.tsx` — covers SESS-03
-- [ ] `frontend/src/components/__tests__/ExitCountdownBanner.test.tsx` — covers SESS-01/SESS-02
-- [ ] `frontend/src/components/__tests__/App.exit.test.tsx` — covers SESS-01 (D-09 non-zero skip)
+- [ ] `frontend/src/components/__tests__/ExitToast.test.tsx` -- covers SESS-03
+- [ ] `frontend/src/components/__tests__/ExitCountdownBanner.test.tsx` -- covers SESS-01/SESS-02
+- [ ] `frontend/src/components/__tests__/App.exit.test.tsx` -- covers SESS-01 (D-09 non-zero skip)
 
-*(Note: Go unit tests for the exit detection logic in engine.go may also be needed — follow existing `engine_test.go` pattern)*
+*(Note: Go unit tests for the exit detection logic in engine.go may also be needed -- follow existing `engine_test.go` pattern)*
 
 ## Security Domain
 
