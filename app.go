@@ -243,13 +243,19 @@ func (a *App) CreateSession(cli, name, workDir string, args []string, cols, rows
 // callback that was used when CreateSession called the engine directly.
 func (a *App) pollSessionStatus(sessionID string) {
 	var last string
+	var consecutiveErrors int
 	deadline := time.Now().Add(300 * time.Second) // extended to 5min for long-running agents
 	for time.Now().Before(deadline) {
 		sessions, err := a.client.ListSessions()
 		if err != nil {
+			consecutiveErrors++
+			if consecutiveErrors >= 5 {
+				return // daemon is gone — stop polling
+			}
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
+		consecutiveErrors = 0
 		found := false
 		for _, s := range sessions {
 			if s.ID == sessionID {

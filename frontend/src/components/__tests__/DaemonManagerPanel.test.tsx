@@ -12,14 +12,18 @@ interface SessionInfo {
   cli: string
   name: string
   state: string
+  status: string
   createdAt: string
   hostname: string
   webEnabled: boolean
+  viewerCount: number
+  exitCode?: number
+  duration?: number
 }
 
 const mockSessions: SessionInfo[] = [
-  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false },
-  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false },
+  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', status: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false, viewerCount: 0 },
+  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', status: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false, viewerCount: 0 },
 ]
 
 function renderPanel(props: Partial<DaemonManagerPanelProps> = {}) {
@@ -138,7 +142,7 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
 
   it('renders em dash when hostname is empty', () => {
     const noHostSessions = [
-      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false },
+      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', status: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false, viewerCount: 0 },
     ]
     ;({ container, root } = renderPanel({ sessions: noHostSessions }))
     const badge = container.querySelector('.daemon-panel__hostname')

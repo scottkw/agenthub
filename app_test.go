@@ -597,12 +597,13 @@ func TestPollSessionStatus_ImmediateFirstCall(t *testing.T) {
 }
 
 // TestPollSessionStatus_StopsOnHTTPError verifies that pollSessionStatus exits
-// promptly when GetSessionStatus returns an HTTP error (connection refused),
-// rather than blocking until the 60-second deadline expires.
+// promptly when the daemon is unreachable, rather than blocking until the
+// 300-second deadline expires. The circuit breaker exits after 5 consecutive
+// errors (5 x 500ms sleep = ~2.5s plus dial attempts).
 func TestPollSessionStatus_StopsOnHTTPError(t *testing.T) {
 	// Point the client at a socket path that has no listener — every HTTP call
 	// will fail immediately with "connection refused". This simulates a daemon
-	// that has gone away and exercises the error-return path in pollSessionStatus.
+	// that has gone away and exercises the error-circuit-breaker path.
 	seq := testSockSeq.Add(1)
 	deadSocketPath := fmt.Sprintf("/tmp/aht_dead_%d_%d.sock", os.Getpid(), seq)
 	_ = os.Remove(deadSocketPath) // Ensure nothing is listening there.
@@ -614,16 +615,14 @@ func TestPollSessionStatus_StopsOnHTTPError(t *testing.T) {
 	}
 
 	start := time.Now()
-	// pollSessionStatus should call GetSessionStatus, get an immediate connection
-	// error, and return. With poll-first semantics this exits on the very first
-	// attempt — well within 1 second.
 	app.pollSessionStatus("any-session-id")
 	elapsed := time.Since(start)
 
-	// The dial timeout in DaemonClient is 2s, so allow 3s headroom.
-	// The important assertion is it doesn't loop for 60 seconds.
-	if elapsed > 3*time.Second {
-		t.Errorf("pollSessionStatus took %v with no daemon — expected < 3s (should exit on first HTTP error)", elapsed)
+	// Circuit breaker: 5 consecutive errors x 500ms sleep = ~2.5s plus dial
+	// overhead. Allow 10s headroom. The key assertion is it doesn't loop for
+	// 300 seconds.
+	if elapsed > 10*time.Second {
+		t.Errorf("pollSessionStatus took %v with no daemon — expected < 10s (circuit breaker should exit after 5 consecutive errors)", elapsed)
 	}
 }
 

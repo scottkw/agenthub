@@ -6,9 +6,13 @@ export interface SessionInfo {
   cli: string
   name: string
   state: string
+  status: string
   createdAt: string
   hostname: string
   webEnabled: boolean
+  viewerCount: number
+  exitCode?: number
+  duration?: number
 }
 
 export interface DetectedCLI {
