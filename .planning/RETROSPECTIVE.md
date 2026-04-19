@@ -756,6 +756,49 @@
 
 ---
 
+## Milestone: v3.0 — Session Lifecycle & TUI Polish
+
+**Shipped:** 2026-04-19
+**Phases:** 4 | **Plans:** 9 | **Commits:** ~40
+
+### What Was Built
+- Settings UI alignment: unified Paths table with single column headers, consistent 12px description text, shared section header CSS
+- Session auto-close: exit detection via hub.Done() PTY EOF, pollSessionStatus stopped-state detection, session:exit Wails events, ExitToast and ExitCountdownBanner components, 5s countdown with Keep Open cancel, auto-close toggle in Settings
+- Quit confirmation modal: app:quit-requested event from both window close and tray Quit, QuitConfirmModal with session count and colored status dots, Quit GUI Only with macOS native notification via UNUserNotificationCenter, Quit Everything with daemon shutdown
+- TUI visual polish: TokyoNight hex palette with 22+ lipgloss LightDark adaptive tokens, two-pane sidebar+content layout, bordered session frames via injectBorderTitle(), per-agent colored badges for 6 CLIs, focus-aware key routing
+
+### What Worked
+- Phase dependency ordering (83→84→85→86) meant each phase had stable foundations; no cross-phase integration surprises during execution
+- hub.Done() channel as exit signal guaranteed all PTY output was drained before exit detection — no truncation edge cases
+- app:quit-requested event pattern unified both quit paths (window close + tray) into a single frontend handler — simple and testable
+- Source-inspection tests continued to scale well — 28 QuitConfirmModal tests, 30 ExitToast/ExitCountdownBanner tests, all without Canvas/WebGL
+- Milestone audit caught a real test regression (FLOW-01) and a TS interface gap (MISS-02) before shipping — both fixed in-session
+
+### What Was Inefficient
+- gsd-tools `summary-extract` one-liner extraction still produces unusable output — manually curated MILESTONES.md accomplishments again
+- gsd-tools `audit-open` still has the `output is not defined` ReferenceError — manually verified no open artifacts
+- SUMMARY frontmatter continues to lack `requirements_completed` field across all 9 SUMMARY files — systemic documentation gap
+- REQUIREMENTS.md checkboxes never updated during phase execution — all 12 still unchecked despite being satisfied
+
+### Patterns Established
+- Circuit breaker pattern for pollSessionStatus — exits after N consecutive errors instead of looping for full deadline
+- UNUserNotificationCenter cgo wrapper with build-tagged no-op stub — reusable for any macOS-specific native notification
+- injectBorderTitle() for lipgloss frame titles — string-replaces border chars to inject styled text
+- sidebarTabs mapping array (not tabID cast) — explicit index-to-tab mapping safe against iota reordering
+
+### Key Lessons
+1. Milestone audits with integration checking catch real bugs — the poll circuit breaker regression would have broken CI
+2. TS interface drift from Go structs continues to be a recurring issue — needs automation or a build-step check
+3. Two-day milestones (4 phases, 9 plans) execute cleanly when scope is well-defined from GitHub issues
+4. cgo Objective-C wrappers in separate .m files (not inline cgo blocks) avoid duplicate symbol linker errors during go test
+
+### Cost Observations
+- Model mix: ~55% sonnet (execution/research), ~40% opus (planning/audit/completion), ~5% haiku
+- Sessions: ~4 sessions across 2 days
+- Notable: 9 plans in 2 days — consistent with v2.1 velocity (8 plans/2 days)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -779,6 +822,7 @@
 | v1.14 | 64 | 4 | Per-agent env injection (OpenCode tui.json), SIGUSR2 signal broadcast, WCAG contrast audit, curated theme allowlist |
 | v2.0 | 116 | 5 | Multi-client fan-out, DECSTBM status bar, Bubble Tea v2 TUI, shared attach package, unified local+remote list |
 | v2.1 | 91 | 4 | Settings persistence, 4-state Tailscale health, banner stacking, start-minimized-to-tray, non-optimistic toggle pattern |
+| v3.0 | ~40 | 4 | Session auto-close (hub.Done() exit signal), quit confirmation modal (event-based), TUI two-pane layout, circuit breaker poll pattern |
 
 ### Cumulative Quality
 
@@ -801,6 +845,7 @@
 | v1.14 | 200+ (race-clean) | 280+ | ~23,000 | 3 (0 blockers; SUMMARY one_liner extraction broken, ROADMAP checkbox drift, audit-open bug) |
 | v2.0 | 280+ (race-clean) | 280+ | ~26,000 | 21 (0 blockers; 19 metadata drift, 2 scope deferrals) |
 | v2.1 | 280+ (race-clean) | 456 | ~26,300 | 2 (0 blockers; info-level .catch patterns) |
+| v3.0 | 300+ (race-clean) | 524 | ~30,000 | 2 cosmetic (autoCloseRef refresh, TUI stopped-session glyph) |
 
 ### Top Lessons (Verified Across Milestones)
 
