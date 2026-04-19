@@ -13,6 +13,10 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
+// sidebarTabs maps sidebar item indices to their corresponding tab IDs.
+// This decouples the visual sidebar ordering from the tabID iota values.
+var sidebarTabs = [...]tabID{tabHome, tabSessions, tabRemote, tabSettings}
+
 // Update processes messages and returns the updated model and any commands.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -373,11 +377,11 @@ func (m Model) handleSidebarKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.sidebarFocus--
 		}
 	case "down", "j":
-		if m.sidebarFocus < 3 {
+		if m.sidebarFocus < len(sidebarTabs)-1 {
 			m.sidebarFocus++
 		}
 	case "enter":
-		m.openTab(tabID(m.sidebarFocus))
+		m.openTab(sidebarTabs[m.sidebarFocus])
 		m.panesFocus = focusContent
 	case "Q", "ctrl+c":
 		return m, tea.Quit
