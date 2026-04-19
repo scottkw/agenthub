@@ -1,10 +1,11 @@
 ---
 phase: 85
 slug: quit-confirmation-modal
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-19
+validated: 2026-04-19
 ---
 
 # Phase 85 — Validation Strategy
@@ -38,13 +39,13 @@ created: 2026-04-19
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 85-01-01 | 01 | 1 | APP-01 | — | N/A | unit | `cd frontend && pnpm test --run -- QuitConfirmModal` | ❌ W0 | ⬜ pending |
-| 85-01-02 | 01 | 1 | APP-02 | — | N/A | unit | `cd frontend && pnpm test --run -- QuitConfirmModal` | ❌ W0 | ⬜ pending |
-| 85-01-03 | 01 | 1 | APP-03 | — | N/A | unit | `cd frontend && pnpm test --run -- QuitConfirmModal` | ❌ W0 | ⬜ pending |
-| 85-02-01 | 02 | 1 | APP-01 | — | N/A | unit (Go) | `go test -tags wailsassets -run TestBeforeCloseEmitsEvent ./...` | ❌ W0 | ⬜ pending |
-| 85-02-02 | 02 | 1 | APP-02 | — | N/A | unit (Go) | `go test -tags wailsassets -run TestQuitAll ./...` | ❌ W0 | ⬜ pending |
-| 85-regression-01 | — | — | APP-01 | — | N/A | unit (Go, existing) | `go test -tags wailsassets -run TestBeforeCloseReturnsTrue ./...` | ✅ | ⬜ pending |
-| 85-regression-02 | — | — | APP-01 | — | N/A | unit (Go, existing) | `go test -tags wailsassets -run TestHideWindowSessionsAlive ./...` | ✅ | ⬜ pending |
+| 85-01-01 | 01 | 1 | APP-01 | — | N/A | unit | `cd frontend && npx vitest run` | ✅ | ✅ green |
+| 85-01-02 | 01 | 1 | APP-02 | — | N/A | unit | `cd frontend && npx vitest run` | ✅ | ✅ green |
+| 85-01-03 | 01 | 1 | APP-03 | — | N/A | unit | `cd frontend && npx vitest run` | ✅ | ✅ green |
+| 85-02-01 | 02 | 1 | APP-01 | — | N/A | unit (Go) | `go test -tags wailsassets -run TestBeforeCloseEmitsEvent -v .` | ✅ | ✅ green |
+| 85-02-02 | 02 | 1 | APP-02 | — | N/A | unit (Go) | `go test -tags wailsassets -run TestQuitAll -v .` | ✅ | ✅ green |
+| 85-regression-01 | — | — | APP-01 | — | N/A | unit (Go, existing) | `go test -tags wailsassets -run TestBeforeCloseReturnsTrue -v .` | ✅ | ✅ green |
+| 85-regression-02 | — | — | APP-01 | — | N/A | unit (Go, existing) | `go test -tags wailsassets -run TestHideWindowSessionsAlive -v .` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,10 +53,10 @@ created: 2026-04-19
 
 ## Wave 0 Requirements
 
-- [ ] `frontend/src/components/__tests__/QuitConfirmModal.test.tsx` — stubs for APP-01, APP-02, APP-03
-- [ ] Go test additions to existing test files: `TestBeforeCloseEmitsEvent`, `TestQuitAll`
+- [x] `frontend/src/components/__tests__/QuitConfirmModal.test.tsx` — 25 source-inspection tests for APP-01, APP-02, APP-03 (created during plan 02 execution)
+- [x] Go test additions to `tray_test.go`: `TestBeforeCloseEmitsEvent`, `TestQuitAll` (created during Nyquist validation audit)
 
-*Existing `TestBeforeCloseReturnsTrue` and `TestHideWindowSessionsAlive` must continue to pass — they are regression guards for the beforeClose refactor.*
+*Existing `TestBeforeCloseReturnsTrue` and `TestHideWindowSessionsAlive` continue to pass — regression guards for the beforeClose refactor.*
 
 ---
 
@@ -68,13 +69,25 @@ created: 2026-04-19
 
 ---
 
+## Validation Audit 2026-04-19
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 2 |
+| Resolved | 2 |
+| Escalated | 0 |
+
+**Tests added:** `TestBeforeCloseEmitsEvent` (APP-01 — beforeClose emits event, no WindowHide), `TestQuitAll` (APP-02 — sets quitting flag, calls ShutdownDaemon, guards nil ctx/client). Both in `tray_test.go`.
+
+---
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** complete (2026-04-19)

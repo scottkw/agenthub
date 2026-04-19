@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Terminal tabs show no output after process separation refactor"
 created: 2026-03-23T00:00:00Z
-updated: 2026-03-23T00:00:00Z
+updated: 2026-04-19T00:00:00Z
 ---
 
 ## Current Focus
@@ -10,7 +10,7 @@ updated: 2026-03-23T00:00:00Z
 hypothesis: relayPort=0 passed to frontend due to GetRelayPort() swallowing errors, OR stale daemon from old binary
 test: Verified daemon API returns correct relay port; traced full data flow
 expecting: Root cause identified - see Resolution
-next_action: Report findings
+next_action: Complete
 
 ## Symptoms
 
@@ -82,32 +82,20 @@ root_cause: |
   to port 0 fails completely silently.
 
 fix: |
-  THREE fixes needed:
+  THREE fixes applied:
 
-  1. FRONTEND GUARD (immediate fix): Change `relayPort !== null` to
-     `relayPort !== null && relayPort > 0` in App.tsx line 334. Also add
-     an error state when relayPort is 0.
+  1. FRONTEND GUARD (App.tsx line ~873): Changed `relayPort !== null` to
+     `relayPort !== null && relayPort > 0`. ALREADY DONE prior to this session.
 
-  2. BACKEND ERROR (defensive fix): Change App.GetRelayPort() to return
-     an error when port is 0 instead of silently returning 0:
-     ```go
-     func (a *App) GetRelayPort() (int, error) {
-         port, err := a.client.GetRelayPort()
-         if err != nil {
-             return 0, fmt.Errorf("relay port unavailable: %w", err)
-         }
-         if port == 0 {
-             return 0, fmt.Errorf("relay port is 0 (relay not started)")
-         }
-         return port, nil
-     }
-     ```
+  2. FRONTEND ERROR STATE (App.tsx, init() and retryInit()): When GetRelayPort()
+     returns 0, set daemonError to show a user-visible message with a Retry button
+     instead of silently showing blank terminals. Applied in this session.
 
-  3. STALE DAEMON (robustness fix): Add version checking to EnsureDaemon.
-     The daemon should expose its build version in /health response.
-     EnsureDaemon should compare versions and restart the daemon if mismatched.
-     Alternatively, add a /relay-port check to EnsureDaemon to verify the relay
-     is actually running before considering the daemon healthy.
+  3. STALE DAEMON (internal/daemon/process.go, EnsureDaemon): Added relay port
+     check after health check — if relay port is 0 or unavailable, the daemon is
+     considered stale and respawned. Also added build version comparison to detect
+     binary mismatch. ALREADY DONE prior to this session.
 
 verification:
-files_changed: []
+files_changed:
+  - frontend/src/App.tsx
