@@ -179,7 +179,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ## Current State
 
-v3.0 in progress (Phase 83 complete 2026-04-18). 17 milestones shipped (v1.0–v2.1), 83 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
+v3.0 in progress (Phase 85 complete 2026-04-19). 17 milestones shipped (v1.0–v2.1), 85 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
 
 ### Out of Scope
 
@@ -353,4 +353,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 after Phase 84 (Session Auto-Close) complete*
+*Last updated: 2026-04-19 after Phase 85 (Quit Confirmation Modal) complete*
