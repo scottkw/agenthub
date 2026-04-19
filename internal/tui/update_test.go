@@ -987,3 +987,100 @@ func TestUpdate_UnifiedListEmpty(t *testing.T) {
 		t.Errorf("expected selected=0 with empty list, got %d", result2.selected)
 	}
 }
+
+func TestUpdate_TabFocusToggle(t *testing.T) {
+	m := testModel()
+	m.panesFocus = focusContent
+
+	// Tab key from content should switch to sidebar
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	result := updated.(Model)
+	if result.panesFocus != focusSidebar {
+		t.Error("Tab from content should toggle to sidebar")
+	}
+
+	// Tab key from sidebar should switch to content
+	updated2, _ := result.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	result2 := updated2.(Model)
+	if result2.panesFocus != focusContent {
+		t.Error("Tab from sidebar should toggle to content")
+	}
+}
+
+func TestUpdate_TabCycle(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabHome, tabSessions, tabRemote}
+	m.activeTab = 0
+
+	// ] should advance to next tab
+	updated, _ := m.Update(tea.KeyPressMsg{Code: ']'})
+	result := updated.(Model)
+	if result.activeTab != 1 {
+		t.Errorf("expected activeTab=1 after ], got %d", result.activeTab)
+	}
+
+	// [ should go back
+	updated2, _ := result.Update(tea.KeyPressMsg{Code: '['})
+	result2 := updated2.(Model)
+	if result2.activeTab != 0 {
+		t.Errorf("expected activeTab=0 after [, got %d", result2.activeTab)
+	}
+
+	// [ from 0 should wrap to last
+	updated3, _ := result2.Update(tea.KeyPressMsg{Code: '['})
+	result3 := updated3.(Model)
+	if result3.activeTab != 2 {
+		t.Errorf("expected activeTab=2 after [ wrap, got %d", result3.activeTab)
+	}
+}
+
+func TestUpdate_SidebarNavigation(t *testing.T) {
+	m := testModel()
+	m.panesFocus = focusSidebar
+	m.sidebarFocus = 0 // Home
+
+	// Down should move to Sessions (1)
+	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	result := updated.(Model)
+	if result.sidebarFocus != 1 {
+		t.Errorf("expected sidebarFocus=1 after down, got %d", result.sidebarFocus)
+	}
+
+	// Down again to Remote (2)
+	updated2, _ := result.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	result2 := updated2.(Model)
+	if result2.sidebarFocus != 2 {
+		t.Errorf("expected sidebarFocus=2 after down, got %d", result2.sidebarFocus)
+	}
+
+	// Down to Settings (3)
+	updated3, _ := result2.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	result3 := updated3.(Model)
+	if result3.sidebarFocus != 3 {
+		t.Errorf("expected sidebarFocus=3 after down, got %d", result3.sidebarFocus)
+	}
+
+	// Down at bottom stays at 3
+	updated4, _ := result3.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	result4 := updated4.(Model)
+	if result4.sidebarFocus != 3 {
+		t.Errorf("expected sidebarFocus=3 at bottom, got %d", result4.sidebarFocus)
+	}
+
+	// Enter should open tab and switch to content focus
+	updated5, _ := result4.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	result5 := updated5.(Model)
+	if result5.panesFocus != focusContent {
+		t.Error("Enter in sidebar should switch focus to content")
+	}
+	// Settings tab should now be open
+	found := false
+	for _, tab := range result5.openTabs {
+		if tab == tabSettings {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Enter on Settings should open tabSettings")
+	}
+}

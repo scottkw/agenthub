@@ -54,6 +54,8 @@ func (m Model) buildHelpContent() string {
 		formatBinding("g/Home", "Jump to first"),
 		formatBinding("G/End", "Jump to last"),
 		formatBinding("R", "Refresh list"),
+		formatBinding("Tab", "Toggle sidebar/content"),
+		formatBinding("[/]", "Cycle tabs"),
 	)
 
 	// Group 2: Sessions

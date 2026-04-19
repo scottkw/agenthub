@@ -132,8 +132,20 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	// Priority 6: Main view
-	return m.handleMainKey(msg)
+	// Priority 6: Tab cycling (safe here — no modal uses [ or ])
+	if key.Matches(msg, m.keys.PrevTab) {
+		m.cycleTab(-1)
+		return m, nil
+	}
+	if key.Matches(msg, m.keys.NextTab) {
+		m.cycleTab(+1)
+		return m, nil
+	}
+	// Priority 7: Pane-focus-aware dispatch
+	if m.panesFocus == focusSidebar {
+		return m.handleSidebarKey(msg)
+	}
+	return m.handleContentKey(msg)
 }
 
 // handleQRKey handles keys when the QR overlay is open.
@@ -168,8 +180,13 @@ func entryID(e listEntry) string {
 	return ""
 }
 
-// handleMainKey handles key presses in the main session list view.
-func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+// handleContentKey handles key presses in the main content pane.
+func (m Model) handleContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Tab toggles focus to sidebar (placed here, not in handleKey, to avoid modal conflict)
+	if key.Matches(msg, m.keys.TabFocus) {
+		m.panesFocus = focusSidebar
+		return m, nil
+	}
 	switch {
 	case key.Matches(msg, m.keys.Quit):
 		return m, tea.Quit
@@ -338,6 +355,34 @@ func (m Model) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.qrContent = q.ToSmallString(false)
 		m.qrURL = url
+		return m, nil
+	}
+	return m, nil
+}
+
+// handleSidebarKey handles keys when the sidebar pane has focus.
+func (m Model) handleSidebarKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Tab toggles focus back to content
+	if key.Matches(msg, m.keys.TabFocus) {
+		m.panesFocus = focusContent
+		return m, nil
+	}
+	switch msg.String() {
+	case "up", "k":
+		if m.sidebarFocus > 0 {
+			m.sidebarFocus--
+		}
+	case "down", "j":
+		if m.sidebarFocus < 3 {
+			m.sidebarFocus++
+		}
+	case "enter":
+		m.openTab(tabID(m.sidebarFocus))
+		m.panesFocus = focusContent
+	case "Q", "ctrl+c":
+		return m, tea.Quit
+	case "?":
+		m.showHelp = true
 		return m, nil
 	}
 	return m, nil
