@@ -145,9 +145,13 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
   async function handleCopyPassword() {
     if (!localPassword) return
-    await navigator.clipboard.writeText(localPassword)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    try {
+      await ClipboardSetText(localPassword)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // ClipboardSetText failed — no user-visible action needed
+    }
   }
 
   async function handleCopyURL() {
