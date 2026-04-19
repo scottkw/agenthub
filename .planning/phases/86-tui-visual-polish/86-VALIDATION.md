@@ -1,9 +1,9 @@
 ---
 phase: 86
 slug: tui-visual-polish
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-19
 ---
 
@@ -38,16 +38,16 @@ created: 2026-04-19
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 86-01-01 | 01 | 1 | TUI-04 | — | N/A | unit | `go test ./internal/tui/... -run TestStyles_TokyoNight -count=1` | ❌ W0 | ⬜ pending |
-| 86-01-02 | 01 | 1 | TUI-04 | — | N/A | unit | `go test ./internal/tui/... -run TestAgentBadgeColor -count=1` | ❌ W0 | ⬜ pending |
-| 86-02-01 | 02 | 1 | TUI-01 | — | N/A | unit | `go test ./internal/tui/... -run TestView_SessionFrame -count=1` | ❌ W0 | ⬜ pending |
-| 86-02-02 | 02 | 1 | TUI-01 | — | N/A | unit | `go test ./internal/tui/... -run TestInjectBorderTitle -count=1` | ❌ W0 | ⬜ pending |
-| 86-03-01 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_TabFocusToggle -count=1` | ❌ W0 | ⬜ pending |
-| 86-03-02 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_TabCycle -count=1` | ❌ W0 | ⬜ pending |
-| 86-03-03 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_SidebarNavigation -count=1` | ❌ W0 | ⬜ pending |
-| 86-03-04 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestView_Sidebar -count=1` | ❌ W0 | ⬜ pending |
-| 86-04-01 | 04 | 2 | TUI-03 | — | N/A | unit | `go test ./internal/tui/... -run TestView_AgentBadge -count=1` | ❌ W0 | ⬜ pending |
-| 86-04-02 | 04 | 2 | TUI-03 | — | N/A | unit | `go test ./internal/tui/... -run TestStatusGlyph -count=1` | ✅ view_test.go | ⬜ pending |
+| 86-01-01 | 01 | 1 | TUI-04 | — | N/A | unit | `go test ./internal/tui/... -run TestStyles_TokyoNight -count=1` | ✅ styles_test.go | ✅ green |
+| 86-01-02 | 01 | 1 | TUI-04 | — | N/A | unit | `go test ./internal/tui/... -run TestAgentBadgeColor -count=1` | ✅ styles_test.go | ✅ green |
+| 86-02-01 | 02 | 1 | TUI-01 | — | N/A | unit | `go test ./internal/tui/... -run TestView_SessionFrame -count=1` | ✅ view_test.go | ✅ green |
+| 86-02-02 | 02 | 1 | TUI-01 | — | N/A | unit | `go test ./internal/tui/... -run TestInjectBorderTitle -count=1` | ✅ view_test.go | ✅ green |
+| 86-03-01 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_TabFocusToggle -count=1` | ✅ update_test.go | ✅ green |
+| 86-03-02 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_TabCycle -count=1` | ✅ update_test.go | ✅ green |
+| 86-03-03 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestUpdate_SidebarNavigation -count=1` | ✅ update_test.go | ✅ green |
+| 86-03-04 | 03 | 2 | TUI-02 | — | N/A | unit | `go test ./internal/tui/... -run TestView_Sidebar -count=1` | ✅ view_test.go | ✅ green |
+| 86-04-01 | 04 | 2 | TUI-03 | — | N/A | unit | `go test ./internal/tui/... -run TestView_AgentBadge -count=1` | ✅ view_test.go | ✅ green |
+| 86-04-02 | 04 | 2 | TUI-03 | — | N/A | unit | `go test ./internal/tui/... -run TestStatusGlyph -count=1` | ✅ view_test.go | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -55,9 +55,9 @@ created: 2026-04-19
 
 ## Wave 0 Requirements
 
-- [ ] `internal/tui/styles_test.go` — new file: `TestStyles_TokyoNight`, `TestAgentBadgeColor`
-- [ ] `internal/tui/view_test.go` — add `TestView_SessionFrame`, `TestView_Sidebar`, `TestView_AgentBadge`, `TestInjectBorderTitle`
-- [ ] `internal/tui/update_test.go` — add `TestUpdate_TabFocusToggle`, `TestUpdate_TabCycle`, `TestUpdate_SidebarNavigation`
+- [x] `internal/tui/styles_test.go` — `TestStyles_TokyoNight`, `TestAgentBadgeColor` ✅
+- [x] `internal/tui/view_test.go` — `TestView_SessionFrame`, `TestView_Sidebar`, `TestView_AgentBadge`, `TestInjectBorderTitle` ✅
+- [x] `internal/tui/update_test.go` — `TestUpdate_TabFocusToggle`, `TestUpdate_TabCycle`, `TestUpdate_SidebarNavigation` ✅
 
 *Existing infrastructure covers test framework — no new dependencies needed.*
 
@@ -74,11 +74,21 @@ created: 2026-04-19
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved
+
+---
+
+## Validation Audit 2026-04-19
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |
