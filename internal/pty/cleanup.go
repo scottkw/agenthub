@@ -9,11 +9,12 @@ import (
 
 // killSession terminates the process group associated with a session.
 // On POSIX systems it sends SIGHUP to the process group for graceful shutdown,
-// polls for exit up to 2 seconds, then sends SIGKILL if the process has not exited.
+// cancels the context (triggers go-pty reaping via waitpid), polls for exit
+// up to 2 seconds, then sends SIGKILL if the process has not exited.
 //
-// IMPORTANT: Does NOT call cmd.Wait() — go-pty's internal waitOnContext goroutine
-// handles process reaping when the context is cancelled. Calling cmd.Wait()
-// concurrently with waitOnContext causes a data race on go-pty internal state.
+// Context cancel is safe here because MarkKilled() has been called before this
+// function — the exit watcher goroutine will skip cmd.Wait() and not race with
+// go-pty's waitOnContext goroutine.
 func killSession(s *Session) error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		if s.pty != nil {
@@ -36,14 +37,17 @@ func killSession(s *Session) error {
 		_ = s.pty.Close()
 	}
 
-	// Cancel the context — triggers go-pty's internal waitOnContext goroutine
-	// which calls cmd.Wait() and reaps the process.
+	// Cancel context — triggers go-pty's waitOnContext goroutine which calls
+	// waitpid to reap the leader process. This is safe because MarkKilled()
+	// prevents the exit watcher from racing with waitOnContext.
 	if s.cancel != nil {
 		s.cancel()
 	}
 
 	// Poll for process group to exit (up to 2 seconds).
-	// Signal 0 probes without sending — returns error when process is gone.
+	// go-pty's waitOnContext reaps the leader via waitpid; SIGHUP kills
+	// the remaining group members. Signal-0 probe returns ESRCH once all
+	// processes in the group are reaped.
 	if waitForProcessGroupExit(pgid, 2*time.Second) {
 		return nil
 	}
