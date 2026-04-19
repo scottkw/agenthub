@@ -64,9 +64,16 @@ func (a *attachCmd) Run() error {
 
 	lw := attach.NewLockedWriter(a.stdout)
 
-	// Status bar: only if stdin is *os.File and a terminal.
+	// Use os.Stdin directly for terminal operations. Bubble Tea v2 wraps
+	// stdin in a cancelreader, so a.stdin is NOT *os.File — using it for
+	// raw mode and status bar would silently skip both, leaving the terminal
+	// in cooked mode where Ctrl-\ sends SIGQUIT instead of detach byte 0x1C.
+	fd := os.Stdin.Fd()
+	isTTY := term.IsTerminal(int(fd))
+
+	// Status bar: only if stdin is a terminal.
 	var bar *statusbar.Bar
-	if f, ok := a.stdin.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
+	if isTTY {
 		createdAt, _ := time.Parse(time.RFC3339, session.CreatedAt)
 		if createdAt.IsZero() {
 			createdAt = time.Now()
@@ -77,22 +84,22 @@ func (a *attachCmd) Run() error {
 			Hostname:    session.Hostname,
 			CreatedAt:   createdAt,
 			Position:    statusbar.Bottom,
-			Fd:          f.Fd(),
+			Fd:          fd,
 		})
 		bar.Start()
 		defer bar.Stop()
 	}
 
-	// Raw mode: only if stdin is *os.File.
-	if f, ok := a.stdin.(*os.File); ok {
-		oldState, err := term.MakeRaw(int(f.Fd()))
+	// Raw mode: required for byte-level input (detach key detection).
+	if isTTY {
+		oldState, err := term.MakeRaw(int(fd))
 		if err != nil {
 			return err
 		}
-		defer term.Restore(int(f.Fd()), oldState) //nolint:errcheck
+		defer term.Restore(int(fd), oldState) //nolint:errcheck
 
 		// Send initial resize frame.
-		if cols, rows, err := term.GetSize(int(f.Fd())); err == nil {
+		if cols, rows, err := term.GetSize(int(fd)); err == nil {
 			frame := attach.MakeClientResizeFrame(uint16(cols), uint16(rows))
 			_ = conn.Write(ctx, websocket.MessageBinary, frame)
 		}
@@ -102,6 +109,8 @@ func (a *attachCmd) Run() error {
 	// WatchResize manages its own goroutine internally.
 	attach.WatchResize(ctx, conn)
 
+	// Use os.Stdin for the input pump so we read raw bytes directly,
+	// bypassing Bubble Tea's cancelreader wrapper.
 	// 0x1C is Ctrl-\ (the detach key).
-	return attach.AttachSession(ctx, conn, a.stdin, lw, 0x1C, bar, nil)
+	return attach.AttachSession(ctx, conn, os.Stdin, lw, 0x1C, bar, nil)
 }
