@@ -210,7 +210,7 @@
 <details open>
 <summary>v3.0 Session Lifecycle & TUI Polish (Phases 83-86) — IN PROGRESS</summary>
 
-- [ ] **Phase 83: Settings UI Alignment** (0/1 plans) — Path column and Settings sections visually consistent (#34)
+- [x] **Phase 83: Settings UI Alignment** (0/1 plans) — Path column and Settings sections visually consistent (#34) (completed 2026-04-19)
 - [ ] **Phase 84: Session Auto-Close** — Session tab closes automatically when agent exits (#33)
 - [ ] **Phase 85: Quit Confirmation Modal** — GUI quit shows modal with session count and two exit modes (#32)
 - [ ] **Phase 86: TUI Visual Polish** — Bordered frames, tabbed nav, styled rows, TokyoNight palette (#29)
@@ -294,7 +294,7 @@ Plans:
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
-| 83 | v3.0 | 1/1 | Complete   | 2026-04-18 |
+| 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
 | 84 | v3.0 | 0/? | Not started | - |
 | 85 | v3.0 | 0/? | Not started | - |
 | 86 | v3.0 | 0/? | Not started | - |
