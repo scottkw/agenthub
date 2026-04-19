@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/textinput"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/pty"
@@ -502,5 +503,70 @@ func TestView_HomeTab(t *testing.T) {
 		if !strings.Contains(home, want) {
 			t.Errorf("home tab missing %q", want)
 		}
+	}
+}
+
+func TestInjectBorderTitle(t *testing.T) {
+	s := newStyles(true)
+	borderColor := s.BorderNormal
+
+	// Case 1 (normal): title is spliced into the top border at rune offset 3.
+	// Use a real lipgloss rounded-border box wide enough to hold the title.
+	inner := strings.Repeat("x", 40)
+	bordered := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(40).
+		Render(inner)
+	title := lipgloss.NewStyle().Bold(true).Foreground(s.FgAccent).Render(" Sessions ")
+
+	result := injectBorderTitle(bordered, title, borderColor)
+	// The title text must appear in the first line of the output.
+	firstLine := strings.SplitN(result, "\n", 2)[0]
+	if !strings.Contains(ansi.Strip(firstLine), "Sessions") {
+		t.Errorf("normal case: first line should contain title text 'Sessions', got: %q", ansi.Strip(firstLine))
+	}
+	// The remaining lines should be unchanged.
+	origLines := strings.Split(bordered, "\n")
+	resultLines := strings.Split(result, "\n")
+	if len(origLines) != len(resultLines) {
+		t.Errorf("normal case: line count changed: want %d, got %d", len(origLines), len(resultLines))
+	}
+	for i := 1; i < len(origLines); i++ {
+		if origLines[i] != resultLines[i] {
+			t.Errorf("normal case: line %d changed unexpectedly", i)
+		}
+	}
+
+	// Case 2 (empty input): empty string has one empty line; borderWidth is 0
+	// so the borderWidth <= titleWidth+4 guard fires and bordered is returned unchanged.
+	emptyResult := injectBorderTitle("", title, borderColor)
+	if emptyResult != "" {
+		t.Errorf("empty input case: want empty string returned unchanged, got: %q", emptyResult)
+	}
+
+	// Case 3 (title too wide): when the border is narrower than titleWidth+4
+	// the function returns bordered unchanged.
+	narrowBorder := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(8).
+		Render("hi")
+	wideTitle := lipgloss.NewStyle().Render("This title is definitely too long for narrow border")
+	narrowResult := injectBorderTitle(narrowBorder, wideTitle, borderColor)
+	if narrowResult != narrowBorder {
+		t.Errorf("narrow border case: want input returned unchanged")
+	}
+
+	// Case 4 (insertPos+titleWidth > len(runes)): the top border contains wide
+	// (2-cell) runes so lipgloss.Width exceeds len([]rune), allowing borderWidth
+	// to pass the titleWidth+4 check while insertPos+titleWidth still exceeds
+	// the actual rune slice length.
+	// "╭" + 8 fullwidth-A (U+FF21, 2 cells each) + "╮" = 10 runes, width=18.
+	// title " Hello W" has titleWidth=8; 18 > 8+4=12 passes check 3, but
+	// insertPos(3)+8=11 > len(runes)=10 triggers the guard.
+	wideBorder := "╭" + strings.Repeat("\uff21", 8) + "╮\n│content│\n╰────────╯"
+	wideBorderTitle := " Hello W" // 8 plain ASCII chars, titleWidth=8
+	wideRuneResult := injectBorderTitle(wideBorder, wideBorderTitle, borderColor)
+	if wideRuneResult != wideBorder {
+		t.Errorf("wide-rune border case: want input returned unchanged when insertPos+titleWidth > len(runes)")
 	}
 }
