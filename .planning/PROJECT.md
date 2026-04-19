@@ -175,11 +175,11 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - [ ] Fix Settings Path section column alignment (#34)
 - [ ] Sessions auto-close when agent process exits (#33)
 - [ ] Quit confirmation modal — option to kill daemon or leave running (#32)
-- [ ] TUI UI/UX overhaul with frames, tabs, and visual parity with GUI (#29)
+- [x] TUI UI/UX overhaul with frames, tabs, and visual parity with GUI (#29) — Phase 86
 
 ## Current State
 
-v3.0 in progress (Phase 85 complete 2026-04-19). 17 milestones shipped (v1.0–v2.1), 85 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: session list with status glyphs, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
+v3.0 in progress (Phase 86 complete 2026-04-19). 17 milestones shipped (v1.0–v2.1), 86 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: two-pane layout with sidebar navigation (Home/Sessions/Remote/Settings), horizontal tab bar, bordered session frames with titles, colored per-agent badges, focus-aware key routing (Tab toggles panes, [/] cycles tabs), TokyoNight color palette, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
 
 ### Out of Scope
 
@@ -327,6 +327,9 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Unified local+remote session list (not separate panels) | TUI shows local and remote sessions in one scrollable list with divider rows | ✓ Good — single mental model, matches CLI `agenthub list` grouping |
 | go-qrcode ToSmallString for ASCII QR in TUI | Half-block characters (▀▄█) render QR at half-height; 55×25 terminal size guard | ✓ Good — readable in standard terminal sizes |
 | Remote attach deferred (toast displayed) | TUI shows "not yet supported" for remote session attach — WSS relay attach is future scope | ✓ Good — clean scope boundary, no half-implementation |
+| Two-pane sidebar + tab bar TUI layout | Sidebar (Home/Sessions/Remote/Settings) + horizontal tab bar + bordered content frames; focus-aware key routing (Tab toggles, [/] cycles) | ✓ Good — matches GUI navigation model, scales to future tabs |
+| TokyoNight color palette for TUI | Hex true-color values via lipgloss LightDark adaptive; per-agent badge colors for 6 known CLIs | ✓ Good — consistent with GUI theme, degrades gracefully on 256-color terminals |
+| Stable session list order via CreatedAt sort | `registry.List()` sorts by `CreatedAt` (oldest first) to prevent Go map iteration randomness | ✓ Good — deterministic display order on every refresh |
 | Settings persistence via daemon settings.json | CLI paths, Tailscale path, and startMinimized all share `daemonSettings` struct with `saveSettingsToDisk()` | ✓ Good — single persistence layer, no per-feature storage |
 | Three-state Save button (idle/saving/saved) | Transient confirmation pattern — button shows "Saved!" for 1.5s then returns to idle | ✓ Good — no toast infrastructure needed |
 | 4-state Tailscale health cascade | Not Installed → Daemon Stopped → Not Connected → Connected; checked in priority order | ✓ Good — replaces binary installed/not-installed with actionable diagnostics |
@@ -353,4 +356,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 after Phase 85 (Quit Confirmation Modal) complete*
+*Last updated: 2026-04-19 after Phase 86 (TUI Visual Polish) complete*
