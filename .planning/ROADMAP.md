@@ -212,7 +212,7 @@
 
 - [x] **Phase 83: Settings UI Alignment** (0/1 plans) — Path column and Settings sections visually consistent (#34) (completed 2026-04-19)
 - [x] **Phase 84: Session Auto-Close** (0/3 plans) — Session tab closes automatically when agent exits (#33) (completed 2026-04-19)
-- [ ] **Phase 85: Quit Confirmation Modal** — GUI quit shows modal with session count and two exit modes (#32)
+- [ ] **Phase 85: Quit Confirmation Modal** (0/2 plans) — GUI quit shows modal with session count and two exit modes (#32)
 - [ ] **Phase 86: TUI Visual Polish** — Bordered frames, tabbed nav, styled rows, TokyoNight palette (#29)
 
 </details>
@@ -261,7 +261,10 @@ Plans:
   3. The modal offers a "Quit GUI only" option that dismisses the window while leaving the daemon and sessions running
   4. The modal offers a "Quit everything" option that stops both the GUI and the daemon (terminating all sessions)
   5. Cancelling the modal returns the user to the running application with no state change
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 85-01-PLAN.md — Go backend: beforeClose/onTrayQuit refactor, QuitGUIOnly/QuitAll methods, macOS notification
+- [ ] 85-02-PLAN.md — Frontend: QuitConfirmModal component, CSS, App.tsx wiring, tests
 **UI hint**: yes
 
 ### Phase 86: TUI Visual Polish
@@ -300,7 +303,7 @@ Plans:
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
 | 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
-| 85 | v3.0 | 0/? | Not started | - |
+| 85 | v3.0 | 0/2 | Not started | - |
 | 86 | v3.0 | 0/? | Not started | - |
 
 ---
