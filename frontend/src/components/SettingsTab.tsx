@@ -526,7 +526,8 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         <h3>Paths</h3>
         {clis.length === 0 && (
           <p className="settings-panel__empty">
-            No CLIs detected. Install claude, opencode, or another supported CLI and restart AgentHub to populate the Paths list.
+            No CLIs detected. Install claude, opencode, or another supported CLI
+            and restart AgentHub. A manual tailscale path can still be configured below.
           </p>
         )}
         <table className="settings-panel__table">
