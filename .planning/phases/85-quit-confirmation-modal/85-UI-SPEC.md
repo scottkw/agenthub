@@ -41,11 +41,12 @@ Declared values (must be multiples of 4):
 | 2xl | 32px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions:
-- Modal header padding: 12px top/bottom × 20px left/right (matches NewSessionModal pattern)
-- Footer padding: 12px top/bottom × 20px left/right (matches NewSessionModal pattern)
-- Button padding: 6px × 16px (matches existing modal button pattern)
-- Touch target minimum: 32px height for all interactive buttons
+Exceptions (codebase-consistency — not multiples of 4):
+- `20px` (token `lg`) is outside the standard set {4, 8, 16, 24, 32, 48, 64}. **Exception rationale:** matches NewSessionModal 20px exactly — deviation required for visual consistency with existing modals (CONTEXT.md D-05).
+- Modal header padding: `12px` top/bottom × `20px` left/right. **Exception rationale:** matches NewSessionModal header/footer padding exactly — deviation required for visual consistency with existing modals (CONTEXT.md D-05).
+- Footer padding: `12px` top/bottom × `20px` left/right. Same rationale as header.
+- Button padding: `8px × 16px` (matches existing modal button touch-target pattern — 8px is on standard scale).
+- Touch target minimum: 32px height for all interactive buttons.
 
 Source: codebase scan — `style.css` lines 655-815 (NewSessionModal established patterns).
 
@@ -56,15 +57,13 @@ Source: codebase scan — `style.css` lines 655-815 (NewSessionModal established
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Modal heading | 16px | 600 (semibold) | 1.2 |
-| Body / session row | 13px | 400 (regular) | 1.5 |
+| Body / session row / secondary | 13px | 400 (regular) | 1.5 |
 | Section label / meta | 13px | 600 (semibold) | 1.5 |
-| Secondary / subtext | 12px | 400 (regular) | 1.5 |
 
 Notes:
 - 16px at weight 600 for modal `<h2>` — matches `new-session-modal__header h2` exactly.
-- 13px at weight 400 for session list rows and body paragraph text.
+- 13px at weight 400 for session list rows, body paragraph text, and session status subtext. The previous 12px for secondary metadata is consolidated to 13px — a 1px difference provides no meaningful hierarchy and complicates the scale. Two-size scale: 16px headings / 13px all body text.
 - 13px at weight 600 for section labels (uppercase, letter-spacing 0.08em) — matches `new-session-modal__section-label`.
-- 12px at weight 400 for secondary metadata (e.g. daemon status subtext).
 - Font family: `inherit` on all buttons and inputs — inherits body monospace stack.
 
 Source: codebase scan — `style.css` lines 662-700 (NewSessionModal heading and label).
@@ -101,6 +100,12 @@ Source: CONTEXT.md D-04 ("Quit Everything" button styled destructive red); codeb
 
 ---
 
+## Visual Focal Point
+
+Primary focal point: the modal title "Quit AgentHub?" draws the eye first — 16px semibold in `#c0caf5` against the `#1e2030` modal surface. The accent-colored "Quit GUI Only" button (`#7aa2f7`) is the secondary visual anchor, reinforcing it as the safe default action. The destructive "Quit Everything" button (`#f7768e`) is tertiary — visually distinct but positioned last in the button row to discourage accidental selection.
+
+---
+
 ## Component Inventory
 
 ### QuitConfirmModal
@@ -121,16 +126,16 @@ New component: `frontend/src/components/QuitConfirmModal.tsx`
         .quit-modal__session-item  — 13px, color #c0caf5, padding 4px 0, flex row gap 8px
           span.quit-modal__session-dot  — 8px × 8px status dot (colors per tab__status-- pattern)
           span.quit-modal__session-name  — weight 400
-          span.quit-modal__session-status  — 12px, color #9aa5ce
+          span.quit-modal__session-status  — 13px, color #9aa5ce
       p.quit-modal__no-sessions  — shown when count = 0; 13px, color #9aa5ce, font-style italic
     .quit-modal__footer       — flex row, justify-content flex-end, gap 8px,
                                 padding 12px 20px, border-top 1px solid #292e42
       button.quit-modal__btn--cancel     — ghost: transparent bg, border 1px solid #292e42,
-                                           color #9aa5ce, padding 6px 16px, border-radius 4px
+                                           color #9aa5ce, padding 8px 16px, border-radius 4px
       button.quit-modal__btn--quit-gui   — accent: bg #7aa2f7, color #1a1b26, weight 600,
-                                           padding 6px 16px, border-radius 4px
+                                           padding 8px 16px, border-radius 4px
       button.quit-modal__btn--quit-all   — destructive: bg #f7768e, color #1a1b26, weight 600,
-                                           padding 6px 16px, border-radius 4px
+                                           padding 8px 16px, border-radius 4px
 ```
 
 **Behaviour:**
@@ -152,7 +157,7 @@ interface QuitConfirmModalProps {
 
 ### Session list truncation
 - Show all sessions up to 5 rows with natural scroll disabled (the modal body does not scroll for this phase — session count will be small in practice).
-- If session count > 5: show first 5 rows + "...and N more" in 12px color #9aa5ce. Decision: Claude's discretion (CONTEXT.md).
+- If session count > 5: show first 5 rows + "...and N more" in 13px color #9aa5ce. Decision: Claude's discretion (CONTEXT.md).
 
 ---
 
@@ -167,7 +172,7 @@ interface QuitConfirmModalProps {
 | Session row format | "{name} ({status})" — e.g. "Claude Code (running)" |
 | "Quit GUI Only" button | "Quit GUI Only" |
 | "Quit Everything" button | "Quit Everything" |
-| Cancel button | "Cancel" |
+| Cancel button | "Keep Running" |
 | OS notification (after Quit GUI Only) | "AgentHub is still running in the background. {N} session(s) active." |
 | Truncation overflow | "...and {N} more" |
 
@@ -176,6 +181,7 @@ Notes:
 - D-11 (CONTEXT.md): OS notification copy includes session count.
 - "session(s)" should be grammatically singular/plural: "1 session" not "1 session(s)". Implementation: ternary `${count} ${count === 1 ? 'session' : 'sessions'}`.
 - Session status values: "running", "idle", "waiting", "errored" — match existing `tab__status--` class names.
+- "Keep Running" is used instead of generic "Cancel" — it communicates the outcome (app keeps running) rather than the action type, and is specific to the quit modal context.
 
 Source: CONTEXT.md D-03, D-04, D-11; ROADMAP.md Phase 85 success criteria item 2.
 
@@ -188,11 +194,11 @@ Source: CONTEXT.md D-03, D-04, D-11; ROADMAP.md Phase 85 success criteria item 2
 | Window close button (red macOS button) | Shows `QuitConfirmModal` instead of silently hiding — D-12 |
 | Tray menu "Quit" | Emits `app:quit-requested` Wails event → frontend shows modal — D-06, D-07 |
 | Modal appears when window is hidden | Backend auto-shows window before emitting event — D-08 |
-| "Cancel" / Escape / overlay click | Closes modal, returns to running app, no state change |
+| "Keep Running" / Escape / overlay click | Closes modal, returns to running app, no state change |
 | "Quit GUI Only" | Calls Go to hide window to tray; OS notification fires after hide |
 | "Quit Everything" | Calls Go to stop daemon + runtime.Quit; no confirmation step beyond button click |
-| Focus management | On open: focus "Cancel" button (safe default). Tab order: Cancel → Quit GUI Only → Quit Everything. |
-| Keyboard | Escape = Cancel. Enter = focused button. No shortcut for destructive path. |
+| Focus management | On open: focus "Keep Running" button (safe default). Tab order: Keep Running → Quit GUI Only → Quit Everything. |
+| Keyboard | Escape = Keep Running. Enter = focused button. No shortcut for destructive path. |
 
 Source: CONTEXT.md D-05 through D-12; ROADMAP.md Phase 85 success criteria 1-5.
 
