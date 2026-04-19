@@ -261,10 +261,10 @@ Plans:
   3. The modal offers a "Quit GUI only" option that dismisses the window while leaving the daemon and sessions running
   4. The modal offers a "Quit everything" option that stops both the GUI and the daemon (terminating all sessions)
   5. Cancelling the modal returns the user to the running application with no state change
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 85-01-PLAN.md — Go backend: beforeClose/onTrayQuit refactor, QuitGUIOnly/QuitAll methods, macOS notification
-- [ ] 85-02-PLAN.md — Frontend: QuitConfirmModal component, CSS, App.tsx wiring, tests
+- [x] 85-02-PLAN.md — Frontend: QuitConfirmModal component, CSS, App.tsx wiring, tests
 **UI hint**: yes
 
 ### Phase 86: TUI Visual Polish
@@ -303,7 +303,7 @@ Plans:
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
 | 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
-| 85 | v3.0 | 1/2 | In Progress|  |
+| 85 | v3.0 | 2/2 | Complete   | 2026-04-19 |
 | 86 | v3.0 | 0/? | Not started | - |
 
 ---
