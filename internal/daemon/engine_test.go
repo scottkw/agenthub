@@ -40,7 +40,7 @@ func TestNewSessionEngine(t *testing.T) {
 
 func TestEngineCreateSession(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "test", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession returned error: %v", err)
 	}
@@ -53,11 +53,11 @@ func TestEngineCreateSession(t *testing.T) {
 func TestEngineListSessions(t *testing.T) {
 	e := NewSessionEngine()
 
-	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil, 0, 0, nil)
+	id1, err := e.CreateSession(context.Background(), "cat", "tab-1", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-1: %v", err)
 	}
-	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil, 0, 0, nil)
+	id2, err := e.CreateSession(context.Background(), "cat", "tab-2", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession tab-2: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestEngineListSessions(t *testing.T) {
 func TestEngineKillSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "kill-me", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestEngineKillSession(t *testing.T) {
 func TestEngineRenameSession(t *testing.T) {
 	e := NewSessionEngine()
 
-	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "original", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestEngineGetSessionStatus(t *testing.T) {
 		t.Errorf("unknown session status: got %q, want %q", s, "running")
 	}
 
-	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "status-test", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestEngineGetSessionStatus(t *testing.T) {
 
 func TestEngineCreateSessionWithArgs(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "args-test", "", []string{"--version"}, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "args-test", "", []string{"--version"}, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession with args: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestEngineCreateSessionWithArgs(t *testing.T) {
 
 func TestEngineCreateSessionWithDimensions(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "dims-test", "", nil, 120, 40, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "dims-test", "", nil, 120, 40, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession with dimensions: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestEngineCreateSessionWithDimensions(t *testing.T) {
 
 func TestEngineCreateSessionDefaultDimensions(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "default-dims", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "default-dims", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession with zero dims: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestEngineCreateSessionDefaultDimensions(t *testing.T) {
 
 func TestEngineListSessionsHostname(t *testing.T) {
 	e := NewSessionEngine()
-	id, err := e.CreateSession(context.Background(), "cat", "h-eng", "", nil, 0, 0, nil)
+	id, err := e.CreateSession(context.Background(), "cat", "h-eng", "", nil, 0, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	e := NewSessionEngine()
 	e.backend = spy
 
-	_, err := e.CreateSession(context.Background(), "opencode", "test-oc", "", nil, 80, 24, nil)
+	_, err := e.CreateSession(context.Background(), "opencode", "test-oc", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession(opencode): %v", err)
 	}
@@ -291,7 +291,7 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	e2 := NewSessionEngine()
 	e2.backend = spy2
 
-	_, err = e2.CreateSession(context.Background(), "claude", "test-claude", "", nil, 80, 24, nil)
+	_, err = e2.CreateSession(context.Background(), "claude", "test-claude", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession(claude): %v", err)
 	}
@@ -307,7 +307,7 @@ func TestCreateSession_OpenCodeEnv(t *testing.T) {
 	e3 := NewSessionEngine()
 	e3.backend = spy3
 
-	_, err = e3.CreateSession(context.Background(), "codex", "test-codex", "", nil, 80, 24, nil)
+	_, err = e3.CreateSession(context.Background(), "codex", "test-codex", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession(codex): %v", err)
 	}
@@ -327,11 +327,11 @@ func TestNotifyThemeChange_BroadcastsToOpenCodeOnly(t *testing.T) {
 	e.backend = spy
 
 	// Create an opencode session and a claude session.
-	_, err := e.CreateSession(context.Background(), "opencode", "oc-tab", "", nil, 80, 24, nil)
+	_, err := e.CreateSession(context.Background(), "opencode", "oc-tab", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession(opencode): %v", err)
 	}
-	_, err = e.CreateSession(context.Background(), "claude", "cl-tab", "", nil, 80, 24, nil)
+	_, err = e.CreateSession(context.Background(), "claude", "cl-tab", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession(claude): %v", err)
 	}
@@ -351,8 +351,8 @@ func TestNotifyThemeChange_NoOpenCodeSessions(t *testing.T) {
 	e.backend = spy
 
 	// Create only non-opencode sessions.
-	_, _ = e.CreateSession(context.Background(), "claude", "cl", "", nil, 80, 24, nil)
-	_, _ = e.CreateSession(context.Background(), "codex", "cx", "", nil, 80, 24, nil)
+	_, _ = e.CreateSession(context.Background(), "claude", "cl", "", nil, 80, 24, nil, nil)
+	_, _ = e.CreateSession(context.Background(), "codex", "cx", "", nil, 80, 24, nil, nil)
 
 	err := e.NotifyThemeChange(context.Background())
 	if err != nil {
@@ -376,7 +376,7 @@ func TestSessionCLIs_TrackedAndCleanedUp(t *testing.T) {
 	e := NewSessionEngine()
 	e.backend = spy
 
-	id, err := e.CreateSession(context.Background(), "opencode", "oc", "", nil, 80, 24, nil)
+	id, err := e.CreateSession(context.Background(), "opencode", "oc", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -521,7 +521,7 @@ func TestNotifyThemeChange_RealProcess_Integration(t *testing.T) {
 		"",
 		[]string{"-c", script},
 		80, 24,
-		nil,
+		nil, nil,
 	)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)

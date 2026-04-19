@@ -52,6 +52,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
 	a.mux.HandleFunc("GET /settings/start-minimized", a.handleGetStartMinimized)
 	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
+	a.mux.HandleFunc("GET /settings/auto-close-session", a.handleGetAutoCloseSession)
+	a.mux.HandleFunc("PATCH /settings/auto-close-session", a.handleSetAutoCloseSession)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -258,9 +260,25 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	// Build onExit callback for web serving grace period (D-12).
+	// When session exits naturally, disable web serving after 10 seconds so
+	// web viewers see final output before serving stops. DisableSession is a
+	// no-op for sessions that were never enabled.
+	onExit := func(sessionID string, exitCode int) {
+		time.AfterFunc(10*time.Second, func() {
+			a.mu.RLock()
+			ws := a.webServer
+			a.mu.RUnlock()
+			if ws != nil {
+				ws.DisableSession(sessionID)
+			}
+		})
+	}
+
 	// Use background context — the PTY must outlive the HTTP request.
 	// r.Context() would kill the session when the response is sent.
-	id, err := a.engine.CreateSession(context.Background(), req.CLI, req.Name, req.WorkDir, req.Args, req.Cols, req.Rows, nil)
+	id, err := a.engine.CreateSession(context.Background(), req.CLI, req.Name, req.WorkDir, req.Args, req.Cols, req.Rows, nil, onExit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -353,6 +371,22 @@ func (a *API) handleSetStartMinimized(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetStartMinimized(req.StartMinimized)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleGetAutoCloseSession(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"autoCloseSession": a.engine.GetAutoCloseSession()})
+}
+
+func (a *API) handleSetAutoCloseSession(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AutoCloseSession bool `json:"autoCloseSession"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetAutoCloseSession(req.AutoCloseSession)
 	w.WriteHeader(http.StatusNoContent)
 }
 

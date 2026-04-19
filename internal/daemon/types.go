@@ -11,6 +11,8 @@ type SessionInfo struct {
 	Hostname    string `json:"hostname"`
 	WebEnabled  bool   `json:"webEnabled"`
 	ViewerCount int    `json:"viewerCount"` // MC-04: number of active WebSocket subscribers
+	ExitCode    *int   `json:"exitCode,omitempty"`  // nil while running; set when State is "stopped"
+	Duration    *int   `json:"duration,omitempty"`  // seconds since CreatedAt; set when State is "stopped"
 }
 
 // CreateRequest is the request body for POST /sessions.

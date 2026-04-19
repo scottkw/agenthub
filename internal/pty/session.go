@@ -94,3 +94,42 @@ func (s *Session) Signal(sig os.Signal) error {
 	}
 	return cmd.Process.Signal(sig)
 }
+
+// SetState updates the session lifecycle state under the internal mutex.
+// Safe to call from any goroutine.
+func (s *Session) SetState(state SessionState) {
+	s.mu.Lock()
+	s.State = state
+	s.mu.Unlock()
+}
+
+// WaitForExit blocks until the underlying process exits and returns the exit code.
+// Returns 0 if cmd or ProcessState is nil (conservative default per D-10).
+// Must be called after the PTY read loop has completed (hub.Done() fired).
+func (s *Session) WaitForExit() int {
+	s.mu.Lock()
+	cmd := s.cmd
+	s.mu.Unlock()
+	if cmd == nil {
+		return 0
+	}
+	// cmd.Wait() may have already been called by killSession — that's fine,
+	// a second Wait returns the cached ProcessState.
+	_ = cmd.Wait()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cmd.ProcessState != nil {
+		return cmd.ProcessState.ExitCode()
+	}
+	return 0
+}
+
+// ExitCode returns the exit code if the process has exited, or -1 if still running.
+func (s *Session) ExitCode() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cmd != nil && s.cmd.ProcessState != nil {
+		return s.cmd.ProcessState.ExitCode()
+	}
+	return -1
+}

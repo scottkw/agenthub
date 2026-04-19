@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/relay"
@@ -32,7 +33,8 @@ type SessionEngine struct {
 	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
 	cliPaths    map[string]string // cli name -> custom path override
 
-	startMinimized bool // persisted start-minimized preference
+	startMinimized  bool  // persisted start-minimized preference
+	autoCloseSession *bool // nil = default (true); persisted pointer
 
 	statusMu        sync.RWMutex
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
@@ -63,8 +65,9 @@ func ensureOpenCodeTUIConfig(dir string) string {
 
 // daemonSettings is the persisted settings structure.
 type daemonSettings struct {
-	CLIPaths       map[string]string `json:"cliPaths,omitempty"`
-	StartMinimized bool              `json:"startMinimized,omitempty"`
+	CLIPaths         map[string]string `json:"cliPaths,omitempty"`
+	StartMinimized   bool              `json:"startMinimized,omitempty"`
+	AutoCloseSession *bool             `json:"autoCloseSession,omitempty"`
 }
 
 // settingsPath returns the path to settings.json inside the config dir.
@@ -106,6 +109,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 		}
 	}
 	e.startMinimized = s.StartMinimized
+	e.autoCloseSession = s.AutoCloseSession
 	if dirty {
 		// Rewrite settings.json without the stale entries.
 		e.saveSettingsToDisk()
@@ -117,8 +121,9 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 // Caller holds e.mu.Lock().
 func (e *SessionEngine) saveSettingsToDisk() {
 	s := daemonSettings{
-		CLIPaths:       e.cliPaths,
-		StartMinimized: e.startMinimized,
+		CLIPaths:         e.cliPaths,
+		StartMinimized:   e.startMinimized,
+		AutoCloseSession: e.autoCloseSession,
 	}
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -151,7 +156,8 @@ func NewSessionEngine() *SessionEngine {
 // CreateSession spawns a new CLI session and returns its ID.
 // args are passed to the CLI process; pass nil if no extra arguments are needed.
 // onStatus is called on each status transition; pass nil if not needed.
-func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, cols, rows int, onStatus func(string, status.SessionStatus)) (string, error) {
+// onExit is called with (sessionID, exitCode) when the process exits naturally; pass nil if not needed.
+func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, cols, rows int, onStatus func(string, status.SessionStatus), onExit func(string, int)) (string, error) {
 	cliPath := e.ResolveCLI(cli)
 
 	if cols <= 0 {
@@ -201,6 +207,18 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 		}
 	})
 
+	// Watch for natural process exit (PTY EOF -> hub.Done closes).
+	// Transitions session state to StateStopped and captures exit code.
+	// Calls onExit callback if provided (used by API layer for web grace period per D-12).
+	go func() {
+		<-hub.Done() // blocks until PTY read loop returns EOF (D-07)
+		exitCode := sess.WaitForExit()
+		sess.SetState(pty.StateStopped)
+		if onExit != nil {
+			onExit(id, exitCode)
+		}
+	}()
+
 	return id, nil
 }
 
@@ -235,6 +253,15 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 		}
 		e.statusMu.RUnlock()
 
+		var exitCodePtr *int
+		var durationPtr *int
+		if s.State == pty.StateStopped {
+			ec := s.ExitCode()
+			exitCodePtr = &ec
+			dur := int(time.Since(s.CreatedAt).Seconds())
+			durationPtr = &dur
+		}
+
 		result = append(result, SessionInfo{
 			ID:          s.ID,
 			CLI:         s.CLI,
@@ -244,6 +271,8 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			CreatedAt:   s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			Hostname:    e.hostname,
 			ViewerCount: viewerCount,
+			ExitCode:    exitCodePtr,
+			Duration:    durationPtr,
 		})
 	}
 	return result
@@ -338,6 +367,25 @@ func (e *SessionEngine) GetStartMinimized() bool {
 func (e *SessionEngine) SetStartMinimized(val bool) {
 	e.mu.Lock()
 	e.startMinimized = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+}
+
+// GetAutoCloseSession returns the auto-close-on-exit preference.
+// Returns true when the setting is absent (nil pointer = default enabled per D-11).
+func (e *SessionEngine) GetAutoCloseSession() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.autoCloseSession == nil {
+		return true // default: enabled
+	}
+	return *e.autoCloseSession
+}
+
+// SetAutoCloseSession updates and persists the auto-close-on-exit preference.
+func (e *SessionEngine) SetAutoCloseSession(val bool) {
+	e.mu.Lock()
+	e.autoCloseSession = &val
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 }

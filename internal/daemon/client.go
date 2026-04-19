@@ -123,6 +123,21 @@ func (c *DaemonClient) SetStartMinimized(val bool) error {
 		map[string]bool{"startMinimized": val}, nil)
 }
 
+// GetAutoCloseSession returns the auto-close-on-exit preference.
+func (c *DaemonClient) GetAutoCloseSession() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/auto-close-session", nil, &resp); err != nil {
+		return true, err // default true on error
+	}
+	return resp["autoCloseSession"], nil
+}
+
+// SetAutoCloseSession persists the auto-close-on-exit preference.
+func (c *DaemonClient) SetAutoCloseSession(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/auto-close-session",
+		map[string]bool{"autoCloseSession": val}, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse
