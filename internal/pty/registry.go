@@ -45,6 +45,9 @@ func (r *SessionRegistry) List() []*Session {
 		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ID < out[j].ID // stable tiebreaker
+		}
 		return out[i].CreatedAt.Before(out[j].CreatedAt)
 	})
 	return out
