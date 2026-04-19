@@ -11,8 +11,9 @@ import (
 // On POSIX systems it sends SIGHUP to the process group for graceful shutdown,
 // waits up to 2 seconds, then sends SIGKILL if the process has not exited.
 //
-// Note: The PTY is closed BEFORE calling Wait to prevent Wait from blocking
-// indefinitely when the PTY master is still open.
+// IMPORTANT: Does NOT call cmd.Wait() — go-pty's internal waitOnContext goroutine
+// handles process reaping when the context is cancelled. Calling cmd.Wait()
+// concurrently with waitOnContext causes a data race on go-pty internal state.
 func killSession(s *Session) error {
 	if s.cmd == nil || s.cmd.Process == nil {
 		if s.pty != nil {
@@ -30,39 +31,27 @@ func killSession(s *Session) error {
 	// Graceful shutdown: SIGHUP to the entire process group.
 	_ = syscall.Kill(-pgid, syscall.SIGHUP)
 
-	// Close the PTY master first — otherwise cmd.Wait() may block indefinitely
-	// waiting for the PTY slave to be closed, even after the child has exited.
+	// Close the PTY master — unblocks any pending reads on the PTY slave.
 	if s.pty != nil {
 		_ = s.pty.Close()
 	}
 
-	// Wait for process to exit, with 2-second timeout.
-	// Use WaitForExit() which wraps cmd.Wait() in sync.Once to avoid racing
-	// with the exit watcher goroutine in engine.go.
-	done := make(chan struct{})
-	go func() {
-		s.WaitForExit()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// Exited cleanly.
-	case <-time.After(2 * time.Second):
-		// Force kill the process group.
-		_ = syscall.Kill(-pgid, syscall.SIGKILL)
-		// Wait again after SIGKILL.
-		select {
-		case <-done:
-		case <-time.After(1 * time.Second):
-			// Give up — process is truly stuck.
-		}
-	}
-
-	// Cancel the context.
+	// Cancel the context — triggers go-pty's internal waitOnContext goroutine
+	// which calls cmd.Wait() and populates ProcessState.
 	if s.cancel != nil {
 		s.cancel()
 	}
+
+	// Check if process exited after SIGHUP + context cancel.
+	// Use signal 0 to probe — returns error if process is gone.
+	time.Sleep(100 * time.Millisecond)
+	if err := syscall.Kill(-pgid, 0); err != nil {
+		return nil // Process group is gone.
+	}
+
+	// Still alive — force kill.
+	_ = syscall.Kill(-pgid, syscall.SIGKILL)
+	time.Sleep(100 * time.Millisecond)
 
 	return nil
 }

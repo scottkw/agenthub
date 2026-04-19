@@ -52,9 +52,9 @@ type Session struct {
 	// mu protects concurrent access to mutable fields (State, pty).
 	mu sync.Mutex
 
-	// waitOnce ensures cmd.Wait() is called exactly once (avoids race with KillSession).
-	waitOnce sync.Once
-	waitCode  int
+	// exitCode caches the exit code once the process has exited.
+	exitCode int
+	exitOnce sync.Once
 }
 
 // Read reads output from the underlying PTY.
@@ -117,24 +117,23 @@ func (s *Session) SetState(state SessionState) {
 
 // WaitForExit blocks until the underlying process exits and returns the exit code.
 // Returns 0 if cmd or ProcessState is nil (conservative default per D-10).
-// Safe to call concurrently — cmd.Wait() is invoked exactly once via sync.Once
-// to avoid racing with KillSession's internal go-pty waitOnContext goroutine.
+// IMPORTANT: Only call from the natural exit path (after hub.Done fires). The kill
+// path must NOT call this — go-pty's cmd.Wait() is not safe to call concurrently
+// with its internal waitOnContext goroutine triggered by context cancellation.
 func (s *Session) WaitForExit() int {
-	s.mu.Lock()
-	cmd := s.cmd
-	s.mu.Unlock()
-	if cmd == nil {
-		return 0
-	}
-	s.waitOnce.Do(func() {
-		_ = cmd.Wait()
+	s.exitOnce.Do(func() {
 		s.mu.Lock()
-		defer s.mu.Unlock()
+		cmd := s.cmd
+		s.mu.Unlock()
+		if cmd == nil {
+			return
+		}
+		_ = cmd.Wait()
 		if cmd.ProcessState != nil {
-			s.waitCode = cmd.ProcessState.ExitCode()
+			s.exitCode = cmd.ProcessState.ExitCode()
 		}
 	})
-	return s.waitCode
+	return s.exitCode
 }
 
 // ExitCode returns the exit code if the process has exited, or -1 if still running.
