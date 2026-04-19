@@ -67,3 +67,7 @@ export const NotifyThemeChange       = ()                   => Call('main.App.No
 // Start-minimized bound methods (TRAY-02/03)
 export const GetStartMinimized       = ()                   => Call('main.App.GetStartMinimized', [])
 export const SetStartMinimized       = (val)                => Call('main.App.SetStartMinimized', [val])
+
+// Auto-close session bound methods (SESS-01/02)
+export const GetAutoCloseSession     = ()                   => Call('main.App.GetAutoCloseSession', [])
+export const SetAutoCloseSession     = (val)                => Call('main.App.SetAutoCloseSession', [val])

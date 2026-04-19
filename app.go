@@ -28,6 +28,7 @@ type SessionInfo struct {
 	CLI        string `json:"cli"`
 	Name       string `json:"name"`
 	State      string `json:"state"`
+	Status     string `json:"status"`
 	CreatedAt  string `json:"createdAt"`
 	Hostname   string `json:"hostname"`
 	WebEnabled bool   `json:"webEnabled"`
@@ -196,32 +197,69 @@ func (a *App) CreateSession(cli, name, workDir string, args []string, cols, rows
 }
 
 // pollSessionStatus polls the daemon for status changes on a newly created
-// session and emits Wails "session:status" events. Replaces the onStatus
+// session and emits Wails "session:status" events. Also detects natural exit
+// (State == "stopped") and emits "session:exit". Replaces the onStatus
 // callback that was used when CreateSession called the engine directly.
-// Stops when status reaches "errored" or after 60 seconds.
 func (a *App) pollSessionStatus(sessionID string) {
 	var last string
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := time.Now().Add(300 * time.Second) // extended to 5min for long-running agents
 	for time.Now().Before(deadline) {
-		s, err := a.client.GetSessionStatus(sessionID)
+		sessions, err := a.client.ListSessions()
 		if err != nil {
-			return
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
-		if s != last {
-			last = s
-			if a.ctx != nil && a.ctx.Value("frontend") != nil {
-				runtime.EventsEmit(a.ctx, "session:status", map[string]string{
-					"sessionId": sessionID,
-					"status":    s,
-				})
+		found := false
+		for _, s := range sessions {
+			if s.ID == sessionID {
+				found = true
+				// Emit heuristic status changes (existing behavior)
+				if s.Status != last {
+					last = s.Status
+					if a.ctx != nil {
+						runtime.EventsEmit(a.ctx, "session:status", map[string]string{
+							"sessionId": sessionID,
+							"status":    s.Status,
+						})
+					}
+				}
+				// Exit detection: daemon marks session as "stopped" when process exits naturally
+				if s.State == "stopped" {
+					a.emitExitEvent(sessionID, s)
+					return
+				}
+				break
 			}
-			switch s {
-			case string(status.StatusErrored), string(status.StatusRunning):
-				return
-			}
+		}
+		if !found {
+			// Session removed from daemon (killed externally) — stop polling
+			return
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+// emitExitEvent sends the session:exit Wails event to the frontend.
+func (a *App) emitExitEvent(sessionID string, s daemon.SessionInfo) {
+	if a.ctx == nil {
+		return
+	}
+	exitCode := 0
+	if s.ExitCode != nil {
+		exitCode = *s.ExitCode
+	}
+	duration := 0
+	if s.Duration != nil {
+		duration = *s.Duration
+	}
+	runtime.EventsEmit(a.ctx, "session:exit", map[string]any{
+		"sessionId":   sessionID,
+		"exitCode":    exitCode,
+		"sessionName": s.Name,
+		"cli":         s.CLI,
+		"duration":    duration,
+		"finalStatus": s.Status,
+	})
 }
 
 // ListSessions returns a snapshot of all registered sessions.
@@ -240,6 +278,7 @@ func (a *App) ListSessions() []SessionInfo {
 			CLI:        s.CLI,
 			Name:       s.Name,
 			State:      s.State,
+			Status:     s.Status,
 			CreatedAt:  s.CreatedAt,
 			Hostname:   s.Hostname,
 			WebEnabled: s.WebEnabled,
@@ -343,6 +382,27 @@ func (a *App) SetStartMinimized(val bool) error {
 		return fmt.Errorf("daemon not connected")
 	}
 	return a.client.SetStartMinimized(val)
+}
+
+// GetAutoCloseSession returns the persisted auto-close-on-exit preference.
+// Returns true (enabled) when daemon is not connected (conservative default per D-11).
+func (a *App) GetAutoCloseSession() bool {
+	if a.client == nil {
+		return true
+	}
+	val, err := a.client.GetAutoCloseSession()
+	if err != nil {
+		return true // default: enabled
+	}
+	return val
+}
+
+// SetAutoCloseSession persists the auto-close-on-exit preference.
+func (a *App) SetAutoCloseSession(val bool) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.SetAutoCloseSession(val)
 }
 
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).

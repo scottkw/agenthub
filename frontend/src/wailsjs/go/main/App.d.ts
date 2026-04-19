@@ -109,3 +109,7 @@ export function NotifyThemeChange(): Promise<void>
 // Start-minimized bound methods (TRAY-02/03)
 export function GetStartMinimized(): Promise<boolean>
 export function SetStartMinimized(val: boolean): Promise<void>
+
+// Auto-close session bound methods (SESS-01/02)
+export function GetAutoCloseSession(): Promise<boolean>
+export function SetAutoCloseSession(val: boolean): Promise<void>
