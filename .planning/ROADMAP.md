@@ -213,7 +213,7 @@
 - [x] **Phase 83: Settings UI Alignment** (0/1 plans) — Path column and Settings sections visually consistent (#34) (completed 2026-04-19)
 - [x] **Phase 84: Session Auto-Close** (0/3 plans) — Session tab closes automatically when agent exits (#33) (completed 2026-04-19)
 - [x] **Phase 85: Quit Confirmation Modal** (0/2 plans) — GUI quit shows modal with session count and two exit modes (#32) (completed 2026-04-19)
-- [ ] **Phase 86: TUI Visual Polish** — Bordered frames, tabbed nav, styled rows, TokyoNight palette (#29)
+- [x] **Phase 86: TUI Visual Polish** — Bordered frames, tabbed nav, styled rows, TokyoNight palette (#29) (completed 2026-04-19)
 
 </details>
 
@@ -308,7 +308,7 @@ Plans:
 | 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
-| 86 | v3.0 | 3/3 | Complete   | 2026-04-19 |
+| 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
