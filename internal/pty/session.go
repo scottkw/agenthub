@@ -49,8 +49,13 @@ type Session struct {
 	// Stored as any to avoid build-tag spread across files.
 	job any
 
-	// mu protects concurrent access to mutable fields (State, pty).
+	// mu protects concurrent access to mutable fields (State, pty, killed).
 	mu sync.Mutex
+
+	// killed is set by MarkKilled before killSession runs. The exit watcher
+	// goroutine checks this to avoid calling cmd.Wait() on the kill path,
+	// which would race with go-pty's internal waitOnContext goroutine.
+	killed bool
 
 	// exitCode caches the exit code once the process has exited.
 	exitCode int
@@ -97,6 +102,21 @@ func (s *Session) Signal(sig os.Signal) error {
 		return fmt.Errorf("session %s: process not running", s.ID)
 	}
 	return cmd.Process.Signal(sig)
+}
+
+// MarkKilled sets the killed flag so the exit watcher skips cmd.Wait().
+// Must be called before killSession triggers PTY close or context cancel.
+func (s *Session) MarkKilled() {
+	s.mu.Lock()
+	s.killed = true
+	s.mu.Unlock()
+}
+
+// IsKilled returns whether the session was killed (vs natural exit).
+func (s *Session) IsKilled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.killed
 }
 
 // GetState returns the current lifecycle state under the internal mutex.

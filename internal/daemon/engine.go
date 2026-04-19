@@ -210,8 +210,14 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	// Watch for natural process exit (PTY EOF -> hub.Done closes).
 	// Transitions session state to StateStopped and captures exit code.
 	// Calls onExit callback if provided (used by API layer for web grace period per D-12).
+	// Skips cmd.Wait() on the kill path to avoid racing with go-pty's waitOnContext.
 	go func() {
 		<-hub.Done() // blocks until PTY read loop returns EOF (D-07)
+		if sess.IsKilled() {
+			// Session was killed — killSession handles cleanup. Don't call
+			// cmd.Wait() which would race with go-pty's waitOnContext goroutine.
+			return
+		}
 		exitCode := sess.WaitForExit()
 		sess.SetState(pty.StateStopped)
 		if onExit != nil {

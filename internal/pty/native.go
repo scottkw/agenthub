@@ -118,9 +118,8 @@ func (b *NativePTYBackend) Kill(id string) error {
 		return ErrSessionNotFound
 	}
 
-	sess.mu.Lock()
-	sess.State = StateStopped
-	sess.mu.Unlock()
+	sess.MarkKilled()
+	sess.SetState(StateStopped)
 
 	b.registry.Remove(id)
 	return killSession(sess)
