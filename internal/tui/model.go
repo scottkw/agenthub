@@ -36,6 +36,24 @@ const (
 	entryDivider
 )
 
+// panesFocusState tracks which pane has keyboard focus.
+type panesFocusState bool
+
+const (
+	focusContent panesFocusState = false
+	focusSidebar panesFocusState = true
+)
+
+// tabID identifies a content tab.
+type tabID int
+
+const (
+	tabHome     tabID = iota
+	tabSessions tabID = iota
+	tabRemote   tabID = iota
+	tabSettings tabID = iota
+)
+
 // listEntry represents one row in the unified session list (local session, remote session, or divider).
 type listEntry struct {
 	kind    listEntryKind
@@ -128,6 +146,57 @@ type Model struct {
 	qrSession *sessionRef // nil = no QR overlay; non-nil = QR overlay open
 	qrContent string      // pre-rendered QR string from ToSmallString(false)
 	qrURL     string      // URL shown below QR
+
+	// Tab navigation state (Phase 86)
+	panesFocus   panesFocusState // focusContent or focusSidebar
+	openTabs     []tabID         // ordered list of open tabs
+	activeTab    int             // index into openTabs
+	sidebarFocus int             // 0=Home, 1=Sessions, 2=Remote, 3=Settings
+	version      string          // app version string for Home tab
+}
+
+// activeTabID returns the tabID of the currently active tab, defaulting to tabSessions.
+func (m Model) activeTabID() tabID {
+	if m.activeTab >= 0 && m.activeTab < len(m.openTabs) {
+		return m.openTabs[m.activeTab]
+	}
+	return tabSessions
+}
+
+// tabName returns the display name for a tab ID.
+func tabName(id tabID) string {
+	switch id {
+	case tabHome:
+		return "Home"
+	case tabSessions:
+		return "Sessions"
+	case tabRemote:
+		return "Remote"
+	case tabSettings:
+		return "Settings"
+	default:
+		return "?"
+	}
+}
+
+// openTab opens the given tab (or activates it if already open).
+func (m *Model) openTab(id tabID) {
+	for i, t := range m.openTabs {
+		if t == id {
+			m.activeTab = i
+			return
+		}
+	}
+	m.openTabs = append(m.openTabs, id)
+	m.activeTab = len(m.openTabs) - 1
+}
+
+// cycleTab cycles through open tabs by the given direction (+1 or -1).
+func (m *Model) cycleTab(dir int) {
+	if len(m.openTabs) == 0 {
+		return
+	}
+	m.activeTab = (m.activeTab + dir + len(m.openTabs)) % len(m.openTabs)
 }
 
 // Message types for Bubble Tea Update loop.

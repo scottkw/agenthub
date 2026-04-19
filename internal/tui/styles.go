@@ -2,6 +2,7 @@ package tui
 
 import (
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 )
@@ -30,6 +31,16 @@ type Styles struct {
 	BgInput        color.Color
 	FgPlaceholder  color.Color
 	FgFocusedLabel color.Color
+
+	// Phase 86 surface + sidebar + per-agent badge tokens
+	BgSurface     color.Color
+	BgSidebar     color.Color
+	BadgeClaude   color.Color
+	BadgeOpencode color.Color
+	BadgeCodex    color.Color
+	BadgeGemini   color.Color
+	BadgeCursor   color.Color
+	BadgeAider    color.Color
 }
 
 // newStyles creates a Styles with adaptive colors for light or dark terminals.
@@ -37,26 +48,57 @@ type Styles struct {
 func newStyles(hasDark bool) Styles {
 	ld := lipgloss.LightDark(hasDark)
 	return Styles{
-		FgNormal:      ld(lipgloss.Color("#303030"), lipgloss.Color("#C6C6C6")),
-		FgMuted:       ld(lipgloss.Color("#949494"), lipgloss.Color("#626262")),
-		FgAccent:      ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
-		BgSelected:    ld(lipgloss.Color("#E4E4E4"), lipgloss.Color("#303030")),
-		FgSelected:    ld(lipgloss.Color("#000000"), lipgloss.Color("#FFFFFF")),
-		StatusRunning: ld(lipgloss.Color("#008700"), lipgloss.Color("#5FAF5F")),
-		StatusIdle:    ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
-		StatusWaiting: ld(lipgloss.Color("#AF8700"), lipgloss.Color("#FFAF00")),
-		StatusErrored: ld(lipgloss.Color("#D70000"), lipgloss.Color("#FF5F5F")),
-		WebOn:         ld(lipgloss.Color("#008700"), lipgloss.Color("#5FAF5F")),
-		WebOff:        ld(lipgloss.Color("#949494"), lipgloss.Color("#626262")),
-		BorderNormal:  ld(lipgloss.Color("#BCBCBC"), lipgloss.Color("#444444")),
-		BorderAccent:  ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
+		FgNormal:      ld(lipgloss.Color("#3b4261"), lipgloss.Color("#c0caf5")),
+		FgMuted:       ld(lipgloss.Color("#9699b0"), lipgloss.Color("#565f89")),
+		FgAccent:      ld(lipgloss.Color("#2e7de9"), lipgloss.Color("#7aa2f7")),
+		BgSelected:    ld(lipgloss.Color("#d0d5e3"), lipgloss.Color("#283457")),
+		FgSelected:    ld(lipgloss.Color("#3b4261"), lipgloss.Color("#c0caf5")),
+		StatusRunning: ld(lipgloss.Color("#485e30"), lipgloss.Color("#9ece6a")),
+		StatusIdle:    ld(lipgloss.Color("#2e7de9"), lipgloss.Color("#7aa2f7")),
+		StatusWaiting: ld(lipgloss.Color("#8c6c3e"), lipgloss.Color("#e0af68")),
+		StatusErrored: ld(lipgloss.Color("#c64343"), lipgloss.Color("#f7768e")),
+		WebOn:         ld(lipgloss.Color("#485e30"), lipgloss.Color("#9ece6a")),
+		WebOff:        ld(lipgloss.Color("#9699b0"), lipgloss.Color("#565f89")),
+		BorderNormal:  ld(lipgloss.Color("#c4c8da"), lipgloss.Color("#414868")),
+		BorderAccent:  ld(lipgloss.Color("#2e7de9"), lipgloss.Color("#7aa2f7")),
 
 		// Phase 77 modal + danger tokens
-		BgModal:        ld(lipgloss.Color("#F5F5F5"), lipgloss.Color("#1C1C1C")),
-		FgDanger:       ld(lipgloss.Color("#D70000"), lipgloss.Color("#FF5F5F")),
-		FgInput:        ld(lipgloss.Color("#000000"), lipgloss.Color("#FFFFFF")),
-		BgInput:        ld(lipgloss.Color("#E4E4E4"), lipgloss.Color("#303030")),
-		FgPlaceholder:  ld(lipgloss.Color("#949494"), lipgloss.Color("#626262")),
-		FgFocusedLabel: ld(lipgloss.Color("#005FD7"), lipgloss.Color("#5F87FF")),
+		BgModal:        ld(lipgloss.Color("#e1e2e7"), lipgloss.Color("#1f2335")),
+		FgDanger:       ld(lipgloss.Color("#c64343"), lipgloss.Color("#f7768e")),
+		FgInput:        ld(lipgloss.Color("#3b4261"), lipgloss.Color("#c0caf5")),
+		BgInput:        ld(lipgloss.Color("#d0d5e3"), lipgloss.Color("#283457")),
+		FgPlaceholder:  ld(lipgloss.Color("#9699b0"), lipgloss.Color("#565f89")),
+		FgFocusedLabel: ld(lipgloss.Color("#2e7de9"), lipgloss.Color("#7aa2f7")),
+
+		// Phase 86 surface + sidebar + per-agent badge tokens
+		BgSurface:     ld(lipgloss.Color("#e9e9ec"), lipgloss.Color("#1a1b26")),
+		BgSidebar:     ld(lipgloss.Color("#f0f0f4"), lipgloss.Color("#16161e")),
+		BadgeClaude:   ld(lipgloss.Color("#2e7de9"), lipgloss.Color("#7aa2f7")),
+		BadgeOpencode: ld(lipgloss.Color("#485e30"), lipgloss.Color("#9ece6a")),
+		BadgeCodex:    ld(lipgloss.Color("#7847bd"), lipgloss.Color("#bb9af7")),
+		BadgeGemini:   ld(lipgloss.Color("#118c9e"), lipgloss.Color("#2ac3de")),
+		BadgeCursor:   ld(lipgloss.Color("#8c6c3e"), lipgloss.Color("#e0af68")),
+		BadgeAider:    ld(lipgloss.Color("#c64343"), lipgloss.Color("#f7768e")),
+	}
+}
+
+// agentBadgeColor returns the badge color for the given CLI agent name.
+// Falls back to FgMuted for unknown agent names.
+func agentBadgeColor(cli string, s Styles) color.Color {
+	switch strings.ToLower(cli) {
+	case "claude":
+		return s.BadgeClaude
+	case "opencode":
+		return s.BadgeOpencode
+	case "codex":
+		return s.BadgeCodex
+	case "gemini":
+		return s.BadgeGemini
+	case "cursor":
+		return s.BadgeCursor
+	case "aider":
+		return s.BadgeAider
+	default:
+		return s.FgMuted
 	}
 }
