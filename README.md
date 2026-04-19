@@ -4,7 +4,7 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` — a full-screen Bubble Tea terminal UI). Sessions survive GUI restarts, are controllable from any interface, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. Multiple clients can connect to the same session simultaneously with independent scrollback, read-only mode, and stable PTY resize arbitration. CLI attach displays a persistent tmux-style status bar with session context and live viewer count. The TUI provides near-GUI parity: session list with status indicators, full session lifecycle (attach, create, kill, rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, and discoverable help. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 138 curated color themes (WCAG-audited from the xterm-theme library) with live switching and persistence — including OpenCode, which honors the selected theme via managed config and SIGUSR2 broadcast. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio. Remote sessions on other tailnet machines are discoverable from the GUI, CLI, and TUI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
+A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — in persistent terminal sessions managed by a background daemon. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` — a full-screen Bubble Tea terminal UI). Sessions survive GUI restarts, are controllable from any interface, and can be shared over the web via Tailscale with browser-trusted TLS — or over the local network with self-signed TLS and password auth when Tailscale isn't available. Multiple clients can connect to the same session simultaneously with independent scrollback, read-only mode, and stable PTY resize arbitration. CLI attach displays a persistent tmux-style status bar with session context and live viewer count. The TUI provides near-GUI parity: two-pane sidebar+content layout with bordered session frames, per-agent colored badges, TokyoNight color palette, focus-aware navigation (Tab toggles panes, [/] cycles tabs), full session lifecycle (attach, create, kill, rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, and discoverable help. Sessions auto-close when the agent process exits — with a 5-second countdown, toast notification, and Keep Open cancel. Closing the GUI presents a quit confirmation modal showing active session count with the choice to quit the GUI only (daemon stays running, macOS notification sent) or quit everything. The web server starts automatically and new sessions are web-served by default. A collapsible sidebar with Heroicons provides quick access to all navigation — Home, Remote Sessions, Daemon Manager, New Session, and Settings (single scrollable page with section headers). System tray works on all platforms: macOS (native NSStatusBar), Linux (D-Bus StatusNotifierItem), and Windows (Shell_NotifyIcon). Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, native installers). Terminal sessions support 138 curated color themes (WCAG-audited from the xterm-theme library) with live switching and persistence — including OpenCode, which honors the selected theme via managed config and SIGUSR2 broadcast. All non-terminal GUI text meets WCAG AA 4.5:1 contrast ratio. Remote sessions on other tailnet machines are discoverable from the GUI, CLI, and TUI. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Features
 
@@ -19,6 +19,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Terminal padding** — 8px inset around terminal content with dynamic background matching the active theme
 - **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
+- **Session auto-close** — When an agent process exits, its tab shows a 5-second countdown with an inline banner and fixed-position toast notification; tab auto-closes after countdown unless "Keep Open" is clicked; non-zero exits skip auto-close and show error state; toggle auto-close behavior in Settings > Session Behavior
 - **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
 - **Standard app menus** — File, Edit, Window, Help menus with keyboard shortcuts; Cmd+C/V clipboard in terminal tabs
 - **Welcome tab** — Branded splash screen with version info, platform-specific installation instructions, and getting-started guide
@@ -33,7 +34,10 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 
 ### TUI Mode
 - **Full-screen terminal UI** — `agenthub tui` launches an interactive Bubble Tea v2 interface as an alternative to the desktop GUI
-- **Session list** — All sessions displayed with status glyphs (running/waiting/idle/errored), agent type, hostname, and viewer count
+- **Two-pane layout** — Left sidebar (Home, Sessions, Remote, Settings) mirrors GUI navigation; right content pane shows the active tab with bordered frames and section headers
+- **Focus-aware navigation** — Tab key toggles between sidebar and content panes; Up/Down navigates sidebar items; Enter opens a tab; [ and ] cycle through open tabs
+- **Session list** — Sessions displayed inside bordered lipgloss frames with labeled titles; each row shows a colored per-agent badge (6 CLIs with distinct TokyoNight-derived colors), status glyph, hostname, and viewer count
+- **TokyoNight color palette** — 22+ adaptive color tokens using lipgloss LightDark for consistent styling across light and dark terminals; matches GUI theme
 - **Attach** — Press Enter on a session to suspend TUI and enter raw PTY attach with status bar; Ctrl-\ detaches and resumes TUI
 - **Create session** — Press `n` to open a modal with agent picker (Left/Right cycling), directory input, and argument field
 - **Kill session** — Press `d` for a confirmation dialog with danger-styled overlay; default-No for safety
@@ -41,8 +45,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Remote sessions** — Unified local+remote session list with tailnet peer grouping and hostname divider rows
 - **QR code overlay** — Press `q` to display an ASCII QR code for the selected session's web URL
 - **Web server status** — Footer shows whether the web server is running and its URL
-- **Help overlay** — Press `?` to see all keybindings for the current view
-- **Adaptive colors** — Automatically adapts to light/dark terminal backgrounds via Bubble Tea BackgroundColorMsg
+- **Help overlay** — Press `?` to see all keybindings for the current view (includes Tab, [/] navigation)
 - **Auto-refresh** — Session list refreshes every 2 seconds with selection preserved by identity
 
 ### Remote Sessions
@@ -64,7 +67,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Session menu** — Dynamic menu listing all active sessions; click to activate
 - **Session count tooltip** — Shows active session count (e.g., "AgentHub — 3 sessions")
 - **Error state** — Tray icon switches to error state when daemon is unreachable
-- **Hide-on-close** — Closing the window hides the GUI; quit from tray to fully exit
+- **Quit confirmation** — Closing the window or selecting Quit from the tray menu presents a modal showing active session count with colored status dots and three options: Keep Running (dismiss), Quit GUI Only (hide window, send macOS notification, daemon stays running), or Quit Everything (stop daemon and exit)
 - **Start minimized** — Optional "Start minimized to system tray" toggle in Settings > Behavior; when enabled, the app launches hidden with only the tray icon visible — preference persists across restarts
 - **Dock hiding** — App hides from Dock and Cmd+Tab via LSUIElement (macOS)
 
@@ -98,6 +101,7 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Appearance section** — Theme selector with 138 curated color schemes; selected theme applies live to all terminals and persists in localStorage
 - **Web Server section** — Start/stop web server with mode-aware status display; URL actions (open in browser, copy to clipboard, inline QR code); local network password with click-to-copy
 - **Behavior section** — "Start minimized to system tray" toggle with non-optimistic save, loading state, and error feedback
+- **Session Behavior section** — "Auto-close tab on exit" toggle controls whether session tabs auto-close when the agent process exits; preference persists via daemon settings
 - **Paths section** — Override auto-detected CLI paths per agent; each path has a native browse button that opens a file picker; save confirmation shows a green "Saved!" indicator for 1.5 seconds
 - **Tailscale status indicator** — 4-state color-coded dot (Connected / Not Connected / Daemon Stopped / Not Installed) with collapsible diagnostics checklist showing binary detection, daemon status, connection state, and TLS readiness; platform-specific troubleshooting instructions for macOS, Linux, and Windows
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
@@ -174,7 +178,10 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 | `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
-| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Behavior, Appearance, Web Server, Paths); start-minimized toggle, theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides with native browse buttons, local network password |
+| `ExitToast.tsx` | Fixed-position toast notification for session exits — clean/error variants, countdown display, Keep Open and dismiss buttons |
+| `ExitCountdownBanner.tsx` | Inline countdown banner in terminal area — "Agent exited cleanly. Tab closes in Ns." with Keep Open button |
+| `QuitConfirmModal.tsx` | Quit confirmation modal — session list with colored status dots, three exit options (Keep Running, Quit GUI Only, Quit Everything) |
+| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Behavior, Session Behavior, Appearance, Web Server, Paths); start-minimized toggle, auto-close toggle, theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides with native browse buttons, local network password |
 | `LocalNetworkBanner.tsx` | 4-state context-aware nudge banner with independent dismiss: not-installed, daemon-stopped, not-connected, and upgrade-in-progress states with platform-specific instructions |
 | `UpdateBanner.tsx` | Standalone update notification banner with version info, download button, and dismiss control |
 | `QRModal.tsx` | QR code display for web-served sessions |
