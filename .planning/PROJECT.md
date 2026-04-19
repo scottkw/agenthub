@@ -163,23 +163,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - ✓ Dismissed-state reset on webServerMode change — v2.1 Phase 81
 - ✓ Start minimized to tray: toggle in Settings > Behavior, persisted via daemon settings.json, `domReady` gate prevents window show — v2.1 Phase 82
 
+- ✓ Settings UI alignment: unified Paths table with single column headers for CLI and Tailscale rows; consistent 12px description text and section header typography — v3.0 Phase 83
+- ✓ Session auto-close: exit detection via `hub.Done()` PTY EOF, 5-second countdown with ExitToast and ExitCountdownBanner, Keep Open cancel, auto-close toggle in Settings — v3.0 Phase 84
+- ✓ Quit confirmation modal: `app:quit-requested` event from window close and tray Quit; modal shows session count with colored dots; Quit GUI Only hides window with macOS notification; Quit Everything shuts daemon — v3.0 Phase 85
+- ✓ TUI visual polish: TokyoNight hex palette with lipgloss LightDark adaptive tokens; two-pane sidebar+content layout; bordered session frames with titles; per-agent colored badges for 6 CLIs; focus-aware Tab/[/] navigation — v3.0 Phase 86
+
 ### Active
 
-#### Current Milestone: v3.0 Session Lifecycle & TUI Polish
-
-**Goal:** Improve session lifecycle (auto-close on agent exit, quit verification), fix Settings alignment bug, and bring TUI visual parity closer to the GUI.
-
-**GitHub Issues:** #34, #33, #32, #29
-
-**Target features:**
-- [ ] Fix Settings Path section column alignment (#34)
-- [ ] Sessions auto-close when agent process exits (#33)
-- [ ] Quit confirmation modal — option to kill daemon or leave running (#32)
-- [x] TUI UI/UX overhaul with frames, tabs, and visual parity with GUI (#29) — Phase 86
+(No active milestone — start next with `/gsd-new-milestone`)
 
 ## Current State
 
-v3.0 in progress (Phase 86 complete 2026-04-19). 17 milestones shipped (v1.0–v2.1), 86 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: two-pane layout with sidebar navigation (Home/Sessions/Remote/Settings), horizontal tab bar, bordered session frames with titles, colored per-agent badges, focus-aware key routing (Tab toggles panes, [/] cycles tabs), TokyoNight color palette, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
+v3.0 shipped 2026-04-19. 18 milestones shipped (v1.0–v3.0), 86 phases completed. Three access modes: GUI (Wails desktop app), CLI (`agenthub` subcommands), and TUI (`agenthub tui` Bubble Tea v2 terminal UI). Multi-client session support: simultaneous WebSocket clients with independent scrollback, read-only mode, max-wins PTY resize arbitration, and viewer count API. CLI attach displays a persistent DECSTBM scroll-region status bar with session context and live viewer count. TUI provides near-GUI parity: two-pane layout with sidebar navigation (Home/Sessions/Remote/Settings), horizontal tab bar, bordered session frames with titles, colored per-agent badges, focus-aware key routing (Tab toggles panes, [/] cycles tabs), TokyoNight color palette, full lifecycle (attach/create/kill/rename), unified local+remote session list with tailnet peer grouping, ASCII QR code overlay, web server status footer, and `?` help overlay. Session lifecycle: agent exit triggers auto-close with 5-second countdown, ExitToast notification, and Keep Open cancel; auto-close toggle in Settings > Session Behavior. Quit confirmation: window close and tray Quit show modal with active session count and colored status dots; Quit GUI Only hides window with macOS native notification; Quit Everything shuts daemon. Settings paths persist across restarts with native file picker and save confirmation. Tailscale detection uses 4-state health cascade with platform-specific binary detection. Notification banners stack vertically with independent dismiss. App supports start-minimized-to-tray with persisted preference.
 
 ### Out of Scope
 
@@ -210,15 +205,15 @@ v3.0 in progress (Phase 86 complete 2026-04-19). 17 milestones shipped (v1.0–v
 
 ## Context
 
-Shipped v2.1 with ~19K Go (incl. 9K tests) + ~7K TS/TSX/CSS (incl. 2.6K tests).
+Shipped v3.0 with ~21K Go (incl. 9K tests) + ~9K TS/TSX/CSS (incl. 3K tests).
 Tech stack: Go/Wails v2, React, xterm.js, xterm-theme@1.1.0, nhooyr/websocket, go-pty, skip2/go-qrcode, tailscale.com/client/local, kardianos/service, Masterminds/semver, creativeprojects/go-selfupdate, charmbracelet/bubbletea/v2, charmbracelet/lipgloss/v2, charmbracelet/bubbles/v2.
 Architecture: Single `agenthub` binary — no args launches GUI (Wails), subcommands run CLI, `tui` launches Bubble Tea terminal UI, `daemon` manages service. Background daemon (`internal/daemon`) owns all session state; GUI, CLI, and TUI are all DaemonClient consumers over Unix socket (named pipe on Windows). Root package contains all CLI functions (unified in v1.4). `internal/relay` Hub manages per-session subscriber fan-out with metadata, read-only enforcement, and max-wins resize arbitration. `internal/statusbar` provides DECSTBM scroll-region status bar for CLI attach. `internal/tui` provides Bubble Tea v2 terminal UI with session list, modals, and QR overlay. `internal/attach` provides shared attach logic used by both CLI and TUI. System tray uses native macOS cgo NSStatusBar, Linux D-Bus StatusNotifierItem, Windows Shell_NotifyIcon — all sharing menu helpers. Remote session discovery via `internal/tailnet` package probes peers over Tailscale HTTPS. OpenCode theme integration via managed tui.json and SIGUSR2 signal broadcast through daemon HTTP API.
-Go test suite: 280+ tests race-clean across 11 packages (added internal/statusbar, internal/tui, internal/attach).
+Go test suite: 300+ tests race-clean across 11 packages (added internal/statusbar, internal/tui, internal/attach).
 Frontend test suite: vitest source-inspection tests covering args field, terminal panel, modal, splash screen, daemon manager, remote sessions panel, health modal, web status bar, sidebar, settings tab (web link UX), WCAG contrast, and theme allowlist components.
 Networking: Tailscale primary — Let's Encrypt certs via daemon, FQDN-based URLs, no auth layer. Local network fallback with self-signed TLS + generated password when Tailscale unavailable.
 Distribution: GitHub releases (DMG, EXE+NSIS, tar.gz+deb, checksums), Homebrew cask, WinGet. release-please auto-versioning.
 Build script: `build.sh` compiles for macOS/Linux/Windows with optional macOS signing/notarization. CI runs race detector on all 4 platform legs + build-script tests on ubuntu-latest.
-Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review. Linux/Windows tray requires human UAT on live desktop environments (9 items). Phases 74 and 75 have human UAT pending for live terminal/browser testing (7 items). Remote attach not yet supported from TUI (toast displayed — future phase). MC-05 client name stored server-side but not surfaced in SessionInfo API response.
+Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persistent tab); dead installError state in App.tsx (~3 lines); CheckForUpdates TS binding exported but unused by frontend (by design — native menu callback). Stale closure on remotePeers in polling useEffect (WR-01); init/retryInit duplication (WR-02) — both flagged in Phase 62 code review. Linux/Windows tray requires human UAT on live desktop environments (9 items). Phases 74 and 75 have human UAT pending for live terminal/browser testing (7 items). Remote attach not yet supported from TUI (toast displayed — future phase). MC-05 client name stored server-side but not surfaced in SessionInfo API response. v3.0: autoCloseRef not refreshed on settings toggle mid-session (MISS-01, low); TUI shows stopped sessions with green glyph instead of filtering (MISS-03, cosmetic).
 
 ## Constraints
 
@@ -330,6 +325,12 @@ Known tech debt: WelcomeTab does not auto-dismiss (user-approved pivot to persis
 | Two-pane sidebar + tab bar TUI layout | Sidebar (Home/Sessions/Remote/Settings) + horizontal tab bar + bordered content frames; focus-aware key routing (Tab toggles, [/] cycles) | ✓ Good — matches GUI navigation model, scales to future tabs |
 | TokyoNight color palette for TUI | Hex true-color values via lipgloss LightDark adaptive; per-agent badge colors for 6 known CLIs | ✓ Good — consistent with GUI theme, degrades gracefully on 256-color terminals |
 | Stable session list order via CreatedAt sort | `registry.List()` sorts by `CreatedAt` (oldest first) to prevent Go map iteration randomness | ✓ Good — deterministic display order on every refresh |
+| `hub.Done()` channel as PTY-exit signal | Exit watcher goroutine blocks on `<-hub.Done()` — fires only after PTY Read returns EOF, ensuring all output is drained before exit detection | ✓ Good — no truncated output |
+| `app:quit-requested` event (not direct quit) | Both `beforeClose` and `onTrayQuit` emit event to frontend; modal renders in React, user chooses exit mode | ✓ Good — single event path, testable |
+| UNUserNotificationCenter for macOS notifications | Quit GUI Only sends native macOS notification via cgo Objective-C wrapper; no-op stub on Linux/Windows | ✓ Good — clean platform separation |
+| 5-consecutive-error circuit breaker in pollSessionStatus | Exits promptly when daemon is gone but tolerates transient connection errors | ✓ Good — resilient polling without 300s timeout on dead socket |
+| `injectBorderTitle()` for TUI frame titles | String-replaces top border characters to inject styled title; avoids lipgloss Border.TopLeft override limitations | ✓ Good — clean titles without border rendering hacks |
+| `sidebarTabs` mapping array (not tabID cast) | Explicit mapping from sidebar index to tabID; avoids fragile iota-dependent integer cast | ✓ Good — safe against future tabID reordering |
 | Settings persistence via daemon settings.json | CLI paths, Tailscale path, and startMinimized all share `daemonSettings` struct with `saveSettingsToDisk()` | ✓ Good — single persistence layer, no per-feature storage |
 | Three-state Save button (idle/saving/saved) | Transient confirmation pattern — button shows "Saved!" for 1.5s then returns to idle | ✓ Good — no toast infrastructure needed |
 | 4-state Tailscale health cascade | Not Installed → Daemon Stopped → Not Connected → Connected; checked in priority order | ✓ Good — replaces binary installed/not-installed with actionable diagnostics |
@@ -356,4 +357,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 after Phase 86 (TUI Visual Polish) complete*
+*Last updated: 2026-04-19 after v3.0 milestone (Session Lifecycle & TUI Polish)*

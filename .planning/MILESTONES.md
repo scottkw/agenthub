@@ -1,5 +1,21 @@
 # Milestones
 
+## v3.0 Session Lifecycle & TUI Polish (Shipped: 2026-04-19)
+
+**Phases completed:** 4 phases, 9 plans, 13 tasks
+**Requirements:** 12/12 satisfied (SET-01..SET-02, SESS-01..SESS-03, APP-01..APP-03, TUI-01..TUI-04)
+**Commits:** ~40 | **Timeline:** 2 days (2026-04-18 → 2026-04-19)
+**Source changes:** 97 files, +17,049 / -301 lines
+
+**Key accomplishments:**
+
+- Settings UI alignment: unified Paths section into single table with shared column headers for CLI and Tailscale rows; removed inline style overrides for consistent 12px description text; all four section headers use shared CSS rule (Phase 83, SET-01..SET-02)
+- Session auto-close: exit detection pipeline via `hub.Done()` PTY EOF signal, `pollSessionStatus` detects `State=="stopped"`, emits `session:exit` Wails event; frontend 5-second countdown with ExitToast (fixed-position) and ExitCountdownBanner (inline); Keep Open cancel; auto-close toggle in Settings > Session Behavior; 10-second web-serving grace period (Phase 84, SESS-01..SESS-03)
+- Quit confirmation modal: `beforeClose` and tray Quit both emit `app:quit-requested` event; QuitConfirmModal shows session count with colored status dots; "Quit GUI Only" hides window and sends macOS native notification via UNUserNotificationCenter; "Quit Everything" shuts daemon and exits (Phase 85, APP-01..APP-03)
+- TUI visual polish: TokyoNight hex palette with 22+ lipgloss LightDark adaptive tokens; two-pane layout (sidebar + tabbed content) with focus-aware key routing; bordered session frames via `injectBorderTitle()`; per-agent colored badges for 6 CLIs; Home/Sessions/Remote/Settings navigation mirroring GUI sidebar (Phase 86, TUI-01..TUI-04)
+
+---
+
 ## v2.1 Bug Fixes & UX (Shipped: 2026-04-17)
 
 **Phases completed:** 4 phases, 8 plans, 19 tasks
