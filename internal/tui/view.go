@@ -419,7 +419,7 @@ func (m Model) renderRemoteTab(cw, ch int) string {
 			Hostname: g.Hostname, SessionCount: len(g.Sessions),
 		}))
 		for i := range g.Sessions {
-			rows = append(rows, m.renderRemoteSessionRow(&g.Sessions[i], len(rows)))
+			rows = append(rows, m.renderRemoteSessionRow(&g.Sessions[i], -1))
 		}
 	}
 
