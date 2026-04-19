@@ -42,11 +42,7 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not used by new components in this phase |
 | 3xl | 64px | Not used by new components in this phase |
 
-Exceptions:
-- Toast container: `bottom: 16px; right: 16px` — fixed position offset uses md (16px)
-- Toast card: `padding: 10px 14px` — 10px top/bottom is an exception to the 8-point grid; use exactly 10px to match RESEARCH.md Pattern 5 spec
-- Toast card `gap: 6px` between internal rows — 6px is an exception; use exactly 6px per established banner pattern analogy
-- Tab countdown badge: `min-width: 18px` — exception for tabular-nums layout
+Note: The Component Inventory section specifies exact CSS property values for individual component elements (e.g. `padding: 10px 14px`, `gap: 6px`, `min-width: 18px`). Those are implementation-level CSS values, not spacing scale tokens.
 
 Source: RESEARCH.md Pattern 5 CSS spec; existing style.css spacing audit (8px, 16px, 24px in all existing panels)
 
