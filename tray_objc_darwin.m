@@ -7,6 +7,7 @@
 // darwin build tag; .m files are always compiled as ObjC by cgo on macOS).
 
 #import <Cocoa/Cocoa.h>
+#import <UserNotifications/UserNotifications.h>
 
 // Forward-declare Go callbacks so they can be invoked from ObjC.
 extern void onTrayShow(void);
@@ -148,6 +149,30 @@ void setTraySessionData(const char **names, const char **ids, int count) {
     dispatch_async(dispatch_get_main_queue(), ^{
         menuSessionNames = nameArr;
         menuSessionIDs = idArr;
+    });
+}
+
+// sendNotification sends a macOS notification using UNUserNotificationCenter.
+// Requests permission lazily on first call; no-ops if the user denies.
+void sendNotification(const char *title, const char *body) {
+    NSString *nsTitle = [NSString stringWithUTF8String:title];
+    NSString *nsBody  = [NSString stringWithUTF8String:body];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+        [center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+            completionHandler:^(BOOL granted, NSError *error) {
+            if (!granted) return;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+                content.title = nsTitle;
+                content.body  = nsBody;
+                UNNotificationRequest *req = [UNNotificationRequest
+                    requestWithIdentifier:@"agenthub.quit-gui-only"
+                    content:content
+                    trigger:nil];
+                [center addNotificationRequest:req withCompletionHandler:nil];
+            });
+        }];
     });
 }
 

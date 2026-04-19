@@ -159,21 +159,62 @@ func (a *App) shutdown(_ context.Context) {
 	// Sessions persist after GUI exits (DAEMON-03).
 }
 
-// beforeClose hides the window instead of quitting so the app stays alive in
-// the system tray (tray.go provides the tray icon and Quit menu item).
-// When called outside a Wails context (e.g., in unit tests), the window hide
+// beforeClose intercepts the window close button and emits a Wails event so
+// the frontend can show a quit confirmation modal (D-12). The window is shown
+// first if hidden (D-08) so the modal is always visible to the user.
+// When called outside a Wails context (e.g., in unit tests), the event emit
 // is skipped safely — sessions are unaffected in both cases.
 func (a *App) beforeClose(ctx context.Context) bool {
 	if a.quitting {
-		return false // allow quit — tray Quit was clicked
+		return false // QuitAll already set flag — allow quit
 	}
 	// Wails stores the frontend under the "frontend" key; skip the call when
 	// running outside the Wails event loop (tests, CLI helpers).
 	if ctx.Value("frontend") != nil {
-		a.setDockVisible(false)
-		runtime.WindowHide(ctx)
+		runtime.WindowShow(ctx)       // D-08: ensure window visible for modal
+		a.setDockVisible(true)
+		runtime.EventsEmit(ctx, "app:quit-requested", nil)
 	}
-	return true // prevent the default quit behaviour — hide window instead
+	return true // always prevent default quit — modal owns the decision
+}
+
+// QuitGUIOnly hides the GUI window to the system tray without stopping
+// the daemon or any active sessions. Sends a macOS notification confirming
+// the app is still running in the background (D-10, D-11).
+func (a *App) QuitGUIOnly() {
+	if a.ctx == nil {
+		return
+	}
+	a.setDockVisible(false)
+	runtime.WindowHide(a.ctx)
+	// Send macOS notification with session count (D-11)
+	sessions := a.ListSessions()
+	count := 0
+	for _, s := range sessions {
+		if s.Status != "" && s.Status != "stopped" {
+			count++
+		}
+	}
+	var body string
+	if count == 1 {
+		body = "AgentHub is still running in the background. 1 session active."
+	} else {
+		body = fmt.Sprintf("AgentHub is still running in the background. %d sessions active.", count)
+	}
+	sendNotification("AgentHub", body)
+}
+
+// QuitAll shuts down the daemon (terminating all sessions) and quits the
+// application completely (D-09, APP-02).
+func (a *App) QuitAll() {
+	if a.ctx == nil {
+		return
+	}
+	if a.client != nil {
+		_ = a.client.ShutdownDaemon()
+	}
+	a.quitting = true
+	runtime.Quit(a.ctx)
 }
 
 // --- Wails-bound methods ---
