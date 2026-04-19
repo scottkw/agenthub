@@ -257,7 +257,7 @@ func (a *App) pollSessionStatus(sessionID string) {
 				// Emit heuristic status changes (existing behavior)
 				if s.Status != last {
 					last = s.Status
-					if a.ctx != nil {
+					if a.ctx != nil && a.ctx.Value("frontend") != nil {
 						runtime.EventsEmit(a.ctx, "session:status", map[string]string{
 							"sessionId": sessionID,
 							"status":    s.Status,
@@ -282,7 +282,7 @@ func (a *App) pollSessionStatus(sessionID string) {
 
 // emitExitEvent sends the session:exit Wails event to the frontend.
 func (a *App) emitExitEvent(sessionID string, s daemon.SessionInfo) {
-	if a.ctx == nil {
+	if a.ctx == nil || a.ctx.Value("frontend") == nil {
 		return
 	}
 	exitCode := 0
