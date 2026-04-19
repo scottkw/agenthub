@@ -24,7 +24,6 @@ import {
   NotifyThemeChange,
   GetLastUpdateInfo,
   GetAutoCloseSession,
-  SetAutoCloseSession,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -106,10 +105,13 @@ function App(): React.ReactElement {
   const [sessionExits, setSessionExits] = useState<Record<string, ExitState>>({})
   const countdownTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({})
   // Auto-close setting (D-11): loaded on mount, default true
-  const [autoCloseEnabled, setAutoCloseEnabled] = useState(true)
+  // Stored as a ref (not state) because it's only read inside the EventsOn callback
+  // which runs in a [] deps useEffect — a ref avoids stale closures without the
+  // setAutoCloseEnabled(current => ...) trick that triggers TS6133.
+  const autoCloseRef = useRef(true)
   // Ref to handleCloseTab so the session:exit event handler (with [] deps) can call
   // the latest version without a stale closure
-  const handleCloseTabRef = useRef<(id: string) => Promise<void>>()
+  const handleCloseTabRef = useRef<((id: string) => Promise<void>) | undefined>(undefined)
 
   // Terminal theme (global — same theme for all sessions)
   const [terminalThemeName, setTerminalThemeName] = useState<string>(() => {
@@ -201,7 +203,7 @@ function App(): React.ReactElement {
         }
 
         // Load auto-close preference (Phase 84 D-11)
-        GetAutoCloseSession().then(val => setAutoCloseEnabled(val)).catch(() => {})
+        GetAutoCloseSession().then(val => { autoCloseRef.current = val }).catch(() => {})
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -352,41 +354,37 @@ function App(): React.ReactElement {
 
         // Only start auto-close countdown for clean exits (D-10) when enabled (D-11)
         if (data.exitCode === 0) {
-          // Read autoCloseEnabled from current state via a function update trick
-          setAutoCloseEnabled(current => {
-            if (current) {
-              const timer = setInterval(() => {
-                setSessionExits(prev => {
-                  const entry = prev[data.sessionId]
-                  if (!entry || entry.cancelled) {
-                    clearInterval(timer)
-                    delete countdownTimers.current[data.sessionId]
-                    return prev
-                  }
-                  if (entry.countdown <= 1) {
-                    clearInterval(timer)
-                    delete countdownTimers.current[data.sessionId]
-                    // Auto-close the tab
-                    void handleCloseTabRef.current?.(data.sessionId)
-                    const { [data.sessionId]: _, ...rest } = prev
-                    return rest
-                  }
-                  return {
-                    ...prev,
-                    [data.sessionId]: { ...entry, countdown: entry.countdown - 1 },
-                  }
-                })
-              }, 1000)
-              countdownTimers.current[data.sessionId] = timer
-            } else {
-              // Auto-close disabled: show toast without countdown
-              setSessionExits(prev => ({
-                ...prev,
-                [data.sessionId]: { ...prev[data.sessionId], countdown: -1 },
-              }))
-            }
-            return current // no-op state update, just reading
-          })
+          if (autoCloseRef.current) {
+            const timer = setInterval(() => {
+              setSessionExits(prev => {
+                const entry = prev[data.sessionId]
+                if (!entry || entry.cancelled) {
+                  clearInterval(timer)
+                  delete countdownTimers.current[data.sessionId]
+                  return prev
+                }
+                if (entry.countdown <= 1) {
+                  clearInterval(timer)
+                  delete countdownTimers.current[data.sessionId]
+                  // Auto-close the tab
+                  void handleCloseTabRef.current?.(data.sessionId)
+                  const { [data.sessionId]: _, ...rest } = prev
+                  return rest
+                }
+                return {
+                  ...prev,
+                  [data.sessionId]: { ...entry, countdown: entry.countdown - 1 },
+                }
+              })
+            }, 1000)
+            countdownTimers.current[data.sessionId] = timer
+          } else {
+            // Auto-close disabled: show toast without countdown
+            setSessionExits(prev => ({
+              ...prev,
+              [data.sessionId]: { ...prev[data.sessionId], countdown: -1 },
+            }))
+          }
         }
       }
     )
