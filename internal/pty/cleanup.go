@@ -9,7 +9,7 @@ import (
 
 // killSession terminates the process group associated with a session.
 // On POSIX systems it sends SIGHUP to the process group for graceful shutdown,
-// waits up to 2 seconds, then sends SIGKILL if the process has not exited.
+// polls for exit up to 2 seconds, then sends SIGKILL if the process has not exited.
 //
 // IMPORTANT: Does NOT call cmd.Wait() — go-pty's internal waitOnContext goroutine
 // handles process reaping when the context is cancelled. Calling cmd.Wait()
@@ -37,21 +37,35 @@ func killSession(s *Session) error {
 	}
 
 	// Cancel the context — triggers go-pty's internal waitOnContext goroutine
-	// which calls cmd.Wait() and populates ProcessState.
+	// which calls cmd.Wait() and reaps the process.
 	if s.cancel != nil {
 		s.cancel()
 	}
 
-	// Check if process exited after SIGHUP + context cancel.
-	// Use signal 0 to probe — returns error if process is gone.
-	time.Sleep(100 * time.Millisecond)
-	if err := syscall.Kill(-pgid, 0); err != nil {
-		return nil // Process group is gone.
+	// Poll for process group to exit (up to 2 seconds).
+	// Signal 0 probes without sending — returns error when process is gone.
+	if waitForProcessGroupExit(pgid, 2*time.Second) {
+		return nil
 	}
 
-	// Still alive — force kill.
+	// Still alive — force kill the entire process group.
 	_ = syscall.Kill(-pgid, syscall.SIGKILL)
-	time.Sleep(100 * time.Millisecond)
+
+	// Wait up to 1 more second for SIGKILL to take effect.
+	waitForProcessGroupExit(pgid, 1*time.Second)
 
 	return nil
+}
+
+// waitForProcessGroupExit polls until the process group is gone or timeout expires.
+// Returns true if the process group exited, false if still alive.
+func waitForProcessGroupExit(pgid int, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := syscall.Kill(-pgid, 0); err != nil {
+			return true // Process group is gone.
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return false
 }
