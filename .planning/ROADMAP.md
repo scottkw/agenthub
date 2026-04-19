@@ -277,7 +277,11 @@ Plans:
   2. Tab-key navigation moves focus through Home, Sessions, Remote, and Settings sections mirroring the GUI sidebar
   3. Each session row displays agent type, a status glyph, hostname, and viewer count in a format matching the GUI session cards
   4. The TUI uses the TokyoNight-derived color palette (backgrounds, accents, borders, text) consistently with the GUI theme
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 86-01-PLAN.md — TokyoNight palette, model foundation types, key bindings, version plumbing
+- [ ] 86-02-PLAN.md — Two-pane layout, focus-aware navigation, content renderers, agent badges
+- [ ] 86-03-PLAN.md — Visual verification checkpoint
 **UI hint**: yes
 
 ## Progress
@@ -304,7 +308,7 @@ Plans:
 | 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
-| 86 | v3.0 | 0/? | Not started | - |
+| 86 | v3.0 | 0/3 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
