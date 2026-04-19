@@ -39,3 +39,6 @@ coverage.html
 # Tailscale cert files (local testing artifacts, not committed)
 *.ts.net.crt
 *.ts.net.key
+
+# Third-party security review artifacts (not committed)
+security-review/

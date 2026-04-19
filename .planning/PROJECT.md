@@ -8,6 +8,17 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
+## Current Milestone: v3.1 Security Hardening
+
+**Goal:** Close the 5 confirmed findings from the third-party security review (GitHub Issue #35) so tailnet sharing is a real permission boundary, not an implicit trust fence.
+
+**Target features:**
+- Application-layer authorization for shared web sessions (server-issued signed capability tokens)
+- Server-enforced read-only sharing bound to capabilities (not query params)
+- Strict WebSocket Origin allowlist + CSRF-resistant handshake tokens
+- Vendored xterm terminal assets + Content-Security-Policy on terminal page
+- SHA-pinned GitHub Actions, exact-version build tools, and split unsigned-build-from-signing release pipeline
+
 ## Requirements
 
 ### Validated
@@ -170,7 +181,7 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 ### Active
 
-(No active milestone — start next with `/gsd-new-milestone`)
+(v3.1 Security Hardening requirements defined in `.planning/REQUIREMENTS.md` — addresses GitHub Issue #35)
 
 ## Current State
 
@@ -357,4 +368,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 after v3.0 milestone (Session Lifecycle & TUI Polish)*
+*Last updated: 2026-04-19 — v3.1 Security Hardening milestone started (addresses Issue #35)*

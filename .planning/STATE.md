@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: Session Lifecycle & TUI Polish
-status: complete
-stopped_at: Milestone v3.0 shipped
-last_updated: "2026-04-19T22:00:00Z"
+milestone: v3.1
+milestone_name: Security Hardening
+status: starting
+stopped_at: Defining requirements
+last_updated: "2026-04-19T23:00:00Z"
 last_activity: 2026-04-19
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone
+**Current focus:** v3.1 Security Hardening (addresses GitHub Issue #35)
 
 ## Current Position
 
-Phase: Complete
-Plan: Complete
-Status: Milestone v3.0 shipped
-Last activity: 2026-04-19
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-19 — Milestone v3.1 started
 
-Progress: [██████████] 100% (4/4 phases)
+Progress: [          ] 0% (0 phases defined)
 
 ## Performance Metrics
 
@@ -45,16 +45,18 @@ Progress: [██████████] 100% (4/4 phases)
 
 ### Decisions
 
-- v3.0 phases derived from 4 GitHub issue clusters: #34 (Settings), #33 (Session lifecycle), #32 (App quit), #29 (TUI polish)
-- Phase 83 and 85 both depend on Phase 82 completion (Settings tab and tray exist); ordered 83 first as it unblocks visual verification before adding modal behavior
-- Phase 86 (TUI Polish) placed last as it is visually independent but benefits from session lifecycle work (Phase 84) being stable first
-- Quit modal (Phase 85) uses "depends on Phase 83" rather than Phase 84 because it is a GUI-only feature with no dependency on session auto-close
+- v3.1 scope derived from third-party security review (Codex) placed in `security-review/` (gitignored); 5 findings, all confirmed against v3.0 code
+- Milestone addresses GitHub Issue #35 ("Security review")
+- Skipping optional research step — findings themselves are the research
+- Phase numbering continues from Phase 86 (v3.0 end) — proposed Phases 87–90
 
 ### Pending Todos
 
-None.
+- On milestone completion: comment on GitHub Issue #35 that it was addressed by v3.1, then close
 
 ### Quick Tasks Completed
+
+(carried from v3.0)
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
@@ -63,12 +65,12 @@ None.
 
 ### Blockers/Concerns
 
-- WinGet first submission to microsoft/winget-pkgs deferred until first release is published (tracked in 48-HUMAN-UAT.md)
-- Phase 60 (local network): LAN IP selection heuristic on multi-interface machines (VPN + Wi-Fi) needs explicit preference order — document in code
-- Phase 57 (DET-01): Windows native installer path (%USERPROFILE%\.local\bin\claude.exe) not yet verified against actual Windows install
+- Tailnet-wide trust model must be replaced with explicit capability/grant model — requires fresh UX decisions (token in URL? explicit Share button? revocation list?)
+- Read-only policy must be server-bound; client-issued `readonly=1` query param becomes an untrusted hint
+- WinGet first submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0)
 
 ## Session Continuity
 
-Last session: 2026-04-19T18:59:13.477Z
-Stopped at: Phase 86 UI-SPEC approved
-Next action: /gsd-plan-phase 83
+Last session: 2026-04-19
+Stopped at: v3.1 milestone defined, ready to write REQUIREMENTS.md
+Next action: Generate REQUIREMENTS.md, then spawn gsd-roadmapper
