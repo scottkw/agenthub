@@ -37,9 +37,11 @@ func killSession(s *Session) error {
 	}
 
 	// Wait for process to exit, with 2-second timeout.
+	// Use WaitForExit() which wraps cmd.Wait() in sync.Once to avoid racing
+	// with the exit watcher goroutine in engine.go.
 	done := make(chan struct{})
 	go func() {
-		_ = s.cmd.Wait()
+		s.WaitForExit()
 		close(done)
 	}()
 

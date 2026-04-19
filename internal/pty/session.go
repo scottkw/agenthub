@@ -51,6 +51,10 @@ type Session struct {
 
 	// mu protects concurrent access to mutable fields (State, pty).
 	mu sync.Mutex
+
+	// waitOnce ensures cmd.Wait() is called exactly once (avoids race with KillSession).
+	waitOnce sync.Once
+	waitCode  int
 }
 
 // Read reads output from the underlying PTY.
@@ -95,6 +99,14 @@ func (s *Session) Signal(sig os.Signal) error {
 	return cmd.Process.Signal(sig)
 }
 
+// GetState returns the current lifecycle state under the internal mutex.
+// Safe to call from any goroutine.
+func (s *Session) GetState() SessionState {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.State
+}
+
 // SetState updates the session lifecycle state under the internal mutex.
 // Safe to call from any goroutine.
 func (s *Session) SetState(state SessionState) {
@@ -105,7 +117,8 @@ func (s *Session) SetState(state SessionState) {
 
 // WaitForExit blocks until the underlying process exits and returns the exit code.
 // Returns 0 if cmd or ProcessState is nil (conservative default per D-10).
-// Must be called after the PTY read loop has completed (hub.Done() fired).
+// Safe to call concurrently — cmd.Wait() is invoked exactly once via sync.Once
+// to avoid racing with KillSession's internal go-pty waitOnContext goroutine.
 func (s *Session) WaitForExit() int {
 	s.mu.Lock()
 	cmd := s.cmd
@@ -113,15 +126,15 @@ func (s *Session) WaitForExit() int {
 	if cmd == nil {
 		return 0
 	}
-	// cmd.Wait() may have already been called by killSession — that's fine,
-	// a second Wait returns the cached ProcessState.
-	_ = cmd.Wait()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if cmd.ProcessState != nil {
-		return cmd.ProcessState.ExitCode()
-	}
-	return 0
+	s.waitOnce.Do(func() {
+		_ = cmd.Wait()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if cmd.ProcessState != nil {
+			s.waitCode = cmd.ProcessState.ExitCode()
+		}
+	})
+	return s.waitCode
 }
 
 // ExitCode returns the exit code if the process has exited, or -1 if still running.

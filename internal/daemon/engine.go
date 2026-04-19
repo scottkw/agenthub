@@ -232,7 +232,7 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 
 	for _, s := range sessions {
 		state := "running"
-		if s.State == pty.StateStopped {
+		if s.GetState() == pty.StateStopped {
 			state = "stopped"
 		}
 		name := e.tabNames[s.ID]
@@ -255,7 +255,7 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 
 		var exitCodePtr *int
 		var durationPtr *int
-		if s.State == pty.StateStopped {
+		if state == "stopped" {
 			ec := s.ExitCode()
 			exitCodePtr = &ec
 			dur := int(time.Since(s.CreatedAt).Seconds())
@@ -419,7 +419,7 @@ func (e *SessionEngine) NotifyThemeChange(ctx context.Context) error {
 		if e.sessionCLIs[sess.ID] != "opencode" {
 			continue
 		}
-		if sess.State != pty.StateRunning {
+		if sess.GetState() != pty.StateRunning {
 			continue
 		}
 		if err := signalThemeChange(sess); err != nil {
