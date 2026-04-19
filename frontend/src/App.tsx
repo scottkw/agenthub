@@ -23,6 +23,8 @@ import {
   GetWebServerMode,
   NotifyThemeChange,
   GetLastUpdateInfo,
+  GetAutoCloseSession,
+  SetAutoCloseSession,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
@@ -35,6 +37,9 @@ import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
+import { ExitToast } from './components/ExitToast'
+import type { ExitState } from './components/ExitToast'
+import { ExitCountdownBanner } from './components/ExitCountdownBanner'
 import { ALLOWED_THEMES } from './themes'
 
 const DEFAULT_FONT_SIZE = 14
@@ -96,6 +101,15 @@ function App(): React.ReactElement {
   const [localBannerDismissed, setLocalBannerDismissed] = useState(false)
   const [localBannerExiting, setLocalBannerExiting] = useState(false)
   const [updateExiting, setUpdateExiting] = useState(false)
+
+  // Session exit state: per-session exit info for toast/banner/countdown (Phase 84)
+  const [sessionExits, setSessionExits] = useState<Record<string, ExitState>>({})
+  const countdownTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({})
+  // Auto-close setting (D-11): loaded on mount, default true
+  const [autoCloseEnabled, setAutoCloseEnabled] = useState(true)
+  // Ref to handleCloseTab so the session:exit event handler (with [] deps) can call
+  // the latest version without a stale closure
+  const handleCloseTabRef = useRef<(id: string) => Promise<void>>()
 
   // Terminal theme (global — same theme for all sessions)
   const [terminalThemeName, setTerminalThemeName] = useState<string>(() => {
@@ -185,6 +199,9 @@ function App(): React.ReactElement {
             }
           }, 500)
         }
+
+        // Load auto-close preference (Phase 84 D-11)
+        GetAutoCloseSession().then(val => setAutoCloseEnabled(val)).catch(() => {})
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -310,11 +327,79 @@ function App(): React.ReactElement {
       })
     })
 
+    const offExit = EventsOn(
+      'session:exit',
+      (data: {
+        sessionId: string
+        exitCode: number
+        sessionName: string
+        cli: string
+        duration: number
+        finalStatus: string
+      }) => {
+        // Always record the exit (shows toast)
+        const exitState: ExitState = {
+          sessionId: data.sessionId,
+          sessionName: data.sessionName,
+          cli: data.cli,
+          exitCode: data.exitCode,
+          duration: data.duration,
+          finalStatus: data.finalStatus,
+          countdown: data.exitCode === 0 ? 5 : -1,
+          cancelled: false,
+        }
+        setSessionExits(prev => ({ ...prev, [data.sessionId]: exitState }))
+
+        // Only start auto-close countdown for clean exits (D-10) when enabled (D-11)
+        if (data.exitCode === 0) {
+          // Read autoCloseEnabled from current state via a function update trick
+          setAutoCloseEnabled(current => {
+            if (current) {
+              const timer = setInterval(() => {
+                setSessionExits(prev => {
+                  const entry = prev[data.sessionId]
+                  if (!entry || entry.cancelled) {
+                    clearInterval(timer)
+                    delete countdownTimers.current[data.sessionId]
+                    return prev
+                  }
+                  if (entry.countdown <= 1) {
+                    clearInterval(timer)
+                    delete countdownTimers.current[data.sessionId]
+                    // Auto-close the tab
+                    void handleCloseTabRef.current?.(data.sessionId)
+                    const { [data.sessionId]: _, ...rest } = prev
+                    return rest
+                  }
+                  return {
+                    ...prev,
+                    [data.sessionId]: { ...entry, countdown: entry.countdown - 1 },
+                  }
+                })
+              }, 1000)
+              countdownTimers.current[data.sessionId] = timer
+            } else {
+              // Auto-close disabled: show toast without countdown
+              setSessionExits(prev => ({
+                ...prev,
+                [data.sessionId]: { ...prev[data.sessionId], countdown: -1 },
+              }))
+            }
+            return current // no-op state update, just reading
+          })
+        }
+      }
+    )
+
     return () => {
       offStatus()
       offHealth()
       offDaemonError()
       cancelTrayFocus()
+      offExit()
+      // Clear all countdown timers
+      Object.values(countdownTimers.current).forEach(clearInterval)
+      countdownTimers.current = {}
       if (upgradePollerRef.current !== null) {
         clearInterval(upgradePollerRef.current)
         upgradePollerRef.current = null
@@ -383,7 +468,10 @@ function App(): React.ReactElement {
 
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
-    if (webEnabled[id]) {
+    // For naturally-exited sessions (in sessionExits), skip immediate disable —
+    // the daemon's exit watcher already started a 10-second grace period (D-12)
+    // so web viewers can see the final output before serving stops.
+    if (webEnabled[id] && !sessionExits[id]) {
       try { await ToggleWebServing(id, false) } catch (_) { /* ignore */ }
       setWebEnabled((prev) => { const n = { ...prev }; delete n[id]; return n })
       setSessionURLs((prev) => { const n = { ...prev }; delete n[id]; return n })
@@ -409,7 +497,15 @@ function App(): React.ReactElement {
     setFontSizes((prev) => { const n = { ...prev }; delete n[id]; return n })
     // Close QR modal if it was open for this session.
     setQrSessionId((prev) => (prev === id ? null : prev))
-  }, [activeId, webEnabled])
+    // Clean up exit state and countdown timer (Phase 84)
+    if (countdownTimers.current[id]) {
+      clearInterval(countdownTimers.current[id])
+      delete countdownTimers.current[id]
+    }
+    setSessionExits(prev => { const n = { ...prev }; delete n[id]; return n })
+  }, [activeId, webEnabled, sessionExits])
+  // Keep the ref in sync so the session:exit event handler ([] deps) always calls the latest version
+  handleCloseTabRef.current = handleCloseTab
 
   const handleRenameTab = useCallback(async (id: string, name: string) => {
     try {
@@ -448,6 +544,31 @@ function App(): React.ReactElement {
       const current = prev[sessionId] ?? DEFAULT_FONT_SIZE
       const next = Math.max(6, Math.min(32, current + delta))
       return { ...prev, [sessionId]: next }
+    })
+  }, [])
+
+  const handleKeepOpen = useCallback((sessionId: string) => {
+    // Cancel countdown (D-02)
+    if (countdownTimers.current[sessionId]) {
+      clearInterval(countdownTimers.current[sessionId])
+      delete countdownTimers.current[sessionId]
+    }
+    setSessionExits(prev => {
+      const entry = prev[sessionId]
+      if (!entry) return prev
+      return { ...prev, [sessionId]: { ...entry, cancelled: true, countdown: -1 } }
+    })
+  }, [])
+
+  const handleDismissExit = useCallback((sessionId: string) => {
+    // Remove toast entry
+    if (countdownTimers.current[sessionId]) {
+      clearInterval(countdownTimers.current[sessionId])
+      delete countdownTimers.current[sessionId]
+    }
+    setSessionExits(prev => {
+      const { [sessionId]: _, ...rest } = prev
+      return rest
     })
   }, [])
 
@@ -663,6 +784,13 @@ function App(): React.ReactElement {
           onClose={handleCloseTab}
           onRename={handleRenameTab}
           sessionStatuses={sessionStatuses}
+          exitCountdowns={
+            Object.fromEntries(
+              Object.entries(sessionExits)
+                .filter(([, e]) => e.exitCode === 0 && !e.cancelled && e.countdown > 0)
+                .map(([id, e]) => [id, e.countdown])
+            )
+          }
         />
 
         <div className="terminal-container">
@@ -762,6 +890,12 @@ function App(): React.ReactElement {
                   onFontSizeChange={(delta) => handleFontSizeChange(tab.sessionId, delta)}
                   theme={terminalTheme}
                 />
+                {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
+                  <ExitCountdownBanner
+                    countdown={sessionExits[tab.sessionId].countdown}
+                    onKeepOpen={() => handleKeepOpen(tab.sessionId)}
+                  />
+                )}
                 <StatusBar
                   sessionId={tab.sessionId}
                   webServerRunning={webServerRunning}
@@ -796,6 +930,11 @@ function App(): React.ReactElement {
           onClose={() => setQrSessionId(null)}
         />
       )}
+      <ExitToast
+        exits={sessionExits}
+        onKeepOpen={handleKeepOpen}
+        onDismiss={handleDismissExit}
+      />
     </div>
   )
 }

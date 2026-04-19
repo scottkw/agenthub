@@ -15,6 +15,7 @@ interface TabBarProps {
   onClose: (id: string) => void
   onRename: (id: string, name: string) => void
   sessionStatuses?: Record<string, string>
+  exitCountdowns?: Record<string, number>  // sessionId -> seconds remaining
 }
 
 /**
@@ -28,6 +29,7 @@ export function TabBar({
   onClose,
   onRename,
   sessionStatuses,
+  exitCountdowns,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -98,7 +100,7 @@ export function TabBar({
         {tabs.map((tab) => (
           <div
             key={tab.id}
-            className={`tab${tab.id === activeId ? ' tab--active' : ''}`}
+            className={`tab${tab.id === activeId ? ' tab--active' : ''}${exitCountdowns?.[tab.sessionId] ? ' tab--exiting' : ''}`}
             onClick={() => onSelect(tab.id)}
           >
             <span
@@ -128,6 +130,9 @@ export function TabBar({
               >
                 {tab.name}
               </span>
+            )}
+            {exitCountdowns?.[tab.sessionId] && (
+              <span className="tab__countdown">{exitCountdowns[tab.sessionId]}s</span>
             )}
             <button
               className="tab__close"
