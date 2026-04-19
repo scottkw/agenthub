@@ -1,9 +1,9 @@
 ---
 phase: 84
 slug: session-auto-close
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-19
 ---
 
@@ -38,10 +38,10 @@ created: 2026-04-19
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 84-01-01 | 01 | 1 | SESS-01 | — | N/A | unit | `go test ./internal/pty/ -run TestExitDetection -count=1` | ❌ W0 | ⬜ pending |
-| 84-01-02 | 01 | 1 | SESS-01 | — | N/A | unit | `go test ./internal/daemon/ -run TestExitEvent -count=1` | ❌ W0 | ⬜ pending |
-| 84-02-01 | 02 | 2 | SESS-02 | — | N/A | unit | `cd frontend && npx vitest run --reporter=verbose 2>&1 \| grep -i countdown` | ❌ W0 | ⬜ pending |
-| 84-02-02 | 02 | 2 | SESS-03 | — | N/A | unit | `cd frontend && npx vitest run --reporter=verbose 2>&1 \| grep -i toast` | ❌ W0 | ⬜ pending |
+| 84-01-01 | 01 | 1 | SESS-01 | — | N/A | unit | `go test ./internal/pty/ -run TestExitDetection -count=1` | ✅ | ✅ green |
+| 84-01-02 | 01 | 1 | SESS-01 | — | N/A | unit | `go test ./internal/daemon/ -run TestExitEvent -count=1` | ✅ | ✅ green |
+| 84-02-01 | 02 | 2 | SESS-02 | — | N/A | unit | `cd frontend && npx vitest run --reporter=verbose 2>&1 \| grep -i countdown` | ✅ | ✅ green |
+| 84-02-02 | 02 | 2 | SESS-03 | — | N/A | unit | `cd frontend && npx vitest run --reporter=verbose 2>&1 \| grep -i toast` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,12 +49,10 @@ created: 2026-04-19
 
 ## Wave 0 Requirements
 
-- [ ] `internal/pty/session_exit_test.go` — stubs for exit detection tests (SESS-01)
-- [ ] `internal/daemon/engine_exit_test.go` — stubs for exit event emission tests (SESS-01)
-- [ ] `frontend/src/components/__tests__/ExitCountdownBanner.test.tsx` — stubs for countdown UI (SESS-02)
-- [ ] `frontend/src/components/__tests__/ExitToast.test.tsx` — stubs for toast notification (SESS-03)
-
-*If none: "Existing infrastructure covers all phase requirements."*
+- [x] `internal/pty/session_exit_test.go` — 6 tests for exit detection (SESS-01)
+- [x] `internal/daemon/engine_exit_test.go` — 6 tests for exit event emission (SESS-01)
+- [x] `frontend/src/components/__tests__/ExitCountdownBanner.test.tsx` — 5 tests for countdown UI (SESS-02)
+- [x] `frontend/src/components/__tests__/ExitToast.test.tsx` — 14 tests for toast notification (SESS-03)
 
 ---
 
@@ -68,13 +66,27 @@ created: 2026-04-19
 
 ---
 
+## Validation Audit 2026-04-19
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 2 |
+| Resolved | 2 |
+| Escalated | 0 |
+
+**Tests added:**
+- `internal/pty/session_exit_test.go` (6 tests): ExitCode nil cmd, WaitForExit nil cmd, ExitCode running, WaitForExit natural exit, WaitForExit non-zero exit, SetState
+- `internal/daemon/engine_exit_test.go` (6 tests): AutoCloseSession default, round-trip, persistence, exit watcher transitions, nil onExit, ListSessions ExitCode
+
+---
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-04-19
