@@ -1,11 +1,8 @@
-//go:build phase87_wave2
-
 // Package webserver test helpers relocated from security-review/ for Phase 87.
 //
-// These helpers are gated behind the phase87_wave2 build tag so they do NOT
-// compile until Plan 03 wires the capability package into WebServer (adds
-// signingKey, joinCodes, grants fields and the requireCapability middleware).
-// Until then `go test ./internal/webserver/...` skips this file entirely.
+// Plan 03 removed the phase87_wave2 build tag that previously guarded this
+// file — the capability package is now wired into WebServer and these helpers
+// are part of the active test suite.
 //
 // Helpers provided:
 //   - selfSignedTLSForTest: in-memory self-signed CA + leaf for 127.0.0.1

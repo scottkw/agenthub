@@ -19,10 +19,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/webserver"
-	"github.com/coder/websocket"
 )
+
+// ssExtTestKey is a deterministic 32-byte HMAC key used by external-package
+// tests to mint capabilities after Phase 87 gated the API routes.
+var ssExtTestKey = func() []byte {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(0xA0 + i)
+	}
+	return key
+}()
+
+// capForSession mints a read+write capability for sessionID, registers its
+// grant_id on ws (so requireCapability's grant-list check passes), and
+// returns the URL-ready token. The caller must have already installed
+// ssExtTestKey via ws.SetSigningKey.
+func capForSession(t *testing.T, ws *webserver.WebServer, sessionID string) string {
+	t.Helper()
+	claims := capability.Claims{
+		SID:     sessionID,
+		Perms:   "read,write",
+		IAT:     time.Now().Unix(),
+		GrantID: "ext-grant-" + sessionID,
+		V:       1,
+	}
+	token, err := capability.Sign(claims, ssExtTestKey)
+	if err != nil {
+		t.Fatalf("capability.Sign: %v", err)
+	}
+	ws.AddGrant(sessionID, claims.GrantID)
+	return token
+}
 
 // selfSignedTLSForTest generates an in-memory self-signed CA and leaf cert for
 // 127.0.0.1. Returns a server TLS config and an HTTP client that trusts the CA.
@@ -126,11 +158,13 @@ func TestWebServerDashboardNoAuthRequired(t *testing.T) {
 
 func TestWebServerSessionListAPI(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.EnableSession("sess1")
+	token := capForSession(t, ws, "sess1")
 
-	resp, err := client.Get(baseURL + "/api/sessions")
+	resp, err := client.Get(baseURL + "/api/sessions?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions: %v", err)
 	}
@@ -145,24 +179,23 @@ func TestWebServerSessionListAPI(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
-	// sess1 is enabled but not in the hub manager — it should still appear
-	found := false
-	for _, item := range items {
-		if item.ID == "sess1" {
-			found = true
-			// Name falls back to session ID when no resolver is set
-			if item.Name != "sess1" {
-				t.Errorf("expected name fallback to 'sess1', got %q", item.Name)
-			}
-		}
+	// Phase 87 D-18: response contains ONLY the cap-bound session, never
+	// more than one item, even if other sessions are enabled.
+	if len(items) != 1 {
+		t.Fatalf("expected exactly 1 session (D-18), got %d: %v", len(items), items)
 	}
-	if !found {
-		t.Errorf("expected sess1 in sessions, got %v", items)
+	if items[0].ID != "sess1" {
+		t.Errorf("expected id=sess1, got %q", items[0].ID)
+	}
+	// Name falls back to session ID when no resolver is set.
+	if items[0].Name != "sess1" {
+		t.Errorf("expected name fallback to 'sess1', got %q", items[0].Name)
 	}
 }
 
 func TestWebServerSessionListAPIWithResolver(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
@@ -172,8 +205,9 @@ func TestWebServerSessionListAPIWithResolver(t *testing.T) {
 		return "", "", "", ""
 	})
 	ws.EnableSession("sess1")
+	token := capForSession(t, ws, "sess1")
 
-	resp, err := client.Get(baseURL + "/api/sessions")
+	resp, err := client.Get(baseURL + "/api/sessions?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions: %v", err)
 	}
@@ -220,6 +254,7 @@ func TestWebServerWSS(t *testing.T) {
 	if err := ws.Start(); err != nil {
 		t.Fatalf("ws.Start: %v", err)
 	}
+	ws.SetSigningKey(ssExtTestKey)
 	defer ws.Stop()
 
 	// Create a hub with a pipe so we can send output
@@ -227,9 +262,10 @@ func TestWebServerWSS(t *testing.T) {
 	hub := mgr.Create("sess1", pr, io.Discard, nil)
 	_ = hub
 	ws.EnableSession("sess1")
+	token := capForSession(t, ws, "sess1")
 
 	baseURL := ws.BaseURL()
-	wsURL := strings.Replace(baseURL, "https://", "wss://", 1) + "/sessions/sess1/ws"
+	wsURL := strings.Replace(baseURL, "https://", "wss://", 1) + "/sessions/sess1/ws?cap=" + token
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -275,12 +311,20 @@ func TestWebServerWSS(t *testing.T) {
 	}
 }
 
+// TestWebServerToggle verifies the enabled/disabled toggle semantics through
+// the capability-gated /sessions/{id} route (Phase 87). With a valid cap and
+// the session enabled, the terminal page loads (200). After DisableSession,
+// the grant-list + web-enabled check in requireCapability rejects with 403
+// (not 404, because the cap is structurally valid — it's just been
+// invalidated by the toggle, mirroring D-15).
 func TestWebServerToggle(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.EnableSession("sess1")
-	resp, err := client.Get(baseURL + "/sessions/sess1")
+	token := capForSession(t, ws, "sess1")
+	resp, err := client.Get(baseURL + "/sessions/sess1?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /sessions/sess1: %v", err)
 	}
@@ -289,15 +333,19 @@ func TestWebServerToggle(t *testing.T) {
 		t.Errorf("enabled session: expected 200, got %d", resp.StatusCode)
 	}
 
-	// Disable sess1 — should return 404
+	// Disable sess1 — requireCapability's IsSessionEnabled check now fails,
+	// so the request is rejected as revoked (403). D-15 toggle-off clears
+	// grants; this test doesn't call ClearGrants explicitly, so the 403
+	// comes from the web-enabled check rather than the grant-list check,
+	// which is equivalent end-to-end (both map to StatusForbidden).
 	ws.DisableSession("sess1")
-	resp2, err := client.Get(baseURL + "/sessions/sess1")
+	resp2, err := client.Get(baseURL + "/sessions/sess1?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /sessions/sess1 after disable: %v", err)
 	}
 	resp2.Body.Close()
-	if resp2.StatusCode != http.StatusNotFound {
-		t.Errorf("disabled session: expected 404, got %d", resp2.StatusCode)
+	if resp2.StatusCode != http.StatusForbidden {
+		t.Errorf("disabled session: expected 403, got %d", resp2.StatusCode)
 	}
 }
 
@@ -420,6 +468,7 @@ func TestTokenRouteNotRegistered(t *testing.T) {
 // with a "hostname" JSON key.
 func TestSessionListIncludesHostname(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
@@ -429,8 +478,9 @@ func TestSessionListIncludesHostname(t *testing.T) {
 		return "", "", "", ""
 	})
 	ws.EnableSession("sess1")
+	token := capForSession(t, ws, "sess1")
 
-	resp, err := client.Get(baseURL + "/api/sessions")
+	resp, err := client.Get(baseURL + "/api/sessions?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions: %v", err)
 	}
@@ -458,6 +508,7 @@ func TestSessionListIncludesHostname(t *testing.T) {
 // full session metadata for an enabled session.
 func TestSessionInfoEndpoint(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
@@ -467,8 +518,9 @@ func TestSessionInfoEndpoint(t *testing.T) {
 		return id, "", "", ""
 	})
 	ws.EnableSession("sess1")
+	token := capForSession(t, ws, "sess1")
 
-	resp, err := client.Get(baseURL + "/api/sessions/sess1/info")
+	resp, err := client.Get(baseURL + "/api/sessions/sess1/info?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions/sess1/info: %v", err)
 	}
@@ -504,30 +556,41 @@ func TestSessionInfoEndpoint(t *testing.T) {
 }
 
 // TestSessionInfoEndpoint_NotEnabled verifies that GET /api/sessions/{id}/info
-// returns 404 for a session that is not web-enabled.
+// rejects a request whose capability binds to a session that is not
+// web-enabled. Phase 87: requireCapability's grant-list check (and its
+// web-enabled cross-check) returns 403 when the session isn't live.
 func TestSessionInfoEndpoint_NotEnabled(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
 		return "test", "claude", "running", "testhost"
 	})
-	// Do NOT enable the session
+	// Mint a cap for sess1, but do NOT call EnableSession. The AddGrant is
+	// still performed so the grant-list check passes — the rejection comes
+	// from the web-enabled defense-in-depth cross-check inside
+	// requireCapability.
+	token := capForSession(t, ws, "sess1")
 
-	resp, err := client.Get(baseURL + "/api/sessions/sess1/info")
+	resp, err := client.Get(baseURL + "/api/sessions/sess1/info?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions/sess1/info: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("expected 404 for non-enabled session, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("expected 403 for non-enabled session, got %d", resp.StatusCode)
 	}
 }
 
 // TestSessionInfoEndpoint_NotFound verifies that GET /api/sessions/{id}/info
-// returns 404 for a nonexistent session (resolver returns defaults).
+// returns 404 for a session whose resolver returns defaults (i.e. the
+// session ID isn't registered with the engine), even when the session is
+// web-enabled and has a valid cap. The 404 comes from handleSessionInfo's
+// resolver-defaults check, not from requireCapability.
 func TestSessionInfoEndpoint_NotFound(t *testing.T) {
 	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
@@ -535,8 +598,9 @@ func TestSessionInfoEndpoint_NotFound(t *testing.T) {
 		return id, "", "", ""
 	})
 	ws.EnableSession("nonexistent")
+	token := capForSession(t, ws, "nonexistent")
 
-	resp, err := client.Get(baseURL + "/api/sessions/nonexistent/info")
+	resp, err := client.Get(baseURL + "/api/sessions/nonexistent/info?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /api/sessions/nonexistent/info: %v", err)
 	}
@@ -546,8 +610,14 @@ func TestSessionInfoEndpoint_NotFound(t *testing.T) {
 	}
 }
 
+// TestSessionAccessWithoutAuth is the inverted form of the pre-Phase-87
+// "tailnet membership is sufficient" check. After Phase 87, a request to
+// /sessions/{id} without a ?cap= parameter must be rejected (401), even
+// when the session is web-enabled. This is the HTTP-layer expression of
+// SEC-02/SEC-03.
 func TestSessionAccessWithoutAuth(t *testing.T) {
 	ws, _ := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
 	ws.EnableSession("sess1")
 	// Use a fresh client with InsecureSkipVerify — no cookies, no tokens
 	freshClient := &http.Client{Transport: &http.Transport{
@@ -558,8 +628,8 @@ func TestSessionAccessWithoutAuth(t *testing.T) {
 		t.Fatalf("GET /sessions/sess1: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected 200 for web-enabled session without auth, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 for web-enabled session without capability, got %d", resp.StatusCode)
 	}
 }
 

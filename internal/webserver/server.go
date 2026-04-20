@@ -330,7 +330,19 @@ func (ws *WebServer) BaseURL() string {
 }
 
 // setupRoutes registers all HTTP routes on the server mux.
-// All routes are open — network-level access control is provided by Tailscale.
+//
+// Route access model (Phase 87, SEC-02..SEC-05):
+//   - /dashboard and / — open (landing page; Plan 06 rewrites the dashboard
+//     to have no session list).
+//   - /api/sessions, /api/sessions/{id}/info, /sessions/{id}, /sessions/{id}/ws
+//     — gated by requireCapability. The session-bound cap enforces enumeration,
+//     cross-session isolation, and write permission via claims.Perms (D-24).
+//   - /api/sessions/{id}/qr — open (QR points at the session URL; the cap
+//     token is baked into the URL, not needed to fetch the QR image).
+//
+// In local-network-fallback mode, basicAuthMiddleware wraps the entire mux at
+// startLocal() and runs BEFORE these per-route wrappers (D-20 defense in
+// depth).
 func (ws *WebServer) setupRoutes() {
 	mux := ws.mux
 
@@ -343,34 +355,31 @@ func (ws *WebServer) setupRoutes() {
 		http.NotFound(w, r)
 	})
 
-	// GET /dashboard
+	// GET /dashboard — open landing page (no session list per D-17, finalized
+	// by Plan 06).
 	mux.HandleFunc("GET /dashboard", ws.handleDashboard)
 
-	// GET /api/sessions
-	mux.HandleFunc("GET /api/sessions", ws.handleListSessions)
+	// GET /api/sessions — capability-gated; handleListSessions returns ONLY
+	// the single session bound to the cap (D-18).
+	mux.HandleFunc("GET /api/sessions", ws.requireCapability(ws.handleListSessions))
 
-	// GET /api/sessions/{id}/info — single-session metadata
-	mux.HandleFunc("GET /api/sessions/{id}/info", ws.handleSessionInfo)
+	// GET /api/sessions/{id}/info — capability-gated; cap must match {id}
+	// (SEC-03). Used by the terminal page to populate status bar + perms
+	// (D-19, D-23).
+	mux.HandleFunc("GET /api/sessions/{id}/info", ws.requireCapability(ws.handleSessionInfo))
 
-	// GET /sessions/{id} — checks web-enabled toggle only
-	mux.HandleFunc("GET /sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if !ws.IsSessionEnabled(r.PathValue("id")) {
-			http.NotFound(w, r)
-			return
-		}
-		ws.handleTerminalPage(w, r)
-	})
+	// GET /sessions/{id} — capability-gated terminal HTML page. The old
+	// webEnabled-only pre-check is removed — requireCapability's grant-list
+	// lookup already implies web-enabled (grants are cleared on toggle-off).
+	mux.HandleFunc("GET /sessions/{id}", ws.requireCapability(ws.handleTerminalPage))
 
-	// GET /sessions/{id}/ws — checks web-enabled toggle only; WebSocket upgrade
-	mux.HandleFunc("GET /sessions/{id}/ws", func(w http.ResponseWriter, r *http.Request) {
-		if !ws.IsSessionEnabled(r.PathValue("id")) {
-			http.NotFound(w, r)
-			return
-		}
-		ws.handleWSSRelay(w, r)
-	})
+	// GET /sessions/{id}/ws — capability-gated WebSocket upgrade. The
+	// wrapper MUST sit OUTSIDE the handler so the 401/403 lands before
+	// websocket.Accept commits the 101 response (RESEARCH Pitfall 5).
+	mux.HandleFunc("GET /sessions/{id}/ws", ws.requireCapability(ws.handleWSSRelay))
 
-	// GET /api/sessions/{id}/qr — serves QR code PNG
+	// GET /api/sessions/{id}/qr — serves QR code PNG. Open because the QR
+	// encodes the capability-bearing URL; the cap itself lives in the URL.
 	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.handleSessionQR)
 }
 
@@ -385,19 +394,33 @@ func (ws *WebServer) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Write(data) //nolint:errcheck
 }
 
-// handleListSessions handles GET /api/sessions.
+// handleListSessions handles GET /api/sessions. Per D-18 the response
+// contains ONLY the single session that the caller's capability is bound to
+// — there is no listing-scoped capability, so no caller can ever receive a
+// list longer than one via HTTPS. This collapses the endpoint from
+// "enumeration" to "self-describe".
+//
+// requireCapability has already verified claims and attached them to the
+// request context; if the context does not carry claims, treat as 401
+// (defense in depth — should be unreachable given the middleware ordering).
 func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	ids := ws.webEnabledSessions()
-	items := make([]sessionListItem, 0, len(ids))
-	for _, id := range ids {
+	claims, ok := capability.ClaimsFromContext(r.Context())
+	if !ok {
+		http.Error(w, "capability required", http.StatusUnauthorized)
+		return
+	}
+	items := make([]sessionListItem, 0, 1)
+	if ws.IsSessionEnabled(claims.SID) {
 		name, cliType, st, hostname := "", "", "", ""
 		if ws.sessionResolver != nil {
-			name, cliType, st, hostname = ws.sessionResolver(id)
+			name, cliType, st, hostname = ws.sessionResolver(claims.SID)
 		}
 		if name == "" {
-			name = id
+			name = claims.SID
 		}
-		items = append(items, sessionListItem{ID: id, Name: name, CLIType: cliType, Status: st, Hostname: hostname})
+		items = append(items, sessionListItem{
+			ID: claims.SID, Name: name, CLIType: cliType, Status: st, Hostname: hostname,
+		})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items) //nolint:errcheck
@@ -463,11 +486,23 @@ func (ws *WebServer) handleSessionQR(w http.ResponseWriter, r *http.Request) {
 
 // handleWSSRelay upgrades to WebSocket and relays frames between the hub and the browser.
 // Uses subscribe-before-snapshot pattern to avoid missing frames.
+//
+// Phase 87: requireCapability has already verified the cap and attached the
+// Claims to r.Context(). Subscriber.ReadOnly is sourced from claims.Perms
+// (D-24 / SEC-04) — the old ?readonly=1 client-asserted hint has been
+// removed from the write-gate path.
 func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 
-	// MC-03, MC-05: parse client metadata from URL query params at upgrade time.
-	readonly := r.URL.Query().Get("readonly") == "1" || r.URL.Query().Get("readonly") == "true"
+	// D-24 / SEC-04: readonly is bound to the signed capability, NOT the
+	// query string. A caller with perms="read" cannot promote themselves to
+	// write by omitting or fabricating ?readonly=; a caller with
+	// perms="read,write" always has write even if someone appends
+	// ?readonly=1 to the URL.
+	claims, _ := capability.ClaimsFromContext(r.Context())
+	readonly := claims.Perms == "read"
+
+	// MC-05: client name is still a benign view hint from the query string.
 	clientName := r.URL.Query().Get("client")
 	if len(clientName) > 64 {
 		clientName = clientName[:64] // cap identity name to prevent injection
@@ -482,8 +517,10 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// The server is accessible only to tailnet members via Tailscale.
-		// Accept connections from any origin.
+		// Phase 87: requireCapability has already verified the cap and
+		// authorized this upgrade. Origin allowlist arrives in Phase 88
+		// (WebSocket Handshake Security) — OriginPatterns stays permissive
+		// here to avoid double-scoping the Phase 88 work.
 		OriginPatterns: []string{"*"},
 	})
 	if err != nil {
