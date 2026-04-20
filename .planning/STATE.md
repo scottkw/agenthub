@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: "Completed 87-01-test-infrastructure-PLAN.md"
-last_updated: "2026-04-20T16:25:00.000Z"
-last_activity: 2026-04-20 -- Phase 87 Plan 01 (test infrastructure) complete
+stopped_at: Completed 87-02-capability-core-PLAN.md
+last_updated: "2026-04-20T16:46:15.513Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
-  percent: 4
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 87 (capability-based-session-authorization) — EXECUTING
-Plan: 2 of 6 (next: 87-02-capability-core)
-Status: Plan 01 complete — Wave 0 test infrastructure landed
-Last activity: 2026-04-20 -- Phase 87 Plan 01 (test infrastructure) complete
+Plan: 3 of 6 (next: 87-03-webserver-enforcement)
+Status: Plans 01-02 complete — capability package landed with 21/21 unit tests GREEN and FuzzVerify 30s clean
+Last activity: 2026-04-20 -- Phase 87 Plan 02 (capability core) complete
 
-Progress: [█░░░░░░░░░] 17% (1/6 Phase 87 plans complete)
+Progress: [███░░░░░░░] 33% (2/6 Phase 87 plans complete)
 
 ## Performance Metrics
 
@@ -54,12 +54,13 @@ Progress: [█░░░░░░░░░] 17% (1/6 Phase 87 plans complete)
 - Phase 87 Plan 01: adopted a build-tag protocol (`phase87_wave1`, `phase87_wave2`) for Wave 0 RED skeletons so the capability package tests and webserver tests can reference yet-to-exist production symbols without breaking `go test ./...` on main — each wave's Plan un-tags its own files when production code lands
 - Phase 87 Plan 01: placed webserver test helpers in `package webserver` (internal test helpers) rather than `package webserver_test` to avoid duplicating `selfSignedTLSForTest`/`testServer` names already present in `server_test.go`; both packages coexist in the same directory with no Go-level collision
 - Phase 87 Plan 01: gated `FuzzVerify` by build tag instead of `f.Skip()` because fuzz entry-point Skip is silently dropped by the fuzzer harness
+- Phase 87 Plan 02: source-grep constant-time regression guard (TestVerify_ConstantTimeComparison reads capability.go and asserts hmac.Equal is present, bytes.Equal literal absent) — forced a doc-comment rewrite but correctly guards against future maintainers replacing hmac.Equal with bytes.Equal
+- Phase 87 Plan 02: SetClockForTest seam lives in export_test.go (only compiled during go test) rather than a production setter — clock injection is hermetically sealed to test builds, production code cannot import the helper
+- Phase 87 Plan 02: JoinCodeManager uses plain sync.Mutex not RWMutex — RWMutex read lock would allow two goroutines to observe the entry before either deletes it, breaking single-use invariant (RESEARCH Pitfall 4); verified by 100-goroutine TestJoinCodeManager_ConcurrentExchangeIsAtomic
 
 ### Pending Todos
 
 - On milestone completion: comment on GitHub Issue #35 that it was addressed by v3.1, then close
-- Decide capability token scheme during Phase 87 planning (HMAC with daemon-persisted secret vs. ed25519; base64-URL encoding; expiry semantics)
-- Decide grant UX during Phase 87 planning (explicit Share button per session? copy-link gesture? QR contains the capability token?)
 - Decide Origin-header-absent policy during Phase 88 planning (reject outright, or require capability-bearing handshake?)
 
 ### Quick Tasks Completed
@@ -76,6 +77,7 @@ Progress: [█░░░░░░░░░] 17% (1/6 Phase 87 plans complete)
 | Phase | Plan | Duration | Tasks | Files | Commits |
 |-------|------|----------|-------|-------|---------|
 | 87 | 01 | 8min | 2 | 6 | a35e963, 5ca1f3e |
+| 87 | 02 | 12min | 2 | 10 | dd1c15e, 6d2cf8f |
 
 ### Blockers/Concerns
 
@@ -86,8 +88,8 @@ Progress: [█░░░░░░░░░] 17% (1/6 Phase 87 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-20T16:24:02Z
-Stopped at: Completed 87-01-test-infrastructure-PLAN.md (Wave 0 RED skeletons)
-Next action: `/gsd:execute-phase 87` to run Plan 02 (capability core — un-tag phase87_wave1 and implement Sign/Verify/KeyStore/JoinCodeManager)
+Last session: 2026-04-20T16:46:15.508Z
+Stopped at: Completed 87-02-capability-core-PLAN.md
+Next action: `/gsd:execute-phase 87` to run Plan 03 (webserver enforcement — un-tag phase87_wave2 and add requireCapability middleware + route wiring + relay readonly source)
 
 **Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z

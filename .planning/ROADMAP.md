@@ -242,7 +242,7 @@
   5. Capability tokens survive daemon restart (signing key persisted alongside existing `settings.json`) so that previously-shared links remain valid without regenerating URLs.
 **Plans**: 6 plans (6 waves)
   - [x] 87-01-test-infrastructure-PLAN.md — Wave 0 test scaffolds for SEC-01..SEC-05 (Complete 2026-04-20)
-  - [ ] 87-02-capability-core-PLAN.md — internal/capability package (sign/verify/keystore/joincode)
+  - [x] 87-02-capability-core-PLAN.md — internal/capability package (sign/verify/keystore/joincode) (Complete 2026-04-20)
   - [ ] 87-03-webserver-enforcement-PLAN.md — requireCapability middleware + route wiring + relay readonly source
   - [ ] 87-04-daemon-api-PLAN.md — SEC-01 auto-enable removal + IPC + Wails bindings
   - [ ] 87-05-frontend-ui-PLAN.md — Share panel + Regenerate key modal + Settings Security section
@@ -308,7 +308,7 @@
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
-| 87 | v3.1 | 0/TBD | Not started | — |
+| 87 | v3.1 | 2/6 | In progress | — |
 | 88 | v3.1 | 0/TBD | Not started | — |
 | 89 | v3.1 | 0/TBD | Not started | — |
 | 90 | v3.1 | 0/TBD | Not started | — |
