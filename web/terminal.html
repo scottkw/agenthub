@@ -40,6 +40,19 @@
     #web-status-bar .separator {
       color: #414868;
     }
+    #web-status-bar .readonly-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: transparent;
+      color: #a9b1d6;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-left: 8px;
+      border: 1px solid #292e42;
+      border-radius: 3px;
+    }
     #terminal { flex: 1; min-height: 0; width: 100%; }
   </style>
 </head>
@@ -83,17 +96,27 @@
     const pathParts = location.pathname.split('/');
     const sessionID = pathParts[pathParts.indexOf('sessions') + 1] || '';
 
-    // Extract optional token from query params
+    // Extract capability token from query params. The cap is the ONLY
+    // authorization credential the server accepts — there is no ?readonly
+    // hint anymore (D-23 / Pitfall 7). Read-only state is sourced from the
+    // server-verified perms claim via /api/sessions/{id}/info below.
     const params = new URLSearchParams(location.search);
-    const token = params.get('token') || '';
+    const cap = params.get('cap') || '';
 
-    // Build WSS URL
-    const wsURL = 'wss://' + location.host + '/sessions/' + encodeURIComponent(sessionID) + '/ws' + (token ? '?token=' + encodeURIComponent(token) : '');
+    function withCap(path) {
+      if (!cap) return path;
+      return path + (path.indexOf('?') === -1 ? '?' : '&') + 'cap=' + encodeURIComponent(cap);
+    }
 
-    // Session metadata: fetch once, then poll every 3s for connection state
+    // Build WSS URL (includes ?cap= via withCap).
+    const wsURL = 'wss://' + location.host + withCap('/sessions/' + encodeURIComponent(sessionID) + '/ws');
+
+    // Session metadata state
     let sessionMeta = null;
+    let connected = false;
     const statusDot = document.getElementById('status-dot');
     const sessionInfoEl = document.getElementById('session-info');
+    const statusBar = document.getElementById('web-status-bar');
 
     function updateStatusBar(meta, wsConnected) {
       if (meta) {
@@ -114,7 +137,7 @@
     }
 
     function fetchSessionInfo() {
-      fetch('/api/sessions/' + encodeURIComponent(sessionID) + '/info')
+      fetch(withCap('/api/sessions/' + encodeURIComponent(sessionID) + '/info'))
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(data) {
           if (data) {
@@ -128,88 +151,128 @@
         });
     }
 
-    fetchSessionInfo();
-    setInterval(fetchSessionInfo, 3000);
-
-    // Initialize xterm.js
-    const term = new Terminal({
-      cursorBlink: true,
-      theme: {
-        background: '#1a1b26',
-        foreground: '#cccccc',
-        cursor: '#cccccc',
-      },
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 14,
-    });
-
-    const fitAddon = new FitAddon.FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(document.getElementById('terminal'));
-    fitAddon.fit();
-
-    // Open WebSocket connection
-    let ws = null;
-    let connected = false;
-
-    function connect() {
-      ws = new WebSocket(wsURL);
-      ws.binaryType = 'arraybuffer';
-
-      ws.onopen = function() {
-        connected = true;
-        updateStatusBar(sessionMeta, true);
-        // Send initial resize
-        if (term.cols && term.rows) {
-          ws.send(makeResizeFrame(term.cols, term.rows));
+    // Kick off the terminal wiring. The initial perms fetch is awaited before
+    // xterm is constructed so the input caret is never momentarily enabled for
+    // a read-only capability (UI flicker would contradict the SEC-04 guarantee
+    // visually, even though the server blocks writes regardless).
+    //
+    // Fail-safe default: if the perms fetch errors or the cap is missing, we
+    // assume 'read' and disable stdin. This is the most restrictive default
+    // per SEC-04 and D-23.
+    (async function initTerminal() {
+      var perms = 'read';
+      if (cap && sessionID) {
+        try {
+          var resp = await fetch(withCap('/api/sessions/' + encodeURIComponent(sessionID) + '/info'));
+          if (resp.ok) {
+            var info = await resp.json();
+            sessionMeta = info;
+            if (typeof info.perms === 'string' && info.perms.length > 0) {
+              perms = info.perms;
+            }
+          }
+        } catch (e) {
+          // Fall through with perms = 'read' (fail-safe).
         }
-      };
-
-      ws.onmessage = function(evt) {
-        const data = new Uint8Array(evt.data);
-        if (data.length === 0) return;
-
-        const msgType = data[0];
-        const payload = data.slice(1);
-
-        if (msgType === MsgOutput) {
-          const text = new TextDecoder().decode(payload);
-          term.write(text);
-        }
-        // Other message types from server are ignored in browser client
-      };
-
-      ws.onclose = function(evt) {
-        connected = false;
-        updateStatusBar(sessionMeta, false);
-      };
-
-      ws.onerror = function() {
-        connected = false;
-        updateStatusBar(sessionMeta, false);
-      };
-    }
-
-    // Terminal input -> send MsgInput frame
-    term.onData(function(data) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(makeInputFrame(data));
       }
-    });
+      window.__perms = perms;
+      var isReadOnly = perms === 'read';
 
-    // Terminal resize -> send MsgResize2 frame
-    term.onResize(function(size) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(makeResizeFrame(size.cols, size.rows));
-      }
-    });
+      updateStatusBar(sessionMeta, connected);
+      // Continue polling session info for status-bar updates.
+      setInterval(fetchSessionInfo, 3000);
 
-    // Window resize -> fit terminal
-    window.addEventListener('resize', function() {
+      // Initialize xterm.js with perms-bound disableStdin.
+      var term = new Terminal({
+        cursorBlink: !isReadOnly,
+        disableStdin: isReadOnly,
+        theme: {
+          background: '#1a1b26',
+          foreground: '#cccccc',
+          cursor: '#cccccc',
+        },
+        fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+        fontSize: 14,
+      });
+
+      var fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(document.getElementById('terminal'));
       fitAddon.fit();
-    });
 
-    connect();
+      if (isReadOnly) {
+        var badge = document.createElement('span');
+        badge.className = 'readonly-badge';
+        badge.textContent = 'READ ONLY';
+        statusBar.appendChild(badge);
+      }
+
+      // Open WebSocket connection
+      var ws = null;
+
+      function connect() {
+        ws = new WebSocket(wsURL);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = function() {
+          connected = true;
+          updateStatusBar(sessionMeta, true);
+          if (term.cols && term.rows) {
+            ws.send(makeResizeFrame(term.cols, term.rows));
+          }
+        };
+
+        ws.onmessage = function(evt) {
+          var data = new Uint8Array(evt.data);
+          if (data.length === 0) return;
+
+          var msgType = data[0];
+          var payload = data.slice(1);
+
+          if (msgType === MsgOutput) {
+            var text = new TextDecoder().decode(payload);
+            term.write(text);
+          }
+          // Other message types from server are ignored in browser client
+        };
+
+        ws.onclose = function() {
+          connected = false;
+          updateStatusBar(sessionMeta, false);
+        };
+
+        ws.onerror = function() {
+          connected = false;
+          updateStatusBar(sessionMeta, false);
+        };
+      }
+
+      // Terminal input -> send MsgInput frame. We STILL install the handler on
+      // a read-only terminal so that any keyboard events that leak through the
+      // disableStdin gate (e.g. paste via middle-click in some browsers) are
+      // gated here too. The server drops MsgInput on read-only caps anyway
+      // (SEC-04), so this is defense-in-depth at the UI layer.
+      term.onData(function(data) {
+        if (isReadOnly) return;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(makeInputFrame(data));
+        }
+      });
+
+      // Terminal resize -> send MsgResize2 frame
+      term.onResize(function(size) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(makeResizeFrame(size.cols, size.rows));
+        }
+      });
+
+      // Window resize -> fit terminal
+      window.addEventListener('resize', function() {
+        fitAddon.fit();
+      });
+
+      connect();
+    })();
   </script>
 </body>
 </html>

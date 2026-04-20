@@ -36,12 +36,18 @@ type Config struct {
 }
 
 // sessionListItem is the JSON shape returned by GET /api/sessions and GET /api/sessions/{id}/info.
+// Perms is populated only on the /info endpoint (from the verified capability
+// claims, D-19/D-23 — terminal.html uses this to suppress the input caret on
+// read-only capabilities). It is omitted on /api/sessions listings because a
+// single-item self-describe response does not need to re-export the caller's
+// own perms.
 type sessionListItem struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	CLIType  string `json:"cli_type"`
 	Status   string `json:"status"`
 	Hostname string `json:"hostname"`
+	Perms    string `json:"perms,omitempty"`
 }
 
 // WebServer serves the AgentHub dashboard and relays terminal I/O over WSS to
@@ -519,19 +525,28 @@ func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleSessionInfo handles GET /api/sessions/{id}/info.
-// Returns full session metadata for a single web-enabled session.
+// Returns full session metadata for a single web-enabled session. requireCapability
+// has already verified the cap, matched its SID to the path {id}, and attached
+// the Claims to the request context; we lift Perms out of the claims so the
+// terminal page can fail-safely determine its read-only state from the
+// server-verified capability (D-19 / D-23 / SEC-04).
 func (ws *WebServer) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if !ws.IsSessionEnabled(id) {
-		http.NotFound(w, r)
+	claims, ok := capability.ClaimsFromContext(r.Context())
+	if !ok {
+		// Should be unreachable — requireCapability attaches claims on success.
+		http.Error(w, "capability required", http.StatusUnauthorized)
 		return
 	}
+	// requireCapability already cross-checked IsSessionEnabled before we got
+	// here. Retain the resolver-based 404 for the "session ID isn't registered
+	// with the engine" path (distinct from the 403 "revoked" response produced
+	// by the middleware).
 	if ws.sessionResolver == nil {
 		http.NotFound(w, r)
 		return
 	}
 	name, cliType, status, hostname := ws.sessionResolver(id)
-	// If resolver returned defaults (name == id and cliType empty), session not found
 	if name == id && cliType == "" {
 		http.NotFound(w, r)
 		return
@@ -543,6 +558,7 @@ func (ws *WebServer) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
 		CLIType:  cliType,
 		Status:   status,
 		Hostname: hostname,
+		Perms:    claims.Perms,
 	}) //nolint:errcheck
 }
 
