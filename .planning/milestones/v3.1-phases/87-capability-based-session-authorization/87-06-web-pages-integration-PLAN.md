@@ -210,7 +210,7 @@ handleSessionInfo (if not already added in Plan 03): GET /api/sessions/{id}/info
              http.Redirect(w, r, target, http.StatusSeeOther)
          }
          ```
-         Note: This requires the WebServer to have access to the `joinCodes` manager. If Plan 04 kept `joinCodes` on the API (daemon) and not the WebServer, two options: (a) pass the JoinCodeManager pointer into the WebServer at construction (add a `joinCodes *capability.JoinCodeManager` field and setter), or (b) route the exchange through the daemon client — NOT preferred because the WebServer and daemon are in the same process. Go with option (a): have Plan 04's api.go set `a.webServer.joinCodes = a.joinCodes` right before SetSigningKey, and add a `SetJoinCodes(m *capability.JoinCodeManager)` method on WebServer analogous to SetSigningKey. If Plan 04 already wired it, skip; if not, add the setter and call here.
+         Note: `ws.joinCodes` and `ws.SetJoinCodes` are established by Plan 03 task 87-03-01 (field + setter) and populated by Plan 04 task 87-04-01 startup sequence (`ws.SetJoinCodes(a.joinCodes)` call alongside `ws.SetSigningKey`). `handleJoinExchange` here simply calls `ws.joinCodes.Exchange(code)` — no additional wiring is required.
 
        - Register routes in setupRoutes (NOT capability-gated):
          ```go
@@ -383,10 +383,10 @@ handleSessionInfo (if not already added in Plan 03): GET /api/sessions/{id}/info
     - DO NOT fail-open on fetch error — default to read-only (fail-safe per SEC-04)
   </action>
   <verify>
-    <automated>cd /Users/ken/dev/agenthub && ! grep -q 'readonly=1\|readonly%3D1' web/terminal.html && grep -q 'window.__perms\|__perms' web/terminal.html && grep -q '/api/sessions/.*/info' web/terminal.html && grep -q 'READ ONLY' web/terminal.html && grep -q 'disableStdin' web/terminal.html && grep -q 'handleSessionInfo' internal/webserver/server.go && go test ./internal/webserver/ -count=1 -v -run TestEndToEnd_CapabilityFlow 2>&1 | tee /tmp/e2e.log ; ! grep -q FAIL /tmp/e2e.log && go test ./... -count=1 2>&1 | tee /tmp/full.log ; ! grep -q FAIL /tmp/full.log</automated>
+    <automated>cd /Users/ken/dev/agenthub && ! grep -qE "get\s*\(\s*['\"]readonly['\"]" web/terminal.html && grep -q 'window.__perms\|__perms' web/terminal.html && grep -q '/api/sessions/.*/info' web/terminal.html && grep -q 'READ ONLY' web/terminal.html && grep -q 'disableStdin' web/terminal.html && grep -q 'handleSessionInfo' internal/webserver/server.go && go test ./internal/webserver/ -count=1 -v -run TestEndToEnd_CapabilityFlow 2>&1 | tee /tmp/e2e.log ; ! grep -q FAIL /tmp/e2e.log && go test ./... -count=1 2>&1 | tee /tmp/full.log ; ! grep -q FAIL /tmp/full.log</automated>
   </verify>
   <acceptance_criteria>
-    - `grep -q "readonly=1" web/terminal.html` FAILS (Pitfall 7 — old mechanism removed)
+    - `! grep -qE "get\s*\(\s*[\'\"]readonly[\'\"]" web/terminal.html` succeeds (Pitfall 7 — old params.get('readonly') read removed)
     - `grep -q "/api/sessions/.*/info" web/terminal.html` succeeds (new fetch path)
     - `grep -q "READ ONLY" web/terminal.html` succeeds (badge copy)
     - `grep -q "disableStdin" web/terminal.html` succeeds (xterm option set)
@@ -422,7 +422,7 @@ handleSessionInfo (if not already added in Plan 03): GET /api/sessions/{id}/info
 <verification>
 - `go test ./... -count=1` green (capability + webserver + daemon + all)
 - `cd frontend && pnpm build` green
-- `grep -q "readonly=1" web/` FAILS everywhere (SEC-04 / Pitfall 7)
+- `! grep -rqE "get\s*\(\s*[\'\"]readonly[\'\"]" web/` succeeds — no `params.get('readonly')` style reads anywhere (SEC-04 / Pitfall 7)
 - `grep -q "session-list\|renderSessions" web/dashboard.html` FAILS (D-17)
 - All 5 Wave 0 SEC tests plus TestEndToEnd_CapabilityFlow all PASS
 </verification>
