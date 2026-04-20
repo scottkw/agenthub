@@ -1,8 +1,6 @@
-//go:build phase87_wave1
-
-// Package capability_test keystore tests (RED skeletons for Plan 02).
-// Mirrors internal/daemon/engine_settings_test.go:11-99 for t.TempDir-based
-// round-trip tests and mode-0600 file permission assertions.
+// Package capability_test keystore tests. Mirrors
+// internal/daemon/engine_settings_test.go:11-99 for t.TempDir-based round-trip
+// tests and mode-0600 file permission assertions.
 package capability_test
 
 import (
@@ -18,7 +16,6 @@ import (
 // same 32 bytes AND that the file mode is 0600 (matching the existing
 // saveSettingsToDisk behavior at engine.go:132).
 func TestFileKeyStore_RoundTrip(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	dir := t.TempDir()
 	store := capability.NewFileKeyStore(dir)
 
@@ -52,7 +49,6 @@ func TestFileKeyStore_RoundTrip(t *testing.T) {
 // key file does not exist and Load returns (nil, nil) so the caller can
 // generate+save.
 func TestFileKeyStore_MissingFileReturnsNilNil(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	dir := t.TempDir()
 	store := capability.NewFileKeyStore(dir)
 	got, err := store.Load()
@@ -68,7 +64,6 @@ func TestFileKeyStore_MissingFileReturnsNilNil(t *testing.T) {
 // contents are not exactly 32 bytes produces an error (the file is corrupt
 // rather than silently ignored).
 func TestFileKeyStore_CorruptLengthReturnsError(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	dir := t.TempDir()
 	store := capability.NewFileKeyStore(dir)
 	// Write 16 bytes instead of 32.
@@ -84,7 +79,6 @@ func TestFileKeyStore_CorruptLengthReturnsError(t *testing.T) {
 // TestGenerateKey_Length32 asserts that GenerateKey produces exactly 32
 // bytes (the HMAC-SHA256 key size locked by D-01).
 func TestGenerateKey_Length32(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	key, err := capability.GenerateKey()
 	if err != nil {
 		t.Fatalf("GenerateKey: %v", err)
@@ -97,7 +91,6 @@ func TestGenerateKey_Length32(t *testing.T) {
 // TestLoadOrGenerate_GeneratesOnFirstRun asserts that LoadOrGenerate creates
 // a key file when none exists AND the generated key is persisted to disk.
 func TestLoadOrGenerate_GeneratesOnFirstRun(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	dir := t.TempDir()
 	store := capability.NewFileKeyStore(dir)
 	key, err := capability.LoadOrGenerate(store)
@@ -118,7 +111,6 @@ func TestLoadOrGenerate_GeneratesOnFirstRun(t *testing.T) {
 // rather than generate a fresh key. This is the property that lets
 // previously-shared capability URLs survive a daemon restart.
 func TestLoadOrGenerate_ReloadsOnSecondRun(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	dir := t.TempDir()
 	store := capability.NewFileKeyStore(dir)
 	first, err := capability.LoadOrGenerate(store)

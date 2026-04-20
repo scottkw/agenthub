@@ -1,9 +1,7 @@
-//go:build phase87_wave1
-
-// Package capability_test join-code tests (RED skeletons for Plan 02).
-// Covers JoinCodeManager.Issue format (D-10 base32 A-Z2-7 dashed),
-// single-use Exchange, double-use rejection, 5-minute TTL (D-11), and
-// TOCTOU atomicity under concurrent Exchange (RESEARCH Pitfall 4).
+// Package capability_test join-code tests. Covers JoinCodeManager.Issue
+// format (D-10 base32 A-Z2-7 dashed), single-use Exchange, double-use
+// rejection, 5-minute TTL (D-11), and TOCTOU atomicity under concurrent
+// Exchange (RESEARCH Pitfall 4).
 package capability_test
 
 import (
@@ -22,10 +20,8 @@ import (
 var joinCodeRegex = regexp.MustCompile(`^[A-Z2-7]{4}-[A-Z2-7]{4}$`)
 
 // TestJoinCodeManager_IssueFormat asserts the join code returned by Issue
-// matches the D-10 format regex. Plan 02 will implement Issue to encode 5
-// random bytes via base32.StdEncoding.WithPadding(NoPadding) split as 4-4.
+// matches the D-10 format regex.
 func TestJoinCodeManager_IssueFormat(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
 	code, err := mgr.Issue("tok")
 	if err != nil {
@@ -39,7 +35,6 @@ func TestJoinCodeManager_IssueFormat(t *testing.T) {
 // TestJoinCodeManager_ExchangeSucceedsOnce asserts the first Exchange call
 // with a valid, unexpired code returns the originally-issued token.
 func TestJoinCodeManager_ExchangeSucceedsOnce(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
 	code, err := mgr.Issue("tok-xyz")
 	if err != nil {
@@ -58,7 +53,6 @@ func TestJoinCodeManager_ExchangeSucceedsOnce(t *testing.T) {
 // Exchange call with the same code returns ErrCodeNotFound (D-11 single-use).
 // This is a core property: the code is consumed on first success.
 func TestJoinCodeManager_ExchangeRejectsDoubleUse(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
 	code, err := mgr.Issue("tok")
 	if err != nil {
@@ -73,21 +67,27 @@ func TestJoinCodeManager_ExchangeRejectsDoubleUse(t *testing.T) {
 }
 
 // TestJoinCodeManager_ExchangeExpiresAfterTTL asserts that Exchange returns
-// ErrCodeExpired once the 5-minute TTL has elapsed. Plan 02 will expose an
-// injectable clock seam (e.g. a now func field) so this test can jump time
-// without real sleeps.
+// ErrCodeExpired once the 5-minute TTL has elapsed. Uses the SetClockForTest
+// seam (defined in export_test.go) so the test does not rely on real sleeps.
 func TestJoinCodeManager_ExchangeExpiresAfterTTL(t *testing.T) {
-	t.Skip("implemented in plan 02")
-	// Plan 02 will set mgr.now = func() time.Time { return fixedTime }
-	// and advance it past the TTL before calling Exchange.
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	clock := start
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
+	mgr.SetClockForTest(func() time.Time { return clock })
+
 	code, err := mgr.Issue("tok")
 	if err != nil {
 		t.Fatalf("Issue: %v", err)
 	}
-	// Simulated time advance will be wired by Plan 02.
+	// Advance the clock past the TTL.
+	clock = start.Add(6 * time.Minute)
+
 	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeExpired) {
 		t.Errorf("Exchange after TTL: expected ErrCodeExpired, got %v", err)
+	}
+	// Subsequent Exchange must return ErrCodeNotFound (entry was deleted).
+	if _, err := mgr.Exchange(code); !errors.Is(err, capability.ErrCodeNotFound) {
+		t.Errorf("Exchange after expiry cleanup: expected ErrCodeNotFound, got %v", err)
 	}
 }
 
@@ -96,7 +96,6 @@ func TestJoinCodeManager_ExchangeExpiresAfterTTL(t *testing.T) {
 // exactly ONE must succeed. A naive lookup-then-delete implementation would
 // allow multiple successes.
 func TestJoinCodeManager_ConcurrentExchangeIsAtomic(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
 	code, err := mgr.Issue("tok")
 	if err != nil {
@@ -126,7 +125,6 @@ func TestJoinCodeManager_ConcurrentExchangeIsAtomic(t *testing.T) {
 // TestJoinCodeManager_ExchangeRejectsUnknownCode asserts that a code that
 // was never issued returns ErrCodeNotFound (distinct from ErrCodeExpired).
 func TestJoinCodeManager_ExchangeRejectsUnknownCode(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	mgr := capability.NewJoinCodeManager(5 * time.Minute)
 	if _, err := mgr.Exchange("AAAA-BBBB"); !errors.Is(err, capability.ErrCodeNotFound) {
 		t.Errorf("Exchange(unknown): expected ErrCodeNotFound, got %v", err)

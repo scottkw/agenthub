@@ -19,4 +19,14 @@ var (
 	// payload bytes could not be decoded as a Claims JSON object. This is the
 	// post-signature-verification parse failure path.
 	ErrMalformedClaims = errors.New("capability: malformed claims")
+
+	// ErrCodeNotFound indicates JoinCodeManager.Exchange was called with a
+	// code that was never issued, was already exchanged (single-use), or has
+	// been garbage-collected. This is the 404 path for join-code exchange.
+	ErrCodeNotFound = errors.New("capability: join code not found")
+
+	// ErrCodeExpired indicates the join code was issued and never exchanged,
+	// but the TTL (D-11, 5 minutes) has elapsed. The code is deleted as part
+	// of Exchange's cleanup so subsequent calls return ErrCodeNotFound.
+	ErrCodeExpired = errors.New("capability: join code expired")
 )
