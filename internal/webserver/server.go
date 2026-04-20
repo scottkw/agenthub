@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
 	webfs "github.com/scottkw/agenthub/web"
 	"github.com/coder/websocket"
@@ -55,6 +56,22 @@ type WebServer struct {
 	listener   net.Listener
 	mux        *http.ServeMux
 
+	// grants tracks the set of active grant_ids per session (D-14). Populated
+	// on toggle-on by Plan 04, cleared on toggle-off or session exit. Guarded
+	// by ws.mu.
+	grants map[string]map[string]struct{}
+
+	// signingKey is the 32-byte HMAC-SHA256 key used by requireCapability
+	// (D-04/D-16). Guarded by ws.mu; swapped race-free via SetSigningKey.
+	// Read via currentSigningKey which returns the slice header under RLock.
+	signingKey []byte
+
+	// joinCodes is the in-memory store of short-lived join codes (D-09/D-11).
+	// Plan 04 calls SetJoinCodes at daemon startup; Plan 06 consumes the
+	// manager in handleJoinExchange. Guarded by ws.mu; swapped race-free via
+	// SetJoinCodes.
+	joinCodes *capability.JoinCodeManager
+
 	// sessionResolver is set once before Start() and is not mutex-protected.
 	sessionResolver func(sessionID string) (name, cliType, status, hostname string)
 }
@@ -66,6 +83,7 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 		config:     cfg,
 		manager:    manager,
 		webEnabled: make(map[string]bool),
+		grants:     make(map[string]map[string]struct{}),
 		mux:        http.NewServeMux(),
 	}
 	ws.setupRoutes()
@@ -112,6 +130,72 @@ func (ws *WebServer) webEnabledSessions() []string {
 		}
 	}
 	return ids
+}
+
+// AddGrant records grantID as an active grant for sessionID (D-14). Called by
+// the daemon (Plan 04) after issuing a capability on toggle-on. Idempotent:
+// adding an already-present grant is a no-op.
+func (ws *WebServer) AddGrant(sessionID, grantID string) {
+	ws.mu.Lock()
+	if ws.grants[sessionID] == nil {
+		ws.grants[sessionID] = make(map[string]struct{})
+	}
+	ws.grants[sessionID][grantID] = struct{}{}
+	ws.mu.Unlock()
+}
+
+// ClearGrants removes every grant for sessionID (D-15). Called on toggle-off
+// and by the session onExit callback (RESEARCH Pitfall 1). Safe to call when
+// the session has no outstanding grants.
+func (ws *WebServer) ClearGrants(sessionID string) {
+	ws.mu.Lock()
+	delete(ws.grants, sessionID)
+	ws.mu.Unlock()
+}
+
+// isGrantActive reports whether grantID is currently in sessionID's active
+// grant set. Read-only; uses the RLock path to avoid blocking concurrent
+// requireCapability calls against other sessions.
+func (ws *WebServer) isGrantActive(sessionID, grantID string) bool {
+	ws.mu.RLock()
+	defer ws.mu.RUnlock()
+	if ws.grants[sessionID] == nil {
+		return false
+	}
+	_, ok := ws.grants[sessionID][grantID]
+	return ok
+}
+
+// SetSigningKey installs the HMAC-SHA256 signing key used by subsequent
+// requireCapability verifications (D-04/D-16). Plan 04 calls this at daemon
+// startup; the RegenerateSigningKey handler calls it to rotate keys. The swap
+// is race-free against concurrent currentSigningKey readers because both
+// methods acquire ws.mu.
+func (ws *WebServer) SetSigningKey(key []byte) {
+	ws.mu.Lock()
+	ws.signingKey = key
+	ws.mu.Unlock()
+}
+
+// SetJoinCodes installs the join-code manager used by handleJoinExchange
+// (D-09/D-11). Plan 04 wires this at daemon startup; Plan 06 consumes
+// ws.joinCodes in the exchange handler. The swap is race-free against
+// concurrent readers via ws.mu.
+func (ws *WebServer) SetJoinCodes(jc *capability.JoinCodeManager) {
+	ws.mu.Lock()
+	ws.joinCodes = jc
+	ws.mu.Unlock()
+}
+
+// currentSigningKey returns the current signing key under RLock. The returned
+// slice header shares the backing array with the field; callers MUST NOT
+// mutate it. SetSigningKey only ever reassigns the slice — the backing array
+// is never mutated in place — so callers observing a pre-swap slice see
+// stable bytes.
+func (ws *WebServer) currentSigningKey() []byte {
+	ws.mu.RLock()
+	defer ws.mu.RUnlock()
+	return ws.signingKey
 }
 
 // Start opens the TLS listener and begins serving.
