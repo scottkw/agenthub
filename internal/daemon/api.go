@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
@@ -17,15 +21,28 @@ import (
 
 // API serves the daemon HTTP API over a Unix socket.
 type API struct {
-	engine       *SessionEngine
-	mux          *http.ServeMux
-	ln           net.Listener
-	relayPort    int                  // TCP port the relay server is listening on
-	relayLn      net.Listener         // TCP listener for the relay server
-	mu           sync.RWMutex         // guards webServer and localPassword
-	webServer    *webserver.WebServer // nil when not running
-	tailnetCache *tailnetCache
+	engine        *SessionEngine
+	mux           *http.ServeMux
+	ln            net.Listener
+	relayPort     int                  // TCP port the relay server is listening on
+	relayLn       net.Listener         // TCP listener for the relay server
+	mu            sync.RWMutex         // guards webServer and localPassword
+	webServer     *webserver.WebServer // nil when not running
+	tailnetCache  *tailnetCache
 	localPassword string // generated once per daemon lifetime; non-empty in local mode
+
+	// --- Phase 87 capability state (D-04/D-06/D-14/D-15/D-16) -----------
+	// signingKey is the 32-byte HMAC-SHA256 key used to Sign capabilities.
+	// Bootstrapped from disk in BootstrapCapabilityState; replaced atomically
+	// by handleRegenerateSigningKey. All reads/writes go under signingKeyMu
+	// (a dedicated lock separate from a.mu so a capability request does not
+	// block an unrelated operation on webServer/localPassword).
+	signingKeyMu sync.RWMutex
+	signingKey   []byte
+	// joinCodes is the in-memory short-lived join-code manager (D-09/D-11).
+	// The Plan-06 /join/exchange handler on the webserver consumes the same
+	// manager via ws.SetJoinCodes.
+	joinCodes *capability.JoinCodeManager
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -67,6 +84,46 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /tailnet/peers", a.handleTailnetPeers)
 	// Local mode password endpoint.
 	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
+}
+
+// BootstrapCapabilityState loads or generates the HMAC signing key (D-04) and
+// constructs the in-memory JoinCodeManager (D-11). Must be called once during
+// daemon startup, BEFORE any web server is created — otherwise requireCapability
+// would see a nil signing key (Pitfall 3) and 401 every request.
+//
+// Callers must pair this with ws.SetSigningKey + ws.SetJoinCodes whenever a
+// WebServer is constructed (AutoStartWebServer, handleWebServerStart, etc.).
+// CurrentSigningKey and JoinCodes accessors expose the bootstrapped state.
+func (a *API) BootstrapCapabilityState() error {
+	store := capability.NewFileKeyStore(a.engine.configDir)
+	key, err := capability.LoadOrGenerate(store)
+	if err != nil {
+		return fmt.Errorf("capability bootstrap: %w", err)
+	}
+	a.signingKeyMu.Lock()
+	a.signingKey = key
+	a.signingKeyMu.Unlock()
+	// Join codes live for 5 minutes (D-11) and are NOT persisted across
+	// restarts — on daemon restart, users must regenerate any outstanding
+	// share codes. This is acceptable because codes are ephemeral sharing
+	// artefacts, not durable credentials.
+	a.joinCodes = capability.NewJoinCodeManager(5 * time.Minute)
+	return nil
+}
+
+// CurrentSigningKey returns the current HMAC signing key under RLock.
+// Callers MUST NOT mutate the returned slice; it shares the backing array
+// with the field. Returns nil if BootstrapCapabilityState has not run.
+func (a *API) CurrentSigningKey() []byte {
+	a.signingKeyMu.RLock()
+	defer a.signingKeyMu.RUnlock()
+	return a.signingKey
+}
+
+// JoinCodes returns the bootstrapped JoinCodeManager, or nil if
+// BootstrapCapabilityState has not run.
+func (a *API) JoinCodes() *capability.JoinCodeManager {
+	return a.joinCodes
 }
 
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
@@ -198,6 +255,16 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 		}
 		return sessionID, "", "", ""
 	})
+	// Wire capability state onto the web server BEFORE Start() so requireCapability
+	// has a non-nil signing key when the first request arrives (Pitfall 3). The
+	// bootstrapped signing key and joinCodes MUST be populated by a prior call
+	// to BootstrapCapabilityState; if that did not happen, requireCapability
+	// will 401 every request — which is the correct defensive default.
+	a.signingKeyMu.RLock()
+	key := a.signingKey
+	a.signingKeyMu.RUnlock()
+	ws.SetSigningKey(key)
+	ws.SetJoinCodes(a.joinCodes)
 	if err := ws.Start(); err != nil {
 		return err
 	}
@@ -265,14 +332,14 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	// When session exits naturally, disable web serving after 10 seconds so
 	// web viewers see final output before serving stops. DisableSession is a
 	// no-op for sessions that were never enabled.
+	//
+	// Also clear grants for the session (D-15, RESEARCH Pitfall 1): session
+	// end invalidates all outstanding capabilities. Leaving grants in the map
+	// would leak memory AND could (theoretically) allow a recycled session ID
+	// to inherit stale grants.
 	onExit := func(sessionID string, exitCode int) {
 		time.AfterFunc(10*time.Second, func() {
-			a.mu.RLock()
-			ws := a.webServer
-			a.mu.RUnlock()
-			if ws != nil {
-				ws.DisableSession(sessionID)
-			}
+			a.runSessionExitCleanup(sessionID)
 		})
 	}
 
@@ -284,15 +351,35 @@ func (a *API) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auto-enable web serving for this session if the web server is running (SERVE-02).
+	// Phase 87 / SEC-01: creating a session does NOT auto-enable web serving.
+	// The user must explicitly toggle web-serving ON via POST
+	// /sessions/{id}/web-serve (D-06 grant gesture) to expose the session.
+	// This closes the SEC-01 finding: tailnet peers can no longer discover
+	// newly-created sessions without an explicit share gesture.
+
+	writeJSON(w, http.StatusCreated, CreateResponse{ID: id})
+}
+
+// runSessionExitCleanup disables web serving for a session and clears all of
+// its grants. Invoked 10 seconds after the session PTY exits (handleCreateSession
+// onExit). Extracted so tests can invoke the cleanup synchronously without
+// waiting for the 10-second grace timer.
+func (a *API) runSessionExitCleanup(sessionID string) {
 	a.mu.RLock()
 	ws := a.webServer
 	a.mu.RUnlock()
 	if ws != nil {
-		ws.EnableSession(id)
+		ws.DisableSession(sessionID)
+		ws.ClearGrants(sessionID) // D-15 also applies on natural exit (Pitfall 1)
 	}
+}
 
-	writeJSON(w, http.StatusCreated, CreateResponse{ID: id})
+// runSessionExitCleanupForTest is a test-only alias for runSessionExitCleanup.
+// Documented on the test surface so the test package can invoke the exact same
+// cleanup routine that the onExit callback uses, without waiting on the
+// 10-second time.AfterFunc grace period.
+func (a *API) runSessionExitCleanupForTest(sessionID string) {
+	a.runSessionExitCleanup(sessionID)
 }
 
 func (a *API) handleGetSession(w http.ResponseWriter, r *http.Request) {
@@ -447,6 +534,14 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 		return sessionID, "", "", ""
 	})
 
+	// Wire capability state BEFORE Start() so requireCapability has a key on
+	// the first request (Pitfall 3).
+	a.signingKeyMu.RLock()
+	key := a.signingKey
+	a.signingKeyMu.RUnlock()
+	ws.SetSigningKey(key)
+	ws.SetJoinCodes(a.joinCodes)
+
 	if err := ws.Start(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -498,6 +593,20 @@ func (a *API) handleGetLocalPassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"password": pwd})
 }
 
+// handleWebServe toggles web serving for a session (D-06 grant gesture).
+//
+// Enable path (req.Enabled==true): marks the session web-enabled so that
+// subsequent POST /sessions/{id}/capabilities calls can issue capabilities.
+// Returns 204 No Content. The authoritative capability issuance path is the
+// separate POST /sessions/{id}/capabilities endpoint — keeping this handler
+// body-less avoids dead weight in DaemonClient.ToggleWebServing (which
+// discards the response body). The frontend (Plan 05) follows toggle-on with
+// a separate POST /sessions/{id}/capabilities.
+//
+// Disable path (req.Enabled==false): marks the session web-disabled AND
+// clears its entire grant list (D-15). Previously-issued capabilities for
+// this session become permanently invalid — the user must run the Share flow
+// again to produce fresh ones.
 func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var req WebServeRequest
@@ -517,10 +626,82 @@ func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 
 	if req.Enabled {
 		ws.EnableSession(id)
-	} else {
-		ws.DisableSession(id)
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
+	ws.DisableSession(id)
+	ws.ClearGrants(id) // D-15: permanent grant clear on toggle-off
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// issueCapabilitiesForSession mints the two capabilities (read + read,write)
+// for a web-enabled session, registers both grant_ids on the WebServer, and
+// issues a short-lived join code (D-09) for each. Returns the two
+// capability-bearing URLs and their join codes. Called by
+// handleIssueCapabilities (POST /sessions/{id}/capabilities).
+//
+// This is the atomic "Share" operation from the user's perspective (D-07):
+// one call produces both a read-only and a read-write link, each with its
+// own grant_id for future revocation granularity.
+func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, readCode, writeCode string, err error) {
+	a.signingKeyMu.RLock()
+	key := a.signingKey
+	a.signingKeyMu.RUnlock()
+	if key == nil {
+		return "", "", "", "", errors.New("capability: signing key not bootstrapped")
+	}
+
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		return "", "", "", "", errors.New("web server not running")
+	}
+	if a.joinCodes == nil {
+		return "", "", "", "", errors.New("capability: join-code manager not bootstrapped")
+	}
+
+	// Generate two 128-bit grant IDs (hex-encoded to 32 chars).
+	var rgid, wgid [16]byte
+	if _, err := rand.Read(rgid[:]); err != nil {
+		return "", "", "", "", err
+	}
+	if _, err := rand.Read(wgid[:]); err != nil {
+		return "", "", "", "", err
+	}
+
+	now := time.Now().Unix()
+	rClaims := capability.Claims{SID: sessionID, Perms: "read", IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
+	wClaims := capability.Claims{SID: sessionID, Perms: "read,write", IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
+
+	rTok, err := capability.Sign(rClaims, key)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	wTok, err := capability.Sign(wClaims, key)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	// Register both grants BEFORE returning URLs so the caller's first
+	// request with the returned token succeeds (no TOCTOU where the token
+	// arrives before the grant is registered).
+	ws.AddGrant(sessionID, rClaims.GrantID)
+	ws.AddGrant(sessionID, wClaims.GrantID)
+
+	base := ws.BaseURL()
+	readURL = base + "/sessions/" + sessionID + "?cap=" + rTok
+	writeURL = base + "/sessions/" + sessionID + "?cap=" + wTok
+
+	readCode, err = a.joinCodes.Issue(rTok)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	writeCode, err = a.joinCodes.Issue(wTok)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	return readURL, writeURL, readCode, writeCode, nil
 }
 
 func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {

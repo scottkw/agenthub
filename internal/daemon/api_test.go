@@ -2,16 +2,20 @@ package daemon
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
@@ -407,9 +411,13 @@ func TestAutoStartWebServer_AlreadyRunning(t *testing.T) {
 	}
 }
 
-func TestCreateSession_AutoWebEnable(t *testing.T) {
+// TestHandleCreateSession_NoAutoEnable (SEC-01 behavioral test):
+// Creating a session while the web server is running MUST NOT auto-enable web
+// serving for it. The user must explicitly toggle web-serving ON to issue
+// capabilities and expose the session (D-06 grant gesture).
+func TestHandleCreateSession_NoAutoEnable(t *testing.T) {
 	api, _, socketPath := testDaemon(t)
-	// Create a WebServer (without Start — no TLS needed for EnableSession).
+	// Create a WebServer (without Start — no TLS needed for EnableSession check).
 	ws, err := webserver.NewWebServer(webserver.Config{
 		BindIP: "127.0.0.1",
 		Port:   0,
@@ -420,8 +428,8 @@ func TestCreateSession_AutoWebEnable(t *testing.T) {
 	}
 	api.SetWebServerForTest(ws)
 
-	// Create a session — it should be auto-enabled.
-	status, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"auto-web","workDir":""}`)
+	// Create a session while the web server is running.
+	status, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"no-auto","workDir":""}`)
 	if status != 201 {
 		t.Fatalf("POST /sessions: want 201, got %d; body: %s", status, body)
 	}
@@ -430,23 +438,21 @@ func TestCreateSession_AutoWebEnable(t *testing.T) {
 		t.Fatalf("decode create response: %v", err)
 	}
 
-	// GET /sessions should show WebEnabled=true for this session.
+	// SEC-01: the session MUST NOT be web-enabled automatically.
+	if ws.IsSessionEnabled(cr.ID) {
+		t.Errorf("SEC-01 violation: session %s is web-enabled immediately after creation — auto-enable block was not removed", cr.ID)
+	}
+
+	// Also verify via the /sessions API that WebEnabled is false.
 	_, listBody := rawGet(t, socketPath, "/sessions")
 	var sessions []SessionInfo
 	if err := json.Unmarshal(listBody, &sessions); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
-	found := false
 	for _, s := range sessions {
-		if s.ID == cr.ID {
-			found = true
-			if !s.WebEnabled {
-				t.Errorf("session %s: want WebEnabled=true, got false", cr.ID)
-			}
+		if s.ID == cr.ID && s.WebEnabled {
+			t.Errorf("SEC-01: session %s reports WebEnabled=true, want false (auto-enable must be removed)", cr.ID)
 		}
-	}
-	if !found {
-		t.Errorf("session %s not found in list", cr.ID)
 	}
 }
 
@@ -806,4 +812,300 @@ func TestAPISetStartMinimizedInvalidBody(t *testing.T) {
 	if status != 400 {
 		t.Errorf("PATCH /settings/start-minimized (invalid body): want 400, got %d", status)
 	}
+}
+
+// --- Phase 87 Plan 04 tests ---------------------------------------------
+
+// configureCapabilityStateForTest wires a synthetic signing key and join-code
+// manager onto both the API and its WebServer so capability flows work in
+// tests without needing a real daemon startup sequence.
+func configureCapabilityStateForTest(t *testing.T, api *API, ws *webserver.WebServer) []byte {
+	t.Helper()
+	key, err := capability.GenerateKey()
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	api.signingKeyMu.Lock()
+	api.signingKey = key
+	api.signingKeyMu.Unlock()
+	jc := capability.NewJoinCodeManager(5 * time.Minute)
+	api.joinCodes = jc
+	ws.SetSigningKey(key)
+	ws.SetJoinCodes(jc)
+	return key
+}
+
+// probeGrant mints a fresh capability token for (sessionID, grantID) using
+// the WS's current signing key, then performs a live HTTPS GET against
+// /api/sessions/{id}/info. Returns true iff the request succeeds with 200
+// (i.e. the grant is still active AND the session is web-enabled). Any
+// status other than 200 — including 401 (nil key / missing cap), 403
+// (revoked / mismatched), or 404 (not enabled) — returns false.
+//
+// Uses an in-process httptest-like flow by sending the request through
+// ws.BaseURL(), which is only valid after ws.Start() has assigned a
+// listener. Tests that call probeGrant therefore construct a live TLS
+// listener via newLoopbackTLSListener.
+func probeGrant(t *testing.T, ws *webserver.WebServer, key []byte, sessionID, grantID string) bool {
+	t.Helper()
+	claims := capability.Claims{
+		SID:     sessionID,
+		Perms:   "read,write",
+		IAT:     time.Now().Unix(),
+		GrantID: grantID,
+		V:       1,
+	}
+	tok, err := capability.Sign(claims, key)
+	if err != nil {
+		t.Fatalf("probeGrant: Sign: %v", err)
+	}
+	base := ws.BaseURL()
+	if base == "" {
+		t.Fatalf("probeGrant: ws.BaseURL is empty; start the server first")
+	}
+	url := base + "/api/sessions/" + sessionID + "/info?cap=" + tok
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		},
+		Timeout: 2 * time.Second,
+	}
+	resp, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// TestHandleWebServe_ToggleOnEnablesSession: toggle web-serving ON for a
+// session, assert status 204 and that the session becomes web-enabled. The
+// authoritative capability issuance path is the separate POST
+// /sessions/{id}/capabilities endpoint (task 87-04-02).
+func TestHandleWebServe_ToggleOnEnablesSession(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+	configureCapabilityStateForTest(t, api, ws)
+
+	// Create a session (no auto-enable per SEC-01).
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"toggle-on","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	if ws.IsSessionEnabled(cr.ID) {
+		t.Fatalf("precondition failed: session %s already web-enabled before toggle", cr.ID)
+	}
+
+	// Toggle web-serving ON.
+	status, respBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID),
+		`{"enabled":true}`)
+	if status != http.StatusNoContent {
+		t.Errorf("POST /sessions/%s/web-serve {enabled:true}: want 204, got %d; body: %s", cr.ID, status, respBody)
+	}
+
+	if !ws.IsSessionEnabled(cr.ID) {
+		t.Errorf("after toggle-on: session %s IsSessionEnabled=false, want true", cr.ID)
+	}
+}
+
+// TestHandleWebServe_ToggleOffClearsGrants: toggle ON, register a probe
+// grant, assert the grant is active via an HTTPS round-trip, toggle OFF,
+// assert the grant is no longer active. This enforces D-15 (toggle-off
+// permanently clears grants).
+func TestHandleWebServe_ToggleOffClearsGrants(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	lnCfg := newLoopbackTLSListener(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	ws.SetSessionResolver(func(sid string) (string, string, string, string) {
+		return "probe", "cat", "running", "localhost"
+	})
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+	key := configureCapabilityStateForTest(t, api, ws)
+
+	// Create + toggle ON.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"toggle-off","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+	if status != http.StatusNoContent {
+		t.Fatalf("toggle-on: want 204, got %d", status)
+	}
+
+	// Register a probe grant directly so we can observe its clearance.
+	probe := "probe-grant-id-12345"
+	ws.AddGrant(cr.ID, probe)
+
+	// Sanity: probe grant is active before toggle-off.
+	if !probeGrant(t, ws, key, cr.ID, probe) {
+		t.Fatalf("probe grant not active before toggle-off")
+	}
+
+	// Toggle OFF.
+	status, _ = rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":false}`)
+	if status != http.StatusNoContent {
+		t.Fatalf("toggle-off: want 204, got %d", status)
+	}
+
+	// D-15: after toggle-off, ALL grants for this session must be cleared.
+	if probeGrant(t, ws, key, cr.ID, probe) {
+		t.Errorf("D-15 violation: probe grant still active after toggle-off")
+	}
+	// The session must also be disabled.
+	if ws.IsSessionEnabled(cr.ID) {
+		t.Errorf("after toggle-off: session %s still enabled, want disabled", cr.ID)
+	}
+}
+
+// TestOnExit_ClearsGrants (RESEARCH Pitfall 1): when a session's onExit
+// callback fires, ws.ClearGrants MUST be called alongside ws.DisableSession.
+// Without this, grants leak beyond session lifetime.
+//
+// Uses the test-only onExit builder on *API which skips the 10-second grace
+// period timer and invokes the cleanup synchronously. The real code path
+// still uses time.AfterFunc(10*time.Second, ...), which is exercised
+// indirectly by TestHandleWebServe_ToggleOffClearsGrants (same underlying
+// ClearGrants call, no timer).
+func TestOnExit_ClearsGrants(t *testing.T) {
+	api, _, _ := testDaemon(t)
+	lnCfg := newLoopbackTLSListener(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer for test: %v", err)
+	}
+	ws.SetSessionResolver(func(sid string) (string, string, string, string) {
+		return "exit-test", "cat", "running", "localhost"
+	})
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+	key := configureCapabilityStateForTest(t, api, ws)
+
+	// Register a session + grant, then invoke the onExit cleanup directly.
+	sessionID := "exit-test-session"
+	ws.EnableSession(sessionID)
+	ws.AddGrant(sessionID, "grant-to-clear")
+
+	if !probeGrant(t, ws, key, sessionID, "grant-to-clear") {
+		t.Fatalf("precondition: grant not active before onExit")
+	}
+
+	// Invoke the synchronous test-only onExit cleanup (bypasses the 10-sec
+	// time.AfterFunc grace). This exercises the exact same ClearGrants +
+	// DisableSession pair used by the production onExit closure.
+	api.runSessionExitCleanupForTest(sessionID)
+
+	if ws.IsSessionEnabled(sessionID) {
+		t.Errorf("onExit did not DisableSession: session still enabled")
+	}
+	// D-15 / Pitfall 1: grants for this session must be cleared.
+	if probeGrant(t, ws, key, sessionID, "grant-to-clear") {
+		t.Errorf("Pitfall 1: onExit did not call ClearGrants — probe grant still active")
+	}
+}
+
+// TestStartup_LoadsOrGeneratesSigningKey: starting the API with an empty
+// config directory generates capability.key on disk, and sets api.signingKey
+// (and ws.signingKey) to non-nil.
+func TestStartup_LoadsOrGeneratesSigningKey(t *testing.T) {
+	// Use an isolated temp config directory so this test doesn't clobber
+	// the real ~/.config/agenthub/capability.key.
+	tmpDir := t.TempDir()
+	engine := NewSessionEngine()
+	engine.configDir = tmpDir
+	engine.cliPaths = make(map[string]string)
+	engine.startMinimized = false
+	api := NewAPI(engine)
+
+	// Bootstrap the capability state (this is the production startup call
+	// that task 87-04-01 introduces on *API).
+	if err := api.BootstrapCapabilityState(); err != nil {
+		t.Fatalf("BootstrapCapabilityState: %v", err)
+	}
+
+	// capability.key must now exist in the config dir.
+	keyPath := filepath.Join(tmpDir, "capability.key")
+	info, err := os.Stat(keyPath)
+	if err != nil {
+		t.Fatalf("capability.key not found at %s: %v", keyPath, err)
+	}
+	if info.Size() != 32 {
+		t.Errorf("capability.key size: got %d, want 32", info.Size())
+	}
+
+	// api.signingKey must be non-nil.
+	api.signingKeyMu.RLock()
+	key := api.signingKey
+	api.signingKeyMu.RUnlock()
+	if key == nil {
+		t.Fatalf("api.signingKey is nil after BootstrapCapabilityState")
+	}
+	if len(key) != 32 {
+		t.Errorf("signing key length: got %d, want 32", len(key))
+	}
+
+	// api.joinCodes must be non-nil.
+	if api.joinCodes == nil {
+		t.Errorf("api.joinCodes is nil after BootstrapCapabilityState")
+	}
+
+	// A subsequent call must reload the same key (not regenerate).
+	api2 := NewAPI(engine)
+	if err := api2.BootstrapCapabilityState(); err != nil {
+		t.Fatalf("second BootstrapCapabilityState: %v", err)
+	}
+	api2.signingKeyMu.RLock()
+	key2 := api2.signingKey
+	api2.signingKeyMu.RUnlock()
+	if key2 == nil {
+		t.Fatalf("api2.signingKey is nil after reload")
+	}
+	for i := range key {
+		if key[i] != key2[i] {
+			t.Errorf("signing key mismatch after reload: keys differ at byte %d", i)
+			break
+		}
+	}
+}
+
+// newLoopbackTLSListener constructs a self-signed TLS config bound to 127.0.0.1
+// so WebServer.Start() can produce a real listener for tests that need
+// BaseURL to be non-empty.
+func newLoopbackTLSListener(t *testing.T) *tls.Config {
+	t.Helper()
+	cfg, err := webserver.GenerateSelfSignedCert("127.0.0.1")
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCert: %v", err)
+	}
+	return cfg
 }

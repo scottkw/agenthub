@@ -20,16 +20,16 @@ func AugmentServicePath() {
 	}
 
 	candidates := []string{
-		filepath.Join(home, ".local", "bin"),                                         // Anthropic native installer (macOS/Linux)
-		filepath.Join(home, ".volta", "bin"),                                         // Volta (any platform)
-		"/opt/homebrew/bin",                                                          // macOS ARM Homebrew
-		"/usr/local/bin",                                                             // macOS Intel Homebrew, Tailscale
-		"/home/linuxbrew/.linuxbrew/bin",                                             // Linux Homebrew
-		nvmActiveBin(home),                                                           // nvm active version
-		filepath.Join(home, ".cargo", "bin"),                                         // cargo (any platform)
-		"/snap/bin",                                                                  // snap (Linux)
-		"/var/lib/flatpak/exports/bin",                                               // flatpak system (Linux)
-		filepath.Join(home, ".local", "share", "flatpak", "exports", "bin"),          // flatpak user (Linux)
+		filepath.Join(home, ".local", "bin"), // Anthropic native installer (macOS/Linux)
+		filepath.Join(home, ".volta", "bin"), // Volta (any platform)
+		"/opt/homebrew/bin",                  // macOS ARM Homebrew
+		"/usr/local/bin",                     // macOS Intel Homebrew, Tailscale
+		"/home/linuxbrew/.linuxbrew/bin",     // Linux Homebrew
+		nvmActiveBin(home),                   // nvm active version
+		filepath.Join(home, ".cargo", "bin"), // cargo (any platform)
+		"/snap/bin",                          // snap (Linux)
+		"/var/lib/flatpak/exports/bin",       // flatpak system (Linux)
+		filepath.Join(home, ".local", "share", "flatpak", "exports", "bin"), // flatpak user (Linux)
 	}
 	candidates = append(candidates, platformExtraBins()...)
 

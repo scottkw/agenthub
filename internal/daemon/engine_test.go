@@ -254,7 +254,7 @@ func (s *spyBackend) Create(_ context.Context, req pty.CreateRequest) (*pty.Sess
 
 func (s *spyBackend) Resize(string, int, int) error { return nil }
 func (s *spyBackend) Kill(string) error             { return nil }
-func (s *spyBackend) List() []*pty.Session           { return nil }
+func (s *spyBackend) List() []*pty.Session          { return nil }
 
 // TestCreateSession_OpenCodeEnv asserts that CreateSession injects
 // OPENCODE_TUI_CONFIG into the PTY environment when cli == "opencode",
