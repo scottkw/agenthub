@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
-status: planning
-stopped_at: Phase 87 context gathered
-last_updated: "2026-04-20T02:35:24.009Z"
-last_activity: 2026-04-19 — Roadmap generated (Phases 87-90)
+status: executing
+stopped_at: "Completed 87-01-test-infrastructure-PLAN.md"
+last_updated: "2026-04-20T16:25:00.000Z"
+last_activity: 2026-04-20 -- Phase 87 Plan 01 (test infrastructure) complete
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 4
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.1 Security Hardening (addresses GitHub Issue #35)
+**Current focus:** Phase 87 — capability-based session authorization
 
 ## Current Position
 
-Phase: Not started (roadmap defined, ready for phase planning)
-Plan: —
-Status: Planning
-Last activity: 2026-04-19 — Roadmap generated (Phases 87-90)
+Phase: 87 (capability-based-session-authorization) — EXECUTING
+Plan: 2 of 6 (next: 87-02-capability-core)
+Status: Plan 01 complete — Wave 0 test infrastructure landed
+Last activity: 2026-04-20 -- Phase 87 Plan 01 (test infrastructure) complete
 
-Progress: [          ] 0% (0/4 phases complete)
+Progress: [█░░░░░░░░░] 17% (1/6 Phase 87 plans complete)
 
 ## Performance Metrics
 
@@ -51,6 +51,9 @@ Progress: [          ] 0% (0/4 phases complete)
 - Phase numbering continues from Phase 86 (v3.0 end) — Phases 87-90 allocated
 - SEC-01..SEC-05 grouped into a single phase (Phase 87) because the capability token is the shared primitive for listing, WebSocket access, and read-only enforcement — splitting causes double-implementation of the token issuance and verification path
 - Four-phase structure follows the security review's recommended implementation order: authorization first (Phase 87), handshake second (Phase 88 builds on 87's capability), vendoring and CSP third (Phase 89, independent), release pipeline fourth (Phase 90, CI/CD surface only)
+- Phase 87 Plan 01: adopted a build-tag protocol (`phase87_wave1`, `phase87_wave2`) for Wave 0 RED skeletons so the capability package tests and webserver tests can reference yet-to-exist production symbols without breaking `go test ./...` on main — each wave's Plan un-tags its own files when production code lands
+- Phase 87 Plan 01: placed webserver test helpers in `package webserver` (internal test helpers) rather than `package webserver_test` to avoid duplicating `selfSignedTLSForTest`/`testServer` names already present in `server_test.go`; both packages coexist in the same directory with no Go-level collision
+- Phase 87 Plan 01: gated `FuzzVerify` by build tag instead of `f.Skip()` because fuzz entry-point Skip is silently dropped by the fuzzer harness
 
 ### Pending Todos
 
@@ -68,6 +71,12 @@ Progress: [          ] 0% (0/4 phases complete)
 | 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
 
+### Plan Execution Metrics
+
+| Phase | Plan | Duration | Tasks | Files | Commits |
+|-------|------|----------|-------|-------|---------|
+| 87 | 01 | 8min | 2 | 6 | a35e963, 5ca1f3e |
+
 ### Blockers/Concerns
 
 - Tailnet-wide trust model must be replaced with explicit capability/grant model — requires fresh UX decisions (token in URL? explicit Share button? revocation list?) — deferred to Phase 87 planning
@@ -77,6 +86,8 @@ Progress: [          ] 0% (0/4 phases complete)
 
 ## Session Continuity
 
-Last session: 2026-04-20T02:35:23.999Z
-Stopped at: Phase 87 context gathered
-Next action: `/gsd:plan-phase 87` to decompose capability-based session authorization into plans
+Last session: 2026-04-20T16:24:02Z
+Stopped at: Completed 87-01-test-infrastructure-PLAN.md (Wave 0 RED skeletons)
+Next action: `/gsd:execute-phase 87` to run Plan 02 (capability core — un-tag phase87_wave1 and implement Sign/Verify/KeyStore/JoinCodeManager)
+
+**Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z

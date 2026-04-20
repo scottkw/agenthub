@@ -12,16 +12,21 @@
 
 Replaces the tailnet-wide trust model. Sessions become explicitly granted, and both metadata enumeration and PTY access require a server-issued capability.
 
-- [ ] **SEC-01** — User can explicitly grant share access to a specific session; the daemon issues a signed, server-scoped capability token bound to that session (no auto-exposure of newly created sessions when the web server is running)
-- [ ] **SEC-02** — `GET /api/sessions` rejects requests that do not carry a valid session capability (listing becomes capability-scoped, not tailnet-wide)
-- [ ] **SEC-03** — `GET /sessions/{id}/ws` and `GET /sessions/{id}` reject requests that do not carry a valid capability token for that exact session ID
+- [x] **SEC-01
+** — User can explicitly grant share access to a specific session; the daemon issues a signed, server-scoped capability token bound to that session (no auto-exposure of newly created sessions when the web server is running)
+- [x] **SEC-02
+** — `GET /api/sessions` rejects requests that do not carry a valid session capability (listing becomes capability-scoped, not tailnet-wide)
+- [x] **SEC-03
+** — `GET /sessions/{id}/ws` and `GET /sessions/{id}` reject requests that do not carry a valid capability token for that exact session ID
 
 ### Read-Only Enforcement
 
 Replaces the client-asserted `?readonly=1` query parameter with a server-bound permission on the capability token.
 
-- [ ] **SEC-04** — Read-only permission is a property of the capability token issued by the server, not a query parameter; the `?readonly=1` parameter (if retained as a view hint) cannot grant write access it lacks
-- [ ] **SEC-05** — The relay rejects `MsgInput` frames from any subscriber whose capability does not include write permission (previous bypass via reconnect-without-readonly is blocked by regression test)
+- [x] **SEC-04
+** — Read-only permission is a property of the capability token issued by the server, not a query parameter; the `?readonly=1` parameter (if retained as a view hint) cannot grant write access it lacks
+- [x] **SEC-05
+** — The relay rejects `MsgInput` frames from any subscriber whose capability does not include write permission (previous bypass via reconnect-without-readonly is blocked by regression test)
 
 ### WebSocket Handshake Security
 

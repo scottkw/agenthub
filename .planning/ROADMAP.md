@@ -241,7 +241,7 @@
   4. A read-only capability rejects `MsgInput` frames at the relay even if the client omits `?readonly=1` or reconnects without it — write permission is determined by the capability, not by the client or query string.
   5. Capability tokens survive daemon restart (signing key persisted alongside existing `settings.json`) so that previously-shared links remain valid without regenerating URLs.
 **Plans**: 6 plans (6 waves)
-  - [ ] 87-01-test-infrastructure-PLAN.md — Wave 0 test scaffolds for SEC-01..SEC-05
+  - [x] 87-01-test-infrastructure-PLAN.md — Wave 0 test scaffolds for SEC-01..SEC-05 (Complete 2026-04-20)
   - [ ] 87-02-capability-core-PLAN.md — internal/capability package (sign/verify/keystore/joincode)
   - [ ] 87-03-webserver-enforcement-PLAN.md — requireCapability middleware + route wiring + relay readonly source
   - [ ] 87-04-daemon-api-PLAN.md — SEC-01 auto-enable removal + IPC + Wails bindings
