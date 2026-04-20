@@ -2071,3 +2071,19 @@ body {
   color: #f7768e;
   margin-top: 4px;
 }
+
+/* === Phase 87: Destructive variant for Settings panel button (UI-SPEC Surface 2, D-16) === */
+.settings-panel__btn--destructive {
+  background: #f7768e;
+  color: #1a1b26;
+  font-weight: 600;
+}
+
+.settings-panel__btn--destructive:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.settings-panel__btn--destructive:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

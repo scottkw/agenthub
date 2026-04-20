@@ -16,6 +16,7 @@ import {
   SetStartMinimized,
   GetAutoCloseSession,
   SetAutoCloseSession,
+  RegenerateSigningKey,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
@@ -24,6 +25,7 @@ import {
   ClipboardDocumentIcon,
   QrCodeIcon,
 } from '@heroicons/react/24/outline'
+import { RegenerateKeyModal } from './RegenerateKeyModal'
 
 const THEME_NAMES = ALLOWED_THEMES
 
@@ -93,6 +95,11 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [autoCloseLoaded, setAutoCloseLoaded] = useState(false)
   const [autoCloseSaving, setAutoCloseSaving] = useState(false)
   const [autoCloseError, setAutoCloseError] = useState<string | null>(null)
+
+  // Security section state (Phase 87 D-16) — panic button to rotate the
+  // capability signing key, invalidating every outstanding shared link.
+  const [showRegenModal, setShowRegenModal] = useState(false)
+  const [regenError, setRegenError] = useState<string | null>(null)
 
   // Load web serving state on mount.
   useEffect(() => {
@@ -283,6 +290,20 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setAutoCloseError('Could not save preference \u2014 ' + (err instanceof Error ? err.message : String(err)))
     } finally {
       setAutoCloseSaving(false)
+    }
+  }
+
+  async function handleRegenerateSigningKey(): Promise<void> {
+    setRegenError(null)
+    try {
+      await RegenerateSigningKey()
+      setShowRegenModal(false)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setRegenError(msg)
+      // Re-throw so RegenerateKeyModal's inline error path surfaces the
+      // failure in the modal (and keeps the modal open for retry).
+      throw err
     }
   }
 
@@ -579,6 +600,26 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             </div>
           </>
         )}
+
+        {/* Security section (Phase 87 D-16, UI-SPEC Surface 2) */}
+        <h3>Security</h3>
+        <p className="settings-panel__description">
+          Rotating the signing key immediately invalidates all shared links across all sessions. Use this if you suspect a link has been leaked.
+        </p>
+        <div className="settings-panel__field-group">
+          <button
+            className="settings-panel__btn settings-panel__btn--destructive"
+            onClick={() => setShowRegenModal(true)}
+          >
+            Regenerate Signing Key
+          </button>
+          {regenError && <p className="settings-panel__error">{regenError}</p>}
+        </div>
+        <RegenerateKeyModal
+          isOpen={showRegenModal}
+          onConfirm={handleRegenerateSigningKey}
+          onCancel={() => setShowRegenModal(false)}
+        />
 
         {/* Paths section (SET-01 fix: single unified table) */}
         <h3>Paths</h3>
