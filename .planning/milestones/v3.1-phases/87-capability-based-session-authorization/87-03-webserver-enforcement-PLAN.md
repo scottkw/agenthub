@@ -94,6 +94,7 @@ New WebServer exports (consumed by Plan 04):
 func (ws *WebServer) AddGrant(sessionID, grantID string)
 func (ws *WebServer) ClearGrants(sessionID string)
 func (ws *WebServer) SetSigningKey(key []byte) // race-safe swap
+func (ws *WebServer) SetJoinCodes(jc *capability.JoinCodeManager) // race-safe swap (consumed by Plan 06 handleJoinExchange)
 ```
 
 Internal (used by middleware and handlers):
@@ -106,6 +107,7 @@ WebServer struct additions (alongside existing webEnabled at server.go:54):
 ```go
 grants     map[string]map[string]struct{} // sessionID -> set of active grant_ids
 signingKey []byte                          // guarded by ws.mu; swapped via SetSigningKey
+joinCodes  *capability.JoinCodeManager     // guarded by ws.mu; swapped via SetJoinCodes (Plan 04 wires at startup; Plan 06 consumes in handleJoinExchange)
 ```
 </interfaces>
 
@@ -145,6 +147,7 @@ NEVER place requireCapability inside the handler (after websocket.Accept) — up
        ```go
        grants     map[string]map[string]struct{} // D-14: sessionID -> active grant_ids
        signingKey []byte                          // D-04/D-16: guarded by ws.mu; swapped via SetSigningKey
+       joinCodes  *capability.JoinCodeManager     // D-09/D-11: guarded by ws.mu; swapped via SetJoinCodes; consumed by Plan 06 handleJoinExchange
        ```
 
     2. In the WebServer constructor (the function that returns a new WebServer — likely `NewWebServer` or inline in `startLocal`/`startTailscale`), initialize: `grants: make(map[string]map[string]struct{})`. Do NOT initialize signingKey — leave nil so a missing SetSigningKey call panics early via currentSigningKey nil-check.
@@ -180,6 +183,12 @@ NEVER place requireCapability inside the handler (after websocket.Accept) — up
            ws.mu.Unlock()
        }
 
+       func (ws *WebServer) SetJoinCodes(jc *capability.JoinCodeManager) {
+           ws.mu.Lock()
+           ws.joinCodes = jc
+           ws.mu.Unlock()
+       }
+
        func (ws *WebServer) currentSigningKey() []byte {
            ws.mu.RLock()
            defer ws.mu.RUnlock()
@@ -194,17 +203,19 @@ NEVER place requireCapability inside the handler (after websocket.Accept) — up
     5. Do NOT yet write the middleware or wrap routes — those are task 87-03-02.
   </action>
   <verify>
-    <automated>cd /Users/ken/dev/agenthub && go build ./internal/webserver/... && grep -c "func (ws \*WebServer) AddGrant\|func (ws \*WebServer) ClearGrants\|func (ws \*WebServer) isGrantActive\|func (ws \*WebServer) SetSigningKey\|func (ws \*WebServer) currentSigningKey" internal/webserver/server.go | grep -q "^5$" && grep -q 'grants.*map\[string\]map\[string\]struct{}' internal/webserver/server.go && grep -q 'signingKey.*\[\]byte' internal/webserver/server.go && go test ./internal/webserver/ -count=1 2>&1 | tee /tmp/ws-base.log ; ! grep -q FAIL /tmp/ws-base.log</automated>
+    <automated>cd /Users/ken/dev/agenthub && go build ./internal/webserver/... && grep -c "func (ws \*WebServer) AddGrant\|func (ws \*WebServer) ClearGrants\|func (ws \*WebServer) isGrantActive\|func (ws \*WebServer) SetSigningKey\|func (ws \*WebServer) SetJoinCodes\|func (ws \*WebServer) currentSigningKey" internal/webserver/server.go | grep -q "^6$" && grep -q 'grants.*map\[string\]map\[string\]struct{}' internal/webserver/server.go && grep -q 'signingKey.*\[\]byte' internal/webserver/server.go && go test ./internal/webserver/ -count=1 2>&1 | tee /tmp/ws-base.log ; ! grep -q FAIL /tmp/ws-base.log</automated>
   </verify>
   <acceptance_criteria>
     - `go build ./internal/webserver/...` succeeds
     - `grep -q "grants.*map\[string\]map\[string\]struct{}" internal/webserver/server.go` succeeds
     - `grep -q "signingKey.*\[\]byte" internal/webserver/server.go` succeeds
-    - All 5 methods present: AddGrant, ClearGrants, isGrantActive, SetSigningKey, currentSigningKey
+    - All 6 methods present: AddGrant, ClearGrants, isGrantActive, SetSigningKey, SetJoinCodes, currentSigningKey
+    - `grep -q 'SetJoinCodes' internal/webserver/server.go` succeeds
+    - `grep -q 'joinCodes.*\*capability.JoinCodeManager' internal/webserver/server.go` succeeds
     - Existing `go test ./internal/webserver/ -count=1` still passes (no regression)
     - grants map initialized in constructor (`grep -q "grants: make" internal/webserver/server.go`)
   </acceptance_criteria>
-  <done>WebServer struct carries signingKey + grants. Five accessor methods exist. Package still compiles and existing tests still pass.</done>
+  <done>WebServer struct carries signingKey + grants + joinCodes. Six accessor methods exist (AddGrant, ClearGrants, isGrantActive, SetSigningKey, SetJoinCodes, currentSigningKey). Package still compiles and existing tests still pass.</done>
 </task>
 
 <task type="auto" tdd="true">
