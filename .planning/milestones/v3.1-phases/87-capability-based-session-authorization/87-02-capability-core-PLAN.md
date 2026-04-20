@@ -172,23 +172,27 @@ func ClaimsFromContext(ctx context.Context) (Claims, bool)
     - FuzzVerify: 30-second fuzz run with one seed corpus entry; must not panic for any input
   </behavior>
   <action>
-    1. Remove the line `//go:build phase87_wave1` from both `internal/capability/capability_test.go` and `internal/capability/capability_fuzz_test.go`.
+    **Ordering invariant (WARNING #5):** Create production code FIRST, compile-gate it, THEN remove the build tags from test files, THEN un-skip tests. Removing build tags before production code exists would break `go test ./internal/capability/...` between steps — the build tags are what kept Wave 0 green.
 
-    2. Create `internal/capability/errors.go` with package capability and sentinel errors ErrMalformedToken, ErrInvalidSignature, ErrMalformedClaims using errors.New with "capability: ..." prefixes per PATTERNS lines 68-75.
+    1. Create `internal/capability/errors.go` with package capability and sentinel errors ErrMalformedToken, ErrInvalidSignature, ErrMalformedClaims using errors.New with "capability: ..." prefixes per PATTERNS lines 68-75.
 
-    3. Create `internal/capability/context.go` with package capability; imports context; declares unexported type ctxKey struct{}; exports WithClaims(ctx, c) and ClaimsFromContext(ctx) per PATTERNS lines 77-93.
+    2. Create `internal/capability/context.go` with package capability; imports context; declares unexported type ctxKey struct{}; exports WithClaims(ctx, c) and ClaimsFromContext(ctx) per PATTERNS lines 77-93.
 
-    4. Create `internal/capability/capability.go`. Package doc (mirror auth.go terse style): "Package capability issues and verifies HMAC-SHA256 capability tokens that gate web access to individual PTY sessions. Tokens encode a compact claim set as base64url(claimsJSON).base64url(sig). See SEC-01..SEC-05."
+    3. Create `internal/capability/capability.go`. Package doc (mirror auth.go terse style): "Package capability issues and verifies HMAC-SHA256 capability tokens that gate web access to individual PTY sessions. Tokens encode a compact claim set as base64url(claimsJSON).base64url(sig). See SEC-01..SEC-05."
        Imports: crypto/hmac, crypto/sha256, encoding/base64, encoding/json, fmt, strings.
        Declare Claims struct with exact JSON tags in declaration order: SID, Perms, IAT, GrantID, V.
        Sign: marshal claims, compute HMAC-SHA256 with key, base64url-encode payload and sig, return "b64Payload" + "." + "b64Sig".
        Verify: strings.SplitN(token, ".", 2); on wrong count return fmt.Errorf("%w: segment count", ErrMalformedToken). base64.RawURLEncoding.DecodeString each segment; on error return fmt.Errorf("%w: %v", ErrMalformedToken, err). Compute expected HMAC over decoded payload. hmac.Equal(sig, expected) — on mismatch return ErrInvalidSignature. json.Unmarshal(payload, &c); on error return fmt.Errorf("%w: %v", ErrMalformedClaims, err).
 
-    5. Un-skip the 9 test bodies in capability_test.go one by one and iterate. For TestVerify_ConstantTimeComparison the body reads internal/capability/capability.go via os.ReadFile and asserts strings.Contains(content, "hmac.Equal") and !strings.Contains(content, "bytes.Equal").
+    4. **Compile gate:** Run `go build ./internal/capability/...`. Must succeed before proceeding. This proves the production code compiles independent of the (still tag-gated) test files.
 
-    6. Run `go test ./internal/capability/ -run 'TestSign|TestVerify|TestClaims' -count=1 -v` — all 9 tests PASS.
+    5. Remove the line `//go:build phase87_wave1` from `internal/capability/capability_test.go` and `internal/capability/capability_fuzz_test.go` (note: keystore_test.go and joincode_test.go still carry the tag; they get un-tagged in task 87-02-02).
 
-    7. Run `go test ./internal/capability/ -fuzz=FuzzVerify -fuzztime=30s` — no panics.
+    6. Un-skip the 9 test bodies in capability_test.go one by one and iterate. For TestVerify_ConstantTimeComparison the body reads internal/capability/capability.go via os.ReadFile and asserts strings.Contains(content, "hmac.Equal") and !strings.Contains(content, "bytes.Equal").
+
+    7. Run `go test ./internal/capability/ -run 'TestSign|TestVerify|TestClaims' -count=1 -v` — all 9 tests PASS (confirms GREEN).
+
+    8. Run `go test ./internal/capability/ -fuzz=FuzzVerify -fuzztime=30s` — no panics.
 
     Anti-patterns to avoid: NEVER use bytes.Equal or == on sig; NEVER add alg field to Claims (D-01); NEVER add exp claim (D-12); NEVER use math/rand.
   </action>
