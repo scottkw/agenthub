@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
-status: starting
-stopped_at: Defining requirements
-last_updated: "2026-04-19T23:00:00Z"
+status: planning
+stopped_at: Roadmap defined; ready for phase planning
+last_updated: "2026-04-19T23:30:00Z"
 last_activity: 2026-04-19
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (roadmap defined, ready for phase planning)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-19 — Milestone v3.1 started
+Status: Planning
+Last activity: 2026-04-19 — Roadmap generated (Phases 87-90)
 
-Progress: [          ] 0% (0 phases defined)
+Progress: [          ] 0% (0/4 phases complete)
 
 ## Performance Metrics
 
@@ -48,11 +48,16 @@ Progress: [          ] 0% (0 phases defined)
 - v3.1 scope derived from third-party security review (Codex) placed in `security-review/` (gitignored); 5 findings, all confirmed against v3.0 code
 - Milestone addresses GitHub Issue #35 ("Security review")
 - Skipping optional research step — findings themselves are the research
-- Phase numbering continues from Phase 86 (v3.0 end) — proposed Phases 87–90
+- Phase numbering continues from Phase 86 (v3.0 end) — Phases 87-90 allocated
+- SEC-01..SEC-05 grouped into a single phase (Phase 87) because the capability token is the shared primitive for listing, WebSocket access, and read-only enforcement — splitting causes double-implementation of the token issuance and verification path
+- Four-phase structure follows the security review's recommended implementation order: authorization first (Phase 87), handshake second (Phase 88 builds on 87's capability), vendoring and CSP third (Phase 89, independent), release pipeline fourth (Phase 90, CI/CD surface only)
 
 ### Pending Todos
 
 - On milestone completion: comment on GitHub Issue #35 that it was addressed by v3.1, then close
+- Decide capability token scheme during Phase 87 planning (HMAC with daemon-persisted secret vs. ed25519; base64-URL encoding; expiry semantics)
+- Decide grant UX during Phase 87 planning (explicit Share button per session? copy-link gesture? QR contains the capability token?)
+- Decide Origin-header-absent policy during Phase 88 planning (reject outright, or require capability-bearing handshake?)
 
 ### Quick Tasks Completed
 
@@ -65,12 +70,13 @@ Progress: [          ] 0% (0 phases defined)
 
 ### Blockers/Concerns
 
-- Tailnet-wide trust model must be replaced with explicit capability/grant model — requires fresh UX decisions (token in URL? explicit Share button? revocation list?)
-- Read-only policy must be server-bound; client-issued `readonly=1` query param becomes an untrusted hint
+- Tailnet-wide trust model must be replaced with explicit capability/grant model — requires fresh UX decisions (token in URL? explicit Share button? revocation list?) — deferred to Phase 87 planning
+- Read-only policy must be server-bound; client-issued `readonly=1` query param becomes an untrusted hint (addressed in Phase 87)
 - WinGet first submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0)
+- Capability rotation/revocation UI and audit logging are v3.2+ scope — v3.1 issues and verifies, but does not surface a revoke flow
 
 ## Session Continuity
 
 Last session: 2026-04-19
-Stopped at: v3.1 milestone defined, ready to write REQUIREMENTS.md
-Next action: Generate REQUIREMENTS.md, then spawn gsd-roadmapper
+Stopped at: Roadmap written — Phases 87-90 defined with 4 success criteria each, 11/11 requirements mapped
+Next action: `/gsd:plan-phase 87` to decompose capability-based session authorization into plans

@@ -74,22 +74,22 @@ Explicit exclusions for v3.1 with reasoning:
 
 ## Traceability
 
-_Filled by `gsd-roadmapper` — each requirement maps to exactly one phase._
+Each v3.1 requirement maps to exactly one phase. All 11 requirements mapped (100% coverage, no orphans).
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SEC-01 | (tbd) | — |
-| SEC-02 | (tbd) | — |
-| SEC-03 | (tbd) | — |
-| SEC-04 | (tbd) | — |
-| SEC-05 | (tbd) | — |
-| SEC-06 | (tbd) | — |
-| SEC-07 | (tbd) | — |
-| SEC-08 | (tbd) | — |
-| SEC-09 | (tbd) | — |
-| SEC-10 | (tbd) | — |
-| SEC-11 | (tbd) | — |
+| SEC-01 | Phase 87 — Capability-Based Session Authorization | Pending |
+| SEC-02 | Phase 87 — Capability-Based Session Authorization | Pending |
+| SEC-03 | Phase 87 — Capability-Based Session Authorization | Pending |
+| SEC-04 | Phase 87 — Capability-Based Session Authorization | Pending |
+| SEC-05 | Phase 87 — Capability-Based Session Authorization | Pending |
+| SEC-06 | Phase 88 — WebSocket Handshake Security | Pending |
+| SEC-07 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
+| SEC-08 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
+| SEC-09 | Phase 90 — Release Pipeline Hardening | Pending |
+| SEC-10 | Phase 90 — Release Pipeline Hardening | Pending |
+| SEC-11 | Phase 90 — Release Pipeline Hardening | Pending |
 
 ---
 
-*Last updated: 2026-04-19 — v3.1 milestone requirements defined*
+*Last updated: 2026-04-19 — Traceability filled by gsd-roadmapper; Phases 87-90 allocated for v3.1*

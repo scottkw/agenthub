@@ -20,6 +20,7 @@
 - ✅ **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (shipped 2026-04-16)
 - ✅ **v2.1 Bug Fixes & UX** — Phases 79-82 (shipped 2026-04-17)
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
+- 🚧 **v3.1 Security Hardening** — Phases 87-90 (in progress, addresses Issue #35)
 
 ## Phases
 
@@ -217,6 +218,65 @@
 
 </details>
 
+<details open>
+<summary>🚧 v3.1 Security Hardening (Phases 87-90) — IN PROGRESS</summary>
+
+- [ ] **Phase 87: Capability-Based Session Authorization** — Replace tailnet-wide trust with server-issued, signed capability tokens that gate session listing, metadata, WebSocket access, and write permission
+- [ ] **Phase 88: WebSocket Handshake Security** — Reject cross-origin WebSocket upgrades via explicit Origin allowlist (Tailscale FQDN, local-mode host, same-origin)
+- [ ] **Phase 89: Vendored Terminal Assets + CSP** — Serve xterm JS/CSS from the embedded binary and lock down the terminal page with a strict Content-Security-Policy
+- [ ] **Phase 90: Release Pipeline Hardening** — SHA-pin third-party GitHub Actions, pin Go build tools to exact versions, and split unsigned-build from signing/publish jobs so build steps never hold release secrets
+
+</details>
+
+## Phase Details
+
+### Phase 87: Capability-Based Session Authorization
+**Goal**: Tailnet reachability no longer grants session access; only explicitly granted, capability-token-bearing clients can list, view, or drive a session, and write permission is a server-controlled property of that capability.
+**Depends on**: Nothing (first v3.1 phase; builds on shipped v3.0 relay + web server)
+**Requirements**: SEC-01, SEC-02, SEC-03, SEC-04, SEC-05
+**Success Criteria** (what must be TRUE):
+  1. A user on the tailnet who has not been granted a specific session cannot enumerate sessions via `GET /api/sessions` — the response is rejected without a valid capability token, even though the request reaches the server over Tailscale.
+  2. A user with a valid capability for session A cannot open session B's WebSocket or metadata endpoint with that same capability — the server rejects the request because the capability is bound to a specific session ID.
+  3. Creating a new session while the web server is running does not automatically expose it; the session is only reachable after the user explicitly grants share access, at which point the daemon returns a signed capability-bearing URL.
+  4. A read-only capability rejects `MsgInput` frames at the relay even if the client omits `?readonly=1` or reconnects without it — write permission is determined by the capability, not by the client or query string.
+  5. Capability tokens survive daemon restart (signing key persisted alongside existing `settings.json`) so that previously-shared links remain valid without regenerating URLs.
+**Plans**: TBD
+
+### Phase 88: WebSocket Handshake Security
+**Goal**: Cross-site WebSocket hijacking is blocked at the handshake; only browsers whose `Origin` matches the server's own serving origin can complete the upgrade.
+**Depends on**: Phase 87 (capability check runs after Origin check; both must pass)
+**Requirements**: SEC-06
+**Success Criteria** (what must be TRUE):
+  1. A WebSocket upgrade request arriving with an `Origin` header outside the server's allowlist (Tailscale FQDN serving URL, local-mode host URL, and configured same-origin) is rejected at handshake with a 403/close before any capability check runs.
+  2. The terminal page served by the app itself completes the WebSocket upgrade successfully in both Tailscale mode (FQDN origin) and local-network-fallback mode (self-signed HTTPS host origin) without user-visible regressions.
+  3. A WebSocket upgrade request with no `Origin` header (non-browser client) follows a documented, explicit policy (allowed only with a valid capability token, or rejected) rather than the previous accept-all default.
+  4. The `OriginPatterns: ["*"]` / `InsecureSkipVerify: true` accept-all configuration is gone from the code path — a regression test fails if it is reintroduced.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 89: Vendored Terminal Assets + CSP
+**Goal**: The interactive terminal page — the one with command-execution consequences — loads only from the embedded binary and is protected by a Content-Security-Policy that blocks inline/remote script injection.
+**Depends on**: Nothing (can run in parallel with Phases 87/88; independent subsystem)
+**Requirements**: SEC-07, SEC-08
+**Success Criteria** (what must be TRUE):
+  1. The terminal page renders correctly with network access to `cdn.jsdelivr.net` fully blocked — xterm JS and CSS are served from the app binary itself, not from a third-party CDN at runtime.
+  2. The HTML response for the terminal page carries a `Content-Security-Policy` header that restricts `script-src` and `style-src` to `'self'` and restricts `connect-src` to `'self'` plus the explicit WebSocket origin; no `unsafe-inline` or `*` wildcards remain.
+  3. Browser devtools shows zero requests to `cdn.jsdelivr.net` (or any third-party origin) during normal terminal session use — attach, resize, scrollback, detach.
+  4. The web dashboard and terminal page pass the CSP without console violations on all supported browsers (Chromium-based + Safari) in both Tailscale-mode FQDN serving and local-network-fallback HTTPS serving.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 90: Release Pipeline Hardening
+**Goal**: Untrusted third-party code can no longer execute during a job that holds macOS signing, notarization, or publish credentials; build tools are reproducible; a compromised floating tag cannot silently ship malicious artifacts.
+**Depends on**: Nothing (independent from runtime phases 87-89; CI/CD surface only)
+**Requirements**: SEC-09, SEC-10, SEC-11
+**Success Criteria** (what must be TRUE):
+  1. Every third-party GitHub Action referenced in `.github/workflows/` resolves to an immutable commit SHA; a grep for `@main`, `@master`, or unpinned branch refs across workflow files returns zero results.
+  2. Every Go build tool the workflows or `build.sh` install (including `wails` and `nfpm`) is pinned to an exact version; `go install tool@latest` does not appear in any workflow or build script.
+  3. The release pipeline has two separate jobs: an unsigned build job that produces artifacts and has no access to signing, notarization, or publish secrets; and a signing/publish job that consumes those artifacts and is the only job that can read `MACOS_CERT_P12`, `APPLE_ID_APP_PASSWORD`, `WINGET_TOKEN`, `TAP_DEPLOY_TOKEN`, and `RELEASE_PLEASE_TOKEN`.
+  4. A dry-run release (or a test tag) successfully produces signed, notarized macOS artifacts and publishes to GitHub releases + Homebrew tap through the new split pipeline — proving the restructure is functionally equivalent to the v3.0 pipeline, not just theoretically safer.
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -242,6 +302,10 @@
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
+| 87 | v3.1 | 0/TBD | Not started | — |
+| 88 | v3.1 | 0/TBD | Not started | — |
+| 89 | v3.1 | 0/TBD | Not started | — |
+| 90 | v3.1 | 0/TBD | Not started | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
