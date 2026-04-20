@@ -244,9 +244,9 @@
   - [x] 87-01-test-infrastructure-PLAN.md — Wave 0 test scaffolds for SEC-01..SEC-05 (Complete 2026-04-20)
   - [x] 87-02-capability-core-PLAN.md — internal/capability package (sign/verify/keystore/joincode) (Complete 2026-04-20)
   - [x] 87-03-webserver-enforcement-PLAN.md — requireCapability middleware + route wiring + relay readonly source (Complete 2026-04-20)
-  - [ ] 87-04-daemon-api-PLAN.md — SEC-01 auto-enable removal + IPC + Wails bindings
-  - [ ] 87-05-frontend-ui-PLAN.md — Share panel + Regenerate key modal + Settings Security section
-  - [ ] 87-06-web-pages-integration-PLAN.md — Dashboard landing + Join page + terminal caret suppression
+  - [x] 87-04-daemon-api-PLAN.md — SEC-01 auto-enable removal + IPC + Wails bindings (Complete 2026-04-20)
+  - [x] 87-05-frontend-ui-PLAN.md — Share panel + Regenerate key modal + Settings Security section (Complete 2026-04-20)
+  - [x] 87-06-web-pages-integration-PLAN.md — Dashboard landing + Join page + terminal caret suppression (Complete 2026-04-20)
 
 ### Phase 88: WebSocket Handshake Security
 **Goal**: Cross-site WebSocket hijacking is blocked at the handshake; only browsers whose `Origin` matches the server's own serving origin can complete the upgrade.

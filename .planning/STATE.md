@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Completed 87-05-frontend-ui-PLAN.md
-last_updated: "2026-04-20T17:44:11.843Z"
+stopped_at: Completed 87-06-web-pages-integration-PLAN.md (all 6 plans complete; awaiting verification)
+last_updated: "2026-04-20T18:20:00.000Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 4
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 87 (capability-based-session-authorization) — EXECUTING
-Plan: 6 of 6 (next: 87-04-daemon-api)
-Status: Ready to execute
+Phase: 87 (capability-based-session-authorization) — ALL PLANS COMPLETE
+Plan: 6 of 6 (last: 87-06-web-pages-integration)
+Status: Awaiting verification (`/gsd:verify-work 87`)
 Last activity: 2026-04-20
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100% (6/6 plans)
 
 ## Performance Metrics
 
@@ -73,6 +73,10 @@ Progress: [░░░░░░░░░░] 0%
 - Phase 87 Plan 05: DaemonManagerPanel owns sessionShares state with a useEffect reconciliation loop — avoids threading async capability-issuance state through App.tsx's onToggleWeb callback while keeping its contract unchanged
 - Phase 87 Plan 05: SessionSharePanel derives join-exchange URL from capability URL origin (new URL(readURL).host + /join?code=<code>) — no extra baseURL prop needed, safe because the same daemon mints both URLs
 - Phase 87 Plan 05: RegenerateKeyModal reuses .quit-modal* CSS classes structurally (no new modal CSS block); handleRegenerateSigningKey re-throws after setting error state so the modal's inline error path surfaces RPC failures and keeps the modal open for retry
+- Phase 87 Plan 06: /dashboard is a public landing page — no session list (D-17). Per-user discovery gone; capability tokens must be explicitly shared. Tailnet-reachable attacker at /dashboard sees zero session metadata.
+- Phase 87 Plan 06: /join 5-state UI driven by client-side query-param routing (?code=, ?error=expired|invalid|session-gone); one embed file serves five surfaces, no server branching.
+- Phase 87 Plan 06: terminal.html perms sourced exclusively from GET /api/sessions/{id}/info?cap= claims; legacy ?readonly query string removed from write-gate path (Pitfall 7). xterm init wrapped in async perms-fetch IIFE so caret is never briefly enabled for a read-only cap.
+- Phase 87 Plan 06: POST /join/exchange returns 303 See Other for form→GET transition; preserves idempotent redirect target and prevents refresh-resubmission. session-gone distinct from invalid to surface honest state.
 
 ### Pending Todos
 
@@ -89,6 +93,7 @@ Progress: [░░░░░░░░░░] 0%
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
 | Phase 87 P04 | 22min | 2 tasks | 11 files |
 | Phase 87 P05 | 4m12s | 2 tasks | 5 files |
+| Phase 87 P06 | ~15min | 2 tasks | 6 files |
 
 ### Plan Execution Metrics
 
@@ -97,6 +102,9 @@ Progress: [░░░░░░░░░░] 0%
 | 87 | 01 | 8min | 2 | 6 | a35e963, 5ca1f3e |
 | 87 | 02 | 12min | 2 | 10 | dd1c15e, 6d2cf8f |
 | 87 | 03 | 8min | 2 | 5 | 1703ccd, d269e62 |
+| 87 | 04 | 22min | 2 | 11 | b2871ee, b2e2105 |
+| 87 | 05 | 4m12s | 2 | 5 | 60e9424, cec6ef5 |
+| 87 | 06 | ~15min | 2 | 6 | 1a0fb60, e7f315e, a87e2bb |
 
 ### Blockers/Concerns
 
@@ -107,8 +115,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-04-20T17:44:01.356Z
-Stopped at: Completed 87-05-frontend-ui-PLAN.md
-Next action: `/gsd:execute-phase 87` to run Plan 04 (daemon API — wire signingKey + joinCodes at startup, issue capabilities on toggle-on, clear grants on toggle-off / session exit, IPC handlers for IssueCapabilities / ExchangeJoinCode / RegenerateSigningKey)
+Last session: 2026-04-20T18:20:00.000Z
+Stopped at: Completed 87-06-web-pages-integration-PLAN.md (all 6 plans complete)
+Next action: `/gsd:verify-work 87` to verify phase success criteria before advancing to Phase 88 (WebSocket Handshake Security)
 
 **Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z
