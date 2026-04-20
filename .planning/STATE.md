@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Completed 87-04-daemon-api-PLAN.md
-last_updated: "2026-04-20T17:34:11.880Z"
+stopped_at: Completed 87-05-frontend-ui-PLAN.md
+last_updated: "2026-04-20T17:44:11.843Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 87 (capability-based-session-authorization) — EXECUTING
-Plan: 5 of 6 (next: 87-04-daemon-api)
+Plan: 6 of 6 (next: 87-04-daemon-api)
 Status: Ready to execute
 Last activity: 2026-04-20
 
@@ -70,6 +70,9 @@ Progress: [░░░░░░░░░░] 0%
 - Phase 87 Plan 04: runSessionExitCleanup extracted out of the 10-sec time.AfterFunc closure so TestOnExit_ClearsGrants can invoke it synchronously via runSessionExitCleanupForTest. Production path unchanged.
 - Phase 87 Plan 04: short-TTL JoinCodeManager (50ms + 200ms sleep) substitutes for capability.SetClockForTest in daemon tests since export_test.go is not accessible across packages.
 - Phase 87 Plan 04: GetCapabilityQRCode encodes the join-code URL (D-09), not the raw capability token URL. Photographing the QR is worthless after 5-minute TTL or first exchange.
+- Phase 87 Plan 05: DaemonManagerPanel owns sessionShares state with a useEffect reconciliation loop — avoids threading async capability-issuance state through App.tsx's onToggleWeb callback while keeping its contract unchanged
+- Phase 87 Plan 05: SessionSharePanel derives join-exchange URL from capability URL origin (new URL(readURL).host + /join?code=<code>) — no extra baseURL prop needed, safe because the same daemon mints both URLs
+- Phase 87 Plan 05: RegenerateKeyModal reuses .quit-modal* CSS classes structurally (no new modal CSS block); handleRegenerateSigningKey re-throws after setting error state so the modal's inline error path surfaces RPC failures and keeps the modal open for retry
 
 ### Pending Todos
 
@@ -85,6 +88,7 @@ Progress: [░░░░░░░░░░] 0%
 | 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
 | Phase 87 P04 | 22min | 2 tasks | 11 files |
+| Phase 87 P05 | 4m12s | 2 tasks | 5 files |
 
 ### Plan Execution Metrics
 
@@ -103,8 +107,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-04-20T17:33:50.732Z
-Stopped at: Completed 87-04-daemon-api-PLAN.md
+Last session: 2026-04-20T17:44:01.356Z
+Stopped at: Completed 87-05-frontend-ui-PLAN.md
 Next action: `/gsd:execute-phase 87` to run Plan 04 (daemon API — wire signingKey + joinCodes at startup, issue capabilities on toggle-on, clear grants on toggle-off / session exit, IPC handlers for IssueCapabilities / ExchangeJoinCode / RegenerateSigningKey)
 
 **Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z
