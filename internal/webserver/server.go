@@ -359,6 +359,17 @@ func (ws *WebServer) setupRoutes() {
 	// by Plan 06).
 	mux.HandleFunc("GET /dashboard", ws.handleDashboard)
 
+	// GET /join — open join-flow page (Plan 06, D-09). Reads ?code= from the
+	// query string for pre-fill. Not capability-gated — it only collects the
+	// code; the exchange itself runs on POST /join/exchange.
+	mux.HandleFunc("GET /join", ws.handleJoin)
+
+	// POST /join/exchange — open join-code exchange endpoint. Consumes a
+	// single-use code and 303-redirects to /sessions/{id}?cap=<token>. Not
+	// capability-gated — the code itself is the credential for this step
+	// (D-09/D-11).
+	mux.HandleFunc("POST /join/exchange", ws.handleJoinExchange)
+
 	// GET /api/sessions — capability-gated; handleListSessions returns ONLY
 	// the single session bound to the cap (D-18).
 	mux.HandleFunc("GET /api/sessions", ws.requireCapability(ws.handleListSessions))
@@ -392,6 +403,87 @@ func (ws *WebServer) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(data) //nolint:errcheck
+}
+
+// handleJoin serves the embedded join.html landing page. The page reads
+// ?code= and ?error= from the URL on the client side and shows the matching
+// state variant (A=pre-filled, B=no-code, C=expired, D=invalid, E=session-gone).
+// No capability required — the code input itself is the credential for the
+// subsequent POST /join/exchange call.
+func (ws *WebServer) handleJoin(w http.ResponseWriter, r *http.Request) {
+	data, err := webfs.WebFS.ReadFile("join.html")
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data) //nolint:errcheck
+}
+
+// handleJoinExchange consumes a single-use join code (D-09/D-11) and redirects
+// to /sessions/{id}?cap=<token> via HTTP 303 See Other. Error contract:
+//   - Empty or malformed body              -> 303 /join?error=invalid
+//   - ErrCodeExpired                       -> 303 /join?error=expired
+//   - ErrCodeNotFound                      -> 303 /join?error=invalid
+//   - underlying verify / server error     -> 500
+//   - session no longer web-enabled        -> 303 /join?error=session-gone
+//
+// Join-code 303 responses point at /join?error=<kind> so the user-facing UX
+// (join.html State C/D/E) is the same shape regardless of whether the failure
+// came from the browser back button, an expired code, or a revoked session.
+func (ws *WebServer) handleJoinExchange(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/join?error=invalid", http.StatusSeeOther)
+		return
+	}
+	code := r.FormValue("code")
+	if code == "" {
+		http.Redirect(w, r, "/join?error=invalid", http.StatusSeeOther)
+		return
+	}
+
+	ws.mu.RLock()
+	jc := ws.joinCodes
+	ws.mu.RUnlock()
+	if jc == nil {
+		// Daemon never wired a JoinCodeManager — misconfiguration. Refuse rather
+		// than silently accept: an un-wired manager means the server cannot
+		// consume codes, so every request here is effectively invalid.
+		http.Error(w, "join flow not available", http.StatusInternalServerError)
+		return
+	}
+
+	token, err := jc.Exchange(code)
+	switch {
+	case errors.Is(err, capability.ErrCodeExpired):
+		http.Redirect(w, r, "/join?error=expired", http.StatusSeeOther)
+		return
+	case errors.Is(err, capability.ErrCodeNotFound):
+		http.Redirect(w, r, "/join?error=invalid", http.StatusSeeOther)
+		return
+	case err != nil:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	key := ws.currentSigningKey()
+	if key == nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	claims, err := capability.Verify(token, key)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	if !ws.IsSessionEnabled(claims.SID) {
+		http.Redirect(w, r, "/join?error=session-gone", http.StatusSeeOther)
+		return
+	}
+
+	target := "/sessions/" + claims.SID + "?cap=" + token
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 // handleListSessions handles GET /api/sessions. Per D-18 the response

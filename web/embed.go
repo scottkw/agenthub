@@ -2,5 +2,5 @@ package web
 
 import "embed"
 
-//go:embed dashboard.html terminal.html
+//go:embed dashboard.html terminal.html join.html
 var WebFS embed.FS

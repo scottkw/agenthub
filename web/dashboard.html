@@ -6,198 +6,102 @@
   <title>AgentHub Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #1a1b26; color: #c0caf5; min-height: 100vh; padding: 2rem; }
-    h1 { color: #c0caf5; font-size: 1.5rem; margin-bottom: 1.5rem; }
-    h2 { color: #a9b1d6; font-size: 1.1rem; margin-bottom: 1rem; }
-    h3 { color: #a9b1d6; font-size: 1rem; margin-bottom: 0.75rem; }
-    section { margin-bottom: 2rem; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1a1b26;
+      color: #c0caf5;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 480px; margin: 0 auto; }
+    h1 { color: #c0caf5; font-size: 1.5rem; margin-bottom: 0.5rem; }
+    h2 { color: #c0caf5; font-size: 1.1rem; margin-bottom: 0.75rem; }
+    p { font-size: 0.9rem; color: #a9b1d6; line-height: 1.5; margin-bottom: 1rem; }
+    hr { border-top: 1px solid #292e42; margin: 2rem 0; border-bottom: none; }
     label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; color: #a9b1d6; }
-    button { padding: 0.6rem 1.2rem; background: #7aa2f7; border: none; border-radius: 4px; color: #1a1b26; font-size: 0.9rem; cursor: pointer; }
-    button:hover { background: #89b4fa; }
-    button.secondary { background: #292e42; color: #a9b1d6; }
-    button.secondary:hover { background: #343b58; }
-    #session-list { list-style: none; }
-    .session-card {
-      background: #1e2030;
-      border: 1px solid #292e42;
-      border-radius: 6px;
-      padding: 12px 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .session-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .session-dot--running { background: #3b82f6; }
-    .session-dot--idle { background: #22c55e; }
-    .session-dot--waiting { background: #f59e0b; }
-    .session-dot--errored { background: #ef4444; }
-
-    .session-info {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .session-name {
-      font-size: 14px;
+    input[type="text"] {
+      font-family: "Cascadia Code", "MesloLGS NF", "Fira Code", monospace;
+      font-size: 1.4rem;
       font-weight: 600;
       color: #c0caf5;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      background: #1e2030;
+      border: 1px solid #292e42;
+      border-radius: 4px;
+      padding: 0.6rem 1rem;
+      width: 100%;
+      letter-spacing: 0.1em;
+      text-align: center;
+      margin-bottom: 1rem;
     }
-
-    .session-meta {
-      font-size: 12px;
-      color: #565f89;
-      margin-top: 2px;
-    }
-
-    .session-badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 3px;
-      background: #292e42;
-      color: #a9b1d6;
-      font-size: 12px;
+    input[type="text"]:focus { outline: none; border-color: #7aa2f7; }
+    input[type="text"]::placeholder { color: #414868; }
+    button {
+      padding: 0.75rem 1.2rem;
+      background: #7aa2f7;
+      border: none;
+      border-radius: 4px;
+      color: #1a1b26;
+      font-size: 1rem;
       font-weight: 600;
+      cursor: pointer;
+      width: 100%;
     }
-
-    .session-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    #session-list a { color: #7aa2f7; text-decoration: none; font-size: 0.9rem; }
-    #session-list a:hover { text-decoration: underline; }
-    #no-sessions { color: #565f89; font-style: italic; }
-    .qr-thumb { cursor:pointer; vertical-align:middle; margin-left:8px; border-radius:4px; }
-    .qr-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; }
-    .qr-overlay img { border-radius:8px; }
-    .qr-overlay-url { margin-top:0.75rem; color:#c0caf5; font-size:0.85rem; font-family:monospace; word-break:break-all; max-width:320px; text-align:center; }
+    button:hover { background: #89b4fa; }
+    .hint { color: #565f89; font-style: italic; font-size: 0.9rem; margin-top: 1rem; }
   </style>
 </head>
 <body>
-  <h1>AgentHub Dashboard</h1>
+  <div class="container">
+    <h1>AgentHub</h1>
+    <p>Shared terminal sessions, securely.</p>
 
-  <!-- Dashboard Section -->
-  <section id="dashboard-section">
-    <h2>Active Sessions</h2>
-    <ul id="session-list"></ul>
-    <div id="no-sessions" style="display:none;">
-      <p style="color:#565f89;font-style:italic;">No web-enabled sessions active.</p>
-      <p style="color:#565f89;font-size:0.85rem;margin-top:0.5rem;">Enable web serving for a session from the desktop app.</p>
-    </div>
-    <br>
-    <button class="secondary" onclick="refreshSessions()">Refresh</button>
-  </section>
+    <hr>
+
+    <h2>Join a Shared Session</h2>
+    <p>Enter the join code from the person sharing their session, or scan the QR code they shared with your mobile device.</p>
+
+    <form action="/join" method="GET">
+      <label for="code">Join Code</label>
+      <input id="code" name="code" type="text" placeholder="A7K-4P2N" maxlength="9"
+             autocomplete="off" autocapitalize="characters" spellcheck="false" required />
+      <button type="submit">Join Session</button>
+    </form>
+
+    <p class="hint">On mobile? Scan the QR code to auto-fill the code and open this page.</p>
+  </div>
 
   <script>
-    async function refreshSessions() {
-      try {
-        const res = await fetch('/api/sessions');
-        if (!res.ok) {
-          console.error('Failed to fetch sessions:', res.status);
-          return;
+    (function () {
+      var input = document.getElementById('code');
+      if (!input) return;
+
+      // Strip everything outside the base32 alphabet (A-Z, 2-7), force uppercase,
+      // then reinsert a single dash after the 4th character. Max 8 alphanumeric
+      // chars + 1 dash = 9 visible chars.
+      function formatCode(raw) {
+        var upper = (raw || '').toUpperCase();
+        var cleaned = '';
+        for (var i = 0; i < upper.length && cleaned.length < 8; i++) {
+          var ch = upper.charAt(i);
+          if ((ch >= 'A' && ch <= 'Z') || (ch >= '2' && ch <= '7')) {
+            cleaned += ch;
+          }
         }
-        const sessions = await res.json();
-        renderSessions(sessions);
-      } catch (e) {
-        console.error('Failed to fetch sessions:', e);
+        if (cleaned.length <= 4) return cleaned;
+        return cleaned.slice(0, 4) + '-' + cleaned.slice(4);
       }
-    }
 
-    function renderSessions(sessions) {
-      const list = document.getElementById('session-list');
-      const empty = document.getElementById('no-sessions');
-      list.innerHTML = '';
-
-      if (!sessions || sessions.length === 0) {
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-
-      sessions.forEach(s => {
-        const li = document.createElement('li');
-        li.className = 'session-card';
-        const id = typeof s === 'string' ? s : s.id;
-        const name = (typeof s === 'object' && s.name) ? s.name : id;
-        const cli = (typeof s === 'object' && s.cli_type) ? s.cli_type : '';
-        const st = (typeof s === 'object' && s.status) ? s.status : 'running';
-        const qrSrc = '/api/sessions/' + encodeURIComponent(id) + '/qr';
-        const sessionURL = window.location.origin + '/sessions/' + encodeURIComponent(id);
-
-        li.innerHTML = `
-      <span class="session-dot session-dot--${escHtml(st)}"></span>
-      <div class="session-info">
-        <span class="session-name">${escHtml(name)}</span>
-        <span class="session-meta">${cli ? '<span class="session-badge">' + escHtml(cli) + '</span> ' : ''}${escHtml(id)}</span>
-      </div>
-      <div class="session-actions">
-        <img src="${qrSrc}" width="48" height="48" alt="QR code" class="qr-thumb" title="Click to enlarge QR code" data-session-id="${escHtml(id)}" data-session-url="${escHtml(sessionURL)}">
-        <a href="/sessions/${escHtml(id)}" target="_blank">Open</a>
-      </div>
-    `;
-        list.appendChild(li);
+      input.addEventListener('input', function () {
+        var formatted = formatCode(input.value);
+        if (formatted !== input.value) input.value = formatted;
       });
 
-      // Attach click handlers for QR thumbnails
-      list.querySelectorAll('.qr-thumb').forEach(img => {
-        img.addEventListener('click', function() {
-          showQROverlay(this.dataset.sessionId, this.dataset.sessionUrl);
-        });
+      input.addEventListener('paste', function (e) {
+        e.preventDefault();
+        var text = (e.clipboardData || window.clipboardData).getData('text') || '';
+        input.value = formatCode(text);
       });
-    }
-
-    function escHtml(str) {
-      const d = document.createElement('div');
-      d.appendChild(document.createTextNode(str));
-      return d.innerHTML;
-    }
-
-    function showQROverlay(sessionId, sessionURL) {
-      const existing = document.getElementById('qr-overlay');
-      if (existing) existing.remove();
-
-      const overlay = document.createElement('div');
-      overlay.id = 'qr-overlay';
-      overlay.className = 'qr-overlay';
-
-      const qrSrc = '/api/sessions/' + encodeURIComponent(sessionId) + '/qr';
-      overlay.innerHTML = `
-        <img src="${qrSrc}" width="256" height="256" alt="QR code for session ${escHtml(sessionId)}">
-        <div class="qr-overlay-url">${escHtml(sessionURL)}</div>
-      `;
-
-      // Close on click outside (the overlay background)
-      overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.remove();
-      });
-
-      document.body.appendChild(overlay);
-    }
-
-    // Close QR overlay on Escape key
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        const overlay = document.getElementById('qr-overlay');
-        if (overlay) overlay.remove();
-      }
-    });
-
-    // Load sessions directly on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      refreshSessions();
-    });
+    })();
   </script>
 </body>
 </html>
