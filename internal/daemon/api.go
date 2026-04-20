@@ -84,6 +84,10 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /tailnet/peers", a.handleTailnetPeers)
 	// Local mode password endpoint.
 	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
+	// Phase 87 capability-based authorization endpoints (D-06, D-09, D-16).
+	a.mux.HandleFunc("POST /sessions/{id}/capabilities", a.handleIssueCapabilities)
+	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
+	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 }
 
 // BootstrapCapabilityState loads or generates the HMAC signing key (D-04) and
@@ -702,6 +706,123 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 		return "", "", "", "", err
 	}
 	return readURL, writeURL, readCode, writeCode, nil
+}
+
+// handleIssueCapabilities issues two capabilities for a web-enabled session
+// (D-07) and returns their URLs and join codes. Called by the frontend after
+// a toggle-on gesture. Returns 400 when the web server is not running or
+// the session is not web-enabled.
+func (a *API) handleIssueCapabilities(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		http.Error(w, "web server not running", http.StatusBadRequest)
+		return
+	}
+	if !ws.IsSessionEnabled(id) {
+		http.Error(w, "session not web-enabled", http.StatusBadRequest)
+		return
+	}
+	readURL, writeURL, readCode, writeCode, err := a.issueCapabilitiesForSession(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, IssueCapabilitiesResponse{
+		ReadURL:   readURL,
+		WriteURL:  writeURL,
+		ReadCode:  readCode,
+		WriteCode: writeCode,
+	})
+}
+
+// handleExchangeJoinCode consumes a single-use join code (D-09/D-11) and
+// returns the capability-bearing URL the client should follow. Status codes:
+//   - 200: code valid, returns ExchangeJoinCodeResponse{URL}
+//   - 400: bad request body or empty code
+//   - 404: code not found (never issued, already exchanged, GC'd)
+//   - 410: code expired past TTL
+//   - 500: token verify failed or web server not running
+func (a *API) handleExchangeJoinCode(w http.ResponseWriter, r *http.Request) {
+	var req ExchangeJoinCodeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.Code == "" {
+		http.Error(w, "code required", http.StatusBadRequest)
+		return
+	}
+	if a.joinCodes == nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	token, err := a.joinCodes.Exchange(req.Code)
+	switch {
+	case errors.Is(err, capability.ErrCodeExpired):
+		http.Error(w, "code expired", http.StatusGone)
+		return
+	case errors.Is(err, capability.ErrCodeNotFound):
+		http.Error(w, "invalid code", http.StatusNotFound)
+		return
+	case err != nil:
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	a.signingKeyMu.RLock()
+	key := a.signingKey
+	a.signingKeyMu.RUnlock()
+	if key == nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	claims, err := capability.Verify(token, key)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		http.Error(w, "web server not running", http.StatusBadRequest)
+		return
+	}
+	url := ws.BaseURL() + "/sessions/" + claims.SID + "?cap=" + token
+	writeJSON(w, http.StatusOK, ExchangeJoinCodeResponse{URL: url})
+}
+
+// handleRegenerateSigningKey replaces capability.key on disk, updates the
+// in-memory signing key, and calls ws.SetSigningKey so requireCapability
+// picks up the new key on the next request (D-16 panic button). All
+// previously-issued capabilities fail verification against the new key —
+// this is the intended blast radius. No attempt is made to preserve
+// outstanding grants: the stale grants eventually expire when their sessions
+// end, and the signature check alone is sufficient to block them.
+func (a *API) handleRegenerateSigningKey(w http.ResponseWriter, r *http.Request) {
+	newKey, err := capability.GenerateKey()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	store := capability.NewFileKeyStore(a.engine.configDir)
+	if err := store.Save(newKey); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	a.signingKeyMu.Lock()
+	a.signingKey = newKey
+	a.signingKeyMu.Unlock()
+
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws != nil {
+		ws.SetSigningKey(newKey)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {

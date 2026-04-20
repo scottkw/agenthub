@@ -121,3 +121,15 @@ export function SetAutoCloseSession(val: boolean): Promise<void>
 // Quit confirmation bound methods (APP-01/02)
 export function QuitGUIOnly(): Promise<void>
 export function QuitAll(): Promise<void>
+
+// Phase 87 capability bound methods (SEC-01..SEC-05)
+export interface IssueCapabilitiesResponse {
+  readUrl: string
+  writeUrl: string
+  readCode: string
+  writeCode: string
+}
+export function IssueCapabilities(sessionID: string): Promise<IssueCapabilitiesResponse>
+export function ExchangeJoinCode(code: string): Promise<string>
+export function RegenerateSigningKey(): Promise<void>
+export function GetCapabilityQRCode(joinURL: string): Promise<string>

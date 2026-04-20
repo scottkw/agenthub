@@ -206,6 +206,31 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
+// IssueCapabilities mints the read + read,write capability pair for a
+// web-enabled session (D-07). Returns the URLs and single-use join codes
+// (D-09) for each. Called by the GUI/CLI/TUI after toggle-on.
+func (c *DaemonClient) IssueCapabilities(sessionID string) (IssueCapabilitiesResponse, error) {
+	var resp IssueCapabilitiesResponse
+	err := c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/capabilities", nil, &resp)
+	return resp, err
+}
+
+// ExchangeJoinCode consumes a single-use join code and returns the
+// capability-bearing URL the client should follow.
+func (c *DaemonClient) ExchangeJoinCode(code string) (string, error) {
+	var resp ExchangeJoinCodeResponse
+	if err := c.doJSON(http.MethodPost, "/join/exchange", ExchangeJoinCodeRequest{Code: code}, &resp); err != nil {
+		return "", err
+	}
+	return resp.URL, nil
+}
+
+// RegenerateSigningKey rotates the HMAC signing key (D-16 panic button).
+// All previously-issued capabilities become invalid globally.
+func (c *DaemonClient) RegenerateSigningKey() error {
+	return c.doJSON(http.MethodPost, "/capability/regenerate-key", nil, nil)
+}
+
 // NotifyThemeChange tells the daemon to signal active OpenCode sessions
 // to re-query the terminal palette. Returns nil on success (204 No Content).
 func (c *DaemonClient) NotifyThemeChange() error {

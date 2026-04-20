@@ -87,8 +87,8 @@ func (a *App) domReady(ctx context.Context) {
 // startup is called when Wails initialises the app.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	appCtx = ctx       // expose to menu callbacks (openGitHubCallback)
-	appInstance = a    // expose to menu callbacks (checkForUpdatesCallback)
+	appCtx = ctx    // expose to menu callbacks (openGitHubCallback)
+	appInstance = a // expose to menu callbacks (checkForUpdatesCallback)
 
 	// Start system tray icon immediately — it must be visible regardless of
 	// daemon state. The poller will set the error icon if daemon is unreachable.
@@ -171,7 +171,7 @@ func (a *App) beforeClose(ctx context.Context) bool {
 	// Wails stores the frontend under the "frontend" key; skip the call when
 	// running outside the Wails event loop (tests, CLI helpers).
 	if ctx.Value("frontend") != nil {
-		runtime.WindowShow(ctx)       // D-08: ensure window visible for modal
+		runtime.WindowShow(ctx) // D-08: ensure window visible for modal
 		a.setDockVisible(true)
 		runtime.EventsEmit(ctx, "app:quit-requested", nil)
 	}
@@ -608,6 +608,53 @@ func (a *App) GetWebServerQRCode() (string, error) {
 	png, err := qrcode.Encode(resp.URL, qrcode.Medium, 256)
 	if err != nil {
 		return "", fmt.Errorf("GetWebServerQRCode: encode: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(png), nil
+}
+
+// --- Phase 87 capability Wails bindings (D-06, D-07, D-09, D-16) ---------
+
+// IssueCapabilities asks the daemon to mint two capabilities (read + read,write)
+// for the given session (D-07). The session must be web-enabled (caller must
+// have already called ToggleWebServing). Returns the read/write URLs and the
+// matching single-use join codes.
+func (a *App) IssueCapabilities(sessionID string) (daemon.IssueCapabilitiesResponse, error) {
+	if a.client == nil {
+		return daemon.IssueCapabilitiesResponse{}, fmt.Errorf("daemon not connected")
+	}
+	return a.client.IssueCapabilities(sessionID)
+}
+
+// ExchangeJoinCode consumes a single-use join code and returns the
+// capability-bearing URL the client should follow. Called by the /join page
+// after the user taps "Join Session".
+func (a *App) ExchangeJoinCode(code string) (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
+	return a.client.ExchangeJoinCode(code)
+}
+
+// RegenerateSigningKey rotates the HMAC signing key (D-16 panic button in
+// Settings > Security). All previously-issued capabilities become invalid.
+func (a *App) RegenerateSigningKey() error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.RegenerateSigningKey()
+}
+
+// GetCapabilityQRCode encodes a join-code exchange URL as a base64 PNG QR
+// code (D-09). The caller must pass the join-code URL (e.g.
+// "https://host/join?code=A7K-4P2N"), NOT the raw capability token URL.
+// Mirrors GetWebServerQRCode; the encoder call is identical.
+func (a *App) GetCapabilityQRCode(joinURL string) (string, error) {
+	if joinURL == "" {
+		return "", fmt.Errorf("joinURL required")
+	}
+	png, err := qrcode.Encode(joinURL, qrcode.Medium, 256)
+	if err != nil {
+		return "", fmt.Errorf("GetCapabilityQRCode: encode: %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(png), nil
 }

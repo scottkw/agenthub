@@ -75,3 +75,9 @@ export const SetAutoCloseSession     = (val)                => Call('main.App.Se
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])
+
+// Phase 87 capability bound methods (SEC-01..SEC-05)
+export const IssueCapabilities       = (sessionID)          => Call('main.App.IssueCapabilities', [sessionID])
+export const ExchangeJoinCode        = (code)               => Call('main.App.ExchangeJoinCode', [code])
+export const RegenerateSigningKey    = ()                   => Call('main.App.RegenerateSigningKey', [])
+export const GetCapabilityQRCode     = (joinURL)            => Call('main.App.GetCapabilityQRCode', [joinURL])

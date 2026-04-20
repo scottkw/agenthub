@@ -1098,6 +1098,235 @@ func TestStartup_LoadsOrGeneratesSigningKey(t *testing.T) {
 	}
 }
 
+// --- Task 2 (IPC handler) tests -----------------------------------------
+
+// TestIPCHandlers_CapabilityRoundTrip: POST /sessions/{sid}/capabilities
+// returns four fields (readUrl, writeUrl, readCode, writeCode). POSTing the
+// readCode to /join/exchange returns a URL containing the same cap token as
+// readUrl. This verifies the end-to-end join-code exchange.
+func TestIPCHandlers_CapabilityRoundTrip(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	lnCfg := newLoopbackTLSListener(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer with TLS: %v", err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+	configureCapabilityStateForTest(t, api, ws)
+
+	// Create + toggle ON.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"round-trip","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if st, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`); st != http.StatusNoContent {
+		t.Fatalf("toggle-on: want 204, got %d", st)
+	}
+
+	// POST /sessions/{id}/capabilities
+	st, issueBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("POST /sessions/%s/capabilities: want 200, got %d; body: %s", cr.ID, st, issueBody)
+	}
+	var issue IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &issue); err != nil {
+		t.Fatalf("decode IssueCapabilitiesResponse: %v", err)
+	}
+	if issue.ReadURL == "" || issue.WriteURL == "" || issue.ReadCode == "" || issue.WriteCode == "" {
+		t.Fatalf("IssueCapabilitiesResponse has empty field: %+v", issue)
+	}
+	if !strings.Contains(issue.ReadURL, "?cap=") {
+		t.Errorf("ReadURL missing ?cap=: %q", issue.ReadURL)
+	}
+
+	// POST /join/exchange with readCode — must return URL with same ?cap= as readUrl.
+	exchangeBody := fmt.Sprintf(`{"code":%q}`, issue.ReadCode)
+	st, xBody := rawPost(t, socketPath, "/join/exchange", exchangeBody)
+	if st != http.StatusOK {
+		t.Fatalf("POST /join/exchange: want 200, got %d; body: %s", st, xBody)
+	}
+	var xResp ExchangeJoinCodeResponse
+	if err := json.Unmarshal(xBody, &xResp); err != nil {
+		t.Fatalf("decode ExchangeJoinCodeResponse: %v", err)
+	}
+	// Extract ?cap= token from ReadURL and assert xResp.URL contains it.
+	readTok := extractCapToken(issue.ReadURL)
+	exchangedTok := extractCapToken(xResp.URL)
+	if readTok == "" || exchangedTok == "" {
+		t.Fatalf("could not extract cap tokens: readURL=%q exchanged=%q", issue.ReadURL, xResp.URL)
+	}
+	if readTok != exchangedTok {
+		t.Errorf("join-code exchange produced different token: got %q, want %q", exchangedTok, readTok)
+	}
+}
+
+// TestIPCHandlers_ExpiredCodeReturns410: issue a join code with a very short
+// TTL, sleep past it, POST /join/exchange → 410 Gone.
+func TestIPCHandlers_ExpiredCodeReturns410(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	lnCfg := newLoopbackTLSListener(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+
+	// Custom setup: use a very short join-code TTL so the test can expire
+	// codes without simulated clocks.
+	key, err := capability.GenerateKey()
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	api.signingKeyMu.Lock()
+	api.signingKey = key
+	api.signingKeyMu.Unlock()
+	shortJC := capability.NewJoinCodeManager(50 * time.Millisecond)
+	api.joinCodes = shortJC
+	ws.SetSigningKey(key)
+	ws.SetJoinCodes(shortJC)
+
+	// Create + toggle ON.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"expired-code","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if st, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`); st != http.StatusNoContent {
+		t.Fatalf("toggle-on: want 204, got %d", st)
+	}
+
+	// Issue caps (this also registers join codes).
+	st, issueBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("issue: want 200, got %d; body: %s", st, issueBody)
+	}
+	var issue IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &issue); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	// Sleep past the 50ms TTL.
+	time.Sleep(200 * time.Millisecond)
+
+	st, _ = rawPost(t, socketPath, "/join/exchange", fmt.Sprintf(`{"code":%q}`, issue.ReadCode))
+	if st != http.StatusGone {
+		t.Errorf("expired code: want 410 Gone, got %d", st)
+	}
+}
+
+// TestIPCHandlers_RegenerateSigningKey_SwapsKey: POST
+// /capability/regenerate-key replaces the on-disk key AND the in-memory key,
+// and updates ws.signingKey via SetSigningKey.
+func TestIPCHandlers_RegenerateSigningKey_SwapsKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	engine := NewSessionEngine()
+	engine.configDir = tmpDir
+	engine.cliPaths = make(map[string]string)
+	api := NewAPI(engine)
+	if err := api.BootstrapCapabilityState(); err != nil {
+		t.Fatalf("BootstrapCapabilityState: %v", err)
+	}
+	// Wire a WebServer so regenerate-key has a ws to call SetSigningKey on.
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+	// Install the freshly-bootstrapped key onto the WS so regenerate can
+	// swap it later.
+	api.signingKeyMu.RLock()
+	initialKey := append([]byte(nil), api.signingKey...)
+	api.signingKeyMu.RUnlock()
+	ws.SetSigningKey(initialKey)
+
+	// Read current file bytes.
+	initialFile, err := os.ReadFile(filepath.Join(tmpDir, "capability.key"))
+	if err != nil {
+		t.Fatalf("read capability.key: %v", err)
+	}
+
+	// Start the API on a socket, then POST /capability/regenerate-key.
+	socketPath := shortSocketPath(t, "regen.sock")
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("api.Start: %v", err)
+	}
+	t.Cleanup(func() { api.Stop() })
+	time.Sleep(10 * time.Millisecond)
+
+	st, regenBody := rawPost(t, socketPath, "/capability/regenerate-key", ``)
+	if st != http.StatusOK {
+		t.Fatalf("POST /capability/regenerate-key: want 200, got %d; body: %s", st, regenBody)
+	}
+
+	// On-disk key bytes must have changed.
+	newFile, err := os.ReadFile(filepath.Join(tmpDir, "capability.key"))
+	if err != nil {
+		t.Fatalf("read capability.key after regen: %v", err)
+	}
+	if sameBytes(initialFile, newFile) {
+		t.Errorf("capability.key unchanged after regenerate")
+	}
+
+	// In-memory signing key must have changed.
+	api.signingKeyMu.RLock()
+	newKey := api.signingKey
+	api.signingKeyMu.RUnlock()
+	if sameBytes(initialKey, newKey) {
+		t.Errorf("api.signingKey unchanged after regenerate")
+	}
+}
+
+// --- shared helpers for Task 2 tests ------------------------------------
+
+// sameBytes compares two byte slices for equality.
+func sameBytes(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// extractCapToken pulls the value of the ?cap= query parameter from a URL.
+func extractCapToken(urlStr string) string {
+	i := strings.Index(urlStr, "?cap=")
+	if i < 0 {
+		return ""
+	}
+	tok := urlStr[i+len("?cap="):]
+	if amp := strings.Index(tok, "&"); amp >= 0 {
+		tok = tok[:amp]
+	}
+	return tok
+}
+
 // newLoopbackTLSListener constructs a self-signed TLS config bound to 127.0.0.1
 // so WebServer.Start() can produce a real listener for tests that need
 // BaseURL to be non-empty.
