@@ -27,7 +27,7 @@ tags:
 must_haves:
   truths:
     - "Creating a new session while the web server is running does NOT auto-enable web serving (SEC-01 / D-06)"
-    - "Toggling web-serving ON for a session issues two capabilities (read + read,write) and returns URLs with ?cap=<token>"
+    - "Toggling web-serving ON enables the session; the frontend follows with POST /sessions/{id}/capabilities which issues two capabilities (read + read,write) and returns URLs with ?cap=<token>"
     - "Toggling web-serving OFF clears the session's grant list permanently (D-15)"
     - "Session onExit calls both DisableSession AND ClearGrants (Pitfall 1)"
     - "Daemon startup loads or generates capability.key and calls ws.SetSigningKey before accepting any HTTP request"
@@ -52,9 +52,13 @@ must_haves:
       to: internal/capability/keystore.go
       via: "LoadOrGenerate(NewFileKeyStore(configDir))"
       pattern: "capability\\.(LoadOrGenerate|NewFileKeyStore)"
-    - from: internal/daemon/api.go handleWebServe enable path
+    - from: internal/daemon/api.go startup
+      to: "ws.SetSigningKey + ws.SetJoinCodes"
+      via: "wire capability state onto WebServer before Serve"
+      pattern: "ws\\.Set(SigningKey|JoinCodes)"
+    - from: internal/daemon/api.go handleIssueCapabilities (task 87-04-02)
       to: "ws.AddGrant + capability.Sign"
-      via: "issue two caps per toggle-on"
+      via: "issue two caps on demand"
       pattern: "AddGrant\\(.*claims\\.GrantID"
     - from: internal/daemon/api.go onExit
       to: "ws.ClearGrants"
@@ -161,18 +165,18 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
   <behavior>
     GREEN test (add to api_test.go):
     - TestHandleCreateSession_NoAutoEnable (SEC-01): create a session while ws is running; assert that `ws.IsSessionEnabled(sessionID)` returns false immediately after create
-    - TestHandleWebServe_ToggleOnIssuesCaps: toggle web-serving ON; assert response body contains ReadURL and WriteURL; assert `ws.isGrantActive(sid, claims.GrantID)` returns true for each cap
-    - TestHandleWebServe_ToggleOffClearsGrants: toggle ON then OFF; assert `ws.isGrantActive(sid, anyPriorGrantID)` returns false
+    - TestHandleWebServe_ToggleOnEnablesSession: toggle web-serving ON; assert response status is 204 No Content; assert `ws.IsSessionEnabled(sid)` returns true. (Capability issuance is exercised by TestIPCHandlers_CapabilityRoundTrip in task 87-04-02 which hits the dedicated POST /sessions/{id}/capabilities endpoint.)
+    - TestHandleWebServe_ToggleOffClearsGrants: toggle ON then call POST /sessions/{id}/capabilities to issue caps (record GrantIDs), then toggle OFF, then assert `ws.isGrantActive(sid, anyPriorGrantID)` returns false
     - TestOnExit_ClearsGrants (RESEARCH Pitfall 1): simulate session exit; after the 10-second grace (use a 0-second grace for test if possible via injected delay, or use existing test helper pattern), assert grants map is empty for that sid
     - TestStartup_LoadsOrGeneratesSigningKey: start engine with empty config dir; assert capability.key file now exists and WS.signingKey is non-nil
   </behavior>
   <action>
-    1. In `internal/daemon/engine.go`, near the startup sequence (NewSessionEngine or NewAPI — pick the location where `a.webServer` is constructed):
+    1. In `internal/daemon/engine.go` / `internal/daemon/api.go`, near the startup sequence (NewSessionEngine or NewAPI — pick the location where `a.webServer` is constructed):
        - Import `github.com/scottkw/agenthub/internal/capability`.
        - After config dir is known, call: `key, err := capability.LoadOrGenerate(capability.NewFileKeyStore(configDir))` — return error if it fails.
-       - Store `signingKey []byte` on the engine or API struct alongside existing fields.
-       - Add a `JoinCodeManager` to the engine/API: `a.joinCodes = capability.NewJoinCodeManager(5 * time.Minute)` (D-11).
-       - Where WebServer is constructed / `AutoStartWebServer` is called, call `ws.SetSigningKey(key)` BEFORE `ws.Serve()` / listener.Accept — Pitfall 3. Place as a new statement immediately after WebServer construction, before ListenAndServe.
+       - Add `signingKey []byte` and `signingKeyMu sync.RWMutex` fields to the `API` struct definition (not engine). Access uses RLock for reads and Lock for writes. Store `a.signingKey = key` under `a.signingKeyMu.Lock()`.
+       - Add a `JoinCodeManager` to the API: `a.joinCodes = capability.NewJoinCodeManager(5 * time.Minute)` (D-11). Place alongside signingKey on `*API`.
+       - Where WebServer is constructed / `AutoStartWebServer` is called, call BOTH `ws.SetSigningKey(key)` AND `ws.SetJoinCodes(a.joinCodes)` BEFORE `ws.Serve()` / listener.Accept — Pitfall 3. Place both as new statements immediately after WebServer construction, before ListenAndServe. The SetJoinCodes call is what Plan 06's handleJoinExchange depends on.
 
     2. In `internal/daemon/api.go`, in `handleCreateSession` (lines 257-295 per PATTERNS), REMOVE the auto-enable block:
        ```go
@@ -201,31 +205,26 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
        }
        ```
 
-    4. In `internal/daemon/api.go` `handleWebServe` (lines 501-524 per PATTERNS). Split the behavior for Enable vs Disable:
+    4. In `internal/daemon/api.go` `handleWebServe` (lines 501-524 per PATTERNS). Split the behavior for Enable vs Disable. Toggle-on returns 204 No Content (authoritative capability issuance path is the separate POST /sessions/{id}/capabilities endpoint added in task 87-04-02, which Plan 05 calls after toggle-on):
        ```go
        // After decoding req.Enabled and resolving ws:
        if req.Enabled {
            ws.EnableSession(id)
-           readURL, writeURL, readCode, writeCode, err := a.issueCapabilitiesForSession(id)
-           if err != nil {
-               http.Error(w, err.Error(), http.StatusInternalServerError)
-               return
-           }
-           writeJSON(w, http.StatusOK, IssueCapabilitiesResponse{
-               ReadURL: readURL, WriteURL: writeURL,
-               ReadCode: readCode, WriteCode: writeCode,
-           })
+           w.WriteHeader(http.StatusNoContent)
            return
        }
        ws.DisableSession(id)
        ws.ClearGrants(id)  // D-15 permanent grant list clear
        w.WriteHeader(http.StatusNoContent)
        ```
+       The frontend (Plan 05) follows toggle-on with a separate call to `IssueCapabilities(sessionID)` which invokes `handleIssueCapabilities` (defined in task 87-04-02). Keeping body-less is simpler: `DaemonClient.ToggleWebServing` discards the body anyway, so attaching `IssueCapabilitiesResponse` here would be dead weight.
 
     5. Add private helper `issueCapabilitiesForSession` on *API (mirrors RESEARCH Code Example at lines 626-655):
        ```go
        func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, readCode, writeCode string, err error) {
-           key := a.signingKey // set at startup
+           a.signingKeyMu.RLock()
+           key := a.signingKey // set at startup (WARNING #4: field lives on *API, guarded by signingKeyMu)
+           a.signingKeyMu.RUnlock()
            // Generate two 128-bit grant IDs.
            var rgid, wgid [16]byte
            if _, err := rand.Read(rgid[:]); err != nil { return "", "", "", "", err }
@@ -264,7 +263,7 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
     - DO NOT call ws.SetSigningKey AFTER the server starts accepting connections (Pitfall 3)
   </action>
   <verify>
-    <automated>cd /Users/ken/dev/agenthub && go test ./internal/daemon/ -count=1 -v -run 'TestHandleCreateSession_NoAutoEnable|TestHandleWebServe_Toggle|TestOnExit_ClearsGrants|TestStartup_LoadsOrGeneratesSigningKey' 2>&1 | tee /tmp/daemon-cap.log ; ! grep -q FAIL /tmp/daemon-cap.log && ! grep -qE 'EnableSession\(id\)$' internal/daemon/api.go && grep -q 'ClearGrants' internal/daemon/api.go && grep -q 'capability.LoadOrGenerate\|capability.NewFileKeyStore' internal/daemon/engine.go && grep -q 'SetSigningKey' internal/daemon/engine.go && go test ./internal/daemon/ -count=1 2>&1 | tee /tmp/daemon-all.log ; ! grep -q FAIL /tmp/daemon-all.log</automated>
+    <automated>cd /Users/ken/dev/agenthub && go test ./internal/daemon/ -count=1 -v -run 'TestHandleCreateSession_NoAutoEnable|TestHandleWebServe_Toggle|TestOnExit_ClearsGrants|TestStartup_LoadsOrGeneratesSigningKey' 2>&1 | tee /tmp/daemon-cap.log ; ! grep -q FAIL /tmp/daemon-cap.log && ! grep -qE 'EnableSession\(id\)$' internal/daemon/api.go && grep -q 'ClearGrants' internal/daemon/api.go && grep -q 'capability.LoadOrGenerate\|capability.NewFileKeyStore' internal/daemon/api.go internal/daemon/engine.go && grep -q 'SetSigningKey' internal/daemon/api.go internal/daemon/engine.go && grep -q 'SetJoinCodes' internal/daemon/api.go internal/daemon/engine.go && grep -q 'signingKey \[\]byte' internal/daemon/api.go && go test ./internal/daemon/ -count=1 2>&1 | tee /tmp/daemon-all.log ; ! grep -q FAIL /tmp/daemon-all.log</automated>
   </verify>
   <acceptance_criteria>
     - `grep -q "capability.LoadOrGenerate" internal/daemon/engine.go` OR `grep -q "capability.NewFileKeyStore" internal/daemon/engine.go` succeeds
@@ -275,10 +274,12 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
     - `grep -q "AddGrant" internal/daemon/api.go` succeeds
     - `grep -q '"read,write"' internal/daemon/api.go` succeeds (D-07 two caps)
     - TestHandleCreateSession_NoAutoEnable passes
-    - TestHandleWebServe_ToggleOnIssuesCaps passes
+    - TestHandleWebServe_ToggleOnEnablesSession passes
     - TestHandleWebServe_ToggleOffClearsGrants passes
     - TestOnExit_ClearsGrants passes
     - TestStartup_LoadsOrGeneratesSigningKey passes
+    - `grep -q 'signingKey \[\]byte' internal/daemon/api.go` succeeds (WARNING #4: field is on *API, not engine)
+    - `grep -q 'ws.SetJoinCodes' internal/daemon/api.go` succeeds (BLOCKER #2: startup wires SetJoinCodes alongside SetSigningKey)
     - Full daemon suite `go test ./internal/daemon/ -count=1` passes (no regression)
   </acceptance_criteria>
   <done>SEC-01 closed: no auto-enable. Toggle-on issues two caps and registers grants. Toggle-off clears grants. onExit clears grants. Daemon startup loads or generates capability.key and hands key to WebServer before serving.</done>
@@ -361,7 +362,10 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
            case errors.Is(err, capability.ErrCodeNotFound): http.Error(w, "invalid code", http.StatusNotFound); return
            case err != nil: http.Error(w, "internal error", http.StatusInternalServerError); return
            }
-           claims, err := capability.Verify(token, a.signingKey)
+           a.signingKeyMu.RLock()
+           key := a.signingKey
+           a.signingKeyMu.RUnlock()
+           claims, err := capability.Verify(token, key)
            if err != nil { http.Error(w, "internal error", http.StatusInternalServerError); return }
            a.mu.RLock(); ws := a.webServer; a.mu.RUnlock()
            if ws == nil { http.Error(w, "web server not running", http.StatusBadRequest); return }
@@ -374,10 +378,12 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
            if err != nil { http.Error(w, err.Error(), http.StatusInternalServerError); return }
            store := capability.NewFileKeyStore(a.configDir)
            if err := store.Save(newKey); err != nil { http.Error(w, err.Error(), http.StatusInternalServerError); return }
-           a.mu.Lock()
+           a.signingKeyMu.Lock()
            a.signingKey = newKey
+           a.signingKeyMu.Unlock()
+           a.mu.RLock()
            ws := a.webServer
-           a.mu.Unlock()
+           a.mu.RUnlock()
            if ws != nil { ws.SetSigningKey(newKey) }
            // Also clear all grants — all outstanding caps are now invalid anyway,
            // and clearing the maps prevents stale entries from accumulating.
