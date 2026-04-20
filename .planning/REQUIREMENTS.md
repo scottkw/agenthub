@@ -12,7 +12,8 @@
 
 Replaces the tailnet-wide trust model. Sessions become explicitly granted, and both metadata enumeration and PTY access require a server-issued capability.
 
-- [ ] **SEC-01
+- [x] **SEC-01
+
 ** — User can explicitly grant share access to a specific session; the daemon issues a signed, server-scoped capability token bound to that session (no auto-exposure of newly created sessions when the web server is running)
 - [x] **SEC-02
 

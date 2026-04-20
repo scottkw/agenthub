@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Completed 87-03-webserver-enforcement-PLAN.md
-last_updated: "2026-04-20T16:58:26Z"
+stopped_at: Completed 87-04-daemon-api-PLAN.md
+last_updated: "2026-04-20T17:34:11.880Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 6
-  completed_plans: 3
-  percent: 50
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 87 (capability-based-session-authorization) — EXECUTING
-Plan: 4 of 6 (next: 87-04-daemon-api)
-Status: Plans 01-03 complete — capability package landed and wired into webserver. All 9 Wave 0 SEC tests GREEN (SEC-02..SEC-05 implemented at HTTP layer).
-Last activity: 2026-04-20 -- Phase 87 Plan 03 (webserver enforcement) complete
+Plan: 5 of 6 (next: 87-04-daemon-api)
+Status: Ready to execute
+Last activity: 2026-04-20
 
-Progress: [█████░░░░░] 50% (3/6 Phase 87 plans complete)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -65,6 +65,11 @@ Progress: [█████░░░░░] 50% (3/6 Phase 87 plans complete)
 - Phase 87 Plan 03: OriginPatterns ["*"] intentionally retained — Phase 88 handles WebSocket Origin allowlisting; removing it here would front-run Phase 88 scope
 - Phase 87 Plan 03: TestWebServerToggle expects 403 (not 404) post-toggle-off — the cap is structurally valid; the middleware's revoked-path response is 403, not 404. This reflects D-15's "toggle-off revokes, doesn't make the URL a 404" contract
 - Phase 87 Plan 03: TestSessionAccessWithoutAuth was inverted to assert 401 — the pre-Phase-87 "tailnet membership is sufficient" behavior is exactly what SEC-02/SEC-03 remove
+- Phase 87 Plan 04: API owns signing key state (not SessionEngine). Dedicated signingKeyMu RWMutex separates capability hot-path from webServer/localPassword mutex to prevent contention.
+- Phase 87 Plan 04: Toggle-on returns 204 No Content; capabilities are issued via the separate POST /sessions/{id}/capabilities endpoint. DaemonClient.ToggleWebServing discards response body, so attaching IssueCapabilitiesResponse would be dead weight.
+- Phase 87 Plan 04: runSessionExitCleanup extracted out of the 10-sec time.AfterFunc closure so TestOnExit_ClearsGrants can invoke it synchronously via runSessionExitCleanupForTest. Production path unchanged.
+- Phase 87 Plan 04: short-TTL JoinCodeManager (50ms + 200ms sleep) substitutes for capability.SetClockForTest in daemon tests since export_test.go is not accessible across packages.
+- Phase 87 Plan 04: GetCapabilityQRCode encodes the join-code URL (D-09), not the raw capability token URL. Photographing the QR is worthless after 5-minute TTL or first exchange.
 
 ### Pending Todos
 
@@ -79,6 +84,7 @@ Progress: [█████░░░░░] 50% (3/6 Phase 87 plans complete)
 |---|-------------|------|--------|-----------|
 | 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
 | 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
+| Phase 87 P04 | 22min | 2 tasks | 11 files |
 
 ### Plan Execution Metrics
 
@@ -97,8 +103,8 @@ Progress: [█████░░░░░] 50% (3/6 Phase 87 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-20T16:58:26Z
-Stopped at: Completed 87-03-webserver-enforcement-PLAN.md
+Last session: 2026-04-20T17:33:50.732Z
+Stopped at: Completed 87-04-daemon-api-PLAN.md
 Next action: `/gsd:execute-phase 87` to run Plan 04 (daemon API — wire signingKey + joinCodes at startup, issue capabilities on toggle-on, clear grants on toggle-off / session exit, IPC handlers for IssueCapabilities / ExchangeJoinCode / RegenerateSigningKey)
 
 **Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z
