@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Completed 87-02-capability-core-PLAN.md
-last_updated: "2026-04-20T16:46:15.513Z"
+stopped_at: Completed 87-03-webserver-enforcement-PLAN.md
+last_updated: "2026-04-20T16:58:26Z"
 last_activity: 2026-04-20
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
-  percent: 33
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 87 (capability-based-session-authorization) — EXECUTING
-Plan: 3 of 6 (next: 87-03-webserver-enforcement)
-Status: Plans 01-02 complete — capability package landed with 21/21 unit tests GREEN and FuzzVerify 30s clean
-Last activity: 2026-04-20 -- Phase 87 Plan 02 (capability core) complete
+Plan: 4 of 6 (next: 87-04-daemon-api)
+Status: Plans 01-03 complete — capability package landed and wired into webserver. All 9 Wave 0 SEC tests GREEN (SEC-02..SEC-05 implemented at HTTP layer).
+Last activity: 2026-04-20 -- Phase 87 Plan 03 (webserver enforcement) complete
 
-Progress: [███░░░░░░░] 33% (2/6 Phase 87 plans complete)
+Progress: [█████░░░░░] 50% (3/6 Phase 87 plans complete)
 
 ## Performance Metrics
 
@@ -57,6 +57,14 @@ Progress: [███░░░░░░░] 33% (2/6 Phase 87 plans complete)
 - Phase 87 Plan 02: source-grep constant-time regression guard (TestVerify_ConstantTimeComparison reads capability.go and asserts hmac.Equal is present, bytes.Equal literal absent) — forced a doc-comment rewrite but correctly guards against future maintainers replacing hmac.Equal with bytes.Equal
 - Phase 87 Plan 02: SetClockForTest seam lives in export_test.go (only compiled during go test) rather than a production setter — clock injection is hermetically sealed to test builds, production code cannot import the helper
 - Phase 87 Plan 02: JoinCodeManager uses plain sync.Mutex not RWMutex — RWMutex read lock would allow two goroutines to observe the entry before either deletes it, breaking single-use invariant (RESEARCH Pitfall 4); verified by 100-goroutine TestJoinCodeManager_ConcurrentExchangeIsAtomic
+- Phase 87 Plan 03: Middleware shape is func(http.HandlerFunc) http.HandlerFunc (not func(http.Handler) http.Handler) so the wrapper can inspect r.PathValue("id") — critical for SEC-03 session-ID binding inside requireCapability
+- Phase 87 Plan 03: All capability.Verify failure modes collapse to a single 401 body "capability required" — do not distinguish malformed / bad-sig / bad-claims to the caller (T-87-08 information-disclosure defense)
+- Phase 87 Plan 03: requireCapability performs a defense-in-depth check of BOTH isGrantActive AND IsSessionEnabled — either alone is sufficient in the current code path but the redundancy guards against a future code path that touches only one (admin-revoke-without-disable, partial onExit cleanup, etc.)
+- Phase 87 Plan 03: handleListSessions returns zero-or-one items (D-18) — /api/sessions is now a self-describe endpoint rather than an enumeration endpoint. No caller ever receives a list longer than one via HTTPS
+- Phase 87 Plan 03: Subscriber.ReadOnly sourced from claims.Perms == "read" (D-24 / SEC-04) — ?readonly query string is completely removed from the write-gate path
+- Phase 87 Plan 03: OriginPatterns ["*"] intentionally retained — Phase 88 handles WebSocket Origin allowlisting; removing it here would front-run Phase 88 scope
+- Phase 87 Plan 03: TestWebServerToggle expects 403 (not 404) post-toggle-off — the cap is structurally valid; the middleware's revoked-path response is 403, not 404. This reflects D-15's "toggle-off revokes, doesn't make the URL a 404" contract
+- Phase 87 Plan 03: TestSessionAccessWithoutAuth was inverted to assert 401 — the pre-Phase-87 "tailnet membership is sufficient" behavior is exactly what SEC-02/SEC-03 remove
 
 ### Pending Todos
 
@@ -78,6 +86,7 @@ Progress: [███░░░░░░░] 33% (2/6 Phase 87 plans complete)
 |-------|------|----------|-------|-------|---------|
 | 87 | 01 | 8min | 2 | 6 | a35e963, 5ca1f3e |
 | 87 | 02 | 12min | 2 | 10 | dd1c15e, 6d2cf8f |
+| 87 | 03 | 8min | 2 | 5 | 1703ccd, d269e62 |
 
 ### Blockers/Concerns
 
@@ -88,8 +97,8 @@ Progress: [███░░░░░░░] 33% (2/6 Phase 87 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-20T16:46:15.508Z
-Stopped at: Completed 87-02-capability-core-PLAN.md
-Next action: `/gsd:execute-phase 87` to run Plan 03 (webserver enforcement — un-tag phase87_wave2 and add requireCapability middleware + route wiring + relay readonly source)
+Last session: 2026-04-20T16:58:26Z
+Stopped at: Completed 87-03-webserver-enforcement-PLAN.md
+Next action: `/gsd:execute-phase 87` to run Plan 04 (daemon API — wire signingKey + joinCodes at startup, issue capabilities on toggle-on, clear grants on toggle-off / session exit, IPC handlers for IssueCapabilities / ExchangeJoinCode / RegenerateSigningKey)
 
 **Planned Phase:** 87 (capability-based-session-authorization) — 6 plans — 2026-04-20T13:47:57.212Z
