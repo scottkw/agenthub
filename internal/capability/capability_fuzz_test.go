@@ -1,15 +1,8 @@
-//go:build phase87_wave1
-
-// Package capability_test fuzz harness (RED skeleton for Plan 02).
-// Seeded with a single known-good token produced by capability.Sign against a
-// deterministic 32-byte key. The fuzz body calls capability.Verify against
-// arbitrary input and asserts only that no panic occurs — Verify must return
-// an error for malformed/tampered input, never panic.
-//
-// Fuzz entry points cannot be t.Skip'd (the harness discards skipped runs
-// silently, masking regressions). Instead the entire file is guarded by the
-// phase87_wave1 build tag so it is excluded from `go test ./...` until Plan
-// 02 removes the tag and implements Sign/Verify.
+// Package capability_test fuzz harness for capability.Verify. Seeded with a
+// single known-good token produced by capability.Sign against a deterministic
+// 32-byte key. The fuzz body calls capability.Verify against arbitrary input
+// and asserts only that no panic occurs — Verify must return an error for
+// malformed/tampered input, never panic.
 package capability_test
 
 import (

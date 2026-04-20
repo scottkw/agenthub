@@ -1,28 +1,24 @@
-//go:build phase87_wave1
-
-// Package capability_test contains RED skeletons for the capability package
-// (Phase 87, Plan 02). Every test body calls t.Skip("implemented in plan 02")
-// so these files compile once the production package exists but do not yet
-// execute any behavior. The build tag gates the entire file from the default
-// go test command until Plan 02 removes the tag.
+// Package capability_test covers the capability package's Sign/Verify
+// round-trip, tamper detection, wrong-key rejection, malformed-input handling,
+// constant-time comparison sentinel, and Claims context round-trip.
 package capability_test
 
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/scottkw/agenthub/internal/capability"
 )
 
-// testKey returns a deterministic 32-byte key for signing in the skeleton
-// references. Plan 02 un-skips these tests and implements the production
-// symbols referenced here (Sign, Verify, Claims, sentinel errors,
-// WithClaims/ClaimsFromContext). The helper is intentionally unexported.
+// testKey returns a deterministic 32-byte key for signing across tests.
 func testKey() []byte {
 	key := make([]byte, 32)
 	for i := range key {
@@ -34,7 +30,6 @@ func testKey() []byte {
 // TestSign_RoundTrip asserts that a signed token round-trips back to the
 // original claims via Verify when the same key is used.
 func TestSign_RoundTrip(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	claims := capability.Claims{SID: "s1", Perms: "read", IAT: 1, GrantID: "g1", V: 1}
 	tok, err := capability.Sign(claims, testKey())
 	if err != nil {
@@ -52,7 +47,6 @@ func TestSign_RoundTrip(t *testing.T) {
 // TestVerify_RejectsTamperedPayload asserts that flipping a single byte in
 // the base64url(claims) segment causes Verify to return ErrInvalidSignature.
 func TestVerify_RejectsTamperedPayload(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	claims := capability.Claims{SID: "s1", Perms: "read", IAT: 1, GrantID: "g1", V: 1}
 	tok, err := capability.Sign(claims, testKey())
 	if err != nil {
@@ -77,7 +71,6 @@ func TestVerify_RejectsTamperedPayload(t *testing.T) {
 // TestVerify_RejectsTamperedSignature asserts that flipping a single byte in
 // the base64url(sig) segment causes Verify to return ErrInvalidSignature.
 func TestVerify_RejectsTamperedSignature(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	claims := capability.Claims{SID: "s1", Perms: "read", IAT: 1, GrantID: "g1", V: 1}
 	tok, err := capability.Sign(claims, testKey())
 	if err != nil {
@@ -101,7 +94,6 @@ func TestVerify_RejectsTamperedSignature(t *testing.T) {
 // TestVerify_RejectsWrongKey asserts that a token signed with one key fails
 // Verify under a different key.
 func TestVerify_RejectsWrongKey(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	claims := capability.Claims{SID: "s1", Perms: "read", IAT: 1, GrantID: "g1", V: 1}
 	tok, err := capability.Sign(claims, testKey())
 	if err != nil {
@@ -121,9 +113,10 @@ func TestVerify_RejectsWrongKey(t *testing.T) {
 
 // TestVerify_RejectsMalformedTokenSegmentCount asserts that a token missing
 // the "." separator (zero segments) or containing extra separators returns
-// ErrMalformedToken.
+// ErrMalformedToken. The three-segment case ("a.b.c") is rejected because
+// SplitN(..., 2) yields parts[1]="b.c" which fails base64url decode — still
+// an ErrMalformedToken path.
 func TestVerify_RejectsMalformedTokenSegmentCount(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	for _, tok := range []string{"", "no-dot-here", "a.b.c"} {
 		if _, err := capability.Verify(tok, testKey()); !errors.Is(err, capability.ErrMalformedToken) {
 			t.Errorf("Verify(%q): expected ErrMalformedToken, got %v", tok, err)
@@ -134,7 +127,6 @@ func TestVerify_RejectsMalformedTokenSegmentCount(t *testing.T) {
 // TestVerify_RejectsMalformedBase64 asserts that a token with invalid base64url
 // in either segment returns ErrMalformedToken.
 func TestVerify_RejectsMalformedBase64(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	// "!!!" is not valid base64url.
 	for _, tok := range []string{"!!!.aGVsbG8", "aGVsbG8.!!!"} {
 		if _, err := capability.Verify(tok, testKey()); !errors.Is(err, capability.ErrMalformedToken) {
@@ -145,28 +137,45 @@ func TestVerify_RejectsMalformedBase64(t *testing.T) {
 
 // TestVerify_RejectsMalformedClaimsJSON asserts that a token whose payload
 // decodes to non-JSON bytes returns ErrMalformedClaims (after the signature
-// verifies successfully against that payload).
+// verifies successfully against that payload). We build the token by hand:
+// a non-JSON payload is HMAC-signed with the same key, base64url-encoded,
+// and concatenated. Verify's HMAC check passes; the JSON unmarshal fails.
 func TestVerify_RejectsMalformedClaimsJSON(t *testing.T) {
-	t.Skip("implemented in plan 02")
-	// The test harness in Plan 02 will construct a token with non-JSON payload
-	// signed correctly, then assert Verify returns ErrMalformedClaims. This
-	// exercises the path where HMAC matches but JSON unmarshal fails.
-	_ = capability.ErrMalformedClaims
+	key := testKey()
+	payload := []byte("not valid json {{{")
+	mac := hmac.New(sha256.New, key)
+	mac.Write(payload)
+	sig := mac.Sum(nil)
+	tok := base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(sig)
+
+	_, err := capability.Verify(tok, key)
+	if !errors.Is(err, capability.ErrMalformedClaims) {
+		t.Errorf("expected ErrMalformedClaims, got %v", err)
+	}
 }
 
-// TestVerify_ConstantTimeComparison asserts (via source grep or reflect) that
-// Verify uses hmac.Equal for signature comparison rather than bytes.Equal or
-// ==. Plan 02 will satisfy this by using hmac.Equal verbatim per RESEARCH
-// Pattern 1 and Don't-Hand-Roll table.
+// TestVerify_ConstantTimeComparison asserts via source inspection that Verify
+// uses hmac.Equal for signature comparison rather than bytes.Equal or ==.
+// This guards against a subtle regression where timing-side-channel resistance
+// could be removed without any behavioural test failing.
 func TestVerify_ConstantTimeComparison(t *testing.T) {
-	t.Skip("implemented in plan 02")
+	data, err := os.ReadFile("capability.go")
+	if err != nil {
+		t.Fatalf("ReadFile capability.go: %v", err)
+	}
+	src := string(data)
+	if !strings.Contains(src, "hmac.Equal") {
+		t.Error("capability.go must call hmac.Equal for signature comparison")
+	}
+	if strings.Contains(src, "bytes.Equal") {
+		t.Error("capability.go must not use bytes.Equal on signature bytes (timing side channel)")
+	}
 }
 
 // TestClaims_Context_RoundTrip asserts that WithClaims attaches Claims to a
 // context.Context and ClaimsFromContext retrieves them. Zero-value claims and
 // the "not present" path are also covered.
 func TestClaims_Context_RoundTrip(t *testing.T) {
-	t.Skip("implemented in plan 02")
 	ctx := context.Background()
 	if _, ok := capability.ClaimsFromContext(ctx); ok {
 		t.Error("expected ok=false on empty context")
