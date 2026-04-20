@@ -299,6 +299,126 @@ func TestCapability_ValidCapReturnsSession(t *testing.T) {
 	}
 }
 
+// TestEndToEnd_CapabilityFlow wires the full Phase 87 read-only / read-write
+// contract end-to-end against a running WebServer:
+//  1. GET /api/sessions/{id}/info with a read cap returns perms == "read"
+//     (D-19 / D-23 — terminal.html reads this to suppress the caret).
+//  2. GET /api/sessions/{id}/info with a read,write cap returns perms ==
+//     "read,write".
+//  3. GET /dashboard is publicly accessible (no ?cap= required) — it is the
+//     landing page (D-17), not a session-enumeration endpoint.
+//  4. After ClearGrants, the info endpoint returns 403 — mirrors toggle-off
+//     revocation (D-15) across the info endpoint rather than just the
+//     WebSocket upgrade.
+//
+// This is the SEC-04 UI-level regression lock: the browser now has only one
+// input for read-only state (the signed perms claim), and it is server-verified.
+func TestEndToEnd_CapabilityFlow(t *testing.T) {
+	ws, client := testServer(t)
+	ws.SetSigningKey(capTestKey)
+
+	sid := "e2e-sess"
+	ws.EnableSession(sid)
+	ws.SetSessionResolver(func(id string) (string, string, string, string) {
+		if id == sid {
+			return "E2E Session", "claude", "running", "host-e2e"
+		}
+		return id, "", "", ""
+	})
+
+	// Issue a read-only cap and a read,write cap, both bound to sid.
+	roClaims := capability.Claims{
+		SID: sid, Perms: "read", IAT: time.Now().Unix(),
+		GrantID: "grant-ro", V: 1,
+	}
+	rwClaims := capability.Claims{
+		SID: sid, Perms: "read,write", IAT: time.Now().Unix(),
+		GrantID: "grant-rw", V: 1,
+	}
+	roTok, err := capability.Sign(roClaims, capTestKey)
+	if err != nil {
+		t.Fatalf("sign ro: %v", err)
+	}
+	rwTok, err := capability.Sign(rwClaims, capTestKey)
+	if err != nil {
+		t.Fatalf("sign rw: %v", err)
+	}
+	ws.AddGrant(sid, roClaims.GrantID)
+	ws.AddGrant(sid, rwClaims.GrantID)
+
+	// 1. Info endpoint with read cap returns perms == "read".
+	{
+		resp, err := client.Get(ws.BaseURL() + "/api/sessions/" + sid + "/info?cap=" + roTok)
+		if err != nil {
+			t.Fatalf("GET info (ro): %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("info (ro): expected 200, got %d", resp.StatusCode)
+		}
+		var info struct {
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Perms string `json:"perms"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+			t.Fatalf("decode info (ro): %v", err)
+		}
+		if info.Perms != "read" {
+			t.Errorf("info.perms (ro) = %q, want %q", info.Perms, "read")
+		}
+		if info.ID != sid {
+			t.Errorf("info.id (ro) = %q, want %q", info.ID, sid)
+		}
+	}
+
+	// 2. Info endpoint with read,write cap returns perms == "read,write".
+	{
+		resp, err := client.Get(ws.BaseURL() + "/api/sessions/" + sid + "/info?cap=" + rwTok)
+		if err != nil {
+			t.Fatalf("GET info (rw): %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("info (rw): expected 200, got %d", resp.StatusCode)
+		}
+		var info struct {
+			Perms string `json:"perms"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+			t.Fatalf("decode info (rw): %v", err)
+		}
+		if info.Perms != "read,write" {
+			t.Errorf("info.perms (rw) = %q, want %q", info.Perms, "read,write")
+		}
+	}
+
+	// 3. /dashboard is publicly accessible (no ?cap=).
+	{
+		resp, err := client.Get(ws.BaseURL() + "/dashboard")
+		if err != nil {
+			t.Fatalf("GET /dashboard: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("/dashboard: expected 200, got %d", resp.StatusCode)
+		}
+	}
+
+	// 4. ClearGrants revokes access — info endpoint returns 403.
+	ws.ClearGrants(sid)
+	{
+		resp, err := client.Get(ws.BaseURL() + "/api/sessions/" + sid + "/info?cap=" + roTok)
+		if err != nil {
+			t.Fatalf("GET info (revoked): %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("info (revoked): expected 403, got %d", resp.StatusCode)
+		}
+	}
+}
+
 // readPipeMustTimeout asserts that no bytes arrive on r within timeout. The
 // positive signal for a blocked write path is a timeout: if even a single
 // byte reaches the PTY pipe, the server failed to filter the input.
