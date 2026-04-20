@@ -242,7 +242,7 @@ NEVER place requireCapability inside the handler (after websocket.Accept) — up
            "errors"
            "net/http"
 
-           "github.com/kenscott/agenthub/internal/capability" // verify module path via go.mod
+           "github.com/scottkw/agenthub/internal/capability"
        )
 
        // requireCapability returns a middleware that validates the ?cap= query token,

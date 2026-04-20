@@ -156,7 +156,7 @@ func readPipeWithTimeout(t *testing.T, r io.Reader, want string, timeout time.Du
   <action>
     Create FOUR files under `/Users/ken/dev/agenthub/internal/capability/`:
 
-    1. `capability_test.go` — package `capability_test`. Imports: `bytes`, `context`, `crypto/rand`, `encoding/base64`, `errors`, `strings`, `testing`, `github.com/kenscott/agenthub/internal/capability` (verify correct module path via `go.mod` read). Test functions EXACTLY as named in behavior block. Each test body stubbed with `t.Skip("implemented in plan 02")` at top — this lets the file compile as soon as `internal/capability/capability.go` exists (Plan 02), and skip execution until the test body is un-skipped by Plan 02. Declare expected signatures via the imported package.
+    1. `capability_test.go` — package `capability_test`. Imports: `bytes`, `context`, `crypto/rand`, `encoding/base64`, `errors`, `strings`, `testing`, `github.com/scottkw/agenthub/internal/capability`. Test functions EXACTLY as named in behavior block. Each test body stubbed with `t.Skip("implemented in plan 02")` at top — this lets the file compile as soon as `internal/capability/capability.go` exists (Plan 02), and skip execution until the test body is un-skipped by Plan 02. Declare expected signatures via the imported package.
 
     2. `keystore_test.go` — package `capability_test`. Imports: `bytes`, `os`, `path/filepath`, `testing`, capability package. Use `t.TempDir()` per the engine_settings_test.go:11-99 template. Test functions EXACTLY as named. Each body stubbed with `t.Skip("implemented in plan 02")`.
 

@@ -168,7 +168,7 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
   </behavior>
   <action>
     1. In `internal/daemon/engine.go`, near the startup sequence (NewSessionEngine or NewAPI — pick the location where `a.webServer` is constructed):
-       - Import `github.com/kenscott/agenthub/internal/capability` (verify path via go.mod).
+       - Import `github.com/scottkw/agenthub/internal/capability`.
        - After config dir is known, call: `key, err := capability.LoadOrGenerate(capability.NewFileKeyStore(configDir))` — return error if it fails.
        - Store `signingKey []byte` on the engine or API struct alongside existing fields.
        - Add a `JoinCodeManager` to the engine/API: `a.joinCodes = capability.NewJoinCodeManager(5 * time.Minute)` (D-11).
@@ -252,7 +252,7 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
            return
        }
        ```
-       Imports needed: `crypto/rand`, `encoding/hex`, `time`, `github.com/kenscott/agenthub/internal/capability`.
+       Imports needed: `crypto/rand`, `encoding/hex`, `time`, `github.com/scottkw/agenthub/internal/capability`.
 
     6. Add the 5 tests listed under `<behavior>` to `internal/daemon/api_test.go`. Use existing test helpers (`startTestAPI`, etc. — read api_test.go for the idiom). For TestOnExit_ClearsGrants, simulate exit through the existing engine_exit_test.go pattern (injecting a faster grace period if available, or polling for up to 11 seconds).
 
@@ -433,7 +433,7 @@ func (a *App) GetCapabilityQRCode(joinURL string) (string, error) // base64-enco
            return base64.StdEncoding.EncodeToString(png), nil
        }
        ```
-       Imports: `fmt`, `encoding/base64`, `github.com/skip2/go-qrcode`, `github.com/kenscott/agenthub/internal/daemon` — most already imported.
+       Imports: `fmt`, `encoding/base64`, `github.com/skip2/go-qrcode`, `github.com/scottkw/agenthub/internal/daemon` — most already imported.
 
     6. Run Wails binding regeneration. The Wails v2 build system regenerates `frontend/src/wailsjs/go/main/App.d.ts` automatically on build. For this task, just run `go build ./...` to confirm everything compiles. A note in the done line: frontend Plan 05 will run `wails generate module` or equivalent to refresh bindings.
 
