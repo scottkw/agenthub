@@ -1,10 +1,11 @@
 ---
 phase: 87
 slug: capability-based-session-authorization
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-19
+reviewed_at: 2026-04-19
 ---
 
 # Phase 87 — UI Design Contract
