@@ -751,22 +751,22 @@ func TestSecurity_ReadOnlyCapabilityBlocksMsgInput(t *testing.T) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`capability.key` placement in `WebServer` vs `API`**
    - What we know: The signing key is needed by `requireCapability` middleware which runs in `WebServer`. The key is loaded at daemon startup in `NewSessionEngine`/`NewAPI`.
    - What's unclear: Should `WebServer` hold the signing key directly (passed at construction), or should it call back into the API?
-   - Recommendation: Pass `signingKey []byte` as a field in `webserver.Config`. This matches the existing `Config.Password` pattern for local-mode auth. The `API` loads or generates the key, then passes it when constructing the `WebServer`.
+   - RESOLVED: Pass `signingKey []byte` as a field in `webserver.Config`. This matches the existing `Config.Password` pattern for local-mode auth. The `API` loads or generates the key, then passes it when constructing the `WebServer`.
 
 2. **Grant list persistence on daemon restart**
    - What we know: D-14 says the grant list is consulted on every authz check. The context (D-11) says join codes are NOT persisted. The capability tokens themselves survive restart (signing key persisted in `capability.key`). The grant list is currently described as "per-session persisted."
    - What's unclear: Is the grant list in-memory only (cleared on restart) or written to disk? CONTEXT.md says "per-session persisted grant list" — this implies disk persistence.
-   - Recommendation: Persist the grant list to disk in a `grants.json` file (same config dir) using the same atomic write pattern as `settings.json`. On daemon restart, load existing grants. This ensures previously-shared URLs remain valid after restart (satisfying the "survive daemon restart" requirement in the phase goal). If not persisted, daemon restart would silently revoke all outstanding shares even though the signing key is intact — a confusing user experience.
+   - RESOLVED: Persist the grant list to disk in a `grants.json` file (same config dir) using the same atomic write pattern as `settings.json`. On daemon restart, load existing grants. This ensures previously-shared URLs remain valid after restart (satisfying the "survive daemon restart" requirement in the phase goal). If not persisted, daemon restart would silently revoke all outstanding shares even though the signing key is intact — a confusing user experience.
 
 3. **`RegenerateSigningKey` IPC method vs direct WebServer call**
    - What we know: D-16 requires a "Regenerate signing key" button in Settings → Security that triggers through the Wails binding path (frontend → Wails → app.go → daemon client → daemon IPC).
    - What's unclear: The method must (1) generate a new key, (2) overwrite `capability.key`, (3) update the in-memory key in `WebServer`. Does the `WebServer` hold the key or does the `API`?
-   - Recommendation: `WebServer` holds `signingKey []byte` in its struct (guarded by `ws.mu`). Add a `SetSigningKey([]byte)` method. `RegenerateSigningKey` handler generates a new key, saves it, then calls `ws.SetSigningKey(newKey)`. All subsequent `requireCapability` calls use the new key; existing tokens fail verification immediately.
+   - RESOLVED: `WebServer` holds `signingKey []byte` in its struct (guarded by `ws.mu`). Add a `SetSigningKey([]byte)` method. `RegenerateSigningKey` handler generates a new key, saves it, then calls `ws.SetSigningKey(newKey)`. All subsequent `requireCapability` calls use the new key; existing tokens fail verification immediately.
 
 ---
 
