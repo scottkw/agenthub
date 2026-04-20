@@ -64,15 +64,16 @@ Derived from `style.css` measurements; no new sizes introduced in Phase 87.
 | Heading | 16px | 600 | 1.2 | Modal headers (`.new-session-modal__header h2`), daemon panel title |
 | Section header | 13px | 400 uppercase | — | `.settings-panel__body h3` (letter-spacing 0.08em, uppercase) |
 
-Web pages (`/dashboard`, `/join`) use the same `-apple-system` font stack as `web/dashboard.html` already does. Font sizes on web pages:
+Web pages (`/dashboard`, `/join`) use the same `-apple-system` font stack as `web/dashboard.html` already does. Font sizes on web pages (4 sizes total):
 
 | Role | Size | Weight |
 |------|------|--------|
-| Page title `<h1>` | 1.5rem (24px) | 400 |
+| Page title `<h1>` | 1.5rem (~24px) | 400 |
 | Section label `<h2>` | 1.1rem (~18px) | 400 |
-| Body / form labels | 0.9rem (~14px) | 400 |
+| Body / form labels / error / hint text | 0.9rem (~14px) | 400 |
 | Code / join code display | 1.4rem (~22px) | 600 (monospace, high legibility for dictation) |
-| Error / hint text | 0.85rem (~13.5px) | 400 |
+
+Note: error/hint text uses 0.9rem — same as body labels. Both serve supporting text roles and are merged to keep the web-page scale at 4 sizes. Differentiate error states through color (`#f7768e`) rather than a distinct size.
 
 ---
 
@@ -98,7 +99,7 @@ All values drawn from the existing Tokyo Night palette in `style.css`. No new co
 | Text disabled | `#414868` | Placeholder text in inputs |
 
 **Accent (`#7aa2f7`) is reserved for:**
-- Primary CTA buttons (fill background): "Copy Read-Only Link", "Copy Full Access Link", "Join" (on `/join` page), "Enable Web Serving" when off
+- Primary CTA buttons (fill background): "Copy Read-Only Link", "Copy Full Access Link", "Join Session" (on `/join` page and `/dashboard`), "Enable Web Serving" when off
 - Active/selected toggle track (fill)
 - Focus ring on form inputs (`border-color`)
 - Link text for URLs and navigation items
@@ -123,6 +124,8 @@ All five UI surfaces introduced in Phase 87, with their exact placement and cons
 
 **Trigger:** The existing "Enable" / "Disable" web serving toggle on the session row. When toggled ON, the daemon now issues two capability URLs (D-06, D-07). The share panel appears below (or inline with) the session row.
 
+**Primary visual anchor:** The capability URL text rendered in accent `#7aa2f7` is the primary visual anchor in this panel, visually dominant over the "Read-Only Link" / "Full Access Link" labels (which are rendered in subdued `#a9b1d6`). This hierarchy guides the user's eye to the shareable artifact immediately.
+
 **Layout:** Two equal-weight link rows. Each row contains:
 - A label: "Read-Only Link" or "Full Access Link" (weight 600, 13px, `#a9b1d6`)
 - A truncated URL (flex-1, `#7aa2f7`, ellipsis overflow)
@@ -137,7 +140,7 @@ All five UI surfaces introduced in Phase 87, with their exact placement and cons
 **Empty / not-yet-enabled state:** No share panel visible. The existing "Enable" button is the only affordance. No auto-share (D-06 removes auto-enable).
 
 **CSS block:** `.session-share-panel` (new BEM block). Inner elements:
-- `.session-share-panel__link-row` — flex row, align-items center, gap 8px, padding 6px 0
+- `.session-share-panel__link-row` — flex row, align-items center, gap 8px, padding 8px 0
 - `.session-share-panel__label` — 13px, 600 weight, `#a9b1d6`, min-width 120px, flex-shrink 0
 - `.session-share-panel__url` — flex 1, 12px, `#7aa2f7`, overflow hidden, text-overflow ellipsis
 - `.session-share-panel__actions` — flex row, gap 4px, flex-shrink 0
@@ -165,7 +168,7 @@ Modal structure (reuses `.quit-modal` CSS pattern):
 - Header: "Regenerate Signing Key?" (16px, 600 weight, `#c0caf5`)
 - Body copy: "This immediately invalidates ALL shared links across ALL sessions. Anyone currently using a shared terminal will be disconnected. You will need to re-share sessions to give access again." (13px, 400, `#a9b1d6`, line-height 1.5)
 - Footer buttons:
-  - "Cancel" — `.quit-modal__btn--cancel` style (transparent bg, border `#292e42`)
+  - "Keep Links" — `.quit-modal__btn--cancel` style (transparent bg, border `#292e42`); communicates the outcome of not proceeding — existing links are preserved
   - "Invalidate All Links" — `.quit-modal__btn--quit-all` style (background `#f7768e`, `#1a1b26` text, 600 weight)
 
 **Loading state:** After the user clicks "Invalidate All Links", the button label changes to "Invalidating…" and both footer buttons are disabled until the RPC resolves. On success, the modal closes. On failure, an inline error appears above the footer buttons.
@@ -193,13 +196,13 @@ Modal structure (reuses `.quit-modal` CSS pattern):
 6. Join-code input form:
    - `<label for="code">Join Code</label>` — 0.9rem, `#a9b1d6`
    - `<input id="code" type="text" placeholder="A7K-4P2N" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false" />` — monospace font, 1.4rem, `#c0caf5`, background `#1e2030`, border `1px solid #292e42`, border-radius 4px, padding 0.6rem 1rem, width 200px
-   - `<button type="submit">Join</button>` — accent fill (`#7aa2f7`), `#1a1b26` text, 600 weight, matching existing dashboard button style
-7. QR hint — `<p>On mobile? Scan the QR code to auto-fill the code and open this page.</p>` — 0.85rem, `#565f89` (muted), italic
+   - `<button type="submit">Join Session</button>` — accent fill (`#7aa2f7`), `#1a1b26` text, 600 weight, matching existing dashboard button style
+7. QR hint — `<p>On mobile? Scan the QR code to auto-fill the code and open this page.</p>` — 0.9rem, `#565f89` (muted), italic
 
 **No session list on this page** (D-17). The existing session-listing JS is removed entirely.
 
 **Form behavior (vanilla JS):**
-- On submit: navigate to `/join?code=<value>` (GET redirect to the `/join` page with code pre-filled). Do not POST from this form — the `/join` page handles presentation and the actual exchange is triggered by the "Join" button on `/join`.
+- On submit: navigate to `/join?code=<value>` (GET redirect to the `/join` page with code pre-filled). Do not POST from this form — the `/join` page handles presentation and the actual exchange is triggered by the "Join Session" button on `/join`.
 - Input auto-formatting: as user types, insert dash after 4th character automatically. Strip non-base32 characters (A–Z, 2–7 only after alpha normalization). Max 8 alphanumeric chars + 1 dash = 9 visible chars. Force uppercase.
 
 **CSS:** Inline `<style>` block. Same color palette as existing `web/dashboard.html`. Background `#1a1b26`, body text `#c0caf5`, button `#7aa2f7`. Width-constrained container: `max-width: 480px; margin: 0 auto; padding: 2rem 1rem`.
@@ -228,7 +231,7 @@ Content layout:
 6. `<button class="join-btn">Join Session</button>` — accent fill, same style as dashboard submit button, full-width within container
 7. Join code display: `<p class="join-code-display">Code: A7K-4P2N</p>` — monospace, 1.4rem, `#c0caf5`, letter-spacing 0.1em (for readability/dictation)
 
-**On "Join" click:** POST to `/join/exchange` with `code` in body (or GET to the exchange endpoint). On success, server redirects to `/sessions/{id}?cap=<token>`. The client simply follows the redirect — no client-side JS needed for the exchange beyond a `<form>` POST or a fetch+redirect.
+**On "Join Session" click:** POST to `/join/exchange` with `code` in body (or GET to the exchange endpoint). On success, server redirects to `/sessions/{id}?cap=<token>`. The client simply follows the redirect — no client-side JS needed for the exchange beyond a `<form>` POST or a fetch+redirect.
 
 #### State B — Code absent (user navigated to `/join` without a code)
 Show the join-code input form identical to the `/dashboard` form (enter code manually), plus the text: "Enter a join code to continue." No error styling — this is a normal entry path.
@@ -304,7 +307,7 @@ The `?readonly=1` query parameter is removed as a mechanism (D-23). Read-only st
 | Regenerate key button | "Regenerate Signing Key" |
 | Confirmation modal title | "Regenerate Signing Key?" |
 | Confirmation modal body | "This immediately invalidates ALL shared links across ALL sessions. Anyone currently using a shared terminal will be disconnected. You will need to re-share sessions to give access again." |
-| Confirmation modal cancel | "Cancel" |
+| Confirmation modal dismiss | "Keep Links" |
 | Confirmation modal confirm | "Invalidate All Links" |
 | Confirmation modal in-flight | "Invalidating…" (button label while RPC in flight) |
 | Dashboard page title | "AgentHub" |
@@ -312,7 +315,7 @@ The `?readonly=1` query parameter is removed as a mechanism (D-23). Read-only st
 | Dashboard section header | "Join a Shared Session" |
 | Dashboard instruction | "Enter the join code from the person sharing their session, or scan the QR code they shared with your mobile device." |
 | Dashboard input placeholder | "A7K-4P2N" |
-| Dashboard submit button | "Join" |
+| Dashboard submit button | "Join Session" |
 | Dashboard QR hint | "On mobile? Scan the QR code to auto-fill the code and open this page." |
 | Join page — session header | "Join Session" |
 | Join page — intent copy | "You are about to join a shared terminal session. Tap Join to open it." |
@@ -348,16 +351,16 @@ The `?readonly=1` query parameter is removed as a mechanism (D-23). Read-only st
 | Interaction | Trigger | Outcome |
 |-------------|---------|---------|
 | Open confirmation | Click "Regenerate Signing Key" | Confirmation modal opens |
-| Cancel | Click "Cancel" in modal | Modal closes; no RPC fired |
+| Dismiss | Click "Keep Links" in modal | Modal closes; no RPC fired |
+| Dismiss via keyboard | Escape | Modal closes (same as "Keep Links") |
 | Confirm | Click "Invalidate All Links" | Both buttons disabled; label → "Invalidating…"; RPC fires; on success modal closes; on failure error shown in modal |
-| Key press | Escape | Modal closes (Cancel behavior) |
 
 ### Join Code Input (dashboard + join page)
 
 | Interaction | Trigger | Outcome |
 |-------------|---------|---------|
 | Type a character | Keypress in code input | Auto-uppercase; insert dash after 4th char; reject non-base32 chars |
-| Submit | Click "Join" or Enter | Navigate to `/join?code=<value>` |
+| Submit | Click "Join Session" or Enter | Navigate to `/join?code=<value>` |
 | Paste | Paste event | Auto-format pasted value (strip dashes, reformat as XXXX-XXXX, uppercase) |
 
 ### Terminal Page Read-Only Enforcement
@@ -399,7 +402,7 @@ New CSS in `web/join.html` and `web/dashboard.html`:
 | shadcn official | none | not applicable — project does not use shadcn |
 | third-party | none | not required — no third-party component registries used |
 
-No new npm packages required. `@heroicons/react` already installed. `skip2/go-qrcode` already in the Go module (no change to QR encoding library). All capability token operations use Go stdlib only.
+No new npm packages required. `@heroicons/react` already installed. `skip2/go-qrcode` already in use for QR encoding at `internal/webserver/server.go:371`. QR contents change (D-09) but the encoder stays. All capability token operations use Go stdlib only.
 
 ---
 
