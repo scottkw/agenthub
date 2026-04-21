@@ -9,9 +9,7 @@ function renderStatusBar(props: Partial<StatusBarProps> = {}) {
     sessionId: 'test-session',
     webServerRunning: false,
     webEnabled: false,
-    sessionURL: undefined,
     onToggleWeb: vi.fn(),
-    onShowQR: vi.fn(),
   }
   const merged = { ...defaults, ...props }
   const container = document.createElement('div')
@@ -59,38 +57,27 @@ describe('StatusBar', () => {
   })
 
   it('shows .tab-status-bar__state--on with text "WEB ON" when webServerRunning=true, webEnabled=true', () => {
-    ;({ container, root } = renderStatusBar({
-      webServerRunning: true,
-      webEnabled: true,
-      sessionURL: 'https://example.com/session',
-    }))
+    ;({ container, root } = renderStatusBar({ webServerRunning: true, webEnabled: true }))
     const badge = container.querySelector('.tab-status-bar__state--on')
     expect(badge).not.toBeNull()
     expect(badge?.textContent).toBe('WEB ON')
   })
 
-  it('shows URL link with .tab-status-bar__url when web enabled and sessionURL provided', () => {
-    ;({ container, root } = renderStatusBar({
-      webServerRunning: true,
-      webEnabled: true,
-      sessionURL: 'https://example.com/session',
-    }))
-    const link = container.querySelector('.tab-status-bar__url')
-    expect(link).not.toBeNull()
-    expect(link?.textContent).toBe('https://example.com/session')
+  it('shows hint pointing to Sessions tab when web enabled (Phase 87 cleanup)', () => {
+    ;({ container, root } = renderStatusBar({ webServerRunning: true, webEnabled: true }))
+    const hint = container.querySelector('.tab-status-bar__hint')
+    expect(hint).not.toBeNull()
+    expect(hint?.textContent).toBe('Share links are on the Sessions tab')
   })
 
-  it('shows "Disable Web" and "QR" buttons (no "Copy Link") when web enabled', () => {
-    ;({ container, root } = renderStatusBar({
-      webServerRunning: true,
-      webEnabled: true,
-      sessionURL: 'https://example.com/session',
-    }))
+  it('does NOT render a raw session URL or QR button when web enabled (Phase 87 cleanup)', () => {
+    ;({ container, root } = renderStatusBar({ webServerRunning: true, webEnabled: true }))
+    expect(container.querySelector('.tab-status-bar__url')).toBeNull()
     const buttons = container.querySelectorAll('button')
     const buttonTexts = Array.from(buttons).map((b) => b.textContent)
-    expect(buttonTexts).toContain('Disable Web')
+    expect(buttonTexts).not.toContain('QR')
     expect(buttonTexts).not.toContain('Copy Link')
-    expect(buttonTexts).toContain('QR')
+    expect(buttonTexts).toContain('Disable Web')
   })
 
   it('calls onToggleWeb when Enable Web button clicked', () => {
@@ -112,7 +99,6 @@ describe('StatusBar', () => {
     ;({ container, root } = renderStatusBar({
       webServerRunning: true,
       webEnabled: true,
-      sessionURL: 'https://example.com/session',
       onToggleWeb,
     }))
     const buttons = container.querySelectorAll('button')

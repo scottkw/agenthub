@@ -13,7 +13,6 @@ import {
   DetectCLIs,
   GetRelayPort,
   ToggleWebServing,
-  GetWebServerURL,
   IsWebServerRunning,
   GetSessionStatus,
   GetTailscaleStatus,
@@ -29,7 +28,6 @@ import {
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
-import { QRModal } from './components/QRModal'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { WelcomeTab } from './components/WelcomeTab'
@@ -65,8 +63,6 @@ function App(): React.ReactElement {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
   // Track web serving state per session: sessionId -> enabled
   const [webEnabled, setWebEnabled] = useState<Record<string, boolean>>({})
-  // Track per-session web URLs (populated when web serving is enabled)
-  const [sessionURLs, setSessionURLs] = useState<Record<string, string>>({})
   // Track web server running state
   const [webServerRunning, setWebServerRunning] = useState(false)
   // Track web server mode: 'tailscale' | 'local' | null
@@ -74,7 +70,6 @@ function App(): React.ReactElement {
   // Track live status per session: sessionId -> status string
   const [sessionStatuses, setSessionStatuses] = useState<Record<string, string>>({})
   // Track which session's QR modal is open (null = none)
-  const [qrSessionId, setQrSessionId] = useState<string | null>(null)
   // Track font size per session: sessionId -> fontSize (pixels)
   const [fontSizes, setFontSizes] = useState<Record<string, number>>({})
   // Tailscale health state
@@ -234,23 +229,13 @@ function App(): React.ReactElement {
           // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
           if (running) {
             const enabledMap: Record<string, boolean> = {}
-            const urlMap: Record<string, string> = {}
-            let serverURL: string | undefined
-            try {
-              serverURL = await GetWebServerURL()
-            } catch (_) { /* ignore */ }
-
             sessions.forEach((s) => {
               if (s.webEnabled) {
                 enabledMap[s.id] = true
-                if (serverURL) {
-                  urlMap[s.id] = `${serverURL}/sessions/${s.id}`
-                }
               }
             })
             if (Object.keys(enabledMap).length > 0) {
               setWebEnabled(enabledMap)
-              setSessionURLs(urlMap)
             }
           }
         }
@@ -492,7 +477,6 @@ function App(): React.ReactElement {
     if (webEnabled[id] && !sessionExits[id]) {
       try { await ToggleWebServing(id, false) } catch (_) { /* ignore */ }
       setWebEnabled((prev) => { const n = { ...prev }; delete n[id]; return n })
-      setSessionURLs((prev) => { const n = { ...prev }; delete n[id]; return n })
     }
     try {
       await KillSession(id)
@@ -513,8 +497,6 @@ function App(): React.ReactElement {
     setSessionStatuses((prev) => { const n = { ...prev }; delete n[id]; return n })
     // Clean up font size for the closed session.
     setFontSizes((prev) => { const n = { ...prev }; delete n[id]; return n })
-    // Close QR modal if it was open for this session.
-    setQrSessionId((prev) => (prev === id ? null : prev))
     // Clean up exit state and countdown timer (Phase 84)
     if (countdownTimers.current[id]) {
       clearInterval(countdownTimers.current[id])
@@ -541,17 +523,6 @@ function App(): React.ReactElement {
     try {
       await ToggleWebServing(sessionId, nowEnabled)
       setWebEnabled((prev) => ({ ...prev, [sessionId]: nowEnabled }))
-      if (nowEnabled) {
-        const url = await GetWebServerURL()
-        if (url) {
-          setSessionURLs((prev) => ({
-            ...prev,
-            [sessionId]: `${url}/sessions/${sessionId}`,
-          }))
-        }
-      } else {
-        setSessionURLs((prev) => { const n = { ...prev }; delete n[sessionId]; return n })
-      }
     } catch (err) {
       console.warn('[App] ToggleWebServing failed:', err)
     }
@@ -734,23 +705,13 @@ function App(): React.ReactElement {
         // Seed webEnabled state from daemon's SessionInfo.webEnabled field (SERVE-02 restore).
         if (running) {
           const enabledMap: Record<string, boolean> = {}
-          const urlMap: Record<string, string> = {}
-          let serverURL: string | undefined
-          try {
-            serverURL = await GetWebServerURL()
-          } catch (_) { /* ignore */ }
-
           sessions.forEach((s) => {
             if (s.webEnabled) {
               enabledMap[s.id] = true
-              if (serverURL) {
-                urlMap[s.id] = `${serverURL}/sessions/${s.id}`
-              }
             }
           })
           if (Object.keys(enabledMap).length > 0) {
             setWebEnabled(enabledMap)
-            setSessionURLs(urlMap)
           }
         }
       }
@@ -918,9 +879,7 @@ function App(): React.ReactElement {
                   sessionId={tab.sessionId}
                   webServerRunning={webServerRunning}
                   webEnabled={!!webEnabled[tab.sessionId]}
-                  sessionURL={sessionURLs[tab.sessionId]}
                   onToggleWeb={() => void handleToggleWeb(tab.sessionId)}
-                  onShowQR={() => setQrSessionId(tab.sessionId)}
                 />
               </div>
             )
@@ -941,13 +900,6 @@ function App(): React.ReactElement {
         />
       )}
 
-      {qrSessionId !== null && (
-        <QRModal
-          sessionId={qrSessionId}
-          sessionURL={sessionURLs[qrSessionId]}
-          onClose={() => setQrSessionId(null)}
-        />
-      )}
       {showQuitModal && (
         <QuitConfirmModal
           isOpen={showQuitModal}

@@ -575,26 +575,6 @@ func (a *App) IsWebServerRunning() bool {
 	return resp.Running
 }
 
-// GetSessionQRCode generates a QR code for the web-served session URL and
-// returns it as a base64-encoded PNG string. The QR encodes the session URL
-// (https://bindIP:port/sessions/{id}). Returns an error if the web server is
-// not running.
-func (a *App) GetSessionQRCode(sessionID string) (string, error) {
-	if a.client == nil {
-		return "", fmt.Errorf("daemon not connected")
-	}
-	resp, err := a.client.GetWebServerStatus()
-	if err != nil || !resp.Running {
-		return "", fmt.Errorf("web server not running")
-	}
-	url := fmt.Sprintf("%s/sessions/%s", resp.URL, sessionID)
-	png, err := qrcode.Encode(url, qrcode.Medium, 256)
-	if err != nil {
-		return "", fmt.Errorf("GetSessionQRCode: encode: %w", err)
-	}
-	return base64.StdEncoding.EncodeToString(png), nil
-}
-
 // GetWebServerQRCode returns a base64-encoded PNG QR code for the web server dashboard URL.
 // Returns an error if the daemon is disconnected or the web server is not running.
 func (a *App) GetWebServerQRCode() (string, error) {

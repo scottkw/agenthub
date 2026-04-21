@@ -331,51 +331,6 @@ func selfSignedTLSForAppTest(t *testing.T) *tls.Config {
 	return &tls.Config{Certificates: []tls.Certificate{cert}}
 }
 
-func TestGetSessionQRCode(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("HOME", dir)
-
-	// Use testAppWithDirectWebServer to bypass the Tailscale prerequisite.
-	// The daemon API does not accept TLS config via its HTTP route, so we use
-	// SetWebServerForTest to inject a running web server directly.
-	tlsCfg := selfSignedTLSForAppTest(t)
-	app, startWebServer := testAppWithDirectWebServer(t, tlsCfg)
-
-	if err := startWebServer("test-session-id"); err != nil {
-		t.Fatalf("startWebServer: %v", err)
-	}
-
-	// GetSessionQRCode should return a non-empty base64 string.
-	b64, err := app.GetSessionQRCode("test-session-id")
-	if err != nil {
-		t.Fatalf("GetSessionQRCode: %v", err)
-	}
-	if b64 == "" {
-		t.Fatal("GetSessionQRCode returned empty string")
-	}
-
-	// Decode base64 and verify PNG magic bytes (\x89PNG).
-	pngBytes, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil {
-		t.Fatalf("base64 decode: %v", err)
-	}
-	if len(pngBytes) < 4 {
-		t.Fatalf("decoded PNG too short: %d bytes", len(pngBytes))
-	}
-	if pngBytes[0] != 0x89 || pngBytes[1] != 'P' || pngBytes[2] != 'N' || pngBytes[3] != 'G' {
-		t.Errorf("expected PNG magic bytes, got %v", pngBytes[:4])
-	}
-}
-
-func TestGetSessionQRCode_NoServer(t *testing.T) {
-	app := testApp(t)
-	// web server is not running — should return an error.
-	_, err := app.GetSessionQRCode("any-id")
-	if err == nil {
-		t.Error("expected GetSessionQRCode to return error when web server is not running")
-	}
-}
-
 func TestGetWebServerQRCode(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)

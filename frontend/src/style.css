@@ -282,18 +282,15 @@ body {
 .tab-status-bar__state--off    { color: #9aa5ce; }
 .tab-status-bar__state--inactive { color: #414868; }
 
-.tab-status-bar__url {
+.tab-status-bar__hint {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #7aa2f7;
+  color: #545c7e;
   font-size: 12px;
-  text-decoration: none;
+  font-style: italic;
   min-width: 0;
-}
-.tab-status-bar__url:hover {
-  text-decoration: underline;
 }
 
 .tab-status-bar__btn {
