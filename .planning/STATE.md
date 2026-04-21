@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Completed 87-06-web-pages-integration-PLAN.md (all 6 plans complete; awaiting verification)
-last_updated: "2026-04-20T18:20:00.000Z"
-last_activity: 2026-04-20
+stopped_at: Phase 87 UAT complete (5/5 manual UAT items PASS; 3 UI findings fixed mid-run)
+last_updated: "2026-04-21T14:45:00.000Z"
+last_activity: 2026-04-21
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 6
+  completed_plans: 6
+  percent: 25
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Phase: 87 (capability-based-session-authorization) — ALL PLANS COMPLETE
+Phase: 87 (capability-based-session-authorization) — COMPLETE + UAT PASSED
 Plan: 6 of 6 (last: 87-06-web-pages-integration)
-Status: Awaiting verification (`/gsd:verify-work 87`)
-Last activity: 2026-04-20
+Status: Verification passed (automated 5/5 + manual UAT 5/5)
+Last activity: 2026-04-21
 
-Progress: [██████████] 100% (6/6 plans)
+Progress: [██████████] 100% (6/6 plans; v3.1 milestone 25% — 1/4 phases complete)
 
 ## Performance Metrics
 
