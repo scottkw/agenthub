@@ -455,16 +455,11 @@ function App(): React.ReactElement {
       setTabs((prev) => [...prev, tab])
       setActiveId(sessionId)
 
-      // Auto-seed webEnabled state for new sessions when web server is running (SERVE-02).
-      if (webServerRunning) {
-        setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
-        try {
-          const url = await GetWebServerURL()
-          if (url) {
-            setSessionURLs((prev) => ({ ...prev, [sessionId]: `${url}/sessions/${sessionId}` }))
-          }
-        } catch (_) { /* URL fetch failure is non-fatal */ }
-      }
+      // SEC-01 / D-06: new sessions start with web-sharing OFF. The user must
+      // explicitly toggle web on to share. The daemon enforces this at the
+      // handleCreateSession layer (TestHandleCreateSession_NoAutoEnable); the
+      // previous auto-seed here created a UI-daemon state mismatch that made
+      // the Sessions tab show bogus "WEB ON" state with broken URLs.
     } catch (err) {
       console.error('[App] CreateSession failed:', err)
     }
