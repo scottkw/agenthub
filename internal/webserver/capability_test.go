@@ -102,10 +102,14 @@ func TestSecurity_ReadOnlyParamCannotGrantWrite(t *testing.T) {
 	token := issueCapFor(t, ws, "sess-ro", "read")
 
 	// Dial with ?readonly=0 (explicit attempt to override) and the read cap.
+	// Phase 88: set Origin header to ws.BaseURL() so the requireAllowedOrigin
+	// middleware passes — only the write-gate assertion is the focus here.
+	headers := http.Header{}
+	headers.Set("Origin", ws.BaseURL())
 	conn := dialWebServerWS(t, client,
 		ws.BaseURL(),
 		"/sessions/sess-ro/ws?cap="+token+"&readonly=0",
-		nil,
+		headers,
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -128,10 +132,13 @@ func TestSecurity_ReadOnlyCapabilityBlocksMsgInput(t *testing.T) {
 	ws.SetSigningKey(capTestKey)
 	token := issueCapFor(t, ws, "sess-block", "read")
 
+	// Phase 88: set Origin header so requireAllowedOrigin passes.
+	headers := http.Header{}
+	headers.Set("Origin", ws.BaseURL())
 	conn := dialWebServerWS(t, client,
 		ws.BaseURL(),
 		"/sessions/sess-block/ws?cap="+token,
-		nil,
+		headers,
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -153,10 +160,13 @@ func TestSecurity_ReconnectWithoutReadonlyStillBlocked(t *testing.T) {
 	token := issueCapFor(t, ws, "sess-reconnect", "read")
 
 	// Intentionally omit any ?readonly= parameter.
+	// Phase 88: set Origin header so requireAllowedOrigin passes.
+	headers := http.Header{}
+	headers.Set("Origin", ws.BaseURL())
 	conn := dialWebServerWS(t, client,
 		ws.BaseURL(),
 		"/sessions/sess-reconnect/ws?cap="+token,
-		nil,
+		headers,
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

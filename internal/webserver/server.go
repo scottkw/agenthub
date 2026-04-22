@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/capability"
 	"github.com/scottkw/agenthub/internal/relay"
 	webfs "github.com/scottkw/agenthub/web"
-	"github.com/coder/websocket"
 	qrcode "github.com/skip2/go-qrcode"
 	"tailscale.com/client/local"
 )
@@ -390,10 +390,14 @@ func (ws *WebServer) setupRoutes() {
 	// lookup already implies web-enabled (grants are cleared on toggle-off).
 	mux.HandleFunc("GET /sessions/{id}", ws.requireCapability(ws.handleTerminalPage))
 
-	// GET /sessions/{id}/ws — capability-gated WebSocket upgrade. The
-	// wrapper MUST sit OUTSIDE the handler so the 401/403 lands before
-	// websocket.Accept commits the 101 response (RESEARCH Pitfall 5).
-	mux.HandleFunc("GET /sessions/{id}/ws", ws.requireCapability(ws.handleWSSRelay))
+	// GET /sessions/{id}/ws — Origin allowlist + capability-gated WebSocket
+	// upgrade. Phase 88 (D-10) wraps requireAllowedOrigin OUTSIDE
+	// requireCapability so a cross-site Origin is rejected BEFORE any HMAC
+	// verification work runs. The wrapper ordering matches composition
+	// outermost->innermost: basicAuth (local only) -> requireAllowedOrigin
+	// -> requireCapability -> handleWSSRelay.
+	mux.HandleFunc("GET /sessions/{id}/ws",
+		ws.requireAllowedOrigin(ws.requireCapability(ws.handleWSSRelay)))
 
 	// GET /api/sessions/{id}/qr — serves QR code PNG. Open because the QR
 	// encodes the capability-bearing URL; the cap itself lives in the URL.
@@ -625,11 +629,16 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// Phase 87: requireCapability has already verified the cap and
-		// authorized this upgrade. Origin allowlist arrives in Phase 88
-		// (WebSocket Handshake Security) — OriginPatterns stays permissive
-		// here to avoid double-scoping the Phase 88 work.
-		OriginPatterns: []string{"*"},
+		// Phase 88 (D-12) belt-and-suspenders: the requireAllowedOrigin
+		// middleware already rejected wrong-Origin requests with 403
+		// before we got here. Setting OriginPatterns to the same strict
+		// allowlist ensures the library-layer check ALSO rejects if a
+		// future route-wiring change ever bypasses the middleware.
+		// ws.allowedOrigins() returns []string{ws.BaseURL()} — the
+		// library does a case-insensitive path.Match against
+		// u.Scheme+"://"+u.Host when the pattern contains "://", which
+		// matches our canonical BaseURL form exactly.
+		OriginPatterns: ws.allowedOrigins(),
 	})
 	if err != nil {
 		return
