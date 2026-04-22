@@ -5,6 +5,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: 2026-04-22
+updated: 2026-04-22
 ---
 
 # Phase 89 — Validation Strategy
@@ -36,26 +37,34 @@ created: 2026-04-22
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 89-01-* | 01 | 1 | SEC-07 | D-02/D-04/D-20 | xterm assets present under web/vendor/xterm; VERSION file matches pnpm-lock | unit | `go test ./internal/webserver -run TestVendorVersionDrift` | ❌ W0 | ⬜ pending |
-| 89-02-* | 02 | 1 | SEC-07/SEC-08 | D-06/D-07 | No inline script/style in the three HTML pages | unit | `go test ./internal/webserver -run TestNoInlineScriptOrStyle` | ❌ W0 | ⬜ pending |
-| 89-03-* | 03 | 2 | SEC-07 | D-08/D-14 | /assets/* serves xterm.js, xterm.css, addon-fit.js, terminal.js etc. with 200+correct Content-Type | integration | `go test ./internal/webserver -run TestAssetsRoute` | ❌ W0 | ⬜ pending |
-| 89-04-* | 04 | 2 | SEC-08 | D-09/D-10/D-13 | CSP header present on /sessions/{id}, /dashboard, /join with connect-src 'self' wss://host | integration | `go test ./internal/webserver -run TestCSPHeaderStrict` | ❌ W0 | ⬜ pending |
-| 89-05-* | 05 | 2 | SEC-07 | D-17 | Source-grep regression guard: no cdn.jsdelivr, no unpkg, no ://cdn., no cross-origin http(s) in src/href | unit | `go test ./internal/webserver -run TestNoCDNReferences` | ❌ W0 | ⬜ pending |
-| 89-06-* | 06 | 3 | SEC-08 | D-19 | Real browser loads three pages with zero CSP violations | e2e | `go test -tags=e2e ./internal/webserver -run TestBrowserNoCSPViolations` | ❌ W0 | ⬜ pending |
+Test names in this table are the GROUND TRUTH from the five plan files. Plans are authoritative; VALIDATION.md follows.
+
+| Task Family | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
+|-------------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+| vendor-drift | 89-01 | 1 | SEC-07 | T-89-02/T-89-05 | xterm assets present under web/vendor/xterm (D-01/D-02); VERSION file matches pnpm-lock | unit | `go test ./internal/webserver/ -run TestXtermVendorVersionsMatchPnpmLock` | ❌ W0 | ⬜ pending |
+| html-extraction | 89-02 | 1 | SEC-07/SEC-08 | T-89-01/T-89-02 | No inline script/style in the three HTML pages; /assets/xterm/* URL refs replace cdn.jsdelivr.net | unit | `go test ./internal/webserver/ -run TestSecurity_NoInlineScriptOrStyleInHTML` (see Plan 04 Task 5 — the source-grep regression validates Plan 02's output) | ❌ W0 | ⬜ pending |
+| csp-middleware | 89-03 | 1 | SEC-08 | T-89-01/T-89-03/T-89-06 | cspHeaders middleware sets Content-Security-Policy + Cache-Control: no-store; fails closed on empty BaseURL; no unsafe-* tokens | unit | `go test ./internal/webserver/ -run TestCSPHeaders` (8 tests: HeaderSet, RequiredTokens, NoUnsafeTokens, WSSComposition, NoWildcardOutsideDataScheme, CacheControlNoStore, CallsNext, FailsClosedOnEmptyBaseURL) | ❌ W0 | ⬜ pending |
+| assets-route | 89-04 | 2 | SEC-07 | T-89-02/T-89-04/T-89-07 | /assets/xterm/* serves from vendor/xterm fs.Sub; /assets/* serves from assets fs.Sub; public tier; Cache-Control: no-store on both mounts | integration | `go test ./internal/webserver/ -run TestAssets` (8 tests: XtermJSServedFromEmbed, XtermCSSServedFromEmbed, FirstPartyJS, FirstPartyCSS, CacheControlNoStore, PublicNoCapNeeded, NotFound, NoDirectoryListing) | ❌ W0 | ⬜ pending |
+| csp-integration | 89-04 | 2 | SEC-08 | T-89-01/T-89-03 | CSP header present on /sessions/{id}, /dashboard, /join with all D-18 tokens incl. connect-src 'self' wss://host; present even on 401 | integration | `go test ./internal/webserver/ -run TestCSPHeaderStrict` (5 tests: TerminalPage, Dashboard, Join, CacheControl, OnAuthFailure) | ❌ W0 | ⬜ pending |
+| no-cdn-regression | 89-04 | 2 | SEC-07 | T-89-02 | Source-grep regression guard: no cdn.jsdelivr, no unpkg, no ://cdn., no cross-origin http(s) in src/href; no inline script/style blocks | unit | `go test ./internal/webserver/ -run "TestSecurity_(NoCDN\|NoInlineScript)"` (2 tests: NoCDNReferencesInWebAssets, NoInlineScriptOrStyleInHTML) | ❌ W0 | ⬜ pending |
+| browser-e2e | 89-05 | 3 | SEC-08 | T-89-01/T-89-03 | Real headless Chromium loads three pages with zero securitypolicyviolation events | e2e | `go test -tags=e2e ./internal/webserver/ -run TestBrowserCSP` (3 tests: TerminalNoViolations, DashboardNoViolations, JoinNoViolations) | ❌ W0 | ⬜ pending |
+| human-uat | 89-05 | 3 | SEC-07/SEC-08 | T-89-08 | Safari + local-fallback + live-network audit (items UAT-1, UAT-2, UAT-3) signed off in 89-HUMAN-UAT.md | manual | `grep -q 'Phase 89 Manual UAT — COMPLETE' .planning/phases/89-vendored-terminal-assets-csp/89-HUMAN-UAT.md` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+**Wave mapping:** Plan 03 is Wave 1 (parallel with Plans 01 and 02 — files_modified disjoint from them). Plan 04 is Wave 2 (depends on all Wave 1 plans). Plan 05 is Wave 3 (depends on 04). See each plan's frontmatter `wave` field for the ground truth.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `internal/webserver/csp_test.go` — test stubs for TestCSPHeaderStrict + TestAssetsRoute
-- [ ] `internal/webserver/vendor_drift_test.go` — stub for TestVendorVersionDrift
-- [ ] `internal/webserver/regression_test.go` (or reuse existing) — stub for TestNoCDNReferences + TestNoInlineScriptOrStyle
-- [ ] `internal/webserver/browser_csp_e2e_test.go` — `//go:build e2e` stub for chromedp test
-- [ ] `go.mod` + `go.sum` — add `github.com/chromedp/chromedp` at a pinned version (e2e-only; do not import in non-tagged code)
+- [ ] `internal/webserver/csp_mw_test.go` — 8 TestCSPHeaders_* tests (Plan 03 Task 1)
+- [ ] `internal/webserver/csp_integration_test.go` — 5 TestCSPHeaderStrict_* tests (Plan 04 Task 4)
+- [ ] `internal/webserver/assets_test.go` — 8 TestAssets_* tests (Plan 04 Task 3)
+- [ ] `internal/webserver/vendor_drift_test.go` — TestXtermVendorVersionsMatchPnpmLock (Plan 01 Task 2)
+- [ ] `internal/webserver/no_cdn_regression_test.go` — TestSecurity_NoCDNReferencesInWebAssets + TestSecurity_NoInlineScriptOrStyleInHTML (Plan 04 Task 5)
+- [ ] `internal/webserver/browser_csp_e2e_test.go` — `//go:build e2e`-gated 3 TestBrowserCSP_* tests (Plan 05 Task 1)
+- [ ] `go.mod` + `go.sum` — add `github.com/chromedp/chromedp` at a concrete vX.Y.Z version (e2e-only; do not import in non-tagged code)
 
 ---
 
@@ -63,9 +72,9 @@ created: 2026-04-22
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Safari (macOS + iOS) renders terminal page with zero CSP violations | SEC-08 SC-4 | chromedp is Chromium-only; Safari parity cannot be automated in-repo | 1) Start daemon in Tailscale mode, 2) Open terminal page in Safari, 3) Open Web Inspector → Console, 4) Attach → resize → scroll → detach, 5) Confirm no `Refused to load ... CSP` messages |
-| Zero third-party origin requests during live session | SEC-07 SC-3 | Requires real network inspection, not just source text | 1) DevTools → Network tab, 2) Filter `jsdelivr|unpkg|cdnjs`, 3) Exercise terminal through a full session, 4) Confirm zero matching rows |
-| Local-network-fallback HTTPS mode renders all three pages clean | SEC-08 SC-4 | Needs the fallback path and a second client; hard to CI | 1) Disable Tailscale, 2) Trigger local-network fallback, 3) Open /dashboard, /join, /sessions/{id} from a second device, 4) Verify no console errors |
+| Safari (macOS + iOS) renders terminal page with zero CSP violations | SEC-08 SC-4 | chromedp is Chromium-only; Safari parity cannot be automated in-repo | See 89-HUMAN-UAT.md UAT-1 |
+| Zero third-party origin requests during live session | SEC-07 SC-3 | Requires real network inspection, not just source text | See 89-HUMAN-UAT.md UAT-3 |
+| Local-network-fallback HTTPS mode renders all three pages clean | SEC-08 SC-4 | Needs the fallback path and a second client; hard to CI | See 89-HUMAN-UAT.md UAT-2 |
 
 ---
 
