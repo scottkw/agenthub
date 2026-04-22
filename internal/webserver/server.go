@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"sync"
@@ -363,12 +364,12 @@ func (ws *WebServer) setupRoutes() {
 
 	// GET /dashboard — open landing page (no session list per D-17, finalized
 	// by Plan 06).
-	mux.HandleFunc("GET /dashboard", ws.handleDashboard)
+	mux.HandleFunc("GET /dashboard", ws.cspHeaders(ws.handleDashboard))
 
 	// GET /join — open join-flow page (Plan 06, D-09). Reads ?code= from the
 	// query string for pre-fill. Not capability-gated — it only collects the
 	// code; the exchange itself runs on POST /join/exchange.
-	mux.HandleFunc("GET /join", ws.handleJoin)
+	mux.HandleFunc("GET /join", ws.cspHeaders(ws.handleJoin))
 
 	// POST /join/exchange — open join-code exchange endpoint. Consumes a
 	// single-use code and 303-redirects to /sessions/{id}?cap=<token>. Not
@@ -388,7 +389,8 @@ func (ws *WebServer) setupRoutes() {
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list
 	// lookup already implies web-enabled (grants are cleared on toggle-off).
-	mux.HandleFunc("GET /sessions/{id}", ws.requireCapability(ws.handleTerminalPage))
+	mux.HandleFunc("GET /sessions/{id}",
+		ws.cspHeaders(ws.requireCapability(ws.handleTerminalPage)))
 
 	// GET /sessions/{id}/ws — Origin allowlist + capability-gated WebSocket
 	// upgrade. Phase 88 (D-10) wraps requireAllowedOrigin OUTSIDE
@@ -402,6 +404,28 @@ func (ws *WebServer) setupRoutes() {
 	// GET /api/sessions/{id}/qr — serves QR code PNG. Open because the QR
 	// encodes the capability-bearing URL; the cap itself lives in the URL.
 	mux.HandleFunc("GET /api/sessions/{id}/qr", ws.handleSessionQR)
+
+	// GET /assets/ and /assets/xterm/ — public static assets from the embedded web.WebFS.
+	// Per D-14: http.FileServerFS mounted via fs.Sub. Two separate mounts because
+	// vendored xterm files live at web/vendor/xterm/ on disk (user decision D-01/D-02)
+	// but must be served under the /assets/xterm/ URL prefix (matches HTML references
+	// from Plan 02 and keeps the URL space uniform). First-party extracted JS/CSS
+	// live at web/assets/*. Go 1.22+ mux chooses the longest-matching pattern, so
+	// /assets/xterm/xterm.js resolves via xtermFS and /assets/terminal.js via assetsFS.
+	// Public tier (D-15): no capability gate. Cache-Control: no-store (D-16) so
+	// xterm upgrades take effect immediately.
+	assetsFS, err := fs.Sub(webfs.WebFS, "assets")
+	if err != nil {
+		panic(fmt.Sprintf("webserver: fs.Sub assets: %v", err))
+	}
+	xtermFS, err := fs.Sub(webfs.WebFS, "vendor/xterm")
+	if err != nil {
+		panic(fmt.Sprintf("webserver: fs.Sub vendor/xterm: %v", err))
+	}
+	mux.Handle("GET /assets/xterm/", http.StripPrefix("/assets/xterm/",
+		assetsNoStore(http.FileServerFS(xtermFS))))
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/",
+		assetsNoStore(http.FileServerFS(assetsFS))))
 }
 
 // handleDashboard serves the embedded dashboard.html.
@@ -716,4 +740,24 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// assetsNoStore wraps an http.Handler with Cache-Control: no-store (D-16) and
+// blocks directory listing responses. http.FileServerFS returns an HTML directory
+// index for requests ending with "/" when no index.html is present; we 404
+// those requests because /assets/* serves individual files only.
+// Scoped to /assets/* only — keeps embedded xterm + extracted JS/CSS
+// fresh across deploys without content-hashing the URLs. Negligible
+// bandwidth cost at single-page-load-per-session.
+func assetsNoStore(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Block directory listing: any request whose (already-stripped) path
+		// is empty or ends with "/" is a directory index request — return 404.
+		if r.URL.Path == "" || r.URL.Path == "/" || len(r.URL.Path) > 0 && r.URL.Path[len(r.URL.Path)-1] == '/' {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
 }
