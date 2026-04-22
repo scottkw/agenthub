@@ -269,8 +269,12 @@ func TestWebServerWSS(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Phase 88: include Origin header so requireAllowedOrigin middleware passes.
+	wsHeaders := http.Header{}
+	wsHeaders.Set("Origin", baseURL)
 	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
 		HTTPClient: client,
+		HTTPHeader: wsHeaders,
 	})
 	if err != nil {
 		t.Fatalf("websocket.Dial: %v", err)
