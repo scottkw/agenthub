@@ -37,7 +37,7 @@ Replaces the client-asserted `?readonly=1` query parameter with a server-bound p
 
 Removes the `OriginPatterns: ["*"]` / `InsecureSkipVerify: true` accept-all behavior and requires a short-lived handshake capability.
 
-- [ ] **SEC-06** — WebSocket upgrade rejects requests whose `Origin` is not in the server allowlist (Tailscale FQDN, local-mode host URL, and configured same-origin), closing the cross-site WebSocket hijacking vector
+- [x] **SEC-06** — WebSocket upgrade rejects requests whose `Origin` is not in the server allowlist (Tailscale FQDN, local-mode host URL, and configured same-origin), closing the cross-site WebSocket hijacking vector (Phase 88, 2026-04-22; SC-2 live UAT pending)
 
 ### Frontend Supply Chain
 
@@ -93,7 +93,7 @@ Each v3.1 requirement maps to exactly one phase. All 11 requirements mapped (100
 | SEC-03 | Phase 87 — Capability-Based Session Authorization | Pending |
 | SEC-04 | Phase 87 — Capability-Based Session Authorization | Pending |
 | SEC-05 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-06 | Phase 88 — WebSocket Handshake Security | Pending |
+| SEC-06 | Phase 88 — WebSocket Handshake Security | Complete (2026-04-22; SC-2 live UAT pending) |
 | SEC-07 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
 | SEC-08 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
 | SEC-09 | Phase 90 — Release Pipeline Hardening | Pending |

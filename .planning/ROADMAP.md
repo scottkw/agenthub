@@ -222,7 +222,7 @@
 <summary>🚧 v3.1 Security Hardening (Phases 87-90) — IN PROGRESS</summary>
 
 - [ ] **Phase 87: Capability-Based Session Authorization** — Replace tailnet-wide trust with server-issued, signed capability tokens that gate session listing, metadata, WebSocket access, and write permission
-- [ ] **Phase 88: WebSocket Handshake Security** — Reject cross-origin WebSocket upgrades via explicit Origin allowlist (Tailscale FQDN, local-mode host, same-origin)
+- [x] **Phase 88: WebSocket Handshake Security** — Reject cross-origin WebSocket upgrades via explicit Origin allowlist (Tailscale FQDN, local-mode host, same-origin) (Complete 2026-04-22; SC-2 live UAT pending in 88-HUMAN-UAT.md)
 - [ ] **Phase 89: Vendored Terminal Assets + CSP** — Serve xterm JS/CSS from the embedded binary and lock down the terminal page with a strict Content-Security-Policy
 - [ ] **Phase 90: Release Pipeline Hardening** — SHA-pin third-party GitHub Actions, pin Go build tools to exact versions, and split unsigned-build from signing/publish jobs so build steps never hold release secrets
 
@@ -311,7 +311,7 @@
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87 | v3.1 | 3/6 | In progress | — |
-| 88 | v3.1 | 2/2 | Executing | — |
+| 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
 | 89 | v3.1 | 0/TBD | Not started | — |
 | 90 | v3.1 | 0/TBD | Not started | — |
 
