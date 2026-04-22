@@ -257,8 +257,10 @@
   2. The terminal page served by the app itself completes the WebSocket upgrade successfully in both Tailscale mode (FQDN origin) and local-network-fallback mode (self-signed HTTPS host origin) without user-visible regressions.
   3. A WebSocket upgrade request with no `Origin` header (non-browser client) follows a documented, explicit policy (allowed only with a valid capability token, or rejected) rather than the previous accept-all default.
   4. The `OriginPatterns: ["*"]` / `InsecureSkipVerify: true` accept-all configuration is gone from the code path — a regression test fails if it is reintroduced.
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans (1 wave — parallel; Plan 01 webserver + Plan 02 relay share no files)
+  - [ ] 88-01-PLAN.md — Webserver Origin middleware + route wiring + library-layer allowlist + regression guard (Wave 1)
+  - [ ] 88-02-PLAN.md — Relay loopback-only OriginPatterns + InsecureSkipVerify removal + regression guard (Wave 1, parallel with 01)
+**UI hint**: no (backend-only — SC-2 manual UAT validates existing terminal page surface)
 
 ### Phase 89: Vendored Terminal Assets + CSP
 **Goal**: The interactive terminal page — the one with command-execution consequences — loads only from the embedded binary and is protected by a Content-Security-Policy that blocks inline/remote script injection.
@@ -309,7 +311,7 @@
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87 | v3.1 | 3/6 | In progress | — |
-| 88 | v3.1 | 0/TBD | Not started | — |
+| 88 | v3.1 | 0/2 | In progress | — |
 | 89 | v3.1 | 0/TBD | Not started | — |
 | 90 | v3.1 | 0/TBD | Not started | — |
 
