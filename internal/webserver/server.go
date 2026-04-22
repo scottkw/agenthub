@@ -742,12 +742,21 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// assetsNoStore wraps an http.Handler with Cache-Control: no-store (D-16).
+// assetsNoStore wraps an http.Handler with Cache-Control: no-store (D-16) and
+// blocks directory listing responses. http.FileServerFS returns an HTML directory
+// index for requests ending with "/" when no index.html is present; we 404
+// those requests because /assets/* serves individual files only.
 // Scoped to /assets/* only — keeps embedded xterm + extracted JS/CSS
 // fresh across deploys without content-hashing the URLs. Negligible
 // bandwidth cost at single-page-load-per-session.
 func assetsNoStore(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Block directory listing: any request whose (already-stripped) path
+		// is empty or ends with "/" is a directory index request — return 404.
+		if r.URL.Path == "" || r.URL.Path == "/" || len(r.URL.Path) > 0 && r.URL.Path[len(r.URL.Path)-1] == '/' {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
