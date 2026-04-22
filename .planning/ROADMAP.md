@@ -272,9 +272,9 @@
   3. Browser devtools shows zero requests to `cdn.jsdelivr.net` (or any third-party origin) during normal terminal session use — attach, resize, scrollback, detach.
   4. The web dashboard and terminal page pass the CSP without console violations on all supported browsers (Chromium-based + Safari) in both Tailscale-mode FQDN serving and local-network-fallback HTTPS serving.
 **Plans**: 5 plans (3 waves)
-  - [ ] 89-01-PLAN.md — Vendor xterm files (xterm.js, xterm.css, addon-fit.js) under web/assets/xterm/ + VERSION manifest + pnpm-lock.yaml drift test (Wave 1)
-  - [ ] 89-02-PLAN.md — Extract inline <script>/<style> from terminal.html, dashboard.html, join.html into web/assets/*.{js,css} + swap CDN URLs (Wave 1, parallel with 01)
-  - [ ] 89-03-PLAN.md — cspHeaders middleware on *WebServer (per-request BaseURL composition, fail-closed) + 8 unit tests (Wave 1, parallel with 01 and 02)
+  - [x] 89-01-PLAN.md — Vendor xterm files (xterm.js, xterm.css, addon-fit.js) under web/assets/xterm/ + VERSION manifest + pnpm-lock.yaml drift test (Wave 1)
+  - [x] 89-02-PLAN.md — Extract inline <script>/<style> from terminal.html, dashboard.html, join.html into web/assets/*.{js,css} + swap CDN URLs (Wave 1, parallel with 01)
+  - [x] 89-03-PLAN.md — cspHeaders middleware on *WebServer (per-request BaseURL composition, fail-closed) + 8 unit tests (Wave 1, parallel with 01 and 02)
   - [ ] 89-04-PLAN.md — Extend web/embed.go + wire /assets/ FileServerFS route + wrap HTML handlers with cspHeaders + integration tests (D-18's 5 assertions × 3 routes) + source-grep regression guard (D-17) (Wave 2)
   - [ ] 89-05-PLAN.md — chromedp e2e CSP-violation test (//go:build e2e) + 89-HUMAN-UAT.md (Safari + local-network-fallback + live-session network audit) + blocking human checkpoint (Wave 3)
 **UI hint**: yes
@@ -317,7 +317,7 @@
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87 | v3.1 | 3/6 | In progress | — |
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
-| 89 | v3.1 | 0/5 | Planned | — |
+| 89 | v3.1 | 3/5 | In Progress|  |
 | 90 | v3.1 | 0/TBD | Not started | — |
 
 ---
