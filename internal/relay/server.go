@@ -2,10 +2,11 @@ package relay
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 
-	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/pty"
 )
 
 // Server is an HTTP handler that exposes relay sessions over WebSocket.
@@ -57,8 +58,20 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// InsecureSkipVerify skips origin check — Phase 4 will add proper CORS/origin policy.
-		InsecureSkipVerify: true,
+		// Phase 88 (CONTEXT D-08/D-09): loopback-only Origin allowlist
+		// replaces InsecureSkipVerify. The relay is bound to 127.0.0.1
+		// by daemon/api.go, so in normal operation all clients are
+		// loopback. This allowlist is belt-and-suspenders for the
+		// landmine case where the listener is ever rebound to a
+		// non-loopback interface — a future maintainer must consciously
+		// add the new origin, which is the friction we want.
+		//
+		// Port derivation (RESEARCH Pitfall 7 option a): the Server
+		// struct does not own its listener (daemon/api.go does), so we
+		// read the port from r.Host. Empty port -> empty allowlist ->
+		// library falls back to same-Host check, which is also correct
+		// for a loopback-only deployment.
+		OriginPatterns: loopbackOriginPatterns(r.Host),
 	})
 	if err != nil {
 		// websocket.Accept already wrote an HTTP error response.
@@ -139,6 +152,28 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		case <-readDone:
 			return
 		}
+	}
+}
+
+// loopbackOriginPatterns returns the 4-element allowlist of loopback
+// origin patterns for the given host (from r.Host). If host cannot be
+// split into host:port, returns nil — letting the library fall back to
+// its same-Host default, which is still loopback-safe given the
+// daemon-side bind to 127.0.0.1.
+//
+// CONTEXT D-09: schemes included because the relay may be fronted by
+// TLS in a future deployment; both "localhost" and "127.0.0.1" included
+// because browsers and tools emit either form.
+func loopbackOriginPatterns(host string) []string {
+	_, port, err := net.SplitHostPort(host)
+	if err != nil || port == "" {
+		return nil
+	}
+	return []string{
+		"http://localhost:" + port,
+		"http://127.0.0.1:" + port,
+		"https://localhost:" + port,
+		"https://127.0.0.1:" + port,
 	}
 }
 
