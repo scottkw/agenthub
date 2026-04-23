@@ -80,19 +80,28 @@ Added `github.com/chromedp/chromedp v0.15.1` + transitives (`cdproto`, `sysutil`
   - `TestBrowserCSP_JoinNoViolations` — PASS (2.52s)
   - `TestBrowserCSP_TerminalNoViolations` — FAIL (8.37s) — 12 × style-src-elem inline
 
-## Self-Check: CHECKPOINT
+## Resolution — User Dispositioned SC-4 Gap (2026-04-22)
+
+User chose **Option 1: add `'unsafe-inline'` to style-src only**. Applied in commit `9263a01`:
+- `internal/webserver/csp_mw.go` — policy amended to `style-src 'self' 'unsafe-inline'`.
+- `internal/webserver/csp_mw_test.go` — `NoUnsafeTokens` split: `'unsafe-eval'`/`'unsafe-hashes'` stay globally forbidden; `'unsafe-inline'` now checked on script-src clause only.
+- `internal/webserver/csp_integration_test.go` — D-18.3 split identically.
+- `.planning/phases/89-vendored-terminal-assets-csp/89-CONTEXT.md` — D-09 amended with rationale block.
+
+**Post-fix verification (2026-04-22):**
+- `go test ./internal/webserver/ -count=1` → PASS (full default suite, incl. amended csp tests).
+- `go test -tags=e2e ./internal/webserver/ -run TestBrowserCSP -count=1 -v` → **3/3 PASS**:
+  - `TestBrowserCSP_TerminalNoViolations` — PASS (7.47s)
+  - `TestBrowserCSP_DashboardNoViolations` — PASS (2.68s)
+  - `TestBrowserCSP_JoinNoViolations` — PASS (2.71s)
+
+SC-4 (Chromium half) is now fully green. script-src remains strict (`'self'`) — Finding 4's CDN-injection class stays blocked. `'unsafe-inline'` concession applies to style-src only, which is the minimum accommodation for xterm.js's runtime style injection.
+
+## Self-Check: PASSED
 
 - [x] Task 1: chromedp added, tests written, build/test verifications pass
 - [x] Task 2: 89-HUMAN-UAT.md created, all acceptance grep checks pass
-- [ ] Task 3: **Awaiting user disposition on terminal SC-4 gap** (see Finding)
+- [x] Task 3 (automated portion): SC-4 Chromium gap resolved — 3/3 e2e tests PASS
+- [ ] Task 3 (human portion): Operator still runs 89-HUMAN-UAT.md for UAT-1 (Safari) and UAT-2 (local-network-fallback) and UAT-3 (live third-party audit). The HUMAN-UAT file should be updated once these are verified.
 - [x] SUMMARY.md written and committed before returning
 - [x] No modifications to STATE.md or ROADMAP.md
-
-## Awaiting User
-
-The phase cannot be marked SC-4-complete until the terminal style-src-elem gap is dispositioned. Likely paths:
-1. **Accept** `'unsafe-inline'` for style-src → update csp_mw.go + csp_mw_test.go + csp_integration_test.go + CONTEXT D-09; re-run e2e → PASS.
-2. **Gap-closure phase** (89.1) scoped to switching style-src to a hash-based policy (collect xterm's runtime style hashes at build time, or migrate to a nonce strategy).
-3. **Accept as known limitation** in SECURITY.md and move on — D-09 stays intact, the terminal route is documented as not reaching SC-4 under strict policy, with the other 3/4 criteria verified.
-
-The user should pick one path in the `/gsd-execute-phase` checkpoint response.
