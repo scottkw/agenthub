@@ -33,10 +33,24 @@ func assertCSPHeaderStrict(t *testing.T, resp *http.Response, wsBaseURL string, 
 		}
 	}
 
-	// D-18.3: no unsafe tokens, no bare wildcard
-	for _, tok := range []string{"'unsafe-inline'", "'unsafe-eval'", " *", "'*'"} {
+	// D-18.3: no unsafe tokens in script-src, no 'unsafe-eval'/'unsafe-hashes'
+	// globally, no bare wildcard. style-src is permitted to carry
+	// 'unsafe-inline' per the D-09 amendment (xterm runtime style injection).
+	for _, tok := range []string{"'unsafe-eval'", "'unsafe-hashes'", " *", "'*'"} {
 		if strings.Contains(csp, tok) {
 			t.Errorf("%s: CSP must not contain %q (Phase 89 D-18.3): %s", routeName, tok, csp)
+		}
+	}
+	// script-src must stay strict
+	scIdx := strings.Index(csp, "script-src ")
+	if scIdx >= 0 {
+		end := strings.Index(csp[scIdx:], ";")
+		if end < 0 {
+			end = len(csp) - scIdx
+		}
+		scriptSrc := csp[scIdx : scIdx+end]
+		if strings.Contains(scriptSrc, "'unsafe-inline'") {
+			t.Errorf("%s: script-src must not carry 'unsafe-inline' (Phase 89 D-18.3 script half): %s", routeName, scriptSrc)
 		}
 	}
 

@@ -71,8 +71,12 @@ func TestCSPHeaders_RequiredTokens(t *testing.T) {
 	}
 }
 
-// TestCSPHeaders_NoUnsafeTokens asserts that the CSP header contains NONE of
-// the forbidden unsafe-* keywords (D-06).
+// TestCSPHeaders_NoUnsafeTokens asserts that the CSP header forbids unsafe
+// tokens on script-src and forbids 'unsafe-eval' / 'unsafe-hashes' globally.
+//
+// D-09 amended 2026-04-22: style-src is permitted to carry 'unsafe-inline'
+// because xterm.js injects runtime <style> elements (e2e finding). script-src
+// stays strict — Finding 4's CDN-injection class remains blocked.
 func TestCSPHeaders_NoUnsafeTokens(t *testing.T) {
 	ws, _ := testServer(t)
 	handler := ws.cspHeaders(func(w http.ResponseWriter, r *http.Request) {
@@ -83,15 +87,30 @@ func TestCSPHeaders_NoUnsafeTokens(t *testing.T) {
 	handler(rec, req)
 
 	csp := rec.Header().Get("Content-Security-Policy")
-	forbidden := []string{
-		"'unsafe-inline'",
+
+	globallyForbidden := []string{
 		"'unsafe-eval'",
 		"'unsafe-hashes'",
 	}
-	for _, token := range forbidden {
+	for _, token := range globallyForbidden {
 		if strings.Contains(csp, token) {
-			t.Errorf("CSP must not contain %q (Phase 89 D-06): %s", token, csp)
+			t.Errorf("CSP must not contain %q anywhere (Phase 89 D-06): %s", token, csp)
 		}
+	}
+
+	// script-src must not carry 'unsafe-inline'. Extract the script-src clause
+	// and assert the keyword is absent from it. The clause ends at ';'.
+	idx := strings.Index(csp, "script-src ")
+	if idx < 0 {
+		t.Fatalf("CSP missing script-src directive: %s", csp)
+	}
+	end := strings.Index(csp[idx:], ";")
+	if end < 0 {
+		end = len(csp) - idx
+	}
+	scriptSrc := csp[idx : idx+end]
+	if strings.Contains(scriptSrc, "'unsafe-inline'") {
+		t.Errorf("script-src must not carry 'unsafe-inline' (Phase 89 D-06 script half): %s", scriptSrc)
 	}
 }
 

@@ -43,10 +43,11 @@ Only the tailnet- and LAN-facing `internal/webserver/` plus the `web/` package a
 - **D-08:** All first-party extracted assets + vendored xterm files are added to `//go:embed` in `web/embed.go`. The embed.FS becomes the source of truth for every byte served at `/assets/*`.
 
 ### CSP Header Content
-- **D-09:** Shared **uniform CSP** applied to all three embedded HTML pages. Policy string (single line in the header):
+- **D-09** (amended 2026-04-22 after e2e finding)**:** Shared **uniform CSP** applied to all three embedded HTML pages. Policy string (single line in the header):
   ```
-  default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' wss://<host>; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss://<host>; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
   ```
+  **Amendment rationale:** The original D-09 specified `style-src 'self'` with no `'unsafe-inline'`. `TestBrowserCSP_TerminalNoViolations` (Phase 89 Plan 05 e2e, Chromium) surfaced 12 × `style-src-elem 'inline'` violations on `/sessions/{id}`, caused by xterm.js injecting `<style>` elements at runtime (cursor, selection, theme hooks). The user dispositioned this by allowing `'unsafe-inline'` for style-src only; `script-src 'self'` stays strict — Finding 4's CDN-injection class remains blocked. Updated tests: csp_mw_test.go (NoUnsafeTokens now asserts script-src clause only) and csp_integration_test.go (D-18.3 checks script-src clause only).
   - `default-src 'none'` is the belt that blocks everything not explicitly allowed.
   - `connect-src 'self' wss://<host>` satisfies the literal reading of SEC-08 ("`'self'` plus the explicit WebSocket origin"). The WSS origin is composed from `ws.BaseURL()` per request (see D-10). Dashboard and join never open WSS in practice; including it costs nothing and keeps the header uniform.
   - `img-src 'self' data:` permits inline data-URI PNGs (QR codes rendered client-side, plus xterm's built-in data-URI glyphs).

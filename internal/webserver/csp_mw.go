@@ -4,12 +4,19 @@
 // for all HTML-serving routes (terminal.html, dashboard.html, join.html).
 // It is wired by Plan 04 — this file only defines the method.
 //
-// Policy specification (D-09):
+// Policy specification (D-09, amended 2026-04-22 after Phase 89 e2e finding):
 //
-//	default-src 'none'; script-src 'self'; style-src 'self';
+//	default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline';
 //	connect-src 'self' wss://<host>; img-src 'self' data:;
 //	font-src 'self'; base-uri 'none'; form-action 'self';
 //	frame-ancestors 'none'
+//
+// Amendment rationale: xterm.js injects <style> elements at runtime (cursor,
+// selection, theme hooks) via document.createElement('style'). CSP3 classifies
+// these as style-src-elem, which style-src 'self' blocks. Chromium e2e test
+// TestBrowserCSP_TerminalNoViolations surfaced 12 violations on /sessions/{id}.
+// User disposition: allow 'unsafe-inline' for style-src only. script-src
+// remains strict ('self') — the Finding 4 CDN class of attack is unchanged.
 //
 // Per-request composition (D-10): the wss:// origin is derived from
 // ws.BaseURL() on every request so it tracks the listener address
@@ -59,7 +66,7 @@ func (ws *WebServer) cspHeaders(next http.HandlerFunc) http.HandlerFunc {
 		b.Grow(256)
 		b.WriteString("default-src 'none'; ")
 		b.WriteString("script-src 'self'; ")
-		b.WriteString("style-src 'self'; ")
+		b.WriteString("style-src 'self' 'unsafe-inline'; ")
 		b.WriteString("connect-src 'self' ")
 		b.WriteString(wssOrigin)
 		b.WriteString("; ")
