@@ -276,7 +276,7 @@
   - [x] 89-02-PLAN.md — Extract inline <script>/<style> from terminal.html, dashboard.html, join.html into web/assets/*.{js,css} + swap CDN URLs (Wave 1, parallel with 01)
   - [x] 89-03-PLAN.md — cspHeaders middleware on *WebServer (per-request BaseURL composition, fail-closed) + 8 unit tests (Wave 1, parallel with 01 and 02)
   - [x] 89-04-PLAN.md — Extend web/embed.go + wire /assets/ FileServerFS route + wrap HTML handlers with cspHeaders + integration tests (D-18's 5 assertions × 3 routes) + source-grep regression guard (D-17) (Wave 2)
-  - [ ] 89-05-PLAN.md — chromedp e2e CSP-violation test (//go:build e2e) + 89-HUMAN-UAT.md (Safari + local-network-fallback + live-session network audit) + blocking human checkpoint (Wave 3)
+  - [x] 89-05-PLAN.md — chromedp e2e CSP-violation test (//go:build e2e) + 89-HUMAN-UAT.md (Safari + local-network-fallback + live-session network audit) + blocking human checkpoint (Wave 3)
 **UI hint**: yes
 
 ### Phase 90: Release Pipeline Hardening
@@ -317,7 +317,7 @@
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87 | v3.1 | 3/6 | In progress | — |
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
-| 89 | v3.1 | 4/5 | In Progress|  |
+| 89 | v3.1 | 5/5 | Complete   | 2026-04-23 |
 | 90 | v3.1 | 0/TBD | Not started | — |
 
 ---
