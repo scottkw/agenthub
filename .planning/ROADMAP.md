@@ -288,7 +288,13 @@
   2. Every Go build tool the workflows or `build.sh` install (including `wails` and `nfpm`) is pinned to an exact version; `go install tool@latest` does not appear in any workflow or build script.
   3. The release pipeline has two separate jobs: an unsigned build job that produces artifacts and has no access to signing, notarization, or publish secrets; and a signing/publish job that consumes those artifacts and is the only job that can read `MACOS_CERT_P12`, `APPLE_ID_APP_PASSWORD`, `WINGET_TOKEN`, `TAP_DEPLOY_TOKEN`, and `RELEASE_PLEASE_TOKEN`.
   4. A dry-run release (or a test tag) successfully produces signed, notarized macOS artifacts and publishes to GitHub releases + Homebrew tap through the new split pipeline — proving the restructure is functionally equivalent to the v3.0 pipeline, not just theoretically safer.
-**Plans**: TBD
+**Plans**: 6 plans (6 waves)
+  - [ ] 90-01-scaffolding-PLAN.md — Wave 0 scaffolding: grep-gate script + build-script.test.sh Section 12 + tap-branch setup runbook
+  - [ ] 90-02-tools-go-dependabot-PLAN.md — tools.go + go.mod (nfpm, wails v2.12.0) + .github/dependabot.yml
+  - [ ] 90-03-build-yml-sha-pins-PLAN.md — SHA-pin build.yml + release-please.yml + replace wails@latest in build.sh with go-list pattern
+  - [ ] 90-04-release-yml-split-PLAN.md — release.yml three-stage split (build → sign-macos → publish) + tar-before-upload + internal/release attestations + TAP_DEPLOY_TOKEN fix + rc draft
+  - [ ] 90-05-distribute-yml-wingetcreate-PLAN.md — distribute.yml SHA-pin + tap rc-branch routing + swap winget-releaser for wingetcreate on windows-latest + rc winget skip
+  - [ ] 90-06-e2e-rc-verification-PLAN.md — human-checkpoint: cut v3.1.0-rc1 tag + observe pipeline + external gh attestation verify + distribute rc-branch + UAT sign-off (autonomous: false)
 
 ## Progress
 
@@ -318,7 +324,7 @@
 | 87 | v3.1 | 3/6 | In progress | — |
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
 | 89 | v3.1 | 5/5 | Complete    | 2026-04-23 |
-| 90 | v3.1 | 0/TBD | Not started | — |
+| 90 | v3.1 | 0/6 | Planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
