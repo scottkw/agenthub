@@ -215,7 +215,7 @@ git push origin HEAD:"$BRANCH"
     - `env: RELEASE_TAG: ${{ inputs.tag || github.ref_name }}` (lines 12-13) at workflow level — preserved
   </action>
   <verify>
-    <automated>grep -F 'nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0' .github/workflows/distribute.yml && grep -F 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2' .github/workflows/distribute.yml && grep -F "contains(github.ref, '-rc') && 'release-90-test' || 'main'" .github/workflows/distribute.yml | (read line; [ -n "$line" ] && echo "PASS: branch ternary present" || (echo "FAIL: ternary missing"; exit 1)) && grep -F 'git push origin HEAD:"$BRANCH"' .github/workflows/distribute.yml</antl-automated></automated>
+    <automated>grep -F 'nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0' .github/workflows/distribute.yml && grep -F 'actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2' .github/workflows/distribute.yml && grep -F "contains(github.ref, '-rc') && 'release-90-test' || 'main'" .github/workflows/distribute.yml | (read line; [ -n "$line" ] && echo "PASS: branch ternary present" || (echo "FAIL: ternary missing"; exit 1)) && grep -F 'git push origin HEAD:"$BRANCH"' .github/workflows/distribute.yml</automated>
   </verify>
   <acceptance_criteria>
     - `grep -c 'nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0' .github/workflows/distribute.yml` returns 1

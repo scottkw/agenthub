@@ -748,27 +748,27 @@ echo "PASS: all action refs are SHA-pinned"
 | A6 | The `release` environment in release.yml:46 is used only for `MACOS_*` secrets, not for other environment-scoped config | Pitfall 4 | Medium — if the environment also has protection rules (required reviewers, wait timer), moving which jobs use it changes release mechanics. Mitigation: planner should query the repo environment config (`gh api /repos/scottkw/agenthub/environments/release`) as part of task planning |
 | A7 | `gh attestation verify --bundle <local-file>` on macos-latest has the required `gh` CLI version (≥2.49 introduced `--bundle`) | Pattern 3 | Low — GitHub-hosted runners ship recent `gh`. Verified `gh` is available (not verified minimum version on macos-latest). Mitigation: add `gh --version` step and bail if too old |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Will `draft: true` on the publish step work as expected when the release was *already created* by `release-please`?**
    - What we know: `release.yml:307 softprops/action-gh-release@v2 files: ...` uploads assets to an existing release if the tag matches. `release-please` creates the release on merge-to-main. The rc flow pushes a tag directly, so release-please doesn't fire — the tag-triggered release.yml creates the release inline (via softprops/action-gh-release's auto-create behavior).
    - What's unclear: In the rc flow, does softprops/action-gh-release create the release as draft on first upload (honoring `draft: ${{ contains(github.ref, '-rc') }}`)? Or does it upload to a non-draft release?
-   - Recommendation: Test this as part of the D-14 verification run. Expectation per softprops docs: `draft` input maps directly to the API `draft` field on creation. Should work, but the rc-first-upload path is the specific one to exercise.
+   - **RESOLVED:** Test this as part of the D-14 verification run (Plan 06 Task 2). Expectation per softprops docs: `draft` input maps directly to the API `draft` field on creation. Rc tags bypass release-please (which only runs on merge-to-main), so the tag-triggered workflow creates the release inline with `draft: true` honored. Plan 06 Task 2 Step 5 asserts `gh release view v3.1.0-rc1 --json isDraft --jq .isDraft` returns `true`.
 
 2. **Does the `sign-macos` job need the `attestations: write` permission to *verify* an attestation, or only `contents: read`?**
    - What we know: Generating attestation requires `id-token: write + attestations: write + contents: read`. Verifying is a read operation on the attestations API.
    - What's unclear: Whether `gh attestation verify --bundle` (with a local bundle file) hits the API at all, or is fully offline.
-   - Recommendation: Start with `permissions: contents: read` only on sign-macos. If `gh attestation verify --bundle` fails with a permissions error, escalate to `attestations: read`. Likely fully offline — the `--bundle` flag is documented as offline-capable. [VERIFIED via gh-cli docs.]
+   - **RESOLVED:** Start with `permissions: contents: read` only on sign-macos (Plan 04 Task 2). `gh attestation verify --bundle` with a local bundle file is documented as offline-capable via the gh-cli docs. Escalation path: if Plan 06 Task 2 rc cut reveals a permissions error, hotfix adds `attestations: read` to sign-macos. [VERIFIED via gh-cli docs — `--bundle` is offline.]
 
 3. **Should the internal attestation use `subject-path: <.app.tar.gz>` or `subject-digest: sha256:<hash>` + `subject-name: AgentHub.app.tar.gz`?**
    - What we know: Both work; `subject-path` is simpler and auto-computes the digest.
    - What's unclear: In the cross-job verify, which form does `gh attestation verify --bundle` handle better?
-   - Recommendation: `subject-path` during attest, `gh attestation verify <path-to-file> --bundle <bundle>` during verify. The file itself gets re-hashed during verify; the tool handles this transparently.
+   - **RESOLVED:** Use `subject-path` during attest (Plan 04 Task 1 Edit 3). During verify, `gh attestation verify <path-to-file> --bundle <bundle>` re-hashes the file; the tool handles digest computation transparently. `subject-path` is the cleaner form for this cross-job handoff.
 
 4. **Is there any reason to keep the `release` environment declaration on any job after the split?**
    - What we know: GitHub environments have protection rules (required reviewers, wait timer, secret binding). The current `release.yml:46` uses it for secret binding of `MACOS_*` — that function is preserved when only `sign-macos` declares `environment: release`.
    - What's unclear: Is there a wait-timer or required-reviewer rule currently attached that affects deploy mechanics?
-   - Recommendation: `gh api /repos/scottkw/agenthub/environments/release` to dump the rules before re-scoping. Preserve equivalent protection on the new sign-macos job; otherwise the split accidentally bypasses a required-reviewer gate.
+   - **RESOLVED:** Pre-flight audit is Plan 06 Task 1 Step 3 — run `gh api /repos/scottkw/agenthub/environments/release` before cutting the rc tag to dump protection rules. Only `sign-macos` declares `environment: release` post-split (preserves existing MACOS_* secret binding). If the audit surfaces a wait-timer or required-reviewer rule, preserve it by keeping `environment: release` on sign-macos (no change needed — already there).
 
 ## Environment Availability
 
