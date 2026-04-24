@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Phase 90 Plan 05 complete (distribute.yml wingetcreate + rc-guards + grep-gate GREEN)
-last_updated: "2026-04-24T13:26:03.871Z"
+stopped_at: Phase 90 static deliverables complete (Plans 01-05, 14/15 must-haves verified) — Plan 06 E2E RC verification deferred to human UAT (see 90-06-HUMAN-UAT.md)
+last_updated: "2026-04-24T14:05:00.000Z"
 last_activity: 2026-04-24
 progress:
   total_phases: 4
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 90
-Plan: 05 (plans 01-04 complete)
-Status: Executing
+Plan: Static 01-05 complete; Plan 06 pending human UAT (see 90-06-HUMAN-UAT.md)
+Status: Phase complete static; E2E RC verification deferred to human
 Last activity: 2026-04-24
 
-Progress: [████████░░] 82% (v3.1 milestone 82% — 9/11 plans complete)
+Progress: [██████████] ~95% (v3.1 milestone — Plans 01-05 of Phase 90 static-verified 14/15 must-haves; Plan 06 live-tag UAT outstanding)
 
 ## Performance Metrics
 
