@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Phase 90 Plan 03 complete (SHA-pin build.yml + release-please.yml + build.sh)
-last_updated: "2026-04-24T13:12:10Z"
+stopped_at: Phase 90 Plan 04 complete (release.yml three-stage split + SLSA L2 attestations)
+last_updated: "2026-04-24T13:19:29.165Z"
 last_activity: 2026-04-24
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 9
+  percent: 82
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 90
-Plan: 04 (plans 01-03 complete)
+Plan: 05 (plans 01-04 complete)
 Status: Executing
 Last activity: 2026-04-24
 
-Progress: [██████░░░░] 64% (v3.1 milestone 64% — 7/11 plans complete)
+Progress: [████████░░] 82% (v3.1 milestone 82% — 9/11 plans complete)
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Progress: [██████░░░░] 64% (v3.1 milestone 64% — 7/11 plan
 - Phase 87 Plan 06: POST /join/exchange returns 303 See Other for form→GET transition; preserves idempotent redirect target and prevents refresh-resubmission. session-gone distinct from invalid to surface honest state.
 - [Phase 90]: tools.go blank-imports library roots (github.com/goreleaser/nfpm/v2, github.com/wailsapp/wails/v2) not cmd sub-packages; cmd packages are package main and cannot be blank-imported; module pinning effect in go.mod is identical
 - [Phase 90]: dependabot.yml has no auto-merge field (D-07); no groups: section (ungrouped per RESEARCH for audit clarity); nfpm resolved to v2.33.1 by go mod tidy (not v2.46.3 estimated in RESEARCH)
+- [Phase 90]: release.yml split into build→sign-macos→publish; sign-macos is the only job with environment:release; TAP_DEPLOY_TOKEN removed from publish (D-02); SLSA L2 internal+release attestations via attest-build-provenance@v4.1.0; .app tarred before upload to preserve symlinks+x bits; rc-draft uses hyphen-anchored contains(github.ref,'-rc')
 
 ### Pending Todos
 
@@ -100,6 +101,7 @@ Progress: [██████░░░░] 64% (v3.1 milestone 64% — 7/11 plan
 | Phase 87 P05 | 4m12s | 2 tasks | 5 files |
 | Phase 87 P06 | ~15min | 2 tasks | 6 files |
 | Phase 90 P02 | 7m | 2 tasks | 4 files |
+| Phase 90 P04 | 3min | 3 tasks | 1 files |
 
 ### Plan Execution Metrics
 
@@ -123,8 +125,8 @@ Progress: [██████░░░░] 64% (v3.1 milestone 64% — 7/11 plan
 
 ## Session Continuity
 
-Last session: 2026-04-24T13:12:10Z
-Stopped at: Phase 90 Plan 03 complete (SHA-pin build.yml + release-please.yml + build.sh)
+Last session: 2026-04-24T13:19:29.161Z
+Stopped at: Phase 90 Plan 04 complete (release.yml three-stage split + SLSA L2 attestations)
 Next action: Execute Phase 90 Plan 04 (release.yml three-stage split)
 
 **Planned Phase:** 90 (Release Pipeline Hardening) — 6 plans — 2026-04-23T23:59:00.000Z

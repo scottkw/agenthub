@@ -292,7 +292,7 @@
   - [x] 90-01-scaffolding-PLAN.md — Wave 0 scaffolding: grep-gate script + build-script.test.sh Section 12 + tap-branch setup runbook
   - [x] 90-02-tools-go-dependabot-PLAN.md — tools.go + go.mod (nfpm, wails v2.12.0) + .github/dependabot.yml
   - [x] 90-03-build-yml-sha-pins-PLAN.md — SHA-pin build.yml + release-please.yml + replace wails@latest in build.sh with go-list pattern (Complete 2026-04-24)
-  - [ ] 90-04-release-yml-split-PLAN.md — release.yml three-stage split (build → sign-macos → publish) + tar-before-upload + internal/release attestations + TAP_DEPLOY_TOKEN fix + rc draft
+  - [x] 90-04-release-yml-split-PLAN.md — release.yml three-stage split (build → sign-macos → publish) + tar-before-upload + internal/release attestations + TAP_DEPLOY_TOKEN fix + rc draft
   - [ ] 90-05-distribute-yml-wingetcreate-PLAN.md — distribute.yml SHA-pin + tap rc-branch routing + swap winget-releaser for wingetcreate on windows-latest + rc winget skip
   - [ ] 90-06-e2e-rc-verification-PLAN.md — human-checkpoint: cut v3.1.0-rc1 tag + observe pipeline + external gh attestation verify + distribute rc-branch + UAT sign-off (autonomous: false)
 
@@ -324,7 +324,7 @@
 | 87 | v3.1 | 3/6 | In progress | — |
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
 | 89 | v3.1 | 5/5 | Complete    | 2026-04-23 |
-| 90 | v3.1 | 3/6 | In Progress|  |
+| 90 | v3.1 | 4/6 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

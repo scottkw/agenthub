@@ -52,7 +52,7 @@ Removes mutable-tag third-party code execution while release jobs hold signing a
 
 - [x] **SEC-09** — All third-party GitHub Actions in `.github/workflows/` are pinned to immutable commit SHAs (no `@main`, no `@master`, no floating branch refs)
 - [x] **SEC-10** — Go build tools used by workflows and `build.sh` (wails, nfpm, and any other `go install` targets) are pinned to exact versions (no `@latest`)
-- [ ] **SEC-11** — Release pipeline is restructured so the unsigned build step cannot access signing, notarization, or publish secrets; signing/publish runs in a separate job that receives only the already-built artifacts
+- [x] **SEC-11** — Release pipeline is restructured so the unsigned build step cannot access signing, notarization, or publish secrets; signing/publish runs in a separate job that receives only the already-built artifacts
 
 ---
 
@@ -98,7 +98,7 @@ Each v3.1 requirement maps to exactly one phase. All 11 requirements mapped (100
 | SEC-08 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
 | SEC-09 | Phase 90 — Release Pipeline Hardening | Complete |
 | SEC-10 | Phase 90 — Release Pipeline Hardening | Complete |
-| SEC-11 | Phase 90 — Release Pipeline Hardening | Pending |
+| SEC-11 | Phase 90 — Release Pipeline Hardening | Complete |
 
 ---
 
