@@ -22,8 +22,13 @@ if [[ -n "$BAD" ]]; then
 fi
 
 # Check 2: @latest check
-# Any @latest in workflows, build.sh, or tests/ — reject
-LATEST=$(grep -rEn '@latest' .github/workflows/ build.sh tests/ || true)
+# Catches bare @latest refs in tool installs (e.g. go install tool@latest) and
+# workflow steps. Excludes lines where @latest appears only as a quoted string
+# literal (e.g. grep pattern strings in test assertions, comments, echo messages).
+# Pattern: require a word character immediately before @latest — bare refs like
+# tool@latest or action@latest match; quoted-string mentions like '@latest' or
+# "contains @latest" do not.
+LATEST=$(grep -rEn '\w@latest' .github/workflows/ build.sh tests/ || true)
 if [[ -n "$LATEST" ]]; then
   echo "FAIL: @latest references found:"
   echo "$LATEST"

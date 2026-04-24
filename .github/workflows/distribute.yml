@@ -72,12 +72,30 @@ jobs:
           git push origin HEAD:"$BRANCH"
 
   submit-winget:
-    runs-on: ubuntu-latest
-    continue-on-error: true  # WinGet first submission pending — remove after accepted
+    runs-on: windows-latest           # D-08: wingetcreate is .NET+Windows only
+    continue-on-error: true           # WinGet first submission pending — remove after accepted
+    if: ${{ !contains(github.ref, '-rc') }}   # D-17: skip rc tags
+    env:
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      WINGETCREATE_VERSION: v1.12.8.0
+      WINGETCREATE_SHA256: 8BD738851B524885410112678E3771B341C5C716DE60FBBECB88AB0A363ED85D
     steps:
-      - uses: vedantmgoyal9/winget-releaser@main
-        with:
-          identifier: scottkw.agenthub
-          installers-regex: 'agenthub-v[\d.]+-windows-amd64-installer\.exe$'
-          token: ${{ secrets.WINGET_TOKEN }}
-          release-tag: ${{ env.RELEASE_TAG }}
+      - name: Download and verify wingetcreate.exe
+        shell: pwsh
+        run: |
+          $url = "https://github.com/microsoft/winget-create/releases/download/$env:WINGETCREATE_VERSION/wingetcreate.exe"
+          Invoke-WebRequest -Uri $url -OutFile wingetcreate.exe
+          $actual = (Get-FileHash wingetcreate.exe -Algorithm SHA256).Hash
+          if ($actual -ne $env:WINGETCREATE_SHA256) {
+            Write-Error "SHA256 mismatch: expected $env:WINGETCREATE_SHA256 got $actual"
+            exit 1
+          }
+      - name: Submit to WinGet
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.release.tag_name }}".Trim('v')
+          $installerUrl = "https://github.com/scottkw/agenthub/releases/download/${{ github.event.release.tag_name }}/agenthub-${{ github.event.release.tag_name }}-windows-amd64-installer.exe"
+          .\wingetcreate.exe update scottkw.agenthub `
+            --version $version `
+            --urls $installerUrl `
+            --submit
