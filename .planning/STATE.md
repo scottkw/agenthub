@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 90
-Plan: Not started (6 plans ready)
-Status: Ready to execute
-Last activity: 2026-04-23
+Plan: 02 (plan 01 complete)
+Status: Executing
+Last activity: 2026-04-24
 
 Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phases complete)
 
@@ -82,6 +82,9 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 
 - On milestone completion: comment on GitHub Issue #35 that it was addressed by v3.1, then close
 - Decide Origin-header-absent policy during Phase 88 planning (reject outright, or require capability-bearing handshake?)
+- Phase 90 Plan 01: grep-gate.sh placed in scripts/ (not .github/workflows/) — auditor must not live inside the thing it audits (D-09 Claude's Discretion)
+- Phase 90 Plan 01: Section 12 in build-script.test.sh is intentionally red at Wave 0 — three failing assertions are the acceptance contract for Plan 03
+- Phase 90 Plan 01: 90-TAP-BRANCH-SETUP.md documents the human-only prerequisite for Plan 06 E2E (push access to scottkw/homebrew-agenthub required)
 
 ### Quick Tasks Completed
 
@@ -105,6 +108,7 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 | 87 | 04 | 22min | 2 | 11 | b2871ee, b2e2105 |
 | 87 | 05 | 4m12s | 2 | 5 | 60e9424, cec6ef5 |
 | 87 | 06 | ~15min | 2 | 6 | 1a0fb60, e7f315e, a87e2bb |
+| 90 | 01 | ~8min | 2 | 3 | 4b32dc5, 11928da |
 
 ### Blockers/Concerns
 
@@ -115,8 +119,8 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 89 context gathered
-Next action: `/gsd:verify-work 87` to verify phase success criteria before advancing to Phase 88 (WebSocket Handshake Security)
+Last session: 2026-04-24T12:56:54Z
+Stopped at: Phase 90 Plan 01 complete (scaffolding — grep-gate.sh + Section 12 + tap-branch doc)
+Next action: Execute Phase 90 Plan 02 (tools-go-dependabot)
 
-**Planned Phase:** 89 (Vendored Terminal Assets + CSP) — 5 plans — 2026-04-22T13:58:11.745Z
+**Planned Phase:** 90 (Release Pipeline Hardening) — 6 plans — 2026-04-23T23:59:00.000Z
