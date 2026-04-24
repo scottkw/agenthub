@@ -60,10 +60,20 @@ esac
 
 # Wails binary check
 WAILS="$(go env GOPATH)/bin/wails"
+WAILS_PINNED_VER="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2 2>/dev/null)"
+if [[ -z "$WAILS_PINNED_VER" ]]; then
+  echo "ERROR: wails not pinned in go.mod — Phase 90 tools.go setup missing"
+  exit 1
+fi
 if [[ ! -x "$WAILS" ]]; then
   echo "ERROR: wails not found at $WAILS"
-  echo "Install: go install github.com/wailsapp/wails/v2/cmd/wails@latest"
+  echo "Install: go install github.com/wailsapp/wails/v2/cmd/wails@$WAILS_PINNED_VER"
   exit 1
+fi
+# Optional: verify installed version matches pinned version
+if ! "$WAILS" version 2>/dev/null | grep -qF "$WAILS_PINNED_VER"; then
+  echo "WARN: installed wails does not match pinned version ($WAILS_PINNED_VER)"
+  echo "Reinstall: go install github.com/wailsapp/wails/v2/cmd/wails@$WAILS_PINNED_VER"
 fi
 
 # --- Build functions ---
