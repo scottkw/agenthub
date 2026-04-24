@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Linux dependencies
         run: |
@@ -18,7 +18,7 @@ jobs:
           sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
 
@@ -26,12 +26,12 @@ jobs:
         run: go test -race -short ./...
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
         with:
           version: 9
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -43,40 +43,38 @@ jobs:
   build-macos:
     needs: [validate]
     runs-on: macos-latest
-    environment: release
-    env:
-      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-      MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
-      MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
-      MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
-      MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
-      MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+    permissions:
+      id-token: write          # attest-build-provenance OIDC signing
+      attestations: write      # persist to GH attestations API
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
         with:
           version: 9
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+      - name: Install Wails CLI (version from go.mod)
+        run: |
+          WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
+          go install github.com/wailsapp/wails/v2/cmd/wails@"$WAILS_VER"
 
       - name: Ensure frontend/dist exists for embed
         run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
@@ -89,6 +87,246 @@ jobs:
       - name: Copy branded ICNS into bundle
         run: |
           cp build/appicon.icns build/bin/AgentHub.app/Contents/Resources/iconfile.icns 2>/dev/null || true
+
+      # CRITICAL: tar .app BEFORE upload — actions/upload-artifact zips and strips symlinks/+x bits
+      # (90-RESEARCH.md Pitfall 1 lines 471-477)
+      - name: Tar .app bundle (preserve symlinks and +x bits)
+        run: tar -czf build/bin/AgentHub.app.tar.gz -C build/bin AgentHub.app
+
+      - name: Attest unsigned artifact (internal)
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: build/bin/AgentHub.app.tar.gz
+
+      - name: Upload unsigned .app bundle + attestation bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agenthub-darwin-universal-unsigned
+          path: |
+            build/bin/AgentHub.app.tar.gz
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+
+  build-windows:
+    needs: [validate]
+    runs-on: windows-latest
+    permissions:
+      id-token: write          # attest-build-provenance OIDC signing
+      attestations: write      # persist to GH attestations API
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI (version from go.mod)
+        run: |
+          WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
+          go install github.com/wailsapp/wails/v2/cmd/wails@"$WAILS_VER"
+
+      - name: Install NSIS
+        run: |
+          choco install nsis -y
+          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
+
+      - name: Ensure frontend/dist exists for embed
+        shell: bash
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
+      - name: Build Windows artifacts
+        shell: bash
+        run: |
+          wails build -platform windows/amd64 -webview2 download -nsis -tags wailsassets \
+            -ldflags "-X main.Version=${{ github.ref_name }}"
+
+      - name: Rename artifacts with version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          mv build/bin/AgentHub-amd64-installer.exe \
+            "build/bin/agenthub-${VERSION}-windows-amd64-installer.exe"
+          mv build/bin/AgentHub.exe \
+            "build/bin/agenthub-${VERSION}-windows-amd64.exe"
+
+      - name: Attest unsigned Windows artifacts (internal)
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: 'build/bin/agenthub-*-windows-amd64*.exe'
+
+      - name: Upload Windows artifacts + attestation bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-artifacts
+          path: |
+            build/bin/agenthub-*.exe
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+
+  build-linux:
+    needs: [validate]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write          # attest-build-provenance OIDC signing
+      attestations: write      # persist to GH attestations API
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config \
+            libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@903f9c1a6ebcba6cf41d87230be49611ac97822e # v6.0.3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Wails CLI (version from go.mod)
+        run: |
+          WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
+          [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
+          go install github.com/wailsapp/wails/v2/cmd/wails@"$WAILS_VER"
+
+      - name: Ensure frontend/dist exists for embed
+        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+
+      - name: Build Linux binary
+        run: |
+          wails build -platform linux/amd64 -tags webkit2_41,wailsassets \
+            -ldflags "-X main.Version=${{ github.ref_name }}"
+
+      - name: Create tar.gz
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          TAR_NAME="agenthub-${VERSION}-linux-amd64.tar.gz"
+          mv build/bin/AgentHub build/bin/agenthub
+          tar -czf "${TAR_NAME}" -C build/bin agenthub
+          mv "${TAR_NAME}" build/bin/
+
+      - name: Install nfpm (version from go.mod)
+        run: |
+          NFPM_VER=$(go list -m -f '{{.Version}}' github.com/goreleaser/nfpm/v2)
+          [ -n "$NFPM_VER" ] || { echo "nfpm not pinned in go.mod"; exit 1; }
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@"$NFPM_VER"
+
+      - name: Create .deb via nfpm
+        run: |
+          VERSION_BARE="${GITHUB_REF_NAME#v}"
+          cat > nfpm.yaml <<EOF
+          name: agenthub
+          arch: amd64
+          platform: linux
+          version: "${VERSION_BARE}"
+          maintainer: AgentHub <noreply@github.com>
+          description: AI coding session manager
+          contents:
+            - src: build/bin/agenthub
+              dst: /usr/bin/agenthub
+          EOF
+          $(go env GOPATH)/bin/nfpm package --packager deb \
+            --target "build/bin/agenthub-${GITHUB_REF_NAME}-linux-amd64.deb"
+
+      - name: Attest unsigned Linux artifacts (internal)
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            build/bin/agenthub-*.tar.gz
+            build/bin/agenthub-*.deb
+
+      - name: Upload Linux artifacts + attestation bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-artifacts
+          path: |
+            build/bin/agenthub-*.tar.gz
+            build/bin/agenthub-*.deb
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+
+  sign-macos:
+    needs: [build-macos]
+    runs-on: macos-latest
+    environment: release
+    permissions:
+      contents: read
+    env:
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.MACOS_CERTIFICATE_NAME }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.MACOS_CI_KEYCHAIN_PWD }}
+      MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}
+      MACOS_NOTARIZATION_PWD: ${{ secrets.MACOS_NOTARIZATION_PWD }}
+      MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
+    steps:
+      - name: Download unsigned .app bundle + attestation bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: agenthub-darwin-universal-unsigned
+          path: artifacts/
+
+      - name: Verify internal attestation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BUNDLE=$(ls artifacts/attestation.json artifacts/*.sigstore.json 2>/dev/null | head -1 || true)
+          if [[ -z "$BUNDLE" ]]; then
+            echo "FAIL: no attestation bundle found in artifacts/"
+            ls -la artifacts/
+            exit 1
+          fi
+          echo "Verifying attestation bundle: $BUNDLE"
+          gh attestation verify artifacts/AgentHub.app.tar.gz \
+            --repo ${{ github.repository }} \
+            --bundle "$BUNDLE"
+
+      - name: Untar .app bundle
+        run: |
+          mkdir -p build/bin
+          tar -xzf artifacts/AgentHub.app.tar.gz -C build/bin/
+
+      # ======================================================================
+      # Below: codesign/notarize/DMG steps MOVED VERBATIM from old build-macos
+      # (previous release.yml lines 93-141). Cryptographic logic unchanged.
+      # ======================================================================
 
       - name: Import certificate to keychain
         run: |
@@ -140,159 +378,23 @@ jobs:
           security delete-keychain build.keychain || true
           rm -f certificate.p12 build/bin/agenthub-notarize.zip
 
-      - name: Upload macOS DMG
-        uses: actions/upload-artifact@v4
+      - name: Upload signed DMG
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-dmg
           path: build/bin/agenthub-*.dmg
           if-no-files-found: error
 
-  build-windows:
-    needs: [validate]
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Install NSIS
-        run: |
-          choco install nsis -y
-          echo "C:\Program Files (x86)\NSIS" >> $env:GITHUB_PATH
-
-      - name: Ensure frontend/dist exists for embed
-        shell: bash
-        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
-
-      - name: Build Windows artifacts
-        shell: bash
-        run: |
-          wails build -platform windows/amd64 -webview2 download -nsis -tags wailsassets \
-            -ldflags "-X main.Version=${{ github.ref_name }}"
-
-      - name: Rename artifacts with version
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          mv build/bin/AgentHub-amd64-installer.exe \
-            "build/bin/agenthub-${VERSION}-windows-amd64-installer.exe"
-          mv build/bin/AgentHub.exe \
-            "build/bin/agenthub-${VERSION}-windows-amd64.exe"
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-artifacts
-          path: build/bin/agenthub-*.exe
-          if-no-files-found: error
-
-  build-linux:
-    needs: [validate]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config \
-            libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-
-      - name: Ensure frontend/dist exists for embed
-        run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
-
-      - name: Build Linux binary
-        run: |
-          wails build -platform linux/amd64 -tags webkit2_41,wailsassets \
-            -ldflags "-X main.Version=${{ github.ref_name }}"
-
-      - name: Create tar.gz
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          TAR_NAME="agenthub-${VERSION}-linux-amd64.tar.gz"
-          mv build/bin/AgentHub build/bin/agenthub
-          tar -czf "${TAR_NAME}" -C build/bin agenthub
-          mv "${TAR_NAME}" build/bin/
-
-      - name: Create .deb via nfpm
-        run: |
-          VERSION_BARE="${GITHUB_REF_NAME#v}"
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-          cat > nfpm.yaml <<EOF
-          name: agenthub
-          arch: amd64
-          platform: linux
-          version: "${VERSION_BARE}"
-          maintainer: AgentHub <noreply@github.com>
-          description: AI coding session manager
-          contents:
-            - src: build/bin/agenthub
-              dst: /usr/bin/agenthub
-          EOF
-          $(go env GOPATH)/bin/nfpm package --packager deb \
-            --target "build/bin/agenthub-${GITHUB_REF_NAME}-linux-amd64.deb"
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-artifacts
-          path: |
-            build/bin/agenthub-*.tar.gz
-            build/bin/agenthub-*.deb
-          if-no-files-found: error
-
   publish:
-    needs: [build-macos, build-windows, build-linux]
+    needs: [build-macos, build-windows, build-linux, sign-macos]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write          # create/update release
+      id-token: write          # release attestation OIDC
+      attestations: write      # persist release attestation to GH API
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           merge-multiple: true
@@ -300,11 +402,17 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd artifacts
-          sha256sum * > checksums.txt
+          # Explicit globs so attestation bundle .json files are excluded
+          sha256sum *.dmg *.exe *.tar.gz *.deb > checksums.txt
           cat checksums.txt
 
+      - name: Release build-provenance attestation
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-checksums: artifacts/checksums.txt
+
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           files: |
             artifacts/*.dmg
@@ -313,4 +421,5 @@ jobs:
             artifacts/*.deb
             artifacts/checksums.txt
           fail_on_unmatched_files: true
-          token: ${{ secrets.TAP_DEPLOY_TOKEN }}
+          draft: ${{ contains(github.ref, '-rc') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
