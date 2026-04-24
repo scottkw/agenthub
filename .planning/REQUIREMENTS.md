@@ -50,8 +50,8 @@ Removes the runtime dependency on `cdn.jsdelivr.net` for the interactive termina
 
 Removes mutable-tag third-party code execution while release jobs hold signing and publish secrets.
 
-- [ ] **SEC-09** — All third-party GitHub Actions in `.github/workflows/` are pinned to immutable commit SHAs (no `@main`, no `@master`, no floating branch refs)
-- [ ] **SEC-10** — Go build tools used by workflows and `build.sh` (wails, nfpm, and any other `go install` targets) are pinned to exact versions (no `@latest`)
+- [x] **SEC-09** — All third-party GitHub Actions in `.github/workflows/` are pinned to immutable commit SHAs (no `@main`, no `@master`, no floating branch refs)
+- [x] **SEC-10** — Go build tools used by workflows and `build.sh` (wails, nfpm, and any other `go install` targets) are pinned to exact versions (no `@latest`)
 - [ ] **SEC-11** — Release pipeline is restructured so the unsigned build step cannot access signing, notarization, or publish secrets; signing/publish runs in a separate job that receives only the already-built artifacts
 
 ---
@@ -96,8 +96,8 @@ Each v3.1 requirement maps to exactly one phase. All 11 requirements mapped (100
 | SEC-06 | Phase 88 — WebSocket Handshake Security | Complete (2026-04-22; SC-2 live UAT pending) |
 | SEC-07 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
 | SEC-08 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
-| SEC-09 | Phase 90 — Release Pipeline Hardening | Pending |
-| SEC-10 | Phase 90 — Release Pipeline Hardening | Pending |
+| SEC-09 | Phase 90 — Release Pipeline Hardening | Complete |
+| SEC-10 | Phase 90 — Release Pipeline Hardening | Complete |
 | SEC-11 | Phase 90 — Release Pipeline Hardening | Pending |
 
 ---

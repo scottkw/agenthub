@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Phase 90 planned (6 plans ready to execute)
-last_updated: "2026-04-23T23:59:00.000Z"
-last_activity: 2026-04-23
+stopped_at: Phase 90 Plan 02 complete (tools.go + dependabot.yml)
+last_updated: "2026-04-24T13:07:58.020Z"
+last_activity: 2026-04-24
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_plans: 11
+  completed_plans: 7
+  percent: 64
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 ## Current Position
 
 Phase: 90
-Plan: 02 (plan 01 complete)
+Plan: 03 (plans 01-02 complete)
 Status: Executing
 Last activity: 2026-04-24
 
-Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phases complete)
+Progress: [██████░░░░] 64% (v3.1 milestone 64% — 7/11 plans complete)
 
 ## Performance Metrics
 
@@ -77,6 +77,8 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 - Phase 87 Plan 06: /join 5-state UI driven by client-side query-param routing (?code=, ?error=expired|invalid|session-gone); one embed file serves five surfaces, no server branching.
 - Phase 87 Plan 06: terminal.html perms sourced exclusively from GET /api/sessions/{id}/info?cap= claims; legacy ?readonly query string removed from write-gate path (Pitfall 7). xterm init wrapped in async perms-fetch IIFE so caret is never briefly enabled for a read-only cap.
 - Phase 87 Plan 06: POST /join/exchange returns 303 See Other for form→GET transition; preserves idempotent redirect target and prevents refresh-resubmission. session-gone distinct from invalid to surface honest state.
+- [Phase 90]: tools.go blank-imports library roots (github.com/goreleaser/nfpm/v2, github.com/wailsapp/wails/v2) not cmd sub-packages; cmd packages are package main and cannot be blank-imported; module pinning effect in go.mod is identical
+- [Phase 90]: dependabot.yml has no auto-merge field (D-07); no groups: section (ungrouped per RESEARCH for audit clarity); nfpm resolved to v2.33.1 by go mod tidy (not v2.46.3 estimated in RESEARCH)
 
 ### Pending Todos
 
@@ -97,6 +99,7 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 | Phase 87 P04 | 22min | 2 tasks | 11 files |
 | Phase 87 P05 | 4m12s | 2 tasks | 5 files |
 | Phase 87 P06 | ~15min | 2 tasks | 6 files |
+| Phase 90 P02 | 7m | 2 tasks | 4 files |
 
 ### Plan Execution Metrics
 
@@ -119,8 +122,8 @@ Progress: [█████░░░░░] 50% (v3.1 milestone 50% — 2/4 phase
 
 ## Session Continuity
 
-Last session: 2026-04-24T12:56:54Z
-Stopped at: Phase 90 Plan 01 complete (scaffolding — grep-gate.sh + Section 12 + tap-branch doc)
+Last session: 2026-04-24T13:07:58.016Z
+Stopped at: Phase 90 Plan 02 complete (tools.go + dependabot.yml)
 Next action: Execute Phase 90 Plan 02 (tools-go-dependabot)
 
 **Planned Phase:** 90 (Release Pipeline Hardening) — 6 plans — 2026-04-23T23:59:00.000Z
