@@ -290,6 +290,28 @@ assert_file_contains_literal "contains set -euo pipefail" \
   "set -euo pipefail" "$BUILD_SH"
 
 # ---------------------------------------------------------------------------
+# Section 12: SEC-10 compliance — build.sh install pattern
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== Section 12: SEC-10 compliance — no @latest refs ==="
+
+# Negation: @latest must be ABSENT from build.sh
+output=$(grep -c '@latest' "$BUILD_SH" || true)
+if [[ "$output" -eq 0 ]]; then
+  pass "build.sh contains no @latest references (SEC-10)"
+else
+  fail "build.sh contains @latest — SEC-10 violation" "matches: $output"
+fi
+
+# Positive: new go list -m pin pattern present
+assert_file_contains_literal "build.sh contains go list -m pin pattern" \
+  "go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2" "$BUILD_SH"
+
+# Positive: WAILS_PINNED_VER sanity gate present (Pitfall 5 defense)
+assert_file_contains_literal "build.sh gates on WAILS_PINNED_VER" \
+  "WAILS_PINNED_VER" "$BUILD_SH"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""
