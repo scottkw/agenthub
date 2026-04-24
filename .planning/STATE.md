@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
 status: executing
-stopped_at: Phase 90 Plan 04 complete (release.yml three-stage split + SLSA L2 attestations)
-last_updated: "2026-04-24T13:19:29.165Z"
+stopped_at: Phase 90 Plan 05 complete (distribute.yml wingetcreate + rc-guards + grep-gate GREEN)
+last_updated: "2026-04-24T13:26:03.871Z"
 last_activity: 2026-04-24
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 11
-  completed_plans: 9
-  percent: 82
+  completed_plans: 10
+  percent: 91
 ---
 
 # Project State
@@ -80,6 +80,9 @@ Progress: [████████░░] 82% (v3.1 milestone 82% — 9/11 plan
 - [Phase 90]: tools.go blank-imports library roots (github.com/goreleaser/nfpm/v2, github.com/wailsapp/wails/v2) not cmd sub-packages; cmd packages are package main and cannot be blank-imported; module pinning effect in go.mod is identical
 - [Phase 90]: dependabot.yml has no auto-merge field (D-07); no groups: section (ungrouped per RESEARCH for audit clarity); nfpm resolved to v2.33.1 by go mod tidy (not v2.46.3 estimated in RESEARCH)
 - [Phase 90]: release.yml split into build→sign-macos→publish; sign-macos is the only job with environment:release; TAP_DEPLOY_TOKEN removed from publish (D-02); SLSA L2 internal+release attestations via attest-build-provenance@v4.1.0; .app tarred before upload to preserve symlinks+x bits; rc-draft uses hyphen-anchored contains(github.ref,'-rc')
+- [Phase 90]: D-08 applied: wingetcreate.exe v1.12.8.0 on windows-latest replaces vedantmgoyal9/winget-releaser@main; SHA-256 tamper-check gates execution
+- [Phase 90]: D-16 + D-17 applied in distribute.yml: rc tags route tap checkout+push to release-90-test branch; winget submission skipped entirely on rc tags (hyphen-anchored contains(github.ref,'-rc') throughout)
+- [Phase 90]: grep-gate Check 2 uses \w@latest pattern (word-boundary prefix) to distinguish real tool-install @latest refs from quoted-string mentions in test assertion code
 
 ### Pending Todos
 
@@ -102,6 +105,7 @@ Progress: [████████░░] 82% (v3.1 milestone 82% — 9/11 plan
 | Phase 87 P06 | ~15min | 2 tasks | 6 files |
 | Phase 90 P02 | 7m | 2 tasks | 4 files |
 | Phase 90 P04 | 3min | 3 tasks | 1 files |
+| Phase 90 P05 | 3min | 2 tasks | 2 files |
 
 ### Plan Execution Metrics
 
@@ -125,8 +129,8 @@ Progress: [████████░░] 82% (v3.1 milestone 82% — 9/11 plan
 
 ## Session Continuity
 
-Last session: 2026-04-24T13:19:29.161Z
-Stopped at: Phase 90 Plan 04 complete (release.yml three-stage split + SLSA L2 attestations)
+Last session: 2026-04-24T13:26:03.867Z
+Stopped at: Phase 90 Plan 05 complete (distribute.yml wingetcreate + rc-guards + grep-gate GREEN)
 Next action: Execute Phase 90 Plan 04 (release.yml three-stage split)
 
 **Planned Phase:** 90 (Release Pipeline Hardening) — 6 plans — 2026-04-23T23:59:00.000Z
