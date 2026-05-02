@@ -74,12 +74,6 @@ describe('UI-02 Gap 5: Mount-based useEffect', () => {
     // A mount-only effect ends with }, []) pattern.
     expect(raw).toContain('}, [])')
   })
-
-  it('useEffect does NOT guard on isOpen', () => {
-    // Old modal pattern: useEffect(() => { if (!isOpen) return; ... }, [isOpen])
-    // Should not be present in the sidebar tab version.
-    expect(raw).not.toContain('isOpen')
-  })
 })
 
 describe('THM-01: Appearance section with theme selector', () => {

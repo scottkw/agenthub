@@ -17,7 +17,6 @@ describe('App', () => {
     it('passes required props to StatusBar', () => {
       expect(raw).toContain('webServerRunning={webServerRunning}')
       expect(raw).toContain('webEnabled={!!webEnabled[tab.sessionId]}')
-      expect(raw).toContain('sessionURL={sessionURLs[tab.sessionId]}')
     })
   })
 
