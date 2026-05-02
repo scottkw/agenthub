@@ -22,7 +22,7 @@ require (
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.41.0
-	tailscale.com v1.96.3
+	tailscale.com v1.96.5
 )
 
 require (
