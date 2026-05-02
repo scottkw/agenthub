@@ -100,13 +100,17 @@ jobs:
         with:
           subject-path: build/bin/AgentHub.app.tar.gz
 
+      - name: Stage attestation bundle alongside artifact
+        shell: bash
+        run: cp "${{ steps.attest.outputs.bundle-path }}" build/bin/attestation.json
+
       - name: Upload unsigned .app bundle + attestation bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: agenthub-darwin-universal-unsigned
           path: |
             build/bin/AgentHub.app.tar.gz
-            ${{ steps.attest.outputs.bundle-path }}
+            build/bin/attestation.json
           if-no-files-found: error
 
   build-windows:
@@ -176,13 +180,17 @@ jobs:
         with:
           subject-path: 'build/bin/agenthub-*-windows-amd64*.exe'
 
+      - name: Stage attestation bundle alongside artifacts
+        shell: bash
+        run: cp "${{ steps.attest.outputs.bundle-path }}" build/bin/attestation-windows.json
+
       - name: Upload Windows artifacts + attestation bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-artifacts
           path: |
             build/bin/agenthub-*.exe
-            ${{ steps.attest.outputs.bundle-path }}
+            build/bin/attestation-windows.json
           if-no-files-found: error
 
   build-linux:
@@ -276,6 +284,10 @@ jobs:
             build/bin/agenthub-*.tar.gz
             build/bin/agenthub-*.deb
 
+      - name: Stage attestation bundle alongside artifacts
+        shell: bash
+        run: cp "${{ steps.attest.outputs.bundle-path }}" build/bin/attestation-linux.json
+
       - name: Upload Linux artifacts + attestation bundle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -283,7 +295,7 @@ jobs:
           path: |
             build/bin/agenthub-*.tar.gz
             build/bin/agenthub-*.deb
-            ${{ steps.attest.outputs.bundle-path }}
+            build/bin/attestation-linux.json
           if-no-files-found: error
 
   sign-macos:
