@@ -22,7 +22,7 @@ This file tracks the remaining E2E verification the user must run. It surfaces i
 
 ## Current Test
 
-[awaiting human execution — Task 1: pre-flight]
+Task 6 — tag and push v3.1.0-rc1 (pre-flight 1-5 PASS as of 2026-05-02)
 
 ## Tests
 
@@ -37,7 +37,7 @@ go test -race -short ./...
 python3 -c 'import yaml; [yaml.safe_load(open(f)) for f in [".github/workflows/build.yml", ".github/workflows/release.yml", ".github/workflows/distribute.yml", ".github/workflows/release-please.yml", ".github/dependabot.yml"]]'
 ```
 expected: all five commands exit 0
-result: [pending]
+result: PASS (2026-05-02). Note: `go build -tags tools ./...` excludes `security-review/` (gitignored, has mixed-package files); use `go build -tags tools . ./internal/...` instead.
 
 ### 2. Pre-flight — release-90-test tap branch created
 
@@ -51,7 +51,7 @@ git push -u origin release-90-test
 gh api /repos/scottkw/homebrew-agenthub/branches/release-90-test --jq .name
 ```
 expected: `release-90-test`
-result: [pending]
+result: PASS (2026-05-02) — branch verified via `gh api`
 
 ### 3. Pre-flight — release environment rules audited
 
@@ -59,8 +59,8 @@ result: [pending]
 gh api /repos/scottkw/agenthub/environments/release
 ```
 expected: Protection rules + secrets list inspected. Plan 04 moved `environment: release` from build-macos to sign-macos — any required-reviewer rule now gates sign-macos (intended).
-result: [pending]
-notes:
+result: PASS (2026-05-02) — initial state had zero rules; required-reviewer rule (scottkw, prevent_self_review=false) added this session via `gh api -X PUT`. sign-macos will pause for approval on rc1 push.
+notes: Self-review enabled because scottkw is the only reviewer and the same user pushes the rc tag.
 
 ### 4. Pre-flight — build.yml green on current HEAD
 
@@ -68,7 +68,7 @@ notes:
 gh run list --workflow build.yml --branch "$(git branch --show-current)" --limit 5 --json conclusion,status,headSha --jq '.[] | select(.headSha == "'"$(git rev-parse HEAD)"'")'
 ```
 expected: conclusion=success, status=completed
-result: [pending]
+result: PASS (2026-05-02) — run id=25263746976 on sha=91227fbe, all 4 matrix jobs success (darwin/universal, ubuntu-latest 4.1-dev, ubuntu-22.04 4.0-dev, windows-latest). Required 5 fix commits on top of paused HEAD: f163ef5 (go.mod tidy idempotency), a59d7fc (delete stale Phase-61 source-grep test file), 144b320 (Windows skip guards on capability/daemon Go tests), 1fae495 (update App.test/SettingsTab.test source-grep assertions for Phase 87 refactor), 91227fb (shell:bash on tool-install steps for Windows compatibility). Note: same SHA already verified green on `release/v3.1` before fast-forwarding to main.
 
 ### 5. Pre-flight — no conflicting Dependabot PRs
 
@@ -76,7 +76,7 @@ result: [pending]
 gh pr list --label dependencies --state open
 ```
 expected: none touching workflow YAMLs
-result: [pending]
+result: PASS (2026-05-02) — clean
 
 ### 6. Tag push — cut and push v3.1.0-rc1
 
