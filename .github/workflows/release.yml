@@ -71,6 +71,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Wails CLI (version from go.mod)
+        shell: bash
         run: |
           WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
           [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
@@ -139,6 +140,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Wails CLI (version from go.mod)
+        shell: bash
         run: |
           WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
           [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
@@ -220,6 +222,7 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Wails CLI (version from go.mod)
+        shell: bash
         run: |
           WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
           [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
@@ -242,6 +245,7 @@ jobs:
           mv "${TAR_NAME}" build/bin/
 
       - name: Install nfpm (version from go.mod)
+        shell: bash
         run: |
           NFPM_VER=$(go list -m -f '{{.Version}}' github.com/goreleaser/nfpm/v2)
           [ -n "$NFPM_VER" ] || { echo "nfpm not pinned in go.mod"; exit 1; }

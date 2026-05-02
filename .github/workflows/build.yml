@@ -78,6 +78,7 @@ jobs:
         run: cd frontend && pnpm install && pnpm test
 
       - name: Install Wails CLI (version from go.mod)
+        shell: bash
         run: |
           WAILS_VER=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v2)
           [ -n "$WAILS_VER" ] || { echo "wails not pinned in go.mod"; exit 1; }
