@@ -1237,6 +1237,9 @@ func TestIPCHandlers_ExpiredCodeReturns410(t *testing.T) {
 // /capability/regenerate-key replaces the on-disk key AND the in-memory key,
 // and updates ws.signingKey via SetSigningKey.
 func TestIPCHandlers_RegenerateSigningKey_SwapsKey(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses Unix domain sockets via api.Start(/tmp/...); production uses named pipes")
+	}
 	tmpDir := t.TempDir()
 	engine := NewSessionEngine()
 	engine.configDir = tmpDir
