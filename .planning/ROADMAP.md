@@ -20,7 +20,7 @@
 - ✅ **v2.0 Multi-Client, CLI UX & TUI Mode** — Phases 74-78 (shipped 2026-04-16)
 - ✅ **v2.1 Bug Fixes & UX** — Phases 79-82 (shipped 2026-04-17)
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
-- 🚧 **v3.1 Security Hardening** — Phases 87-90 (in progress, addresses Issue #35)
+- ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 
 ## Phases
 
@@ -218,13 +218,18 @@
 
 </details>
 
-<details open>
-<summary>🚧 v3.1 Security Hardening (Phases 87-90) — IN PROGRESS</summary>
+<details>
+<summary>✅ v3.1 Security Hardening (Phases 87-90) — SHIPPED 2026-05-03 (v3.1.0, closes Issue #35)</summary>
 
-- [ ] **Phase 87: Capability-Based Session Authorization** — Replace tailnet-wide trust with server-issued, signed capability tokens that gate session listing, metadata, WebSocket access, and write permission
-- [x] **Phase 88: WebSocket Handshake Security** — Reject cross-origin WebSocket upgrades via explicit Origin allowlist (Tailscale FQDN, local-mode host, same-origin) (Complete 2026-04-22; SC-2 live UAT pending in 88-HUMAN-UAT.md)
-- [x] **Phase 89: Vendored Terminal Assets + CSP** — Serve xterm JS/CSS from the embedded binary and lock down the terminal page with a strict Content-Security-Policy (completed 2026-04-23)
-- [ ] **Phase 90: Release Pipeline Hardening** — SHA-pin third-party GitHub Actions, pin Go build tools to exact versions, and split unsigned-build from signing/publish jobs so build steps never hold release secrets
+- [x] **Phase 87: Capability-Based Session Authorization** — Server-issued, signed capability tokens gate session listing, metadata, WebSocket access, and write permission. Tailnet membership is no longer sufficient. (UAT complete 2026-04-21)
+- [x] **Phase 88: WebSocket Handshake Security** — Strict Origin allowlist (Tailscale FQDN, local-mode host, same-origin); cross-site upgrades return 403. Includes Wails desktop webview origin (`wails://wails`) — both production-darwin and dev-mode patterns. (UAT complete 2026-05-02 against rc3 + rc5 dmg)
+- [x] **Phase 89: Vendored Terminal Assets + CSP** — xterm JS/CSS embedded in binary; strict CSP on all three HTML routes (`script-src 'self'`, `connect-src 'self' wss://<host>`, `style-src 'self' 'unsafe-inline'` per D-09). Zero CDN fetches verified across 1779 requests. (UAT complete 2026-05-02)
+- [x] **Phase 90: Release Pipeline Hardening** — All third-party Actions SHA-pinned; build tools pinned via `tools.go`; release.yml split into validate → build-{macos,windows,linux} → sign-macos (gated by required-reviewer rule) → publish; SLSA L2 attestations verified before codesigning. (Pipeline E2E proven through 5 rc cycles before v3.1.0 final tag)
+
+Distribution follow-ups deferred to **Phase 91** (next milestone — see `.planning/phases/91-distribution-pipeline-followups/91-CONTEXT.md`):
+  - 91-A: Switch `release.yml` from `GITHUB_TOKEN` to PAT so `release.published` auto-triggers `distribute.yml`
+  - 91-B: Fix `submit-winget` step's templating to handle `workflow_dispatch` events (use `RELEASE_TAG` env var instead of `github.event.release.tag_name`)
+  - 91-C: One-time WinGet first-submission to `microsoft/winget-pkgs` (use `wingetcreate new`, not `update`)
 
 </details>
 

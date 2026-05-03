@@ -2,16 +2,24 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Security Hardening
-status: executing
-stopped_at: Phase 90 static deliverables complete (Plans 01-05, 14/15 must-haves verified) — Plan 06 E2E RC verification deferred to human UAT (see 90-06-HUMAN-UAT.md)
-last_updated: "2026-04-24T14:05:00.000Z"
-last_activity: 2026-04-24
+status: shipped
+shipped_at: "2026-05-03T03:08:00.000Z"
+last_updated: "2026-05-03T03:30:00.000Z"
+last_activity: 2026-05-03
+ships:
+  - tag: v3.1.0
+    url: https://github.com/scottkw/agenthub/releases/tag/v3.1.0
+    closes: ["#35"]
+    distribution:
+      github: published
+      homebrew: "scottkw/homebrew-agenthub@76f34d7e — version 3.1.0"
+      winget: deferred (Phase 91-C — first-submission needed)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +29,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-19)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 89 — vendored-terminal-assets-csp
+**Current focus:** v3.1 SHIPPED — Phase 91 (distribution pipeline follow-ups) filed for next milestone
 
 ## Current Position
 
-Phase: 90
-Plan: Static 01-05 complete; Plan 06 pending human UAT (see 90-06-HUMAN-UAT.md)
-Status: Phase complete static; E2E RC verification deferred to human
-Last activity: 2026-04-24
+Milestone: v3.1 — SHIPPED 2026-05-03 as v3.1.0 (closes Issue #35)
+Phase 91: distribution pipeline follow-ups filed for next milestone — see .planning/phases/91-distribution-pipeline-followups/91-CONTEXT.md
+Last activity: 2026-05-03 (v3.1.0 release pipeline + Homebrew tap propagation)
 
-Progress: [██████████] ~95% (v3.1 milestone — Plans 01-05 of Phase 90 static-verified 14/15 must-haves; Plan 06 live-tag UAT outstanding)
+Progress: [██████████] 100% (v3.1 milestone shipped)
 
 ## Performance Metrics
 
@@ -129,8 +136,9 @@ Progress: [██████████] ~95% (v3.1 milestone — Plans 01-05 
 
 ## Session Continuity
 
-Last session: 2026-04-24T13:26:03.867Z
-Stopped at: Phase 90 Plan 05 complete (distribute.yml wingetcreate + rc-guards + grep-gate GREEN)
-Next action: Execute Phase 90 Plan 04 (release.yml three-stage split)
+Last session: 2026-05-03T03:30:00Z (v3.1 ship complete)
+Stopped at: v3.1.0 SHIPPED — GitHub release public, Homebrew tap updated, Issue #35 closed
+Resume file: none required — clean state.
+Next action: TBD by next milestone scope (v3.1.1 patch / v3.2 features / etc.) — Phase 91 distribution follow-ups absorb into whichever milestone comes next.
 
-**Planned Phase:** 90 (Release Pipeline Hardening) — 6 plans — 2026-04-23T23:59:00.000Z
+**Shipped Milestone:** v3.1 (Security Hardening) — 4 phases (87-90), 11 plans, shipped 2026-05-03 as v3.1.0.
