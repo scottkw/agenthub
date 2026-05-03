@@ -155,26 +155,48 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// loopbackOriginPatterns returns the 4-element allowlist of loopback
-// origin patterns for the given host (from r.Host). If host cannot be
-// split into host:port, returns nil — letting the library fall back to
-// its same-Host default, which is still loopback-safe given the
-// daemon-side bind to 127.0.0.1.
+// loopbackOriginPatterns returns the allowlist of origin patterns
+// authorised to open a relay WebSocket. Three classes of caller exist:
+//
+//  1. Browsers connecting via http(s)://127.0.0.1:<port> or
+//     http(s)://localhost:<port> — the dashboard and (in future) any
+//     locally-served HTML.
+//  2. The Wails desktop webview, whose origin is wails://wails.localhost
+//     (macOS, Linux) or http://wails.localhost (Windows). Production
+//     builds have no port; dev builds expose a Vite HMR port. Both
+//     forms must be matched. The wails.localhost host is reserved by
+//     the Wails runtime and cannot be impersonated by an external
+//     browser, so allow-listing it does not weaken the loopback
+//     security boundary.
+//  3. CLI / Go HTTP clients (no Origin header) — coder/websocket allows
+//     these unconditionally per its Accept() docs ("empty Origin
+//     header is allowed").
+//
+// If host cannot be split into host:port, the loopback IP-port
+// patterns are omitted but the Wails patterns are kept — the daemon
+// always binds the relay to 127.0.0.1 anyway, so the GUI must still
+// reach it across the wails:// → 127.0.0.1 origin boundary.
 //
 // CONTEXT D-09: schemes included because the relay may be fronted by
 // TLS in a future deployment; both "localhost" and "127.0.0.1" included
 // because browsers and tools emit either form.
 func loopbackOriginPatterns(host string) []string {
+	wails := []string{
+		"wails://wails.localhost",
+		"wails://wails.localhost:*",
+		"http://wails.localhost",
+		"http://wails.localhost:*",
+	}
 	_, port, err := net.SplitHostPort(host)
 	if err != nil || port == "" {
-		return nil
+		return wails
 	}
-	return []string{
-		"http://localhost:" + port,
-		"http://127.0.0.1:" + port,
-		"https://localhost:" + port,
-		"https://127.0.0.1:" + port,
-	}
+	return append(wails,
+		"http://localhost:"+port,
+		"http://127.0.0.1:"+port,
+		"https://localhost:"+port,
+		"https://127.0.0.1:"+port,
+	)
 }
 
 // NotifyViewerCount pushes a MsgMeta frame with the current viewer count

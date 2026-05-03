@@ -87,25 +87,84 @@ func TestServer_CrossSiteOriginRejected(t *testing.T) {
 }
 
 // TestLoopbackOriginPatterns_DerivesPortFromHost is a unit test for the
-// loopbackOriginPatterns helper. Verifies correct 4-element allowlist generation
-// and nil return for empty / malformed host inputs (Phase 88 T-88-14).
+// loopbackOriginPatterns helper. Verifies the 8-element allowlist when host
+// includes a port (Wails origins + IP/loopback origins) and the 4-element
+// Wails-only fallback when host is empty / malformed (Phase 88 T-88-14,
+// extended for Wails GUI origin support).
 func TestLoopbackOriginPatterns_DerivesPortFromHost(t *testing.T) {
+	wailsBase := []string{
+		"wails://wails.localhost",
+		"wails://wails.localhost:*",
+		"http://wails.localhost",
+		"http://wails.localhost:*",
+	}
+
 	got := loopbackOriginPatterns("127.0.0.1:54321")
-	want := []string{
+	want := append(append([]string{}, wailsBase...),
 		"http://localhost:54321",
 		"http://127.0.0.1:54321",
 		"https://localhost:54321",
 		"https://127.0.0.1:54321",
-	}
+	)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("loopbackOriginPatterns(127.0.0.1:54321) = %v, want %v", got, want)
 	}
-	// Empty host -> nil (fail-closed: library falls back to same-Host default)
-	if got := loopbackOriginPatterns(""); got != nil {
-		t.Errorf("empty host: got %v, want nil", got)
+	// Empty host -> wails-only (Wails GUI must still reach the relay across
+	// the wails:// → 127.0.0.1 origin boundary).
+	if got := loopbackOriginPatterns(""); !reflect.DeepEqual(got, wailsBase) {
+		t.Errorf("empty host: got %v, want wails-only %v", got, wailsBase)
 	}
-	// Malformed host (no port) -> nil
-	if got := loopbackOriginPatterns("no-port-here"); got != nil {
-		t.Errorf("malformed host: got %v, want nil", got)
+	// Malformed host (no port) -> wails-only fallback
+	if got := loopbackOriginPatterns("no-port-here"); !reflect.DeepEqual(got, wailsBase) {
+		t.Errorf("malformed host: got %v, want wails-only %v", got, wailsBase)
 	}
+}
+
+// TestServer_WailsProductionOriginAccepted verifies that the relay accepts a
+// WebSocket upgrade from the production Wails desktop webview, whose Origin
+// has no port (wails://wails.localhost). Without this, the desktop GUI itself
+// is locked out of its own backend.
+func TestServer_WailsProductionOriginAccepted(t *testing.T) {
+	srv, _, _, _, sessionID := setupTestServer(t)
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := http.Header{}
+	headers.Set("Origin", "wails://wails.localhost")
+	wsURL := "ws://" + u.Host + "/sessions/" + sessionID + "/ws"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: headers,
+	})
+	if err != nil {
+		t.Fatalf("websocket.Dial with Wails production Origin: %v", err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
+}
+
+// TestServer_WailsDevOriginAccepted verifies that the relay accepts a
+// WebSocket upgrade from a Wails dev-mode webview, whose Origin includes the
+// Vite HMR port (wails://wails.localhost:34115).
+func TestServer_WailsDevOriginAccepted(t *testing.T) {
+	srv, _, _, _, sessionID := setupTestServer(t)
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := http.Header{}
+	headers.Set("Origin", "wails://wails.localhost:34115")
+	wsURL := "ws://" + u.Host + "/sessions/" + sessionID + "/ws"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: headers,
+	})
+	if err != nil {
+		t.Fatalf("websocket.Dial with Wails dev Origin: %v", err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
 }
