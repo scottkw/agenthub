@@ -98,7 +98,7 @@ In the sign-macos job logs, find "Verify internal attestation" step. Look for:
 - ✅ Attestation matched subject: artifacts/AgentHub.app.tar.gz
 
 expected: verification succeeded BEFORE codesign step ran
-result: [pending]
+result: PASS (2026-05-02 against rc3, run id 25264500524). sign-macos step "Verify internal attestation" completed success before keychain import + codesign. rc1 surfaced an artifact-zip nesting bug that was patched in commit 706c74f (stage attestation bundle alongside artifact); rc2 surfaced a missing-checkout bug patched in commit 2729ba6 (added checkout to sign-macos for entitlements.plist). rc3 ran the verify gate cleanly through publish.
 
 ### 8. Draft release created (D-15 proof)
 
@@ -106,7 +106,7 @@ result: [pending]
 gh release view v3.1.0-rc1 --json isDraft,tagName --jq '"tag=\(.tagName) draft=\(.isDraft)"'
 ```
 expected: `tag=v3.1.0-rc1 draft=true`
-result: [pending]
+result: PASS (2026-05-02 against rc3). `tag=v3.1.0-rc3 draft=true` confirmed via `gh release view`. Workflow's `draft: ${{ contains(github.ref, '-rc') }}` correctly evaluated true because the tag name contains '-rc'.
 
 ### 9. All 6 release assets present
 
@@ -121,7 +121,7 @@ expected: 6 names —
 - agenthub-v3.1.0-rc1-linux-amd64.deb
 - checksums.txt
 
-result: [pending]
+result: PARTIAL (2026-05-02 against rc3). All 6 expected assets present and correctly named, but a 7th unwanted asset leaked: `AgentHub.app.tar.gz` (the unsigned macOS pre-codesign tarball). Root cause: publish step's `artifacts/*.tar.gz` glob is too broad and matched both the version-prefixed Linux tarball and the unsigned macOS tarball that landed in `artifacts/` via merge-multiple. Fix needed before promoting to v3.1.0: tighten glob to `artifacts/agenthub-*.tar.gz` so only version-prefixed final assets are uploaded.
 
 ### 10. External attestation verify — all 6 assets (SLSA L2 end-to-end)
 

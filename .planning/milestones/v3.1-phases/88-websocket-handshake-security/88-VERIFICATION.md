@@ -1,16 +1,20 @@
 ---
 phase: 88-websocket-handshake-security
 verified: 2026-04-21T00:00:00Z
-status: human_needed
-score: 3/4 must-haves verified (SC-2 local-HTTPS-fallback requires manual UAT)
+uat_completed: 2026-05-02T23:55:00Z
+status: passed
+previous_status: human_needed
+score: 4/4 must-haves verified (automated 3/3 + manual SC-2 items 2/2)
 overrides_applied: 0
 human_verification:
   - test: "SC-2 local-HTTPS-fallback: open share link in browser on same LAN with self-signed cert, disable tailnet first"
     expected: "Terminal page loads and WebSocket upgrade completes (101); devtools shows Origin: https://<host-ip>:<port> accepted with no user-visible error"
     why_human: "Requires a live self-signed cert loaded in browser, LAN reachability, and browser cert trust dismissal — cannot be reproduced by httptest or an automated dial"
+    result: "PASS — verified against v3.1.0-rc3 dmg; Safari, LAN IP 192.168.1.186, Origin header confirmed, WS 101"
   - test: "SC-2 tailscale-mode UAT: open share link from another tailnet node browser"
     expected: "Terminal page attaches (WS 101); devtools confirms Origin: https://<host>.<tailnet>.ts.net:<port> accepted"
     why_human: "Requires live tailnet with magicsock active — httptest cannot reproduce a real Tailscale FQDN listener"
+    result: "PASS — verified against v3.1.0-rc3 dmg from iPhone via tailnet, Origin header confirmed via Web Inspector, WS 101"
 ---
 
 # Phase 88: WebSocket Handshake Security Verification Report

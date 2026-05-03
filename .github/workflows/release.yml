@@ -423,8 +423,10 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd artifacts
-          # Explicit globs so attestation bundle .json files are excluded
-          sha256sum *.dmg *.exe *.tar.gz *.deb > checksums.txt
+          # Explicit globs so attestation bundle .json files are excluded.
+          # `agenthub-*.tar.gz` (not `*.tar.gz`) prevents the unsigned
+          # AgentHub.app.tar.gz pre-codesign intermediate from leaking in.
+          sha256sum *.dmg *.exe agenthub-*.tar.gz *.deb > checksums.txt
           cat checksums.txt
 
       - name: Release build-provenance attestation
@@ -438,7 +440,7 @@ jobs:
           files: |
             artifacts/*.dmg
             artifacts/*.exe
-            artifacts/*.tar.gz
+            artifacts/agenthub-*.tar.gz
             artifacts/*.deb
             artifacts/checksums.txt
           fail_on_unmatched_files: true
