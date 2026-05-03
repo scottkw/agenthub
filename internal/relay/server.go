@@ -181,11 +181,20 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 // TLS in a future deployment; both "localhost" and "127.0.0.1" included
 // because browsers and tools emit either form.
 func loopbackOriginPatterns(host string) []string {
+	// Production startURL by platform (Wails v2.12.0):
+	//   macOS / Linux: wails://wails/         → Origin: wails://wails
+	//   Windows:       http://wails.localhost → Origin: http://wails.localhost
+	// Dev mode appends ".localhost" + the Vite HMR port:
+	//   macOS / Linux: wails://wails.localhost:<port>
+	//   Windows:       http://wails.localhost:<port>
+	// All four combinations must be permitted; only `wails.localhost` and
+	// `wails` are reserved Wails-runtime hosts that an external browser
+	// cannot impersonate.
 	wails := []string{
-		"wails://wails.localhost",
-		"wails://wails.localhost:*",
-		"http://wails.localhost",
-		"http://wails.localhost:*",
+		"wails://wails",                // production macOS / Linux
+		"wails://wails.localhost:*",    // dev macOS / Linux
+		"http://wails.localhost",       // production Windows
+		"http://wails.localhost:*",     // dev Windows
 	}
 	_, port, err := net.SplitHostPort(host)
 	if err != nil || port == "" {

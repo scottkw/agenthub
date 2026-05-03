@@ -93,10 +93,10 @@ func TestServer_CrossSiteOriginRejected(t *testing.T) {
 // extended for Wails GUI origin support).
 func TestLoopbackOriginPatterns_DerivesPortFromHost(t *testing.T) {
 	wailsBase := []string{
-		"wails://wails.localhost",
-		"wails://wails.localhost:*",
-		"http://wails.localhost",
-		"http://wails.localhost:*",
+		"wails://wails",                // production macOS / Linux
+		"wails://wails.localhost:*",    // dev macOS / Linux
+		"http://wails.localhost",       // production Windows
+		"http://wails.localhost:*",     // dev Windows
 	}
 
 	got := loopbackOriginPatterns("127.0.0.1:54321")
@@ -120,18 +120,20 @@ func TestLoopbackOriginPatterns_DerivesPortFromHost(t *testing.T) {
 	}
 }
 
-// TestServer_WailsProductionOriginAccepted verifies that the relay accepts a
-// WebSocket upgrade from the production Wails desktop webview, whose Origin
-// has no port (wails://wails.localhost). Without this, the desktop GUI itself
-// is locked out of its own backend.
-func TestServer_WailsProductionOriginAccepted(t *testing.T) {
+// TestServer_WailsProductionOriginAcceptedDarwin verifies that the relay
+// accepts the actual production macOS / Linux Wails webview Origin —
+// `wails://wails` (host is "wails", NOT "wails.localhost"). The
+// `.localhost` suffix is only appended by Wails in dev mode (see
+// frontend.go:109 in wails v2.12.0). Without this pattern, the desktop
+// GUI is locked out of its own backend on every production install.
+func TestServer_WailsProductionOriginAcceptedDarwin(t *testing.T) {
 	srv, _, _, _, sessionID := setupTestServer(t)
 	u, err := url.Parse(srv.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 	headers := http.Header{}
-	headers.Set("Origin", "wails://wails.localhost")
+	headers.Set("Origin", "wails://wails")
 	wsURL := "ws://" + u.Host + "/sessions/" + sessionID + "/ws"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -140,7 +142,31 @@ func TestServer_WailsProductionOriginAccepted(t *testing.T) {
 		HTTPHeader: headers,
 	})
 	if err != nil {
-		t.Fatalf("websocket.Dial with Wails production Origin: %v", err)
+		t.Fatalf("websocket.Dial with Wails production darwin Origin: %v", err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
+}
+
+// TestServer_WailsProductionOriginAcceptedWindows verifies the production
+// Windows Wails webview Origin (http://wails.localhost — which DOES include
+// .localhost, only the macOS/Linux scheme uses bare "wails").
+func TestServer_WailsProductionOriginAcceptedWindows(t *testing.T) {
+	srv, _, _, _, sessionID := setupTestServer(t)
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := http.Header{}
+	headers.Set("Origin", "http://wails.localhost")
+	wsURL := "ws://" + u.Host + "/sessions/" + sessionID + "/ws"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPHeader: headers,
+	})
+	if err != nil {
+		t.Fatalf("websocket.Dial with Wails production windows Origin: %v", err)
 	}
 	t.Cleanup(func() { conn.CloseNow() })
 }
