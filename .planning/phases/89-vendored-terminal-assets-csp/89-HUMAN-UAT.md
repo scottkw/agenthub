@@ -39,10 +39,15 @@ The operator should proceed with all three UAT items, then report results. A gap
 
 **Steps:**
 
-1. Start the agenthub daemon in Tailscale mode (default):
+1. Launch AgentHub in Tailscale mode (default). Either:
    ```
-   agenthub start
+   open -a AgentHub          # GUI launch via Finder/dock
    ```
+   or run the unified entrypoint with no args (also dispatches to GUI mode):
+   ```
+   agenthub
+   ```
+   The daemon is auto-spawned by the GUI; no separate `daemon start` is required.
 2. Create or select a session, then click "Share" in the GUI → copy the capability-bearing URL.
 3. Open Safari on this Mac (desktop Safari; iOS Safari is a nice-to-have, not required for v3.1).
 4. Open Web Inspector → Console (Develop menu → Show Web Inspector → Console tab). If the Develop menu is hidden, enable it via Safari → Preferences → Advanced → Show Develop menu.
