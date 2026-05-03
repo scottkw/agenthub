@@ -20,9 +20,16 @@ var BuildVersion string
 
 // upgradeToTailscale polls Tailscale health every 15s. When Tailscale becomes
 // fully healthy (Connected + HasCerts + IP), it restarts the web server in
-// Tailscale mode. Exits after a successful upgrade or when ctx is cancelled.
+// Tailscale mode. Runs continuously — does not exit on first upgrade, so a
+// later Tailscale outage that drops back to LAN can still be re-upgraded
+// when Tailscale recovers. Exits only when ctx is cancelled.
+//
+// Polling cadence: 5s. Lower than the original 15s because the user-visible
+// gap between "Tailscale up" and "AgentHub URL switches" was reported as
+// long enough that users manually-restarted the web server thinking the
+// upgrade was stuck (P-1).
 func upgradeToTailscale(ctx context.Context, api *API) {
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -30,14 +37,20 @@ func upgradeToTailscale(ctx context.Context, api *API) {
 			checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			h := webserver.CheckHealth(checkCtx)
 			cancel()
-			if h.Connected && h.HasCerts && h.IP != "" {
-				if err := api.RestartWebServer(h.IP, 7443, h.Domain, "tailscale", ""); err != nil {
-					fmt.Fprintf(os.Stderr, "daemon: upgrade to tailscale: %v\n", err)
-					continue // retry on next tick
-				}
-				fmt.Fprintf(os.Stderr, "daemon: web server upgraded from local to tailscale on %s\n", h.IP)
-				return
+			if !(h.Connected && h.HasCerts && h.IP != "") {
+				continue // Tailscale not ready
 			}
+			// Skip the restart if we're already serving in Tailscale mode on
+			// the same IP — avoids redundant restart churn and dropped client
+			// connections every tick once we've upgraded.
+			if api.WebServerMode() == "tailscale" && api.WebServerBindIP() == h.IP {
+				continue
+			}
+			if err := api.RestartWebServer(h.IP, 7443, h.Domain, "tailscale", ""); err != nil {
+				fmt.Fprintf(os.Stderr, "daemon: upgrade to tailscale: %v\n", err)
+				continue // retry on next tick
+			}
+			fmt.Fprintf(os.Stderr, "daemon: web server upgraded to tailscale on %s\n", h.IP)
 		case <-ctx.Done():
 			return
 		}
@@ -99,10 +112,15 @@ func runDaemonCore(ctx context.Context) {
 	api.SetLocalPassword(localPassword)
 
 	// Auto-start web server: Tailscale mode if available, local mode fallback (NET-01, SERVE-01).
+	// Diagnostic logging records the precise health-check outcome so a Finder/launchd
+	// invocation that lands in an unexpected mode can be diagnosed post-hoc (P-6).
 	{
 		ctx5s, cancel := context.WithTimeout(ctx, 5*time.Second)
 		h := webserver.CheckHealth(ctx5s)
 		cancel()
+		fmt.Fprintf(os.Stderr,
+			"daemon: tailscale health: binaryFound=%v daemonUp=%v connected=%v hasCerts=%v ip=%q domain=%q\n",
+			h.BinaryFound, h.DaemonUp, h.Connected, h.HasCerts, h.IP, h.Domain)
 		if h.Connected && h.HasCerts && h.IP != "" {
 			if err := api.AutoStartWebServer(h.IP, 7443, h.Domain, "tailscale", ""); err != nil {
 				fmt.Fprintf(os.Stderr, "daemon: auto-start web server: %v\n", err)
@@ -113,7 +131,7 @@ func runDaemonCore(ctx context.Context) {
 			// Local mode fallback
 			lanIP, lanErr := webserver.GetLANIP()
 			if lanErr != nil {
-				fmt.Fprintf(os.Stderr, "daemon: local mode: no LAN IP: %v\n", lanErr)
+				fmt.Fprintf(os.Stderr, "daemon: local mode: no LAN IP: %v (web server NOT started — UI will show no share URLs)\n", lanErr)
 			} else {
 				if err := api.AutoStartWebServer(lanIP, 7443, "", "local", localPassword); err != nil {
 					fmt.Fprintf(os.Stderr, "daemon: auto-start web server (local): %v\n", err)

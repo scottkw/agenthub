@@ -219,6 +219,11 @@ func (ws *WebServer) Start() error {
 // Mode returns the server's configured mode ("tailscale" or "local").
 func (ws *WebServer) Mode() string { return ws.config.Mode }
 
+// BindIP returns the server's configured bind IP. Used by the daemon's
+// Tailscale-mode watcher to decide whether a config change is needed when
+// Tailscale state transitions.
+func (ws *WebServer) BindIP() string { return ws.config.BindIP }
+
 // startTailscale opens a TLS listener using Tailscale's lc.GetCertificate hook
 // (or the TLSConfig test override). Falls back to a random port on EADDRINUSE.
 func (ws *WebServer) startTailscale() error {

@@ -213,6 +213,28 @@ func (a *API) SetLocalPassword(pwd string) {
 	a.mu.Unlock()
 }
 
+// WebServerMode returns the running web server's mode ("tailscale" or
+// "local"), or "" if no web server is running. Thread-safe.
+func (a *API) WebServerMode() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.webServer == nil {
+		return ""
+	}
+	return a.webServer.Mode()
+}
+
+// WebServerBindIP returns the running web server's bind IP, or "" if no
+// web server is running. Thread-safe.
+func (a *API) WebServerBindIP() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.webServer == nil {
+		return ""
+	}
+	return a.webServer.BindIP()
+}
+
 // RestartWebServer stops the current web server (if any) and starts a new one with
 // the given config. Used internally for mode upgrades (local -> tailscale).
 // Unlike AutoStartWebServer, it always replaces the running server — it is not idempotent.
