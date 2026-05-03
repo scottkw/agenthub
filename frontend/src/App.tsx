@@ -781,6 +781,7 @@ function App(): React.ReactElement {
             sessions={panelSessions}
             sessionStatuses={sessionStatuses}
             webServerRunning={webServerRunning}
+            webServerMode={webServerMode}
             webEnabled={webEnabled}
             onKill={(id) => void handleCloseTab(id)}
             onToggleWeb={(id) => void handleToggleWeb(id)}

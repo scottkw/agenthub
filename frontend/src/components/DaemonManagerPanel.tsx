@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import type { SessionInfo } from '../wailsjs/go/main/App'
-import { IssueCapabilities } from '../wailsjs/go/main/App'
+import { IssueCapabilities, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
+import { ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
 import { SessionSharePanel } from './SessionSharePanel'
 
 export interface DaemonManagerPanelProps {
   sessions: SessionInfo[]
   sessionStatuses: Record<string, string>
   webServerRunning: boolean
+  webServerMode?: 'tailscale' | 'local' | null
   webEnabled: Record<string, boolean>
   onKill: (id: string) => void
   onToggleWeb: (id: string) => void
@@ -23,6 +25,7 @@ export function DaemonManagerPanel({
   sessions,
   sessionStatuses,
   webServerRunning,
+  webServerMode,
   webEnabled,
   onKill,
   onToggleWeb,
@@ -30,6 +33,41 @@ export function DaemonManagerPanel({
   // Per-session capability URLs + join codes issued by the daemon on toggle-on.
   // Populated reactively as webEnabled transitions true; cleared when false.
   const [sessionShares, setSessionShares] = useState<Record<string, SessionShare>>({})
+
+  // P-3: Show LAN Basic Auth password inline on this panel when running in
+  // local-network-fallback mode. The same value is in Settings, but a fresh
+  // user grabbing a share link from here shouldn't have to navigate away to
+  // see what password the visitor needs to type.
+  const [lanPassword, setLanPassword] = useState('')
+  const [lanPasswordCopied, setLanPasswordCopied] = useState(false)
+  useEffect(() => {
+    if (webServerMode === 'local' && webServerRunning) {
+      GetLocalNetworkPassword().then(setLanPassword).catch(() => setLanPassword(''))
+    } else {
+      setLanPassword('')
+    }
+  }, [webServerMode, webServerRunning])
+
+  async function handleCopyLanPassword(): Promise<void> {
+    if (!lanPassword) return
+    try {
+      await ClipboardSetText(lanPassword)
+      setLanPasswordCopied(true)
+      setTimeout(() => setLanPasswordCopied(false), 1500)
+    } catch {
+      // ClipboardSetText failure — no user-visible action; password remains visible
+    }
+  }
+
+  // P-2: When the web server restarts (off → on transition), the daemon's
+  // in-memory JoinCodeManager is wiped. Any join codes we cached in
+  // sessionShares are now invalid; the displayed QR encodes a code the
+  // server no longer recognises. Clear our cache on this transition so
+  // the reconcile effect below refetches fresh capabilities.
+  useEffect(() => {
+    if (!webServerRunning) return
+    setSessionShares({})
+  }, [webServerRunning])
 
   useEffect(() => {
     let cancelled = false
@@ -88,7 +126,7 @@ export function DaemonManagerPanel({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, webEnabled])
+  }, [sessions, webEnabled, webServerRunning])
 
   if (sessions.length === 0) {
     return (
@@ -104,6 +142,55 @@ export function DaemonManagerPanel({
         <h2 className="daemon-panel__title">Sessions</h2>
         <span className="daemon-panel__count">{sessions.length} active</span>
       </div>
+      {webServerMode === 'local' && webServerRunning && lanPassword && (
+        <div
+          className="daemon-panel__lan-creds"
+          style={{
+            padding: '8px 12px',
+            margin: '0 0 8px 0',
+            background: '#1e2030',
+            border: '1px solid #3b4261',
+            borderRadius: 4,
+            fontSize: 12,
+            color: '#a9b1d6',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>LAN Basic Auth:</span>
+          <span>username — leave blank or anything</span>
+          <span>·</span>
+          <span>password — </span>
+          <code
+            style={{
+              background: '#16161e',
+              padding: '2px 6px',
+              borderRadius: 3,
+              fontFamily: 'inherit',
+              userSelect: 'all',
+            }}
+          >
+            {lanPassword}
+          </code>
+          <button
+            type="button"
+            onClick={() => void handleCopyLanPassword()}
+            style={{
+              border: '1px solid #3b4261',
+              background: 'transparent',
+              color: '#a9b1d6',
+              padding: '2px 8px',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 11,
+            }}
+          >
+            {lanPasswordCopied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      )}
       <div className="daemon-panel__list">
         {sessions.map((s) => {
           const status = sessionStatuses[s.id] || s.state || 'running'
