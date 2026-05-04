@@ -283,6 +283,19 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 		}
 		return sessionID, "", "", ""
 	})
+	// Phase 93 PLUG-04: provide the daemon's current plugin settings as
+	// pre-marshaled JSON to the webserver's /api/plugin-config handler.
+	// func() []byte (not PluginSettings) avoids the daemon→webserver→daemon
+	// circular import. json.Marshal failure returns nil so the handler
+	// responds 503 (web client falls back to built-in defaults).
+	ws.SetPluginSettingsProvider(func() []byte {
+		s := a.engine.GetPluginSettings()
+		b, err := json.Marshal(s)
+		if err != nil {
+			return nil
+		}
+		return b
+	})
 	// Wire capability state onto the web server BEFORE Start() so requireCapability
 	// has a non-nil signing key when the first request arrives (Pitfall 3). The
 	// bootstrapped signing key and joinCodes MUST be populated by a prior call
@@ -590,6 +603,17 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		return sessionID, "", "", ""
+	})
+
+	// Phase 93 PLUG-04: provide the daemon's current plugin settings as
+	// pre-marshaled JSON to the webserver's /api/plugin-config handler.
+	ws.SetPluginSettingsProvider(func() []byte {
+		s := a.engine.GetPluginSettings()
+		b, err := json.Marshal(s)
+		if err != nil {
+			return nil
+		}
+		return b
 	})
 
 	// Wire capability state BEFORE Start() so requireCapability has a key on

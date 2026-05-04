@@ -81,6 +81,14 @@ type WebServer struct {
 
 	// sessionResolver is set once before Start() and is not mutex-protected.
 	sessionResolver func(sessionID string) (name, cliType, status, hostname string)
+
+	// pluginSettingsProvider returns pre-marshaled JSON for the daemon's
+	// current plugin settings. Set once before Start() via
+	// SetPluginSettingsProvider; not mutex-protected. Phase 93 PLUG-04.
+	//
+	// Uses func() []byte (not daemon.PluginSettings) to avoid the daemon→
+	// webserver→daemon circular import (see 93-RESEARCH Q1).
+	pluginSettingsProvider func() []byte
 }
 
 // NewWebServer creates a WebServer and sets up routes.
@@ -102,6 +110,15 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 // hostname). Must be called before Start().
 func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string, string)) {
 	ws.sessionResolver = fn
+}
+
+// SetPluginSettingsProvider sets the callback used by handleGetPluginConfig
+// to source the daemon's current plugin settings as pre-marshaled JSON.
+// Plan 93-04 calls this at daemon startup so GET /api/plugin-config can
+// serve capability-bearing web clients without a per-request RPC into the
+// daemon. Phase 93 PLUG-04.
+func (ws *WebServer) SetPluginSettingsProvider(fn func() []byte) {
+	ws.pluginSettingsProvider = fn
 }
 
 // EnableSession marks a session as web-served (WEB-01 toggle).
@@ -390,6 +407,12 @@ func (ws *WebServer) setupRoutes() {
 	// (SEC-03). Used by the terminal page to populate status bar + perms
 	// (D-19, D-23).
 	mux.HandleFunc("GET /api/sessions/{id}/info", ws.requireCapability(ws.handleSessionInfo))
+
+	// Phase 93 PLUG-04: capability-gated plugin config endpoint. Per
+	// capability_mw.go path-ID logic, an empty path-ID short-circuits the
+	// SID check, so any valid cap passes. Plugin config is global (not
+	// session-specific) but the caller must still hold a verified cap.
+	mux.HandleFunc("GET /api/plugin-config", ws.requireCapability(ws.handleGetPluginConfig))
 
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list
