@@ -692,26 +692,32 @@ function isSoftwareWebGL(): boolean {
 
 ---
 
-## Open Questions / Risks
+## Open Questions (RESOLVED)
+
+> All four open questions below were resolved during planning. Annotations in **RESOLVED:** form record the resolution and the plan that owns the implementation.
 
 1. **`PluginSettings` import path in webserver package**
    - What we know: `WebServer` is in package `webserver` (`internal/webserver/`); `PluginSettings` is in `internal/daemon/`.
    - What's unclear: Does importing `daemon.PluginSettings` in `webserver` create a circular dependency? (The daemon package already imports webserver to construct the server.)
    - Recommendation: Define a minimal `PluginConfig` struct in `internal/webserver/` that mirrors the daemon struct, OR use `func() any` + JSON marshaling, OR move `PluginSettings` to a shared `internal/pluginconfig/` package. **Most likely:** avoid the import problem entirely by passing `func() map[string]bool` or `func() []byte` (pre-marshaled JSON) instead of `daemon.PluginSettings` — the handler just writes the bytes directly.
    - **Risk level:** MEDIUM — could block PLUG-04 implementation if not resolved upfront.
+   - **RESOLVED:** Plan 93-04 adopts the `func() []byte` pre-marshaled JSON provider pattern (`pluginSettingsProvider func() []byte` field on `*WebServer` + `SetPluginSettingsProvider` setter), set from the daemon engine via `json.Marshal(engine.GetPluginSettings())` at the two `NewWebServer` call sites in `internal/daemon/api.go`. This keeps the daemon→webserver dependency one-directional and matches the existing `sessionResolver` functional-option pattern from Phase 87. No circular import.
 
 2. **App.tsx banner-stack condition expansion**
    - What we know: The `.banner-stack` div is only rendered when `(webServerMode === 'local' && !localBannerDismissed) || update` (App.tsx:748).
    - What's unclear: The webgl toasts can fire on desktop where `webServerMode` is typically `'tailscale'` or `''` — the condition must be expanded or the toasts will never render on Tailscale-mode users.
    - Recommendation: Extend the condition to `|| webglContextLost || webglSoftwareDetected` as shown in Code Example 4.
+   - **RESOLVED:** Plan 93-03 Task 3 implements exactly this condition expansion in App.tsx. UMD global names for the web vendored bundles (`WebglAddon.WebglAddon`, `Unicode11Addon.Unicode11Addon`, `ClipboardAddon.ClipboardAddon` — Pitfall #7) are verified at execution time by Plan 93-02 Task 1 via `grep` against the vendored `.js` files; if names differ, Plan 93-04 Task 3 adjusts the constructor calls to the actual UMD namespace shape.
 
 3. **One-shot per session: sessionStorage vs React state**
    - What we know: UI-SPEC specifies "once dismissed, never re-shows in the same session". For desktop this is straightforward React state (reset on app restart). For web it must survive hot reloads.
    - Recommendation: For desktop, use React state in App.tsx (`webglBannerDismissed: boolean`). For web, use `sessionStorage.setItem('webgl-banner-shown', '1')` — check before calling `showWebGLContextLossBanner()`.
+   - **RESOLVED:** Plan 93-03 implements the React state approach for desktop (`webglBannerDismissed` in `App.tsx`). Plan 93-04 implements the `sessionStorage.getItem('webgl-banner-shown')` approach in `web/assets/terminal.js` `showWebGLBanner()`. Both surfaces follow UI-SPEC's one-shot-per-session contract.
 
 4. **`vendor_drift_test.go` pnpm-lock format stability**
    - The test parses `pnpm-lock.yaml` line by line with a fixed regex. The format `  '@xterm/addon-foo@version':` matches the current pnpm v8 lockfile format.
    - Risk: pnpm v9 changed the lockfile format. The test already has a comment acknowledging format drift risk (`see 89-RESEARCH.md Q3`). The generalized regex uses the same line format as the existing one — no new risk introduced.
+   - **RESOLVED:** Accepted with mitigation. Plan 93-01 generalizes the regex but does not change the line-shape assumption; the existing Phase 89 risk note carries forward. If pnpm bumps to v9+ in a future phase and changes the lockfile shape, both the existing addon-fit assertion and the new addon-* assertions break together — the failure is loud and isolated to this single test file.
 
 ---
 
