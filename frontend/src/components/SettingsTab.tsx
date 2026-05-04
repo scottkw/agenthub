@@ -26,6 +26,7 @@ import {
   QrCodeIcon,
 } from '@heroicons/react/24/outline'
 import { RegenerateKeyModal } from './RegenerateKeyModal'
+import { PluginsSection } from './PluginsSection'
 
 const THEME_NAMES = ALLOWED_THEMES
 
@@ -701,6 +702,9 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             {saving ? 'Saving\u2026' : saved ? 'Saved!' : 'Save Paths'}
           </button>
         </div>
+
+        {/* Plugins section (Phase 92 PUI-01) \u2014 last section per UI-SPEC layout */}
+        <PluginsSection />
 
       </div>
     </div>
