@@ -71,6 +71,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
 	a.mux.HandleFunc("GET /settings/auto-close-session", a.handleGetAutoCloseSession)
 	a.mux.HandleFunc("PATCH /settings/auto-close-session", a.handleSetAutoCloseSession)
+	a.mux.HandleFunc("GET /settings/plugins", a.handleGetPluginSettings)
+	a.mux.HandleFunc("PATCH /settings/plugins", a.handleSetPluginSettings)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -500,6 +502,36 @@ func (a *API) handleSetAutoCloseSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	a.engine.SetAutoCloseSession(req.AutoCloseSession)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetPluginSettings returns the engine's current PluginSettings as a
+// JSON object (direct struct shape — no wrapper map).
+func (a *API) handleGetPluginSettings(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, a.engine.GetPluginSettings())
+}
+
+// handleSetPluginSettings accepts a full PluginSettings struct as the body
+// (full-replace semantic; the route is PATCH for consistency with surrounding
+// settings routes, not for partial-update semantics) and persists it.
+//
+// Defense-in-depth (RESEARCH §Security):
+//   - http.MaxBytesReader caps body at 8 KiB (T-92-02 mitigation).
+//   - DisallowUnknownFields rejects schema poisoning attempts (T-92-03).
+//   - PluginSettings has no SchemaVersion field, so a downgrade attack via
+//     body crafting is impossible (T-92-04).
+func (a *API) handleSetPluginSettings(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+
+	var req PluginSettings
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetPluginSettings(req)
 	w.WriteHeader(http.StatusNoContent)
 }
 

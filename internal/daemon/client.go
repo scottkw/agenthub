@@ -138,6 +138,23 @@ func (c *DaemonClient) SetAutoCloseSession(val bool) error {
 		map[string]bool{"autoCloseSession": val}, nil)
 }
 
+// GetPluginSettings fetches the persisted plugin enable/disable preferences.
+func (c *DaemonClient) GetPluginSettings() (PluginSettings, error) {
+	var resp PluginSettings
+	if err := c.doJSON(http.MethodGet, "/settings/plugins", nil, &resp); err != nil {
+		return PluginSettings{}, err
+	}
+	return resp, nil
+}
+
+// SetPluginSettings persists the plugin enable/disable preferences via the
+// daemon API. The full PluginSettings struct is sent in the body (full
+// replace semantic; the route is PATCH for consistency with surrounding
+// settings routes, not for partial-update semantics).
+func (c *DaemonClient) SetPluginSettings(s PluginSettings) error {
+	return c.doJSON(http.MethodPatch, "/settings/plugins", s, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse
