@@ -327,7 +327,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. User opens Settings → sees a new Plugins section listing all v3.2 plugins (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with name, short description, and a (currently inert) enable/disable toggle each.
   3. Toggling any plugin and pressing Save persists the choice via the existing daemon `settings.json` mechanism and survives both GUI restart and daemon restart (verified by reading the settings.json file on disk and reopening the app).
   4. A plugin-state change emits a `settings:plugins` Wails runtime event observed by `App.tsx`, which threads `pluginConfig` as a prop into every open `TerminalPanel` — no app restart required for the propagation pipeline (addons not yet wired; the pipeline exists end-to-end).
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+  - [ ] 92-01-PLAN.md — Daemon PluginSettings struct + defaults-merge load + engine RPC + HTTP routes + DaemonClient + fixture migration test (Wave 1) — covers PLUG-01, PLUG-02
+  - [ ] 92-02-PLAN.md — Wails (*App).GetPluginSettings + (*App).SetPluginSettings + settings:plugins EventsEmit + regenerated TS bindings (Wave 2) — covers PLUG-03 RPC half
+  - [ ] 92-03-PLAN.md — PluginsSection 8-toggle UI + SettingsTab insertion + App.tsx EventsOn subscription + TerminalPanel inert-prop wiring (Wave 3) — covers PUI-01 + PLUG-03 subscription half
 
 ### Phase 93: Vendoring Discipline + Web Parity for Already-Shipping Addons
 **Goal**: The three already-shipping desktop addons (webgl, unicode11, clipboard) are migrated under the new reconcile pattern AND vendored same-origin for the web-served terminal page (where none are vendored today), with `vendor_drift_test.go` extended into a load-bearing CI gate that enforces version parity for every `@xterm/addon-*` package.
