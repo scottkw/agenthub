@@ -350,5 +350,50 @@
         fitAddon.fit();
       });
 
+      // Phase 93 PLUG-04 push channel — subscribe to live plugin-config
+      // updates so toggle changes apply WITHOUT a page reload (closes
+      // ROADMAP SC#4). Per UI-SPEC §"Web plugin-config live update":
+      // silent on programmatic changes (no toast); reload-free apply path.
+      var pluginConfigStream = null;
+      if (cap && sessionID && typeof EventSource !== 'undefined') {
+        try {
+          pluginConfigStream = new EventSource(withCap('/api/plugin-config/stream'));
+          pluginConfigStream.addEventListener('plugin-config', function(ev) {
+            try {
+              var pushed = JSON.parse(ev.data);
+              // Defensive merge over current pluginConfig — additive merge
+              // prevents a partial frame from disabling plugins the user has
+              // on (T-93-WEB-03 mitigation).
+              var merged = {};
+              for (var k0 in pluginConfig) {
+                if (Object.prototype.hasOwnProperty.call(pluginConfig, k0)) merged[k0] = pluginConfig[k0];
+              }
+              for (var k1 in pushed) {
+                if (Object.prototype.hasOwnProperty.call(pushed, k1)) merged[k1] = pushed[k1];
+              }
+              if (JSON.stringify(merged) === lastApplied) return; // idempotent
+              applyPluginConfig(merged);
+            } catch (e) {
+              // Malformed frame — silent. Browser will keep reading the next.
+            }
+          });
+          pluginConfigStream.addEventListener('error', function() {
+            // Browser auto-retries on transient network drops. On 401 (cap
+            // expiry) the readyState transitions to CLOSED — stop retrying.
+            if (pluginConfigStream && pluginConfigStream.readyState === EventSource.CLOSED) {
+              pluginConfigStream = null;
+            }
+          });
+          window.addEventListener('beforeunload', function() {
+            if (pluginConfigStream) {
+              pluginConfigStream.close();
+              pluginConfigStream = null;
+            }
+          });
+        } catch (e) {
+          // EventSource construction failed — degrade to fetch-on-load only.
+        }
+      }
+
       connect();
     })();
