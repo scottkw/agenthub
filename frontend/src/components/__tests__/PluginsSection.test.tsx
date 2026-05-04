@@ -71,3 +71,21 @@ describe('PLUG-01/PLUG-03: Wails RPC binding usage', () => {
     expect(raw).toMatch(/wailsjs\/go\/main\/App/)
   })
 })
+
+describe('Phase 93 U11-01: italic caption under Unicode 11 row', () => {
+  it('renders the verbatim caption "Applies to new sessions you create."', () => {
+    expect(raw).toMatch(/Applies to new sessions you create\./)
+  })
+
+  it('uses the new settings-panel__description--italic modifier class', () => {
+    expect(raw).toContain('settings-panel__description--italic')
+  })
+
+  it('caption appears AFTER the Unicode 11 row description (UI-SPEC layout)', () => {
+    const captionIdx = raw.indexOf('Applies to new sessions you create.')
+    const u11DescIdx = raw.indexOf('Correct cell widths for emoji')
+    expect(captionIdx).toBeGreaterThan(-1)
+    expect(u11DescIdx).toBeGreaterThan(-1)
+    expect(captionIdx).toBeGreaterThan(u11DescIdx)
+  })
+})
