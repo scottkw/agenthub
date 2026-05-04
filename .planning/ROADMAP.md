@@ -345,8 +345,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 5 plans (3 waves)
   - [x] 93-01-PLAN.md — Generalize vendor_drift_test.go regex + min-count guard (Wave 1, WEB-02)
   - [x] 93-02-PLAN.md — Vendor 3 addon UMD bundles + VERSION + embed.go + terminal.html script tags (Wave 1, WEB-01/WGL-04/U11-02/CLIP-01)
-  - [ ] 93-03-PLAN.md — Lift Phase 92 inert-prop invariant; TerminalPanel hot-swap + WebGLRecoveryBanner + isSoftwareWebGL + italic caption (Wave 2, WGL-01/02/03 + U11-01 + CLIP-02 desktop)
-  - [ ] 93-04-PLAN.md — /api/plugin-config endpoint + capability gate + web terminal.js conditional addon loading + context-loss banner (Wave 2, PLUG-04/WEB-03/U11-02/CLIP-02)
+  - [x] 93-03-PLAN.md — Lift Phase 92 inert-prop invariant; TerminalPanel hot-swap + WebGLRecoveryBanner + isSoftwareWebGL + italic caption (Wave 2, WGL-01/02/03 + U11-01 + CLIP-02 desktop)
+  - [x] 93-04-PLAN.md — /api/plugin-config endpoint + capability gate + web terminal.js conditional addon loading + context-loss banner (Wave 2, PLUG-04/WEB-03/U11-02/CLIP-02)
   - [ ] 93-05-PLAN.md — Playwright e2e specs (vendor parity, CSP, plugin hot-swap) + iPad Safari UAT script + VALIDATION sign-off (Wave 3, WEB-02 e2e)
 **UI hint**: yes
 
@@ -451,7 +451,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 89 | v3.1 | 5/5 | Complete    | 2026-04-23 |
 | 90 | v3.1 | 5/6 | In Progress|  |
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
-| 93 | v3.2 | 2/5 | In Progress|  |
+| 93 | v3.2 | 4/5 | In Progress|  |
 | 94 | v3.2 | 0/0 | Not started | — |
 | 95 | v3.2 | 0/0 | Not started | — |
 | 96 | v3.2 | 0/0 | Not started | — |
