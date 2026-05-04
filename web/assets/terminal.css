@@ -46,3 +46,46 @@
       border-radius: 3px;
     }
     #terminal { flex: 1; min-height: 0; width: 100%; }
+
+    /* Phase 93 WGL-02 / WGL-04 — web parity with desktop .webgl-recovery-banner. */
+    #webgl-recovery-banner {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      min-height: 53px;
+      max-height: 53px;
+      background: #1a1b26;
+      color: #c0caf5;
+      border-left: 3px solid #7aa2f7;
+      border-top: 1px solid #292e42;
+      border-bottom: 1px solid #292e42;
+      font-size: 13px;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.4;
+      transition: opacity 150ms ease, max-height 200ms ease;
+    }
+    #webgl-recovery-banner[hidden] { display: none; }
+    .webgl-recovery-banner__message { flex: 1 1 auto; padding-right: 12px; }
+    .webgl-recovery-banner__dismiss {
+      background: transparent;
+      border: none;
+      color: #c0caf5;
+      cursor: pointer;
+      padding: 4px;
+      min-width: 24px;
+      min-height: 24px;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .webgl-recovery-banner__dismiss:focus-visible {
+      outline: 2px solid #7aa2f7;
+      outline-offset: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #webgl-recovery-banner { transition: none; }
+    }
