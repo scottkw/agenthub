@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Plugin Suite
 status: executing
-stopped_at: Phase 92 verification PASS — manual UAT pending
-last_updated: "2026-05-04T16:30:00Z"
-last_activity: 2026-05-04 -- Phase 92 verified (PASS-with-followups)
+stopped_at: Phase 92 PASS (verification + UAT closed) — ready to ship
+last_updated: "2026-05-04T16:45:00Z"
+last_activity: 2026-05-04 -- Phase 92 fully verified, ready for /gsd-ship
 progress:
   total_phases: 12
   completed_phases: 0
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 
 ## Current Position
 
-Phase: 92 (Plugin Settings Foundation) — VERIFIED (PASS-with-followups; 2 manual UAT items pending)
+Phase: 92 (Plugin Settings Foundation) — COMPLETE (verification PASS, UAT closed)
 Plan: 3 of 3 (last)
-Status: VERIFICATION.md committed; awaiting user-driven Wails build + live EventsOn smoke before phase close.
-Last activity: 2026-05-04 -- Phase 92 verified
+Status: Ready to ship. UAT-1 confirmed via screenshot; UAT-2 accepted on programmatic-equivalent (App.plugin-event.test.tsx 7/7 PASS). Next: `/gsd-ship 92`.
+Last activity: 2026-05-04 -- Phase 92 closed
 
 ## Performance Metrics
 

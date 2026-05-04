@@ -1,7 +1,8 @@
 ---
 phase: 92-plugin-settings-foundation
 verified: 2026-05-04T16:10:03Z
-status: human_needed
+uat_closed: 2026-05-04T16:45:00Z
+status: pass
 score: 4/4 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -23,7 +24,7 @@ human_verification:
 
 **Phase Goal:** A returning v3.1 user opens v3.2, finds a Plugins section in Settings, sees plugin defaults populated correctly, and the daemon→Wails→React→TerminalPanel propagation pipeline is fully wired and exercised — with no addon-loading work behind any toggle yet.
 **Verified:** 2026-05-04T16:10:03Z
-**Status:** human_needed (all programmatic must-haves PASS; runtime UAT outstanding)
+**Status:** PASS — all programmatic must-haves PASS; UAT-1 confirmed visually (screenshot 2026-05-04), UAT-2 accepted on programmatic-equivalent grounds (App.plugin-event.test.tsx 7/7 PASS exercises the EventsOn → setState → prop-drill path).
 **Re-verification:** No — initial verification
 
 ---
