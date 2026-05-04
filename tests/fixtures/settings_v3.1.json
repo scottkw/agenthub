@@ -1,0 +1,8 @@
+{
+    "cliPaths": {
+        "claude": "/usr/local/bin/claude",
+        "tailscale": "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    },
+    "startMinimized": false,
+    "autoCloseSession": true
+}
