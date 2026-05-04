@@ -35,6 +35,7 @@ type SessionEngine struct {
 
 	startMinimized   bool  // persisted start-minimized preference
 	autoCloseSession *bool // nil = default (true); persisted pointer
+	pluginSettings   PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
 	statusMu        sync.RWMutex
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
@@ -64,10 +65,17 @@ func ensureOpenCodeTUIConfig(dir string) string {
 }
 
 // daemonSettings is the persisted settings structure.
+//
+// Plugins and SchemaVersion are intentionally NOT tagged `omitempty`:
+// the defaults-merge load (Pitfall #14 mitigation) requires the plugins
+// block + schemaVersion to always serialize so future loads observe them
+// even when every plugin is at its zero value (all-false).
 type daemonSettings struct {
 	CLIPaths         map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized   bool              `json:"startMinimized,omitempty"`
 	AutoCloseSession *bool             `json:"autoCloseSession,omitempty"`
+	Plugins          PluginSettings    `json:"plugins"`
+	SchemaVersion    int               `json:"schemaVersion"`
 }
 
 // settingsPath returns the path to settings.json inside the config dir.
@@ -85,12 +93,28 @@ var knownShells = map[string]bool{
 
 // loadSettingsFromDisk reads settings.json and populates engine state.
 // Missing file is not an error (first run).
+//
+// Defaults-merge: the daemonSettings literal is pre-populated with
+// CurrentSchemaVersion + defaultPluginSettings() BEFORE Unmarshal so
+// that v3.1 settings.json files (no plugins key, no schemaVersion key)
+// round-trip with v3.2 defaults instead of zero-value (all-false) plugins.
+// Pitfall #14 mitigation.
 func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	data, err := os.ReadFile(settingsPath(dir))
 	if err != nil {
 		return // file not found or unreadable — not an error
 	}
-	var s daemonSettings
+	// Pre-populate defaults BEFORE Unmarshal. Go stdlib leaves missing JSON
+	// keys untouched, so v3.1 files (no plugins key) inherit defaultPluginSettings()
+	// while v3.2+ files (with explicit plugins block) overwrite the defaults
+	// with user choices.
+	//
+	// SchemaVersion intentionally NOT pre-populated: it must remain 0 for a
+	// v3.1 file (no schemaVersion key) so the needsUpgradeWrite check below
+	// correctly detects that an upgrade re-write is required.
+	s := daemonSettings{
+		Plugins: defaultPluginSettings(),
+	}
 	if json.Unmarshal(data, &s) != nil {
 		return
 	}
@@ -110,8 +134,18 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	}
 	e.startMinimized = s.StartMinimized
 	e.autoCloseSession = s.AutoCloseSession
-	if dirty {
-		// Rewrite settings.json without the stale entries.
+	e.pluginSettings = s.Plugins
+	// Detect upgrade-path: the on-disk schemaVersion was below
+	// CurrentSchemaVersion (e.g. v3.1 file with no key → 0). Re-save so
+	// the next load observes the populated plugins block + schemaVersion.
+	// Idempotent: on second start s.SchemaVersion == CurrentSchemaVersion
+	// and this branch does not fire.
+	needsUpgradeWrite := s.SchemaVersion < CurrentSchemaVersion
+	if dirty || needsUpgradeWrite {
+		// Rewrite settings.json without stale entries / with new schema.
+		// saveSettingsToDisk runs INSIDE e.mu.Lock() per its contract
+		// ("Caller holds e.mu.Lock()."). Mirrors the existing
+		// SetStartMinimized pattern.
 		e.saveSettingsToDisk()
 	}
 	e.mu.Unlock()
@@ -124,6 +158,8 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		CLIPaths:         e.cliPaths,
 		StartMinimized:   e.startMinimized,
 		AutoCloseSession: e.autoCloseSession,
+		Plugins:          e.pluginSettings,
+		SchemaVersion:    CurrentSchemaVersion,
 	}
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -404,6 +440,23 @@ func (e *SessionEngine) GetAutoCloseSession() bool {
 func (e *SessionEngine) SetAutoCloseSession(val bool) {
 	e.mu.Lock()
 	e.autoCloseSession = &val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+}
+
+// GetPluginSettings returns the current plugin enable/disable preferences.
+func (e *SessionEngine) GetPluginSettings() PluginSettings {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.pluginSettings
+}
+
+// SetPluginSettings updates and persists the plugin enable/disable preferences.
+// Settings are immediately written to disk while the engine mutex is held
+// (saveSettingsToDisk's contract requires the caller to hold e.mu.Lock()).
+func (e *SessionEngine) SetPluginSettings(s PluginSettings) {
+	e.mu.Lock()
+	e.pluginSettings = s
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 }
