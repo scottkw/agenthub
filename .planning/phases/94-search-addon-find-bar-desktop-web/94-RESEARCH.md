@@ -925,38 +925,38 @@ var pnpmXtermKeyRe = regexp.MustCompile(`^  '(@xterm/(?:xterm|addon-[\w-]+))@([0
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 > Resolution path: Discussed at planning kickoff before Wave 1 starts.
 
 1. **Should the desktop `SetPluginSettings` call on toggle change be debounced (e.g., 200ms) to avoid daemon thrash on rapid toggles?**
    - What we know: `SetPluginSettings` writes settings.json + emits event + broadcasts SSE per call. Rapid toggling = many writes.
    - What's unclear: Is there a measurable cost? Phase 92/93 do not debounce; toggles in PluginsSection write per Save click (already debounced by user gesture).
-   - Recommendation: **Do NOT debounce.** Match existing pattern. Each toggle click is one click; the user is unlikely to thrash 10×/sec.
+   - RESOLVED: **Do NOT debounce.** Match existing pattern. Each toggle click is one click; the user is unlikely to thrash 10×/sec.
    - **Risk level:** LOW.
 
 2. **Is `pluginConfig.searchConfig` propagated to all open TerminalPanels' FindBar instances when one is open?**
    - What we know: `pluginConfig` prop change triggers FindBar's prop-init read on next mount only.
    - What's unclear: If the user has FindBar open in Tab A, switches to Tab B, opens FindBar — does Tab B see the latest searchConfig?
-   - Recommendation: **Yes, automatically.** FindBar reads searchConfig from props on mount; closing+reopening picks up new prop values. Multi-tab usage is fine.
+   - RESOLVED: **Yes, automatically.** FindBar reads searchConfig from props on mount; closing+reopening picks up new prop values. Multi-tab usage is fine.
    - **Risk level:** LOW (UI-SPEC accepts mid-session config divergence per "find bar takes local state from open onwards").
 
 3. **Should the FindBar render inside the `.terminal-session-container` only when isActive, or always when findBarOpen state is true?**
    - What we know: `TerminalPanel` keeps inactive panels mounted with `display: none`. Multiple panels can have findBarOpen=true.
    - What's unclear: Should background tabs' find bars persist? UI-SPEC §"Anti-goals" says "No persistence of the open/closed state of the find bar across sessions" — silent on tab-switch.
-   - Recommendation: **Per-tab findBarOpen state.** Each TerminalPanel owns its own `findBarOpen`. Switching tabs doesn't close find bars; the per-tab state persists for the app session.
+   - RESOLVED: **Per-tab findBarOpen state.** Each TerminalPanel owns its own `findBarOpen`. Switching tabs doesn't close find bars; the per-tab state persists for the app session.
    - **Risk level:** LOW.
 
 4. **Is there a way to detect that browser-native Cmd-F opened (i.e., we did NOT preventDefault)?**
    - What we know: When focus is outside xterm, our handler returns without preventDefault — browser's find UI opens.
    - What's unclear: Should we close our find bar if it's open and the user Cmd-F's outside the xterm? (e.g., they clicked a sidebar item.)
-   - Recommendation: **No special handling.** UI-SPEC §"Closing the Find Bar" specifies Esc-or-button only. Browser find and our find can coexist briefly — the user can dismiss either independently.
+   - RESOLVED: **No special handling.** UI-SPEC §"Closing the Find Bar" specifies Esc-or-button only. Browser find and our find can coexist briefly — the user can dismiss either independently.
    - **Risk level:** LOW.
 
 5. **Phase 92 hand-edited models.ts pin: how confident are we that adding a nested `SearchConfig` class won't break `vite test aliasing` (per STATE.md decision rationale)?**
    - What we know: STATE.md said "replacing wholesale would break vite test aliasing and lose hand-maintained inline type definitions" — implies hand-edit is sustainable for additive changes.
    - What's unclear: Is `SearchConfig` truly additive, or does it require import re-ordering?
-   - Recommendation: **Additive.** Add a new exported class to the existing `daemon` namespace, add a field to `PluginSettings` constructor + property list, add `convertValues(source['searchConfig'], SearchConfig)` to the constructor body. No import changes (everything stays in the `daemon` namespace).
+   - RESOLVED: **Additive.** Add a new exported class to the existing `daemon` namespace, add a field to `PluginSettings` constructor + property list, add `convertValues(source['searchConfig'], SearchConfig)` to the constructor body. No import changes (everything stays in the `daemon` namespace).
    - **Risk level:** LOW; if it breaks, the test suite catches it immediately.
 
 ---
