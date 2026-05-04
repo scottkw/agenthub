@@ -42,3 +42,9 @@ coverage.html
 
 # Third-party security review artifacts (not committed)
 security-review/
+
+# Phase 93 Plan 05 — Playwright e2e fixture runtime artifacts
+# (built fixture binary, fixture-env.json, playwright-report/, test-results/)
+.playwright/
+frontend/playwright-report/
+frontend/test-results/
