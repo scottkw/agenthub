@@ -201,3 +201,30 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// TestAssets_VendoredAddons asserts that the three vendored xterm addon
+// bundles shipped by Plan 93-02 (addon-webgl, addon-unicode11, addon-clipboard)
+// are accessible via the /assets/xterm/addons/ URL prefix and served with a
+// JS Content-Type. Phase 93 PLUG-04 — the web terminal page's <script src>
+// tags depend on these paths resolving.
+func TestAssets_VendoredAddons(t *testing.T) {
+	ws, client := testServer(t)
+	for _, path := range []string{
+		"/assets/xterm/addons/addon-webgl.js",
+		"/assets/xterm/addons/addon-unicode11.js",
+		"/assets/xterm/addons/addon-clipboard.js",
+	} {
+		resp, err := client.Get(ws.BaseURL() + path)
+		if err != nil {
+			t.Fatalf("client.Get %s: %v", path, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("GET %s: expected 200, got %d", path, resp.StatusCode)
+		}
+		ct := resp.Header.Get("Content-Type")
+		if !strings.Contains(ct, "javascript") {
+			t.Errorf("GET %s: expected javascript content-type, got %q", path, ct)
+		}
+		resp.Body.Close()
+	}
+}
