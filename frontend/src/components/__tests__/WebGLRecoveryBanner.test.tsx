@@ -9,8 +9,8 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { flushSync, type Root } from 'react-dom'
+import { createRoot, type Root } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { WebGLRecoveryBanner } from '../WebGLRecoveryBanner'
 
 function render(reason: 'context-loss' | 'software-rasterized', onDismiss: () => void) {
