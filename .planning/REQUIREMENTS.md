@@ -1,105 +1,137 @@
-# Milestone v3.1 Requirements — Security Hardening
+# Milestone v3.2 Requirements — Plugin Suite
 
-**Addresses:** GitHub Issue #35 ("Security review")
-**Derived from:** Third-party security review (Codex) in `security-review/` — 5 findings, all confirmed against v3.0 code on 2026-04-19.
-**Milestone goal:** Close the 5 confirmed findings so tailnet sharing is a real permission boundary, not an implicit trust fence.
-
----
-
-## Active Requirements (v3.1)
-
-### Session Authorization
-
-Replaces the tailnet-wide trust model. Sessions become explicitly granted, and both metadata enumeration and PTY access require a server-issued capability.
-
-- [x] **SEC-01
-
-** — User can explicitly grant share access to a specific session; the daemon issues a signed, server-scoped capability token bound to that session (no auto-exposure of newly created sessions when the web server is running)
-- [x] **SEC-02
-
-** — `GET /api/sessions` rejects requests that do not carry a valid session capability (listing becomes capability-scoped, not tailnet-wide)
-- [x] **SEC-03
-
-** — `GET /sessions/{id}/ws` and `GET /sessions/{id}` reject requests that do not carry a valid capability token for that exact session ID
-
-### Read-Only Enforcement
-
-Replaces the client-asserted `?readonly=1` query parameter with a server-bound permission on the capability token.
-
-- [x] **SEC-04
-
-** — Read-only permission is a property of the capability token issued by the server, not a query parameter; the `?readonly=1` parameter (if retained as a view hint) cannot grant write access it lacks
-- [x] **SEC-05
-
-** — The relay rejects `MsgInput` frames from any subscriber whose capability does not include write permission (previous bypass via reconnect-without-readonly is blocked by regression test)
-
-### WebSocket Handshake Security
-
-Removes the `OriginPatterns: ["*"]` / `InsecureSkipVerify: true` accept-all behavior and requires a short-lived handshake capability.
-
-- [x] **SEC-06** — WebSocket upgrade rejects requests whose `Origin` is not in the server allowlist (Tailscale FQDN, local-mode host URL, and configured same-origin), closing the cross-site WebSocket hijacking vector (Phase 88, 2026-04-22; SC-2 live UAT pending)
-
-### Frontend Supply Chain
-
-Removes the runtime dependency on `cdn.jsdelivr.net` for the interactive terminal page.
-
-- [ ] **SEC-07** — Terminal page loads xterm JavaScript and CSS from assets served by the embedded app binary (no `https://cdn.jsdelivr.net/...` references at runtime)
-- [ ] **SEC-08** — Terminal page sets a `Content-Security-Policy` response header restricting `script-src` / `style-src` / `connect-src` to `self` plus the WebSocket origin
-
-### Release Pipeline Hardening
-
-Removes mutable-tag third-party code execution while release jobs hold signing and publish secrets.
-
-- [x] **SEC-09** — All third-party GitHub Actions in `.github/workflows/` are pinned to immutable commit SHAs (no `@main`, no `@master`, no floating branch refs)
-- [x] **SEC-10** — Go build tools used by workflows and `build.sh` (wails, nfpm, and any other `go install` targets) are pinned to exact versions (no `@latest`)
-- [x] **SEC-11** — Release pipeline is restructured so the unsigned build step cannot access signing, notarization, or publish secrets; signing/publish runs in a separate job that receives only the already-built artifacts
+**Addresses:** GitHub Issue #36 ("Extend xterm.js functionality with select plugins")
+**Derived from:** v3.2 research — `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md`, `SUMMARY.md` (2026-05-03).
+**Milestone goal:** Extend the xterm.js core with a curated set of plugins (closing Issue #36) — GPU-accelerated rendering, scrollback search, inline images, clickable links, proper Unicode width, serializable terminal state, OSC 52 clipboard, OSC 9;4 progress — and surface them in Settings as user-controllable toggles with per-plugin configuration where it adds value.
 
 ---
 
-## Future Requirements
+## Active Requirements (v3.2)
 
-Work that naturally follows v3.1 but is out of scope for this milestone:
+### Plugin Infrastructure
 
-- **Capability rotation and revocation UI** — current model issues capabilities but lacks explicit revoke/rotate flows in the GUI/CLI/TUI
-- **Per-user identity (not just capability tokens)** — would replace the capability model with authenticated users; deferred until multi-user demand emerges
-- **Rate limiting on session enumeration and handshake endpoints** — useful hardening once capability model is stable
-- **Audit log of session grants and capability issuance** — observability for security-sensitive actions
-- **SLSA provenance attestation** for release artifacts — follow-on to release pipeline hardening
-- **Third-party re-review of the capability design** — external audit after v3.1 ships
+A single source of truth in the daemon for plugin state, propagated to all xterm.js consumers (desktop Wails frontend + web-served Tailscale page) with a zero-data-loss migration from v3.1.
+
+- [ ] **PLUG-01** — User's plugin enable/disable choices and per-plugin config persist via the existing daemon `settings.json` mechanism, surviving GUI restarts and daemon restarts
+- [ ] **PLUG-02** — A returning user upgrading from v3.1 lands on v3.2 with sensible plugin defaults populated (no zero-value addons-disabled state, no zero-value `storageLimit`); v3.1 `settings.json` files migrate cleanly with `schemaVersion: 2` written
+- [ ] **PLUG-03** — Plugin state changes propagate from Settings save to all open desktop terminals via a Wails runtime event without requiring an app restart
+- [ ] **PLUG-04** — Plugin state changes propagate to all connected web-served Tailscale clients via a `/api/plugin-config` endpoint (capability-gated, matches v3.1 SEC-* model) without requiring a manual page reload for hot-swappable plugins
+
+### WebGL Renderer
+
+GPU-accelerated rendering with graceful fallback. Already shipping on desktop in v3.1; v3.2 makes it Settings-controlled and brings it to web parity.
+
+- [ ] **WGL-01** — User can enable/disable the WebGL renderer per-client in Settings; toggling applies live to all open terminals on the same surface (desktop or single web client) without requiring a session restart
+- [ ] **WGL-02** — When the WebGL context is lost (GPU crash, sleep/wake, browser backgrounding), the terminal automatically falls back to the DOM renderer with scrollback intact and no auto-retry loop; user is notified via a one-shot BannerStack toast
+- [ ] **WGL-03** — Software-rasterized WebGL contexts (SwiftShader, llvmpipe, ANGLE-software, iPad Safari) are detected at startup and the DOM renderer is used preemptively
+- [ ] **WGL-04** — Web-served Tailscale clients receive the same WebGL renderer behavior as desktop, with vendored addon assets served same-origin (no CDN, CSP `script-src 'self'` honored)
+
+### Unicode 11 Width Tables
+
+Correct wide-character and emoji handling. Already shipping on desktop in v3.1; v3.2 makes it Settings-controlled and brings it to web parity.
+
+- [ ] **U11-01** — User can enable/disable Unicode 11 width tables in Settings; the toggle is clearly marked as "applies to new sessions you create" because changing widths retroactively would re-flow the existing buffer
+- [ ] **U11-02** — Web-served Tailscale clients use the same Unicode 11 setting as the daemon (server-shared, not per-client) so multi-client scrollback line wrap remains identical across viewers
+
+### Search & Find Bar
+
+Scrollback search via `@xterm/addon-search` with a polished find-bar UI on desktop and web.
+
+- [ ] **SRC-01** — User can open a find bar with Cmd-F (focus-conditioned: only when the xterm DOM has focus, so browser find still works for non-terminal page text) and dismiss with Esc
+- [ ] **SRC-02** — Find bar supports next-match (Enter / Cmd-G), previous-match (Shift-Enter / Cmd-Shift-G), match count display ("3 of 12"), and toggleable regex / case-sensitive / whole-word options with persisted defaults
+- [ ] **SRC-03** — Search performs without UI lockup on a 10,000-line scrollback buffer; long-running regex searches can be cancelled by closing the find bar
+- [ ] **SRC-04** — The find bar visual treatment matches AgentHub's BannerStack vocabulary (TokyoNight palette, 200ms slide-in/out, theme-aware highlight via `theme.selectionBackground`)
+- [ ] **SRC-05** — Find bar works on web-served Tailscale terminal sessions with the same keyboard shortcuts and visual treatment as desktop
+
+### Web Links
+
+Clickable HTTP(S) URLs with security-hardened click handling — same rigor as v3.1's WS Origin allowlist.
+
+- [ ] **LNK-01** — Plain `https://`, `http://`, and `mailto:` URLs in terminal output are detected and made clickable; non-allowlisted schemes (`file://`, `javascript:`, custom protocols) are never made clickable by default
+- [ ] **LNK-02** — Activating a link requires Cmd-click on macOS / Ctrl-click on Linux/Windows by default (configurable in Settings); single-click never activates a link by default
+- [ ] **LNK-03** — Hovering a link displays the actual resolved href in a tooltip; OSC 8 hyperlinks where display text differs from href are flagged with a visual spoof warning
+- [ ] **LNK-04** — IDN/Punycode URLs and known typosquat patterns trigger a click-confirmation popover showing the full resolved URL before navigation
+- [ ] **LNK-05** — On desktop, link activation routes through Wails `BrowserOpenURL`; on web-served sessions, links open in a new tab with `noopener,noreferrer` (no current-tab navigation, ever)
+- [ ] **LNK-06** — User can enable/disable web-links in Settings; toggling applies live to all open terminals
+
+### Inline Images
+
+Sixel + iTerm2 inline image protocol via `@xterm/addon-image`. Default ON; load-bearing CSP and storage gates.
+
+- [ ] **IMG-01** — User can enable/disable inline image support in Settings (default ON); the toggle is clearly marked as "applies to new sessions you create"
+- [ ] **IMG-02** — Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (override of upstream 100 MB default); user can adjust the cap via an Advanced disclosure in Settings
+- [ ] **IMG-03** — Web-served Tailscale clients receive the same inline image rendering as desktop, with the existing v3.1 CSP either unchanged or amended (with documentation rigor matching v3.1 D-09) only if a pre-phase audit confirms `addon-image` requires `worker-src 'self' blob:`
+- [ ] **IMG-04** — A second client joining a session mid-stream receives correctly-rendered images during scrollback replay (multi-client byte-fidelity preserved through `internal/relay/`)
+
+### Serialize & Save Terminal
+
+Buffer capture as a first-class user gesture via `@xterm/addon-serialize`.
+
+- [ ] **SER-01** — User can right-click a terminal tab and choose "Save Terminal As…" to export the full visible scrollback as a `.txt` file via a Wails save dialog
+- [ ] **SER-02** — A Settings tooltip on the Serialize toggle warns explicitly that saved files include any secrets, tokens, or sensitive data printed in the session
+- [ ] **SER-03** — User can enable/disable serialize support in Settings; serialize never auto-saves or auto-runs (no on-disk session state captured without an explicit user action in v3.2)
+
+### Clipboard (OSC 52)
+
+Activate the dormant `@xterm/addon-clipboard` so AI CLIs that emit OSC 52 sequences can read/write the system clipboard with user permission.
+
+- [ ] **CLIP-01** — User can enable/disable OSC 52 clipboard support in Settings (default ON); when enabled, OSC 52 write sequences emitted by the running CLI place text on the system clipboard
+- [ ] **CLIP-02** — On web-served sessions, OSC 52 clipboard support honors the existing read-only-vs-read-write capability bound to the session token (read-only viewers cannot have OSC 52 writes affect their clipboard via the terminal channel)
+
+### Progress Indicator (OSC 9;4) — P2
+
+`@xterm/addon-progress` surfacing long-running task progress per tab and in the tray. Optional / cuttable; ships default OFF.
+
+- [ ] **PRG-01** — User can enable OSC 9;4 progress support in Settings (default OFF in v3.2; flips to ON in v3.3 after field validation)
+- [ ] **PRG-02** — When enabled, terminals emitting OSC 9;4 progress sequences (e.g. AI CLIs reporting long-running task percent) show a subtle progress underline on their tab in the tab strip
+- [ ] **PRG-03** — When enabled, the system tray icon reflects an aggregate progress glyph (e.g. quartile indicator) summarizing across all sessions emitting progress
+
+### Settings UI — Plugins Section
+
+A dedicated Plugins section in the Settings tab with per-plugin toggles, "applies to new sessions" affordance, and per-plugin config panels.
+
+- [ ] **PUI-01** — Settings tab includes a "Plugins" section listing all v3.2 plugins (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with name, short description, and an enable/disable toggle each
+- [ ] **PUI-02** — Toggles for plugins that cannot hot-swap (Unicode 11, Inline Images) display an inline italic caption "Applies to new sessions you create" directly under the toggle; toggling them also surfaces a one-shot BannerStack confirmation telling the user to open a new session to see the change
+- [ ] **PUI-03** — Plugins with meaningful runtime configuration (Search defaults regex/case/word; Web-Links Cmd-vs-Ctrl click modifier and confirmation policy; Inline Images storageLimit) expose those options via an inline `<details>` disclosure under the toggle
+- [ ] **PUI-04** — The Plugins section reuses the existing three-state Save button pattern (idle/saving/saved) and the existing `daemonSettings` persistence mechanism (no new save infrastructure)
+
+### Vendoring & Web Parity
+
+Extend the v3.1 vendored-only-no-CDN discipline to all new addons; ensure web-served terminal pages can load them.
+
+- [ ] **WEB-01** — All v3.2 addons (`addon-search`, `addon-image`, `addon-web-links`, `addon-serialize`, `addon-progress`) plus the previously-shipping `addon-webgl`, `addon-unicode11`, `addon-clipboard` are vendored same-origin under `web/vendor/xterm/addons/` with versions tracked in `web/vendor/xterm/VERSION`; no CDN references introduced
+- [ ] **WEB-02** — `internal/webserver/vendor_drift_test.go` is generalized to enforce the vendored-version contract for every `@xterm/addon-*` package (not just the hardcoded `addon-fit`); CI fails if `package.json` and `web/vendor/xterm/VERSION` disagree on any addon version
+- [ ] **WEB-03** — Web-served terminal page receives plugin config via the new `/api/plugin-config` endpoint (capability-gated using the v3.1 SEC-* model); the page conditionally instantiates each addon based on the response
 
 ---
 
-## Out of Scope
+## Future Requirements (deferred from v3.2)
 
-Explicit exclusions for v3.1 with reasoning:
+Captured during scoping; not committed for v3.2 but tracked.
 
-- **Full SSO / OIDC user authentication** — capability tokens are sufficient for the single-user-desktop + shared-session threat model; SSO adds an auth server and database surface out of proportion with the use case
-- **End-to-end encryption beyond TLS** — Tailscale Let's Encrypt TLS + capability-based authz covers the threat model; E2EE would require key exchange UX that undermines the zero-config value prop
-- **Removing Tailscale network as a trust boundary entirely** — Tailscale membership remains a *reachability* gate; capabilities become the *access* gate. Defense in depth, not replacement
-- **Rewriting the relay framing protocol** — the existing `MsgOutput/MsgInput/MsgResize/MsgMeta` protocol stays; only the handshake and per-frame authz behavior changes
-- **Capability storage in an external vault / KMS** — tokens are symmetric-signed by the daemon using a key persisted alongside existing `settings.json`; external KMS is overkill for a local desktop app
-- **Moving off `cdn.jsdelivr.net` for documentation-only pages** — only the interactive terminal page (which has command execution consequences) must be vendored; pure docs/landing pages are lower risk
+- **SER-FUT-01** — HTML output for "Save Terminal As…" preserving theme colors (theme-aware serialization is more complex than the v3.2 text-only scope)
+- **SRC-FUT-01** — Find-in-all-sessions across tabs (Cmd-Shift-F) — needs per-tab find shipped first
+- **PROG-FUT-01** — Default-ON for OSC 9;4 progress in v3.3 after field validation
+- **GRAPHEMES-FUT-01** — `@xterm/addon-unicode-graphemes` adoption when it leaves experimental upstream status (v3.3 candidate)
+
+## Out of Scope (explicit exclusions)
+
+- **User-installable third-party plugin extensibility** — v3.2 ships a curated, vendored set; supporting arbitrary user-supplied addons would conflict with the v3.1 vendored-only-no-CDN security posture and the strict CSP rules. Reasoning: extensibility is a trust-and-supply-chain decision; deferred indefinitely.
+- **Image copy/save gestures** — `addon-image` does not expose pixel extraction; building this from scratch is out of scope. Users can screenshot.
+- **Custom URL protocol allowlists** — `file://`, `vscode://`, custom-scheme support is intentionally excluded from v3.2 web-links to keep the security surface tight. Future opt-in possible but not now.
+- **`@xterm/addon-canvas`** — incompatible peer-dep (`^5.0.0`) with our xterm 6 core; superseded by WebGL renderer with DOM fallback.
+- **`@xterm/addon-ligatures`** — Node-only (filesystem font discovery); would silently no-op on web-served sessions, splitting UX.
+- **`@xterm/addon-attach`** — would replace AgentHub's custom binary-framing relay protocol, losing MC-01..MC-06 multi-client metadata.
+- **Phase 91 distribution pipeline follow-ups** — preserved in `.planning/deferred/` for a future milestone (v3.2.x patch or v3.3); not in v3.2 scope.
 
 ---
 
 ## Traceability
 
-Each v3.1 requirement maps to exactly one phase. All 11 requirements mapped (100% coverage, no orphans).
+Mapping of REQ-IDs → phases (filled by `gsd-roadmapper`):
 
-| REQ-ID | Phase | Status |
-|--------|-------|--------|
-| SEC-01 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-02 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-03 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-04 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-05 | Phase 87 — Capability-Based Session Authorization | Pending |
-| SEC-06 | Phase 88 — WebSocket Handshake Security | Complete (2026-04-22; SC-2 live UAT pending) |
-| SEC-07 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
-| SEC-08 | Phase 89 — Vendored Terminal Assets + CSP | Pending |
-| SEC-09 | Phase 90 — Release Pipeline Hardening | Complete |
-| SEC-10 | Phase 90 — Release Pipeline Hardening | Complete |
-| SEC-11 | Phase 90 — Release Pipeline Hardening | Complete |
+_To be populated during roadmap creation._
 
 ---
 
-*Last updated: 2026-04-19 — Traceability filled by gsd-roadmapper; Phases 87-90 allocated for v3.1*
+*Last updated: 2026-05-03 — milestone v3.2 requirements defined*
