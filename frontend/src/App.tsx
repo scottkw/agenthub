@@ -23,10 +23,13 @@ import {
   NotifyThemeChange,
   GetLastUpdateInfo,
   GetAutoCloseSession,
+  GetPluginSettings,
   QuitGUIOnly,
   QuitAll,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
+import type { daemon } from './wailsjs/go/models'
+type PluginSettings = daemon.PluginSettings
 import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
@@ -84,6 +87,11 @@ function App(): React.ReactElement {
     platformHint: string
   } | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
+  // Plugin settings state (PLUG-03): updated by GetPluginSettings on mount
+  // and by the EventsOn('settings:plugins') subscription. Threaded into every
+  // open TerminalPanel via prop. Phase 92 contract: TerminalPanel accepts the
+  // prop but does not consume it; Phase 93 wires consumption.
+  const [pluginConfig, setPluginConfig] = useState<PluginSettings | null>(null)
   // Ref for the background upgrade poller (local -> tailscale mode transition)
   const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
@@ -310,6 +318,19 @@ function App(): React.ReactElement {
       setDaemonError(msg)
     })
 
+    // Plugin settings (PLUG-03): initial fetch + change subscription. The
+    // PluginsSection component does its own fetch on mount; this top-level
+    // fetch ensures App-state has the value for the prop drill before any
+    // TerminalPanel mounts. Failure leaves pluginConfig at null (toggles in
+    // PluginsSection surface the error via its own loadError state).
+    GetPluginSettings()
+      .then((s) => setPluginConfig(s))
+      .catch(() => { /* keep null; PluginsSection surfaces its own error */ })
+
+    const offPlugins = EventsOn('settings:plugins', (s: PluginSettings) => {
+      setPluginConfig(s)
+    })
+
     const cancelTrayFocus = EventsOn('tray:focus-session', (sessionId: string) => {
       setTabs(prev => {
         const tab = prev.find(t => t.sessionId === sessionId)
@@ -402,6 +423,7 @@ function App(): React.ReactElement {
       offStatus()
       offHealth()
       offDaemonError()
+      offPlugins()
       cancelTrayFocus()
       offExit()
       offQuit()
@@ -869,6 +891,7 @@ function App(): React.ReactElement {
                   fontSize={fontSizes[tab.sessionId] ?? DEFAULT_FONT_SIZE}
                   onFontSizeChange={(delta) => handleFontSizeChange(tab.sessionId, delta)}
                   theme={terminalTheme}
+                  pluginConfig={pluginConfig}
                 />
                 {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
                   <ExitCountdownBanner

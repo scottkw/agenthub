@@ -5,6 +5,8 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { RelayClient } from '../lib/relayClient'
+import type { daemon } from '../wailsjs/go/models'
+type PluginSettings = daemon.PluginSettings
 
 // Custom fit that uses full container width (no hardcoded scrollbar deduction).
 // FitAddon.fit() always subtracts DEFAULT_SCROLL_BAR_WIDTH (14px) even when the
@@ -41,6 +43,8 @@ interface TerminalPanelProps {
   fontSize: number
   onFontSizeChange: (delta: number) => void
   theme: ITheme
+  // Phase 92 PLUG-03: prop is threaded but inert; Phase 93 wires consumption.
+  pluginConfig?: PluginSettings | null
 }
 
 /**
@@ -48,7 +52,11 @@ interface TerminalPanelProps {
  * All panels render simultaneously; inactive ones are hidden via display:none
  * to preserve the terminal buffer state without destroying the DOM node.
  */
-export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange, theme }: TerminalPanelProps): React.ReactElement {
+export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange, theme, pluginConfig }: TerminalPanelProps): React.ReactElement {
+  // Phase 92: pluginConfig is threaded but not yet consumed. Phase 93 wires
+  // addon load gating off this prop. Suppress unused-variable warning without
+  // consuming the prop in any addon useEffect (inert-prop invariant).
+  void pluginConfig
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
