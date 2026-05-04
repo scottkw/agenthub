@@ -1,10 +1,11 @@
 ---
 phase: 93
 slug: vendoring-discipline-web-parity-for-already-shipping-addons
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-04
+reviewed_at: 2026-05-04
 ---
 
 # Phase 93 — UI Design Contract
