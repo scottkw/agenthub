@@ -37,6 +37,14 @@ type SessionEngine struct {
 	autoCloseSession *bool // nil = default (true); persisted pointer
 	pluginSettings   PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
+	// pluginSettingsListener (if non-nil) is invoked synchronously by
+	// SetPluginSettings AFTER the new value is persisted, while the engine
+	// mutex is still held. Phase 93 PLUG-04 — webserver registers
+	// BroadcastPluginConfig here so SSE subscribers receive a frame on every
+	// change. The listener MUST be non-blocking (BroadcastPluginConfig uses
+	// non-blocking channel sends with drop-on-slow-consumer).
+	pluginSettingsListener func()
+
 	statusMu        sync.RWMutex
 	sessionStatuses map[string]status.SessionStatus // sessionID -> current status
 }
@@ -454,10 +462,32 @@ func (e *SessionEngine) GetPluginSettings() PluginSettings {
 // SetPluginSettings updates and persists the plugin enable/disable preferences.
 // Settings are immediately written to disk while the engine mutex is held
 // (saveSettingsToDisk's contract requires the caller to hold e.mu.Lock()).
+//
+// Phase 93 PLUG-04: after persistence, invoke pluginSettingsListener (if set)
+// outside the engine mutex so a slow listener cannot deadlock with concurrent
+// engine operations. The listener is the SSE BroadcastPluginConfig hook.
 func (e *SessionEngine) SetPluginSettings(s PluginSettings) {
 	e.mu.Lock()
 	e.pluginSettings = s
 	e.saveSettingsToDisk()
+	listener := e.pluginSettingsListener
+	e.mu.Unlock()
+	if listener != nil {
+		listener()
+	}
+}
+
+// SetPluginSettingsListener registers a callback invoked synchronously by
+// SetPluginSettings AFTER the new value is persisted. Phase 93 PLUG-04 push
+// channel — webserver registers BroadcastPluginConfig here so SSE subscribers
+// receive a frame on every change.
+//
+// Single-listener slot: the two NewWebServer call sites in api.go are mutually
+// exclusive at runtime (one for AutoStartWebServer / Tailscale-mode, one for
+// handleWebServerStart / mode-switch), so a single slot is safe.
+func (e *SessionEngine) SetPluginSettingsListener(fn func()) {
+	e.mu.Lock()
+	e.pluginSettingsListener = fn
 	e.mu.Unlock()
 }
 

@@ -89,17 +89,25 @@ type WebServer struct {
 	// Uses func() []byte (not daemon.PluginSettings) to avoid the daemon→
 	// webserver→daemon circular import (see 93-RESEARCH Q1).
 	pluginSettingsProvider func() []byte
+
+	// pluginConfigSubscribers is the set of active SSE subscribers for
+	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
+	// BroadcastPluginConfig non-blocking-sends to each. Drop-on-slow-consumer.
+	// Phase 93 PLUG-04 push channel — closes ROADMAP SC#4.
+	pluginConfigMu          sync.RWMutex
+	pluginConfigSubscribers map[chan []byte]struct{}
 }
 
 // NewWebServer creates a WebServer and sets up routes.
 // Does NOT start the listener — call Start() to begin serving.
 func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 	ws := &WebServer{
-		config:     cfg,
-		manager:    manager,
-		webEnabled: make(map[string]bool),
-		grants:     make(map[string]map[string]struct{}),
-		mux:        http.NewServeMux(),
+		config:                  cfg,
+		manager:                 manager,
+		webEnabled:              make(map[string]bool),
+		grants:                  make(map[string]map[string]struct{}),
+		mux:                     http.NewServeMux(),
+		pluginConfigSubscribers: make(map[chan []byte]struct{}),
 	}
 	ws.setupRoutes()
 	return ws, nil
@@ -413,6 +421,11 @@ func (ws *WebServer) setupRoutes() {
 	// SID check, so any valid cap passes. Plugin config is global (not
 	// session-specific) but the caller must still hold a verified cap.
 	mux.HandleFunc("GET /api/plugin-config", ws.requireCapability(ws.handleGetPluginConfig))
+
+	// Phase 93 PLUG-04 push channel — SSE stream of plugin-config changes.
+	// Closes ROADMAP SC#4 ("no manual page reload for hot-swappable plugins").
+	// Capability-gated like the read endpoint above.
+	mux.HandleFunc("GET /api/plugin-config/stream", ws.requireCapability(ws.handleStreamPluginConfig))
 
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list

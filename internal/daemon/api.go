@@ -296,6 +296,14 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 		}
 		return b
 	})
+	// Phase 93 PLUG-04 push channel: register BroadcastPluginConfig as the
+	// engine's plugin-settings change listener so SSE subscribers get a frame
+	// on every SetPluginSettings call (closes ROADMAP SC#4 — no manual page
+	// reload). The single-listener slot in Engine is safe because the two
+	// NewWebServer call sites are mutually exclusive at runtime.
+	a.engine.SetPluginSettingsListener(func() {
+		ws.BroadcastPluginConfig(context.Background())
+	})
 	// Wire capability state onto the web server BEFORE Start() so requireCapability
 	// has a non-nil signing key when the first request arrives (Pitfall 3). The
 	// bootstrapped signing key and joinCodes MUST be populated by a prior call
@@ -614,6 +622,11 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 		return b
+	})
+	// Phase 93 PLUG-04 push channel: register BroadcastPluginConfig as the
+	// engine's plugin-settings change listener (closes ROADMAP SC#4).
+	a.engine.SetPluginSettingsListener(func() {
+		ws.BroadcastPluginConfig(context.Background())
 	})
 
 	// Wire capability state BEFORE Start() so requireCapability has a key on
