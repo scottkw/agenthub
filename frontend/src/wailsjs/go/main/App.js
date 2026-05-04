@@ -72,6 +72,10 @@ export const SetStartMinimized       = (val)                => Call('main.App.Se
 export const GetAutoCloseSession     = ()                   => Call('main.App.GetAutoCloseSession', [])
 export const SetAutoCloseSession     = (val)                => Call('main.App.SetAutoCloseSession', [val])
 
+// Plugin settings bound methods (PLUG-03 / Phase 92)
+export const GetPluginSettings       = ()                   => Call('main.App.GetPluginSettings', [])
+export const SetPluginSettings       = (s)                  => Call('main.App.SetPluginSettings', [s])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])
