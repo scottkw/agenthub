@@ -4,14 +4,14 @@ milestone: v3.2
 milestone_name: Plugin Suite
 status: executing
 stopped_at: Phase 92 UI-SPEC approved
-last_updated: "2026-05-04T15:36:51.777Z"
+last_updated: "2026-05-04T15:55:03.613Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 12
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 ## Current Position
 
 Phase: 92 (Plugin Settings Foundation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-04
 
@@ -56,6 +56,8 @@ Last activity: 2026-05-04
 - Phase 94 (Search) owns find-bar UI for BOTH desktop and web (user explicitly chose ambitious scope; original SUMMARY proposed deferring web UI).
 - Recommendation: ship all 7 plugins ON by default except optional `addon-progress` (default OFF in v3.2, flips ON in v3.3 after field validation).
 - Server-shared plugin config for buffer-interpretation plugins (Unicode 11 must match across clients to avoid scrollback divergence); per-client renderer choice (WebGL/DOM) tolerated since it doesn't affect buffer state.
+- [Phase 92]: Pin wails-generated models.ts in-repo rather than regenerate per build — Project maintains hand-edited App.d.ts/App.js stubs with Call()-based convention; replacing wholesale would break vite test aliasing and lose hand-maintained inline type definitions
+- [Phase 92]: PluginSettings ships as full Wails-generated class form (not bare interface) — Matches 'wails generate module' output verbatim so future regeneration is a clean diff; supports both type-only and value-construction usage in Plan 92-03
 
 ### Pending Todos
 
@@ -76,6 +78,7 @@ Last activity: 2026-05-04
 | Phase | Plan | Duration | Tasks | Files | Commits |
 |-------|------|----------|-------|-------|---------|
 | Phase 92 P01 | 16 min | 3 tasks | 8 files |
+| Phase 92 P02 | 12 min | 2 tasks | 4 files |
 
 ### Blockers/Concerns
 
@@ -88,7 +91,7 @@ Last activity: 2026-05-04
 
 ## Session Continuity
 
-Last session: 2026-05-04T15:36:48.395Z
+Last session: 2026-05-04T15:54:48.438Z
 Stopped at: Phase 92 UI-SPEC approved
 Resume file: None
 Next action: `/gsd-plan-phase 92` to begin planning the Plugin Settings Foundation phase.

@@ -14,7 +14,7 @@ A single source of truth in the daemon for plugin state, propagated to all xterm
 
 - [x] **PLUG-01** — User's plugin enable/disable choices and per-plugin config persist via the existing daemon `settings.json` mechanism, surviving GUI restarts and daemon restarts
 - [x] **PLUG-02** — A returning user upgrading from v3.1 lands on v3.2 with sensible plugin defaults populated (no zero-value addons-disabled state, no zero-value `storageLimit`); v3.1 `settings.json` files migrate cleanly with `schemaVersion: 2` written
-- [ ] **PLUG-03** — Plugin state changes propagate from Settings save to all open desktop terminals via a Wails runtime event without requiring an app restart
+- [x] **PLUG-03** — Plugin state changes propagate from Settings save to all open desktop terminals via a Wails runtime event without requiring an app restart
 - [ ] **PLUG-04** — Plugin state changes propagate to all connected web-served Tailscale clients via a `/api/plugin-config` endpoint (capability-gated, matches v3.1 SEC-* model) without requiring a manual page reload for hot-swappable plugins
 
 ### WebGL Renderer
@@ -134,7 +134,7 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 |-------------|-------|--------|
 | PLUG-01 | Phase 92 | Complete |
 | PLUG-02 | Phase 92 | Complete |
-| PLUG-03 | Phase 92 | Pending |
+| PLUG-03 | Phase 92 | Complete |
 | PUI-01  | Phase 92 | Pending |
 | PLUG-04 | Phase 93 | Pending |
 | WGL-01  | Phase 93 | Pending |
