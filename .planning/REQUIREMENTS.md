@@ -90,7 +90,7 @@ Activate the dormant `@xterm/addon-clipboard` so AI CLIs that emit OSC 52 sequen
 
 A dedicated Plugins section in the Settings tab with per-plugin toggles, "applies to new sessions" affordance, and per-plugin config panels.
 
-- [ ] **PUI-01** — Settings tab includes a "Plugins" section listing all v3.2 plugins (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with name, short description, and an enable/disable toggle each
+- [x] **PUI-01** — Settings tab includes a "Plugins" section listing all v3.2 plugins (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with name, short description, and an enable/disable toggle each
 - [ ] **PUI-02** — Toggles for plugins that cannot hot-swap (Unicode 11, Inline Images) display an inline italic caption "Applies to new sessions you create" directly under the toggle; toggling them also surfaces a one-shot BannerStack confirmation telling the user to open a new session to see the change
 - [ ] **PUI-03** — Plugins with meaningful runtime configuration (Search defaults regex/case/word; Web-Links Cmd-vs-Ctrl click modifier and confirmation policy; Inline Images storageLimit) expose those options via an inline `<details>` disclosure under the toggle
 - [ ] **PUI-04** — The Plugins section reuses the existing three-state Save button pattern (idle/saving/saved) and the existing `daemonSettings` persistence mechanism (no new save infrastructure)
@@ -135,7 +135,7 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 | PLUG-01 | Phase 92 | Complete |
 | PLUG-02 | Phase 92 | Complete |
 | PLUG-03 | Phase 92 | Complete |
-| PUI-01  | Phase 92 | Pending |
+| PUI-01  | Phase 92 | Complete |
 | PLUG-04 | Phase 93 | Pending |
 | WGL-01  | Phase 93 | Pending |
 | WGL-02  | Phase 93 | Pending |

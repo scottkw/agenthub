@@ -330,7 +330,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 3 plans (3 waves)
   - [x] 92-01-PLAN.md — Daemon PluginSettings struct + defaults-merge load + engine RPC + HTTP routes + DaemonClient + fixture migration test (Wave 1) — covers PLUG-01, PLUG-02
   - [x] 92-02-PLAN.md — Wails (*App).GetPluginSettings + (*App).SetPluginSettings + settings:plugins EventsEmit + regenerated TS bindings (Wave 2) — covers PLUG-03 RPC half
-  - [ ] 92-03-PLAN.md — PluginsSection 8-toggle UI + SettingsTab insertion + App.tsx EventsOn subscription + TerminalPanel inert-prop wiring (Wave 3) — covers PUI-01 + PLUG-03 subscription half
+  - [x] 92-03-PLAN.md — PluginsSection 8-toggle UI + SettingsTab insertion + App.tsx EventsOn subscription + TerminalPanel inert-prop wiring (Wave 3) — covers PUI-01 + PLUG-03 subscription half
 
 ### Phase 93: Vendoring Discipline + Web Parity for Already-Shipping Addons
 **Goal**: The three already-shipping desktop addons (webgl, unicode11, clipboard) are migrated under the new reconcile pattern AND vendored same-origin for the web-served terminal page (where none are vendored today), with `vendor_drift_test.go` extended into a load-bearing CI gate that enforces version parity for every `@xterm/addon-*` package.
@@ -445,7 +445,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
 | 89 | v3.1 | 5/5 | Complete    | 2026-04-23 |
 | 90 | v3.1 | 5/6 | In Progress|  |
-| 92 | v3.2 | 2/3 | In Progress|  |
+| 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 0/0 | Not started | — |
 | 94 | v3.2 | 0/0 | Not started | — |
 | 95 | v3.2 | 0/0 | Not started | — |
