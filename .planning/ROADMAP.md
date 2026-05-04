@@ -342,7 +342,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. WebGL context loss (induced via `WEBGL_lose_context.loseContext()` in DevTools, system sleep/wake, or an iPad Safari background/foreground) automatically falls back to the DOM renderer with scrollback intact, no auto-retry loop, and a one-shot BannerStack toast informing the user; software-rasterized WebGL contexts (SwiftShader, llvmpipe, ANGLE-software) are detected at startup and the DOM renderer is used preemptively.
   4. A web-served plugin-config change applies to all connected web clients without a manual page reload (for hot-swappable plugins) via the new `/api/plugin-config` endpoint, which is gated by the same v3.1 SEC-* capability-token model that protects every other web-served route.
   5. CI fails (red, blocking) if `frontend/package.json` and `web/vendor/xterm/VERSION` disagree on the version of any `@xterm/addon-*` package — the generalized `vendor_drift_test.go` regex covers every addon, not just `addon-fit`.
-**Plans**: TBD
+**Plans**: 5 plans (3 waves)
+  - [ ] 93-01-PLAN.md — Generalize vendor_drift_test.go regex + min-count guard (Wave 1, WEB-02)
+  - [ ] 93-02-PLAN.md — Vendor 3 addon UMD bundles + VERSION + embed.go + terminal.html script tags (Wave 1, WEB-01/WGL-04/U11-02/CLIP-01)
+  - [ ] 93-03-PLAN.md — Lift Phase 92 inert-prop invariant; TerminalPanel hot-swap + WebGLRecoveryBanner + isSoftwareWebGL + italic caption (Wave 2, WGL-01/02/03 + U11-01 + CLIP-02 desktop)
+  - [ ] 93-04-PLAN.md — /api/plugin-config endpoint + capability gate + web terminal.js conditional addon loading + context-loss banner (Wave 2, PLUG-04/WEB-03/U11-02/CLIP-02)
+  - [ ] 93-05-PLAN.md — Playwright e2e specs (vendor parity, CSP, plugin hot-swap) + iPad Safari UAT script + VALIDATION sign-off (Wave 3, WEB-02 e2e)
 **UI hint**: yes
 
 ### Phase 94: Search Addon + Find Bar (Desktop + Web)
