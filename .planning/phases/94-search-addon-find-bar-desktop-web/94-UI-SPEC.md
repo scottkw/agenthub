@@ -79,6 +79,7 @@ Inherited from the locked Phase 92 8-point scale. Phase 94 introduces no new spa
 
 - The `28px` icon button and input row height is not on the standard 8-point scale but is a deliberate compact choice for a toolbar-style surface inside a terminal. Rational: the find bar is purely keyboard-driven; the touch-target minimum (44px) applies to primary interactive surfaces, not secondary toolbar chrome. This is the same reasoning as the existing `16px` tab close button and the `20px` sidebar icon in the existing codebase.
 - The `40px` total find bar height matches existing `.tab-bar { height: 42px }` and `.tab-status-bar { height: 32px }` as contextual anchors — it feels "native" within the existing chrome proportions.
+- The `2px` inner padding on icon toggle buttons (token `xxs`) is inherited from the Phase 92 locked spacing scale and is not a Phase 94 introduction. It is a sub-pixel visual inset used only for icon-button padding — not a layout gap or positional offset — and its use predates the Phase 94 grid contract. It is carried forward as a locked pre-existing token.
 
 ---
 
@@ -565,7 +566,7 @@ A v3.2 user (post-Phase-93) opens the app and:
 - [ ] Dimension 2 Visuals: PASS — find bar layout, dimensions, border, shadow, animation timing, and all icon button states fully specified; web parity via duplicated CSS tokens; find bar is a new CSS section with zero conflicts to existing classes
 - [ ] Dimension 3 Color: PASS — zero new colors; all values from locked TokyoNight palette; 60/30/10 budget honored; accent `#7aa2f7` reserved specifically for find bar focus-rings and toggle active states; no-results color re-uses existing `#f7768e` (error red)
 - [ ] Dimension 4 Typography: PASS — 2 sizes (13px input, 12px count); 1 weight (400 regular); all font-variant-numeric tabular-nums on count; icon buttons have no text
-- [ ] Dimension 5 Spacing: PASS — all values are multiples of 4 (4, 8, 16, 28, 40px); 28px icon button and 40px bar height documented as intentional exceptions with rationale; no new spacing tokens
+- [ ] Dimension 5 Spacing: PASS — all values are multiples of 4 (4, 8, 16, 28, 40px) except `2px` (xxs token); 2px is a locked pre-existing token inherited from Phase 92, used solely as icon-button inner padding — documented in the Spacing Exceptions paragraph; 28px icon button and 40px bar height also documented as intentional exceptions with rationale; no new spacing tokens
 - [ ] Dimension 6 Registry Safety: PASS — no shadcn, no third-party UI registries; `@xterm/addon-search` is a first-party `@xterm` scoped package vetted by vendor-drift CI gate
 
 **Approval:** pending
