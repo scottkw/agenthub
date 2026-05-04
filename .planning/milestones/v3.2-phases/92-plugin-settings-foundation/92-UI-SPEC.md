@@ -1,10 +1,11 @@
 ---
 phase: 92
 slug: plugin-settings-foundation
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-04
+reviewed_at: 2026-05-04
 ---
 
 # Phase 92 — UI Design Contract
