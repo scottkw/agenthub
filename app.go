@@ -452,6 +452,42 @@ func (a *App) SetAutoCloseSession(val bool) error {
 	return a.client.SetAutoCloseSession(val)
 }
 
+// GetPluginSettings returns the persisted plugin enable/disable preferences.
+// Returns the zero-value PluginSettings when the daemon is not connected
+// or when the RPC fails — callers MUST also gate on a toggleLoaded-style
+// guard (the React Settings UI does this via `pluginsLoaded`).
+//
+// PLUG-03 / Phase 92.
+func (a *App) GetPluginSettings() daemon.PluginSettings {
+	if a.client == nil {
+		return daemon.PluginSettings{}
+	}
+	s, err := a.client.GetPluginSettings()
+	if err != nil {
+		return daemon.PluginSettings{}
+	}
+	return s
+}
+
+// SetPluginSettings persists plugin preferences via the daemon AND
+// broadcasts the change to all open desktop terminals via the
+// "settings:plugins" Wails runtime event (PLUG-03).
+//
+// EventsEmit lives in app.go ONLY — internal/daemon has no Wails runtime
+// context (Pitfall #2). The event fires AFTER the daemon RPC succeeds:
+// a failed save MUST NOT emit the event, otherwise consumers would see
+// a state the daemon never persisted.
+func (a *App) SetPluginSettings(s daemon.PluginSettings) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	if err := a.client.SetPluginSettings(s); err != nil {
+		return err
+	}
+	runtime.EventsEmit(a.ctx, "settings:plugins", s)
+	return nil
+}
+
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
 // Creates the directory if it does not exist.
 func configDir() string {
