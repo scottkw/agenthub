@@ -1,25 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.1
-milestone_name: Security Hardening
-status: shipped
-shipped_at: "2026-05-03T03:08:00.000Z"
-last_updated: "2026-05-03T03:30:00.000Z"
-last_activity: 2026-05-03
-ships:
-  - tag: v3.1.0
-    url: https://github.com/scottkw/agenthub/releases/tag/v3.1.0
-    closes: ["#35"]
-    distribution:
-      github: published
-      homebrew: "scottkw/homebrew-agenthub@76f34d7e — version 3.1.0"
-      winget: deferred (Phase 91-C — first-submission needed)
+milestone: v3.2
+milestone_name: Plugin Suite
+status: planning
+last_updated: "2026-05-04T00:13:21.868Z"
+last_activity: 2026-05-04
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -33,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-19)
 
 ## Current Position
 
-Milestone: v3.1 — SHIPPED 2026-05-03 as v3.1.0 (closes Issue #35)
-Phase 91: distribution pipeline follow-ups filed for next milestone — see .planning/phases/91-distribution-pipeline-followups/91-CONTEXT.md
-Last activity: 2026-05-03 (v3.1.0 release pipeline + Homebrew tap propagation)
-
-Progress: [██████████] 100% (v3.1 milestone shipped)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-04 — Milestone v3.2 started
 
 ## Performance Metrics
 

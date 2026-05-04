@@ -8,16 +8,21 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
-## Current Milestone: v3.1 Security Hardening
+## Current Milestone: v3.2 Plugin Suite
 
-**Goal:** Close the 5 confirmed findings from the third-party security review (GitHub Issue #35) so tailnet sharing is a real permission boundary, not an implicit trust fence.
+**Goal:** Extend the xterm.js core with a curated set of plugins (closes Issue #36) — GPU-accelerated rendering, scrollback search, inline images, clickable links, proper Unicode width, and serializable terminal state — and surface them in Settings as user-controllable toggles with per-plugin configuration where it adds value.
 
 **Target features:**
-- Application-layer authorization for shared web sessions (server-issued signed capability tokens)
-- Server-enforced read-only sharing bound to capabilities (not query params)
-- Strict WebSocket Origin allowlist + CSRF-resistant handshake tokens
-- Vendored xterm terminal assets + Content-Security-Policy on terminal page
-- SHA-pinned GitHub Actions, exact-version build tools, and split unsigned-build-from-signing release pipeline
+- WebGL renderer (`@xterm/addon-webgl`) — GPU-accelerated rendering with context-loss fallback
+- Scrollback search (`@xterm/addon-search`) — find/next/prev with regex, case-sensitivity, whole-word
+- Inline images (`@xterm/addon-image`) — sixel + iTerm2 inline image protocol
+- Clickable web links (`@xterm/addon-web-links`) — configurable click handler
+- Unicode 11 width tables (`@xterm/addon-unicode11`) — correct wide-char/emoji handling
+- Terminal serialization (`@xterm/addon-serialize`) — capture state for future restore
+- Research-driven additions — survey other `@xterm/addon-*` packages and surface candidates worth bundling
+- Settings UI: Plugins section with per-plugin enable/disable, "applies to new sessions only" indicator where hot-swap isn't possible, and per-plugin config panels for plugins with meaningful options
+- Plugin preferences persisted via the existing daemon `settings.json` mechanism
+- Vendoring + CSP discipline preserved from v3.1 — no CDN pulls; plugin assets bundled the same way `xterm.js` core was vendored
 
 ## Requirements
 
@@ -368,4 +373,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-22 — Phase 88 (WebSocket Handshake Security) complete; SC-2 live UAT pending*
+*Last updated: 2026-05-03 — v3.1 Security Hardening shipped (v3.1.0); v3.2 Plugin Suite (Issue #36) milestone started*
