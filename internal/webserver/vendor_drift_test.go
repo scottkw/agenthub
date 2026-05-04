@@ -1,10 +1,11 @@
-// Package webserver D-04/D-20 vendor-drift guard (Phase 89).
+// Package webserver D-04/D-20 vendor-drift guard (Phase 89; generalized in Phase 93 WEB-02).
 //
-// TestXtermVendorVersionsMatchPnpmLock fails if the resolved @xterm/xterm and
-// @xterm/addon-fit versions in frontend/pnpm-lock.yaml ever diverge from the
-// version manifest at web/vendor/xterm/VERSION.  This catches the case where
+// TestXtermVendorVersionsMatchPnpmLock fails if the resolved @xterm/xterm or
+// any @xterm/addon-* version in frontend/pnpm-lock.yaml ever diverges from
+// the version manifest at web/vendor/xterm/VERSION. This catches the case where
 // a developer runs `pnpm update` and bumps the lockfile without re-copying the
-// vendored files (or vice-versa).
+// vendored files (or vice-versa). Phase 93 generalized the regex from
+// `addon-fit` only to every `@xterm/addon-*` package.
 package webserver
 
 import (
@@ -14,7 +15,7 @@ import (
 	"testing"
 )
 
-var pnpmXtermKeyRe = regexp.MustCompile(`^  '(@xterm/(?:xterm|addon-fit))@([0-9.]+)':`)
+var pnpmXtermKeyRe = regexp.MustCompile(`^  '(@xterm/(?:xterm|addon-[\w-]+))@([0-9.]+)':`)
 
 func TestXtermVendorVersionsMatchPnpmLock(t *testing.T) {
 	// Step 1: read pnpm-lock.yaml (source of truth for resolved versions).
@@ -30,8 +31,8 @@ func TestXtermVendorVersionsMatchPnpmLock(t *testing.T) {
 			pnpmVersions[m[1]] = m[2]
 		}
 	}
-	if len(pnpmVersions) < 2 {
-		t.Fatalf("failed to parse @xterm/xterm and @xterm/addon-fit from pnpm-lock.yaml: found %v (Phase 89 D-04 — the lockfile format may have changed; see 89-RESEARCH.md Q3)", pnpmVersions)
+	if len(pnpmVersions) < 5 {
+		t.Fatalf("failed to parse at least 5 @xterm/* packages (xterm, addon-fit, addon-webgl, addon-unicode11, addon-clipboard) from pnpm-lock.yaml: found %v (Phase 93 WEB-02 — the lockfile format may have changed; see 89-RESEARCH.md Q3)", pnpmVersions)
 	}
 
 	// Step 3: read web/vendor/xterm/VERSION (the vendored manifest).

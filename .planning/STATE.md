@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Plugin Suite
-status: "Phase 93 plans created (5 plans, 3 waves) — verification PASSED after one revision (added SSE push channel for PLUG-04). Next: `/gsd-execute-phase 93`."
-stopped_at: Phase 93 plans verified — ready to execute
-last_updated: "2026-05-04T18:00:00.000Z"
-last_activity: 2026-05-04 -- Phase 93 planning complete
+status: executing
+stopped_at: Phase 93 UI-SPEC approved
+last_updated: "2026-05-04T19:27:15.974Z"
+last_activity: 2026-05-04 -- Phase 93 execution started
 progress:
   total_phases: 12
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 92 — Plugin Settings Foundation
+**Current focus:** Phase 93 — vendoring-discipline-web-parity-for-already-shipping-addons
 
 ## Current Position
 
-Phase: 92 (Plugin Settings Foundation) — COMPLETE (verification PASS, UAT closed)
-Plan: 3 of 3 (last)
-Status: Ready to ship. UAT-1 confirmed via screenshot; UAT-2 accepted on programmatic-equivalent (App.plugin-event.test.tsx 7/7 PASS). Next: `/gsd-ship 92`.
-Last activity: 2026-05-04 -- Phase 92 closed
+Phase: 93 (vendoring-discipline-web-parity-for-already-shipping-addons) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 93
+Last activity: 2026-05-04 -- Phase 93 execution started
 
 ## Performance Metrics
 
