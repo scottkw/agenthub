@@ -39,6 +39,7 @@ import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
+import { WebGLRecoveryBanner } from './components/WebGLRecoveryBanner'
 import { ExitToast } from './components/ExitToast'
 import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
@@ -107,6 +108,14 @@ function App(): React.ReactElement {
   const [localBannerExiting, setLocalBannerExiting] = useState(false)
   const [updateExiting, setUpdateExiting] = useState(false)
 
+  // Phase 93 WGL-02 / WGL-03: WebGL recovery banner state. One-shot per
+  // app session — webglBannerDismissed gates rendering even if the
+  // underlying webglContextLost / webglSoftwareDetected event fires
+  // multiple times (e.g., user toggles WebGL OFF/ON while context lost).
+  const [webglContextLost, setWebglContextLost] = useState(false)
+  const [webglSoftwareDetected, setWebglSoftwareDetected] = useState(false)
+  const [webglBannerDismissed, setWebglBannerDismissed] = useState(false)
+
   // Session exit state: per-session exit info for toast/banner/countdown (Phase 84)
   const [sessionExits, setSessionExits] = useState<Record<string, ExitState>>({})
   // Quit confirmation modal state (Phase 85)
@@ -154,6 +163,18 @@ function App(): React.ReactElement {
       setUpdate(null)
       setUpdateExiting(false)
     }, 200)
+  }, [])
+
+  // Phase 93 WGL-02 / WGL-03: stable callback for TerminalPanel's hot-swap
+  // useEffect dep array. useCallback with [] keeps the identity stable so
+  // the hot-swap effect doesn't re-run when App re-renders for unrelated
+  // reasons.
+  const handleWebGLContextLost = useCallback((reason: 'context-loss' | 'software-rasterized') => {
+    if (reason === 'software-rasterized') {
+      setWebglSoftwareDetected(true)
+    } else {
+      setWebglContextLost(true)
+    }
   }, [])
 
   // On mount: hide static HTML splash and initialize.
@@ -745,7 +766,9 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
-      {((webServerMode === 'local' && !localBannerDismissed) || update) && (
+      {((webServerMode === 'local' && !localBannerDismissed) ||
+        update ||
+        ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed)) && (
         <div className="banner-stack">
           {webServerMode === 'local' && !localBannerDismissed && (
             <LocalNetworkBanner
@@ -765,6 +788,12 @@ function App(): React.ReactElement {
               update={update}
               onDismiss={handleDismissUpdate}
               className={updateExiting ? 'banner-exit' : undefined}
+            />
+          )}
+          {(webglContextLost || webglSoftwareDetected) && !webglBannerDismissed && (
+            <WebGLRecoveryBanner
+              reason={webglSoftwareDetected ? 'software-rasterized' : 'context-loss'}
+              onDismiss={() => setWebglBannerDismissed(true)}
             />
           )}
         </div>
@@ -892,6 +921,7 @@ function App(): React.ReactElement {
                   onFontSizeChange={(delta) => handleFontSizeChange(tab.sessionId, delta)}
                   theme={terminalTheme}
                   pluginConfig={pluginConfig}
+                  onWebGLContextLost={handleWebGLContextLost}
                 />
                 {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
                   <ExitCountdownBanner

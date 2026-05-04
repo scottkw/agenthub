@@ -65,6 +65,7 @@ export function PluginsSection(): React.ReactElement {
     key: keyof PluginSettings,
     label: string,
     description: string,
+    caption?: string,
   ): React.ReactElement {
     const checked = pluginConfig?.[key] ?? false
     return (
@@ -89,6 +90,11 @@ export function PluginsSection(): React.ReactElement {
           onChange={toggle(key)}
         />
         <p className="settings-panel__description">{description}</p>
+        {caption && (
+          <p className="settings-panel__description settings-panel__description--italic">
+            {caption}
+          </p>
+        )}
       </div>
     )
   }
@@ -106,7 +112,8 @@ export function PluginsSection(): React.ReactElement {
       {renderRow('webgl', 'WebGL renderer',
         'GPU-accelerated terminal rendering with automatic DOM fallback if the GPU context is lost.')}
       {renderRow('unicode11', 'Unicode 11 widths',
-        'Correct cell widths for emoji and CJK characters using the Unicode 11 width tables.')}
+        'Correct cell widths for emoji and CJK characters using the Unicode 11 width tables.',
+        'Applies to new sessions you create.')}
       {renderRow('search', 'Find in scrollback',
         'Open a find bar with Cmd-F to search the terminal scrollback buffer.')}
       {renderRow('webLinks', 'Clickable web links',

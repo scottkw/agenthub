@@ -30,12 +30,19 @@ describe('PLUG-03: prop drilling into TerminalPanel', () => {
     // construct TerminalPanel without this prop).
     expect(terminalPanelRaw).toMatch(/pluginConfig\?\s*:/)
   })
-  it('TerminalPanel does NOT consume pluginConfig inside an addon useEffect (Phase 92 contract)', () => {
-    // Phase 92 contract: prop is threaded but inert. Phase 93 wires
-    // consumption. If a useEffect references pluginConfig, this test
-    // fires and the planner is alerted that the contract is being
-    // violated.
+  it('Phase 93 — TerminalPanel consumes pluginConfig inside addon-load useEffect (inert-prop invariant lifted)', () => {
+    // Phase 92 contract: prop was threaded but inert. Phase 93 wires
+    // consumption inside the hot-swap useEffect. The dep array contains
+    // pluginConfig?.webgl and pluginConfig?.clipboard so the effect re-runs
+    // when those toggles change.
     const consumesInEffect = /useEffect\([^)]*pluginConfig|useEffect\([^}]*\bpluginConfig\b/.test(terminalPanelRaw)
-    expect(consumesInEffect).toBe(false)
+    expect(consumesInEffect).toBe(true)
+  })
+
+  it('Phase 93 — bare `void pluginConfig` line is removed from TerminalPanel.tsx', () => {
+    // The Phase 92 inert-prop sentinel line `void pluginConfig` (used to
+    // suppress the unused-variable warning) must no longer appear; the
+    // prop is now genuinely consumed inside addon-load useEffects.
+    expect(terminalPanelRaw).not.toMatch(/^\s*void\s+pluginConfig\s*$/m)
   })
 })

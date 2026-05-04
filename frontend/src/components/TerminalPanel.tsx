@@ -4,7 +4,9 @@ import type { ITheme } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
+import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { RelayClient } from '../lib/relayClient'
+import { isSoftwareWebGL } from '../lib/webglProbe'
 import type { daemon } from '../wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
 
@@ -43,8 +45,13 @@ interface TerminalPanelProps {
   fontSize: number
   onFontSizeChange: (delta: number) => void
   theme: ITheme
-  // Phase 92 PLUG-03: prop is threaded but inert; Phase 93 wires consumption.
+  // Phase 93 PLUG-03/WGL-01/CLIP-01: pluginConfig is consumed in the hot-swap
+  // useEffect to live-attach/dispose WebGL and Clipboard addons. Unicode 11
+  // is honored at session init only (next-session semantics — UI-SPEC).
   pluginConfig?: PluginSettings | null
+  // Phase 93 WGL-02/WGL-03: fired when WebGL falls back to DOM (context-loss)
+  // or when software-rasterizer is detected at startup (preempted).
+  onWebGLContextLost?: (reason: 'context-loss' | 'software-rasterized') => void
 }
 
 /**
@@ -52,15 +59,23 @@ interface TerminalPanelProps {
  * All panels render simultaneously; inactive ones are hidden via display:none
  * to preserve the terminal buffer state without destroying the DOM node.
  */
-export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFontSizeChange, theme, pluginConfig }: TerminalPanelProps): React.ReactElement {
-  // Phase 92: pluginConfig is threaded but not yet consumed. Phase 93 wires
-  // addon load gating off this prop. Suppress unused-variable warning without
-  // consuming the prop in any addon useEffect (inert-prop invariant).
-  void pluginConfig
+export function TerminalPanel({
+  sessionId,
+  isActive,
+  relayPort,
+  fontSize,
+  onFontSizeChange,
+  theme,
+  pluginConfig,
+  onWebGLContextLost,
+}: TerminalPanelProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
   const clientRef = useRef<RelayClient | null>(null)
+  // Phase 93 WGL-01 / CLIP-01: addon refs for hot-swap useEffect.
+  const webglAddonRef = useRef<WebglAddon | null>(null)
+  const clipboardAddonRef = useRef<ClipboardAddon | null>(null)
 
   // Create the terminal and relay client once per sessionId.
   useEffect(() => {
@@ -76,22 +91,23 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
     })
 
     const fitAddon = new FitAddon()
-    const unicode11 = new Unicode11Addon()
     term.loadAddon(fitAddon)
-    term.loadAddon(unicode11)
-    term.unicode.activeVersion = '11'   // TERM-03: emoji + CJK + box-drawing
 
-    // Attempt WebGL renderer; fall back gracefully on context loss.
-    try {
-      const webglAddon = new WebglAddon()
-      webglAddon.onContextLoss(() => {
-        console.warn(`[TerminalPanel] WebGL context lost for session ${sessionId}; using canvas fallback`)
-        webglAddon.dispose()
-      })
-      term.loadAddon(webglAddon)
-    } catch (err) {
-      console.warn(`[TerminalPanel] WebGL unavailable for session ${sessionId}:`, err)
+    // Phase 93 U11-01: Unicode 11 honors next-session-only semantics. The
+    // pluginConfig?.unicode11 flag is read at session init; toggling it in
+    // Settings does NOT mutate already-open terminals (UI-SPEC § Interaction
+    // Contract — italic caption "Applies to new sessions you create."
+    // explains this affordance to users). Default true if pluginConfig
+    // hasn't loaded yet (preserves Phase 92 always-on behavior).
+    if (pluginConfig?.unicode11 !== false) {
+      const unicode11 = new Unicode11Addon()
+      term.loadAddon(unicode11)
+      term.unicode.activeVersion = '11'   // TERM-03: emoji + CJK + box-drawing
     }
+
+    // WebGL + Clipboard addons load via the hot-swap useEffect below
+    // (Phase 93 WGL-01/CLIP-01). Initial load is the same code path as
+    // hot-swap because pluginConfig?.webgl/clipboard are dep-array keys.
 
     term.open(containerRef.current)
     // Don't fit here — hidden panels have zero dimensions.
@@ -134,14 +150,87 @@ export function TerminalPanel({ sessionId, isActive, relayPort, fontSize, onFont
       disposeData.dispose()
       disposeResize.dispose()
       client.close()
+      // Phase 93: dispose hot-swap addons before disposing the terminal
+      // itself to avoid orphaned references. dispose() on the addon detaches
+      // the render backend / clipboard handler — Terminal.dispose() then
+      // tears down the buffer. Order matters only for cleanliness.
+      if (webglAddonRef.current) {
+        webglAddonRef.current.dispose()
+        webglAddonRef.current = null
+      }
+      if (clipboardAddonRef.current) {
+        clipboardAddonRef.current.dispose()
+        clipboardAddonRef.current = null
+      }
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
       clientRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // onFontSizeChange intentionally omitted: stable callback captured once per session
+  // onFontSizeChange + pluginConfig?.unicode11 intentionally omitted: mount
+  // effect runs once per session; unicode11 is read at init (next-session
+  // semantics, UI-SPEC § Interaction Contract).
   }, [sessionId])
+
+  // Phase 93 hot-swap useEffect (WGL-01 + CLIP-01 + WGL-02 + WGL-03).
+  // Lives AFTER the mount useEffect so termRef.current is set before this
+  // first runs. Dep array keys are SPECIFIC fields (Pitfall #1 — putting
+  // the whole pluginConfig object would re-run on every save even if the
+  // relevant flags didn't change). Unicode 11 is intentionally NOT in this
+  // dep array — it's next-session-only.
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+
+    // WebGL hot-swap (WGL-01) + software-rasterizer preemption (WGL-03)
+    //                       + context-loss recovery (WGL-02)
+    if (pluginConfig?.webgl) {
+      if (!webglAddonRef.current) {
+        if (isSoftwareWebGL()) {
+          // Software-rasterized WebGL detected at startup — DOM renderer
+          // is preemptively used; one-shot persistent toast informs user.
+          onWebGLContextLost?.('software-rasterized')
+        } else {
+          try {
+            const webglAddon = new WebglAddon()
+            webglAddon.onContextLoss(() => {
+              webglAddon.dispose()
+              webglAddonRef.current = null
+              onWebGLContextLost?.('context-loss')
+            })
+            term.loadAddon(webglAddon)
+            webglAddonRef.current = webglAddon
+          } catch (err) {
+            // WebGL context creation failed — silent (no toast); user
+            // explicitly enabled WebGL. Browser console still surfaces err.
+            console.warn(`[TerminalPanel] WebGL unavailable for session ${sessionId}:`, err)
+          }
+        }
+      }
+    } else {
+      // Toggle OFF — dispose addon if loaded. The Terminal's buffer
+      // (scrollback) survives; only the render backend detaches.
+      if (webglAddonRef.current) {
+        webglAddonRef.current.dispose()
+        webglAddonRef.current = null
+      }
+    }
+
+    // Clipboard hot-swap (CLIP-01)
+    if (pluginConfig?.clipboard) {
+      if (!clipboardAddonRef.current) {
+        const clipAddon = new ClipboardAddon()
+        term.loadAddon(clipAddon)
+        clipboardAddonRef.current = clipAddon
+      }
+    } else {
+      if (clipboardAddonRef.current) {
+        clipboardAddonRef.current.dispose()
+        clipboardAddonRef.current = null
+      }
+    }
+  }, [pluginConfig?.webgl, pluginConfig?.clipboard, onWebGLContextLost, sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
