@@ -111,6 +111,30 @@
       window.__perms = perms;
       var isReadOnly = perms === 'read';
 
+      // Phase 93 PLUG-04 / WEB-03: fetch plugin config to gate addon loading.
+      // Defaults to all-on (matches Phase 92 daemon defaults for v3.2 returning
+      // users) if fetch fails. Failure paths are silent per UI-SPEC — CSP /
+      // capability errors are handled at the network layer.
+      var pluginConfig = {
+        webgl: true, unicode11: true, clipboard: true,
+        search: true, webLinks: true, image: true,
+        serialize: true, progress: false
+      };
+      if (cap && sessionID) {
+        try {
+          var pcResp = await fetch(withCap('/api/plugin-config'));
+          if (pcResp.ok) {
+            var pc = await pcResp.json();
+            // Defensive merge — daemon may add new keys before web is updated.
+            for (var k in pc) {
+              if (Object.prototype.hasOwnProperty.call(pc, k)) pluginConfig[k] = pc[k];
+            }
+          }
+        } catch (e) {
+          // Silent fall-through with defaults.
+        }
+      }
+
       updateStatusBar(sessionMeta, connected);
       // Continue polling session info for status-bar updates.
       setInterval(fetchSessionInfo, 3000);
@@ -139,6 +163,128 @@
         badge.textContent = 'READ ONLY';
         statusBar.appendChild(badge);
       }
+
+      // Phase 93 WGL-03: software-rasterizer probe (web parity with desktop webglProbe.ts)
+      function isSoftwareWebGL() {
+        try {
+          var c = document.createElement('canvas');
+          var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+          if (!gl) return false;
+          var renderer = gl.getParameter(gl.RENDERER);
+          if (!renderer) return false;
+          return /SwiftShader|llvmpipe|ANGLE.*Software|ANGLE.*SwiftShader/i.test(renderer);
+        } catch (e) { return false; }
+      }
+
+      // Phase 93 WGL-02: context-loss / software-preemption banner.
+      // One-shot per session via sessionStorage (best-effort — may be blocked
+      // in some browser modes, in which case the banner can show again).
+      function showWebGLBanner(reason) {
+        try {
+          if (sessionStorage.getItem('webgl-banner-shown') === '1') return;
+          sessionStorage.setItem('webgl-banner-shown', '1');
+        } catch (e) { /* sessionStorage may be blocked — best-effort */ }
+        var el = document.getElementById('webgl-recovery-banner');
+        if (!el) return;
+        var msg = reason === 'software-rasterized'
+          ? 'Hardware acceleration is unavailable on this device. Your terminal is using the standard renderer for the best experience.'
+          : 'Hardware-accelerated rendering recovered — your terminal is now using the standard renderer. Scrollback is intact.';
+        el.innerHTML = '';
+        var span = document.createElement('span');
+        span.className = 'webgl-recovery-banner__message';
+        span.textContent = msg;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'webgl-recovery-banner__dismiss';
+        btn.setAttribute('aria-label', 'Dismiss notification');
+        btn.textContent = '×'; // × Unicode multiplication sign
+        btn.addEventListener('click', function() { el.hidden = true; });
+        el.appendChild(span);
+        el.appendChild(btn);
+        el.hidden = false;
+        // Auto-dismiss after 8s only for context-loss (not software-rasterized).
+        if (reason !== 'software-rasterized') {
+          setTimeout(function() { el.hidden = true; }, 8000);
+        }
+      }
+
+      // Phase 93 U11-02: server-shared Unicode 11. Applied at construction
+      // ONLY — server-shared semantics mean a running session must NOT switch
+      // its width tables mid-buffer (would corrupt scrollback on existing
+      // characters). The next page load picks up any change automatically.
+      if (pluginConfig.unicode11) {
+        try {
+          var u11 = new Unicode11Addon.Unicode11Addon();
+          term.loadAddon(u11);
+          term.unicode.activeVersion = '11';
+        } catch (e) { /* addon UMD may not be present — silent */ }
+      }
+
+      // Phase 93 hot-swap-capable addon handles. Declared at IIFE scope so the
+      // SSE EventSource handler (Task 5 below) can dispose / reconstruct them
+      // without a page reload.
+      var webglAddonHandle = null;
+      var clipboardAddonHandle = null;
+
+      // applyPluginConfig diff-applies a new pluginConfig against the current
+      // state. Used both at initial load (vs. an "everything-off" prev) and on
+      // each SSE plugin-config push frame. Phase 93 PLUG-04 hot-swap path.
+      var lastApplied = '';
+      function applyPluginConfig(newConfig) {
+        var prev = pluginConfig;
+        pluginConfig = newConfig;
+
+        // WebGL hot-swap.
+        if (!newConfig.webgl && webglAddonHandle) {
+          try { webglAddonHandle.dispose(); } catch (e) {}
+          webglAddonHandle = null;
+        } else if (newConfig.webgl && !webglAddonHandle && !isSoftwareWebGL()) {
+          try {
+            webglAddonHandle = new WebglAddon.WebglAddon();
+            webglAddonHandle.onContextLoss(function() {
+              try { webglAddonHandle.dispose(); } catch (e) {}
+              webglAddonHandle = null;
+              showWebGLBanner('context-loss');
+            });
+            term.loadAddon(webglAddonHandle);
+          } catch (e) {
+            // WebGL construction failed — silent (user enabled but env refused).
+          }
+        } else if (newConfig.webgl && !webglAddonHandle && isSoftwareWebGL() && !prev.webgl) {
+          // Newly toggled on, but software-rasterized — show preemption banner.
+          showWebGLBanner('software-rasterized');
+        }
+
+        // Clipboard hot-swap. CLIP-02: read-only viewers never get clipboard.
+        if (!newConfig.clipboard && clipboardAddonHandle) {
+          try { clipboardAddonHandle.dispose(); } catch (e) {}
+          clipboardAddonHandle = null;
+        } else if (newConfig.clipboard && !clipboardAddonHandle && window.__perms !== 'read') {
+          try {
+            clipboardAddonHandle = new ClipboardAddon.ClipboardAddon();
+            term.loadAddon(clipboardAddonHandle);
+          } catch (e) { /* silent */ }
+        }
+
+        // Unicode 11 deliberately NOT hot-swapped here — see comment at the
+        // initial-load block above.
+
+        lastApplied = JSON.stringify(newConfig);
+      }
+
+      // Phase 93 WGL-04: initial WebGL/Clipboard application via diff-apply
+      // against an everything-off seed. Also handles the at-startup software-
+      // rasterizer preemption banner.
+      if (pluginConfig.webgl && isSoftwareWebGL()) {
+        showWebGLBanner('software-rasterized');
+      }
+      var initialConfig = pluginConfig;
+      pluginConfig = {
+        webgl: false, unicode11: false, clipboard: false,
+        search: false, webLinks: false, image: false,
+        serialize: false, progress: false
+      };
+      applyPluginConfig(initialConfig);
 
       // Open WebSocket connection
       var ws = null;
