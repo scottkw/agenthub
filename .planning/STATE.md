@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Plugin Suite
 status: planning
-last_updated: "2026-05-04T00:13:21.868Z"
-last_activity: 2026-05-04
+last_updated: "2026-05-03T00:00:00.000Z"
+last_activity: 2026-05-03
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,118 +17,78 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-19)
+See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.1 SHIPPED — Phase 91 (distribution pipeline follow-ups) filed for next milestone
+**Current focus:** v3.2 Plugin Suite — extend xterm.js with curated addons (closes Issue #36); start at Phase 92 (Plugin Settings Foundation, no addon-loading work yet).
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 92 — Plugin Settings Foundation
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-04 — Milestone v3.2 started
+Status: Not started (roadmap drafted; ready for `/gsd-plan-phase 92`)
+Last activity: 2026-05-03 — Milestone v3.2 roadmap created (8 phases: 92-99)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v3.0 plans completed: 9
-- v3.0 phases: 4
-- v3.0 timeline: 2026-04-18 → 2026-04-19 (2 days)
-- Cumulative: 86 phases, 168 plans across 18 milestones
+- v3.1 phases: 4 (Phases 87-90)
+- v3.1 plans completed: 18
+- v3.1 timeline: 2026-04-20 → 2026-05-03 (~13 days)
+- Cumulative: 90 phases, 186 plans across 19 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
-- v3.1 scope derived from third-party security review (Codex) placed in `security-review/` (gitignored); 5 findings, all confirmed against v3.0 code
-- Milestone addresses GitHub Issue #35 ("Security review")
-- Skipping optional research step — findings themselves are the research
-- Phase numbering continues from Phase 86 (v3.0 end) — Phases 87-90 allocated
-- SEC-01..SEC-05 grouped into a single phase (Phase 87) because the capability token is the shared primitive for listing, WebSocket access, and read-only enforcement — splitting causes double-implementation of the token issuance and verification path
-- Four-phase structure follows the security review's recommended implementation order: authorization first (Phase 87), handshake second (Phase 88 builds on 87's capability), vendoring and CSP third (Phase 89, independent), release pipeline fourth (Phase 90, CI/CD surface only)
-- Phase 87 Plan 01: adopted a build-tag protocol (`phase87_wave1`, `phase87_wave2`) for Wave 0 RED skeletons so the capability package tests and webserver tests can reference yet-to-exist production symbols without breaking `go test ./...` on main — each wave's Plan un-tags its own files when production code lands
-- Phase 87 Plan 01: placed webserver test helpers in `package webserver` (internal test helpers) rather than `package webserver_test` to avoid duplicating `selfSignedTLSForTest`/`testServer` names already present in `server_test.go`; both packages coexist in the same directory with no Go-level collision
-- Phase 87 Plan 01: gated `FuzzVerify` by build tag instead of `f.Skip()` because fuzz entry-point Skip is silently dropped by the fuzzer harness
-- Phase 87 Plan 02: source-grep constant-time regression guard (TestVerify_ConstantTimeComparison reads capability.go and asserts hmac.Equal is present, bytes.Equal literal absent) — forced a doc-comment rewrite but correctly guards against future maintainers replacing hmac.Equal with bytes.Equal
-- Phase 87 Plan 02: SetClockForTest seam lives in export_test.go (only compiled during go test) rather than a production setter — clock injection is hermetically sealed to test builds, production code cannot import the helper
-- Phase 87 Plan 02: JoinCodeManager uses plain sync.Mutex not RWMutex — RWMutex read lock would allow two goroutines to observe the entry before either deletes it, breaking single-use invariant (RESEARCH Pitfall 4); verified by 100-goroutine TestJoinCodeManager_ConcurrentExchangeIsAtomic
-- Phase 87 Plan 03: Middleware shape is func(http.HandlerFunc) http.HandlerFunc (not func(http.Handler) http.Handler) so the wrapper can inspect r.PathValue("id") — critical for SEC-03 session-ID binding inside requireCapability
-- Phase 87 Plan 03: All capability.Verify failure modes collapse to a single 401 body "capability required" — do not distinguish malformed / bad-sig / bad-claims to the caller (T-87-08 information-disclosure defense)
-- Phase 87 Plan 03: requireCapability performs a defense-in-depth check of BOTH isGrantActive AND IsSessionEnabled — either alone is sufficient in the current code path but the redundancy guards against a future code path that touches only one (admin-revoke-without-disable, partial onExit cleanup, etc.)
-- Phase 87 Plan 03: handleListSessions returns zero-or-one items (D-18) — /api/sessions is now a self-describe endpoint rather than an enumeration endpoint. No caller ever receives a list longer than one via HTTPS
-- Phase 87 Plan 03: Subscriber.ReadOnly sourced from claims.Perms == "read" (D-24 / SEC-04) — ?readonly query string is completely removed from the write-gate path
-- Phase 87 Plan 03: OriginPatterns ["*"] intentionally retained — Phase 88 handles WebSocket Origin allowlisting; removing it here would front-run Phase 88 scope
-- Phase 87 Plan 03: TestWebServerToggle expects 403 (not 404) post-toggle-off — the cap is structurally valid; the middleware's revoked-path response is 403, not 404. This reflects D-15's "toggle-off revokes, doesn't make the URL a 404" contract
-- Phase 87 Plan 03: TestSessionAccessWithoutAuth was inverted to assert 401 — the pre-Phase-87 "tailnet membership is sufficient" behavior is exactly what SEC-02/SEC-03 remove
-- Phase 87 Plan 04: API owns signing key state (not SessionEngine). Dedicated signingKeyMu RWMutex separates capability hot-path from webServer/localPassword mutex to prevent contention.
-- Phase 87 Plan 04: Toggle-on returns 204 No Content; capabilities are issued via the separate POST /sessions/{id}/capabilities endpoint. DaemonClient.ToggleWebServing discards response body, so attaching IssueCapabilitiesResponse would be dead weight.
-- Phase 87 Plan 04: runSessionExitCleanup extracted out of the 10-sec time.AfterFunc closure so TestOnExit_ClearsGrants can invoke it synchronously via runSessionExitCleanupForTest. Production path unchanged.
-- Phase 87 Plan 04: short-TTL JoinCodeManager (50ms + 200ms sleep) substitutes for capability.SetClockForTest in daemon tests since export_test.go is not accessible across packages.
-- Phase 87 Plan 04: GetCapabilityQRCode encodes the join-code URL (D-09), not the raw capability token URL. Photographing the QR is worthless after 5-minute TTL or first exchange.
-- Phase 87 Plan 05: DaemonManagerPanel owns sessionShares state with a useEffect reconciliation loop — avoids threading async capability-issuance state through App.tsx's onToggleWeb callback while keeping its contract unchanged
-- Phase 87 Plan 05: SessionSharePanel derives join-exchange URL from capability URL origin (new URL(readURL).host + /join?code=<code>) — no extra baseURL prop needed, safe because the same daemon mints both URLs
-- Phase 87 Plan 05: RegenerateKeyModal reuses .quit-modal* CSS classes structurally (no new modal CSS block); handleRegenerateSigningKey re-throws after setting error state so the modal's inline error path surfaces RPC failures and keeps the modal open for retry
-- Phase 87 Plan 06: /dashboard is a public landing page — no session list (D-17). Per-user discovery gone; capability tokens must be explicitly shared. Tailnet-reachable attacker at /dashboard sees zero session metadata.
-- Phase 87 Plan 06: /join 5-state UI driven by client-side query-param routing (?code=, ?error=expired|invalid|session-gone); one embed file serves five surfaces, no server branching.
-- Phase 87 Plan 06: terminal.html perms sourced exclusively from GET /api/sessions/{id}/info?cap= claims; legacy ?readonly query string removed from write-gate path (Pitfall 7). xterm init wrapped in async perms-fetch IIFE so caret is never briefly enabled for a read-only cap.
-- Phase 87 Plan 06: POST /join/exchange returns 303 See Other for form→GET transition; preserves idempotent redirect target and prevents refresh-resubmission. session-gone distinct from invalid to surface honest state.
-- [Phase 90]: tools.go blank-imports library roots (github.com/goreleaser/nfpm/v2, github.com/wailsapp/wails/v2) not cmd sub-packages; cmd packages are package main and cannot be blank-imported; module pinning effect in go.mod is identical
-- [Phase 90]: dependabot.yml has no auto-merge field (D-07); no groups: section (ungrouped per RESEARCH for audit clarity); nfpm resolved to v2.33.1 by go mod tidy (not v2.46.3 estimated in RESEARCH)
-- [Phase 90]: release.yml split into build→sign-macos→publish; sign-macos is the only job with environment:release; TAP_DEPLOY_TOKEN removed from publish (D-02); SLSA L2 internal+release attestations via attest-build-provenance@v4.1.0; .app tarred before upload to preserve symlinks+x bits; rc-draft uses hyphen-anchored contains(github.ref,'-rc')
-- [Phase 90]: D-08 applied: wingetcreate.exe v1.12.8.0 on windows-latest replaces vedantmgoyal9/winget-releaser@main; SHA-256 tamper-check gates execution
-- [Phase 90]: D-16 + D-17 applied in distribute.yml: rc tags route tap checkout+push to release-90-test branch; winget submission skipped entirely on rc tags (hyphen-anchored contains(github.ref,'-rc') throughout)
-- [Phase 90]: grep-gate Check 2 uses \w@latest pattern (word-boundary prefix) to distinguish real tool-install @latest refs from quoted-string mentions in test assertion code
+- v3.2 scope addresses GitHub Issue #36 ("Extend xterm.js functionality with select plugins")
+- Phase numbering continues from v3.1 (Phase 90 last shipped). Phase 91 is the deferred-distribution-pipeline-followups bucket from v3.1 (preserved at `.planning/deferred/91-distribution-pipeline-followups/`); v3.2 starts at Phase 92 to avoid reusing 91.
+- 8-phase shape (92-99) honors the synthesized SUMMARY.md recommendation from 4 specialist researchers; ordering rationale: foundation (92) → migrate-don't-add (93) → cheapest-new (94) → security-gate (95) → CSP/perf-gate (96) → standalone (97) → optional-cuttable (98) → release-gate (99).
+- Phase 92 (Foundation) ships with NO addon-loading work — establishes daemon `PluginSettings`, Wails RPC, `settings:plugins` event, Settings UI shell, migration test only.
+- Phase 93 generalizes `vendor_drift_test.go` into a load-bearing CI gate enforcing `@xterm/addon-*` version parity for every addon (not just `addon-fit`); migrates webgl/unicode11/clipboard onto the new reconcile pattern AND vendors them for the web page (none vendored today).
+- Phase 95 (Web-Links) is treated with v3.1-WS-Origin-allowlist rigor: scheme allowlist (`https`, `http`, `mailto` only), OSC 8 hover-href display, IDN/Punycode click confirmation, platform-aware activation (Cmd-click/Ctrl-click).
+- Phase 96 (Image) starts with a mandatory pre-phase research subtask reading `addon-image.js` source for `URL.createObjectURL`/`new Worker(`/`blob:` usage; CSP amendment is conditional on findings.
+- Phase 96 sets `storageLimit: 16` MB (overriding upstream 100 MB default) to prevent tab-OOM with 8+ open tabs.
+- Phase 98 (Progress) is P2 / explicitly cuttable — defers to v3.3 if Phases 95 or 96 over-run.
+- Phase 99 is the release gate: cross-browser CSP e2e (Chromium + Safari + Firefox), iPad Safari Tailscale UAT, settings.json migration verification.
+- Phase 94 (Search) owns find-bar UI for BOTH desktop and web (user explicitly chose ambitious scope; original SUMMARY proposed deferring web UI).
+- Recommendation: ship all 7 plugins ON by default except optional `addon-progress` (default OFF in v3.2, flips ON in v3.3 after field validation).
+- Server-shared plugin config for buffer-interpretation plugins (Unicode 11 must match across clients to avoid scrollback divergence); per-client renderer choice (WebGL/DOM) tolerated since it doesn't affect buffer state.
 
 ### Pending Todos
 
-- On milestone completion: comment on GitHub Issue #35 that it was addressed by v3.1, then close
-- Decide Origin-header-absent policy during Phase 88 planning (reject outright, or require capability-bearing handshake?)
-- Phase 90 Plan 01: grep-gate.sh placed in scripts/ (not .github/workflows/) — auditor must not live inside the thing it audits (D-09 Claude's Discretion)
-- Phase 90 Plan 01: Section 12 in build-script.test.sh is intentionally red at Wave 0 — three failing assertions are the acceptance contract for Plan 03
-- Phase 90 Plan 01: 90-TAP-BRANCH-SETUP.md documents the human-only prerequisite for Plan 06 E2E (push access to scottkw/homebrew-agenthub required)
+- Phase 92 planning (`/gsd-plan-phase 92`) — Foundation phase, no addon work
+- Phase 96 pre-phase research subtask: audit `frontend/node_modules/@xterm/addon-image/lib/addon-image.js` for `URL.createObjectURL` / `new Worker(` / `blob:` / `data:` script construction; document findings in phase RESEARCH.md before any wiring work
+- Phase 99 cross-browser CSP e2e: extend existing Chromium-only suite to cover Safari and Firefox; new iPad Safari Tailscale UAT script
+- Phase 91 (distribution pipeline follow-ups, deferred from v3.1) remains in `.planning/deferred/` for a future milestone (v3.2.x patch or v3.3) — not in v3.2 scope
 
 ### Quick Tasks Completed
 
-(carried from v3.0)
+(carried from v3.1)
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260410-g0p | Delete future-features.txt + clean stale worktrees | 2026-04-10 | 7ab4520 | [260410-g0p](./quick/260410-g0p-delete-future-features-txt-clean-stale-w/) |
-| 260412-l7k | Fix local network banner showing when Tailscale connected | 2026-04-12 | e768272 | [260412-l7k](./quick/260412-l7k-fix-local-network-banner-showing-when-ta/) |
-| Phase 87 P04 | 22min | 2 tasks | 11 files |
-| Phase 87 P05 | 4m12s | 2 tasks | 5 files |
-| Phase 87 P06 | ~15min | 2 tasks | 6 files |
-| Phase 90 P02 | 7m | 2 tasks | 4 files |
-| Phase 90 P04 | 3min | 3 tasks | 1 files |
-| Phase 90 P05 | 3min | 2 tasks | 2 files |
 
 ### Plan Execution Metrics
 
 | Phase | Plan | Duration | Tasks | Files | Commits |
 |-------|------|----------|-------|-------|---------|
-| 87 | 01 | 8min | 2 | 6 | a35e963, 5ca1f3e |
-| 87 | 02 | 12min | 2 | 10 | dd1c15e, 6d2cf8f |
-| 87 | 03 | 8min | 2 | 5 | 1703ccd, d269e62 |
-| 87 | 04 | 22min | 2 | 11 | b2871ee, b2e2105 |
-| 87 | 05 | 4m12s | 2 | 5 | 60e9424, cec6ef5 |
-| 87 | 06 | ~15min | 2 | 6 | 1a0fb60, e7f315e, a87e2bb |
-| 90 | 01 | ~8min | 2 | 3 | 4b32dc5, 11928da |
-| 90 | 03 | ~5min | 3 | 3 | cf8413e, 8543633, e0ce067 |
 
 ### Blockers/Concerns
 
-- Tailnet-wide trust model must be replaced with explicit capability/grant model — requires fresh UX decisions (token in URL? explicit Share button? revocation list?) — deferred to Phase 87 planning
-- Read-only policy must be server-bound; client-issued `readonly=1` query param becomes an untrusted hint (addressed in Phase 87)
-- WinGet first submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0)
-- Capability rotation/revocation UI and audit logging are v3.2+ scope — v3.1 issues and verifies, but does not surface a revoke flow
+- **Image addon CSP behavior** — unknown whether `addon-image.js` uses `URL.createObjectURL` / `blob:` / dynamic-Worker construction. v3.1 CSP has no `worker-src` (falls back to `default-src 'none'` — silent block). Resolved by mandatory pre-Phase-96 source inspection.
+- **Web-links phishing surface on Tailscale-served sessions** — fresh phishing primitive (tailnet viewer trusts AgentHub URL, sees clickable URL emitted by arbitrary process, gets redirected). Mitigated in Phase 95 with v3.1-style rigor: click-confirmation, OSC 8 href display, IDN/Punycode warning, strict scheme allowlist.
+- **Sixel storage bomb** — upstream `storageLimit` default 100 MB × 8 tabs = OOM. Phase 96 overrides to 16 MB.
+- **WebGL software-renderer detection** — iPad Safari, GPU-blacklisted corp browsers, software-rasterized Linux see WebGL but worse-than-DOM performance. Phase 93 must detect (`gl.getParameter(RENDERER)`) and fall back proactively.
+- **Settings.json migration zeroes plugin defaults** — naïve `json.Unmarshal` of v3.1 settings into v3.2 struct yields Go zero values (false/0). Phase 92 ships defaults-merge constructor + fixture migration test as non-negotiable.
+- WinGet first-submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0; absorbed by Phase 91 deferred work).
 
 ## Session Continuity
 
-Last session: 2026-05-03T03:30:00Z (v3.1 ship complete)
-Stopped at: v3.1.0 SHIPPED — GitHub release public, Homebrew tap updated, Issue #35 closed
-Resume file: none required — clean state.
-Next action: TBD by next milestone scope (v3.1.1 patch / v3.2 features / etc.) — Phase 91 distribution follow-ups absorb into whichever milestone comes next.
+Last session: 2026-05-03 (v3.2 roadmap creation)
+Stopped at: ROADMAP.md drafted with 8 phases (92-99), 100% requirement coverage (40/40 v3.2 requirements mapped), STATE.md flipped to v3.2.
+Resume file: none required — ready for `/gsd-plan-phase 92`.
+Next action: `/gsd-plan-phase 92` to begin planning the Plugin Settings Foundation phase.
 
-**Shipped Milestone:** v3.1 (Security Hardening) — 4 phases (87-90), 11 plans, shipped 2026-05-03 as v3.1.0.
+**Active Milestone:** v3.2 Plugin Suite — 8 phases (92-99), targeting Issue #36 closure. Phase 92 not started.

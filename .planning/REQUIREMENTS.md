@@ -128,10 +128,63 @@ Captured during scoping; not committed for v3.2 but tracked.
 
 ## Traceability
 
-Mapping of REQ-IDs → phases (filled by `gsd-roadmapper`):
+Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 
-_To be populated during roadmap creation._
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| PLUG-01 | Phase 92 | Pending |
+| PLUG-02 | Phase 92 | Pending |
+| PLUG-03 | Phase 92 | Pending |
+| PUI-01  | Phase 92 | Pending |
+| PLUG-04 | Phase 93 | Pending |
+| WGL-01  | Phase 93 | Pending |
+| WGL-02  | Phase 93 | Pending |
+| WGL-03  | Phase 93 | Pending |
+| WGL-04  | Phase 93 | Pending |
+| U11-01  | Phase 93 | Pending |
+| U11-02  | Phase 93 | Pending |
+| CLIP-01 | Phase 93 | Pending |
+| CLIP-02 | Phase 93 | Pending |
+| WEB-01  | Phase 93 | Pending |
+| WEB-02  | Phase 93 | Pending |
+| WEB-03  | Phase 93 | Pending |
+| SRC-01  | Phase 94 | Pending |
+| SRC-02  | Phase 94 | Pending |
+| SRC-03  | Phase 94 | Pending |
+| SRC-04  | Phase 94 | Pending |
+| SRC-05  | Phase 94 | Pending |
+| LNK-01  | Phase 95 | Pending |
+| LNK-02  | Phase 95 | Pending |
+| LNK-03  | Phase 95 | Pending |
+| LNK-04  | Phase 95 | Pending |
+| LNK-05  | Phase 95 | Pending |
+| LNK-06  | Phase 95 | Pending |
+| IMG-01  | Phase 96 | Pending |
+| IMG-02  | Phase 96 | Pending |
+| IMG-03  | Phase 96 | Pending |
+| IMG-04  | Phase 96 | Pending |
+| SER-01  | Phase 97 | Pending |
+| SER-02  | Phase 97 | Pending |
+| SER-03  | Phase 97 | Pending |
+| PRG-01  | Phase 98 | Pending |
+| PRG-02  | Phase 98 | Pending |
+| PRG-03  | Phase 98 | Pending |
+| PUI-02  | Phase 99 | Pending |
+| PUI-03  | Phase 99 | Pending |
+| PUI-04  | Phase 99 | Pending |
+
+**Coverage:** 40/40 v3.2 requirements mapped to exactly one phase. No orphans, no duplicates.
+
+**Phase totals:**
+- Phase 92 (Foundation): 4 requirements (PLUG-01, PLUG-02, PLUG-03, PUI-01)
+- Phase 93 (Vendoring + already-shipping addons): 12 requirements
+- Phase 94 (Search): 5 requirements
+- Phase 95 (Web-Links security gate): 6 requirements
+- Phase 96 (Image + CSP audit): 4 requirements
+- Phase 97 (Serialize): 3 requirements
+- Phase 98 (Progress, P2 — cuttable): 3 requirements
+- Phase 99 (Settings UI polish + migration + final CSP audit): 3 requirements
 
 ---
 
-*Last updated: 2026-05-03 — milestone v3.2 requirements defined*
+*Last updated: 2026-05-03 — milestone v3.2 requirements defined; traceability populated by `gsd-roadmapper`*

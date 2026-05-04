@@ -21,6 +21,7 @@
 - ✅ **v2.1 Bug Fixes & UX** — Phases 79-82 (shipped 2026-04-17)
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
+- 🚧 **v3.2 Plugin Suite** — Phases 92-99 (in progress, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
 
 ## Phases
 
@@ -226,10 +227,26 @@
 - [x] **Phase 89: Vendored Terminal Assets + CSP** — xterm JS/CSS embedded in binary; strict CSP on all three HTML routes (`script-src 'self'`, `connect-src 'self' wss://<host>`, `style-src 'self' 'unsafe-inline'` per D-09). Zero CDN fetches verified across 1779 requests. (UAT complete 2026-05-02)
 - [x] **Phase 90: Release Pipeline Hardening** — All third-party Actions SHA-pinned; build tools pinned via `tools.go`; release.yml split into validate → build-{macos,windows,linux} → sign-macos (gated by required-reviewer rule) → publish; SLSA L2 attestations verified before codesigning. (Pipeline E2E proven through 5 rc cycles before v3.1.0 final tag)
 
-Distribution follow-ups deferred to **Phase 91** (next milestone — see `.planning/phases/91-distribution-pipeline-followups/91-CONTEXT.md`):
+Distribution follow-ups deferred to a future milestone (see `.planning/deferred/91-distribution-pipeline-followups/91-CONTEXT.md`):
   - 91-A: Switch `release.yml` from `GITHUB_TOKEN` to PAT so `release.published` auto-triggers `distribute.yml`
   - 91-B: Fix `submit-winget` step's templating to handle `workflow_dispatch` events (use `RELEASE_TAG` env var instead of `github.event.release.tag_name`)
   - 91-C: One-time WinGet first-submission to `microsoft/winget-pkgs` (use `wingetcreate new`, not `update`)
+
+</details>
+
+<details open>
+<summary>🚧 v3.2 Plugin Suite (Phases 92-99) — IN PROGRESS (closes Issue #36)</summary>
+
+> Phase 91 is reserved for the deferred v3.1 distribution-pipeline follow-ups (`.planning/deferred/91-distribution-pipeline-followups/`); v3.2 starts at Phase 92.
+
+- [ ] **Phase 92: Plugin Settings Foundation** — Daemon `PluginSettings` struct, `Get/SetPluginSettings` Wails RPC, `settings:plugins` runtime event, `PluginsSection.tsx` shell with disabled toggles, v3.1→v3.2 settings.json migration test. No addon-loading work.
+- [ ] **Phase 93: Vendoring Discipline + Web Parity for Already-Shipping Addons** — Migrate webgl/unicode11/clipboard onto reconcile pattern; vendor all three for the web page (none vendored today); generalize `vendor_drift_test.go` regex to enforce versions for every `@xterm/addon-*` package; capability-gated `/api/plugin-config` endpoint.
+- [ ] **Phase 94: Search Addon + Find Bar (Desktop + Web)** — Vendored `@xterm/addon-search`; floating find bar matching BannerStack vocabulary; Cmd-F (focus-conditioned) / Esc / Enter / Shift-Enter / Cmd-G keybindings; match count; per-flag persisted defaults; web parity for find bar.
+- [ ] **Phase 95: Web-Links Addon + Security Hardening** — v3.1-rigor security gate: vendored `@xterm/addon-web-links`; strict scheme allowlist (`https`, `http`, `mailto`); platform-aware Cmd/Ctrl-click activation; OSC 8 hover href display + spoof warning; IDN/Punycode click confirmation; `BrowserOpenURL` (desktop) / `noopener,noreferrer` `window.open` (web).
+- [ ] **Phase 96: Image Addon + CSP Audit** — Pre-phase research subtask audits `addon-image.js` for `URL.createObjectURL`/`new Worker(`/`blob:` usage BEFORE wiring; vendored addon with `storageLimit: 16` MB override; Settings advanced reveal for storage cap; multi-client byte-fidelity replay regression test.
+- [ ] **Phase 97: Serialize Addon + Save-Session UX** — Vendored `@xterm/addon-serialize`; "Save Terminal As…" tab right-click action via Wails `SaveFileDialog`; text-only output in v3.2 (HTML deferred); explicit secrets-warning tooltip; no auto-save / no on-disk capture without explicit gesture.
+- [ ] **Phase 98: Progress Addon (P2 — cuttable)** — Vendored `@xterm/addon-progress` with default OFF; OSC 9;4 progress events route to per-tab progress underline + tray aggregate quartile glyph. Explicitly cuttable if Phases 95 or 96 over-run.
+- [ ] **Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)** — Polished per-plugin captions ("Applies to new sessions you create" + post-toggle BannerStack on unicode11/image); per-plugin advanced disclosures; three-state Save reuse; `schemaVersion: 2` migration test green; cross-browser CSP e2e (Chromium + Safari + Firefox); iPad Safari Tailscale UAT.
 
 </details>
 
@@ -301,6 +318,101 @@ Distribution follow-ups deferred to **Phase 91** (next milestone — see `.plann
   - [x] 90-05-distribute-yml-wingetcreate-PLAN.md — distribute.yml SHA-pin + tap rc-branch routing + swap winget-releaser for wingetcreate on windows-latest + rc winget skip
   - [ ] 90-06-e2e-rc-verification-PLAN.md — human-checkpoint: cut v3.1.0-rc1 tag + observe pipeline + external gh attestation verify + distribute rc-branch + UAT sign-off (autonomous: false)
 
+### Phase 92: Plugin Settings Foundation
+**Goal**: A returning v3.1 user opens v3.2, finds a Plugins section in Settings, sees plugin defaults populated correctly, and the daemon→Wails→React→TerminalPanel propagation pipeline is fully wired and exercised — with no addon-loading work behind any toggle yet.
+**Depends on**: Nothing (foundation phase; v3.1 shipped)
+**Requirements**: PLUG-01, PLUG-02, PLUG-03, PUI-01
+**Success Criteria** (what must be TRUE):
+  1. A v3.1 `settings.json` fixture upgraded into v3.2 lands with sensible plugin defaults populated (no zero-value addons-disabled state, no zero-value `storageLimit`) and `schemaVersion: 2` written; a fixture-based migration test asserts this and is green in CI.
+  2. User opens Settings → sees a new Plugins section listing all v3.2 plugins (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with name, short description, and a (currently inert) enable/disable toggle each.
+  3. Toggling any plugin and pressing Save persists the choice via the existing daemon `settings.json` mechanism and survives both GUI restart and daemon restart (verified by reading the settings.json file on disk and reopening the app).
+  4. A plugin-state change emits a `settings:plugins` Wails runtime event observed by `App.tsx`, which threads `pluginConfig` as a prop into every open `TerminalPanel` — no app restart required for the propagation pipeline (addons not yet wired; the pipeline exists end-to-end).
+**Plans**: TBD
+
+### Phase 93: Vendoring Discipline + Web Parity for Already-Shipping Addons
+**Goal**: The three already-shipping desktop addons (webgl, unicode11, clipboard) are migrated under the new reconcile pattern AND vendored same-origin for the web-served terminal page (where none are vendored today), with `vendor_drift_test.go` extended into a load-bearing CI gate that enforces version parity for every `@xterm/addon-*` package.
+**Depends on**: Phase 92 (foundation pipeline + Settings UI shell required)
+**Requirements**: PLUG-04, WGL-01, WGL-02, WGL-03, WGL-04, U11-01, U11-02, CLIP-01, CLIP-02, WEB-01, WEB-02, WEB-03
+**Success Criteria** (what must be TRUE):
+  1. User toggles WebGL in Settings and the change applies live to all open desktop terminals (hot-swap both directions) without a session restart; toggling Unicode 11 displays an inline italic caption "Applies to new sessions you create" and is honored at next-session create time only.
+  2. Web-served Tailscale terminal page renders with WebGL renderer, Unicode 11 width tables, and OSC 52 clipboard support all loaded from same-origin vendored assets under `web/vendor/xterm/addons/`; browser devtools shows zero CDN requests during a full attach/resize/scrollback session, and the strict v3.1 CSP (`script-src 'self'`) reports zero violations.
+  3. WebGL context loss (induced via `WEBGL_lose_context.loseContext()` in DevTools, system sleep/wake, or an iPad Safari background/foreground) automatically falls back to the DOM renderer with scrollback intact, no auto-retry loop, and a one-shot BannerStack toast informing the user; software-rasterized WebGL contexts (SwiftShader, llvmpipe, ANGLE-software) are detected at startup and the DOM renderer is used preemptively.
+  4. A web-served plugin-config change applies to all connected web clients without a manual page reload (for hot-swappable plugins) via the new `/api/plugin-config` endpoint, which is gated by the same v3.1 SEC-* capability-token model that protects every other web-served route.
+  5. CI fails (red, blocking) if `frontend/package.json` and `web/vendor/xterm/VERSION` disagree on the version of any `@xterm/addon-*` package — the generalized `vendor_drift_test.go` regex covers every addon, not just `addon-fit`.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 94: Search Addon + Find Bar (Desktop + Web)
+**Goal**: User can open a polished find bar with Cmd-F in any desktop or web terminal, search a 10,000-line scrollback without UI lockup, and the find bar visual treatment matches AgentHub's BannerStack vocabulary.
+**Depends on**: Phase 93 (reconcile pattern + vendoring discipline + web pipeline)
+**Requirements**: SRC-01, SRC-02, SRC-03, SRC-04, SRC-05
+**Success Criteria** (what must be TRUE):
+  1. User can open a find bar with Cmd-F (focus-conditioned: only when the xterm DOM is `document.activeElement`, so browser find still works for non-terminal page text) and dismiss with Esc; behavior is identical on desktop and on web-served Tailscale terminal pages.
+  2. Find bar supports next-match (Enter / Cmd-G), previous-match (Shift-Enter / Cmd-Shift-G), match count display ("3 of 12"), and toggleable regex / case-sensitive / whole-word options; per-flag defaults persist across sessions via the daemon settings (`SearchConfig`).
+  3. A search across a 10,000-line scrollback fixture completes without UI lockup (no "page unresponsive" dialog, no >1s frame budget breach measured in DevTools Performance); long-running regex searches can be cancelled by closing the find bar.
+  4. The find bar visual treatment matches AgentHub's BannerStack vocabulary: TokyoNight palette, 200ms slide-in/out animation, and theme-aware match highlight via `theme.selectionBackground` (works across all 138 curated themes).
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 95: Web-Links Addon + Security Hardening
+**Goal**: Clickable URLs ship with v3.1-WS-Origin-allowlist rigor: no scheme outside an explicit allowlist becomes clickable, no link can be activated by accidental single-click, and OSC 8 / IDN / typosquat phishing primitives are detected and surfaced before navigation.
+**Depends on**: Phase 93 (reconcile pattern + web vendoring pipeline)
+**Requirements**: LNK-01, LNK-02, LNK-03, LNK-04, LNK-05, LNK-06
+**Success Criteria** (what must be TRUE):
+  1. Plain `https://`, `http://`, and `mailto:` URLs in terminal output are detected and made clickable; `file://`, `javascript:`, and any other scheme is never made clickable by default. A scheme-allowlist regression test fails (red) if an attacker-supplied `javascript:` URL becomes clickable.
+  2. Activating a link requires Cmd-click on macOS / Ctrl-click on Linux/Windows by default (configurable in Settings); single-click never activates a link by default; a hover tooltip displays the actual resolved href in real-time on every link, including OSC 8 hyperlinks where display text differs from href.
+  3. OSC 8 hyperlinks where display text differs from href, IDN/Punycode URLs, and known typosquat patterns trigger an explicit click-confirmation popover showing the full resolved URL before navigation; a fixture test exercising `https://gооgle.com` (Cyrillic) and an OSC 8 with mismatched display-vs-href fails (red) if the popover does not appear.
+  4. On desktop, link activation routes through Wails `BrowserOpenURL` (links open in the user's default browser, never inside the WebView); on web-served sessions, links open via `window.open(url, '_blank', 'noopener,noreferrer')` (no current-tab navigation, ever — verified by a regression test).
+  5. User can enable/disable web-links in Settings; toggling applies live to all open terminals (already-rendered links update on next refresh) without a session restart.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 96: Image Addon + CSP Audit
+**Goal**: Inline sixel + iTerm2 IIP rendering ships with the heaviest addon and the only one that might require CSP amendment — gated by a mandatory pre-phase audit of `addon-image.js` source for `URL.createObjectURL` / `new Worker(` / `blob:` usage, with a dedicated multi-client byte-fidelity replay regression test and a tab-OOM guard via a 16 MB storage cap.
+**Depends on**: Phase 93 (vendoring pipeline + web parity)
+**Requirements**: IMG-01, IMG-02, IMG-03, IMG-04
+**Success Criteria** (what must be TRUE):
+  1. Pre-phase research subtask reads `frontend/node_modules/@xterm/addon-image/lib/addon-image.js` source and produces a written finding (committed to phase RESEARCH.md) on whether `URL.createObjectURL`, `new Worker(`, `blob:`, or `data:` script construction is present; CSP is amended (matching v3.1 D-09 documentation rigor) only if the finding requires it, and the e2e CSP zero-violation suite is green on Chromium + Safari + Firefox after any amendment.
+  2. User enables inline image support in Settings (default ON), the toggle is clearly marked as "applies to new sessions you create", and a new session emitting a sixel or iTerm2 IIP escape sequence (e.g. `chafa --format=iterm2 chart.png`) renders the image inline both on desktop and on web-served Tailscale terminal pages.
+  3. Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (overriding upstream's 100 MB default); user can adjust the cap via an Advanced disclosure in Settings; a regression test loading a 50 MB sixel fixture confirms FIFO eviction at the cap and no tab OOM.
+  4. A second client joining a session mid-stream after the first client has rendered an image receives a correctly-rendered image during scrollback replay (multi-client byte-fidelity audit of `internal/relay/` confirms no line-based buffering or escape filtering corrupts sixel bytes).
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 97: Serialize Addon + Save-Session UX
+**Goal**: User can right-click a terminal tab, choose "Save Terminal As…", and export the visible scrollback as a `.txt` file via Wails save dialog — with explicit secrets-warning copy and zero auto-save / zero on-disk capture without an explicit user gesture.
+**Depends on**: Phase 92 (Settings persistence pipeline; otherwise independent)
+**Requirements**: SER-01, SER-02, SER-03
+**Success Criteria** (what must be TRUE):
+  1. User right-clicks a terminal tab → chooses "Save Terminal As…" → Wails `SaveFileDialog` opens → confirms a path → a `.txt` file is written containing the full visible scrollback (text-only output; HTML output is explicitly out of scope for v3.2 and tracked as SER-FUT-01).
+  2. Settings tooltip on the Serialize toggle reads (verbatim or near-verbatim): "Saved files include any secrets, tokens, or sensitive data printed in the session." Toggle defaults to ON for the addon-as-library; serialize never auto-saves or auto-runs.
+  3. No on-disk capture of session state occurs without an explicit user action in v3.2 — a regression test (or scope-discipline review checklist item) confirms there is no timer-driven serialization, no graceful-shutdown serialization, and no settings option that enables auto-save.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 98: Progress Addon (P2 — Cuttable)
+**Goal**: OSC 9;4 progress reporting from running CLIs surfaces as a per-tab progress underline and a tray-icon aggregate quartile glyph — shipped default OFF in v3.2 and explicitly cuttable if Phases 95 or 96 over-run.
+**Depends on**: Phase 92 (Settings persistence pipeline)
+**Requirements**: PRG-01, PRG-02, PRG-03
+**Success Criteria** (what must be TRUE):
+  1. Phase is explicitly cuttable: if Phases 95 (web-links security) or 96 (image + CSP) over-run their scope, this entire phase can be deferred to v3.3 with no impact on v3.2 release readiness — its absence does not block any other phase.
+  2. User enables OSC 9;4 progress support in Settings (default OFF in v3.2; the toggle copy notes the default flips to ON in v3.3 after field validation); a CLI emitting OSC 9;4 progress sequences (e.g. `pip install`, an AI CLI reporting long-running task percent) shows a subtle progress underline on its tab in the tab strip.
+  3. With progress enabled, the system tray icon reflects an aggregate progress glyph (quartile indicator) summarizing across all sessions emitting progress; updates do not cause tray icon flicker or excessive system-tray-API churn.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)
+**Goal**: v3.2 ships with a polished Plugins section in Settings, the v3.1→v3.2 settings.json migration verified green on a real returning-user fixture, and the CSP zero-violation e2e suite green on Chromium + Safari + Firefox + iPad Safari Tailscale UAT — i.e. v3.2 is ready to release.
+**Depends on**: Phases 92, 93, 94, 95, 96, 97, and (if shipped) 98 — release-gate phase, sequential.
+**Requirements**: PUI-02, PUI-03, PUI-04
+**Success Criteria** (what must be TRUE):
+  1. Toggles for plugins that cannot hot-swap (Unicode 11, Inline Images) display an inline italic caption "Applies to new sessions you create" directly under the toggle; toggling them surfaces a one-shot BannerStack confirmation telling the user to open a new session to see the change. A user-facing UI review (3+ test users or a structured walkthrough) confirms the affordance is unambiguous.
+  2. Plugins with meaningful runtime configuration — Search (defaults regex/case/word), Web-Links (Cmd-vs-Ctrl click modifier and confirmation policy), Inline Images (`storageLimit`) — expose those options via an inline `<details>` disclosure under their toggle; the Plugins section reuses the existing three-state Save button (idle/saving/saved) and the existing `daemonSettings` persistence mechanism — no new save infrastructure is introduced.
+  3. The settings.json migration test loads a real v3.1 fixture (`tests/fixtures/settings_v3.1.json`), upgrades it through the v3.2 daemon, and asserts that all plugin defaults are populated (no zero values), `schemaVersion: 2` is written, and the migration is idempotent on a second run.
+  4. The CSP zero-violation e2e suite is green on Chromium + Safari + Firefox; iPad Safari Tailscale UAT (real device, not emulator) reports zero CSP violations and zero CDN requests during a full attach/render/scrollback/detach session with all v3.2 plugins enabled.
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -326,10 +438,18 @@ Distribution follow-ups deferred to **Phase 91** (next milestone — see `.plann
 | 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
-| 87 | v3.1 | 3/6 | In progress | — |
+| 87 | v3.1 | 6/6 | Complete | 2026-04-20 |
 | 88 | v3.1 | 2/2 | Complete | 2026-04-22 |
 | 89 | v3.1 | 5/5 | Complete    | 2026-04-23 |
 | 90 | v3.1 | 5/6 | In Progress|  |
+| 92 | v3.2 | 0/0 | Not started | — |
+| 93 | v3.2 | 0/0 | Not started | — |
+| 94 | v3.2 | 0/0 | Not started | — |
+| 95 | v3.2 | 0/0 | Not started | — |
+| 96 | v3.2 | 0/0 | Not started | — |
+| 97 | v3.2 | 0/0 | Not started | — |
+| 98 | v3.2 | 0/0 | Not started | — |
+| 99 | v3.2 | 0/0 | Not started | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
