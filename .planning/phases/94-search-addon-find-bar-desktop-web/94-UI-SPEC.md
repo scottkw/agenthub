@@ -1,10 +1,11 @@
 ---
 phase: 94
 slug: search-addon-find-bar-desktop-web
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-05-04
+reviewed_at: 2026-05-04
 ---
 
 # Phase 94 — UI Design Contract
