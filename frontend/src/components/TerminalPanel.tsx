@@ -1,13 +1,17 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
-import type { ITheme } from '@xterm/xterm'
+import type { ITheme, IDisposable } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
+import { SearchAddon } from '@xterm/addon-search'
 import { RelayClient } from '../lib/relayClient'
 import { isSoftwareWebGL } from '../lib/webglProbe'
-import type { daemon } from '../wailsjs/go/models'
+import { isXtermFocused } from '../lib/isXtermFocused'
+import { FindBar, type FindBarSearchOptions } from './FindBar/FindBar'
+import { SetPluginSettings } from '../wailsjs/go/main/App'
+import { daemon } from '../wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
 
 // Custom fit that uses full container width (no hardcoded scrollbar deduction).
@@ -76,6 +80,28 @@ export function TerminalPanel({
   // Phase 93 WGL-01 / CLIP-01: addon refs for hot-swap useEffect.
   const webglAddonRef = useRef<WebglAddon | null>(null)
   const clipboardAddonRef = useRef<ClipboardAddon | null>(null)
+  // Phase 94 SRC-01..04: SearchAddon lifecycle + FindBar state. The addon
+  // ref is hot-swapped from the same useEffect as webgl/clipboard (specific-
+  // key dep array — Pitfall #1). The onDidChangeResults subscription is
+  // disposed alongside the addon. The debounce timer is canceled on close +
+  // unmount (Pitfall #10 — cancel-on-close prevents zombie searches).
+  const searchAddonRef = useRef<SearchAddon | null>(null)
+  const searchResultsDisposableRef = useRef<IDisposable | null>(null)
+  const debounceTimerRef = useRef<number | null>(null)
+
+  // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
+  // SearchAddon (also at this level) and FindBar share a single source of
+  // truth. searchOptions are seeded from pluginConfig?.searchConfig at
+  // mount only (Pitfall #2 — mid-open re-sync would surprise the user).
+  const [findBarOpen, setFindBarOpen] = useState(false)
+  const [findBarFocusSeq, setFindBarFocusSeq] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOptions, setSearchOptions] = useState<FindBarSearchOptions>(() => ({
+    regex: pluginConfig?.searchConfig?.regex ?? false,
+    caseSensitive: pluginConfig?.searchConfig?.caseSensitive ?? false,
+    wholeWord: pluginConfig?.searchConfig?.wholeWord ?? false,
+  }))
+  const [matchInfo, setMatchInfo] = useState<{ index: number; count: number }>({ index: -1, count: 0 })
 
   // Create the terminal and relay client once per sessionId.
   useEffect(() => {
@@ -162,6 +188,21 @@ export function TerminalPanel({
         clipboardAddonRef.current.dispose()
         clipboardAddonRef.current = null
       }
+      // Phase 94 SRC-01..04: tear down SearchAddon + onDidChangeResults
+      // subscription + pending debounce (HMR + unmount safety —
+      // RESEARCH §"Pitfall #4" + §"Pitfall #10").
+      if (searchResultsDisposableRef.current) {
+        searchResultsDisposableRef.current.dispose()
+        searchResultsDisposableRef.current = null
+      }
+      if (searchAddonRef.current) {
+        searchAddonRef.current.dispose()
+        searchAddonRef.current = null
+      }
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = null
+      }
       term.dispose()
       termRef.current = null
       fitAddonRef.current = null
@@ -230,7 +271,36 @@ export function TerminalPanel({
         clipboardAddonRef.current = null
       }
     }
-  }, [pluginConfig?.webgl, pluginConfig?.clipboard, onWebGLContextLost, sessionId])
+
+    // Phase 94 SRC-01..04: SearchAddon hot-swap. Loading is symmetric with
+    // webgl/clipboard — single useEffect coordinates all three. The
+    // onDidChangeResults subscription is created once when the addon
+    // attaches and disposed when the addon detaches. Default highlight
+    // limit (1000) — RESEARCH §"SearchAddon API Contract".
+    if (pluginConfig?.search) {
+      if (!searchAddonRef.current) {
+        const searchAddon = new SearchAddon()
+        term.loadAddon(searchAddon)
+        searchAddonRef.current = searchAddon
+        searchResultsDisposableRef.current = searchAddon.onDidChangeResults((e) => {
+          setMatchInfo({ index: e.resultIndex, count: e.resultCount })
+        })
+      }
+    } else {
+      if (searchResultsDisposableRef.current) {
+        searchResultsDisposableRef.current.dispose()
+        searchResultsDisposableRef.current = null
+      }
+      if (searchAddonRef.current) {
+        searchAddonRef.current.dispose()
+        searchAddonRef.current = null
+      }
+      // Search disabled mid-session: close the bar + clear local state.
+      setFindBarOpen(false)
+      setSearchQuery('')
+      setMatchInfo({ index: -1, count: 0 })
+    }
+  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, onWebGLContextLost, sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
@@ -292,6 +362,82 @@ export function TerminalPanel({
     termRef.current.refresh(0, termRef.current.rows - 1)
   }, [theme])
 
+  // Phase 94 SRC-01: focus-conditioned Cmd-F (Mac) / Ctrl-F (Win/Linux)
+  // window keydown listener. The isXtermFocused() guard mitigates T-94-03
+  // by letting browser-native find pass through when focus is on a sibling
+  // (sidebar / modal / settings). When the bar is already open, re-pressing
+  // Cmd-F bumps focusSeq to re-focus the search input (UI-SPEC §"Opening
+  // the Find Bar — when already open").
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (!pluginConfig?.search) return
+      const isMac = navigator.platform.toUpperCase().includes('MAC')
+      const modifier = isMac ? e.metaKey : e.ctrlKey
+      if (!modifier || e.key.toLowerCase() !== 'f') return
+      if (!isXtermFocused(containerRef.current)) return
+      e.preventDefault()
+      setFindBarOpen(true)
+      setFindBarFocusSeq((s) => s + 1)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [pluginConfig?.search])
+
+  // Phase 94 SRC-01..04: FindBar callback handlers. The 100ms input debounce
+  // (RESEARCH §"Pattern 4") coalesces keystrokes; toggle changes re-search
+  // instantly from local state then fire-and-forget SetPluginSettings
+  // (RESEARCH §"Pattern 3"; Pitfall #2 — no mid-open re-sync from props).
+  const handleSearchQueryChange = useCallback((q: string) => {
+    setSearchQuery(q)
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current)
+    }
+    debounceTimerRef.current = window.setTimeout(() => {
+      debounceTimerRef.current = null
+      if (q === '') {
+        searchAddonRef.current?.clearDecorations()
+        setMatchInfo({ index: -1, count: 0 })
+        return
+      }
+      searchAddonRef.current?.findNext(q, searchOptions)
+    }, 100)
+  }, [searchOptions])
+
+  const handleSearchOptionsChange = useCallback((opts: FindBarSearchOptions) => {
+    setSearchOptions(opts)
+    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, opts)
+    if (pluginConfig) {
+      const next = new daemon.PluginSettings({ ...pluginConfig, searchConfig: opts })
+      // Fire-and-forget: error toast (if any) is owned by the Settings UI.
+      // .catch() guard keeps an unhandled rejection from leaking out.
+      SetPluginSettings(next).catch(() => {
+        /* silent — Settings panel surfaces persistence errors */
+      })
+    }
+  }, [pluginConfig, searchQuery])
+
+  const handleSearchNext = useCallback(() => {
+    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, searchOptions)
+  }, [searchQuery, searchOptions])
+
+  const handleSearchPrev = useCallback(() => {
+    if (searchQuery) searchAddonRef.current?.findPrevious(searchQuery, searchOptions)
+  }, [searchQuery, searchOptions])
+
+  const handleSearchClose = useCallback(() => {
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    searchAddonRef.current?.clearDecorations()
+    setSearchQuery('')
+    setMatchInfo({ index: -1, count: 0 })
+    setFindBarOpen(false)
+    // Return focus to the xterm helper textarea (xterm's internal input
+    // sink). UI-SPEC §"Closing the Find Bar > Return focus to terminal".
+    containerRef.current?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')?.focus()
+  }, [])
+
   return (
     <div
       ref={containerRef}
@@ -302,6 +448,21 @@ export function TerminalPanel({
         minHeight: 0,
         backgroundColor: theme.background ?? '#1a1b26',
       }}
-    />
+    >
+      {findBarOpen && pluginConfig?.search && (
+        <FindBar
+          query={searchQuery}
+          onQueryChange={handleSearchQueryChange}
+          matchCount={matchInfo.count}
+          currentMatchIndex={matchInfo.index}
+          searchOptions={searchOptions}
+          onSearchOptionsChange={handleSearchOptionsChange}
+          onNext={handleSearchNext}
+          onPrev={handleSearchPrev}
+          onClose={handleSearchClose}
+          focusSeq={findBarFocusSeq}
+        />
+      )}
+    </div>
   )
 }
