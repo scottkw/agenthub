@@ -13,12 +13,39 @@
     <span class="session-info" id="session-info">Connecting...</span>
   </div>
   <div id="webgl-recovery-banner" hidden role="status" aria-live="polite"></div>
-  <div id="terminal"></div>
+  <div id="terminal">
+    <!-- Phase 94 SRC-05 — Web parity find bar.
+         UI-SPEC §"Web — Identical Behavior" (lines 369-385) verbatim.
+         Lives inside #terminal so it can absolute-position over the xterm canvas.
+         #terminal gets `position: relative` in terminal.css so this anchor works. -->
+    <div id="find-bar" hidden role="search" aria-label="Find in terminal">
+      <input id="find-bar-input" type="text" placeholder="Find…" aria-label="Search" autocomplete="off" spellcheck="false" />
+      <span id="find-bar-count" class="find-bar__count find-bar__count--hidden" aria-live="polite" aria-atomic="true"></span>
+      <div id="find-bar-nav" class="find-bar__nav">
+        <button id="find-bar-prev" type="button" class="find-bar__btn--prev" aria-label="Previous match" title="Previous match (Shift-Enter)">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3,9 7,5 11,9"/></svg>
+        </button>
+        <button id="find-bar-next" type="button" class="find-bar__btn--next" aria-label="Next match" title="Next match (Enter)">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3,5 7,9 11,5"/></svg>
+        </button>
+      </div>
+      <div class="find-bar__divider" aria-hidden="true"></div>
+      <div id="find-bar-options" class="find-bar__options">
+        <button id="find-bar-toggle-case" type="button" class="find-bar__toggle--case" aria-pressed="false" aria-label="Case sensitive" title="Case sensitive">Aa</button>
+        <button id="find-bar-toggle-regex" type="button" class="find-bar__toggle--regex" aria-pressed="false" aria-label="Regular expression" title="Regular expression">.*</button>
+        <button id="find-bar-toggle-word" type="button" class="find-bar__toggle--word" aria-pressed="false" aria-label="Whole word" title="Whole word">[ab]</button>
+      </div>
+      <button id="find-bar-close" type="button" class="find-bar__close" aria-label="Close find bar" title="Close (Esc)">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
   <script src="/assets/xterm/xterm.js"></script>
   <script src="/assets/xterm/addon-fit.js"></script>
   <script src="/assets/xterm/addons/addon-webgl.js"></script>
   <script src="/assets/xterm/addons/addon-unicode11.js"></script>
   <script src="/assets/xterm/addons/addon-clipboard.js"></script>
+  <script src="/assets/xterm/addons/addon-search.js"></script>
   <script src="/assets/terminal.js"></script>
 </body>
 </html>
