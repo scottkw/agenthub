@@ -34,4 +34,13 @@ func TestDefaultPluginSettings(t *testing.T) {
 	if s.Progress {
 		t.Error("expected Progress=false (UI-SPEC default OFF; flips ON in v3.3 per ROADMAP)")
 	}
+	if s.SearchConfig.Regex {
+		t.Error("expected SearchConfig.Regex=false (Phase 94 SRC-02 default OFF per UI-SPEC §\"Toggle Persistence\")")
+	}
+	if s.SearchConfig.CaseSensitive {
+		t.Error("expected SearchConfig.CaseSensitive=false (Phase 94 SRC-02 default OFF)")
+	}
+	if s.SearchConfig.WholeWord {
+		t.Error("expected SearchConfig.WholeWord=false (Phase 94 SRC-02 default OFF)")
+	}
 }

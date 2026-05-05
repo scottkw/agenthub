@@ -55,6 +55,12 @@ func TestSettingsMigrationV3_1ToV3_2(t *testing.T) {
 		t.Errorf("GetPluginSettings after v3.1 load: got %+v, want %+v", got, want)
 	}
 
+	// Phase 94 SRC-02 — explicit assertion that Phase 93 fixture (no searchConfig key)
+	// loads with SearchConfig zero-value defaults populated via existing defaults-merge.
+	if got.SearchConfig != (SearchConfig{}) {
+		t.Errorf("expected SearchConfig zero-value defaults after Phase 93 fixture load, got %+v", got.SearchConfig)
+	}
+
 	// Pre-existing v3.1 data must survive the migration.
 	if cli := e.GetCLIPaths(); cli["claude"] != "/usr/local/bin/claude" {
 		t.Errorf("cliPaths not preserved through migration: got %v", cli)

@@ -33,8 +33,8 @@ type SessionEngine struct {
 	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
 	cliPaths    map[string]string // cli name -> custom path override
 
-	startMinimized   bool  // persisted start-minimized preference
-	autoCloseSession *bool // nil = default (true); persisted pointer
+	startMinimized   bool           // persisted start-minimized preference
+	autoCloseSession *bool          // nil = default (true); persisted pointer
 	pluginSettings   PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
