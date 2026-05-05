@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FindBar Perf Harness — Phase 94 SRC-03 / T-94-04</title>
+  <link rel="stylesheet" href="/assets/xterm/xterm.css">
+  <style>
+    body { margin: 0; padding: 0; background: #0f0f1a; }
+    #terminal { width: 800px; height: 600px; }
+  </style>
+</head>
+<body>
+  <!--
+    Phase 94 Plan 94-04 test harness.
+
+    Loads xterm.js and @xterm/addon-search via the production /assets/xterm/
+    routes (proves those routes still serve the vendored bundles correctly —
+    bonus regression coverage on the Phase 94-01 vendor-drift gate). Creates a
+    Terminal, attaches the SearchAddon, and exposes both as window.term /
+    window.searchAddon for the chromedp harness in findbar_perf_e2e_test.go to
+    drive: write the 10,000-line scrollback fixture, time a findNext call, and
+    assert it completes within the 1000ms SC-3 frame budget.
+
+    Mitigates T-94-04 (regex catastrophic backtracking) by encoding the
+    plain-string perf budget. Pathological-regex remains an accepted limitation
+    per RESEARCH Pitfall #5.
+  -->
+  <div id="terminal"></div>
+  <script src="/assets/xterm/xterm.js"></script>
+  <script src="/assets/xterm/addons/addon-search.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      // The vendored xterm UMD bundle exposes window.Terminal directly. The
+      // addon-search UMD bundle exposes window.SearchAddon as a *namespace
+      // object* whose `.SearchAddon` property is the constructor — verified
+      // empirically via chromedp probe (Object.keys(window.SearchAddon) ===
+      // ['SearchAddon'], typeof window.SearchAddon.SearchAddon === 'function').
+      // Match that shape exactly here.
+      try {
+        var SearchAddonCtor =
+          (window.SearchAddon && window.SearchAddon.SearchAddon) || window.SearchAddon;
+        var term = new window.Terminal({
+          // Large scrollback so the 10k-line fixture fits without being culled.
+          // Production default is 1000; lift it specifically for the perf test.
+          scrollback: 12000,
+          cols: 80,
+          rows: 24,
+        });
+        var searchAddon = new SearchAddonCtor();
+        term.loadAddon(searchAddon);
+        term.open(document.getElementById('terminal'));
+        // Expose for the chromedp Evaluate calls.
+        window.term = term;
+        window.searchAddon = searchAddon;
+        // Signal readiness to chromedp's poll predicate.
+        window.__findbarPerfHarnessReady = true;
+      } catch (e) {
+        // Surface init errors so the chromedp test prints a useful message
+        // instead of a generic poll timeout.
+        window.__findbarPerfHarnessError = String(e && e.message ? e.message : e);
+      }
+    })();
+  </script>
+</body>
+</html>
