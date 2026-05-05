@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { GetPluginSettings, SetPluginSettings } from '../wailsjs/go/main/App'
-import type { daemon } from '../wailsjs/go/models'
+import { daemon } from '../wailsjs/go/models'
 
 type PluginSettings = daemon.PluginSettings
+const PluginSettings = daemon.PluginSettings
 
 /**
  * PluginsSection — Phase 92 (PUI-01)
@@ -53,8 +54,21 @@ export function PluginsSection(): React.ReactElement {
     }
   }
 
-  const toggle = (key: keyof PluginSettings) => () => {
-    setPluginConfig((prev) => (prev ? { ...prev, [key]: !prev[key] } : prev))
+  // Narrow the row keys to only boolean fields so renderRow stays type-safe
+  // and `checked={...}` accepts the value (PluginSettings has a nested object
+  // field added in Phase 94 — see daemon models).
+  type PluginBooleanKey = {
+    [K in keyof PluginSettings]: PluginSettings[K] extends boolean ? K : never
+  }[keyof PluginSettings]
+
+  const toggle = (key: PluginBooleanKey) => () => {
+    setPluginConfig((prev) => {
+      if (!prev) return prev
+      // Construct a fresh PluginSettings instance from the existing one so
+      // class identity (and any nested instance fields) are preserved.
+      const next = new PluginSettings({ ...prev, [key]: !prev[key] })
+      return next
+    })
   }
 
   // Helper to render one toggle row. Mirrors SettingsTab Behavior toggle markup
@@ -62,7 +76,7 @@ export function PluginsSection(): React.ReactElement {
   // unconditionally (test selectors find it); only the visible <label> is
   // gated by pluginsLoaded (Pitfall #3 — flicker guard).
   function renderRow(
-    key: keyof PluginSettings,
+    key: PluginBooleanKey,
     label: string,
     description: string,
     caption?: string,

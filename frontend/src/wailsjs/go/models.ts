@@ -7,10 +7,28 @@
 
 export namespace daemon {
 
+	export class SearchConfig {
+	    regex: boolean;
+	    caseSensitive: boolean;
+	    wholeWord: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new SearchConfig(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.regex = source["regex"];
+	        this.caseSensitive = source["caseSensitive"];
+	        this.wholeWord = source["wholeWord"];
+	    }
+	}
+
 	export class PluginSettings {
 	    webgl: boolean;
 	    unicode11: boolean;
 	    search: boolean;
+	    searchConfig: SearchConfig;
 	    webLinks: boolean;
 	    image: boolean;
 	    serialize: boolean;
@@ -26,6 +44,12 @@ export namespace daemon {
 	        this.webgl = source["webgl"];
 	        this.unicode11 = source["unicode11"];
 	        this.search = source["search"];
+	        // Phase 94 SRC-02: nested SearchConfig — inline conversion (no
+	        // convertValues helper member, which would surface as keyof
+	        // PluginSettings and break PluginsSection.tsx toggle iteration).
+	        this.searchConfig = source["searchConfig"]
+	            ? new SearchConfig(source["searchConfig"])
+	            : new SearchConfig();
 	        this.webLinks = source["webLinks"];
 	        this.image = source["image"];
 	        this.serialize = source["serialize"];
