@@ -452,7 +452,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 90 | v3.1 | 5/6 | In Progress|  |
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
-| 94 | v3.2 | 0/0 | Not started | — |
+| 94 | v3.2 | 2/5 | In Progress|  |
 | 95 | v3.2 | 0/0 | Not started | — |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |

@@ -4,8 +4,8 @@ milestone: v3.2
 milestone_name: Plugin Suite
 status: executing
 stopped_at: Phase 94 UI-SPEC approved
-last_updated: "2026-05-04T23:49:30.473Z"
-last_activity: 2026-05-04 -- Phase 94 planning complete
+last_updated: "2026-05-05T13:10:12.161Z"
+last_activity: 2026-05-05 -- Phase 94 execution started
 progress:
   total_phases: 12
   completed_phases: 2
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 93 — vendoring-discipline-web-parity-for-already-shipping-addons
+**Current focus:** Phase 94 — search-addon-find-bar-desktop-web
 
 ## Current Position
 
-Phase: 93 (vendoring-discipline-web-parity-for-already-shipping-addons) — EXECUTING
+Phase: 94 (search-addon-find-bar-desktop-web) — EXECUTING
 Plan: 1 of 5
-Status: Ready to execute
-Last activity: 2026-05-04 -- Phase 94 planning complete
+Status: Executing Phase 94
+Last activity: 2026-05-05 -- Phase 94 execution started
 
 ## Performance Metrics
 
