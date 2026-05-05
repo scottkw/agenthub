@@ -399,13 +399,22 @@ export function TerminalPanel({
         setMatchInfo({ index: -1, count: 0 })
         return
       }
-      searchAddonRef.current?.findNext(q, searchOptions)
+      // Phase 94 SRC-02 + SRC-04 reconciliation: pass decorations: {} so
+      // SearchAddon._fireResults fires the onDidChangeResults event (it gates on
+      // !!opts.decorations). The empty object registers invisible decoration
+      // overlays — no per-theme color overrides — so the active match still
+      // highlights via xterm core's selection (theme.selectionBackground) and
+      // the 138-theme invariant holds. The forbidden color keys are listed
+      // and source-inspected by FindBar.themeMatrix.test.tsx.
+      // Discovered during Plan 94-05 chromedp e2e (web parity wave).
+      searchAddonRef.current?.findNext(q, { ...searchOptions, decorations: {} as never })
     }, 100)
   }, [searchOptions])
 
   const handleSearchOptionsChange = useCallback((opts: FindBarSearchOptions) => {
     setSearchOptions(opts)
-    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, opts)
+    // Phase 94 SRC-02 + SRC-04: see decorations comment in handleSearchQueryChange.
+    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, { ...opts, decorations: {} as never })
     if (pluginConfig) {
       const next = new daemon.PluginSettings({ ...pluginConfig, searchConfig: opts })
       // Fire-and-forget: error toast (if any) is owned by the Settings UI.
@@ -417,11 +426,13 @@ export function TerminalPanel({
   }, [pluginConfig, searchQuery])
 
   const handleSearchNext = useCallback(() => {
-    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, searchOptions)
+    // Phase 94 SRC-02 + SRC-04: see decorations comment in handleSearchQueryChange.
+    if (searchQuery) searchAddonRef.current?.findNext(searchQuery, { ...searchOptions, decorations: {} as never })
   }, [searchQuery, searchOptions])
 
   const handleSearchPrev = useCallback(() => {
-    if (searchQuery) searchAddonRef.current?.findPrevious(searchQuery, searchOptions)
+    // Phase 94 SRC-02 + SRC-04: see decorations comment in handleSearchQueryChange.
+    if (searchQuery) searchAddonRef.current?.findPrevious(searchQuery, { ...searchOptions, decorations: {} as never })
   }, [searchQuery, searchOptions])
 
   const handleSearchClose = useCallback(() => {

@@ -45,7 +45,9 @@
       border: 1px solid #292e42;
       border-radius: 3px;
     }
-    #terminal { flex: 1; min-height: 0; width: 100%; }
+    /* Phase 94 SRC-05: position: relative anchors the absolutely-positioned
+       #find-bar overlay (UI-SPEC §"Web: terminal.html structure"). */
+    #terminal { flex: 1; min-height: 0; width: 100%; position: relative; }
 
     /* Phase 93 WGL-02 / WGL-04 — web parity with desktop .webgl-recovery-banner. */
     #webgl-recovery-banner {
@@ -88,4 +90,123 @@
     }
     @media (prefers-reduced-motion: reduce) {
       #webgl-recovery-banner { transition: none; }
+    }
+
+    /* Phase 94 — Find bar (SRC-04 / SRC-05 web parity).
+       Token values copied verbatim from frontend/src/style.css §"Phase 94 — Find
+       bar (SRC-01/SRC-04)". UI-SPEC line 451 — "exact same token values". */
+    #find-bar {
+      position: absolute;
+      top: 8px;
+      right: 16px;
+      z-index: 10;
+      width: auto;
+      min-width: 320px;
+      max-width: min(480px, calc(100% - 32px));
+      height: 40px;
+      align-items: center;
+      gap: 4px;
+      padding: 0 8px;
+      background-color: #16161e;
+      border: 1px solid #292e42;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      transition: transform 200ms ease, opacity 200ms ease;
+    }
+    #find-bar[hidden] { display: none; }
+    #find-bar:not([hidden]) { display: flex; }
+    #find-bar-input {
+      flex: 1;
+      min-width: 100px;
+      height: 28px;
+      background-color: transparent;
+      border: none;
+      border-bottom: 1px solid #292e42;
+      color: #c0caf5;
+      font-size: 13px;
+      font-family: inherit;
+      padding: 0 4px;
+      outline: none;
+    }
+    #find-bar-input:focus { border-bottom-color: #7aa2f7; }
+    #find-bar-input::placeholder { color: #414868; }
+    #find-bar-count,
+    .find-bar__count {
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      color: #9aa5ce;
+      white-space: nowrap;
+      min-width: 44px;
+      text-align: right;
+    }
+    .find-bar__count--no-results { color: #f7768e; }
+    .find-bar__count--hidden { visibility: hidden; }
+    .find-bar__nav,
+    .find-bar__options {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .find-bar__divider {
+      width: 1px;
+      height: 16px;
+      background-color: #292e42;
+      margin: 0 8px;
+      flex-shrink: 0;
+    }
+    .find-bar__btn--prev,
+    .find-bar__btn--next,
+    .find-bar__toggle--case,
+    .find-bar__toggle--regex,
+    .find-bar__toggle--word,
+    .find-bar__close {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: #9aa5ce;
+      cursor: pointer;
+      padding: 2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1;
+      transition: background-color 0.1s, color 0.1s;
+    }
+    .find-bar__btn--prev:hover,
+    .find-bar__btn--next:hover,
+    .find-bar__toggle--case:hover,
+    .find-bar__toggle--regex:hover,
+    .find-bar__toggle--word:hover,
+    .find-bar__close:hover {
+      background-color: #1e2030;
+      color: #c0caf5;
+    }
+    .find-bar__btn--prev:focus-visible,
+    .find-bar__btn--next:focus-visible,
+    .find-bar__toggle--case:focus-visible,
+    .find-bar__toggle--regex:focus-visible,
+    .find-bar__toggle--word:focus-visible,
+    .find-bar__close:focus-visible,
+    #find-bar-input:focus-visible {
+      outline: 2px solid #7aa2f7;
+      outline-offset: 2px;
+    }
+    .find-bar__toggle--active {
+      background-color: rgba(122, 162, 247, 0.12);
+      color: #7aa2f7;
+    }
+    .find-bar__btn--prev[disabled],
+    .find-bar__btn--next[disabled] {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #find-bar { transition: none; }
     }
