@@ -31,8 +31,8 @@ func TestXtermVendorVersionsMatchPnpmLock(t *testing.T) {
 			pnpmVersions[m[1]] = m[2]
 		}
 	}
-	if len(pnpmVersions) < 5 {
-		t.Fatalf("failed to parse at least 5 @xterm/* packages (xterm, addon-fit, addon-webgl, addon-unicode11, addon-clipboard) from pnpm-lock.yaml: found %v (Phase 93 WEB-02 — the lockfile format may have changed; see 89-RESEARCH.md Q3)", pnpmVersions)
+	if len(pnpmVersions) < 6 {
+		t.Fatalf("failed to parse at least 6 @xterm/* packages (xterm, addon-fit, addon-webgl, addon-unicode11, addon-clipboard, addon-search) from pnpm-lock.yaml: found %v (Phase 94 SRC-01..05 — addon-search joined the manifest; T-94-01 mitigation)", pnpmVersions)
 	}
 
 	// Step 3: read web/vendor/xterm/VERSION (the vendored manifest).
