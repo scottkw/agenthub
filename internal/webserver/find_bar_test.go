@@ -73,10 +73,50 @@ func TestTerminalHTML_FindBar(t *testing.T) {
 	}
 }
 
-// Phase 94 Wave 0 RED scaffold — Plan 94-05 Task 2 will implement.
-// See: 94-VALIDATION.md row 05-web wave 4.
+// TestTerminalJS_SearchAddon — Phase 94 Plan 94-05 SRC-05 web parity.
+// terminal.js must instantiate SearchAddon via the verified UMD global path
+// AND must NOT pass a `decorations:` option (SRC-04 theme.selectionBackground
+// invariant). T-94-05 + T-94-04 mitigation gate (regex DoS via 100ms debounce
+// + clearDecorations on close).
 func TestTerminalJS_SearchAddon(t *testing.T) {
-	t.Skip("RED scaffold — Plan 94-05 wires UMD global `SearchAddon.SearchAddon` constructor " +
-		"into web/assets/terminal.js (Pitfall #7 verification). Test asserts the constructor " +
-		"expression appears via raw asset GET. See 94-VALIDATION.md row 05-web wave 4.")
+	data, err := webfs.WebFS.ReadFile("assets/terminal.js")
+	if err != nil {
+		t.Fatalf("ReadFile assets/terminal.js: %v", err)
+	}
+	s := string(data)
+	requiredSubstrings := []struct{ name, sub string }{
+		{"SearchAddon constructor (Pitfall #7 verified)", `new SearchAddon.SearchAddon(`},
+		{"100ms debounce timer (T-94-04 mitigation)", `, 100)`},
+		{"focus-conditioned Cmd-F handler (Pitfall #1)", `termEl.contains(document.activeElement)`},
+		{"clearDecorations on close (Pitfall #10)", `clearDecorations()`},
+		{"onDidChangeResults subscription (SRC-02 match count)", `onDidChangeResults`},
+		{"showFindBar function defined", `function showFindBar(`},
+		{"hideFindBar function defined", `function hideFindBar(`},
+		{"searchConfig defaults (SSE sync source)", `searchConfig`},
+	}
+	for _, r := range requiredSubstrings {
+		if !strings.Contains(s, r.sub) {
+			t.Errorf("terminal.js missing %s: substring %q not found (T-94-05 / SRC-05 mitigation)", r.name, r.sub)
+		}
+	}
+	// SRC-04 invariant: never customize per-theme decoration colors. We DO
+	// pass `decorations: {}` (empty object) so SearchAddon._fireResults
+	// triggers onDidChangeResults (SRC-02 match count) — see Plan 94-05
+	// SUMMARY for the empirical reconciliation. The invariant SRC-04 actually
+	// forbids is per-theme COLOR customization (matchBackground /
+	// activeMatchBackground / matchBorder / activeMatchBorder); without those
+	// the active match is highlighted via xterm core's selection
+	// (theme.selectionBackground) across all 138 themes.
+	for _, forbidden := range []string{
+		"matchBackground",
+		"activeMatchBackground",
+		"matchBorder",
+		"activeMatchBorder",
+		"matchOverviewRuler",
+		"activeMatchColorOverviewRuler",
+	} {
+		if strings.Contains(s, forbidden) {
+			t.Errorf("terminal.js must NOT customize SearchAddon decoration colors (SRC-04 theme.selectionBackground invariant) — found %q", forbidden)
+		}
+	}
 }

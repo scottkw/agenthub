@@ -76,9 +76,25 @@ describe('Phase 94 SRC-01..04: TerminalPanel SearchAddon + FindBar integration',
     expect(src).toContain('e.preventDefault()')
   })
 
-  it('does NOT pass decorations option to findNext (SRC-04 theme.selectionBackground invariant)', () => {
-    expect(src).not.toMatch(/findNext\([^)]*decorations:/)
-    expect(src).not.toMatch(/findPrevious\([^)]*decorations:/)
+  it('does NOT customize SearchAddon decoration colors (SRC-04 theme.selectionBackground invariant)', () => {
+    // Plan 94-05 reconciliation: SearchAddon._fireResults gates the
+    // onDidChangeResults event on !!opts.decorations — the empty-object form
+    // (`decorations: {}`) is required so the match-count callback fires
+    // (SRC-02). The SRC-04 invariant FORBIDS per-theme color overrides; with
+    // none set, xterm core's selection (theme.selectionBackground) owns the
+    // active-match highlight across all 138 themes. See FindBar.themeMatrix.
+    for (const key of [
+      'matchBackground',
+      'activeMatchBackground',
+      'matchBorder',
+      'activeMatchBorder',
+      'matchOverviewRuler',
+      'activeMatchColorOverviewRuler',
+    ]) {
+      expect(src).not.toContain(key)
+    }
+    // The empty-decorations form IS expected — it's what makes onDidChangeResults fire.
+    expect(src).toMatch(/decorations:\s*\{\s*\}/)
   })
 
   it('renders <FindBar> conditionally on findBarOpen && pluginConfig?.search', () => {

@@ -118,7 +118,11 @@
       var pluginConfig = {
         webgl: true, unicode11: true, clipboard: true,
         search: true, webLinks: true, image: true,
-        serialize: true, progress: false
+        serialize: true, progress: false,
+        // Phase 94 SRC-05: SearchConfig defaults (web is read-only consumer
+        // per UI-SPEC line 335 — canonical state arrives via /api/plugin-config
+        // + SSE settings:plugins push; web does NOT write back to daemon).
+        searchConfig: { regex: false, caseSensitive: false, wholeWord: false }
       };
       if (cap && sessionID) {
         try {
@@ -140,9 +144,14 @@
       setInterval(fetchSessionInfo, 3000);
 
       // Initialize xterm.js with perms-bound disableStdin.
+      // allowProposedApi: required for (a) unicode11 width-table addon and
+      // (b) SearchAddon's registerDecoration calls when passing decorations: {}
+      // (Phase 94 SRC-02 onDidChangeResults gating). Desktop TerminalPanel.tsx
+      // has had this since Phase 93 — web parity restored here in Plan 94-05.
       var term = new Terminal({
         cursorBlink: !isReadOnly,
         disableStdin: isReadOnly,
+        allowProposedApi: true,
         theme: {
           background: '#1a1b26',
           foreground: '#cccccc',
@@ -156,6 +165,10 @@
       term.loadAddon(fitAddon);
       term.open(document.getElementById('terminal'));
       fitAddon.fit();
+      // Phase 89 / 94-04 / 94-05 e2e harness — expose Terminal for chromedp tests.
+      // Production-safe: this is a write-only assignment to the window object,
+      // mirrors the pattern already used by the perf harness for `window.term`.
+      window.term = term;
 
       if (isReadOnly) {
         var badge = document.createElement('span');
@@ -226,6 +239,16 @@
       var webglAddonHandle = null;
       var clipboardAddonHandle = null;
 
+      // Phase 94 SRC-05 — Find bar state + handles. Module-scope inside the
+      // IIFE so wireFindBarHandlers() / showFindBar() / hideFindBar() / runSearch()
+      // close over them.
+      var searchAddonHandle = null;
+      var searchResultsDisposable = null;
+      var searchDebounceTimer = null;
+      var findBarOpen = false;
+      var searchOptions = { regex: false, caseSensitive: false, wholeWord: false };
+      var matchInfo = { index: -1, count: 0 };
+
       // applyPluginConfig diff-applies a new pluginConfig against the current
       // state. Used both at initial load (vs. an "everything-off" prev) and on
       // each SSE plugin-config push frame. Phase 93 PLUG-04 hot-swap path.
@@ -269,8 +292,272 @@
         // Unicode 11 deliberately NOT hot-swapped here — see comment at the
         // initial-load block above.
 
+        // Phase 94 SRC-05: SearchAddon hot-swap (mirrors WebGL/Clipboard arms above).
+        // UMD global name verified via:
+        //   grep -E "root\\[['\"](SearchAddon|.*Addon)['\"]\\]" web/vendor/xterm/addons/addon-search.js
+        // Result: e.SearchAddon=t() (matches Phase 93 precedent for WebglAddon /
+        // Unicode11Addon / ClipboardAddon). Constructor: new SearchAddon.SearchAddon()
+        // — RESEARCH Pitfall #7 mitigation. Plan 94-04 SUMMARY confirmed
+        // window.SearchAddon is a NAMESPACE OBJECT { SearchAddon: <ctor> } at runtime.
+        if (!newConfig.search && searchAddonHandle) {
+          if (searchResultsDisposable) {
+            try { searchResultsDisposable.dispose(); } catch (e) {}
+            searchResultsDisposable = null;
+          }
+          try { searchAddonHandle.dispose(); } catch (e) {}
+          searchAddonHandle = null;
+          window.searchAddonHandle = null;
+          if (findBarOpen) hideFindBar();
+        } else if (newConfig.search && !searchAddonHandle) {
+          try {
+            searchAddonHandle = new SearchAddon.SearchAddon(); // Pitfall #7
+            term.loadAddon(searchAddonHandle);
+            searchResultsDisposable = searchAddonHandle.onDidChangeResults(function(e) {
+              matchInfo = { index: e.resultIndex, count: e.resultCount };
+              updateMatchCountUI();
+            });
+            window.searchAddonHandle = searchAddonHandle;
+          } catch (e) {
+            // SearchAddon UMD missing or construction failed — silent. Find bar
+            // will still appear if Cmd-F is pressed but findNext will be a no-op
+            // (null-guards at the call sites handle this). See Pitfall #7.
+            searchAddonHandle = null;
+            window.searchAddonHandle = null;
+          }
+        }
+
+        // Phase 94 SRC-05 / SSE sync: if the canonical SearchConfig changed via
+        // SSE settings:plugins push (e.g. desktop user toggled regex elsewhere),
+        // re-sync the local searchOptions and update toggle UI. Per UI-SPEC line
+        // 335 web is in-memory only; the daemon push is the only one-way write.
+        if (newConfig.searchConfig) {
+          var canonical = newConfig.searchConfig;
+          var differs =
+            canonical.regex !== searchOptions.regex ||
+            canonical.caseSensitive !== searchOptions.caseSensitive ||
+            canonical.wholeWord !== searchOptions.wholeWord;
+          if (differs) {
+            searchOptions = {
+              regex: !!canonical.regex,
+              caseSensitive: !!canonical.caseSensitive,
+              wholeWord: !!canonical.wholeWord
+            };
+            syncToggleUI();
+          }
+        }
+
         lastApplied = JSON.stringify(newConfig);
       }
+
+      // ── Phase 94 SRC-05 — Find bar wiring ─────────────────────────────────
+      // Mirrors desktop FindBar.tsx + TerminalPanel handlers (Plan 94-03).
+      // Plain DOM only; no React. UI-SPEC §"Interaction Contract"; RESEARCH
+      // §"Pattern 4" (debounce); Pitfall #1 (focus gate), #3 (Esc on container),
+      // #7 (UMD global name), #10 (close clears debounce + decorations).
+      // All function declarations — hoisted so applyPluginConfig (defined above)
+      // can reference syncToggleUI / hideFindBar / updateMatchCountUI.
+      function findBarEl()      { return document.getElementById('find-bar'); }
+      function findBarInputEl() { return document.getElementById('find-bar-input'); }
+      function findBarCountEl() { return document.getElementById('find-bar-count'); }
+
+      // Phase 94 SRC-02 + SRC-04 reconciliation. SearchAddon._fireResults gates
+      // the onDidChangeResults event on !!opts.decorations — without this, the
+      // match-count callback never fires (SRC-02 broken). Passing decorations: {}
+      // (an empty object) is truthy, so the event fires; with no per-theme
+      // color overrides set, the registered decoration overlays are invisible
+      // and the active match is highlighted via xterm core's selection
+      // (theme.selectionBackground), preserving the 138-theme invariant
+      // (SRC-04). The forbidden color keys are listed and source-inspected by
+      // TestTerminalJS_SearchAddon and FindBar.themeMatrix.test.tsx.
+      // Discovered during Plan 94-05 chromedp e2e — see SUMMARY.
+      function searchOpts() {
+        return {
+          regex: searchOptions.regex,
+          caseSensitive: searchOptions.caseSensitive,
+          wholeWord: searchOptions.wholeWord,
+          decorations: {}
+        };
+      }
+
+      function syncToggleUI() {
+        var pairs = [
+          ['find-bar-toggle-case',  'caseSensitive'],
+          ['find-bar-toggle-regex', 'regex'],
+          ['find-bar-toggle-word',  'wholeWord']
+        ];
+        for (var i = 0; i < pairs.length; i++) {
+          var btn = document.getElementById(pairs[i][0]);
+          if (!btn) continue;
+          var on = !!searchOptions[pairs[i][1]];
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          if (on) btn.classList.add('find-bar__toggle--active');
+          else    btn.classList.remove('find-bar__toggle--active');
+        }
+      }
+
+      function updateMatchCountUI() {
+        var el = findBarCountEl();
+        if (!el) return;
+        var input = findBarInputEl();
+        var query = input ? input.value : '';
+        if (query === '') {
+          el.classList.add('find-bar__count--hidden');
+          el.classList.remove('find-bar__count--no-results');
+          el.textContent = '';
+          return;
+        }
+        el.classList.remove('find-bar__count--hidden');
+        if (matchInfo.count === 0) {
+          el.classList.add('find-bar__count--no-results');
+          el.textContent = '0 of 0';
+        } else {
+          el.classList.remove('find-bar__count--no-results');
+          el.textContent = (matchInfo.index + 1) + ' of ' + matchInfo.count;
+        }
+      }
+
+      function runSearch(query) {
+        if (searchDebounceTimer !== null) {
+          clearTimeout(searchDebounceTimer);
+          searchDebounceTimer = null;
+        }
+        searchDebounceTimer = setTimeout(function() {
+          searchDebounceTimer = null;
+          if (!searchAddonHandle) return;
+          if (query === '') {
+            try { searchAddonHandle.clearDecorations(); } catch (e) {}
+            matchInfo = { index: -1, count: 0 };
+            updateMatchCountUI();
+            return;
+          }
+          // SRC-04 invariant honored via searchOpts(): no per-theme color
+          // overrides, so the active match is highlighted via xterm core's
+          // selection (theme.selectionBackground) across all 138 themes.
+          try { searchAddonHandle.findNext(query, searchOpts()); } catch (e) {}
+        }, 100); // T-94-04 mitigation: 100ms debounce per RESEARCH Pitfall #5
+      }
+
+      function showFindBar() {
+        findBarOpen = true;
+        syncToggleUI();
+        var el = findBarEl();
+        if (el) el.hidden = false;
+        var input = findBarInputEl();
+        if (input) { input.value = ''; input.focus(); }
+        matchInfo = { index: -1, count: 0 };
+        updateMatchCountUI();
+      }
+
+      function hideFindBar() {
+        // Pitfall #10: clear pending debounce BEFORE clearing decorations.
+        if (searchDebounceTimer !== null) {
+          clearTimeout(searchDebounceTimer);
+          searchDebounceTimer = null;
+        }
+        if (searchAddonHandle) {
+          try { searchAddonHandle.clearDecorations(); } catch (e) {}
+        }
+        matchInfo = { index: -1, count: 0 };
+        var input = findBarInputEl();
+        if (input) input.value = '';
+        updateMatchCountUI();
+        var el = findBarEl();
+        if (el) el.hidden = true;
+        findBarOpen = false;
+        // Restore terminal focus per UI-SPEC §"Closing the Find Bar".
+        try { term.focus(); } catch (e) {
+          var t = document.querySelector('#terminal .xterm-helper-textarea');
+          if (t) t.focus();
+        }
+      }
+
+      function wireFindBarHandlers() {
+        var el = findBarEl(); if (!el) return;
+        var input = findBarInputEl();
+        var prevBtn = document.getElementById('find-bar-prev');
+        var nextBtn = document.getElementById('find-bar-next');
+        var closeBtn = document.getElementById('find-bar-close');
+
+        // Pitfall #3 — Esc handler at CONTAINER level so it works regardless
+        // of which child has focus (input, toggle, or nav button).
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') { e.preventDefault(); hideFindBar(); }
+        });
+
+        if (input) {
+          input.addEventListener('input', function(e) {
+            runSearch(e.target.value);
+          });
+          input.addEventListener('keydown', function(e) {
+            var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            var modifier = isMac ? e.metaKey : e.ctrlKey;
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (!searchAddonHandle) return;
+              if (e.shiftKey) { try { searchAddonHandle.findPrevious(input.value, searchOpts()); } catch (err) {} }
+              else            { try { searchAddonHandle.findNext(input.value, searchOpts()); } catch (err) {} }
+            } else if (modifier && e.key.toLowerCase() === 'g') {
+              e.preventDefault();
+              if (!searchAddonHandle) return;
+              if (e.shiftKey) { try { searchAddonHandle.findPrevious(input.value, searchOpts()); } catch (err) {} }
+              else            { try { searchAddonHandle.findNext(input.value, searchOpts()); } catch (err) {} }
+            }
+          });
+        }
+
+        if (prevBtn) prevBtn.addEventListener('click', function() {
+          if (!searchAddonHandle || !input) return;
+          try { searchAddonHandle.findPrevious(input.value, searchOpts()); } catch (e) {}
+        });
+        if (nextBtn) nextBtn.addEventListener('click', function() {
+          if (!searchAddonHandle || !input) return;
+          try { searchAddonHandle.findNext(input.value, searchOpts()); } catch (e) {}
+        });
+        if (closeBtn) closeBtn.addEventListener('click', function() { hideFindBar(); });
+
+        // Toggle handlers — flip option, sync UI, re-run search instantly. Web
+        // persistence is desktop-only per UI-SPEC line 335 (in-memory for the
+        // web session; canonical state arrives via /api/plugin-config + SSE).
+        var toggleSpecs = [
+          ['find-bar-toggle-case',  'caseSensitive'],
+          ['find-bar-toggle-regex', 'regex'],
+          ['find-bar-toggle-word',  'wholeWord']
+        ];
+        for (var i = 0; i < toggleSpecs.length; i++) {
+          (function(id, key) {
+            var btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('click', function() {
+              searchOptions[key] = !searchOptions[key];
+              syncToggleUI();
+              if (searchAddonHandle && input && input.value) {
+                try { searchAddonHandle.findNext(input.value, searchOpts()); } catch (e) {}
+              }
+            });
+          })(toggleSpecs[i][0], toggleSpecs[i][1]);
+        }
+      }
+
+      // Phase 94 SRC-01 / SRC-05 — focus-conditioned Cmd-F (mac) / Ctrl-F (lin/win)
+      // listener. Pitfall #1: gate by termEl.contains(document.activeElement) so
+      // non-terminal page text (status bar, banner) falls through to browser-native
+      // find. preventDefault() is ONLY called when the focus gate passes.
+      window.addEventListener('keydown', function(e) {
+        if (!pluginConfig.search) return;
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        var modifier = isMac ? e.metaKey : e.ctrlKey;
+        if (!modifier || e.key.toLowerCase() !== 'f') return;
+        var termEl = document.getElementById('terminal');
+        if (!termEl || !termEl.contains(document.activeElement)) return;
+        e.preventDefault();
+        if (findBarOpen) {
+          var input = findBarInputEl();
+          if (input) input.focus();
+        } else {
+          showFindBar();
+        }
+      });
+      // ────────────────────────────────────────────────────────────────────────
 
       // Phase 93 WGL-04: initial WebGL/Clipboard application via diff-apply
       // against an everything-off seed. Also handles the at-startup software-
@@ -282,9 +569,23 @@
       pluginConfig = {
         webgl: false, unicode11: false, clipboard: false,
         search: false, webLinks: false, image: false,
-        serialize: false, progress: false
+        serialize: false, progress: false,
+        searchConfig: { regex: false, caseSensitive: false, wholeWord: false }
       };
       applyPluginConfig(initialConfig);
+
+      // Phase 94 SRC-05 — initialize searchOptions from canonical SearchConfig
+      // delivered by /api/plugin-config. The hot-swap arm in applyPluginConfig
+      // also handles this on subsequent SSE pushes (see SSE sync block).
+      if (initialConfig.searchConfig) {
+        searchOptions = {
+          regex:         !!initialConfig.searchConfig.regex,
+          caseSensitive: !!initialConfig.searchConfig.caseSensitive,
+          wholeWord:     !!initialConfig.searchConfig.wholeWord
+        };
+        syncToggleUI();
+      }
+      wireFindBarHandlers();
 
       // Open WebSocket connection
       var ws = null;
