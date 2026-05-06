@@ -383,8 +383,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
   - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
-  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
-  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [x] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [x] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
   - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
@@ -400,9 +400,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 6 plans (5 waves)
   - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
   - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
-  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
-  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
-  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [x] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [x] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
   - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
@@ -417,7 +417,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 6 plans (5 waves)
   - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
   - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
-  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
   - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
@@ -432,8 +432,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. User enables OSC 9;4 progress support in Settings (default OFF in v3.2; the toggle copy notes the default flips to ON in v3.3 after field validation); a CLI emitting OSC 9;4 progress sequences (e.g. `pip install`, an AI CLI reporting long-running task percent) shows a subtle progress underline on its tab in the tab strip.
   3. With progress enabled, the system tray icon reflects an aggregate progress glyph (quartile indicator) summarizing across all sessions emitting progress; updates do not cause tray icon flicker or excessive system-tray-API churn.
 **Plans**: 6 plans (5 waves)
-  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
@@ -450,8 +450,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. The settings.json migration test loads a real v3.1 fixture (`tests/fixtures/settings_v3.1.json`), upgrades it through the v3.2 daemon, and asserts that all plugin defaults are populated (no zero values), `schemaVersion: 2` is written, and the migration is idempotent on a second run.
   4. The CSP zero-violation e2e suite is green on Chromium + Safari + Firefox; iPad Safari Tailscale UAT (real device, not emulator) reports zero CSP violations and zero CDN requests during a full attach/render/scrollback/detach session with all v3.2 plugins enabled.
 **Plans**: 6 plans (5 waves)
-  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
@@ -490,7 +490,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
 | 94 | v3.2 | 6/7 | In Progress|  |
-| 95 | v3.2 | 3/6 | In Progress|  |
+| 95 | v3.2 | 5/6 | In Progress|  |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |
 | 98 | v3.2 | 0/0 | Not started | — |
