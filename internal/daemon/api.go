@@ -73,6 +73,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/auto-close-session", a.handleSetAutoCloseSession)
 	a.mux.HandleFunc("GET /settings/plugins", a.handleGetPluginSettings)
 	a.mux.HandleFunc("PATCH /settings/plugins", a.handleSetPluginSettings)
+	a.mux.HandleFunc("PATCH /settings/search-config", a.handleSetSearchConfig)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -553,6 +554,28 @@ func (a *API) handleSetPluginSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetPluginSettings(req)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetSearchConfig accepts a SearchConfig struct and persists ONLY that
+// sub-key of PluginSettings (Phase 94-07 WR-03 gap closure). Defense-in-depth
+// mirrors handleSetPluginSettings: 8 KiB body cap + DisallowUnknownFields.
+//
+// The route is PATCH /settings/search-config — sibling to /settings/plugins —
+// chosen for symmetry with /settings/auto-close-session (sub-key-style PATCH
+// routes elsewhere in this API).
+func (a *API) handleSetSearchConfig(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+
+	var req SearchConfig
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetSearchConfig(req)
 	w.WriteHeader(http.StatusNoContent)
 }
 

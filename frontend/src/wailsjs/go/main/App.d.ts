@@ -124,6 +124,12 @@ export function SetAutoCloseSession(val: boolean): Promise<void>
 export function GetPluginSettings(): Promise<daemon.PluginSettings>
 export function SetPluginSettings(arg1: daemon.PluginSettings): Promise<void>
 
+// Find-bar search-config sub-key writer (Phase 94-07 / WR-03 gap closure).
+// Persists ONLY the SearchConfig sub-key of PluginSettings, leaving the
+// other plugin fields untouched. Re-emits "settings:plugins" with the
+// full PluginSettings post-write so the existing App.tsx listener fires.
+export function SetSearchConfig(arg1: daemon.SearchConfig): Promise<void>
+
 // Quit confirmation bound methods (APP-01/02)
 export function QuitGUIOnly(): Promise<void>
 export function QuitAll(): Promise<void>

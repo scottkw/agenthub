@@ -33,8 +33,13 @@ describe('Phase 94 SRC-01..04: TerminalPanel SearchAddon + FindBar integration',
     expect(src).toMatch(/from\s+['"]\.\/FindBar\/FindBar['"]/)
   })
 
-  it('imports SetPluginSettings from the wails App binding', () => {
-    expect(src).toMatch(/import\s+\{\s*SetPluginSettings\s*\}\s+from\s+['"]\.\.\/wailsjs\/go\/main\/App['"]/)
+  it('imports SetSearchConfig from the wails App binding (Phase 94-07 WR-03 sub-key writer)', () => {
+    // Phase 94-07 swapped SetPluginSettings → SetSearchConfig. The find bar
+    // no longer constructs a full PluginSettings from the prop — it writes
+    // only the SearchConfig sub-key, closing the PluginsSection edit-buffer
+    // race. See TerminalPanel.search.seedAndPersist.test.tsx for the WR-03
+    // contract tests.
+    expect(src).toMatch(/import\s+\{[^}]*\bSetSearchConfig\b[^}]*\}\s+from\s+['"]\.\.\/wailsjs\/go\/main\/App['"]/)
   })
 
   it('declares searchAddonRef (≥4 references — declaration, attach, detach, cleanup)', () => {
@@ -106,8 +111,10 @@ describe('Phase 94 SRC-01..04: TerminalPanel SearchAddon + FindBar integration',
     )
   })
 
-  it('calls SetPluginSettings on toggle change (persistence — Pattern 3)', () => {
-    expect(src).toContain('SetPluginSettings(')
+  it('calls SetSearchConfig on toggle change (persistence — Phase 94-07 sub-key writer)', () => {
+    // Phase 94-07 WR-03 — handleSearchOptionsChange writes ONLY the
+    // SearchConfig sub-key via SetSearchConfig (was SetPluginSettings).
+    expect(src).toContain('SetSearchConfig(')
   })
 
   it('100ms setTimeout debounce is wired in handleSearchQueryChange', () => {
