@@ -43,6 +43,15 @@ export interface FindBarProps {
    * the search field even though `findBarOpen` did not flip false→true.
    */
   focusSeq?: number
+  /**
+   * Phase 94 WR-01 / SC-4 — parent-driven exit-animation flag. When true,
+   * applies the .find-bar--exiting modifier to play the 200ms slide-up
+   * (transform 200ms + opacity 150ms — UI-SPEC §Animation line 200) before
+   * the parent unmounts the bar via setTimeout. Suppresses --entering so
+   * the exit transition runs from the at-rest state, not from the entry
+   * starting state.
+   */
+  exiting?: boolean
 }
 
 export function FindBar({
@@ -56,6 +65,7 @@ export function FindBar({
   onPrev,
   onClose,
   focusSeq,
+  exiting = false,
 }: FindBarProps): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -135,9 +145,23 @@ export function FindBar({
   // wrap-around via SearchAddon. Mark as disabled only when there are no matches.
   const navDisabled = matchCount === 0
 
+  // Phase 94 WR-01 / SC-4 — slide animation modifier composition. Exiting wins
+  // over entering: if the parent flips `exiting` to true while the mount-RAF
+  // hasn't fired yet, the exit transition still runs from the at-rest state
+  // (the CSS rule for .find-bar--exiting overrides the entering one because
+  // both share the same .find-bar parent and the exiting rule comes later in
+  // style.css source order).
+  const className = [
+    'find-bar',
+    entering && !exiting ? 'find-bar--entering' : null,
+    exiting ? 'find-bar--exiting' : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div
-      className={`find-bar${entering ? ' find-bar--entering' : ''}`}
+      className={className}
       role="search"
       aria-label="Find in terminal"
       onKeyDown={handleContainerKeyDown}

@@ -94,6 +94,14 @@ export function TerminalPanel({
   // truth. searchOptions are seeded from pluginConfig?.searchConfig at
   // mount only (Pitfall #2 — mid-open re-sync would surprise the user).
   const [findBarOpen, setFindBarOpen] = useState(false)
+  // Phase 94 WR-01 / SC-4 — exit animation. While `findBarExiting` is true,
+  // the FindBar receives an `exiting` prop that toggles the .find-bar--exiting
+  // CSS modifier (translateY(-8px) over 200ms + opacity over 150ms — UI-SPEC
+  // §Animation line 200). The actual unmount is delayed by 200ms via
+  // findBarExitTimerRef so the transition completes. Re-opening during exit
+  // cancels the pending timer (Pitfall #10 — no zombie state).
+  const [findBarExiting, setFindBarExiting] = useState(false)
+  const findBarExitTimerRef = useRef<number | null>(null)
   const [findBarFocusSeq, setFindBarFocusSeq] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOptions, setSearchOptions] = useState<FindBarSearchOptions>(() => ({
@@ -202,6 +210,14 @@ export function TerminalPanel({
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
+      }
+      // Phase 94 WR-01: clear any pending exit-animation unmount so the
+      // timer doesn't fire after the panel is gone (would no-op safely
+      // because state setters on unmounted components are silent in React
+      // 18+, but the ref state machine wants a clean teardown).
+      if (findBarExitTimerRef.current !== null) {
+        window.clearTimeout(findBarExitTimerRef.current)
+        findBarExitTimerRef.current = null
       }
       term.dispose()
       termRef.current = null
@@ -376,6 +392,14 @@ export function TerminalPanel({
       if (!modifier || e.key.toLowerCase() !== 'f') return
       if (!isXtermFocused(containerRef.current)) return
       e.preventDefault()
+      // Phase 94 WR-01: re-opening during exit cancels the pending unmount
+      // timer (Pitfall #10 — no zombie state). Drop the .find-bar--exiting
+      // modifier so the bar re-appears at-rest, no flicker.
+      if (findBarExitTimerRef.current !== null) {
+        window.clearTimeout(findBarExitTimerRef.current)
+        findBarExitTimerRef.current = null
+      }
+      setFindBarExiting(false)
       setFindBarOpen(true)
       setFindBarFocusSeq((s) => s + 1)
     }
@@ -443,10 +467,25 @@ export function TerminalPanel({
     searchAddonRef.current?.clearDecorations()
     setSearchQuery('')
     setMatchInfo({ index: -1, count: 0 })
-    setFindBarOpen(false)
-    // Return focus to the xterm helper textarea (xterm's internal input
-    // sink). UI-SPEC §"Closing the Find Bar > Return focus to terminal".
-    containerRef.current?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')?.focus()
+    // Phase 94 WR-01 / SC-4 — play the 200ms exit transition before unmount.
+    // CSS .find-bar--exiting (frontend/src/style.css:2180-2184): transform
+    // 200ms ease + opacity 150ms ease. Match the longer (200ms) duration so
+    // we unmount only after the slide-up completes. UI-SPEC §"Closing the
+    // Find Bar" lines 304-311 (animation-first then unmount sequence).
+    setFindBarExiting(true)
+    if (findBarExitTimerRef.current !== null) {
+      window.clearTimeout(findBarExitTimerRef.current)
+    }
+    findBarExitTimerRef.current = window.setTimeout(() => {
+      findBarExitTimerRef.current = null
+      setFindBarExiting(false)
+      setFindBarOpen(false)
+      // Return focus to the xterm helper textarea (xterm's internal input
+      // sink). UI-SPEC §"Closing the Find Bar > Return focus to terminal".
+      containerRef.current
+        ?.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea')
+        ?.focus()
+    }, 200)
   }, [])
 
   return (
@@ -460,7 +499,7 @@ export function TerminalPanel({
         backgroundColor: theme.background ?? '#1a1b26',
       }}
     >
-      {findBarOpen && pluginConfig?.search && (
+      {(findBarOpen || findBarExiting) && pluginConfig?.search && (
         <FindBar
           query={searchQuery}
           onQueryChange={handleSearchQueryChange}
@@ -472,6 +511,7 @@ export function TerminalPanel({
           onPrev={handleSearchPrev}
           onClose={handleSearchClose}
           focusSeq={findBarFocusSeq}
+          exiting={findBarExiting}
         />
       )}
     </div>

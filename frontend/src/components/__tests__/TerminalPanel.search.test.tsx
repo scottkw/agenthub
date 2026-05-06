@@ -97,10 +97,13 @@ describe('Phase 94 SRC-01..04: TerminalPanel SearchAddon + FindBar integration',
     expect(src).toMatch(/decorations:\s*\{\s*\}/)
   })
 
-  it('renders <FindBar> conditionally on findBarOpen && pluginConfig?.search', () => {
-    // The actual JSX uses `findBarOpen && pluginConfig?.search && (\n  <FindBar`
-    // — match across whitespace and the optional opening paren.
-    expect(src).toMatch(/findBarOpen\s*&&\s*pluginConfig\?\.search\s*&&\s*\(?\s*<FindBar/)
+  it('renders <FindBar> conditionally on (findBarOpen || findBarExiting) && pluginConfig?.search', () => {
+    // Phase 94 WR-01 / SC-4 widened the guard so the bar stays in the DOM
+    // during the 200ms exit transition (TerminalPanel.search.exit.test.tsx
+    // asserts the timing). Match the new compound guard across whitespace.
+    expect(src).toMatch(
+      /\(\s*findBarOpen\s*\|\|\s*findBarExiting\s*\)\s*&&\s*pluginConfig\?\.search\s*&&\s*\(?\s*<FindBar/,
+    )
   })
 
   it('calls SetPluginSettings on toggle change (persistence — Pattern 3)', () => {
