@@ -16,7 +16,7 @@
  * SearchAddon directly, so there is no decorations site here — verified by
  * FindBar.visual.test.tsx source-inspection.
  */
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/20/solid'
 
 export interface FindBarSearchOptions {
@@ -58,6 +58,17 @@ export function FindBar({
   focusSeq,
 }: FindBarProps): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Phase 94 WR-01 / SC-4 — slide-in animation. Mount with the
+  // .find-bar--entering modifier (CSS at frontend/src/style.css:2176-2179),
+  // then drop it on the next animation frame so the browser observes the
+  // class flip and runs the 200ms transform+opacity transition. UI-SPEC
+  // §Animation lines 197-199.
+  const [entering, setEntering] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntering(false))
+    return () => cancelAnimationFrame(id)
+  }, [])
 
   // Auto-focus on mount + on focusSeq bump (Cmd-F when bar already open).
   useEffect(() => {
@@ -126,7 +137,7 @@ export function FindBar({
 
   return (
     <div
-      className="find-bar"
+      className={`find-bar${entering ? ' find-bar--entering' : ''}`}
       role="search"
       aria-label="Find in terminal"
       onKeyDown={handleContainerKeyDown}
