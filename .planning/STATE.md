@@ -4,8 +4,8 @@ milestone: v3.2
 milestone_name: Plugin Suite
 status: executing
 stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
-last_updated: "2026-05-06T16:34:30.966Z"
-last_activity: 2026-05-06 -- Phase 95 planning complete
+last_updated: "2026-05-06T17:20:53.218Z"
+last_activity: 2026-05-06 -- Phase 95 execution started
 progress:
   total_phases: 12
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 94 — Search Addon Find Bar Desktop Web
+**Current focus:** Phase 95 — web-links-addon-security-hardening
 
 ## Current Position
 
-Phase: 94 — COMPLETE
-Plan: 7 of 7 (Plan 94-07 just completed)
-Status: Ready to execute
-Last activity: 2026-05-06 -- Phase 95 planning complete
+Phase: 95 (web-links-addon-security-hardening) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 95
+Last activity: 2026-05-06 -- Phase 95 execution started
 
 ## Performance Metrics
 

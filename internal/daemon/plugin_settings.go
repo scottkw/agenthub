@@ -21,6 +21,29 @@ type SearchConfig struct {
 	WholeWord     bool `json:"wholeWord"`
 }
 
+// WebLinksConfig persists per-plugin runtime configuration for the
+// web-links toggle (Phase 95 LNK-02, LNK-03, LNK-05). Defaults are
+// platform-correct + ALL confirmations ON (security-first posture
+// per ROADMAP §"Phase 95 — v3.1-WS-Origin-allowlist rigor").
+//
+// JSON tags are camelCase to match daemonSettings vocabulary; field
+// ordering matches the ## Files to Create / Modify table in
+// .planning/phases/95-web-links-addon-security-hardening/95-RESEARCH.md
+// §"Pattern 3: WebLinksConfig Persistence".
+type WebLinksConfig struct {
+	// Modifier: "platform" | "cmd" | "ctrl" | "none"
+	//   "platform" — Cmd on macOS, Ctrl elsewhere (default)
+	//   "cmd"      — always require Cmd (macOS-only convenience)
+	//   "ctrl"     — always require Ctrl (universal alternative)
+	//   "none"     — disable modifier requirement (still gated by
+	//                scheme allowlist + risk detection — see
+	//                95-RESEARCH §"Pitfall 9: Modifier Configuration 'none'")
+	Modifier         string `json:"modifier"`
+	ConfirmOSC8      bool   `json:"confirmOSC8"`
+	ConfirmIDN       bool   `json:"confirmIDN"`
+	ConfirmTyposquat bool   `json:"confirmTyposquat"`
+}
+
 // PluginSettings is the persisted user choice for each xterm.js addon
 // shipped by the v3.2 plugin suite. Field names match UI-SPEC ordering.
 // JSON tags are camelCase to match daemonSettings vocabulary (cliPaths,
@@ -30,15 +53,16 @@ type SearchConfig struct {
 // (which may legitimately be `false`), and Pitfall #14 mandates the
 // parent `plugins` key always serialize so future loads observe it.
 type PluginSettings struct {
-	WebGL        bool         `json:"webgl"`
-	Unicode11    bool         `json:"unicode11"`
-	Search       bool         `json:"search"`
-	SearchConfig SearchConfig `json:"searchConfig"`
-	WebLinks     bool         `json:"webLinks"`
-	Image        bool         `json:"image"`
-	Serialize    bool         `json:"serialize"`
-	Clipboard    bool         `json:"clipboard"`
-	Progress     bool         `json:"progress"`
+	WebGL          bool           `json:"webgl"`
+	Unicode11      bool           `json:"unicode11"`
+	Search         bool           `json:"search"`
+	SearchConfig   SearchConfig   `json:"searchConfig"`
+	WebLinks       bool           `json:"webLinks"`
+	WebLinksConfig WebLinksConfig `json:"webLinksConfig"`
+	Image          bool           `json:"image"`
+	Serialize      bool           `json:"serialize"`
+	Clipboard      bool           `json:"clipboard"`
+	Progress       bool           `json:"progress"`
 }
 
 // defaultPluginSettings returns the v3.2 default plugin enable/disable
@@ -56,9 +80,15 @@ func defaultPluginSettings() PluginSettings {
 		Search:       true,
 		SearchConfig: SearchConfig{Regex: false, CaseSensitive: false, WholeWord: false},
 		WebLinks:     true,
-		Image:        true,
-		Serialize:    true,
-		Clipboard:    true,
-		Progress:     false,
+		WebLinksConfig: WebLinksConfig{
+			Modifier:         "platform",
+			ConfirmOSC8:      true,
+			ConfirmIDN:       true,
+			ConfirmTyposquat: true,
+		},
+		Image:     true,
+		Serialize: true,
+		Clipboard: true,
+		Progress:  false,
 	}
 }

@@ -101,4 +101,12 @@ describe('Phase 94 SRC-02: SearchConfig nested type round-trip', () => {
     // read pluginConfig.searchConfig in Plan 94-03).
     expect(terminalPanelRaw).toMatch(/pluginConfig\?\s*:/)
   })
+
+  // Phase 95 Plan 95-01 Task 2 — Wave 0 RED scaffold for the webLinksConfig
+  // nested struct. Plan 95-04 wires the prop drill so TerminalPanel can
+  // read pluginConfig.webLinksConfig.{modifier, confirmOSC8, confirmIDN,
+  // confirmTyposquat}. Plan 95-05 wires the SetWebLinksConfig sub-key RPC.
+  it('PluginSettings shape includes webLinksConfig nested object (Plan 95-01 + 95-04)', () => {
+    expect.fail('RED scaffold — Plan 95-04 wires webLinksConfig prop drill (95-VALIDATION row 95-06-02).')
+  })
 })

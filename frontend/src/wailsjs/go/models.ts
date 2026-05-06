@@ -24,12 +24,36 @@ export namespace daemon {
 	    }
 	}
 
+	// Phase 95 LNK-02/LNK-03/LNK-05: nested per-plugin runtime config
+	// for the web-links toggle. Defaults: modifier="platform" +
+	// ALL confirmations true (security-first; daemon owns defaults via
+	// internal/daemon/plugin_settings.go defaultPluginSettings()).
+	export class WebLinksConfig {
+	    modifier: string;
+	    confirmOSC8: boolean;
+	    confirmIDN: boolean;
+	    confirmTyposquat: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new WebLinksConfig(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.modifier = source["modifier"];
+	        this.confirmOSC8 = source["confirmOSC8"];
+	        this.confirmIDN = source["confirmIDN"];
+	        this.confirmTyposquat = source["confirmTyposquat"];
+	    }
+	}
+
 	export class PluginSettings {
 	    webgl: boolean;
 	    unicode11: boolean;
 	    search: boolean;
 	    searchConfig: SearchConfig;
 	    webLinks: boolean;
+	    webLinksConfig: WebLinksConfig;
 	    image: boolean;
 	    serialize: boolean;
 	    clipboard: boolean;
@@ -51,6 +75,12 @@ export namespace daemon {
 	            ? new SearchConfig(source["searchConfig"])
 	            : new SearchConfig();
 	        this.webLinks = source["webLinks"];
+	        // Phase 95 LNK-02: nested WebLinksConfig — same inline pattern as
+	        // SearchConfig above (avoid `convertValues` helper that would
+	        // surface as `keyof PluginSettings`).
+	        this.webLinksConfig = source["webLinksConfig"]
+	            ? new WebLinksConfig(source["webLinksConfig"])
+	            : new WebLinksConfig();
 	        this.image = source["image"];
 	        this.serialize = source["serialize"];
 	        this.clipboard = source["clipboard"];
