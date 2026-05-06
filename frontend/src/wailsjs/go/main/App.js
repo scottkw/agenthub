@@ -79,6 +79,9 @@ export const SetPluginSettings       = (s)                  => Call('main.App.Se
 // Find-bar search-config sub-key writer (Phase 94-07 / WR-03 gap closure).
 export const SetSearchConfig         = (cfg)                => Call('main.App.SetSearchConfig', [cfg])
 
+// Web-links sub-key writer (Phase 95 LNK-05 / LNK-06).
+export const SetWebLinksConfig       = (cfg)                => Call('main.App.SetWebLinksConfig', [cfg])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])

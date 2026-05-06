@@ -105,8 +105,67 @@ describe('Phase 94 SRC-02: SearchConfig nested type round-trip', () => {
   // Phase 95 Plan 95-01 Task 2 — Wave 0 RED scaffold for the webLinksConfig
   // nested struct. Plan 95-04 wires the prop drill so TerminalPanel can
   // read pluginConfig.webLinksConfig.{modifier, confirmOSC8, confirmIDN,
-  // confirmTyposquat}. Plan 95-05 wires the SetWebLinksConfig sub-key RPC.
+  // confirmTyposquat}. Plan 95-05 wires the SetWebLinksConfig sub-key RPC
+  // (this commit).
   it('PluginSettings shape includes webLinksConfig nested object (Plan 95-01 + 95-04)', () => {
-    expect.fail('RED scaffold — Plan 95-04 wires webLinksConfig prop drill (95-VALIDATION row 95-06-02).')
+    // Mirror the searchConfig assertions immediately above: construct a
+    // PluginSettings via the Wails-generated daemon model and assert the
+    // nested daemon.WebLinksConfig instance survives the constructor and
+    // a JSON round-trip. This is the prop-drill foundation: the same
+    // daemon.PluginSettings instance flows from GetPluginSettings →
+    // App.tsx pluginConfig state → TerminalPanel via the existing
+    // pluginConfig prop (Phase 92 wire) and the addon-load useEffect
+    // (Phase 95 Plan 95-04 hot-swap consumer reads
+    // pluginConfig.webLinksConfig.{modifier,confirmOSC8,confirmIDN,
+    // confirmTyposquat}).
+    const ps = new daemon.PluginSettings({
+      webgl: true,
+      unicode11: true,
+      search: true,
+      searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+      webLinks: true,
+      webLinksConfig: {
+        modifier: 'platform',
+        confirmOSC8: true,
+        confirmIDN: true,
+        confirmTyposquat: true,
+      },
+      image: true,
+      serialize: true,
+      clipboard: true,
+      progress: false,
+    })
+    expect(ps.webLinksConfig).toBeInstanceOf(daemon.WebLinksConfig)
+    expect(ps.webLinksConfig.modifier).toBe('platform')
+    expect(ps.webLinksConfig.confirmOSC8).toBe(true)
+    expect(ps.webLinksConfig.confirmIDN).toBe(true)
+    expect(ps.webLinksConfig.confirmTyposquat).toBe(true)
+
+    // JSON round-trip preserves the webLinksConfig sub-shape (mirrors the
+    // searchConfig round-trip test above) — guards against the Phase 95
+    // settings:plugins event payload losing the nested object on Wails
+    // transport.
+    const json = JSON.stringify({
+      webgl: true,
+      unicode11: true,
+      search: true,
+      searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+      webLinks: true,
+      webLinksConfig: {
+        modifier: 'ctrl',
+        confirmOSC8: false,
+        confirmIDN: true,
+        confirmTyposquat: false,
+      },
+      image: true,
+      serialize: true,
+      clipboard: true,
+      progress: false,
+    })
+    const ps2 = new daemon.PluginSettings(JSON.parse(json))
+    expect(ps2.webLinksConfig.modifier).toBe('ctrl')
+    expect(ps2.webLinksConfig.confirmOSC8).toBe(false)
+    expect(ps2.webLinksConfig.confirmIDN).toBe(true)
+    expect(ps2.webLinksConfig.confirmTyposquat).toBe(false)
   })
 })

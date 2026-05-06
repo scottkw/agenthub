@@ -522,6 +522,42 @@ func (a *App) SetSearchConfig(cfg daemon.SearchConfig) error {
 	return nil
 }
 
+// SetWebLinksConfig persists ONLY the WebLinksConfig sub-key of
+// PluginSettings via the daemon AND broadcasts the resulting full
+// PluginSettings to all open desktop terminals via the "settings:plugins"
+// Wails runtime event.
+//
+// Phase 95 LNK-05 / LNK-06 — mirror of Phase 94-07 SetSearchConfig. The
+// sub-key writer preserves PluginsSection's edit buffer semantics: a
+// future Settings advanced-disclosure write (Phase 99 / PUI-03) cannot
+// stomp an in-flight Plugins-tab boolean edit.
+//
+// The event payload is the full PluginSettings (re-fetched via the daemon)
+// because App.tsx's EventsOn('settings:plugins') subscription expects a
+// PluginSettings shape — the same listener consumes SetPluginSettings,
+// SetSearchConfig, and SetWebLinksConfig events. The re-fetch happens on
+// the App side so the event reflects the post-write truth (including the
+// unchanged non-web-links fields).
+func (a *App) SetWebLinksConfig(cfg daemon.WebLinksConfig) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	if err := a.client.SetWebLinksConfig(cfg); err != nil {
+		return err
+	}
+	// Re-fetch the full PluginSettings so the event payload matches the
+	// SetPluginSettings event shape (App.tsx listener expects PluginSettings).
+	full, err := a.client.GetPluginSettings()
+	if err != nil {
+		// Persistence succeeded but readback failed — synthesize a payload
+		// from defaults + new WebLinksConfig so listeners still receive a
+		// frame. The next GetPluginSettings call will reconcile.
+		full = daemon.PluginSettings{WebLinksConfig: cfg}
+	}
+	runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	return nil
+}
+
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
 // Creates the directory if it does not exist.
 func configDir() string {
