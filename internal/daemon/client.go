@@ -155,6 +155,16 @@ func (c *DaemonClient) SetPluginSettings(s PluginSettings) error {
 	return c.doJSON(http.MethodPatch, "/settings/plugins", s, nil)
 }
 
+// SetSearchConfig persists ONLY the SearchConfig sub-key of PluginSettings via
+// the daemon API. Phase 94-07 WR-03 gap closure — the find bar must not race
+// PluginsSection's stale local edit buffer by writing the full PluginSettings
+// from a snapshot prop. This sub-key writer routes to the engine's
+// SetSearchConfig method which mutates only e.pluginSettings.SearchConfig
+// under the engine mutex.
+func (c *DaemonClient) SetSearchConfig(cfg SearchConfig) error {
+	return c.doJSON(http.MethodPatch, "/settings/search-config", cfg, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse

@@ -76,6 +76,9 @@ export const SetAutoCloseSession     = (val)                => Call('main.App.Se
 export const GetPluginSettings       = ()                   => Call('main.App.GetPluginSettings', [])
 export const SetPluginSettings       = (s)                  => Call('main.App.SetPluginSettings', [s])
 
+// Find-bar search-config sub-key writer (Phase 94-07 / WR-03 gap closure).
+export const SetSearchConfig         = (cfg)                => Call('main.App.SetSearchConfig', [cfg])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])
