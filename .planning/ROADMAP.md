@@ -382,7 +382,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 6 plans (5 waves)
   - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
   - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
-  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
   - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
@@ -415,8 +415,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Settings tooltip on the Serialize toggle reads (verbatim or near-verbatim): "Saved files include any secrets, tokens, or sensitive data printed in the session." Toggle defaults to ON for the addon-as-library; serialize never auto-saves or auto-runs.
   3. No on-disk capture of session state occurs without an explicit user action in v3.2 — a regression test (or scope-discipline review checklist item) confirms there is no timer-driven serialization, no graceful-shutdown serialization, and no settings option that enables auto-save.
 **Plans**: 6 plans (5 waves)
-  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
@@ -490,7 +490,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
 | 94 | v3.2 | 6/7 | In Progress|  |
-| 95 | v3.2 | 2/6 | In Progress|  |
+| 95 | v3.2 | 3/6 | In Progress|  |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |
 | 98 | v3.2 | 0/0 | Not started | — |
