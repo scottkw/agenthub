@@ -359,7 +359,14 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Find bar supports next-match (Enter / Cmd-G), previous-match (Shift-Enter / Cmd-Shift-G), match count display ("3 of 12"), and toggleable regex / case-sensitive / whole-word options; per-flag defaults persist across sessions via the daemon settings (`SearchConfig`).
   3. A search across a 10,000-line scrollback fixture completes without UI lockup (no "page unresponsive" dialog, no >1s frame budget breach measured in DevTools Performance); long-running regex searches can be cancelled by closing the find bar.
   4. The find bar visual treatment matches AgentHub's BannerStack vocabulary: TokyoNight palette, 200ms slide-in/out animation, and theme-aware match highlight via `theme.selectionBackground` (works across all 138 curated themes).
-**Plans**: TBD
+**Plans**: 7 plans (5 implementation 94-01..94-05 complete; 2 gap-closure 94-06..94-07 from 94-VERIFICATION.md)
+- [x] 94-01-PLAN.md — vendor + Wails RPC + capability gate
+- [x] 94-02-PLAN.md — daemon SearchConfig persistence + defaults merge
+- [x] 94-03-PLAN.md — desktop FindBar.tsx + TerminalPanel wiring
+- [x] 94-04-PLAN.md — 10000-line perf fixture + chromedp e2e
+- [x] 94-05-PLAN.md — web parity (terminal.html/css/js + vendored addon-search)
+- [ ] 94-06-PLAN.md — gap closure WR-01: 200ms slide-in/out animation wiring (desktop + web)
+- [ ] 94-07-PLAN.md — gap closure WR-02 + WR-03: seededRef first-load seed + SetSearchConfig sub-key RPC
 **UI hint**: yes
 
 ### Phase 95: Web-Links Addon + Security Hardening
@@ -452,7 +459,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 90 | v3.1 | 5/6 | In Progress|  |
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
-| 94 | v3.2 | 4/5 | In Progress|  |
+| 94 | v3.2 | 5/5 | Complete   | 2026-05-05 |
 | 95 | v3.2 | 0/0 | Not started | — |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |
