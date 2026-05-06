@@ -43,4 +43,18 @@ func TestDefaultPluginSettings(t *testing.T) {
 	if s.SearchConfig.WholeWord {
 		t.Error("expected SearchConfig.WholeWord=false (Phase 94 SRC-02 default OFF)")
 	}
+	// Phase 95 LNK-02/LNK-03/LNK-05: WebLinksConfig defaults are
+	// platform-correct + ALL confirmations ON (security-first posture).
+	if got := s.WebLinksConfig.Modifier; got != "platform" {
+		t.Errorf("WebLinksConfig.Modifier = %q, want \"platform\"", got)
+	}
+	if !s.WebLinksConfig.ConfirmOSC8 {
+		t.Error("WebLinksConfig.ConfirmOSC8 should default true")
+	}
+	if !s.WebLinksConfig.ConfirmIDN {
+		t.Error("WebLinksConfig.ConfirmIDN should default true")
+	}
+	if !s.WebLinksConfig.ConfirmTyposquat {
+		t.Error("WebLinksConfig.ConfirmTyposquat should default true")
+	}
 }

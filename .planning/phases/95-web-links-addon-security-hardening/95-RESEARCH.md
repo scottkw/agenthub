@@ -1305,6 +1305,90 @@ Phase 93 `pluginSettingsProvider func() []byte` recurses through `json.Marshal` 
 
 ---
 
+## Wave 0 Spike Outcome
+
+**Spike date:** 2026-05-06
+**Conducted in:** Plan 95-01 Task 1 Step E
+**Inspected commit:** `@xterm/addon-web-links@0.12.0` + `@xterm/xterm@6.0.0` (current pnpm-lock.yaml resolution)
+
+### Finding 1: WebLinksAddon handler IS canonical replacement (not additive)
+
+**Path inspected:** `frontend/node_modules/@xterm/addon-web-links/lib/addon-web-links.js` (UMD bundle; minified single-line source).
+
+**Evidence (verbatim from the bundle):**
+```js
+// Default click handler — calls window.open() then sets location.href
+function i(e,t){const n=window.open();if(n){try{n.opener=null}catch{}n.location.href=t} ...}
+
+// Constructor stores ONLY the user-supplied handler (or default `i`)
+e.WebLinksAddon=class{
+  constructor(e=i,t={}){this._handler=e;this._options=t}
+  activate(e){
+    this._terminal=e;
+    const n=this._options,o=n.urlRegex||r;
+    this._linkProvider=this._terminal.registerLinkProvider(
+      new t.WebLinkProvider(this._terminal,o,this._handler,n)
+    )
+  }
+  dispose(){this._linkProvider?.dispose()}
+}
+```
+
+The `_handler` is the SOLE click handler — it is passed straight through to
+`WebLinkProvider.computeLink`, which assigns it as the `activate` callback on
+each link object. There is no second, additive default handler that fires
+alongside. **A user-supplied handler fully replaces the default.**
+
+**Outcome:** PASS — the constructor's handler argument replaces the default
+`window.open(uri, '_blank')` call (technically `window.open()` then
+`location.href = t`, which is *worse* than `_blank` and confirms why a
+custom handler is mandatory for LNK-04 / LNK-05).
+
+### Finding 2: registerLinkProvider IS publicly typed; getHyperlinkId IS NOT
+
+**Path inspected:** `frontend/node_modules/@xterm/xterm/typings/xterm.d.ts`.
+
+**Evidence:**
+- `Terminal.registerLinkProvider(linkProvider: ILinkProvider): IDisposable;` — present at line 1102 (public). PASS.
+- `interface ILinkProvider { provideLinks(...): void; }` — present at line 1393 (public). PASS.
+- `IParser.registerOscHandler(ident: number, callback: ...): IDisposable;` — present at line 1864 (public). PASS.
+- `IBufferCell.getHyperlinkId()` — **NOT FOUND** in the public typings. `grep -rn getHyperlinkId frontend/node_modules/@xterm/xterm/` returns ZERO matches in either typings or runtime source. The `IBufferCell` interface (lines 1635-1750) lists `getWidth`, `getChars`, `getCode`, `getFgColorMode`, `getBgColorMode`, plus a battery of `isFg*`/`isBg*` predicates — but no hyperlink-id accessor.
+
+**Outcome:** PARTIAL FAIL — `registerLinkProvider` and `registerOscHandler` are
+publicly typed, but `IBufferCell.getHyperlinkId()` (the symbol Plan A would
+need to walk OSC 8 link ranges and surface display-vs-href divergence) is
+absent from the public surface of `@xterm/xterm@6.0.0`. Implementing Plan A
+in v3.2 would require either (a) reaching into internal buffer state
+(maintenance hazard; breaks on minor xterm bumps), or (b) maintaining a
+parallel OSC 8 hyperlink registry by intercepting `registerOscHandler(8)`
+and tracking ranges manually (custom plumbing the addon already declines to
+ship — for the same reason).
+
+### Chosen Path
+
+**Plan B — Defer OSC 8 Mismatch to v3.3** (selected because Finding 2 is a partial fail).
+
+Plan 95-04 ships LNK-01..02, LNK-04, LNK-05, LNK-06 fully. LNK-03 ships **IDN +
+typosquat** detectors only. The OSC 8 mismatch detector (`osc8Mismatch` helper
+in `urlSafety.ts`) is still authored as a pure function (display + href ⇒
+boolean) so the unit test scaffold from Plan 95-01 Task 2 stays meaningful and
+flips GREEN on its own — but it is NOT wired into the live `getRisk` path
+because `urlSafety.ts` cannot reach the OSC 8 *display* string from inside the
+addon-web-links click handler (the handler only receives the *href*).
+
+The Cyrillic spoof fixture and typosquat fixtures still trigger the popover via
+`hasIDN` and `isTypoSquat`. The OSC 8 mismatch fixture documents a known
+limitation in the popover help text (popover surface still exists for
+risk='osc8' so wiring lands cleanly when v3.3 unblocks).
+
+ROADMAP SC-3 scope reduces accordingly: a `LNK-OSC8-FUT-01` follow-up is
+created in REQUIREMENTS.md `## Future Requirements` (Plan 95-04 will add this
+in its task list when it picks up the SC-3 narrowing).
+
+**Selected:** Plan B
+
+---
+
 ## Metadata
 
 **Confidence breakdown:**
