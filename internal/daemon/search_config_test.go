@@ -70,3 +70,102 @@ func TestPluginSettings_DefaultsMerge_SearchConfig(t *testing.T) {
 		t.Errorf("expected SearchConfig zero-value defaults after Phase 93 fixture load, got %+v", ps.SearchConfig)
 	}
 }
+
+// TestSetSearchConfig verifies the Phase 94-07 gap-closure RPC:
+//  1. SearchConfig sub-key updates round-trip through GetPluginSettings.
+//  2. All other PluginSettings fields are PRESERVED (WR-03 mitigation).
+//  3. The pluginSettingsListener fires (SRC-05 web parity SSE preserved).
+//  4. The change persists to disk (reload reflects the new SearchConfig).
+//
+// Harness mirrors TestSetPluginSettingsRoundTrip in engine_plugins_test.go.
+func TestSetSearchConfig(t *testing.T) {
+	dir := t.TempDir()
+
+	// Baseline PluginSettings: every non-search field set to a non-default
+	// value so any stomp by SetSearchConfig is detectable. Defaults are
+	// 7-ON-1-OFF; baseline below is intentionally a mixed pattern with
+	// SearchConfig at zero-value so we can detect the post-call diff.
+	baseline := PluginSettings{
+		WebGL:        false,
+		Unicode11:    false,
+		Search:       true,
+		SearchConfig: SearchConfig{Regex: false, CaseSensitive: false, WholeWord: false},
+		WebLinks:     false,
+		Image:        false,
+		Serialize:    false,
+		Clipboard:    false,
+		Progress:     true,
+	}
+
+	e := &SessionEngine{
+		configDir:      dir,
+		cliPaths:       make(map[string]string),
+		pluginSettings: baseline,
+	}
+
+	// Listener counter — SetSearchConfig must invoke it exactly once.
+	var listenerCount int
+	e.SetPluginSettingsListener(func() { listenerCount++ })
+
+	// Apply the search-config sub-key change.
+	newCfg := SearchConfig{Regex: true, CaseSensitive: true, WholeWord: false}
+	e.SetSearchConfig(newCfg)
+
+	// Listener fired exactly once (SRC-05 web parity SSE preserved).
+	if listenerCount != 1 {
+		t.Errorf("listener invocations: got %d, want 1", listenerCount)
+	}
+
+	got := e.GetPluginSettings()
+
+	// SearchConfig sub-key updated.
+	if got.SearchConfig != newCfg {
+		t.Errorf("SearchConfig: got %+v, want %+v", got.SearchConfig, newCfg)
+	}
+
+	// Every other field preserved (WR-03 mitigation — no full-PluginSettings stomp).
+	if got.WebGL != baseline.WebGL {
+		t.Errorf("WebGL stomped: got %v, want %v", got.WebGL, baseline.WebGL)
+	}
+	if got.Unicode11 != baseline.Unicode11 {
+		t.Errorf("Unicode11 stomped: got %v, want %v", got.Unicode11, baseline.Unicode11)
+	}
+	if got.Search != baseline.Search {
+		t.Errorf("Search stomped: got %v, want %v", got.Search, baseline.Search)
+	}
+	if got.WebLinks != baseline.WebLinks {
+		t.Errorf("WebLinks stomped: got %v, want %v", got.WebLinks, baseline.WebLinks)
+	}
+	if got.Image != baseline.Image {
+		t.Errorf("Image stomped: got %v, want %v", got.Image, baseline.Image)
+	}
+	if got.Serialize != baseline.Serialize {
+		t.Errorf("Serialize stomped: got %v, want %v", got.Serialize, baseline.Serialize)
+	}
+	if got.Clipboard != baseline.Clipboard {
+		t.Errorf("Clipboard stomped: got %v, want %v", got.Clipboard, baseline.Clipboard)
+	}
+	if got.Progress != baseline.Progress {
+		t.Errorf("Progress stomped: got %v, want %v", got.Progress, baseline.Progress)
+	}
+
+	// Persistence: reload via a fresh engine pointed at the same configDir.
+	e2 := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e2.loadSettingsFromDisk(dir)
+
+	got2 := e2.GetPluginSettings()
+	if got2.SearchConfig != newCfg {
+		t.Errorf("reloaded SearchConfig: got %+v, want %+v", got2.SearchConfig, newCfg)
+	}
+	// Spot-check that the non-search fields also persisted (defaults-merge
+	// could otherwise mask a stomp at the on-disk JSON layer).
+	if got2.Search != baseline.Search {
+		t.Errorf("reloaded Search: got %v, want %v", got2.Search, baseline.Search)
+	}
+	if got2.Progress != baseline.Progress {
+		t.Errorf("reloaded Progress: got %v, want %v", got2.Progress, baseline.Progress)
+	}
+}
