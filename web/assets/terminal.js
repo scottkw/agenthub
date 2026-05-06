@@ -245,6 +245,9 @@
       var searchAddonHandle = null;
       var searchResultsDisposable = null;
       var searchDebounceTimer = null;
+      // Phase 94 WR-01 / SC-4 — pending exit-animation unmount timer. setTimeout
+      // ID returned by hideFindBar; canceled by showFindBar on mid-exit re-open.
+      var findBarExitTimer = null;
       var findBarOpen = false;
       var searchOptions = { regex: false, caseSensitive: false, wholeWord: false };
       var matchInfo = { index: -1, count: 0 };
@@ -441,7 +444,23 @@
         findBarOpen = true;
         syncToggleUI();
         var el = findBarEl();
-        if (el) el.hidden = false;
+        if (el) {
+          // Phase 94 WR-01 / SC-4 — apply the entering modifier BEFORE removing
+          // [hidden] so the browser sees the class flip and runs the 200ms
+          // transform+opacity transition (terminal.css §"Phase 94 — Find bar").
+          el.classList.add('find-bar--entering');
+          // Cancel any pending exit-unmount from a rapid re-open (no zombie state).
+          if (findBarExitTimer !== null) {
+            clearTimeout(findBarExitTimer);
+            findBarExitTimer = null;
+          }
+          el.classList.remove('find-bar--exiting');
+          el.hidden = false;
+          // Drop --entering on the next animation frame so the transition fires.
+          requestAnimationFrame(function() {
+            el.classList.remove('find-bar--entering');
+          });
+        }
         var input = findBarInputEl();
         if (input) { input.value = ''; input.focus(); }
         matchInfo = { index: -1, count: 0 };
@@ -462,7 +481,22 @@
         if (input) input.value = '';
         updateMatchCountUI();
         var el = findBarEl();
-        if (el) el.hidden = true;
+        if (el) {
+          // Phase 94 WR-01 / SC-4 — play the exit transition before el.hidden=true.
+          // Symmetric with desktop TerminalPanel.handleSearchClose (200ms unmount
+          // delay matching the longer transform-200ms / opacity-150ms transition —
+          // UI-SPEC §"Animation" line 200).
+          el.classList.remove('find-bar--entering');
+          el.classList.add('find-bar--exiting');
+          if (findBarExitTimer !== null) {
+            clearTimeout(findBarExitTimer);
+          }
+          findBarExitTimer = setTimeout(function() {
+            findBarExitTimer = null;
+            el.hidden = true;
+            el.classList.remove('find-bar--exiting');
+          }, 200);
+        }
         findBarOpen = false;
         // Restore terminal focus per UI-SPEC §"Closing the Find Bar".
         try { term.focus(); } catch (e) {

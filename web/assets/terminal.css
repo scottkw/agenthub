@@ -207,6 +207,22 @@
       opacity: 0.35;
       cursor: not-allowed;
     }
+    /* Phase 94 WR-01 / SC-4 — slide-in / slide-out modifier classes for #find-bar.
+       Token values copied verbatim from frontend/src/style.css:2176-2184 per
+       UI-SPEC line 451 mandate ("exact same token values"). */
+    #find-bar.find-bar--entering {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    #find-bar.find-bar--exiting {
+      transform: translateY(-8px);
+      opacity: 0;
+      transition: transform 200ms ease, opacity 150ms ease;
+    }
     @media (prefers-reduced-motion: reduce) {
-      #find-bar { transition: none; }
+      #find-bar,
+      #find-bar.find-bar--entering,
+      #find-bar.find-bar--exiting {
+        transition: none;
+      }
     }
