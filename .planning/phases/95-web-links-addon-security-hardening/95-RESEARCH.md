@@ -1167,39 +1167,38 @@ These tests MUST be authored as failing assertions BEFORE the implementation lan
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-> Items the planner must address before Wave 1 starts.
+> Q1, Q2 are deferred-by-design to the Wave 0 spike (95-01 Task 1, Step E). Q3, Q4, Q5 are
+> resolved by recommendations embedded in the plans. The Wave 0 spike outcome is recorded
+> below in `## Wave 0 Spike Outcome` (added at execution time).
 
 1. **OSC 8 API availability in `@xterm/xterm@6.0.0`** (HIGH risk to LNK-03)
-   - What we know: xterm.js source contains `IBufferCell.getHyperlinkId()` and `Parser.registerOscHandler` internally; both have been requested as public APIs in GitHub issues (#4135, etc.).
-   - What's unclear: Whether 6.0.0 specifically exposes these on the public Terminal type / IBufferCell interface, OR requires `(term as any).parser` casts.
-   - Recommendation: **Wave 0 spike (1 hour).** If Plan A (registerOscHandler) works → implement LNK-03 fully. If Plan B fallback (registerLinkProvider walking cells with `getHyperlinkId`) works → also full LNK-03. If neither → defer OSC 8 mismatch detection to v3.3, surface IDN + typosquat detectors only, update SC-3 scope to "IDN/Cyrillic ✓; typosquat ✓; OSC 8 ✗ (deferred to v3.3 per Phase 95 spike outcome)".
-   - Risk level: HIGH for SC-3 scope; LOW for Phase 95 critical path.
+   - **RESOLVED:** Defer to Wave 0 spike (95-01 Task 1, Step E). Outcome recorded in
+     `## Wave 0 Spike Outcome` as `**Selected:** Plan A | Plan B`. 95-04 Step A reads it.
+     If both Plan A and Plan B fail, SC-3 OSC 8 mismatch detection is documented as
+     deferred to v3.3 in `## Wave 0 Spike Outcome` and surfaced in `95-DESKTOP-UAT.md`
+     known-issues. Risk level: HIGH for SC-3 scope; LOW for Phase 95 critical path.
 
-2. **`WebLinksAddon.activate()` registers its own click handler that calls `window.open` directly — does our custom handler REPLACE it or DOES BOTH fire?**
-   - What we know: Constructor signature `new WebLinksAddon(handler, options)` — passing handler is documented as the override.
-   - What's unclear: Whether handler is canonical replacement OR additive.
-   - Recommendation: Source-inspect `frontend/node_modules/@xterm/addon-web-links/lib/addon-web-links.js` after install. If both fire, we have a critical bug; if only ours fires, we're correct. **Should be canonical replacement based on the addon's public API contract; verify in Wave 0.**
-   - Risk level: HIGH if both fire (every link opens via the addon's `window.open` AND our custom path → double-open); MEDIUM otherwise.
+2. **`WebLinksAddon.activate()` click handler — replacement or additive?**
+   - **RESOLVED:** Defer to Wave 0 spike (95-01 Task 1, Step E). Source-inspect
+     `frontend/node_modules/@xterm/addon-web-links/lib/addon-web-links.js` after install;
+     confirm canonical replacement before Wave 1 starts. If additive, bug-fix is in scope
+     before LNK-04 declares green.
 
-3. **Hover tooltip — should we also clear it on `mouseup` (click)?**
-   - What we know: When user clicks, the popover replaces the experience; the `title` tooltip should not linger underneath.
-   - What's unclear: Whether browser auto-dismisses `title` on click event.
-   - Recommendation: In handler (after popover dispatch or after `openLink`), explicitly `event.target?.removeAttribute('title')` to be safe. Add to handler code template.
-   - Risk level: LOW.
+3. **Hover tooltip — clear on `mouseup` (click)?**
+   - **RESOLVED:** YES. The TerminalPanel handler's leave callback explicitly calls
+     `event.target?.removeAttribute('title')` (95-04 Task 1 Step B6). Risk level: LOW.
 
-4. **Web-side popover positioning across the WebView's iframe boundary** — does `event.clientX/Y` in the web `terminal.html` refer to the parent or the embedded iframe?
-   - What we know: Web `terminal.html` is served standalone (not in an iframe today); `event.clientX/Y` is page-local.
-   - What's unclear: If a future change embeds it in an iframe, positioning could break.
-   - Recommendation: For Phase 95, assume same-page (no iframe); document that an iframe-embedded refactor would need positioning revisited.
-   - Risk level: LOW (no iframe planned).
+4. **Web-side popover positioning across iframe boundary?**
+   - **RESOLVED:** Phase 95 assumes web `terminal.html` is served standalone (no iframe).
+     `event.clientX/Y` is page-local. An iframe-embedded refactor would need positioning
+     revisited; documented as a known limitation in `95-WEB-UAT.md`. Risk level: LOW.
 
-5. **Should `confirmTyposquat=true` apply to the resolved URL OR the display text in OSC 8 cases?**
-   - What we know: For OSC 8, the user might see "https://www.paypal.com" and click expecting that; the href is "https://paypa1.com".
-   - What's unclear: Whether the popover surfaces ONE risk (osc8 mismatch) or TWO (osc8 + typosquat) when both apply.
-   - Recommendation: First-match wins in `getRisk()` — `osc8` takes priority because it's the most informative trigger. Document in `urlSafety.ts` getRisk() doc comment.
-   - Risk level: LOW (UI clarity decision, not security).
+5. **Popover surfaces ONE risk or TWO when both osc8-mismatch and typosquat apply?**
+   - **RESOLVED:** First-match-wins in `getRisk()` with priority `osc8 > idn > typosquat`.
+     Implemented in `frontend/src/lib/urlSafety.ts` (95-02 Task 1) with a doc comment on
+     `getRisk()` documenting the priority. Risk level: LOW (UI clarity, not security).
 
 ---
 

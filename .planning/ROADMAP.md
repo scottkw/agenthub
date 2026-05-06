@@ -379,7 +379,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. OSC 8 hyperlinks where display text differs from href, IDN/Punycode URLs, and known typosquat patterns trigger an explicit click-confirmation popover showing the full resolved URL before navigation; a fixture test exercising `https://gооgle.com` (Cyrillic) and an OSC 8 with mismatched display-vs-href fails (red) if the popover does not appear.
   4. On desktop, link activation routes through Wails `BrowserOpenURL` (links open in the user's default browser, never inside the WebView); on web-served sessions, links open via `window.open(url, '_blank', 'noopener,noreferrer')` (no current-tab navigation, ever — verified by a regression test).
   5. User can enable/disable web-links in Settings; toggling applies live to all open terminals (already-rendered links update on next refresh) without a session restart.
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
 ### Phase 96: Image Addon + CSP Audit
@@ -391,7 +397,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. User enables inline image support in Settings (default ON), the toggle is clearly marked as "applies to new sessions you create", and a new session emitting a sixel or iTerm2 IIP escape sequence (e.g. `chafa --format=iterm2 chart.png`) renders the image inline both on desktop and on web-served Tailscale terminal pages.
   3. Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (overriding upstream's 100 MB default); user can adjust the cap via an Advanced disclosure in Settings; a regression test loading a 50 MB sixel fixture confirms FIFO eviction at the cap and no tab OOM.
   4. A second client joining a session mid-stream after the first client has rendered an image receives a correctly-rendered image during scrollback replay (multi-client byte-fidelity audit of `internal/relay/` confirms no line-based buffering or escape filtering corrupts sixel bytes).
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
 ### Phase 97: Serialize Addon + Save-Session UX
@@ -402,7 +414,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. User right-clicks a terminal tab → chooses "Save Terminal As…" → Wails `SaveFileDialog` opens → confirms a path → a `.txt` file is written containing the full visible scrollback (text-only output; HTML output is explicitly out of scope for v3.2 and tracked as SER-FUT-01).
   2. Settings tooltip on the Serialize toggle reads (verbatim or near-verbatim): "Saved files include any secrets, tokens, or sensitive data printed in the session." Toggle defaults to ON for the addon-as-library; serialize never auto-saves or auto-runs.
   3. No on-disk capture of session state occurs without an explicit user action in v3.2 — a regression test (or scope-discipline review checklist item) confirms there is no timer-driven serialization, no graceful-shutdown serialization, and no settings option that enables auto-save.
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
 ### Phase 98: Progress Addon (P2 — Cuttable)
@@ -413,7 +431,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Phase is explicitly cuttable: if Phases 95 (web-links security) or 96 (image + CSP) over-run their scope, this entire phase can be deferred to v3.3 with no impact on v3.2 release readiness — its absence does not block any other phase.
   2. User enables OSC 9;4 progress support in Settings (default OFF in v3.2; the toggle copy notes the default flips to ON in v3.3 after field validation); a CLI emitting OSC 9;4 progress sequences (e.g. `pip install`, an AI CLI reporting long-running task percent) shows a subtle progress underline on its tab in the tab strip.
   3. With progress enabled, the system tray icon reflects an aggregate progress glyph (quartile indicator) summarizing across all sessions emitting progress; updates do not cause tray icon flicker or excessive system-tray-API churn.
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
 ### Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)
@@ -425,7 +449,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Plugins with meaningful runtime configuration — Search (defaults regex/case/word), Web-Links (Cmd-vs-Ctrl click modifier and confirmation policy), Inline Images (`storageLimit`) — expose those options via an inline `<details>` disclosure under their toggle; the Plugins section reuses the existing three-state Save button (idle/saving/saved) and the existing `daemonSettings` persistence mechanism — no new save infrastructure is introduced.
   3. The settings.json migration test loads a real v3.1 fixture (`tests/fixtures/settings_v3.1.json`), upgrades it through the v3.2 daemon, and asserts that all plugin defaults are populated (no zero values), `schemaVersion: 2` is written, and the migration is idempotent on a second run.
   4. The CSP zero-violation e2e suite is green on Chromium + Safari + Firefox; iPad Safari Tailscale UAT (real device, not emulator) reports zero CSP violations and zero CDN requests during a full attach/render/scrollback/detach session with all v3.2 plugins enabled.
-**Plans**: TBD
+**Plans**: 6 plans (5 waves)
+  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
+  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
+  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
+  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
 **UI hint**: yes
 
 ## Progress
