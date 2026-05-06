@@ -509,6 +509,15 @@
           // Toggle-off also clears any in-flight popover so a user disabling
           // the feature mid-confirmation doesn't get stuck looking at a dialog
           // whose Continue path no longer makes sense.
+          //
+          // WR-06 fix: invoke the popover's cleanup closure (if any) so the
+          // document-level keydown listener is removed too — otherwise a
+          // mid-popover toggle-off leaves a dangling Esc handler attached
+          // to document that would silently invoke a closure on the now-
+          // hidden popover. Composes with CR-01's linkConfirmCleanup.
+          if (linkConfirmCleanup) {
+            try { linkConfirmCleanup(); } catch (e) {}
+          }
           var popOff = document.getElementById('link-confirm-popover');
           if (popOff) popOff.hidden = true;
         } else if (newConfig.webLinks && !webLinksAddonHandle) {
