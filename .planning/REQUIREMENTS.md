@@ -40,8 +40,8 @@ Scrollback search via `@xterm/addon-search` with a polished find-bar UI on deskt
 - [ ] **SRC-01** — User can open a find bar with Cmd-F (focus-conditioned: only when the xterm DOM has focus, so browser find still works for non-terminal page text) and dismiss with Esc
 - [ ] **SRC-02** — Find bar supports next-match (Enter / Cmd-G), previous-match (Shift-Enter / Cmd-Shift-G), match count display ("3 of 12"), and toggleable regex / case-sensitive / whole-word options with persisted defaults
 - [ ] **SRC-03** — Search performs without UI lockup on a 10,000-line scrollback buffer; long-running regex searches can be cancelled by closing the find bar
-- [ ] **SRC-04** — The find bar visual treatment matches AgentHub's BannerStack vocabulary (TokyoNight palette, 200ms slide-in/out, theme-aware highlight via `theme.selectionBackground`)
-- [ ] **SRC-05** — Find bar works on web-served Tailscale terminal sessions with the same keyboard shortcuts and visual treatment as desktop
+- [x] **SRC-04** — The find bar visual treatment matches AgentHub's BannerStack vocabulary (TokyoNight palette, 200ms slide-in/out, theme-aware highlight via `theme.selectionBackground`)
+- [x] **SRC-05** — Find bar works on web-served Tailscale terminal sessions with the same keyboard shortcuts and visual treatment as desktop
 
 ### Web Links
 
@@ -151,8 +151,8 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 | SRC-01  | Phase 94 | Pending |
 | SRC-02  | Phase 94 | Pending |
 | SRC-03  | Phase 94 | Pending |
-| SRC-04  | Phase 94 | Pending |
-| SRC-05  | Phase 94 | Pending |
+| SRC-04  | Phase 94 | Complete |
+| SRC-05  | Phase 94 | Complete |
 | LNK-01  | Phase 95 | Pending |
 | LNK-02  | Phase 95 | Pending |
 | LNK-03  | Phase 95 | Pending |

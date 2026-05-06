@@ -365,7 +365,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 94-03-PLAN.md — desktop FindBar.tsx + TerminalPanel wiring
 - [x] 94-04-PLAN.md — 10000-line perf fixture + chromedp e2e
 - [x] 94-05-PLAN.md — web parity (terminal.html/css/js + vendored addon-search)
-- [ ] 94-06-PLAN.md — gap closure WR-01: 200ms slide-in/out animation wiring (desktop + web)
+- [x] 94-06-PLAN.md — gap closure WR-01: 200ms slide-in/out animation wiring (desktop + web)
 - [ ] 94-07-PLAN.md — gap closure WR-02 + WR-03: seededRef first-load seed + SetSearchConfig sub-key RPC
 **UI hint**: yes
 
@@ -459,7 +459,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 90 | v3.1 | 5/6 | In Progress|  |
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
-| 94 | v3.2 | 5/5 | Complete   | 2026-05-05 |
+| 94 | v3.2 | 6/7 | In Progress|  |
 | 95 | v3.2 | 0/0 | Not started | — |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |
