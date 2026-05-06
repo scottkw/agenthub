@@ -6,12 +6,16 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { SearchAddon } from '@xterm/addon-search'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { RelayClient } from '../lib/relayClient'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
 import { FindBar, type FindBarSearchOptions } from './FindBar/FindBar'
 import { SetSearchConfig } from '../wailsjs/go/main/App'
 import { daemon } from '../wailsjs/go/models'
+import { isAllowedScheme, getRisk, type RiskKind } from '../lib/urlSafety'
+import { openLink, isModifierPressed, type ModifierMode } from '../lib/openLink'
+import { LinkConfirmPopover } from './LinkConfirmPopover'
 type PluginSettings = daemon.PluginSettings
 
 // Custom fit that uses full container width (no hardcoded scrollbar deduction).
@@ -88,6 +92,12 @@ export function TerminalPanel({
   const searchAddonRef = useRef<SearchAddon | null>(null)
   const searchResultsDisposableRef = useRef<IDisposable | null>(null)
   const debounceTimerRef = useRef<number | null>(null)
+  // Phase 95 LNK-01..04: WebLinksAddon lifecycle. Hot-swapped from the same
+  // useEffect as webgl/clipboard/search (specific-key dep array — Pitfall #1).
+  // The sub-config (modifier, confirm*) flows via webLinksConfigRef so
+  // changing those does NOT re-attach the addon (Pitfall #8).
+  const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
+  const webLinksConfigRef = useRef(pluginConfig?.webLinksConfig)
 
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
   // SearchAddon (also at this level) and FindBar share a single source of
@@ -130,6 +140,20 @@ export function TerminalPanel({
     seededRef.current = true
   }, [pluginConfig?.searchConfig, findBarOpen])
   const [matchInfo, setMatchInfo] = useState<{ index: number; count: number }>({ index: -1, count: 0 })
+
+  // Phase 95 LNK-03: link-confirmation popover state. Set by the
+  // WebLinksAddon click handler when getRisk(displayText, href) returns a
+  // non-null kind AND the matching pluginConfig.webLinksConfig.confirm*
+  // flag is true. Continue → openLink + clear; Cancel → clear.
+  const [linkConfirmState, setLinkConfirmState] = useState<
+    { url: string; risk: RiskKind; x: number; y: number } | null
+  >(null)
+
+  // Keep webLinksConfigRef in sync with sub-config changes WITHOUT triggering
+  // an addon re-attach (Pitfall #8 — sub-config is read at click time).
+  useEffect(() => {
+    webLinksConfigRef.current = pluginConfig?.webLinksConfig
+  }, [pluginConfig?.webLinksConfig])
 
   // Create the terminal and relay client once per sessionId.
   useEffect(() => {
@@ -226,6 +250,12 @@ export function TerminalPanel({
       if (searchAddonRef.current) {
         searchAddonRef.current.dispose()
         searchAddonRef.current = null
+      }
+      // Phase 95 LNK-01..04: dispose WebLinksAddon on unmount so the
+      // addon's link provider releases the buffer-scan subscription.
+      if (webLinksAddonRef.current) {
+        try { webLinksAddonRef.current.dispose() } catch { /* ignore */ }
+        webLinksAddonRef.current = null
       }
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current)
@@ -336,7 +366,86 @@ export function TerminalPanel({
       setSearchQuery('')
       setMatchInfo({ index: -1, count: 0 })
     }
-  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, onWebGLContextLost, sessionId])
+
+    // Phase 95 LNK-01..04: WebLinksAddon hot-swap arm.
+    // Sub-config (modifier, confirm*) is read at click time via
+    // webLinksConfigRef.current so toggling sub-config does NOT re-attach
+    // the addon (Pitfall #8). Only the boolean main toggle
+    // (pluginConfig?.webLinks) drives load/dispose.
+    //
+    // Plan B (Wave 0 spike outcome — 95-RESEARCH §"Wave 0 Spike Outcome"):
+    // OSC 8 mismatch detection deferred to v3.3 because the public
+    // hyperlink-id accessor is absent from @xterm/xterm@6.0.0 typings. We
+    // do NOT register a secondary link provider; v3.2 ships IDN +
+    // typosquat detectors only. The osc8 branch in LinkConfirmPopover
+    // ships dormant for the v3.3 wiring slice.
+    if (pluginConfig?.webLinks) {
+      if (!webLinksAddonRef.current) {
+        const handler = (event: MouseEvent, uri: string) => {
+          // LNK-01 defense-in-depth: handler re-validates the scheme even
+          // though the addon's default regex already rejects non-allowlisted
+          // schemes. A buggy upstream regex must NEVER punch through.
+          if (!isAllowedScheme(uri)) return
+          const cfg = webLinksConfigRef.current
+          // LNK-02: modifier-click gate. Default 'platform' = Cmd on darwin
+          // / Ctrl elsewhere. Modifier='none' bypass is intentional escape
+          // hatch (Pitfall #9 — risk gates still fire below).
+          // The daemon-typed `modifier` is `string`; narrow to ModifierMode
+          // (the daemon's defaultPluginSettings + SetWebLinksConfig RPC
+          // validation pin the value to one of these four literals — Plan
+          // 95-05 enforces, here we accept and fall back defensively).
+          const modifier = (cfg?.modifier ?? 'platform') as ModifierMode
+          if (!isModifierPressed(event, modifier)) return
+          // LNK-03: risk detection. For plain-text URL matches the addon
+          // emits, displayText === uri, so osc8Mismatch never fires here —
+          // OSC 8 mismatch is a v3.3 follow-up (Plan B; see header).
+          const risk = getRisk(uri, uri)
+          const shouldConfirm =
+            (risk === 'osc8' && (cfg?.confirmOSC8 ?? true)) ||
+            (risk === 'idn' && (cfg?.confirmIDN ?? true)) ||
+            (risk === 'typosquat' && (cfg?.confirmTyposquat ?? true))
+          if (risk && shouldConfirm) {
+            setLinkConfirmState({ url: uri, risk, x: event.clientX, y: event.clientY })
+            return
+          }
+          // LNK-04: platform-aware opener (Wails BrowserOpenURL on desktop;
+          // window.open with noopener,noreferrer on web).
+          openLink(uri)
+        }
+        const addon = new WebLinksAddon(handler, {
+          // urlRegex undefined → use the addon's default scheme-restricted
+          // regex; defense-in-depth re-checks scheme inside the handler (LNK-01).
+          hover: (event: MouseEvent, uri: string) => {
+            // Native title attribute is the simplest accessible tooltip;
+            // xterm exposes the link element via this callback's event.target.
+            if (event.target instanceof HTMLElement) {
+              event.target.setAttribute('title', uri)
+            }
+          },
+          leave: (event: MouseEvent) => {
+            // Pitfall #10: BOTH hover AND leave callbacks are required.
+            // Without leave, a stale tooltip persists over non-link cells
+            // after the mouse moves off the link.
+            if (event.target instanceof HTMLElement) {
+              event.target.removeAttribute('title')
+            }
+          },
+        })
+        term.loadAddon(addon)
+        webLinksAddonRef.current = addon
+      }
+    } else {
+      // Toggle OFF — dispose addon. Terminal buffer (scrollback) survives;
+      // only the link provider detaches.
+      if (webLinksAddonRef.current) {
+        try { webLinksAddonRef.current.dispose() } catch { /* ignore */ }
+        webLinksAddonRef.current = null
+      }
+      // Clear any in-flight confirm popover so users don't get a stuck
+      // dialog after disabling the feature.
+      setLinkConfirmState(null)
+    }
+  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, onWebGLContextLost, sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
@@ -541,6 +650,19 @@ export function TerminalPanel({
           onClose={handleSearchClose}
           focusSeq={findBarFocusSeq}
           exiting={findBarExiting}
+        />
+      )}
+      {linkConfirmState && (
+        <LinkConfirmPopover
+          url={linkConfirmState.url}
+          risk={linkConfirmState.risk}
+          x={linkConfirmState.x}
+          y={linkConfirmState.y}
+          onContinue={() => {
+            openLink(linkConfirmState.url)
+            setLinkConfirmState(null)
+          }}
+          onCancel={() => setLinkConfirmState(null)}
         />
       )}
     </div>
