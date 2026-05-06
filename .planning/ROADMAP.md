@@ -380,8 +380,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. On desktop, link activation routes through Wails `BrowserOpenURL` (links open in the user's default browser, never inside the WebView); on web-served sessions, links open via `window.open(url, '_blank', 'noopener,noreferrer')` (no current-tab navigation, ever — verified by a regression test).
   5. User can enable/disable web-links in Settings; toggling applies live to all open terminals (already-rendered links update on next refresh) without a session restart.
 **Plans**: 6 plans (5 waves)
-  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
@@ -398,8 +398,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (overriding upstream's 100 MB default); user can adjust the cap via an Advanced disclosure in Settings; a regression test loading a 50 MB sixel fixture confirms FIFO eviction at the cap and no tab OOM.
   4. A second client joining a session mid-stream after the first client has rendered an image receives a correctly-rendered image during scrollback replay (multi-client byte-fidelity audit of `internal/relay/` confirms no line-based buffering or escape filtering corrupts sixel bytes).
 **Plans**: 6 plans (5 waves)
-  - [ ] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [ ] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
+  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
+  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
   - [ ] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
   - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
   - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
@@ -490,7 +490,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 92 | v3.2 | 3/3 | Complete (pending verify) | 2026-05-04 |
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
 | 94 | v3.2 | 6/7 | In Progress|  |
-| 95 | v3.2 | 0/0 | Not started | — |
+| 95 | v3.2 | 2/6 | In Progress|  |
 | 96 | v3.2 | 0/0 | Not started | — |
 | 97 | v3.2 | 0/0 | Not started | — |
 | 98 | v3.2 | 0/0 | Not started | — |
