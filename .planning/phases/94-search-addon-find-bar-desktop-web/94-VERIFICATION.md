@@ -201,3 +201,97 @@ Recommendation: **escalate to user for direction**. The cleanest path is a small
 
 _Verified: 2026-05-05_
 _Verifier: Claude (gsd-verifier, Opus 4.7 1M context)_
+
+---
+
+# Gap Closure Verification (post-94-06 / 94-07)
+
+**Re-verified:** 2026-05-06T09:25:00Z
+**Verdict:** **PASS** — all three previously-partial gaps (WR-01, WR-02, WR-03) are now closed end-to-end in code; full Phase 94 test sweep is green.
+**Re-verifier:** Claude (gsd-verifier, Opus 4.7 1M context)
+
+## Gap-by-Gap Closure Status
+
+### WR-01 — SC-4 200ms slide-in / 150-200ms slide-out animation (closed by 94-06)
+
+| Surface | Wiring | Evidence |
+|---------|--------|----------|
+| Desktop entry | `useState(true)` + `requestAnimationFrame` drop + cancel-on-unmount | `frontend/src/components/FindBar/FindBar.tsx:77-80` (mount-RAF), `:156-157` (className composition `entering && !exiting`) |
+| Desktop exit | Parent-driven `findBarExiting` flag + 200ms `setTimeout` unmount + cancel-on-reopen | `frontend/src/components/TerminalPanel.tsx:103-104` (state + timer ref), `:504-510` (handleSearchClose), `:418-422` (Cmd-F cancel-on-reopen), `:531` (`(findBarOpen || findBarExiting)` render guard) |
+| Web entry | `el.classList.add('find-bar--entering')` → `requestAnimationFrame(() => remove)` | `web/assets/terminal.js:451`, `:460-461` |
+| Web exit | `el.classList.add('find-bar--exiting')` + 200ms `setTimeout` unmount, mid-exit re-open cancels | `web/assets/terminal.js:489-498` |
+| Web CSS | `#find-bar.find-bar--entering` and `#find-bar.find-bar--exiting` rules + reduced-motion override | `web/assets/terminal.css:213-228` |
+| Regression guards | 14 new tests across 3 files | `FindBar.animation.test.tsx` (3 runtime), `TerminalPanel.search.exit.test.tsx` (11 source-inspection), `internal/webserver/web_findbar_animation_test.go` (1 Go) — all pass |
+
+**Closed.** `find-bar--entering` / `find-bar--exiting` are no longer dead CSS — they are toggled at the JS layer on both surfaces.
+
+### WR-02 — SC-2 first-load seed of saved searchOptions defaults (closed by 94-07)
+
+| Wiring | Evidence |
+|--------|----------|
+| `seededRef` ref + one-shot useEffect | `frontend/src/components/TerminalPanel.tsx:120` (ref), `:121-131` (effect with all three early-return guards: already-seeded, source-null, mid-open) |
+| Pitfall #2 mid-open invariant | `:124` `if (findBarOpen) return` — mid-open SSE pushes never disrupt the user's in-flight toggle session |
+| Dep array | `[pluginConfig?.searchConfig, findBarOpen]` — fires when async-loaded SearchConfig arrives or bar closes |
+| Tests | 14 source-inspection tests in `TerminalPanel.search.seedAndPersist.test.tsx` covering ref declaration, all guards, dep array, setSearchOptions shape, ref flip — all pass |
+
+**Closed.** Saved per-flag defaults are now read back on first session-open after restart.
+
+### WR-03 — SC-2 SetSearchConfig sub-key RPC swap (closed by 94-07)
+
+| Layer | Wiring | Evidence |
+|-------|--------|----------|
+| Engine | `(*SessionEngine).SetSearchConfig(SearchConfig)` mutates only `e.pluginSettings.SearchConfig`, persists, fires `pluginSettingsListener` (Phase 93 PLUG-04 SSE hook → SRC-05 web parity preserved) | `internal/daemon/engine.go:497-506` |
+| HTTP | `PATCH /settings/search-config` route + `handleSetSearchConfig` (8 KiB cap, DisallowUnknownFields) | `internal/daemon/api.go:76` (route), `:567-578` (handler) |
+| Client | `(*DaemonClient).SetSearchConfig` HTTP wrapper | `internal/daemon/client.go:164-165` |
+| Wails facade | `(*App).SetSearchConfig` writes via client, then re-fetches full PluginSettings and re-emits `settings:plugins` event so App.tsx listener (which expects PluginSettings) keeps working unchanged | `app.go:505-523` |
+| TS bindings | `SetSearchConfig(arg1: daemon.SearchConfig): Promise<void>` declared and exported | `frontend/src/wailsjs/go/main/App.d.ts:131`, `App.js:80` |
+| Frontend swap | `handleSearchOptionsChange` calls `SetSearchConfig(new daemon.SearchConfig(opts))` instead of the previous full `SetPluginSettings(next)` snapshot | `frontend/src/components/TerminalPanel.tsx:13` (import), `:476` (call) |
+| Tests | `TestSetSearchConfig` (sub-key isolation + listener + reload-from-disk) plus 14 frontend source-inspection tests confirm symbol swap | All green |
+
+**Closed.** Find-bar SearchConfig writes no longer race PluginsSection's local edit buffer.
+
+## Test Sweep Results
+
+| Suite | Command | Result |
+|-------|---------|--------|
+| Phase 94 frontend (FindBar + isXtermFocused + App.plugin-event + TerminalPanel.search* + PluginsSection) | `pnpm exec vitest run` (selected files) | **109/109 passing** (was 81 before 94-06; +14 from 94-06 + +14 from 94-07) |
+| Full frontend sweep | `pnpm exec vitest run` | **618 passing / 20 failing** — only failures are pre-existing `Sidebar.test.tsx` (logged in `deferred-items.md`); no Phase 94 regression |
+| Daemon Go suite | `go test ./internal/daemon/...` | ok 6.624s |
+| Webserver Go suite (default tag) | `go test ./internal/webserver/...` | ok 1.250s |
+| Webserver Go suite (wailsassets tag) | `go test -tags wailsassets ./internal/webserver/...` | ok 1.420s |
+
+## Updated Success Criteria & Requirement Coverage
+
+| Item | Pre-closure | Post-closure |
+|------|-------------|--------------|
+| SC-1 — Cmd-F focus-conditioned open / Esc dismiss | VERIFIED | VERIFIED |
+| SC-2 — Toggleable regex/case/word with persisted defaults | PARTIAL (WR-02 + WR-03) | **VERIFIED** — first-load seed + SetSearchConfig sub-key RPC both wired and tested |
+| SC-3 — 10,000-line search w/o UI lockup, cancellable | VERIFIED | VERIFIED |
+| SC-4 — TokyoNight + 200ms slide-in/out + theme-aware highlight | PARTIAL (WR-01) | **VERIFIED** — animation wired on both surfaces; RAF-mount entry + parent-driven 200ms exit on desktop, mirror on web |
+| SC-5 — Web parity for shortcuts + visual treatment | VERIFIED (with shared SC-4 caveat) | **VERIFIED** — animation now mirrored on web; SSE plugin-config push still re-syncs SearchConfig changes via `pluginSettingsListener` |
+| SRC-01 | SATISFIED | SATISFIED |
+| SRC-02 | SATISFIED with gaps | **SATISFIED** |
+| SRC-03 | SATISFIED | SATISFIED |
+| SRC-04 | PARTIAL | **SATISFIED** |
+| SRC-05 | SATISFIED (with shared SC-4 caveat) | **SATISFIED** |
+
+## Remaining Open Items (UAT Only)
+
+The original `human_verification:` block contained six manual UATs. Code-side gaps are all closed; the following remain as **manual confirmations only** (not blockers):
+
+1. **Animation feel UAT (SC-4)** — desktop + web, plus reduced-motion + mid-exit re-open scenarios from `94-06-SUMMARY.md`.
+2. **First-load persistence UAT (SC-2)** — toggle case-sensitive ON, restart GUI, press Cmd-F, confirm toggle is ON.
+3. **PluginsSection race-regression UAT (SC-2)** — find bar toggle no longer clobbers unsaved Plugins-tab edits (described in `94-07-SUMMARY.md`).
+4. **Perf feel UAT (SC-3)** — 10,000-line search smoothness.
+5. **Web parity UAT (SC-5)** — Tailscale-served session walkthrough.
+6. **Theme matrix UAT (SC-4)** — match highlight visible across 5+ themes.
+7. **Focus-gate regression UAT (SC-1)** — browser-native Cmd-F still works on Settings tab inputs.
+
+These are subjective / runtime-only checks (animation feel, real device, perf feel, visual color matrix) that no automated harness can replace. They do not gate phase closure for code-correctness purposes.
+
+## Verdict
+
+**PASS** — Phase 94 success criteria SC-1..SC-5 and requirements SRC-01..SRC-05 are now all VERIFIED in code. Test sweep is green for Phase 94 scope (109/109) and the only remaining frontend failures (20 in Sidebar.test.tsx) are pre-existing and tracked in `deferred-items.md`. Manual UATs remain as documented user-facing verification, but they no longer surface unresolved code gaps.
+
+_Re-verified: 2026-05-06_
+_Re-verifier: Claude (gsd-verifier, Opus 4.7 1M context)_
