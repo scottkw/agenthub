@@ -477,6 +477,34 @@ func (e *SessionEngine) SetPluginSettings(s PluginSettings) {
 	}
 }
 
+// SetSearchConfig updates and persists ONLY the SearchConfig sub-key of
+// PluginSettings, leaving the rest of PluginSettings (WebGL, Unicode11,
+// Search, WebLinks, Image, Serialize, Clipboard, Progress) untouched.
+//
+// Phase 94-07 WR-03 (gap closure) — handleSearchOptionsChange used to call
+// SetPluginSettings with a full PluginSettings constructed from the
+// App-level prop, racing PluginsSection's stale local edit buffer.
+// SetSearchConfig is the surgical sub-key writer that preserves
+// PluginsSection's edit buffer semantics: a find-bar toggle change can no
+// longer overwrite an in-flight Plugins-tab boolean edit.
+//
+// Concurrency / persistence contract is identical to SetPluginSettings
+// (mutate under e.mu.Lock(), saveSettingsToDisk while held, capture and
+// invoke listener after release). The Phase 93 PLUG-04 SSE
+// pluginSettingsListener is invoked so /api/plugin-config/stream
+// subscribers (web terminal) receive a frame on every search-option
+// change — preserving SRC-05 web parity (94-04 behavior unchanged).
+func (e *SessionEngine) SetSearchConfig(cfg SearchConfig) {
+	e.mu.Lock()
+	e.pluginSettings.SearchConfig = cfg
+	e.saveSettingsToDisk()
+	listener := e.pluginSettingsListener
+	e.mu.Unlock()
+	if listener != nil {
+		listener()
+	}
+}
+
 // SetPluginSettingsListener registers a callback invoked synchronously by
 // SetPluginSettings AFTER the new value is persisted. Phase 93 PLUG-04 push
 // channel — webserver registers BroadcastPluginConfig here so SSE subscribers
