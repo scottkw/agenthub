@@ -484,7 +484,12 @@ func (a *App) SetPluginSettings(s daemon.PluginSettings) error {
 	if err := a.client.SetPluginSettings(s); err != nil {
 		return err
 	}
-	runtime.EventsEmit(a.ctx, "settings:plugins", s)
+	// WR-05: guard against nil a.ctx (test harness or early Wails-bound
+	// RPC fired before startup) — runtime.EventsEmit panics on nil ctx.
+	// Mirrors the existing pattern at app.go:266 / app.go:355 / app.go:1006.
+	if a.ctx != nil && a.ctx.Value("frontend") != nil {
+		runtime.EventsEmit(a.ctx, "settings:plugins", s)
+	}
 	return nil
 }
 
@@ -518,7 +523,10 @@ func (a *App) SetSearchConfig(cfg daemon.SearchConfig) error {
 		// The next GetPluginSettings call will reconcile.
 		full = daemon.PluginSettings{SearchConfig: cfg}
 	}
-	runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	// WR-05: guard against nil a.ctx (test harness or pre-startup RPC).
+	if a.ctx != nil && a.ctx.Value("frontend") != nil {
+		runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	}
 	return nil
 }
 
@@ -554,7 +562,10 @@ func (a *App) SetWebLinksConfig(cfg daemon.WebLinksConfig) error {
 		// frame. The next GetPluginSettings call will reconcile.
 		full = daemon.PluginSettings{WebLinksConfig: cfg}
 	}
-	runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	// WR-05: guard against nil a.ctx (test harness or pre-startup RPC).
+	if a.ctx != nil && a.ctx.Value("frontend") != nil {
+		runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	}
 	return nil
 }
 
