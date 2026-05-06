@@ -74,6 +74,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /settings/plugins", a.handleGetPluginSettings)
 	a.mux.HandleFunc("PATCH /settings/plugins", a.handleSetPluginSettings)
 	a.mux.HandleFunc("PATCH /settings/search-config", a.handleSetSearchConfig)
+	a.mux.HandleFunc("PATCH /settings/web-links-config", a.handleSetWebLinksConfig)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -576,6 +577,28 @@ func (a *API) handleSetSearchConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetSearchConfig(req)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetWebLinksConfig accepts a WebLinksConfig struct and persists ONLY
+// that sub-key of PluginSettings (Phase 95 LNK-05 / LNK-06). Defense-in-depth
+// mirrors handleSetSearchConfig: 8 KiB body cap + DisallowUnknownFields.
+//
+// The route is PATCH /settings/web-links-config — sibling to
+// /settings/search-config — chosen for symmetry with the other sub-key-style
+// PATCH routes in this API.
+func (a *API) handleSetWebLinksConfig(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+
+	var req WebLinksConfig
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetWebLinksConfig(req)
 	w.WriteHeader(http.StatusNoContent)
 }
 

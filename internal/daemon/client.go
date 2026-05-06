@@ -165,6 +165,15 @@ func (c *DaemonClient) SetSearchConfig(cfg SearchConfig) error {
 	return c.doJSON(http.MethodPatch, "/settings/search-config", cfg, nil)
 }
 
+// SetWebLinksConfig persists ONLY the WebLinksConfig sub-key of PluginSettings
+// via the daemon API. Phase 95 LNK-05 / LNK-06 — mirrors Phase 94-07
+// SetSearchConfig. Routes to engine.SetWebLinksConfig which mutates only
+// e.pluginSettings.WebLinksConfig under the engine mutex, preserving
+// PluginsSection's edit buffer for unrelated plugin booleans.
+func (c *DaemonClient) SetWebLinksConfig(cfg WebLinksConfig) error {
+	return c.doJSON(http.MethodPatch, "/settings/web-links-config", cfg, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse

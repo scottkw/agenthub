@@ -505,6 +505,35 @@ func (e *SessionEngine) SetSearchConfig(cfg SearchConfig) {
 	}
 }
 
+// SetWebLinksConfig updates and persists ONLY the WebLinksConfig sub-key
+// of PluginSettings, leaving the rest of PluginSettings (WebGL, Unicode11,
+// Search, SearchConfig, WebLinks boolean, Image, Serialize, Clipboard,
+// Progress) untouched.
+//
+// Phase 95 LNK-05 / LNK-06 — mirrors Phase 94 Plan 07's SetSearchConfig
+// sub-key writer verbatim. Concurrency / persistence contract is identical
+// to SetPluginSettings: mutate under e.mu.Lock(), saveSettingsToDisk while
+// held, capture and invoke listener after release. The Phase 93 PLUG-04
+// pluginSettingsListener is invoked so /api/plugin-config/stream
+// subscribers (web terminal) receive a frame on every WebLinksConfig
+// change — preserving live-toggle web parity (Plan 95-06 wires the
+// SSE-driven hot-swap arm in terminal.js).
+//
+// The sub-key writer is callable from v3.2 (this plan ships the path) but
+// the in-app UI for editing the sub-fields ships in Phase 99 / PUI-03;
+// until then the boolean WebLinks toggle in PluginsSection routes through
+// the full SetPluginSettings path.
+func (e *SessionEngine) SetWebLinksConfig(cfg WebLinksConfig) {
+	e.mu.Lock()
+	e.pluginSettings.WebLinksConfig = cfg
+	e.saveSettingsToDisk()
+	listener := e.pluginSettingsListener
+	e.mu.Unlock()
+	if listener != nil {
+		listener()
+	}
+}
+
 // SetPluginSettingsListener registers a callback invoked synchronously by
 // SetPluginSettings AFTER the new value is persisted. Phase 93 PLUG-04 push
 // channel — webserver registers BroadcastPluginConfig here so SSE subscribers
