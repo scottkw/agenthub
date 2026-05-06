@@ -252,6 +252,139 @@
       var searchOptions = { regex: false, caseSensitive: false, wholeWord: false };
       var matchInfo = { index: -1, count: 0 };
 
+      // ─── Phase 95 — web-links security helpers (mirror of frontend/src/lib/{urlSafety,openLink}.ts) ───
+      // Plain ES5 inline copy because the embed has no module bundler. Behavior
+      // and security invariants mirror the desktop helpers verbatim:
+      //   - isAllowedScheme: defense-in-depth scheme allowlist (https/http/mailto only)
+      //   - hasIDN: Punycode prefix OR non-ASCII codepoint on hostname (Cyrillic spoof gate)
+      //   - osc8Mismatch: display-vs-href divergence (Plan B keeps the helper for parity;
+      //     the click handler currently calls getRisk(uri, uri) so this never fires for
+      //     plain-text URLs the addon emits — wired live in v3.3 per 95-RESEARCH spike outcome).
+      //   - isTypoSquat: best-effort heuristic; NOT a security boundary (popover always surfaces URL).
+      //   - getRisk: priority osc8 → idn → typosquat (mirrors urlSafety.ts JSDoc).
+      //   - isModifierPressed: 'none' / 'platform' (mac=meta / non-mac=ctrl) / 'cmd' / 'ctrl'.
+      //   - openLink: NEVER assigns to location.href; ALWAYS window.open with literal
+      //     '_blank', 'noopener,noreferrer'; web context never has the Wails runtime
+      //     opener — that is desktop-only (see frontend/src/lib/openLink.ts).
+      var ALLOWED_SCHEMES = ['https:', 'http:', 'mailto:'];
+      function isAllowedScheme(href) {
+        try { return ALLOWED_SCHEMES.indexOf(new URL(href).protocol) !== -1; } catch (e) { return false; }
+      }
+      function hasIDN(href) {
+        try {
+          var u = new URL(href);
+          if (u.hostname.indexOf('xn--') !== -1) return true;
+          if (/[^\x00-\x7F]/.test(u.hostname)) return true;
+          return false;
+        } catch (e) {
+          // URL constructor rejects some legacy Punycode labels. Fall back to a
+          // raw-href regex on the host portion so we still surface IDN risk.
+          var m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i.exec(String(href || ''));
+          if (!m) return false;
+          var host = m[1];
+          if (host.indexOf('xn--') !== -1) return true;
+          if (/[^\x00-\x7F]/.test(host)) return true;
+          return false;
+        }
+      }
+      function osc8Mismatch(displayText, href) {
+        if (displayText === href) return false;
+        try {
+          var d = new URL(String(displayText).trim());
+          var h = new URL(href);
+          return d.host !== h.host || d.protocol !== h.protocol;
+        } catch (e) { return true; }
+      }
+      var TYPOSQUAT_LIST = (function() {
+        var s = {};
+        var entries = [
+          'paypa1.com','goog1e.com','arnazon.com','amaz0n.com','microsft.com',
+          'micros0ft.com','app1e.com','git-hub.com','tw1tter.com','twltter.com',
+          'face-book.com','faceb00k.com','linked1n.com','linkedln.com','g00gle.com',
+          'goggle.com','youtub3.com','reddlt.com','instagrarn.com','wlkipedia.org',
+          'netfllx.com','spot1fy.com','dropb0x.com','aple.com','rnicrosoft.com',
+          'arnzon.com','gocgle.com','githab.com','gitlub.com','app1eid.com'
+        ];
+        for (var i = 0; i < entries.length; i++) s[entries[i]] = true;
+        return s;
+      })();
+      function isTypoSquat(href) {
+        try {
+          var u = new URL(href);
+          var host = u.hostname.toLowerCase().replace(/^www\./, '');
+          return TYPOSQUAT_LIST[host] === true;
+        } catch (e) { return false; }
+      }
+      function getRisk(displayText, href) {
+        if (osc8Mismatch(displayText, href)) return 'osc8';
+        if (hasIDN(href)) return 'idn';
+        if (isTypoSquat(href)) return 'typosquat';
+        return null;
+      }
+      function isModifierPressed(event, mode) {
+        if (mode === 'none') return true;
+        var isMac = navigator.platform.toUpperCase().indexOf('MAC') !== -1;
+        if (mode === 'platform') return isMac ? !!event.metaKey : !!event.ctrlKey;
+        if (mode === 'cmd') return !!event.metaKey;
+        if (mode === 'ctrl') return !!event.ctrlKey;
+        return false;
+      }
+      function openLink(url) {
+        // Defense-in-depth scheme re-validation — never trust upstream callers.
+        if (!/^(https?:|mailto:)/i.test(url)) return;
+        // Web context: Wails runtime never present; window.open with the literal
+        // '_blank', 'noopener,noreferrer' options string is the ONLY navigation
+        // path. NEVER assign to location.href. NEVER set window.location.
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+
+      // Web-side link confirmation popover (plain DOM mirror of desktop
+      // LinkConfirmPopover, Plan 95-03). textContent only — never innerHTML.
+      // Edge-clipping mitigation mirrors Pitfall #4. Escape dismisses.
+      function showLinkConfirmPopover(url, risk, x, y) {
+        var pop = document.getElementById('link-confirm-popover');
+        if (!pop) return;
+        var reasonEl = document.getElementById('link-confirm-reason');
+        var urlEl = document.getElementById('link-confirm-url');
+        var continueBtn = document.getElementById('link-confirm-continue');
+        var cancelBtn = document.getElementById('link-confirm-cancel');
+        if (!reasonEl || !urlEl || !continueBtn || !cancelBtn) return;
+        reasonEl.textContent =
+          risk === 'osc8' ? 'This link displays one address but points to another. Verify the destination before continuing.'
+          : risk === 'idn' ? 'This link contains internationalized characters that can spoof familiar domains.'
+          : risk === 'typosquat' ? 'This domain matches a known impersonation pattern. Verify the spelling carefully.'
+          : '';
+        urlEl.textContent = url; // textContent — never innerHTML (T-95-06-05)
+        pop.style.left = x + 'px';
+        pop.style.top = y + 'px';
+        pop.hidden = false;
+        // Edge-clipping mitigation (mirrors desktop Pitfall #4).
+        var rect = pop.getBoundingClientRect();
+        if (x + rect.width + 8 > window.innerWidth) pop.style.left = Math.max(8, x - rect.width) + 'px';
+        if (y + rect.height + 8 > window.innerHeight) pop.style.top = Math.max(8, y - rect.height) + 'px';
+        try { cancelBtn.focus(); } catch (e) {}
+
+        function handleContinue() { cleanup(); openLink(url); }
+        function handleCancel() { cleanup(); }
+        function handleKey(e) { if (e.key === 'Escape') handleCancel(); }
+        function cleanup() {
+          pop.hidden = true;
+          continueBtn.removeEventListener('click', handleContinue);
+          cancelBtn.removeEventListener('click', handleCancel);
+          document.removeEventListener('keydown', handleKey);
+        }
+        continueBtn.addEventListener('click', handleContinue);
+        cancelBtn.addEventListener('click', handleCancel);
+        document.addEventListener('keydown', handleKey);
+      }
+
+      // Phase 95 hot-swap-capable web-links handle + sub-config sink. Read at
+      // click time so toggling modifier/confirm* sub-keys does NOT re-attach
+      // the addon (mirror of desktop webLinksConfigRef pattern, Pitfall #8).
+      var webLinksAddonHandle = null;
+      var currentWebLinksConfig = null;
+      // ────────────────────────────────────────────────────────────────────────
+
       // applyPluginConfig diff-applies a new pluginConfig against the current
       // state. Used both at initial load (vs. an "everything-off" prev) and on
       // each SSE plugin-config push frame. Phase 93 PLUG-04 hot-swap path.
@@ -346,6 +479,60 @@
               wholeWord: !!canonical.wholeWord
             };
             syncToggleUI();
+          }
+        }
+
+        // Phase 95 — web-links arm (LNK-01..06). Mirrors the desktop hot-swap
+        // pattern from TerminalPanel.tsx Plan 95-04: addon load on toggle-on,
+        // dispose on toggle-off; sub-config (modifier/confirm*) flows via
+        // currentWebLinksConfig and is read at click time so toggling those
+        // sub-keys does NOT re-attach the addon (Pitfall #8).
+        currentWebLinksConfig = newConfig.webLinksConfig || null;
+        if (!newConfig.webLinks && webLinksAddonHandle) {
+          try { webLinksAddonHandle.dispose(); } catch (e) {}
+          webLinksAddonHandle = null;
+          // Toggle-off also clears any in-flight popover so a user disabling
+          // the feature mid-confirmation doesn't get stuck looking at a dialog
+          // whose Continue path no longer makes sense.
+          var popOff = document.getElementById('link-confirm-popover');
+          if (popOff) popOff.hidden = true;
+        } else if (newConfig.webLinks && !webLinksAddonHandle) {
+          try {
+            var handler = function(event, uri) {
+              if (!isAllowedScheme(uri)) return;                              // LNK-01
+              var cfg = currentWebLinksConfig || {};
+              var modifier = cfg.modifier || 'platform';
+              if (!isModifierPressed(event, modifier)) return;                 // LNK-02
+              var risk = getRisk(uri, uri);                                    // LNK-03 (Plan B: osc8 dormant for plain-text URLs)
+              var shouldConfirm =
+                (risk === 'osc8' && (cfg.confirmOSC8 !== false)) ||
+                (risk === 'idn' && (cfg.confirmIDN !== false)) ||
+                (risk === 'typosquat' && (cfg.confirmTyposquat !== false));
+              if (risk && shouldConfirm) {
+                showLinkConfirmPopover(uri, risk, event.clientX, event.clientY);
+                return;
+              }
+              openLink(uri);                                                   // LNK-04
+            };
+            // Pitfall #7 (Phase 93): WebLinksAddon UMD global is a NAMESPACE
+            // OBJECT { WebLinksAddon: <ctor> }. Constructor is therefore
+            // new WebLinksAddon.WebLinksAddon(...), NOT new WebLinksAddon(...).
+            // Verified via grep on web/vendor/xterm/addons/addon-web-links.js
+            // for `e.WebLinksAddon=t()` (UMD root assignment).
+            webLinksAddonHandle = new WebLinksAddon.WebLinksAddon(handler, {
+              hover: function(event, uri) {
+                if (event.target && event.target.setAttribute) event.target.setAttribute('title', uri);
+              },
+              leave: function(event) {
+                if (event.target && event.target.removeAttribute) event.target.removeAttribute('title');
+              }
+            });
+            term.loadAddon(webLinksAddonHandle);
+          } catch (e) {
+            // WebLinksAddon construction failed — silent; the user enabled it
+            // but the env refused. Hover/click do nothing for URLs.
+            console.warn('[web-links] addon load failed:', e);
+            webLinksAddonHandle = null;
           }
         }
 
