@@ -598,6 +598,19 @@ func (a *API) handleSetWebLinksConfig(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+	// WR-02: validate Modifier against the four documented literals so a
+	// typoed value or corrupted settings.json cannot silently disable the
+	// entire feature (isModifierPressed falls through every if and
+	// returns false → every modifier-click is gated off with no UX
+	// feedback). The struct comment in plugin_settings.go documents
+	// these four values; here we enforce them at the API boundary.
+	switch req.Modifier {
+	case "platform", "cmd", "ctrl", "none":
+		// ok
+	default:
+		http.Error(w, "modifier must be one of: platform, cmd, ctrl, none", http.StatusBadRequest)
+		return
+	}
 	a.engine.SetWebLinksConfig(req)
 	w.WriteHeader(http.StatusNoContent)
 }
