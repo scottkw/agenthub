@@ -46,7 +46,13 @@ export function isModifierPressed(event: MouseEvent, mode: ModifierMode): boolea
  * NEVER navigates the current tab. NEVER omits 'noopener,noreferrer' on web.
  */
 export function openLink(url: string): void {
-  if (!/^(https?:|mailto:)/i.test(url)) return; // Defense-in-depth scheme gate.
+  // WR-04: tightened scheme gate — match only the three allowed schemes
+  // exactly (https://, http://, mailto:) and drop the case-insensitive flag.
+  // The URL constructor normalizes protocol to lowercase upstream; allowing
+  // mixed case here only adds attack surface for novel scheme spoofing if a
+  // future refactor weakens isAllowedScheme. Anchored to require // for http
+  // schemes so absurd inputs like "https:javascript:..." are rejected.
+  if (!/^(?:https?:\/\/|mailto:)/.test(url)) return;
   const hasWails =
     typeof window !== 'undefined' &&
     typeof (window as { runtime?: { BrowserOpenURL?: unknown } }).runtime

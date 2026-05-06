@@ -343,7 +343,11 @@
       }
       function openLink(url) {
         // Defense-in-depth scheme re-validation — never trust upstream callers.
-        if (!/^(https?:|mailto:)/i.test(url)) return;
+        // WR-04: tightened — only https://, http://, mailto: exactly. Drop
+        // the case-insensitive flag (URL constructor normalizes to lowercase
+        // upstream). Anchored to require // for http schemes so absurd inputs
+        // like "https:javascript:..." are rejected at this layer too.
+        if (!/^(?:https?:\/\/|mailto:)/.test(url)) return;
         // Web context: Wails runtime never present; window.open with the literal
         // '_blank', 'noopener,noreferrer' options string is the ONLY navigation
         // path. NEVER assign to location.href. NEVER set window.location.
