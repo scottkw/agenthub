@@ -97,9 +97,11 @@ describe('Phase 94-07 WR-03: TerminalPanel persistence — sub-key write via Set
     expect(deps).not.toContain('pluginConfig')
   })
 
-  it('SetSearchConfig is called exactly once per handleSearchOptionsChange invocation', () => {
-    // Match the `SetSearchConfig(...)` call site (one .catch() chained — silent failure).
-    expect(src).toMatch(/SetSearchConfig\([^)]*\)\.catch\(/)
+  it('SetSearchConfig call site has a .catch() guard (silent fire-and-forget)', () => {
+    // Match the SetSearchConfig(...) call site with a chained .catch().
+    // The argument may itself contain parentheses (e.g. `new daemon.SearchConfig(opts)`),
+    // so we walk one level of paren nesting in the regex.
+    expect(src).toMatch(/SetSearchConfig\([^()]*(?:\([^)]*\)[^()]*)*\)\.catch\(/)
   })
 })
 

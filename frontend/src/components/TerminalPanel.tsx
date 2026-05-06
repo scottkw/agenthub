@@ -10,7 +10,7 @@ import { RelayClient } from '../lib/relayClient'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
 import { FindBar, type FindBarSearchOptions } from './FindBar/FindBar'
-import { SetPluginSettings } from '../wailsjs/go/main/App'
+import { SetSearchConfig } from '../wailsjs/go/main/App'
 import { daemon } from '../wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
 
@@ -109,6 +109,26 @@ export function TerminalPanel({
     caseSensitive: pluginConfig?.searchConfig?.caseSensitive ?? false,
     wholeWord: pluginConfig?.searchConfig?.wholeWord ?? false,
   }))
+  // Phase 94-07 WR-02 / SC-2 (gap closure) — first-load seed for searchOptions.
+  // The lazy initializer above runs ONLY on first render, when pluginConfig
+  // is typically still null (App.tsx loads it async via GetPluginSettings).
+  // This ref guards a one-shot useEffect that seeds searchOptions exactly
+  // once when pluginConfig.searchConfig FIRST becomes non-null AND the
+  // find bar is NOT currently open. Pitfall #2 invariant preserved:
+  // mid-open re-seeds would surprise the user (e.g. SSE-pushed change
+  // from another window clobbers a toggle they just clicked).
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (seededRef.current) return
+    if (!pluginConfig?.searchConfig) return
+    if (findBarOpen) return // Pitfall #2 — never re-seed mid-open.
+    setSearchOptions({
+      regex: !!pluginConfig.searchConfig.regex,
+      caseSensitive: !!pluginConfig.searchConfig.caseSensitive,
+      wholeWord: !!pluginConfig.searchConfig.wholeWord,
+    })
+    seededRef.current = true
+  }, [pluginConfig?.searchConfig, findBarOpen])
   const [matchInfo, setMatchInfo] = useState<{ index: number; count: number }>({ index: -1, count: 0 })
 
   // Create the terminal and relay client once per sessionId.
@@ -439,15 +459,24 @@ export function TerminalPanel({
     setSearchOptions(opts)
     // Phase 94 SRC-02 + SRC-04: see decorations comment in handleSearchQueryChange.
     if (searchQuery) searchAddonRef.current?.findNext(searchQuery, { ...opts, decorations: {} as never })
-    if (pluginConfig) {
-      const next = new daemon.PluginSettings({ ...pluginConfig, searchConfig: opts })
-      // Fire-and-forget: error toast (if any) is owned by the Settings UI.
-      // .catch() guard keeps an unhandled rejection from leaking out.
-      SetPluginSettings(next).catch(() => {
-        /* silent — Settings panel surfaces persistence errors */
-      })
-    }
-  }, [pluginConfig, searchQuery])
+    // Phase 94-07 WR-03 (gap closure) — write ONLY the searchConfig sub-key.
+    // Previously we constructed a full PluginSettings from the App-level
+    // prop and called SetPluginSettings, which raced PluginsSection's
+    // stale edit buffer (PluginsSection only fetches GetPluginSettings on
+    // mount and does NOT subscribe to settings:plugins). The new
+    // SetSearchConfig RPC mutates only e.pluginSettings.SearchConfig
+    // under the engine mutex — PluginsSection's unsaved boolean edits
+    // can no longer be clobbered by a find-bar persistence call.
+    //
+    // The Phase 93 PLUG-04 listener fires from the daemon side, so the
+    // settings:plugins SSE event still pushes to web subscribers — SRC-05
+    // web parity unchanged. App.SetSearchConfig also re-emits the Wails
+    // "settings:plugins" runtime event so the desktop App.tsx listener
+    // continues to receive a frame on every change.
+    SetSearchConfig(new daemon.SearchConfig(opts)).catch(() => {
+      /* silent — Settings panel surfaces persistence errors */
+    })
+  }, [searchQuery])
 
   const handleSearchNext = useCallback(() => {
     // Phase 94 SRC-02 + SRC-04: see decorations comment in handleSearchQueryChange.
