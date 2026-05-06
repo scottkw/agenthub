@@ -341,7 +341,20 @@
       // Web-side link confirmation popover (plain DOM mirror of desktop
       // LinkConfirmPopover, Plan 95-03). textContent only — never innerHTML.
       // Edge-clipping mitigation mirrors Pitfall #4. Escape dismisses.
+      //
+      // CR-01 fix: track the cleanup closure at module scope and invoke it
+      // on re-entry so rapid successive risky clicks do NOT stack click /
+      // keydown listeners (which previously caused a single Continue press
+      // to open EVERY queued URL — including ones the user had not yet
+      // visually confirmed). Mirrors the existing findBarExitTimer /
+      // searchDebounceTimer cancel-on-re-entry idiom in this file.
+      var linkConfirmCleanup = null;
       function showLinkConfirmPopover(url, risk, x, y) {
+        // Idempotent dismiss of any prior popover invocation — drops stacked
+        // click + keydown handlers before binding fresh ones (CR-01).
+        if (linkConfirmCleanup) {
+          try { linkConfirmCleanup(); } catch (e) {}
+        }
         var pop = document.getElementById('link-confirm-popover');
         if (!pop) return;
         var reasonEl = document.getElementById('link-confirm-reason');
@@ -372,10 +385,12 @@
           continueBtn.removeEventListener('click', handleContinue);
           cancelBtn.removeEventListener('click', handleCancel);
           document.removeEventListener('keydown', handleKey);
+          linkConfirmCleanup = null;
         }
         continueBtn.addEventListener('click', handleContinue);
         cancelBtn.addEventListener('click', handleCancel);
         document.addEventListener('keydown', handleKey);
+        linkConfirmCleanup = cleanup;
       }
 
       // Phase 95 hot-swap-capable web-links handle + sub-config sink. Read at
