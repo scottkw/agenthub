@@ -394,7 +394,14 @@ export function TerminalPanel({
           // (the daemon's defaultPluginSettings + SetWebLinksConfig RPC
           // validation pin the value to one of these four literals — Plan
           // 95-05 enforces, here we accept and fall back defensively).
-          const modifier = (cfg?.modifier ?? 'platform') as ModifierMode
+          //
+          // WR-03: use truthy fallback (||) — matching web/assets/terminal.js
+          // — so an empty-string `modifier` (corrupted settings.json edge
+          // case) falls back to 'platform' instead of breaking the click
+          // gate silently. Desktop and web must behave identically here
+          // (UI-SPEC web parity mandate). WR-02's API-boundary validation
+          // is the primary defense; this is the secondary belt-and-braces.
+          const modifier = (cfg?.modifier || 'platform') as ModifierMode
           if (!isModifierPressed(event, modifier)) return
           // LNK-03: risk detection. For plain-text URL matches the addon
           // emits, displayText === uri, so osc8Mismatch never fires here —
