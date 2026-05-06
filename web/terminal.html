@@ -46,6 +46,20 @@
   <script src="/assets/xterm/addons/addon-unicode11.js"></script>
   <script src="/assets/xterm/addons/addon-clipboard.js"></script>
   <script src="/assets/xterm/addons/addon-search.js"></script>
+  <script src="/assets/xterm/addons/addon-web-links.js"></script>
+  <!-- Phase 95 LNK-03 — Web parity link confirmation popover.
+       Plain DOM (no React); shown by terminal.js showLinkConfirmPopover
+       via [hidden]=false. textContent only — never innerHTML. Mirrors the
+       desktop LinkConfirmPopover (Plan 95-03). -->
+  <div id="link-confirm-popover" hidden role="dialog" aria-modal="true" aria-labelledby="link-confirm-title" style="position:fixed;">
+    <h3 id="link-confirm-title">Confirm link destination</h3>
+    <p id="link-confirm-reason"></p>
+    <code id="link-confirm-url"></code>
+    <div class="link-confirm-popover__actions">
+      <button id="link-confirm-cancel" type="button">Cancel</button>
+      <button id="link-confirm-continue" type="button">Continue to site</button>
+    </div>
+  </div>
   <script src="/assets/terminal.js"></script>
 </body>
 </html>
