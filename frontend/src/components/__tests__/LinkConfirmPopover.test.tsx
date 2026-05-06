@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { flushSync, act } from 'react-dom'
+import { flushSync } from 'react-dom'
 import { LinkConfirmPopover } from '../LinkConfirmPopover'
 
 interface RenderOpts {
@@ -53,7 +53,7 @@ function renderPopover(opts: RenderOpts = {}) {
 describe('LinkConfirmPopover — Plan 95-03', () => {
   let cleanups: Array<() => void> = []
 
-  function track(rendered: { container: HTMLElement; root: Root }) {
+  function track<T extends { container: HTMLElement; root: Root }>(rendered: T): T {
     cleanups.push(() => {
       flushSync(() => rendered.root.unmount())
       rendered.container.remove()
@@ -201,5 +201,3 @@ describe('LinkConfirmPopover — Plan 95-03', () => {
   })
 })
 
-// Suppress unused-import warning if `act` is not invoked in this file.
-void act
