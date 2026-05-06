@@ -273,6 +273,18 @@
       function hasIDN(href) {
         try {
           var u = new URL(href);
+          // WR-01: mailto URLs have no .hostname (mailto is not a "special"
+          // scheme per WHATWG URL spec). Extract the domain from pathname
+          // (RFC 6068) and re-run the IDN check on it so Cyrillic / xn--
+          // mailto addresses still surface the popover.
+          if (u.protocol === 'mailto:') {
+            var at = u.pathname.lastIndexOf('@');
+            if (at < 0) return false;
+            var domain = u.pathname.slice(at + 1);
+            if (domain.toLowerCase().indexOf('xn--') !== -1) return true;
+            if (/[^\x00-\x7F]/.test(domain)) return true;
+            return false;
+          }
           if (u.hostname.indexOf('xn--') !== -1) return true;
           if (/[^\x00-\x7F]/.test(u.hostname)) return true;
           return false;
