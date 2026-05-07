@@ -244,7 +244,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [ ] **Phase 94: Search Addon + Find Bar (Desktop + Web)** — Vendored `@xterm/addon-search`; floating find bar matching BannerStack vocabulary; Cmd-F (focus-conditioned) / Esc / Enter / Shift-Enter / Cmd-G keybindings; match count; per-flag persisted defaults; web parity for find bar.
 - [ ] **Phase 95: Web-Links Addon + Security Hardening** — v3.1-rigor security gate: vendored `@xterm/addon-web-links`; strict scheme allowlist (`https`, `http`, `mailto`); platform-aware Cmd/Ctrl-click activation; OSC 8 hover href display + spoof warning; IDN/Punycode click confirmation; `BrowserOpenURL` (desktop) / `noopener,noreferrer` `window.open` (web).
 - [ ] **Phase 96: Image Addon + CSP Audit** — Pre-phase research subtask audits `addon-image.js` for `URL.createObjectURL`/`new Worker(`/`blob:` usage BEFORE wiring; vendored addon with `storageLimit: 16` MB override; Settings advanced reveal for storage cap; multi-client byte-fidelity replay regression test.
-- [ ] **Phase 97: Serialize Addon + Save-Session UX** — Vendored `@xterm/addon-serialize`; "Save Terminal As…" tab right-click action via Wails `SaveFileDialog`; text-only output in v3.2 (HTML deferred); explicit secrets-warning tooltip; no auto-save / no on-disk capture without explicit gesture.
+- [ ] **Phase 97: Serialize Addon + Save-Session UX** — Vendored `@xterm/addon-serialize`; "Save Terminal As…" tab right-click action via Wails `SaveFileDialog`; text-only output in v3.2 (HTML deferred); explicit secrets-warning tooltip; no auto-save / no on-disk capture without explicit gesture. **6 plans (4 waves) planned 2026-05-07**.
 - [ ] **Phase 98: Progress Addon (P2 — cuttable)** — Vendored `@xterm/addon-progress` with default OFF; OSC 9;4 progress events route to per-tab progress underline + tray aggregate quartile glyph. Explicitly cuttable if Phases 95 or 96 over-run.
 - [ ] **Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)** — Polished per-plugin captions ("Applies to new sessions you create" + post-toggle BannerStack on unicode11/image); per-plugin advanced disclosures; three-state Save reuse; `schemaVersion: 2` migration test green; cross-browser CSP e2e (Chromium + Safari + Firefox); iPad Safari Tailscale UAT.
 
@@ -414,13 +414,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. User right-clicks a terminal tab → chooses "Save Terminal As…" → Wails `SaveFileDialog` opens → confirms a path → a `.txt` file is written containing the full visible scrollback (text-only output; HTML output is explicitly out of scope for v3.2 and tracked as SER-FUT-01).
   2. Settings tooltip on the Serialize toggle reads (verbatim or near-verbatim): "Saved files include any secrets, tokens, or sensitive data printed in the session." Toggle defaults to ON for the addon-as-library; serialize never auto-saves or auto-runs.
   3. No on-disk capture of session state occurs without an explicit user action in v3.2 — a regression test (or scope-discipline review checklist item) confirms there is no timer-driven serialization, no graceful-shutdown serialization, and no settings option that enables auto-save.
-**Plans**: 6 plans (5 waves)
-  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
-  - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
-  - [x] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
-  - [x] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
-  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
+**Plans**: 6 plans (4 waves)
+  - [ ] 97-01-PLAN.md — Wave 0: promote addon-serialize to runtime dep + vendor UMD bundle + bump VERSION + bump drift-test min-count (8→9) + lock SER-02 default + 8 RED scaffolds + GREEN-now SER-03 negative-grep regression test
+  - [ ] 97-02-PLAN.md — Wave 1: lib/stripAnsi.ts + lib/sanitizeFilename.ts pure helpers (parallel with 97-03)
+  - [ ] 97-03-PLAN.md — Wave 1: App.tsx saver registry (state + handleRegisterSaver + handleRequestSave) + save-banner UI + wailsjs SaveTerminalSession type stub (parallel with 97-02)
+  - [ ] 97-04-PLAN.md — Wave 2: TerminalPanel hot-swap arm (NOT mount) + TabBar Save Terminal As… context menu item + App.tsx wave-bridge as-any cast removal (parallel with 97-05)
+  - [ ] 97-05-PLAN.md — Wave 2: (*App).SaveTerminalSession Wails RPC + saveFileDialogFunc injection + bindings hand-edit + SER-02 verbatim secrets-warning caption (parallel with 97-04)
+  - [ ] 97-06-PLAN.md — Wave 3: web parity (embed.go directive + terminal.html script tag + initTerminal SerializeAddon construction — vendoring-discipline parity only, no web Save UI in v3.2) + 97-HUMAN-UAT.md runbook + human-checkpoint sign-off (autonomous: false)
 **UI hint**: yes
 
 ### Phase 98: Progress Addon (P2 — Cuttable)
@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 94 | v3.2 | 6/7 | In Progress|  |
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
-| 97 | v3.2 | 0/0 | Not started | — |
+| 97 | v3.2 | 0/6 | Planned | — |
 | 98 | v3.2 | 0/0 | Not started | — |
 | 99 | v3.2 | 0/0 | Not started | — |
 
