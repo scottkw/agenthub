@@ -206,6 +206,39 @@ describe('THM-03: live theme application', () => {
   })
 })
 
+describe('Phase 97 SER-01: SerializeAddon hot-swap arm — Plan 97-04 implements', () => {
+  it('imports SerializeAddon from @xterm/addon-serialize', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements import { SerializeAddon } from "@xterm/addon-serialize"')
+  })
+  it('declares serializeAddonRef parallel to other addon refs', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements useRef<SerializeAddon | null>(null)')
+  })
+  it('constructs new SerializeAddon() inside the hot-swap useEffect', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements new SerializeAddon() construction')
+  })
+  it('calls serialize({ excludeModes: true }) — Pitfall #1 regression guard against trailing mode-restore wrap', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements serialize({ excludeModes: true })')
+  })
+  it('reads pluginConfig?.serialize toggle to gate the arm', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements pluginConfig?.serialize gate')
+  })
+  it('consumes onRegisterSaver?: callback prop from App.tsx', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements onRegisterSaver prop consumption')
+  })
+  it('SerializeAddon construction lives in HOT-SWAP useEffect, NOT mount useEffect (distinct from Phase 96 ImageAddon)', () => {
+    // Critical pattern-map distinction: Image is mount-only (buffer-state implications);
+    // Serialize is hot-swap (pure buffer-walker). Plan 97-04 places it alongside Clipboard/WebGL,
+    // NOT alongside Image/Unicode11. 97-PATTERNS.md §Hot-swap addon arm contract.
+    expect.fail('RED scaffold — Plan 97-04 implements hot-swap-useEffect placement (NOT mount); 97-PATTERNS §Hot-swap arm contract')
+  })
+  it('unregisters saver on toggle-off (onRegisterSaver?.(sessionId, null) — Pitfall #6)', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements unregister-on-toggle-off + unregister-on-unmount')
+  })
+  it('hot-swap useEffect dep array includes pluginConfig?.serialize and onRegisterSaver', () => {
+    expect.fail('RED scaffold — Plan 97-04 extends dep array to include pluginConfig?.serialize + onRegisterSaver')
+  })
+})
+
 describe('IMG-01/IMG-02 ImageAddon construction (Plan 96-04)', () => {
   it('TerminalPanel.tsx imports ImageAddon from @xterm/addon-image', () => {
     expect(raw).toContain("import { ImageAddon } from '@xterm/addon-image'")

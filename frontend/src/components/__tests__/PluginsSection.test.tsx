@@ -90,6 +90,14 @@ describe('Phase 93 U11-01: italic caption under Unicode 11 row', () => {
   })
 })
 
+describe('Phase 97 SER-02: italic secrets-warning caption under Serialize row — Plan 97-05 implements', () => {
+  it('Serialize renderRow carries the verbatim secrets warning as its 4th argument', () => {
+    // Verbatim per REQUIREMENTS SER-02:
+    // "Saved files include any secrets, tokens, or sensitive data printed in the session."
+    expect.fail('RED scaffold — Plan 97-05 implements verbatim secrets-warning caption (97-PATTERNS §PluginsSection.tsx Serialize row 4th arg)')
+  })
+})
+
 describe('IMG-01: italic next-session-only caption under Image row (Plan 96-04)', () => {
   it("Image renderRow carries 'Applies to new sessions you create.' as its 4th argument", () => {
     // The exact string must appear at least TWICE — once for unicode11

@@ -25,8 +25,15 @@ func TestDefaultPluginSettings(t *testing.T) {
 	if !s.Image {
 		t.Error("expected Image=true (UI-SPEC default ON)")
 	}
+	// Phase 97 SER-02: Serialize defaults to true (Phase 96 set the default at
+	// plugin_settings.go line 109; Phase 97 freezes the assertion as forever-
+	// defense regression). Toggle is the addon-as-library boolean — when true,
+	// SerializeAddon attaches to terminals; when false, the right-click "Save
+	// Terminal As…" menu item still appears but invokes a banner instead of
+	// the dialog (per RESEARCH §User Constraints / "Whether the Save menu
+	// item appears when Serialize is toggled OFF").
 	if !s.Serialize {
-		t.Error("expected Serialize=true (UI-SPEC default ON)")
+		t.Error("expected Serialize=true (Phase 97 SER-02 lock-in)")
 	}
 	if !s.Clipboard {
 		t.Error("expected Clipboard=true (UI-SPEC default ON)")

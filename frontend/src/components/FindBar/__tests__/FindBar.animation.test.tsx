@@ -12,7 +12,7 @@
  * UI-SPEC §"Animation" lines 197-202 mandates 200ms slide-in with
  * translateY(-100%) → 0 + opacity 0 → 1.
  */
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
