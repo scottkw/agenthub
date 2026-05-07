@@ -168,4 +168,37 @@ describe('Phase 94 SRC-02: SearchConfig nested type round-trip', () => {
     expect(ps2.webLinksConfig.confirmIDN).toBe(true)
     expect(ps2.webLinksConfig.confirmTyposquat).toBe(false)
   })
+
+  // Phase 96 Plan 96-01 Task 2 — Wave 0 hand-edit landing for the
+  // imageConfig nested struct. The daemon.ImageConfig class lands in
+  // Plan 96-01 Task 1 (frontend/src/wailsjs/go/models.ts hand-edit), so
+  // these tests run GREEN immediately. Plans 96-04 / 96-05 wire the prop
+  // drill into TerminalPanel and the SetImageConfig sub-key RPC.
+  it('daemon.PluginSettings preserves nested imageConfig as an ImageConfig instance (Plan 96-01 hand-edit)', () => {
+    const ps = new daemon.PluginSettings({
+      webgl: true, unicode11: true, search: true,
+      searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+      webLinks: true,
+      webLinksConfig: { modifier: 'platform', confirmOSC8: true, confirmIDN: true, confirmTyposquat: true },
+      image: true,
+      imageConfig: { storageLimit: 16 },
+      serialize: true, clipboard: true, progress: false,
+    })
+    expect(ps.imageConfig).toBeInstanceOf(daemon.ImageConfig)
+    expect(ps.imageConfig.storageLimit).toBe(16)
+  })
+
+  it('daemon.PluginSettings imageConfig round-trips through JSON (Plan 96-01 hand-edit)', () => {
+    const ps = new daemon.PluginSettings({
+      webgl: true, unicode11: true, search: true,
+      searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+      webLinks: true,
+      webLinksConfig: { modifier: 'platform', confirmOSC8: true, confirmIDN: true, confirmTyposquat: true },
+      image: true,
+      imageConfig: { storageLimit: 32 },
+      serialize: true, clipboard: true, progress: false,
+    })
+    const roundTrip = JSON.parse(JSON.stringify(ps))
+    expect(roundTrip.imageConfig.storageLimit).toBe(32)
+  })
 })

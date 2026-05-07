@@ -222,3 +222,27 @@ func TestCSPHeaders_FailsClosedOnEmptyBaseURL(t *testing.T) {
 		t.Errorf("CSP header must not be set on fail path (Phase 89 D-13): got %q", csp)
 	}
 }
+
+// TestCSPHeaders_HasWasmUnsafeEval — Plan 96-03 implements.
+// Phase 96 IMG-03 CSP amendment: script-src must include
+// 'wasm-unsafe-eval' to permit @xterm/addon-image's SIXEL/IIP
+// WASM decoder to instantiate (per 96-RESEARCH §"Mandatory
+// Pre-Phase CSP Audit Finding 2"; CSP3 §6.3 directive).
+func TestCSPHeaders_HasWasmUnsafeEval(t *testing.T) {
+	t.Skip("Pending until Plan 96-03 amends script-src to include 'wasm-unsafe-eval' (96-VALIDATION row IMG-03 CSP middleware adds 'wasm-unsafe-eval').")
+}
+
+// TestCSPHeaders_NoUnsafeEvalToken_TokenAware — Plan 96-03 tightens
+// the existing TestCSPHeaders_NoUnsafeTokens substring check to be
+// token-aware. After Plan 96-03, the script-src directive contains
+// 'wasm-unsafe-eval'; a naive strings.Contains(csp, "'unsafe-eval'")
+// check would FALSELY MATCH because 'unsafe-eval' is a substring of
+// 'wasm-unsafe-eval'. This test asserts that the script-src clause,
+// tokenized on whitespace, does NOT contain a bare "'unsafe-eval'"
+// token (only "'wasm-unsafe-eval'" — distinct CSP3 source expression).
+//
+// Per 96-PATTERNS.md §`internal/webserver/csp_mw_test.go` Adapt block:
+// pull script-src clause; tokenize; compare per-token equality.
+func TestCSPHeaders_NoUnsafeEvalToken_TokenAware(t *testing.T) {
+	t.Skip("Pending until Plan 96-03 tightens the 'unsafe-eval' check to token-aware split-on-whitespace within script-src clause (96-VALIDATION row IMG-03 CSP middleware does NOT contain 'unsafe-eval' defense regression).")
+}
