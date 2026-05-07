@@ -208,18 +208,44 @@ describe('THM-03: live theme application', () => {
 
 describe('IMG-01/IMG-02 ImageAddon construction (Plan 96-04)', () => {
   it('TerminalPanel.tsx imports ImageAddon from @xterm/addon-image', () => {
-    expect.fail("RED scaffold — Plan 96-04 implements ImageAddon import (96-VALIDATION row IMG-01 TerminalPanel constructs ImageAddon).")
+    expect(raw).toContain("import { ImageAddon } from '@xterm/addon-image'")
   })
   it('TerminalPanel.tsx declares imageAddonRef parallel to other addon refs', () => {
-    expect.fail("RED scaffold — Plan 96-04 implements imageAddonRef (96-PATTERNS.md §`frontend/src/components/TerminalPanel.tsx`).")
+    expect(raw).toMatch(/const\s+imageAddonRef\s*=\s*useRef<ImageAddon\s*\|\s*null>\(null\)/)
   })
   it('TerminalPanel.tsx constructs new ImageAddon(...) with enableSizeReports: false (Pitfall #8 regression guard)', () => {
-    expect.fail("RED scaffold — Plan 96-04 implements new ImageAddon({ ..., enableSizeReports: false }) (96-RESEARCH §`Pitfall 8: CSI Response Pollution`).")
+    expect(raw).toContain('new ImageAddon(')
+    expect(raw).toContain('enableSizeReports: false')
   })
   it('TerminalPanel.tsx passes pluginConfig?.imageConfig?.storageLimit ?? 16 to ImageAddon constructor', () => {
-    expect.fail("RED scaffold — Plan 96-04 implements storageLimit pass-through (96-VALIDATION row IMG-02 TerminalPanel passes pluginConfig.imageConfig.storageLimit).")
+    expect(raw).toContain('pluginConfig?.imageConfig?.storageLimit ?? 16')
   })
   it('ImageAddon construction lives in MOUNT useEffect, NOT hot-swap useEffect (next-session-only invariant)', () => {
-    expect.fail("RED scaffold — Plan 96-04 implements MOUNT-useEffect placement; assert ImageAddon text appears in mount useEffect range and NOT in hot-swap useEffect range (96-RESEARCH §`Pitfall 1: Wrong useEffect`).")
+    // Assertion 1: ImageAddon construction text appears in source.
+    expect(raw).toContain('new ImageAddon(')
+
+    // Assertion 2: ImageAddon construction appears within ~2000 chars
+    // AFTER the Unicode 11 construction marker — proving mount-useEffect
+    // placement. Unicode 11 lives in the [sessionId]-keyed mount useEffect.
+    const unicode11Idx = raw.indexOf('new Unicode11Addon(')
+    expect(unicode11Idx).toBeGreaterThan(-1)
+    const imageIdx = raw.indexOf('new ImageAddon(', unicode11Idx)
+    expect(imageIdx).toBeGreaterThan(-1)
+    expect(imageIdx - unicode11Idx).toBeLessThan(2000)
+
+    // Assertion 3: NO useEffect dep array references pluginConfig?.image
+    // or pluginConfig?.imageConfig. The mount-useEffect BODY may (and
+    // must) reference these — they live in the construction gate. But
+    // a dep array reference would re-run the effect on Settings save,
+    // violating the next-session-only invariant.
+    //
+    // Pragmatic regex: match each dep array `}, [ ... ])` pattern and
+    // verify image fields are absent.
+    const depArrayMatches = raw.match(/\}\s*,\s*\[([^\]]*)\]\s*\)/g) || []
+    expect(depArrayMatches.length).toBeGreaterThan(0)
+    for (const depArray of depArrayMatches) {
+      expect(depArray).not.toMatch(/pluginConfig\?\.image\b/)
+      expect(depArray).not.toMatch(/pluginConfig\?\.imageConfig\b/)
+    }
   })
 })

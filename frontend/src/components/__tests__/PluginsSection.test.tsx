@@ -92,6 +92,20 @@ describe('Phase 93 U11-01: italic caption under Unicode 11 row', () => {
 
 describe('IMG-01: italic next-session-only caption under Image row (Plan 96-04)', () => {
   it("Image renderRow carries 'Applies to new sessions you create.' as its 4th argument", () => {
-    expect.fail("RED scaffold — Plan 96-04 adds the literal italic-caption string to the existing image renderRow call (96-PATTERNS.md §`frontend/src/components/PluginsSection.tsx`).")
+    // The exact string must appear at least TWICE — once for unicode11
+    // (existing — Phase 93 U11-01), once for image (this plan adds it).
+    // UX consistency is intentional: both addons are next-session-only;
+    // they share the same caption verbatim.
+    const matches = raw.match(/Applies to new sessions you create\./g) || []
+    expect(matches.length).toBeGreaterThanOrEqual(2)
+
+    // Tighter assertion: the caption must appear within ~400 chars AFTER
+    // the 'Inline images' label, proving it is the 4th argument of the
+    // image renderRow call (not just floating elsewhere).
+    const inlineImagesIdx = raw.indexOf("'Inline images'")
+    expect(inlineImagesIdx).toBeGreaterThan(-1)
+    const captionAfterImage = raw.indexOf('Applies to new sessions you create.', inlineImagesIdx)
+    expect(captionAfterImage).toBeGreaterThan(-1)
+    expect(captionAfterImage - inlineImagesIdx).toBeLessThan(400)
   })
 })
