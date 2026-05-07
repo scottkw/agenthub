@@ -937,36 +937,36 @@ if (pluginConfig?.clipboard) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 > All questions answered inline based on ROADMAP, REQUIREMENTS, and existing-pattern reasoning. Listed here for transparency in case the planner wants to re-litigate any.
 
 1. **Web parity scope: ship in Phase 97 or defer to SER-FUT?**
    - What we know: The vendored addon-serialize.js file ships in Phase 97 (vendoring discipline + `vendor_drift_test.go` requires it). The `<script>` tag in `web/terminal.html` is optional. There's no natural web equivalent to the Wails native Save dialog except `<a download>` blob URL.
    - What's unclear: Whether users care about "right-click a tab in the browser-served terminal page → save."
-   - Recommendation: Ship vendor file + `<script>` tag; SKIP browser save UI in v3.2. Track as SER-FUT-WEB. Phase 99 can revisit.
+   - **RESOLVED:** Ship vendor file + `<script>` tag; SKIP browser save UI in v3.2. Track as SER-FUT-WEB. Phase 99 can revisit.
 
 2. **Hot-swap vs mount-only attach for SerializeAddon?**
    - What we know: SerializeAddon has no rendering side effects (it doesn't allocate canvases, attach DOM, register parsers, or hook PTY events). It's a "library function" that walks the buffer when invoked.
    - Options: (a) Hot-swap arm — addon attaches/detaches with toggle; mirror of WebGL/Clipboard. (b) Mount-only — attached at session init, no detach until tab close.
-   - Recommendation: **(a) Hot-swap.** Toggling Serialize OFF should release the addon's dispose-able resources immediately (it's almost nothing — but consistency with the other hot-swap arms is the defensible default). The italic caption is the SECRETS warning, NOT a "next-session-only" caption.
+   - **RESOLVED:** **(a) Hot-swap.** Toggling Serialize OFF should release the addon's dispose-able resources immediately (it's almost nothing — but consistency with the other hot-swap arms is the defensible default). The italic caption is the SECRETS warning, NOT a "next-session-only" caption.
 
 3. **Should the Save menu item be hidden when Serialize is OFF?**
    - What we know: Hidden = simpler menu, but discoverability suffers ("where's save?"). Always-shown + toast = consistent menu, slight noise on click-when-disabled.
-   - Recommendation: Always show the menu item. Click-when-disabled shows a one-shot BannerStack info toast `"Enable the Serialize plugin in Settings to save sessions"`. Mirrors Phase 87 capability-token error UX.
+   - **RESOLVED:** Always show the menu item. Click-when-disabled shows a one-shot BannerStack info toast `"Enable the Serialize plugin in Settings to save sessions"`. Mirrors Phase 87 capability-token error UX.
 
 4. **Where does ANSI strip happen — frontend TS or backend Go?**
-   - Recommendation: Frontend (`frontend/src/lib/stripAnsi.ts`). Reasons in §"Claude's Discretion / Where ANSI stripping happens."
+   - **RESOLVED:** Frontend (`frontend/src/lib/stripAnsi.ts`). Reasons in §"Claude's Discretion / Where ANSI stripping happens."
 
 5. **Default filename includes a timestamp?**
-   - Recommendation: Yes, `<sanitized-name>-YYYY-MM-DD-HHmmss.txt`. Reasons in §"Claude's Discretion / Default filename format."
+   - **RESOLVED:** Yes, `<sanitized-name>-YYYY-MM-DD-HHmmss.txt`. Reasons in §"Claude's Discretion / Default filename format."
 
 6. **SaveFileDialog Title contains the secrets warning?**
-   - Recommendation: Yes, `"Save Terminal As… (file will include any printed secrets)"`. Reasons in §"Claude's Discretion."
+   - **RESOLVED:** Yes, `"Save Terminal As… (file will include any printed secrets)"`. Reasons in §"Claude's Discretion."
 
 7. **Do we need a SerializeConfig nested struct (mirror of ImageConfig/WebLinksConfig)?**
    - What we know: PluginSettings.Serialize is a bare bool; no per-plugin runtime config exists for v3.2.
-   - Recommendation: NO — Phase 97 ships only the bool. If v3.3+ adds Advanced options (excludeAltBuffer, format, default-dir), they'd ship as a new SerializeConfig nested struct using the Phase 95/96 sub-key RPC pattern. Phase 97 explicitly does not pre-build that infrastructure.
+   - **RESOLVED:** NO — Phase 97 ships only the bool. If v3.3+ adds Advanced options (excludeAltBuffer, format, default-dir), they'd ship as a new SerializeConfig nested struct using the Phase 95/96 sub-key RPC pattern. Phase 97 explicitly does not pre-build that infrastructure.
 
 ---
 
