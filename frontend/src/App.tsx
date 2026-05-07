@@ -5,6 +5,8 @@ import { TabBar, type Tab } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
 import { TerminalPanel } from './components/TerminalPanel'
 import { SettingsTab } from './components/SettingsTab'
+import { stripAnsi } from './lib/stripAnsi'
+import { sanitizeFilename } from './lib/sanitizeFilename'
 import {
   CreateSession,
   ListSessions,
@@ -26,6 +28,7 @@ import {
   GetPluginSettings,
   QuitGUIOnly,
   QuitAll,
+  SaveTerminalSession,
 } from './wailsjs/go/main/App'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import type { daemon } from './wailsjs/go/models'
@@ -93,6 +96,20 @@ function App(): React.ReactElement {
   // open TerminalPanel via prop. Phase 92 contract: TerminalPanel accepts the
   // prop but does not consume it; Phase 93 wires consumption.
   const [pluginConfig, setPluginConfig] = useState<PluginSettings | null>(null)
+
+  // Phase 97 SER-01: saver registry. TerminalPanel registers a closure
+  // that returns the addon's serialize() output keyed by sessionId; App
+  // uses it when handleRequestSave fires from the TabBar context menu.
+  // Cleared on unmount via TerminalPanel's useEffect cleanup (Pitfall #6).
+  const [serializerRegistry, setSerializerRegistry] = useState<
+    Record<string, (() => string) | null>
+  >({})
+
+  // Phase 97 SER-01: one-shot save-feedback banner. Mirrors the
+  // localBanner pattern — info kind for "Serialize disabled"
+  // affordance, error kind for write/dialog failures.
+  const [saveBanner, setSaveBanner] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
+
   // Ref for the background upgrade poller (local -> tailscale mode transition)
   const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
@@ -148,6 +165,47 @@ function App(): React.ReactElement {
     // Fire-and-forget: errors logged to console, never block UI.
     NotifyThemeChange().catch(err => console.warn('NotifyThemeChange failed:', err))
   }, [])
+
+  // Phase 97 SER-01: TerminalPanel calls this on attach/detach to
+  // register/unregister its serialize() closure. Empty deps because
+  // setSerializerRegistry is stable.
+  const handleRegisterSaver = useCallback(
+    (sessionId: string, fn: (() => string) | null) => {
+      setSerializerRegistry((prev) => ({ ...prev, [sessionId]: fn }))
+    },
+    []
+  )
+
+  // Phase 97 SER-01: TabBar calls this when the user picks "Save Terminal As…"
+  // from the right-click context menu. Looks up the saver closure for the
+  // tab's session, strips ANSI, sanitizes the filename, and invokes the
+  // SaveTerminalSession Wails RPC. Shows a banner if no saver is registered
+  // (Serialize toggled OFF) — per RESEARCH §"User Constraints / Whether
+  // the Save menu item appears when Serialize is toggled OFF": always show
+  // the menu item; show toast on click if disabled (discoverability).
+  const handleRequestSave = useCallback(
+    async (tabId: string) => {
+      const tab = tabs.find((t) => t.id === tabId)
+      if (!tab || !tab.sessionId) {
+        setSaveBanner({ kind: 'info', text: 'Open a terminal session to save its scrollback.' })
+        return
+      }
+      const fn = serializerRegistry[tab.sessionId]
+      if (!fn) {
+        setSaveBanner({ kind: 'info', text: 'Enable the Serialize plugin in Settings to save sessions.' })
+        return
+      }
+      const plainText = stripAnsi(fn())
+      const stamp = new Date().toISOString().replace(/[:T]/g, '-').replace(/\..+/, '')
+      const fname = sanitizeFilename(tab.name) + '-' + stamp + '.txt'
+      try {
+        await SaveTerminalSession('', fname, plainText)
+      } catch (err) {
+        setSaveBanner({ kind: 'error', text: 'Could not save terminal: ' + String(err) })
+      }
+    },
+    [tabs, serializerRegistry]
+  )
 
   const handleDismissLocalBanner = useCallback(() => {
     setLocalBannerExiting(true)
@@ -768,7 +826,8 @@ function App(): React.ReactElement {
     <div className="app">
       {((webServerMode === 'local' && !localBannerDismissed) ||
         update ||
-        ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed)) && (
+        ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed) ||
+        saveBanner !== null) && (
         <div className="banner-stack">
           {webServerMode === 'local' && !localBannerDismissed && (
             <LocalNetworkBanner
@@ -796,6 +855,17 @@ function App(): React.ReactElement {
               onDismiss={() => setWebglBannerDismissed(true)}
             />
           )}
+          {/* Phase 97 SER-01: save-feedback banner (info = Serialize disabled,
+              error = write/dialog failure). Mirrors localBanner one-shot pattern. */}
+          {saveBanner && (
+            <div
+              className={saveBanner.kind === 'error' ? 'banner banner--error' : 'banner banner--info'}
+              role="status"
+            >
+              <span>{saveBanner.text}</span>
+              <button onClick={() => setSaveBanner(null)} aria-label="Dismiss">×</button>
+            </div>
+          )}
         </div>
       )}
       <div className="app__row">
@@ -821,6 +891,8 @@ function App(): React.ReactElement {
                 .map(([id, e]) => [id, e.countdown])
             )
           }
+          // @ts-expect-error — Plan 97-04 wires onRequestSave prop on TabBar; wave-bridge cast
+          onRequestSave={handleRequestSave}
         />
 
         <div className="terminal-container">
@@ -922,6 +994,8 @@ function App(): React.ReactElement {
                   theme={terminalTheme}
                   pluginConfig={pluginConfig}
                   onWebGLContextLost={handleWebGLContextLost}
+                  // @ts-expect-error — Plan 97-04 wires onRegisterSaver prop on TerminalPanel; wave-bridge cast
+                  onRegisterSaver={handleRegisterSaver}
                 />
                 {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
                   <ExitCountdownBanner
