@@ -88,8 +88,11 @@ func TestCSPHeaders_NoUnsafeTokens(t *testing.T) {
 
 	csp := rec.Header().Get("Content-Security-Policy")
 
+	// 'unsafe-eval' moved to TestCSPHeaders_NoUnsafeEvalToken_TokenAware
+	// (Phase 96 IMG-03 Amendment 2): the substring approach used here would
+	// falsely match 'wasm-unsafe-eval' which is intentionally permitted in
+	// script-src. The token-aware test enforces the same defense correctly.
 	globallyForbidden := []string{
-		"'unsafe-eval'",
 		"'unsafe-hashes'",
 	}
 	for _, token := range globallyForbidden {
@@ -229,7 +232,35 @@ func TestCSPHeaders_FailsClosedOnEmptyBaseURL(t *testing.T) {
 // WASM decoder to instantiate (per 96-RESEARCH §"Mandatory
 // Pre-Phase CSP Audit Finding 2"; CSP3 §6.3 directive).
 func TestCSPHeaders_HasWasmUnsafeEval(t *testing.T) {
-	t.Skip("Pending until Plan 96-03 amends script-src to include 'wasm-unsafe-eval' (96-VALIDATION row IMG-03 CSP middleware adds 'wasm-unsafe-eval').")
+	// Phase 96 IMG-03: script-src must include 'wasm-unsafe-eval' to
+	// permit @xterm/addon-image's WASM decoder to instantiate.
+	// See csp_mw.go package comment Amendment 2 for full rationale.
+	ws, _ := testServer(t)
+	handler := ws.cspHeaders(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	req := httptest.NewRequest("GET", ws.BaseURL()+"/sessions/x", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatal("Content-Security-Policy header is empty")
+	}
+
+	// 'wasm-unsafe-eval' is unique enough that strings.Contains is safe
+	// for THIS direction (it must appear; the false-match concern is
+	// for the inverse check in TestCSPHeaders_NoUnsafeEvalToken_TokenAware).
+	if !strings.Contains(csp, "'wasm-unsafe-eval'") {
+		t.Errorf("CSP missing 'wasm-unsafe-eval' (Phase 96 IMG-03 Amendment 2): %s", csp)
+	}
+
+	// Defensive: ensure the token lives inside the script-src clause,
+	// not anywhere else (CSP directives are semicolon-delimited).
+	scriptSrcClause := extractDirective(csp, "script-src")
+	if !strings.Contains(scriptSrcClause, "'wasm-unsafe-eval'") {
+		t.Errorf("'wasm-unsafe-eval' must appear inside script-src directive, not elsewhere: %s", csp)
+	}
 }
 
 // TestCSPHeaders_NoUnsafeEvalToken_TokenAware — Plan 96-03 tightens
@@ -244,5 +275,48 @@ func TestCSPHeaders_HasWasmUnsafeEval(t *testing.T) {
 // Per 96-PATTERNS.md §`internal/webserver/csp_mw_test.go` Adapt block:
 // pull script-src clause; tokenize; compare per-token equality.
 func TestCSPHeaders_NoUnsafeEvalToken_TokenAware(t *testing.T) {
-	t.Skip("Pending until Plan 96-03 tightens the 'unsafe-eval' check to token-aware split-on-whitespace within script-src clause (96-VALIDATION row IMG-03 CSP middleware does NOT contain 'unsafe-eval' defense regression).")
+	// Phase 96 IMG-03 defense regression: after Amendment 2, the script-src
+	// clause contains 'wasm-unsafe-eval'. A naive strings.Contains check
+	// for "'unsafe-eval'" would FALSELY MATCH because 'unsafe-eval' is a
+	// substring of 'wasm-unsafe-eval'. This test extracts the script-src
+	// clause, tokenizes on whitespace, and asserts no token equals exactly
+	// "'unsafe-eval'" — the BARE form that would broaden script execution
+	// to JS eval() + new Function(). Per 96-PATTERNS.md §`internal/
+	// webserver/csp_mw_test.go` "Adapt — critical defense regression".
+	ws, _ := testServer(t)
+	handler := ws.cspHeaders(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	req := httptest.NewRequest("GET", ws.BaseURL()+"/sessions/x", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	csp := rec.Header().Get("Content-Security-Policy")
+	scriptSrcClause := extractDirective(csp, "script-src")
+	if scriptSrcClause == "" {
+		t.Fatal("script-src directive missing from CSP")
+	}
+
+	for _, token := range strings.Fields(scriptSrcClause) {
+		if token == "'unsafe-eval'" {
+			t.Errorf("script-src contains bare 'unsafe-eval' token (Phase 89 D-06 forbidden — must be 'wasm-unsafe-eval' only): %s", csp)
+		}
+	}
+
+	// Sanity check: 'wasm-unsafe-eval' IS expected (Amendment 2). If it
+	// is absent, TestCSPHeaders_HasWasmUnsafeEval will already fail —
+	// we don't duplicate that assertion here.
+}
+
+// extractDirective returns the value portion of a single CSP directive
+// (e.g. extractDirective("default-src 'none'; script-src 'self'", "script-src")
+// returns "'self'"). Returns empty string if the directive is not present.
+func extractDirective(csp, name string) string {
+	for _, clause := range strings.Split(csp, ";") {
+		clause = strings.TrimSpace(clause)
+		if strings.HasPrefix(clause, name+" ") || clause == name {
+			return strings.TrimSpace(strings.TrimPrefix(clause, name))
+		}
+	}
+	return ""
 }
