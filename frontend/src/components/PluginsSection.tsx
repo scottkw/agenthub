@@ -136,7 +136,8 @@ export function PluginsSection(): React.ReactElement {
         'Render images sent via sixel or the iTerm2 inline image protocol directly inside the terminal.',
         'Applies to new sessions you create.')}
       {renderRow('serialize', 'Save terminal as text',
-        'Right-click a tab to export the visible scrollback as a text file.')}
+        'Right-click a tab to export the visible scrollback as a text file.',
+        'Saved files include any secrets, tokens, or sensitive data printed in the session.')}
       {renderRow('clipboard', 'Clipboard (OSC 52)',
         'Allow the running CLI to place text on the system clipboard via the OSC 52 escape sequence.')}
       {renderRow('progress', 'Progress (OSC 9;4)',

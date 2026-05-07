@@ -90,11 +90,21 @@ describe('Phase 93 U11-01: italic caption under Unicode 11 row', () => {
   })
 })
 
-describe('Phase 97 SER-02: italic secrets-warning caption under Serialize row — Plan 97-05 implements', () => {
+describe('Phase 97 SER-02: italic secrets-warning caption under Serialize row — Plan 97-05 implementation', () => {
   it('Serialize renderRow carries the verbatim secrets warning as its 4th argument', () => {
     // Verbatim per REQUIREMENTS SER-02:
-    // "Saved files include any secrets, tokens, or sensitive data printed in the session."
-    expect.fail('RED scaffold — Plan 97-05 implements verbatim secrets-warning caption (97-PATTERNS §PluginsSection.tsx Serialize row 4th arg)')
+    const VERBATIM = 'Saved files include any secrets, tokens, or sensitive data printed in the session.'
+    expect(raw).toContain(VERBATIM)
+
+    // Positional check — the verbatim string must appear within ~250 chars
+    // AFTER the 'Save terminal as text' label (the 2nd argument to the
+    // serialize renderRow call). This proves it's the 4th argument to
+    // serialize renderRow, not somewhere else (e.g. inside a comment or
+    // a different row).
+    const labelIdx = raw.indexOf('Save terminal as text')
+    expect(labelIdx).toBeGreaterThan(-1)
+    const window = raw.slice(labelIdx, labelIdx + 400)
+    expect(window).toContain(VERBATIM)
   })
 })
 
