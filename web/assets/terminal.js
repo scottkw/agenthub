@@ -122,7 +122,11 @@
         // Phase 94 SRC-05: SearchConfig defaults (web is read-only consumer
         // per UI-SPEC line 335 — canonical state arrives via /api/plugin-config
         // + SSE settings:plugins push; web does NOT write back to daemon).
-        searchConfig: { regex: false, caseSensitive: false, wholeWord: false }
+        searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+        // Phase 96 IMG-02: ImageAddon storageLimit default (16 MiB) parallels
+        // the desktop pluginConfig.image.storageLimit semantic. Web client
+        // consumes the canonical value via /api/plugin-config when available.
+        imageConfig: { storageLimit: 16 }
       };
       if (cap && sessionID) {
         try {
@@ -231,6 +235,25 @@
           term.loadAddon(u11);
           term.unicode.activeVersion = '11';
         } catch (e) { /* addon UMD may not be present — silent */ }
+      }
+
+      // Phase 96 IMG-01/IMG-02/IMG-03: ImageAddon next-session-only on web —
+      // page reload triggers fresh init. The italic caption in PluginsSection
+      // (desktop) is the user-facing affordance; the web client honors the
+      // same constraint structurally (no live-toggle re-attach for image,
+      // mirroring Unicode 11 above).
+      //
+      // enableSizeReports: false — Pitfall #8 regression guard against CSI
+      // 14/16/18 t pixel-dimension reports leaking to the running CLI.
+      if (pluginConfig.image) {
+        try {
+          var storageLimit = (pluginConfig.imageConfig && pluginConfig.imageConfig.storageLimit) || 16;
+          var imageAddon = new ImageAddon.ImageAddon({
+            storageLimit: storageLimit,
+            enableSizeReports: false
+          });
+          term.loadAddon(imageAddon);
+        } catch (e) { /* addon UMD may not be present, or WASM bootstrap failed — silent */ }
       }
 
       // Phase 93 hot-swap-capable addon handles. Declared at IIFE scope so the
@@ -831,7 +854,8 @@
         webgl: false, unicode11: false, clipboard: false,
         search: false, webLinks: false, image: false,
         serialize: false, progress: false,
-        searchConfig: { regex: false, caseSensitive: false, wholeWord: false }
+        searchConfig: { regex: false, caseSensitive: false, wholeWord: false },
+        imageConfig: { storageLimit: 16 }
       };
       applyPluginConfig(initialConfig);
 
