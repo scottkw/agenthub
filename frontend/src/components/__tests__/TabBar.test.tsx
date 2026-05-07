@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { TabBar } from '../TabBar'
 import type { Tab } from '../TabBar'
+import raw from '../TabBar.tsx?raw'
 
 interface TabBarProps {
   tabs: Tab[]
@@ -130,14 +131,25 @@ describe('TabBar context menu', () => {
   })
 })
 
-describe('Phase 97 SER-01: TabBar Save Terminal As… menu item — Plan 97-04 implements', () => {
-  it('Save Terminal As menu-item label appears in TabBar source', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements <button role="menuitem">Save Terminal As…</button> with U+2026 ellipsis')
+describe('Phase 97 SER-01: TabBar Save Terminal As… menu item — Plan 97-04 implementation', () => {
+  it('Save Terminal As menu-item label appears in TabBar source (with U+2026 ellipsis)', () => {
+    // The literal string must contain U+2026 HORIZONTAL ELLIPSIS, not "..."
+    expect(raw).toContain('Save Terminal As…')
   })
+
   it('TabBar.tsx props interface declares onRequestSave?: (tabId: string) => void', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements onRequestSave optional prop')
+    expect(raw).toMatch(/onRequestSave\?:\s*\(\s*tabId:\s*string\s*\)\s*=>\s*void/)
   })
+
   it('Save menu-item onClick invokes onRequestSave?.(contextMenu.tabId) and closes the menu', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements onClick handler that calls onRequestSave + setContextMenu(null)')
+    // Source must contain a click handler that calls both onRequestSave and setContextMenu(null).
+    expect(raw).toMatch(/onRequestSave\?\.\(\s*contextMenu\.tabId\s*\)/)
+    // The "Save Terminal As…" button must be near a setContextMenu(null) call.
+    const saveIdx = raw.indexOf('Save Terminal As…')
+    expect(saveIdx).toBeGreaterThan(-1)
+    // Walk back ~300 chars from the button label and look for setContextMenu(null) — the
+    // entire button JSX (handler + label) fits in this window.
+    const window = raw.slice(Math.max(0, saveIdx - 300), saveIdx + 100)
+    expect(window).toMatch(/setContextMenu\(\s*null\s*\)/)
   })
 })

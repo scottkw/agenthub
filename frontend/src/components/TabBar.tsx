@@ -14,6 +14,13 @@ interface TabBarProps {
   onSelect: (id: string) => void
   onClose: (id: string) => void
   onRename: (id: string, name: string) => void
+  /**
+   * Phase 97 SER-01: invoked when user picks the save menu item from
+   * the right-click context menu. The handler in App.tsx looks up the
+   * tab's session, runs the saver closure, strips ANSI, sanitizes the
+   * filename, and calls the SaveTerminalSession Wails RPC.
+   */
+  onRequestSave?: (tabId: string) => void
   sessionStatuses?: Record<string, string>
   exitCountdowns?: Record<string, number>  // sessionId -> seconds remaining
 }
@@ -28,6 +35,7 @@ export function TabBar({
   onSelect,
   onClose,
   onRename,
+  onRequestSave,
   sessionStatuses,
   exitCountdowns,
 }: TabBarProps): React.ReactElement {
@@ -165,6 +173,16 @@ export function TabBar({
             }}
           >
             Rename
+          </button>
+          <button
+            role="menuitem"
+            className="tab__context-menu__item"
+            onClick={() => {
+              onRequestSave?.(contextMenu.tabId)
+              setContextMenu(null)
+            }}
+          >
+            Save Terminal As…
           </button>
         </div>
       )}

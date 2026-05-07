@@ -891,7 +891,6 @@ function App(): React.ReactElement {
                 .map(([id, e]) => [id, e.countdown])
             )
           }
-          // @ts-expect-error — Plan 97-04 wires onRequestSave prop on TabBar; wave-bridge cast
           onRequestSave={handleRequestSave}
         />
 
@@ -994,7 +993,6 @@ function App(): React.ReactElement {
                   theme={terminalTheme}
                   pluginConfig={pluginConfig}
                   onWebGLContextLost={handleWebGLContextLost}
-                  // @ts-expect-error — Plan 97-04 wires onRegisterSaver prop on TerminalPanel; wave-bridge cast
                   onRegisterSaver={handleRegisterSaver}
                 />
                 {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
