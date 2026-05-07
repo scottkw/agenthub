@@ -129,3 +129,15 @@ describe('TabBar context menu', () => {
     expect(tabName.getAttribute('title')).toContain('right-click')
   })
 })
+
+describe('Phase 97 SER-01: TabBar Save Terminal As… menu item — Plan 97-04 implements', () => {
+  it('Save Terminal As menu-item label appears in TabBar source', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements <button role="menuitem">Save Terminal As…</button> with U+2026 ellipsis')
+  })
+  it('TabBar.tsx props interface declares onRequestSave?: (tabId: string) => void', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements onRequestSave optional prop')
+  })
+  it('Save menu-item onClick invokes onRequestSave?.(contextMenu.tabId) and closes the menu', () => {
+    expect.fail('RED scaffold — Plan 97-04 implements onClick handler that calls onRequestSave + setContextMenu(null)')
+  })
+})
