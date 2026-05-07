@@ -174,6 +174,18 @@ func (c *DaemonClient) SetWebLinksConfig(cfg WebLinksConfig) error {
 	return c.doJSON(http.MethodPatch, "/settings/web-links-config", cfg, nil)
 }
 
+// SetImageConfig persists ONLY the ImageConfig sub-key of PluginSettings via
+// the daemon API. Phase 96 IMG-02 — mirrors Phase 95 SetWebLinksConfig and
+// Phase 94-07 SetSearchConfig. Routes to engine.SetImageConfig which mutates
+// only e.pluginSettings.ImageConfig under the engine mutex, preserving
+// PluginsSection's edit buffer for unrelated plugin booleans.
+//
+// The daemon validates StorageLimit is in [1, 1000] MB; out-of-range values
+// surface as a non-nil error from this call (HTTP 400 from the handler).
+func (c *DaemonClient) SetImageConfig(cfg ImageConfig) error {
+	return c.doJSON(http.MethodPatch, "/settings/image-config", cfg, nil)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay server is listening on.
 func (c *DaemonClient) GetRelayPort() (int, error) {
 	var resp RelayPortResponse

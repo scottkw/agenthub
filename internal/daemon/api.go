@@ -75,6 +75,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/plugins", a.handleSetPluginSettings)
 	a.mux.HandleFunc("PATCH /settings/search-config", a.handleSetSearchConfig)
 	a.mux.HandleFunc("PATCH /settings/web-links-config", a.handleSetWebLinksConfig)
+	a.mux.HandleFunc("PATCH /settings/image-config", a.handleSetImageConfig)
 	// Relay port and web server routes.
 	a.mux.HandleFunc("GET /relay-port", a.handleRelayPort)
 	a.mux.HandleFunc("POST /webserver/start", a.handleWebServerStart)
@@ -612,6 +613,40 @@ func (a *API) handleSetWebLinksConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetWebLinksConfig(req)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetImageConfig accepts an ImageConfig struct and persists ONLY
+// that sub-key of PluginSettings (Phase 96 IMG-02). Defense-in-depth
+// mirrors handleSetWebLinksConfig: 8 KiB body cap (T-96-02-03) +
+// DisallowUnknownFields (T-96-02-02).
+//
+// The route is PATCH /settings/image-config — sibling to
+// /settings/web-links-config — chosen for symmetry with the other
+// sub-key-style PATCH routes in this API.
+//
+// IMG-02 range gate (T-96-02-01): StorageLimit must be in [1, 1000] MB.
+// Reject 0 (no images render — defeat-the-feature footgun) and >1000
+// (defeats tab-OOM mitigation per ROADMAP Phase 96 SC-3; the upstream
+// addon-image default is 128 MB but AgentHub locks 16 MB by default,
+// allowing user override up to 1000 MB hard cap for hypothetical future
+// power-user advanced disclosure).
+func (a *API) handleSetImageConfig(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192)
+
+	var req ImageConfig
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.StorageLimit < 1 || req.StorageLimit > 1000 {
+		http.Error(w, "storageLimit must be in range [1, 1000]", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetImageConfig(req)
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -534,6 +534,34 @@ func (e *SessionEngine) SetWebLinksConfig(cfg WebLinksConfig) {
 	}
 }
 
+// SetImageConfig updates and persists ONLY the ImageConfig sub-key of
+// PluginSettings, leaving the rest of PluginSettings (WebGL, Unicode11,
+// Search, SearchConfig, WebLinks, WebLinksConfig, Image bool, Serialize,
+// Clipboard, Progress) untouched.
+//
+// Phase 96 IMG-02 — mirrors Phase 95 SetWebLinksConfig and Phase 94-07
+// SetSearchConfig sub-key writers verbatim. Concurrency contract:
+// mutate under e.mu.Lock(); saveSettingsToDisk while held; capture
+// listener; release lock; invoke listener after release (avoids
+// re-entrancy deadlock if listener calls back into the engine).
+//
+// Note on next-session-only semantics: the listener fires (so web SSE
+// consumers receive the frame and downstream UIs can update their
+// internal pluginConfig prop), but the desktop TerminalPanel hot-swap
+// useEffect intentionally does NOT include `imageConfig` in its dep
+// array — only newly-mounted sessions pick up the new StorageLimit
+// (per ROADMAP IMG-01 italic caption affordance).
+func (e *SessionEngine) SetImageConfig(cfg ImageConfig) {
+	e.mu.Lock()
+	e.pluginSettings.ImageConfig = cfg
+	e.saveSettingsToDisk()
+	listener := e.pluginSettingsListener
+	e.mu.Unlock()
+	if listener != nil {
+		listener()
+	}
+}
+
 // SetPluginSettingsListener registers a callback invoked synchronously by
 // SetPluginSettings AFTER the new value is persisted. Phase 93 PLUG-04 push
 // channel — webserver registers BroadcastPluginConfig here so SSE subscribers
