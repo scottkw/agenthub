@@ -569,6 +569,47 @@ func (a *App) SetWebLinksConfig(cfg daemon.WebLinksConfig) error {
 	return nil
 }
 
+// SetImageConfig persists ONLY the ImageConfig sub-key of PluginSettings
+// via the daemon, then re-fetches the full PluginSettings and emits
+// 'settings:plugins' so the React listener consumes it like a
+// SetPluginSettings frame (same shape, same handler).
+//
+// Phase 96 IMG-02 — mirror of Phase 95 SetWebLinksConfig and Phase 94-07
+// SetSearchConfig. Concurrency contract is delegated to the daemon's
+// engine.SetImageConfig sub-key writer (mutate under e.mu.Lock(); save;
+// capture listener; release lock; invoke listener after release).
+//
+// Note on next-session-only semantics: the event fires (so future
+// <details> UIs and the web SSE consumer reflect the new persisted
+// value), but the desktop TerminalPanel mount useEffect intentionally
+// does NOT include `imageConfig` in any hot-swap dep array — newly-
+// mounted sessions pick up the new StorageLimit; already-open sessions
+// do not. The PluginsSection italic caption is the user-facing
+// affordance for this constraint.
+func (a *App) SetImageConfig(cfg daemon.ImageConfig) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	if err := a.client.SetImageConfig(cfg); err != nil {
+		return err
+	}
+	// Re-fetch the full PluginSettings so the event payload matches the
+	// SetPluginSettings event shape (App.tsx listener expects PluginSettings).
+	full, err := a.client.GetPluginSettings()
+	if err != nil {
+		// Persistence succeeded but readback failed — synthesize a payload
+		// from defaults + new ImageConfig so listeners still receive a
+		// frame. The next GetPluginSettings call will reconcile.
+		full = daemon.PluginSettings{ImageConfig: cfg}
+	}
+	// WR-05: guard against nil a.ctx (test harness or pre-startup RPC).
+	// Phase 95 code-review fix carried forward.
+	if a.ctx != nil && a.ctx.Value("frontend") != nil {
+		runtime.EventsEmit(a.ctx, "settings:plugins", full)
+	}
+	return nil
+}
+
 // configDir returns the path to the agenthub config directory (~/.config/agenthub).
 // Creates the directory if it does not exist.
 func configDir() string {
