@@ -4,14 +4,14 @@ milestone: v3.2
 milestone_name: Plugin Suite
 status: executing
 stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
-last_updated: "2026-05-06T17:20:53.218Z"
-last_activity: 2026-05-06 -- Phase 95 execution started
+last_updated: "2026-05-07T16:11:28.502Z"
+last_activity: 2026-05-07 -- Phase 96 execution started
 progress:
   total_phases: 12
-  completed_phases: 3
-  total_plans: 21
-  completed_plans: 15
-  percent: 71
+  completed_phases: 4
+  total_plans: 27
+  completed_plans: 21
+  percent: 78
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 95 — web-links-addon-security-hardening
+**Current focus:** Phase 96 — image-addon-csp-audit
 
 ## Current Position
 
-Phase: 95 (web-links-addon-security-hardening) — EXECUTING
+Phase: 96 (image-addon-csp-audit) — EXECUTING
 Plan: 1 of 6
-Status: Executing Phase 95
-Last activity: 2026-05-06 -- Phase 95 execution started
+Status: Executing Phase 96
+Last activity: 2026-05-07 -- Phase 96 execution started
 
 ## Performance Metrics
 
