@@ -398,9 +398,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (overriding upstream's 100 MB default); user can adjust the cap via an Advanced disclosure in Settings; a regression test loading a 50 MB sixel fixture confirms FIFO eviction at the cap and no tab OOM.
   4. A second client joining a session mid-stream after the first client has rendered an image receives a correctly-rendered image during scrollback replay (multi-client byte-fidelity audit of `internal/relay/` confirms no line-based buffering or escape filtering corrupts sixel bytes).
 **Plans**: 6 plans (4 waves)
-  - [ ] 96-01-PLAN.md — Wave 0: promote addon-image to runtime dep + ImageConfig daemon struct + models.ts hand-edit + 7 RED/GREEN scaffolds (incl. IMG-04 byte-fidelity test green-now)
-  - [ ] 96-02-PLAN.md — Wave 1: engine.SetImageConfig sub-key writer + PATCH /settings/image-config [1, 1000] range gate + DaemonClient wrapper
-  - [ ] 96-03-PLAN.md — Wave 1: csp_mw.go script-src 'wasm-unsafe-eval' Amendment 2 + token-aware regression test (parallel with 96-02)
+  - [x] 96-01-PLAN.md — Wave 0: promote addon-image to runtime dep + ImageConfig daemon struct + models.ts hand-edit + 7 RED/GREEN scaffolds (incl. IMG-04 byte-fidelity test green-now)
+  - [x] 96-02-PLAN.md — Wave 1: engine.SetImageConfig sub-key writer + PATCH /settings/image-config [1, 1000] range gate + DaemonClient wrapper
+  - [x] 96-03-PLAN.md — Wave 1: csp_mw.go script-src 'wasm-unsafe-eval' Amendment 2 + token-aware regression test (parallel with 96-02)
   - [ ] 96-04-PLAN.md — Wave 2: TerminalPanel.tsx MOUNT-useEffect ImageAddon construction + cleanup + PluginsSection italic next-session-only caption
   - [ ] 96-05-PLAN.md — Wave 2: (*App).SetImageConfig Wails method + App.{d.ts,js} hand-edit (parallel with 96-04)
   - [ ] 96-06-PLAN.md — Wave 3: web parity (vendor UMD + embed.go + VERSION + terminal.html + terminal.js + drift-test 7→8) + chromedp CSP e2e + 96-HUMAN-UAT.md + human checkpoint
@@ -491,7 +491,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 93 | v3.2 | 5/5 | Complete   | 2026-05-04 |
 | 94 | v3.2 | 6/7 | In Progress|  |
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
-| 96 | v3.2 | 0/0 | Not started | — |
+| 96 | v3.2 | 3/6 | In Progress|  |
 | 97 | v3.2 | 0/0 | Not started | — |
 | 98 | v3.2 | 0/0 | Not started | — |
 | 99 | v3.2 | 0/0 | Not started | — |
