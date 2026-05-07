@@ -82,6 +82,9 @@ export const SetSearchConfig         = (cfg)                => Call('main.App.Se
 // Web-links sub-key writer (Phase 95 LNK-05 / LNK-06).
 export const SetWebLinksConfig       = (cfg)                => Call('main.App.SetWebLinksConfig', [cfg])
 
+// Image-addon sub-key writer (Phase 96 IMG-02).
+export const SetImageConfig          = (cfg)                => Call('main.App.SetImageConfig', [cfg])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])
