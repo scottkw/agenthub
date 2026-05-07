@@ -142,7 +142,7 @@ export function SetWebLinksConfig(arg1: daemon.WebLinksConfig): Promise<void>
 // PluginSettings post-write so the existing App.tsx listener fires.
 export function SetImageConfig(arg1: daemon.ImageConfig): Promise<void>
 
-// Save terminal session (Phase 97 SER-01) — type stub; runtime Call() stub lands in Plan 97-05.
+// Save terminal session (Phase 97 SER-01).
 export function SaveTerminalSession(defaultDir: string, defaultName: string, content: string): Promise<void>
 
 // Quit confirmation bound methods (APP-01/02)

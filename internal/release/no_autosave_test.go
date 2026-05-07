@@ -150,8 +150,6 @@ func TestSER03_NoAutoSettingsField(t *testing.T) {
 // len(names) == 1 && names[0] == "SaveTerminalSession" will hold and the
 // test flips GREEN automatically.
 func TestSER03_OnlySaveTerminalSessionInAppGo(t *testing.T) {
-	t.Skip("Pending until Plan 97-05 lands (*App).SaveTerminalSession in app.go (97-VALIDATION row 12 SER-03 dialog-call-site assertion). When Plan 97-05 implements the method, remove this t.Skip line; the body below will run and flip GREEN.")
-
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatalf("filepath.Abs: %v", err)

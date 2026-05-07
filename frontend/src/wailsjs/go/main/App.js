@@ -85,6 +85,9 @@ export const SetWebLinksConfig       = (cfg)                => Call('main.App.Se
 // Image-addon sub-key writer (Phase 96 IMG-02).
 export const SetImageConfig          = (cfg)                => Call('main.App.SetImageConfig', [cfg])
 
+// Save terminal session (Phase 97 SER-01).
+export const SaveTerminalSession    = (defaultDir, defaultName, content) => Call('main.App.SaveTerminalSession', [defaultDir, defaultName, content])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])

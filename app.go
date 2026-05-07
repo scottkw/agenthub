@@ -61,11 +61,19 @@ type App struct {
 	// Update checker state
 	lastUpdate   *updater.UpdateInfo
 	lastUpdateMu sync.Mutex
+
+	// saveFileDialogFunc allows unit tests to mock runtime.SaveFileDialog.
+	// Defaults to runtime.SaveFileDialog. Phase 97 SER-01 / PROJECT.md
+	// "Function injection" pattern, parallel to serviceControlFunc and
+	// statusFunc.
+	saveFileDialogFunc func(ctx context.Context, opts runtime.SaveDialogOptions) (string, error)
 }
 
 // NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
-	return &App{}
+	return &App{
+		saveFileDialogFunc: runtime.SaveFileDialog,
+	}
 }
 
 // domReady is called by Wails after the WebView DOM is ready.
@@ -826,6 +834,40 @@ func (a *App) OpenFileDialog(defaultDir string) (string, error) {
 		DefaultDirectory: defaultDir,
 		ShowHiddenFiles:  true,
 	})
+}
+
+// SaveTerminalSession opens a native Save File dialog and writes the supplied
+// terminal scrollback content to the user-chosen path. Cancellation is silent
+// success. Returns wrapped errors for dialog setup or write failures.
+//
+// Phase 97 SER-01. Mirrors OpenFileDialog (lines 815-829) for the cancel=""
+// pattern. Uses saveFileDialogFunc indirection (function-injection per
+// PROJECT.md "Key Decisions") so unit tests can mock the Wails runtime.
+func (a *App) SaveTerminalSession(defaultDir, defaultName, content string) error {
+	if defaultDir == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			defaultDir = home
+		}
+	}
+	path, err := a.saveFileDialogFunc(a.ctx, runtime.SaveDialogOptions{
+		Title:                "Save Terminal As… (file will include any printed secrets)",
+		DefaultDirectory:     defaultDir,
+		DefaultFilename:      defaultName,
+		CanCreateDirectories: true,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Text File (*.txt)", Pattern: "*.txt"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("SaveTerminalSession: dialog: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled — silent success per OpenFileDialog precedent
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("SaveTerminalSession: write: %w", err)
+	}
+	return nil
 }
 
 // GetTailscaleStatus returns the current Tailscale health state.
