@@ -55,6 +55,8 @@ func TestSER03_NoAutoSavePatterns(t *testing.T) {
 		".planning":              true, // research/plan docs cite the patterns by name
 		"frontend/src/wailsjs":   true, // generated bindings
 		"screenshots":            true,
+		".claude":                true, // agent worktrees + harness state (e.g. .claude/worktrees/agent-*/frontend/node_modules)
+		".claire":                true, // alternate harness state dir
 	}
 
 	// Repo root is two levels up from internal/release/.
