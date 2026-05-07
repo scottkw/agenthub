@@ -205,3 +205,21 @@ describe('THM-03: live theme application', () => {
     expect(raw).toContain("theme.background ?? '#1a1b26'")
   })
 })
+
+describe('IMG-01/IMG-02 ImageAddon construction (Plan 96-04)', () => {
+  it('TerminalPanel.tsx imports ImageAddon from @xterm/addon-image', () => {
+    expect.fail("RED scaffold — Plan 96-04 implements ImageAddon import (96-VALIDATION row IMG-01 TerminalPanel constructs ImageAddon).")
+  })
+  it('TerminalPanel.tsx declares imageAddonRef parallel to other addon refs', () => {
+    expect.fail("RED scaffold — Plan 96-04 implements imageAddonRef (96-PATTERNS.md §`frontend/src/components/TerminalPanel.tsx`).")
+  })
+  it('TerminalPanel.tsx constructs new ImageAddon(...) with enableSizeReports: false (Pitfall #8 regression guard)', () => {
+    expect.fail("RED scaffold — Plan 96-04 implements new ImageAddon({ ..., enableSizeReports: false }) (96-RESEARCH §`Pitfall 8: CSI Response Pollution`).")
+  })
+  it('TerminalPanel.tsx passes pluginConfig?.imageConfig?.storageLimit ?? 16 to ImageAddon constructor', () => {
+    expect.fail("RED scaffold — Plan 96-04 implements storageLimit pass-through (96-VALIDATION row IMG-02 TerminalPanel passes pluginConfig.imageConfig.storageLimit).")
+  })
+  it('ImageAddon construction lives in MOUNT useEffect, NOT hot-swap useEffect (next-session-only invariant)', () => {
+    expect.fail("RED scaffold — Plan 96-04 implements MOUNT-useEffect placement; assert ImageAddon text appears in mount useEffect range and NOT in hot-swap useEffect range (96-RESEARCH §`Pitfall 1: Wrong useEffect`).")
+  })
+})

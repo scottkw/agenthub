@@ -57,4 +57,9 @@ func TestDefaultPluginSettings(t *testing.T) {
 	if !s.WebLinksConfig.ConfirmTyposquat {
 		t.Error("WebLinksConfig.ConfirmTyposquat should default true")
 	}
+	// Phase 96 IMG-02: ImageConfig.StorageLimit defaults to 16 MB
+	// (override of upstream addon-image's 128 MB default — STATE.md/ROADMAP).
+	if got := s.ImageConfig.StorageLimit; got != 16 {
+		t.Errorf("ImageConfig.StorageLimit = %d, want 16", got)
+	}
 }

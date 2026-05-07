@@ -44,6 +44,23 @@ type WebLinksConfig struct {
 	ConfirmTyposquat bool   `json:"confirmTyposquat"`
 }
 
+// ImageConfig persists per-plugin runtime configuration for the
+// inline-image addon (Phase 96 IMG-02). Defaults to a 16 MB cap on
+// decoded RGBA storage, overriding upstream addon-image's 128 MB
+// default to prevent tab-OOM on multi-tab AgentHub sessions
+// (STATE.md §Decisions, ROADMAP Phase 96 SC-3).
+//
+// JSON tag is camelCase to match daemonSettings vocabulary; field
+// ordering follows .planning/phases/96-image-addon-csp-audit/
+// 96-RESEARCH.md §"Pattern 2: ImageConfig Persistence".
+//
+// Phase 96 ships ONLY this single field. The Advanced <details> UI
+// exposing storageLimit defers to Phase 99 / PUI-03 (mirror of
+// Phase 95 WebLinksConfig.modifier deferral shape).
+type ImageConfig struct {
+	StorageLimit int `json:"storageLimit"`
+}
+
 // PluginSettings is the persisted user choice for each xterm.js addon
 // shipped by the v3.2 plugin suite. Field names match UI-SPEC ordering.
 // JSON tags are camelCase to match daemonSettings vocabulary (cliPaths,
@@ -60,6 +77,7 @@ type PluginSettings struct {
 	WebLinks       bool           `json:"webLinks"`
 	WebLinksConfig WebLinksConfig `json:"webLinksConfig"`
 	Image          bool           `json:"image"`
+	ImageConfig    ImageConfig    `json:"imageConfig"`
 	Serialize      bool           `json:"serialize"`
 	Clipboard      bool           `json:"clipboard"`
 	Progress       bool           `json:"progress"`
@@ -86,9 +104,10 @@ func defaultPluginSettings() PluginSettings {
 			ConfirmIDN:       true,
 			ConfirmTyposquat: true,
 		},
-		Image:     true,
-		Serialize: true,
-		Clipboard: true,
-		Progress:  false,
+		Image:       true,
+		ImageConfig: ImageConfig{StorageLimit: 16},
+		Serialize:   true,
+		Clipboard:   true,
+		Progress:    false,
 	}
 }

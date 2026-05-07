@@ -89,3 +89,9 @@ describe('Phase 93 U11-01: italic caption under Unicode 11 row', () => {
     expect(captionIdx).toBeGreaterThan(u11DescIdx)
   })
 })
+
+describe('IMG-01: italic next-session-only caption under Image row (Plan 96-04)', () => {
+  it("Image renderRow carries 'Applies to new sessions you create.' as its 4th argument", () => {
+    expect.fail("RED scaffold — Plan 96-04 adds the literal italic-caption string to the existing image renderRow call (96-PATTERNS.md §`frontend/src/components/PluginsSection.tsx`).")
+  })
+})

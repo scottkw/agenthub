@@ -47,6 +47,23 @@ export namespace daemon {
 	    }
 	}
 
+	// Phase 96 IMG-02: nested per-plugin runtime config for the inline-image
+	// addon. Single field for now; daemon owns defaults via
+	// internal/daemon/plugin_settings.go defaultPluginSettings()
+	// (StorageLimit defaults to 16 MB).
+	export class ImageConfig {
+	    storageLimit: number;
+
+	    static createFrom(source: any = {}) {
+	        return new ImageConfig(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.storageLimit = source["storageLimit"];
+	    }
+	}
+
 	export class PluginSettings {
 	    webgl: boolean;
 	    unicode11: boolean;
@@ -55,6 +72,7 @@ export namespace daemon {
 	    webLinks: boolean;
 	    webLinksConfig: WebLinksConfig;
 	    image: boolean;
+	    imageConfig: ImageConfig;
 	    serialize: boolean;
 	    clipboard: boolean;
 	    progress: boolean;
@@ -82,6 +100,12 @@ export namespace daemon {
 	            ? new WebLinksConfig(source["webLinksConfig"])
 	            : new WebLinksConfig();
 	        this.image = source["image"];
+	        // Phase 96 IMG-02: nested ImageConfig — same inline pattern as
+	        // SearchConfig / WebLinksConfig above (avoid `convertValues`
+	        // helper that would surface as `keyof PluginSettings`).
+	        this.imageConfig = source["imageConfig"]
+	            ? new ImageConfig(source["imageConfig"])
+	            : new ImageConfig();
 	        this.serialize = source["serialize"];
 	        this.clipboard = source["clipboard"];
 	        this.progress = source["progress"];
