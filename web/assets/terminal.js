@@ -256,6 +256,21 @@
         } catch (e) { /* addon UMD may not be present, or WASM bootstrap failed — silent */ }
       }
 
+      // Phase 97 SER-01: SerializeAddon construction — hot-swap-friendly on
+      // desktop (TerminalPanel.tsx) but the web client has no save UI in v3.2,
+      // so we just register the addon for vendoring-discipline parity only.
+      // UMD global shape verified: window.SerializeAddon is a namespace object
+      // with .SerializeAddon class (same pattern as ImageAddon.ImageAddon).
+      // Per 97-RESEARCH §"Web Parity Scope" locked decision, the web-side
+      // serialize() consumer (a <a download> blob URL approach) is deferred to
+      // a future SER-FUT-WEB plan. The addon is loaded but inert on web in v3.2.
+      if (pluginConfig.serialize) {
+        try {
+          var serializeAddon = new SerializeAddon.SerializeAddon();
+          term.loadAddon(serializeAddon);
+        } catch (e) { /* addon UMD may not be present — silent */ }
+      }
+
       // Phase 93 hot-swap-capable addon handles. Declared at IIFE scope so the
       // SSE EventSource handler (Task 5 below) can dispose / reconstruct them
       // without a page reload.
