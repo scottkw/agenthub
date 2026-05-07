@@ -133,7 +133,8 @@ export function PluginsSection(): React.ReactElement {
       {renderRow('webLinks', 'Clickable web links',
         'Detect URLs in terminal output and make them clickable with Cmd-click (macOS) or Ctrl-click.')}
       {renderRow('image', 'Inline images',
-        'Render images sent via sixel or the iTerm2 inline image protocol directly inside the terminal.')}
+        'Render images sent via sixel or the iTerm2 inline image protocol directly inside the terminal.',
+        'Applies to new sessions you create.')}
       {renderRow('serialize', 'Save terminal as text',
         'Right-click a tab to export the visible scrollback as a text file.')}
       {renderRow('clipboard', 'Clipboard (OSC 52)',
