@@ -206,36 +206,73 @@ describe('THM-03: live theme application', () => {
   })
 })
 
-describe('Phase 97 SER-01: SerializeAddon hot-swap arm — Plan 97-04 implements', () => {
+describe('Phase 97 SER-01: SerializeAddon hot-swap arm — Plan 97-04 implementation', () => {
   it('imports SerializeAddon from @xterm/addon-serialize', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements import { SerializeAddon } from "@xterm/addon-serialize"')
+    expect(raw).toMatch(/import\s*\{[^}]*SerializeAddon[^}]*\}\s*from\s*['"]@xterm\/addon-serialize['"]/)
   })
+
   it('declares serializeAddonRef parallel to other addon refs', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements useRef<SerializeAddon | null>(null)')
+    expect(raw).toMatch(/serializeAddonRef\s*=\s*useRef/)
   })
+
   it('constructs new SerializeAddon() inside the hot-swap useEffect', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements new SerializeAddon() construction')
+    expect(raw).toMatch(/new\s+SerializeAddon\s*\(\s*\)/)
   })
+
   it('calls serialize({ excludeModes: true }) — Pitfall #1 regression guard against trailing mode-restore wrap', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements serialize({ excludeModes: true })')
+    expect(raw).toMatch(/\.serialize\(\s*\{\s*excludeModes:\s*true\s*\}\s*\)/)
   })
+
   it('reads pluginConfig?.serialize toggle to gate the arm', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements pluginConfig?.serialize gate')
+    expect(raw).toMatch(/pluginConfig\?\.serialize/)
   })
-  it('consumes onRegisterSaver?: callback prop from App.tsx', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements onRegisterSaver prop consumption')
+
+  it('declares onRegisterSaver?: callback prop and consumes it on attach + detach', () => {
+    // Prop in interface
+    expect(raw).toMatch(/onRegisterSaver\?:\s*\(/)
+    // Attach call (closure registration)
+    expect(raw).toMatch(/onRegisterSaver\?\.\(\s*sessionId\s*,\s*\(\s*\)\s*=>/)
+    // Detach call (null flush)
+    expect(raw).toMatch(/onRegisterSaver\?\.\(\s*sessionId\s*,\s*null\s*\)/)
   })
-  it('SerializeAddon construction lives in HOT-SWAP useEffect, NOT mount useEffect (distinct from Phase 96 ImageAddon)', () => {
-    // Critical pattern-map distinction: Image is mount-only (buffer-state implications);
-    // Serialize is hot-swap (pure buffer-walker). Plan 97-04 places it alongside Clipboard/WebGL,
-    // NOT alongside Image/Unicode11. 97-PATTERNS.md §Hot-swap addon arm contract.
-    expect.fail('RED scaffold — Plan 97-04 implements hot-swap-useEffect placement (NOT mount); 97-PATTERNS §Hot-swap arm contract')
+
+  it('SerializeAddon construction lives in HOT-SWAP useEffect, NOT mount useEffect (load-bearing — distinct from Phase 96 ImageAddon)', () => {
+    // Strategy: identify mount-useEffect block and hot-swap-useEffect block
+    // by their dep-array signatures, NOT by ordinal `useEffect(` index.
+    // TerminalPanel.tsx has 8+ useEffect calls — picking by index is fragile.
+    //
+    // Mount block: dep array is exactly `[sessionId]` (creates Terminal +
+    // mount-only addons). Hot-swap block: dep array contains `pluginConfig?.webgl`
+    // (the canary for the runtime-toggleable arm; also contains clipboard,
+    // search, webLinks, and after this plan: serialize + onRegisterSaver).
+    //
+    // Phase 97 SER-01 places SerializeAddon construction in the HOT-SWAP
+    // block. Phase 96 ImageAddon was placed in the MOUNT block (inverted
+    // polarity); this regression test enforces the distinction.
+    const mountMatch = raw.match(/useEffect\(\(\)\s*=>\s*\{[\s\S]*?\},\s*\[sessionId\]\)/)
+    expect(mountMatch).not.toBeNull()
+    const mountBlock = mountMatch?.[0] ?? ''
+
+    const hotSwapMatch = raw.match(/useEffect\(\(\)\s*=>\s*\{[\s\S]*?pluginConfig\?\.webgl[\s\S]*?\},\s*\[[\s\S]*?pluginConfig\?\.webgl[\s\S]*?\]\)/)
+    expect(hotSwapMatch).not.toBeNull()
+    const hotSwapBlock = hotSwapMatch?.[0] ?? ''
+
+    // SerializeAddon construction MUST appear inside the hot-swap block
+    // and MUST NOT appear inside the mount block.
+    expect(hotSwapBlock).toContain('new SerializeAddon')
+    expect(mountBlock).not.toContain('new SerializeAddon')
   })
-  it('unregisters saver on toggle-off (onRegisterSaver?.(sessionId, null) — Pitfall #6)', () => {
-    expect.fail('RED scaffold — Plan 97-04 implements unregister-on-toggle-off + unregister-on-unmount')
+
+  it('unregisters saver on toggle-off (negative arm flushes the registry entry)', () => {
+    // The negative arm has the form: } else { ... onRegisterSaver?.(sessionId, null) ... }
+    // We assert both the dispose call and the flush call appear together.
+    const m = raw.match(/serializeAddonRef\.current\.dispose\(\)[\s\S]{0,200}onRegisterSaver\?\.\(\s*sessionId\s*,\s*null\s*\)/)
+    expect(m).not.toBeNull()
   })
+
   it('hot-swap useEffect dep array includes pluginConfig?.serialize and onRegisterSaver', () => {
-    expect.fail('RED scaffold — Plan 97-04 extends dep array to include pluginConfig?.serialize + onRegisterSaver')
+    // The hot-swap dep array contains webgl + clipboard + search + webLinks; we add serialize + onRegisterSaver.
+    expect(raw).toMatch(/\[\s*pluginConfig\?\.webgl[\s\S]*?pluginConfig\?\.serialize[\s\S]*?onRegisterSaver[\s\S]*?sessionId\s*\]/)
   })
 })
 

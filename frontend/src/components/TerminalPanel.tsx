@@ -8,6 +8,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
+import { SerializeAddon } from '@xterm/addon-serialize'
 import { RelayClient } from '../lib/relayClient'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
@@ -61,6 +62,14 @@ interface TerminalPanelProps {
   // Phase 93 WGL-02/WGL-03: fired when WebGL falls back to DOM (context-loss)
   // or when software-rasterizer is detected at startup (preempted).
   onWebGLContextLost?: (reason: 'context-loss' | 'software-rasterized') => void
+  /**
+   * Phase 97 SER-01: register/unregister this panel's serialize() closure
+   * with App.tsx's saver registry. Called inside the hot-swap useEffect
+   * positive arm with a closure that captures the SerializeAddon ref;
+   * called with null in the negative arm AND in mount-useEffect cleanup
+   * to prevent registry memory leaks (Pitfall #6).
+   */
+  onRegisterSaver?: (sessionId: string, fn: (() => string) | null) => void
 }
 
 /**
@@ -77,6 +86,7 @@ export function TerminalPanel({
   theme,
   pluginConfig,
   onWebGLContextLost,
+  onRegisterSaver,
 }: TerminalPanelProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -105,6 +115,10 @@ export function TerminalPanel({
   // "Applies to new sessions you create." caption in PluginsSection is the
   // user-facing affordance for this constraint.
   const imageAddonRef = useRef<ImageAddon | null>(null)
+  // Phase 97 SER-01: SerializeAddon ref. Construction is in the HOT-SWAP
+  // useEffect (NOT mount) — Serialize is a pure buffer-walker with no
+  // buffer-state implications, so it can be attached/detached at runtime.
+  const serializeAddonRef = useRef<SerializeAddon | null>(null)
 
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
   // SearchAddon (also at this level) and FindBar share a single source of
@@ -297,6 +311,14 @@ export function TerminalPanel({
         try { imageAddonRef.current.dispose() } catch { /* ignore */ }
         imageAddonRef.current = null
       }
+      // Phase 97 SER-01: dispose serializeAddon AND flush the saver registry
+      // entry on unmount (Pitfall #6 — leaving a stale closure behind would
+      // mean handleRequestSave invokes a disposed addon).
+      if (serializeAddonRef.current) {
+        serializeAddonRef.current.dispose()
+        serializeAddonRef.current = null
+      }
+      onRegisterSaver?.(sessionId, null)
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
@@ -492,7 +514,28 @@ export function TerminalPanel({
       // dialog after disabling the feature.
       setLinkConfirmState(null)
     }
-  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, onWebGLContextLost, sessionId])
+
+    // Phase 97 SER-01 hot-swap arm. Mirrors clipboard/webgl shape. Serialize is
+    // hot-swap-friendly (pure buffer-walker, no buffer-state implications) —
+    // distinct from Image and Unicode 11 which are mount-only per 97-PATTERNS.md
+    // §"Hot-swap addon arm contract". When attaching, register the addon's
+    // serialize() closure with App.tsx's saver registry so TabBar's right-click
+    // "Save Terminal As…" can reach it.
+    if (pluginConfig?.serialize) {
+      if (!serializeAddonRef.current) {
+        const serializeAddon = new SerializeAddon()
+        term.loadAddon(serializeAddon)
+        serializeAddonRef.current = serializeAddon
+        onRegisterSaver?.(sessionId, () => serializeAddon.serialize({ excludeModes: true }))
+      }
+    } else {
+      if (serializeAddonRef.current) {
+        serializeAddonRef.current.dispose()
+        serializeAddonRef.current = null
+        onRegisterSaver?.(sessionId, null) // Pitfall #6 — flush stale closure
+      }
+    }
+  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, pluginConfig?.serialize, onWebGLContextLost, onRegisterSaver, sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
