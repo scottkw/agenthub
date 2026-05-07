@@ -1120,25 +1120,23 @@ it('evicts oldest images when storageLimit cap is exceeded', async () => {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `ImageAddon` constructor pass `pixelLimit`, `sixelSizeLimit`, `iipSizeLimit` from `ImageConfig` too?**
    - What we know: addon-image exposes these as constructor options. ROADMAP/REQUIREMENTS only mention `storageLimit`.
-   - What's unclear: Whether tightening the per-image limits is a Phase 96 concern or a Phase 99/v3.3 concern.
-   - Recommendation: Phase 96 ships **only** `storageLimit` in `ImageConfig`. The other limits use addon-image's defaults (`pixelLimit: 16M pixels`, `sixelSizeLimit: 25 MB`, `iipSizeLimit: 20 MB`). If Phase 99 advanced disclosure surfaces them, extend `ImageConfig` then.
+   - **RESOLVED:** Phase 96 ships **only** `storageLimit` in `ImageConfig`. The other limits use addon-image's defaults (`pixelLimit: 16M pixels`, `sixelSizeLimit: 25 MB`, `iipSizeLimit: 20 MB`). If Phase 99 advanced disclosure surfaces them, extend `ImageConfig` then.
 
 2. **Should the chromedp CSP-zero-violation e2e suite for Phase 96 cover Safari and Firefox now, or defer to Phase 99?**
    - What we know: Phase 89 e2e is Chromium-only. ROADMAP SC-1 says "green on Chromium + Safari + Firefox after any amendment". Phase 99 SC-4 says the cross-browser e2e is the release-gate test.
-   - What's unclear: Is Phase 96 obligated to run cross-browser e2e during its own validation, or can it gate on Chromium-only and defer cross-browser to Phase 99?
-   - Recommendation: Phase 96 plan ships **Chromium-only** e2e for the CSP amendment validation (sufficient to confirm `'wasm-unsafe-eval'` is wired correctly); Phase 99 owns the full Chromium + Safari + Firefox + iPad Safari run as the release gate. This matches Phase 89's Chromium-only precedent and the v3.2 release-gate phasing.
+   - **RESOLVED:** Phase 96 plan ships **Chromium-only** e2e for the CSP amendment validation (sufficient to confirm `'wasm-unsafe-eval'` is wired correctly); Phase 99 owns the full Chromium + Safari + Firefox + iPad Safari run as the release gate. This matches Phase 89's Chromium-only precedent and the v3.2 release-gate phasing.
 
 3. **Should the IMG-04 regression test live in `internal/relay/` (Go-side byte-fidelity) or in `frontend/src/components/__tests__/` (browser-side render fidelity)?**
    - What we know: The byte-fidelity guarantee crosses two tiers; both are testable.
-   - Recommendation: **Go-side** (the relay byte buffer). Browser-side rendering is already covered by the SC-2 visual UAT and the addon's own upstream test suite. Phase 96 plan should include the Go test in Wave 0 (red scaffold) and turn it green in the wave that ships the daemon-side ImageConfig (no production code change needed for IMG-04 — the test asserts existing behavior is preserved).
+   - **RESOLVED: Go-side** (the relay byte buffer). Browser-side rendering is already covered by the SC-2 visual UAT and the addon's own upstream test suite. Phase 96 plan ships the Go test in Wave 0 GREEN-now (no production change needed — relay byte-buffer architecture structurally guarantees the property).
 
 4. **Should the `'unsafe-eval'`-vs-`'wasm-unsafe-eval'` regression test live in `csp_mw_test.go` or in a new `no_unsafe_eval_test.go`?**
    - What we know: The defense is "ban `'unsafe-eval'` from any future amendment".
-   - Recommendation: Single assertion appended to `csp_mw_test.go` (next to the existing CSP header content tests). A dedicated file is overkill for one test.
+   - **RESOLVED:** Single assertion appended to `csp_mw_test.go` (next to the existing CSP header content tests). A dedicated file is overkill for one test.
 
 ---
 

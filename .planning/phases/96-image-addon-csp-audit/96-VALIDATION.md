@@ -1,8 +1,8 @@
 ---
 phase: 96
 slug: image-addon-csp-audit
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-07
 ---
@@ -91,13 +91,24 @@ created: 2026-05-07
 
 ---
 
+## Out-of-Phase (Cross-Phase Gates)
+
+These items are required by Phase 96's ROADMAP success criteria but are explicitly owned by another phase. `/gsd-verify-work 96` MUST NOT mark the listed requirement GREEN until the gating phase lands.
+
+| Behavior | Requirement | Owning Phase | Why Deferred | Verifier Instruction |
+|----------|-------------|--------------|--------------|----------------------|
+| User-facing Advanced `<details>` disclosure exposing `storageLimit` slider/input under the Inline Images toggle | IMG-02 SC-3 (the user-adjustability clause) | Phase 99 / PUI-03 | ROADMAP Phase 99 SC-2 explicitly owns the `<details>` disclosure UI for Search, Web-Links, and Inline Images together. Phase 96 ships the daemon `ImageConfig` struct + sub-key RPC + hard-coded 16 MB default; Phase 99 wires the UI control. | `/gsd-verify-work 96` should mark IMG-02 SC-3 PARTIAL (daemon-side ✓, UI-side gated by Phase 99). Do NOT mark IMG-02 fully GREEN until Phase 99 lands. |
+| Cross-browser CSP zero-violation suite (Safari + Firefox) for the `'wasm-unsafe-eval'` amendment | IMG-03 SC-1 (the cross-browser clause) | Phase 99 SC-4 | Phase 96 ships Chromium-only chromedp e2e (matching Phase 89 precedent). Phase 99 owns the Chromium + Safari + Firefox + iPad Safari release-gate run. | `/gsd-verify-work 96` should mark IMG-03 SC-1 PARTIAL on cross-browser; full release gate is Phase 99. |
+
+---
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 90s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 90s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-05-07 (post plan-checker structural review)
