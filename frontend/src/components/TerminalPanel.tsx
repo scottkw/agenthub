@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import type { ITheme, IDisposable } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { ImageAddon } from '@xterm/addon-image'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
@@ -98,6 +99,12 @@ export function TerminalPanel({
   // changing those does NOT re-attach the addon (Pitfall #8).
   const webLinksAddonRef = useRef<WebLinksAddon | null>(null)
   const webLinksConfigRef = useRef(pluginConfig?.webLinksConfig)
+  // Phase 96 IMG-01/IMG-02: ImageAddon ref. Construction is NEXT-SESSION-ONLY
+  // (mount useEffect, NOT hot-swap useEffect) — toggling pluginConfig.image
+  // in Settings does NOT re-attach on already-open terminals. The italic
+  // "Applies to new sessions you create." caption in PluginsSection is the
+  // user-facing affordance for this constraint.
+  const imageAddonRef = useRef<ImageAddon | null>(null)
 
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
   // SearchAddon (also at this level) and FindBar share a single source of
@@ -183,6 +190,33 @@ export function TerminalPanel({
       term.unicode.activeVersion = '11'   // TERM-03: emoji + CJK + box-drawing
     }
 
+    // Phase 96 IMG-01/IMG-02: ImageAddon is NEXT-SESSION-ONLY.
+    // Lives in the MOUNT useEffect (alongside Unicode 11), NOT the
+    // hot-swap useEffect — toggling pluginConfig.image in Settings
+    // does NOT re-attach on already-open terminals. The italic
+    // "Applies to new sessions you create." caption in PluginsSection
+    // is the user-facing affordance for this constraint.
+    //
+    // enableSizeReports: false is MANDATORY (96-RESEARCH §"Pitfall 8":
+    // CSI 14/16/18 t reports would leak terminal pixel dimensions to
+    // the running CLI as keyboard input — privacy + security regression).
+    if (pluginConfig?.image !== false) {
+      try {
+        const storageLimit = pluginConfig?.imageConfig?.storageLimit ?? 16
+        const imageAddon = new ImageAddon({
+          storageLimit,
+          enableSizeReports: false,
+        })
+        term.loadAddon(imageAddon)
+        imageAddonRef.current = imageAddon
+      } catch (e) {
+        // WASM instantiation failure is non-critical; sixel/IIP escapes
+        // pass through harmlessly as printable garbage. No banner.
+        // 96-RESEARCH §"Claude's Discretion / fall back gracefully".
+        console.warn('Phase 96 IMG-01: ImageAddon construction failed', e)
+      }
+    }
+
     // WebGL + Clipboard addons load via the hot-swap useEffect below
     // (Phase 93 WGL-01/CLIP-01). Initial load is the same code path as
     // hot-swap because pluginConfig?.webgl/clipboard are dep-array keys.
@@ -256,6 +290,12 @@ export function TerminalPanel({
       if (webLinksAddonRef.current) {
         try { webLinksAddonRef.current.dispose() } catch { /* ignore */ }
         webLinksAddonRef.current = null
+      }
+      // Phase 96 IMG-01/IMG-02: dispose ImageAddon on unmount. Mirror
+      // Phase 95 web-links cleanup style (try/catch + null the ref).
+      if (imageAddonRef.current) {
+        try { imageAddonRef.current.dispose() } catch { /* ignore */ }
+        imageAddonRef.current = null
       }
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current)
