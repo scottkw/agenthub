@@ -58,10 +58,10 @@ Clickable HTTP(S) URLs with security-hardened click handling — same rigor as v
 
 Sixel + iTerm2 inline image protocol via `@xterm/addon-image`. Default ON; load-bearing CSP and storage gates.
 
-- [ ] **IMG-01** — User can enable/disable inline image support in Settings (default ON); the toggle is clearly marked as "applies to new sessions you create"
-- [ ] **IMG-02** — Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (override of upstream 100 MB default); user can adjust the cap via an Advanced disclosure in Settings
-- [ ] **IMG-03** — Web-served Tailscale clients receive the same inline image rendering as desktop, with the existing v3.1 CSP either unchanged or amended (with documentation rigor matching v3.1 D-09) only if a pre-phase audit confirms `addon-image` requires `worker-src 'self' blob:`
-- [ ] **IMG-04** — A second client joining a session mid-stream receives correctly-rendered images during scrollback replay (multi-client byte-fidelity preserved through `internal/relay/`)
+- [x] **IMG-01** — User can enable/disable inline image support in Settings (default ON); the toggle is clearly marked as "applies to new sessions you create"
+- [x] **IMG-02** — Per-terminal sixel/IIP storage is hard-capped at 16 MB of decoded RGBA by default (override of upstream 100 MB default); user can adjust the cap via an Advanced disclosure in Settings
+- [x] **IMG-03** — Web-served Tailscale clients receive the same inline image rendering as desktop, with the existing v3.1 CSP either unchanged or amended (with documentation rigor matching v3.1 D-09) only if a pre-phase audit confirms `addon-image` requires `worker-src 'self' blob:`
+- [x] **IMG-04** — A second client joining a session mid-stream receives correctly-rendered images during scrollback replay (multi-client byte-fidelity preserved through `internal/relay/`)
 
 ### Serialize & Save Terminal
 
@@ -159,10 +159,10 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 | LNK-04  | Phase 95 | Pending |
 | LNK-05  | Phase 95 | Pending |
 | LNK-06  | Phase 95 | Pending |
-| IMG-01  | Phase 96 | Pending |
-| IMG-02  | Phase 96 | Pending |
-| IMG-03  | Phase 96 | Pending |
-| IMG-04  | Phase 96 | Pending |
+| IMG-01  | Phase 96 | Complete |
+| IMG-02  | Phase 96 | Complete |
+| IMG-03  | Phase 96 | Complete |
+| IMG-04  | Phase 96 | Complete |
 | SER-01  | Phase 97 | Pending |
 | SER-02  | Phase 97 | Pending |
 | SER-03  | Phase 97 | Pending |
