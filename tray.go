@@ -32,6 +32,18 @@ var trayIconBytes []byte
 //go:embed assets/tray_icon_error.png
 var trayIconErrorBytes []byte
 
+//go:embed assets/tray_icon_progress_25.png
+var trayIconProgress25Bytes []byte
+
+//go:embed assets/tray_icon_progress_50.png
+var trayIconProgress50Bytes []byte
+
+//go:embed assets/tray_icon_progress_75.png
+var trayIconProgress75Bytes []byte
+
+//go:embed assets/tray_icon_progress_100.png
+var trayIconProgress100Bytes []byte
+
 // trayCallbackApp is the global App reference for cgo callbacks.
 // Set before initTray returns. Only accessed from the main goroutine.
 var trayCallbackApp *App
@@ -85,16 +97,41 @@ func (a *App) setDockVisible(visible bool) {
 	}
 }
 
+// trayIconBytesForState returns the appropriate tray icon byte slice for the
+// given connection state and current progress quartile (Phase 98 PRG-03).
+//
+// Error precedence (Pitfall #8): when connected=false, always returns
+// trayIconErrorBytes regardless of a.lastTrayQuartile to ensure daemon-
+// disconnect is not masked by a progress glyph.
+//
+// This helper is defined verbatim in tray.go (darwin), tray_linux.go, and
+// tray_windows.go — three identical copies required because each file has its
+// own //go:build tag and the trayIconProgress* byte slices embedded in each
+// file are not visible across build-tag boundaries.
+func (a *App) trayIconBytesForState(connected bool) []byte {
+	if !connected {
+		return trayIconErrorBytes
+	}
+	switch a.lastTrayQuartile {
+	case 1:
+		return trayIconProgress25Bytes
+	case 2:
+		return trayIconProgress50Bytes
+	case 3:
+		return trayIconProgress75Bytes
+	case 4:
+		return trayIconProgress100Bytes
+	default:
+		return trayIconBytes
+	}
+}
+
 // updateTray updates the tray icon, tooltip, and session list based on current state.
 func (a *App) updateTray(sessions []SessionInfo, connected bool) {
-	// Update icon based on connectivity.
-	if connected {
-		ptr := unsafe.Pointer(&trayIconBytes[0])
-		C.updateTrayIcon(ptr, C.int(len(trayIconBytes)))
-	} else {
-		ptr := unsafe.Pointer(&trayIconErrorBytes[0])
-		C.updateTrayIcon(ptr, C.int(len(trayIconErrorBytes)))
-	}
+	// Update icon based on connectivity and progress quartile.
+	bytes := a.trayIconBytesForState(connected)
+	ptr := unsafe.Pointer(&bytes[0])
+	C.updateTrayIcon(ptr, C.int(len(bytes)))
 
 	// Update tooltip with session count.
 	tip := trayTooltip(len(sessions))

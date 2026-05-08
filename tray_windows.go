@@ -23,6 +23,18 @@ var trayIconBytes []byte
 //go:embed assets/tray_icon_error.png
 var trayIconErrorBytes []byte
 
+//go:embed assets/tray_icon_progress_25.png
+var trayIconProgress25Bytes []byte
+
+//go:embed assets/tray_icon_progress_50.png
+var trayIconProgress50Bytes []byte
+
+//go:embed assets/tray_icon_progress_75.png
+var trayIconProgress75Bytes []byte
+
+//go:embed assets/tray_icon_progress_100.png
+var trayIconProgress100Bytes []byte
+
 // Win32 constants for Shell_NotifyIcon and window messaging.
 const (
 	NIM_ADD          = 0x00000000
@@ -141,15 +153,19 @@ var (
 
 // windowsTray holds all state for the Windows system tray icon.
 type windowsTray struct {
-	hwnd      uintptr
-	hIcon     uintptr
-	hIconErr  uintptr
-	nid       notifyIconData
-	menuItems []MenuItem
-	mu        sync.Mutex
-	app       *App
-	ready     chan struct{}
-	disabled  bool
+	hwnd             uintptr
+	hIcon            uintptr
+	hIconErr         uintptr
+	hIconProgress25  uintptr // Phase 98 PRG-03 — pre-cached HICON for 25% quartile glyph
+	hIconProgress50  uintptr // Phase 98 PRG-03 — pre-cached HICON for 50% quartile glyph
+	hIconProgress75  uintptr // Phase 98 PRG-03 — pre-cached HICON for 75% quartile glyph
+	hIconProgress100 uintptr // Phase 98 PRG-03 — pre-cached HICON for 100% quartile glyph
+	nid              notifyIconData
+	menuItems        []MenuItem
+	mu               sync.Mutex
+	app              *App
+	ready            chan struct{}
+	disabled         bool
 }
 
 // globalWinTray is the package-level reference used by the wndProc callback.
@@ -405,6 +421,50 @@ func (a *App) initTray() {
 		return
 	}
 
+	// Phase 98 PRG-03: pre-cache quartile progress HICON handles.
+	wt.hIconProgress25, err = createIconFromPNG(trayIconProgress25Bytes)
+	if err != nil {
+		log.Printf("system tray: failed to create progress-25 icon: %v; tray icon disabled", err)
+		pDestroyIcon.Call(wt.hIcon)
+		pDestroyIcon.Call(wt.hIconErr)
+		wt.disabled = true
+		close(wt.ready)
+		return
+	}
+	wt.hIconProgress50, err = createIconFromPNG(trayIconProgress50Bytes)
+	if err != nil {
+		log.Printf("system tray: failed to create progress-50 icon: %v; tray icon disabled", err)
+		pDestroyIcon.Call(wt.hIcon)
+		pDestroyIcon.Call(wt.hIconErr)
+		pDestroyIcon.Call(wt.hIconProgress25)
+		wt.disabled = true
+		close(wt.ready)
+		return
+	}
+	wt.hIconProgress75, err = createIconFromPNG(trayIconProgress75Bytes)
+	if err != nil {
+		log.Printf("system tray: failed to create progress-75 icon: %v; tray icon disabled", err)
+		pDestroyIcon.Call(wt.hIcon)
+		pDestroyIcon.Call(wt.hIconErr)
+		pDestroyIcon.Call(wt.hIconProgress25)
+		pDestroyIcon.Call(wt.hIconProgress50)
+		wt.disabled = true
+		close(wt.ready)
+		return
+	}
+	wt.hIconProgress100, err = createIconFromPNG(trayIconProgress100Bytes)
+	if err != nil {
+		log.Printf("system tray: failed to create progress-100 icon: %v; tray icon disabled", err)
+		pDestroyIcon.Call(wt.hIcon)
+		pDestroyIcon.Call(wt.hIconErr)
+		pDestroyIcon.Call(wt.hIconProgress25)
+		pDestroyIcon.Call(wt.hIconProgress50)
+		pDestroyIcon.Call(wt.hIconProgress75)
+		wt.disabled = true
+		close(wt.ready)
+		return
+	}
+
 	// Populate initial menu items (no sessions yet).
 	wt.menuItems = BuildMenuItems(nil)
 
@@ -504,6 +564,39 @@ func (a *App) initTray() {
 	<-wt.ready
 }
 
+// trayIconBytesForState returns the appropriate tray icon byte slice for the
+// given connection state and current progress quartile (Phase 98 PRG-03).
+//
+// Error precedence (Pitfall #8): when connected=false, always returns
+// trayIconErrorBytes regardless of a.lastTrayQuartile to ensure daemon-
+// disconnect is not masked by a progress glyph.
+//
+// This helper is defined verbatim in tray.go (darwin), tray_linux.go, and
+// tray_windows.go — three identical copies required because each file has its
+// own //go:build tag and the trayIconProgress* byte slices embedded in each
+// file are not visible across build-tag boundaries.
+//
+// Note: on Windows, the production updateTray path uses pre-cached HICON handles
+// directly (see updateTray below). This helper is exposed for unit testing
+// (TestApp_SetTrayProgress_ErrorPrecedence) and future consumers.
+func (a *App) trayIconBytesForState(connected bool) []byte {
+	if !connected {
+		return trayIconErrorBytes
+	}
+	switch a.lastTrayQuartile {
+	case 1:
+		return trayIconProgress25Bytes
+	case 2:
+		return trayIconProgress50Bytes
+	case 3:
+		return trayIconProgress75Bytes
+	case 4:
+		return trayIconProgress100Bytes
+	default:
+		return trayIconBytes
+	}
+}
+
 // updateTray updates the tray icon and tooltip based on current session state.
 func (a *App) updateTray(sessions []SessionInfo, connected bool) {
 	wt := globalWinTray
@@ -514,11 +607,24 @@ func (a *App) updateTray(sessions []SessionInfo, connected bool) {
 	wt.mu.Lock()
 	defer wt.mu.Unlock()
 
-	// Switch icon based on connectivity.
-	if connected {
-		wt.nid.HIcon = wt.hIcon
-	} else {
+	// Switch icon based on connectivity and progress quartile (Phase 98 PRG-03).
+	// Windows uses pre-cached HICON handles (not byte slices) for efficiency.
+	// Error precedence (Pitfall #8): error icon takes priority over progress quartile.
+	if !connected {
 		wt.nid.HIcon = wt.hIconErr
+	} else {
+		switch a.lastTrayQuartile {
+		case 1:
+			wt.nid.HIcon = wt.hIconProgress25
+		case 2:
+			wt.nid.HIcon = wt.hIconProgress50
+		case 3:
+			wt.nid.HIcon = wt.hIconProgress75
+		case 4:
+			wt.nid.HIcon = wt.hIconProgress100
+		default:
+			wt.nid.HIcon = wt.hIcon
+		}
 	}
 
 	// Update tooltip.
@@ -548,6 +654,11 @@ func (a *App) cleanupTray() {
 	pShellNotifyIconW.Call(NIM_DELETE, uintptr(unsafe.Pointer(&wt.nid)))
 	pDestroyIcon.Call(wt.hIcon)
 	pDestroyIcon.Call(wt.hIconErr)
+	// Phase 98 PRG-03: destroy progress quartile HICON handles.
+	pDestroyIcon.Call(wt.hIconProgress25)
+	pDestroyIcon.Call(wt.hIconProgress50)
+	pDestroyIcon.Call(wt.hIconProgress75)
+	pDestroyIcon.Call(wt.hIconProgress100)
 	// Post WM_QUIT to exit the message loop goroutine.
 	pPostMessageW.Call(wt.hwnd, 0x0012 /* WM_QUIT */, 0, 0)
 	pDestroyWindow.Call(wt.hwnd)

@@ -145,6 +145,9 @@ export function SetImageConfig(arg1: daemon.ImageConfig): Promise<void>
 // Save terminal session (Phase 97 SER-01).
 export function SaveTerminalSession(defaultDir: string, defaultName: string, content: string): Promise<void>
 
+// Set tray progress quartile (Phase 98 PRG-03).
+export function SetTrayProgress(quartile: number): Promise<void>
+
 // Quit confirmation bound methods (APP-01/02)
 export function QuitGUIOnly(): Promise<void>
 export function QuitAll(): Promise<void>

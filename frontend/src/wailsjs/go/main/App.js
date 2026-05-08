@@ -88,6 +88,9 @@ export const SetImageConfig          = (cfg)                => Call('main.App.Se
 // Save terminal session (Phase 97 SER-01).
 export const SaveTerminalSession    = (defaultDir, defaultName, content) => Call('main.App.SaveTerminalSession', [defaultDir, defaultName, content])
 
+// Set tray progress quartile (Phase 98 PRG-03).
+export const SetTrayProgress        = (quartile)                => Call('main.App.SetTrayProgress', [quartile])
+
 // Quit confirmation bound methods (APP-01/02)
 export const QuitGUIOnly             = ()                   => Call('main.App.QuitGUIOnly', [])
 export const QuitAll                 = ()                   => Call('main.App.QuitAll', [])
