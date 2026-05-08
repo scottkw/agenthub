@@ -310,6 +310,48 @@ describe('ARGS-02: args threading', () => {
   })
 })
 
+// Phase 98 PRG-02/PRG-03 — Wave 0 RED scaffold (progress-debounce integration).
+// This describe block is RED until Wave 2 (Plan 03 Task 2) wires handleProgressChange
+// with 200ms debounce + SetTrayProgress dispatch into App.tsx.
+// Tagged `progress-debounce` for VALIDATION.md verify targeting.
+describe('Phase 98 PRG-02/PRG-03: App.tsx progress-debounce integration — Wave 0 RED scaffold', () => {
+  it('progress-debounce: App.tsx imports SetTrayProgress from wailsjs bindings', () => {
+    // RED until Wave 2 (Plan 03) adds the SetTrayProgress import.
+    expect(raw).toContain('SetTrayProgress')
+  })
+
+  it('progress-debounce: App.tsx declares handleProgressChange callback', () => {
+    // RED until Wave 2. handleProgressChange receives (sessionId, IProgressState)
+    // and feeds the progressRegistry + schedules a debounced SetTrayProgress call.
+    expect(raw).toContain('handleProgressChange')
+  })
+
+  it('progress-debounce: App.tsx declares trayDebounceRef for the 200ms debounce timer', () => {
+    // RED until Wave 2. The debounce ref stores the setTimeout handle so it can
+    // be cleared on rapid progress updates (Pattern 4 in 98-RESEARCH.md).
+    expect(raw).toContain('trayDebounceRef')
+  })
+
+  it('progress-debounce: App.tsx passes onProgressChange prop to TerminalPanel', () => {
+    // RED until Wave 2 wires onProgressChange={handleProgressChange} on <TerminalPanel>.
+    expect(raw).toContain('onProgressChange={handleProgressChange}')
+  })
+
+  it('progress-debounce: App.tsx uses 200ms debounce window before SetTrayProgress dispatch', () => {
+    // RED until Wave 2. The debounce timeout must be 200 (ms) to avoid
+    // flooding the Go side with progress events during rapid terminal output.
+    // Source-level assertion: 200 must appear near the trayDebounceRef assignment.
+    const debounceIdx = raw.indexOf('trayDebounceRef')
+    if (debounceIdx >= 0) {
+      const debounceWindow = raw.slice(debounceIdx, debounceIdx + 500)
+      expect(debounceWindow).toContain('200')
+    } else {
+      // trayDebounceRef not yet present — test fails RED as expected at Wave 0.
+      expect(raw).toContain('trayDebounceRef')
+    }
+  })
+})
+
 // BRND-02: Welcome tab integration
 describe('BRND-02: welcome tab integration', () => {
   it('imports WelcomeTab component', () => {

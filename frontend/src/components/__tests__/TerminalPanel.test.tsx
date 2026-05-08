@@ -319,3 +319,36 @@ describe('IMG-01/IMG-02 ImageAddon construction (Plan 96-04)', () => {
     }
   })
 })
+
+// Phase 98 PRG-02 — Wave 0 RED scaffold.
+// These two test cases are RED until Wave 2 (Plan 03) adds the ProgressAddon
+// hot-swap arm to TerminalPanel. They are tagged with `progress-hot-swap` and
+// `progress-onchange-forward` so VALIDATION.md verify commands can target them.
+// Using source-inspection (?raw) pattern consistent with the rest of this file.
+describe('Phase 98 PRG-02: ProgressAddon hot-swap arm — Wave 0 RED scaffold (Plan 98-01 Wave 0)', () => {
+  it('progress-hot-swap: TerminalPanel imports ProgressAddon from @xterm/addon-progress', () => {
+    // RED until Wave 2 (Plan 03) adds the hot-swap arm.
+    expect(raw).toMatch(/import\s*\{[^}]*ProgressAddon[^}]*\}\s*from\s*['"]@xterm\/addon-progress['"]/)
+  })
+
+  it('progress-hot-swap: declares progressAddonRef parallel to serializeAddonRef', () => {
+    // RED until Wave 2 adds the progressAddonRef declaration.
+    expect(raw).toMatch(/progressAddonRef\s*=\s*useRef/)
+  })
+
+  it('progress-onchange-forward: constructs new ProgressAddon() inside the hot-swap useEffect', () => {
+    // RED until Wave 2 adds the hot-swap arm that gates on pluginConfig?.progress.
+    expect(raw).toMatch(/new\s+ProgressAddon\s*\(\s*\)/)
+  })
+
+  it('progress-onchange-forward: gates ProgressAddon on pluginConfig?.progress toggle', () => {
+    // RED until Wave 2. The hot-swap arm must check pluginConfig?.progress
+    // before constructing the addon (Pitfall #1 — OFF-path zero side effects).
+    expect(raw).toMatch(/pluginConfig\?\.progress/)
+  })
+
+  it('progress-onchange-forward: hot-swap dep array includes pluginConfig?.progress and onProgressChange', () => {
+    // RED until Wave 2 extends the hot-swap dep array.
+    expect(raw).toMatch(/\[\s*pluginConfig\?\.webgl[\s\S]*?pluginConfig\?\.progress[\s\S]*?onProgressChange[\s\S]*?sessionId\s*\]/)
+  })
+})

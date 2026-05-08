@@ -31,8 +31,8 @@ func TestXtermVendorVersionsMatchPnpmLock(t *testing.T) {
 			pnpmVersions[m[1]] = m[2]
 		}
 	}
-	if len(pnpmVersions) < 9 {
-		t.Fatalf("failed to parse at least 9 @xterm/* packages (xterm, addon-fit, addon-webgl, addon-unicode11, addon-clipboard, addon-search, addon-web-links, addon-image, addon-serialize) from pnpm-lock.yaml: found %v (Phase 95 SRC-95-06 — addon-web-links joined the manifest; Phase 96 IMG-03 — addon-image joined the manifest; Phase 97 SER-03 — addon-serialize joined the manifest)", pnpmVersions)
+	if len(pnpmVersions) < 10 {
+		t.Fatalf("failed to parse at least 10 @xterm/* packages (xterm, addon-fit, addon-webgl, addon-unicode11, addon-clipboard, addon-search, addon-web-links, addon-image, addon-serialize, addon-progress) from pnpm-lock.yaml: found %v (Phase 95 SRC-95-06 — addon-web-links joined the manifest; Phase 96 IMG-03 — addon-image joined the manifest; Phase 97 SER-03 — addon-serialize joined the manifest; Phase 98 PRG-04 — addon-progress joined the manifest)", pnpmVersions)
 	}
 
 	// Step 3: read web/vendor/xterm/VERSION (the vendored manifest).
