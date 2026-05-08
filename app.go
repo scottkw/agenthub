@@ -55,8 +55,9 @@ type RemotePeerSessions struct {
 type App struct {
 	ctx       context.Context
 	client    *daemon.DaemonClient // only daemon communication field; nil when startup failed
-	trayInit  bool                 // true once initTray has been called
-	daemonErr error                // non-nil when EnsureDaemon failed at startup
+	trayInit         bool  // true once initTray has been called
+	lastTrayQuartile int   // Phase 98 PRG-03 — last applied tray progress quartile [0..4]; -1 = unset
+	daemonErr        error // non-nil when EnsureDaemon failed at startup
 	quitting  bool                 // true when tray Quit was clicked; lets beforeClose allow exit
 	// Update checker state
 	lastUpdate   *updater.UpdateInfo
@@ -67,12 +68,18 @@ type App struct {
 	// "Function injection" pattern, parallel to serviceControlFunc and
 	// statusFunc.
 	saveFileDialogFunc func(ctx context.Context, opts runtime.SaveDialogOptions) (string, error)
+
+	// refreshTrayStateFunc allows unit tests to mock refreshTrayState().
+	// Defaults to nil (production path calls a.refreshTrayState() directly).
+	// Phase 98 PRG-03 / PROJECT.md "Function injection" pattern.
+	refreshTrayStateFunc func()
 }
 
 // NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
 	return &App{
 		saveFileDialogFunc: runtime.SaveFileDialog,
+		lastTrayQuartile:   -1, // Phase 98 PRG-03 — ensure first SetTrayProgress call always updates
 	}
 }
 
@@ -866,6 +873,37 @@ func (a *App) SaveTerminalSession(defaultDir, defaultName, content string) error
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("SaveTerminalSession: write: %w", err)
+	}
+	return nil
+}
+
+// SetTrayProgress sets the cross-session aggregate progress quartile and
+// refreshes the system tray icon if the quartile changed.
+//
+// Quartile semantics: 0 = no active progress (revert to base icon);
+// 1..4 = 25/50/75/100% quartile glyphs. Frontend caller is App.tsx,
+// which debounces at 200ms before invoking this RPC (Pitfall #5);
+// the Go-side idempotency check (Pitfall #3 transition guard) ensures
+// identical quartile values do not churn the platform tray API even
+// if the debounce is bypassed by a slow flap.
+//
+// Returns an error if quartile is out of range [0,4]; silent no-op if
+// the tray subsystem hasn't initialized (a.trayInit == false).
+func (a *App) SetTrayProgress(quartile int) error {
+	if !a.trayInit {
+		return nil
+	}
+	if quartile < 0 || quartile > 4 {
+		return fmt.Errorf("SetTrayProgress: quartile out of range [0,4]: %d", quartile)
+	}
+	if a.lastTrayQuartile == quartile {
+		return nil
+	}
+	a.lastTrayQuartile = quartile
+	if a.refreshTrayStateFunc != nil {
+		a.refreshTrayStateFunc()
+	} else {
+		a.refreshTrayState()
 	}
 	return nil
 }
