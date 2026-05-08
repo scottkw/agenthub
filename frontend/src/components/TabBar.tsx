@@ -46,6 +46,7 @@ export function TabBar({
   onRequestSave,
   sessionStatuses,
   exitCountdowns,
+  tabProgress,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -161,6 +162,16 @@ export function TabBar({
             >
               ×
             </button>
+            {/* Phase 98 PRG-02 — per-tab progress underline. transform (not width) for GPU
+                compositor smoothness (Pitfall #4); transform-origin: left grows L→R; transition
+                in style.css handles the 200ms ease-out animation on value changes. */}
+            <div
+              className="tab__progress"
+              style={{
+                transform: `scaleX(${(tabProgress?.[tab.sessionId] ?? 0) / 100})`,
+              }}
+              data-testid={`tab-progress-${tab.id}`}
+            />
           </div>
         ))}
       </div>

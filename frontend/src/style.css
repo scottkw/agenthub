@@ -115,6 +115,7 @@ body {
   gap: 6px;
   transition: background-color 0.1s;
   flex-shrink: 0;
+  position: relative; /* Phase 98 PRG-02 — anchor for .tab__progress absolute positioning */
 }
 .tab:hover {
   background-color: #1e2030;
@@ -897,6 +898,24 @@ body {
 }
 .tab__status--errored {
   background: #ef4444;
+}
+
+/* Phase 98 PRG-02 — per-tab progress underline.
+   Uses transform: scaleX(0..1) instead of width for GPU compositor (Pitfall #4).
+   Color matches .tab--active border-bottom (TokyoNight accent #7aa2f7).
+   transform-origin: left grows the underline left-to-right.
+   transition: 200ms ease-out animates value changes smoothly. */
+.tab__progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #7aa2f7;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms ease-out;
+  pointer-events: none;
 }
 
 /* ─── QR modal ───────────────────────────────────────────────────── */
