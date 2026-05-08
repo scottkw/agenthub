@@ -153,3 +153,27 @@ describe('Phase 97 SER-01: TabBar Save Terminal As… menu item — Plan 97-04 i
     expect(window).toMatch(/setContextMenu\(\s*null\s*\)/)
   })
 })
+
+// Phase 98 PRG-03 — Wave 0 RED scaffold.
+// These two test cases are RED until Wave 3 (Plan 04) adds the .tab__progress
+// underline element to TabBar.tsx. Tagged `progress-underline` and
+// `progress-transform` for VALIDATION.md verify targeting.
+// Using source-inspection (?raw) pattern consistent with the rest of this file.
+describe('Phase 98 PRG-03: TabBar per-tab progress underline — Wave 0 RED scaffold (Plan 98-01 Wave 0)', () => {
+  it('progress-underline: TabBarProps interface declares tabProgress?: Record<string, number>', () => {
+    // RED until Wave 3 (Plan 04) extends the TabBarProps interface.
+    expect(raw).toMatch(/tabProgress\?:\s*Record<string,\s*number>/)
+  })
+
+  it('progress-underline: renders .tab__progress element with data-testid keyed by tab.id', () => {
+    // RED until Wave 3 adds the .tab__progress <div> inside the tab render.
+    expect(raw).toContain('tab__progress')
+    expect(raw).toMatch(/data-testid[^}]*tab-progress-/)
+  })
+
+  it('progress-transform: uses transform scaleX for the underline animation (not width)', () => {
+    // RED until Wave 3. The production element must set transform: scaleX(...)
+    // and must NOT set inline width (CSS width stays 100%; only transform changes).
+    expect(raw).toMatch(/scaleX\(/)
+  })
+})

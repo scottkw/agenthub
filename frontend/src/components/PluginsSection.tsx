@@ -141,7 +141,8 @@ export function PluginsSection(): React.ReactElement {
       {renderRow('clipboard', 'Clipboard (OSC 52)',
         'Allow the running CLI to place text on the system clipboard via the OSC 52 escape sequence.')}
       {renderRow('progress', 'Progress (OSC 9;4)',
-        'Show a per-tab progress underline when the running CLI emits OSC 9;4 progress updates.')}
+        'Show a per-tab progress underline when the running CLI emits OSC 9;4 progress updates.',
+        'Default OFF in v3.2 — flips ON in v3.3 after field validation.')}
 
       {error && (
         <p className="settings-panel__error">

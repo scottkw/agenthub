@@ -127,3 +127,35 @@ describe('IMG-01: italic next-session-only caption under Image row (Plan 96-04)'
     expect(captionAfterImage - inlineImagesIdx).toBeLessThan(400)
   })
 })
+
+describe('Phase 98 PRG-01: v3.3-flip italic caption under Progress row', () => {
+  it('renders the v3.3-flip italic caption under the Progress toggle', () => {
+    // Verbatim per REQUIREMENTS PRG-01 (v3.3-flip caption):
+    const VERBATIM = 'Default OFF in v3.2 — flips ON in v3.3 after field validation.'
+    expect(raw).toContain(VERBATIM)
+
+    // Positional check — the verbatim string must appear within ~300 chars
+    // AFTER the 'Progress (OSC 9;4)' label (the 2nd argument to the progress
+    // renderRow call). This proves it's the 4th argument to progress renderRow.
+    const labelIdx = raw.indexOf("'Progress (OSC 9;4)'")
+    expect(labelIdx).toBeGreaterThan(-1)
+    const window = raw.slice(labelIdx, labelIdx + 400)
+    expect(window).toContain(VERBATIM)
+  })
+
+  it('Progress renderRow uses settings-panel__description--italic modifier class', () => {
+    // The renderRow helper already routes caption into the italic class.
+    // Verify the class exists in the source (set up by prior phases).
+    expect(raw).toContain('settings-panel__description--italic')
+  })
+
+  it('keeps the Progress toggle default-OFF (progress key is false by default in daemon PluginSettings)', () => {
+    // Source-level assertion: the progress row must NOT hardcode checked={true}.
+    // Render-time behavior is daemon-side (Phase 92); this asserts the source
+    // does not override the daemon default at the component level.
+    const progressRowStart = raw.indexOf("'progress'")
+    expect(progressRowStart).toBeGreaterThan(-1)
+    const progressRowWindow = raw.slice(progressRowStart, progressRowStart + 300)
+    expect(progressRowWindow).not.toContain('checked={true}')
+  })
+})
