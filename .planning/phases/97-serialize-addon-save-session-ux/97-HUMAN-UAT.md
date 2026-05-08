@@ -4,6 +4,7 @@ type: human-uat
 created: 2026-05-07
 requirements: [SER-01, SER-02, SER-03]
 plans: [97-01, 97-02, 97-03, 97-04, 97-05, 97-06]
+status: partial
 ---
 
 # Phase 97 Human UAT — Serialize Addon + Save-Session UX
