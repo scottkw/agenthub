@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
+import type { IProgressState } from '@xterm/addon-progress'
 import * as xtermThemes from 'xterm-theme'
 import type { ITheme } from '@xterm/xterm'
 import { TabBar, type Tab } from './components/TabBar'
@@ -29,7 +30,9 @@ import {
   QuitGUIOnly,
   QuitAll,
   SaveTerminalSession,
+  SetTrayProgress,
 } from './wailsjs/go/main/App'
+import { aggregateProgress } from './lib/aggregateProgress'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import type { daemon } from './wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
@@ -110,6 +113,15 @@ function App(): React.ReactElement {
   // affordance, error kind for write/dialog failures.
   const [saveBanner, setSaveBanner] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
 
+  // Phase 98 PRG-02/PRG-03 — progress registry (mirrors Phase 97 saver registry shape).
+  // useRef Map is the aggregation source: no re-render on .set/.delete; the actual
+  // per-tab UI prop lives in tabProgress (useState Record). The Wails-RPC dispatch
+  // is debounced via trayDebounceRef + idempotency-guarded by lastDispatchedQuartileRef.
+  const progressRegistry = useRef(new Map<string, IProgressState>())
+  const [tabProgress, setTabProgress] = useState<Record<string, number>>({})
+  const trayDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null) // 200ms debounce window
+  const lastDispatchedQuartileRef = useRef<number>(-1)
+
   // Ref for the background upgrade poller (local -> tailscale mode transition)
   const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
@@ -176,6 +188,37 @@ function App(): React.ReactElement {
     []
   )
 
+  // Phase 98 PRG-02/PRG-03 — fired by every TerminalPanel via the onProgressChange prop.
+  // state:1 (set) updates registry+tabProgress; everything else (state:0/2/3/4) clears the entry
+  // (v3.2 ships state:1+state:0 in the UI; 2/3/4 deferred to v3.3 per RESEARCH "Cuttable Inside Cuttable").
+  const handleProgressChange = useCallback(
+    (sessionId: string, state: IProgressState) => {
+      if (state.state === 1) {
+        progressRegistry.current.set(sessionId, state)
+        setTabProgress((prev) => ({ ...prev, [sessionId]: state.value }))
+      } else {
+        progressRegistry.current.delete(sessionId)
+        setTabProgress((prev) => {
+          // Strip the key without mutating the previous object.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [sessionId]: _drop, ...rest } = prev
+          return rest
+        })
+      }
+      // Recompute aggregate quartile + schedule debounced RPC.
+      const quartile = aggregateProgress(progressRegistry.current)
+      if (trayDebounceRef.current) {
+        clearTimeout(trayDebounceRef.current)
+      }
+      trayDebounceRef.current = setTimeout(() => {
+        if (lastDispatchedQuartileRef.current === quartile) return  // idempotent
+        lastDispatchedQuartileRef.current = quartile
+        void SetTrayProgress(quartile)
+      }, 200)
+    },
+    []
+  )
+
   // Phase 97 SER-01: TabBar calls this when the user picks "Save Terminal As…"
   // from the right-click context menu. Looks up the saver closure for the
   // tab's session, strips ANSI, sanitizes the filename, and invokes the
@@ -232,6 +275,18 @@ function App(): React.ReactElement {
       setWebglSoftwareDetected(true)
     } else {
       setWebglContextLost(true)
+    }
+  }, [])
+
+  // Phase 98 PRG-03 — clear the debounce timer on App unmount so a pending
+  // tray-RPC doesn't fire after the React tree is torn down (cosmetic but
+  // matches the established cleanup pattern from Phase 94 BannerStack).
+  useEffect(() => {
+    return () => {
+      if (trayDebounceRef.current) {
+        clearTimeout(trayDebounceRef.current)
+        trayDebounceRef.current = null
+      }
     }
   }, [])
 
@@ -892,6 +947,7 @@ function App(): React.ReactElement {
             )
           }
           onRequestSave={handleRequestSave}
+          tabProgress={tabProgress}
         />
 
         <div className="terminal-container">
@@ -994,6 +1050,7 @@ function App(): React.ReactElement {
                   pluginConfig={pluginConfig}
                   onWebGLContextLost={handleWebGLContextLost}
                   onRegisterSaver={handleRegisterSaver}
+                  onProgressChange={handleProgressChange}
                 />
                 {sessionExits[tab.sessionId] && sessionExits[tab.sessionId].exitCode === 0 && !sessionExits[tab.sessionId].cancelled && sessionExits[tab.sessionId].countdown > 0 && (
                   <ExitCountdownBanner

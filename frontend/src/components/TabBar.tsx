@@ -23,6 +23,14 @@ interface TabBarProps {
   onRequestSave?: (tabId: string) => void
   sessionStatuses?: Record<string, string>
   exitCountdowns?: Record<string, number>  // sessionId -> seconds remaining
+  /**
+   * Phase 98 PRG-02 — per-tab progress value (0-100) keyed by sessionId.
+   * Populated by App.tsx handleProgressChange; consumed in Wave 3 (Plan 04)
+   * to render the progress underline on each tab. Declared optional here so
+   * the prop can be wired at Wave 2 and consumed at Wave 3 without a
+   * TypeScript error between waves.
+   */
+  tabProgress?: Record<string, number>
 }
 
 /**
