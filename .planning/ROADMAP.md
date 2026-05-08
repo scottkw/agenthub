@@ -415,12 +415,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Settings tooltip on the Serialize toggle reads (verbatim or near-verbatim): "Saved files include any secrets, tokens, or sensitive data printed in the session." Toggle defaults to ON for the addon-as-library; serialize never auto-saves or auto-runs.
   3. No on-disk capture of session state occurs without an explicit user action in v3.2 — a regression test (or scope-discipline review checklist item) confirms there is no timer-driven serialization, no graceful-shutdown serialization, and no settings option that enables auto-save.
 **Plans**: 6 plans (4 waves)
-  - [ ] 97-01-PLAN.md — Wave 0: promote addon-serialize to runtime dep + vendor UMD bundle + bump VERSION + bump drift-test min-count (8→9) + lock SER-02 default + 8 RED scaffolds + GREEN-now SER-03 negative-grep regression test
-  - [ ] 97-02-PLAN.md — Wave 1: lib/stripAnsi.ts + lib/sanitizeFilename.ts pure helpers (parallel with 97-03)
-  - [ ] 97-03-PLAN.md — Wave 1: App.tsx saver registry (state + handleRegisterSaver + handleRequestSave) + save-banner UI + wailsjs SaveTerminalSession type stub (parallel with 97-02)
-  - [ ] 97-04-PLAN.md — Wave 2: TerminalPanel hot-swap arm (NOT mount) + TabBar Save Terminal As… context menu item + App.tsx wave-bridge as-any cast removal (parallel with 97-05)
-  - [ ] 97-05-PLAN.md — Wave 2: (*App).SaveTerminalSession Wails RPC + saveFileDialogFunc injection + bindings hand-edit + SER-02 verbatim secrets-warning caption (parallel with 97-04)
-  - [ ] 97-06-PLAN.md — Wave 3: web parity (embed.go directive + terminal.html script tag + initTerminal SerializeAddon construction — vendoring-discipline parity only, no web Save UI in v3.2) + 97-HUMAN-UAT.md runbook + human-checkpoint sign-off (autonomous: false)
+  - [x] 97-01-PLAN.md — Wave 0: promote addon-serialize to runtime dep + vendor UMD bundle + bump VERSION + bump drift-test min-count (8→9) + lock SER-02 default + 8 RED scaffolds + GREEN-now SER-03 negative-grep regression test
+  - [x] 97-02-PLAN.md — Wave 1: lib/stripAnsi.ts + lib/sanitizeFilename.ts pure helpers (parallel with 97-03)
+  - [x] 97-03-PLAN.md — Wave 1: App.tsx saver registry (state + handleRegisterSaver + handleRequestSave) + save-banner UI + wailsjs SaveTerminalSession type stub (parallel with 97-02)
+  - [x] 97-04-PLAN.md — Wave 2: TerminalPanel hot-swap arm (NOT mount) + TabBar Save Terminal As… context menu item + App.tsx wave-bridge as-any cast removal (parallel with 97-05)
+  - [x] 97-05-PLAN.md — Wave 2: (*App).SaveTerminalSession Wails RPC + saveFileDialogFunc injection + bindings hand-edit + SER-02 verbatim secrets-warning caption (parallel with 97-04)
+  - [x] 97-06-PLAN.md — Wave 3: web parity (embed.go directive + terminal.html script tag + initTerminal SerializeAddon construction — vendoring-discipline parity only, no web Save UI in v3.2) + 97-HUMAN-UAT.md runbook + human-checkpoint sign-off (autonomous: false)
 **UI hint**: yes
 
 ### Phase 98: Progress Addon (P2 — Cuttable)
@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 94 | v3.2 | 6/7 | In Progress|  |
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
-| 97 | v3.2 | 0/6 | Planned | — |
+| 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
 | 98 | v3.2 | 0/0 | Not started | — |
 | 99 | v3.2 | 0/0 | Not started | — |
 

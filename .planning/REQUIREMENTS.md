@@ -67,9 +67,9 @@ Sixel + iTerm2 inline image protocol via `@xterm/addon-image`. Default ON; load-
 
 Buffer capture as a first-class user gesture via `@xterm/addon-serialize`.
 
-- [ ] **SER-01** — User can right-click a terminal tab and choose "Save Terminal As…" to export the full visible scrollback as a `.txt` file via a Wails save dialog
-- [ ] **SER-02** — A Settings tooltip on the Serialize toggle warns explicitly that saved files include any secrets, tokens, or sensitive data printed in the session
-- [ ] **SER-03** — User can enable/disable serialize support in Settings; serialize never auto-saves or auto-runs (no on-disk session state captured without an explicit user action in v3.2)
+- [x] **SER-01** — User can right-click a terminal tab and choose "Save Terminal As…" to export the full visible scrollback as a `.txt` file via a Wails save dialog
+- [x] **SER-02** — A Settings tooltip on the Serialize toggle warns explicitly that saved files include any secrets, tokens, or sensitive data printed in the session
+- [x] **SER-03** — User can enable/disable serialize support in Settings; serialize never auto-saves or auto-runs (no on-disk session state captured without an explicit user action in v3.2)
 
 ### Clipboard (OSC 52)
 
@@ -163,9 +163,9 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 | IMG-02  | Phase 96 | Complete |
 | IMG-03  | Phase 96 | Complete |
 | IMG-04  | Phase 96 | Complete |
-| SER-01  | Phase 97 | Pending |
-| SER-02  | Phase 97 | Pending |
-| SER-03  | Phase 97 | Pending |
+| SER-01  | Phase 97 | Complete |
+| SER-02  | Phase 97 | Complete |
+| SER-03  | Phase 97 | Complete |
 | PRG-01  | Phase 98 | Pending |
 | PRG-02  | Phase 98 | Pending |
 | PRG-03  | Phase 98 | Pending |
