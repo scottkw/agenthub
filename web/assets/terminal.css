@@ -227,6 +227,25 @@
       }
     }
 
+/* Phase 98 PRG-02 — web-side progress underline.
+   Mirrors desktop .tab__progress (transform-based animation; TokyoNight accent).
+   position: fixed keeps the bar at the top of the viewport regardless of page scroll.
+   z-index: 1000 ensures it sits above the xterm canvas layers.
+   Color + timing match the desktop .tab__progress rule in frontend/src/style.css. */
+#progress-underline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #7aa2f7;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 200ms ease-out;
+  pointer-events: none;
+  z-index: 1000;
+}
+
 /* ─── Phase 95 — Link confirm popover (web parity, LNK-03) ─── */
 #link-confirm-popover {
   z-index: 9999;
