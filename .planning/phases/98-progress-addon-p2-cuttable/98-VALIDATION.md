@@ -2,9 +2,10 @@
 phase: 98
 slug: progress-addon-p2-cuttable
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-08
+revised: 2026-05-08
 ---
 
 # Phase 98 — Validation Strategy
@@ -40,42 +41,48 @@ created: 2026-05-08
 
 ## Per-Task Verification Map
 
+Task IDs follow the format `98-{plan}-{N}` where `{plan}` is the 2-digit plan number from frontmatter and `{N}` is the task index within the plan starting at 01. The Wave column matches that plan's frontmatter `wave:` value (Plan 01 → W0, Plan 02 → W1, Plan 03 → W2, Plan 04 → W3, Plan 05 → W4).
+
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 98-01-01 | 01 | 0 | PRG-01 | V14 / CSP unchanged | Toggle persists default OFF; flips via Settings save | unit (frontend) | `pnpm vitest run components/__tests__/PluginsSection.test.tsx -t progress` | ❌ W0 | ⬜ pending |
-| 98-01-02 | 01 | 0 | PRG-01 | — | Italic v3.3-flip caption rendered under Progress toggle | unit (frontend) | `pnpm vitest run components/__tests__/PluginsSection.test.tsx -t v3.3-flip` | ❌ W0 | ⬜ pending |
-| 98-01-03 | 01 | 0 | PRG-01 | — | OFF path leaves zero progress addon construction (regression) | integration (Go grep + behavior) | `go test ./internal/release -run TestPRG_OffPath_NoProgressLogic` | ❌ W0 | ⬜ pending |
-| 98-01-04 | 01 | 0 | PRG-02 | V5 / clamp [0,100] | aggregateProgress helper buckets correctly (empty/single/multi/boundary) | unit (frontend) | `pnpm vitest run lib/__tests__/aggregateProgress.test.ts` | ❌ W0 | ⬜ pending |
-| 98-01-05 | 01 | 0 | PRG-03 | — | 200ms debounce drops within-window bursts | unit (frontend) | `pnpm vitest run lib/__tests__/progressDebounce.test.ts` | ❌ W0 | ⬜ pending |
-| 98-02-01 | 02 | 1 | PRG-02 | — | ProgressAddon attaches/detaches on pluginConfig.progress flip | unit (frontend) | `pnpm vitest run components/__tests__/TerminalPanel.test.tsx -t progress-hot-swap` | ❌ W0 | ⬜ pending |
-| 98-02-02 | 02 | 1 | PRG-02 | — | onChange events forwarded via onProgressChange callback prop | unit (frontend) | `pnpm vitest run components/__tests__/TerminalPanel.test.tsx -t progress-onchange-forward` | ❌ W0 | ⬜ pending |
-| 98-02-03 | 02 | 1 | PRG-02 | — | TabBar renders underline width based on tabProgress; uses transform (not width) for animation | unit (frontend) | `pnpm vitest run components/__tests__/TabBar.test.tsx -t "progress-(underline\|transform)"` | ❌ W0 | ⬜ pending |
-| 98-03-01 | 03 | 2 | PRG-03 | V5 / quartile bounds | SetTrayProgress idempotency (no-op on identical quartile) | unit (backend) | `go test . -run TestApp_SetTrayProgress_Idempotent` | ❌ W1 | ⬜ pending |
-| 98-03-02 | 03 | 2 | PRG-03 | V5 | SetTrayProgress quartile bounds check | unit (backend) | `go test . -run TestApp_SetTrayProgress_BoundsCheck` | ❌ W1 | ⬜ pending |
-| 98-03-03 | 03 | 2 | PRG-03 | — | SetTrayProgress error precedence (disconnected → error icon, ignore quartile) | unit (backend) | `go test . -run TestApp_SetTrayProgress_ErrorPrecedence` | ❌ W1 | ⬜ pending |
-| 98-04-01 | 04 | 3 | PRG-02 | — | OSC 9;4 sequence drives addon → underline (e2e desktop) | e2e | `pnpm playwright test tests-e2e/progress.spec.ts` | ❌ W4 | ⬜ pending |
-| 98-04-02 | 04 | 3 | PRG-02 | — | Web-served terminal page renders progress affordance from OSC 9;4 | e2e | `pnpm playwright test tests-e2e/progress-web.spec.ts` | ❌ W4 | ⬜ pending |
-| 98-05-01 | 05 | 3 | PRG-03 | — | Manual UAT: 3 terminals, progress in 2, observe tray glyph quartile transitions without flicker | manual | (manual UAT runbook) | ❌ W4 | ⬜ pending |
+| `98-01-01` | 01 | 0 | PRG-01 | V14 / CSP unchanged | Toggle persists default OFF; flips via Settings save | unit (frontend) | `pnpm vitest run components/__tests__/PluginsSection.test.tsx -t progress` | ❌ W0 | ⬜ pending |
+| `98-01-02` | 01 | 0 | PRG-01 | — | Italic v3.3-flip caption rendered under Progress toggle | unit (frontend) | `pnpm vitest run components/__tests__/PluginsSection.test.tsx -t v3.3-flip` | ❌ W0 | ⬜ pending |
+| `98-01-03` | 01 | 0 | PRG-01 | — | OFF path leaves zero progress addon construction (regression) | integration (Go grep + behavior) | `go test ./internal/release -run TestPRG_OffPath_NoProgressLogic` | ❌ W0 | ⬜ pending |
+| `98-01-04` | 01 | 0 | PRG-02 | V5 / clamp [0,100] | aggregateProgress helper buckets correctly (empty/single/multi/boundary) — RED scaffold at W0; GREEN at W1 | unit (frontend) | `pnpm vitest run lib/__tests__/aggregateProgress.test.ts` | ❌ W0 | ⬜ pending |
+| `98-01-05` | 01 | 0 | PRG-03 | — | App.test.tsx 'progress-debounce' integration scaffold (RED at W0 — asserts 200ms debounce contract from App.tsx side; GREEN at W2 after Plan 03 wires the debounce) | unit (frontend integration) | `pnpm vitest run components/__tests__/App.test.tsx -t progress-debounce` | ❌ W0 | ⬜ pending |
+| `98-02-01` | 02 | 1 | PRG-03 | V5 / quartile bounds | SetTrayProgress idempotency (no-op on identical quartile) | unit (backend) | `go test . -run TestApp_SetTrayProgress_Idempotent` | ❌ W1 | ⬜ pending |
+| `98-02-02` | 02 | 1 | PRG-03 | V5 | SetTrayProgress quartile bounds check | unit (backend) | `go test . -run TestApp_SetTrayProgress_BoundsCheck` | ❌ W1 | ⬜ pending |
+| `98-02-03` | 02 | 1 | PRG-03 | — | SetTrayProgress error precedence (disconnected → error icon, ignore quartile) | unit (backend) | `go test . -run TestApp_SetTrayProgress_ErrorPrecedence` | ❌ W1 | ⬜ pending |
+| `98-03-01` | 03 | 2 | PRG-02 | — | ProgressAddon attaches/detaches on pluginConfig.progress flip | unit (frontend) | `pnpm vitest run components/__tests__/TerminalPanel.test.tsx -t progress-hot-swap` | ❌ W0 | ⬜ pending |
+| `98-03-02` | 03 | 2 | PRG-02 | — | onChange events forwarded via onProgressChange callback prop | unit (frontend) | `pnpm vitest run components/__tests__/TerminalPanel.test.tsx -t progress-onchange-forward` | ❌ W0 | ⬜ pending |
+| `98-03-04` | 03 | 2 | PRG-03 | T-98-03 | 200ms debounce drops within-window OSC 9;4 bursts (integration via App.tsx — single SetTrayProgress dispatch on trailing edge) | unit (frontend integration) | `pnpm vitest run components/__tests__/App.test.tsx -t progress-debounce` | ❌ W0 (scaffold) → W2 (GREEN) | ⬜ pending |
+| `98-04-01` | 04 | 3 | PRG-02 | — | TabBar renders underline width based on tabProgress; uses transform (not width) for animation | unit (frontend) | `pnpm vitest run components/__tests__/TabBar.test.tsx -t "progress-(underline\|transform)"` | ❌ W0 | ⬜ pending |
+| `98-05-01` | 05 | 4 | PRG-02 | — | OSC 9;4 sequence drives addon → underline (e2e desktop) | e2e | `pnpm playwright test tests-e2e/progress.spec.ts` | ❌ W4 | ⬜ pending |
+| `98-05-02` | 05 | 4 | PRG-02 | — | Web-served terminal page renders progress affordance from OSC 9;4 | e2e | `pnpm playwright test tests-e2e/progress-web.spec.ts` | ❌ W4 | ⬜ pending |
+| `98-05-03` | 05 | 4 | PRG-03 | — | Manual UAT: 3 terminals, progress in 2, observe tray glyph quartile transitions without flicker | manual | (manual UAT runbook) | ❌ W4 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*File-exists key: ✅ already exists · ❌ W0/W1/W4 = wave that creates it*
+*File-exists key: ✅ already exists · ❌ W0/W1/W2/W3/W4 = wave that creates it*
+
+> Note on `98-03-04`: the test file scaffold (RED) lands in Wave 0 via Plan 01 Task 2 Sub-task G. Plan 03 Task 2 Sub-task C wires the production debounce + SetTrayProgress dispatch in App.tsx, flipping the test GREEN at Wave 2. This is the standard Nyquist RED→GREEN pattern: scaffold and assertion exist before the production wiring lands.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `frontend/src/lib/aggregateProgress.ts` — pure helper for cross-session mean → quartile bucketing
-- [ ] `frontend/src/lib/__tests__/aggregateProgress.test.ts` — vitest cases (empty / single / multi / all-state-0 / boundary)
-- [ ] `frontend/src/lib/progressDebounce.ts` — 200ms debounce primitive (or reuse if existing)
-- [ ] `frontend/src/lib/__tests__/progressDebounce.test.ts`
-- [ ] `frontend/src/components/__tests__/TerminalPanel.test.tsx` — extend with `progress-hot-swap` + `progress-onchange-forward`
-- [ ] `frontend/src/components/__tests__/TabBar.test.tsx` — extend with `progress-underline` + `progress-transform`
-- [ ] `frontend/src/components/__tests__/PluginsSection.test.tsx` — extend with `progress` + `v3.3-flip`
-- [ ] `internal/release/no_progress_when_off_test.go` — negative regression test (mirror Phase 97 SER-03 pattern)
+- [ ] `frontend/src/lib/aggregateProgress.ts` — pure helper for cross-session mean → quartile bucketing (STUB at W0; full implementation at W1)
+- [ ] `frontend/src/lib/__tests__/aggregateProgress.test.ts` — vitest cases (empty / single / multi / all-state-0 / boundary) — RED at W0, GREEN at W1
+- [ ] `frontend/src/components/__tests__/PluginsSection.test.tsx` — extend with `progress` + `v3.3-flip` (existing file)
+- [ ] `frontend/src/components/__tests__/TerminalPanel.test.tsx` — extend with `progress-hot-swap` + `progress-onchange-forward` (existing file; RED at W0, GREEN at W2)
+- [ ] `frontend/src/components/__tests__/TabBar.test.tsx` — extend with `progress-underline` + `progress-transform` (existing file; RED at W0, GREEN at W3)
+- [ ] `frontend/src/components/__tests__/App.test.tsx` — add `progress-debounce` integration test scaffold (RED at W0; GREEN at W2 after Plan 03 wires the App.tsx debounce + SetTrayProgress dispatch). NEW per Blocker #2 fix.
+- [ ] `internal/release/no_progress_when_off_test.go` — negative regression test (mirror Phase 97 SER-03 pattern); 3 tests — `TestPRG_OffPath_NoProgressLogic` + `TestPRG_NewProgressAddonIsGated` GREEN immediately at W0; `TestPRG_SetTrayProgressUsage` RED at W0, GREEN at W1
 - [ ] `frontend/tests-e2e/progress.spec.ts` — Playwright OSC 9;4 → underline e2e (Wave 4 / cuttable last)
 - [ ] `tests/fixtures/osc94-progress-fixture.sh` — 4-line shell script for manual + e2e
 - [ ] `assets/tray_icon_progress_{25,50,75,100}.png` — 4 × 18×18 quartile glyph PNGs (designer-supplied or `build/gen_progress_icons.go` generated)
 - [ ] `pnpm install @xterm/addon-progress@0.2.0` (lockfile update)
+
+> Removed per Blocker #2: `frontend/src/lib/progressDebounce.ts` and `frontend/src/lib/__tests__/progressDebounce.test.ts` are not part of any plan. Plan 03 Task 2 Sub-task C inlines the 200ms debounce as a `useRef<ReturnType<typeof setTimeout>>` block inside App.tsx; coverage is via the App.test.tsx integration test (`progress-debounce`).
 
 ---
 
@@ -90,11 +97,11 @@ created: 2026-05-08
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30 s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (per-task map task IDs trace to existing plan/wave; all Wave 0 bullets either map to a Wave 0 file or are themselves a test extension)
+- [x] No watch-mode flags
+- [x] Feedback latency < 30 s
+- [x] `nyquist_compliant: true` set in frontmatter (per-task map is internally consistent with actual plans after Blockers #1/#2/#3 fixes)
 
 **Approval:** pending
