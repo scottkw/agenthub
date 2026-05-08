@@ -436,7 +436,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   - [x] 98-02-PLAN.md — Wave 1: aggregateProgress.ts implementation (9 cases GREEN) + (*App).SetTrayProgress Wails RPC (idempotency + bounds + error precedence) + cross-platform 4 //go:embed quartile glyphs (tray.go / tray_linux.go / tray_windows.go) + trayIconBytesForState helper + Wails bindings hand-edit
   - [x] 98-03-PLAN.md — Wave 2: TerminalPanel ProgressAddon hot-swap arm (gated on pluginConfig?.progress) + onProgressChange callback prop + cleanup-on-detach/unmount + App.tsx progressRegistry/tabProgress state + 200ms debounce wrapping SetTrayProgress + idempotency guard + TabBar tabProgress prop wiring
   - [x] 98-04-PLAN.md — Wave 3: TabBar .tab__progress underline element (transform: scaleX(value/100)) + style.css rule (transform-based animation; #7aa2f7 accent; transition 200ms ease-out) — flips Wave 0 RED progress-underline + progress-transform GREEN
-  - [ ] 98-05-PLAN.md — Wave 4 (cuttable last; autonomous: false): web parity (#progress-underline + ProgressAddon construction in web/assets/terminal.js) + Playwright e2e scaffold (3 test.skip blocks) + 98-HUMAN-UAT.md runbook (3 scenarios) + blocking human-checkpoint sign-off
+  - [x] 98-05-PLAN.md — Wave 4 (cuttable last; autonomous: false): web parity (#progress-underline + ProgressAddon construction in web/assets/terminal.js) + Playwright e2e scaffold (3 test.skip blocks) + 98-HUMAN-UAT.md runbook (3 scenarios) + blocking human-checkpoint sign-off
 **UI hint**: yes
 
 ### Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)
@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
 | 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
-| 98 | v3.2 | 4/5 | In Progress|  |
+| 98 | v3.2 | 5/5 | Complete   | 2026-05-08 |
 | 99 | v3.2 | 0/0 | Not started | — |
 
 ---
