@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
 | 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
-| 98 | v3.2 | 5/5 | Complete   | 2026-05-08 |
+| 98 | v3.2 | 5/5 | Complete    | 2026-05-08 |
 | 99 | v3.2 | 0/0 | Not started | — |
 
 ---

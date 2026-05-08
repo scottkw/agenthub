@@ -82,9 +82,9 @@ Activate the dormant `@xterm/addon-clipboard` so AI CLIs that emit OSC 52 sequen
 
 `@xterm/addon-progress` surfacing long-running task progress per tab and in the tray. Optional / cuttable; ships default OFF.
 
-- [ ] **PRG-01** — User can enable OSC 9;4 progress support in Settings (default OFF in v3.2; flips to ON in v3.3 after field validation)
-- [ ] **PRG-02** — When enabled, terminals emitting OSC 9;4 progress sequences (e.g. AI CLIs reporting long-running task percent) show a subtle progress underline on their tab in the tab strip
-- [ ] **PRG-03** — When enabled, the system tray icon reflects an aggregate progress glyph (e.g. quartile indicator) summarizing across all sessions emitting progress
+- [x] **PRG-01** — User can enable OSC 9;4 progress support in Settings (default OFF in v3.2; flips to ON in v3.3 after field validation)
+- [x] **PRG-02** — When enabled, terminals emitting OSC 9;4 progress sequences (e.g. AI CLIs reporting long-running task percent) show a subtle progress underline on their tab in the tab strip
+- [x] **PRG-03** — When enabled, the system tray icon reflects an aggregate progress glyph (e.g. quartile indicator) summarizing across all sessions emitting progress
 
 ### Settings UI — Plugins Section
 
@@ -166,9 +166,9 @@ Mapping of REQ-IDs → phases (filled by `gsd-roadmapper` 2026-05-03):
 | SER-01  | Phase 97 | Complete |
 | SER-02  | Phase 97 | Complete |
 | SER-03  | Phase 97 | Complete |
-| PRG-01  | Phase 98 | Pending |
-| PRG-02  | Phase 98 | Pending |
-| PRG-03  | Phase 98 | Pending |
+| PRG-01  | Phase 98 | Complete |
+| PRG-02  | Phase 98 | Complete |
+| PRG-03  | Phase 98 | Complete |
 | PUI-02  | Phase 99 | Pending |
 | PUI-03  | Phase 99 | Pending |
 | PUI-04  | Phase 99 | Pending |
