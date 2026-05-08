@@ -13,6 +13,10 @@
     <span class="session-info" id="session-info">Connecting...</span>
   </div>
   <div id="webgl-recovery-banner" hidden role="status" aria-live="polite"></div>
+  <!-- Phase 98 PRG-02 — web-side progress underline. Styled/driven by terminal.css + terminal.js.
+       Positioned fixed at the top of the viewport; driven by OSC 9;4 onChange events.
+       aria-hidden: purely decorative; no semantic meaning for AT users. -->
+  <div id="progress-underline" aria-hidden="true"></div>
   <div id="terminal">
     <!-- Phase 94 SRC-05 — Web parity find bar.
          UI-SPEC §"Web — Identical Behavior" (lines 369-385) verbatim.

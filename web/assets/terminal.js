@@ -271,6 +271,36 @@
         } catch (e) { /* addon UMD may not be present — silent */ }
       }
 
+      // Phase 98 PRG-02: ProgressAddon construction — drives #progress-underline
+      // transform from OSC 9;4 onChange events. Gated on pluginConfig.progress
+      // (default: false in v3.2; flips ON in v3.3 after field validation).
+      // UMD global shape: window.ProgressAddon.ProgressAddon (same pattern as
+      // SerializeAddon.SerializeAddon, ImageAddon.ImageAddon).
+      // Web has no tab strip (Pitfall #10 in 98-RESEARCH.md) — the page-level
+      // #progress-underline bar at the top of the viewport is the web analog of
+      // the per-tab .tab__progress underline on the desktop.
+      if (pluginConfig.progress) {
+        try {
+          var progressAddon = new ProgressAddon.ProgressAddon();
+          term.loadAddon(progressAddon);
+          // Phase 98 PRG-02 — drive the #progress-underline transform from each
+          // OSC 9;4 onChange event. v3.2 ships state:1 (set) + state:0 (remove);
+          // state:2/3/4 deferred to v3.3. Anything other than state:1 hides the bar.
+          progressAddon.onChange(function (state) {
+            var bar = document.getElementById('progress-underline');
+            if (!bar) return;
+            if (state.state === 1) {
+              bar.style.transform = 'scaleX(' + (state.value / 100) + ')';
+            } else {
+              bar.style.transform = 'scaleX(0)';
+            }
+          });
+        } catch (e) {
+          // Addon UMD may not be present at build time on this surface — silent
+          // (matches Phase 97 serialize precedent at the same file).
+        }
+      }
+
       // Phase 93 hot-swap-capable addon handles. Declared at IIFE scope so the
       // SSE EventSource handler (Task 5 below) can dispose / reconstruct them
       // without a page reload.
