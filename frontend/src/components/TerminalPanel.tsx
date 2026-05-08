@@ -9,6 +9,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { SearchAddon } from '@xterm/addon-search'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SerializeAddon } from '@xterm/addon-serialize'
+import { ProgressAddon, type IProgressState } from '@xterm/addon-progress'
 import { RelayClient } from '../lib/relayClient'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
@@ -70,6 +71,14 @@ interface TerminalPanelProps {
    * to prevent registry memory leaks (Pitfall #6).
    */
   onRegisterSaver?: (sessionId: string, fn: (() => string) | null) => void
+  /**
+   * Phase 98 PRG-02 — onProgressChange forwards xterm.js ProgressAddon onChange
+   * events up to App.tsx for cross-session aggregation. Fired with the addon's
+   * IProgressState. On detach (pluginConfig.progress flipping OFF) and on
+   * TerminalPanel unmount, an explicit `{state:0, value:0}` is emitted so the
+   * App-side registry can clear the entry (Pitfall #7 stuck-progress).
+   */
+  onProgressChange?: (sessionId: string, state: IProgressState) => void
 }
 
 /**
@@ -87,6 +96,7 @@ export function TerminalPanel({
   pluginConfig,
   onWebGLContextLost,
   onRegisterSaver,
+  onProgressChange,
 }: TerminalPanelProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
@@ -119,6 +129,11 @@ export function TerminalPanel({
   // useEffect (NOT mount) — Serialize is a pure buffer-walker with no
   // buffer-state implications, so it can be attached/detached at runtime.
   const serializeAddonRef = useRef<SerializeAddon | null>(null)
+  // Phase 98 PRG-02 — ProgressAddon hot-swap ref + onChange disposable.
+  // Construction is in the HOT-SWAP useEffect (NOT mount): toggling Progress
+  // in Settings adds/removes the addon live without re-mounting the terminal.
+  const progressAddonRef = useRef<ProgressAddon | null>(null)
+  const progressOnChangeDisposable = useRef<{ dispose(): void } | null>(null)
 
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
   // SearchAddon (also at this level) and FindBar share a single source of
@@ -319,6 +334,16 @@ export function TerminalPanel({
         serializeAddonRef.current = null
       }
       onRegisterSaver?.(sessionId, null)
+      // Phase 98 PRG-02 — dispose progressAddon AND emit {state:0, value:0} so the
+      // App-side registry clears the entry (Pitfall #7 — leaving a stale entry
+      // behind would mean the cross-session mean keeps a dead 50% reading forever).
+      if (progressAddonRef.current) {
+        progressOnChangeDisposable.current?.dispose()
+        progressOnChangeDisposable.current = null
+        progressAddonRef.current.dispose()
+        progressAddonRef.current = null
+      }
+      onProgressChange?.(sessionId, { state: 0, value: 0 })
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current)
         debounceTimerRef.current = null
@@ -535,7 +560,35 @@ export function TerminalPanel({
         onRegisterSaver?.(sessionId, null) // Pitfall #6 — flush stale closure
       }
     }
-  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, pluginConfig?.serialize, onWebGLContextLost, onRegisterSaver, sessionId])
+
+    // Phase 98 PRG-02 — ProgressAddon hot-swap arm (mirror of serialize/web-links/search arms).
+    // Gates on pluginConfig?.progress (default OFF in v3.2; the entire codepath is dead
+    // when Progress is OFF — this is the cuttability invariant enforced by the OFF-path
+    // negative regression test internal/release/no_progress_when_off_test.go).
+    if (pluginConfig?.progress) {
+      if (!progressAddonRef.current) {
+        const progressAddon = new ProgressAddon()
+        term.loadAddon(progressAddon)
+        progressAddonRef.current = progressAddon
+        // Subscribe to onChange; capture disposable for clean teardown on detach/unmount.
+        // Phase 98 v3.2 scope: state:1 (set) + state:0 (remove); state:2/3/4 deferred.
+        // App.tsx maps state:2/3/4 → state:0 by convention (RESEARCH "Cuttable Inside Cuttable").
+        progressOnChangeDisposable.current = progressAddon.onChange((state) => {
+          onProgressChange?.(sessionId, state)
+        })
+      }
+    } else {
+      if (progressAddonRef.current) {
+        progressOnChangeDisposable.current?.dispose()
+        progressOnChangeDisposable.current = null
+        progressAddonRef.current.dispose()
+        progressAddonRef.current = null
+        // Pitfall #7: explicitly clear the registry entry on detach so a closed-but-stuck
+        // session does not contribute to the cross-session mean forever.
+        onProgressChange?.(sessionId, { state: 0, value: 0 })
+      }
+    }
+  }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, pluginConfig?.serialize, pluginConfig?.progress, onWebGLContextLost, onRegisterSaver, onProgressChange, sessionId])
 
   // Fit when this panel becomes active, and track container size changes.
   useEffect(() => {
