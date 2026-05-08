@@ -583,7 +583,7 @@ func (a *App) trayIconBytesForState(connected bool) []byte {
 	if !connected {
 		return trayIconErrorBytes
 	}
-	switch a.lastTrayQuartile {
+	switch a.lastTrayQuartile.Load() {
 	case 1:
 		return trayIconProgress25Bytes
 	case 2:
@@ -613,7 +613,7 @@ func (a *App) updateTray(sessions []SessionInfo, connected bool) {
 	if !connected {
 		wt.nid.HIcon = wt.hIconErr
 	} else {
-		switch a.lastTrayQuartile {
+		switch a.lastTrayQuartile.Load() {
 		case 1:
 			wt.nid.HIcon = wt.hIconProgress25
 		case 2:

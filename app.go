@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scottkw/agenthub/internal/daemon"
@@ -55,8 +56,8 @@ type RemotePeerSessions struct {
 type App struct {
 	ctx       context.Context
 	client    *daemon.DaemonClient // only daemon communication field; nil when startup failed
-	trayInit         bool  // true once initTray has been called
-	lastTrayQuartile int   // Phase 98 PRG-03 — last applied tray progress quartile [0..4]; -1 = unset
+	trayInit         bool         // true once initTray has been called
+	lastTrayQuartile atomic.Int32 // Phase 98 PRG-03 — last applied tray progress quartile [0..4]; -1 = unset. Atomic because written by Wails RPC goroutine (SetTrayProgress) and read by startTrayPoller goroutine via trayIconBytesForState (CR-01).
 	daemonErr        error // non-nil when EnsureDaemon failed at startup
 	quitting  bool                 // true when tray Quit was clicked; lets beforeClose allow exit
 	// Update checker state
@@ -77,10 +78,11 @@ type App struct {
 
 // NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
-	return &App{
+	a := &App{
 		saveFileDialogFunc: runtime.SaveFileDialog,
-		lastTrayQuartile:   -1, // Phase 98 PRG-03 — ensure first SetTrayProgress call always updates
 	}
+	a.lastTrayQuartile.Store(-1) // Phase 98 PRG-03 — ensure first SetTrayProgress call always updates
+	return a
 }
 
 // domReady is called by Wails after the WebView DOM is ready.
@@ -896,10 +898,10 @@ func (a *App) SetTrayProgress(quartile int) error {
 	if quartile < 0 || quartile > 4 {
 		return fmt.Errorf("SetTrayProgress: quartile out of range [0,4]: %d", quartile)
 	}
-	if a.lastTrayQuartile == quartile {
+	if a.lastTrayQuartile.Load() == int32(quartile) {
 		return nil
 	}
-	a.lastTrayQuartile = quartile
+	a.lastTrayQuartile.Store(int32(quartile))
 	if a.refreshTrayStateFunc != nil {
 		a.refreshTrayStateFunc()
 	} else {

@@ -112,7 +112,7 @@ func (a *App) trayIconBytesForState(connected bool) []byte {
 	if !connected {
 		return trayIconErrorBytes
 	}
-	switch a.lastTrayQuartile {
+	switch a.lastTrayQuartile.Load() {
 	case 1:
 		return trayIconProgress25Bytes
 	case 2:
