@@ -431,13 +431,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Phase is explicitly cuttable: if Phases 95 (web-links security) or 96 (image + CSP) over-run their scope, this entire phase can be deferred to v3.3 with no impact on v3.2 release readiness — its absence does not block any other phase.
   2. User enables OSC 9;4 progress support in Settings (default OFF in v3.2; the toggle copy notes the default flips to ON in v3.3 after field validation); a CLI emitting OSC 9;4 progress sequences (e.g. `pip install`, an AI CLI reporting long-running task percent) shows a subtle progress underline on its tab in the tab strip.
   3. With progress enabled, the system tray icon reflects an aggregate progress glyph (quartile indicator) summarizing across all sessions emitting progress; updates do not cause tray icon flicker or excessive system-tray-API churn.
-**Plans**: 6 plans (5 waves)
-  - [x] 95-01-PLAN.md — Wave 0 vendor (pnpm install) + spike + WebLinksConfig daemon struct + 8 RED scaffolds (Wave 0)
-  - [x] 95-02-PLAN.md — lib/urlSafety.ts + lib/openLink.ts pure helpers (Wave 1)
-  - [x] 95-03-PLAN.md — LinkConfirmPopover.tsx component + style.css block (Wave 2)
-  - [ ] 95-04-PLAN.md — TerminalPanel hot-swap + WebLinksAddon custom handler + modifier-click + hover + popover render + Plan A/B OSC 8 branching (Wave 3)
-  - [ ] 95-05-PLAN.md — engine.SetWebLinksConfig sub-key RPC + PATCH /settings/web-links-config + Wails (*App).SetWebLinksConfig + bindings (Wave 3, parallel with 95-04)
-  - [ ] 95-06-PLAN.md — web parity (vendor UMD copy + embed.go + terminal.html/js/css + Playwright e2e + UAT runbooks) (Wave 4)
+**Plans**: 5 plans (5 waves; cuttability ladder — drop Wave 4 first, then Wave 3, then Wave 2 if Phase 95/96 over-runs)
+  - [ ] 98-01-PLAN.md — Wave 0: vendor addon-progress@0.2.0 + UMD copy + VERSION + embed.go + terminal.html + drift-test bump 9→10 + PluginsSection v3.3-flip italic caption + 9 vitest aggregateProgress RED cases + 4 component-test scaffolds (PluginsSection, TerminalPanel, TabBar) + no_progress_when_off_test scaffold + OSC 9;4 fixture + 4 generated tray quartile PNGs + [BLOCKING] wails build -tags wailsassets gate
+  - [ ] 98-02-PLAN.md — Wave 1: aggregateProgress.ts implementation (9 cases GREEN) + (*App).SetTrayProgress Wails RPC (idempotency + bounds + error precedence) + cross-platform 4 //go:embed quartile glyphs (tray.go / tray_linux.go / tray_windows.go) + trayIconBytesForState helper + Wails bindings hand-edit
+  - [ ] 98-03-PLAN.md — Wave 2: TerminalPanel ProgressAddon hot-swap arm (gated on pluginConfig?.progress) + onProgressChange callback prop + cleanup-on-detach/unmount + App.tsx progressRegistry/tabProgress state + 200ms debounce wrapping SetTrayProgress + idempotency guard + TabBar tabProgress prop wiring
+  - [ ] 98-04-PLAN.md — Wave 3: TabBar .tab__progress underline element (transform: scaleX(value/100)) + style.css rule (transform-based animation; #7aa2f7 accent; transition 200ms ease-out) — flips Wave 0 RED progress-underline + progress-transform GREEN
+  - [ ] 98-05-PLAN.md — Wave 4 (cuttable last; autonomous: false): web parity (#progress-underline + ProgressAddon construction in web/assets/terminal.js) + Playwright e2e scaffold (3 test.skip blocks) + 98-HUMAN-UAT.md runbook (3 scenarios) + blocking human-checkpoint sign-off
 **UI hint**: yes
 
 ### Phase 99: Settings UI Polish + Migration + Final CSP Audit (Release Gate)
@@ -493,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 95 | v3.2 | 6/6 | Complete   | 2026-05-06 |
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
 | 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
-| 98 | v3.2 | 0/0 | Not started | — |
+| 98 | v3.2 | 0/5 | Planned     | — |
 | 99 | v3.2 | 0/0 | Not started | — |
 
 ---
