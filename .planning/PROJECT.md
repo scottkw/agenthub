@@ -373,4 +373,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 — v3.1 Security Hardening shipped (v3.1.0); v3.2 Plugin Suite (Issue #36) in progress — Phases 92, 93, 94, 95, 96 complete (Phase 96: Image Addon + CSP Audit, code-level 4/4 must-haves verified, HUMAN-UAT pending sign-off)*
+*Last updated: 2026-05-08 — v3.1 Security Hardening shipped (v3.1.0); v3.2 Plugin Suite (Issue #36) in progress — Phases 92, 93, 94, 95, 96, 97, 98 complete (Phase 98: Progress Addon P2/cuttable, code-level 5/6 must-haves verified, HUMAN-UAT pending sign-off; OSC 9;4 progress reporting surfaces as per-tab underline + tray quartile glyph, default OFF in v3.2)*
