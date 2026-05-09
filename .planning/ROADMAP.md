@@ -449,10 +449,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. The settings.json migration test loads a real v3.1 fixture (`tests/fixtures/settings_v3.1.json`), upgrades it through the v3.2 daemon, and asserts that all plugin defaults are populated (no zero values), `schemaVersion: 2` is written, and the migration is idempotent on a second run.
   4. The CSP zero-violation e2e suite is green on Chromium + Safari + Firefox; iPad Safari Tailscale UAT (real device, not emulator) reports zero CSP violations and zero CDN requests during a full attach/render/scrollback/detach session with all v3.2 plugins enabled.
 **Plans**: 5 plans (4 waves)
-  - [ ] 99-01-PLAN.md — PluginToggleBanner + onPluginToggleSideEffect prop drill App→SettingsTab→PluginsSection (Wave 1, PUI-02)
+  - [x] 99-01-PLAN.md — PluginToggleBanner + onPluginToggleSideEffect prop drill App→SettingsTab→PluginsSection (Wave 1, PUI-02)
   - [ ] 99-02-PLAN.md — Three <details> disclosures (Search/WebLinks/InlineImage) + sub-key RPC dispatch + 500ms storageLimit debounce (Wave 2, PUI-03/PUI-04)
-  - [ ] 99-03-PLAN.md — Expand engine_migration_test.go per-field assertions (8 plugins + 3 sub-configs) (Wave 1, SC-3)
-  - [ ] 99-04-PLAN.md — playwright.config.ts firefox+webkit projects + .github/workflows/e2e.yml CI runner (Wave 1, autonomous: false, SC-4 cross-browser)
+  - [x] 99-03-PLAN.md — Expand engine_migration_test.go per-field assertions (8 plugins + 3 sub-configs) (Wave 1, SC-3)
+  - [x] 99-04-PLAN.md — playwright.config.ts firefox+webkit projects + .github/workflows/e2e.yml CI runner (Wave 1, autonomous: false, SC-4 cross-browser)
   - [ ] 99-05-PLAN.md — Author 99-iPad-UAT.md 5-scenario runbook + human-checkpoint real-device UAT execution (Wave 4, autonomous: false, SC-4 iPad)
 **UI hint**: yes
 
@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
 | 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
 | 98 | v3.2 | 5/5 | Complete    | 2026-05-08 |
-| 99 | v3.2 | 0/5 | In Progress | — |
+| 99 | v3.2 | 3/5 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
