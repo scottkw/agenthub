@@ -453,7 +453,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   - [x] 99-02-PLAN.md — Three <details> disclosures (Search/WebLinks/InlineImage) + sub-key RPC dispatch + 500ms storageLimit debounce (Wave 2, PUI-03/PUI-04)
   - [x] 99-03-PLAN.md — Expand engine_migration_test.go per-field assertions (8 plugins + 3 sub-configs) (Wave 1, SC-3)
   - [x] 99-04-PLAN.md — playwright.config.ts firefox+webkit projects + .github/workflows/e2e.yml CI runner (Wave 1, autonomous: false, SC-4 cross-browser)
-  - [ ] 99-05-PLAN.md — Author 99-iPad-UAT.md 5-scenario runbook + human-checkpoint real-device UAT execution (Wave 4, autonomous: false, SC-4 iPad)
+  - [x] 99-05-PLAN.md — Author 99-iPad-UAT.md 5-scenario runbook + human-checkpoint real-device UAT execution (Wave 4, autonomous: false, SC-4 iPad)
 **UI hint**: yes
 
 ## Progress
@@ -492,7 +492,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 96 | v3.2 | 6/6 | Complete    | 2026-05-07 |
 | 97 | v3.2 | 6/6 | Complete    | 2026-05-08 |
 | 98 | v3.2 | 5/5 | Complete    | 2026-05-08 |
-| 99 | v3.2 | 4/5 | In Progress|  |
+| 99 | v3.2 | 5/5 | Complete   | 2026-05-09 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
