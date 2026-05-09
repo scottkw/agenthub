@@ -55,10 +55,56 @@ func TestSettingsMigrationV3_1ToV3_2(t *testing.T) {
 		t.Errorf("GetPluginSettings after v3.1 load: got %+v, want %+v", got, want)
 	}
 
-	// Phase 94 SRC-02 — explicit assertion that Phase 93 fixture (no searchConfig key)
-	// loads with SearchConfig zero-value defaults populated via existing defaults-merge.
-	if got.SearchConfig != (SearchConfig{}) {
-		t.Errorf("expected SearchConfig zero-value defaults after Phase 93 fixture load, got %+v", got.SearchConfig)
+	// Phase 99 SC-3 — per-field assertions for diagnostic clarity when a v3.3 default
+	// change breaks the migration contract. The struct-equality check above is the
+	// "fast fail" sentinel; these per-field assertions name the failing field.
+	if !got.WebGL {
+		t.Errorf("plugin defaults: WebGL = false, want true")
+	}
+	if !got.Unicode11 {
+		t.Errorf("plugin defaults: Unicode11 = false, want true")
+	}
+	if !got.Search {
+		t.Errorf("plugin defaults: Search = false, want true")
+	}
+	if !got.WebLinks {
+		t.Errorf("plugin defaults: WebLinks = false, want true")
+	}
+	if !got.Image {
+		t.Errorf("plugin defaults: Image = false, want true")
+	}
+	if !got.Serialize {
+		t.Errorf("plugin defaults: Serialize = false, want true")
+	}
+	if !got.Clipboard {
+		t.Errorf("plugin defaults: Clipboard = false, want true")
+	}
+	if got.Progress {
+		t.Errorf("plugin defaults: Progress = true, want false (default OFF in v3.2 — flips ON in v3.3 after field validation)")
+	}
+
+	// SearchConfig defaults (replaces the previous zero-value check — forward-compatible
+	// for v3.3 when a non-zero default may be introduced).
+	wantSearch := SearchConfig{Regex: false, CaseSensitive: false, WholeWord: false}
+	if got.SearchConfig != wantSearch {
+		t.Errorf("SearchConfig defaults: got %+v, want %+v", got.SearchConfig, wantSearch)
+	}
+
+	// WebLinksConfig defaults.
+	wantWebLinks := WebLinksConfig{
+		Modifier:         "platform",
+		ConfirmOSC8:      true,
+		ConfirmIDN:       true,
+		ConfirmTyposquat: true,
+	}
+	if got.WebLinksConfig != wantWebLinks {
+		t.Errorf("WebLinksConfig defaults: got %+v, want %+v", got.WebLinksConfig, wantWebLinks)
+	}
+
+	// ImageConfig defaults — StorageLimit override (16 MB; upstream default is 100 MB).
+	wantImage := ImageConfig{StorageLimit: 16}
+	if got.ImageConfig != wantImage {
+		t.Errorf("ImageConfig defaults: got %+v, want %+v (v3.2 overrides upstream 100 MB to 16 MB to prevent tab OOM)", got.ImageConfig, wantImage)
 	}
 
 	// Pre-existing v3.1 data must survive the migration.
