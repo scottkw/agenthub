@@ -28,8 +28,8 @@ describe('PUI-01: 8 toggle rows in UI-SPEC order', () => {
     const order = ['webgl', 'unicode11', 'search', 'webLinks', 'image',
                    'serialize', 'clipboard', 'progress']
     for (let i = 0; i < order.length - 1; i++) {
-      const a = raw.indexOf(order[i])
-      const b = raw.indexOf(order[i + 1])
+      const a = raw.indexOf(`renderRow('${order[i]}'`)
+      const b = raw.indexOf(`renderRow('${order[i + 1]}'`)
       expect(a).toBeGreaterThan(-1)
       expect(b).toBeGreaterThan(-1)
       expect(a).toBeLessThan(b)
@@ -157,5 +157,38 @@ describe('Phase 98 PRG-01: v3.3-flip italic caption under Progress row', () => {
     expect(progressRowStart).toBeGreaterThan(-1)
     const progressRowWindow = raw.slice(progressRowStart, progressRowStart + 300)
     expect(progressRowWindow).not.toContain('checked={true}')
+  })
+})
+
+describe('Phase 99 PUI-02: onPluginToggleSideEffect side-effect callback', () => {
+  it('exports PluginToggleKind type and PluginsSectionProps interface', () => {
+    expect(raw).toContain('PluginToggleKind')
+    expect(raw).toContain('PluginsSectionProps')
+    expect(raw).toContain('onPluginToggleSideEffect')
+  })
+
+  it('holds a lastSavedRef for diff detection', () => {
+    expect(raw).toContain('lastSavedRef')
+  })
+
+  it('compares prior.unicode11 vs current after save', () => {
+    expect(raw).toContain('prior.unicode11 !== pluginConfig.unicode11')
+  })
+
+  it('compares prior.image vs current after save', () => {
+    expect(raw).toContain('prior.image !== pluginConfig.image')
+  })
+
+  it('updates lastSavedRef.current after successful save', () => {
+    // Must appear in handleSavePlugins, after SetPluginSettings call
+    const saveHandlerIdx = raw.indexOf('handleSavePlugins')
+    expect(saveHandlerIdx).toBeGreaterThan(-1)
+    const afterSave = raw.indexOf('lastSavedRef.current = pluginConfig', saveHandlerIdx)
+    expect(afterSave).toBeGreaterThan(-1)
+  })
+
+  it('calls onPluginToggleSideEffect when kinds array is non-empty', () => {
+    expect(raw).toContain('onPluginToggleSideEffect')
+    expect(raw).toMatch(/kinds\.length > 0/)
   })
 })

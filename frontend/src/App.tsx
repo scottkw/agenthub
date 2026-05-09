@@ -46,6 +46,7 @@ import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
 import { WebGLRecoveryBanner } from './components/WebGLRecoveryBanner'
+import { PluginToggleBanner } from './components/PluginToggleBanner'
 import { ExitToast } from './components/ExitToast'
 import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
@@ -144,6 +145,17 @@ function App(): React.ReactElement {
   const [webglContextLost, setWebglContextLost] = useState(false)
   const [webglSoftwareDetected, setWebglSoftwareDetected] = useState(false)
   const [webglBannerDismissed, setWebglBannerDismissed] = useState(false)
+
+  // Phase 99 PUI-02: one-shot post-save Unicode 11 / Image toggle banners.
+  // Each kind appears at most once at any moment; dismissing removes that kind
+  // from the set; auto-dismiss fires from the PluginToggleBanner component.
+  // Set deduplication via Array.from(new Set(...)) caps the array at 2 entries max.
+  type PluginToggleKindLocal = 'unicode11' | 'image'
+  const [pluginToggleBanners, setPluginToggleBanners] = useState<PluginToggleKindLocal[]>([])
+
+  const handlePluginToggleSideEffect = useCallback((kinds: PluginToggleKindLocal[]) => {
+    setPluginToggleBanners((prev) => Array.from(new Set([...prev, ...kinds])))
+  }, [])
 
   // Session exit state: per-session exit info for toast/banner/countdown (Phase 84)
   const [sessionExits, setSessionExits] = useState<Record<string, ExitState>>({})
@@ -882,7 +894,8 @@ function App(): React.ReactElement {
       {((webServerMode === 'local' && !localBannerDismissed) ||
         update ||
         ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed) ||
-        saveBanner !== null) && (
+        saveBanner !== null ||
+        pluginToggleBanners.length > 0) && (
         <div className="banner-stack">
           {webServerMode === 'local' && !localBannerDismissed && (
             <LocalNetworkBanner
@@ -921,6 +934,17 @@ function App(): React.ReactElement {
               <button onClick={() => setSaveBanner(null)} aria-label="Dismiss">×</button>
             </div>
           )}
+          {/* Phase 99 PUI-02: one-shot toggle-change banners for unicode11 / image.
+              Both auto-dismiss after 6000ms; user can also dismiss via × button. */}
+          {pluginToggleBanners.map((kind) => (
+            <PluginToggleBanner
+              key={kind}
+              kind={kind}
+              onDismiss={() =>
+                setPluginToggleBanners((prev) => prev.filter((k) => k !== kind))
+              }
+            />
+          ))}
         </div>
       )}
       <div className="app__row">
@@ -979,6 +1003,7 @@ function App(): React.ReactElement {
             webServerMode={webServerMode}
             selectedTheme={terminalThemeName}
             onThemeChange={handleThemeChange}
+            onPluginToggleSideEffect={handlePluginToggleSideEffect}
             onWebServerStateChange={async () => {
               try {
                 const running = await IsWebServerRunning()
