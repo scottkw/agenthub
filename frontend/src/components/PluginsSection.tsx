@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { GetPluginSettings, SetPluginSettings } from '../wailsjs/go/main/App'
 import { daemon } from '../wailsjs/go/models'
 
@@ -6,7 +6,7 @@ type PluginSettings = daemon.PluginSettings
 const PluginSettings = daemon.PluginSettings
 
 /**
- * PluginsSection — Phase 92 (PUI-01)
+ * PluginsSection — Phase 92 (PUI-01), Phase 99 (PUI-02)
  *
  * Renders the 8-plugin enable/disable section in the Settings tab. Persists
  * via the Wails GetPluginSettings/SetPluginSettings bindings; the GUI layer
@@ -15,11 +15,21 @@ const PluginSettings = daemon.PluginSettings
  *
  * Phase 92 contract: TerminalPanel does NOT consume pluginConfig — the
  * pipeline is wired but inert. Phase 93 wires consumption.
+ *
+ * Phase 99 PUI-02: onPluginToggleSideEffect callback fires after a successful
+ * save when unicode11 or image booleans changed vs the last-saved snapshot.
+ * See PluginToggleKind + PluginsSectionProps exports below the function.
  */
-export function PluginsSection(): React.ReactElement {
+export function PluginsSection({
+  onPluginToggleSideEffect,
+}: PluginsSectionProps = {}): React.ReactElement {
   // Local edited state — null until GetPluginSettings resolves
   const [pluginConfig, setPluginConfig] = useState<PluginSettings | null>(null)
   const [pluginsLoaded, setPluginsLoaded] = useState(false)
+
+  // Phase 99 PUI-02: snapshot of the last-saved state for diff detection.
+  // Initialized when GetPluginSettings resolves; updated after each successful save.
+  const lastSavedRef = useRef<PluginSettings | null>(null)
 
   // Three-state Save (mirrors SettingsTab.tsx Save Paths cadence)
   const [saving, setSaving] = useState(false)
@@ -32,6 +42,7 @@ export function PluginsSection(): React.ReactElement {
       .then((s) => {
         setPluginConfig(s)
         setPluginsLoaded(true)
+        lastSavedRef.current = s
       })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : String(err))
@@ -45,6 +56,18 @@ export function PluginsSection(): React.ReactElement {
     setError(null)
     try {
       await SetPluginSettings(pluginConfig)
+      // Phase 99 PUI-02: compute diff between last-saved snapshot and current saved value.
+      // Only unicode11 and image trigger the side-effect (cannot hot-swap — new sessions only).
+      const prior = lastSavedRef.current
+      const kinds: PluginToggleKind[] = []
+      if (prior) {
+        if (prior.unicode11 !== pluginConfig.unicode11) kinds.push('unicode11')
+        if (prior.image !== pluginConfig.image) kinds.push('image')
+      }
+      lastSavedRef.current = pluginConfig
+      if (kinds.length > 0 && onPluginToggleSideEffect) {
+        onPluginToggleSideEffect(kinds)
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 1500)
     } catch (err) {
@@ -160,4 +183,17 @@ export function PluginsSection(): React.ReactElement {
       </div>
     </>
   )
+}
+
+/**
+ * Phase 99 PUI-02 type exports.
+ * Declared after PluginsSection body so the plugin key literals ('webgl', 'unicode11', etc.)
+ * in the renderRow call sites retain their UI-SPEC positional order for source-inspection tests.
+ * TypeScript module-level type declarations are accessible throughout the module regardless
+ * of declaration position (they are not runtime values).
+ */
+export type PluginToggleKind = 'unicode11' | 'image'
+
+export interface PluginsSectionProps {
+  onPluginToggleSideEffect?: (kinds: PluginToggleKind[]) => void
 }

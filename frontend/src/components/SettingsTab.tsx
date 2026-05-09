@@ -26,7 +26,7 @@ import {
   QrCodeIcon,
 } from '@heroicons/react/24/outline'
 import { RegenerateKeyModal } from './RegenerateKeyModal'
-import { PluginsSection } from './PluginsSection'
+import { PluginsSection, type PluginToggleKind } from './PluginsSection'
 
 const THEME_NAMES = ALLOWED_THEMES
 
@@ -46,6 +46,8 @@ interface SettingsTabProps {
   onWebServerStateChange: () => Promise<void>
   selectedTheme: string
   onThemeChange: (name: string) => void
+  // Phase 99 PUI-02: forwarded to PluginsSection for post-save banner triggers.
+  onPluginToggleSideEffect?: (kinds: PluginToggleKind[]) => void
 }
 
 /**
@@ -54,7 +56,7 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell. Single scrollable page with section headers.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange }: SettingsTabProps): React.ReactElement {
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, onPluginToggleSideEffect }: SettingsTabProps): React.ReactElement {
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -703,8 +705,8 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </button>
         </div>
 
-        {/* Plugins section (Phase 92 PUI-01) \u2014 last section per UI-SPEC layout */}
-        <PluginsSection />
+        {/* Plugins section (Phase 92 PUI-01, Phase 99 PUI-02) \u2014 last section per UI-SPEC layout */}
+        <PluginsSection onPluginToggleSideEffect={onPluginToggleSideEffect} />
 
       </div>
     </div>
