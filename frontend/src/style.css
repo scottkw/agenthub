@@ -1660,6 +1660,67 @@ body {
   }
 }
 
+/* ─── Phase 97 SER-01 — Save-feedback banner ──────────────────────────
+   Mirrors .webgl-recovery-banner: TokyoNight palette, 53px banner-stack
+   height, left-accent for tone (info=#7aa2f7 blue, error=#f7768e red). */
+.banner {
+  background: #16161e;
+  border: 1px solid #292e42;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: #a9b1d6;
+  line-height: 1.5;
+  transition: opacity 150ms ease, max-height 200ms ease;
+}
+.banner--info {
+  border-left: 3px solid #7aa2f7;
+}
+.banner--error {
+  border-left: 3px solid #f7768e;
+  color: #f7768e;
+}
+.banner-stack .banner {
+  margin-bottom: 0;
+}
+.banner > span {
+  flex: 1 1 auto;
+  padding-right: 12px;
+}
+.banner > button {
+  background: transparent;
+  border: none;
+  color: #9aa5ce;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 24px;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+.banner > button:hover {
+  color: #c0caf5;
+  background: #1e2030;
+}
+.banner > button:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner {
+    transition: none;
+  }
+}
+
 /* ─── App layout restructure for banner (Phase 60) ────────────────── */
 .app__row {
   display: flex;
