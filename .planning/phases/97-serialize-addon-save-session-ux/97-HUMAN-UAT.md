@@ -2,9 +2,18 @@
 phase: 97
 type: human-uat
 created: 2026-05-07
+signed_off: 2026-05-10
 requirements: [SER-01, SER-02, SER-03]
 plans: [97-01, 97-02, 97-03, 97-04, 97-05, 97-06]
-status: partial
+status: approved
+tester: Ken Scott
+build: AgentHub 2.2.0 (commit 251b2cc)
+defects_found:
+  - id: SAVE-BANNER-CSS
+    discovered: Scenario 1
+    issue: ".banner / .banner--info / .banner--error referenced in App.tsx:938 had no CSS rules — banner rendered unstyled, bleeding over window chrome"
+    fix_commit: 251b2cc
+    re_verified: Scenario 1 passes post-fix
 ---
 
 # Phase 97 Human UAT — Serialize Addon + Save-Session UX
@@ -41,7 +50,7 @@ Confirm the app launches without errors and a default session is available.
 4. **Expected:** A banner/toast appears with text similar to "Enable the Serialize plugin in Settings to save sessions." NO native Save dialog opens.
 5. Dismiss the banner. Confirm no file was written to disk.
 
-**Sign-off:** [ ] Verified by ____________________ on ________
+**Sign-off:** [x] Verified by Ken Scott on 2026-05-10
 
 ---
 
@@ -61,7 +70,7 @@ Confirm the app launches without errors and a default session is available.
    - **Expected:** The file is plain UTF-8 text. NO `\x1b[` escape sequences anywhere. The colored "Error: test" output appears as plain "Error: test" without color codes.
    - **Expected:** The file contains the visible scrollback content from the session.
 
-**Sign-off:** [ ] Verified by ____________________ on ________
+**Sign-off:** [x] Verified by Ken Scott on 2026-05-10
 
 ---
 
@@ -77,7 +86,7 @@ Confirm the app launches without errors and a default session is available.
 3. **Expected:** Dialog closes. NO error toast appears. NO file is written at the default path.
 4. Repeat with the Cancel button: right-click → Save → click Cancel button. Same expected outcome.
 
-**Sign-off:** [ ] Verified by ____________________ on ________
+**Sign-off:** [x] Verified by Ken Scott on 2026-05-10
 
 ---
 
@@ -96,17 +105,21 @@ Confirm the app launches without errors and a default session is available.
    - The text is positioned as a description directly under the toggle, NOT as a tooltip or hover-only.
    - The text matches the verbatim string above (no paraphrasing, no added/removed words).
 
-**Sign-off:** [ ] Verified by ____________________ on ________
+**Sign-off:** [x] Verified by Ken Scott on 2026-05-10
 
 ---
 
 ## Final Sign-Off
 
-- [ ] All 4 scenarios pass on macOS
+- [x] All 4 scenarios pass on macOS (Scenario 1 re-verified after fixing missing `.banner` CSS — commit 251b2cc)
 - [ ] (Optional) Verified on Linux: ___________
 - [ ] (Optional) Verified on Windows: ___________
-- [ ] No CSP violations observed in browser devtools (web parity check — open the web-served terminal page in Chrome, inspect Console for `Refused to load` or CSP errors; expect ZERO since addon-serialize is pure JS with no WebAssembly/Worker/blob constructs per RESEARCH §"Mandatory Pre-Phase CSP Audit")
-- [ ] No regression on Phase 96 image scenarios (sanity check)
+- [ ] No CSP violations observed in browser devtools (web parity check — open the web-served terminal page in Chrome, inspect Console for `Refused to load` or CSP errors; expect ZERO since addon-serialize is pure JS with no WebAssembly/Worker/blob constructs per RESEARCH §"Mandatory Pre-Phase CSP Audit") — deferred to Tailscale-served UAT block
+- [ ] No regression on Phase 96 image scenarios (sanity check) — deferred to Phase 96 UAT
+
+**Tester:** Ken Scott
+**Date:** 2026-05-10
+**Build:** AgentHub 2.2.0 (commit 251b2cc)
 
 **Tester:** ____________________
 **Date:** ____________________

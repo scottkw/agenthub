@@ -1,22 +1,30 @@
 ---
 phase: 97-serialize-addon-save-session-ux
 verified: 2026-05-08T00:16:56Z
-status: human_needed
+human_uat_signed_off: 2026-05-10T00:00:00Z
+status: approved
 score: 10/10
 overrides_applied: 0
-human_verification:
-  - test: "Scenario 1 — SER-OFF: Open AgentHub, toggle Serialize OFF in Settings, right-click terminal tab, click 'Save Terminal As…' — confirm banner appears and NO native dialog opens, no file written."
-    expected: "Info banner 'Enable the Serialize plugin in Settings to save sessions.' appears. No native OS save dialog opens. No file is written to disk."
-    why_human: "Live affordance behavior across Settings toggle + right-click context menu + banner stack rendering cannot be exercised in headless CI."
-  - test: "Scenario 2 — SER-ON: Toggle Serialize ON, run a command that produces colored output (e.g. echo -e '\\033[1;31mError\\033[0m: test'), right-click tab, click 'Save Terminal As…', confirm native dialog opens, save to ~/Desktop/agenthub-uat-test.txt, inspect file in TextEdit/cat."
-    expected: "Native Save dialog opens with title containing 'Save Terminal As…'. Default filename is tab-name+timestamp+.txt. Saved file is plain UTF-8 text with NO \\x1b[ escape sequences. File contains visible scrollback."
-    why_human: "Native OS dialog cannot be exercised in headless CI; visual confirmation of dialog UX, file write integrity, and ANSI-strip correctness require human inspection."
-  - test: "Scenario 3 — CANCEL: With Serialize ON, right-click tab, click 'Save Terminal As…', press Esc (or click Cancel). Repeat with Cancel button."
-    expected: "Dialog closes. NO error toast appears. NO file is written at the default path."
-    why_human: "Real native dialog cancellation behavior (Esc key, Cancel button) is OS-specific and cannot be exercised in headless CI."
-  - test: "Scenario 4 — SER-02 CAPTION: Open Settings → Plugins. Locate 'Save terminal as text' Serialize row. Visually confirm the italic caption."
-    expected: "Caption reads VERBATIM (italic styling, positioned directly under the toggle, not a hover tooltip): 'Saved files include any secrets, tokens, or sensitive data printed in the session.'"
-    why_human: "Visual/text-rendered verification of italic styling and positioning requires human eye — automated source-scan asserts the literal string is in source, but only a human confirms rendering."
+tester: Ken Scott
+build: AgentHub 2.2.0 (commit 251b2cc)
+defects_found_during_uat:
+  - id: SAVE-BANNER-CSS
+    discovered: Scenario 1
+    severity: cosmetic
+    issue: ".banner / .banner--info / .banner--error referenced in frontend/src/App.tsx:938 had zero CSS rules — save-feedback banner rendered unstyled, bleeding over the top-left window chrome and overlapping macOS traffic lights"
+    fix: "Added .banner ruleset to frontend/src/style.css mirroring .webgl-recovery-banner pattern (TokyoNight palette, 12/16 padding, info=#7aa2f7 left accent, error=#f7768e left accent, dismiss-button focus ring)"
+    fix_commit: 251b2cc
+    re_verified: Scenario 1 passes post-fix
+human_verification_resolved:
+  - test: "Scenario 1 — SER-OFF: banner only, no native dialog, no file written"
+    result: pass
+    notes: "Banner CSS bug surfaced and fixed (commit 251b2cc); re-verified clean pass"
+  - test: "Scenario 2 — SER-ON: native Save dialog opens, file is plain UTF-8, no ANSI escapes"
+    result: pass
+  - test: "Scenario 3 — CANCEL: Esc and Cancel both close dialog cleanly, no error toast, no file"
+    result: pass
+  - test: "Scenario 4 — SER-02 italic verbatim caption under Serialize toggle"
+    result: pass
 ---
 
 # Phase 97: Serialize Addon + Save-Session UX — Verification Report
