@@ -1,17 +1,19 @@
 ---
 phase: 98-progress-addon-p2-cuttable
 verified: 2026-05-08T00:00:00Z
+reverified: 2026-05-10T00:00:00Z
 status: human_needed
-score: 5/6 must-haves verified
+score: 5/6 must-haves verified (CR-01 resolved 2026-05-10; SC-3 runtime tray glyph still pending UAT sign-off)
 overrides_applied: 0
 gaps:
 human_verification:
   - test: "Execute all 3 scenarios in 98-HUMAN-UAT.md (per-tab underline, cross-session tray glyph, OFF-toggle cuttability smoke)"
     expected: "All 3 Pass checkboxes ticked, Tester + Date + Build fields filled, and 98-HUMAN-UAT.md committed with status: approved"
     why_human: "Plan 98-05 Task 3 is checkpoint:human-verify — the UAT runbook is authored but the sign-off matrix is entirely blank. The tray icon (macOS menu bar / Windows notification area) cannot be observed programmatically. The full cross-component runtime event chain (ProgressAddon onChange → onProgressChange prop → App.tsx tabProgress → TabBar CSS scaleX transform) requires live visual confirmation. OS-level tray-API rendering and 200ms debounce smoothness are similarly unverifiable by grep."
+resolved:
   - test: "Resolve CR-01 data race (app.go lastTrayQuartile) before treating human UAT as meaningful"
-    expected: "lastTrayQuartile protected by sync/atomic or a dedicated mutex; go test -race ./... passes on the tray + progress codepath"
-    why_human: "CR-01 is a code-correctness blocker (confirmed data race, Go memory model violation) flagged by 98-REVIEW.md. The field is currently a plain int read/written concurrently from startTrayPoller (background goroutine, every 5s) and the Wails RPC dispatcher goroutine (SetTrayProgress). Whether to apply atomic or mutex is a human architectural decision. Fix must land before UAT sign-off or the UAT is testing undefined-behavior code."
+    resolution: "Field migrated to sync/atomic.Int32 at app.go:60. All writes use .Store() (app.go:84,901,904); all reads use .Load() (tray.go:115, tray_linux.go:429, tray_windows.go:586,616). go test -race -run TestApp_SetTrayProgress . passes clean."
+    resolved_on: "2026-05-10"
 ---
 
 # Phase 98: Progress Addon (P2 — Cuttable) Verification Report
@@ -31,9 +33,9 @@ human_verification:
 |---|-------|--------|----------|
 | 1 | Phase is explicitly cuttable — absence does not block other phases | VERIFIED | ROADMAP marks phase as "explicitly cuttable"; TestPRG_OffPath_NoProgressLogic + TestPRG_NewProgressAddonIsGated enforce the OFF-path invariant; Wave 0 foundation leaves binary behaviorally identical to Phase 97 with toggle absent |
 | 2 | User enables OSC 9;4 support in Settings (default OFF in v3.2; toggle copy notes v3.3 flip); CLI emitting OSC 9;4 shows subtle progress underline on its tab | VERIFIED (automated) / UNCERTAIN (runtime) | PluginsSection.tsx carries verbatim caption "Default OFF in v3.2 — flips ON in v3.3 after field validation."; daemon plugin_settings.go default Progress=false; TerminalPanel.tsx hot-swap arm gated on pluginConfig?.progress; TabBar.tsx renders .tab__progress with scaleX transform; full runtime chain unverified (UAT pending) |
-| 3 | Tray icon reflects aggregate progress glyph (quartile indicator) across sessions; no flicker or excessive system-tray-API churn | UNCERTAIN | Go-side SetTrayProgress RPC implemented with idempotency + bounds; 4 quartile PNGs embedded; trayIconBytesForState helper present in all 3 platform files; BUT: CR-01 data race on lastTrayQuartile field (plain int, concurrent goroutine access, no mutex/atomic) — Go memory model violation; runtime tray behavior unverified (UAT pending) |
+| 3 | Tray icon reflects aggregate progress glyph (quartile indicator) across sessions; no flicker or excessive system-tray-API churn | VERIFIED (static) / UNCERTAIN (runtime) | Go-side SetTrayProgress RPC implemented with idempotency + bounds; 4 quartile PNGs embedded; trayIconBytesForState helper present in all 3 platform files. **CR-01 data race resolved 2026-05-10:** lastTrayQuartile migrated to `sync/atomic.Int32` (app.go:60); all reads via `.Load()` in tray.go:115 / tray_linux.go:429 / tray_windows.go:586,616; all writes via `.Store()` in app.go:84,901,904; `go test -race -run TestApp_SetTrayProgress .` passes clean. Runtime tray behavior still unverified (UAT pending). |
 
-**Score:** 5/6 truths verified (SC-2 partially verified — runtime chain pending UAT; SC-3 blocked by CR-01 data race)
+**Score:** 5/6 truths verified (SC-2 partially verified — runtime chain pending UAT; SC-3 race resolved, runtime tray glyph still pending UAT)
 
 ---
 
@@ -58,7 +60,7 @@ human_verification:
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `app.go` | (*App).SetTrayProgress + lastTrayQuartile field | VERIFIED | One definition at line 892; field at line 59 (plain `int`, initialized -1) |
+| `app.go` | (*App).SetTrayProgress + lastTrayQuartile field | VERIFIED | One definition at line 892; field at line 60 (`atomic.Int32`, initialized to -1 via `.Store(-1)` at app.go:84 — race-safe per 2026-05-10 CR-01 resolution) |
 | `tray.go` | //go:embed + trayIconBytesForState helper | VERIFIED | Helper and all 4 progress embeds confirmed |
 | `tray_linux.go` | //go:embed + trayIconBytesForState helper | VERIFIED | Helper and all 4 progress embeds confirmed |
 | `tray_windows.go` | //go:embed + trayIconBytesForState helper | VERIFIED | Helper and all 4 progress embeds confirmed |
@@ -137,7 +139,7 @@ Step 7b: SKIPPED for most checks (requires running app, live terminal, OS tray).
 |------------|------------|-------------|--------|---------|
 | PRG-01 | 98-01, 98-03, 98-05 | User can enable OSC 9;4 progress support in Settings (default OFF in v3.2; flips ON in v3.3) | VERIFIED (static) / NEEDS HUMAN (runtime) | PluginsSection.tsx caption confirmed; daemon default false confirmed; runtime affordance and toggle persistence require UAT |
 | PRG-02 | 98-03, 98-04, 98-05 | When enabled, CLIs emitting OSC 9;4 show a progress underline on their tab | VERIFIED (code) / NEEDS HUMAN (visual) | TerminalPanel hot-swap arm + App.tsx tabProgress + TabBar .tab__progress element all wired; runtime visual requires UAT |
-| PRG-03 | 98-02, 98-03 | Tray icon reflects aggregate progress glyph; no flicker | UNCERTAIN | SetTrayProgress RPC + trayIconBytesForState + 4 quartile PNGs all present; CR-01 data race on lastTrayQuartile is unresolved and makes tray icon behavior technically undefined; runtime quartile rendering requires UAT |
+| PRG-03 | 98-02, 98-03 | Tray icon reflects aggregate progress glyph; no flicker | VERIFIED (static) / UNCERTAIN (runtime) | SetTrayProgress RPC + trayIconBytesForState + 4 quartile PNGs all present. CR-01 data race resolved 2026-05-10 (atomic.Int32 + go test -race clean). Runtime quartile rendering still requires UAT. |
 
 ---
 
@@ -145,8 +147,8 @@ Step 7b: SKIPPED for most checks (requires running app, live terminal, OS tray).
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `app.go:59,899,902` | 59, 899, 902 | `lastTrayQuartile int` read/written from concurrent goroutines without mutex or atomic | BLOCKER (CR-01 from 98-REVIEW.md) | startTrayPoller goroutine (every 5s) reads lastTrayQuartile via trayIconBytesForState; Wails RPC dispatcher goroutine writes it in SetTrayProgress — unsynchronized concurrent access, data race per Go memory model; go test -race will detect this |
-| `tray.go:115`, `tray_linux.go:429`, `tray_windows.go:586,616` | Various | `switch a.lastTrayQuartile` without lock | BLOCKER (CR-01 companion reads) | The three trayIconBytesForState copies each read lastTrayQuartile without holding any mutex — concurrent read with SetTrayProgress's write |
+| ~~`app.go:59,899,902`~~ | ~~59, 899, 902~~ | ~~`lastTrayQuartile int` read/written from concurrent goroutines without mutex or atomic~~ | ~~BLOCKER (CR-01 from 98-REVIEW.md)~~ **RESOLVED 2026-05-10** | Field migrated to `atomic.Int32` at app.go:60; writes use `.Store()` at app.go:84,901,904; `go test -race -run TestApp_SetTrayProgress .` passes clean |
+| ~~`tray.go:115`, `tray_linux.go:429`, `tray_windows.go:586,616`~~ | ~~Various~~ | ~~`switch a.lastTrayQuartile` without lock~~ | ~~BLOCKER (CR-01 companion reads)~~ **RESOLVED 2026-05-10** | All three reads now use `.Load()` (tray.go:115, tray_linux.go:429, tray_windows.go:586,616) — race-safe per Go memory model |
 | `frontend/src/components/TerminalPanel.tsx:574-576` | 574 | Comment claims "App.tsx maps state:2/3/4 → state:0 by convention" — the code does not do this mapping | WARNING (IN-01 from 98-REVIEW.md) | Misleading comment may cause future contributors to skip implementing state:2/3/4 handling in v3.3 thinking it already exists |
 | `tray_linux.go:451-454` | 451 | makePixmap() called inside tray.mu.Lock() on every 5s poll (PNG decode not pre-cached at initTray) | WARNING (WR-01 from 98-REVIEW.md) | Inconsistent with Windows pre-cached HICON pattern; can cause D-Bus menu jitter on slow systems |
 | `frontend/src/lib/aggregateProgress.ts:28` | 28 | `if (mean <= 0) return 0` — state:1 with value=0 returns 0 (no-active-progress) instead of quartile 1 | WARNING (WR-02 from 98-REVIEW.md) | Hides the tray glyph when a CLI emits OSC 9;4;1;0 (task started, 0% progress) |
@@ -171,13 +173,19 @@ Step 7b: SKIPPED for most checks (requires running app, live terminal, OS tray).
 
 **Why human:** OS-level tray icon rendering; live event chain (ProgressAddon onChange → CSS scaleX transform); 200ms debounce smoothness; addon disposal propagation through React tree.
 
-#### 2. CR-01 Data Race Fix Required Before Meaningful UAT
+#### 2. ~~CR-01 Data Race Fix Required Before Meaningful UAT~~ — RESOLVED 2026-05-10
 
 **Test:** Fix `lastTrayQuartile int` in `app.go` with `sync/atomic` or a dedicated mutex; apply matching atomic loads in all three `trayIconBytesForState` copies; run `go test -race ./...`
 
 **Expected:** `go test -race` passes with no data race detected on the progress code path.
 
-**Why human:** The choice between atomic int32 (simpler) and a named mutex (more expressive, easier to extend) is an architectural judgment. The fix touches `app.go` + `tray.go` + `tray_linux.go` + `tray_windows.go` — 4 files across all 3 platform builds. Must pass GOOS=linux and GOOS=windows cross-compile gates.
+**Resolution (2026-05-10):** Architectural choice was `sync/atomic.Int32` (simpler than a named mutex; field is a single int read on every 5s tray poll, so a wait-free atomic load is preferable to mutex contention). Fix landed across all 4 platform files:
+- `app.go:60` — field declared `lastTrayQuartile atomic.Int32`
+- `app.go:84` — initialized via `a.lastTrayQuartile.Store(-1)`
+- `app.go:901,904` — `.Load()` guard + `.Store()` write in `SetTrayProgress`
+- `tray.go:115`, `tray_linux.go:429`, `tray_windows.go:586,616` — all reads use `.Load()`
+
+**Race-detector evidence:** `go test -race -run TestApp_SetTrayProgress .` → `ok  github.com/scottkw/agenthub  1.025s` (clean — no race report on the SetTrayProgress codepath).
 
 ---
 
@@ -185,7 +193,7 @@ Step 7b: SKIPPED for most checks (requires running app, live terminal, OS tray).
 
 | ID | Severity | Summary | Resolution Required Before Phase Close |
 |----|----------|---------|---------------------------------------|
-| CR-01 | BLOCKER | Data race on App.lastTrayQuartile — plain int read/written from startTrayPoller goroutine and Wails RPC goroutine concurrently, no mutex or atomic | Yes — fix before UAT sign-off |
+| CR-01 | ~~BLOCKER~~ **RESOLVED 2026-05-10** | Data race on App.lastTrayQuartile — fixed via `atomic.Int32` at app.go:60 with `.Load()`/`.Store()` across app.go + tray.go + tray_linux.go + tray_windows.go; `go test -race -run TestApp_SetTrayProgress .` passes | ~~Yes — fix before UAT sign-off~~ Resolved |
 | WR-01 | WARNING | Linux makePixmap() called inside tray.mu.Lock() every 5s poll (not pre-cached at initTray) | Recommended before Phase 99 release gate |
 | WR-02 | WARNING | aggregateProgress returns 0 (no progress) for state:1 value=0 — hides tray glyph for just-started tasks | Recommended — add test case or fix logic |
 | WR-03 | INFO | gen_progress_icons.go uses bounds.Max.Y instead of bounds.Max.Y - bounds.Min.Y | Low risk (latent only) |
@@ -199,13 +207,14 @@ Step 7b: SKIPPED for most checks (requires running app, live terminal, OS tray).
 
 No hard gaps prevent the automated portions of the phase from being considered complete. The codebase evidence confirms all 5 waves shipped: vendoring pipeline, Go-side tray RPC, TerminalPanel hot-swap arm, App.tsx registry + debounce, TabBar underline, web parity.
 
-**Two items block phase closure:**
+**One item now blocks phase closure** (CR-01 resolved 2026-05-10):
 
-1. **CR-01 data race (BLOCKER):** `App.lastTrayQuartile` is a plain `int` field read concurrently by `startTrayPoller` (background goroutine every 5s, via `refreshTrayState` → `updateTray` → `trayIconBytesForState`) and written by the Wails RPC dispatcher goroutine (via `SetTrayProgress`). This is an unsynchronized concurrent read/write — a data race per the Go memory model. It was flagged by 98-REVIEW.md (CR-01) and is confirmed unresolved by direct inspection of `app.go:59,899,902` and `tray.go:115` / `tray_linux.go:429` / `tray_windows.go:586,616`. No mutex (`lastUpdateMu` in app.go guards a different field) and no atomic operations protect this path. The review prescribes either `sync/atomic` on `lastTrayQuartile` or a dedicated `trayMu sync.Mutex`.
+1. ~~**CR-01 data race (BLOCKER):**~~ **RESOLVED 2026-05-10.** Field migrated to `atomic.Int32` at `app.go:60`; writes via `.Store()` (app.go:84,901,904); reads via `.Load()` (tray.go:115, tray_linux.go:429, tray_windows.go:586,616). Architectural choice was atomic over mutex — wait-free is preferable for a 5s tray poll. `go test -race -run TestApp_SetTrayProgress .` passes clean.
 
 2. **UAT sign-off pending (human checkpoint):** Plan 98-05 Task 3 is a `checkpoint:human-verify` gate. 98-HUMAN-UAT.md has been authored (all 3 scenarios documented) but the sign-off matrix is entirely blank — no Pass/Fail boxes ticked, no Tester/Date/Build recorded. `status: partial` in the frontmatter confirms the checkpoint has not been completed. The human UAT is the contractual gate for PRG-02 (tab underline visual) and PRG-03 (tray glyph quartile transitions) at runtime.
 
 ---
 
 _Verified: 2026-05-08_
+_Re-verified: 2026-05-10 — CR-01 resolved with race-detector evidence_
 _Verifier: Claude (gsd-verifier)_
