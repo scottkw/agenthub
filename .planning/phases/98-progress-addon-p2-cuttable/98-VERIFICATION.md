@@ -1,15 +1,15 @@
 ---
 phase: 98-progress-addon-p2-cuttable
 verified: 2026-05-08T00:00:00Z
-reverified: 2026-05-10T00:00:00Z
-status: human_needed
-score: 5/6 must-haves verified (CR-01 resolved 2026-05-10; SC-3 runtime tray glyph still pending UAT sign-off)
+reverified: 2026-05-11T00:00:00Z
+status: complete
+score: 6/6 must-haves verified (CR-01 resolved 2026-05-10; SC-2/SC-3 runtime confirmed via 98-HUMAN-UAT.md sign-off 2026-05-11)
 overrides_applied: 0
-gaps:
-human_verification:
-  - test: "Execute all 3 scenarios in 98-HUMAN-UAT.md (per-tab underline, cross-session tray glyph, OFF-toggle cuttability smoke)"
-    expected: "All 3 Pass checkboxes ticked, Tester + Date + Build fields filled, and 98-HUMAN-UAT.md committed with status: approved"
-    why_human: "Plan 98-05 Task 3 is checkpoint:human-verify — the UAT runbook is authored but the sign-off matrix is entirely blank. The tray icon (macOS menu bar / Windows notification area) cannot be observed programmatically. The full cross-component runtime event chain (ProgressAddon onChange → onProgressChange prop → App.tsx tabProgress → TabBar CSS scaleX transform) requires live visual confirmation. OS-level tray-API rendering and 200ms debounce smoothness are similarly unverifiable by grep."
+gaps: []
+human_verification_resolved:
+  - test: "Execute all 3 scenarios in 98-HUMAN-UAT.md (per-tab underline, cross-session tray glyph, OFF-toggle cuttability smoke) + optional web parity addendum"
+    resolution: "Signed off 2026-05-11 by Ken Scott on AgentHub v3.2-dev @ c6c6a81. All 3 desktop scenarios PASS; optional web parity addendum PASS; static OFF-path invariant test GREEN. Injection path adapted: fixture-as-CLI override (Settings → CLI Paths) used in place of in-tab `bash` since AgentHub sessions spawn agent CLIs, not a shell. Workaround + a v3.3+ 'shell session' backlog item recorded in 98-HUMAN-UAT.md Notes."
+    resolved_on: "2026-05-11"
 resolved:
   - test: "Resolve CR-01 data race (app.go lastTrayQuartile) before treating human UAT as meaningful"
     resolution: "Field migrated to sync/atomic.Int32 at app.go:60. All writes use .Store() (app.go:84,901,904); all reads use .Load() (tray.go:115, tray_linux.go:429, tray_windows.go:586,616). go test -race -run TestApp_SetTrayProgress . passes clean."
@@ -20,8 +20,8 @@ resolved:
 
 **Phase Goal:** OSC 9;4 progress reporting from running CLIs surfaces as a per-tab progress underline and a tray-icon aggregate quartile glyph — shipped default OFF in v3.2 and explicitly cuttable if Phases 95 or 96 over-run.
 **Verified:** 2026-05-08
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Status:** complete
+**Re-verification:** 2026-05-10 (CR-01 race resolved) + 2026-05-11 (human UAT signed off)
 
 ---
 

@@ -2,9 +2,13 @@
 phase: 98
 type: human-uat
 created: 2026-05-08
+signed_off: 2026-05-11
+tester: Ken Scott
+build: v3.2-dev @ c6c6a81
 requirements: [PRG-01, PRG-02, PRG-03]
 plans: [98-01, 98-02, 98-03, 98-04, 98-05]
-status: partial
+status: approved
+result: 3 desktop scenarios pass, web parity addendum pass, static OFF-path invariant GREEN
 ---
 
 # Phase 98 Human UAT — Progress Addon (PRG-02 per-tab underline, PRG-03 tray glyph, PRG-01 cuttability)
@@ -45,7 +49,7 @@ Confirm the app launches without errors and at least one terminal session is ava
 4. Open a second terminal tab. Confirm the underline does NOT appear on the second tab while the fixture runs in the first (per-tab isolation).
 5. Animation should be smooth (no jank, no flicker, no layout reflow).
 
-Pass: [ ]   Fail: [ ]   Notes: __________
+Pass: [x]   Fail: [ ]   Notes: Injection path adapted — tab fixture-as-CLI override (Settings → CLI Paths) used instead of in-tab `bash …` since AgentHub tabs spawn agent CLIs, not a shell. All five expected behaviors confirmed by tester on macOS.
 
 ---
 
@@ -64,7 +68,7 @@ Pass: [ ]   Fail: [ ]   Notes: __________
    - **Expected:** The tray icon reverts to the base AgentHub icon once all active progress is cleared.
 4. Re-open the OSC 9;4 fixture in only one tab. Note which quartile the single-tab aggregate maps to.
 
-Pass: [ ]   Fail: [ ]   Notes: __________
+Pass: [x]   Fail: [ ]   Notes: Adapted with fixture-as-CLI override (2 fixture tabs + 1 idle non-fixture tab). Quartile cycling, no rapid flicker, revert-to-base confirmed by tester on macOS.
 
 ---
 
@@ -89,7 +93,7 @@ Pass: [ ]   Fail: [ ]   Notes: __________
    ```
    **Expected:** GREEN (the static invariant is intact — no polling patterns exist).
 
-Pass: [ ]   Fail: [ ]   Notes: __________
+Pass: [x]   Fail: [ ]   Notes: OFF-toggle immediately collapses active underlines and reverts tray glyph (tester-confirmed). Re-running fixture with Progress OFF produced no underline and no tray update. `go test ./internal/release -run TestPRG_OffPath_NoProgressLogic -count=1` → GREEN (0.07s). DevTools check skipped — production Wails build (`-tags wailsassets`) ships without DevTools; not a regression.
 
 ---
 
@@ -108,29 +112,61 @@ Pass: [ ]   Fail: [ ]   Notes: __________
 3. Open DevTools → Console. Confirm no CSP violations or JS errors related to ProgressAddon.
 4. The web-served page has no tab strip (Pitfall #10 in 98-RESEARCH.md) — the fixed-position top bar is the intentional web-side analog.
 
-Pass: [ ]   Fail: [ ]   Notes: __________
+Pass: [x]   Fail: [ ]   Notes: Verified via Tailscale-served session URL on a fresh `/tmp/osc94-web-uat.sh` fixture-CLI tab (long-lived variant to accommodate URL grab + browser open). Top progress bar grew through 25→50→75→100 and collapsed smoothly. DevTools Console clean — no CSP violations, no ProgressAddon errors.
 
 ---
 
 ## Final Sign-Off
 
-- [ ] Scenario 1 (per-tab underline) passes on macOS
-- [ ] Scenario 2 (tray glyph quartile transitions) passes on macOS
-- [ ] Scenario 3 (OFF-toggle cuttability smoke) passes on macOS
-- [ ] (Optional) Web parity addendum verified
+- [x] Scenario 1 (per-tab underline) passes on macOS
+- [x] Scenario 2 (tray glyph quartile transitions) passes on macOS
+- [x] Scenario 3 (OFF-toggle cuttability smoke) passes on macOS
+- [x] (Optional) Web parity addendum verified
 - [ ] (Optional) Verified on Linux: ___________
 - [ ] (Optional) Verified on Windows: ___________
-- [ ] No CSP violations in browser DevTools (web-served session)
-- [ ] `go test ./internal/release -run TestPRG_OffPath_NoProgressLogic -count=1` is GREEN
+- [x] No CSP violations in browser DevTools (web-served session)
+- [x] `go test ./internal/release -run TestPRG_OffPath_NoProgressLogic -count=1` is GREEN
 
-**Tester:** ____________________
-**Date:** ____________________
-**Build:** AgentHub `___________` (paste version from About dialog or build output)
+**Tester:** Ken Scott
+**Date:** 2026-05-11
+**Build:** AgentHub `v3.2-dev @ c6c6a81` (HEAD of main; wails build -tags wailsassets)
 
 **Notes / issues observed:**
 
 ```
-(free-form notes)
+Injection path adapted for AgentHub's product surface:
+- The runbook as authored assumes "open a terminal tab and run `bash …`",
+  but AgentHub sessions spawn registered agent CLIs (claude / codex / opencode)
+  — there is no general shell session type.
+- Claude Code's `!` prefix runs commands in the background and does NOT pass
+  raw OSC 9;4 escape bytes through to the parent pty's stdout (so the bytes
+  never reach AgentHub's ProgressAddon).
+- Workaround used: temporary CLI override in Settings → CLI Paths pointing the
+  `opencode` slot at the fixture script. Sessions spawned with that "agent"
+  run the fixture, which emits OSC 9;4 directly into the tab pty where
+  ProgressAddon catches it. For the web parity addendum the override was
+  re-pointed at /tmp/osc94-web-uat.sh (long-lived variant) to give time to
+  grab the session URL and open it in a browser.
+
+Out-of-scope observations (not Phase 98 regressions, not blocking):
+
+1. Fast-exiting fixture-CLI sessions trigger an "exited with error · running
+   · Exit code: -1 · Duration: 4s" toast in AgentHub. Pre-existing fast-exit /
+   go-pty ProcessState race documented in engine.go:271-273. Phase 98 did not
+   touch session-exit handling; symptom only surfaces because we used a
+   4-second script as a "CLI". Not a PRG-01/02/03 finding.
+
+2. Production Wails build (`-tags wailsassets`) ships without DevTools, so the
+   runbook step "open browser DevTools (or Console.app)" is not exercisable
+   from inside the desktop app. The browser-side web-parity DevTools check
+   covered the equivalent verification.
+
+Backlog item suggested:
+- Add a first-class "shell session" type (user-selectable bash/zsh/pwsh) as a
+  v3.3+ feature, with appropriate security gating for web-shared shells.
+  Would obsolete the fixture-as-CLI override hack and unlock other UX wins
+  (git, log tailing, curl progress observation, etc.). Deferred from v3.2
+  release gate.
 ```
 
 ---
