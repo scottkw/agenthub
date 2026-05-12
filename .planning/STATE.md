@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Plugin Suite
-status: Awaiting next milestone
-stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
-last_updated: "2026-05-12T17:48:31.545Z"
-last_activity: 2026-05-12 — Milestone v3.2 completed and archived
+milestone: v3.3
+milestone_name: Shell Sessions & Polish
+status: planning
+last_updated: "2026-05-12T22:44:26.235Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 44
-  completed_plans: 44
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 
 ## Current Position
 
-Phase: Milestone v3.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-12 — Milestone v3.2 completed and archived
+Status: Defining requirements
+Last activity: 2026-05-12 — Milestone v3.3 started
 
 ## Performance Metrics
 

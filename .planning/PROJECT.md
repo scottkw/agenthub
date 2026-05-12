@@ -14,7 +14,18 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 
 Curated, vendored xterm.js plugin suite — GPU-accelerated rendering, scrollback search (Cmd-F), inline images (sixel), clickable links (with IDN spoof confirmation + Cmd/Ctrl-click), Unicode 11 width tables, terminal serialization ("Save Terminal As…"), OSC 52 clipboard, and OSC 9;4 progress (per-tab underline + atomic tray quartile) — all surfaced in a Settings → Plugins section with per-plugin toggles, inline `<details>` disclosures for sub-config, and one-shot `PluginToggleBanner` toasts for non-hot-swappable plugins. Daemon `PluginSettings` is the source of truth, propagated to desktop terminals via Wails `settings:plugins` event and to web-served Tailscale clients via capability-gated `/api/plugin-config` REST + SSE stream. All 8 addons vendored same-origin under `web/vendor/xterm/addons/` with a generalized `vendor_drift_test.go` CI gate enforcing version parity. Cross-browser Playwright e2e (Chromium + Firefox + WebKit) with zero CSP violations gates release. Migration from v3.1 settings.json writes `schemaVersion: 2` with per-field assertions on all 8 plugin booleans + 3 sub-configs.
 
-**Next:** v3.3 — raw shell session type (the unblocker for ~9 deferred UAT scenarios that require physical iPad, real Tailnet, or raw shell PTY), plus the 6 polish items tracked in `v3.2-RELEASE-BLOCKERS.md` and `v3.2-MILESTONE-AUDIT.md` (mailto detection, IDN popover, find-bar Esc-after-toggle, find-bar slide-out, iTerm2 IIP rendering, jsdom localStorage test-env fix).
+## Current Milestone: v3.3 Shell Sessions & Polish
+
+**Closes (in progress):** GitHub Issues #44 ("Add a shell to the list of 'agents' that can be opened"), #45 ("Add a hyperlinked index to the Settings page").
+
+**Goal:** Land raw shell sessions (bash/zsh/pwsh) as a first-class agent type — unblocking the ~9 deferred v3.2 UAT scenarios that require raw PTY — then close v3.2 polish/tech-debt and re-run the deferred UAT batches end-to-end.
+
+**Target features:**
+- Raw shell session type (#44) — bash/zsh/pwsh as selectable "agents" across GUI new-session modal, CLI (`agenthub new shell`), and TUI; cross-platform shell discovery (login vs interactive); web-share security gating (no auto-serve, capability-token confirmation step) given shells expose arbitrary command execution.
+- Settings hyperlinked index (#45) — jump-link anchors to each Settings section header (Plugins, Appearance, Web Server, Behavior, Paths) at the top of the Settings tab, plus an optional autocomplete search box.
+- v3.2 polish closure (P-1..P-6) — `mailto:` link detection, Cyrillic IDN spoof popover, find-bar Esc-after-toggle dismissal, find-bar slide-out exit animation, iTerm2 IIP image rendering audit, Vitest 4 + jsdom 29 `localStorage` test-env fix for Sidebar.test.tsx.
+- Deferred v3.2 UAT re-run (9 scenarios) — Phase 93 WebGL context-loss + iPad rasterizer banner, Phase 94 10K-line search perf, Phase 95 LNK chain iPad, Phase 96 chafa sixel/IIP fidelity + two-client mid-stream join, Phase 99 iPad 5-scenario runbook.
+- Phase 91 distribution-pipeline followups — carried forward from v3.1 deferred bucket at `.planning/deferred/91-distribution-pipeline-followups/`.
 
 ## Requirements
 
@@ -192,7 +203,7 @@ Curated, vendored xterm.js plugin suite — GPU-accelerated rendering, scrollbac
 
 ### Active
 
-(v3.3 requirements TBD — fresh `.planning/REQUIREMENTS.md` to be defined by `/gsd-new-milestone`. Carry-forward backlog from v3.2: raw shell session type [unblocks 9 deferred UAT scenarios], 6 polish-grade tech debt items in `v3.2-RELEASE-BLOCKERS.md`.)
+(v3.3 requirements being defined — see `.planning/REQUIREMENTS.md`. Scope: GitHub Issues #44 + #45, v3.2 polish P-1..P-6, 9 deferred v3.2 UAT scenarios, Phase 91 distribution-pipeline followups carried from v3.1.)
 
 ## Current State
 
@@ -403,4 +414,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-12 — v3.2 Plugin Suite shipped (closes Issue #36). 21 milestones shipped, 98 phases, ~22.7K LOC added across v3.1+v3.2. Next: v3.3 (raw shell session type + v3.2 polish items + deferred UAT closure).*
+*Last updated: 2026-05-12 — v3.3 milestone started (Shell Sessions & Polish). Closing GitHub Issues #44 + #45 + v3.2 polish/deferred-UAT backlog. Phase numbering continues from 99.*
