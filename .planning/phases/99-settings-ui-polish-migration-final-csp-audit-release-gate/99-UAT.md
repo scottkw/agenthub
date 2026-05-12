@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 99-settings-ui-polish-migration-final-csp-audit-release-gate
 source: [99-01-SUMMARY.md, 99-02-SUMMARY.md, 99-03-SUMMARY.md, 99-04-SUMMARY.md, 99-05-SUMMARY.md]
 started: 2026-05-12T04:08:00Z
-updated: 2026-05-12T04:19:00Z
+updated: 2026-05-12T04:25:00Z
 ---
 
 ## Current Test
@@ -78,13 +78,28 @@ blocked: 0
   reason: "User reported: No checkboxes — screenshot shows the Search defaults disclosure expanded with option labels rendering as plain text but the <input type='checkbox'> controls themselves are missing."
   severity: major
   test: 5
-  artifacts: []
-  missing: []
+  root_cause: "The 6 disclosure checkbox inputs (3 in renderSearchDisclosure, 3 in renderWebLinksDisclosure) reuse className='settings-panel__toggle-input'. That class is a Phase-82 iOS-toggle-switch hider (style.css:586-592 collapses it to 1×1px opacity 0) intended as the semantic anchor for a paired visible .settings-panel__toggle-track + .settings-panel__toggle-thumb pair (rendered in renderRow). The disclosure helpers copied the hidden-input class but omitted the track/thumb spans, so each checkbox collapses to an invisible 1×1px element with no visible substitute. The disclosure <select> and number input do NOT carry that class and render correctly — confirming the class is the discriminator. Source-inspection tests pass because they grep for the 'checkbox' literal in the file string, not the rendered DOM or computed styles."
+  artifacts:
+    - path: "frontend/src/components/PluginsSection.tsx"
+      issue: "renderSearchDisclosure (lines 162-203) puts className='settings-panel__toggle-input' on all 3 checkboxes without rendering the .settings-panel__toggle-track / __toggle-thumb visible counterparts"
+    - path: "frontend/src/style.css"
+      issue: "Lines 586-592 globally hide .settings-panel__toggle-input — no .settings-panel__details scope override exists"
+    - path: "frontend/src/components/__tests__/PluginsSection.disclosure.test.tsx"
+      issue: "Source-inspection test pattern (import raw + expect(raw).toContain) cannot catch CSS-driven visual regressions — gap in test strategy"
+  missing:
+    - "Pick a render strategy for disclosure checkboxes — option (a) drop the toggle-input class to fall back to native checkbox rendering (smallest diff, best UX inside a <details> config block), or (b) render matching track/thumb spans + --checked class to get iOS pill UI, or (c) add a .settings-panel__details-scoped CSS override that unsets the hiding"
+    - "Add a real-DOM render test (vitest + @testing-library/react) or Playwright check for disclosure checkbox visibility so the same bug cannot pass tests again"
+  debug_session: ".planning/debug/99-disclosure-checkboxes-missing.md"
 
 - truth: "Web Links disclosure renders three checkbox controls (Confirm OSC 8, Confirm IDN, Confirm typosquat) alongside the working modifier <select>"
   status: failed
   reason: "User reported: Modifier <select> renders correctly but Confirm OSC 8 / Confirm IDN / Confirm typosquat labels show no checkbox input — same bug pattern as Test 5. Two screenshots confirm the regression spans both disclosures."
   severity: major
   test: 6
-  artifacts: []
-  missing: []
+  root_cause: "Same root cause as Test 5. renderWebLinksDisclosure (PluginsSection.tsx:205-255) applies className='settings-panel__toggle-input' to the 3 confirmation checkboxes (lines 228, 237, 246) without the visible track/thumb counterparts, so each is hidden by the Phase-82 global rule at style.css:586-592. The modifier <select> at line 216 lacks that class and renders correctly — same differential evidence."
+  artifacts:
+    - path: "frontend/src/components/PluginsSection.tsx"
+      issue: "renderWebLinksDisclosure (lines 205-255) puts className='settings-panel__toggle-input' on the 3 confirmation checkboxes (228, 237, 246) without the visible track/thumb counterparts"
+  missing:
+    - "Fix lands in the same patch as Test 5 — same render path. Choose option (a) drop the class (recommended), (b) render track/thumb spans, or (c) scoped CSS override."
+  debug_session: ".planning/debug/99-disclosure-checkboxes-missing.md"
