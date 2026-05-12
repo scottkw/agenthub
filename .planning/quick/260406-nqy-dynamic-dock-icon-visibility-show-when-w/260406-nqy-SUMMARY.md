@@ -1,4 +1,7 @@
 ---
+status: complete
+completed: 2026-04-06
+commit: 5a90f5a
 phase: quick
 plan: 260406-nqy
 subsystem: tray/window-lifecycle

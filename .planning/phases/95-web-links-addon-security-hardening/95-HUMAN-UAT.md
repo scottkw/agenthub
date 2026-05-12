@@ -1,9 +1,12 @@
 ---
-status: partial
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Aggregates 95-DESKTOP-UAT.md + 95-WEB-UAT.md results; both source runbooks require raw shell PTY to exercise URL printing + hover/click. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md)."
 phase: 95-web-links-addon-security-hardening
 source: [95-VERIFICATION.md, 95-DESKTOP-UAT.md, 95-WEB-UAT.md]
 started: 2026-05-06T18:55:00Z
-updated: 2026-05-06T18:55:00Z
+updated: 2026-05-12T22:55:00Z
 ---
 
 ## Current Test

@@ -1,3 +1,13 @@
+---
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "UAT-1/UAT-2/UAT-5 require raw shell PTY for chafa + OSC 9;4. UAT-3 + UAT-4 (zero-CDN, zero-CSP) are session-type-agnostic but runbook deferred atomically to keep the v3.2 release gate cohesive. v3.2 ships on automated coverage (see 99-UAT.md sign_off)."
+phase: 99-settings-ui-polish-migration-final-csp-audit-release-gate
+type: ipad-uat
+release_gate: v3.2-SC-4
+---
+
 # Phase 99 — iPad Safari Manual UAT (v3.2 Release Gate)
 
 > **🛑 DEFERRED to v3.3 (decided 2026-05-12)** — UAT-1/UAT-2/UAT-5 require a raw shell PTY (chafa inline-image emission + OSC 9;4 progress sequences). AgentHub v3.2 ships **agent sessions only**; raw shell session type is on the v3.3+ backlog per `.planning/v3.2-RELEASE-BLOCKERS.md` ("Backlog (from Phase 98 sign-off, deferred to v3.3+)"). UAT-3 + UAT-4 (zero-CDN, zero-CSP audits) are session-type-agnostic and could run today, but the runbook is deferred atomically to keep the gate cohesive. v3.2 ships on automated coverage instead — see 99-UAT.md `sign_off`. Re-open this runbook once shell sessions land.

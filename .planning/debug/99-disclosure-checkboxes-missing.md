@@ -1,8 +1,10 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "Phase 99-02 disclosures: Search and Web Links checkbox inputs missing at runtime; <select> and <input type=\"number\"> render correctly"
 created: 2026-05-11T00:00:00Z
-updated: 2026-05-11T00:00:00Z
+updated: 2026-05-12T22:55:00Z
+resolved_on: 2026-05-12
+resolved_by: "Phase 99-06 gap-closure: commit 247a7b4 (drop hidden-toggle class from 6 disclosure checkboxes) + commit 6cfe32d (real-DOM render test PluginsSection.disclosure.render.test.tsx — 3 it-blocks, all passing). 99-UAT.md Tests 5 & 6 flipped issue → pass."
 ---
 
 ## Current Focus

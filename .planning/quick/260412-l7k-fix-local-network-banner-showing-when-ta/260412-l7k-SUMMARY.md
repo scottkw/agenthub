@@ -1,4 +1,7 @@
 ---
+status: complete
+completed: 2026-04-12
+commit: 0db6ade
 phase: quick
 plan: 260412-l7k
 subsystem: daemon, frontend

@@ -1,4 +1,15 @@
+---
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Runbook prints URLs into raw shell to exercise hover/click. v3.2 ships agent sessions only; shell session type on v3.3+ backlog (see v3.2-RELEASE-BLOCKERS.md)."
+phase: 95-web-links-addon-security-hardening
+type: desktop-uat
+---
+
 # Phase 95 — Desktop UAT Runbook
+
+> **🛑 DEFERRED to v3.3 (decided 2026-05-12)** — Runbook assumes the tester can `printf` / `echo` URLs into a raw shell to exercise hover decorations and click confirmation. AgentHub v3.2 ships **agent sessions only**; raw shell session type is on the v3.3+ backlog per `.planning/v3.2-RELEASE-BLOCKERS.md`. Phase 95 functionality has automated coverage (5/5 SCs implementation-verified + 3 of 5 human UATs already PASS as of 2026-05-11); the remaining items (LNK-04 web noopener, full LNK-01..05 chain) need the shell session to run. 95-VERIFICATION.md status is `deferred`. Re-open once shell sessions land.
 
 Manual UAT runbook for Phase 95 web-links security hardening on the
 **desktop (Wails) build**. Complements the automated test suite — the

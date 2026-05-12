@@ -66,17 +66,24 @@ Last activity: 2026-05-12 -- v3.2 sign-off + UAT deferral reconciliation across 
 
 ### Pending Todos
 
-- Phase 92 planning (`/gsd-plan-phase 92`) — Foundation phase, no addon work
-- Phase 96 pre-phase research subtask: audit `frontend/node_modules/@xterm/addon-image/lib/addon-image.js` for `URL.createObjectURL` / `new Worker(` / `blob:` / `data:` script construction; document findings in phase RESEARCH.md before any wiring work
-- Phase 99 cross-browser CSP e2e: extend existing Chromium-only suite to cover Safari and Firefox; new iPad Safari Tailscale UAT script
-- Phase 91 (distribution pipeline follow-ups, deferred from v3.1) remains in `.planning/deferred/` for a future milestone (v3.2.x patch or v3.3) — not in v3.2 scope
+_All v3.2 pending items resolved 2026-05-12 — see resolution notes below:_
+
+- ✅ Phase 92 planning — phase completed 2026-05-03 (3 plans, 6 commits)
+- ✅ Phase 96 pre-phase research subtask — completed; findings in `.planning/phases/96-image-addon-csp-audit/96-RESEARCH.md`
+- ✅ Phase 99 cross-browser CSP e2e — completed (99-04: playwright web-csp.spec.ts × chromium + firefox + webkit, all green); iPad Safari UAT script authored (99-iPad-UAT.md) but **deferred to v3.3** with shell-session feature
+- 🔄 Phase 91 (distribution pipeline follow-ups, deferred from v3.1) remains in `.planning/deferred/91-distribution-pipeline-followups/` for v3.3+ (still applicable, carries forward)
 
 ### Quick Tasks Completed
 
-(carried from v3.1)
-
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260406-nqy | Dynamic dock icon visibility (show when window present) | 2026-04-06 | 5a90f5a | `.planning/quick/260406-nqy-dynamic-dock-icon-visibility-show-when-w/` |
+| 260406-op4 | Tray icon matches app icon (monochrome) | 2026-04-06 | a3332df | `.planning/quick/260406-op4-tray-icon-a-matches-app-icon-a-monochrom/` |
+| 260406-s0e | Fix CLI detection — app showed "No CLIs detected" despite agents installed | 2026-04-06 | 56ccc97 | `.planning/quick/260406-s0e-fix-cli-detection-app-shows-no-clis-dete/` |
+| 260407-w91 | Toolbar icons match globe icon size + brightness | 2026-04-07 | 3045a0a | `.planning/quick/260407-w91-make-toolbar-icons-match-globe-icon-size/` |
+| 260408-dcv | Fix GitHub Actions build + release pipeline failures | 2026-04-08 | c1511b3 | `.planning/quick/260408-dcv-fix-github-actions-build-and-release-pip/` |
+| 260409-vop | Remove flashing Tailscale check modal; Settings → tab (not modal) | 2026-04-09 | 3bc0560 | `.planning/quick/260409-vop-remove-flashing-tailscale-check-modal-an/` |
+| 260412-l7k | Fix local-network banner showing while Tailscale connected | 2026-04-12 | 0db6ade | `.planning/quick/260412-l7k-fix-local-network-banner-showing-when-ta/` |
 
 ### Plan Execution Metrics
 

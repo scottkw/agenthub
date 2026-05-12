@@ -1,4 +1,7 @@
 ---
+status: complete
+completed: 2026-04-06
+commit: 56ccc97
 phase: quick
 plan: 260406-s0e
 subsystem: daemon/gui

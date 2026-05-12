@@ -1,4 +1,15 @@
+---
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Runbook requires raw shell PTY on Tailscale-served session for OSC emission, chafa rendering, and DevTools WebGL ctx-loss. v3.2 ships agent sessions only; shell session type on v3.3+ backlog (see v3.2-RELEASE-BLOCKERS.md)."
+phase: 93-vendoring-discipline-web-parity-for-already-shipping-addons
+type: ipad-uat
+---
+
 # Phase 93 — iPad Safari Manual UAT
+
+> **🛑 DEFERRED to v3.3 (decided 2026-05-12)** — Runbook requires a raw shell PTY on a Tailscale-served terminal session (UAT-1 rasterizer banner, UAT-2 DevTools WebGL ctx-loss, UAT-5 zero-CDN). AgentHub v3.2 ships **agent sessions only**; raw shell session type is on the v3.3+ backlog per `.planning/v3.2-RELEASE-BLOCKERS.md`. Phase 93 functionality has automated coverage (5/5 must-haves verified + cross-browser CSP suite + render tests); only the iPad attestation portion is deferred. 93-VERIFICATION.md status is `deferred`. Re-open this runbook once shell sessions land.
 
 > Manual UAT script for the runtime behaviors that headless Playwright cannot reproduce on iPad Safari over Tailscale. Run during `/gsd-verify-work 93` before phase sign-off.
 

@@ -1,4 +1,8 @@
 ---
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Runbook tests inline-image rendering via chafa (sixel/IIP) piped from a raw shell. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md). Phase 96 has 4/4 automated coverage + 2/4 human UATs already PASS as of 2026-05-11 (Scenario 3 next-session-only, Scenario 4 FIFO eviction); Scenarios 1+2 deferred."
 phase: 96
 type: human-uat
 created: 2026-05-07

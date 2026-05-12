@@ -1,4 +1,15 @@
+---
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Runbook prints URLs into raw shell on Tailscale-served terminal page. v3.2 ships agent sessions only; shell session type on v3.3+ backlog (see v3.2-RELEASE-BLOCKERS.md)."
+phase: 95-web-links-addon-security-hardening
+type: web-uat
+---
+
 # Phase 95 — Web (Tailscale-served) UAT Runbook
+
+> **🛑 DEFERRED to v3.3 (decided 2026-05-12)** — Runbook prints URLs into a raw shell on a Tailscale-served terminal page. AgentHub v3.2 ships **agent sessions only**; raw shell session type is on the v3.3+ backlog per `.planning/v3.2-RELEASE-BLOCKERS.md`. 95-VERIFICATION.md status is `deferred`. Re-open once shell sessions land.
 
 Manual UAT runbook for Phase 95 web-links security hardening on the
 **Tailscale-served terminal page**. Use the **dev-browser skill** (per
