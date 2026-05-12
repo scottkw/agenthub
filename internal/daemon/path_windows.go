@@ -17,7 +17,9 @@ func platformExtraBins() []string {
 	if local := os.Getenv("LOCALAPPDATA"); local != "" {
 		paths = append(paths, filepath.Join(local, "pnpm"))
 		paths = append(paths, filepath.Join(local, "Programs", "nodejs"))
+		paths = append(paths, filepath.Join(local, "Microsoft", "WindowsApps"))
 	}
 	paths = append(paths, `C:\Program Files\Tailscale`)
+	paths = append(paths, `C:\Program Files\PowerShell\7`)
 	return paths
 }
