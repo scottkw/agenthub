@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,9 +95,27 @@ func settingsPath(dir string) string {
 // knownShells maps basenames of common shell interpreters. A stored CLI path
 // whose basename is a shell and whose key is NOT that shell is almost certainly
 // stale/wrong (e.g. "claude" → "/bin/sh") and should be discarded on load.
+//
+// Phase 100-02 (Pitfall 6 mitigation): pwsh/powershell + .exe forms added so
+// stale "claude → pwsh.exe" overrides are filtered on load. On Windows
+// filepath.Base("/path/to/pwsh.exe") yields "pwsh.exe" (not "pwsh"), so both
+// bare and .exe basenames must be present.
 var knownShells = map[string]bool{
 	"sh": true, "bash": true, "zsh": true, "fish": true,
 	"csh": true, "tcsh": true, "dash": true, "ksh": true,
+	"pwsh": true, "pwsh.exe": true,
+	"powershell": true, "powershell.exe": true,
+}
+
+// isShellSession returns true if cli refers to a shell-type session (vs an
+// AI CLI). Used by CreateSession to (1) bypass status.Watch (SHELL-09) and
+// (2) gate the shell-specific argv / WorkDir resolution branch (SHELL-05).
+func isShellSession(cli string) bool {
+	switch cli {
+	case "shell", "bash", "zsh", "pwsh", "powershell":
+		return true
+	}
+	return false
 }
 
 // loadSettingsFromDisk reads settings.json and populates engine state.
@@ -204,6 +223,31 @@ func NewSessionEngine() *SessionEngine {
 func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir string, args []string, cols, rows int, onStatus func(string, status.SessionStatus), onExit func(string, int)) (string, error) {
 	cliPath := e.ResolveCLI(cli)
 
+	// Phase 100 SHELL-05: shell-session dispatch. For cli in
+	// {shell, bash, zsh, pwsh, powershell}, replace cliPath + args with the
+	// resolved shell path + non-login interactive argv from Plan 01's
+	// pty.DiscoverShells() / pty.KnownShellSpecs(). Empty workDir for shells
+	// resolves to $HOME (Pitfall 4 mitigation) — AI CLI sessions retain
+	// existing behavior (no $HOME substitution; empty WorkDir falls through
+	// to backend / go-pty default).
+	//
+	// req.Args (caller-supplied) is INTENTIONALLY IGNORED for shells in
+	// Phase 100 (RESEARCH Anti-Pattern + Assumption A6, T-100-08 mitigation):
+	// we overwrite, not merge. AI CLI sessions continue to pass req.Args
+	// through unchanged.
+	if path, shellArgs, isShell := e.resolveShellSpawn(cli); isShell {
+		cliPath = path
+		args = shellArgs
+		if workDir == "" {
+			if home, err := os.UserHomeDir(); err == nil && home != "" {
+				workDir = home
+			}
+			// If UserHomeDir fails or returns empty, fall through with the
+			// original empty workDir (rare; matches the existing AI-CLI
+			// path).
+		}
+	}
+
 	if cols <= 0 {
 		cols = 80
 	}
@@ -242,14 +286,21 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	e.sessionCLIs[id] = cli // raw CLI name, NOT cliPath
 	e.mu.Unlock()
 
-	go status.Watch(hub, id, cli, func(sid string, s status.SessionStatus) {
-		e.statusMu.Lock()
-		e.sessionStatuses[sid] = s
-		e.statusMu.Unlock()
-		if onStatus != nil {
-			onStatus(sid, s)
-		}
-	})
+	// SHELL-09: shell sessions have no AI-agent state model. Skip status.Watch
+	// so sessionStatuses[id] stays empty and ListSessions falls through to its
+	// conservative "running" default (see engine.go ListSessions branch). The
+	// session State (running/stopped) transitions via the natural-exit
+	// goroutine below — unchanged from AI-CLI behavior.
+	if !isShellSession(cli) {
+		go status.Watch(hub, id, cli, func(sid string, s status.SessionStatus) {
+			e.statusMu.Lock()
+			e.sessionStatuses[sid] = s
+			e.statusMu.Unlock()
+			if onStatus != nil {
+				onStatus(sid, s)
+			}
+		})
+	}
 
 	// Watch for natural process exit (PTY EOF -> hub.Done closes).
 	// Transitions session state to StateStopped and captures exit code.
@@ -392,6 +443,69 @@ func (e *SessionEngine) ResolveCLI(name string) string {
 		return path
 	}
 	return name
+}
+
+// resolveShellSpawn maps an abstract shell name (shell|bash|zsh|pwsh|powershell)
+// to (absolute path, interactive non-login argv, ok=true). Returns
+// ("", nil, false) when cli is not a shell name.
+//
+// Resolution order:
+//  1. Caller's settings.json override (e.cliPaths[cli]) — basename is matched
+//     against pty.KnownShellSpecs() to derive the argv. Per Plan 01 M2,
+//     "powershell" is a first-class knownShellSpec alongside "pwsh", so a
+//     cliPaths["powershell"] override resolves cleanly via this branch without
+//     falling through to discovery.
+//  2. Live discovery via pty.DiscoverShells() — returns the first entry whose
+//     Name matches cli (which includes the synthetic "shell" system-default
+//     entry on POSIX).
+//  3. Safety net for cli="pwsh" on legacy Windows hosts: if only powershell.exe
+//     is discoverable, accept the "powershell" spec entry.
+//
+// Locking: e.cliPaths is read under e.mu.RLock via ResolveCLI; pty.DiscoverShells
+// does filesystem I/O via exec.LookPath and must run outside any mutex (it is
+// already lock-free).
+func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
+	if !isShellSession(cli) {
+		return "", nil, false
+	}
+
+	// (1) Settings override path. ResolveCLI returns the override if present,
+	// otherwise the bare cli name.
+	override := e.ResolveCLI(cli)
+	if override != cli {
+		base := filepath.Base(override)
+		baseNoExt := strings.TrimSuffix(base, ".exe")
+		for _, spec := range pty.KnownShellSpecs() {
+			if spec.Name == cli || spec.Name == baseNoExt || spec.Name == base {
+				argv := append([]string(nil), spec.Argv...)
+				return override, argv, true
+			}
+		}
+		// Override basename doesn't match any known shell — fall through to
+		// discovery (caller may have set an override to a path that does not
+		// look like a known shell binary).
+	}
+
+	// (2) Live discovery.
+	for _, sh := range pty.DiscoverShells() {
+		if sh.Name == cli {
+			argv := append([]string(nil), sh.Argv...)
+			return sh.Path, argv, true
+		}
+	}
+
+	// (3) Legacy Windows safety net: cli="pwsh" but only "powershell" is
+	// discoverable (Windows host with only PowerShell 5.x installed).
+	if cli == "pwsh" {
+		for _, sh := range pty.DiscoverShells() {
+			if sh.Name == "powershell" {
+				argv := append([]string(nil), sh.Argv...)
+				return sh.Path, argv, true
+			}
+		}
+	}
+
+	return "", nil, false
 }
 
 // UpdateCLIPath stores a custom executable path for the named CLI.
