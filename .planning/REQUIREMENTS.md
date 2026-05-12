@@ -94,44 +94,53 @@ Explicitly excluded for v3.3. Documented to prevent scope creep.
 
 ## Traceability
 
-Which phases cover which requirements. Empty until roadmap creation.
+Which phases cover which requirements. Populated by roadmap creation 2026-05-12.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHELL-01 | TBD | Pending |
-| SHELL-02 | TBD | Pending |
-| SHELL-03 | TBD | Pending |
-| SHELL-04 | TBD | Pending |
-| SHELL-05 | TBD | Pending |
-| SHELL-06 | TBD | Pending |
-| SHELL-07 | TBD | Pending |
-| SHELL-08 | TBD | Pending |
-| SHELL-09 | TBD | Pending |
-| SETUI-01 | TBD | Pending |
-| SETUI-02 | TBD | Pending |
-| SETUI-03 | TBD | Pending |
-| POLISH-01 | TBD | Pending |
-| POLISH-02 | TBD | Pending |
-| POLISH-03 | TBD | Pending |
-| POLISH-04 | TBD | Pending |
-| POLISH-05 | TBD | Pending |
-| POLISH-06 | TBD | Pending |
-| UAT-01 | TBD | Pending |
-| UAT-02 | TBD | Pending |
-| UAT-03 | TBD | Pending |
-| UAT-04 | TBD | Pending |
-| UAT-05 | TBD | Pending |
-| UAT-06 | TBD | Pending |
-| UAT-07 | TBD | Pending |
-| DIST-01 | TBD | Pending |
-| DIST-02 | TBD | Pending |
-| DIST-03 | TBD | Pending |
+| SHELL-01 | Phase 101 | Pending |
+| SHELL-02 | Phase 101 | Pending |
+| SHELL-03 | Phase 101 | Pending |
+| SHELL-04 | Phase 100 | Pending |
+| SHELL-05 | Phase 100 | Pending |
+| SHELL-06 | Phase 101 | Pending |
+| SHELL-07 | Phase 101 | Pending |
+| SHELL-08 | Phase 101 | Pending |
+| SHELL-09 | Phase 100 | Pending |
+| SETUI-01 | Phase 104 | Pending |
+| SETUI-02 | Phase 104 | Pending |
+| SETUI-03 | Phase 104 | Pending |
+| POLISH-01 | Phase 102 | Pending |
+| POLISH-02 | Phase 102 | Pending |
+| POLISH-03 | Phase 103 | Pending |
+| POLISH-04 | Phase 103 | Pending |
+| POLISH-05 | Phase 103 | Pending |
+| POLISH-06 | Phase 103 | Pending |
+| UAT-01 | Phase 105 | Pending |
+| UAT-02 | Phase 105 | Pending |
+| UAT-03 | Phase 105 | Pending |
+| UAT-04 | Phase 105 | Pending |
+| UAT-05 | Phase 105 | Pending |
+| UAT-06 | Phase 105 | Pending |
+| UAT-07 | Phase 105 | Pending |
+| DIST-01 | Phase 106 | Pending |
+| DIST-02 | Phase 106 | Pending |
+| DIST-03 | Phase 106 | Pending |
 
 **Coverage:**
 - v3.3 requirements: 28 total
-- Mapped to phases: 0 (pre-roadmap)
-- Unmapped: 28 ⚠️ (filled by roadmapper)
+- Mapped to phases: 28 ✓
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 100 (Shell Backend & Discovery): SHELL-04, SHELL-05, SHELL-09 (3 reqs)
+- Phase 101 (Shell Surfaces & Web-Share Gating): SHELL-01, SHELL-02, SHELL-03, SHELL-06, SHELL-07, SHELL-08 (6 reqs)
+- Phase 102 (Web-Links Polish — mailto + IDN): POLISH-01, POLISH-02 (2 reqs)
+- Phase 103 (Find Bar + Test-Env + IIP Polish): POLISH-03, POLISH-04, POLISH-05, POLISH-06 (4 reqs)
+- Phase 104 (Settings Hyperlinked Index): SETUI-01, SETUI-02, SETUI-03 (3 reqs)
+- Phase 105 (Deferred v3.2 UAT Re-Run): UAT-01..07 (7 reqs)
+- Phase 106 (Distribution Pipeline Followups): DIST-01, DIST-02, DIST-03 (3 reqs)
 
 ---
 *Requirements defined: 2026-05-12*
-*Last updated: 2026-05-12 — initial definition*
+*Last updated: 2026-05-12 — traceability populated by roadmap creation (28/28 mapped across Phases 100-106)*
