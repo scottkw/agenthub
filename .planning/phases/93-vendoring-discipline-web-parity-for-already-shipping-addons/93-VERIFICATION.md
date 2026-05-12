@@ -2,8 +2,11 @@
 phase: 93-vendoring-discipline-web-parity-for-already-shipping-addons
 verified: 2026-05-04T20:21:04Z
 reverified: 2026-05-11T00:00:00Z
-status: human_needed
-score: 5/5 must-haves verified (automated); 2 of 6 human UAT items resolved 2026-05-11 (UAT-3 hot-swap PASS, UAT-4 Unicode 11 next-session-only PASS, UAT-6 reclassified); UAT-1 iPad, UAT-2 DevTools, UAT-5 Tailscale still pending
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Remaining UAT items (UAT-1 iPad rasterizer banner, UAT-2 DevTools WebGL ctx-loss, UAT-5 Tailscale zero-CDN) require a raw shell PTY on a Tailscale-served session for OSC emission and chafa rendering. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md). v3.2 signs off on automated coverage."
+score: 5/5 must-haves verified (automated); 2 of 6 human UAT items resolved 2026-05-11; 3 remaining items deferred to v3.3 with shell-session feature
 overrides_applied: 0
 re_verification:
   previous_status: none

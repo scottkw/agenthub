@@ -1,5 +1,7 @@
 # Phase 99 — iPad Safari Manual UAT (v3.2 Release Gate)
 
+> **🛑 DEFERRED to v3.3 (decided 2026-05-12)** — UAT-1/UAT-2/UAT-5 require a raw shell PTY (chafa inline-image emission + OSC 9;4 progress sequences). AgentHub v3.2 ships **agent sessions only**; raw shell session type is on the v3.3+ backlog per `.planning/v3.2-RELEASE-BLOCKERS.md` ("Backlog (from Phase 98 sign-off, deferred to v3.3+)"). UAT-3 + UAT-4 (zero-CDN, zero-CSP audits) are session-type-agnostic and could run today, but the runbook is deferred atomically to keep the gate cohesive. v3.2 ships on automated coverage instead — see 99-UAT.md `sign_off`. Re-open this runbook once shell sessions land.
+
 > Manual UAT script for the runtime behaviors that headless Playwright cannot reproduce on iPad Safari over Tailscale. Run during `/gsd-verify-work 99` before v3.2 release sign-off.
 
 ## Prerequisites

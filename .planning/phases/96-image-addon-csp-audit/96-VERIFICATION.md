@@ -1,8 +1,11 @@
 ---
-status: human_needed
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Remaining UAT items (Scenario 1 chafa iterm2 inline render desktop+web, Scenario 2 two-client mid-stream image join) require chafa output piped to a raw shell on a Tailscale-served terminal session. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md). v3.2 signs off on automated coverage."
 phase: 96
 phase_name: image-addon-csp-audit
-score: 4/4 automated; 2 of 4 human UATs resolved 2026-05-11 (Scenario 3 next-session-only PASS, Scenario 4 FIFO eviction PASS); Scenarios 1+2 deferred to Tailscale/browser batch; iTerm2 IIP non-rendering noted as side observation
+score: 4/4 automated; 2 of 4 human UATs resolved 2026-05-11; 2 remaining items deferred to v3.3 with shell-session feature
 created: 2026-05-07
 reverified: 2026-05-11
 requirements: [IMG-01, IMG-02, IMG-03, IMG-04]

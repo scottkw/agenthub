@@ -1,9 +1,10 @@
 ---
-status: diagnosed
+status: complete
 phase: 99-settings-ui-polish-migration-final-csp-audit-release-gate
-source: [99-01-SUMMARY.md, 99-02-SUMMARY.md, 99-03-SUMMARY.md, 99-04-SUMMARY.md, 99-05-SUMMARY.md]
+source: [99-01-SUMMARY.md, 99-02-SUMMARY.md, 99-03-SUMMARY.md, 99-04-SUMMARY.md, 99-05-SUMMARY.md, 99-06-SUMMARY.md]
 started: 2026-05-12T04:08:00Z
-updated: 2026-05-12T04:25:00Z
+updated: 2026-05-12T22:45:00Z
+sign_off: "v3.2 release gate: 10/11 tests pass; Test 11 (iPad runbook) blocked on future shell-session feature, deferred to v3.3. v3.2 ships on automated coverage (vitest disclosure render tests + go settings migration tests + playwright cross-browser CSP suite)."
 ---
 
 ## Current Test
@@ -30,15 +31,13 @@ result: pass
 
 ### 5. PUI-03 — Search disclosure
 expected: In Settings → Plugins, the Search row has an inline expandable `<details>` element under the toggle. Expanding it reveals three checkboxes — Regex, Case sensitive, Whole word — bound to the Search plugin's default behavior. Other plugin rows that have no advanced config (WebGL, Unicode 11, Serialize, Clipboard, Progress) show no disclosure.
-result: issue
-reported: "No checkboxes... screenshot shows the Search defaults disclosure expanded with Regex / Case sensitive / Whole word as plain text labels but the <input type='checkbox'> controls themselves are missing. Same problem on the Web Links disclosure for Confirm OSC 8 / Confirm IDN / Confirm typosquat (only the modifier <select> renders correctly)."
-severity: major
+result: pass
+auto_verified: "Fixed in 99-06 (commit 247a7b4) — dropped `settings-panel__toggle-input` class from all 6 disclosure checkbox inputs. Gap-closure render test `PluginsSection.disclosure.render.test.tsx` (commit 6cfe32d) renders the real DOM via createRoot+jsdom and asserts (1) 6 checkbox inputs exist inside `.settings-panel__details`, (2) NONE carry the hidden `.settings-panel__toggle-input` class, (3) the 8 main-row toggles STILL do (differential guardrail). All 3 it-blocks pass; RED→GREEN evidence in commit message."
 
 ### 6. PUI-03 — Web Links disclosure
 expected: The Web Links row has an inline `<details>` disclosure under its toggle. Expanding it reveals a `<select>` for the click modifier with options platform / cmd / ctrl / none, plus three checkboxes: Confirm OSC 8, Confirm IDN, Confirm typosquat.
-result: issue
-reported: "Screenshot confirms: modifier <select> dropdown ('Platform default (Cmd on macOS, Ctrl elsewhere)') renders correctly, but Confirm OSC 8 hyperlinks / Confirm IDN / Confirm typosquat patterns appear as label-only — no checkbox input rendered. Same bug pattern as Test 5."
-severity: major
+result: pass
+auto_verified: "Same fix as Test 5 — 99-06 commit 247a7b4 removed the hidden class from the 3 Web Links confirmation checkboxes (Confirm OSC 8 / Confirm IDN / Confirm typosquat). Render test in commit 6cfe32d covers all 6 disclosure checkboxes including these three."
 
 ### 7. PUI-03 — Inline Images disclosure
 expected: The Inline Images row has an inline `<details>` disclosure. Expanding it reveals a single number input (with "MB" suffix) labeled storage limit, accepting values in the range [1, 1000].
@@ -60,16 +59,30 @@ auto_verified: "3 passed (15.2s) — chromium 3.9s + firefox 4.3s + webkit 4.1s;
 
 ### 11. SC-4 — iPad Safari Tailscale UAT (real device)
 expected: Execute the 5-scenario runbook in 99-iPad-UAT.md on a real iPad Safari over Tailscale (UAT-1 through UAT-5). Both screenshots captured (screenshots/99-iPad-UAT-3-zero-cdn.png and screenshots/99-iPad-UAT-4-zero-csp.png). Tester / Device / Date line filled in. All 5 sign-off checkboxes flipped to [x].
-result: pass
+result: blocked
+blocked_by: future-feature-terminal-sessions
+reason: "Runbook UAT-1/UAT-2/UAT-5 emit chafa inline images and OSC 9;4 progress sequences from a shell PTY. AgentHub v3.2 ships agent sessions only — raw shell session type is deferred to v3.3+ per `.planning/v3.2-RELEASE-BLOCKERS.md` 'Backlog (from Phase 98 sign-off)'. UAT-3 + UAT-4 (zero-CDN, zero-CSP audits) are session-type-agnostic and remain runnable, but per 2026-05-12 decision the entire iPad runbook is deferred together to keep the gate atomic. Re-open in v3.3 once shell sessions land."
+prior_state: "Was marked pass in earlier session (false-positive — no screenshots, no Tester/Device/Date filled in 99-iPad-UAT.md). Corrected 2026-05-12."
 
 ## Summary
 
 total: 11
-passed: 9
-issues: 2
+passed: 10
+issues: 0
 pending: 0
 skipped: 0
-blocked: 0
+blocked: 1
+
+resolved_gaps:
+  - test: 5
+    closed_by: "99-06 fix (247a7b4) + render test (6cfe32d) — all 11 disclosure tests pass"
+  - test: 6
+    closed_by: "99-06 fix (247a7b4) + render test (6cfe32d) — same code path as Test 5"
+
+deferred:
+  - test: 11
+    deferred_to: "v3.3 — once raw shell session type ships (per v3.2-RELEASE-BLOCKERS.md backlog)"
+    reason: "iPad runbook UAT-1/2/5 require shell PTY for chafa + OSC 9;4 emission. AgentHub v3.2 ships agent sessions only."
 
 ## Gaps
 

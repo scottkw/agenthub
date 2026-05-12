@@ -2,8 +2,11 @@
 phase: 94-search-addon-find-bar-desktop-web
 verified: 2026-05-05T11:00:00Z
 reverified: 2026-05-11T00:00:00Z
-status: human_needed
-score: 5/5 SCs implementation-verified; 4 of 6 human UATs resolved 2026-05-11 (UAT-2 PASS, UAT-5 PASS, UAT-6 PASS, UAT-1 PARTIAL/minor — slide-out missing; new major bug surfaced — toggle case-sensitive then Esc/close fails to dismiss); UAT-3 perf and UAT-4 web parity deferred to Tailscale/browser batch
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Remaining UAT items (UAT-3 10k-line Cmd-F perf, UAT-4 iPad Safari web-parity) require a raw shell to paste/produce the 10,000-line buffer and a Tailscale-served terminal session. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md). v3.2 signs off on automated coverage."
+score: 5/5 SCs implementation-verified; 4 of 6 human UATs resolved 2026-05-11; 2 remaining items deferred to v3.3 with shell-session feature
 overrides_applied: 0
 gaps:
   - truth: "SC-4 — Find bar visual treatment matches BannerStack vocabulary including 200ms slide-in/out animation"

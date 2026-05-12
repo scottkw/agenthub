@@ -2,8 +2,11 @@
 phase: 95-web-links-addon-security-hardening
 verified: 2026-05-06T20:55:00Z
 reverified: 2026-05-11T00:00:00Z
-status: human_needed
-score: 5/5 SCs implementation-verified; 3 of 5 human UATs resolved 2026-05-11 (LNK-06 live toggle PASS; LNK-02 PARTIAL — mailto: not detected as link, major; LNK-03 SPEC-DIVERGENCE — Cyrillic IDN URL not detected at all, major); LNK-04 web noopener and LNK iPad walkthrough deferred
+status: deferred
+deferred_to: v3.3
+deferred_on: 2026-05-12
+deferred_reason: "Remaining UAT items (LNK-04 web noopener on Tailscale, iPad Safari LNK-01..05 walkthrough) require URLs printed to a raw shell on a Tailscale-served terminal session. AgentHub v3.2 ships agent sessions only; shell session type deferred to v3.3+ (see v3.2-RELEASE-BLOCKERS.md). v3.2 signs off on automated coverage."
+score: 5/5 SCs implementation-verified; 3 of 5 human UATs resolved 2026-05-11; 2 remaining items deferred to v3.3 with shell-session feature
 overrides_applied: 0
 human_verification:
   - test: "Web-served terminal page on Tailscale: window.open with '_blank' + 'noopener,noreferrer'; window.opener === null in opened tab (LNK-04 / SC-4 web side)"

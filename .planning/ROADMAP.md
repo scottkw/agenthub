@@ -448,12 +448,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Plugins with meaningful runtime configuration — Search (defaults regex/case/word), Web-Links (Cmd-vs-Ctrl click modifier and confirmation policy), Inline Images (`storageLimit`) — expose those options via an inline `<details>` disclosure under their toggle; the Plugins section reuses the existing three-state Save button (idle/saving/saved) and the existing `daemonSettings` persistence mechanism — no new save infrastructure is introduced.
   3. The settings.json migration test loads a real v3.1 fixture (`tests/fixtures/settings_v3.1.json`), upgrades it through the v3.2 daemon, and asserts that all plugin defaults are populated (no zero values), `schemaVersion: 2` is written, and the migration is idempotent on a second run.
   4. The CSP zero-violation e2e suite is green on Chromium + Safari + Firefox; iPad Safari Tailscale UAT (real device, not emulator) reports zero CSP violations and zero CDN requests during a full attach/render/scrollback/detach session with all v3.2 plugins enabled.
-**Plans**: 5 plans (4 waves)
+**Plans**: 6 plans (5 waves — 99-06 gap closure from 99-UAT.md Tests 5/6)
   - [x] 99-01-PLAN.md — PluginToggleBanner + onPluginToggleSideEffect prop drill App→SettingsTab→PluginsSection (Wave 1, PUI-02)
   - [x] 99-02-PLAN.md — Three <details> disclosures (Search/WebLinks/InlineImage) + sub-key RPC dispatch + 500ms storageLimit debounce (Wave 2, PUI-03/PUI-04)
   - [x] 99-03-PLAN.md — Expand engine_migration_test.go per-field assertions (8 plugins + 3 sub-configs) (Wave 1, SC-3)
   - [x] 99-04-PLAN.md — playwright.config.ts firefox+webkit projects + .github/workflows/e2e.yml CI runner (Wave 1, autonomous: false, SC-4 cross-browser)
   - [x] 99-05-PLAN.md — Author 99-iPad-UAT.md 5-scenario runbook + human-checkpoint real-device UAT execution (Wave 4, autonomous: false, SC-4 iPad)
+  - [x] 99-06-PLAN.md — Drop hidden-toggle className from 6 disclosure checkboxes in PluginsSection.tsx + new real-DOM render test (Wave 1 gap closure, PUI-03; closes 99-UAT.md Tests 5/6)
 **UI hint**: yes
 
 ## Progress

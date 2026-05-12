@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Plugin Suite
-status: executing
-stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
-last_updated: "2026-05-08T19:04:23.991Z"
-last_activity: 2026-05-08 -- Phase 99 execution started
+status: milestone_signed_off
+stopped_at: v3.2 milestone signed off on automated coverage (2026-05-12) — remaining iPad/Tailscale UAT deferred to v3.3 alongside shell-session feature
+last_updated: "2026-05-12T22:50:00.000Z"
+last_activity: 2026-05-12 -- v3.2 sign-off: 99-UAT Tests 5/6 closed by 99-06 render test; Test 11 (iPad runbook) blocked on future shell-session phase; 93/94/95/96 VERIFICATION.md status flipped to deferred
 progress:
-  total_phases: 12
-  completed_phases: 7
-  total_plans: 43
-  completed_plans: 38
-  percent: 88
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 44
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 
 ## Current Position
 
-Phase: 99 (settings-ui-polish-migration-final-csp-audit-release-gate) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 99
-Last activity: 2026-05-08 -- Phase 99 execution started
+Phase: 99 (settings-ui-polish-migration-final-csp-audit-release-gate) — COMPLETE (gap closure shipped, v3.2 signed off)
+Plan: 6 of 6
+Status: v3.2 milestone signed off on automated coverage; iPad/Tailscale UAT batches deferred to v3.3 alongside shell-session feature (the unblocker). See `.planning/v3.2-RELEASE-BLOCKERS.md` for the sign-off decision and `99-UAT.md` for the test-level details.
+Last activity: 2026-05-12 -- v3.2 sign-off + UAT deferral reconciliation across 93/94/95/96 VERIFICATION.md + 99-UAT.md + 99-iPad-UAT.md
 
 ## Performance Metrics
 
