@@ -172,7 +172,6 @@ export function PluginsSection({
           <input
             type="checkbox"
             id="search-default-regex"
-            className="settings-panel__toggle-input"
             checked={sc.regex}
             onChange={(e) => dispatch(new daemon.SearchConfig({ ...sc, regex: e.target.checked }))}
           />
@@ -182,7 +181,6 @@ export function PluginsSection({
           <input
             type="checkbox"
             id="search-default-case"
-            className="settings-panel__toggle-input"
             checked={sc.caseSensitive}
             onChange={(e) => dispatch(new daemon.SearchConfig({ ...sc, caseSensitive: e.target.checked }))}
           />
@@ -192,7 +190,6 @@ export function PluginsSection({
           <input
             type="checkbox"
             id="search-default-word"
-            className="settings-panel__toggle-input"
             checked={sc.wholeWord}
             onChange={(e) => dispatch(new daemon.SearchConfig({ ...sc, wholeWord: e.target.checked }))}
           />
@@ -226,7 +223,6 @@ export function PluginsSection({
         <label className="settings-panel__toggle-row">
           <input
             type="checkbox"
-            className="settings-panel__toggle-input"
             checked={wc.confirmOSC8}
             onChange={(e) => dispatch(new daemon.WebLinksConfig({ ...wc, confirmOSC8: e.target.checked }))}
           />
@@ -235,7 +231,6 @@ export function PluginsSection({
         <label className="settings-panel__toggle-row">
           <input
             type="checkbox"
-            className="settings-panel__toggle-input"
             checked={wc.confirmIDN}
             onChange={(e) => dispatch(new daemon.WebLinksConfig({ ...wc, confirmIDN: e.target.checked }))}
           />
@@ -244,7 +239,6 @@ export function PluginsSection({
         <label className="settings-panel__toggle-row">
           <input
             type="checkbox"
-            className="settings-panel__toggle-input"
             checked={wc.confirmTyposquat}
             onChange={(e) => dispatch(new daemon.WebLinksConfig({ ...wc, confirmTyposquat: e.target.checked }))}
           />
