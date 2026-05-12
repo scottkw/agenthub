@@ -1,5 +1,38 @@
 # Milestones
 
+## v3.2 Plugin Suite (Shipped: 2026-05-12)
+
+**Phases completed:** 8 phases (92-99), 44 plans, 55 tasks
+**Requirements:** 40/40 satisfied (PLUG-01..04, WGL-01..04, U11-01..02, SRC-01..05, LNK-01..06, IMG-01..04, SER-01..03, CLIP-01..02, PRG-01..03, PUI-01..04, WEB-01..03)
+**Commits:** 269 | **Timeline:** 9 days (2026-05-03 → 2026-05-12)
+**Source changes:** 117 files, +22,697 lines
+**Closes:** GitHub Issue #36 ("Extend xterm.js functionality with select plugins")
+
+**Key accomplishments:**
+
+- Plugin Settings Foundation: daemon `PluginSettings` source of truth with defaults-merge constructor, Wails RPC + `settings:plugins` runtime event hot-swap pipeline, 8-toggle PluginsSection in Settings tab, v3.1 → v3.2 `schemaVersion: 2` migration with per-field assertions (Phase 92, PLUG-01..03, PUI-01)
+- Vendoring discipline + web parity: generalized `vendor_drift_test.go` into a load-bearing CI gate enforcing `@xterm/addon-*` version parity for every addon; vendored 3 already-shipping addons (webgl/unicode11/clipboard) for the web page; capability-gated `/api/plugin-config` REST + SSE stream; two-useEffect TerminalPanel pattern + WebGLRecoveryBanner with context-loss / software-rasterized variants (Phase 93, PLUG-04, WGL-01..04, U11-01..02, CLIP-01..02, WEB-01..03)
+- Scrollback search (Cmd-F find bar): focus-conditioned find bar on desktop + web with regex/case/word toggles, persisted defaults, 200ms slide-in/out animation matching BannerStack; `SetSearchConfig` sub-key RPC + `seededRef` one-shot useEffect pattern; 10,000-line scrollback perf gate + cancel-on-close contract as automated regression tests (Phase 94, SRC-01..05)
+- Web-Links security hardening (v3.1-allowlist rigor): strict scheme allowlist (`https`/`http`/`mailto`), Cmd-click on macOS / Ctrl-click elsewhere, OSC 8 hover-href display, IDN/Punycode + 30-entry typosquat list with portal-rendered ARIA `LinkConfirmPopover`, Wails `BrowserOpenURL` desktop / `_blank`+`noopener,noreferrer` web split (Phase 95, LNK-01..06)
+- Inline images + CSP audit: sixel via `@xterm/addon-image`, `'wasm-unsafe-eval'` CSP amendment 2 (audited and minimal), 16 MB per-tab `storageLimit` (down from upstream 100 MB), `SetImageConfig` sub-key RPC, byte-fidelity multi-client relay test (Phase 96, IMG-01..04)
+- Save Terminal As + OSC 9;4 progress: SerializeAddon → TabBar "Save Terminal As…" with secrets warning and mockable `saveFileDialogFunc`; ProgressAddon → per-tab `.tab__progress` underline + atomic `SetTrayProgress(quartile)` (200ms debounced) (Phases 97 + 98, SER-01..03, PRG-01..03)
+- Release gate (settings UI polish + final CSP audit): `PluginToggleBanner` one-shot toasts for non-hot-swappable plugins, inline `<details>` disclosures persisting via sub-key RPCs immediately without "Save Plugins", cross-browser Playwright e2e (Chromium + Firefox + WebKit) with zero CSP violations, GitHub Actions e2e workflow committed (Phase 99, PUI-02..04)
+
+**Known deferred items (carried to v3.3):**
+
+- 6 polish-grade tech-debt items tracked in `.planning/v3.2-RELEASE-BLOCKERS.md`:
+  - P-1: `mailto:` URLs not detected as clickable despite documented allowlist (Phase 95)
+  - P-2: Cyrillic IDN spoof URLs silently inert (defensive-by-accident; documented confirmation flow unreachable) (Phase 95)
+  - P-3: Find bar will not dismiss after clicking case-sensitive toggle (Esc + close both stop working) (Phase 94)
+  - P-4: Find bar slide-OUT animation missing on Esc / close (slide-IN works) (Phase 94)
+  - P-5: iTerm2 IIP protocol does not render (sixel works); confirm sixel-only intent vs `iipSupport` audit (Phase 96)
+  - P-6: 20 `Sidebar.test.tsx` tests fail under Vitest 4 + jsdom 29 (localStorage global) — pre-existing test-env debt, no production impact
+- 9 UAT items deferred to v3.3 (require physical iPad, real Tailscale tailnet, or raw shell PTY): 93 UAT-1/2/5; 94 UAT-3/4; 95 web-noopener + iPad LNK-01..05; 96 Scenarios 1+2; 99 Test 11
+- Backlog: raw shell session type — unblocker for all of the above UAT items and the v3.3+ headline feature
+- Known deferred items at close: 15 (see STATE.md Deferred Items)
+
+---
+
 ## v3.0 Session Lifecycle & TUI Polish (Shipped: 2026-04-19)
 
 **Phases completed:** 4 phases, 9 plans, 13 tasks

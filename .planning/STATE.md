@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Plugin Suite
-status: milestone_signed_off
-stopped_at: v3.2 milestone signed off on automated coverage (2026-05-12) — remaining iPad/Tailscale UAT deferred to v3.3 alongside shell-session feature
-last_updated: "2026-05-12T22:50:00.000Z"
-last_activity: 2026-05-12 -- v3.2 sign-off: 99-UAT Tests 5/6 closed by 99-06 render test; Test 11 (iPad runbook) blocked on future shell-session phase; 93/94/95/96 VERIFICATION.md status flipped to deferred
+status: Awaiting next milestone
+stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
+last_updated: "2026-05-12T17:48:31.545Z"
+last_activity: 2026-05-12 — Milestone v3.2 completed and archived
 progress:
   total_phases: 8
   completed_phases: 8
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 
 ## Current Position
 
-Phase: 99 (settings-ui-polish-migration-final-csp-audit-release-gate) — COMPLETE (gap closure shipped, v3.2 signed off)
-Plan: 6 of 6
-Status: v3.2 milestone signed off on automated coverage; iPad/Tailscale UAT batches deferred to v3.3 alongside shell-session feature (the unblocker). See `.planning/v3.2-RELEASE-BLOCKERS.md` for the sign-off decision and `99-UAT.md` for the test-level details.
-Last activity: 2026-05-12 -- v3.2 sign-off + UAT deferral reconciliation across 93/94/95/96 VERIFICATION.md + 99-UAT.md + 99-iPad-UAT.md
+Phase: Milestone v3.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-12 — Milestone v3.2 completed and archived
 
 ## Performance Metrics
 
@@ -104,6 +104,30 @@ _All v3.2 pending items resolved 2026-05-12 — see resolution notes below:_
 - **Settings.json migration zeroes plugin defaults** — naïve `json.Unmarshal` of v3.1 settings into v3.2 struct yields Go zero values (false/0). Phase 92 ships defaults-merge constructor + fixture migration test as non-negotiable.
 - WinGet first-submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0; absorbed by Phase 91 deferred work).
 
+## Deferred Items
+
+Items acknowledged and deferred at v3.2 milestone close on 2026-05-12:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 93: 93-iPad-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 95: 95-DESKTOP-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 95: 95-HUMAN-UAT.md | deferred (5 pending — iPad/Tailscale UAT) |
+| uat_gap | Phase 95: 95-WEB-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 96: 96-HUMAN-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 97: 97-HUMAN-UAT.md | approved (0 pending) |
+| uat_gap | Phase 98: 98-HUMAN-UAT.md | approved (0 pending) |
+| uat_gap | Phase 99: 99-iPad-UAT.md | deferred (0 pending — Test 11 blocked on shell-session feature) |
+| quick_task | 260406-nqy-dynamic-dock-icon-visibility-show-when-w | missing (artifact ghost from Apr 2026) |
+| quick_task | 260406-op4-tray-icon-a-matches-app-icon-a-monochrom | missing (artifact ghost from Apr 2026) |
+| quick_task | 260406-s0e-fix-cli-detection-app-shows-no-clis-dete | missing (artifact ghost from Apr 2026) |
+| quick_task | 260407-w91-make-toolbar-icons-match-globe-icon-size | missing (artifact ghost from Apr 2026) |
+| quick_task | 260408-dcv-fix-github-actions-build-and-release-pip | missing (artifact ghost from Apr 2026) |
+| quick_task | 260409-vop-remove-flashing-tailscale-check-modal-an | missing (artifact ghost from Apr 2026) |
+| quick_task | 260412-l7k-fix-local-network-banner-showing-when-ta | missing (artifact ghost from Apr 2026) |
+
+UAT items align with the v3.2-MILESTONE-AUDIT deferred-to-v3.3 list (blocked on shell-session feature). Quick-task ghosts are pre-existing hygiene debt from prior milestones — slugs persist in the index but artifact files were not retained.
+
 ## Session Continuity
 
 Last session: 2026-05-06T09:16:00.000Z
@@ -112,3 +136,7 @@ Resume file: None
 Next action: `/gsd-verify-work 92` to verify Phase 92 (Plugin Settings Foundation) — includes manual UAT smoke (`wails build -tags wailsassets` + app-launch settings-panel walkthrough). Then `/gsd-plan-phase 93` to begin Phase 93 (addon migration onto reconcile pattern + TerminalPanel pluginConfig consumption).
 
 **Active Milestone:** v3.2 Plugin Suite — 8 phases (92-99), targeting Issue #36 closure. **Phase 92 implementation complete (3/3 plans, 6 commits).**
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
