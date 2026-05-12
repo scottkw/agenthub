@@ -277,10 +277,13 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
   1. Daemon enumerates installed shells per platform (macOS: `/bin/bash`, `/bin/zsh`; Linux: `$SHELL` + `/etc/shells` entries; Windows: `pwsh.exe`, `powershell.exe`) and exposes them via session-creation API.
   2. A shell session spawned via the daemon API runs as an interactive, non-login PTY with the caller-supplied working directory honored.
   3. Shell sessions appear in `agenthub list` and the session registry without ever emitting `waiting` or `error` heuristic states — only `running` and `stopped`.
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 100-01: TBD
+- [ ] 100-01-PLAN-shell-discovery-library.md — internal/pty/shells.go cross-platform shell discovery library + tests (SHELL-04 core)
+- [ ] 100-02-PLAN-engine-shell-spawn.md — engine.go shell argv resolution, WorkDir $HOME default, and status.Watch bypass guard (SHELL-05, SHELL-09)
+- [ ] 100-03-PLAN-windows-pwsh-path.md — path_windows.go PowerShell 7 + Microsoft Store PATH augmentation (SHELL-04 Windows reliability)
+- [ ] 100-04-PLAN-shells-http-route.md — GET /shells HTTP route, ShellsResponse types, DaemonClient.ListShells, end-to-end SHELL-09 lifecycle test (SHELL-04 API surface)
 
 ### Phase 101: Shell Session Surfaces & Web-Share Gating
 **Goal**: User can pick a shell as a first-class "agent" everywhere (GUI new-session modal, CLI `agenthub new shell`, TUI new-session flow), see it visually distinguished, and only enable web serving for it through an explicit one-time confirmation step.
@@ -402,7 +405,7 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
-| 100. Shell Session Backend & Discovery | v3.3 | 0/TBD | Not started | - |
+| 100. Shell Session Backend & Discovery | v3.3 | 0/4 | Not started | - |
 | 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 0/TBD | Not started | - |
 | 102. Web-Links Polish — mailto + IDN | v3.3 | 0/TBD | Not started | - |
 | 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
