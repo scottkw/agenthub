@@ -1,8 +1,9 @@
 ---
 phase: 94-search-addon-find-bar-desktop-web
 verified: 2026-05-05T11:00:00Z
+reverified: 2026-05-11T00:00:00Z
 status: human_needed
-score: 5/5 success criteria implementation-verified; 1 SC has a documented gap requiring human decision
+score: 5/5 SCs implementation-verified; 4 of 6 human UATs resolved 2026-05-11 (UAT-2 PASS, UAT-5 PASS, UAT-6 PASS, UAT-1 PARTIAL/minor — slide-out missing; new major bug surfaced — toggle case-sensitive then Esc/close fails to dismiss); UAT-3 perf and UAT-4 web parity deferred to Tailscale/browser batch
 overrides_applied: 0
 gaps:
   - truth: "SC-4 — Find bar visual treatment matches BannerStack vocabulary including 200ms slide-in/out animation"
@@ -39,24 +40,33 @@ gaps:
       - "Either: make PluginsSection consume settings:plugins to refresh its local state (UX trade-off — could overwrite unsaved boolean edits)."
       - "OR: add a daemon-side SetSearchConfig(SearchConfig) RPC and have handleSearchOptionsChange call only that, not the full PluginSettings setter (more surgical; preserves PluginsSection's edit buffer semantics)."
 human_verification:
-  - test: "UAT — desktop: open new session, press Cmd-F, verify the bar slides in over ~200ms (not appears instantly)"
-    expected: "Bar slides down from above the terminal pane over 200ms; smooth animation, no flash. Esc dismisses with ~150ms exit slide."
-    why_human: "Animation feel is subjective and the test suite asserts only that the transition CSS rule exists, not that classes are applied. WR-01 indicates this currently fails; this UAT confirms whether the failure is real."
-  - test: "UAT — desktop: toggle case-sensitive ON, click Save Plugins (or close the find bar), restart the GUI, press Cmd-F"
-    expected: "Find bar opens with case-sensitive toggle visibly ON (highlighted). If it opens with all toggles OFF, WR-02 reproduces."
-    why_human: "Confirms WR-02 (searchOptions never sync from pluginConfig prop after first render) on a real run."
   - test: "UAT — perf: paste a 10,000-line buffer (or run `seq 1 10000`), open Cmd-F, search a regex like `^[5-9]\\d{3}$`"
     expected: "No 'Page Unresponsive' dialog; DevTools Performance shows no >1s blocked main-thread frame; closing the bar mid-search cancels cleanly."
     why_human: "SC-3 perf budget is enforced by chromedp e2e (build-tagged) but the lived perf feel (smooth typing, no jank) is a manual confirmation."
+    deferred: "Tailscale/browser batch — requires real browser with DevTools Performance to capture main-thread frame timing"
   - test: "UAT — web parity: open the served terminal at https://<tailscale-fqdn>:port/sessions/<id>?cap=..., press Cmd-F"
     expected: "Same find bar visual treatment, same shortcuts (Enter/Shift-Enter/Cmd-G/Cmd-Shift-G/Esc). Match count updates. Toggles work."
     why_human: "SC-5 web parity needs to be eyeballed; the chromedp e2e covers the contract surface but not the iPad/Safari real-device check."
+    deferred: "Tailscale batch — requires served session URL over Tailnet"
+human_verification_resolved:
+  - test: "UAT — desktop: open new session, press Cmd-F, verify the bar slides in over ~200ms (not appears instantly)"
+    resolution: "PARTIAL 2026-05-11. Slide-IN animation works correctly (~200ms slide-down). However, slide-OUT animation is missing — both Esc and the close button dismiss the bar instantly with no exit transition. Confirms half of WR-01: the .find-bar--exiting class never applies on close. Severity: minor (functional path intact, exit transition cosmetic). Engineering follow-up: apply .find-bar--exiting with 150-200ms delayed unmount in FindBar.tsx close path; mirror in web/assets/terminal.js hideFindBar()."
+    result: partial
+    severity: minor
+    resolved_on: "2026-05-11"
+  - test: "UAT — desktop: toggle case-sensitive ON, click Save Plugins (or close the find bar), restart the GUI, press Cmd-F"
+    resolution: "PASS 2026-05-11 — case-sensitive toggle persisted across a full Cmd-Q + relaunch cycle; bar reopened with the case-sensitive option visibly ON. WR-02 did NOT reproduce on this run; the searchOptions seed path appears to be working in the current build."
+    result: pass
+    resolved_on: "2026-05-11"
+    side_observation: "NEW BUG (major) — after clicking the case-sensitive toggle in the open find bar, both Esc and the close button stopped dismissing the bar (different failure mode from UAT-1's missing exit animation: UAT-1 dismisses instantly without animation; this state does not dismiss at all). Suggests a keyhandler/focus regression triggered by the toggle's click. Not on the existing WR-01/WR-02 list. Engineering follow-up: reproduce the sequence Cmd-F → toggle case-sensitive → Esc and trace which handler swallows the close event."
   - test: "UAT — theme matrix: switch among 5+ themes (TokyoNight Storm, Solarized Light, Nord, Dracula, Catppuccin) with the find bar open; type a search and confirm matches highlight via theme.selectionBackground"
-    expected: "Match highlight color changes per theme (it sources from theme.selectionBackground via xterm core selection rendering). No black-on-black or invisible matches in any theme."
-    why_human: "FindBar.themeMatrix.test.tsx asserts source-level absence of forbidden color keys, but real visual confirmation across themes is a human eye check."
+    resolution: "PASS 2026-05-11 — match highlights remained visible across all tested themes; no black-on-black / invisible-on-bg failure modes observed."
+    result: pass
+    resolved_on: "2026-05-11"
   - test: "Regression — focus gate: in Settings tab, click in a text input outside the terminal, press Cmd-F"
-    expected: "Browser-native Find dialog opens (NOT the AgentHub find bar) — focus is not in the xterm DOM, so isXtermFocused() returns false."
-    why_human: "SC-1 focus-conditioning requires browser find still works for non-terminal page text; jsdom can't simulate browser-native Cmd-F dialog."
+    resolution: "PASS 2026-05-11 — Cmd-F inside a Settings text input did NOT open the AgentHub terminal find bar. isXtermFocused() gating works correctly."
+    result: pass
+    resolved_on: "2026-05-11"
 overrides: []
 re_verification:
   previous_status: none

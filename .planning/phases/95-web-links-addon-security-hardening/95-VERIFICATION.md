@@ -1,25 +1,34 @@
 ---
 phase: 95-web-links-addon-security-hardening
 verified: 2026-05-06T20:55:00Z
+reverified: 2026-05-11T00:00:00Z
 status: human_needed
-score: 5/5 must-haves verified (automated); 5 SCs require manual UAT for full sign-off
+score: 5/5 SCs implementation-verified; 3 of 5 human UATs resolved 2026-05-11 (LNK-06 live toggle PASS; LNK-02 PARTIAL — mailto: not detected as link, major; LNK-03 SPEC-DIVERGENCE — Cyrillic IDN URL not detected at all, major); LNK-04 web noopener and LNK iPad walkthrough deferred
 overrides_applied: 0
 human_verification:
-  - test: "macOS Cmd-click activates link; Linux/Windows Ctrl-click activates link; single-click never activates (LNK-02 / SC-2)"
-    expected: "Cmd-click on macOS opens URL in default browser via Wails BrowserOpenURL; single-click does nothing; hover tooltip shows resolved href"
-    why_human: "Real-OS modifier semantics + Wails native browser invocation cannot be automated in jsdom; deferred to 95-DESKTOP-UAT.md §2"
-  - test: "Cyrillic spoof URL https://gооgle.com triggers click-confirmation popover before navigation (LNK-03 / SC-3)"
-    expected: "Cmd-click on Cyrillic URL renders popover with idn copy + full resolved URL; Continue opens browser; Cancel dismisses without navigation"
-    why_human: "Visual popover behavior + real terminal output rendering not feasible in jsdom (xterm canvas/WebGL); deferred to 95-DESKTOP-UAT.md §3"
   - test: "Web-served terminal page on Tailscale: window.open with '_blank' + 'noopener,noreferrer'; window.opener === null in opened tab (LNK-04 / SC-4 web side)"
     expected: "Click https URL on web session, new tab opens, DevTools shows window.opener === null"
     why_human: "Requires real browser + Tailscale-served session; deferred to 95-WEB-UAT.md §5"
-  - test: "Live toggle: disable web-links in Settings, already-rendered links lose underline on next refresh; re-enable, links return — no session restart (LNK-06 / SC-5)"
-    expected: "settings:plugins event propagates via Wails EventsEmit (desktop) and SSE /api/plugin-config/stream (web); applyPluginConfig disposes/loads addon without restart"
-    why_human: "Real settings:plugins SSE round-trip + DOM observation; deferred to 95-DESKTOP-UAT.md §6 + 95-WEB-UAT.md §7"
+    deferred: "Tailscale/browser batch — needs served session URL"
   - test: "iPad Safari Tailscale walkthrough: full LNK-01..05 chain on iOS Safari with paired keyboard for Cmd-modifier (Phase 99 release gate co-verification)"
     expected: "All gates fire correctly on iPad Safari; no console errors; popover renders; window.open spawns new tab"
     why_human: "Cross-OS / iOS Safari quirks not testable from CI; deferred to 95-WEB-UAT.md §9"
+    deferred: "iPad batch — needs physical device + Tailscale"
+human_verification_resolved:
+  - test: "macOS Cmd-click activates link; Linux/Windows Ctrl-click activates link; single-click never activates (LNK-02 / SC-2)"
+    resolution: "PARTIAL 2026-05-11. Tested on macOS via /tmp/web-links-test.sh fixture-CLI tab (URLs A=https, B=http, C=mailto, D=Cyrillic IDN, E=javascript+ftp). PASS: hover-tooltip behavior correct on A/B; single-click correctly inert on A/B; Cmd-click on A and B opens default browser via Wails BrowserOpenURL; Cmd-click on E (javascript: + ftp:) correctly inert — scheme allowlist enforcement intact. FAIL: mailto: URL is NOT detected as a link at all (no underline, no tooltip, no Cmd-click action). The documented scheme allowlist (https/http/mailto) is partially honored — mailto missing from the link-recognition path. Severity: major (documented spec gap). Engineering follow-up: trace web-links addon URL regex / scheme handler to determine whether mailto matching is configured."
+    result: partial
+    severity: major
+    resolved_on: "2026-05-11"
+  - test: "Cyrillic spoof URL https://gооgle.com triggers click-confirmation popover before navigation (LNK-03 / SC-3)"
+    resolution: "SPEC-DIVERGENCE 2026-05-11. The Cyrillic-spoof URL (https://gооgle.com with U+043E in place of Latin o) is not detected as a link at all — no underline, no hover tooltip, no Cmd-click action. Spec mandates detection AS a link followed by an IDN/spoof confirmation popover with Continue/Cancel buttons. Two possible interpretations: (a) the URL regex doesn't admit non-ASCII hostname chars — bug; (b) the addon intentionally filters non-ASCII hostnames defensively, making the popover unreachable — but spec still requires the popover, not silent rejection. Defensive-by-accident: a user cannot inadvertently Cmd-click a homograph URL, but the spec-mandated user education (popover) is never shown. Severity: major (security-relevant spec gap; engineer needs to reconcile spec vs implementation)."
+    result: spec_divergence
+    severity: major
+    resolved_on: "2026-05-11"
+  - test: "Live toggle: disable web-links in Settings, already-rendered links lose underline on next refresh; re-enable, links return — no session restart (LNK-06 / SC-5)"
+    resolution: "PASS 2026-05-11 — toggle Web Links OFF in Settings → already-rendered URL underlines disappear and hover/Cmd-click cease functioning, without a session restart. Toggle ON → underlines return and hover/Cmd-click work again. Live applyPluginConfig disposes/reloads the addon cleanly on the desktop side. Web-side SSE round-trip not tested here (Tailscale/browser batch)."
+    result: pass
+    resolved_on: "2026-05-11"
 deferred:
   - truth: "OSC 8 hyperlink display-vs-href divergence triggers click-confirmation popover (SC-3 OSC 8 slice)"
     addressed_in: "v3.3 (post-roadmap)"

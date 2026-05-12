@@ -2,8 +2,9 @@
 status: human_needed
 phase: 96
 phase_name: image-addon-csp-audit
-score: 4/4
+score: 4/4 automated; 2 of 4 human UATs resolved 2026-05-11 (Scenario 3 next-session-only PASS, Scenario 4 FIFO eviction PASS); Scenarios 1+2 deferred to Tailscale/browser batch; iTerm2 IIP non-rendering noted as side observation
 created: 2026-05-07
+reverified: 2026-05-11
 requirements: [IMG-01, IMG-02, IMG-03, IMG-04]
 plans: [96-01, 96-02, 96-03, 96-04, 96-05, 96-06]
 re_verification:
@@ -16,15 +17,24 @@ human_verification:
   - test: "Scenario 1 — chafa --format=iterm2 image renders inline on desktop AND web"
     expected: "Both clients paint identical inline images; no CSP / WebAssembly / 'wasm-unsafe-eval' console errors"
     why_human: "Visual fidelity at the renderer/canvas layer cannot be asserted by source-scan or unit tests; chromedp e2e proves zero CSP violations but does not prove the canvas paints pixels"
+    deferred: "Tailscale/browser batch — needs both desktop and web-served clients side-by-side for fidelity comparison"
   - test: "Scenario 2 — Two-client mid-stream image join (IMG-04 visual)"
     expected: "Second client joining a session with a previously-rendered image gets the image via scrollback replay; identical colors and dimensions to first client; no CSP / WASM errors"
     why_human: "Byte-fidelity unit test proves the relay tier is byte-clean; only a real second-client renderer can confirm the rendered output matches"
+    deferred: "Tailscale batch — needs two simultaneously-attached clients"
+human_verification_resolved:
   - test: "Scenario 3 — Settings → Image toggle next-session-only affordance"
-    expected: "Italic caption 'Applies to new sessions you create.' visible under Image row; toggling OFF leaves session A rendering (no live re-attach); new session B does NOT render images; toggling ON leaves A unchanged but new session C renders"
-    why_human: "Live next-session-only semantics require real sessions; the source-scan test proves the caption string is in the source but cannot prove behavioral semantics"
+    resolution: "PASS 2026-05-11 — Italic caption 'Applies to new sessions you create.' confirmed visible in Settings → Plugins under Image row. With Image ON, Session A rendered a sixel red strip via /tmp/image-test.sh. Toggle Image OFF: Session A's rendered sixel remained visible (not retroactively removed); new Session B emitted the same sixel sequence but rendered NO image (addon not loaded). Toggle Image ON: Session A unchanged (no new render); new Session C rendered the sixel correctly. All three sub-expectations confirmed."
+    result: pass
+    resolved_on: "2026-05-11"
   - test: "Scenario 4 — 50 MB sixel fixture FIFO eviction at 16 MB cap (IMG-02)"
-    expected: "Tab does not crash / freeze / 'page unresponsive'; memory stabilizes (does not grow unbounded); older images may show as gray placeholders (FIFO evicted); newest images render fully"
-    why_human: "Tab-OOM is a browser-side resource-pressure outcome; addon's FIFO eviction is internal to its WASM decoder. Addon's storageLimit pass-through verified in code; live behavior must be observed"
+    resolution: "PASS 2026-05-11 — Drove /tmp/sixel-flood.sh emitting 600 sixel images at ~57 KB rendered each (~34 MB total, 2x the cap). All four checks confirmed by tester: (1) tab did NOT crash / freeze / show Page Unresponsive; (2) AgentHub memory stabilized in Activity Monitor (no unbounded growth); (3) scrolling up showed oldest images as gray/empty placeholders (FIFO evicted); (4) newest images at bottom rendered fully in their cycling R/G/B/Y color. storageLimit=16 (the default override per Phase 96) is enforced live."
+    result: pass
+    resolved_on: "2026-05-11"
+side_observations:
+  - phase: 96
+    observed_on: "2026-05-11"
+    observation: "iTerm2 inline-image protocol (OSC 1337 ; File = ... : base64 BEL) did NOT render in a fixture tab even with Image plugin ON; the same fixture's sixel sequence in the same tab rendered correctly. Possibilities: (a) ImageAddon construction does not enable iipSupport even though @xterm/addon-image docs say it defaults to true (TerminalPanel.tsx:235 passes only storageLimit + enableSizeReports); (b) my fixture's OSC 1337 syntax is incompatible with the addon's parser; (c) iIP is intentionally disabled in v3.2 for security/scope and only sixel ships. Sixel is the documented Phase 96 path (the verification tables specifically test 'sixel storage cap') so this is not a blocker for IMG-01/IMG-02/IMG-03 but is worth confirming the intent. Engineering follow-up: confirm whether iTerm2 IIP rendering is supposed to work in v3.2; if yes, audit the addon construction options."
 ---
 
 # Phase 96: Image Addon + CSP Audit — Verification Report
