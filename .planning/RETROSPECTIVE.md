@@ -799,6 +799,104 @@
 
 ---
 
+## Milestone: v3.1 — Security Hardening
+
+**Shipped:** 2026-05-03
+**Phases:** 4 (87-90) | **Plans:** 18 | **Closes:** GitHub Issue #35
+
+### What Was Built
+- Capability-based session authorization with read/write/admin tokens (Phase 87)
+- WebSocket handshake security with byte-for-byte Origin allowlist; cross-site upgrades return 403 at handshake (Phase 88)
+- Vendored xterm.js under `web/vendor/xterm/`; strict CSP across all embedded HTML routes (`script-src 'self'`, `connect-src 'self' wss://<host>`, `style-src 'self' 'unsafe-inline'` per D-09 amendment for xterm runtime style injection); zero CDN fetches verified across 1779 requests (Phase 89)
+- Release pipeline hardening: SHA-pinned third-party Actions; build tools pinned via `tools.go`; release.yml split into validate → build-{macos,windows,linux} → sign-macos (required-reviewer gate) → publish; SLSA L2 attestations verified before codesigning (Phase 90)
+
+### What Worked
+- Capability tokens designed once (Phase 87) carried unchanged through Phases 88-90 — no protocol breakage during the security cascade
+- WS Origin allowlist as byte-for-byte match (no subdomain wildcards, no regex) — kept the contract observable and testable
+- Vendoring xterm.js under `web/vendor/xterm/` with a vendor_drift_test.go gate as a CI-enforced contract — set the pattern that v3.2 generalized for every addon
+- Pipeline E2E proven through 5 rc cycles before v3.1.0 final tag — caught codesigning gate misconfig, CSP `unsafe-inline` carve-out, and Wails dev-mode origin handling before public release
+- D-09 CSP amendment: `style-src 'self' 'unsafe-inline'` was added once xterm runtime style injection was discovered — minimal carve-out, never `script-src`
+
+### What Was Inefficient
+- Multiple rc cycles (rc1 → rc5) needed to stabilize the release pipeline — would have been faster to dry-run the full sign+publish chain on a throwaway tag first
+- Phase 88 needed two Wails-origin patterns (production-darwin `wails://wails` + dev-mode) — caught late in UAT against rc3; could have been front-loaded by an explicit "all environments" enumeration in the discuss phase
+- CSP discovery loop (the D-09 amendment) was reactive — xterm runtime style injection should have been audited in research before Phase 89 shipped the first strict CSP
+
+### Patterns Established
+- Capability-token middleware on relay WSS + REST (the v3.1 security-base pattern reused by v3.2 `/api/plugin-config`)
+- Byte-for-byte Origin allowlist with explicit Wails-origin variants (production-darwin + dev-mode)
+- Vendored-only-no-CDN discipline + `vendor_drift_test.go` (generalized in v3.2 for every `@xterm/addon-*`)
+- D-09 CSP minimal-carve-out style: never `script-src`; `'unsafe-inline'` for styles only with a documented reason
+
+### Key Lessons
+- Security-hardening milestones have a long tail of UAT (cross-browser + Wails dev vs prod + Tailscale + local-network-fallback) — budget for it explicitly, don't expect to sign off at first rc
+- Adding a CI gate for a contract is cheaper than enforcing the contract by convention — vendor_drift_test.go caught addon version drift that humans would miss
+- Capability-string design (read/write/admin) is forward-compatible with later capability additions — v3.2 plugin-config capability fits the same model without protocol churn
+
+### Cost Observations
+- Sessions: ~6 sessions across ~13 days (2026-04-20 → 2026-05-03)
+- Notable: long tail of rc-cycle UAT after code-complete; pipeline correctness depends on external integration verification
+
+---
+
+## Milestone: v3.2 — Plugin Suite
+
+**Shipped:** 2026-05-12
+**Phases:** 8 (92-99) | **Plans:** 44 | **Commits:** 269 | **Closes:** GitHub Issue #36
+
+### What Was Built
+- Plugin Settings Foundation: daemon `PluginSettings` source of truth, defaults-merge constructor, Wails RPC + `settings:plugins` runtime event, 8-toggle PluginsSection, v3.1→v3.2 `schemaVersion: 2` migration (Phase 92)
+- Vendoring discipline + web parity: generalized `vendor_drift_test.go` CI gate for every `@xterm/addon-*`; vendored 3 already-shipping addons (webgl/unicode11/clipboard) for the web page; capability-gated `/api/plugin-config` REST + SSE; two-useEffect TerminalPanel hot-swap pattern; WebGLRecoveryBanner with context-loss / software-rasterized variants (Phase 93)
+- Scrollback search (Cmd-F find bar) on desktop + web: regex/case/word toggles, persisted defaults, 200ms slide animation, `SetSearchConfig` sub-key RPC, `seededRef` one-shot pattern, 10k-line perf gate (Phase 94)
+- Web-Links security hardening: strict scheme allowlist (`https`/`http`/`mailto`), Cmd-click macOS / Ctrl-click elsewhere, OSC 8 hover-href, `LinkConfirmPopover` for IDN + 30-entry typosquat list, Wails `BrowserOpenURL` desktop / `_blank`+`noopener,noreferrer` web (Phase 95)
+- Inline images + CSP audit: sixel via `@xterm/addon-image`, `'wasm-unsafe-eval'` CSP amendment 2 (audited and minimal), 16 MB per-tab `storageLimit`, byte-fidelity multi-client relay test (Phase 96)
+- Save Terminal As + OSC 9;4 progress: SerializeAddon → TabBar "Save Terminal As…" with secrets warning; ProgressAddon → per-tab `.tab__progress` underline + atomic `SetTrayProgress(quartile)` debounced 200ms (Phases 97 + 98)
+- Release gate: `PluginToggleBanner` one-shot toasts for non-hot-swappable plugins, inline `<details>` disclosures persisting via sub-key RPCs immediately, cross-browser Playwright e2e (Chromium + Firefox + WebKit), GitHub Actions e2e workflow (Phase 99)
+
+### What Worked
+- Phase 92 ships ZERO addon-loading work — pure foundation (daemon struct + Wails RPC + event + settings UI shell + migration test). Lets Phase 93+ focus on hot-swap mechanics without entangling settings plumbing
+- `vendor_drift_test.go` generalization from addon-fit-only → every `@xterm/addon-*` caught real version drift during Phase 93 — would have shipped mismatched bundles without it
+- Two-useEffect TerminalPanel pattern: clean split between hot-swap addons (webgl/clipboard/web-links/search/image) and mount-only buffer-interpretation plugins (unicode11) — no flickers, no scrollback corruption
+- Sub-key RPCs (`SetSearchConfig`/`SetWebLinksConfig`/`SetImageConfig`) persisting immediately without "Save Plugins" — fine-grained UX matches user expectations for disclosure toggles
+- `LinkConfirmPopover` with risk-specific copy (osc8 / idn / typosquat) — defense-in-depth made visible to users, not just internal
+- Phase 99 gap-closure (99-06) caught disclosure checkbox visibility regression via real-DOM render test — closed 99-UAT Tests 5/6 in one wave
+- Cross-browser Playwright (Chromium + Firefox + WebKit) zero CSP violations on all three engines — true parity gate, not just "works in Chrome"
+- 269 commits in 9 days — high velocity sustained by clean phase boundaries + parallel plan execution within phases
+
+### What Was Inefficient
+- 9 UAT scenarios deferred to v3.3 because raw shell session type doesn't exist in v3.2 — chafa sixel, OSC 9;4 progress, large scrollback paste, IDN URL test data all require a raw shell PTY which AgentHub doesn't offer. Should have surfaced the shell-session backlog dependency in discuss-phase BEFORE planning the milestone audit acceptance criteria
+- 6 polish-grade tech debt items (mailto detection, IDN popover, find-bar Esc-after-toggle, find-bar slide-out, iTerm2 IIP, jsdom localStorage) discovered during human UAT walkthrough on 2026-05-11 — could have been caught earlier by an explicit cross-phase Wails-only UAT pass, not just per-phase UAT
+- Phase 94 needed 2 gap-closure plans (94-06 + 94-07) to flip SC-2 and SRC-04 from PARTIAL to VERIFIED — initial planning underestimated find-bar animation + sub-key RPC plumbing
+- VALIDATION.md frontmatter was authored at phase-start (Wave 0 contract) but never re-stamped at phase-end for 92/94/97/99 — process gap, not coverage gap, but it creates audit noise. Tooling could auto-flip the frontmatter when VERIFICATION.md status is `pass`/`complete`/`approved`
+- Plan 95-06 (OSC 8 secondary provider) deferred to v3.3 because upstream `@xterm/addon-web-links` lacks the API — discovered only during the 95-01 spike. Could have been surfaced in 95-RESEARCH.md before planning
+
+### Patterns Established
+- Foundation phase pattern (Phase 92): ship plumbing + Settings UI shell + migration test, no feature loading. Decouples feature waves from settings plumbing
+- Two-useEffect TerminalPanel hot-swap pattern (live-swap vs mount-only) — reusable for any future plugin
+- `seededRef` one-shot useEffect for async-loaded UI seed (useRef(false) + early-return on seeded/null/mid-open) — re-usable for any PluginSettings-driven UI
+- Sub-key RPCs that persist immediately (separate from bulk Save) — natural UX for disclosure-style sub-config
+- Capability-gated `/api/plugin-config` REST + SSE pattern — reuses v3.1 capability middleware, scales to other multi-client config surfaces
+- Cross-browser Playwright e2e as a release gate (Chromium + Firefox + WebKit zero CSP violations) — true parity gate
+- Generalized vendor_drift_test.go as a load-bearing CI gate for every `@xterm/addon-*` — supply-chain contract
+
+### Key Lessons
+- A foundation phase that ships ZERO addon-loading work is high leverage — it isolates settings plumbing from feature mechanics. Worth the extra phase budget
+- CSP carve-outs should be minimal and audited per addon (`'wasm-unsafe-eval'` only for the image addon's sixel decoder) — never blanket
+- `storageLimit` for image addon (16 MB) is load-bearing — naïve 100 MB default × 8 tabs = OOM. Override upstream defaults whenever they assume single-tab usage
+- Cmd-click on macOS / Ctrl-click elsewhere for link activation is non-negotiable — single-click never activates a link by default, no exceptions
+- IDN + typosquat confirmation is a user-visible security feature, not internal — make the threat model legible
+- Sub-key RPCs that persist immediately decouple disclosure sub-config from the main Save button — natural UX, no save-button confusion
+- Long-tail UAT (iPad Safari, real Tailnet, raw shell PTY) needs a dedicated "what's blocked" inventory BEFORE planning the audit acceptance criteria, not after
+- Cross-phase Wails-only UAT (a single end-to-end walkthrough of all plugins together) catches polish items that per-phase UAT misses
+
+### Cost Observations
+- Sessions: ~12 sessions across 9 days (2026-05-03 → 2026-05-12)
+- Commits: 269 (highest single-milestone commit count to date)
+- LOC delta: +22,697 across 117 source files
+- Notable: highest velocity milestone in absolute terms; 44 plans in 9 days (4.9 plans/day) — exceeds v1.9 record (14 plans in 2 days = 7/day) on raw plans-per-day but at far larger plan size
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -823,6 +921,8 @@
 | v2.0 | 116 | 5 | Multi-client fan-out, DECSTBM status bar, Bubble Tea v2 TUI, shared attach package, unified local+remote list |
 | v2.1 | 91 | 4 | Settings persistence, 4-state Tailscale health, banner stacking, start-minimized-to-tray, non-optimistic toggle pattern |
 | v3.0 | ~40 | 4 | Session auto-close (hub.Done() exit signal), quit confirmation modal (event-based), TUI two-pane layout, circuit breaker poll pattern |
+| v3.1 | ~50 | 4 | Capability tokens, byte-for-byte WS Origin allowlist, vendored xterm + strict CSP (D-09 style-src carve-out), SHA-pinned release pipeline + SLSA L2 |
+| v3.2 | 269 | 8 | Foundation phase (zero feature loading), two-useEffect TerminalPanel hot-swap, `seededRef` one-shot pattern, generalized vendor_drift_test, cross-browser Playwright as release gate, sub-key RPCs for disclosure persistence |
 
 ### Cumulative Quality
 
@@ -846,6 +946,8 @@
 | v2.0 | 280+ (race-clean) | 280+ | ~26,000 | 21 (0 blockers; 19 metadata drift, 2 scope deferrals) |
 | v2.1 | 280+ (race-clean) | 456 | ~26,300 | 2 (0 blockers; info-level .catch patterns) |
 | v3.0 | 300+ (race-clean) | 524 | ~30,000 | 2 cosmetic (autoCloseRef refresh, TUI stopped-session glyph) |
+| v3.1 | 300+ (race-clean) | 524+ | ~30,000 | 3 (0 blockers; distribution 91-A/B/C deferred, D-09 CSP carve-out documented, Wails dev-mode origin pattern noted) |
+| v3.2 | 300+ (race-clean) | 600+ | ~52,700 | 15 (0 blockers; 6 polish items, 9 UAT scenarios deferred to v3.3 — all blocked on shell-session feature, plus 7 quick-task ghosts) |
 
 ### Top Lessons (Verified Across Milestones)
 
