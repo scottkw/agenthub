@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -541,5 +542,352 @@ func TestNotifyThemeChange_RealProcess_Integration(t *testing.T) {
 	// Read output and look for SIGUSR2_RECEIVED marker.
 	if !hubReadUntil(t, e, id, "SIGUSR2_RECEIVED", 5*time.Second) {
 		t.Error("SIGUSR2 marker not found in output after NotifyThemeChange")
+	}
+}
+
+// ========================================================================
+// Phase 100 Plan 02 — Shell session dispatch tests (SHELL-05 + SHELL-09).
+//
+// These tests exercise the engine's per-CLI shell-resolution branch and
+// the status.Watch bypass guard. They use the existing spyBackend harness
+// to assert on the pty.CreateRequest that the engine constructs, without
+// launching a real PTY.
+// ========================================================================
+
+// newShellTestEngine returns an engine wired to a spyBackend with the
+// mandatory settings isolation. Mirrors TestEngineResolveCLI's setup.
+func newShellTestEngine(t *testing.T) (*SessionEngine, *spyBackend) {
+	t.Helper()
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
+	e.backend = spy
+	return e, spy
+}
+
+// argsContains reports whether arg `flag` appears in the captured argv slice.
+func argsContains(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// TestCreateSession_ShellArgv_Interactive (SHELL-05): bash spawns
+// interactively, non-login, with an absolute path and WorkDir honored.
+func TestCreateSession_ShellArgv_Interactive(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "bash", "tab", "/tmp", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	if !strings.HasSuffix(spy.lastReq.CLI, "/bash") {
+		t.Errorf("CLI = %q, want absolute path ending in /bash", spy.lastReq.CLI)
+	}
+	if !argsContains(spy.lastReq.Args, "-i") {
+		t.Errorf("Args missing -i: %v", spy.lastReq.Args)
+	}
+	if argsContains(spy.lastReq.Args, "-l") || argsContains(spy.lastReq.Args, "--login") {
+		t.Errorf("Args has login flag (must be non-login): %v", spy.lastReq.Args)
+	}
+	if spy.lastReq.WorkDir != "/tmp" {
+		t.Errorf("WorkDir = %q, want /tmp", spy.lastReq.WorkDir)
+	}
+}
+
+// TestCreateSession_ZshArgv_Interactive (SHELL-05): zsh same shape as bash.
+func TestCreateSession_ZshArgv_Interactive(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	if _, err := exec.LookPath("zsh"); err != nil {
+		t.Skip("zsh not installed")
+	}
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "zsh", "tab", "/tmp", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(zsh): %v", err)
+	}
+	if !strings.HasSuffix(spy.lastReq.CLI, "/zsh") {
+		t.Errorf("CLI = %q, want absolute path ending in /zsh", spy.lastReq.CLI)
+	}
+	if !argsContains(spy.lastReq.Args, "-i") {
+		t.Errorf("Args missing -i: %v", spy.lastReq.Args)
+	}
+	if argsContains(spy.lastReq.Args, "-l") || argsContains(spy.lastReq.Args, "--login") {
+		t.Errorf("Args has login flag: %v", spy.lastReq.Args)
+	}
+}
+
+// TestCreateSession_PwshArgv (SHELL-05): pwsh spawns with -NoLogo, no login flags.
+func TestCreateSession_PwshArgv(t *testing.T) {
+	if _, err := exec.LookPath("pwsh"); err != nil {
+		t.Skip("pwsh not installed")
+	}
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "pwsh", "tab", "/tmp", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(pwsh): %v", err)
+	}
+	if !argsContains(spy.lastReq.Args, "-NoLogo") {
+		t.Errorf("Args missing -NoLogo: %v", spy.lastReq.Args)
+	}
+	if argsContains(spy.lastReq.Args, "-l") || argsContains(spy.lastReq.Args, "--login") {
+		t.Errorf("Args has login flag: %v", spy.lastReq.Args)
+	}
+}
+
+// TestCreateSession_ShellWorkDirHonored (SHELL-05): caller-supplied WorkDir
+// reaches the backend unchanged.
+func TestCreateSession_ShellWorkDirHonored(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "bash", "tab", "/home/user/project", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	if spy.lastReq.WorkDir != "/home/user/project" {
+		t.Errorf("WorkDir = %q, want %q", spy.lastReq.WorkDir, "/home/user/project")
+	}
+}
+
+// TestCreateSession_ShellEmptyWorkDirHome (SHELL-05, Pitfall 4): empty WorkDir
+// for shell sessions resolves to os.UserHomeDir().
+func TestCreateSession_ShellEmptyWorkDirHome(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "bash", "tab", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("os.UserHomeDir failed: %v", err)
+	}
+	if home == "" || home == "/" || home == "." {
+		t.Skipf("os.UserHomeDir returned unreliable value %q", home)
+	}
+	if spy.lastReq.WorkDir != home {
+		t.Errorf("WorkDir = %q, want %q (os.UserHomeDir)", spy.lastReq.WorkDir, home)
+	}
+}
+
+// TestCreateSession_AICLIEmptyWorkDirUnchanged (SHELL-05 negative case):
+// empty WorkDir for AI CLI sessions stays empty (no $HOME substitution).
+func TestCreateSession_AICLIEmptyWorkDirUnchanged(t *testing.T) {
+	e, spy := newShellTestEngine(t)
+	_, err := e.CreateSession(context.Background(), "claude", "tab", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(claude): %v", err)
+	}
+	if spy.lastReq.WorkDir != "" {
+		t.Errorf("AI CLI WorkDir = %q, want empty (existing behavior)", spy.lastReq.WorkDir)
+	}
+}
+
+// TestCreateSession_ShellSkipsStatusWatch (SHELL-09): status.Watch is not
+// invoked for shell sessions, so sessionStatuses[id] is never populated.
+func TestCreateSession_ShellSkipsStatusWatch(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, _ := newShellTestEngine(t)
+	id, err := e.CreateSession(context.Background(), "bash", "tab", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	// Give any unintended goroutine a chance to populate the map.
+	time.Sleep(50 * time.Millisecond)
+
+	got := e.GetSessionStatus(id)
+	if got != "running" {
+		t.Errorf("GetSessionStatus = %q, want %q (no watcher should populate)", got, "running")
+	}
+
+	e.statusMu.RLock()
+	_, exists := e.sessionStatuses[id]
+	e.statusMu.RUnlock()
+	if exists {
+		t.Errorf("expected no entry in sessionStatuses for shell session, but found one")
+	}
+}
+
+// TestListSessions_ShellStatusRunning (SHELL-09): ListSessions returns
+// Status=="running" for shell sessions (falls through conservative default).
+func TestListSessions_ShellStatusRunning(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, _ := newShellTestEngine(t)
+	id, err := e.CreateSession(context.Background(), "bash", "tab", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	sessions := e.ListSessions()
+	var found bool
+	for _, s := range sessions {
+		if s.ID == id {
+			found = true
+			if s.Status != "running" {
+				t.Errorf("Status = %q, want %q", s.Status, "running")
+			}
+			if s.Status == "waiting" || s.Status == "error" || s.Status == "errored" || s.Status == "idle" {
+				t.Errorf("Status = %q must not be a heuristic state", s.Status)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("session %s not in ListSessions output", id)
+	}
+}
+
+// TestShell_NoStatusMapEntry (SHELL-09 defensive): shell session IDs never
+// land in sessionStatuses regardless of whether other AI-CLI sessions exist.
+func TestShell_NoStatusMapEntry(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, _ := newShellTestEngine(t)
+	bashID, err := e.CreateSession(context.Background(), "bash", "bash-tab", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession(bash): %v", err)
+	}
+	shellIDs := []string{bashID}
+	if _, err := exec.LookPath("zsh"); err == nil {
+		id, err := e.CreateSession(context.Background(), "zsh", "zsh-tab", "", nil, 80, 24, nil, nil)
+		if err != nil {
+			t.Fatalf("CreateSession(zsh): %v", err)
+		}
+		shellIDs = append(shellIDs, id)
+	}
+	shellSysID, err := e.CreateSession(context.Background(), "shell", "sys-tab", "", nil, 80, 24, nil, nil)
+	if err == nil {
+		shellIDs = append(shellIDs, shellSysID)
+	}
+	// Create an AI CLI session as a control (no assertion against its presence).
+	_, _ = e.CreateSession(context.Background(), "claude", "claude-tab", "", nil, 80, 24, nil, nil)
+
+	time.Sleep(50 * time.Millisecond)
+	for _, id := range shellIDs {
+		e.statusMu.RLock()
+		_, exists := e.sessionStatuses[id]
+		e.statusMu.RUnlock()
+		if exists {
+			t.Errorf("expected no sessionStatuses entry for shell session %s, but found one", id)
+		}
+	}
+}
+
+// TestIsShellSession_AllShellNames (unit test for the helper).
+func TestIsShellSession_AllShellNames(t *testing.T) {
+	cases := map[string]bool{
+		"shell":      true,
+		"bash":       true,
+		"zsh":        true,
+		"pwsh":       true,
+		"powershell": true,
+		"claude":     false,
+		"opencode":   false,
+		"":           false,
+		"Bash":       false,
+		"/bin/bash":  false,
+	}
+	for name, want := range cases {
+		got := isShellSession(name)
+		if got != want {
+			t.Errorf("isShellSession(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+// TestResolveShellSpawn_KnownShell (unit test for the helper).
+func TestResolveShellSpawn_KnownShell(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell binaries")
+	}
+	e, _ := newShellTestEngine(t)
+	path, args, ok := e.resolveShellSpawn("bash")
+	if !ok {
+		t.Fatal("resolveShellSpawn(bash) returned ok=false")
+	}
+	if !strings.HasSuffix(path, "/bash") {
+		t.Errorf("path = %q, want absolute path ending in /bash", path)
+	}
+	if !argsContains(args, "-i") {
+		t.Errorf("args missing -i: %v", args)
+	}
+
+	// Non-shell cli returns ok=false.
+	_, _, ok = e.resolveShellSpawn("claude")
+	if ok {
+		t.Error("resolveShellSpawn(claude) returned ok=true, want false")
+	}
+}
+
+// TestResolveShellSpawn_SystemDefault (POSIX-only): cli="shell" resolves
+// to $SHELL.
+func TestResolveShellSpawn_SystemDefault(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX SHELL env semantics")
+	}
+	// Pick a real shell that exists on the test host.
+	candidates := []string{"/bin/zsh", "/bin/bash", "/bin/sh"}
+	var pick string
+	for _, c := range candidates {
+		if _, err := exec.LookPath(c); err == nil {
+			pick = c
+			break
+		}
+	}
+	if pick == "" {
+		t.Skip("no POSIX shell at standard paths")
+	}
+	t.Setenv("SHELL", pick)
+	e, _ := newShellTestEngine(t)
+	path, args, ok := e.resolveShellSpawn("shell")
+	if !ok {
+		t.Fatalf("resolveShellSpawn(shell) returned ok=false (SHELL=%s)", pick)
+	}
+	if path != pick {
+		t.Errorf("path = %q, want %q (from $SHELL)", path, pick)
+	}
+	if !argsContains(args, "-i") {
+		t.Errorf("args missing -i: %v", args)
+	}
+}
+
+// TestResolveShellSpawn_PowerShellOverride (M2 lock-in): cliPaths["powershell"]
+// override resolves cleanly via knownShellSpecs without falling through to
+// discovery. This locks the Plan 01 M2 contract.
+func TestResolveShellSpawn_PowerShellOverride(t *testing.T) {
+	e, _ := newShellTestEngine(t)
+	// Direct map mutation under the engine mutex — the public UpdateCLIPath
+	// would call os.Stat on the override path and fail for our synthetic
+	// non-existent path. The override-branch logic matches by basename, not
+	// by file existence, so the unit test only needs the map populated.
+	e.mu.Lock()
+	e.cliPaths["powershell"] = "/usr/local/bin/pwsh-stub"
+	e.mu.Unlock()
+
+	path, args, ok := e.resolveShellSpawn("powershell")
+	if !ok {
+		t.Fatal("resolveShellSpawn(powershell) with override returned ok=false")
+	}
+	if path != "/usr/local/bin/pwsh-stub" {
+		t.Errorf("path = %q, want override path", path)
+	}
+	if !argsContains(args, "-NoLogo") {
+		t.Errorf("args missing -NoLogo (from powershell spec): %v", args)
 	}
 }
