@@ -279,6 +279,12 @@ func TestDiscoverShells_ShBasenameProducesSyntheticEntry(t *testing.T) {
 
 // TestDiscoverShells_Windows is a smoke-level Windows-only assertion that
 // pwsh.exe resolves via PATHEXT when present on the runner.
+//
+// IN-04: skip explicitly when pwsh is absent (previously the test silently
+// passed without making any assertion). The GitHub Actions Windows runner
+// always has pwsh installed (per VERIFICATION.md A1) so the skip is
+// defensive — it surfaces a missing-pwsh image as a t.Skip rather than a
+// false pass.
 func TestDiscoverShells_Windows(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows-only test")
@@ -287,18 +293,30 @@ func TestDiscoverShells_Windows(t *testing.T) {
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
-	for _, sh := range result {
-		if sh.Name == "pwsh" {
-			if !strings.EqualFold(filepath.Ext(sh.Path), ".exe") {
-				t.Errorf("expected pwsh Path to end with .exe, got %q", sh.Path)
-			}
+
+	var pwshEntry *DetectedShell
+	for i := range result {
+		if result[i].Name == "pwsh" {
+			pwshEntry = &result[i]
+			break
 		}
+	}
+	if pwshEntry == nil {
+		t.Skip("pwsh not found on Windows runner — runner image regressed")
+	}
+	if !strings.EqualFold(filepath.Ext(pwshEntry.Path), ".exe") {
+		t.Errorf("expected pwsh Path to end with .exe, got %q", pwshEntry.Path)
 	}
 }
 
 // TestDiscoverShells_WindowsPowerShell locks the M2 contract that "powershell"
 // is a first-class spec on Windows (Plan 02's override branch resolves to
 // knownShellSpecs).
+//
+// IN-04: skip explicitly when neither powershell nor pwsh is found
+// (previously the test logged and silently passed). Then assert at least
+// one of them has the expected .exe path so the test exercises a real
+// assertion path on the Windows runner.
 func TestDiscoverShells_WindowsPowerShell(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows-only test")
@@ -310,13 +328,18 @@ func TestDiscoverShells_WindowsPowerShell(t *testing.T) {
 	for _, sh := range result {
 		if sh.Name == "powershell" {
 			hasPowerShell = true
+			if !strings.EqualFold(filepath.Ext(sh.Path), ".exe") {
+				t.Errorf("expected powershell Path to end with .exe, got %q", sh.Path)
+			}
 		}
 		if sh.Name == "pwsh" {
 			hasPwsh = true
+			if !strings.EqualFold(filepath.Ext(sh.Path), ".exe") {
+				t.Errorf("expected pwsh Path to end with .exe, got %q", sh.Path)
+			}
 		}
 	}
-	// Smoke: if either is on the runner, at least one should surface.
 	if !hasPowerShell && !hasPwsh {
-		t.Log("neither powershell nor pwsh found on Windows runner — skipping assertion")
+		t.Skip("neither powershell nor pwsh found on Windows runner — runner image regressed")
 	}
 }
