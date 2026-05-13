@@ -507,8 +507,17 @@ export function TerminalPanel({
           openLink(uri)
         }
         const addon = new WebLinksAddon(handler, {
-          // urlRegex undefined → use the addon's default scheme-restricted
-          // regex; defense-in-depth re-checks scheme inside the handler (LNK-01).
+          // POLISH-01 (Phase 102): explicit urlRegex that matches http(s)
+          // AND mailto: URLs. The addon's default regex matches only http(s)
+          // — passing mailto through here lets Cmd/Ctrl-click on mailto links
+          // in terminal output route to the system mail client.
+          // POLISH-02 (Phase 102): IDN/Cyrillic-homograph URLs are already
+          // detected at the handler level via getRisk → 'idn' → popover
+          // (urlSafety.hasIDN handles non-ASCII + xn-- forms, including
+          // mailto: addresses with IDN domains).
+          // Defense-in-depth: handler still re-checks scheme via
+          // isAllowedScheme (LNK-01).
+          urlRegex: /(https?:\/\/[^\s$.?#].[^\s]*|mailto:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/,
           hover: (event: MouseEvent, uri: string) => {
             // Native title attribute is the simplest accessible tooltip;
             // xterm exposes the link element via this callback's event.target.

@@ -628,6 +628,9 @@
             // Verified via grep on web/vendor/xterm/addons/addon-web-links.js
             // for `e.WebLinksAddon=t()` (UMD root assignment).
             webLinksAddonHandle = new WebLinksAddon.WebLinksAddon(handler, {
+              // POLISH-01 (Phase 102): explicit urlRegex that matches http(s)
+              // AND mailto: URLs. Mirrors desktop TerminalPanel.tsx — web parity.
+              urlRegex: /(https?:\/\/[^\s$.?#].[^\s]*|mailto:[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/,
               hover: function(event, uri) {
                 if (event.target && event.target.setAttribute) event.target.setAttribute('title', uri);
               },
