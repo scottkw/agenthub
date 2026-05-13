@@ -578,6 +578,7 @@ func (a *API) handleGetShellPath(w http.ResponseWriter, r *http.Request) {
 // A non-empty path that does not exist or is not executable returns 400.
 // Phase 107 SHELL-11.
 func (a *API) handleUpdateShellPath(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 8192) // match peer handlers (handleSetPluginSettings etc.)
 	var req struct {
 		Value string `json:"value"`
 	}

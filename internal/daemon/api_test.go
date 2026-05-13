@@ -1744,3 +1744,53 @@ func TestHandleUpdateShellPath_Empty_ClearsOverride(t *testing.T) {
 		t.Errorf("GET after clear: value is empty, want platform default")
 	}
 }
+
+// TestHandleUpdateShellPath_Directory_Returns400 verifies WR-01: PATCH
+// /settings/shell-path with a directory path returns 400 with a clear error
+// message. On POSIX, directories have the execute bit set, so without the
+// IsDir() check the path would be incorrectly accepted.
+func TestHandleUpdateShellPath_Directory_Returns400(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses POSIX directory semantics")
+	}
+	_, _, socketPath := testDaemon(t)
+
+	// Use /tmp — always present, always a directory, always has execute bit set.
+	status, body := rawPatch(t, socketPath, "/settings/shell-path", `{"value":"/tmp"}`)
+	if status != 400 {
+		t.Errorf("PATCH /settings/shell-path(/tmp): want 400 for directory, got %d (body=%s)", status, string(body))
+	}
+	if !strings.Contains(string(body), "is a directory") {
+		t.Errorf("400 body missing 'is a directory'; got: %s", string(body))
+	}
+}
+
+// TestHandleUpdateShellPath_OversizedBody verifies WR-03: the handler must
+// reject bodies that exceed MaxBytesReader's 8192-byte cap to match peer
+// handlers (handleSetPluginSettings, handleSetSearchConfig, etc.).
+func TestHandleUpdateShellPath_OversizedBody(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses Unix domain sockets")
+	}
+	_, _, socketPath := testDaemon(t)
+
+	// Build a body just over the 8192-byte limit.
+	padding := strings.Repeat("x", 8300)
+	oversized := `{"value":"` + padding + `"}`
+
+	client := &http.Client{Transport: &http.Transport{DialContext: dialUnix(socketPath)}}
+	req, err := http.NewRequest(http.MethodPatch, "http://daemon/settings/shell-path",
+		bytes.NewBufferString(oversized))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("PATCH oversized: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == 204 {
+		t.Error("PATCH with oversized body returned 204; want 400 or 413")
+	}
+}
