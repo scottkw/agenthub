@@ -397,6 +397,24 @@ func (a *App) DetectCLIs() []pty.DetectedCLI {
 	return pty.DetectCLIs()
 }
 
+// ListShells returns the daemon's discovery of installed shells. Phase 101-01
+// prerequisite for plan 101-02 (NewSessionModal shell rows). Mirrors the
+// thin-delegation pattern used by ListSessions/DetectCLIs.
+//
+// Returns an empty slice (not nil) on error or when the daemon is unreachable —
+// the GUI degrades gracefully by omitting shell rows from the new-session modal
+// (per UI-SPEC §Edge Cases "silent absence" pattern).
+func (a *App) ListShells() []daemon.DetectedShell {
+	if a.client == nil {
+		return []daemon.DetectedShell{}
+	}
+	shells, err := a.client.ListShells()
+	if err != nil {
+		return []daemon.DetectedShell{}
+	}
+	return shells
+}
+
 // GetRelayPort returns the TCP port the daemon's relay HTTP server is listening on.
 func (a *App) GetRelayPort() int {
 	if a.client == nil {

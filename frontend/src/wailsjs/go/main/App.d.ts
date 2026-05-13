@@ -27,6 +27,8 @@ export function ListSessions(): Promise<SessionInfo[]>
 export function RenameSession(id: string, name: string): Promise<void>
 export function KillSession(id: string): Promise<void>
 export function DetectCLIs(): Promise<DetectedCLI[]>
+// Phase 101-01 prerequisite — shell discovery via daemon /shells route.
+export function ListShells(): Promise<daemon.DetectedShell[]>
 export function GetRelayPort(): Promise<number>
 export function UpdateCLIPath(name: string, path: string): Promise<void>
 
