@@ -16,7 +16,33 @@ findings:
   warning: 3
   info: 3
   total: 7
-status: issues_found
+status: fixes_applied
+fixes:
+  CR-01:
+    status: RESOLVED
+    commit: 401eec5
+    fixed_at: 2026-05-13T22:15:00Z
+  WR-01:
+    status: RESOLVED
+    commit: d137d9b
+    fixed_at: 2026-05-13T22:15:00Z
+  WR-02:
+    status: RESOLVED
+    commit: 75f9822
+    fixed_at: 2026-05-13T22:15:00Z
+  WR-03:
+    status: RESOLVED
+    commit: 2259ad1
+    fixed_at: 2026-05-13T22:15:00Z
+  IN-01:
+    status: DEFERRED
+    reason: Addressed by CR-01 fix — autoCloseRef is now read again
+  IN-02:
+    status: DEFERRED
+    reason: Dead UI paths deferred to v3.4 per scope decision
+  IN-03:
+    status: DEFERRED
+    reason: a11y polish deferred to v3.4 per scope decision
 ---
 
 # Phase 107: Code Review Report
@@ -212,3 +238,29 @@ This is a consequence of the SHELL-12 design choice to close immediately rather 
 _Reviewed: 2026-05-13_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+---
+
+## Fixes Applied
+
+_Applied: 2026-05-13 by Claude (gsd-code-fixer)_
+
+| ID | Title | Status | Commit |
+|----|-------|--------|--------|
+| CR-01 | autoCloseRef not consulted in SHELL-12 exit handler | RESOLVED | `401eec5` |
+| WR-01 | SetShellPath accepts directory paths | RESOLVED | `d137d9b` |
+| WR-02 | False "Saved!" indicator on shell-path save failure | RESOLVED | `75f9822` |
+| WR-03 | handleUpdateShellPath missing MaxBytesReader | RESOLVED | `2259ad1` |
+| IN-01 | autoCloseRef dead code | DEFERRED | — (resolved by CR-01) |
+| IN-02 | ExitCountdownBanner/exitCountdowns unreachable | DEFERRED | — (v3.4 scope) |
+| IN-03 | aria-describedby dangling reference | DEFERRED | — (v3.4 scope) |
+
+### Fix summaries
+
+**CR-01 (commit 401eec5):** Wrapped `handleCloseTabRef.current?.(data.sessionId)` inside `if (autoCloseRef.current)` in the `session:exit` handler. When auto-close is OFF, control falls through to `setSessionExits` so ExitToast is shown. Updated five existing `App.shellExit.test.tsx` assertions to match the new guard shape; added three new CR-01 assertions that lock the `autoCloseRef.current` guard permanently.
+
+**WR-01 (commit d137d9b):** Added `if info.IsDir() { return fmt.Errorf("... is a directory, not an executable") }` between the `os.Stat` call and the execute-bit check in `SetShellPath`. Added `TestSetShellPathValidation` covering directory rejection, non-existent path, non-executable file, valid executable, and empty-string clear. Also added `TestHandleUpdateShellPath_Directory_Returns400` at the API layer.
+
+**WR-02 (commit 75f9822):** Introduced `shellPathOk := true` flag in `handleSaveCLIPaths`. The inner `catch` sets `shellPathOk = false` on `SetShellPath` failure; `setSaved(true)` is called only when `shellPathOk` is true. Added `WR-02` and `WR-02b` tests to `SettingsTab.shellPath.test.tsx`.
+
+**WR-03 (commit 2259ad1):** Added `r.Body = http.MaxBytesReader(w, r.Body, 8192)` as the first line of `handleUpdateShellPath`, matching peer handlers. Added `TestHandleUpdateShellPath_OversizedBody` verifying an 8300-byte body is rejected (not 204).
