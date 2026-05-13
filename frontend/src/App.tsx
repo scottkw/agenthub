@@ -14,6 +14,7 @@ import {
   KillSession,
   RenameSession,
   DetectCLIs,
+  ListShells,
   GetRelayPort,
   ToggleWebServing,
   IsWebServerRunning,
@@ -70,6 +71,10 @@ function App(): React.ReactElement {
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
+  // Phase 101-02 (SHELL-01 GUI half) — discovered shells from the daemon.
+  // Threaded into NewSessionModal so the user can pick a shell session.
+  const [detectedShells, setDetectedShells] = useState<daemon.DetectedShell[]>([])
+  const [shellsLoading, setShellsLoading] = useState(true)
   const [tabCounter, setTabCounter] = useState(1)
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
   // Track web serving state per session: sessionId -> enabled
@@ -326,6 +331,15 @@ function App(): React.ReactElement {
         setDetectedCLIs(clis)
         setWebServerRunning(running)
         setTailscaleHealth(health)
+
+        // Phase 101-02 (SHELL-01 GUI half) — call ListShells() on mount.
+        // Loaded in parallel via a separate promise so a slow daemon response
+        // doesn't delay the rest of the init flow. Failures fall through to
+        // an empty shell list (silent absence per UI-SPEC §Edge Cases).
+        ListShells()
+          .then((s) => setDetectedShells(s ?? []))
+          .catch(() => setDetectedShells([]))
+          .finally(() => setShellsLoading(false))
 
         // Fetch web server mode for local-network-fallback UI
         GetWebServerMode().then(mode => {
@@ -850,6 +864,13 @@ function App(): React.ReactElement {
       setWebServerRunning(running)
       setTailscaleHealth(health)
 
+      // Phase 101-02 (SHELL-01 GUI half) — re-discover shells on daemon retry.
+      setShellsLoading(true)
+      ListShells()
+        .then((s) => setDetectedShells(s ?? []))
+        .catch(() => setDetectedShells([]))
+        .finally(() => setShellsLoading(false))
+
       // Fetch web server mode for local-network-fallback UI
       GetWebServerMode().then(mode => {
         setWebServerMode(mode === 'tailscale' || mode === 'local' ? mode : null)
@@ -1100,6 +1121,8 @@ function App(): React.ReactElement {
         <NewSessionModal
           isOpen={showNewSessionModal}
           clis={detectedCLIs}
+          shells={detectedShells}
+          shellsLoading={shellsLoading}
           onConfirm={(cli, workDir, args) => {
             setShowNewSessionModal(false)
             void createTab(cli, workDir, args)

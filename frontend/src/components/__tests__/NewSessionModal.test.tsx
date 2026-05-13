@@ -30,8 +30,10 @@ describe('NewSessionModal source inspection', () => {
     it('renders DisplayName for each CLI', () => {
       expect(raw).toContain('DisplayName')
     })
-    it('tracks selectedCLI state', () => {
-      expect(raw).toContain('selectedCLI')
+    it('tracks selected agent state', () => {
+      // Phase 101-02 renamed selectedCLI -> selectedAgent to accommodate the
+      // "shell:NAME" prefix scheme for shell rows.
+      expect(raw).toContain('selectedAgent')
     })
   })
 
@@ -85,8 +87,9 @@ describe('ARGS-04: per-agent args persistence', () => {
     expect(raw).toContain('handleSelectCLI')
   })
   it('persists args to localStorage on confirm', () => {
-    // handleConfirm calls localStorage.setItem with ARGS_KEY
-    expect(raw).toContain('ARGS_KEY(selectedCLI)')
+    // handleConfirm calls localStorage.setItem with ARGS_KEY.
+    // Phase 101-02 renamed selectedCLI -> selectedAgent.
+    expect(raw).toContain('ARGS_KEY(selectedAgent)')
   })
 })
 
