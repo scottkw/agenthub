@@ -22,6 +22,9 @@ Requirements for the v3.3 release. Each maps to roadmap phases (continuing numbe
 - [ ] **SHELL-07**: Shell sessions do NOT auto-enable web serving when the web server is running (opt-in only — overrides the agent-session default)
 - [ ] **SHELL-08**: User sees a one-time confirmation banner when first enabling web serving for a shell session, explaining that shells expose arbitrary command execution
 - [ ] **SHELL-09**: Shell sessions are excluded from CLI-status heuristics (only `running` / `stopped` indicators — no fake `waiting` / `error` state)
+- [ ] **SHELL-10**: New-session modal shows a single "Shell" entry (not one row per discovered binary). Reverses SHELL-01's multi-row design after first-user-test feedback ("too many shells, just give me one").
+- [ ] **SHELL-11**: Settings → Paths exposes a "Shell binary" field where the user can override the path the daemon spawns for shell sessions (defaults to `$SHELL` or `/bin/zsh` on macOS, `pwsh.exe` on Windows). Validates the chosen path is executable.
+- [ ] **SHELL-12**: A shell tab that exits cleanly (exit code 0, including `-1 → 0` PTY-wait normalization for natural EOF) closes automatically without surfacing the "exited with error" ExitToast. Non-zero exit codes still show the toast.
 
 ### SETUI — Settings hyperlinked index (Issue #45)
 
@@ -82,7 +85,7 @@ Explicitly excluded for v3.3. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Custom shell binary path picker | System-discovery (SHELL-04) is sufficient; custom paths add UX complexity and rare-use surface |
+| ~~Custom shell binary path picker~~ | ~~System-discovery (SHELL-04) is sufficient~~ — **moved into scope 2026-05-13** as SHELL-11 (Phase 107) after first-user-test feedback showed the multi-shell-row UX was confusing; single "Shell" entry + Settings path field is preferred |
 | Shell login mode (`-l` / `--login`) toggle | Interactive non-login covers 95% of use; login-shell semantics deferred until users request |
 | Per-shell theme override | Global theme works for all session types; per-tab override remains out-of-scope (carried from v1.12) |
 | Shell session status heuristics (waiting/error) | Shells have no AI-agent state model; SHELL-09 explicitly excludes fake state |
@@ -107,6 +110,9 @@ Which phases cover which requirements. Populated by roadmap creation 2026-05-12.
 | SHELL-07 | Phase 101 | Pending |
 | SHELL-08 | Phase 101 | Pending |
 | SHELL-09 | Phase 100 | Pending |
+| SHELL-10 | Phase 107 | Pending |
+| SHELL-11 | Phase 107 | Pending |
+| SHELL-12 | Phase 107 | Pending |
 | SETUI-01 | Phase 104 | Pending |
 | SETUI-02 | Phase 104 | Pending |
 | SETUI-03 | Phase 104 | Pending |
@@ -128,8 +134,8 @@ Which phases cover which requirements. Populated by roadmap creation 2026-05-12.
 | DIST-03 | Phase 106 | Pending |
 
 **Coverage:**
-- v3.3 requirements: 28 total
-- Mapped to phases: 28 ✓
+- v3.3 requirements: 31 total
+- Mapped to phases: 31 ✓
 - Unmapped: 0
 
 **Phase distribution:**
@@ -140,7 +146,8 @@ Which phases cover which requirements. Populated by roadmap creation 2026-05-12.
 - Phase 104 (Settings Hyperlinked Index): SETUI-01, SETUI-02, SETUI-03 (3 reqs)
 - Phase 105 (Deferred v3.2 UAT Re-Run): UAT-01..07 (7 reqs)
 - Phase 106 (Distribution Pipeline Followups): DIST-01, DIST-02, DIST-03 (3 reqs)
+- Phase 107 (Shell UX collapse + path picker + clean-exit fix): SHELL-10, SHELL-11, SHELL-12 (3 reqs — added 2026-05-13 after audit surfaced UX/bug deltas)
 
 ---
 *Requirements defined: 2026-05-12*
-*Last updated: 2026-05-12 — traceability populated by roadmap creation (28/28 mapped across Phases 100-106)*
+*Last updated: 2026-05-13 — added SHELL-10/11/12 + Phase 107 mapping after first-user-test feedback (31/31 mapped across Phases 100-107)*

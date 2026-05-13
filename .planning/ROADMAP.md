@@ -22,6 +22,7 @@
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
+- 🚧 **v3.3 Shell Sessions & Polish** — Phases 100-107 (in progress, closes Issues #44 + #45, absorbs Phase 91 deferred work + v3.2 polish/UAT carry-over; Phase 107 captures shell-UX scope flip + clean-exit bug surfaced during code-complete audit)
 
 ## Phases
 
@@ -252,6 +253,23 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 </details>
 
+### 🚧 v3.3 Shell Sessions & Polish (In Progress)
+
+**Milestone Goal:** Land raw shell sessions (bash/zsh/pwsh) as a first-class agent type — unblocking the ~9 deferred v3.2 UAT scenarios that require raw PTY — then close v3.2 polish/tech-debt and re-run the deferred UAT batches end-to-end. Closes GitHub Issues #44 (shell agent) and #45 (Settings hyperlinked index). Absorbs Phase 91 v3.1 distribution-pipeline follow-ups. Phase 107 added 2026-05-13 to capture shell-UX scope flip + clean-exit bug discovered after the code-complete audit.
+
+**Phase numbering:** Continues from v3.2's last phase (99). v3.3 spans Phases 100-107.
+
+- [x] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn, exclusion from CLI-status heuristics. (completed 2026-05-13)
+- [x] **Phase 101: Shell Session Surfaces & Web-Share Gating** — Shell selection across GUI/CLI/TUI + distinct agent badge color + web-share opt-in + one-time arbitrary-execution confirmation banner. (completed 2026-05-13)
+- [x] **Phase 102: Web-Links Polish — mailto + IDN** — Closes the v3.2 LNK spec gap. (completed 2026-05-13)
+- [x] **Phase 103: Find Bar Dismiss + Test-Env + IIP Polish** — POLISH-03..06. (completed 2026-05-12; 103-IIP-DECISION.md still missing — see audit)
+- [x] **Phase 104: Settings Hyperlinked Index** — Issue #45. (completed 2026-05-12)
+- [ ] **Phase 105: Deferred v3.2 UAT Re-Run** — runbook only; 7 UAT scenarios pending human execution.
+- [ ] **Phase 106: Distribution Pipeline Followups** — DIST-01..03; code-complete, pending PAT + WinGet var.
+- [ ] **Phase 107: Shell UX Collapse + Binary Path Picker + Clean-Exit Handling** — Collapse multi-shell rows to single "Shell" entry (SHELL-10), add Settings → Paths shell-binary field (SHELL-11), fix exit-code -1 leak and auto-close tab on clean exit (SHELL-12). Reverses SHELL-01's multi-row design.
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -279,6 +297,16 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
+
+### Phase 107: Shell UX collapse + binary path picker + clean-exit handling
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 106
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 107 to break down)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Plugin Suite
-status: Awaiting next milestone
-stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
-last_updated: "2026-05-12T17:48:31.545Z"
-last_activity: 2026-05-12 — Milestone v3.2 completed and archived
+milestone: v3.3
+milestone_name: Shell Sessions & Polish
+status: Phase 107 scaffolded (shell-UX closure phase)
+stopped_at: Phase 107 added 2026-05-13 — shell-UX collapse + path picker + clean-exit fix; awaiting /gsd-discuss-phase 107
+last_updated: "2026-05-13T04:30:00.000Z"
+last_activity: 2026-05-13 — v3.3 audit complete (tech_debt verdict); Phase 107 inserted for surfaced UX/bug items
 progress:
   total_phases: 8
-  completed_phases: 8
-  total_plans: 44
-  completed_plans: 44
-  percent: 100
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 13
+  percent: 63
 ---
 
 # Project State
