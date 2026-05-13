@@ -493,8 +493,14 @@ func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
 		// look like a known shell binary).
 	}
 
-	// (2) Live discovery.
-	for _, sh := range pty.DiscoverShells() {
+	// (2) Live discovery. WR-02: cache the result so the legacy-Windows
+	// safety net below reuses the same scan rather than re-running PATH
+	// lookups + /etc/shells read. Beyond the I/O savings, this also
+	// guarantees the two passes agree under PATH-mutating tests
+	// (t.Setenv("PATH", ...) between scans could otherwise produce
+	// inconsistent results).
+	discovered := pty.DiscoverShells()
+	for _, sh := range discovered {
 		if sh.Name == cli {
 			argv := append([]string(nil), sh.Argv...)
 			return sh.Path, argv, true
@@ -504,7 +510,7 @@ func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
 	// (3) Legacy Windows safety net: cli="pwsh" but only "powershell" is
 	// discoverable (Windows host with only PowerShell 5.x installed).
 	if cli == "pwsh" {
-		for _, sh := range pty.DiscoverShells() {
+		for _, sh := range discovered {
 			if sh.Name == "powershell" {
 				argv := append([]string(nil), sh.Argv...)
 				return sh.Path, argv, true
