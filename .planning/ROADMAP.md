@@ -295,10 +295,13 @@ Plans:
   3. Shell sessions render a distinct agent badge color in the GUI tab bar and TUI session list (consistent with the existing 6-CLI palette).
   4. When the web server is running, newly-created shell sessions are NOT auto-enabled for web serving (overrides the agent-session default).
   5. The first time a user toggles web serving ON for a shell session, a one-time confirmation banner explains that shells expose arbitrary command execution; subsequent toggles do not re-prompt.
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 101-01: TBD
+- [ ] 101-01-PLAN.md — Wails RPC bindings (ListShells, Get/SetShellWebShareWarned) + daemon settings field + HTTP routes (foundation wave)
+- [ ] 101-02-PLAN.md — NewSessionModal shell rows + TabBar agent badge + CSS palette (GUI surface)
+- [ ] 101-03-PLAN.md — ShellWebShareBanner component + App.tsx web-toggle interception (security banner + SHELL-07 frontend gate)
+- [ ] 101-04-PLAN.md — CLI `new shell` subcommand + TUI agent picker extension + BadgeShell color (CLI/TUI surface)
 
 **UI hint**: yes
 
@@ -406,7 +409,7 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100. Shell Session Backend & Discovery | v3.3 | 4/4 | Complete   | 2026-05-13 |
-| 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 0/TBD | Not started | - |
+| 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 0/4 | Not started | - |
 | 102. Web-Links Polish — mailto + IDN | v3.3 | 0/TBD | Not started | - |
 | 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
 | 104. Settings Hyperlinked Index | v3.3 | 0/TBD | Not started | - |
