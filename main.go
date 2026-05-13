@@ -169,7 +169,13 @@ func runCLI(args []string) {
 
 	switch cmd {
 	case "new":
-		err = cmdNew(client, cmdArgs, extraArgs, os.Stdout)
+		// Phase 101 SHELL-02: `agenthub new shell ...` routes to cmdNewShell.
+		// Any other `new <agent> ...` falls through to the existing cmdNew dispatch.
+		if len(cmdArgs) > 0 && cmdArgs[0] == "shell" {
+			err = cmdNewShell(client, cmdArgs[1:], extraArgs, os.Stdout)
+		} else {
+			err = cmdNew(client, cmdArgs, extraArgs, os.Stdout)
+		}
 	case "list":
 		err = cmdList(client, cmdArgs, os.Stdout)
 	case "kill":

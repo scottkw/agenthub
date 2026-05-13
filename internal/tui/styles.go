@@ -41,6 +41,10 @@ type Styles struct {
 	BadgeGemini   color.Color
 	BadgeCursor   color.Color
 	BadgeAider    color.Color
+
+	// Phase 101 SHELL-06: per-agent badge for shell sessions (slate-cyan,
+	// TokyoNight palette member, distinct from the 6 AI CLI badge colors).
+	BadgeShell color.Color
 }
 
 // newStyles creates a Styles with adaptive colors for light or dark terminals.
@@ -79,11 +83,17 @@ func newStyles(hasDark bool) Styles {
 		BadgeGemini:   ld(lipgloss.Color("#118c9e"), lipgloss.Color("#2ac3de")),
 		BadgeCursor:   ld(lipgloss.Color("#8c6c3e"), lipgloss.Color("#e0af68")),
 		BadgeAider:    ld(lipgloss.Color("#c64343"), lipgloss.Color("#f7768e")),
+		// Phase 101 SHELL-06: TokyoNight slate-cyan, locked by UI-SPEC §Color.
+		BadgeShell: ld(lipgloss.Color("#3d5a80"), lipgloss.Color("#89ddff")),
 	}
 }
 
 // agentBadgeColor returns the badge color for the given CLI agent name.
 // Falls back to FgMuted for unknown agent names.
+//
+// Phase 101 SHELL-06 (TUI half): the shell case covers the abstract "shell"
+// identifier (system default) plus the 4 endorsed knownShellSpecs basenames
+// (bash, zsh, pwsh, powershell). All five map to s.BadgeShell — NOT FgMuted.
 func agentBadgeColor(cli string, s Styles) color.Color {
 	switch strings.ToLower(cli) {
 	case "claude":
@@ -98,6 +108,8 @@ func agentBadgeColor(cli string, s Styles) color.Color {
 		return s.BadgeCursor
 	case "aider":
 		return s.BadgeAider
+	case "shell", "bash", "zsh", "pwsh", "powershell":
+		return s.BadgeShell
 	default:
 		return s.FgMuted
 	}
