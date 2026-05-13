@@ -57,9 +57,9 @@ const (
 // listEntry represents one row in the unified session list (local session, remote session, or divider).
 type listEntry struct {
 	kind    listEntryKind
-	session *daemon.SessionInfo  // non-nil when kind == entryLocal
-	remote  *RemoteSessionEntry  // non-nil when kind == entryRemote
-	divider *peerDivider         // non-nil when kind == entryDivider
+	session *daemon.SessionInfo // non-nil when kind == entryLocal
+	remote  *RemoteSessionEntry // non-nil when kind == entryRemote
+	divider *peerDivider        // non-nil when kind == entryDivider
 }
 
 // RemoteSessionEntry holds fields for a remote peer session displayed in the TUI.
@@ -121,11 +121,18 @@ type Model struct {
 
 	// Modal state (Phase 77)
 	modal        modalState
-	agentIdx     int               // current agent picker index
+	agentIdx     int               // current agent picker index (covers AI CLIs + shells)
 	dirInput     textinput.Model   // directory field in new-session modal
 	argsInput    textinput.Model   // arguments field in new-session modal
 	focusedField int               // 0=agent, 1=directory, 2=arguments
 	detectedCLIs []pty.DetectedCLI // cached on first modal open
+
+	// Phase 101 SHELL-03: shell entries surfaced in the agent picker. Populated
+	// in-process via pty.DiscoverShells() (RESEARCH A1 — TUI calls pty directly,
+	// not via DaemonClient). Order is preserved as supplied; the picker
+	// applies sortShellsForPicker each render so display order is deterministic
+	// (shell → bash → zsh → pwsh → powershell).
+	detectedShells []pty.DetectedShell
 
 	// Kill confirmation state (Phase 77)
 	killTarget   *daemon.SessionInfo

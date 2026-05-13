@@ -639,13 +639,23 @@ func (m Model) cycleFocus(forward bool) (tea.Model, tea.Cmd) {
 }
 
 // submitNewSession validates form fields and dispatches session creation.
+//
+// Phase 101 SHELL-03: agent selection reads from the unified agentEntries
+// slice (AI CLIs + shells). For shell entries (cli ∈ {shell, bash, zsh, pwsh,
+// powershell}) the args field is intentionally dropped before dispatch —
+// mirrors Phase 100 Anti-Pattern A6: shell sessions never accept caller-
+// supplied argv.
 func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
-	// Validate agent
-	if len(m.detectedCLIs) == 0 {
+	entries := m.agentEntries()
+	if len(entries) == 0 {
 		m.toast = "Agent is required"
 		m.toastKind = toastError
 		m.toastExp = time.Now().Add(2 * time.Second)
 		return m, nil
+	}
+	idx := m.agentIdx
+	if idx < 0 || idx >= len(entries) {
+		idx = 0
 	}
 
 	// Validate directory
@@ -657,14 +667,17 @@ func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	cli := m.detectedCLIs[m.agentIdx].Name
+	cli := entries[idx].cliKey
 	name := filepath.Base(workDir)
 
-	// Parse arguments (split on spaces, simple)
-	argsStr := strings.TrimSpace(m.argsInput.Value())
+	// Parse arguments (split on spaces, simple). For shell sessions args is
+	// dropped per Phase 100 A6.
 	var args []string
-	if argsStr != "" {
-		args = strings.Fields(argsStr)
+	if !isShellCLI(cli) {
+		argsStr := strings.TrimSpace(m.argsInput.Value())
+		if argsStr != "" {
+			args = strings.Fields(argsStr)
+		}
 	}
 
 	m.modal = modalNone
@@ -672,4 +685,14 @@ func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
 	m.toastKind = toastInfo
 	m.toastExp = time.Now().Add(10 * time.Second)
 	return m, createSession(m.client, cli, name, workDir, args)
+}
+
+// isShellCLI reports whether the given cli identifier represents a raw shell
+// session. Mirrors the agentBadgeColor shell case and the cmdNewShell allowlist.
+func isShellCLI(cli string) bool {
+	switch cli {
+	case "shell", "bash", "zsh", "pwsh", "powershell":
+		return true
+	}
+	return false
 }

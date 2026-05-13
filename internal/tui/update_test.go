@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/textinput"
@@ -17,6 +18,12 @@ func testModel() Model {
 	m.hasDark = true
 	m.styles = newStyles(true)
 	m.loading = false
+	// Phase 101 SHELL-03: newModel() calls pty.DiscoverShells() which probes
+	// the host filesystem; legacy TUI tests that pre-date the shell-picker
+	// feature treat detectedCLIs as the entire picker universe. Clear shells
+	// here so legacy tests retain their original semantics; new shell-picker
+	// tests opt in by setting detectedShells explicitly.
+	m.detectedShells = nil
 	return m
 }
 
@@ -1082,5 +1089,113 @@ func TestUpdate_SidebarNavigation(t *testing.T) {
 	}
 	if !found {
 		t.Error("Enter on Settings should open tabSettings")
+	}
+}
+
+// TestAgentPicker_IncludesShellEntries verifies the Phase 101 SHELL-03 agent picker
+// extension: when detectedShells is populated, the rendered picker label cycles
+// through "Shell — <displayName>" entries after the AI CLIs.
+func TestAgentPicker_IncludesShellEntries(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+		{Name: "opencode", DisplayName: "OpenCode", Path: "/usr/bin/opencode"},
+	}
+	m.detectedShells = []pty.DetectedShell{
+		{Name: "shell", DisplayName: "system default", Path: "/bin/zsh", Argv: []string{"-i"}},
+		{Name: "bash", DisplayName: "bash", Path: "/bin/bash", Argv: []string{"-i"}},
+	}
+	m.agentIdx = 2 // index points at first shell entry (Shell — system default)
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	rendered := m.renderAgentPicker()
+	if !strings.Contains(rendered, "Shell — system default") {
+		t.Errorf("agent picker at idx=2 should render 'Shell — system default', got %q", rendered)
+	}
+
+	// Cycle right: should land on "Shell — bash".
+	m2 := m.cycleAgent(true)
+	if m2.agentIdx != 3 {
+		t.Fatalf("expected agentIdx=3 after Right cycle, got %d", m2.agentIdx)
+	}
+	rendered2 := m2.renderAgentPicker()
+	if !strings.Contains(rendered2, "Shell — bash") {
+		t.Errorf("agent picker at idx=3 should render 'Shell — bash', got %q", rendered2)
+	}
+}
+
+// TestAgentPicker_CycleOrder verifies the deterministic cycle order per UI-SPEC
+// §Interaction TUI flow: AI CLIs first (in detectedCLIs order), then shells in
+// sortShellsForPicker priority order (shell → bash → zsh → pwsh → powershell), then wraps.
+func TestAgentPicker_CycleOrder(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+		{Name: "opencode", DisplayName: "OpenCode", Path: "/usr/bin/opencode"},
+	}
+	// Provide shells in a deliberately scrambled order — the sort helper must
+	// re-order them to: shell → bash → zsh → pwsh.
+	m.detectedShells = []pty.DetectedShell{
+		{Name: "zsh", DisplayName: "zsh", Path: "/bin/zsh"},
+		{Name: "pwsh", DisplayName: "PowerShell", Path: "/usr/local/bin/pwsh"},
+		{Name: "bash", DisplayName: "bash", Path: "/bin/bash"},
+		{Name: "shell", DisplayName: "system default", Path: "/bin/zsh"},
+	}
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	// Expected visit order: Claude Code, OpenCode, Shell — system default, Shell — bash,
+	// Shell — zsh, Shell — PowerShell, then wraps back to Claude Code.
+	wantOrder := []string{
+		"Claude Code",
+		"OpenCode",
+		"Shell — system default",
+		"Shell — bash",
+		"Shell — zsh",
+		"Shell — PowerShell",
+		"Claude Code", // wraps
+	}
+	current := m
+	for i, want := range wantOrder {
+		rendered := current.renderAgentPicker()
+		if !strings.Contains(rendered, want) {
+			t.Errorf("step %d: agent picker should contain %q, got %q (agentIdx=%d)", i, want, rendered, current.agentIdx)
+		}
+		current = current.cycleAgent(true)
+	}
+}
+
+// TestAgentPicker_OnlyAICLIs_NoShells verifies that when detectedShells is empty,
+// the picker shows only AI CLIs (regression: no spurious "Shell —" entries).
+func TestAgentPicker_OnlyAICLIs_NoShells(t *testing.T) {
+	m := testModel()
+	m.modal = modalNewSession
+	m.focusedField = 0
+	m.detectedCLIs = []pty.DetectedCLI{
+		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
+	}
+	m.detectedShells = nil // no shells discovered
+	m.agentIdx = 0
+	m.dirInput = textinput.New()
+	m.argsInput = textinput.New()
+
+	rendered := m.renderAgentPicker()
+	if strings.Contains(rendered, "Shell — ") {
+		t.Errorf("agent picker with no shells should NOT contain 'Shell — ', got %q", rendered)
+	}
+	if !strings.Contains(rendered, "Claude Code") {
+		t.Errorf("agent picker should still show 'Claude Code', got %q", rendered)
+	}
+
+	// Cycling right with only 1 AI CLI must stay at idx=0 (single-element wrap).
+	m2 := m.cycleAgent(true)
+	if m2.agentIdx != 0 {
+		t.Errorf("expected agentIdx=0 after Right with single entry, got %d", m2.agentIdx)
 	}
 }

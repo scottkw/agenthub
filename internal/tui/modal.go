@@ -2,10 +2,77 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/scottkw/agenthub/internal/pty"
 )
+
+// agentEntry is a unified picker entry covering both AI CLIs and shells.
+// cliKey is the value passed to daemon.CreateSession (e.g. "claude", "shell",
+// "bash"). displayLabel is the human-readable string shown in the picker
+// (e.g. "Claude Code", "Shell — system default", "Shell — bash").
+//
+// Phase 101 SHELL-03: introduced to merge detectedCLIs + detectedShells into
+// a single index space that agentIdx walks.
+type agentEntry struct {
+	cliKey       string
+	displayLabel string
+}
+
+// sortShellsForPicker returns a copy of shells sorted by the canonical UI-SPEC
+// order: shell (system default) → bash → zsh → pwsh → powershell → unknown.
+// Stable sort preserves caller order for entries with the same priority.
+//
+// Phase 101 SHELL-03 — mirrors the GUI Plan 02 sort so picker order is the
+// same across all three surfaces (GUI modal, TUI picker, CLI --help).
+func sortShellsForPicker(shells []pty.DetectedShell) []pty.DetectedShell {
+	priority := map[string]int{
+		"shell":      0,
+		"bash":       1,
+		"zsh":        2,
+		"pwsh":       3,
+		"powershell": 4,
+	}
+	out := append([]pty.DetectedShell(nil), shells...)
+	sort.SliceStable(out, func(i, j int) bool {
+		pi, oki := priority[out[i].Name]
+		if !oki {
+			pi = 99
+		}
+		pj, okj := priority[out[j].Name]
+		if !okj {
+			pj = 99
+		}
+		return pi < pj
+	})
+	return out
+}
+
+// agentEntries returns the unified picker entry slice: AI CLIs first (in
+// detectedCLIs order), then shells (in sortShellsForPicker order). Shell
+// entries get the locked "Shell — " prefix per UI-SPEC §Copywriting.
+//
+// Returns nil if both detectedCLIs and detectedShells are empty (caller
+// checks len(entries) == 0 for the empty-state branch).
+func (m Model) agentEntries() []agentEntry {
+	if len(m.detectedCLIs) == 0 && len(m.detectedShells) == 0 {
+		return nil
+	}
+	entries := make([]agentEntry, 0, len(m.detectedCLIs)+len(m.detectedShells))
+	for _, c := range m.detectedCLIs {
+		entries = append(entries, agentEntry{cliKey: c.Name, displayLabel: c.DisplayName})
+	}
+	for _, sh := range sortShellsForPicker(m.detectedShells) {
+		entries = append(entries, agentEntry{
+			cliKey:       sh.Name,
+			displayLabel: "Shell — " + sh.DisplayName,
+		})
+	}
+	return entries
+}
 
 // renderNewSessionModal renders the new-session modal as a centered bordered overlay.
 func (m Model) renderNewSessionModal() string {
@@ -72,25 +139,35 @@ func (m Model) buildNewSessionContent() string {
 }
 
 // renderAgentPicker displays the current agent with Left/Right cycle arrows.
+// Phase 101 SHELL-03: shows AI CLI labels followed by "Shell — <name>" entries
+// for each discovered shell (per UI-SPEC §Interaction TUI flow).
 func (m Model) renderAgentPicker() string {
-	if len(m.detectedCLIs) == 0 {
+	entries := m.agentEntries()
+	if len(entries) == 0 {
 		return lipgloss.NewStyle().Foreground(m.styles.FgDanger).Render("(none found)")
 	}
-
-	name := m.detectedCLIs[m.agentIdx].DisplayName
+	// Defensive clamp: agentIdx might be stale after a discovery refresh.
+	idx := m.agentIdx
+	if idx < 0 || idx >= len(entries) {
+		idx = 0
+	}
+	label := entries[idx].displayLabel
 	arrows := lipgloss.NewStyle().Foreground(m.styles.FgMuted)
-	return fmt.Sprintf("%s %s %s", arrows.Render("<"), name, arrows.Render(">"))
+	return fmt.Sprintf("%s %s %s", arrows.Render("<"), label, arrows.Render(">"))
 }
 
 // cycleAgent cycles the agent picker index forward or backward.
+// Phase 101 SHELL-03: walks the unified agentEntries slice (AI CLIs + shells).
 func (m Model) cycleAgent(forward bool) Model {
-	if len(m.detectedCLIs) == 0 {
+	entries := m.agentEntries()
+	n := len(entries)
+	if n == 0 {
 		return m
 	}
 	if forward {
-		m.agentIdx = (m.agentIdx + 1) % len(m.detectedCLIs)
+		m.agentIdx = (m.agentIdx + 1) % n
 	} else {
-		m.agentIdx = (m.agentIdx + len(m.detectedCLIs) - 1) % len(m.detectedCLIs)
+		m.agentIdx = (m.agentIdx + n - 1) % n
 	}
 	return m
 }
