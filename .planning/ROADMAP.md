@@ -299,9 +299,9 @@ Plans:
 
 Plans:
 - [ ] 101-01-PLAN.md — Wails RPC bindings (ListShells, Get/SetShellWebShareWarned) + daemon settings field + HTTP routes (foundation wave)
-- [ ] 101-02-PLAN.md — NewSessionModal shell rows + TabBar agent badge + CSS palette (GUI surface)
-- [ ] 101-03-PLAN.md — ShellWebShareBanner component + App.tsx web-toggle interception (security banner + SHELL-07 frontend gate)
-- [ ] 101-04-PLAN.md — CLI `new shell` subcommand + TUI agent picker extension + BadgeShell color (CLI/TUI surface)
+- [x] 101-02-PLAN.md — NewSessionModal shell rows + TabBar agent badge + CSS palette (GUI surface)
+- [x] 101-03-PLAN.md — ShellWebShareBanner component + App.tsx web-toggle interception (security banner + SHELL-07 frontend gate)
+- [x] 101-04-PLAN.md — CLI `new shell` subcommand + TUI agent picker extension + BadgeShell color (CLI/TUI surface)
 
 **UI hint**: yes
 
@@ -409,7 +409,7 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100. Shell Session Backend & Discovery | v3.3 | 4/4 | Complete   | 2026-05-13 |
-| 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 0/4 | Not started | - |
+| 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 3/4 | In Progress|  |
 | 102. Web-Links Polish — mailto + IDN | v3.3 | 0/TBD | Not started | - |
 | 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
 | 104. Settings Hyperlinked Index | v3.3 | 0/TBD | Not started | - |
