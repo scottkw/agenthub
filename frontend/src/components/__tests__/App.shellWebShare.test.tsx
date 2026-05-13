@@ -51,12 +51,14 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
 
   it('calls GetShellWebShareWarned in a mount useEffect to seed shellWebShareWarned', () => {
     // The mount-time hydration must invoke GetShellWebShareWarned() and feed
-    // the result into setShellWebShareWarned. We do not pin the surrounding
-    // syntax — just that the two appear within a single function expression.
+    // the result into setShellWebShareWarned via a .then() chain (matching
+    // the Phase 81 D-11 GetAutoCloseSession precedent).
     expect(raw).toContain('GetShellWebShareWarned()')
-    // The handler must wire the result into local state — assert by name proximity.
-    const block = raw.slice(raw.indexOf('GetShellWebShareWarned()'))
-    expect(block.slice(0, 200)).toContain('setShellWebShareWarned')
+    // The call-site (NOT the doc comment) must be followed within ~250 chars
+    // by a .then(...) that invokes setShellWebShareWarned.
+    expect(raw).toMatch(
+      /GetShellWebShareWarned\(\)[\s\S]{0,250}\.then\([\s\S]{0,200}setShellWebShareWarned/
+    )
   })
 
   it('intercepts handleToggleWeb: short-circuits when shell session + enabling + !shellWebShareWarned', () => {

@@ -28,6 +28,8 @@ import {
   GetLastUpdateInfo,
   GetAutoCloseSession,
   GetPluginSettings,
+  GetShellWebShareWarned,
+  SetShellWebShareWarned,
   QuitGUIOnly,
   QuitAll,
   SaveTerminalSession,
@@ -48,6 +50,7 @@ import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
 import { WebGLRecoveryBanner } from './components/WebGLRecoveryBanner'
 import { PluginToggleBanner } from './components/PluginToggleBanner'
+import { ShellWebShareBanner } from './components/ShellWebShareBanner'
 import { ExitToast } from './components/ExitToast'
 import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
@@ -57,6 +60,15 @@ import { ALLOWED_THEMES } from './themes'
 const DEFAULT_FONT_SIZE = 14
 const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
 const DEFAULT_THEME_NAME = 'Tomorrow_Night'
+
+// Phase 101-03 (SHELL-07/SHELL-08) — the set of cli identifiers that route
+// through the one-time security-warning banner when the user toggles web
+// sharing ON for the FIRST time on this machine. Must stay in sync with the
+// daemon's isShellSession check (internal/daemon/engine.go) and the TabBar
+// agentBadgeModifier shell collapse (frontend/src/components/TabBar.tsx).
+// Documented as acceptable v3.3 duplication in 101-03-SUMMARY.md; revisit
+// extracting to a shared module if a third call-site emerges in v3.4.
+const SHELL_CLIS = new Set(['shell', 'bash', 'zsh', 'pwsh', 'powershell'])
 
 /**
  * App is the root component — it owns all tab state and wires
@@ -79,6 +91,16 @@ function App(): React.ReactElement {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
   // Track web serving state per session: sessionId -> enabled
   const [webEnabled, setWebEnabled] = useState<Record<string, boolean>>({})
+  // Phase 101-03 SHELL-07/SHELL-08 — one-time security-warning gate for shell
+  // sessions. `shellWebShareWarned` is hydrated from the daemon settings via
+  // GetShellWebShareWarned() on mount; once the user confirms the banner, both
+  // local state and the daemon-persisted flag flip to true permanently (per-
+  // machine, not per-session). `pendingShellWebToggle` holds the sessionId +
+  // displayName of an in-flight first-time toggle while the banner is shown.
+  const [shellWebShareWarned, setShellWebShareWarned] = useState(false)
+  const [pendingShellWebToggle, setPendingShellWebToggle] = useState<
+    { sessionId: string; sessionName: string } | null
+  >(null)
   // Track web server running state
   const [webServerRunning, setWebServerRunning] = useState(false)
   // Track web server mode: 'tailscale' | 'local' | null
@@ -373,6 +395,17 @@ function App(): React.ReactElement {
 
         // Load auto-close preference (Phase 84 D-11)
         GetAutoCloseSession().then(val => { autoCloseRef.current = val }).catch(() => {})
+
+        // Phase 101-03 SHELL-08 — hydrate the one-time shell-web-share-warning
+        // flag from daemon-persisted settings. On failure default to false so
+        // the banner re-shows on the next toggle attempt (safe degradation —
+        // worst case the user re-confirms once).
+        GetShellWebShareWarned()
+          .then((v) => setShellWebShareWarned(v))
+          .catch((err) => {
+            console.warn('[App] GetShellWebShareWarned failed:', err)
+            setShellWebShareWarned(false)
+          })
 
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
@@ -702,13 +735,57 @@ function App(): React.ReactElement {
 
   const handleToggleWeb = useCallback(async (sessionId: string) => {
     const nowEnabled = !webEnabled[sessionId]
+
+    // Phase 101-03 SHELL-07/SHELL-08 — first-time security gate. Intercept
+    // ON-toggles for shell sessions when shellWebShareWarned has never been
+    // confirmed on this machine. AI-CLI toggles, shell OFF-toggles, and shell
+    // ON-toggles with warned=true fall through unchanged. The daemon already
+    // refuses to auto-enable web sharing for shells (Phase 87 SEC-01,
+    // api.go:407) — the banner is the user-visible defense-in-depth.
+    if (nowEnabled) {
+      const tab = tabs.find((t) => t.sessionId === sessionId)
+      if (tab && SHELL_CLIS.has(tab.cli) && !shellWebShareWarned) {
+        setPendingShellWebToggle({ sessionId, sessionName: tab.name })
+        return
+      }
+    }
+
     try {
       await ToggleWebServing(sessionId, nowEnabled)
       setWebEnabled((prev) => ({ ...prev, [sessionId]: nowEnabled }))
     } catch (err) {
       console.warn('[App] ToggleWebServing failed:', err)
     }
-  }, [webEnabled])
+  }, [webEnabled, shellWebShareWarned, tabs])
+
+  // Phase 101-03 — banner confirm: per RESEARCH §8 race mitigation, set the
+  // local shellWebShareWarned flag SYNCHRONOUSLY (before awaiting either RPC).
+  // If a second shell session's toggle fires while the SetShellWebShareWarned
+  // disk write is still in flight, the second toggle's interception check
+  // will already see the updated local state and skip the banner.
+  const handleShellWebShareConfirm = useCallback(async () => {
+    if (!pendingShellWebToggle) return
+    const { sessionId } = pendingShellWebToggle
+    // Synchronous local-state update — must happen BEFORE await (race mitigation, RESEARCH §8).
+    setShellWebShareWarned(true)
+    setPendingShellWebToggle(null)
+    try {
+      await Promise.all([
+        SetShellWebShareWarned(true),
+        ToggleWebServing(sessionId, true),
+      ])
+      setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
+    } catch (err) {
+      console.warn('[App] shell web-share confirm failed:', err)
+      // Best-effort rollback: if persist failed, let the banner re-show on
+      // the user's next toggle attempt so they aren't silently downgraded.
+      setShellWebShareWarned(false)
+    }
+  }, [pendingShellWebToggle])
+
+  const handleShellWebShareCancel = useCallback(() => {
+    setPendingShellWebToggle(null)
+  }, [])
 
   const handleFontSizeChange = useCallback((sessionId: string, delta: number) => {
     setFontSizes((prev) => {
@@ -912,12 +989,23 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
-      {((webServerMode === 'local' && !localBannerDismissed) ||
+      {(pendingShellWebToggle ||
+        (webServerMode === 'local' && !localBannerDismissed) ||
         update ||
         ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed) ||
         saveBanner !== null ||
         pluginToggleBanners.length > 0) && (
         <div className="banner-stack">
+          {/* Phase 101-03 SHELL-08 — action-blocking security banner takes
+              top priority in the stack (per UI-SPEC §Stack ordering). Only
+              one is ever shown at a time (single sessionId in flight). */}
+          {pendingShellWebToggle && (
+            <ShellWebShareBanner
+              sessionName={pendingShellWebToggle.sessionName}
+              onConfirm={() => void handleShellWebShareConfirm()}
+              onCancel={handleShellWebShareCancel}
+            />
+          )}
           {webServerMode === 'local' && !localBannerDismissed && (
             <LocalNetworkBanner
               visible={true}
