@@ -148,4 +148,41 @@ describe('Phase 95 LNK-01..04 — TerminalPanel WebLinksAddon integration', () =
     expect(src).not.toMatch(/console\.log\([^)]*uri/)
     expect(src).not.toMatch(/fetch\([^)]*uri/)
   })
+
+  // Phase 102 POLISH-01: mailto: URLs are clickable.
+  it('WebLinksAddon receives explicit urlRegex that matches mailto: (POLISH-01)', () => {
+    // Default addon regex only matches http(s); without an explicit urlRegex,
+    // mailto: URLs are never detected as clickable. Verify the addon is
+    // constructed with a urlRegex option that includes mailto:.
+    expect(src).toMatch(/urlRegex\s*:/)
+    expect(src).toMatch(/mailto:/)
+  })
+
+  it('urlRegex matches mailto:user@example.com (POLISH-01 — regex behavioral check)', () => {
+    // Extract the regex literal from the source and exercise it directly.
+    const m = src.match(/urlRegex\s*:\s*(\/.+?\/[gimsuy]*)\s*,/)
+    expect(m).not.toBeNull()
+    if (!m) return
+    // Evaluate the regex literal in a safe way — Function constructor scoped
+    // to a single regex eval. Source is project-trusted (file read at build).
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const re: RegExp = new Function('return ' + m[1])()
+    expect('mailto:user@example.com'.match(re)).not.toBeNull()
+    expect('https://example.com'.match(re)).not.toBeNull()
+    // Non-mailto, non-http(s) schemes still rejected (defense-in-depth lives in handler).
+    expect('javascript:alert(1)'.match(re)).toBeNull()
+  })
+
+  // Phase 102 POLISH-02: IDN/Cyrillic-homograph URLs route through popover.
+  // This is already implemented at the lib level (urlSafety.hasIDN handles
+  // non-ASCII + xn-- forms); this test is a sanity check that getRisk is still
+  // wired in the handler.
+  it('handler invokes getRisk so IDN URLs trigger LinkConfirmPopover (POLISH-02 sanity)', () => {
+    // Same source-level invariant the existing 'handler runs risk detection
+    // via getRisk (LNK-03)' test asserts — re-stated here as a POLISH-02
+    // anchor so a future refactor that drops getRisk fails this phase's tests.
+    expect(src).toMatch(/getRisk\s*\(/)
+    // confirmIDN flag still consulted.
+    expect(src).toContain('confirmIDN')
+  })
 })
