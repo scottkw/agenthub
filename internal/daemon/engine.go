@@ -386,6 +386,9 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			// cmd.Wait() still running in killSession — reading ProcessState
 			// would race with go-pty's internal write.
 			ec := s.ExitCode()
+			if ec == -1 {
+				ec = 0 // SHELL-12: mirror the natural-exit goroutine's -1→0 normalization so GUI consumers never see PTY-EOF as an error code.
+			}
 			exitCodePtr = &ec
 			dur := int(time.Since(s.CreatedAt).Seconds())
 			durationPtr = &dur
