@@ -239,12 +239,19 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 		cliPath = path
 		args = shellArgs
 		if workDir == "" {
-			if home, err := os.UserHomeDir(); err == nil && home != "" {
+			// WR-01: validate $HOME against known-useless values. On
+			// service-mode daemons (RESEARCH.md Pitfall 4) $HOME is often
+			// "/" or "."; writing shell history at those locations would
+			// either fail (read-only root) or pollute the filesystem root.
+			// The corresponding test (TestCreateSession_ShellEmptyWorkDirHome)
+			// already skips on these values — production code must apply
+			// the same guard.
+			if home, err := os.UserHomeDir(); err == nil && home != "" && home != "/" && home != "." {
 				workDir = home
 			}
-			// If UserHomeDir fails or returns empty, fall through with the
-			// original empty workDir (rare; matches the existing AI-CLI
-			// path).
+			// If UserHomeDir fails, returns empty, or returns an unreliable
+			// value ("/", "."), fall through with the original empty workDir
+			// (matches the AI-CLI path's behavior on missing $HOME).
 		}
 	}
 
