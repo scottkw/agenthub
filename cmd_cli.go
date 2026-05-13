@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -25,6 +26,8 @@ Run with no arguments to launch the desktop GUI.
 
 Commands:
   new <agent> <path> [-- <extra-args>...]     Create a new terminal session
+  new shell [<path>]                          Create a new raw shell session
+    --shell=bash|zsh|pwsh|powershell           Pick a specific shell (default: system default)
   list [--json] [--local]                     List local and remote sessions
   kill <id>                                   Kill a session
   rename <id> <name>                          Rename a session
@@ -64,6 +67,81 @@ func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out 
 	id, err := client.CreateSession(agent, name, workDir, extraArgs, 0, 0)
 	if err != nil {
 		return fmt.Errorf("agenthub new: %w", err)
+	}
+	fmt.Fprintln(out, id)
+	return nil
+}
+
+// cmdNewShell creates a new raw shell session (Phase 101 SHELL-02).
+//
+// Argv shape (per UI-SPEC §CLI):
+//
+//		agenthub new shell [<path>] [--shell=bash|zsh|pwsh|powershell]
+//
+//	  - `<path>` is optional; if omitted, workDir is "" and the daemon resolves to $HOME.
+//	  - `--shell=X` selects a specific shell; omitted = "shell" (system default).
+//	  - `extraArgs` (the `--` tail) is intentionally NOT forwarded to shells
+//	    (per Phase 100 Anti-Pattern A6); a non-fatal stderr warning is emitted instead.
+//
+// Locked stderr error strings (per UI-SPEC §CLI):
+//   - unknown --shell value: `agenthub new shell: unknown shell %q (allowed: bash, zsh, pwsh, powershell, or omit for system default)`
+//   - empty --shell=:        `agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)`
+//   - extra args after --:   `agenthub new shell: extra arguments are not forwarded to shell sessions; ignoring [...]`
+//   - daemon unreachable:    `agenthub new shell: daemon unreachable: <err>`
+func cmdNewShell(client *daemon.DaemonClient, args []string, extraArgs []string, out io.Writer) error {
+	fs := flag.NewFlagSet("new shell", flag.ContinueOnError)
+	fs.SetOutput(io.Discard) // we emit our own error copy
+	shellFlag := fs.String("shell", "", "")
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "agenthub new shell: %v\n", err)
+		return err
+	}
+	// Detect whether --shell was explicitly passed (even with empty value).
+	explicitlySet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "shell" {
+			explicitlySet = true
+		}
+	})
+	if explicitlySet && *shellFlag == "" {
+		msg := "agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)"
+		fmt.Fprintln(os.Stderr, msg)
+		return errors.New("empty --shell value")
+	}
+	allowed := map[string]bool{
+		"":           true, // empty = system default ("shell")
+		"bash":       true,
+		"zsh":        true,
+		"pwsh":       true,
+		"powershell": true,
+	}
+	if !allowed[*shellFlag] {
+		msg := fmt.Sprintf("agenthub new shell: unknown shell %q (allowed: bash, zsh, pwsh, powershell, or omit for system default)", *shellFlag)
+		fmt.Fprintln(os.Stderr, msg)
+		return errors.New("unknown --shell value")
+	}
+	cli := "shell"
+	if *shellFlag != "" {
+		cli = *shellFlag
+	}
+	workDir := ""
+	positionals := fs.Args()
+	if len(positionals) > 0 {
+		workDir = positionals[0]
+	}
+	if len(extraArgs) > 0 {
+		fmt.Fprintf(os.Stderr, "agenthub new shell: extra arguments are not forwarded to shell sessions; ignoring %v\n", extraArgs)
+	}
+	// Session name mirrors cmdNew: basename of workDir, or the cli name when workDir is empty
+	// (daemon resolves "" → $HOME, but the CLI doesn't know $HOME at this layer).
+	name := cli
+	if workDir != "" {
+		name = filepath.Base(workDir)
+	}
+	id, err := client.CreateSession(cli, name, workDir, nil, 0, 0)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "agenthub new shell: daemon unreachable: %v\n", err)
+		return err
 	}
 	fmt.Fprintln(out, id)
 	return nil

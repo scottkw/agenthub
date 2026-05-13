@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -648,5 +649,272 @@ func TestCmdNew_NoSeparator(t *testing.T) {
 	out := strings.TrimSpace(buf.String())
 	if len(out) != 32 {
 		t.Errorf("expected 32-char hex session ID, got %q", out)
+	}
+}
+
+// captureStderr redirects os.Stderr to a pipe, runs fn, and returns captured output.
+// Restores os.Stderr on completion. Used by Plan 101-04 cmdNewShell tests to assert
+// locked stderr error strings (per UI-SPEC §CLI).
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stderr = w
+	done := make(chan struct{})
+	var captured bytes.Buffer
+	go func() {
+		_, _ = captured.ReadFrom(r)
+		close(done)
+	}()
+	fn()
+	w.Close()
+	<-done
+	os.Stderr = old
+	return captured.String()
+}
+
+// shellSessionCLI returns sessions[0].CLI from a fresh ListSessions call.
+// Fails the test if exactly one session is not present. Used by cmdNewShell tests
+// to verify the resolved shell path the daemon ran.
+func shellSessionCLI(t *testing.T, client *daemon.DaemonClient) string {
+	t.Helper()
+	sessions, err := client.ListSessions()
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected exactly 1 session, got %d: %+v", len(sessions), sessions)
+	}
+	return sessions[0].CLI
+}
+
+// assertShellCLI verifies the resolved CLI path matches one of the basename
+// alternatives (e.g. "zsh" matches /bin/zsh, /usr/bin/zsh, /opt/homebrew/bin/zsh).
+// We cannot assert raw "zsh" because the daemon resolves it to an absolute path
+// (Phase 100 SHELL-05 dispatch via resolveShellSpawn) before storing on the session.
+func assertShellCLI(t *testing.T, gotPath string, wantBasename string) {
+	t.Helper()
+	base := filepath.Base(gotPath)
+	if wantBasename == "shell" {
+		// "shell" = $SHELL resolution. Accept any endorsed shell basename.
+		switch base {
+		case "bash", "zsh", "sh", "pwsh", "powershell":
+			return
+		}
+		t.Errorf("expected resolved CLI basename to be an endorsed shell, got %q (full path %q)", base, gotPath)
+		return
+	}
+	if base != wantBasename {
+		t.Errorf("expected resolved CLI basename %q, got %q (full path %q)", wantBasename, base, gotPath)
+	}
+}
+
+// TestCmdNewShell_NoArgs_UsesSystemDefault verifies that `agenthub new shell` with no
+// flags or positional args creates a session with cli="shell" (resolved to $SHELL by
+// the daemon) and prints a 32-char hex UUID.
+func TestCmdNewShell_NoArgs_UsesSystemDefault(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, nil, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell returned error: %v", err)
+	}
+	id := strings.TrimSpace(buf.String())
+	if len(id) != 32 {
+		t.Errorf("expected 32-char hex session ID, got %q", id)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "shell")
+}
+
+// TestCmdNewShell_PositionalPath_UsesShell verifies a positional path is accepted
+// and the daemon receives cli="shell".
+func TestCmdNewShell_PositionalPath_UsesShell(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"/tmp"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "shell")
+}
+
+// TestCmdNewShell_FlagBash verifies --shell=bash routes cli="bash" (resolved to /bin/bash).
+func TestCmdNewShell_FlagBash(t *testing.T) {
+	if _, err := os.Stat("/bin/bash"); err != nil {
+		t.Skip("bash not available on this host")
+	}
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"--shell=bash"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "bash")
+}
+
+// TestCmdNewShell_FlagZsh verifies --shell=zsh routes cli="zsh" (resolved to /bin/zsh).
+func TestCmdNewShell_FlagZsh(t *testing.T) {
+	if _, err := os.Stat("/bin/zsh"); err != nil {
+		t.Skip("zsh not available on this host")
+	}
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"--shell=zsh"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "zsh")
+}
+
+// TestCmdNewShell_FlagPwsh verifies --shell=pwsh routes cli="pwsh".
+// Skipped on hosts where pwsh is not installed (matches Phase 100 skip pattern).
+func TestCmdNewShell_FlagPwsh(t *testing.T) {
+	if _, err := os.Stat("/usr/local/bin/pwsh"); err != nil {
+		if _, err := os.Stat("/usr/bin/pwsh"); err != nil {
+			if _, err := os.Stat("/opt/homebrew/bin/pwsh"); err != nil {
+				t.Skip("pwsh not available on this host")
+			}
+		}
+	}
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"--shell=pwsh"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "pwsh")
+}
+
+// TestCmdNewShell_FlagPowerShell verifies --shell=powershell routes cli="powershell".
+// Skipped on POSIX hosts where powershell.exe is not present.
+func TestCmdNewShell_FlagPowerShell(t *testing.T) {
+	// powershell binary lookup — POSIX hosts skip; Windows hosts proceed.
+	if runtime.GOOS != "windows" {
+		t.Skip("powershell only available on Windows")
+	}
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"--shell=powershell"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "powershell")
+}
+
+// TestCmdNewShell_FlagAndPath verifies a flag plus positional path both apply.
+func TestCmdNewShell_FlagAndPath(t *testing.T) {
+	if _, err := os.Stat("/bin/zsh"); err != nil {
+		t.Skip("zsh not available on this host")
+	}
+	client := testSetup(t)
+	var buf bytes.Buffer
+	err := cmdNewShell(client, []string{"--shell=zsh", "/tmp"}, nil, &buf)
+	if err != nil {
+		t.Fatalf("cmdNewShell: %v", err)
+	}
+	assertShellCLI(t, shellSessionCLI(t, client), "zsh")
+}
+
+// TestCmdNewShell_UnknownShellFlag verifies unknown --shell value emits locked stderr
+// and does NOT create a session (daemon never called).
+func TestCmdNewShell_UnknownShellFlag(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	var callErr error
+	stderr := captureStderr(t, func() {
+		callErr = cmdNewShell(client, []string{"--shell=nope"}, nil, &buf)
+	})
+	if callErr == nil {
+		t.Fatal("expected error for unknown --shell value, got nil")
+	}
+	expected := `agenthub new shell: unknown shell "nope" (allowed: bash, zsh, pwsh, powershell, or omit for system default)`
+	if !strings.Contains(stderr, expected) {
+		t.Errorf("expected stderr to contain locked message %q, got %q", expected, stderr)
+	}
+	// Assert daemon was NOT called (no session created).
+	sessions, _ := client.ListSessions()
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions (CreateSession not called), got %d", len(sessions))
+	}
+}
+
+// TestCmdNewShell_EmptyShellFlag verifies --shell= (empty value) emits locked stderr
+// and exits with an error.
+func TestCmdNewShell_EmptyShellFlag(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	var callErr error
+	stderr := captureStderr(t, func() {
+		callErr = cmdNewShell(client, []string{"--shell="}, nil, &buf)
+	})
+	if callErr == nil {
+		t.Fatal("expected error for empty --shell value, got nil")
+	}
+	expected := `agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)`
+	if !strings.Contains(stderr, expected) {
+		t.Errorf("expected stderr to contain locked message %q, got %q", expected, stderr)
+	}
+}
+
+// TestCmdNewShell_ExtraArgsWarning verifies that args after "--" emit a non-fatal
+// stderr warning, the command still succeeds, and CreateSession receives args=nil.
+func TestCmdNewShell_ExtraArgsWarning(t *testing.T) {
+	client := testSetup(t)
+	var buf bytes.Buffer
+	var callErr error
+	stderr := captureStderr(t, func() {
+		callErr = cmdNewShell(client, []string{"/tmp"}, []string{"--foo", "bar"}, &buf)
+	})
+	if callErr != nil {
+		t.Fatalf("cmdNewShell should not error on extra args; got %v", callErr)
+	}
+	expected := "agenthub new shell: extra arguments are not forwarded to shell sessions; ignoring [--foo bar]"
+	if !strings.Contains(stderr, expected) {
+		t.Errorf("expected stderr to contain warning %q, got %q", expected, stderr)
+	}
+	// Session should still be created (warning is non-fatal).
+	id := strings.TrimSpace(buf.String())
+	if len(id) != 32 {
+		t.Errorf("expected session UUID on stdout, got %q", id)
+	}
+}
+
+// TestCmdNewShell_DaemonError verifies that a daemon-unreachable error is surfaced
+// with the locked stderr prefix and a non-nil return.
+func TestCmdNewShell_DaemonError(t *testing.T) {
+	// Use a DaemonClient pointing at a non-existent socket so the underlying
+	// HTTP-over-unix-socket call fails. This exercises the daemon-unreachable
+	// branch of cmdNewShell without needing a fake client.
+	client := daemon.NewDaemonClient("/tmp/agenthub-nonexistent-socket-test.sock")
+	var buf bytes.Buffer
+	var callErr error
+	stderr := captureStderr(t, func() {
+		callErr = cmdNewShell(client, nil, nil, &buf)
+	})
+	if callErr == nil {
+		t.Fatal("expected error when daemon socket is unreachable, got nil")
+	}
+	if !strings.Contains(stderr, "agenthub new shell: daemon unreachable:") {
+		t.Errorf("expected stderr to contain 'daemon unreachable:' prefix, got %q", stderr)
+	}
+}
+
+// TestUsage_IncludesNewShell verifies the usage() output documents the new shell subcommand.
+func TestUsage_IncludesNewShell(t *testing.T) {
+	src, err := os.ReadFile("cmd_cli.go")
+	if err != nil {
+		t.Fatalf("read cmd_cli.go: %v", err)
+	}
+	content := string(src)
+	for _, needle := range []string{
+		"new shell [<path>]",
+		"--shell=bash|zsh|pwsh|powershell",
+	} {
+		if !strings.Contains(content, needle) {
+			t.Errorf("usage() should contain %q, but it does not", needle)
+		}
 	}
 }
