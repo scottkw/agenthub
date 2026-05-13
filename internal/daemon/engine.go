@@ -452,6 +452,15 @@ func (e *SessionEngine) ResolveCLI(name string) string {
 	return name
 }
 
+// DiscoverShells is a thin engine-mediated wrapper around pty.DiscoverShells.
+// IN-03 / PATTERNS.md line 508: route the GET /shells handler through the
+// engine so HTTP tests can DI a fake without coupling to the filesystem,
+// and so future engine-level caching or rate-limiting can be applied
+// without restructuring callers. The wrapper is currently a passthrough.
+func (e *SessionEngine) DiscoverShells() []pty.DetectedShell {
+	return pty.DiscoverShells()
+}
+
 // resolveShellSpawn maps an abstract shell name (shell|bash|zsh|pwsh|powershell)
 // to (absolute path, interactive non-login argv, ok=true). Returns
 // ("", nil, false) when cli is not a shell name.

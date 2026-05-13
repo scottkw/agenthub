@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/scottkw/agenthub/internal/capability"
-	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
@@ -493,7 +492,10 @@ func (a *API) handleGetCLIPaths(w http.ResponseWriter, r *http.Request) {
 // Argv is defensively copied per entry so callers cannot mutate
 // pty.knownShellSpecs via the response (T-100-09 in the plan's threat model).
 func (a *API) handleListShells(w http.ResponseWriter, r *http.Request) {
-	discovered := pty.DiscoverShells()
+	// IN-03: route through the engine wrapper (SessionEngine.DiscoverShells)
+	// rather than calling pty.DiscoverShells directly, so HTTP tests can
+	// substitute a fake engine and future engine-level caching applies.
+	discovered := a.engine.DiscoverShells()
 	out := make([]DetectedShell, 0, len(discovered))
 	for _, s := range discovered {
 		out = append(out, DetectedShell{
