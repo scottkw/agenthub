@@ -692,6 +692,9 @@ func (e *SessionEngine) SetShellPath(path string) error {
 		if err != nil {
 			return fmt.Errorf("path %q does not exist or is not executable", path)
 		}
+		if info.IsDir() {
+			return fmt.Errorf("path %q is a directory, not an executable", path)
+		}
 		if info.Mode()&0111 == 0 {
 			return fmt.Errorf("path %q does not exist or is not executable", path)
 		}

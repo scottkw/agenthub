@@ -213,6 +213,80 @@ func TestLoadSettingsDropsStaleShellPaths(t *testing.T) {
 	}
 }
 
+// TestSetShellPathValidation covers WR-01: SetShellPath must reject directories
+// (every POSIX directory has its execute bit set, so the Mode()&0111 check alone
+// is insufficient — IsDir() must be checked first).
+func TestSetShellPathValidation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows file-mode semantics differ; IsDir check is still applied but exec-bit test is skipped")
+	}
+	dir := t.TempDir()
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+
+	// WR-01: a directory path must be rejected with "is a directory" error
+	err := e.SetShellPath(dir) // dir itself is a directory
+	if err == nil {
+		t.Fatal("SetShellPath(directory) expected error, got nil")
+	}
+	if !containsSubstr(err.Error(), "is a directory") {
+		t.Errorf("SetShellPath(directory) error = %q, want message containing 'is a directory'", err.Error())
+	}
+
+	// A non-existent path must still be rejected
+	err = e.SetShellPath(filepath.Join(dir, "no-such-file"))
+	if err == nil {
+		t.Fatal("SetShellPath(nonexistent) expected error, got nil")
+	}
+
+	// A file with no execute bit must be rejected
+	noExec := filepath.Join(dir, "no-exec")
+	if err := os.WriteFile(noExec, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	err = e.SetShellPath(noExec)
+	if err == nil {
+		t.Fatal("SetShellPath(non-executable file) expected error, got nil")
+	}
+
+	// A valid executable file must be accepted
+	fakeBin := filepath.Join(dir, "fake-shell")
+	if err := os.WriteFile(fakeBin, []byte("#!/bin/sh"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.SetShellPath(fakeBin); err != nil {
+		t.Fatalf("SetShellPath(valid executable) unexpected error: %v", err)
+	}
+	if e.GetShellPath() != fakeBin {
+		t.Errorf("GetShellPath() = %q, want %q", e.GetShellPath(), fakeBin)
+	}
+
+	// Clearing with empty string must be accepted (restores platform default)
+	if err := e.SetShellPath(""); err != nil {
+		t.Fatalf("SetShellPath(\"\") unexpected error: %v", err)
+	}
+	// After clearing, GetShellPath returns the platform default (non-empty)
+	if e.GetShellPath() == "" {
+		t.Error("GetShellPath() returned empty after clearing override — expected platform default")
+	}
+}
+
+// containsSubstr is a local helper used by TestSetShellPathValidation to avoid
+// importing strings just for Contains.
+func containsSubstr(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(sub) == 0 ||
+		func() bool {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+			return false
+		}())
+}
+
 func TestSettingsFilePermissions(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support Unix file permissions")
