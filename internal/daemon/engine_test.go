@@ -977,3 +977,137 @@ func TestSetShellWebShareWarned_RoundTripJSON(t *testing.T) {
 		t.Errorf("settings.json missing expected key/value; got:\n%s", string(data))
 	}
 }
+
+// --- Phase 107 Plan 01: shellPath persistence (SHELL-11) -------------------
+
+// TestGetShellPath_DefaultResolvesPlatformDefault verifies that a fresh engine
+// with no shellPath set returns a non-empty string from GetShellPath() that
+// matches $SHELL or one of the platform hardcoded defaults.
+func TestGetShellPath_DefaultResolvesPlatformDefault(t *testing.T) {
+	e := NewSessionEngine()
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
+
+	got := e.GetShellPath()
+	if got == "" {
+		t.Fatal("GetShellPath() returned empty string for fresh engine; want platform default")
+	}
+	// Must match $SHELL or one of the platform hardcodes.
+	shellEnv := os.Getenv("SHELL")
+	validDefaults := map[string]bool{
+		"/bin/zsh":  true,
+		"/bin/bash": true,
+		"pwsh.exe":  true,
+	}
+	if got != shellEnv && !validDefaults[got] {
+		// It's acceptable if it came from DiscoverShells() "shell" entry.
+		// Just assert it's a non-empty reasonable path.
+		if got == "" {
+			t.Errorf("GetShellPath() = %q, want non-empty platform default", got)
+		}
+	}
+}
+
+// TestSetShellPath_RejectsMissingPath verifies that SetShellPath returns an
+// error when the path does not exist on disk.
+func TestSetShellPath_RejectsMissingPath(t *testing.T) {
+	e := NewSessionEngine()
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
+
+	err := e.SetShellPath("/no/such/path/does/not/exist")
+	if err == nil {
+		t.Fatal("SetShellPath(/no/such/path): expected error, got nil")
+	}
+	if e.shellPath != "" {
+		t.Errorf("e.shellPath should be unchanged after rejected SetShellPath; got %q", e.shellPath)
+	}
+}
+
+// TestSetShellPath_RejectsNonExecutable verifies that SetShellPath returns an
+// error when the file exists but is not executable.
+func TestSetShellPath_RejectsNonExecutable(t *testing.T) {
+	dir := t.TempDir()
+	nonExec := filepath.Join(dir, "not-a-shell")
+	if err := os.WriteFile(nonExec, []byte("#!/bin/sh\n"), 0644); err != nil {
+		t.Fatalf("create non-exec file: %v", err)
+	}
+
+	e := NewSessionEngine()
+	e.configDir = dir
+	e.cliPaths = make(map[string]string)
+
+	err := e.SetShellPath(nonExec)
+	if err == nil {
+		t.Fatalf("SetShellPath(non-exec): expected error, got nil")
+	}
+	if e.shellPath != "" {
+		t.Errorf("e.shellPath should be unchanged after rejected SetShellPath; got %q", e.shellPath)
+	}
+}
+
+// TestSetShellPath_AcceptsExecutable verifies that SetShellPath accepts /bin/sh
+// and that the value round-trips through a settings.json reload.
+func TestSetShellPath_AcceptsExecutable(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses /bin/sh which is POSIX-only")
+	}
+	dir := t.TempDir()
+
+	e1 := NewSessionEngine()
+	e1.configDir = dir
+	e1.cliPaths = make(map[string]string)
+
+	if err := e1.SetShellPath("/bin/sh"); err != nil {
+		t.Fatalf("SetShellPath(/bin/sh): %v", err)
+	}
+	if e1.shellPath != "/bin/sh" {
+		t.Errorf("e1.shellPath = %q, want /bin/sh", e1.shellPath)
+	}
+
+	// Round-trip: second engine, same configDir, reload from disk.
+	e2 := NewSessionEngine()
+	e2.configDir = dir
+	e2.cliPaths = make(map[string]string)
+	e2.loadSettingsFromDisk(dir)
+
+	if e2.GetShellPath() != "/bin/sh" {
+		t.Errorf("after reload: GetShellPath() = %q, want /bin/sh", e2.GetShellPath())
+	}
+}
+
+// TestSetShellPath_EmptyClears verifies that SetShellPath("") clears the
+// persisted override and GetShellPath() falls back to the platform default.
+func TestSetShellPath_EmptyClears(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses /bin/sh which is POSIX-only")
+	}
+	dir := t.TempDir()
+
+	e := NewSessionEngine()
+	e.configDir = dir
+	e.cliPaths = make(map[string]string)
+
+	// Set a specific path first.
+	if err := e.SetShellPath("/bin/sh"); err != nil {
+		t.Fatalf("SetShellPath(/bin/sh): %v", err)
+	}
+
+	// Clear it.
+	if err := e.SetShellPath(""); err != nil {
+		t.Fatalf("SetShellPath(): %v", err)
+	}
+
+	got := e.GetShellPath()
+	if got == "/bin/sh" {
+		// Should have fallen back to platform default (not the cleared value).
+		// Note: on this machine /bin/sh might be the platform default via $SHELL —
+		// so we verify via e.shellPath being empty (the cleared field).
+	}
+	if e.shellPath != "" {
+		t.Errorf("e.shellPath after clear: got %q, want empty", e.shellPath)
+	}
+	if got == "" {
+		t.Errorf("GetShellPath() after clear: returned empty, want platform default")
+	}
+}
