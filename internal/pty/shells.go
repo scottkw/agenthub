@@ -167,6 +167,14 @@ func isEndorsedShellBasename(p string) bool {
 // argvForShellBasename returns the conventional interactive-launch flags for
 // the given shell basename. Defaults to {"-i"} for unknown basenames (safe
 // for any POSIX-style shell).
+//
+// IN-01: the default branch is intentionally retained as a safety net.
+// Current production callers always pass a basename that
+// isEndorsedShellBasename has already accepted (sh/bash/zsh/pwsh/powershell),
+// so the default is unreachable today. It is preserved so future endorsed
+// basenames (or direct library/test callers) get a sensible fallback rather
+// than a nil slice — the "-i" flag is a safe interactive default for any
+// POSIX-style shell.
 func argvForShellBasename(base string) []string {
 	switch base {
 	case "sh", "bash", "zsh":
