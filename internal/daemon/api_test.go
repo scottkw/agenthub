@@ -1650,3 +1650,97 @@ func TestDaemonClient_GetSetShellWebShareWarned_RoundTrip(t *testing.T) {
 		t.Errorf("post-set value: got %v, want true", v)
 	}
 }
+
+// --- Phase 107 Plan 01: shell-path route (SHELL-11) -----------------------
+
+// TestHandleGetShellPath_ReturnsDefault verifies GET /settings/shell-path
+// returns 200 with a non-empty "value" field on a fresh engine.
+func TestHandleGetShellPath_ReturnsDefault(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawGet(t, socketPath, "/settings/shell-path")
+	if status != 200 {
+		t.Errorf("GET /settings/shell-path: want 200, got %d (body=%s)", status, string(body))
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode body: %v (body=%s)", err, string(body))
+	}
+	if resp["value"] == "" {
+		t.Errorf("GET /settings/shell-path: value is empty, want non-empty platform default")
+	}
+}
+
+// TestHandleUpdateShellPath_ValidPath_Persists verifies PATCH /settings/shell-path
+// with a valid executable returns 204; a subsequent GET returns the new value.
+func TestHandleUpdateShellPath_ValidPath_Persists(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses /bin/sh which is POSIX-only")
+	}
+	_, _, socketPath := testDaemon(t)
+
+	patchStatus, patchBody := rawPatch(t, socketPath, "/settings/shell-path", `{"value":"/bin/sh"}`)
+	if patchStatus != 204 {
+		t.Errorf("PATCH /settings/shell-path: want 204, got %d (body=%s)", patchStatus, patchBody)
+	}
+
+	getStatus, getBody := rawGet(t, socketPath, "/settings/shell-path")
+	if getStatus != 200 {
+		t.Errorf("GET after PATCH: want 200, got %d", getStatus)
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(getBody, &resp); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if resp["value"] != "/bin/sh" {
+		t.Errorf("value after PATCH: got %q, want /bin/sh", resp["value"])
+	}
+}
+
+// TestHandleUpdateShellPath_InvalidPath_Returns400 verifies PATCH
+// /settings/shell-path with a non-existent path returns 400.
+func TestHandleUpdateShellPath_InvalidPath_Returns400(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+
+	status, body := rawPatch(t, socketPath, "/settings/shell-path", `{"value":"/no/such/path/does/not/exist"}`)
+	if status != 400 {
+		t.Errorf("PATCH /settings/shell-path (invalid): want 400, got %d", status)
+	}
+	if !strings.Contains(string(body), "does not exist") {
+		t.Errorf("400 body missing 'does not exist'; got: %s", string(body))
+	}
+}
+
+// TestHandleUpdateShellPath_Empty_ClearsOverride verifies that PATCH with
+// empty value clears the override and GET returns the resolved default (not
+// the previously set value).
+func TestHandleUpdateShellPath_Empty_ClearsOverride(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses /bin/sh which is POSIX-only")
+	}
+	_, _, socketPath := testDaemon(t)
+
+	// Set a specific path first.
+	patchStatus, patchBody := rawPatch(t, socketPath, "/settings/shell-path", `{"value":"/bin/sh"}`)
+	if patchStatus != 204 {
+		t.Errorf("PATCH /settings/shell-path (/bin/sh): want 204, got %d (body=%s)", patchStatus, patchBody)
+	}
+
+	// Clear it.
+	clearStatus, clearBody := rawPatch(t, socketPath, "/settings/shell-path", `{"value":""}`)
+	if clearStatus != 204 {
+		t.Errorf("PATCH /settings/shell-path (empty clear): want 204, got %d (body=%s)", clearStatus, clearBody)
+	}
+
+	// GET must return a non-empty resolved default.
+	getStatus, getBody := rawGet(t, socketPath, "/settings/shell-path")
+	if getStatus != 200 {
+		t.Errorf("GET after clear: want 200, got %d", getStatus)
+	}
+	var resp map[string]string
+	if err := json.Unmarshal(getBody, &resp); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if resp["value"] == "" {
+		t.Errorf("GET after clear: value is empty, want platform default")
+	}
+}
