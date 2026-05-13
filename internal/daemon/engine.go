@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ type SessionEngine struct {
 
 	startMinimized      bool           // persisted start-minimized preference
 	shellWebShareWarned bool           // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
+	shellPath           string         // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
 	autoCloseSession    *bool          // nil = default (true); persisted pointer
 	pluginSettings      PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
@@ -84,6 +86,7 @@ type daemonSettings struct {
 	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized      bool              `json:"startMinimized,omitempty"`
 	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
+	ShellPath           string            `json:"shellPath,omitempty"`
 	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
 	Plugins             PluginSettings    `json:"plugins"`
 	SchemaVersion       int               `json:"schemaVersion"`
@@ -163,6 +166,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	}
 	e.startMinimized = s.StartMinimized
 	e.shellWebShareWarned = s.ShellWebShareWarned
+	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
@@ -188,6 +192,7 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		CLIPaths:            e.cliPaths,
 		StartMinimized:      e.startMinimized,
 		ShellWebShareWarned: e.shellWebShareWarned,
+		ShellPath:           e.shellPath,
 		AutoCloseSession:    e.autoCloseSession,
 		Plugins:             e.pluginSettings,
 		SchemaVersion:       CurrentSchemaVersion,
@@ -489,6 +494,35 @@ func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
 		return "", nil, false
 	}
 
+	// (0) Phase 107 SHELL-11: shellPath setting override for the bare "shell"
+	// key. This fires ONLY when:
+	//   - cli == "shell" (the generic system-default key; per-binary keys like
+	//     "bash"/"zsh" fall through to branch (1) unchanged — cliPaths["bash"]
+	//     overrides continue to take precedence over the catch-all shellPath).
+	//   - cliPaths["shell"] is NOT set (branch (1) wins if both are set,
+	//     preserving per-binary cliPaths[bash] overrides).
+	//   - e.shellPath is non-empty (user has configured a specific binary).
+	//
+	// When the basename of e.shellPath matches a known shell spec, borrow that
+	// spec's argv (e.g. /opt/homebrew/bin/zsh → zsh spec → ["-i"]). If the
+	// basename is unrecognised, fall through to branch (1) and let discovery
+	// handle it — the binary may be a custom shell that still accepts -i.
+	e.mu.RLock()
+	settingsShellPath := e.shellPath
+	_, cliPathSet := e.cliPaths["shell"]
+	e.mu.RUnlock()
+	if cli == "shell" && !cliPathSet && settingsShellPath != "" {
+		baseNoExt := strings.TrimSuffix(filepath.Base(settingsShellPath), ".exe")
+		for _, spec := range pty.KnownShellSpecs() {
+			if spec.Name == baseNoExt {
+				argv := append([]string(nil), spec.Argv...)
+				return settingsShellPath, argv, true
+			}
+		}
+		// Basename not in KnownShellSpecs — fall through to discovery.
+		// Do NOT error; the user may have set a custom shell binary.
+	}
+
 	// (1) Settings override path. ResolveCLI returns the override if present,
 	// otherwise the bare cli name.
 	override := e.ResolveCLI(cli)
@@ -593,6 +627,74 @@ func (e *SessionEngine) GetShellWebShareWarned() bool {
 func (e *SessionEngine) SetShellWebShareWarned(val bool) error {
 	e.mu.Lock()
 	e.shellWebShareWarned = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+	return nil
+}
+
+// resolveDefaultShellPath returns a non-empty shell path to use when no
+// explicit shellPath setting has been configured. Resolution order:
+//  1. $SHELL environment variable (POSIX).
+//  2. pty.DiscoverShells() — first entry whose Name is "shell" (synthetic
+//     system-default entry). This covers POSIX hosts where $SHELL may be unset
+//     but a real shell was discovered.
+//  3. Platform hard-fallback: /bin/zsh (darwin), /bin/bash (linux),
+//     pwsh.exe (windows).
+//
+// NEVER returns an empty string. Phase 107 SHELL-11.
+func resolveDefaultShellPath() string {
+	// (1) $SHELL env var.
+	if s := os.Getenv("SHELL"); s != "" {
+		return s
+	}
+	// (2) DiscoverShells — look for the synthetic "shell" system-default entry.
+	for _, sh := range pty.DiscoverShells() {
+		if sh.Name == "shell" {
+			return sh.Path
+		}
+	}
+	// (3) Platform hard-fallback.
+	switch runtime.GOOS {
+	case "windows":
+		return "pwsh.exe"
+	case "linux":
+		return "/bin/bash"
+	default: // darwin and others
+		return "/bin/zsh"
+	}
+}
+
+// GetShellPath returns the persisted shell binary path. When no path has been
+// set by the user (shellPath is empty), it resolves and returns the platform
+// default via resolveDefaultShellPath(). NEVER returns an empty string.
+// Phase 107 SHELL-11.
+func (e *SessionEngine) GetShellPath() string {
+	e.mu.RLock()
+	path := e.shellPath
+	e.mu.RUnlock()
+	if path == "" {
+		return resolveDefaultShellPath()
+	}
+	return path
+}
+
+// SetShellPath updates and persists the shell binary path override.
+// When path is empty, the override is cleared (subsequent GetShellPath calls
+// will return the platform default). When path is non-empty, it must point to
+// an existing executable file; otherwise an error is returned and the field is
+// left unchanged. Phase 107 SHELL-11.
+func (e *SessionEngine) SetShellPath(path string) error {
+	if path != "" {
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("path %q does not exist or is not executable", path)
+		}
+		if info.Mode()&0111 == 0 {
+			return fmt.Errorf("path %q does not exist or is not executable", path)
+		}
+	}
+	e.mu.Lock()
+	e.shellPath = path
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 	return nil
