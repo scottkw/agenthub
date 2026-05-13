@@ -146,10 +146,18 @@ func KnownShellSpecs() []ShellSpec {
 // isEndorsedShellBasename reports whether the basename of p is one of the
 // allowlisted interactive-shell basenames. This guards the synthetic
 // system-default entry from surfacing arbitrary $SHELL values.
+//
+// WR-03: "sh" is allowlisted as a synthetic-system-default basename only —
+// it is intentionally NOT added to knownShellSpecs (out of scope per
+// REQUIREMENTS.md as a selectable shell). Slim Linux containers (Alpine,
+// distroless — RESEARCH.md Pitfall 2) commonly have $SHELL=/bin/sh as
+// the only viable interactive shell; surfacing the synthetic entry there
+// honors the actual user environment without expanding the "selectable
+// shells" surface.
 func isEndorsedShellBasename(p string) bool {
 	base := filepath.Base(p)
 	switch base {
-	case "bash", "zsh", "pwsh", "powershell":
+	case "sh", "bash", "zsh", "pwsh", "powershell":
 		return true
 	}
 	return false
@@ -160,7 +168,10 @@ func isEndorsedShellBasename(p string) bool {
 // for any POSIX-style shell).
 func argvForShellBasename(base string) []string {
 	switch base {
-	case "bash", "zsh":
+	case "sh", "bash", "zsh":
+		// Explicit "sh" arm (WR-03): /bin/sh accepts -i as an interactive
+		// flag; equivalent to the default fallback below, but listed
+		// explicitly so the contract is auditable.
 		return []string{"-i"}
 	case "pwsh", "powershell":
 		return []string{"-NoLogo"}

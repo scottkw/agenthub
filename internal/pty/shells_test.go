@@ -241,6 +241,54 @@ func TestDiscoverShells_EmptySHELLEnv_NoSyntheticEntry(t *testing.T) {
 	}
 }
 
+// TestDiscoverShells_ShBasenameProducesSyntheticEntry locks WR-03: when
+// $SHELL=/bin/sh (the most common minimal-container default per
+// RESEARCH.md Pitfall 2), DiscoverShells surfaces a synthetic
+// "system default" entry so slim Linux deployments are not blocked from
+// using the shell-session feature.
+func TestDiscoverShells_ShBasenameProducesSyntheticEntry(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX-only contract — Windows has no /etc/shells codepath")
+	}
+	dir := t.TempDir()
+
+	shStub := filepath.Join(dir, "sh")
+	if err := os.WriteFile(shStub, []byte("#!/bin/sh\necho ok\n"), 0755); err != nil {
+		t.Fatalf("writing sh stub: %v", err)
+	}
+
+	etcShells := filepath.Join(dir, "etc-shells")
+	content := shStub + "\n/bin/bash\n"
+	if err := os.WriteFile(etcShells, []byte(content), 0644); err != nil {
+		t.Fatalf("writing etc-shells fixture: %v", err)
+	}
+
+	t.Setenv("PATH", dir)
+	t.Setenv("SHELL", shStub)
+
+	testEtcShellsPath = etcShells
+	t.Cleanup(func() { testEtcShellsPath = "" })
+
+	result := DiscoverShells()
+
+	foundSystemDefault := false
+	for _, sh := range result {
+		if sh.Name == "shell" {
+			foundSystemDefault = true
+			if sh.Path != shStub {
+				t.Errorf("expected synthetic shell entry Path=%q, got %q", shStub, sh.Path)
+			}
+			// argvForShellBasename("sh") returns {"-i"}.
+			if len(sh.Argv) != 1 || sh.Argv[0] != "-i" {
+				t.Errorf("expected synthetic shell entry Argv=[-i], got %v", sh.Argv)
+			}
+		}
+	}
+	if !foundSystemDefault {
+		t.Error("expected synthetic 'shell' (system default) entry with SHELL=/bin/sh")
+	}
+}
+
 // TestDiscoverShells_Windows is a smoke-level Windows-only assertion that
 // pwsh.exe resolves via PATHEXT when present on the runner.
 func TestDiscoverShells_Windows(t *testing.T) {
