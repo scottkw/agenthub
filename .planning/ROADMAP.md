@@ -261,7 +261,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 - [x] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn with working-directory honor, exclusion from CLI-status heuristics. (completed 2026-05-13)
 - [ ] **Phase 101: Shell Session Surfaces & Web-Share Gating** — User-facing shell selection across GUI/CLI/TUI plus distinct agent badge color, web-share-disabled-by-default override, one-time arbitrary-execution confirmation banner.
-- [ ] **Phase 102: Web-Links Polish — mailto + IDN** — Close the v3.2 LNK spec gap: detect `mailto:` URLs (P-1) and admit non-ASCII hostnames so the `LinkConfirmPopover` fires for Cyrillic/IDN homographs (P-2).
+- [x] **Phase 102: Web-Links Polish — mailto + IDN** — Close the v3.2 LNK spec gap: detect `mailto:` URLs (P-1) and admit non-ASCII hostnames so the `LinkConfirmPopover` fires for Cyrillic/IDN homographs (P-2). (completed 2026-05-13)
 - [ ] **Phase 103: Find Bar Dismiss + Test-Env + IIP Polish** — Find-bar Esc/close after case-sensitive toggle (P-3), find-bar slide-out animation (P-4), iTerm2 IIP investigation+decision (P-5), Vitest 4 + jsdom 29 localStorage test-env fix (P-6).
 - [ ] **Phase 104: Settings Hyperlinked Index** — Issue #45: sticky jump-link bar at the top of Settings with anchor links + smooth scroll to each section header, plus an autocomplete search box.
 - [ ] **Phase 105: Deferred v3.2 UAT Re-Run** — Execute the 9 UAT scenarios deferred from v3.2 (now unblocked by shell sessions): WebGL context-loss, iPad rasterizer banner, 10K-line scrollback perf, full LNK chain on iPad, chafa sixel/IIP fidelity, two-client mid-stream image join, iPad 5-scenario runbook.
@@ -316,7 +316,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 102-01: TBD
+- [x] 102-01: TBD
 
 ### Phase 103: Find Bar Dismiss + Test-Env + IIP Polish
 **Goal**: Close the four remaining v3.2 polish items that are not in the link path: find-bar focus/event-propagation dismiss bug, find-bar exit animation, iTerm2 IIP rendering investigation+decision, and Vitest 4 + jsdom 29 `localStorage` test-env regression.
@@ -410,7 +410,7 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100. Shell Session Backend & Discovery | v3.3 | 4/4 | Complete   | 2026-05-13 |
 | 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 3/4 | In Progress|  |
-| 102. Web-Links Polish — mailto + IDN | v3.3 | 0/TBD | Not started | - |
+| 102. Web-Links Polish — mailto + IDN | v3.3 | 1/1 | Complete   | 2026-05-13 |
 | 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
 | 104. Settings Hyperlinked Index | v3.3 | 0/TBD | Not started | - |
 | 105. Deferred v3.2 UAT Re-Run | v3.3 | 0/TBD | Not started | - |
