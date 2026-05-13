@@ -1,18 +1,21 @@
 /**
- * Phase 107-04 SHELL-12 — App.tsx session:exit branching tests.
+ * Phase 107-04 SHELL-12 / CR-01 fix — App.tsx session:exit branching tests.
  *
- * UI-SPEC §4 SHELL-12 five-assertion test contract:
+ * UI-SPEC §4 SHELL-12 five-assertion test contract (updated by CR-01 fix):
  *
- * 1. session:exit with exitCode 0 does NOT add entry to sessionExits state
- *    (setSessionExits is never called for clean exits).
- * 2. session:exit with exitCode 0 calls handleCloseTab with the session id
- *    (via handleCloseTabRef.current — early-return branch).
+ * 1. session:exit with exitCode 0 and auto-close ON: handleCloseTabRef is called
+ *    and early-return fires (auto-close path). setSessionExits NOT called on this path.
+ * 2. session:exit with exitCode 0 calls handleCloseTab (inside autoCloseRef guard).
  * 3. session:exit with exitCode 1 adds entry to sessionExits state and does
  *    NOT call handleCloseTab (existing ExitToast path).
- * 4. ExitToast receives no entries for exit-code-0 sessions
- *    (implicit from #1; asserted structurally).
+ * 4. The exitCode === 0 branch body (before inner return) does NOT call setSessionExits
+ *    directly (setSessionExits is only reached when autoCloseRef.current is false).
  * 5. When the active tab closes, activeId shifts to the adjacent tab id
  *    (or 'welcome' if it was the only non-Welcome tab).
+ *
+ * CR-01 fix (Phase 107): autoCloseRef.current must be consulted before calling
+ * handleCloseTabRef.current — the close-tab call is now INSIDE the
+ * `if (autoCloseRef.current)` guard so the user's preference is honored.
  *
  * Implementation uses source-inspection (`App.tsx?raw`) to lock the structural
  * contract — the same pattern used by App.exit.test.tsx, App.shellWebShare.test.tsx,
@@ -38,43 +41,57 @@ function getExitHandlerBody(): string {
 describe('App.tsx SHELL-12: session:exit branching on exitCode === 0', () => {
 
   /**
-   * Assertion 1 (UI-SPEC §4 SHELL-12 #1):
-   * session:exit with exitCode 0 does NOT add entry to sessionExits state.
+   * Assertion 1 (UI-SPEC §4 SHELL-12 #1 — updated by CR-01 fix):
+   * When auto-close is enabled (autoCloseRef.current === true), session:exit
+   * with exitCode 0 calls handleCloseTabRef and does NOT reach setSessionExits.
    *
-   * The early-return branch MUST appear BEFORE any setSessionExits call.
-   * We verify this by asserting that the early-return (handleCloseTabRef.current)
-   * comes before the first setSessionExits call in the handler body.
+   * After the CR-01 fix, the close-tab call is inside `if (autoCloseRef.current)`.
+   * We verify that the autoCloseRef guard appears before handleCloseTabRef.current
+   * in the handler body (ensuring proper gating), and that handleCloseTabRef.current
+   * appears before the final setSessionExits call (ensuring auto-close path
+   * exits before reaching ExitToast for the auto-close=true case).
    */
-  it('1: exit-code-0 early-return branch appears before setSessionExits call', () => {
+  it('1: autoCloseRef guard + handleCloseTabRef appear before setSessionExits call', () => {
     const handler = getExitHandlerBody()
-    const earlyReturnIdx = handler.indexOf('handleCloseTabRef.current')
-    const setExitsIdx = handler.indexOf('setSessionExits')
-    expect(earlyReturnIdx).toBeGreaterThan(-1)
+    const autoCloseIdx = handler.indexOf('autoCloseRef.current')
+    const closeTabIdx = handler.indexOf('handleCloseTabRef.current')
+    // Find setSessionExits after the `return` inside autoCloseRef block
+    const returnIdx = handler.indexOf('return')
+    const setExitsIdx = handler.indexOf('setSessionExits', returnIdx)
+    expect(autoCloseIdx).toBeGreaterThan(-1)
+    expect(closeTabIdx).toBeGreaterThan(-1)
     expect(setExitsIdx).toBeGreaterThan(-1)
-    expect(earlyReturnIdx).toBeLessThan(setExitsIdx)
+    // autoCloseRef guard comes before handleCloseTabRef
+    expect(autoCloseIdx).toBeLessThan(closeTabIdx)
+    // handleCloseTabRef comes before setSessionExits (auto-close path exits early)
+    expect(closeTabIdx).toBeLessThan(setExitsIdx)
   })
 
   /**
-   * Assertion 2 (UI-SPEC §4 SHELL-12 #2):
-   * session:exit with exitCode 0 calls handleCloseTab with the session id.
+   * Assertion 2 (UI-SPEC §4 SHELL-12 #2 — updated by CR-01 fix):
+   * session:exit with exitCode 0 calls handleCloseTab with the session id,
+   * but only when autoCloseRef.current is true.
    *
-   * The early-return block must reference handleCloseTabRef.current and
-   * pass data.sessionId to it, then return immediately without falling
-   * through to the ExitToast path.
+   * The structure after CR-01:
+   *   if (data.exitCode === 0) {
+   *     if (autoCloseRef.current) {
+   *       void handleCloseTabRef.current?.(data.sessionId)
+   *       return
+   *     }
+   *   }
    */
-  it('2: early-return block calls handleCloseTabRef.current with data.sessionId', () => {
+  it('2: autoCloseRef guard calls handleCloseTabRef.current with data.sessionId', () => {
     const handler = getExitHandlerBody()
-    // The branch shape from UI-SPEC §2:
-    //   if (data.exitCode === 0) {
-    //     void handleCloseTabRef.current?.(data.sessionId)
-    //     return
-    //   }
     expect(handler).toContain('data.exitCode === 0')
-    const branchIdx = handler.indexOf('data.exitCode === 0')
-    const branchBody = handler.slice(branchIdx, branchIdx + 200)
-    expect(branchBody).toContain('handleCloseTabRef.current')
-    expect(branchBody).toContain('data.sessionId')
-    expect(branchBody).toContain('return')
+    expect(handler).toContain('autoCloseRef.current')
+    // The autoCloseRef guard block must contain handleCloseTabRef.current and data.sessionId
+    const guardIdx = handler.indexOf('if (autoCloseRef.current)')
+    expect(guardIdx).toBeGreaterThan(-1)
+    // Use a larger window to cover the full guard body
+    const guardBody = handler.slice(guardIdx, guardIdx + 250)
+    expect(guardBody).toContain('handleCloseTabRef.current')
+    expect(guardBody).toContain('data.sessionId')
+    expect(guardBody).toContain('return')
   })
 
   /**
@@ -95,24 +112,25 @@ describe('App.tsx SHELL-12: session:exit branching on exitCode === 0', () => {
   })
 
   /**
-   * Assertion 4 (UI-SPEC §4 SHELL-12 #4):
-   * ExitToast receives no entries for exit-code-0 sessions.
+   * Assertion 4 (UI-SPEC §4 SHELL-12 #4 — updated by CR-01 fix):
+   * When auto-close is ON, ExitToast receives no entries for exit-code-0 sessions.
+   * When auto-close is OFF, the session falls through to setSessionExits (ExitToast shown).
    *
-   * This is structurally guaranteed by the early-return: setSessionExits is
-   * never called for exit-code 0, so sessionExits never contains an entry
-   * for clean-exit sessions. Assert that no setSessionExits call exists inside
-   * the exitCode === 0 branch (i.e., before the `return` statement).
+   * The autoCloseRef guard block (containing handleCloseTabRef and return) must NOT
+   * contain a setSessionExits call — setSessionExits is only reached outside the
+   * autoCloseRef block. This is the structural invariant that preserves both behaviors.
    */
-  it('4: exitCode === 0 branch does NOT call setSessionExits (ExitToast gets no entries)', () => {
+  it('4: autoCloseRef guard block does NOT call setSessionExits directly', () => {
     const handler = getExitHandlerBody()
-    const branchStart = handler.indexOf('data.exitCode === 0')
-    expect(branchStart).toBeGreaterThan(-1)
-    // The return statement closes the branch; grab only the branch body
-    const branchBody = handler.slice(branchStart, branchStart + 200)
-    const returnIdx = branchBody.indexOf('return')
+    const guardIdx = handler.indexOf('if (autoCloseRef.current)')
+    expect(guardIdx).toBeGreaterThan(-1)
+    // Get the guard body (up to the matching close brace — use the return as end marker)
+    const guardBody = handler.slice(guardIdx, guardIdx + 250)
+    const returnIdx = guardBody.indexOf('return')
     expect(returnIdx).toBeGreaterThan(-1)
-    const onlyBranchBody = branchBody.slice(0, returnIdx)
-    expect(onlyBranchBody).not.toContain('setSessionExits')
+    // Inside the guard, before the return, there must be no setSessionExits
+    const beforeReturn = guardBody.slice(0, returnIdx)
+    expect(beforeReturn).not.toContain('setSessionExits')
   })
 
   /**
@@ -135,6 +153,53 @@ describe('App.tsx SHELL-12: session:exit branching on exitCode === 0', () => {
     expect(raw).toContain('setActiveId(next?.id ?? null)')
     // handleCloseTabRef must be kept in sync (assigned after handleCloseTab definition)
     expect(raw).toContain('handleCloseTabRef.current = handleCloseTab')
+  })
+
+  // ── CR-01 fix: autoCloseRef.current consulted before handleCloseTabRef ─────
+
+  /**
+   * CR-01 (Phase 107): the session:exit handler MUST check autoCloseRef.current
+   * before calling handleCloseTabRef.current. The close-tab call must be INSIDE
+   * an `if (autoCloseRef.current)` guard so the user's "Auto-close tab on exit"
+   * preference is honored. When auto-close is OFF, control falls through to the
+   * setSessionExits path so ExitToast is shown.
+   */
+  it('CR-01: autoCloseRef.current is checked before handleCloseTabRef is called', () => {
+    const handler = getExitHandlerBody()
+    const autoCloseIdx = handler.indexOf('autoCloseRef.current')
+    const closeTabIdx = handler.indexOf('handleCloseTabRef.current')
+    expect(autoCloseIdx).toBeGreaterThan(-1)
+    expect(closeTabIdx).toBeGreaterThan(-1)
+    // autoCloseRef.current guard must appear before the handleCloseTabRef call
+    expect(autoCloseIdx).toBeLessThan(closeTabIdx)
+  })
+
+  it('CR-01: handleCloseTabRef.current call is inside an autoCloseRef guard block', () => {
+    const handler = getExitHandlerBody()
+    // The structural shape expected:
+    //   if (autoCloseRef.current) {
+    //     // Auto-close enabled: close tab immediately (SHELL-12 default path)
+    //     void handleCloseTabRef.current?.(data.sessionId)
+    //     return
+    //   }
+    const autoCloseGuardIdx = handler.indexOf('if (autoCloseRef.current)')
+    expect(autoCloseGuardIdx).toBeGreaterThan(-1)
+    // Use a generous window to cover the guard body including the comment line
+    const guardBody = handler.slice(autoCloseGuardIdx, autoCloseGuardIdx + 300)
+    expect(guardBody).toContain('handleCloseTabRef.current')
+    expect(guardBody).toContain('return')
+  })
+
+  it('CR-01: when autoCloseRef is false, control falls through to setSessionExits', () => {
+    const handler = getExitHandlerBody()
+    // After the autoCloseRef guard block closes, the handler must fall through
+    // to setSessionExits (the ExitToast path). Verify setSessionExits appears
+    // AFTER the first `return` (the one inside the autoCloseRef guard).
+    const firstReturn = handler.indexOf('return')
+    const setExitsIdx = handler.indexOf('setSessionExits', firstReturn + 1)
+    expect(firstReturn).toBeGreaterThan(-1)
+    expect(setExitsIdx).toBeGreaterThan(-1)
+    expect(setExitsIdx).toBeGreaterThan(firstReturn)
   })
 
   // ── Structural invariants that lock the countdown removal ────────────────

@@ -544,17 +544,23 @@ function App(): React.ReactElement {
         duration: number
         finalStatus: string
       }) => {
-        // SHELL-12: clean exit (code 0) closes the tab immediately — no toast,
-        // no countdown. The daemon (107-02) normalizes PTY -1 → 0 so we can
-        // trust this branch covers all natural-exit cases including shell EOF.
+        // SHELL-12: on clean exit (code 0), respect the user's "Auto-close tab
+        // on exit" preference (autoCloseRef, loaded from GetAutoCloseSession()).
+        // When auto-close is ON (default): close tab immediately — no toast, no
+        // countdown. When OFF: fall through to setSessionExits so the ExitToast
+        // appears, honoring the user's explicit preference.
+        // The daemon (107-02) normalizes PTY -1 → 0, so this branch covers all
+        // natural-exit cases including shell EOF.
         if (data.exitCode === 0) {
-          void handleCloseTabRef.current?.(data.sessionId)
-          return
+          if (autoCloseRef.current) {
+            // Auto-close enabled: close tab immediately (SHELL-12 default path)
+            void handleCloseTabRef.current?.(data.sessionId)
+            return
+          }
+          // Auto-close disabled: fall through to show ExitToast (no countdown)
         }
-        // Non-zero exit: record exit state and show ExitToast (existing behavior).
-        // No countdown for non-zero exits — this matches the previous pattern where
-        // the countdown branch was already gated on exitCode === 0, so removing
-        // it leaves non-zero behavior unchanged.
+        // Non-zero exit (or zero-exit with auto-close OFF): record exit state
+        // and show ExitToast (existing behavior).
         const exitState: ExitState = {
           sessionId: data.sessionId,
           sessionName: data.sessionName,
