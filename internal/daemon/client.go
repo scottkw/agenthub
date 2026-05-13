@@ -137,6 +137,23 @@ func (c *DaemonClient) SetStartMinimized(val bool) error {
 		map[string]bool{"startMinimized": val}, nil)
 }
 
+// GetShellWebShareWarned returns the persisted shell-web-share-warned flag.
+// Phase 101 SHELL-08.
+func (c *DaemonClient) GetShellWebShareWarned() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/shell-web-share-warned", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp["value"], nil
+}
+
+// SetShellWebShareWarned persists the shell-web-share-warned flag.
+// Phase 101 SHELL-08.
+func (c *DaemonClient) SetShellWebShareWarned(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/shell-web-share-warned",
+		map[string]bool{"value": val}, nil)
+}
+
 // GetAutoCloseSession returns the auto-close-on-exit preference.
 func (c *DaemonClient) GetAutoCloseSession() (bool, error) {
 	var resp map[string]bool
