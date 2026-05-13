@@ -303,7 +303,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 **Goal:** [To be planned]
 **Requirements**: TBD
 **Depends on:** Phase 106
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 107 to break down)
