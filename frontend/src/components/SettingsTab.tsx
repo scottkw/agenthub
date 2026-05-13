@@ -17,6 +17,9 @@ import {
   GetAutoCloseSession,
   SetAutoCloseSession,
   RegenerateSigningKey,
+  // Phase 107-03 SHELL-11 — shell binary path setting
+  GetShellPath,
+  SetShellPath,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
@@ -106,6 +109,10 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [showRegenModal, setShowRegenModal] = useState(false)
   const [regenError, setRegenError] = useState<string | null>(null)
 
+  // Phase 107-03 SHELL-11 — shell binary path setting (Settings → Paths row).
+  const [shellPath, setShellPath] = useState('')
+  const [shellPathError, setShellPathError] = useState('')
+
   // Load web serving state on mount.
   useEffect(() => {
     async function loadWebState() {
@@ -129,12 +136,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   }, [])
 
   // Load stored CLI path overrides from daemon on mount.
+  // Phase 107-03 SHELL-11: also load shell binary path in parallel.
   useEffect(() => {
     GetCLIPaths().then(paths => {
       if (paths && Object.keys(paths).length > 0) {
         setCustomPaths(prev => ({ ...prev, ...paths }))
       }
     }).catch(() => {})
+    GetShellPath().then(setShellPath).catch(() => setShellPath(''))
   }, [])
 
   // Fetch LAN password when in local mode and server is running.
@@ -242,6 +251,16 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       if (tsCustom !== '') {
         await UpdateCLIPath('tailscale', tsCustom)
       }
+      // Phase 107-03 SHELL-11: save shell binary path via daemon PATCH.
+      // Runs inside try/catch so a validation error (daemon 400) surfaces
+      // inline below the field without blocking the other paths from saving.
+      try {
+        await SetShellPath(shellPath.trim())
+        setShellPathError('')
+      } catch (err) {
+        setShellPathError(err instanceof Error ? err.message : String(err))
+        // Continue — partial save is acceptable per existing tailscale pattern.
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 1500)
     } catch (err) {
@@ -257,6 +276,15 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     const selected = await OpenFileDialog(dir)
     if (selected) {
       setCustomPaths(prev => ({ ...prev, [cliName]: selected }))
+    }
+  }
+
+  // Phase 107-03 SHELL-11 — Browse handler for the shell binary path field.
+  async function handleShellBrowse() {
+    const dir = shellPath ? shellPath.replace(/[/\\][^/\\]*$/, '') : ''
+    const selected = await OpenFileDialog(dir)
+    if (selected) {
+      setShellPath(selected)
     }
   }
 
@@ -672,6 +700,37 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
                 </td>
               </tr>
             ))}
+            {/* Phase 107-03 SHELL-11: Shell binary path row — after AI CLI rows, before tailscale.
+                Participates in the existing Save Paths flow. Error renders inline below field. */}
+            <tr key="shell">
+              <td className="settings-panel__cli-name">shell</td>
+              <td>
+                <div className="settings-panel__path-row">
+                  <input
+                    id="settings-shell-path"
+                    className="settings-panel__path-input"
+                    type="text"
+                    value={shellPath}
+                    onChange={(e) => setShellPath(e.target.value)}
+                    placeholder="e.g. /bin/zsh"
+                    aria-label="Shell binary path"
+                    aria-describedby="settings-shell-path-desc"
+                  />
+                  <button
+                    className="settings-panel__browse-btn"
+                    onClick={() => void handleShellBrowse()}
+                    title="Browse for shell executable"
+                  >
+                    Browse
+                  </button>
+                </div>
+                {shellPathError && (
+                  <p id="settings-shell-path-desc" className="settings-panel__error" role="alert">
+                    {shellPathError}
+                  </p>
+                )}
+              </td>
+            </tr>
             {!clis.find(c => c.Name === 'tailscale') && (
               <tr key="tailscale">
                 <td className="settings-panel__cli-name">tailscale</td>
