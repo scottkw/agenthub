@@ -247,4 +247,61 @@ describe('SHELL-11: Settings → Paths "Shell binary" row', () => {
     expect(errorPara).not.toBeNull()
     expect(errorPara!.getAttribute('role')).toBe('alert')
   })
+
+  // Assertion WR-02: When SetShellPath fails, the "Saved!" indicator must NOT appear.
+  // This is the regression test for the false-positive "Saved!" when shell-path
+  // validation returns 400. The button must stay in its normal (not Saved!) state.
+  it('WR-02: on SetShellPath failure, Saved! indicator does NOT appear', async () => {
+    vi.mocked(AppMock.SetShellPath).mockRejectedValue(new Error('path /bad is a directory, not an executable'))
+    ;({ container, root } = renderSettings())
+    await act(async () => { await Promise.resolve() })
+
+    const saveBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Save Paths') || b.textContent?.includes('Saving')
+    ) as HTMLButtonElement
+    expect(saveBtn).not.toBeUndefined()
+
+    await act(async () => {
+      flushSync(() => saveBtn.click())
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // The inline error must be visible
+    const errorPara = container.querySelector('[role="alert"]') as HTMLElement | null
+    expect(errorPara).not.toBeNull()
+    expect(errorPara!.textContent).toContain('is a directory')
+
+    // The save button must NOT say "Saved!" (no false success indicator)
+    const allButtons = Array.from(container.querySelectorAll('button'))
+    const savedBtn = allButtons.find((b) => b.textContent?.includes('Saved!'))
+    expect(savedBtn).toBeUndefined()
+  })
+
+  // Assertion WR-02b: When SetShellPath succeeds, the "Saved!" indicator DOES appear.
+  it('WR-02b: on SetShellPath success, Saved! indicator appears', async () => {
+    vi.mocked(AppMock.SetShellPath).mockResolvedValue(undefined)
+    ;({ container, root } = renderSettings())
+    await act(async () => { await Promise.resolve() })
+
+    const saveBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Save Paths') || b.textContent?.includes('Saving')
+    ) as HTMLButtonElement
+    expect(saveBtn).not.toBeUndefined()
+
+    await act(async () => {
+      flushSync(() => saveBtn.click())
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    // No inline error
+    const errorPara = container.querySelector('[role="alert"]')
+    expect(errorPara).toBeNull()
+
+    // The save button must show "Saved!" on success
+    const allButtons = Array.from(container.querySelectorAll('button'))
+    const savedBtn = allButtons.find((b) => b.textContent?.includes('Saved!'))
+    expect(savedBtn).not.toBeUndefined()
+  })
 })

@@ -254,15 +254,21 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       // Phase 107-03 SHELL-11: save shell binary path via daemon PATCH.
       // Runs inside try/catch so a validation error (daemon 400) surfaces
       // inline below the field without blocking the other paths from saving.
+      // WR-02 fix: track whether the shell-path save succeeded so we can
+      // suppress the false "Saved!" indicator when validation fails.
+      let shellPathOk = true
       try {
         await SetShellPath(shellPath.trim())
         setShellPathError('')
       } catch (err) {
+        shellPathOk = false
         setShellPathError(err instanceof Error ? err.message : String(err))
         // Continue — partial save is acceptable per existing tailscale pattern.
       }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
+      if (shellPathOk) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 1500)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
