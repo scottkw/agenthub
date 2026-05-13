@@ -111,6 +111,15 @@ describe('Phase 104 SETUI-03: SettingsSearch component', () => {
     container.remove()
   })
 
+  function setReactInputValue(input: HTMLInputElement, value: string): void {
+    // React 19 uses a native-value tracker; we must invoke the
+    // prototype setter so its onChange handler observes the change.
+    const proto = Object.getPrototypeOf(input)
+    const desc = Object.getOwnPropertyDescriptor(proto, 'value')
+    desc?.set?.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+
   it('filters labels by substring (case-insensitive) and shows matches as clickable results', async () => {
     const React = await import('react')
     const { createRoot } = await import('react-dom/client')
@@ -126,8 +135,7 @@ describe('Phase 104 SETUI-03: SettingsSearch component', () => {
 
     const input = container.querySelector('input') as HTMLInputElement
     flushSync(() => {
-      input.value = 'sess'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
+      setReactInputValue(input, 'sess')
     })
 
     // Expect a results list with at least one entry mentioning "Session Behavior".
@@ -156,8 +164,7 @@ describe('Phase 104 SETUI-03: SettingsSearch component', () => {
 
     const input = container.querySelector('input') as HTMLInputElement
     flushSync(() => {
-      input.value = 'appearance'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
+      setReactInputValue(input, 'appearance')
     })
 
     const results = container.querySelectorAll('.settings-search__result')

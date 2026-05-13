@@ -150,15 +150,18 @@ describe('SETT-01: Single scrollable page (no sub-tabs)', () => {
 
 describe('SETT-02: Section headers present', () => {
   it('has Appearance section header', () => {
-    expect(raw).toContain('<h3>Appearance</h3>')
+    // Phase 104: header carries id="settings-appearance" anchor for the jump-bar.
+    expect(raw).toMatch(/<h3[^>]*>Appearance<\/h3>/)
   })
 
   it('has Web Server section header', () => {
-    expect(raw).toContain('<h3>Web Server</h3>')
+    // Phase 104: header carries id="settings-web-server" anchor for the jump-bar.
+    expect(raw).toMatch(/<h3[^>]*>Web Server<\/h3>/)
   })
 
   it('has Paths section header', () => {
-    expect(raw).toContain('<h3>Paths</h3>')
+    // Phase 104: header carries id="settings-paths" anchor for the jump-bar.
+    expect(raw).toMatch(/<h3[^>]*>Paths<\/h3>/)
   })
 })
 
@@ -295,7 +298,10 @@ describe('TS-01/TS-02: 4-state Tailscale detection', () => {
 
 describe('SET-01: Unified path table (single table for CLI + tailscale rows)', () => {
   it('has exactly one settings-panel__table in the Paths section', () => {
-    const pathsStart = raw.indexOf('<h3>Paths</h3>')
+    // Phase 104: header carries id="settings-paths" — use regex match to locate it.
+    const pathsHeaderMatch = raw.match(/<h3[^>]*>Paths<\/h3>/)
+    expect(pathsHeaderMatch).not.toBeNull()
+    const pathsStart = raw.indexOf(pathsHeaderMatch![0])
     const saveRow = raw.indexOf('settings-panel__save-paths-row', pathsStart)
     expect(pathsStart).toBeGreaterThan(-1)
     const pathsBlock = raw.slice(pathsStart, saveRow)

@@ -286,7 +286,7 @@ export function PluginsSection({
 
   return (
     <>
-      <h3>Plugins</h3>
+      <h3 id="settings-plugins">Plugins</h3>
       {loadError && (
         <p className="settings-panel__error">
           Could not load plugin settings — {loadError}

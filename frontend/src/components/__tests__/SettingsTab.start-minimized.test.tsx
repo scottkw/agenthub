@@ -64,7 +64,8 @@ describe('TRAY-01: Start-minimized toggle — handler', () => {
 
 describe('TRAY-01: Start-minimized toggle — JSX structure', () => {
     it('renders Behavior section heading', () => {
-        expect(raw).toContain('<h3>Behavior</h3>')
+        // Phase 104: header carries id="settings-behavior" anchor for the jump-bar.
+        expect(raw).toMatch(/<h3[^>]*>Behavior<\/h3>/)
     })
 
     it('has "Start minimized to system tray" toggle label text', () => {

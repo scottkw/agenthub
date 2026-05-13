@@ -27,6 +27,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { RegenerateKeyModal } from './RegenerateKeyModal'
 import { PluginsSection, type PluginToggleKind } from './PluginsSection'
+import { SettingsJumpBar } from './SettingsJumpBar'
+import { SettingsSearch } from './SettingsSearch'
 
 const THEME_NAMES = ALLOWED_THEMES
 
@@ -335,8 +337,13 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   return (
     <div className="settings-tab">
       <div className="settings-panel__body">
+        {/* Phase 104 SETUI-01/02/03 — Hyperlinked index: sticky jump-bar
+            + autocomplete search, mounted above the first section. */}
+        <SettingsJumpBar />
+        <SettingsSearch />
+
         {/* Behavior section (TRAY-01) */}
-        <h3>Behavior</h3>
+        <h3 id="settings-behavior">Behavior</h3>
         <div className="settings-panel__field-group">
           {toggleLoaded && (
             <label
@@ -364,7 +371,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         </div>
 
         {/* Session Behavior section (Phase 84 D-11) */}
-        <h3>Session Behavior</h3>
+        <h3 id="settings-session-behavior">Session Behavior</h3>
         <div className="settings-panel__field-group">
           {autoCloseLoaded && (
             <label
@@ -392,7 +399,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         </div>
 
         {/* Appearance section (SETT-02) */}
-        <h3>Appearance</h3>
+        <h3 id="settings-appearance">Appearance</h3>
         <div className="settings-panel__field-group">
           <label className="settings-panel__label">Terminal Theme</label>
           <select
@@ -408,7 +415,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         </div>
 
         {/* Web Server section (SETT-02) */}
-        <h3>Web Server</h3>
+        <h3 id="settings-web-server">Web Server</h3>
         <p className="settings-panel__description">
           Enable HTTPS access to terminal sessions from your Tailscale network.
         </p>
@@ -605,7 +612,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         )}
 
         {/* Security section (Phase 87 D-16, UI-SPEC Surface 2) */}
-        <h3>Security</h3>
+        <h3 id="settings-security">Security</h3>
         <p className="settings-panel__description">
           Rotating the signing key immediately invalidates all shared links across all sessions. Use this if you suspect a link has been leaked.
         </p>
@@ -625,7 +632,7 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
         />
 
         {/* Paths section (SET-01 fix: single unified table) */}
-        <h3>Paths</h3>
+        <h3 id="settings-paths">Paths</h3>
         {clis.length === 0 && (
           <p className="settings-panel__empty">
             No CLIs detected. Install claude, opencode, or another supported CLI
