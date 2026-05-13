@@ -92,10 +92,40 @@ jobs:
           }
       - name: Submit to WinGet
         shell: pwsh
+        env:
+          # DIST-02 (Phase 106 91-B fix): read RELEASE_TAG from the workflow
+          # env block (defined at line 13) so both release.published and
+          # workflow_dispatch produce a valid tag. The previous
+          # github.event.release.tag_name reference is empty on
+          # workflow_dispatch, producing an empty `$version` and a
+          # double-dash installer URL.
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          # DIST-03 (Phase 106 91-C fix): controls `new` vs `update` for the
+          # wingetcreate submission. Set WINGET_FIRST_SUBMISSION=true on the
+          # first submission attempt (microsoft/winget-pkgs hasn't accepted
+          # scottkw.agenthub yet), then unset for subsequent versions.
+          # Defaults to update path so steady-state ships are unchanged.
+          WINGET_FIRST_SUBMISSION: ${{ vars.WINGET_FIRST_SUBMISSION || 'false' }}
         run: |
-          $version = "${{ github.event.release.tag_name }}".Trim('v')
-          $installerUrl = "https://github.com/scottkw/agenthub/releases/download/${{ github.event.release.tag_name }}/agenthub-${{ github.event.release.tag_name }}-windows-amd64-installer.exe"
-          .\wingetcreate.exe update scottkw.agenthub `
-            --version $version `
-            --urls $installerUrl `
-            --submit
+          $tag = $env:RELEASE_TAG
+          if ([string]::IsNullOrEmpty($tag)) {
+            Write-Error "RELEASE_TAG is empty — cannot construct installer URL. Check workflow_dispatch input or release event."
+            exit 1
+          }
+          $version = $tag.TrimStart('v')
+          $installerUrl = "https://github.com/scottkw/agenthub/releases/download/$tag/agenthub-$tag-windows-amd64-installer.exe"
+          Write-Host "Submitting WinGet manifest: tag=$tag version=$version url=$installerUrl mode=$($env:WINGET_FIRST_SUBMISSION -eq 'true' ? 'new' : 'update')"
+          if ($env:WINGET_FIRST_SUBMISSION -eq 'true') {
+            # First submission to microsoft/winget-pkgs — creates the package entry.
+            .\wingetcreate.exe new `
+              --urls $installerUrl `
+              --version $version `
+              --package-identifier scottkw.agenthub `
+              --submit
+          } else {
+            # Steady-state path — updates the existing package entry.
+            .\wingetcreate.exe update scottkw.agenthub `
+              --version $version `
+              --urls $installerUrl `
+              --submit
+          }

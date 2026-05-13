@@ -445,4 +445,10 @@ jobs:
             artifacts/checksums.txt
           fail_on_unmatched_files: true
           draft: ${{ contains(github.ref, '-rc') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # DIST-01 (Phase 106 91-A fix): publish via RELEASE_PUBLISH_TOKEN (PAT)
+          # so the resulting `release.published` event triggers distribute.yml
+          # automatically. GITHUB_TOKEN-published releases are muted by Actions
+          # safety policy and do NOT fire downstream workflows.
+          # Falls back to GITHUB_TOKEN if RELEASE_PUBLISH_TOKEN is not set so
+          # manual dispatch still works.
+          token: ${{ secrets.RELEASE_PUBLISH_TOKEN || secrets.GITHUB_TOKEN }}
