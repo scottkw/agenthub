@@ -22,7 +22,6 @@
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
-- 🚧 **v3.3 Shell Sessions & Polish** — Phases 100-106 (in progress, closes Issues #44 + #45, absorbs Phase 91 deferred work + v3.2 polish/UAT carry-over)
 
 ## Phases
 
@@ -228,7 +227,7 @@
 - [x] **Phase 89: Vendored Terminal Assets + CSP** — xterm JS/CSS embedded in binary; strict CSP on all three HTML routes (`script-src 'self'`, `connect-src 'self' wss://<host>`, `style-src 'self' 'unsafe-inline'` per D-09). Zero CDN fetches verified across 1779 requests. (UAT complete 2026-05-02)
 - [x] **Phase 90: Release Pipeline Hardening** — All third-party Actions SHA-pinned; build tools pinned via `tools.go`; release.yml split into validate → build-{macos,windows,linux} → sign-macos (gated by required-reviewer rule) → publish; SLSA L2 attestations verified before codesigning. (Pipeline E2E proven through 5 rc cycles before v3.1.0 final tag)
 
-Distribution follow-ups deferred to a future milestone (see `.planning/deferred/91-distribution-pipeline-followups/91-CONTEXT.md`) — absorbed by v3.3 Phase 106:
+Distribution follow-ups deferred to a future milestone (see `.planning/deferred/91-distribution-pipeline-followups/91-CONTEXT.md`):
   - 91-A: Switch `release.yml` from `GITHUB_TOKEN` to PAT so `release.published` auto-triggers `distribute.yml`
   - 91-B: Fix `submit-winget` step's templating to handle `workflow_dispatch` events (use `RELEASE_TAG` env var instead of `github.event.release.tag_name`)
   - 91-C: One-time WinGet first-submission to `microsoft/winget-pkgs` (use `wingetcreate new`, not `update`)
@@ -253,135 +252,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 </details>
 
-### 🚧 v3.3 Shell Sessions & Polish (In Progress)
-
-**Milestone Goal:** Land raw shell sessions (bash/zsh/pwsh) as a first-class agent type — unblocking the ~9 deferred v3.2 UAT scenarios that require raw PTY — then close v3.2 polish/tech-debt and re-run the deferred UAT batches end-to-end. Closes GitHub Issues #44 (shell agent) and #45 (Settings hyperlinked index). Absorbs Phase 91 v3.1 distribution-pipeline follow-ups.
-
-**Phase numbering:** Continues from v3.2's last phase (99). v3.3 spans Phases 100-106. The deferred Phase 91 directory remains at `.planning/deferred/91-distribution-pipeline-followups/`; its work is absorbed into Phase 106 (fresh v3.3 phase, NOT a renumber of 91).
-
-- [x] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn with working-directory honor, exclusion from CLI-status heuristics. (completed 2026-05-13)
-- [ ] **Phase 101: Shell Session Surfaces & Web-Share Gating** — User-facing shell selection across GUI/CLI/TUI plus distinct agent badge color, web-share-disabled-by-default override, one-time arbitrary-execution confirmation banner.
-- [x] **Phase 102: Web-Links Polish — mailto + IDN** — Close the v3.2 LNK spec gap: detect `mailto:` URLs (P-1) and admit non-ASCII hostnames so the `LinkConfirmPopover` fires for Cyrillic/IDN homographs (P-2). (completed 2026-05-13)
-- [ ] **Phase 103: Find Bar Dismiss + Test-Env + IIP Polish** — Find-bar Esc/close after case-sensitive toggle (P-3), find-bar slide-out animation (P-4), iTerm2 IIP investigation+decision (P-5), Vitest 4 + jsdom 29 localStorage test-env fix (P-6).
-- [ ] **Phase 104: Settings Hyperlinked Index** — Issue #45: sticky jump-link bar at the top of Settings with anchor links + smooth scroll to each section header, plus an autocomplete search box.
-- [ ] **Phase 105: Deferred v3.2 UAT Re-Run** — Execute the 9 UAT scenarios deferred from v3.2 (now unblocked by shell sessions): WebGL context-loss, iPad rasterizer banner, 10K-line scrollback perf, full LNK chain on iPad, chafa sixel/IIP fidelity, two-client mid-stream image join, iPad 5-scenario runbook.
-- [ ] **Phase 106: Distribution Pipeline Followups** — Absorb the deferred Phase 91 bucket: PAT-credentialed `release.yml` (91-A), `RELEASE_TAG` env var in `distribute.yml` (91-B), one-time `wingetcreate new` for first WinGet submission (91-C).
-
-## Phase Details
-
-### Phase 100: Shell Session Backend & Discovery
-**Goal**: Daemon can spawn raw shell PTYs as a distinct session type with cross-platform binary discovery, correct interactive (non-login) semantics, and clean exclusion from AI-CLI status heuristics.
-**Depends on**: Nothing inside v3.3 (foundation phase; depends only on v3.2 daemon code)
-**Requirements**: SHELL-04, SHELL-05, SHELL-09
-**Success Criteria** (what must be TRUE):
-  1. Daemon enumerates installed shells per platform (macOS: `/bin/bash`, `/bin/zsh`; Linux: `$SHELL` + `/etc/shells` entries; Windows: `pwsh.exe`, `powershell.exe`) and exposes them via session-creation API.
-  2. A shell session spawned via the daemon API runs as an interactive, non-login PTY with the caller-supplied working directory honored.
-  3. Shell sessions appear in `agenthub list` and the session registry without ever emitting `waiting` or `error` heuristic states — only `running` and `stopped`.
-**Plans**: 4 plans
-
-Plans:
-- [x] 100-01-PLAN-shell-discovery-library.md — internal/pty/shells.go cross-platform shell discovery library + tests (SHELL-04 core)
-- [x] 100-02-PLAN-engine-shell-spawn.md — engine.go shell argv resolution, WorkDir $HOME default, and status.Watch bypass guard (SHELL-05, SHELL-09)
-- [x] 100-03-PLAN-windows-pwsh-path.md — path_windows.go PowerShell 7 + Microsoft Store PATH augmentation (SHELL-04 Windows reliability)
-- [x] 100-04-PLAN-shells-http-route.md — GET /shells HTTP route, ShellsResponse types, DaemonClient.ListShells, end-to-end SHELL-09 lifecycle test (SHELL-04 API surface)
-
-### Phase 101: Shell Session Surfaces & Web-Share Gating
-**Goal**: User can pick a shell as a first-class "agent" everywhere (GUI new-session modal, CLI `agenthub new shell`, TUI new-session flow), see it visually distinguished, and only enable web serving for it through an explicit one-time confirmation step.
-**Depends on**: Phase 100 (daemon spawns + discovery API exists)
-**Requirements**: SHELL-01, SHELL-02, SHELL-03, SHELL-06, SHELL-07, SHELL-08
-**Success Criteria** (what must be TRUE):
-  1. User selects bash / zsh / pwsh / "system default" in the GUI new-session modal agent picker and the session opens in a tab.
-  2. User launches a shell session from CLI (`agenthub new shell <path>` or equivalent `--shell` flag) and from the TUI new-session modal.
-  3. Shell sessions render a distinct agent badge color in the GUI tab bar and TUI session list (consistent with the existing 6-CLI palette).
-  4. When the web server is running, newly-created shell sessions are NOT auto-enabled for web serving (overrides the agent-session default).
-  5. The first time a user toggles web serving ON for a shell session, a one-time confirmation banner explains that shells expose arbitrary command execution; subsequent toggles do not re-prompt.
-**Plans**: 4 plans
-
-Plans:
-- [ ] 101-01-PLAN.md — Wails RPC bindings (ListShells, Get/SetShellWebShareWarned) + daemon settings field + HTTP routes (foundation wave)
-- [x] 101-02-PLAN.md — NewSessionModal shell rows + TabBar agent badge + CSS palette (GUI surface)
-- [x] 101-03-PLAN.md — ShellWebShareBanner component + App.tsx web-toggle interception (security banner + SHELL-07 frontend gate)
-- [x] 101-04-PLAN.md — CLI `new shell` subcommand + TUI agent picker extension + BadgeShell color (CLI/TUI surface)
-
-**UI hint**: yes
-
-### Phase 102: Web-Links Polish — mailto + IDN
-**Goal**: Close the v3.2 Phase 95 spec gap so the Web-Links plugin matches its documented behavior: `mailto:` URLs are clickable and IDN/Cyrillic-homograph URLs trigger the existing `LinkConfirmPopover`.
-**Depends on**: Phase 100 (UAT reproduction requires a shell session to print test URLs) — implementation itself is independent of shell work but cross-checking against `/tmp/web-links-test.sh` fixture needs raw PTY.
-**Requirements**: POLISH-01, POLISH-02
-**Success Criteria** (what must be TRUE):
-  1. User Cmd-clicks (macOS) / Ctrl-clicks (elsewhere) a `mailto:noreply@example.com` URL in terminal output and the system mail client opens.
-  2. When a URL contains non-ASCII hostname characters (e.g. `https://gооgle.com` with Cyrillic `о` U+043E), it renders as a clickable link, and on activation the `LinkConfirmPopover` displays both the display form and the resolved Punycode form before any navigation.
-  3. The fix is applied symmetrically across the desktop (`frontend/src/components/TerminalPanel.tsx`) and web (`web/assets/terminal.js`) link matchers.
-**Plans**: TBD
-
-Plans:
-- [x] 102-01: TBD
-
-### Phase 103: Find Bar Dismiss + Test-Env + IIP Polish
-**Goal**: Close the four remaining v3.2 polish items that are not in the link path: find-bar focus/event-propagation dismiss bug, find-bar exit animation, iTerm2 IIP rendering investigation+decision, and Vitest 4 + jsdom 29 `localStorage` test-env regression.
-**Depends on**: Phase 100 (POLISH-05 IIP repro fixture requires a shell session to print `ESC ] 1337` sequences)
-**Requirements**: POLISH-03, POLISH-04, POLISH-05, POLISH-06
-**Success Criteria** (what must be TRUE):
-  1. After clicking the find-bar case-sensitive toggle, pressing Esc OR clicking the close button dismisses the find bar (both on desktop `FindBar.tsx` and `web/assets/terminal.js`).
-  2. The find bar slides out with the same 200ms animation it uses on entry (`.find-bar--exiting` class applied with delayed unmount) on both Esc and close-button dismiss.
-  3. iTerm2 IIP (OSC 1337) is EITHER demonstrated to render correctly with the Image plugin enabled OR explicitly documented as sixel-only support (Phase 96 SUMMARY + `web/vendor/xterm/addons/addon-image/README` updated with the decision).
-  4. All 20 currently-failing `Sidebar.test.tsx` tests pass under Vitest 4 + jsdom 29 via a setupFile that exposes `localStorage` as a global; no source code under `frontend/src/components/` is touched.
-**Plans**: TBD
-
-Plans:
-- [ ] 103-01: TBD
-
-**UI hint**: yes
-
-### Phase 104: Settings Hyperlinked Index
-**Goal**: User can navigate the Settings tab via a sticky jump-link bar with section anchors and an autocomplete search box (Issue #45).
-**Depends on**: Nothing inside v3.3 (independent UI work; can ship in parallel with shell phases)
-**Requirements**: SETUI-01, SETUI-02, SETUI-03
-**Success Criteria** (what must be TRUE):
-  1. A sticky jump-link bar at the top of the Settings tab shows anchor links to each section header (Plugins, Appearance, Web Server, Behavior, Paths).
-  2. Clicking any jump-link smoothly scrolls the Settings tab to that section without losing the sticky bar.
-  3. Typing into the autocomplete search box at the top of Settings filters matching setting labels and, on selection, jumps to the corresponding section.
-**Plans**: TBD
-
-Plans:
-- [ ] 104-01: TBD
-
-**UI hint**: yes
-
-### Phase 105: Deferred v3.2 UAT Re-Run
-**Goal**: Execute and sign off the 9 v3.2 UAT scenarios that were deferred to v3.3 — all now unblocked by shell sessions (Phase 100/101) and the link/find-bar polish (Phases 102/103).
-**Depends on**: Phase 101 (shell sessions surfaced to GUI/web/CLI for UAT printing of test fixtures), Phase 102 (LNK chain re-run requires mailto + IDN fixes landed), Phase 103 (full polish closure for find-bar UAT-3 and IIP/sixel decision before Phase 96 fidelity test)
-**Requirements**: UAT-01, UAT-02, UAT-03, UAT-04, UAT-05, UAT-06, UAT-07
-**Success Criteria** (what must be TRUE):
-  1. Phase 93 UAT-1 verified in desktop Chrome: `WEBGL_lose_context.loseContext()` invocation in DevTools triggers the WebGL recovery banner with 8s auto-dismiss.
-  2. Phase 93 UAT-2 verified on physical iPad Safari over a Tailscale-served session: software-rasterizer banner appears.
-  3. Phase 94 UAT-3 verified: 10,000-line scrollback regex search completes within the documented main-thread frame-time budget (DevTools Performance capture attached).
-  4. Phase 95 UAT-4 verified on iPad Safari + Tailscale: full LNK-01..05 chain (Cmd-click activation, IDN popover, typosquat popover, OSC 8 hover-href, `mailto:`) operates end-to-end using a shell session to print the fixtures.
-  5. Phase 96 UAT-5 + UAT-6 verified using a shell session: `chafa --format=iterm2` (or sixel fallback per Phase 103 decision) renders identically across desktop and web; two-client mid-stream join replays the image with byte-fidelity over the WSS relay.
-  6. Phase 99 UAT-7 verified on physical iPad + Tailscale: all 5 scenarios in `.planning/phases/99-*/99-iPad-UAT.md` (attach+chafa, scrollback, zero-CDN, zero-CSP, all-8-ON Progress) pass.
-**Plans**: TBD
-
-Plans:
-- [ ] 105-01: TBD
-
-### Phase 106: Distribution Pipeline Followups
-**Goal**: Close the deferred Phase 91 bucket carried from v3.1 — release pipeline auto-triggers distribute.yml on a real `release.published` event, WinGet manifest submission succeeds end-to-end without manual template fixups, and the first microsoft/winget-pkgs submission uses `wingetcreate new`. Absorbs `.planning/deferred/91-distribution-pipeline-followups/` (the deferred directory is archived as part of this phase).
-**Depends on**: Nothing inside v3.3 (CI/release-pipeline work, isolated from product code; can run anywhere in the sequence — sequenced late so the release gate captures all v3.3 product changes)
-**Requirements**: DIST-01, DIST-02, DIST-03
-**Success Criteria** (what must be TRUE):
-  1. A test release tag pushed via `release.yml` (using the PAT/GitHub-App credential, not `GITHUB_TOKEN`) automatically fires `release.published`, which triggers `distribute.yml` end-to-end — no manual `workflow_dispatch` needed.
-  2. `distribute.yml`'s submit-winget step reads `RELEASE_TAG` from env on both `release:published` and `workflow_dispatch`; the resulting installer URL has no double-dash and `$version` is populated.
-  3. The first WinGet submission to microsoft/winget-pkgs is made via `wingetcreate new` (validated locally before pushing the PR) and the deferred `.planning/deferred/91-distribution-pipeline-followups/` directory is moved into the Phase 106 archive once the PR lands.
-**Plans**: TBD
-
-Plans:
-- [ ] 106-01: TBD
-
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 → 106. Phase 104 (Settings hyperlinked index) is independent and may run in parallel with the shell phases if planning chooses; Phase 106 (distribution) is also independent and may run anywhere in the sequence.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -408,13 +279,6 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
-| 100. Shell Session Backend & Discovery | v3.3 | 4/4 | Complete   | 2026-05-13 |
-| 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 3/4 | In Progress|  |
-| 102. Web-Links Polish — mailto + IDN | v3.3 | 1/1 | Complete   | 2026-05-13 |
-| 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
-| 104. Settings Hyperlinked Index | v3.3 | 0/TBD | Not started | - |
-| 105. Deferred v3.2 UAT Re-Run | v3.3 | 0/TBD | Not started | - |
-| 106. Distribution Pipeline Followups | v3.3 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

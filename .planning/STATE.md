@@ -1,67 +1,77 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: Shell Sessions & Polish
-status: completed
-stopped_at: Roadmap definition complete; awaiting phase 100 planning
-last_updated: "2026-05-13T00:28:44.152Z"
-last_activity: 2026-05-13 -- Phase 100 marked complete
+milestone: v3.2
+milestone_name: Plugin Suite
+status: Awaiting next milestone
+stopped_at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
+last_updated: "2026-05-12T17:48:31.545Z"
+last_activity: 2026-05-12 — Milestone v3.2 completed and archived
 progress:
-  total_phases: 7
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 14
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 44
+  completed_plans: 44
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-12)
+See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 100 — Shell Session Backend & Discovery
+**Current focus:** Phase 99 — settings-ui-polish-migration-final-csp-audit-release-gate
 
 ## Current Position
 
-Phase: 100 — COMPLETE
-Plan: 1 of 4
-Status: Phase 100 complete
-Last activity: 2026-05-13 -- Phase 100 marked complete
+Phase: Milestone v3.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-05-12 — Milestone v3.2 completed and archived
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v3.2 phases: 8 (Phases 92-99)
-- v3.2 plans completed: 44
-- v3.2 timeline: 2026-05-03 → 2026-05-12 (~9 days)
-- Cumulative: 98 phases, 230 plans across 20 milestones (Phase 91 deferred, absorbed by v3.3 Phase 106)
+- v3.1 phases: 4 (Phases 87-90)
+- v3.1 plans completed: 18
+- v3.1 timeline: 2026-04-20 → 2026-05-03 (~13 days)
+- Cumulative: 90 phases, 186 plans across 19 milestones
 
 ## Accumulated Context
 
 ### Decisions
 
-- v3.3 scope addresses GitHub Issues #44 (shell agent) + #45 (Settings hyperlinked index), absorbs v3.2 polish carry-over (P-1..P-6), re-runs 9 deferred v3.2 UAT scenarios, and absorbs the deferred Phase 91 v3.1 distribution-pipeline followups.
-- Phase numbering continues from v3.2 (Phase 99 last shipped). v3.3 spans Phases 100-106 (7 phases). The Phase 91 deferred directory (`.planning/deferred/91-distribution-pipeline-followups/`) is absorbed into Phase 106 — the number 91 is NOT reused.
-- 7-phase shape (100-106) follows the recommended target: SHELL split into two phases (backend then surfaces+gating), POLISH split into two phases (web-links cluster vs find-bar/test-env/IIP cluster), one phase each for SETUI, UAT closure, DIST. SHELL is sequenced first because it unblocks the UAT batch in Phase 105.
-- Phase 100 (Shell backend) is the foundation — daemon-side PTY plumbing and platform shell discovery; no surface work, no web-share considerations. Lays the groundwork that 101 (surfaces+gating) and 105 (UAT) both depend on.
-- Phase 101 (Shell surfaces + web-share gating) combines GUI/CLI/TUI surface work with web-share-disabled-by-default override + one-time arbitrary-execution confirmation banner. Combined because the gating UI (SHELL-07/08) is meaningless without the surfaces (SHELL-01/02/03) being present first.
-- Phase 102 (Web-Links polish) clusters POLISH-01 (mailto) and POLISH-02 (Cyrillic IDN) because both live in the same addon-web-links URL matcher / `LinkConfirmPopover` wiring path; one edit window touches both.
-- Phase 103 (Find-bar + test-env + IIP polish) clusters POLISH-03 (Esc-after-toggle), POLISH-04 (slide-out animation), POLISH-05 (iTerm2 IIP investigation), and POLISH-06 (Vitest localStorage). 03+04 live in the same `FindBar.tsx` / `web/assets/terminal.js` files; 05 is a single-investigation item that doesn't justify its own phase; 06 is a tiny vitest setupFile change. Folding all four into one polish phase avoids fragmentation.
-- Phase 104 (Settings hyperlinked index) is independent of all other v3.3 work — pure additive UI within `SettingsTab.tsx`. Can run in parallel with shell phases if planning chooses.
-- Phase 105 (Deferred UAT re-run) is sequenced AFTER 100/101/102/103 because every deferred UAT depends on a raw shell PTY (to print fixtures) and/or the polish fixes landing first (LNK chain on iPad needs POLISH-01/02 shipped; find-bar UAT cannot pass without POLISH-03/04 shipped).
-- Phase 106 (Distribution pipeline followups) is independent of product code; sequenced last so the next release tag (after v3.3 product changes ship) exercises the fixed pipeline end-to-end.
-- Shell session web-share security posture: SHELL-07 makes new shell sessions opt-in for web serving (overriding the agent-session auto-enable default); SHELL-08 surfaces a one-time confirmation banner explaining arbitrary-execution risk on first toggle. Defense-in-depth on top of v3.1 capability tokens + WS Origin allowlist.
-- Shell sessions use interactive (non-login) mode by default per requirements out-of-scope decision (login-shell semantics deferred until users request). Custom shell binary path picker explicitly out-of-scope; system-discovery (SHELL-04) is sufficient.
+- v3.2 scope addresses GitHub Issue #36 ("Extend xterm.js functionality with select plugins")
+- Phase numbering continues from v3.1 (Phase 90 last shipped). Phase 91 is the deferred-distribution-pipeline-followups bucket from v3.1 (preserved at `.planning/deferred/91-distribution-pipeline-followups/`); v3.2 starts at Phase 92 to avoid reusing 91.
+- 8-phase shape (92-99) honors the synthesized SUMMARY.md recommendation from 4 specialist researchers; ordering rationale: foundation (92) → migrate-don't-add (93) → cheapest-new (94) → security-gate (95) → CSP/perf-gate (96) → standalone (97) → optional-cuttable (98) → release-gate (99).
+- Phase 92 (Foundation) ships with NO addon-loading work — establishes daemon `PluginSettings`, Wails RPC, `settings:plugins` event, Settings UI shell, migration test only.
+- Phase 93 generalizes `vendor_drift_test.go` into a load-bearing CI gate enforcing `@xterm/addon-*` version parity for every addon (not just `addon-fit`); migrates webgl/unicode11/clipboard onto the new reconcile pattern AND vendors them for the web page (none vendored today).
+- Phase 95 (Web-Links) is treated with v3.1-WS-Origin-allowlist rigor: scheme allowlist (`https`, `http`, `mailto` only), OSC 8 hover-href display, IDN/Punycode click confirmation, platform-aware activation (Cmd-click/Ctrl-click).
+- Phase 96 (Image) starts with a mandatory pre-phase research subtask reading `addon-image.js` source for `URL.createObjectURL`/`new Worker(`/`blob:` usage; CSP amendment is conditional on findings.
+- Phase 96 sets `storageLimit: 16` MB (overriding upstream 100 MB default) to prevent tab-OOM with 8+ open tabs.
+- Phase 98 (Progress) is P2 / explicitly cuttable — defers to v3.3 if Phases 95 or 96 over-run.
+- Phase 99 is the release gate: cross-browser CSP e2e (Chromium + Safari + Firefox), iPad Safari Tailscale UAT, settings.json migration verification.
+- Phase 94 (Search) owns find-bar UI for BOTH desktop and web (user explicitly chose ambitious scope; original SUMMARY proposed deferring web UI).
+- Recommendation: ship all 7 plugins ON by default except optional `addon-progress` (default OFF in v3.2, flips ON in v3.3 after field validation).
+- Server-shared plugin config for buffer-interpretation plugins (Unicode 11 must match across clients to avoid scrollback divergence); per-client renderer choice (WebGL/DOM) tolerated since it doesn't affect buffer state.
+- [Phase 92]: Pin wails-generated models.ts in-repo rather than regenerate per build — Project maintains hand-edited App.d.ts/App.js stubs with Call()-based convention; replacing wholesale would break vite test aliasing and lose hand-maintained inline type definitions
+- [Phase 92]: PluginSettings ships as full Wails-generated class form (not bare interface) — Matches 'wails generate module' output verbatim so future regeneration is a clean diff; supports both type-only and value-construction usage in Plan 92-03
+- [Phase 92 Plan 03]: Frontend imports PluginSettings via `import type { daemon } from '../wailsjs/go/models'` then `type PluginSettings = daemon.PluginSettings` — resolved Plan 92-02's documented fork in favor of the generated path (the alternative `../types/plugins` hand-written file was never created)
+- [Phase 92 Plan 03]: TerminalPanel inert-prop invariant implemented via single `void pluginConfig` line outside every useEffect — keeps the prop visible to the source-inspection regex while mechanically excluding it from any addon-load consumption path until Phase 93 lifts the invariant
+- [Phase ?]: Plan 94-06: animation wiring uses two-phase mount-then-RAF (entering modifier dropped on next animation frame) + parent-driven exit (TerminalPanel owns 200ms unmount timer; FindBar exiting prop applies modifier).
+- [Phase 94 Plan 07]: SetSearchConfig sub-key RPC plumbing follows the existing /settings/plugins shape — new PATCH /settings/search-config + DaemonClient + App Wails facade; bindings hand-edited at wailsjs/go/main/App.{d.ts,js} (mirrors Phase 92's PLUG-03 pattern, NOT a separate wailsjs/go/daemon/SessionEngine namespace which the plan named but does not exist).
+- [Phase 94 Plan 07]: seededRef one-shot useEffect pattern established (useRef(false) + early-return on already-seeded / source-null / mid-open) for seeding local UI state from an async-loaded prop without disrupting an open UI. Re-usable for any future find-bar-like component that reads from PluginSettings.
 
 ### Pending Todos
 
-- 🔄 `/gsd-plan-phase 100` to begin Phase 100 (Shell Session Backend & Discovery)
-- 🔄 Phase 105 UAT prerequisites: confirm physical iPad availability + Tailscale tailnet access before Phase 105 starts
-- 🔄 Phase 106: archive `.planning/deferred/91-distribution-pipeline-followups/` into the Phase 106 directory once 91-A/B/C land
-- 🔄 Phase 103 POLISH-05 investigation: read `web/vendor/xterm/addons/addon-image/lib/addon-image.js` for `iipSupport` default and IIP parser path to decide between fix vs sixel-only documentation
+_All v3.2 pending items resolved 2026-05-12 — see resolution notes below:_
+
+- ✅ Phase 92 planning — phase completed 2026-05-03 (3 plans, 6 commits)
+- ✅ Phase 96 pre-phase research subtask — completed; findings in `.planning/phases/96-image-addon-csp-audit/96-RESEARCH.md`
+- ✅ Phase 99 cross-browser CSP e2e — completed (99-04: playwright web-csp.spec.ts × chromium + firefox + webkit, all green); iPad Safari UAT script authored (99-iPad-UAT.md) but **deferred to v3.3** with shell-session feature
+- 🔄 Phase 91 (distribution pipeline follow-ups, deferred from v3.1) remains in `.planning/deferred/91-distribution-pipeline-followups/` for v3.3+ (still applicable, carries forward)
 
 ### Quick Tasks Completed
 
@@ -77,48 +87,56 @@ Last activity: 2026-05-13 -- Phase 100 marked complete
 
 ### Plan Execution Metrics
 
-(empty — v3.3 phase planning not yet started)
+| Phase | Plan | Duration | Tasks | Files | Commits |
+|-------|------|----------|-------|-------|---------|
+| Phase 92 P01 | 16 min | 3 tasks | 8 files |
+| Phase 92 P02 | 12 min | 2 tasks | 4 files |
+| Phase 92 P03 | 10 min | 3 tasks | 6 files |
+| Phase 94 P06 | 25min | 3 tasks | 9 files |
+| Phase 94 P07 | 32min | 3 tasks | 9 files |
 
 ### Blockers/Concerns
 
-- **Shell web-share attack surface** — Shells expose arbitrary command execution. A tailnet viewer with write capability could execute commands as the host user. Mitigated in Phase 101 with web-share-disabled-by-default override (SHELL-07) + one-time arbitrary-execution confirmation banner (SHELL-08). Acknowledge: this only reduces accidental enablement; deliberate web-share of a shell session by an authenticated user remains by design.
-- **POLISH-05 iTerm2 IIP — unknown root cause** — Three hypotheses listed in `v3.2-RELEASE-BLOCKERS.md` (addon construction missing `iipSupport`, fixture syntax issue, or sixel-only-by-intent). Phase 103 must do source inspection of `addon-image.js` before deciding whether to fix vs document.
-- **iPad + Tailscale UAT logistics** — Phase 105 UAT-02, UAT-04, UAT-07 require a physical iPad + a real Tailscale tailnet. If hardware/network unavailable, those three UAT items may need to defer again. Mitigation: confirm hardware before Phase 105 planning begins.
-- **DIST-03 first-submission risk** — `wingetcreate new` against microsoft/winget-pkgs is a real PR to an external repo; failure modes (manifest validation, naming conflicts) only surface at PR time. Phase 106 plan should include a local `wingetcreate validate` dry-run before the upstream PR.
-- **Shell discovery on edge platforms** — `/etc/shells` parsing on minimal Linux containers, missing PowerShell on stock Windows installs without `pwsh.exe`, BSD-derived shells. Phase 100 acceptance limits scope to bash/zsh/pwsh/system-default; exotic shells deferred.
+- **Image addon CSP behavior** — unknown whether `addon-image.js` uses `URL.createObjectURL` / `blob:` / dynamic-Worker construction. v3.1 CSP has no `worker-src` (falls back to `default-src 'none'` — silent block). Resolved by mandatory pre-Phase-96 source inspection.
+- **Web-links phishing surface on Tailscale-served sessions** — fresh phishing primitive (tailnet viewer trusts AgentHub URL, sees clickable URL emitted by arbitrary process, gets redirected). Mitigated in Phase 95 with v3.1-style rigor: click-confirmation, OSC 8 href display, IDN/Punycode warning, strict scheme allowlist.
+- **Sixel storage bomb** — upstream `storageLimit` default 100 MB × 8 tabs = OOM. Phase 96 overrides to 16 MB.
+- **WebGL software-renderer detection** — iPad Safari, GPU-blacklisted corp browsers, software-rasterized Linux see WebGL but worse-than-DOM performance. Phase 93 must detect (`gl.getParameter(RENDERER)`) and fall back proactively.
+- **Settings.json migration zeroes plugin defaults** — naïve `json.Unmarshal` of v3.1 settings into v3.2 struct yields Go zero values (false/0). Phase 92 ships defaults-merge constructor + fixture migration test as non-negotiable.
+- WinGet first-submission to microsoft/winget-pkgs deferred until first release is published (carried from v3.0; absorbed by Phase 91 deferred work).
 
 ## Deferred Items
 
-Carry-over from v3.2 close (2026-05-12) — all absorbed by v3.3 phases:
+Items acknowledged and deferred at v3.2 milestone close on 2026-05-12:
 
-| Category | Item | Absorbed by | Status |
-|----------|------|-------------|--------|
-| uat_gap | Phase 93: 93-iPad-UAT.md (UAT-1/2) | Phase 105 (UAT-01, UAT-02) | Pending — Phase 105 |
-| uat_gap | Phase 94: 10K scrollback perf (UAT-3) | Phase 105 (UAT-03) | Pending — Phase 105 |
-| uat_gap | Phase 95: iPad LNK chain (UAT-4/5) | Phase 105 (UAT-04) | Pending — Phase 102 + 105 |
-| uat_gap | Phase 96: chafa fidelity + 2-client image (UAT-5/6) | Phase 105 (UAT-05, UAT-06) | Pending — Phase 105 |
-| uat_gap | Phase 99: 99-iPad-UAT.md (UAT-7) | Phase 105 (UAT-07) | Pending — Phase 105 |
-| polish | P-1 mailto | Phase 102 (POLISH-01) | Pending — Phase 102 |
-| polish | P-2 IDN Cyrillic | Phase 102 (POLISH-02) | Pending — Phase 102 |
-| polish | P-3 find bar Esc-after-toggle | Phase 103 (POLISH-03) | Pending — Phase 103 |
-| polish | P-4 find bar slide-out anim | Phase 103 (POLISH-04) | Pending — Phase 103 |
-| polish | P-5 iTerm2 IIP | Phase 103 (POLISH-05) | Pending — Phase 103 |
-| polish | P-6 Vitest localStorage | Phase 103 (POLISH-06) | Pending — Phase 103 |
-| dist | 91-A PAT credential in release.yml | Phase 106 (DIST-01) | Pending — Phase 106 |
-| dist | 91-B RELEASE_TAG env var | Phase 106 (DIST-02) | Pending — Phase 106 |
-| dist | 91-C wingetcreate new | Phase 106 (DIST-03) | Pending — Phase 106 |
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 93: 93-iPad-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 95: 95-DESKTOP-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 95: 95-HUMAN-UAT.md | deferred (5 pending — iPad/Tailscale UAT) |
+| uat_gap | Phase 95: 95-WEB-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 96: 96-HUMAN-UAT.md | deferred (0 pending) |
+| uat_gap | Phase 97: 97-HUMAN-UAT.md | approved (0 pending) |
+| uat_gap | Phase 98: 98-HUMAN-UAT.md | approved (0 pending) |
+| uat_gap | Phase 99: 99-iPad-UAT.md | deferred (0 pending — Test 11 blocked on shell-session feature) |
+| quick_task | 260406-nqy-dynamic-dock-icon-visibility-show-when-w | missing (artifact ghost from Apr 2026) |
+| quick_task | 260406-op4-tray-icon-a-matches-app-icon-a-monochrom | missing (artifact ghost from Apr 2026) |
+| quick_task | 260406-s0e-fix-cli-detection-app-shows-no-clis-dete | missing (artifact ghost from Apr 2026) |
+| quick_task | 260407-w91-make-toolbar-icons-match-globe-icon-size | missing (artifact ghost from Apr 2026) |
+| quick_task | 260408-dcv-fix-github-actions-build-and-release-pip | missing (artifact ghost from Apr 2026) |
+| quick_task | 260409-vop-remove-flashing-tailscale-check-modal-an | missing (artifact ghost from Apr 2026) |
+| quick_task | 260412-l7k-fix-local-network-banner-showing-when-ta | missing (artifact ghost from Apr 2026) |
 
-(Quick-task ghost entries from prior milestones omitted — they remain ghosts; not v3.3 work.)
+UAT items align with the v3.2-MILESTONE-AUDIT deferred-to-v3.3 list (blocked on shell-session feature). Quick-task ghosts are pre-existing hygiene debt from prior milestones — slugs persist in the index but artifact files were not retained.
 
 ## Session Continuity
 
-Last session: 2026-05-12 — v3.3 roadmap created
-Stopped at: Roadmap definition complete; awaiting phase 100 planning
+Last session: 2026-05-06T09:16:00.000Z
+Stopped at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
 Resume file: None
-Next action: `/gsd-plan-phase 100` to decompose Phase 100 (Shell Session Backend & Discovery) into plans. Optional: `/gsd-discuss-phase 100` first if any gray areas surface during plan review.
+Next action: `/gsd-verify-work 92` to verify Phase 92 (Plugin Settings Foundation) — includes manual UAT smoke (`wails build -tags wailsassets` + app-launch settings-panel walkthrough). Then `/gsd-plan-phase 93` to begin Phase 93 (addon migration onto reconcile pattern + TerminalPanel pluginConfig consumption).
 
-**Active Milestone:** v3.3 Shell Sessions & Polish — 7 phases (100-106), targeting Issue #44 + Issue #45 closure, absorbing v3.2 polish carry-over (6 items), v3.2 deferred UAT (9 scenarios), and v3.1 deferred Phase 91 distribution-pipeline followups (3 items).
+**Active Milestone:** v3.2 Plugin Suite — 8 phases (92-99), targeting Issue #36 closure. **Phase 92 implementation complete (3/3 plans, 6 commits).**
 
 ## Operator Next Steps
 
-- `/gsd-plan-phase 100` to start Phase 100 (Shell Session Backend & Discovery)
+- Start the next milestone with /gsd-new-milestone
