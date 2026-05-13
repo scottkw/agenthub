@@ -12,6 +12,7 @@ import (
 
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/relay"
+	"github.com/scottkw/agenthub/internal/status"
 )
 
 func TestNewSessionEngine(t *testing.T) {
@@ -1109,5 +1110,225 @@ func TestSetShellPath_EmptyClears(t *testing.T) {
 	}
 	if got == "" {
 		t.Errorf("GetShellPath() after clear: returned empty, want platform default")
+	}
+}
+
+// =============================================================================
+// Phase 107 Plan 02: SHELL-12 backend — ListSessions exit-code normalization
+// =============================================================================
+//
+// These tests assert the SHELL-12 invariant: PTY exit-code -1 (natural EOF)
+// must be normalized to 0 in the ListSessions emission path, mirroring the
+// normalization already applied in the natural-exit goroutine before onExit.
+//
+// The tests use direct registry injection (no real process spawn) for speed
+// and determinism: create pty.Session with known state/exitCode, add to the
+// engine registry, then assert what ListSessions reports.
+
+// newExitedShell12Session builds a *pty.Session that is already in StateStopped
+// with a given cached exit code. The session is NOT killed (killed=false), so
+// the `!s.IsKilled()` guard in ListSessions allows the exitCode branch.
+func newExitedShell12Session(id string, exitCode int) *pty.Session {
+	s := &pty.Session{
+		ID:        id,
+		CLI:       "bash",
+		CreatedAt: time.Now(),
+	}
+	s.SetExitCode(exitCode)
+	s.SetState(pty.StateStopped)
+	return s
+}
+
+// newKilledShell12Session builds a *pty.Session that is StateStopped AND
+// killed=true, mirroring the KillSession path. IsKilled()==true causes
+// ListSessions to skip exitCode emission entirely.
+func newKilledShell12Session(id string) *pty.Session {
+	s := &pty.Session{
+		ID:        id,
+		CLI:       "bash",
+		CreatedAt: time.Now(),
+	}
+	s.MarkKilled()
+	s.SetState(pty.StateStopped)
+	return s
+}
+
+// newBareEngine creates a SessionEngine with no real backend (uses spyBackend),
+// isolated configDir, and injects the given pre-built sessions into its
+// registry. tabNames and sessionCLIs are auto-populated from each session's
+// ID and CLI fields. Returns the engine ready for ListSessions assertions.
+func newBareEngine(t *testing.T, sessions ...*pty.Session) *SessionEngine {
+	t.Helper()
+	e := &SessionEngine{
+		registry:        pty.NewSessionRegistry(),
+		backend:         &spyBackend{},
+		manager:         relay.NewHubManager(),
+		tabNames:        make(map[string]string),
+		sessionCLIs:     make(map[string]string),
+		cliPaths:        make(map[string]string),
+		sessionStatuses: make(map[string]status.SessionStatus),
+		configDir:       t.TempDir(),
+	}
+	for _, s := range sessions {
+		e.registry.Add(s)
+		e.mu.Lock()
+		e.tabNames[s.ID] = s.ID
+		e.sessionCLIs[s.ID] = s.CLI
+		e.mu.Unlock()
+	}
+	return e
+}
+
+// findShell12Session locates a SessionInfo by ID in a ListSessions result.
+func findShell12Session(list []SessionInfo, id string) (SessionInfo, bool) {
+	for _, si := range list {
+		if si.ID == id {
+			return si, true
+		}
+	}
+	return SessionInfo{}, false
+}
+
+// TestListSessions_NaturalExit_NormalizesNegativeOneToZero (SHELL-12):
+// A session whose cached PTY exit code is -1 must be reported as ExitCode=0
+// by ListSessions after the -1→0 guard is applied.
+func TestListSessions_NaturalExit_NormalizesNegativeOneToZero(t *testing.T) {
+	sess := newExitedShell12Session("norm-neg-one", -1)
+	e := newBareEngine(t, sess)
+
+	list := e.ListSessions()
+	si, ok := findShell12Session(list, "norm-neg-one")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.State != "stopped" {
+		t.Errorf("State = %q, want %q", si.State, "stopped")
+	}
+	if si.ExitCode == nil {
+		t.Fatal("ExitCode is nil, want non-nil pointer for natural (non-killed) exit")
+	}
+	if *si.ExitCode != 0 {
+		t.Errorf("ExitCode = %d, want 0 (normalized from -1)", *si.ExitCode)
+	}
+}
+
+// TestListSessions_NaturalExit_PreservesNonZero (SHELL-12):
+// A session with exit code 2 must not be normalized — ExitCode=2 preserved.
+func TestListSessions_NaturalExit_PreservesNonZero(t *testing.T) {
+	sess := newExitedShell12Session("nonzero-exit", 2)
+	e := newBareEngine(t, sess)
+
+	list := e.ListSessions()
+	si, ok := findShell12Session(list, "nonzero-exit")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.ExitCode == nil {
+		t.Fatal("ExitCode is nil, want non-nil for natural exit")
+	}
+	if *si.ExitCode != 2 {
+		t.Errorf("ExitCode = %d, want 2 (preserved non-zero)", *si.ExitCode)
+	}
+}
+
+// TestListSessions_NaturalExit_PreservesZero (regression):
+// A session with exit code 0 must stay 0 after normalization (no change).
+func TestListSessions_NaturalExit_PreservesZero(t *testing.T) {
+	sess := newExitedShell12Session("zero-exit", 0)
+	e := newBareEngine(t, sess)
+
+	list := e.ListSessions()
+	si, ok := findShell12Session(list, "zero-exit")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.ExitCode == nil {
+		t.Fatal("ExitCode is nil, want non-nil for natural exit")
+	}
+	if *si.ExitCode != 0 {
+		t.Errorf("ExitCode = %d, want 0 (explicit zero preserved)", *si.ExitCode)
+	}
+}
+
+// TestListSessions_State_StoppedAfterNaturalExit (SHELL-12 regression):
+// A naturally-exited session must report State=="stopped".
+func TestListSessions_State_StoppedAfterNaturalExit(t *testing.T) {
+	sess := newExitedShell12Session("state-stopped", 0)
+	e := newBareEngine(t, sess)
+
+	list := e.ListSessions()
+	si, ok := findShell12Session(list, "state-stopped")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.State != "stopped" {
+		t.Errorf("State = %q, want %q (natural exit must flip to stopped)", si.State, "stopped")
+	}
+}
+
+// TestListSessions_KilledSession_ExitCodeNil (regression):
+// A killed session must NOT have an ExitCode field populated — the
+// `!s.IsKilled()` guard prevents reading ProcessState which may still be
+// in-flight from killSession's cmd.Wait().
+func TestListSessions_KilledSession_ExitCodeNil(t *testing.T) {
+	sess := newKilledShell12Session("killed-sess")
+	e := newBareEngine(t, sess)
+
+	list := e.ListSessions()
+	si, ok := findShell12Session(list, "killed-sess")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.ExitCode != nil {
+		t.Errorf("ExitCode = %d, want nil for killed session", *si.ExitCode)
+	}
+}
+
+// TestListSessions_OnExitCallback_ReceivesNormalized (regression):
+// The natural-exit goroutine must pass exitCode=0 to onExit even when PTY
+// reports -1. This exercises the ALREADY-CORRECT goroutine path
+// (engine.go:333-340) to prevent future refactors from breaking the contract
+// that both ListSessions AND onExit rely on.
+// Strategy: use a real short-lived command routed through the non-shell
+// AI-CLI path by pointing a synthetic CLI name at /bin/sh; sh -c "exit 0"
+// exits immediately with code 0. The goroutine normalizes -1→0 before calling
+// onExit, so the callback must receive 0 regardless of PTY behavior.
+func TestListSessions_OnExitCallback_ReceivesNormalized(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX sh")
+	}
+	shPath, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skipf("sh not found: %v", err)
+	}
+
+	e := NewSessionEngine()
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
+
+	// Route "fakecli" to /bin/sh so CreateSession does NOT enter the
+	// isShellSession() branch (which hardcodes argv=[-i]). This lets us
+	// pass -c "exit 0" as args to get a clean natural exit.
+	e.mu.Lock()
+	e.cliPaths["fakecli"] = shPath
+	e.mu.Unlock()
+
+	codeCh := make(chan int, 1)
+	onExit := func(_ string, code int) {
+		codeCh <- code
+	}
+
+	_, err = e.CreateSession(context.Background(), "fakecli", "tab", "", []string{"-c", "exit 0"}, 80, 24, nil, onExit)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	select {
+	case code := <-codeCh:
+		if code != 0 {
+			t.Errorf("onExit received code=%d, want 0", code)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for onExit callback")
 	}
 }
