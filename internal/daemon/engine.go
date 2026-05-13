@@ -480,10 +480,15 @@ func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
 	// otherwise the bare cli name.
 	override := e.ResolveCLI(cli)
 	if override != cli {
-		base := filepath.Base(override)
-		baseNoExt := strings.TrimSuffix(base, ".exe")
+		// IN-02: match on cli or the override path's basename with any
+		// ".exe" suffix stripped. The prior implementation also compared
+		// against the un-trimmed basename, but that branch was redundant —
+		// none of knownShellSpecs (bash/zsh/pwsh/powershell) have names
+		// ending in ".exe", so any spec.Name match against a ".exe"-suffixed
+		// basename must come from the trimmed form.
+		baseNoExt := strings.TrimSuffix(filepath.Base(override), ".exe")
 		for _, spec := range pty.KnownShellSpecs() {
-			if spec.Name == cli || spec.Name == baseNoExt || spec.Name == base {
+			if spec.Name == cli || spec.Name == baseNoExt {
 				argv := append([]string(nil), spec.Argv...)
 				return override, argv, true
 			}
