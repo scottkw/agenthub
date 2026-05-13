@@ -22,7 +22,7 @@ Requirements for the v3.3 release. Each maps to roadmap phases (continuing numbe
 - [ ] **SHELL-07**: Shell sessions do NOT auto-enable web serving when the web server is running (opt-in only — overrides the agent-session default)
 - [ ] **SHELL-08**: User sees a one-time confirmation banner when first enabling web serving for a shell session, explaining that shells expose arbitrary command execution
 - [ ] **SHELL-09**: Shell sessions are excluded from CLI-status heuristics (only `running` / `stopped` indicators — no fake `waiting` / `error` state)
-- [ ] **SHELL-10**: New-session modal shows a single "Shell" entry (not one row per discovered binary). Reverses SHELL-01's multi-row design after first-user-test feedback ("too many shells, just give me one").
+- [x] **SHELL-10**: New-session modal shows a single "Shell" entry (not one row per discovered binary). Reverses SHELL-01's multi-row design after first-user-test feedback ("too many shells, just give me one").
 - [x] **SHELL-11**: Settings → Paths exposes a "Shell binary" field where the user can override the path the daemon spawns for shell sessions (defaults to `$SHELL` or `/bin/zsh` on macOS, `pwsh.exe` on Windows). Validates the chosen path is executable.
 - [x] **SHELL-12**: A shell tab that exits cleanly (exit code 0, including `-1 → 0` PTY-wait normalization for natural EOF) closes automatically without surfacing the "exited with error" ExitToast. Non-zero exit codes still show the toast.
 
@@ -110,7 +110,7 @@ Which phases cover which requirements. Populated by roadmap creation 2026-05-12.
 | SHELL-07 | Phase 101 | Pending |
 | SHELL-08 | Phase 101 | Pending |
 | SHELL-09 | Phase 100 | Pending |
-| SHELL-10 | Phase 107 | Pending |
+| SHELL-10 | Phase 107 | Complete |
 | SHELL-11 | Phase 107 | Complete |
 | SHELL-12 | Phase 107 | Complete |
 | SETUI-01 | Phase 104 | Pending |
