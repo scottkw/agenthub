@@ -106,8 +106,9 @@ describe('ARGS-05: clear args button', () => {
   })
 })
 
-// Phase 101-02: NewSessionModal shell rows (SHELL-01 GUI half).
-// Render tests use createRoot + flushSync, mirroring DaemonManagerPanel.test.tsx.
+// Phase 107-03: NewSessionModal shell row — updated for SHELL-10 (single static row).
+// The Phase 101-02 multi-row tests are superseded by NewSessionModal.shellRow.test.tsx.
+// This block retains the render-helper and keeps passing tests (AI-CLI behavior unchanged).
 
 interface DetectedShellFixture {
   name: string
@@ -154,7 +155,10 @@ function renderModal(opts: RenderOpts = {}) {
   return { container, root }
 }
 
-describe('Phase 101-02 NewSessionModal — shell rows (SHELL-01 GUI)', () => {
+// Phase 107-03 SHELL-10: single static Shell row replaces the Phase 101 multi-row loop.
+// Full contract in NewSessionModal.shellRow.test.tsx; these tests verify backwards-compat
+// of the render helper and AI-CLI interactions that remain unchanged.
+describe('Phase 101-02 / SHELL-10 NewSessionModal — shell row (collapsed single row)', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
 
@@ -164,51 +168,32 @@ describe('Phase 101-02 NewSessionModal — shell rows (SHELL-01 GUI)', () => {
     localStorage.clear()
   })
 
-  it('renders one row per shell with Shell em-dash prefix', () => {
+  it('always renders exactly ONE shell button regardless of shells prop', () => {
     const shells = [
       makeShell({ name: 'shell', displayName: 'system default', path: '/bin/zsh' }),
       makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' }),
       makeShell({ name: 'zsh', displayName: 'zsh', path: '/bin/zsh' }),
     ]
     ;({ container, root } = renderModal({ shells }))
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const shellButtons = buttons.filter((b) => (b.textContent || '').startsWith('Shell —'))
-    expect(shellButtons.length).toBe(3)
-    const labels = shellButtons.map((b) => (b.textContent || '').replace(/\s+/g, ' '))
-    expect(labels.some((l) => l.includes('Shell — system default'))).toBe(true)
-    expect(labels.some((l) => l.includes('Shell — bash'))).toBe(true)
-    expect(labels.some((l) => l.includes('Shell — zsh'))).toBe(true)
+    const shellBtns = container.querySelectorAll('.new-session-modal__agent-btn--shell')
+    expect(shellBtns.length).toBe(1)
   })
 
-  it('system default shell row appears first', () => {
-    const shells = [
-      makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' }),
-      makeShell({ name: 'shell', displayName: 'system default', path: '/bin/zsh' }),
-      makeShell({ name: 'zsh', displayName: 'zsh', path: '/bin/zsh' }),
-    ]
-    ;({ container, root } = renderModal({ shells }))
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const shellButtons = buttons.filter((b) => (b.textContent || '').startsWith('Shell —'))
-    expect(shellButtons[0].textContent).toContain('Shell — system default')
-  })
-
-  it('shell row shows resolved path as mono secondary line', () => {
-    const shells = [makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' })]
-    ;({ container, root } = renderModal({ shells }))
-    const detail = container.querySelector('.new-session-modal__agent-btn__detail')
-    expect(detail).not.toBeNull()
-    expect(detail!.textContent).toBe('/bin/bash')
+  it('shell button label is "Shell" (no em-dash suffix)', () => {
+    ;({ container, root } = renderModal({ shells: [] }))
+    const shellBtn = container.querySelector('.new-session-modal__agent-btn--shell')
+    expect(shellBtn).not.toBeNull()
+    const labelSpan = shellBtn!.querySelector('span:first-child')
+    expect(labelSpan?.textContent).toBe('Shell')
   })
 
   it('selecting shell row applies shell cyan border modifier', () => {
-    const shells = [makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' })]
-    ;({ container, root } = renderModal({ shells }))
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const bashBtn = buttons.find((b) => (b.textContent || '').includes('Shell — bash')) as HTMLButtonElement
-    expect(bashBtn).toBeDefined()
-    flushSync(() => bashBtn.click())
-    expect(bashBtn.getAttribute('aria-pressed')).toBe('true')
-    expect(bashBtn.className).toContain('--selected-shell')
+    ;({ container, root } = renderModal({ shells: [] }))
+    const shellBtn = container.querySelector('.new-session-modal__agent-btn--shell') as HTMLButtonElement
+    expect(shellBtn).not.toBeNull()
+    flushSync(() => shellBtn.click())
+    expect(shellBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(shellBtn.className).toContain('--selected-shell')
   })
 
   it('selecting AI CLI row applies accent blue border modifier not shell cyan', () => {
@@ -225,25 +210,21 @@ describe('Phase 101-02 NewSessionModal — shell rows (SHELL-01 GUI)', () => {
     expect(claudeBtn.className).not.toContain('--selected-shell')
   })
 
-  it('loading skeleton renders when shellsLoading is true and shells is empty', () => {
+  it('no "Loading shells…" skeleton even when shellsLoading=true (SHELL-10 removes skeleton)', () => {
     ;({ container, root } = renderModal({ shells: [], shellsLoading: true }))
-    expect(container.textContent).toContain('Loading shells…')
+    expect(container.textContent).not.toContain('Loading shells')
   })
 
-  it('no shell rows when shells prop is empty and not loading', () => {
+  it('shell row still present when shells prop is empty', () => {
     ;({ container, root } = renderModal({ shells: [], shellsLoading: false }))
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const shellButtons = buttons.filter((b) => (b.textContent || '').startsWith('Shell —'))
-    expect(shellButtons.length).toBe(0)
-    expect(container.textContent || '').not.toContain('Loading shells')
+    const shellBtn = container.querySelector('.new-session-modal__agent-btn--shell')
+    expect(shellBtn).not.toBeNull()
   })
 
   it('args field disabled when shell selected', () => {
-    const shells = [makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' })]
-    ;({ container, root } = renderModal({ shells }))
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const bashBtn = buttons.find((b) => (b.textContent || '').includes('Shell — bash')) as HTMLButtonElement
-    flushSync(() => bashBtn.click())
+    ;({ container, root } = renderModal({ shells: [] }))
+    const shellBtn = container.querySelector('.new-session-modal__agent-btn--shell') as HTMLButtonElement
+    flushSync(() => shellBtn.click())
     const argsInput = container.querySelector('.new-session-modal__args-input') as HTMLInputElement
     expect(argsInput).not.toBeNull()
     expect(argsInput.disabled).toBe(true)
@@ -262,20 +243,9 @@ describe('Phase 101-02 NewSessionModal — shell rows (SHELL-01 GUI)', () => {
     expect(argsInput.disabled).toBe(false)
   })
 
-  it('args namespace key uses shell prefix when shell selected', () => {
-    // Seed the AI-CLI-style key for bash, plus the shell-prefixed key.
-    localStorage.setItem('agenthub:args:bash', 'AI-CLI-flag')
-    localStorage.setItem('agenthub:args:shell:bash', '--login')
-    const shells = [makeShell({ name: 'bash', displayName: 'bash', path: '/bin/bash' })]
-    ;({ container, root } = renderModal({ shells }))
-    // Source check: NewSessionModal must reference the shell namespace token.
+  it('shell namespace key (agenthub:args:shell:) still referenced in source', () => {
+    // Source check: SHELL_ARGS_KEY namespace preserved for backwards compat with
+    // any stored args from Phase 101 multi-row era.
     expect(raw).toContain('agenthub:args:shell:')
-    // Behavior probe: after selecting bash shell, the modal must NOT pull the AI-CLI bash key.
-    const buttons = Array.from(container.querySelectorAll('.new-session-modal__agent-btn'))
-    const bashBtn = buttons.find((b) => (b.textContent || '').includes('Shell — bash')) as HTMLButtonElement
-    flushSync(() => bashBtn.click())
-    const argsInput = container.querySelector('.new-session-modal__args-input') as HTMLInputElement
-    // Since shells disable the args field, the field's value (if any) must not be the AI-CLI value.
-    expect(argsInput.value).not.toBe('AI-CLI-flag')
   })
 })

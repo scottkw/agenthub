@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react'
-import { OpenDirectoryDialog } from '../wailsjs/go/main/App'
+import { useEffect, useState } from 'react'
+import { GetShellPath, OpenDirectoryDialog } from '../wailsjs/go/main/App'
 import type { daemon } from '../wailsjs/go/models'
 
 const LAST_DIR_KEY = 'agenthub:lastWorkDir'
 const ARGS_KEY = (cli: string) => `agenthub:args:${cli}`
 const SHELL_ARGS_KEY = (name: string) => `agenthub:args:shell:${name}`
-const SHELL_PREFIX = 'shell:'
 const SHELL_ARGS_PLACEHOLDER = 'Arguments are not passed to shell sessions'
 
 interface DetectedCLI {
@@ -18,15 +17,16 @@ export interface NewSessionModalProps {
   isOpen: boolean
   clis: DetectedCLI[]
   /**
-   * Phase 101-02 (SHELL-01 GUI half) — shell rows rendered AFTER the AI CLI
-   * list. Order: system default first, then server-provided order. Empty
-   * array yields no shell rows AND no loading skeleton (silent absence per
-   * UI-SPEC §Edge Cases).
+   * Phase 101-02 (SHELL-01 GUI half) — shell list formerly used to render
+   * per-binary rows. Kept for backwards compat with App.tsx call site
+   * (App.tsx:1217 passes `shells={detectedShells}`); the modal no longer
+   * renders multiple shell rows. Pending removal in a future cleanup (SHELL-10).
    */
   shells?: daemon.DetectedShell[]
   /**
-   * Phase 101-02 — when true AND `shells` is empty, a loading skeleton row
-   * renders below the AI CLI list with the locked text "Loading shells…".
+   * Phase 101-02 — formerly triggered a loading skeleton when true AND shells
+   * was empty. Kept for backwards compat with App.tsx call site; no skeleton
+   * is rendered in the collapsed single-row design. Pending removal (SHELL-10).
    */
   shellsLoading?: boolean
   onConfirm: (cli: string, workDir: string, args: string[]) => void
@@ -36,15 +36,14 @@ export interface NewSessionModalProps {
 export function NewSessionModal({
   isOpen,
   clis,
-  shells = [],
-  shellsLoading = false,
+  // shells / shellsLoading are kept as accepted (but unused) props for
+  // backwards compat with the App.tsx call site. They will be removed once
+  // App.tsx is updated to stop passing them in a future cleanup.
+  shells: _shells = [],
+  shellsLoading: _shellsLoading = false,
   onConfirm,
   onClose,
 }: NewSessionModalProps) {
-  // Selection state uses a prefix scheme: AI CLIs stored as plain name (e.g.
-  // "claude"), shells stored as "shell:NAME" (e.g. "shell:bash"). When sending
-  // to the daemon we strip the "shell:" prefix and forward bare "bash"/"zsh"/
-  // "shell" — matching the daemon's cli field convention.
   const [selectedAgent, setSelectedAgent] = useState(clis[0]?.Name ?? '')
   const [selectedDir, setSelectedDir] = useState(() => localStorage.getItem(LAST_DIR_KEY) ?? '')
   const [browseLoading, setBrowseLoading] = useState(false)
@@ -53,19 +52,20 @@ export function NewSessionModal({
     localStorage.getItem(ARGS_KEY(clis[0]?.Name ?? '')) ?? ''
   )
 
-  // Sort shells client-side: name === "shell" (system default) first, then the
-  // server-provided order.
-  const sortedShells = useMemo(() => {
-    const out = shells.slice()
-    out.sort((a, b) => {
-      if (a.name === 'shell' && b.name !== 'shell') return -1
-      if (b.name === 'shell' && a.name !== 'shell') return 1
-      return 0
-    })
-    return out
-  }, [shells])
+  // SHELL-10: Resolved shell binary path shown in the single static Shell row.
+  // Fetched from daemon via GetShellPath() on every modal open so that changes
+  // made in Settings → Paths are reflected immediately without a full reload.
+  const [resolvedShellPath, setResolvedShellPath] = useState('')
 
-  const isShellSelected = selectedAgent.startsWith(SHELL_PREFIX)
+  useEffect(() => {
+    if (!isOpen) return
+    GetShellPath()
+      .then(setResolvedShellPath)
+      .catch(() => setResolvedShellPath(''))
+  }, [isOpen])
+
+  // SHELL-10: Shell selection is now bare 'shell' — no "shell:" prefix scheme.
+  const isShellSelected = selectedAgent === 'shell'
 
   if (!isOpen) return null
 
@@ -88,10 +88,8 @@ export function NewSessionModal({
   }
 
   function handleSelectShell(name: string) {
-    setSelectedAgent(SHELL_PREFIX + name)
-    // Shell args memory is read from the shell-prefixed namespace. Since the
-    // field is disabled when a shell is selected, the value is informational
-    // only — preserved across re-selection but not editable in 101-02.
+    // SHELL-10: agent id is bare 'shell' — no prefix.
+    setSelectedAgent(name)
     setArgsText(localStorage.getItem(SHELL_ARGS_KEY(name)) ?? '')
   }
 
@@ -105,10 +103,8 @@ export function NewSessionModal({
   function handleConfirm() {
     setCreating(true)
     if (isShellSelected) {
-      // Shells: pass bare shell name to the daemon; args are intentionally
-      // dropped (Phase 100 RESEARCH Anti-Pattern + Assumption A6).
-      const shellName = selectedAgent.slice(SHELL_PREFIX.length)
-      onConfirm(shellName, selectedDir, [])
+      // SHELL-10: Agent id is already bare 'shell' — pass directly.
+      onConfirm('shell', selectedDir, [])
       return
     }
     if (argsText.trim()) {
@@ -144,41 +140,21 @@ export function NewSessionModal({
                   </button>
                 )
               })}
-              {/*
-                Phase 101-02 (SHELL-01 GUI half) — shell rows AFTER AI CLI list.
-                Each row has the locked "Shell — DISPLAYNAME" prefix (em-dash
-                U+2014, NOT a colon) plus a mono detail line showing the
-                resolved path. Selected shell uses --selected-shell (cyan
-                #89ddff) instead of --selected (blue #7aa2f7).
-              */}
-              {sortedShells.map((s) => {
-                const key = SHELL_PREFIX + s.name
-                const selected = selectedAgent === key
-                const cls = [
+              {/* SHELL-10: Single static Shell row — replaces the Phase 101 sortedShells.map loop.
+                  Agent id is bare 'shell'. Detail line shows daemon-resolved path from GetShellPath().
+                  Selected state uses --selected-shell (cyan #89ddff) per UI-SPEC §2. */}
+              <button
+                className={[
                   'new-session-modal__agent-btn',
                   'new-session-modal__agent-btn--shell',
-                  selected ? 'new-session-modal__agent-btn--selected-shell' : '',
-                ].filter(Boolean).join(' ')
-                return (
-                  <button
-                    key={key}
-                    className={cls}
-                    aria-pressed={selected}
-                    onClick={() => handleSelectShell(s.name)}
-                  >
-                    <span>Shell — {s.displayName}</span>
-                    <span className="new-session-modal__agent-btn__detail">{s.path}</span>
-                  </button>
-                )
-              })}
-              {shellsLoading && sortedShells.length === 0 && (
-                <div
-                  className="new-session-modal__agent-btn new-session-modal__agent-btn--loading"
-                  aria-busy="true"
-                >
-                  Loading shells…
-                </div>
-              )}
+                  selectedAgent === 'shell' ? 'new-session-modal__agent-btn--selected-shell' : '',
+                ].filter(Boolean).join(' ')}
+                aria-pressed={selectedAgent === 'shell'}
+                onClick={() => handleSelectShell('shell')}
+              >
+                <span>Shell</span>
+                <span className="new-session-modal__agent-btn__detail">{resolvedShellPath}</span>
+              </button>
             </div>
           </div>
           <div className="new-session-modal__section">
