@@ -544,7 +544,17 @@ function App(): React.ReactElement {
         duration: number
         finalStatus: string
       }) => {
-        // Always record the exit (shows toast)
+        // SHELL-12: clean exit (code 0) closes the tab immediately — no toast,
+        // no countdown. The daemon (107-02) normalizes PTY -1 → 0 so we can
+        // trust this branch covers all natural-exit cases including shell EOF.
+        if (data.exitCode === 0) {
+          void handleCloseTabRef.current?.(data.sessionId)
+          return
+        }
+        // Non-zero exit: record exit state and show ExitToast (existing behavior).
+        // No countdown for non-zero exits — this matches the previous pattern where
+        // the countdown branch was already gated on exitCode === 0, so removing
+        // it leaves non-zero behavior unchanged.
         const exitState: ExitState = {
           sessionId: data.sessionId,
           sessionName: data.sessionName,
@@ -552,45 +562,10 @@ function App(): React.ReactElement {
           exitCode: data.exitCode,
           duration: data.duration,
           finalStatus: data.finalStatus,
-          countdown: data.exitCode === 0 ? 5 : -1,
+          countdown: -1,
           cancelled: false,
         }
         setSessionExits(prev => ({ ...prev, [data.sessionId]: exitState }))
-
-        // Only start auto-close countdown for clean exits (D-10) when enabled (D-11)
-        if (data.exitCode === 0) {
-          if (autoCloseRef.current) {
-            const timer = setInterval(() => {
-              setSessionExits(prev => {
-                const entry = prev[data.sessionId]
-                if (!entry || entry.cancelled) {
-                  clearInterval(timer)
-                  delete countdownTimers.current[data.sessionId]
-                  return prev
-                }
-                if (entry.countdown <= 1) {
-                  clearInterval(timer)
-                  delete countdownTimers.current[data.sessionId]
-                  // Auto-close the tab
-                  void handleCloseTabRef.current?.(data.sessionId)
-                  const { [data.sessionId]: _, ...rest } = prev
-                  return rest
-                }
-                return {
-                  ...prev,
-                  [data.sessionId]: { ...entry, countdown: entry.countdown - 1 },
-                }
-              })
-            }, 1000)
-            countdownTimers.current[data.sessionId] = timer
-          } else {
-            // Auto-close disabled: show toast without countdown
-            setSessionExits(prev => ({
-              ...prev,
-              [data.sessionId]: { ...prev[data.sessionId], countdown: -1 },
-            }))
-          }
-        }
       }
     )
 
