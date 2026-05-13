@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1340,4 +1342,234 @@ func newLoopbackTLSListener(t *testing.T) *tls.Config {
 		t.Fatalf("GenerateSelfSignedCert: %v", err)
 	}
 	return cfg
+}
+
+// --- Phase 100 Plan 04: GET /shells + shell-session lifecycle ---------------
+
+// TestHandleListShells_EmptyPATH (SHELL-04 wire format).
+// With PATH pointing at an empty temp dir AND $SHELL unset, DiscoverShells
+// must produce a non-nil empty slice, and the JSON wire body must be
+// `{"shells":[]}` — never `{"shells":null}`.
+func TestHandleListShells_EmptyPATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("testDaemon uses Unix domain sockets")
+	}
+	// Empty PATH so no known shell is discovered via exec.LookPath.
+	t.Setenv("PATH", t.TempDir())
+	// POSIX synthetic-default entry is keyed on $SHELL; empty $SHELL suppresses
+	// the synthetic "shell" entry per Plan 01 H4 contract
+	// (TestDiscoverShells_EmptySHELLEnv_NoSyntheticEntry).
+	t.Setenv("SHELL", "")
+
+	_, client, socketPath := testDaemon(t)
+
+	// Wire-format assertion: status + raw body shape.
+	status, body := rawGet(t, socketPath, "/shells")
+	if status != 200 {
+		t.Fatalf("GET /shells: want 200, got %d; body: %s", status, body)
+	}
+
+	// SHELL-04 must-have: empty discovery returns `"shells":[]`, not null.
+	if bytes.Contains(body, []byte(`"shells":null`)) {
+		t.Errorf("GET /shells body must not contain \"shells\":null when empty; got: %s", body)
+	}
+	if !bytes.Contains(body, []byte(`"shells":[]`)) {
+		t.Errorf("GET /shells body must contain \"shells\":[] when empty; got: %s", body)
+	}
+
+	var resp ShellsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode ShellsResponse: %v; body: %s", err, body)
+	}
+	if resp.Shells == nil {
+		t.Error("ShellsResponse.Shells must be non-nil (initialised empty slice), got nil")
+	}
+	if len(resp.Shells) != 0 {
+		t.Errorf("expected 0 shells with empty PATH+SHELL, got %d: %+v", len(resp.Shells), resp.Shells)
+	}
+
+	// Sanity: client.ListShells round-trips the same wire body.
+	shells, err := client.ListShells()
+	if err != nil {
+		t.Fatalf("client.ListShells: %v", err)
+	}
+	if shells == nil {
+		t.Error("client.ListShells() must return a non-nil slice, got nil")
+	}
+	if len(shells) != 0 {
+		t.Errorf("client.ListShells empty-PATH: want 0, got %d", len(shells))
+	}
+}
+
+// TestHandleListShells_PopulatedPATH (SHELL-04 wire format, dev-host smoke).
+// Uses the real host PATH; asserts at least one shell is discovered and each
+// entry has the required wire fields populated.
+func TestHandleListShells_PopulatedPATH(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("testDaemon uses Unix domain sockets")
+	}
+	_, client, socketPath := testDaemon(t)
+
+	status, body := rawGet(t, socketPath, "/shells")
+	if status != 200 {
+		t.Fatalf("GET /shells: want 200, got %d; body: %s", status, body)
+	}
+
+	var resp ShellsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode ShellsResponse: %v; body: %s", err, body)
+	}
+	if len(resp.Shells) < 1 {
+		t.Fatalf("expected at least one shell on dev host PATH, got 0; body: %s", body)
+	}
+
+	knownNames := map[string]bool{
+		"bash":       true,
+		"zsh":        true,
+		"pwsh":       true,
+		"powershell": true,
+		"shell":      true,
+	}
+	sawKnown := false
+	for i, s := range resp.Shells {
+		if s.Name == "" {
+			t.Errorf("Shells[%d].Name is empty", i)
+		}
+		if s.Path == "" {
+			t.Errorf("Shells[%d].Path is empty (name=%q)", i, s.Name)
+		}
+		if s.DisplayName == "" {
+			t.Errorf("Shells[%d].DisplayName is empty (name=%q)", i, s.Name)
+		}
+		if len(s.Argv) < 1 {
+			t.Errorf("Shells[%d].Argv must have len >= 1; got %v (name=%q)", i, s.Argv, s.Name)
+		}
+		if knownNames[s.Name] {
+			sawKnown = true
+		}
+	}
+	if !sawKnown {
+		t.Errorf("expected at least one shell in {bash,zsh,pwsh,powershell,shell}, got %+v", resp.Shells)
+	}
+
+	// Client-side round-trip parity: same count, same first entry.
+	clientShells, err := client.ListShells()
+	if err != nil {
+		t.Fatalf("client.ListShells: %v", err)
+	}
+	if len(clientShells) != len(resp.Shells) {
+		t.Errorf("client.ListShells len mismatch: client=%d, raw=%d", len(clientShells), len(resp.Shells))
+	}
+}
+
+// TestShellSessionLifecycle_StatusOnlyRunningOrStopped (SHELL-09 end-to-end).
+// Drives a full create→list-poll→kill cycle for a bash session and asserts
+// Status only takes values in {"running", "stopped"} — never
+// "waiting"/"error"/"errored"/"idle". POSIX-only because cli="bash" requires
+// a POSIX shell binary on PATH.
+func TestShellSessionLifecycle_StatusOnlyRunningOrStopped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX shell (bash)")
+	}
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash not installed on PATH")
+	}
+
+	_, client, _ := testDaemon(t)
+
+	id, err := client.CreateSession("bash", "lifecycle-test", "", nil, 80, 24)
+	if err != nil {
+		t.Fatalf("client.CreateSession(bash): %v", err)
+	}
+	if id == "" {
+		t.Fatal("CreateSession returned empty ID")
+	}
+
+	// Forbidden statuses per SHELL-09: shell sessions must never surface
+	// AI-CLI heuristic states.
+	forbidden := map[string]bool{
+		"waiting": true,
+		"error":   true,
+		"errored": true,
+		"idle":    true,
+	}
+
+	// findStatus returns the SessionInfo for the test session, or (zero, false)
+	// if it has been removed from the registry (e.g. after KillSession).
+	findStatus := func(t *testing.T) (SessionInfo, bool) {
+		t.Helper()
+		sessions, err := client.ListSessions()
+		if err != nil {
+			t.Fatalf("client.ListSessions: %v", err)
+		}
+		for _, s := range sessions {
+			if s.ID == id {
+				return s, true
+			}
+		}
+		return SessionInfo{}, false
+	}
+
+	// Brief wait for the session to register.
+	time.Sleep(100 * time.Millisecond)
+
+	// Sample 5 times over ~1s while the bash PTY is alive: Status must always
+	// be "running" (never flicker to waiting/idle/error/errored).
+	for i := 0; i < 5; i++ {
+		info, ok := findStatus(t)
+		if !ok {
+			t.Fatalf("session %s missing during running-phase sample %d", id, i)
+		}
+		if forbidden[info.Status] {
+			t.Errorf("sample %d: Status=%q is forbidden for shell sessions (SHELL-09); want \"running\" or \"stopped\"", i, info.Status)
+		}
+		if info.Status != "running" && info.Status != "stopped" {
+			t.Errorf("sample %d: Status=%q not in {running,stopped}", i, info.Status)
+		}
+		if info.Status != "running" {
+			// The bash PTY is alive — Status should be "running".
+			t.Errorf("sample %d: expected Status=\"running\" while bash PTY alive, got %q", i, info.Status)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	// Kill the session and poll until either (a) the session is removed from
+	// the registry, or (b) its State transitions to "stopped". Throughout the
+	// poll, Status must remain in {running,stopped} and never appear in
+	// `forbidden`.
+	if err := client.KillSession(id); err != nil {
+		t.Fatalf("client.KillSession: %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	terminated := false
+	for time.Now().Before(deadline) {
+		info, ok := findStatus(t)
+		if !ok {
+			// KillSession removes the session from the registry — this is the
+			// expected terminal state for an explicitly-killed shell session.
+			terminated = true
+			break
+		}
+		if forbidden[info.Status] {
+			t.Errorf("post-kill sample: Status=%q is forbidden for shell sessions (SHELL-09)", info.Status)
+		}
+		if info.Status != "running" && info.Status != "stopped" {
+			t.Errorf("post-kill sample: Status=%q not in {running,stopped}", info.Status)
+		}
+		if info.State == "stopped" {
+			terminated = true
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !terminated {
+		t.Errorf("session %s did not terminate (state=stopped or removed) within 2s of KillSession", id)
+	}
+
+	// Final SHELL-04 anchor: client.ListShells must still answer cleanly even
+	// after a session lifecycle (no engine state corruption).
+	if _, err := client.ListShells(); err != nil {
+		t.Errorf("client.ListShells after session lifecycle: %v", err)
+	}
 }

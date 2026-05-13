@@ -49,6 +49,22 @@ type HealthResponse struct {
 // CLIPathsResponse maps CLI name to custom path override.
 type CLIPathsResponse map[string]string
 
+// DetectedShell is the JSON-serialisable representation of a discovered shell.
+// Mirrors internal/pty.DetectedShell; duplicated to keep daemon wire types
+// decoupled from internal/pty's Go API (see SessionInfo above — wire types are
+// not pty.* embeds; fields are copied with JSON tags).
+type DetectedShell struct {
+	Name        string   `json:"name"`
+	DisplayName string   `json:"displayName"`
+	Path        string   `json:"path"`
+	Argv        []string `json:"argv"`
+}
+
+// ShellsResponse is the response body for GET /shells.
+type ShellsResponse struct {
+	Shells []DetectedShell `json:"shells"`
+}
+
 // UpdateCLIPathRequest is the request body for PATCH /settings/cli-paths/{name}.
 type UpdateCLIPathRequest struct {
 	Path string `json:"path"`

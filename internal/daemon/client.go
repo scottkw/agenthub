@@ -103,6 +103,20 @@ func (c *DaemonClient) GetCLIPaths() (map[string]string, error) {
 	return paths, nil
 }
 
+// ListShells returns the daemon's discovery of installed shells via
+// GET /shells. The returned slice mirrors the wire body's `shells` field —
+// always non-nil; empty slice (not nil) when no shells are installed.
+func (c *DaemonClient) ListShells() ([]DetectedShell, error) {
+	var resp ShellsResponse
+	if err := c.doJSON(http.MethodGet, "/shells", nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Shells == nil {
+		resp.Shells = []DetectedShell{}
+	}
+	return resp.Shells, nil
+}
+
 // UpdateCLIPath sets a custom executable path for the named CLI.
 func (c *DaemonClient) UpdateCLIPath(name, path string) error {
 	return c.doJSON(http.MethodPatch, "/settings/cli-paths/"+name, UpdateCLIPathRequest{Path: path}, nil)
