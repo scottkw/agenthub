@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { flushSync, act } from 'react-dom'
+import { flushSync } from 'react-dom'
 import { ShellWebShareBanner } from '../ShellWebShareBanner'
 
 interface Props {
@@ -206,5 +206,3 @@ describe('ShellWebShareBanner', () => {
   })
 })
 
-// Silence unused-import lint in case act() is not invoked above; keep import for any future expansion.
-void act

@@ -1725,6 +1725,82 @@ body {
   }
 }
 
+/* ─── Phase 101-03 SHELL-08 — Shell web-share security banner ──────────
+   Modifier on .webgl-recovery-banner: overrides the info-blue left accent
+   with destructive-red (#f7768e, existing TokyoNight palette member — no
+   new hex). Keeps the 53px stack rhythm and reuses every other property.
+   Internal layout helpers (heading + body + action row) are namespaced
+   under "webgl-recovery-banner__shell-*" so they cannot collide with the
+   existing __message / __dismiss classes used by the info banners. */
+.webgl-recovery-banner--shell-warning {
+  border-left: 3px solid #f7768e;
+  /* Override the default centered single-line layout: this banner has a
+     2-line body (heading + paragraph) so use start-aligned items. */
+  align-items: center;
+}
+.webgl-recovery-banner__shell-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 12px;
+  min-width: 0;
+}
+.webgl-recovery-banner__shell-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0caf5;
+  line-height: 1.4;
+}
+.webgl-recovery-banner__shell-text {
+  font-size: 12px;
+  color: #a9b1d6;
+  line-height: 1.4;
+}
+.webgl-recovery-banner__shell-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.webgl-recovery-banner__shell-btn {
+  font-size: 12px;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #c0caf5;
+  line-height: 1.4;
+}
+.webgl-recovery-banner__shell-btn:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+.webgl-recovery-banner__shell-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.webgl-recovery-banner__shell-btn--secondary {
+  border-color: #292e42;
+  background: transparent;
+  color: #a9b1d6;
+}
+.webgl-recovery-banner__shell-btn--secondary:hover:not(:disabled) {
+  background: #1e2030;
+  color: #c0caf5;
+}
+.webgl-recovery-banner__shell-btn--primary-destructive {
+  background: #f7768e;
+  color: #1a1b26;
+  font-weight: 600;
+  border-color: #f7768e;
+}
+.webgl-recovery-banner__shell-btn--primary-destructive:hover:not(:disabled) {
+  background: #f08aa0;
+  border-color: #f08aa0;
+}
+
 /* ─── Phase 97 SER-01 — Save-feedback banner ──────────────────────────
    Mirrors .webgl-recovery-banner: TokyoNight palette, 53px banner-stack
    height, left-accent for tone (info=#7aa2f7 blue, error=#f7768e red). */
