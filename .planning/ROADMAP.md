@@ -259,7 +259,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 **Phase numbering:** Continues from v3.2's last phase (99). v3.3 spans Phases 100-106. The deferred Phase 91 directory remains at `.planning/deferred/91-distribution-pipeline-followups/`; its work is absorbed into Phase 106 (fresh v3.3 phase, NOT a renumber of 91).
 
-- [ ] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn with working-directory honor, exclusion from CLI-status heuristics.
+- [x] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn with working-directory honor, exclusion from CLI-status heuristics. (completed 2026-05-13)
 - [ ] **Phase 101: Shell Session Surfaces & Web-Share Gating** — User-facing shell selection across GUI/CLI/TUI plus distinct agent badge color, web-share-disabled-by-default override, one-time arbitrary-execution confirmation banner.
 - [ ] **Phase 102: Web-Links Polish — mailto + IDN** — Close the v3.2 LNK spec gap: detect `mailto:` URLs (P-1) and admit non-ASCII hostnames so the `LinkConfirmPopover` fires for Cyrillic/IDN homographs (P-2).
 - [ ] **Phase 103: Find Bar Dismiss + Test-Env + IIP Polish** — Find-bar Esc/close after case-sensitive toggle (P-3), find-bar slide-out animation (P-4), iTerm2 IIP investigation+decision (P-5), Vitest 4 + jsdom 29 localStorage test-env fix (P-6).
@@ -280,10 +280,10 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 **Plans**: 4 plans
 
 Plans:
-- [ ] 100-01-PLAN-shell-discovery-library.md — internal/pty/shells.go cross-platform shell discovery library + tests (SHELL-04 core)
-- [ ] 100-02-PLAN-engine-shell-spawn.md — engine.go shell argv resolution, WorkDir $HOME default, and status.Watch bypass guard (SHELL-05, SHELL-09)
-- [ ] 100-03-PLAN-windows-pwsh-path.md — path_windows.go PowerShell 7 + Microsoft Store PATH augmentation (SHELL-04 Windows reliability)
-- [ ] 100-04-PLAN-shells-http-route.md — GET /shells HTTP route, ShellsResponse types, DaemonClient.ListShells, end-to-end SHELL-09 lifecycle test (SHELL-04 API surface)
+- [x] 100-01-PLAN-shell-discovery-library.md — internal/pty/shells.go cross-platform shell discovery library + tests (SHELL-04 core)
+- [x] 100-02-PLAN-engine-shell-spawn.md — engine.go shell argv resolution, WorkDir $HOME default, and status.Watch bypass guard (SHELL-05, SHELL-09)
+- [x] 100-03-PLAN-windows-pwsh-path.md — path_windows.go PowerShell 7 + Microsoft Store PATH augmentation (SHELL-04 Windows reliability)
+- [x] 100-04-PLAN-shells-http-route.md — GET /shells HTTP route, ShellsResponse types, DaemonClient.ListShells, end-to-end SHELL-09 lifecycle test (SHELL-04 API surface)
 
 ### Phase 101: Shell Session Surfaces & Web-Share Gating
 **Goal**: User can pick a shell as a first-class "agent" everywhere (GUI new-session modal, CLI `agenthub new shell`, TUI new-session flow), see it visually distinguished, and only enable web serving for it through an explicit one-time confirmation step.
@@ -405,7 +405,7 @@ Phases execute in numeric order: 100 → 101 → 102 → 103 → 104 → 105 →
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
-| 100. Shell Session Backend & Discovery | v3.3 | 0/4 | Not started | - |
+| 100. Shell Session Backend & Discovery | v3.3 | 4/4 | Complete   | 2026-05-13 |
 | 101. Shell Session Surfaces & Web-Share Gating | v3.3 | 0/TBD | Not started | - |
 | 102. Web-Links Polish — mailto + IDN | v3.3 | 0/TBD | Not started | - |
 | 103. Find Bar Dismiss + Test-Env + IIP Polish | v3.3 | 0/TBD | Not started | - |
