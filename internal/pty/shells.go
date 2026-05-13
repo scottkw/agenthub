@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 )
 
@@ -50,13 +51,6 @@ var knownShellSpecs = []ShellSpec{
 	{Name: "powershell", DisplayName: "Windows PowerShell", Argv: []string{"-NoLogo"}},
 }
 
-// testEtcShellsPath, if non-empty, overrides the /etc/shells path read by
-// DiscoverShells. Empty string in production builds. The variable is declared
-// unconditionally in this file (NOT under a _test.go build constraint) so
-// that shells_test.go can assign to it without a shadow declaration. See
-// Plan 01 H1: declaration lives here, assignment lives in tests.
-var testEtcShellsPath = ""
-
 // DiscoverShells scans PATH for every entry in knownShellSpecs and returns
 // the subset that is actually installed. On POSIX it may additionally append
 // a synthetic "shell" (DisplayName="system default") entry when $SHELL is set
@@ -66,6 +60,17 @@ var testEtcShellsPath = ""
 // The returned slice is always non-nil (load-bearing for slim Linux
 // containers where no shells are present — callers can range with confidence).
 func DiscoverShells() []DetectedShell {
+	return discoverShells("/etc/shells")
+}
+
+// discoverShells is the parameterised implementation of DiscoverShells. The
+// etcShellsPath argument exists so tests can inject an /etc/shells fixture
+// path without mutating a package-level variable (WR-04: the previous
+// approach used a `testEtcShellsPath` package-level mutable read by
+// production code, which was a latent data race under -race + parallel
+// tests). Production callers go through DiscoverShells which always passes
+// "/etc/shells".
+func discoverShells(etcShellsPath string) []DetectedShell {
 	result := make([]DetectedShell, 0)
 
 	// Pass 1 — known specs via PATH (mirrors detect.go).
@@ -94,12 +99,8 @@ func DiscoverShells() []DetectedShell {
 			return result
 		}
 		// /etc/shells cross-check (optional — silent skip on read error).
-		etcShellsPath := "/etc/shells"
-		if testEtcShellsPath != "" {
-			etcShellsPath = testEtcShellsPath
-		}
 		shells := readEtcShells(etcShellsPath)
-		if len(shells) > 0 && !containsString(shells, shellEnv) {
+		if len(shells) > 0 && !slices.Contains(shells, shellEnv) {
 			// /etc/shells is readable but does not list $SHELL — refuse to
 			// surface a synthetic entry.
 			return result
@@ -205,12 +206,3 @@ func readEtcShells(path string) []string {
 	return out
 }
 
-// containsString reports whether s contains target.
-func containsString(s []string, target string) bool {
-	for _, v := range s {
-		if v == target {
-			return true
-		}
-	}
-	return false
-}

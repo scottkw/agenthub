@@ -145,16 +145,13 @@ func TestDiscoverShells_NoEtcShells(t *testing.T) {
 	t.Setenv("PATH", dir)
 	t.Setenv("SHELL", "")
 
-	testEtcShellsPath = filepath.Join(t.TempDir(), "does-not-exist")
-	t.Cleanup(func() { testEtcShellsPath = "" })
-
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("DiscoverShells panicked with missing /etc/shells: %v", r)
+			t.Errorf("discoverShells panicked with missing /etc/shells: %v", r)
 		}
 	}()
 
-	result := DiscoverShells()
+	result := discoverShells(filepath.Join(t.TempDir(), "does-not-exist"))
 
 	foundBash := false
 	for _, sh := range result {
@@ -190,10 +187,7 @@ func TestDiscoverShells_EtcShellsFixture(t *testing.T) {
 	t.Setenv("PATH", dir)
 	t.Setenv("SHELL", zshStub)
 
-	testEtcShellsPath = etcShells
-	t.Cleanup(func() { testEtcShellsPath = "" })
-
-	result := DiscoverShells()
+	result := discoverShells(etcShells)
 
 	foundSystemDefault := false
 	for _, sh := range result {
@@ -226,13 +220,10 @@ func TestDiscoverShells_EmptySHELLEnv_NoSyntheticEntry(t *testing.T) {
 		t.Fatalf("writing etc-shells fixture: %v", err)
 	}
 
-	testEtcShellsPath = etcShells
-	t.Cleanup(func() { testEtcShellsPath = "" })
-
 	t.Setenv("SHELL", "")
 	t.Setenv("PATH", t.TempDir())
 
-	result := DiscoverShells()
+	result := discoverShells(etcShells)
 
 	for _, sh := range result {
 		if sh.Name == "shell" {
@@ -266,10 +257,7 @@ func TestDiscoverShells_ShBasenameProducesSyntheticEntry(t *testing.T) {
 	t.Setenv("PATH", dir)
 	t.Setenv("SHELL", shStub)
 
-	testEtcShellsPath = etcShells
-	t.Cleanup(func() { testEtcShellsPath = "" })
-
-	result := DiscoverShells()
+	result := discoverShells(etcShells)
 
 	foundSystemDefault := false
 	for _, sh := range result {
