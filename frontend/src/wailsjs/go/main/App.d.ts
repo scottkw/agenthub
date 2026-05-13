@@ -32,6 +32,9 @@ export function ListShells(): Promise<daemon.DetectedShell[]>
 // Phase 101-01 — persisted "user has been warned about shell web-share" flag.
 export function GetShellWebShareWarned(): Promise<boolean>
 export function SetShellWebShareWarned(v: boolean): Promise<void>
+// Phase 107-01 SHELL-11 — persisted shell binary path setting.
+export function GetShellPath(): Promise<string>
+export function SetShellPath(v: string): Promise<void>
 export function GetRelayPort(): Promise<number>
 export function UpdateCLIPath(name: string, path: string): Promise<void>
 

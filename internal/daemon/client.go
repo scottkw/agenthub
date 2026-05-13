@@ -154,6 +154,26 @@ func (c *DaemonClient) SetShellWebShareWarned(val bool) error {
 		map[string]bool{"value": val}, nil)
 }
 
+// GetShellPath returns the persisted shell binary path from the daemon.
+// When no path has been configured, the daemon returns the platform default.
+// Phase 107 SHELL-11.
+func (c *DaemonClient) GetShellPath() (string, error) {
+	var resp map[string]string
+	if err := c.doJSON(http.MethodGet, "/settings/shell-path", nil, &resp); err != nil {
+		return "", err
+	}
+	return resp["value"], nil
+}
+
+// SetShellPath persists the shell binary path via the daemon API. An empty
+// path clears the override (restores platform default). A non-empty path that
+// does not exist or is not executable causes the daemon to return 400, which
+// is surfaced as an error here. Phase 107 SHELL-11.
+func (c *DaemonClient) SetShellPath(path string) error {
+	return c.doJSON(http.MethodPatch, "/settings/shell-path",
+		map[string]string{"value": path}, nil)
+}
+
 // GetAutoCloseSession returns the auto-close-on-exit preference.
 func (c *DaemonClient) GetAutoCloseSession() (bool, error) {
 	var resp map[string]bool

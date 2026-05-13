@@ -72,6 +72,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
 	a.mux.HandleFunc("GET /settings/shell-web-share-warned", a.handleGetShellWebShareWarned)
 	a.mux.HandleFunc("PATCH /settings/shell-web-share-warned", a.handleUpdateShellWebShareWarned)
+	a.mux.HandleFunc("GET /settings/shell-path", a.handleGetShellPath)
+	a.mux.HandleFunc("PATCH /settings/shell-path", a.handleUpdateShellPath)
 	a.mux.HandleFunc("GET /settings/auto-close-session", a.handleGetAutoCloseSession)
 	a.mux.HandleFunc("PATCH /settings/auto-close-session", a.handleSetAutoCloseSession)
 	a.mux.HandleFunc("GET /settings/plugins", a.handleGetPluginSettings)
@@ -558,6 +560,33 @@ func (a *API) handleUpdateShellWebShareWarned(w http.ResponseWriter, r *http.Req
 	}
 	if err := a.engine.SetShellWebShareWarned(req.Value); err != nil {
 		http.Error(w, fmt.Sprintf("persist: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetShellPath returns the persisted shell binary path wrapped in
+// `{"value": "<string>"}`. When no path has been configured by the user,
+// the engine resolves and returns the platform default (never empty).
+// Phase 107 SHELL-11.
+func (a *API) handleGetShellPath(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"value": a.engine.GetShellPath()})
+}
+
+// handleUpdateShellPath accepts `{"value": "<path>"}` and persists the shell
+// binary path. An empty value clears the override (restores platform default).
+// A non-empty path that does not exist or is not executable returns 400.
+// Phase 107 SHELL-11.
+func (a *API) handleUpdateShellPath(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if err := a.engine.SetShellPath(req.Value); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

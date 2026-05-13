@@ -54,12 +54,12 @@ type RemotePeerSessions struct {
 // App is a thin Wails-binding shell — all session state lives in the daemon process.
 // All session operations are delegated through DaemonClient over the Unix socket.
 type App struct {
-	ctx       context.Context
-	client    *daemon.DaemonClient // only daemon communication field; nil when startup failed
-	trayInit         bool         // true once initTray has been called
-	lastTrayQuartile atomic.Int32 // Phase 98 PRG-03 — last applied tray progress quartile [0..4]; -1 = unset. Atomic because written by Wails RPC goroutine (SetTrayProgress) and read by startTrayPoller goroutine via trayIconBytesForState (CR-01).
-	daemonErr        error // non-nil when EnsureDaemon failed at startup
-	quitting  bool                 // true when tray Quit was clicked; lets beforeClose allow exit
+	ctx              context.Context
+	client           *daemon.DaemonClient // only daemon communication field; nil when startup failed
+	trayInit         bool                 // true once initTray has been called
+	lastTrayQuartile atomic.Int32         // Phase 98 PRG-03 — last applied tray progress quartile [0..4]; -1 = unset. Atomic because written by Wails RPC goroutine (SetTrayProgress) and read by startTrayPoller goroutine via trayIconBytesForState (CR-01).
+	daemonErr        error                // non-nil when EnsureDaemon failed at startup
+	quitting         bool                 // true when tray Quit was clicked; lets beforeClose allow exit
 	// Update checker state
 	lastUpdate   *updater.UpdateInfo
 	lastUpdateMu sync.Mutex
@@ -437,6 +437,33 @@ func (a *App) SetShellWebShareWarned(v bool) error {
 		return nil
 	}
 	return a.client.SetShellWebShareWarned(v)
+}
+
+// GetShellPath returns the persisted shell binary path. When no path has been
+// set by the user, the daemon returns the platform default. Called by the
+// Settings → Paths "Shell binary" field (plan 107-03) on mount.
+// Phase 107 SHELL-11.
+func (a *App) GetShellPath() string {
+	if a.client == nil {
+		return ""
+	}
+	path, err := a.client.GetShellPath()
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+// SetShellPath persists the shell binary path. An empty path clears the
+// override (restores platform default). A non-empty path that does not exist
+// or is not executable causes the daemon to return an error. Called by the
+// Settings → Paths "Shell binary" field Save Paths click (plan 107-03).
+// Phase 107 SHELL-11.
+func (a *App) SetShellPath(v string) error {
+	if a.client == nil {
+		return nil
+	}
+	return a.client.SetShellPath(v)
 }
 
 // GetRelayPort returns the TCP port the daemon's relay HTTP server is listening on.
