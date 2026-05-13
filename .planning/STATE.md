@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Shell Sessions & Polish
-status: Phase 107 scaffolded (shell-UX closure phase)
-stopped_at: Phase 107 added 2026-05-13 — shell-UX collapse + path picker + clean-exit fix; awaiting /gsd-discuss-phase 107
-last_updated: "2026-05-13T04:30:00.000Z"
-last_activity: 2026-05-13 — v3.3 audit complete (tech_debt verdict); Phase 107 inserted for surfaced UX/bug items
+status: Phase 107 planned (4 plans, 2 waves) — ready for /gsd-execute-phase 107
+stopped_at: Phase 107 planning complete 2026-05-13 — 4 PLAN.md files written; awaiting executor
+last_updated: "2026-05-13T05:00:00.000Z"
+last_activity: 2026-05-13 — Phase 107 planning complete (4 plans, 2 parallel waves, ~14 new tests across daemon + frontend)
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 13
+  total_plans: 17
   completed_plans: 13
-  percent: 63
+  percent: 76
 ---
 
 # Project State
@@ -21,14 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 99 — settings-ui-polish-migration-final-csp-audit-release-gate
+**Current focus:** Phase 107 — shell-UX collapse + binary path picker + clean-exit handling
 
 ## Current Position
 
-Phase: Milestone v3.2 complete
+Phase: 107 — shell-ux-collapse-binary-path-picker-clean-exit-handling
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-12 — Milestone v3.2 completed and archived
+Status: 4 plans authored (107-01..107-04), waves assigned, awaiting execution
+Last activity: 2026-05-13 — Phase 107 planning complete
+
+## Phase 107 Plan Set
+
+| Plan | Wave | Depends on | Type | Files | Requirement |
+|------|------|------------|------|-------|-------------|
+| 107-01 daemon-shell-path | 0 | — | Go + TS bindings | engine/api/client/app.go + App.d.ts/App.js + tests | SHELL-11 (backend) |
+| 107-02 daemon-clean-exit | 0 | — | Go | engine.go + engine_test.go | SHELL-12 (backend) |
+| 107-03 frontend-shell-ux-collapse | 1 | 107-01 | React/Vitest | NewSessionModal, SettingsTab, 2 new test files | SHELL-10, SHELL-11 (UI) |
+| 107-04 frontend-auto-close-tab | 1 | 107-02 | React/Vitest | App.tsx + 1 new test file | SHELL-12 (UI) |
+
+Parallel execution: wave 0 runs 107-01 and 107-02 simultaneously (different file regions, zero overlap). Wave 1 runs 107-03 and 107-04 simultaneously after wave 0 completes (different frontend files, zero overlap).
 
 ## Performance Metrics
 
@@ -63,6 +74,9 @@ Last activity: 2026-05-12 — Milestone v3.2 completed and archived
 - [Phase ?]: Plan 94-06: animation wiring uses two-phase mount-then-RAF (entering modifier dropped on next animation frame) + parent-driven exit (TerminalPanel owns 200ms unmount timer; FindBar exiting prop applies modifier).
 - [Phase 94 Plan 07]: SetSearchConfig sub-key RPC plumbing follows the existing /settings/plugins shape — new PATCH /settings/search-config + DaemonClient + App Wails facade; bindings hand-edited at wailsjs/go/main/App.{d.ts,js} (mirrors Phase 92's PLUG-03 pattern, NOT a separate wailsjs/go/daemon/SessionEngine namespace which the plan named but does not exist).
 - [Phase 94 Plan 07]: seededRef one-shot useEffect pattern established (useRef(false) + early-return on already-seeded / source-null / mid-open) for seeding local UI state from an async-loaded prop without disrupting an open UI. Re-usable for any future find-bar-like component that reads from PluginSettings.
+- [Phase 107 planning]: shellPath plumbing mirrors shellWebShareWarned exactly — same engine field + Get/Set methods + GET/PATCH HTTP routes + DaemonClient methods + Wails wrappers + TS bindings. Pattern is load-bearing across all settings additions; future additions should mirror it line-for-line.
+- [Phase 107 planning]: resolveDefaultShellPath fallback chain ($SHELL → DiscoverShells Name=="shell" → platform hardcode) is resolved at GetShellPath()/CreateSession time, NOT at settings-load. This preserves "clear field to use system default" semantics — an empty stored value is a valid configuration meaning "use platform default", not an uninitialized state.
+- [Phase 107 planning]: SHELL-12 normalization gap was at engine.go:383 (ListSessions ExitCode emission) — the natural-exit goroutine already normalized at line 334 but ListSessions read s.ExitCode() raw. Fix: insert the same `if ec == -1 { ec = 0 }` guard at the second site. Two grep hits expected post-fix (filter `^[[:space:]]*//` comments).
 
 ### Pending Todos
 
@@ -72,6 +86,7 @@ _All v3.2 pending items resolved 2026-05-12 — see resolution notes below:_
 - ✅ Phase 96 pre-phase research subtask — completed; findings in `.planning/phases/96-image-addon-csp-audit/96-RESEARCH.md`
 - ✅ Phase 99 cross-browser CSP e2e — completed (99-04: playwright web-csp.spec.ts × chromium + firefox + webkit, all green); iPad Safari UAT script authored (99-iPad-UAT.md) but **deferred to v3.3** with shell-session feature
 - 🔄 Phase 91 (distribution pipeline follow-ups, deferred from v3.1) remains in `.planning/deferred/91-distribution-pipeline-followups/` for v3.3+ (still applicable, carries forward)
+- ⏭️ Phase 107: execute the 4-plan set via `/gsd-execute-phase 107` (waves 0 + 1 parallel-safe)
 
 ### Quick Tasks Completed
 
@@ -130,13 +145,15 @@ UAT items align with the v3.2-MILESTONE-AUDIT deferred-to-v3.3 list (blocked on 
 
 ## Session Continuity
 
-Last session: 2026-05-06T09:16:00.000Z
-Stopped at: Phase 94 Plan 07 complete (gap closures shipped — re-run 94-VERIFICATION to flip SC-2)
+Last session: 2026-05-13T05:00:00.000Z
+Stopped at: Phase 107 planning complete (4 plans authored, STATE.md updated)
 Resume file: None
-Next action: `/gsd-verify-work 92` to verify Phase 92 (Plugin Settings Foundation) — includes manual UAT smoke (`wails build -tags wailsassets` + app-launch settings-panel walkthrough). Then `/gsd-plan-phase 93` to begin Phase 93 (addon migration onto reconcile pattern + TerminalPanel pluginConfig consumption).
+Next action: `/gsd-execute-phase 107` to execute the 4-plan set. Wave 0 runs 107-01 + 107-02 in parallel; wave 1 runs 107-03 + 107-04 in parallel after wave 0 completes.
 
-**Active Milestone:** v3.2 Plugin Suite — 8 phases (92-99), targeting Issue #36 closure. **Phase 92 implementation complete (3/3 plans, 6 commits).**
+**Active Milestone:** v3.3 Shell Sessions & Polish — 8 phases (100-107). Phases 100-106 shipped. Phase 107 planned, awaiting execute.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- `/gsd-execute-phase 107` to ship SHELL-10/11/12 (4 plans, 2 parallel waves).
+- After Phase 107 lands, run `/gsd-verify-work 107` for the manual UAT smoke (shell session exit cleanly → tab disappears; Settings → Paths shell binary field round-trips).
+- Then close v3.3 milestone.
