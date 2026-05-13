@@ -53,12 +53,31 @@ export function ShellWebShareBanner({
   }, [])
 
   // Esc dismisses the banner (treated as Cancel).
+  // Focus gate (CR-02): only respond when keyboard focus is inside the banner
+  // OR no other modal is open. This prevents the banner's Esc handler from
+  // hijacking dismissal of a layered modal (kill-confirm, new-session modal,
+  // find bar) that opens above the banner.
+  const bannerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+      if (e.key !== 'Escape') return
+      const banner = bannerRef.current
+      if (!banner) return
+      const active = document.activeElement
+      // Focus inside the banner → handle.
+      if (active && banner.contains(active)) {
         e.preventDefault()
         onCancel()
+        return
       }
+      // Focus elsewhere — check whether any other element with role="dialog"
+      // or aria-modal="true" is on top. If so, let that owner handle Esc.
+      const otherModal = document.querySelector(
+        '[aria-modal="true"]:not([data-shell-web-share-banner]), [role="dialog"]:not([data-shell-web-share-banner])',
+      )
+      if (otherModal) return
+      e.preventDefault()
+      onCancel()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -72,10 +91,12 @@ export function ShellWebShareBanner({
 
   return (
     <div
+      ref={bannerRef}
       className="webgl-recovery-banner webgl-recovery-banner--shell-warning"
       role="alert"
       aria-live="assertive"
       aria-busy={enabling ? 'true' : undefined}
+      data-shell-web-share-banner=""
     >
       <div className="webgl-recovery-banner__shell-body">
         <div className="webgl-recovery-banner__shell-heading">

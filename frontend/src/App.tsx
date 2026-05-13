@@ -766,20 +766,25 @@ function App(): React.ReactElement {
   const handleShellWebShareConfirm = useCallback(async () => {
     if (!pendingShellWebToggle) return
     const { sessionId } = pendingShellWebToggle
-    // Synchronous local-state update — must happen BEFORE await (race mitigation, RESEARCH §8).
+    // Race mitigation (RESEARCH §8): set local "warned" flag synchronously
+    // before any await so a fast double-toggle doesn't re-show the banner.
+    // The banner itself stays mounted during the await so its "Enabling…"
+    // transient state + aria-busy can render (CR-01 fix).
     setShellWebShareWarned(true)
-    setPendingShellWebToggle(null)
     try {
       await Promise.all([
         SetShellWebShareWarned(true),
         ToggleWebServing(sessionId, true),
       ])
       setWebEnabled((prev) => ({ ...prev, [sessionId]: true }))
+      setPendingShellWebToggle(null)
     } catch (err) {
       console.warn('[App] shell web-share confirm failed:', err)
-      // Best-effort rollback: if persist failed, let the banner re-show on
-      // the user's next toggle attempt so they aren't silently downgraded.
+      // Best-effort rollback: clear the banner and let the user retry. Avoid
+      // leaving local "warned" true if the persist call failed — the next
+      // toggle will re-prompt rather than silently downgrade.
       setShellWebShareWarned(false)
+      setPendingShellWebToggle(null)
     }
   }, [pendingShellWebToggle])
 
