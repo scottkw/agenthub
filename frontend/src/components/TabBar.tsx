@@ -8,6 +8,58 @@ export interface Tab {
   type?: 'terminal' | 'welcome' | 'daemon-manager' | 'remote-sessions' | 'settings'
 }
 
+// Phase 101-02 (SHELL-06 GUI half) — agent badge color resolution.
+// Returns the BEM modifier suffix (without the "--" prefix) for the given
+// cli string, or null when the cli isn't a known agent (caller renders the
+// badge with the base class only, yielding the muted fallback color).
+//
+// The 5 shell variants all collapse to a single "shell" modifier — the badge
+// communicates "this is a shell session", not which specific shell.
+function agentBadgeModifier(cli: string): string | null {
+  switch (cli) {
+    case 'claude':
+    case 'opencode':
+    case 'codex':
+    case 'gemini':
+    case 'cursor':
+    case 'aider':
+      return cli
+    case 'shell':
+    case 'bash':
+    case 'zsh':
+    case 'pwsh':
+    case 'powershell':
+      return 'shell'
+    default:
+      return null
+  }
+}
+
+// Phase 101-02 — human-readable agent label for the tab tooltip suffix.
+// Locked copy: shells use "Shell — DISPLAYNAME" (em-dash U+2014); AI CLIs
+// use the same product names the new-session modal shows. Unknown CLIs
+// fall through to the raw cli string so the tab still renders a useful
+// hover tip.
+function agentDisplayName(cli: string): string {
+  const shellMap: Record<string, string> = {
+    shell: 'system default',
+    bash: 'bash',
+    zsh: 'zsh',
+    pwsh: 'PowerShell',
+    powershell: 'Windows PowerShell',
+  }
+  if (shellMap[cli] !== undefined) return 'Shell — ' + shellMap[cli]
+  const cliMap: Record<string, string> = {
+    claude: 'Claude Code',
+    opencode: 'OpenCode',
+    codex: 'OpenAI Codex',
+    gemini: 'Gemini CLI',
+    cursor: 'Cursor',
+    aider: 'Aider',
+  }
+  return cliMap[cli] ?? cli
+}
+
 interface TabBarProps {
   tabs: Tab[]
   activeId: string | null
@@ -114,7 +166,23 @@ export function TabBar({
   return (
     <div className="tab-bar">
       <div className="tab-list">
-        {tabs.map((tab) => (
+        {tabs.map((tab) => {
+          // Phase 101-02 (SHELL-06 GUI half) — agent badge between status dot
+          // and tab name. Decorative (aria-hidden); the same info is exposed
+          // textually in the tab-name tooltip suffix.
+          const badgeModifier = agentBadgeModifier(tab.cli)
+          const badgeClass = badgeModifier
+            ? `tab__agent-badge tab__agent-badge--${badgeModifier}`
+            : 'tab__agent-badge'
+          // Tab tooltip carries both the rename hint AND the agent-type
+          // suffix — e.g., "Double-click or right-click to rename · Shell — bash".
+          // For unknown CLIs (cli=""), omit the suffix so welcome / daemon /
+          // settings tabs don't render a meaningless "()" string.
+          const agentLabel = tab.cli ? agentDisplayName(tab.cli) : ''
+          const titleText = agentLabel
+            ? `Double-click or right-click to rename · ${agentLabel}`
+            : 'Double-click or right-click to rename'
+          return (
           <div
             key={tab.id}
             className={`tab${tab.id === activeId ? ' tab--active' : ''}${exitCountdowns?.[tab.sessionId] ? ' tab--exiting' : ''}`}
@@ -124,6 +192,7 @@ export function TabBar({
               className={`tab__status tab__status--${sessionStatuses?.[tab.sessionId] || 'running'}`}
               title={sessionStatuses?.[tab.sessionId] || 'running'}
             />
+            <span className={badgeClass} aria-hidden="true" />
             {editingId === tab.id ? (
               <input
                 ref={inputRef}
@@ -143,7 +212,7 @@ export function TabBar({
                   e.stopPropagation()
                   setContextMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
                 }}
-                title="Double-click or right-click to rename"
+                title={titleText}
               >
                 {tab.name}
               </span>
@@ -173,7 +242,8 @@ export function TabBar({
               data-testid={`tab-progress-${tab.id}`}
             />
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {contextMenu && tabs.some(t => t.id === contextMenu.tabId) && (

@@ -937,6 +937,34 @@ body {
   background: #ef4444;
 }
 
+/*
+ * Phase 101-02 (SHELL-06 GUI half) — per-tab agent badge.
+ * 8px dot rendered between the status dot and the tab name. Decorative
+ * (aria-hidden); the agent type is communicated textually via the tab-name
+ * tooltip. Default color (muted #9aa5ce) applies for unknown CLIs.
+ *
+ * Per-CLI colors mirror the TUI dark-mode badge palette (UI-SPEC §Color);
+ * shells (bash/zsh/pwsh/powershell/system-default) all collapse to
+ * .--shell (#89ddff) because the user needs to know "this is a shell",
+ * not which specific shell.
+ */
+.tab__agent-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+  background: #9aa5ce;
+}
+.tab__agent-badge--claude   { background: #7aa2f7; }
+.tab__agent-badge--opencode { background: #9ece6a; }
+.tab__agent-badge--codex    { background: #bb9af7; }
+.tab__agent-badge--gemini   { background: #2ac3de; }
+.tab__agent-badge--cursor   { background: #e0af68; }
+.tab__agent-badge--aider    { background: #f7768e; }
+.tab__agent-badge--shell    { background: #89ddff; }
+
 /* Phase 98 PRG-02 — per-tab progress underline.
    Uses transform: scaleX(0..1) instead of width for GPU compositor (Pitfall #4).
    Color matches .tab--active border-bottom (TokyoNight accent #7aa2f7).
