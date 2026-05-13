@@ -10,8 +10,11 @@ export const RenameSession  = (id, name)     => Call('main.App.RenameSession', [
 export const KillSession    = (id)           => Call('main.App.KillSession', [id])
 export const DetectCLIs     = ()             => Call('main.App.DetectCLIs', [])
 // Phase 101-01 prerequisite — shell discovery via daemon /shells route.
-export const ListShells     = ()             => Call('main.App.ListShells', [])
-export const GetRelayPort   = ()             => Call('main.App.GetRelayPort', [])
+export const ListShells              = ()    => Call('main.App.ListShells', [])
+// Phase 101-01 — persisted "user has been warned about shell web-share" flag.
+export const GetShellWebShareWarned  = ()    => Call('main.App.GetShellWebShareWarned', [])
+export const SetShellWebShareWarned  = (v)   => Call('main.App.SetShellWebShareWarned', [v])
+export const GetRelayPort            = ()    => Call('main.App.GetRelayPort', [])
 export const UpdateCLIPath  = (name, path)   => Call('main.App.UpdateCLIPath', [name, path])
 
 // Web serving bound methods

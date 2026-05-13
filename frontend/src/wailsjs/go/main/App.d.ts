@@ -29,6 +29,9 @@ export function KillSession(id: string): Promise<void>
 export function DetectCLIs(): Promise<DetectedCLI[]>
 // Phase 101-01 prerequisite — shell discovery via daemon /shells route.
 export function ListShells(): Promise<daemon.DetectedShell[]>
+// Phase 101-01 — persisted "user has been warned about shell web-share" flag.
+export function GetShellWebShareWarned(): Promise<boolean>
+export function SetShellWebShareWarned(v: boolean): Promise<void>
 export function GetRelayPort(): Promise<number>
 export function UpdateCLIPath(name: string, path: string): Promise<void>
 

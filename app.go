@@ -415,6 +415,30 @@ func (a *App) ListShells() []daemon.DetectedShell {
 	return shells
 }
 
+// GetShellWebShareWarned returns the persisted "user has been warned about shell
+// web-share security implications" flag. Used by ShellWebShareBanner (plan 101-03)
+// to suppress the one-time confirmation banner on subsequent toggles.
+func (a *App) GetShellWebShareWarned() bool {
+	if a.client == nil {
+		return false
+	}
+	warned, err := a.client.GetShellWebShareWarned()
+	if err != nil {
+		return false
+	}
+	return warned
+}
+
+// SetShellWebShareWarned persists the "user has been warned" flag. Called by
+// ShellWebShareBanner (plan 101-03) when the user dismisses the one-time
+// confirmation banner.
+func (a *App) SetShellWebShareWarned(v bool) error {
+	if a.client == nil {
+		return nil
+	}
+	return a.client.SetShellWebShareWarned(v)
+}
+
 // GetRelayPort returns the TCP port the daemon's relay HTTP server is listening on.
 func (a *App) GetRelayPort() int {
 	if a.client == nil {
