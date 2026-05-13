@@ -154,6 +154,114 @@ describe('Phase 97 SER-01: TabBar Save Terminal As… menu item — Plan 97-04 i
   })
 })
 
+// Phase 101-02: TabBar agent badge (SHELL-06 GUI half).
+// Render-based tests using createRoot + flushSync, mirroring the existing
+// renderTabBarWithTabs helper.
+
+function renderTabBarWithCLI(cli: string, tabName = 'session-1') {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  flushSync(() => {
+    root.render(
+      React.createElement(TabBar, {
+        tabs: [{ id: 'tab1', name: tabName, sessionId: 'sess1', cli }],
+        activeId: 'tab1',
+        onSelect: () => {},
+        onClose: () => {},
+        onRename: () => {},
+      })
+    )
+  })
+  return { container, root }
+}
+
+describe('Phase 101-02 TabBar agent badge (SHELL-06 GUI)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('renders agent badge for claude session', () => {
+    ;({ container, root } = renderTabBarWithCLI('claude'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.className).toContain('claude')
+  })
+
+  it('renders shell agent badge for cli=shell', () => {
+    ;({ container, root } = renderTabBarWithCLI('shell'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.className).toContain('--shell')
+  })
+
+  it('renders shell agent badge for cli=bash', () => {
+    ;({ container, root } = renderTabBarWithCLI('bash'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.className).toContain('--shell')
+    expect(badge!.className).not.toContain('--bash')
+  })
+
+  it('renders shell agent badge for cli=zsh', () => {
+    ;({ container, root } = renderTabBarWithCLI('zsh'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge!.className).toContain('--shell')
+  })
+
+  it('renders shell agent badge for cli=pwsh', () => {
+    ;({ container, root } = renderTabBarWithCLI('pwsh'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge!.className).toContain('--shell')
+  })
+
+  it('renders shell agent badge for cli=powershell', () => {
+    ;({ container, root } = renderTabBarWithCLI('powershell'))
+    const badge = container.querySelector('.tab__agent-badge')
+    expect(badge!.className).toContain('--shell')
+  })
+
+  it('falls back to muted badge for unknown cli', () => {
+    ;({ container, root } = renderTabBarWithCLI('unknown-tool'))
+    const badge = container.querySelector('.tab__agent-badge') as HTMLElement
+    expect(badge).not.toBeNull()
+    const knownModifiers = ['--claude', '--opencode', '--codex', '--gemini', '--cursor', '--aider', '--shell']
+    for (const mod of knownModifiers) {
+      expect(badge.className).not.toContain(mod)
+    }
+  })
+
+  it('agent badge is aria-hidden', () => {
+    ;({ container, root } = renderTabBarWithCLI('claude'))
+    const badge = container.querySelector('.tab__agent-badge') as HTMLElement
+    expect(badge.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  it('tab tooltip includes agent type for shell session', () => {
+    ;({ container, root } = renderTabBarWithCLI('bash', 'scratch-bash'))
+    const tabName = container.querySelector('.tab__name') as HTMLElement
+    expect(tabName).not.toBeNull()
+    const title = tabName.getAttribute('title') || ''
+    expect(title).toContain('Shell — bash')
+  })
+
+  it('tab agent badge appears between status dot and tab name', () => {
+    ;({ container, root } = renderTabBarWithCLI('claude'))
+    const tab = container.querySelector('.tab') as HTMLElement
+    const children = Array.from(tab.children)
+    const statusIdx = children.findIndex((c) => c.classList.contains('tab__status'))
+    const badgeIdx = children.findIndex((c) => c.classList.contains('tab__agent-badge'))
+    const nameIdx = children.findIndex((c) => c.classList.contains('tab__name'))
+    expect(statusIdx).toBeGreaterThanOrEqual(0)
+    expect(badgeIdx).toBeGreaterThan(statusIdx)
+    expect(nameIdx).toBeGreaterThan(badgeIdx)
+  })
+})
+
 // Phase 98 PRG-03 — Wave 0 RED scaffold.
 // These two test cases are RED until Wave 3 (Plan 04) adds the .tab__progress
 // underline element to TabBar.tsx. Tagged `progress-underline` and

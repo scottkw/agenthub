@@ -891,3 +891,89 @@ func TestResolveShellSpawn_PowerShellOverride(t *testing.T) {
 		t.Errorf("args missing -NoLogo (from powershell spec): %v", args)
 	}
 }
+
+// --- Phase 101 Plan 01: ShellWebShareWarned persistence ----------------------
+
+// TestSetShellWebShareWarned_Default verifies fresh engine reads false.
+func TestSetShellWebShareWarned_Default(t *testing.T) {
+	e := NewSessionEngine()
+	e.configDir = t.TempDir()
+	e.cliPaths = make(map[string]string)
+
+	if v := e.GetShellWebShareWarned(); v != false {
+		t.Errorf("default GetShellWebShareWarned: got %v, want false", v)
+	}
+}
+
+// TestSetShellWebShareWarned_Persists verifies round-trip through settings.json.
+func TestSetShellWebShareWarned_Persists(t *testing.T) {
+	dir := t.TempDir()
+
+	e1 := NewSessionEngine()
+	e1.configDir = dir
+	e1.cliPaths = make(map[string]string)
+
+	if err := e1.SetShellWebShareWarned(true); err != nil {
+		t.Fatalf("SetShellWebShareWarned(true): %v", err)
+	}
+
+	// Second engine, same configDir → should observe the persisted value.
+	e2 := NewSessionEngine()
+	e2.configDir = dir
+	e2.cliPaths = make(map[string]string)
+	// Re-load explicitly: NewSessionEngine() already called loadSettingsFromDisk()
+	// against the real config dir; we need to reload from our temp dir.
+	e2.loadSettingsFromDisk(dir)
+
+	if v := e2.GetShellWebShareWarned(); v != true {
+		t.Errorf("after persist+reload: GetShellWebShareWarned = %v, want true", v)
+	}
+}
+
+// TestSetShellWebShareWarned_PersistsFalseAfterTrue verifies that flipping
+// back to false round-trips correctly (regression guard for omitempty).
+func TestSetShellWebShareWarned_PersistsFalseAfterTrue(t *testing.T) {
+	dir := t.TempDir()
+
+	e1 := NewSessionEngine()
+	e1.configDir = dir
+	e1.cliPaths = make(map[string]string)
+
+	if err := e1.SetShellWebShareWarned(true); err != nil {
+		t.Fatalf("SetShellWebShareWarned(true): %v", err)
+	}
+	if err := e1.SetShellWebShareWarned(false); err != nil {
+		t.Fatalf("SetShellWebShareWarned(false): %v", err)
+	}
+
+	e2 := NewSessionEngine()
+	e2.configDir = dir
+	e2.cliPaths = make(map[string]string)
+	e2.loadSettingsFromDisk(dir)
+
+	if v := e2.GetShellWebShareWarned(); v != false {
+		t.Errorf("after true->false+reload: GetShellWebShareWarned = %v, want false", v)
+	}
+}
+
+// TestSetShellWebShareWarned_RoundTripJSON verifies the field appears in
+// settings.json with the expected JSON key when set to true.
+func TestSetShellWebShareWarned_RoundTripJSON(t *testing.T) {
+	dir := t.TempDir()
+
+	e := NewSessionEngine()
+	e.configDir = dir
+	e.cliPaths = make(map[string]string)
+
+	if err := e.SetShellWebShareWarned(true); err != nil {
+		t.Fatalf("SetShellWebShareWarned(true): %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "settings.json"))
+	if err != nil {
+		t.Fatalf("read settings.json: %v", err)
+	}
+	if !strings.Contains(string(data), `"shellWebShareWarned":true`) {
+		t.Errorf("settings.json missing expected key/value; got:\n%s", string(data))
+	}
+}

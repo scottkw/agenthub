@@ -34,9 +34,10 @@ type SessionEngine struct {
 	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
 	cliPaths    map[string]string // cli name -> custom path override
 
-	startMinimized   bool           // persisted start-minimized preference
-	autoCloseSession *bool          // nil = default (true); persisted pointer
-	pluginSettings   PluginSettings // populated by loadSettingsFromDisk via defaults-merge
+	startMinimized      bool           // persisted start-minimized preference
+	shellWebShareWarned bool           // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
+	autoCloseSession    *bool          // nil = default (true); persisted pointer
+	pluginSettings      PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
 	// SetPluginSettings AFTER the new value is persisted, while the engine
@@ -80,11 +81,12 @@ func ensureOpenCodeTUIConfig(dir string) string {
 // block + schemaVersion to always serialize so future loads observe them
 // even when every plugin is at its zero value (all-false).
 type daemonSettings struct {
-	CLIPaths         map[string]string `json:"cliPaths,omitempty"`
-	StartMinimized   bool              `json:"startMinimized,omitempty"`
-	AutoCloseSession *bool             `json:"autoCloseSession,omitempty"`
-	Plugins          PluginSettings    `json:"plugins"`
-	SchemaVersion    int               `json:"schemaVersion"`
+	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
+	StartMinimized      bool              `json:"startMinimized,omitempty"`
+	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
+	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
+	Plugins             PluginSettings    `json:"plugins"`
+	SchemaVersion       int               `json:"schemaVersion"`
 }
 
 // settingsPath returns the path to settings.json inside the config dir.
@@ -160,6 +162,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 		}
 	}
 	e.startMinimized = s.StartMinimized
+	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.autoCloseSession = s.AutoCloseSession
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
@@ -182,11 +185,12 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 // Caller holds e.mu.Lock().
 func (e *SessionEngine) saveSettingsToDisk() {
 	s := daemonSettings{
-		CLIPaths:         e.cliPaths,
-		StartMinimized:   e.startMinimized,
-		AutoCloseSession: e.autoCloseSession,
-		Plugins:          e.pluginSettings,
-		SchemaVersion:    CurrentSchemaVersion,
+		CLIPaths:            e.cliPaths,
+		StartMinimized:      e.startMinimized,
+		ShellWebShareWarned: e.shellWebShareWarned,
+		AutoCloseSession:    e.autoCloseSession,
+		Plugins:             e.pluginSettings,
+		SchemaVersion:       CurrentSchemaVersion,
 	}
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -572,6 +576,26 @@ func (e *SessionEngine) SetStartMinimized(val bool) {
 	e.startMinimized = val
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
+}
+
+// GetShellWebShareWarned returns the persisted "user has acknowledged the
+// shell web-share security banner" flag. Phase 101 SHELL-08.
+func (e *SessionEngine) GetShellWebShareWarned() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.shellWebShareWarned
+}
+
+// SetShellWebShareWarned persists the shell-web-share-warned flag.
+// Returns an error path for symmetry with future-proofed callers; the
+// underlying saveSettingsToDisk swallows IO errors today, so this currently
+// always returns nil.
+func (e *SessionEngine) SetShellWebShareWarned(val bool) error {
+	e.mu.Lock()
+	e.shellWebShareWarned = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+	return nil
 }
 
 // GetAutoCloseSession returns the auto-close-on-exit preference.

@@ -9,6 +9,8 @@ export const ListSessions   = ()             => Call('main.App.ListSessions', []
 export const RenameSession  = (id, name)     => Call('main.App.RenameSession', [id, name])
 export const KillSession    = (id)           => Call('main.App.KillSession', [id])
 export const DetectCLIs     = ()             => Call('main.App.DetectCLIs', [])
+// Phase 101-01 prerequisite — shell discovery via daemon /shells route.
+export const ListShells     = ()             => Call('main.App.ListShells', [])
 export const GetRelayPort   = ()             => Call('main.App.GetRelayPort', [])
 export const UpdateCLIPath  = (name, path)   => Call('main.App.UpdateCLIPath', [name, path])
 

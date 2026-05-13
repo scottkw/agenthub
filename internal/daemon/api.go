@@ -70,6 +70,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
 	a.mux.HandleFunc("GET /settings/start-minimized", a.handleGetStartMinimized)
 	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
+	a.mux.HandleFunc("GET /settings/shell-web-share-warned", a.handleGetShellWebShareWarned)
+	a.mux.HandleFunc("PATCH /settings/shell-web-share-warned", a.handleUpdateShellWebShareWarned)
 	a.mux.HandleFunc("GET /settings/auto-close-session", a.handleGetAutoCloseSession)
 	a.mux.HandleFunc("PATCH /settings/auto-close-session", a.handleSetAutoCloseSession)
 	a.mux.HandleFunc("GET /settings/plugins", a.handleGetPluginSettings)
@@ -535,6 +537,29 @@ func (a *API) handleSetStartMinimized(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetStartMinimized(req.StartMinimized)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetShellWebShareWarned returns the persisted shell-web-share-warned
+// flag wrapped in `{"value": <bool>}`. Phase 101 SHELL-08.
+func (a *API) handleGetShellWebShareWarned(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"value": a.engine.GetShellWebShareWarned()})
+}
+
+// handleUpdateShellWebShareWarned accepts `{"value": <bool>}` and persists
+// the shell-web-share-warned flag. Phase 101 SHELL-08.
+func (a *API) handleUpdateShellWebShareWarned(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Value bool `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if err := a.engine.SetShellWebShareWarned(req.Value); err != nil {
+		http.Error(w, fmt.Sprintf("persist: %v", err), http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

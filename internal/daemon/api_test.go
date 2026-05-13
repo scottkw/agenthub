@@ -1573,3 +1573,80 @@ func TestShellSessionLifecycle_StatusOnlyRunningOrStopped(t *testing.T) {
 		t.Errorf("client.ListShells after session lifecycle: %v", err)
 	}
 }
+
+// --- Phase 101 Plan 01: shell-web-share-warned route ----------------------
+
+// TestAPIGetShellWebShareWarned_Default verifies the default value is false
+// on a fresh engine.
+func TestAPIGetShellWebShareWarned_Default(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawGet(t, socketPath, "/settings/shell-web-share-warned")
+	if status != 200 {
+		t.Errorf("GET /settings/shell-web-share-warned: want 200, got %d (body=%s)", status, string(body))
+	}
+	var resp map[string]bool
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode body: %v (body=%s)", err, string(body))
+	}
+	if resp["value"] != false {
+		t.Errorf("default value: got %v, want false", resp["value"])
+	}
+}
+
+// TestAPIPatchShellWebShareWarned_FlipsTrue verifies that PATCH flips the
+// engine state and a subsequent GET observes the new value.
+func TestAPIPatchShellWebShareWarned_FlipsTrue(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, body := rawPatch(t, socketPath, "/settings/shell-web-share-warned", `{"value":true}`)
+	if status != 204 {
+		t.Errorf("PATCH /settings/shell-web-share-warned: want 204, got %d (body=%s)", status, string(body))
+	}
+
+	status, body = rawGet(t, socketPath, "/settings/shell-web-share-warned")
+	if status != 200 {
+		t.Errorf("GET after PATCH: want 200, got %d", status)
+	}
+	var resp map[string]bool
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if resp["value"] != true {
+		t.Errorf("value after PATCH: got %v, want true", resp["value"])
+	}
+}
+
+// TestAPIPatchShellWebShareWarned_BadBody verifies that a malformed body
+// produces a 400 response.
+func TestAPIPatchShellWebShareWarned_BadBody(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+	status, _ := rawPatch(t, socketPath, "/settings/shell-web-share-warned", `not-json`)
+	if status != 400 {
+		t.Errorf("PATCH /settings/shell-web-share-warned (bad body): want 400, got %d", status)
+	}
+}
+
+// TestDaemonClient_GetSetShellWebShareWarned_RoundTrip verifies that the
+// DaemonClient wrapper round-trips through the HTTP API.
+func TestDaemonClient_GetSetShellWebShareWarned_RoundTrip(t *testing.T) {
+	_, client, _ := testDaemon(t)
+
+	v, err := client.GetShellWebShareWarned()
+	if err != nil {
+		t.Fatalf("initial GetShellWebShareWarned: %v", err)
+	}
+	if v != false {
+		t.Errorf("initial value: got %v, want false", v)
+	}
+
+	if err := client.SetShellWebShareWarned(true); err != nil {
+		t.Fatalf("SetShellWebShareWarned(true): %v", err)
+	}
+
+	v, err = client.GetShellWebShareWarned()
+	if err != nil {
+		t.Fatalf("post-set GetShellWebShareWarned: %v", err)
+	}
+	if v != true {
+		t.Errorf("post-set value: got %v, want true", v)
+	}
+}

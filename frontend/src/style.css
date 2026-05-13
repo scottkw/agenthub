@@ -728,6 +728,43 @@ body {
   color: #c0caf5;
   background: #1e2030;
 }
+/*
+ * Phase 101-02 (SHELL-01 GUI half) — shell row styling.
+ * Shell rows grow to 56px to fit the locked 2-line layout (primary label
+ * + mono detail). Selected shell row uses border #89ddff (shell cyan)
+ * instead of #7aa2f7 (AI-CLI accent blue) per UI-SPEC §Locked Visual
+ * Constants. The mono detail line uses TokyoNight muted #565f89.
+ */
+.new-session-modal__agent-btn--shell {
+  height: auto;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+.new-session-modal__agent-btn--selected-shell {
+  border-color: #89ddff;
+  color: #c0caf5;
+  background: #1e2030;
+}
+.new-session-modal__agent-btn__detail {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: #565f89;
+  line-height: 1.3;
+}
+.new-session-modal__agent-btn--loading {
+  color: #565f89;
+  font-size: 11px;
+  opacity: 0.7;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
 .new-session-modal__folder-row {
   display: flex;
   gap: 8px;
@@ -899,6 +936,34 @@ body {
 .tab__status--errored {
   background: #ef4444;
 }
+
+/*
+ * Phase 101-02 (SHELL-06 GUI half) — per-tab agent badge.
+ * 8px dot rendered between the status dot and the tab name. Decorative
+ * (aria-hidden); the agent type is communicated textually via the tab-name
+ * tooltip. Default color (muted #9aa5ce) applies for unknown CLIs.
+ *
+ * Per-CLI colors mirror the TUI dark-mode badge palette (UI-SPEC §Color);
+ * shells (bash/zsh/pwsh/powershell/system-default) all collapse to
+ * .--shell (#89ddff) because the user needs to know "this is a shell",
+ * not which specific shell.
+ */
+.tab__agent-badge {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+  background: #9aa5ce;
+}
+.tab__agent-badge--claude   { background: #7aa2f7; }
+.tab__agent-badge--opencode { background: #9ece6a; }
+.tab__agent-badge--codex    { background: #bb9af7; }
+.tab__agent-badge--gemini   { background: #2ac3de; }
+.tab__agent-badge--cursor   { background: #e0af68; }
+.tab__agent-badge--aider    { background: #f7768e; }
+.tab__agent-badge--shell    { background: #89ddff; }
 
 /* Phase 98 PRG-02 — per-tab progress underline.
    Uses transform: scaleX(0..1) instead of width for GPU compositor (Pitfall #4).
