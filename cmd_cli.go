@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -74,56 +73,34 @@ func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out 
 
 // cmdNewShell creates a new raw shell session (Phase 101 SHELL-02).
 //
-// Argv shape (per UI-SPEC §CLI):
+// Argv shape:
 //
-//		agenthub new shell [<path>] [--shell=bash|zsh|pwsh|powershell]
+//	agenthub new shell [<path>]
 //
-//	  - `<path>` is optional; if omitted, workDir is "" and the daemon resolves to $HOME.
-//	  - `--shell=X` selects a specific shell; omitted = "shell" (system default).
-//	  - `extraArgs` (the `--` tail) is intentionally NOT forwarded to shells
-//	    (per Phase 100 Anti-Pattern A6); a non-fatal stderr warning is emitted instead.
+//   - `<path>` is optional; if omitted, workDir is "" and the daemon resolves to $HOME.
+//   - The daemon resolves the spawned shell binary from the Settings-stored
+//     shellPath (engine.go:500-530, GetShellPath/SetShellPath at 670-705).
+//   - `extraArgs` (the `--` tail) is intentionally NOT forwarded to shells
+//     (per Phase 100 Anti-Pattern A6); a non-fatal stderr warning is emitted instead.
 //
-// Locked stderr error strings (per UI-SPEC §CLI):
-//   - unknown --shell value: `agenthub new shell: unknown shell %q (allowed: bash, zsh, pwsh, powershell, or omit for system default)`
-//   - empty --shell=:        `agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)`
+// Phase 108 PARITY-CLI-01: The --shell=bash|zsh|pwsh|powershell flag was
+// removed in Phase 108 (hard removal, no deprecation period). The daemon
+// resolves the shell binary via Settings shellPath (engine.go:500-530), so the
+// per-shell CLI override is redundant. Passing --shell=anything now produces
+// the Go flag package's default `flag provided but not defined: -shell`
+// stderr and a non-zero exit.
+//
+// Locked stderr error strings (remaining after Phase 108):
 //   - extra args after --:   `agenthub new shell: extra arguments are not forwarded to shell sessions; ignoring [...]`
 //   - daemon unreachable:    `agenthub new shell: daemon unreachable: <err>`
 func cmdNewShell(client *daemon.DaemonClient, args []string, extraArgs []string, out io.Writer) error {
 	fs := flag.NewFlagSet("new shell", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // we emit our own error copy
-	shellFlag := fs.String("shell", "", "")
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "agenthub new shell: %v\n", err)
 		return err
 	}
-	// Detect whether --shell was explicitly passed (even with empty value).
-	explicitlySet := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "shell" {
-			explicitlySet = true
-		}
-	})
-	if explicitlySet && *shellFlag == "" {
-		msg := "agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)"
-		fmt.Fprintln(os.Stderr, msg)
-		return errors.New("empty --shell value")
-	}
-	allowed := map[string]bool{
-		"":           true, // empty = system default ("shell")
-		"bash":       true,
-		"zsh":        true,
-		"pwsh":       true,
-		"powershell": true,
-	}
-	if !allowed[*shellFlag] {
-		msg := fmt.Sprintf("agenthub new shell: unknown shell %q (allowed: bash, zsh, pwsh, powershell, or omit for system default)", *shellFlag)
-		fmt.Fprintln(os.Stderr, msg)
-		return errors.New("unknown --shell value")
-	}
-	cli := "shell"
-	if *shellFlag != "" {
-		cli = *shellFlag
-	}
+	const cli = "shell"
 	workDir := ""
 	positionals := fs.Args()
 	if len(positionals) > 0 {
