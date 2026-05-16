@@ -75,13 +75,13 @@ func cmdNew(client *daemon.DaemonClient, args []string, extraArgs []string, out 
 //
 // Argv shape:
 //
-//	agenthub new shell [<path>]
+//		agenthub new shell [<path>]
 //
-//   - `<path>` is optional; if omitted, workDir is "" and the daemon resolves to $HOME.
-//   - The daemon resolves the spawned shell binary from the Settings-stored
-//     shellPath (engine.go:500-530, GetShellPath/SetShellPath at 670-705).
-//   - `extraArgs` (the `--` tail) is intentionally NOT forwarded to shells
-//     (per Phase 100 Anti-Pattern A6); a non-fatal stderr warning is emitted instead.
+//	  - `<path>` is optional; if omitted, workDir is "" and the daemon resolves to $HOME.
+//	  - The daemon resolves the spawned shell binary from the Settings-stored
+//	    shellPath (engine.go:500-530, GetShellPath/SetShellPath at 670-705).
+//	  - `extraArgs` (the `--` tail) is intentionally NOT forwarded to shells
+//	    (per Phase 100 Anti-Pattern A6); a non-fatal stderr warning is emitted instead.
 //
 // Phase 108 PARITY-CLI-01: The --shell=bash|zsh|pwsh|powershell flag was
 // removed in Phase 108 (hard removal, no deprecation period). The daemon
