@@ -26,7 +26,6 @@ Run with no arguments to launch the desktop GUI.
 Commands:
   new <agent> <path> [-- <extra-args>...]     Create a new terminal session
   new shell [<path>]                          Create a new raw shell session
-    --shell=bash|zsh|pwsh|powershell           Pick a specific shell (default: system default)
   list [--json] [--local]                     List local and remote sessions
   kill <id>                                   Kill a session
   rename <id> <name>                          Rename a session
