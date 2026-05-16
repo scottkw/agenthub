@@ -2,75 +2,46 @@ package tui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-
-	"github.com/scottkw/agenthub/internal/pty"
 )
 
-// agentEntry is a unified picker entry covering both AI CLIs and shells.
-// cliKey is the value passed to daemon.CreateSession (e.g. "claude", "shell",
-// "bash"). displayLabel is the human-readable string shown in the picker
-// (e.g. "Claude Code", "Shell — system default", "Shell — bash").
+// agentEntry is a unified picker entry covering AI CLIs plus the single static
+// shell row. cliKey is the value passed to daemon.CreateSession (e.g.
+// "claude", "shell"). displayLabel is the human-readable string shown in the
+// picker (e.g. "Claude Code", "Shell").
 //
-// Phase 101 SHELL-03: introduced to merge detectedCLIs + detectedShells into
-// a single index space that agentIdx walks.
+// Phase 108 PARITY-TUI-01: collapsed to one static "Shell" entry — daemon
+// resolves the binary via shellPath (engine.go:500-530), so the TUI no longer
+// fans out per discovered shell.
 type agentEntry struct {
 	cliKey       string
 	displayLabel string
 }
 
-// sortShellsForPicker returns a copy of shells sorted by the canonical UI-SPEC
-// order: shell (system default) → bash → zsh → pwsh → powershell → unknown.
-// Stable sort preserves caller order for entries with the same priority.
-//
-// Phase 101 SHELL-03 — mirrors the GUI Plan 02 sort so picker order is the
-// same across all three surfaces (GUI modal, TUI picker, CLI --help).
-func sortShellsForPicker(shells []pty.DetectedShell) []pty.DetectedShell {
-	priority := map[string]int{
-		"shell":      0,
-		"bash":       1,
-		"zsh":        2,
-		"pwsh":       3,
-		"powershell": 4,
-	}
-	out := append([]pty.DetectedShell(nil), shells...)
-	sort.SliceStable(out, func(i, j int) bool {
-		pi, oki := priority[out[i].Name]
-		if !oki {
-			pi = 99
-		}
-		pj, okj := priority[out[j].Name]
-		if !okj {
-			pj = 99
-		}
-		return pi < pj
-	})
-	return out
-}
-
 // agentEntries returns the unified picker entry slice: AI CLIs first (in
-// detectedCLIs order), then shells (in sortShellsForPicker order). Shell
-// entries get the locked "Shell — " prefix per UI-SPEC §Copywriting.
+// detectedCLIs order), then exactly one trailing "Shell" entry with
+// cliKey="shell". The daemon resolves the actual binary from Settings'
+// shellPath when it sees cli=="shell".
 //
-// Returns nil if both detectedCLIs and detectedShells are empty (caller
-// checks len(entries) == 0 for the empty-state branch).
+// Returns nil if detectedCLIs is empty (caller checks len(entries) == 0 for
+// the empty-state branch). The static Shell row is appended only when at
+// least one AI CLI is available so the picker is never a single Shell row
+// with nothing to pair against.
+//
+// Phase 108 PARITY-TUI-01: replaces the Phase 101 multi-row per-shell
+// fan-out with a single static "Shell" entry. Mirrors the Phase 107 GUI
+// NewSessionModal collapse.
 func (m Model) agentEntries() []agentEntry {
-	if len(m.detectedCLIs) == 0 && len(m.detectedShells) == 0 {
+	if len(m.detectedCLIs) == 0 {
 		return nil
 	}
-	entries := make([]agentEntry, 0, len(m.detectedCLIs)+len(m.detectedShells))
+	entries := make([]agentEntry, 0, len(m.detectedCLIs)+1)
 	for _, c := range m.detectedCLIs {
 		entries = append(entries, agentEntry{cliKey: c.Name, displayLabel: c.DisplayName})
 	}
-	for _, sh := range sortShellsForPicker(m.detectedShells) {
-		entries = append(entries, agentEntry{
-			cliKey:       sh.Name,
-			displayLabel: "Shell — " + sh.DisplayName,
-		})
-	}
+	entries = append(entries, agentEntry{cliKey: "shell", displayLabel: "Shell"})
 	return entries
 }
 
@@ -139,8 +110,9 @@ func (m Model) buildNewSessionContent() string {
 }
 
 // renderAgentPicker displays the current agent with Left/Right cycle arrows.
-// Phase 101 SHELL-03: shows AI CLI labels followed by "Shell — <name>" entries
-// for each discovered shell (per UI-SPEC §Interaction TUI flow).
+// Phase 108 PARITY-TUI-02: shows AI CLI labels followed by a single static
+// "Shell" entry (no em-dash, no per-shell variant). Daemon resolves the
+// actual binary from Settings' shellPath when cli=="shell".
 func (m Model) renderAgentPicker() string {
 	entries := m.agentEntries()
 	if len(entries) == 0 {
@@ -157,7 +129,8 @@ func (m Model) renderAgentPicker() string {
 }
 
 // cycleAgent cycles the agent picker index forward or backward.
-// Phase 101 SHELL-03: walks the unified agentEntries slice (AI CLIs + shells).
+// Phase 108 PARITY-TUI-01: walks the unified agentEntries slice (AI CLIs +
+// one trailing static "Shell" entry).
 func (m Model) cycleAgent(forward bool) Model {
 	entries := m.agentEntries()
 	n := len(entries)

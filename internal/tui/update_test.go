@@ -18,12 +18,6 @@ func testModel() Model {
 	m.hasDark = true
 	m.styles = newStyles(true)
 	m.loading = false
-	// Phase 101 SHELL-03: newModel() calls pty.DiscoverShells() which probes
-	// the host filesystem; legacy TUI tests that pre-date the shell-picker
-	// feature treat detectedCLIs as the entire picker universe. Clear shells
-	// here so legacy tests retain their original semantics; new shell-picker
-	// tests opt in by setting detectedShells explicitly.
-	m.detectedShells = nil
 	return m
 }
 
@@ -714,6 +708,7 @@ func TestModal_AgentCycle(t *testing.T) {
 	m.dirInput = textinput.New()
 	m.argsInput = textinput.New()
 
+	// Phase 108 PARITY-TUI-01: picker is claude(0) -> opencode(1) -> Shell(2) -> wrap.
 	// Right arrow: claude(0) -> opencode(1)
 	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	result := updated.(Model)
@@ -721,18 +716,25 @@ func TestModal_AgentCycle(t *testing.T) {
 		t.Errorf("expected agentIdx=1 after Right, got %d", result.agentIdx)
 	}
 
-	// Right arrow: opencode(1) -> claude(0) (wraps)
+	// Right arrow: opencode(1) -> Shell(2)
+	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	result = updated.(Model)
+	if result.agentIdx != 2 {
+		t.Errorf("expected agentIdx=2 (Shell) after Right, got %d", result.agentIdx)
+	}
+
+	// Right arrow: Shell(2) -> claude(0) (wraps)
 	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	result = updated.(Model)
 	if result.agentIdx != 0 {
 		t.Errorf("expected agentIdx=0 after Right wrap, got %d", result.agentIdx)
 	}
 
-	// Left arrow: claude(0) -> opencode(1) (wraps backward)
+	// Left arrow: claude(0) -> Shell(2) (wraps backward)
 	updated, _ = result.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	result = updated.(Model)
-	if result.agentIdx != 1 {
-		t.Errorf("expected agentIdx=1 after Left wrap, got %d", result.agentIdx)
+	if result.agentIdx != 2 {
+		t.Errorf("expected agentIdx=2 (Shell) after Left wrap, got %d", result.agentIdx)
 	}
 }
 
@@ -1092,9 +1094,10 @@ func TestUpdate_SidebarNavigation(t *testing.T) {
 	}
 }
 
-// TestAgentPicker_IncludesShellEntries verifies the Phase 101 SHELL-03 agent picker
-// extension: when detectedShells is populated, the rendered picker label cycles
-// through "Shell — <displayName>" entries after the AI CLIs.
+// TestAgentPicker_IncludesShellEntries verifies the Phase 108 PARITY-TUI-01
+// contract: the agent picker exposes exactly one trailing "Shell" entry after
+// the AI CLIs, with cliKey="shell" and displayLabel="Shell" — no per-shell
+// fan-out, no em-dash, no DisplayName suffix.
 func TestAgentPicker_IncludesShellEntries(t *testing.T) {
 	m := testModel()
 	m.modal = modalNewSession
@@ -1103,33 +1106,57 @@ func TestAgentPicker_IncludesShellEntries(t *testing.T) {
 		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
 		{Name: "opencode", DisplayName: "OpenCode", Path: "/usr/bin/opencode"},
 	}
-	m.detectedShells = []pty.DetectedShell{
-		{Name: "shell", DisplayName: "system default", Path: "/bin/zsh", Argv: []string{"-i"}},
-		{Name: "bash", DisplayName: "bash", Path: "/bin/bash", Argv: []string{"-i"}},
-	}
-	m.agentIdx = 2 // index points at first shell entry (Shell — system default)
 	m.dirInput = textinput.New()
 	m.argsInput = textinput.New()
 
-	rendered := m.renderAgentPicker()
-	if !strings.Contains(rendered, "Shell — system default") {
-		t.Errorf("agent picker at idx=2 should render 'Shell — system default', got %q", rendered)
+	entries := m.agentEntries()
+	if got, want := len(entries), 3; got != want {
+		t.Fatalf("expected %d entries (2 AI CLIs + 1 Shell), got %d", want, got)
+	}
+	if got, want := entries[2].cliKey, "shell"; got != want {
+		t.Errorf("trailing entry cliKey: got %q want %q", got, want)
+	}
+	if got, want := entries[2].displayLabel, "Shell"; got != want {
+		t.Errorf("trailing entry displayLabel: got %q want %q", got, want)
 	}
 
-	// Cycle right: should land on "Shell — bash".
-	m2 := m.cycleAgent(true)
-	if m2.agentIdx != 3 {
-		t.Fatalf("expected agentIdx=3 after Right cycle, got %d", m2.agentIdx)
+	// Render at the Shell index — must show " Shell " (between the cycle
+	// arrows; lipgloss wraps the < and > with ANSI styling, so we match the
+	// uncolored label substring). Also: no em-dash, no "system default", no
+	// path-like substring.
+	m.agentIdx = 2
+	rendered := m.renderAgentPicker()
+	if !strings.Contains(rendered, " Shell ") {
+		t.Errorf("agent picker at idx=2 should render ' Shell ' between arrows, got %q", rendered)
 	}
-	rendered2 := m2.renderAgentPicker()
-	if !strings.Contains(rendered2, "Shell — bash") {
-		t.Errorf("agent picker at idx=3 should render 'Shell — bash', got %q", rendered2)
+	for _, forbidden := range []string{"Shell —", "system default", "/", "\\"} {
+		if strings.Contains(rendered, forbidden) {
+			t.Errorf("agent picker at Shell idx should NOT contain %q, got %q", forbidden, rendered)
+		}
+	}
+
+	// Cycle right from idx=2 (last entry) wraps to idx=0 (claude).
+	m2 := m.cycleAgent(true)
+	if m2.agentIdx != 0 {
+		t.Errorf("Right cycle from Shell should wrap to idx=0, got %d", m2.agentIdx)
+	}
+	if rendered2 := m2.renderAgentPicker(); !strings.Contains(rendered2, "Claude Code") {
+		t.Errorf("wrapped picker should show 'Claude Code', got %q", rendered2)
+	}
+
+	// Cycle left from idx=0 wraps back to idx=2 (Shell).
+	mLeft := m
+	mLeft.agentIdx = 0
+	mLeft = mLeft.cycleAgent(false)
+	if mLeft.agentIdx != 2 {
+		t.Errorf("Left cycle from idx=0 should wrap to idx=2 (Shell), got %d", mLeft.agentIdx)
 	}
 }
 
-// TestAgentPicker_CycleOrder verifies the deterministic cycle order per UI-SPEC
-// §Interaction TUI flow: AI CLIs first (in detectedCLIs order), then shells in
-// sortShellsForPicker priority order (shell → bash → zsh → pwsh → powershell), then wraps.
+// TestAgentPicker_CycleOrder verifies the Phase 108 PARITY-TUI-03 cycle
+// contract: AI CLIs in detectedCLIs order, then exactly one "Shell" entry,
+// then wraps to the first AI CLI. No multi-row shell fan-out — the static
+// Shell entry is always last.
 func TestAgentPicker_CycleOrder(t *testing.T) {
 	m := testModel()
 	m.modal = modalNewSession
@@ -1138,27 +1165,15 @@ func TestAgentPicker_CycleOrder(t *testing.T) {
 		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
 		{Name: "opencode", DisplayName: "OpenCode", Path: "/usr/bin/opencode"},
 	}
-	// Provide shells in a deliberately scrambled order — the sort helper must
-	// re-order them to: shell → bash → zsh → pwsh.
-	m.detectedShells = []pty.DetectedShell{
-		{Name: "zsh", DisplayName: "zsh", Path: "/bin/zsh"},
-		{Name: "pwsh", DisplayName: "PowerShell", Path: "/usr/local/bin/pwsh"},
-		{Name: "bash", DisplayName: "bash", Path: "/bin/bash"},
-		{Name: "shell", DisplayName: "system default", Path: "/bin/zsh"},
-	}
 	m.agentIdx = 0
 	m.dirInput = textinput.New()
 	m.argsInput = textinput.New()
 
-	// Expected visit order: Claude Code, OpenCode, Shell — system default, Shell — bash,
-	// Shell — zsh, Shell — PowerShell, then wraps back to Claude Code.
+	// Expected visit order: Claude Code → OpenCode → Shell → wraps to Claude Code.
 	wantOrder := []string{
 		"Claude Code",
 		"OpenCode",
-		"Shell — system default",
-		"Shell — bash",
-		"Shell — zsh",
-		"Shell — PowerShell",
+		"Shell",
 		"Claude Code", // wraps
 	}
 	current := m
@@ -1167,35 +1182,65 @@ func TestAgentPicker_CycleOrder(t *testing.T) {
 		if !strings.Contains(rendered, want) {
 			t.Errorf("step %d: agent picker should contain %q, got %q (agentIdx=%d)", i, want, rendered, current.agentIdx)
 		}
+		if want == "Shell" {
+			// The Shell entry must be the literal "< Shell >" string — no
+			// em-dash or DisplayName suffix.
+			if strings.Contains(rendered, "Shell —") {
+				t.Errorf("step %d: agent picker at Shell entry must not contain 'Shell —', got %q", i, rendered)
+			}
+		}
 		current = current.cycleAgent(true)
 	}
 }
 
-// TestAgentPicker_OnlyAICLIs_NoShells verifies that when detectedShells is empty,
-// the picker shows only AI CLIs (regression: no spurious "Shell —" entries).
-func TestAgentPicker_OnlyAICLIs_NoShells(t *testing.T) {
+// TestAgentPicker_StaticShellEntryAlwaysAppended verifies the Phase 108
+// PARITY-TUI-01 contract that the static "Shell" entry is always present
+// when there is at least one AI CLI — regardless of host-shell discovery
+// state. Replaces the Phase 101 TestAgentPicker_OnlyAICLIs_NoShells test,
+// whose original premise (no shells → no Shell entries) is no longer valid.
+func TestAgentPicker_StaticShellEntryAlwaysAppended(t *testing.T) {
 	m := testModel()
 	m.modal = modalNewSession
 	m.focusedField = 0
 	m.detectedCLIs = []pty.DetectedCLI{
 		{Name: "claude", DisplayName: "Claude Code", Path: "/usr/bin/claude"},
 	}
-	m.detectedShells = nil // no shells discovered
 	m.agentIdx = 0
 	m.dirInput = textinput.New()
 	m.argsInput = textinput.New()
 
-	rendered := m.renderAgentPicker()
-	if strings.Contains(rendered, "Shell — ") {
-		t.Errorf("agent picker with no shells should NOT contain 'Shell — ', got %q", rendered)
+	entries := m.agentEntries()
+	if got, want := len(entries), 2; got != want {
+		t.Fatalf("expected %d entries (1 AI CLI + 1 Shell), got %d", want, got)
 	}
-	if !strings.Contains(rendered, "Claude Code") {
-		t.Errorf("agent picker should still show 'Claude Code', got %q", rendered)
+	if got, want := entries[1].cliKey, "shell"; got != want {
+		t.Errorf("trailing entry cliKey: got %q want %q", got, want)
+	}
+	if got, want := entries[1].displayLabel, "Shell"; got != want {
+		t.Errorf("trailing entry displayLabel: got %q want %q", got, want)
 	}
 
-	// Cycling right with only 1 AI CLI must stay at idx=0 (single-element wrap).
+	rendered := m.renderAgentPicker()
+	if !strings.Contains(rendered, "Claude Code") {
+		t.Errorf("agent picker at idx=0 should show 'Claude Code', got %q", rendered)
+	}
+	if strings.Contains(rendered, "Shell —") {
+		t.Errorf("agent picker must never contain 'Shell —', got %q", rendered)
+	}
+
+	// Cycle right: claude → Shell.
 	m2 := m.cycleAgent(true)
-	if m2.agentIdx != 0 {
-		t.Errorf("expected agentIdx=0 after Right with single entry, got %d", m2.agentIdx)
+	if m2.agentIdx != 1 {
+		t.Fatalf("expected agentIdx=1 after Right, got %d", m2.agentIdx)
+	}
+	rendered2 := m2.renderAgentPicker()
+	if !strings.Contains(rendered2, " Shell ") {
+		t.Errorf("agent picker at idx=1 should render ' Shell ' between arrows, got %q", rendered2)
+	}
+
+	// Cycle right again: Shell → wraps to claude.
+	m3 := m2.cycleAgent(true)
+	if m3.agentIdx != 0 {
+		t.Errorf("expected agentIdx=0 after wrap, got %d", m3.agentIdx)
 	}
 }

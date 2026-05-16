@@ -127,12 +127,10 @@ type Model struct {
 	focusedField int               // 0=agent, 1=directory, 2=arguments
 	detectedCLIs []pty.DetectedCLI // cached on first modal open
 
-	// Phase 101 SHELL-03: shell entries surfaced in the agent picker. Populated
-	// in-process via pty.DiscoverShells() (RESEARCH A1 — TUI calls pty directly,
-	// not via DaemonClient). Order is preserved as supplied; the picker
-	// applies sortShellsForPicker each render so display order is deterministic
-	// (shell → bash → zsh → pwsh → powershell).
-	detectedShells []pty.DetectedShell
+	// Phase 108 PARITY-TUI-04: per-shell discovery field removed. The TUI
+	// no longer probes the host filesystem for shells at startup; the
+	// picker shows a single static "Shell" entry and the daemon resolves
+	// the binary from Settings' shellPath at session creation.
 
 	// Kill confirmation state (Phase 77)
 	killTarget   *daemon.SessionInfo

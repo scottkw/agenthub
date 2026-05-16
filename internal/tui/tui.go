@@ -20,20 +20,18 @@ func Run(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn, version strin
 // newModel creates the initial Model with default state.
 // Assumes dark background until tea.BackgroundColorMsg arrives.
 //
-// Phase 101 SHELL-03: detectedShells is populated alongside detectedCLIs by
-// calling pty.DiscoverShells() in-process (per RESEARCH A1 — the TUI shares
-// the daemon process and therefore can call pty directly, no DaemonClient
-// round-trip needed).
+// Phase 108 PARITY-TUI-04: shell discovery removed from the TUI startup
+// path. The single "Shell" picker entry is static — the daemon resolves the
+// binary via shellPath (engine.go:500-530) when cli=="shell".
 func newModel(client *daemon.DaemonClient, fetchRemoteFn FetchRemoteFn, version string) Model {
 	return Model{
-		client:         client,
-		loading:        true,
-		keys:           defaultKeyMap(),
-		styles:         newStyles(true), // assume dark until BackgroundColorMsg
-		detectedCLIs:   pty.DetectCLIs(),
-		detectedShells: pty.DiscoverShells(),
-		fetchRemoteFn:  fetchRemoteFn,
-		version:        version,
+		client:        client,
+		loading:       true,
+		keys:          defaultKeyMap(),
+		styles:        newStyles(true), // assume dark until BackgroundColorMsg
+		detectedCLIs:  pty.DetectCLIs(),
+		fetchRemoteFn: fetchRemoteFn,
+		version:       version,
 		// Initial tab state: Sessions open by default (matches current UX)
 		openTabs:     []tabID{tabSessions},
 		activeTab:    0,
