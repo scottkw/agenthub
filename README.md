@@ -99,6 +99,17 @@ A cross-platform desktop app, CLI, and TUI for running AI coding CLIs — Claude
 - **Machine-readable output** — `--json` flag on list, web status, health, and daemon status commands
 - **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
 
+### Shell sessions
+AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code, Codex, Gemini CLI, OpenCode). All three surfaces — GUI new-session modal, TUI new-session picker, and the CLI `new shell` subcommand — expose this as exactly one entry labelled "Shell". There is no per-surface picker for the spawned binary; the daemon resolves it from a single Settings value.
+
+- **GUI** — The New Session modal shows one static "Shell" row beneath the detected AI CLIs. Pressing Create launches a raw PTY using the binary configured in Settings → Paths.
+- **TUI** — Launch `agenthub tui`, press `n` to open the new-session modal, and cycle the agent picker to "Shell". Confirm to launch a session using the same binary as the GUI.
+- **CLI** — `agenthub new shell [<path>]`. No selection flag — the spawned binary is whatever Settings → Paths resolves to (the same value used by the GUI and TUI). The optional positional path sets the working directory; omit it to launch in `$HOME`. Extra tokens after `--` are NOT forwarded to shell sessions (a stderr warning is emitted if present, matching the GUI's no-args behavior).
+
+**Binary selection.** Open the desktop app, go to Settings → Paths, and set the shell binary path. If no shellPath is configured, the daemon falls back to `$SHELL` (or the platform default — `zsh` on macOS, `bash` on Linux, `powershell.exe` on Windows).
+
+**Cross-surface parity.** All three surfaces use the same shellPath value. Change it once in Settings → Paths and the new choice applies to every shell session you start, regardless of which surface launched it.
+
 ### Web Serving
 - **Auto-serve** — Web server starts automatically on daemon launch; new sessions are web-served by default
 - **Dual-mode networking** — Tailscale mode (Let's Encrypt TLS, zero-config security) when available; local network fallback (self-signed TLS + HTTP Basic Auth with generated password) when Tailscale is unavailable. Automatically upgrades from local to Tailscale mode when Tailscale connects after startup
