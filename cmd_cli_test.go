@@ -741,122 +741,75 @@ func TestCmdNewShell_PositionalPath_UsesShell(t *testing.T) {
 	assertShellCLI(t, shellSessionCLI(t, client), "shell")
 }
 
-// TestCmdNewShell_FlagBash verifies --shell=bash routes cli="bash" (resolved to /bin/bash).
-func TestCmdNewShell_FlagBash(t *testing.T) {
-	if _, err := os.Stat("/bin/bash"); err != nil {
-		t.Skip("bash not available on this host")
-	}
+// TestCmdNewShell_RejectsRemovedFlag verifies that the --shell flag, removed in
+// Phase 108 (PARITY-CLI-01), produces the Go flag package's default
+// `flag provided but not defined: -shell` stderr and a non-nil return. The
+// daemon must NOT be reached when fs.Parse fails (no session created).
+func TestCmdNewShell_RejectsRemovedFlag(t *testing.T) {
 	client := testSetup(t)
 	var buf bytes.Buffer
-	err := cmdNewShell(client, []string{"--shell=bash"}, nil, &buf)
-	if err != nil {
+	var callErr error
+	stderr := captureStderr(t, func() {
+		callErr = cmdNewShell(client, []string{"--shell=zsh"}, nil, &buf)
+	})
+	if callErr == nil {
+		t.Fatal("expected non-nil error for removed --shell flag, got nil")
+	}
+	if !strings.Contains(stderr, "flag provided but not defined: -shell") {
+		t.Errorf("expected stderr to contain Go flag package default error %q, got %q",
+			"flag provided but not defined: -shell", stderr)
+	}
+	// Assert daemon was NOT called (no session created on fs.Parse failure).
+	sessions, _ := client.ListSessions()
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions (daemon should not be called when fs.Parse fails), got %d", len(sessions))
+	}
+}
+
+// TestCmdNewShell_SettingsShellPathSpawned verifies PARITY-CLI-02: when the
+// daemon's shellPath is set to a known executable (e.g. /bin/bash), a CLI
+// `agenthub new shell` invocation records that exact binary as the spawned
+// CLI on the session. The CLI itself contains no per-shell selection logic;
+// resolution flows entirely through engine.go:500-530.
+func TestCmdNewShell_SettingsShellPathSpawned(t *testing.T) {
+	if _, err := os.Stat("/bin/bash"); err != nil {
+		t.Skip("/bin/bash not available on this host")
+	}
+	client := testSetup(t)
+	if err := client.SetShellPath("/bin/bash"); err != nil {
+		t.Fatalf("SetShellPath(/bin/bash): %v", err)
+	}
+	var buf bytes.Buffer
+	if err := cmdNewShell(client, nil, nil, &buf); err != nil {
 		t.Fatalf("cmdNewShell: %v", err)
 	}
 	assertShellCLI(t, shellSessionCLI(t, client), "bash")
 }
 
-// TestCmdNewShell_FlagZsh verifies --shell=zsh routes cli="zsh" (resolved to /bin/zsh).
-func TestCmdNewShell_FlagZsh(t *testing.T) {
-	if _, err := os.Stat("/bin/zsh"); err != nil {
-		t.Skip("zsh not available on this host")
-	}
-	client := testSetup(t)
-	var buf bytes.Buffer
-	err := cmdNewShell(client, []string{"--shell=zsh"}, nil, &buf)
-	if err != nil {
-		t.Fatalf("cmdNewShell: %v", err)
-	}
-	assertShellCLI(t, shellSessionCLI(t, client), "zsh")
-}
-
-// TestCmdNewShell_FlagPwsh verifies --shell=pwsh routes cli="pwsh".
-// Skipped on hosts where pwsh is not installed (matches Phase 100 skip pattern).
-func TestCmdNewShell_FlagPwsh(t *testing.T) {
-	if _, err := os.Stat("/usr/local/bin/pwsh"); err != nil {
-		if _, err := os.Stat("/usr/bin/pwsh"); err != nil {
-			if _, err := os.Stat("/opt/homebrew/bin/pwsh"); err != nil {
-				t.Skip("pwsh not available on this host")
-			}
-		}
-	}
-	client := testSetup(t)
-	var buf bytes.Buffer
-	err := cmdNewShell(client, []string{"--shell=pwsh"}, nil, &buf)
-	if err != nil {
-		t.Fatalf("cmdNewShell: %v", err)
-	}
-	assertShellCLI(t, shellSessionCLI(t, client), "pwsh")
-}
-
-// TestCmdNewShell_FlagPowerShell verifies --shell=powershell routes cli="powershell".
-// Skipped on POSIX hosts where powershell.exe is not present.
-func TestCmdNewShell_FlagPowerShell(t *testing.T) {
-	// powershell binary lookup — POSIX hosts skip; Windows hosts proceed.
-	if runtime.GOOS != "windows" {
-		t.Skip("powershell only available on Windows")
-	}
-	client := testSetup(t)
-	var buf bytes.Buffer
-	err := cmdNewShell(client, []string{"--shell=powershell"}, nil, &buf)
-	if err != nil {
-		t.Fatalf("cmdNewShell: %v", err)
-	}
-	assertShellCLI(t, shellSessionCLI(t, client), "powershell")
-}
-
-// TestCmdNewShell_FlagAndPath verifies a flag plus positional path both apply.
-func TestCmdNewShell_FlagAndPath(t *testing.T) {
-	if _, err := os.Stat("/bin/zsh"); err != nil {
-		t.Skip("zsh not available on this host")
-	}
-	client := testSetup(t)
-	var buf bytes.Buffer
-	err := cmdNewShell(client, []string{"--shell=zsh", "/tmp"}, nil, &buf)
-	if err != nil {
-		t.Fatalf("cmdNewShell: %v", err)
-	}
-	assertShellCLI(t, shellSessionCLI(t, client), "zsh")
-}
-
-// TestCmdNewShell_UnknownShellFlag verifies unknown --shell value emits locked stderr
-// and does NOT create a session (daemon never called).
-func TestCmdNewShell_UnknownShellFlag(t *testing.T) {
-	client := testSetup(t)
-	var buf bytes.Buffer
-	var callErr error
-	stderr := captureStderr(t, func() {
-		callErr = cmdNewShell(client, []string{"--shell=nope"}, nil, &buf)
-	})
-	if callErr == nil {
-		t.Fatal("expected error for unknown --shell value, got nil")
-	}
-	expected := `agenthub new shell: unknown shell "nope" (allowed: bash, zsh, pwsh, powershell, or omit for system default)`
-	if !strings.Contains(stderr, expected) {
-		t.Errorf("expected stderr to contain locked message %q, got %q", expected, stderr)
-	}
-	// Assert daemon was NOT called (no session created).
-	sessions, _ := client.ListSessions()
-	if len(sessions) != 0 {
-		t.Errorf("expected 0 sessions (CreateSession not called), got %d", len(sessions))
-	}
-}
-
-// TestCmdNewShell_EmptyShellFlag verifies --shell= (empty value) emits locked stderr
-// and exits with an error.
-func TestCmdNewShell_EmptyShellFlag(t *testing.T) {
-	client := testSetup(t)
-	var buf bytes.Buffer
-	var callErr error
-	stderr := captureStderr(t, func() {
-		callErr = cmdNewShell(client, []string{"--shell="}, nil, &buf)
-	})
-	if callErr == nil {
-		t.Fatal("expected error for empty --shell value, got nil")
-	}
-	expected := `agenthub new shell: --shell flag requires a value (one of: bash, zsh, pwsh, powershell)`
-	if !strings.Contains(stderr, expected) {
-		t.Errorf("expected stderr to contain locked message %q, got %q", expected, stderr)
-	}
+// TestCmdNewShell_InvalidShellPathSilentFallback verifies PARITY-CLI-03: when
+// the daemon's persisted shellPath points to a missing/non-executable binary,
+// `agenthub new shell` exits 0 with empty CLI-side stderr. The CLI does NOT
+// stat the path, emit a warning, or run an executable-existence check —
+// downstream daemon spawn errors surface via session lifecycle, not the CLI
+// command.
+//
+// SKIPPED at the harness level: `client.SetShellPath` (and the underlying
+// `engine.SetShellPath` at engine.go:670-705) rejects nonexistent paths on
+// the write path (Phase 107 SHELL-11 hardening). Bypassing the validation
+// requires direct assignment to the unexported `e.shellPath` field, which
+// is not reachable from the `main` package test (the field lives in
+// `internal/daemon`). Plan 108-02 scope explicitly forbids modifying
+// `internal/daemon/engine.go`, so a `SetShellPathForTest` export cannot be
+// added here.
+//
+// Follow-up (separate phase): expose a test-only setter in `internal/daemon`
+// (e.g. `(*SessionEngine).SetShellPathForTest(path string)` mirroring the
+// existing `(*API).SetWebServerForTest` pattern at api.go:209-212) so this
+// SPEC acceptance can be locked end-to-end.
+func TestCmdNewShell_InvalidShellPathSilentFallback(t *testing.T) {
+	t.Skip("PARITY-CLI-03 acceptance: harness limitation — SetShellPath validates path existence; " +
+		"bypass requires a SetShellPathForTest export in internal/daemon, out of 108-02 scope. " +
+		"Follow-up: add unexported-field test setter mirroring api.go SetWebServerForTest pattern.")
 }
 
 // TestCmdNewShell_ExtraArgsWarning verifies that args after "--" emit a non-fatal
@@ -903,6 +856,10 @@ func TestCmdNewShell_DaemonError(t *testing.T) {
 }
 
 // TestUsage_IncludesNewShell verifies the usage() output documents the new shell subcommand.
+// Phase 108 PARITY-CLI-01: the `--shell=bash|zsh|pwsh|powershell` needle has been
+// dropped — the flag was removed entirely in this phase. Plan 108-03 will
+// further rewrite the help-block line, but the `new shell [<path>]` substring
+// is preserved so this assertion remains valid end-to-end.
 func TestUsage_IncludesNewShell(t *testing.T) {
 	src, err := os.ReadFile("cmd_cli.go")
 	if err != nil {
@@ -911,7 +868,6 @@ func TestUsage_IncludesNewShell(t *testing.T) {
 	content := string(src)
 	for _, needle := range []string{
 		"new shell [<path>]",
-		"--shell=bash|zsh|pwsh|powershell",
 	} {
 		if !strings.Contains(content, needle) {
 			t.Errorf("usage() should contain %q, but it does not", needle)
