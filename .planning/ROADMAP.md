@@ -320,10 +320,10 @@ Plans:
 - **PARITY-04 (Docs):** README + CLI `--help` output reflect the new shape; no lingering references to `bash`/`zsh`/`pwsh` shell selection on TUI/CLI.
 
 **Depends on:** Phase 107 (the GUI collapse + Settings shellPath plumbing this phase mirrors)
-**Plans:** 0 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] TBD (run /gsd-spec-phase 108 to lock the spec, then /gsd-plan-phase 108 to break down)
+- [x] TBD (run /gsd-spec-phase 108 to lock the spec, then /gsd-plan-phase 108 to break down) (completed 2026-05-16)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

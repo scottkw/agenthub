@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: Shell Sessions & Polish
-status: v3.3 unblocked — Phases 100-107 implemented; Phase 108 added 2026-05-16 (release-blocker, TUI+CLI shell-entry parity). 101-UAT complete, surfaced the parity gap; awaiting Phase 108 spec/plan/execute, plus operator follow-ups (105 UATs, 106 secrets) before /gsd-complete-milestone v3.3.
-stopped_at: Phase 108 added to ROADMAP; awaiting /gsd-spec-phase 108
-last_updated: "2026-05-16T17:30:00.000Z"
-last_activity: 2026-05-16 — 101-UAT complete, Phase 108 added to v3.3 roadmap
+status: Phase 108 code-complete (108-01, 108-02, 108-03 all merged 2026-05-16). v3.3 release-blocking parity work is closed; operator follow-ups remain (Phase 105 UATs, Phase 106 secrets) before /gsd-complete-milestone v3.3.
+stopped_at: Phase 108 complete — last code work for v3.3 cross-surface shell-entry parity; awaiting operator follow-ups
+last_updated: "2026-05-16T23:42:32.454Z"
+last_activity: 2026-05-16 — Phase 108 code-complete (108-01 TUI, 108-02 CLI, 108-03 docs)
 progress:
   total_phases: 9
-  completed_phases: 8
-  total_plans: 4
-  completed_plans: 4
-  percent: 88
+  completed_phases: 9
+  total_plans: 7
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-03)
 
 ## Current Position
 
-Phase: 108 — tui-cli-shell-entry-collapse-parity-with-phase-107-gui-shell (new, not yet spec'd)
-Plan: —
-Status: ROADMAP entry created; awaiting `/gsd-spec-phase 108` to lock requirements, then `/gsd-plan-phase 108`
-Last activity: 2026-05-16 — 101-UAT complete (3 pass / 2 skipped / blocker gap → Phase 108 added)
+Phase: 108 — tui-cli-shell-entry-collapse-parity-with-phase-107-gui-shell (code-complete)
+Plan: 108-03 (PARITY-DOCS-01) — complete
+Status: Phase 108 code-complete (108-01 TUI, 108-02 CLI, 108-03 docs all merged 2026-05-16). v3.3 release-blocking parity work is closed. Operator follow-ups remain before /gsd-complete-milestone v3.3: Phase 105 UATs + Phase 106 secrets.
+Last activity: 2026-05-16 — 108-03 merged at 354d634 (Shell sessions README section + usage() help block sweep)
 
 ## Phase 107 Plan Set
 
@@ -151,7 +151,7 @@ UAT items align with the v3.2-MILESTONE-AUDIT deferred-to-v3.3 list (blocked on 
 
 ## Session Continuity
 
-Last session: 2026-05-16
+Last session: 2026-05-16T23:42:32.449Z
 Stopped at: Phase 108 added to ROADMAP after 101-UAT surfaced TUI/CLI shell-entry parity gap
 Resume file: None
 Next action: `/gsd-spec-phase 108` to lock the parity requirements (PARITY-01..04), then `/gsd-plan-phase 108`.
@@ -163,14 +163,17 @@ Next action: `/gsd-spec-phase 108` to lock the parity requirements (PARITY-01..0
 Pre-`/gsd-complete-milestone v3.3` work:
 
 **Code work (release-blocking):**
+
 1. **Phase 108: TUI + CLI shell-entry collapse** — `/gsd-spec-phase 108` → `/gsd-plan-phase 108` → `/gsd-execute-phase 108`. Closes the cross-surface parity gap (PARITY-01..04 in ROADMAP).
 
 **Operator follow-ups (no coding):**
+
 2. **Phase 105 UATs** (~1–2 h, human): execute `.planning/phases/105-deferred-v3-2-uat-re-run/105-UAT-RUNBOOK.md` — 7 scenarios on physical iPad + Tailscale + Chrome DevTools.
 3. **Phase 106 `RELEASE_PUBLISH_TOKEN`** (one-time): create fine-grained PAT scoped to `Contents: read/write` on `scottkw/agenthub`, then `gh secret set RELEASE_PUBLISH_TOKEN`. Without this, `release.published` will not auto-trigger `distribute.yml`.
 4. **Phase 106 `WINGET_FIRST_SUBMISSION=true`** (one-time, first submission only): `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after microsoft/winget-pkgs accepts.
 
 **Completed during this session:**
+
 - 101-UAT walked end-to-end: Test 1 skipped (Phase 107 supersession), Test 2 pass (source-verified), Test 3 pass on literal contract + blocker gap → Phase 108, Test 4 skipped (Phase 108 reworking surface), Test 5 pass (3-step walk-through).
 
 Phase 107 SHELL-12 runtime UAT is signed off (commit 5c58277). Three Phase 107 INFO findings (IN-01/02/03) and the Browse-button aria-label pattern remain deferred to v3.4 per `107-UI-REVIEW.md`.
