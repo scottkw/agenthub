@@ -19,7 +19,7 @@ import (
 	"github.com/scottkw/agenthub/internal/webserver"
 )
 
-// API serves the daemon HTTP API over a Unix socket.
+// API serves the daemon HTTP API over a Unix socket or Windows named pipe.
 type API struct {
 	engine        *SessionEngine
 	mux           *http.ServeMux
@@ -149,8 +149,8 @@ func (a *API) StartRelay() (int, error) {
 	return a.relayPort, nil
 }
 
-// Start validates the socket path, cleans up any stale socket, creates the
-// parent directory, and begins serving on the Unix socket.
+// Start validates the socket path, cleans up any stale socket, and begins
+// serving on the platform daemon socket.
 func (a *API) Start(socketPath string) error {
 	if err := ValidateSocketPath(socketPath); err != nil {
 		return err
@@ -158,7 +158,7 @@ func (a *API) Start(socketPath string) error {
 	if err := CleanupStaleSocket(socketPath); err != nil {
 		return err
 	}
-	ln, err := net.Listen("unix", socketPath)
+	ln, err := listenDaemonSocket(socketPath)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,8 @@ func (a *API) Start(socketPath string) error {
 	return nil
 }
 
-// Stop closes the listener and removes the socket file.
+// Stop closes the listener and removes the socket file when the platform uses
+// a filesystem-backed socket.
 func (a *API) Stop() error {
 	// Stop web server if running.
 	a.mu.Lock()
@@ -187,8 +188,9 @@ func (a *API) Stop() error {
 	if a.ln == nil {
 		return nil
 	}
+	addr := a.ln.Addr().String()
 	err := a.ln.Close()
-	_ = os.Remove(a.ln.Addr().String())
+	_ = removeDaemonSocket(addr)
 	a.ln = nil
 	return err
 }
