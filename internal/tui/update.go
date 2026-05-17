@@ -640,11 +640,15 @@ func (m Model) cycleFocus(forward bool) (tea.Model, tea.Cmd) {
 
 // submitNewSession validates form fields and dispatches session creation.
 //
-// Phase 101 SHELL-03: agent selection reads from the unified agentEntries
-// slice (AI CLIs + shells). For shell entries (cli ∈ {shell, bash, zsh, pwsh,
-// powershell}) the args field is intentionally dropped before dispatch —
-// mirrors Phase 100 Anti-Pattern A6: shell sessions never accept caller-
-// supplied argv.
+// Phase 108 PARITY-TUI-01/02: agent selection reads from the unified
+// agentEntries slice, which post-collapse emits AI CLI keys plus a single
+// static "shell" entry (no per-shell variants). For shell entries the args
+// field is intentionally dropped before dispatch — mirrors Phase 100
+// Anti-Pattern A6: shell sessions never accept caller-supplied argv.
+//
+// isShellCLI still accepts the legacy keys {bash, zsh, pwsh, powershell}
+// as defense-in-depth for any non-picker caller (e.g. restored sessions);
+// the picker itself can only produce "shell" post-Phase-108.
 func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
 	entries := m.agentEntries()
 	if len(entries) == 0 {
@@ -688,7 +692,10 @@ func (m Model) submitNewSession() (tea.Model, tea.Cmd) {
 }
 
 // isShellCLI reports whether the given cli identifier represents a raw shell
-// session. Mirrors the agentBadgeColor shell case and the cmdNewShell allowlist.
+// session. Post-Phase-108 the TUI picker emits only "shell"; the legacy
+// per-shell keys {bash, zsh, pwsh, powershell} are kept here as defense-
+// in-depth for non-picker callers (e.g. session restoration with a stored
+// pre-collapse cliKey) and mirror the agentBadgeColor shell case.
 func isShellCLI(cli string) bool {
 	switch cli {
 	case "shell", "bash", "zsh", "pwsh", "powershell":
