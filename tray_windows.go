@@ -126,6 +126,7 @@ type wndClassEx struct {
 // Lazy-loaded Win32 DLL procedures.
 var (
 	shell32              = windows.NewLazySystemDLL("shell32.dll")
+	kernel32             = windows.NewLazySystemDLL("kernel32.dll")
 	user32               = windows.NewLazySystemDLL("user32.dll")
 	gdi32                = windows.NewLazySystemDLL("gdi32.dll")
 	pShellNotifyIconW    = shell32.NewProc("Shell_NotifyIconW")
@@ -144,7 +145,7 @@ var (
 	pTranslateMessage    = user32.NewProc("TranslateMessage")
 	pDispatchMessageW    = user32.NewProc("DispatchMessageW")
 	pPostMessageW        = user32.NewProc("PostMessageW")
-	pGetModuleHandleW    = user32.NewProc("GetModuleHandleW")
+	pGetModuleHandleW    = kernel32.NewProc("GetModuleHandleW")
 	pCreateIconIndirect  = user32.NewProc("CreateIconIndirect")
 	pCreateDIBSection    = gdi32.NewProc("CreateDIBSection")
 	pCreateBitmap        = gdi32.NewProc("CreateBitmap")
