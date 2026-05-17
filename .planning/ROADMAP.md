@@ -22,7 +22,7 @@
 - ✅ **v3.0 Session Lifecycle & TUI Polish** — Phases 83-86 (shipped 2026-04-19)
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
-- 🚧 **v3.3 Shell Sessions & Polish** — Phases 100-108 (in progress, closes Issues #44 + #45, absorbs Phase 91 deferred work + v3.2 polish/UAT carry-over; Phase 107 captured shell-UX scope flip + clean-exit bug; Phase 108 added 2026-05-16 to extend Phase 107's GUI shell-entry collapse to TUI + CLI — release-blocking cross-surface parity gap surfaced during 101-UAT)
+- ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
 
 ## Phases
 
@@ -253,21 +253,18 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 </details>
 
-### 🚧 v3.3 Shell Sessions & Polish (In Progress)
+<details>
+<summary>✅ v3.3 Shell Sessions & Polish (Phases 100-108) — SHIPPED 2026-05-17 (closes Issues #44 + #45)</summary>
 
-**Milestone Goal:** Land raw shell sessions (bash/zsh/pwsh) as a first-class agent type — unblocking the ~9 deferred v3.2 UAT scenarios that require raw PTY — then close v3.2 polish/tech-debt and re-run the deferred UAT batches end-to-end. Closes GitHub Issues #44 (shell agent) and #45 (Settings hyperlinked index). Absorbs Phase 91 v3.1 distribution-pipeline follow-ups. Phase 107 added 2026-05-13 to capture shell-UX scope flip + clean-exit bug discovered after the code-complete audit. Phase 108 added 2026-05-16 to extend Phase 107's GUI shell-entry collapse to TUI + CLI surfaces (release-blocking parity gap surfaced during 101-UAT Test 3).
-
-**Phase numbering:** Continues from v3.2's last phase (99). v3.3 spans Phases 100-108.
-
-- [x] **Phase 100: Shell Session Backend & Discovery** — Daemon-side shell PTY plumbing: cross-platform shell discovery, interactive (non-login) PTY spawn, exclusion from CLI-status heuristics. (completed 2026-05-13)
-- [x] **Phase 101: Shell Session Surfaces & Web-Share Gating** — Shell selection across GUI/CLI/TUI + distinct agent badge color + web-share opt-in + one-time arbitrary-execution confirmation banner. (completed 2026-05-13)
-- [x] **Phase 102: Web-Links Polish — mailto + IDN** — Closes the v3.2 LNK spec gap. (completed 2026-05-13)
-- [x] **Phase 103: Find Bar Dismiss + Test-Env + IIP Polish** — POLISH-03..06. (completed 2026-05-12; 103-IIP-DECISION.md still missing — see audit)
-- [x] **Phase 104: Settings Hyperlinked Index** — Issue #45. (completed 2026-05-12)
-- [ ] **Phase 105: Deferred v3.2 UAT Re-Run** — runbook only; 7 UAT scenarios pending human execution.
-- [ ] **Phase 106: Distribution Pipeline Followups** — DIST-01..03; code-complete, pending PAT + WinGet var.
-- [ ] **Phase 107: Shell UX Collapse + Binary Path Picker + Clean-Exit Handling** — Collapse multi-shell rows to single "Shell" entry (SHELL-10), add Settings → Paths shell-binary field (SHELL-11), fix exit-code -1 leak and auto-close tab on clean exit (SHELL-12). Reverses SHELL-01's multi-row design.
-- [ ] **Phase 108: TUI + CLI shell-entry collapse — parity with Phase 107 GUI SHELL-10** — Mirror Phase 107's collapse on the TUI new-session agent picker (`internal/tui/modal.go`) and the CLI `agenthub new shell` flag handling (`cmd_cli.go`). Single "Shell" entry on both surfaces; binary resolved from the same Settings shellPath as the GUI. Release-blocking cross-surface parity gap (logged in `101-UAT.md`).
+- [x] Phase 100: Shell Session Backend & Discovery (4/4 plans) — completed 2026-05-13
+- [x] Phase 101: Shell Session Surfaces & Web-Share Gating (4/4 plans) — completed 2026-05-13
+- [x] Phase 102: Web-Links Polish — mailto + IDN (1/1 plan) — completed 2026-05-13
+- [x] Phase 103: Find Bar Dismiss + Test-Env + IIP Polish (inline) — completed 2026-05-12
+- [x] Phase 104: Settings Hyperlinked Index (1/1 plan) — completed 2026-05-12
+- [x] Phase 105: Deferred v3.2 UAT Re-Run (runbook + UAT executed) — completed 2026-05-17 (3 pass + 4 issues filed to v3.4: #54/#55/#56)
+- [x] Phase 106: Distribution Pipeline Followups (workflow edits) — completed 2026-05-13 (code-complete; operator: PAT + WinGet variable pending before next release)
+- [x] Phase 107: Shell UX Collapse + Binary Path Picker + Clean-Exit Handling (4/4 plans) — completed 2026-05-13 (SHELL-12 runtime UAT signed off 5c58277)
+- [x] Phase 108: TUI + CLI shell-entry collapse — parity with Phase 107 GUI (3/3 plans) — completed 2026-05-16 (TUI + CLI UAT smokes PASS 2026-05-17)
 
 </details>
 
@@ -298,32 +295,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
-
-### Phase 107: Shell UX collapse + binary path picker + clean-exit handling
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 106
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] TBD (run /gsd-plan-phase 107 to break down) (completed 2026-05-13)
-
-### Phase 108: TUI + CLI shell-entry collapse — parity with Phase 107 GUI SHELL-10
-
-**Goal:** Bring TUI new-session agent picker and CLI `agenthub new shell` into surface-parity with Phase 107's GUI collapse. After this phase, all three surfaces (GUI, TUI, CLI) expose exactly one "Shell" entry, and the shell binary is resolved from the Settings-stored `shellPath` for all surfaces. Eliminates the cross-surface UX inconsistency that surfaced during 101-UAT Test 3 — user declared the multi-shell-row pattern (`Shell — system default` / `Shell — bash` / `Shell — zsh`) on TUI/CLI an unacceptable v3.3 release state.
-
-**Requirements (provisional, to firm up in `/gsd-spec-phase 108`):**
-- **PARITY-01 (TUI):** TUI new-session agent picker shows a single "Shell" entry positioned identically to the GUI (after the AI CLIs, before wrap-around). Shell row in the session list uses the same single-color badge as the GUI (no per-variant differentiation).
-- **PARITY-02 (CLI):** `agenthub new shell` creates a session using the Settings-stored `shellPath`. The `--shell=<name>` flag is removed (or deprecated with a deprecation warning routed through stderr — to decide in spec). Locked stderr error strings updated to match new shape.
-- **PARITY-03 (Tests):** TUI cycle-order test (`internal/tui/update_test.go`) and CLI dispatch tests rewritten to assert the new single-Shell contract.
-- **PARITY-04 (Docs):** README + CLI `--help` output reflect the new shape; no lingering references to `bash`/`zsh`/`pwsh` shell selection on TUI/CLI.
-
-**Depends on:** Phase 107 (the GUI collapse + Settings shellPath plumbing this phase mirrors)
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] TBD (run /gsd-spec-phase 108 to lock the spec, then /gsd-plan-phase 108 to break down) (completed 2026-05-16)
+| 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -346,3 +318,4 @@ Plans:
 *Full v3.0 details: .planning/milestones/v3.0-ROADMAP.md*
 *Full v3.1 details: .planning/milestones/v3.1-phases/*
 *Full v3.2 details: .planning/milestones/v3.2-ROADMAP.md*
+*Full v3.3 details: .planning/milestones/v3.3-ROADMAP.md*

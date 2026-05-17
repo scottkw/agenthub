@@ -1,5 +1,41 @@
 # Milestones
 
+## v3.3 Shell Sessions & Polish (Shipped: 2026-05-17)
+
+**Phases completed:** 9 phases (100-108), 18 plans
+**Requirements:** 35/35 satisfied (SHELL-01..12, PARITY-01..04, SETUI-01..03, POLISH-01..06, UAT-01..07, DIST-01..03)
+**Commits:** 133 | **Timeline:** 5 days (2026-05-12 → 2026-05-17)
+**Source changes:** 57 files, +5,784 / -156 lines (excluding `.planning/`)
+**Closes:** GitHub Issues #44 (shell agent) + #45 (Settings hyperlinked index); absorbs v3.1 Phase 91 distribution-pipeline followups and v3.2 polish/UAT carry-over
+
+**Key accomplishments:**
+
+- Shell sessions as a first-class agent type across all three surfaces (GUI/TUI/CLI): daemon-side cross-platform shell discovery (`internal/pty/shells.go` — bash/zsh/pwsh/powershell + `$SHELL` + `/etc/shells` + Windows PowerShell paths), interactive (non-login) PTY spawn with WorkDir honored, status-heuristic exclusion (only `running`/`stopped`, never `waiting`/`error`), one-time web-share confirmation banner explaining arbitrary-command-execution risk, slate-cyan (#89ddff) agent badge — Phases 100/101 (SHELL-01..09)
+- Mid-milestone shell-UX scope flip: collapsed multi-row picker to a single "Shell" entry across GUI (Phase 107) and TUI/CLI (Phase 108); Settings → Paths "Shell binary" field with daemon-resolved `shellPath` (fallback chain `$SHELL` → `DiscoverShells` → platform default), clean-exit `-1 → 0` PTY-wait normalization with `autoCloseRef`-gated tab auto-close — SHELL-10/11/12 + PARITY-01..04
+- Settings hyperlinked index (Issue #45): sticky jump-link bar with anchor links to each section header, autocomplete search filtering settings by label (static `SEARCH_INDEX`, scroll-margin-top anchors, native `a href=#...` smooth scroll) — Phase 104 (SETUI-01..03)
+- v3.2 polish closure: Cmd/Ctrl-click `mailto:` URLs route through `LinkConfirmPopover` IDN chain (Phase 102, POLISH-01/02); find-bar Esc/close dismiss after case-sensitive toggle, 200ms exit animation parity, `Sidebar.test.tsx` localStorage polyfill, sixel-only IIP decision (Phase 103, POLISH-03..06)
+- Phase 91 v3.1 distribution-pipeline backfill: `release.yml` PAT fallback so `release.published` auto-triggers `distribute.yml` (DIST-01); `distribute.yml` reads `$env:RELEASE_TAG` env block for both `release.published` and `workflow_dispatch` (DIST-02); `wingetcreate new`/`update` branching on `WINGET_FIRST_SUBMISSION` (DIST-03) — Phase 106 (code-complete; operator-pending)
+- Deferred v3.2 UAT re-run executed end-to-end (Phase 105, 7 scenarios): 3 pass + 2 verified-in-code + 2 with bugs filed to GitHub (#54 chafa OSC leak, #55 WebGLRecoveryBanner missing, #56 iPad tap-on-link captured by xterm-helper-textarea) — all 4 deferred to v3.4 as pre-existing (non-regression) tech debt
+- Audit-driven phase insertion pattern proven: Phase 107 inserted 2026-05-13 after code-complete audit surfaced shell-UX feedback + clean-exit bug; Phase 108 inserted 2026-05-16 after 101-UAT Test 3 declared multi-shell rows on TUI/CLI a release-blocking parity gap. Cross-surface parity (GUI/TUI/CLI) now treated as release-blocking contract.
+
+**Known deferred items (carried to v3.4):**
+
+- Operator: Phase 106 `RELEASE_PUBLISH_TOKEN` PAT creation + `WINGET_FIRST_SUBMISSION=true` variable (one-time, before next release)
+- `scottkw/agenthub#54` — chafa OSC 10/11 + DA1 response leak into shell stdin (web surface only; pre-existing)
+- `scottkw/agenthub#55` — WebGLRecoveryBanner not rendering despite functional DOM fallback (pre-existing Phase 93 bug)
+- `scottkw/agenthub#56` — iPad tap-on-link captured by xterm-helper-textarea (pre-existing iPad-touch polish cluster)
+- Phase 101 visual-fidelity UAT (5 cosmetic items, non-gating)
+- Phase 108 WR-01/WR-02 + IN-01..04 (documentation/dead-code cleanups)
+- Phase 107 IN-01/02/03 + Browse-button aria-label pattern + SettingsSearch SEARCH_INDEX missing "Shell binary"
+- Phase 101 advisory WR-01..09 + IN-01..06 (15 advisory tech-debt items in `101-REVIEW.md`)
+- Phase 103 process debt (no `103-SUMMARY.md`, no `103-IIP-DECISION.md`, no `103-VERIFICATION.md`)
+- TestOpenCodeANSICapture data race (pre-existing, skipped)
+- Pre-existing `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests; SPEC §Out-of-scope for Phase 108)
+- Nyquist `*-VALIDATION.md` missing for Phases 101–108 (process debt; not a blocker)
+- Known deferred items at close: 12+ (see STATE.md Deferred Items)
+
+---
+
 ## v3.2 Plugin Suite (Shipped: 2026-05-12)
 
 **Phases completed:** 8 phases (92-99), 44 plans, 55 tasks
