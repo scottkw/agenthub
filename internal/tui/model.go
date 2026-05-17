@@ -121,7 +121,7 @@ type Model struct {
 
 	// Modal state (Phase 77)
 	modal        modalState
-	agentIdx     int               // current agent picker index (covers AI CLIs + shells)
+	agentIdx     int               // current agent picker index (AI CLIs + the single static Shell entry)
 	dirInput     textinput.Model   // directory field in new-session modal
 	argsInput    textinput.Model   // arguments field in new-session modal
 	focusedField int               // 0=agent, 1=directory, 2=arguments
