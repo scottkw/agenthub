@@ -14,19 +14,19 @@ import (
 )
 
 // DaemonClient is a typed Go client that communicates with the daemon API
-// over a Unix socket.
+// over a Unix socket or Windows named pipe.
 type DaemonClient struct {
 	http *http.Client
 	base string
 }
 
-// NewDaemonClient creates a DaemonClient that dials the given Unix socket path.
+// NewDaemonClient creates a DaemonClient that dials the given daemon socket path.
 // All HTTP requests use http://daemon as the base URL — the custom transport
-// rewrites the actual network connection to the Unix socket.
+// rewrites the actual network connection to the platform daemon socket.
 func NewDaemonClient(socketPath string) *DaemonClient {
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{Timeout: 2 * time.Second}).DialContext(ctx, "unix", socketPath)
+			return dialDaemonSocket(ctx, socketPath)
 		},
 	}
 	return &DaemonClient{
