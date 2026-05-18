@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
 status: planning
-stopped_at: "Phase 113 Plan 01 executed on main (5 task commits: 2 RED, 2 GREEN, 1 VERIFICATION docs); attachTouchScroll helper + touch-action: pan-y CSS wired; 10+5+922 tests green; physical iPad UAT (5 human_needed items) pending operator"
-last_updated: "2026-05-18T16:50:50.473Z"
-last_activity: 2026-05-18 — Phase 113 Plan 01 executed
+stopped_at: "Phase 114 Plan 01 executed on main (1 task commit 904cd14 Variant A fix + VERIFICATION.md); local macOS stress 100/100 PASS; Linux CI 100/100 gate (Task 4) deferred to operator per `human_needed` checkpoint; Issue #58 ready to close on Linux CI confirmation"
+last_updated: "2026-05-18T17:15:00.000Z"
+last_activity: 2026-05-18 — Phase 114 Plan 01 executed
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 5
-  completed_plans: 5
+  completed_phases: 6
+  total_plans: 6
+  completed_plans: 6
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: 113 (iPad terminal touch-scroll)
-Plan: 01 — **complete-pending-human-UAT**
-Status: 5 task commits on `main` (5745c02 test RED, c9a8506 feat GREEN handler, 49e88d2 test RED wiring, 8f06df7 feat GREEN wiring, 821d7e0 docs VERIFICATION). UI-03 + UI-04 closed by code: `attachTouchScroll(container, term)` helper (117 source lines) + useEffect wiring + `touch-action: pan-y` CSS companion on `.terminal-session-container`. 10/10 unit + 5/5 source-grep + 922/922 full-suite + tsc clean. Physical iPad UAT (5 `human_needed` items: iPad Safari/Chrome single-finger scrollback, two-finger gesture sanity, OSC 8 link tap probe, sub-threshold tap) flagged in `.planning/phases/113-ipad-terminal-touch-scroll/113-VERIFICATION.md`. Probes the v3.3 UAT-04 carry-over (Issue #56) — may fix as side-effect.
-Last activity: 2026-05-18 — Phase 113 Plan 01 executed
+Phase: 114 (CI test stability — webserver capability test flake)
+Plan: 01 — **complete-pending-Linux-CI-100/100**
+Status: 1 task commit on `main` (904cd14 fix Variant A + VERIFICATION.md). Issue #58 closure: `issueExpiredCapFor` in `internal/webserver/plugin_config_stream_test.go` rewritten to sign with deliberately wrong 32-byte 0xFF key (vs. previously signing with real key + flipping last base64 char — that flip was a no-op for 6.25% of HMAC outputs when the base64 tail char landed in {A,B,C,D}). Local macOS arm64 stress: `go test -race -shuffle=on -count=100 -run TestPluginConfigStream_ExpiredCap_Returns401 ./internal/webserver/` → 100/100 PASS; package x10 shuffled → PASS no sibling regression. Commit body states base64-padding-bit root cause in writing (TEST-02 acceptance). Task 4 (Linux CI 100/100 gate, `checkpoint:human-verify`) deferred to operator per orchestrator instruction.
+Last activity: 2026-05-18 — Phase 114 Plan 01 executed
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -91,3 +91,4 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | 111 | 01 | code-complete; pending human macOS cross-surface chafa UAT (WEB-02) | 5min | 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION) | InputAbsorber 5-state machine (oscabsorb.go 117 source lines) + 26 unit subtests + 6 integration tests + 4-line server.go wiring; `internal/relay/server.go` UNTOUCHED, no new deps; closes Issue #54 web surface once macOS operator confirms web vs. desktop chafa parity; Open Question 1 (desktop empirical state) deferred to that UAT |
 | 112 | 01 | code-complete; pending human cross-surface UAT (UI-01 desktop Wails + UI-01 web Chrome) | 8min | 4 task commits on `main` (b889c63 test RED, a4cdc2e fix GREEN, 99a42c7 docs VERIFICATION, 7e35bcd docs issue-cross-check) | TerminalPanel.tsx onContextLoss reorder (24 changed lines, one block): notify React FIRST then queueMicrotask-deferred dispose with try/catch. RESEARCH §5 pattern; CONTEXT closure-rot hypothesis refuted (RESEARCH §Pattern 1 — React useState setters are identity-stable). Full frontend suite 907/907 PASS; tsc --noEmit clean. UI-02 (DOM fallback) source-traced via WebglAddon.dispose() → renderService.setRenderer(_createRenderer()). Manual UAT deferred (no GUI display + no Chrome in executor session); closes Issue #55 once operator runs 112-VERIFICATION.md UAT-1 + UAT-2 |
 | 113 | 01 | code-complete; pending human physical-iPad UAT (UI-03 + UI-04, 5 human_needed items) | ~30min | 5 task commits on `main` (5745c02 test RED, c9a8506 feat GREEN handler, 49e88d2 test RED wiring, 8f06df7 feat GREEN wiring + CSS, 821d7e0 docs VERIFICATION) | New frontend/src/lib/touchScrollHandler.ts (117 src lines) — `attachTouchScroll(container, term) => cleanup`. Translates single-finger touch Δy into `term.scrollLines(-lines)` against xterm public API; multi-touch bails so iOS handles pinch; sub-threshold (<8px) tap path untouched so OSC 8 WebLinksAddon click handler keeps firing; touchmove registered `passive:false` for `preventDefault` on confirmed scroll. TerminalPanel.tsx: 1 import + 1 new useEffect with `[sessionId]` dep array right after existing mount effect; binds to React-owned outer containerRef <div> so it survives `term.dispose()`. style.css: `touch-action: pan-y` on `.terminal-session-container` (companion CSS — does NOT use `touch-action: none`, preserves pinch-zoom). Tests: 10/10 unit + 5/5 source-grep + 922/922 full frontend suite + tsc --noEmit clean. No new deps. Closes Issue #56 once physical iPad UAT confirms; probes the v3.3 UAT-04 carry-over (iPad tap-on-link) as possible bonus side-effect repair. |
+| 114 | 01 | code-complete; pending human Linux CI 100/100 gate (TEST-01 final acceptance, Task 4 `checkpoint:human-verify`) | ~3min | 1 task commit on `main` (904cd14 fix VARIANT A + VERIFICATION.md) | Variant A rewrite of `issueExpiredCapFor` in `internal/webserver/plugin_config_stream_test.go` — sign with deliberately wrong 32-byte 0xFF key (vs. previously signing with real key + flipping last base64 char). Removes the wall-clock-second base64-padding-bit no-op (alphabet chars A/B/C/D share top 4 bits, low 2 bits are padding → 6.25% of HMAC outputs the A↔B flip was a no-op → handler hit 403 'capability revoked' instead of 401). Exercises the production ErrInvalidSignature → 401 path already proven non-flaky by TestCapability_InvalidSignatureReturns401. Local stress: `go test -race -shuffle=on -count=100 -run TestPluginConfigStream_ExpiredCap_Returns401 ./internal/webserver/` → 100/100 PASS; full package x10 shuffled → PASS no sibling regression. Commit body states base64-padding-bit root cause in writing (TEST-02 acceptance). Closes Issue #58 once operator confirms Linux CI 100/100. |
