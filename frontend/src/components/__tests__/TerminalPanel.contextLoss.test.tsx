@@ -217,7 +217,9 @@ describe('Phase 112 UI-01: TerminalPanel onContextLoss notify-before-dispose (be
             progress: false,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
-          onWebGLContextLost: parentCb,
+          onWebGLContextLost: parentCb as unknown as (
+            reason: 'context-loss' | 'software-rasterized',
+          ) => void,
         }),
       )
     })

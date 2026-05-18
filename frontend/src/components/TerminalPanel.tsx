@@ -389,9 +389,29 @@ export function TerminalPanel({
           try {
             const webglAddon = new WebglAddon()
             webglAddon.onContextLoss(() => {
-              webglAddon.dispose()
-              webglAddonRef.current = null
+              // Phase 112 UI-01 / Issue #55: notify React FIRST while the
+              // emitter chain is still alive. The previous order disposed the
+              // addon synchronously inside its own onContextLoss fire, which
+              // tore down the Event.forward + renderer-reset disposables
+              // registered in WebglAddon.activate() (see
+              // node_modules/@xterm/addon-webgl/src/WebglAddon.ts:84-97) and
+              // aborted the continuation that would have invoked this React
+              // notify call — leaving webglContextLost stuck at false and the
+              // banner unrendered.
               onWebGLContextLost?.('context-loss')
+              // Defer the addon teardown to a microtask so the emitter's
+              // .fire() returns cleanly before we dispose. try/catch matches
+              // the established defensive pattern at line ~320 (WebLinksAddon)
+              // — dispose() may throw post-loss when the render service has
+              // already torn itself down. The ref-identity guard prevents
+              // clobbering a fresh addon if hot-swap re-registered one
+              // between fire and microtask flush.
+              queueMicrotask(() => {
+                try { webglAddon.dispose() } catch { /* ignore — addon may already be torn down */ }
+                if (webglAddonRef.current === webglAddon) {
+                  webglAddonRef.current = null
+                }
+              })
             })
             term.loadAddon(webglAddon)
             webglAddonRef.current = webglAddon
