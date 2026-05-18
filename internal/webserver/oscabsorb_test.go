@@ -171,4 +171,3 @@ func TestInputAbsorber_R2_MalformedOSCInterruptedByNonStEsc(t *testing.T) {
 		t.Errorf("R2 malformed OSC: want round-trip %q got %q", in, got)
 	}
 }
-
