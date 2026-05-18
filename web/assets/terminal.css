@@ -46,8 +46,12 @@
       border-radius: 3px;
     }
     /* Phase 94 SRC-05: position: relative anchors the absolutely-positioned
-       #find-bar overlay (UI-SPEC §"Web: terminal.html structure"). */
-    #terminal { flex: 1; min-height: 0; width: 100%; position: relative; }
+       #find-bar overlay (UI-SPEC §"Web: terminal.html structure").
+       Phase 113 / Issue #56: `touch-action: pan-y` declares scroll intent so
+       iOS Safari/Chrome do not race their native page-pan animation against
+       attachTouchScroll's scrollLines() updates in terminal.js. Mirrors
+       frontend/src/style.css:31 for the React surface. */
+    #terminal { flex: 1; min-height: 0; width: 100%; position: relative; touch-action: pan-y; }
 
     /* Phase 93 WGL-02 / WGL-04 — web parity with desktop .webgl-recovery-banner. */
     #webgl-recovery-banner {

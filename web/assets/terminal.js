@@ -169,6 +169,63 @@
       term.loadAddon(fitAddon);
       term.open(document.getElementById('terminal'));
       fitAddon.fit();
+
+      // Phase 113 / Issue #56 — iPad terminal touch-scroll.
+      // xterm.js v6 ships no touch handlers; on iPad Safari/Chrome a
+      // single-finger drag falls through to the browser page-pan instead of
+      // scrolling the xterm scrollback. Mirrors lib/touchScrollHandler.ts
+      // used by the Wails React surface; see
+      // .planning/phases/113-ipad-terminal-touch-scroll/113-RESEARCH.md.
+      (function attachTouchScroll(container, t) {
+        var FALLBACK_CELL_HEIGHT_PX = 17;
+        function readCellHeight() {
+          var h = t && t._core && t._core._renderService &&
+                  t._core._renderService.dimensions &&
+                  t._core._renderService.dimensions.css &&
+                  t._core._renderService.dimensions.css.cell &&
+                  t._core._renderService.dimensions.css.cell.height;
+          return h || FALLBACK_CELL_HEIGHT_PX;
+        }
+        var trackingId = null;
+        var lastY = 0;
+        var accumulatedDy = 0;
+        function onTouchStart(e) {
+          if (e.touches.length !== 1) { trackingId = null; return; }
+          var tch = e.changedTouches[0];
+          trackingId = tch.identifier;
+          lastY = tch.clientY;
+          accumulatedDy = 0;
+        }
+        function onTouchMove(e) {
+          if (trackingId === null) return;
+          if (e.touches.length !== 1) { trackingId = null; return; }
+          var tch = null;
+          for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === trackingId) {
+              tch = e.changedTouches[i]; break;
+            }
+          }
+          if (!tch) return;
+          var dy = tch.clientY - lastY;
+          lastY = tch.clientY;
+          accumulatedDy += dy;
+          var cellH = readCellHeight();
+          var lines = Math.trunc(accumulatedDy / cellH);
+          if (lines !== 0) {
+            // finger DOWN reveals OLDER content → negative argument
+            t.scrollLines(-lines);
+            accumulatedDy -= lines * cellH;
+            // preventDefault ONLY once we've committed to a scroll — keeps
+            // sub-threshold taps reaching WebLinksAddon's synthetic click.
+            e.preventDefault();
+          }
+        }
+        function onTouchEnd() { trackingId = null; }
+        container.addEventListener('touchstart', onTouchStart, { passive: true });
+        container.addEventListener('touchmove', onTouchMove, { passive: false });
+        container.addEventListener('touchend', onTouchEnd, { passive: true });
+        container.addEventListener('touchcancel', onTouchEnd, { passive: true });
+      })(document.getElementById('terminal'), term);
       // Phase 89 / 94-04 / 94-05 e2e harness — expose Terminal for chromedp tests.
       // Production-safe: this is a write-only assignment to the window object,
       // mirrors the pattern already used by the perf harness for `window.term`.

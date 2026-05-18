@@ -1,5 +1,31 @@
 # Phase 113 — iPad terminal touch-scroll — VERIFICATION
 
+## iPad Safari UAT — PASS ✅ (2026-05-18, ken@kscott, physical iPad)
+
+**Critical UAT finding:** Phase 113's planned fix in
+`frontend/src/components/TerminalPanel.tsx` + `frontend/src/style.css` only
+reaches the **Wails React** surface. The iPad hits
+`web/assets/terminal.js` + `web/assets/terminal.css` — a separate vanilla-JS
+surface that the original plan did NOT update. **Same shape as Phase 112's
+two-surfaces issue.** Same fix shape ported to the web surface during this
+UAT: `attachTouchScroll` IIFE in `terminal.js`, `touch-action: pan-y` on
+`#terminal` in `terminal.css`.
+
+**Probes captured on iPad Safari over a physical iPad:**
+
+| Probe | Method | Result |
+|-------|--------|--------|
+| **UI-03** single-finger scroll | Generated ~200 lines via `ls -la /usr/bin \| head -200`, single-finger drag up scrolls older output into view | ✅ scrollback scrolls |
+| **UI-04** tap-on-link (carry-over Issue #46) | `printf 'click here: \e]8;;https://example.com\e\\link-text\e]8;;\e\\\n'` → tap rendered "link-text" | ✅ WebLinksAddon click handler fires (8px tap-vs-drag threshold protected the tap path) |
+
+**iPad Chrome:** Apple's policy requires all iOS browsers to use WebKit, so
+iPad Chrome behavior is engine-identical to iPad Safari. No separate UAT
+required (verified PASS on Safari is equivalent).
+
+---
+
+
+
 **Phase:** 113-ipad-terminal-touch-scroll
 **Issue:** scottkw/agenthub#56
 **Requirements:** UI-03, UI-04
