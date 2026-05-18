@@ -893,6 +893,44 @@ func TestResolveShellSpawn_PowerShellOverride(t *testing.T) {
 	}
 }
 
+// TestResolveShellSpawn_FreshInstallFallback (v3.3.1 Phase 109 UAT finding)
+// locks the fix for the fresh-install Windows path: when cli="shell",
+// shellPath setting is empty, cliPaths["shell"] is empty, and DiscoverShells
+// returns only specific-name shells (no synthetic "shell"), branch (4) MUST
+// pick the first discovered shell rather than returning isShell=false.
+//
+// Pre-fix behavior: resolveShellSpawn returned ("", nil, false) and the
+// caller exec'd the literal string "shell", which failed as "executable file
+// not found in %PATH%" on Windows.
+//
+// We exercise this on POSIX with $SHELL deliberately UNSET — that suppresses
+// DiscoverShells's synthetic "shell" entry (which is the existing path
+// covered by TestResolveShellSpawn_SystemDefault) and forces resolution to
+// reach branch (4).
+func TestResolveShellSpawn_FreshInstallFallback(t *testing.T) {
+	// Unset $SHELL so DiscoverShells does NOT append the synthetic "shell"
+	// entry — otherwise branch (2) would match and branch (4) would never
+	// be exercised.
+	t.Setenv("SHELL", "")
+	e, _ := newShellTestEngine(t)
+	// e.shellPath is empty by default; e.cliPaths is empty by default.
+	// At least one of bash/zsh must be on PATH for the test host to exercise
+	// this branch — every CI / dev box should satisfy this.
+	path, args, ok := e.resolveShellSpawn("shell")
+	if !ok {
+		t.Fatal("resolveShellSpawn(shell) returned ok=false on fresh install; " +
+			"branch (4) fallback did not engage. v3.3.1 Phase 109 UAT regressed.")
+	}
+	if path == "" || path == "shell" {
+		t.Errorf("resolveShellSpawn(shell) returned bogus path %q; expected a " +
+			"real binary path from DiscoverShells", path)
+	}
+	if len(args) == 0 {
+		t.Errorf("resolveShellSpawn(shell) returned empty args; expected the " +
+			"discovered shell's spec.Argv (e.g. [-i] for bash/zsh)")
+	}
+}
+
 // --- Phase 101 Plan 01: ShellWebShareWarned persistence ----------------------
 
 // TestSetShellWebShareWarned_Default verifies fresh engine reads false.

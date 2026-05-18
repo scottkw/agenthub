@@ -761,18 +761,27 @@ func TestModal_SubmitValidation(t *testing.T) {
 	}
 }
 
-func TestModal_SubmitNoAgents(t *testing.T) {
+// TestModal_SubmitNoAIAgents (formerly TestModal_SubmitNoAgents) verifies
+// that submitting the new-session modal on a fresh install with no AI CLIs
+// detected still produces a valid Shell session — not the v3.3 "Agent is
+// required" toast. Fixed during v3.3.1 Phase 109 Windows UAT; see
+// modal.go::agentEntries docstring for the rationale.
+func TestModal_SubmitNoAIAgents(t *testing.T) {
 	m := testModel()
 	m.modal = modalNewSession
-	m.detectedCLIs = nil // no agents
+	m.detectedCLIs = nil // no AI CLIs — Shell entry must still be picker-default
 	m.dirInput = textinput.New()
 	m.dirInput.SetValue("/some/dir")
 	m.argsInput = textinput.New()
 
 	updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	result := updated.(Model)
-	if result.toast != "Agent is required" {
-		t.Errorf("expected 'Agent is required' toast, got %q", result.toast)
+	// Post-fix the picker defaults to Shell (agentEntries always returns
+	// at least the Shell entry), so submit succeeds and toast announces
+	// session creation rather than "Agent is required".
+	if result.toast == "Agent is required" {
+		t.Errorf("regressed: empty AI-CLI list incorrectly blocked Shell " +
+			"session creation; toast = %q", result.toast)
 	}
 }
 

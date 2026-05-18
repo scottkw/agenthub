@@ -657,13 +657,16 @@ function App(): React.ReactElement {
   }, [tabs])
 
   const handleAddTab = useCallback(() => {
-    if (detectedCLIs.length === 0) {
-      // No CLIs found — open settings so the user can configure a path.
-      handleOpenSettings()
-      return
-    }
+    // v3.3.1 Phase 109 UAT finding: the prior early-out routed to Settings
+    // when detectedCLIs was empty, which made fresh installs (especially
+    // Windows boxes without any AI CLI installed) unable to create a Shell
+    // session via the `+` button. Since Phase 107 SHELL-10, the modal
+    // always shows a Shell row regardless of AI-CLI detection, so the
+    // early-out is now stale. Open the modal in all cases; the modal's
+    // empty-AI-CLI state is the right surface to teach users how to
+    // install AI CLIs, not the Settings tab silently.
     setShowNewSessionModal(true)
-  }, [detectedCLIs, handleOpenSettings])
+  }, [])
 
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.

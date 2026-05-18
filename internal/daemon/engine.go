@@ -573,6 +573,27 @@ func (e *SessionEngine) resolveShellSpawn(cli string) (string, []string, bool) {
 		}
 	}
 
+	// (4) Phase 107 SHELL-11 fallback for the generic "shell" key on
+	// fresh installs (v3.3.1 Windows UAT finding). When the user has not
+	// yet visited Settings → Paths → Shell binary, both the e.shellPath
+	// setting and the cliPaths["shell"] override are empty. Branches (0)
+	// and (1) skip. Branch (2)'s exact-name loop never matches because
+	// knownShellSpecs contains specific shell names (bash/zsh/pwsh/
+	// powershell), not the generic key "shell". Without this fallback,
+	// resolveShellSpawn returns isShell=false and the caller execs the
+	// literal string "shell" — which fails as "executable file not found
+	// in %PATH%" on Windows (Issue surfaced during Phase 109 IPC-05 UAT).
+	//
+	// Pick the FIRST discovered shell so platform defaults are sensible:
+	// Windows boxes typically discover powershell.exe (Windows PowerShell
+	// 5.x ships in-box on every Win10+ install); macOS/Linux typically
+	// discover bash and zsh in knownShellSpecs order.
+	if cli == "shell" && len(discovered) > 0 {
+		sh := discovered[0]
+		argv := append([]string(nil), sh.Argv...)
+		return sh.Path, argv, true
+	}
+
 	return "", nil, false
 }
 

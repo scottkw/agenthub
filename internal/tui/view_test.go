@@ -315,7 +315,11 @@ func TestView_NewSessionModal(t *testing.T) {
 	}
 }
 
-func TestView_NewSessionModal_NoAgents(t *testing.T) {
+// TestView_NewSessionModal_NoAIAgents (formerly _NoAgents) verifies that
+// with no AI CLIs detected the modal shows "Shell" rather than the prior
+// "(none found)" empty-state. Fixed during v3.3.1 Phase 109 Windows UAT
+// after a fresh Windows install with no AI CLIs hit this gap.
+func TestView_NewSessionModal_NoAIAgents(t *testing.T) {
 	m := testModel()
 	m.modal = modalNewSession
 	m.focusedField = 0
@@ -326,8 +330,12 @@ func TestView_NewSessionModal_NoAgents(t *testing.T) {
 	v := m.View()
 	content := v.Content
 
-	if !strings.Contains(content, "(none found)") {
-		t.Error("modal should show '(none found)' when no CLIs detected")
+	if strings.Contains(content, "(none found)") {
+		t.Error("modal incorrectly shows '(none found)' when AI CLIs are " +
+			"unavailable — should fall back to the static Shell entry")
+	}
+	if !strings.Contains(content, "Shell") {
+		t.Error("modal must show Shell entry even when AI CLIs are unavailable")
 	}
 }
 

@@ -23,20 +23,24 @@ type agentEntry struct {
 // agentEntries returns the unified picker entry slice: AI CLIs first (in
 // detectedCLIs order), then exactly one trailing "Shell" entry with
 // cliKey="shell". The daemon resolves the actual binary from Settings'
-// shellPath when it sees cli=="shell".
+// shellPath when it sees cli=="shell" (with a discovered-shell fallback
+// for fresh installs — see resolveShellSpawn branch (4) in
+// internal/daemon/engine.go).
 //
-// Returns nil if detectedCLIs is empty (caller checks len(entries) == 0 for
-// the empty-state branch). The static Shell row is appended only when at
-// least one AI CLI is available so the picker is never a single Shell row
-// with nothing to pair against.
+// Always returns at least the single Shell entry. The Phase 108-era
+// "return nil when detectedCLIs is empty" gate was reverted during the
+// v3.3.1 Phase 109 Windows UAT after two failures were observed on a
+// fresh Windows install with no AI CLIs configured:
+//   - TUI new-session modal showed "Agent: (none found)" with no way to
+//     pick Shell, blocking shell-session creation on Windows.
+//   - lipgloss.Place panicked on the empty modal content (modal.go:69
+//     "runtime error: index out of range [0] with length 0").
+// Mirrors the parallel GUI fix to handleAddTab in App.tsx.
 //
 // Phase 108 PARITY-TUI-01: replaces the Phase 101 multi-row per-shell
 // fan-out with a single static "Shell" entry. Mirrors the Phase 107 GUI
 // NewSessionModal collapse.
 func (m Model) agentEntries() []agentEntry {
-	if len(m.detectedCLIs) == 0 {
-		return nil
-	}
 	entries := make([]agentEntry, 0, len(m.detectedCLIs)+1)
 	for _, c := range m.detectedCLIs {
 		entries = append(entries, agentEntry{cliKey: c.Name, displayLabel: c.DisplayName})
