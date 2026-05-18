@@ -24,6 +24,11 @@
      (UI-SPEC §"Layout and Positioning" — find bar floats inside this
      container). position:relative is the only structural change needed. */
   position: relative;
+  /* Phase 113 UI-03: declare single-finger vertical drag as ours; multi-touch
+     (pinch-zoom) falls through to browser. Companion to attachTouchScroll
+     in lib/touchScrollHandler.ts — without this, iOS Safari can compete
+     with our touchmove handler and pan the page at the same time. */
+  touch-action: pan-y;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────── */

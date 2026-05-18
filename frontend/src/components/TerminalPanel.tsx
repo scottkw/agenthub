@@ -19,6 +19,9 @@ import { daemon } from '../wailsjs/go/models'
 import { isAllowedScheme, getRisk, type RiskKind } from '../lib/urlSafety'
 import { openLink, isModifierPressed, type ModifierMode } from '../lib/openLink'
 import { LinkConfirmPopover } from './LinkConfirmPopover'
+// Phase 113 UI-03 / UI-04 — iPad single-finger scrollback. xterm.js v6 has
+// no built-in touch handling; this helper attaches the missing handlers.
+import { attachTouchScroll } from '../lib/touchScrollHandler'
 type PluginSettings = daemon.PluginSettings
 
 // Custom fit that uses full container width (no hardcoded scrollbar deduction).
@@ -365,6 +368,21 @@ export function TerminalPanel({
   // onFontSizeChange + pluginConfig?.unicode11 intentionally omitted: mount
   // effect runs once per session; unicode11 is read at init (next-session
   // semantics, UI-SPEC § Interaction Contract).
+  }, [sessionId])
+
+  // Phase 113 UI-03 / UI-04 — iPad single-finger scrollback.
+  // Lives AFTER the mount useEffect so termRef.current is populated before
+  // this runs. Listeners are attached to the React-owned outer container
+  // <div> (not anything inside .xterm), so they survive term.dispose() in
+  // the mount-effect cleanup. Both effects key off sessionId — cleanup runs
+  // in reverse order (this effect's cleanup first → mount cleanup), but the
+  // container ref itself is React-owned and persists across xterm re-mount.
+  useEffect(() => {
+    const container = containerRef.current
+    const term = termRef.current
+    if (!container || !term) return
+    const cleanup = attachTouchScroll(container, term)
+    return cleanup
   }, [sessionId])
 
   // Phase 93 hot-swap useEffect (WGL-01 + CLIP-01 + WGL-02 + WGL-03).
