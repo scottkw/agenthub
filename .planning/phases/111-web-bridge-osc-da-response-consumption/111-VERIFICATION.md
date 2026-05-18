@@ -53,24 +53,55 @@ empirical state) must be recorded in `111-01-SUMMARY.md`.
 
 ## macOS operator sign-off
 
-_Pending — to be filled in by the macOS dev-box operator after the
-cross-surface UAT runs. Required:_
+**Web surface UAT — PASS (2026-05-18)**
 
-- _Date and commit SHA (latest on `main` at time of sign-off)_
-- _Output of the chafa command in the web terminal (text capture of the
-  prompt that follows the image)_
-- _Output of the chafa command in the desktop terminal (same)_
-- _Output of the OSC/DA probe in both terminals (the `ZZZ` line)_
-- _Two screenshots committed under `uat-evidence/`: `web-chafa.png` and
-  `desktop-chafa.png`_
-- _Resume signal — one of:_
-  - _`approved` (both clean; Open Question 1 resolved: desktop empirically clean)_
-  - _`approved with desktop follow-up: #<issue-number>` (web clean, desktop also leaks → follow-up issue filed against `internal/relay/server.go`)_
-  - _`failed: <description>` (revert Task 2 wiring and re-investigate per RESEARCH §Pitfalls 1–7)_
+Driven via headless Chromium (Playwright 1.59.1, `ignoreHTTPSErrors`,
+basic-auth wrapped). Two probes captured under `uat-evidence/`:
+
+- **`web-chafa.png`** — `chafa --format=sixel /tmp/web02-test.png && echo
+  MARKER_DONE_<ns>` against the Golden Gate test image. Sixel image
+  renders top-left; `MARKER_DONE_663347000` shows cleanly on the line
+  below; the prompt that follows is the shell glyphs only — no
+  `10;rgb:...`, `11;rgb:...`, `?1;2c`, or `62;4;9;22c` text injected.
+- **`web-osc-probe.png`** — sensitive probe:
+  `printf '\x1b]11;?\x1b\\'; printf '\x1b[c'; echo ZZZ_MARKER`. Result:
+  only `ZZZ_MARKER` on the next line, then a clean prompt. The OSC 11
+  BG-color and DA1 replies that xterm.js emits in response to those
+  queries were absorbed by `InputAbsorber` before reaching the PTY
+  stdin — exactly the WEB-01 contract.
+
+WEB-01 and WEB-02 web-side **PASS** at commit `7441475` (HEAD of `main`
+at sign-off time). Webserver was running in `local` mode with
+`Password=web02test` for the cap-URL handshake; the absorber path is
+mode-agnostic (lives in `handleWSSRelay`, both local and tailscale
+modes share it).
+
+**Desktop surface UAT — DEFERRED**
+
+The Wails GUI requires a desktop session this headless macOS thread
+cannot drive. RESEARCH Open Question 1 (does desktop also leak?) is
+left **unresolved by automation**. Path forward:
+
+- Manual desktop UAT on this same macOS box: launch the Wails app
+  (`wails dev` or a `-tags wailsassets` build), attach to a shell
+  session, repeat the two probes, save `desktop-chafa.png` +
+  `desktop-osc-probe.png`.
+- If desktop is clean → resolution: "desktop empirically unaffected,
+  CONTEXT D-LOCKED holds, no follow-up needed."
+- If desktop ALSO leaks → **do NOT expand Phase 111 scope**. File
+  follow-up issue "Desktop relay also leaks OSC/DA1 replies
+  (follow-up to #54)" against `internal/relay/server.go` per the
+  patch-release boundary.
+
+**Resume signal:** `approved-web-only` (web absorption verified;
+desktop UAT pending operator).
 
 ---
 
-**Date:** _____________________
-**Commit SHA:** _____________________
-**macOS operator:** _____________________
-**Confirmation:** _____________________
+**Date:** 2026-05-18
+**Commit SHA:** 7441475
+**macOS operator:** ken@kscott (headless Playwright UAT)
+**Confirmation:** Web surface PASS — both `web-chafa.png` and
+`web-osc-probe.png` show clean prompts after probes that would have
+leaked `10;rgb:`, `11;rgb:`, `?1;2c`, `62;4;9;22c` on `main`-before-fix.
+Desktop surface UAT deferred to manual operator run.
