@@ -5,6 +5,8 @@ critical_count: 0
 high_count: 0
 medium_count: 2
 low_count: 3
+medium_fixed: 2
+low_fixed: 0
 ---
 
 # Phase 109 Code Review — Windows daemon named-pipe IPC (PR #53 cherry-pick)
@@ -42,6 +44,7 @@ The plan's `must_haves` and `threat_model` mitigations (T-109-04 atomic addr cap
 
 ### MR-01: Windows dial path has no fast-fail timeout — `ERROR_PIPE_BUSY` spins forever under `context.Background()`
 
+**Status:** fixed in `dd73b61` (post-cherry-pick adjustment, 2026-05-18)
 **Severity:** MEDIUM (Behavior parity gap — Windows-only)
 **File:** `internal/daemon/ipc_windows.go:17-19`, `internal/daemon/client.go:353-389` (caller)
 
@@ -86,6 +89,7 @@ Alternative: lift the timeout to the caller by switching `client.go:363` to `htt
 
 ### MR-02: `API.Stop()` returns `nil` from Windows close path regardless of underlying error
 
+**Status:** fixed in `9994151` (doc comment added on `API.Stop`, 2026-05-18)
 **Severity:** MEDIUM (Diagnostic — error-suppression on Windows)
 **File:** `internal/daemon/api.go:196-200`
 
