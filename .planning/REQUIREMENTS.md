@@ -103,22 +103,22 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 
 | REQ-ID  | Phase | Status |
 |---------|-------|--------|
-| IPC-01  | TBD   | pending |
-| IPC-02  | TBD   | pending |
-| IPC-03  | TBD   | pending |
-| IPC-04  | TBD   | pending |
-| IPC-05  | TBD   | pending |
-| IPC-06  | TBD   | pending |
-| WEB-01  | TBD   | pending |
-| WEB-02  | TBD   | pending |
-| WEB-03  | TBD   | pending |
-| UI-01   | TBD   | pending |
-| UI-02   | TBD   | pending |
-| UI-03   | TBD   | pending |
-| UI-04   | TBD   | pending |
-| PTY-01  | TBD   | pending |
-| PTY-02  | TBD   | pending |
-| PTY-03  | TBD   | pending |
-| PTY-04  | TBD   | pending |
-| TEST-01 | TBD   | pending |
-| TEST-02 | TBD   | pending |
+| IPC-01  | Phase 109 | pending |
+| IPC-02  | Phase 109 | pending |
+| IPC-03  | Phase 109 | pending |
+| IPC-04  | Phase 109 | pending |
+| IPC-05  | Phase 109 | pending |
+| IPC-06  | Phase 109 | pending |
+| WEB-01  | Phase 111 | pending |
+| WEB-02  | Phase 111 | pending |
+| WEB-03  | Phase 111 | pending |
+| UI-01   | Phase 112 | pending |
+| UI-02   | Phase 112 | pending |
+| UI-03   | Phase 113 | pending |
+| UI-04   | Phase 113 | pending |
+| PTY-01  | Phase 110 | pending |
+| PTY-02  | Phase 110 | pending |
+| PTY-03  | Phase 110 | pending |
+| PTY-04  | Phase 110 | pending |
+| TEST-01 | Phase 114 | pending |
+| TEST-02 | Phase 114 | pending |

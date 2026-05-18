@@ -23,6 +23,7 @@
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
 - ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
+- 🚧 **v3.3.1 Bug Sweep** — Phases 109-114 (planning 2026-05-18, closes Issues #52, #54, #55, #56, #57, #58)
 
 ## Phases
 
@@ -268,6 +269,15 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 </details>
 
+### 🚧 v3.3.1 Bug Sweep (Phases 109-114) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58)
+
+- [ ] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06
+- [ ] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04
+- [ ] Phase 111: Web bridge OSC/DA response consumption (Issue #54) — WEB-01..03
+- [ ] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02
+- [ ] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04
+- [ ] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -296,6 +306,12 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
+| 109 | v3.3.1 | 0/0 | Not started | - |
+| 110 | v3.3.1 | 0/0 | Not started | - |
+| 111 | v3.3.1 | 0/0 | Not started | - |
+| 112 | v3.3.1 | 0/0 | Not started | - |
+| 113 | v3.3.1 | 0/0 | Not started | - |
+| 114 | v3.3.1 | 0/0 | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -319,3 +335,4 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 *Full v3.1 details: .planning/milestones/v3.1-phases/*
 *Full v3.2 details: .planning/milestones/v3.2-ROADMAP.md*
 *Full v3.3 details: .planning/milestones/v3.3-ROADMAP.md*
+*Full v3.3.1 details: .planning/milestones/v3.3.1-ROADMAP.md*
