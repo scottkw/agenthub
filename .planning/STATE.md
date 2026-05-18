@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
 status: planning
-stopped_at: Phase 110 Plan 01 executed on `main` (7 task commits); SUMMARY.md written; awaiting Linux-host UAT sign-off in 110-VERIFICATION.md
-last_updated: "2026-05-18T15:30:00.000Z"
-last_activity: 2026-05-18 — Phase 110 Plan 01 executed (Linux PTY natural-exit detection; closes Issue #57)
+stopped_at: Phase 111 Plan 01 executed on `main` (4 task commits); SUMMARY.md written; awaiting macOS-host cross-surface chafa UAT sign-off in 111-VERIFICATION.md
+last_updated: "2026-05-18T16:10:00.000Z"
+last_activity: 2026-05-18 — Phase 111 Plan 01 executed
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: 110 (Linux PTY natural-exit detection)
+Phase: 111 (Web bridge OSC/DA response consumption)
 Plan: 01 — **complete-pending-human-UAT**
-Status: 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, plus the SUMMARY meta-commit). PTY-01..04 closed by this plan code; Linux GUI/TUI/CLI runtime UAT + two Linux automated test runs flagged `human_needed` in `.planning/phases/110-linux-pty-natural-exit-detection/110-VERIFICATION.md`. macOS regression auto-checks all PASS.
-Last activity: 2026-05-18 — Phase 110 Plan 01 executed
+Status: 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION). WEB-01 + WEB-03 closed by code (26 unit + 6 integration tests all green under `-race -count=3`); WEB-02 cross-surface chafa parity UAT (web Chrome + desktop Wails) flagged `human_needed` in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md`. Patch-release scope held: `internal/relay/server.go` untouched, no new deps, net +4 lines in `server.go`.
+Last activity: 2026-05-18 — Phase 111 Plan 01 executed
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -55,10 +55,10 @@ Last activity: 2026-05-18 — Phase 110 Plan 01 executed
 
 ## Session Continuity
 
-Last session: 2026-05-18T15:30:00.000Z
-Stopped at: Phase 110 Plan 01 executed on `main` (7 task commits); SUMMARY.md written; awaiting Linux-host UAT sign-off in 110-VERIFICATION.md
+Last session: 2026-05-18T16:10:00.000Z
+Stopped at: Phase 111 Plan 01 executed on `main` (4 task commits); SUMMARY.md written; awaiting macOS-host cross-surface chafa UAT sign-off in 111-VERIFICATION.md
 Resume file: None
-Next action: Linux operator runs the six `human_needed` items in `.planning/phases/110-linux-pty-natural-exit-detection/110-VERIFICATION.md` (Linux GUI clean/non-zero exit, Linux TUI, Linux CLI smoke, TestStartExitDetector_* under -race -shuffle=on x10, TestListSessions_OnExitCallback_ReceivesNormalized under -race -shuffle=on x10); flips `human_needed` → `human_verified`; then `/gsd-verify-work --phase 110` for Plan 01 phase-gate. Windows UAT for Phase 109 remains pending in parallel.
+Next action: macOS operator runs the six `human_needed` items in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md` (web Chrome chafa + OSC/DA probe + regression smoke; desktop Wails chafa + OSC/DA probe + regression smoke; parity decision); records resume signal (approved / approved with desktop follow-up: #<n> / failed); then `/gsd-verify-work --phase 111` for Plan 01 phase-gate. Linux UAT for Phase 110 + Windows UAT for Phase 109 remain pending in parallel.
 
 ## Deferred Items
 
@@ -87,3 +87,4 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 |-------|------|--------|----------|---------|-------|
 | 109 | 01 | code-complete; pending human Windows UAT (IPC-05) | 7min | 4 (3 cherry-picks from PR #53 by Alexandre Castro + 1 planner doc) | `phase-109-windows-named-pipe-ipc` branch; SUMMARY.md written; pre-existing ShellWebShareWarned failures documented in `deferred-items.md` (already known per line 81 deferred table above) |
 | 110 | 01 | code-complete; pending human Linux UAT (PTY-01..04 runtime) | 10min | 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, + SUMMARY meta-commit) | Linux Wait4 exit detector + no-op stub + 3 unit tests + native.go wire-up + engine_test.go skip flip + 110-VERIFICATION.md + 110-01-SUMMARY.md + deferred-items.md; macOS race regression all PASS (excluding 4 pre-existing failures documented in deferred-items.md); closes Issue #57 once Linux UAT signs off |
+| 111 | 01 | code-complete; pending human macOS cross-surface chafa UAT (WEB-02) | 5min | 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION) | InputAbsorber 5-state machine (oscabsorb.go 117 source lines) + 26 unit subtests + 6 integration tests + 4-line server.go wiring; `internal/relay/server.go` UNTOUCHED, no new deps; closes Issue #54 web surface once macOS operator confirms web vs. desktop chafa parity; Open Question 1 (desktop empirical state) deferred to that UAT |

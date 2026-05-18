@@ -31,9 +31,9 @@ Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit 
 
 Web surface only — desktop unaffected. Web frontend's session bridge does not consume OSC color-query / Device Attributes responses, leaking them into shell stdin. Pre-existing (predates v3.3); blocking parity for any sixel-using or capability-probing program (chafa, vim, neovim, mc) on the web surface.
 
-- [ ] **WEB-01** — On the web-served terminal, OSC 10 (FG color query), OSC 11 (BG color query), and Device Attributes (`CSI c`) responses are consumed by the requesting program and do NOT appear in shell stdin. Reproducible with `chafa --format=sixel /tmp/<png>` in a web-shared shell session.
+- [x] **WEB-01** — On the web-served terminal, OSC 10 (FG color query), OSC 11 (BG color query), and Device Attributes (`CSI c`) responses are consumed by the requesting program and do NOT appear in shell stdin. Reproducible with `chafa --format=sixel /tmp/<png>` in a web-shared shell session.
 - [ ] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render).
-- [ ] **WEB-03** — Regression test (Go or e2e) covers OSC response consumption on the web bridge; future regressions in the response path fail in CI.
+- [x] **WEB-03** — Regression test (Go or e2e) covers OSC response consumption on the web bridge; future regressions in the response path fail in CI.
 
 ### UI — Frontend bugs (Issues #55, #56)
 
@@ -109,9 +109,9 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | IPC-04  | Phase 109 | Complete |
 | IPC-05  | Phase 109 | pending |
 | IPC-06  | Phase 109 | Complete |
-| WEB-01  | Phase 111 | pending |
+| WEB-01  | Phase 111 | Complete |
 | WEB-02  | Phase 111 | pending |
-| WEB-03  | Phase 111 | pending |
+| WEB-03  | Phase 111 | Complete |
 | UI-01   | Phase 112 | pending |
 | UI-02   | Phase 112 | pending |
 | UI-03   | Phase 113 | pending |
