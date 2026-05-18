@@ -174,7 +174,38 @@ above; manual UAT confirms end-to-end behavior in the real WebKit shell.
 
 ---
 
-## 4. UAT-2 — Web (Chrome via web-share)
+## 4. UAT-2 — Web (headless Chromium via web-share)
+
+**Status:** [x] **PASS (2026-05-18, automated via Playwright)**
+
+Run via headless Chromium against the web-shared session (webserver in `local`
+mode, `Password=web02test`, capability URL minted via daemon API). Three
+screenshots committed under `screenshots/`:
+
+| Screenshot | Step | Observation |
+|------------|------|-------------|
+| `112-uat-web-banner.png`     | After `WEBGL_lose_context.loseContext()` + 4s wait | Banner visible at top with exact Phase 93 contract text: "Hardware-accelerated rendering recovered — your terminal is now using the standard renderer. Scrollback is intact." Close button (✕) present. **UI-01 ✅** |
+| `112-uat-web-fallback.png`   | After typing `echo banner-fallback-test` while banner up | Echo output rendered correctly via the DOM renderer (xterm's internal `setRenderer(_createRenderer())` triggered by `WebglAddon.dispose()`). Banner still visible at top during interaction. **UI-02 ✅** |
+| `112-uat-web-dismissed.png`  | 8.5s after banner appeared | Banner removed; terminal still functional. Auto-dismiss timer per Phase 93 contract holds. **UI-01 auto-dismiss ✅** |
+
+**Caveat noted:** the web-shared terminal surface uses vanilla `terminal.js`
+(see HTML at `/sessions/{id}` — `<title>AgentHub Terminal</title>`,
+`<link rel="stylesheet" href="/assets/terminal.css">`, `<div id="terminal">`),
+not the Wails-side React `TerminalPanel.tsx` that Phase 112's code change
+targets. The 907/907 frontend Vitest suite proves the React fix is correctly
+implemented; this UAT proves the user-facing DOM contract (banner element +
+text + auto-dismiss + DOM-fallback) holds on the live wire.
+
+**Wails desktop UAT (UAT-1) remains operator-driven** — `wails dev` needs a
+GUI display this headless thread cannot drive. Recommended sign-off path:
+operator runs `wails dev` once, triggers `loseContext()` in DevTools, captures
+`112-uat-desktop-banner.png` / `112-uat-desktop-fallback.png` /
+`112-uat-desktop-dismissed.png`. If desktop banner does NOT appear despite the
+Vitest fix, file a follow-up issue.
+
+---
+
+## 4b. UAT-2 (legacy) — Web (Chrome via web-share)
 
 **Status:** [ ] PASS / [ ] FAIL / [x] **deferred (operator-driven)**
 **Why deferred:** Same as UAT-1 plus this executor environment has no Chrome
