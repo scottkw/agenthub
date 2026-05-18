@@ -271,7 +271,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 ### 🚧 v3.3.1 Bug Sweep (Phases 109-114) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58)
 
-- [ ] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06
+- [x] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06 (completed 2026-05-18)
 - [ ] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04
 - [ ] Phase 111: Web bridge OSC/DA response consumption (Issue #54) — WEB-01..03
 - [ ] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02
@@ -306,7 +306,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
-| 109 | v3.3.1 | 0/1 | Planned | - |
+| 109 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 110 | v3.3.1 | 0/0 | Not started | - |
 | 111 | v3.3.1 | 0/0 | Not started | - |
 | 112 | v3.3.1 | 0/0 | Not started | - |
@@ -323,10 +323,10 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 **Scope:** Adapt `internal/daemon` listener and `DaemonClient` dialer to use `winio` named pipes on Windows; Unix sockets on macOS/Linux. PR #53 evaluation task (rebase vs. re-apply) is mandatory, with `Co-Authored-By: im-alexandre` attribution either way. Cross-surface Windows verification (GUI + CLI + TUI) per v3.3 Phase 108 contract; macOS/Linux smoke for no regression.
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 109-01-PLAN.md — Cherry-pick PR #53 (named-pipe IPC abstraction + Windows tests + kernel32 tray fix), preserve Alexandre Castro attribution, scaffold Windows UAT in VERIFICATION.md
+- [x] 109-01-PLAN.md — Cherry-pick PR #53 (named-pipe IPC abstraction + Windows tests + kernel32 tray fix), preserve Alexandre Castro attribution, scaffold Windows UAT in VERIFICATION.md
 
 ### Phase 110: Linux PTY natural-exit detection
 

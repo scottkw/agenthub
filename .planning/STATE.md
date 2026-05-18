@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
-status: planning
-last_updated: "2026-05-18T14:01:17Z"
-last_activity: 2026-05-18
+status: Phase 109 Plan 01 complete (pending Windows-host UAT for IPC-05)
+stopped_at: Phase 109 Plan 01 cherry-pick of PR #53 landed on `phase-109-windows-named-pipe-ipc` branch; SUMMARY written; awaiting human Windows 11 UAT (WIN-GUI-01 / WIN-CLI-01 / WIN-TUI-01)
+last_updated: "2026-05-18T14:45:00Z"
+last_activity: 2026-05-18 — Phase 109 Plan 01 executed
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 6
+  completed_plans: 1
+  percent: 17
 ---
 
 # Project State
@@ -24,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: Not started (roadmap drafted, awaiting plan-phase)
-Plan: —
-Status: Roadmap created — 6 phases (109-114), all 19 v3.3.1 REQs mapped
-Last activity: 2026-05-18 — v3.3.1 roadmap drafted
+Phase: 109 (Windows daemon named-pipe IPC)
+Plan: 01 (cherry-pick PR #53) — **complete-pending-human-UAT**
+Status: Phase branch `phase-109-windows-named-pipe-ipc` has 4 commits (3 by Alexandre Castro from PR #53 cherry-pick + 1 planner doc commit). IPC-01..04 + IPC-06 closed by this plan; IPC-05 requires Windows 11 hardware (see `.planning/phases/109-windows-daemon-named-pipe-ipc/109-VERIFICATION.md`).
+Last activity: 2026-05-18 — Phase 109 Plan 01 executed
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -54,10 +55,10 @@ Last activity: 2026-05-18 — v3.3.1 roadmap drafted
 
 ## Session Continuity
 
-Last session: 2026-05-18 — v3.3.1 roadmap drafted
-Stopped at: ROADMAP.md + v3.3.1-ROADMAP.md + REQUIREMENTS.md traceability written; awaiting approval + `/gsd-plan-phase 109`
-Resume file: .planning/milestones/v3.3.1-ROADMAP.md
-Next action: Approve roadmap, then `/gsd-plan-phase 109` (Windows IPC, PR #53 evaluation).
+Last session: 2026-05-18 — Phase 109 Plan 01 executed
+Stopped at: 4 commits on `phase-109-windows-named-pipe-ipc` (3 cherry-picks by Alexandre Castro + 1 planner doc); SUMMARY.md written; awaiting human Windows-host UAT
+Resume file: .planning/phases/109-windows-daemon-named-pipe-ipc/109-VERIFICATION.md
+Next action: Operator runs WIN-GUI-01 / WIN-CLI-01 / WIN-TUI-01 on Windows 11 hardware; flips `human_needed` → `human_verified` in VERIFICATION.md; then `/gsd-verify-work --phase 109` for Plan 01 phase-gate.
 
 ## Deferred Items
 
@@ -79,3 +80,9 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | test_debt | TestOpenCodeANSICapture data race | deferred (pre-existing, skipped) |
 | test_debt | Pre-existing `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests) | deferred v3.4 (SPEC §Out-of-scope for Phase 108) |
 | test_debt | Phase 108 PARITY-CLI-03 harness limitation (one documented test skip with v3.4 `SetShellPathForTest` follow-up sketched) | deferred v3.4 |
+
+## v3.3.1 Plan Execution Log
+
+| Phase | Plan | Status | Duration | Commits | Notes |
+|-------|------|--------|----------|---------|-------|
+| 109 | 01 | code-complete; pending human Windows UAT (IPC-05) | 7min | 4 (3 cherry-picks from PR #53 by Alexandre Castro + 1 planner doc) | `phase-109-windows-named-pipe-ipc` branch; SUMMARY.md written; pre-existing ShellWebShareWarned failures documented in `deferred-items.md` (already known per line 81 deferred table above) |

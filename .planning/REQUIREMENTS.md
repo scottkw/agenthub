@@ -20,12 +20,12 @@
 
 Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit `032a6e9`, 140 commits behind v3.3 tip). PR is small (7 files, +214/-13): adds `ipc_{windows,nonwindows}.go` abstraction, threads through `api.go` + `client.go` + `tray_windows.go`. Must be rebased / re-applied against v3.3 with author attribution preserved (`Co-Authored-By: im-alexandre <…>`). Five v3.3 commits since PR base touch `internal/daemon/api.go` and `client.go` (handleListShells, handleUpdateShellPath, ShellWebShareWarned) — likely merge conflicts in those two files; the two new `ipc_*.go` files drop in clean.
 
-- [ ] **IPC-01** — On Windows, the daemon listens on `\\.\pipe\agenthub-daemon` using `winio.ListenPipe` (not `net.Listen("unix", path)`); on macOS/Linux it continues to listen on a Unix socket. Verified by: `agenthub.exe daemon run` succeeds without `bind: A socket operation encountered a dead network` on Windows 11.
-- [ ] **IPC-02** — On Windows, `DaemonClient` dials `\\.\pipe\agenthub-daemon` using `winio.DialPipeContext`; CLI subcommands (`list`, `new`, `daemon status`, `tui`) connect to the running daemon without `EnsureDaemon` timeout.
-- [ ] **IPC-03** — `API.Stop()` does NOT attempt filesystem removal on named-pipe paths; existing `CleanupStaleSocket` named-pipe probing remains functional.
-- [ ] **IPC-04** — Windows regression tests exercise `API.Start` + `DaemonClient.Health()` over a named pipe end-to-end (not just `CleanupStaleSocket`), and `API.Stop` named-pipe path.
+- [x] **IPC-01** — On Windows, the daemon listens on `\\.\pipe\agenthub-daemon` using `winio.ListenPipe` (not `net.Listen("unix", path)`); on macOS/Linux it continues to listen on a Unix socket. Verified by: `agenthub.exe daemon run` succeeds without `bind: A socket operation encountered a dead network` on Windows 11.
+- [x] **IPC-02** — On Windows, `DaemonClient` dials `\\.\pipe\agenthub-daemon` using `winio.DialPipeContext`; CLI subcommands (`list`, `new`, `daemon status`, `tui`) connect to the running daemon without `EnsureDaemon` timeout.
+- [x] **IPC-03** — `API.Stop()` does NOT attempt filesystem removal on named-pipe paths; existing `CleanupStaleSocket` named-pipe probing remains functional.
+- [x] **IPC-04** — Windows regression tests exercise `API.Start` + `DaemonClient.Health()` over a named pipe end-to-end (not just `CleanupStaleSocket`), and `API.Stop` named-pipe path.
 - [ ] **IPC-05** — All three surfaces (GUI / CLI / TUI) tested working on Windows 11 — daemon auto-start, session create, session list, attach/detach, web-share toggle.
-- [ ] **IPC-06** — PR #53 author (`im-alexandre`) credited via `Co-Authored-By` trailer on the merged/cherry-picked commits, or via dedicated commit message attribution if re-applied from scratch.
+- [x] **IPC-06** — PR #53 author (`im-alexandre`) credited via `Co-Authored-By` trailer on the merged/cherry-picked commits, or via dedicated commit message attribution if re-applied from scratch.
 
 ### WEB — Web-served terminal correctness (Issue #54)
 
@@ -103,12 +103,12 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 
 | REQ-ID  | Phase | Status |
 |---------|-------|--------|
-| IPC-01  | Phase 109 | pending |
-| IPC-02  | Phase 109 | pending |
-| IPC-03  | Phase 109 | pending |
-| IPC-04  | Phase 109 | pending |
+| IPC-01  | Phase 109 | Complete |
+| IPC-02  | Phase 109 | Complete |
+| IPC-03  | Phase 109 | Complete |
+| IPC-04  | Phase 109 | Complete |
 | IPC-05  | Phase 109 | pending |
-| IPC-06  | Phase 109 | pending |
+| IPC-06  | Phase 109 | Complete |
 | WEB-01  | Phase 111 | pending |
 | WEB-02  | Phase 111 | pending |
 | WEB-03  | Phase 111 | pending |
