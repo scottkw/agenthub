@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
-status: Phase 109 Plan 01 complete (pending Windows-host UAT for IPC-05)
-stopped_at: Phase 109 Plan 01 cherry-pick of PR #53 landed on `phase-109-windows-named-pipe-ipc` branch; SUMMARY written; awaiting human Windows 11 UAT (WIN-GUI-01 / WIN-CLI-01 / WIN-TUI-01)
-last_updated: "2026-05-18T14:45:00Z"
-last_activity: 2026-05-18 — Phase 109 Plan 01 executed
+status: planning
+stopped_at: Phase 110 Plan 01 executed on `main` (7 task commits); SUMMARY.md written; awaiting Linux-host UAT sign-off in 110-VERIFICATION.md
+last_updated: "2026-05-18T15:30:00.000Z"
+last_activity: 2026-05-18 — Phase 110 Plan 01 executed (Linux PTY natural-exit detection; closes Issue #57)
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 6
-  completed_plans: 1
-  percent: 17
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: 109 (Windows daemon named-pipe IPC)
-Plan: 01 (cherry-pick PR #53) — **complete-pending-human-UAT**
-Status: Phase branch `phase-109-windows-named-pipe-ipc` has 4 commits (3 by Alexandre Castro from PR #53 cherry-pick + 1 planner doc commit). IPC-01..04 + IPC-06 closed by this plan; IPC-05 requires Windows 11 hardware (see `.planning/phases/109-windows-daemon-named-pipe-ipc/109-VERIFICATION.md`).
-Last activity: 2026-05-18 — Phase 109 Plan 01 executed
+Phase: 110 (Linux PTY natural-exit detection)
+Plan: 01 — **complete-pending-human-UAT**
+Status: 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, plus the SUMMARY meta-commit). PTY-01..04 closed by this plan code; Linux GUI/TUI/CLI runtime UAT + two Linux automated test runs flagged `human_needed` in `.planning/phases/110-linux-pty-natural-exit-detection/110-VERIFICATION.md`. macOS regression auto-checks all PASS.
+Last activity: 2026-05-18 — Phase 110 Plan 01 executed
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -55,10 +55,10 @@ Last activity: 2026-05-18 — Phase 109 Plan 01 executed
 
 ## Session Continuity
 
-Last session: 2026-05-18 — Phase 109 Plan 01 executed
-Stopped at: 4 commits on `phase-109-windows-named-pipe-ipc` (3 cherry-picks by Alexandre Castro + 1 planner doc); SUMMARY.md written; awaiting human Windows-host UAT
-Resume file: .planning/phases/109-windows-daemon-named-pipe-ipc/109-VERIFICATION.md
-Next action: Operator runs WIN-GUI-01 / WIN-CLI-01 / WIN-TUI-01 on Windows 11 hardware; flips `human_needed` → `human_verified` in VERIFICATION.md; then `/gsd-verify-work --phase 109` for Plan 01 phase-gate.
+Last session: 2026-05-18T15:30:00.000Z
+Stopped at: Phase 110 Plan 01 executed on `main` (7 task commits); SUMMARY.md written; awaiting Linux-host UAT sign-off in 110-VERIFICATION.md
+Resume file: None
+Next action: Linux operator runs the six `human_needed` items in `.planning/phases/110-linux-pty-natural-exit-detection/110-VERIFICATION.md` (Linux GUI clean/non-zero exit, Linux TUI, Linux CLI smoke, TestStartExitDetector_* under -race -shuffle=on x10, TestListSessions_OnExitCallback_ReceivesNormalized under -race -shuffle=on x10); flips `human_needed` → `human_verified`; then `/gsd-verify-work --phase 110` for Plan 01 phase-gate. Windows UAT for Phase 109 remains pending in parallel.
 
 ## Deferred Items
 
@@ -86,3 +86,4 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | Phase | Plan | Status | Duration | Commits | Notes |
 |-------|------|--------|----------|---------|-------|
 | 109 | 01 | code-complete; pending human Windows UAT (IPC-05) | 7min | 4 (3 cherry-picks from PR #53 by Alexandre Castro + 1 planner doc) | `phase-109-windows-named-pipe-ipc` branch; SUMMARY.md written; pre-existing ShellWebShareWarned failures documented in `deferred-items.md` (already known per line 81 deferred table above) |
+| 110 | 01 | code-complete; pending human Linux UAT (PTY-01..04 runtime) | 10min | 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, + SUMMARY meta-commit) | Linux Wait4 exit detector + no-op stub + 3 unit tests + native.go wire-up + engine_test.go skip flip + 110-VERIFICATION.md + 110-01-SUMMARY.md + deferred-items.md; macOS race regression all PASS (excluding 4 pre-existing failures documented in deferred-items.md); closes Issue #57 once Linux UAT signs off |

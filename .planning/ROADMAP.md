@@ -272,7 +272,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 ### 🚧 v3.3.1 Bug Sweep (Phases 109-114) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58)
 
 - [x] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06 (completed 2026-05-18)
-- [ ] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04
+- [x] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04 (completed 2026-05-18)
 - [ ] Phase 111: Web bridge OSC/DA response consumption (Issue #54) — WEB-01..03
 - [ ] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02
 - [ ] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04
@@ -307,7 +307,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
 | 109 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 110 | v3.3.1 | 0/0 | Not started | - |
+| 110 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 111 | v3.3.1 | 0/0 | Not started | - |
 | 112 | v3.3.1 | 0/0 | Not started | - |
 | 113 | v3.3.1 | 0/0 | Not started | - |
@@ -338,7 +338,7 @@ Plans:
 
 **Scope:** Separate exit-detector goroutine that polls `syscall.Wait4(pid, &status, WNOHANG)` and explicitly closes the PTY to unblock the read loop, coordinated with go-pty's internal `waitOnContext`. Daemon-side fix in `internal/pty` / `internal/daemon/engine.go`. Affects GUI Linux + TUI Linux. Re-enable `TestListSessions_OnExitCallback_ReceivesNormalized` (currently `t.Skip()`'d on Linux).
 
-**Plans:** 0 plans
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 110 to break down)

@@ -46,10 +46,10 @@ Web surface only — desktop unaffected. Web frontend's session bridge does not 
 
 v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only per `107-VERIFICATION.md`; Linux PTY EOF semantics differ (`pty.Read()` blocks indefinitely after clean child exit on Linux amd64 with go-pty v0.2.2 + v0.2.3). The `TestListSessions_OnExitCallback_ReceivesNormalized` test was added in Phase 107-02 and silently skipped on Linux via `t.Skip()` pending this fix.
 
-- [ ] **PTY-01** — On Linux, a shell session whose child process exits cleanly (`exit 0` at the prompt) causes the GUI tab / TUI list entry to auto-close — same behavior as macOS. Verified manually on a Linux desktop build and via CI test.
-- [ ] **PTY-02** — Natural-exit detection is platform-aware: on Linux, a separate exit-detector goroutine polls `syscall.Wait4(pid, &status, WNOHANG)` (or equivalent) and explicitly closes the PTY to unblock the read loop, coordinating with go-pty's `waitOnContext` to avoid double-`Wait` race.
-- [ ] **PTY-03** — `TestListSessions_OnExitCallback_ReceivesNormalized` no longer needs `t.Skip()` on Linux — runs and passes deterministically in `linux/amd64` CI under `-race -shuffle=on`.
-- [ ] **PTY-04** — Cross-surface parity holds: TUI Linux and CLI Linux benefit from the same daemon-side fix (TUI uses the same daemon path; CLI attach-detach is independent but daemon-side cleanup is fixed). No regression on macOS or Windows.
+- [x] **PTY-01** — On Linux, a shell session whose child process exits cleanly (`exit 0` at the prompt) causes the GUI tab / TUI list entry to auto-close — same behavior as macOS. Verified manually on a Linux desktop build and via CI test.
+- [x] **PTY-02** — Natural-exit detection is platform-aware: on Linux, a separate exit-detector goroutine polls `syscall.Wait4(pid, &status, WNOHANG)` (or equivalent) and explicitly closes the PTY to unblock the read loop, coordinating with go-pty's `waitOnContext` to avoid double-`Wait` race.
+- [x] **PTY-03** — `TestListSessions_OnExitCallback_ReceivesNormalized` no longer needs `t.Skip()` on Linux — runs and passes deterministically in `linux/amd64` CI under `-race -shuffle=on`.
+- [x] **PTY-04** — Cross-surface parity holds: TUI Linux and CLI Linux benefit from the same daemon-side fix (TUI uses the same daemon path; CLI attach-detach is independent but daemon-side cleanup is fixed). No regression on macOS or Windows.
 
 ### TEST — Test-suite stability (Issue #58)
 
@@ -116,9 +116,9 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | UI-02   | Phase 112 | pending |
 | UI-03   | Phase 113 | pending |
 | UI-04   | Phase 113 | pending |
-| PTY-01  | Phase 110 | pending |
-| PTY-02  | Phase 110 | pending |
-| PTY-03  | Phase 110 | pending |
-| PTY-04  | Phase 110 | pending |
+| PTY-01  | Phase 110 | Complete |
+| PTY-02  | Phase 110 | Complete |
+| PTY-03  | Phase 110 | Complete |
+| PTY-04  | Phase 110 | Complete |
 | TEST-01 | Phase 114 | pending |
 | TEST-02 | Phase 114 | pending |
