@@ -24,7 +24,7 @@ Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit 
 - [x] **IPC-02** — On Windows, `DaemonClient` dials `\\.\pipe\agenthub-daemon` using `winio.DialPipeContext`; CLI subcommands (`list`, `new`, `daemon status`, `tui`) connect to the running daemon without `EnsureDaemon` timeout.
 - [x] **IPC-03** — `API.Stop()` does NOT attempt filesystem removal on named-pipe paths; existing `CleanupStaleSocket` named-pipe probing remains functional.
 - [x] **IPC-04** — Windows regression tests exercise `API.Start` + `DaemonClient.Health()` over a named pipe end-to-end (not just `CleanupStaleSocket`), and `API.Stop` named-pipe path.
-- [ ] **IPC-05** — All three surfaces (GUI / CLI / TUI) tested working on Windows 11 — daemon auto-start, session create, session list, attach/detach, web-share toggle.
+- [x] **IPC-05** — All three surfaces (GUI / CLI / TUI) tested working on Windows 11 — daemon auto-start, session create, session list, attach/detach, web-share toggle.
 - [x] **IPC-06** — PR #53 author (`im-alexandre`) credited via `Co-Authored-By` trailer on the merged/cherry-picked commits, or via dedicated commit message attribution if re-applied from scratch.
 
 ### WEB — Web-served terminal correctness (Issue #54)
@@ -32,7 +32,7 @@ Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit 
 Web surface only — desktop unaffected. Web frontend's session bridge does not consume OSC color-query / Device Attributes responses, leaking them into shell stdin. Pre-existing (predates v3.3); blocking parity for any sixel-using or capability-probing program (chafa, vim, neovim, mc) on the web surface.
 
 - [x] **WEB-01** — On the web-served terminal, OSC 10 (FG color query), OSC 11 (BG color query), and Device Attributes (`CSI c`) responses are consumed by the requesting program and do NOT appear in shell stdin. Reproducible with `chafa --format=sixel /tmp/<png>` in a web-shared shell session.
-- [ ] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render).
+- [x] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render).
 - [x] **WEB-03** — Regression test (Go or e2e) covers OSC response consumption on the web bridge; future regressions in the response path fail in CI.
 
 ### UI — Frontend bugs (Issues #55, #56)
@@ -53,8 +53,8 @@ v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only
 
 ### TEST — Test-suite stability (Issue #58)
 
-- [ ] **TEST-01** — `internal/webserver/plugin_config_stream_test.go::TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403). Root cause documented in the fix commit.
-- [ ] **TEST-02** — Underlying cause investigated and stated in writing — not a rerun-pass hack. Likely candidates per issue triage: (a) shared-state pollution across tests in `internal/webserver` test setup (testServer / EnableSession / SetSigningKey leaks under specific orderings), (b) base64 strict-decode variance, (c) HMAC implementation. Fix addresses the root, not the symptom.
+- [x] **TEST-01** — `internal/webserver/plugin_config_stream_test.go::TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403). Root cause documented in the fix commit.
+- [x] **TEST-02** — Underlying cause investigated and stated in writing — not a rerun-pass hack. Likely candidates per issue triage: (a) shared-state pollution across tests in `internal/webserver` test setup (testServer / EnableSession / SetSigningKey leaks under specific orderings), (b) base64 strict-decode variance, (c) HMAC implementation. Fix addresses the root, not the symptom.
 
 ---
 
@@ -107,10 +107,10 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | IPC-02  | Phase 109 | Complete |
 | IPC-03  | Phase 109 | Complete |
 | IPC-04  | Phase 109 | Complete |
-| IPC-05  | Phase 109 | pending |
+| IPC-05  | Phase 109 | Complete |
 | IPC-06  | Phase 109 | Complete |
 | WEB-01  | Phase 111 | Complete |
-| WEB-02  | Phase 111 | pending |
+| WEB-02  | Phase 111 | Complete |
 | WEB-03  | Phase 111 | Complete |
 | UI-01   | Phase 112 | Complete |
 | UI-02   | Phase 112 | Complete |
@@ -120,5 +120,5 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | PTY-02  | Phase 110 | Complete |
 | PTY-03  | Phase 110 | Complete |
 | PTY-04  | Phase 110 | Complete |
-| TEST-01 | Phase 114 | pending |
-| TEST-02 | Phase 114 | pending |
+| TEST-01 | Phase 114 | Complete |
+| TEST-02 | Phase 114 | Complete |
