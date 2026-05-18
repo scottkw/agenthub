@@ -1,5 +1,69 @@
 # Phase 109 — Verification
 
+## Windows 11 UAT — PASS ✅ (2026-05-18, ken@kscott, physical Windows 11 box)
+
+Cross-compiled `agenthub.exe` (windows/amd64, `wailsassets production` tags)
+delivered via local HTTP from macOS, exercised on a fresh Windows 11
+%USERPROFILE% with no AI CLIs configured.
+
+### IPC release-blocker checklist (release-blocking per v3.3 Phase 108)
+
+| Item | Surface | Empirical evidence |
+|------|---------|--------------------|
+| **IPC-01** named-pipe daemon binding | Daemon | GUI launched cleanly; no "bind: A socket operation encountered a dead network" panic — daemon successfully listens on `\\.\pipe\agenthub-daemon`. |
+| **PR #53 commit 3 kernel32 fix** | Tray | System tray icon registered visibly on Windows 11 — GetModuleHandleW loaded from kernel32.dll (not user32.dll) works. |
+| **IPC-02** CLI dial over named pipe | CLI | `agenthub.exe list` and `agenthub.exe daemon status` connect over the named pipe without EnsureDaemon timeout. |
+| **IPC-05** GUI surface | GUI | Window opens, `+` button opens the New Session modal (after the v3.3.1 handleAddTab fix below), Shell row available, session created end-to-end. |
+| **IPC-05** CLI surface | CLI | `agenthub.exe new shell $env:USERPROFILE` returns a session ID; daemon-side POST /sessions reaches the named pipe. |
+| **IPC-05** TUI surface | TUI | `agenthub.exe tui` opens, list view shows the running session, attach + detach round-trip works. |
+| **IPC-06** Co-Authored-By | Git | `git log --format='%an %ae' main..HEAD \| grep -c "Alexandre Castro"` = 3 (commits 68b2421, 2f25e63, fc50cd4 preserve PR #53 author attribution natively via cherry-pick). |
+| **SHELL-12 Windows parity** | GUI + TUI + CLI | Typing `exit` in a shell session closes the GUI tab within ~1s — empirically proven by the new `exit_windows.go` WaitForSingleObject detector after Phase 109 UAT exposed the gap. |
+
+### v3.3.1 release-blocking gaps discovered + fixed during this UAT
+
+All four were pre-existing v3.3 Phase 107/108 follow-ups that never reached
+Windows verification. Per `feedback_cross_surface_parity` memory, each was
+non-deferrable. Each got a code fix shipped within the v3.3.1 milestone:
+
+1. **`resolveShellSpawn` fallback** (commit 84e1387) — fresh Windows
+   install with no `shellPath` setting had `cli="shell"` fall through
+   every resolution branch and exec the literal string `"shell"`, failing
+   as "executable file not found in %PATH%". Added branch (4) in
+   `internal/daemon/engine.go` to pick the first discovered shell
+   (Windows always discovers `powershell.exe` since Win10).
+
+2. **GUI `handleAddTab` early-out** (App.tsx, commit 84e1387) — the `+`
+   button routed to Settings tab when `detectedCLIs.length === 0`,
+   preventing Shell-session creation on fresh Windows boxes. v3.0-era
+   logic predating Phase 107 SHELL-10's static Shell row. Removed the
+   early-out.
+
+3. **TUI `agentEntries` empty-state** (`internal/tui/modal.go`, commit
+   84e1387) — same shape: returned `nil` when no AI CLIs detected,
+   leaving the modal showing "Agent: (none found)" and triggering a
+   `lipgloss.Place` panic (`runtime error: index out of range [0] with
+   length 0` at modal.go:69) when the user pressed `n`. Now always
+   includes the Shell entry.
+
+4. **Windows SHELL-12 parity (`exit_windows.go`, commit a6156d7)** — same
+   root-cause shape as Phase 110's Linux fix: ConPTY does NOT cleanly
+   EOF `pty.Read()` when the shell exits, so `session:exit` never fires
+   and the GUI tab + TUI list entry stay open after `exit`. New
+   Windows-only goroutine polls `WaitForSingleObject(handle, 0)` at
+   100ms; on exit, `SetExitCode → CancelContext → closePTY`. Mirrors
+   `exit_linux.go` structure. Tab now auto-closes "immediately" (user's
+   words) on shell exit.
+
+### Cosmetic items recorded for v3.4 (non-blocking)
+
+- TUI attached-session view has no bottom status bar.
+- `agenthub attach` doesn't clear the terminal screen on entry (also
+  documented in Phase 110 VERIFICATION).
+- Linux: `exit\n` token and EOF/Detach diagnostic run together with no
+  newline separator (also in Phase 110 VERIFICATION).
+
+---
+
 **Phase:** 109 — Windows daemon named-pipe IPC
 **Plan:** 109-01 — cherry-pick PR #53
 **Branch:** `phase-109-windows-named-pipe-ipc` (off `main` at `9cc1087`)
