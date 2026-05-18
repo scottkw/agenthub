@@ -92,11 +92,54 @@ WebGLRecoveryBanner.test.tsx.
 
 ## 3. UAT-1 — Desktop (Wails dev mode)
 
-**Status:** [ ] PASS / [ ] FAIL / [x] **deferred (operator-driven)**
-**Why deferred:** Wails dev mode launches an OS GUI window (a real
-`webview2_loader` / `wkwebview` surface) — not driveable from this
-non-interactive executor session. The fix is verified by automated tests
-above; manual UAT confirms end-to-end behavior in the real WebKit shell.
+**Status:** [x] **PASS (2026-05-18, ken@kscott via wails dev DevTools)**
+
+Verified live on the real WebKit shell. Screenshot evidence in
+`screenshots/112-uat-desktop-banner.png` (see Phase 112's commit history)
+shows the recovery banner rendering in the Wails GUI window with the
+exact Phase 93 contract text after `WEBGL_lose_context.loseContext()`.
+
+**Methodology note (worth recording for future UAT):**
+
+The "one-shot per app session" design at App.tsx:168–171 means
+`webglBannerDismissed` flips to `true` the moment the banner's internal
+8-second `setTimeout(onDismiss, 8000)` fires (WebGLRecoveryBanner.tsx:38).
+If the operator's UAT roundtrip between trigger and observation exceeds
+8 seconds (e.g., long-form DevTools probes, conversation pauses), the
+banner will have already auto-dismissed and subsequent triggers will
+appear to do nothing — the React state setter still runs, but the
+render condition `(webglContextLost || ...) && !webglBannerDismissed`
+evaluates false. **To re-test the banner in the same session:** reset
+`webglBannerDismissed` to `false` via React fiber (or reload the app).
+
+**Fiber-walk verification (proof of state correctness, 2026-05-18):**
+
+| Hook | App state | Value after `loseContext()` |
+|------|-----------|----------------------------|
+| 32   | `webglContextLost`        | `true` (Phase 112 fix ✅)  |
+| 33   | `webglSoftwareDetected`   | `false`                    |
+| 34   | `webglBannerDismissed`    | `true` (8s auto-dismiss)   |
+
+After resetting hook 34 to `false`, the banner re-rendered immediately
+with the existing `webglContextLost=true` state — confirming the fix's
+React state propagation works end-to-end in the live Wails surface.
+
+**Console probe sequence captured (TerminalPanel.tsx instrumented logs,
+removed before commit):**
+- `[UI-01 DEBUG] registering onContextLoss handler` with
+  `hasOnWebGLContextLostProp: "function"` — wiring intact
+- `[UI-01 DEBUG] callback FIRED` after xterm's 3-second restore window —
+  our handler invoked
+- `[UI-01 DEBUG] notify call returned` — `onWebGLContextLost('context-loss')`
+  completes without throwing, setting `webglContextLost = true`
+
+**UI-02 (DOM fallback):** confirmed during the same session — the terminal
+remained interactive after WebGL context loss, with the `xterm-helper-textarea`
+present and accepting keyboard input (xterm-internal
+`renderService.setRenderer(_createRenderer())` triggered by
+`WebglAddon.dispose()` per RESEARCH §UI-02).
+
+**Original UAT-1 procedure (still valid for re-verification):**
 
 ### Preconditions
 - `wails dev` running locally (this is the ONLY way to get DevTools on the
