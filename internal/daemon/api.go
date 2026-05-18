@@ -174,6 +174,16 @@ func (a *API) Start(socketPath string) error {
 
 // Stop closes the listener and removes the socket file when the platform uses
 // a filesystem-backed socket.
+//
+// On Windows the returned error is diagnostic-only: winio.win32PipeListener.Close()
+// (upstream) always returns nil, swallowing any overlapped-I/O cancellation error,
+// so a nil return on Windows does not necessarily mean the close was clean. The
+// Unix net.UnixListener.Close() path does propagate errors normally.
+// Correspondingly, removeDaemonSocket short-circuits on Windows named-pipe paths
+// (no filesystem entry to remove), so its return is also nil there by design;
+// any error it surfaces today comes from os.Remove on the Unix path.
+// Tests that assert api.Stop() == nil on Windows are therefore exercising a
+// tautology and should be read as smoke checks, not error-path coverage.
 func (a *API) Stop() error {
 	// Stop web server if running.
 	a.mu.Lock()
