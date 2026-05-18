@@ -738,6 +738,7 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 
 	// Read pump — client → PTY
 	readDone := make(chan struct{})
+	absorber := &InputAbsorber{} // Phase 111 / Issue #54: absorb OSC 10/11/DA1 replies.
 	go func() {
 		defer close(readDone)
 		for {
@@ -752,7 +753,10 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 			switch msgType {
 			case relay.MsgInput:
 				if !sub.ReadOnly { // MC-03: discard input for read-only clients
-					_ = hub.WriteInput(payload)
+					filtered := absorber.Filter(payload)
+					if len(filtered) > 0 {
+						_ = hub.WriteInput(filtered)
+					}
 				}
 			case relay.MsgResize2:
 				if len(payload) >= 4 {
