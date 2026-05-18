@@ -383,10 +383,10 @@ Plans:
 
 **Scope:** Pure frontend bug. Fix is `touchstart`/`touchmove` event wiring on the terminal container (or `touch-action: pan-y` CSS opt-in to delegate scroll to the browser's native touch-scroll). Web-only surface; desktop unaffected. Separate from Phase 112 — different root cause (touch capture vs. closure rot), different verification (physical iPad vs. desktop DevTools).
 
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 113 to break down)
+- [ ] 113-01-PLAN.md — touchScrollHandler module + TerminalPanel wiring + touch-action CSS + VERIFICATION.md scaffold (4 tasks: TDD touchScrollHandler, source-grep wiring tests + impl, full-suite regression, iPad UAT scaffold with human_needed markers)
 
 ### Phase 114: CI test stability — webserver capability test flake
 
