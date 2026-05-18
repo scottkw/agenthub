@@ -368,10 +368,10 @@ Plans:
 
 **Scope:** Pure frontend bug. Root cause suspected in `frontend/src/components/TerminalPanel.tsx:391-395` — likely `onContextLoss` closure rot (banner-state setter captured at mount time). Fix is local to `TerminalPanel.tsx` and adjacent banner state. Both desktop + web surfaces benefit from one fix (shared React component).
 
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 112 to break down)
+- [ ] 112-01-PLAN.md — Reorder onContextLoss (notify-first + microtask defer) + RED-first tests + cross-surface UAT (4 tasks: RED tests, GREEN fix, VERIFICATION.md scaffold, desktop+web UAT execution)
 
 ### Phase 113: iPad terminal touch-scroll
 
