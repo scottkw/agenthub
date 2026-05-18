@@ -1,11 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: shipped
-milestone_name: "v3.3 Shell Sessions & Polish (shipped 2026-05-17)"
-status: "v3.3 shipped. Awaiting /gsd-new-milestone to start v3.4."
-stopped_at: "v3.3 milestone closed; archived to .planning/milestones/v3.3-{ROADMAP,REQUIREMENTS,MILESTONE-AUDIT}.md"
-last_updated: "2026-05-17"
-last_activity: "2026-05-17 — v3.3 milestone archived, REQUIREMENTS.md deleted, git tag v3.3 created"
+milestone: v3.3.1
+milestone_name: Bug Sweep
+status: planning
+last_updated: "2026-05-18T13:55:57.937Z"
+last_activity: 2026-05-18
 progress:
   total_phases: 0
   completed_phases: 0
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: none — v3.3 milestone complete
-Plan: none
-Status: Awaiting `/gsd-new-milestone` to start v3.4.
-Last activity: 2026-05-17 — `/gsd-complete-milestone v3.3` archived ROADMAP + REQUIREMENTS + MILESTONE-AUDIT to `.planning/milestones/v3.3-*`; deleted `REQUIREMENTS.md`; tagged `v3.3`.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-18 — Milestone v3.3.1 started
 
 ## Operator Next Steps (carried into v3.4)
 

@@ -199,7 +199,25 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 ### Active
 
-(v3.4 requirements being defined — see `.planning/REQUIREMENTS.md` after next `/gsd-new-milestone`. Likely scope: v3.3 carry-forward issues `#54`/`#55`/`#56`, Phase 101 visual-fidelity UAT cosmetic items, Phase 107/108 deferred cleanups, Phase 103 process-debt retroactive fill, and any new GitHub issues triaged during the v3.3 release window.)
+## Current Milestone: v3.3.1 Bug Sweep (patch)
+
+**Goal:** Close all open GitHub bug-labeled issues against v3.3 baseline as a patch release.
+
+**Target bugs:**
+
+- `scottkw/agenthub#52` — Windows daemon fails to start because named pipe path is opened as a Unix socket (third-party report by im-alexandre; PR #53 attached, based on v3.2 commit `032a6e9`, needs evaluation/rebase against v3.3 — author attribution must be preserved)
+- `scottkw/agenthub#54` — Web-served terminal: OSC color-query and DA responses leak into shell as input (chafa repro; web surface only)
+- `scottkw/agenthub#55` — WebGL recovery banner does not appear when context is lost (Phase 93 WGL-02)
+- `scottkw/agenthub#56` — iPad: touch gestures cannot scroll xterm scrollback buffer
+- `scottkw/agenthub#57` — SHELL-12 shell tab auto-close broken on Linux (PTY EOF never fires)
+- `scottkw/agenthub#58` — TestPluginConfigStream_ExpiredCap_Returns401 flaky on Linux CI (gets 403 instead of 401)
+
+**Scope discipline:** bugs only. No enhancements, no Phase 101/107/108 advisory tech-debt, no Phase 103 process-debt retroactive fill, no Nyquist `*-VALIDATION.md` backfill. Those remain deferred for v3.4.
+
+**Operator one-time tasks still required before v3.3.1 release** (carried from v3.3):
+
+1. `RELEASE_PUBLISH_TOKEN` PAT (`Contents: read/write` on `scottkw/agenthub`) — `gh secret set RELEASE_PUBLISH_TOKEN`
+2. `WINGET_FIRST_SUBMISSION=true` (one-time, first submission only) — `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after winget-pkgs accepts first submission.
 
 ## Current State
 
@@ -422,4 +440,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-17 — v3.3 Shell Sessions & Polish shipped. Closes GitHub Issues #44 + #45 + v3.2 polish/deferred-UAT backlog + v3.1 Phase 91 distribution-pipeline followups. 9 phases (100-108) including audit-driven mid-milestone insertions (107/108).*
+*Last updated: 2026-05-18 — v3.3.1 Bug Sweep milestone started. Scope: 6 open GitHub bug-labeled issues (#52, #54, #55, #56, #57, #58) against v3.3 baseline as a patch release. Third-party PR #53 (im-alexandre, based on v3.2 commit `032a6e9`) attached to #52 — needs rebase/re-application against v3.3 with attribution preserved.*
