@@ -37,8 +37,8 @@ Web surface only — desktop unaffected. Web frontend's session bridge does not 
 
 ### UI — Frontend bugs (Issues #55, #56)
 
-- [ ] **UI-01** (#55) — When the terminal's WebGL context is lost (`WEBGL_lose_context.loseContext()` or natural loss), `WebGLRecoveryBanner` renders inside `.banner-stack` and auto-dismisses after 8s, per Phase 93 contract. Verified via DevTools console: `document.querySelector('.webgl-recovery-banner')` is non-null after context-loss event.
-- [ ] **UI-02** (#55) — DOM fallback continues to work after WebGL loss (terminal content remains readable) — fallback path is not regressed by the banner-rendering fix.
+- [x] **UI-01** (#55) — When the terminal's WebGL context is lost (`WEBGL_lose_context.loseContext()` or natural loss), `WebGLRecoveryBanner` renders inside `.banner-stack` and auto-dismisses after 8s, per Phase 93 contract. Verified via DevTools console: `document.querySelector('.webgl-recovery-banner')` is non-null after context-loss event.
+- [x] **UI-02** (#55) — DOM fallback continues to work after WebGL loss (terminal content remains readable) — fallback path is not regressed by the banner-rendering fix.
 - [ ] **UI-03** (#56) — On iPad Safari and iPad Chrome, single-finger drag on the terminal area scrolls xterm scrollback (matching desktop wheel-scroll behavior). Two-finger drag does not pan the viewport when started on the terminal area.
 - [ ] **UI-04** (#56) — iPad touch-scroll does not regress mouse-wheel scrolling on desktop browsers, and does not break the existing iPad tap-on-link cluster (UAT-04 carry-over, separate from this milestone but must not be regressed).
 
@@ -112,8 +112,8 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | WEB-01  | Phase 111 | Complete |
 | WEB-02  | Phase 111 | pending |
 | WEB-03  | Phase 111 | Complete |
-| UI-01   | Phase 112 | pending |
-| UI-02   | Phase 112 | pending |
+| UI-01   | Phase 112 | Complete |
+| UI-02   | Phase 112 | Complete |
 | UI-03   | Phase 113 | pending |
 | UI-04   | Phase 113 | pending |
 | PTY-01  | Phase 110 | Complete |

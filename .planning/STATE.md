@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
 status: planning
-stopped_at: Phase 111 Plan 01 executed on `main` (4 task commits); SUMMARY.md written; awaiting macOS-host cross-surface chafa UAT sign-off in 111-VERIFICATION.md
-last_updated: "2026-05-18T16:10:00.000Z"
+stopped_at: "Phase 112 Plan 01 executed on main (4 task commits, RED+GREEN+VERIFICATION); manual cross-surface UAT deferred to operator (no GUI display + no Chrome in executor session); Issue #55 ready to close on v3.3.1 tag"
+last_updated: "2026-05-18T16:28:02.152Z"
 last_activity: 2026-05-18 — Phase 111 Plan 01 executed
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 4
   completed_plans: 4
   percent: 100
@@ -55,8 +55,8 @@ Last activity: 2026-05-18 — Phase 111 Plan 01 executed
 
 ## Session Continuity
 
-Last session: 2026-05-18T16:10:00.000Z
-Stopped at: Phase 111 Plan 01 executed on `main` (4 task commits); SUMMARY.md written; awaiting macOS-host cross-surface chafa UAT sign-off in 111-VERIFICATION.md
+Last session: 2026-05-18T16:28:02.145Z
+Stopped at: Phase 112 Plan 01 executed on main (4 task commits, RED+GREEN+VERIFICATION); manual cross-surface UAT deferred to operator (no GUI display + no Chrome in executor session); Issue #55 ready to close on v3.3.1 tag
 Resume file: None
 Next action: macOS operator runs the six `human_needed` items in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md` (web Chrome chafa + OSC/DA probe + regression smoke; desktop Wails chafa + OSC/DA probe + regression smoke; parity decision); records resume signal (approved / approved with desktop follow-up: #<n> / failed); then `/gsd-verify-work --phase 111` for Plan 01 phase-gate. Linux UAT for Phase 110 + Windows UAT for Phase 109 remain pending in parallel.
 
@@ -80,6 +80,7 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | test_debt | TestOpenCodeANSICapture data race | deferred (pre-existing, skipped) |
 | test_debt | Pre-existing `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests) | deferred v3.4 (SPEC §Out-of-scope for Phase 108) |
 | test_debt | Phase 108 PARITY-CLI-03 harness limitation (one documented test skip with v3.4 `SetShellPathForTest` follow-up sketched) | deferred v3.4 |
+| Phase 112 P01 | 8min | 3 tasks | 5 files |
 
 ## v3.3.1 Plan Execution Log
 
@@ -88,3 +89,4 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | 109 | 01 | code-complete; pending human Windows UAT (IPC-05) | 7min | 4 (3 cherry-picks from PR #53 by Alexandre Castro + 1 planner doc) | `phase-109-windows-named-pipe-ipc` branch; SUMMARY.md written; pre-existing ShellWebShareWarned failures documented in `deferred-items.md` (already known per line 81 deferred table above) |
 | 110 | 01 | code-complete; pending human Linux UAT (PTY-01..04 runtime) | 10min | 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, + SUMMARY meta-commit) | Linux Wait4 exit detector + no-op stub + 3 unit tests + native.go wire-up + engine_test.go skip flip + 110-VERIFICATION.md + 110-01-SUMMARY.md + deferred-items.md; macOS race regression all PASS (excluding 4 pre-existing failures documented in deferred-items.md); closes Issue #57 once Linux UAT signs off |
 | 111 | 01 | code-complete; pending human macOS cross-surface chafa UAT (WEB-02) | 5min | 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION) | InputAbsorber 5-state machine (oscabsorb.go 117 source lines) + 26 unit subtests + 6 integration tests + 4-line server.go wiring; `internal/relay/server.go` UNTOUCHED, no new deps; closes Issue #54 web surface once macOS operator confirms web vs. desktop chafa parity; Open Question 1 (desktop empirical state) deferred to that UAT |
+| 112 | 01 | code-complete; pending human cross-surface UAT (UI-01 desktop Wails + UI-01 web Chrome) | 8min | 4 task commits on `main` (b889c63 test RED, a4cdc2e fix GREEN, 99a42c7 docs VERIFICATION, 7e35bcd docs issue-cross-check) | TerminalPanel.tsx onContextLoss reorder (24 changed lines, one block): notify React FIRST then queueMicrotask-deferred dispose with try/catch. RESEARCH §5 pattern; CONTEXT closure-rot hypothesis refuted (RESEARCH §Pattern 1 — React useState setters are identity-stable). Full frontend suite 907/907 PASS; tsc --noEmit clean. UI-02 (DOM fallback) source-traced via WebglAddon.dispose() → renderService.setRenderer(_createRenderer()). Manual UAT deferred (no GUI display + no Chrome in executor session); closes Issue #55 once operator runs 112-VERIFICATION.md UAT-1 + UAT-2 |

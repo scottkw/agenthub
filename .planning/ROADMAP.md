@@ -274,7 +274,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 - [x] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06 (completed 2026-05-18)
 - [x] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04 (completed 2026-05-18)
 - [x] Phase 111: Web bridge OSC/DA response consumption (Issue #54) — WEB-01..03 (code-complete 2026-05-18, pending macOS cross-surface chafa UAT)
-- [ ] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02
+- [x] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02 (completed 2026-05-18)
 - [ ] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04
 - [ ] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02
 
@@ -309,7 +309,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 109 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 110 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 111 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 112 | v3.3.1 | 0/0 | Not started | - |
+| 112 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 113 | v3.3.1 | 0/0 | Not started | - |
 | 114 | v3.3.1 | 0/0 | Not started | - |
 
@@ -368,10 +368,10 @@ Plans:
 
 **Scope:** Pure frontend bug. Root cause suspected in `frontend/src/components/TerminalPanel.tsx:391-395` — likely `onContextLoss` closure rot (banner-state setter captured at mount time). Fix is local to `TerminalPanel.tsx` and adjacent banner state. Both desktop + web surfaces benefit from one fix (shared React component).
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 112-01-PLAN.md — Reorder onContextLoss (notify-first + microtask defer) + RED-first tests + cross-surface UAT (4 tasks: RED tests, GREEN fix, VERIFICATION.md scaffold, desktop+web UAT execution)
+- [x] 112-01-PLAN.md — Reorder onContextLoss (notify-first + microtask defer) + RED-first tests + cross-surface UAT (4 tasks: RED tests, GREEN fix, VERIFICATION.md scaffold, desktop+web UAT execution)
 
 ### Phase 113: iPad terminal touch-scroll
 
