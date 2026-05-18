@@ -59,6 +59,25 @@ type Session struct {
 
 	// exitCode caches the exit code once the process has exited (-1 = not set).
 	exitCode int
+
+	// ptyCloseOnce gates s.pty.Close() so the killSession path and the Linux
+	// exit detector goroutine cannot race on go-pty's unsynchronised
+	// unixPty.Close() field writes. Both paths must close through closePTY().
+	ptyCloseOnce sync.Once
+}
+
+// closePTY closes the underlying PTY exactly once across all callers,
+// even when killSession and the Linux exit detector race to clean up.
+func (s *Session) closePTY() {
+	s.mu.Lock()
+	p := s.pty
+	s.mu.Unlock()
+	if p == nil {
+		return
+	}
+	s.ptyCloseOnce.Do(func() {
+		_ = p.Close()
+	})
 }
 
 // Read reads output from the underlying PTY.

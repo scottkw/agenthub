@@ -19,9 +19,7 @@ import (
 // its own cmd.Wait(), so there is no concurrent caller.
 func killSession(s *Session) error {
 	if s.cmd == nil || s.cmd.Process == nil {
-		if s.pty != nil {
-			_ = s.pty.Close()
-		}
+		s.closePTY()
 		if s.cancel != nil {
 			s.cancel()
 		}
@@ -36,9 +34,8 @@ func killSession(s *Session) error {
 
 	// Close the PTY master first — otherwise cmd.Wait() may block indefinitely
 	// waiting for the PTY slave to be closed, even after the child has exited.
-	if s.pty != nil {
-		_ = s.pty.Close()
-	}
+	// Gated by closePTY() so a racing exit detector (Linux) cannot double-close.
+	s.closePTY()
 
 	// Wait for process to exit, with 2-second timeout.
 	done := make(chan struct{})

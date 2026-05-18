@@ -122,12 +122,9 @@ func startExitDetector(s *Session) {
 			s.SetExitCode(exitCode)
 			s.CancelContext()
 
-			s.mu.Lock()
-			p := s.pty
-			s.mu.Unlock()
-			if p != nil {
-				_ = p.Close()
-			}
+			// closePTY is sync.Once-gated so a racing killSession cannot
+			// double-close go-pty's unsynchronised unixPty fields.
+			s.closePTY()
 			return
 		}
 	}()

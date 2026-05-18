@@ -90,10 +90,8 @@ func killSession(s *Session) error {
 		}
 	}
 
-	// Close the PTY.
-	if s.pty != nil {
-		_ = s.pty.Close()
-	}
+	// Close the PTY (sync.Once-gated for symmetry with the POSIX kill path).
+	s.closePTY()
 
 	// Cancel the context.
 	if s.cancel != nil {
