@@ -306,7 +306,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
-| 109 | v3.3.1 | 0/0 | Not started | - |
+| 109 | v3.3.1 | 0/1 | Planned | - |
 | 110 | v3.3.1 | 0/0 | Not started | - |
 | 111 | v3.3.1 | 0/0 | Not started | - |
 | 112 | v3.3.1 | 0/0 | Not started | - |
@@ -323,10 +323,10 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 **Scope:** Adapt `internal/daemon` listener and `DaemonClient` dialer to use `winio` named pipes on Windows; Unix sockets on macOS/Linux. PR #53 evaluation task (rebase vs. re-apply) is mandatory, with `Co-Authored-By: im-alexandre` attribution either way. Cross-surface Windows verification (GUI + CLI + TUI) per v3.3 Phase 108 contract; macOS/Linux smoke for no regression.
 
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 109 to break down)
+- [ ] 109-01-PLAN.md — Cherry-pick PR #53 (named-pipe IPC abstraction + Windows tests + kernel32 tray fix), preserve Alexandre Castro attribution, scaffold Windows UAT in VERIFICATION.md
 
 ### Phase 110: Linux PTY natural-exit detection
 
