@@ -370,8 +370,7 @@ GitHub Actions automates building, releasing, and distributing AgentHub:
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `build.yml` | Push/PR | 4-runner matrix build with race detector (no signing) |
-| `release-please.yml` | Push to main | Auto-creates Release PRs with CHANGELOG and version bump |
-| `release.yml` | Tag push (v*) | Multi-platform release builds with macOS signing/notarization |
+| `release.yml` | Tag push (v*) | Multi-platform release builds with macOS signing/notarization (gated by required-reviewer on the `release` environment) |
 | `distribute.yml` | Release published | Updates Homebrew tap + submits WinGet manifest PR |
 
 **Build matrix:**
