@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
 status: planning
-stopped_at: "Phase 112 Plan 01 executed on main (4 task commits, RED+GREEN+VERIFICATION); manual cross-surface UAT deferred to operator (no GUI display + no Chrome in executor session); Issue #55 ready to close on v3.3.1 tag"
-last_updated: "2026-05-18T16:28:02.152Z"
-last_activity: 2026-05-18 — Phase 111 Plan 01 executed
+stopped_at: "Phase 113 Plan 01 executed on main (5 task commits: 2 RED, 2 GREEN, 1 VERIFICATION docs); attachTouchScroll helper + touch-action: pan-y CSS wired; 10+5+922 tests green; physical iPad UAT (5 human_needed items) pending operator"
+last_updated: "2026-05-18T16:50:50.473Z"
+last_activity: 2026-05-18 — Phase 113 Plan 01 executed
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 5
+  total_plans: 5
+  completed_plans: 5
   percent: 100
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: 111 (Web bridge OSC/DA response consumption)
+Phase: 113 (iPad terminal touch-scroll)
 Plan: 01 — **complete-pending-human-UAT**
-Status: 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION). WEB-01 + WEB-03 closed by code (26 unit + 6 integration tests all green under `-race -count=3`); WEB-02 cross-surface chafa parity UAT (web Chrome + desktop Wails) flagged `human_needed` in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md`. Patch-release scope held: `internal/relay/server.go` untouched, no new deps, net +4 lines in `server.go`.
-Last activity: 2026-05-18 — Phase 111 Plan 01 executed
+Status: 5 task commits on `main` (5745c02 test RED, c9a8506 feat GREEN handler, 49e88d2 test RED wiring, 8f06df7 feat GREEN wiring, 821d7e0 docs VERIFICATION). UI-03 + UI-04 closed by code: `attachTouchScroll(container, term)` helper (117 source lines) + useEffect wiring + `touch-action: pan-y` CSS companion on `.terminal-session-container`. 10/10 unit + 5/5 source-grep + 922/922 full-suite + tsc clean. Physical iPad UAT (5 `human_needed` items: iPad Safari/Chrome single-finger scrollback, two-finger gesture sanity, OSC 8 link tap probe, sub-threshold tap) flagged in `.planning/phases/113-ipad-terminal-touch-scroll/113-VERIFICATION.md`. Probes the v3.3 UAT-04 carry-over (Issue #56) — may fix as side-effect.
+Last activity: 2026-05-18 — Phase 113 Plan 01 executed
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -55,7 +55,7 @@ Last activity: 2026-05-18 — Phase 111 Plan 01 executed
 
 ## Session Continuity
 
-Last session: 2026-05-18T16:28:02.145Z
+Last session: 2026-05-18T16:50:50.463Z
 Stopped at: Phase 112 Plan 01 executed on main (4 task commits, RED+GREEN+VERIFICATION); manual cross-surface UAT deferred to operator (no GUI display + no Chrome in executor session); Issue #55 ready to close on v3.3.1 tag
 Resume file: None
 Next action: macOS operator runs the six `human_needed` items in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md` (web Chrome chafa + OSC/DA probe + regression smoke; desktop Wails chafa + OSC/DA probe + regression smoke; parity decision); records resume signal (approved / approved with desktop follow-up: #<n> / failed); then `/gsd-verify-work --phase 111` for Plan 01 phase-gate. Linux UAT for Phase 110 + Windows UAT for Phase 109 remain pending in parallel.
@@ -90,3 +90,4 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | 110 | 01 | code-complete; pending human Linux UAT (PTY-01..04 runtime) | 10min | 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, + SUMMARY meta-commit) | Linux Wait4 exit detector + no-op stub + 3 unit tests + native.go wire-up + engine_test.go skip flip + 110-VERIFICATION.md + 110-01-SUMMARY.md + deferred-items.md; macOS race regression all PASS (excluding 4 pre-existing failures documented in deferred-items.md); closes Issue #57 once Linux UAT signs off |
 | 111 | 01 | code-complete; pending human macOS cross-surface chafa UAT (WEB-02) | 5min | 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION) | InputAbsorber 5-state machine (oscabsorb.go 117 source lines) + 26 unit subtests + 6 integration tests + 4-line server.go wiring; `internal/relay/server.go` UNTOUCHED, no new deps; closes Issue #54 web surface once macOS operator confirms web vs. desktop chafa parity; Open Question 1 (desktop empirical state) deferred to that UAT |
 | 112 | 01 | code-complete; pending human cross-surface UAT (UI-01 desktop Wails + UI-01 web Chrome) | 8min | 4 task commits on `main` (b889c63 test RED, a4cdc2e fix GREEN, 99a42c7 docs VERIFICATION, 7e35bcd docs issue-cross-check) | TerminalPanel.tsx onContextLoss reorder (24 changed lines, one block): notify React FIRST then queueMicrotask-deferred dispose with try/catch. RESEARCH §5 pattern; CONTEXT closure-rot hypothesis refuted (RESEARCH §Pattern 1 — React useState setters are identity-stable). Full frontend suite 907/907 PASS; tsc --noEmit clean. UI-02 (DOM fallback) source-traced via WebglAddon.dispose() → renderService.setRenderer(_createRenderer()). Manual UAT deferred (no GUI display + no Chrome in executor session); closes Issue #55 once operator runs 112-VERIFICATION.md UAT-1 + UAT-2 |
+| 113 | 01 | code-complete; pending human physical-iPad UAT (UI-03 + UI-04, 5 human_needed items) | ~30min | 5 task commits on `main` (5745c02 test RED, c9a8506 feat GREEN handler, 49e88d2 test RED wiring, 8f06df7 feat GREEN wiring + CSS, 821d7e0 docs VERIFICATION) | New frontend/src/lib/touchScrollHandler.ts (117 src lines) — `attachTouchScroll(container, term) => cleanup`. Translates single-finger touch Δy into `term.scrollLines(-lines)` against xterm public API; multi-touch bails so iOS handles pinch; sub-threshold (<8px) tap path untouched so OSC 8 WebLinksAddon click handler keeps firing; touchmove registered `passive:false` for `preventDefault` on confirmed scroll. TerminalPanel.tsx: 1 import + 1 new useEffect with `[sessionId]` dep array right after existing mount effect; binds to React-owned outer containerRef <div> so it survives `term.dispose()`. style.css: `touch-action: pan-y` on `.terminal-session-container` (companion CSS — does NOT use `touch-action: none`, preserves pinch-zoom). Tests: 10/10 unit + 5/5 source-grep + 922/922 full frontend suite + tsc --noEmit clean. No new deps. Closes Issue #56 once physical iPad UAT confirms; probes the v3.3 UAT-04 carry-over (iPad tap-on-link) as possible bonus side-effect repair. |
