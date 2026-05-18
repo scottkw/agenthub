@@ -15,7 +15,9 @@ findings:
   warning: 3
   info: 4
   total: 7
-status: issues_found
+  warnings_fixed: 2
+  warnings_deferred: 1
+status: fixes_applied
 ---
 
 # Phase 110: Code Review Report
@@ -43,6 +45,13 @@ No BLOCKER findings. Three WARNING findings flag genuine concerns about test fra
 
 ### WR-01: TOCTOU race between IsKilled() check and syscall.Wait4
 
+**Status:** fixed (commit `c54b1f0`) — doc comment expanded to describe the
+TOCTOU explicitly; post-Wait4 IsKilled re-check added (if MarkKilled
+landed during the syscall, return without SetExitCode/CancelContext/Close
+so killSession owns the full state transition). Residual race (Wait4
+reaps natural exit WHILE MarkKilled fires) requires Linux operator
+`-race -shuffle=on -count=10` sign-off — added to 110-VERIFICATION.md.
+
 **File:** `internal/pty/exit_linux.go:61-66`
 **Issue:** The detector checks `s.IsKilled()` (mutex-protected) at the top of each tick, then immediately calls `syscall.Wait4(pid, ...)`. If another goroutine (e.g., the caller of `b.Kill()`) calls `MarkKilled()` in the window between the IsKilled check and the Wait4 syscall, the detector still reaps the child. This is the classic check-then-act TOCTOU pattern.
 
@@ -59,6 +68,13 @@ The threat model (T-110-01) acknowledges this race as "mitigated" by the IsKille
 Recommend Option 1 for v3.3.1; track Option 2 as a follow-up if Linux CI sees leaked goroutines under `-race`.
 
 ### WR-02: `TestStartExitDetector_SuppressedOnKill` is timing-sensitive
+
+**Status:** fixed (commit `0ff3ca7`) — test restructured to manually
+construct a Session with `killed: true` BEFORE invoking
+`startExitDetector` directly (PLAN task 3 option a). Uses os/exec to
+spawn a real sleep for a valid PID; detector bails on IsKilled at the
+first tick regardless of scheduler perturbation. No timing dependence
+remains.
 
 **File:** `internal/pty/exit_linux_test.go:71-105`
 **Issue:** The test calls `b.Create()` (which spawns the detector goroutine) and then immediately calls `sess.MarkKilled()`. The detector uses `time.NewTicker(100ms)` whose first tick fires at ~100ms after the goroutine starts. The test relies on `MarkKilled()` being set BEFORE the first tick.
@@ -78,6 +94,9 @@ So the test still passes in this scenario, BUT only because `sleep 5` is long en
 Recommend (a) — it makes the test's invariant deterministic and removes timing fragility from a release-blocking PTY-02 verification path.
 
 ### WR-03: Test cleanup race — `b.Kill` after detector already reaped child
+
+**Status:** deferred (out of scope per WR-03 itself) — logged in
+`deferred-items.md` §4 for future cleanup.go bug-sweep.
 
 **File:** `internal/pty/exit_linux_test.go:40-42, 125-127`
 **Issue:** Both `TestStartExitDetector_NaturalExit` and `TestStartExitDetector_SignaledExit` register `t.Cleanup(func() { _ = b.Kill(sess.ID) })`. By the time t.Cleanup runs, the detector has already:

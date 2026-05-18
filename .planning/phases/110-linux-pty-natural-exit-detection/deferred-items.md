@@ -42,6 +42,27 @@ applied.
 **Follow-up:** File / track each in `scottkw/agenthub` as a separate
 bug-sweep ticket. Out of scope for the v3.3.1 PTY-01..04 release-blocker.
 
+## 4. cleanup.go `cmd.Wait` goroutine may leak after detector-reaped child (WR-03)
+
+- **Severity:** Pre-existing in `internal/pty/cleanup.go`; surfaces more
+  often now that Phase 110's detector externally reaps the child on natural
+  exit before `t.Cleanup`'s `b.Kill` runs.
+- **Symptom:** In `TestStartExitDetector_NaturalExit` and
+  `TestStartExitDetector_SignaledExit`, the t.Cleanup-registered `b.Kill`
+  fires after the detector has already reaped the child via Wait4. The
+  goroutine spawned at cleanup.go:45-52 calls `s.cmd.Wait()`, which on
+  Linux may hang on a pidfd that has been externally reaped (or return
+  ECHILD). The outer select waits ~2-3s and proceeds, but the inner
+  goroutine leaks for the lifetime of the test process.
+- **Status:** Pre-existing in cleanup.go; bug is the lack of a hard
+  timeout on the inner `cmd.Wait` goroutine. Tests still PASS — concern
+  is goroutine accounting only. Phase 110 REVIEW WR-03 flagged this as
+  out of scope for the patch release.
+- **Suggested follow-up:** File a bug-sweep ticket in `scottkw/agenthub`
+  for cleanup.go to add a context-based timeout / abandon path on the
+  inner `cmd.Wait`. Confirm under Linux `-race` whether the leak
+  surfaces (test goroutine counter > expected at exit).
+
 ## 2. `GOOS=darwin GOARCH=amd64 go vet ./...` from repo root prints a CGO error
 
 - **Severity:** Environmental (executor host without Wails C toolchain).
