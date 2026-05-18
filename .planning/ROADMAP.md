@@ -398,10 +398,10 @@ Plans:
 
 **Scope:** Investigation-first phase. Likely root cause is test-state pollution across `internal/webserver` tests (testServer / EnableSession / SetSigningKey leaking under specific shuffle orderings). No rerun-pass hacks; the fix addresses why the test sometimes returns 403, not how to suppress the flake. Linux CI surface only.
 
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 114 to break down)
+- [ ] 114-01-PLAN.md — Variant A fix to issueExpiredCapFor (sign with wrong key) + VERIFICATION.md + root-cause-stated commit (TEST-01, TEST-02)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
