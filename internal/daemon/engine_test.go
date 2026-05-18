@@ -1297,14 +1297,6 @@ func TestListSessions_OnExitCallback_ReceivesNormalized(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("requires POSIX sh")
 	}
-	if runtime.GOOS == "linux" {
-		// On Linux, go-pty's master Read() blocks indefinitely after the child
-		// exits cleanly (instead of returning io.EOF as macOS does), so the
-		// natural-exit goroutine in engine.go never fires. Tracked in
-		// scottkw/agenthub#57; production SHELL-12 auto-close is also affected
-		// on Linux until the goroutine is restructured.
-		t.Skip("blocked on Linux PTY EOF behavior — see scottkw/agenthub#57")
-	}
 	shPath, err := exec.LookPath("sh")
 	if err != nil {
 		t.Skipf("sh not found: %v", err)
