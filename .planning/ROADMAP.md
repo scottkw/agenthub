@@ -313,6 +313,96 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 113 | v3.3.1 | 0/0 | Not started | - |
 | 114 | v3.3.1 | 0/0 | Not started | - |
 
+### Phase 109: Windows daemon named-pipe IPC
+
+**Goal:** AgentHub daemon, GUI, CLI, and TUI all work end-to-end on Windows 11 by listening on `\\.\pipe\agenthub-daemon` instead of failing to bind a Unix socket.
+
+**Requirements:** IPC-01, IPC-02, IPC-03, IPC-04, IPC-05, IPC-06
+
+**Depends on:** Nothing on the v3.3.1 critical path (highest-priority unblocker — Windows is currently 100% broken). Builds on v3.3 daemon HTTP/JSON API surface (Phase 19) and third-party PR #53 as the starting patch.
+
+**Scope:** Adapt `internal/daemon` listener and `DaemonClient` dialer to use `winio` named pipes on Windows; Unix sockets on macOS/Linux. PR #53 evaluation task (rebase vs. re-apply) is mandatory, with `Co-Authored-By: im-alexandre` attribution either way. Cross-surface Windows verification (GUI + CLI + TUI) per v3.3 Phase 108 contract; macOS/Linux smoke for no regression.
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 109 to break down)
+
+### Phase 110: Linux PTY natural-exit detection
+
+**Goal:** On Linux, a shell session whose child process exits cleanly causes the GUI tab / TUI list entry to auto-close — matching macOS behavior shipped in v3.3 SHELL-12.
+
+**Requirements:** PTY-01, PTY-02, PTY-03, PTY-04
+
+**Depends on:** v3.3 Phase 107 (SHELL-12 `autoCloseRef`-gated tab auto-close on `session:exit` with exit-code-0 normalization). This phase fixes the daemon-side blocker that prevents that frontend logic from firing on Linux.
+
+**Scope:** Separate exit-detector goroutine that polls `syscall.Wait4(pid, &status, WNOHANG)` and explicitly closes the PTY to unblock the read loop, coordinated with go-pty's internal `waitOnContext`. Daemon-side fix in `internal/pty` / `internal/daemon/engine.go`. Affects GUI Linux + TUI Linux. Re-enable `TestListSessions_OnExitCallback_ReceivesNormalized` (currently `t.Skip()`'d on Linux).
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 110 to break down)
+
+### Phase 111: Web bridge OSC/DA response consumption
+
+**Goal:** On the web-served terminal, OSC color-query (10/11) and Device Attributes (CSI c) responses are consumed by the web bridge and do not leak into shell stdin — `chafa --format=sixel <png>` produces a clean prompt on web, matching desktop.
+
+**Requirements:** WEB-01, WEB-02, WEB-03
+
+**Depends on:** v3.2 Phase 96 (image addon, sixel rendering on web) and Phase 93 (web vendoring + parity).
+
+**Scope:** Web-only bug (desktop unaffected — Wails webview goes through xterm.js directly). Fix lives in the web bridge / relay code (`internal/webserver/relay.go` or equivalent). Cross-surface parity (chafa sixel on web vs. desktop) is the release gate. Regression test exercises OSC response consumption path.
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 111 to break down)
+
+### Phase 112: WebGL recovery banner rendering
+
+**Goal:** When the terminal's WebGL context is lost, a `WebGLRecoveryBanner` renders inside `.banner-stack` and auto-dismisses after 8s — restoring the Phase 93 user-visible recovery flow.
+
+**Requirements:** UI-01, UI-02
+
+**Depends on:** v3.2 Phase 93 (WebGL recovery banner contract — banner exists but doesn't render; DOM fallback continues to work, masking the bug).
+
+**Scope:** Pure frontend bug. Root cause suspected in `frontend/src/components/TerminalPanel.tsx:391-395` — likely `onContextLoss` closure rot (banner-state setter captured at mount time). Fix is local to `TerminalPanel.tsx` and adjacent banner state. Both desktop + web surfaces benefit from one fix (shared React component).
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 112 to break down)
+
+### Phase 113: iPad terminal touch-scroll
+
+**Goal:** On iPad Safari and iPad Chrome, single-finger drag on the terminal area scrolls xterm scrollback — matching desktop wheel-scroll behavior.
+
+**Requirements:** UI-03, UI-04
+
+**Depends on:** v3.2 Phase 96/Phase 95 (web-links + image surface on iPad — touch-event semantics on terminal container are the same shared surface).
+
+**Scope:** Pure frontend bug. Fix is `touchstart`/`touchmove` event wiring on the terminal container (or `touch-action: pan-y` CSS opt-in to delegate scroll to the browser's native touch-scroll). Web-only surface; desktop unaffected. Separate from Phase 112 — different root cause (touch capture vs. closure rot), different verification (physical iPad vs. desktop DevTools).
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 113 to break down)
+
+### Phase 114: CI test stability — webserver capability test flake
+
+**Goal:** `TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403), with the root cause identified and fixed (not papered over).
+
+**Requirements:** TEST-01, TEST-02
+
+**Depends on:** v3.2 Phase 92's `internal/webserver` capability/SSE plumbing.
+
+**Scope:** Investigation-first phase. Likely root cause is test-state pollution across `internal/webserver` tests (testServer / EnableSession / SetSigningKey leaking under specific shuffle orderings). No rerun-pass hacks; the fix addresses why the test sometimes returns 403, not how to suppress the flake. Linux CI surface only.
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 114 to break down)
+
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
 *Full v1.1 details: .planning/milestones/v1.1-ROADMAP.md*
