@@ -24,43 +24,39 @@ import (
 	"github.com/scottkw/agenthub/internal/capability"
 )
 
-// issueExpiredCapFor mints a cap whose IAT is well in the past so the
-// capability.Verify timestamp check (SEC-04 freshness window) rejects it.
-// If capability.Verify accepts arbitrarily old IATs (no expiry implemented),
-// this helper falls back to corrupting the signature instead — the test
-// still asserts the same outcome (401), only the rejection reason differs.
+// issueExpiredCapFor mints a cap whose HMAC signature fails verification by
+// signing the claims with a deliberately wrong 32-byte key. The historical
+// "expired" framing in this helper's name is preserved for Issue #58 / CI log
+// continuity (test name TestPluginConfigStream_ExpiredCap_Returns401 references
+// this helper); capability.Verify has no expiry path, so an old IAT alone
+// cannot produce a rejection. Signing with a wrong key exercises the
+// production ErrInvalidSignature → 401 path (collapsed per T-87-08), the same
+// path proven non-flaky by TestCapability_InvalidSignatureReturns401.
+//
+// Background: the previous implementation signed with the real key and then
+// flipped the last base64 char (A↔B). That was a no-op for ~6.25% of HMAC
+// outputs (base64 RawURLEncoding's final char carries 4 data bits + 2 padding
+// bits; A/B/C/D share the same top 4 bits), making the test wall-clock-second
+// dependent. Variant A removes that variance entirely. See 114-RESEARCH.md.
 func issueExpiredCapFor(t *testing.T, ws *WebServer, sessionID, perms string) string {
 	t.Helper()
 	claims := capability.Claims{
 		SID:     sessionID,
 		Perms:   perms,
-		IAT:     time.Now().Add(-365 * 24 * time.Hour).Unix(), // 1 year ago
+		IAT:     time.Now().Unix(),
 		GrantID: "grant-expired-" + sessionID,
 		V:       1,
 	}
-	token, err := capability.Sign(claims, capTestKey)
+	// Sign with a key the server does not hold → capability.Verify returns
+	// ErrInvalidSignature → requireCapability returns 401. Same pattern as
+	// TestCapability_InvalidSignatureReturns401.
+	wrongKey := make([]byte, 32)
+	for i := range wrongKey {
+		wrongKey[i] = 0xFF
+	}
+	token, err := capability.Sign(claims, wrongKey)
 	if err != nil {
 		t.Fatalf("capability.Sign: %v", err)
-	}
-	// Do NOT add the grant — even if capability.Verify accepts the old IAT,
-	// the missing grant in ws.grants causes requireCapability to 403, which
-	// we treat as a non-200 outcome (the test assertion is "not 200"; we
-	// pin 401 specifically below for the no-grant + bad-IAT cases — adjust
-	// to 401 OR 403 if needed).
-	//
-	// Additionally, corrupt the last byte of the signature segment so
-	// capability.Verify fails immediately at the HMAC step (collapses to a
-	// generic 401 per T-87-08 information-disclosure defense).
-	if i := strings.LastIndex(token, "."); i >= 0 && i < len(token)-1 {
-		// Flip a bit in the final base64 char.
-		corrupt := []byte(token)
-		c := corrupt[len(corrupt)-1]
-		if c == 'A' {
-			corrupt[len(corrupt)-1] = 'B'
-		} else {
-			corrupt[len(corrupt)-1] = 'A'
-		}
-		token = string(corrupt)
 	}
 	return token
 }
