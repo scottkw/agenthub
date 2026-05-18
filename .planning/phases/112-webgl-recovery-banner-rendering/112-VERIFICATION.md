@@ -243,9 +243,10 @@ Run before declaring UAT pass (per `feedback_check_github_issues_during_uat`):
 gh issue view 55 --comments
 ```
 
-- [ ] No new comments since plan creation that cite repro variants this fix
-      doesn't cover.
-- [ ] No new symptom reports that contradict the notify-before-dispose root
+- [x] No new comments since plan creation that cite repro variants this fix
+      doesn't cover. **Checked 2026-05-18 — Issue #55 has 0 comments, state
+      OPEN, no new symptoms reported.**
+- [x] No new symptom reports that contradict the notify-before-dispose root
       cause.
 - [ ] Ready to close on milestone v3.3.1 release tag (or comment with fix
       reference + commit SHA `a4cdc2e`).
