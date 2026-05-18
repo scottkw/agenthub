@@ -57,6 +57,14 @@ _Pending — to be filled in by the Linux dev-box operator. Required:_
 - _Date and commit SHA (latest on `main` at time of sign-off)_
 - _Output of `go test ./internal/pty -run TestStartExitDetector -race -shuffle=on -count=10`_
 - _Output of `go test ./internal/daemon -run TestListSessions_OnExitCallback_ReceivesNormalized -race -shuffle=on -count=10`_
+- _Goroutine-leak check (Phase 110 WR-01 residual TOCTOU): confirm no
+  goroutines remain leaked after the above two test invocations. Use
+  `go test ... -run ... -race -shuffle=on -count=10` combined with the
+  test process's `runtime.NumGoroutine` reported at exit, OR run the
+  manual reproduction (open a shell tab, type `exit`, then inspect the
+  daemon's goroutine count via pprof or `SIGQUIT` stack dump) and
+  confirm no `cmd.Wait`-blocked goroutines linger from cleanup.go after
+  natural exit followed by `Kill`._
 - _One-line confirmation of each cross-surface UAT row (clean exit, non-zero exit, TUI, CLI smoke)_
 
 ---

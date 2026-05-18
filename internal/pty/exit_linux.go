@@ -42,6 +42,19 @@ const linuxExitPollInterval = 100 * time.Millisecond
 // been started and the session registered. Must NOT call the cmd Wait method
 // — that is killSession's exclusive turf (cleanup.go) and concurrent reap
 // races with go-pty's exec.Cmd state machine.
+//
+// Known TOCTOU race (Phase 110 WR-01): the IsKilled check at the top of each
+// tick and the subsequent Wait4 syscall are not atomic. If MarkKilled fires
+// in the microsecond window between the two, the detector still proceeds to
+// Wait4 the (still-running) child. A second IsKilled re-check after Wait4
+// returns wpid > 0 narrows the window — if MarkKilled landed during the
+// syscall we bail before SetExitCode/CancelContext/Close, letting killSession
+// own the full state transition. The remaining residual window (Wait4 reaped
+// a naturally exiting child WHILE MarkKilled fired) cannot be eliminated
+// without a larger refactor (mutex-protected tryReapIfNotKilled) that
+// exceeds the v3.3.1 patch-release scope. Linux-only `-race -shuffle=on
+// -count=10` CI runs verify no goroutine leak surfaces from this residual
+// window; see 110-VERIFICATION.md.
 func startExitDetector(s *Session) {
 	if s == nil || s.cmd == nil || s.cmd.Process == nil {
 		return
@@ -74,7 +87,23 @@ func startExitDetector(s *Session) {
 				continue
 			}
 
-			// wpid > 0 — child has exited. Derive POSIX exit code.
+			// wpid > 0 — child has exited and we have reaped it.
+			// TOCTOU re-check (WR-01 mitigation): if MarkKilled fired during
+			// the Wait4 syscall, the kill path is now responsible for the
+			// full state transition. We have already consumed the zombie at
+			// the kernel level (irreversible) but we must NOT race
+			// killSession on SetExitCode/CancelContext/PTY close. Returning
+			// here lets cleanup.go own the cancel + close sequence; the
+			// kill-path SetExitCode call (when cmd.Wait succeeds there) is
+			// authoritative. If cmd.Wait fails in cleanup.go because we
+			// already reaped, exitCode stays at -1 — acceptable for the
+			// kill path, where the caller does not expect a meaningful
+			// natural-exit code.
+			if s.IsKilled() {
+				return
+			}
+
+			// Derive POSIX exit code.
 			var exitCode int
 			switch {
 			case status.Exited():
