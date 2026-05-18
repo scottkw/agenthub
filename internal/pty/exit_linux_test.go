@@ -15,8 +15,11 @@ package pty
 
 import (
 	"context"
+	"os/exec"
 	"testing"
 	"time"
+
+	gopty "github.com/aymanbagabas/go-pty"
 )
 
 // TestStartExitDetector_NaturalExit verifies that on a clean `exit 0` the
@@ -65,39 +68,55 @@ func TestStartExitDetector_NaturalExit(t *testing.T) {
 }
 
 // TestStartExitDetector_SuppressedOnKill verifies that when IsKilled() is
-// true the detector returns silently without reaping the child. We build
-// a Session manually (bypassing NativePTYBackend.Create's auto-wire-up)
-// so we can set killed=true BEFORE startExitDetector spawns its goroutine.
+// true the detector returns silently without reaping the child.
+//
+// To eliminate timing fragility under `-race -shuffle=on -count=10` (Phase 110
+// WR-02 fix), this test constructs a Session manually rather than going
+// through NativePTYBackend.Create. By setting killed=true BEFORE invoking
+// startExitDetector, the test guarantees the detector observes IsKilled on
+// its very first tick regardless of scheduler perturbation. Going through
+// b.Create() would call startExitDetector internally; even though the
+// subsequent MarkKilled call finishes within microseconds in normal runs,
+// the race detector's scheduler shuffling could let the first 100ms tick
+// fire before MarkKilled lands, weakening the invariant the test asserts.
+//
+// We start `sleep 5` directly via os/exec (not a PTY) purely to obtain a
+// real PID that startExitDetector's `s.cmd.Process == nil` guard accepts.
+// The child is never read from and the PTY field stays nil — the detector
+// is expected to bail on IsKilled before touching either.
 func TestStartExitDetector_SuppressedOnKill(t *testing.T) {
-	b := NewNativePTYBackend()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// sh -c "sleep 5" gives us a 5-second window to observe detector
-	// behavior. Create() auto-wires the detector — we mark killed
-	// immediately afterward so the detector observes IsKilled on its
-	// very first tick and returns silently.
-	sess, err := b.Create(ctx, CreateRequest{
-		CLI:  "/bin/sh",
-		Args: []string{"-c", "sleep 5"},
-		Cols: 80,
-		Rows: 24,
-	})
-	if err != nil {
-		t.Fatalf("Create: %v", err)
+	// Real child process for a real PID. Not wrapped in a PTY — the
+	// detector returns before any PTY access.
+	cmd := exec.Command("/bin/sleep", "5")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
 	}
-	// Mark killed BEFORE the first detector tick (100ms cadence — 5ms is
-	// safely within the first sleep). The detector must observe this
-	// and return without calling Wait4.
-	sess.MarkKilled()
 	t.Cleanup(func() {
-		// Clean up the still-running sleep via the kill path.
-		_ = b.Kill(sess.ID)
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
 	})
+
+	// Manually constructed Session: killed=true is set BEFORE
+	// startExitDetector spawns the goroutine. This is deterministic;
+	// the goroutine's very first tick will observe IsKilled and return.
+	_, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
+	sess := &Session{
+		ID:        "test-suppressed-on-kill",
+		CLI:       "/bin/sleep",
+		State:     StateRunning,
+		CreatedAt: time.Now(),
+		cmd:       &gopty.Cmd{Process: cmd.Process},
+		cancel:    cancelCtx,
+		exitCode:  -1,
+		killed:    true,
+	}
+
+	startExitDetector(sess)
 
 	// After 500ms (5 detector ticks) the child is still running and the
 	// detector has had ample opportunity to bail. ExitCode must still
-	// be -1 — proof the detector did not reap.
+	// be -1 — proof the detector returned without reaping.
 	time.Sleep(500 * time.Millisecond)
 	if got := sess.ExitCode(); got != -1 {
 		t.Fatalf("ExitCode after MarkKilled (detector should have bailed): got %d, want -1", got)
