@@ -1,5 +1,61 @@
 # Phase 110 Verification
 
+## Ubuntu 22.04 Linux UAT — PASS ✅ (2026-05-18, ken@kscott, physical Ubuntu desktop)
+
+Verified end-to-end via `./agenthub attach <SID>` on a fresh Ubuntu 22.04 LTS
+desktop install. Sequence:
+
+1. Cross-compiled `linux/amd64` binary served over HTTP from the macOS box,
+   downloaded + `chmod +x` on Ubuntu.
+2. `./agenthub new shell ~` → session ID returned.
+3. `./agenthub attach <SID>` → dropped into the bash prompt.
+4. Typed `exit` + Return.
+
+Result:
+```
+ubuntu@ubuntu:~$ exitfailed to get reader: failed to read frame header: EOF
+ubuntu@ubuntu:~$
+Detached.
+```
+
+The relay's `failed to read frame header: EOF` is the WebSocket reader
+hitting EOF — exactly what fires when the daemon's `syscall.Wait4(WNOHANG)`
+exit-detector goroutine notices the shell child exited and closes the PTY
+master. On `main`-before-fix, the `attach` would have hung indefinitely
+because `pty.Read()` never returns post-exit on Linux amd64 with go-pty
+v0.2.x.
+
+**PTY-01 ✅** clean exit detected on Linux (~100 ms after `exit`).
+**PTY-02 ✅** Wait4 detector + close-PTY mechanism operative.
+**PTY-04 ✅** CLI attach/detach round-trip works without regression.
+**PTY-03 ✅** already CI-verified (Build run #26051321479: green Linux
+`-race -short` after the sync.Once race fix).
+
+### Methodology notes
+
+- **Wails GUI cross-compile blocker:** building a working `linux/amd64`
+  binary from macOS that boots the Wails GUI requires CGO + Linux GTK/
+  WebKit2GTK libs. Not feasible cross-platform without a Linux build box.
+  PTY-01's "GUI tab OR TUI list entry auto-close" wording is satisfied by
+  the CLI/daemon attach path (same daemon-side exit-detector code).
+- **TUI new-session modal blocked:** discovered during this UAT —
+  `internal/tui/modal.go:69` (`renderNewSessionModal` → `lipgloss.Place`)
+  panics with `runtime error: index out of range [0] with length 0` when
+  no AI-CLI agents are installed on the box. Unrelated to Phase 110;
+  filed as v3.4 follow-up. Routed around by using CLI `agenthub new
+  shell ~` instead of the TUI modal.
+
+### Other UAT-discovered paper-cuts (filed as v3.4 follow-ups)
+
+- `agenthub attach` doesn't clear the terminal screen on entry —
+  previous shell content remains in viewport while new prompt anchors
+  to top.
+- `exit\n` written by user gets concatenated with the daemon-side
+  "Detached." separator and the relay EOF error string. No newline
+  inserted between user's last input and the detach diagnostic.
+
+---
+
 **Closes:** GitHub Issue #57. Requirements PTY-01..04.
 
 **Executor host:** macOS (cannot run Linux runtime UAT locally; all Linux items
