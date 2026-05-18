@@ -93,6 +93,13 @@ func (b *NativePTYBackend) Create(ctx context.Context, req CreateRequest) (*Sess
 	}
 
 	b.registry.Add(sess)
+
+	// Phase 110 / PTY-02: on Linux only, spawn a Wait4-polling exit-detector
+	// goroutine that closes the PTY when the child exits — unblocks Hub.Run.Read
+	// on Linux where master EOF does not surface. No-op on macOS (EOF works)
+	// and Windows (ConPTY out of scope). See internal/pty/exit_linux.go.
+	startExitDetector(sess)
+
 	return sess, nil
 }
 
