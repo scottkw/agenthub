@@ -269,14 +269,17 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 
 </details>
 
-### 🚧 v3.3.1 Bug Sweep (Phases 109-114) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58)
+### 🚧 v3.3.1 Bug Sweep (Phases 109-117) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58, #60)
 
 - [x] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06 (completed 2026-05-18)
 - [x] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04 (completed 2026-05-18)
-- [x] Phase 111: Web bridge OSC/DA response consumption (Issue #54) — WEB-01..03 (code-complete 2026-05-18, pending macOS cross-surface chafa UAT)
+- [x] Phase 111: Web bridge OSC/DA response consumption — web surface (Issue #54 web side) — WEB-01..03 (completed 2026-05-18)
 - [x] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02 (completed 2026-05-18)
-- [ ] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04
-- [ ] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02
+- [x] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04 (completed 2026-05-18)
+- [x] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02 (completed 2026-05-18)
+- [ ] Phase 115: Desktop relay OSC/DA absorption (Issue #60) — WEB-04..06
+- [ ] Phase 116: Pre-existing test stability (4 tests) — TEST-03..06
+- [ ] Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 — PAPER-01..03
 
 ## Progress
 
@@ -310,8 +313,11 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 110 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 111 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 112 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 113 | v3.3.1 | 0/0 | Not started | - |
-| 114 | v3.3.1 | 0/0 | Not started | - |
+| 113 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
+| 114 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
+| 115 | v3.3.1 | 0/1 | Not started | - |
+| 116 | v3.3.1 | 0/1 | Not started | - |
+| 117 | v3.3.1 | 0/1 | Not started | - |
 
 ### Phase 109: Windows daemon named-pipe IPC
 
@@ -401,7 +407,59 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 114-01-PLAN.md — Variant A fix to issueExpiredCapFor (sign with wrong key) + VERIFICATION.md + root-cause-stated commit (TEST-01, TEST-02)
+- [x] 114-01-PLAN.md — Variant A fix to issueExpiredCapFor (sign with wrong key) + VERIFICATION.md + root-cause-stated commit (TEST-01, TEST-02)
+
+### Phase 115: Desktop relay OSC/DA absorption (Issue #60)
+
+**Goal:** `chafa --format=sixel` and OSC 10/11 + DA1 probes on the **desktop Wails surface** produce clean prompts (no `10;rgb:…`, `11;rgb:…`, `?1;2c`, `62;4;9;22c` leaked into shell stdin), matching the web surface fix from Phase 111.
+
+**Requirements:** WEB-04, WEB-05, WEB-06
+
+**Depends on:** Phase 111 `InputAbsorber` (`internal/webserver/oscabsorb.go`) — same proven 117-line state machine, reused as-is.
+
+**Scope:** Lift `InputAbsorber` from `internal/webserver/server.go` `handleWSSRelay` into `internal/relay/server.go` `handleSession`. Per-subscriber instance, applied at line 127 before `hub.WriteInput(payload)`. Catches the daemon-direct relay path used by the Wails desktop attach (and by CLI `agenthub attach`, which uses the same relay). Web-share path now has two absorbers in series — harmless (no-op on already-filtered bytes), kept as defense-in-depth. New integration tests against `internal/relay` for the daemon-direct path; existing absorber unit suite remains the state-machine truth.
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 115-01-PLAN.md — RED integration tests against internal/relay (OSC 10/11 absorbed, DA1 absorbed, keystrokes pass) + GREEN lift absorber into handleSession + cross-surface manual UAT scaffold
+
+### Phase 116: Pre-existing test stability
+
+**Goal:** Four pre-existing test failures in `internal/daemon` and `internal/agent` are fixed at root cause — no `t.Skip()` left behind, no rerun-pass hacks.
+
+**Requirements:** TEST-03, TEST-04, TEST-05, TEST-06
+
+**Depends on:** none (orthogonal investigations per test).
+
+**Scope:** Four distinct failures, each with its own root cause investigation:
+1. `TestOpenCodeANSICapture` data race (`internal/agent`, Phase 71 `a02dd75` 2026-04-13) — shared-state mutation in capture buffer.
+2. `TestAPIGetShellWebShareWarned_Default` (`internal/daemon`, Phase 101 `42b771f`) — likely default-value drift after Phase 107 shell-UX collapse.
+3. `TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` (`internal/daemon`) — same family as #2.
+4. `TestSetShellWebShareWarned_Default` (`internal/daemon`) — same family as #2.
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 116-01-PLAN.md — Per-test investigation + atomic fix-commits with root cause stated in commit body; full `internal/daemon` and `internal/agent` suites green under `-race -shuffle=on -count=3`
+
+### Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 leak
+
+**Goal:** Three small bugs from the v3.3.1 deferred-items list are fixed in the same milestone, eliminating known paper-cuts before v3.3.1 tag.
+
+**Requirements:** PAPER-01, PAPER-02, PAPER-03
+
+**Depends on:** none.
+
+**Scope:**
+1. **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing panic in `renderNewSessionModal`. Phase 109 scope addition #3 (`84e1387`) routed the empty-agent case away from this path, but the defensive fix on the underlying `lipgloss.Place` call remains worth applying. Source location: `internal/tui/modal.go` (search for `lipgloss.Place`).
+2. **PAPER-02** — `agenthub attach` does not clear the terminal screen on entry. Paper-cut surfaced during Phase 110 UAT. Source location: `cmd/agenthub/attach.go` (or equivalent CLI attach command).
+3. **PAPER-03** — `cleanup.go` `cmd.Wait` goroutine leak (WR-03 from Phase 110 REVIEW — pre-existing leak, no new exposure but worth closing). Source location: `internal/daemon/cleanup.go`.
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 117-01-PLAN.md — Three atomic fix-commits with RED tests where feasible (PAPER-01 panic test, PAPER-02 attach-clear smoke, PAPER-03 leak-detection via goroutine count) + VERIFICATION.md
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

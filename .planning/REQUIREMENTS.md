@@ -32,8 +32,16 @@ Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit 
 Web surface only — desktop unaffected. Web frontend's session bridge does not consume OSC color-query / Device Attributes responses, leaking them into shell stdin. Pre-existing (predates v3.3); blocking parity for any sixel-using or capability-probing program (chafa, vim, neovim, mc) on the web surface.
 
 - [x] **WEB-01** — On the web-served terminal, OSC 10 (FG color query), OSC 11 (BG color query), and Device Attributes (`CSI c`) responses are consumed by the requesting program and do NOT appear in shell stdin. Reproducible with `chafa --format=sixel /tmp/<png>` in a web-shared shell session.
-- [x] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render).
+- [x] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render). (Phase 111 fixed web; Phase 115 fixes desktop — together both surfaces clean.)
 - [x] **WEB-03** — Regression test (Go or e2e) covers OSC response consumption on the web bridge; future regressions in the response path fail in CI.
+
+### WEB (cont.) — Desktop relay correctness (Issue #60)
+
+Follow-up to #54 surfaced during Phase 111 desktop parity UAT on 2026-05-18. The original Phase 111 fix landed in `internal/webserver/server.go` `handleWSSRelay` (the web-share wrapper); the daemon-direct relay path `internal/relay/server.go` `handleSession` — used by the Wails desktop attach and by CLI `agenthub attach` — has no absorber. xterm.js in the Wails webview answers OSC 10/11 + DA1 queries autonomously and ships those responses upstream as `MsgInput` frames, contaminating shell stdin at the next prompt. v3.3.1 closes both surfaces in this milestone per cross-surface parity discipline.
+
+- [ ] **WEB-04** — On the desktop Wails surface, OSC 10/11 and DA1 responses are absorbed before reaching PTY stdin. The OSC/DA1 probe (`printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ_MARKER`) produces only `ZZZ_MARKER` on its own line followed by a clean prompt — no `11;rgb:…`, `62;4;9;22c` text typed at the next prompt.
+- [ ] **WEB-05** — Web ↔ desktop full parity confirmed via manual UAT on macOS: both surfaces produce identical clean output for the OSC/DA1 probe. Replaces the Phase 111 `approved with desktop follow-up: #60` resume signal with a clean two-surface PASS.
+- [ ] **WEB-06** — Regression tests in `internal/relay` cover OSC 10/11 and DA1 absorption against `handleSession`, independent of the webserver-layer absorber — future regressions on the daemon-direct path fail in CI under `-race -count=3`.
 
 ### UI — Frontend bugs (Issues #55, #56)
 
@@ -51,12 +59,20 @@ v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only
 - [x] **PTY-03** — `TestListSessions_OnExitCallback_ReceivesNormalized` no longer needs `t.Skip()` on Linux — runs and passes deterministically in `linux/amd64` CI under `-race -shuffle=on`.
 - [x] **PTY-04** — Cross-surface parity holds: TUI Linux and CLI Linux benefit from the same daemon-side fix (TUI uses the same daemon path; CLI attach-detach is independent but daemon-side cleanup is fixed). No regression on macOS or Windows.
 
-### TEST — Test-suite stability (Issue #58)
+### TEST — Test-suite stability (Issue #58, pre-existing failures)
 
 - [x] **TEST-01** — `internal/webserver/plugin_config_stream_test.go::TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403). Root cause documented in the fix commit.
 - [x] **TEST-02** — Underlying cause investigated and stated in writing — not a rerun-pass hack. Likely candidates per issue triage: (a) shared-state pollution across tests in `internal/webserver` test setup (testServer / EnableSession / SetSigningKey leaks under specific orderings), (b) base64 strict-decode variance, (c) HMAC implementation. Fix addresses the root, not the symptom.
+- [ ] **TEST-03** — `internal/agent::TestOpenCodeANSICapture` data race fixed at root cause (Phase 71 `a02dd75` 2026-04-13 pre-existing). No `t.Skip()` left behind. Passes under `-race -count=3 -shuffle=on`.
+- [ ] **TEST-04** — `internal/daemon::TestAPIGetShellWebShareWarned_Default` passes on `main` (Phase 101 `42b771f` pre-existing failure). Likely default-value drift after Phase 107 shell-UX collapse.
+- [ ] **TEST-05** — `internal/daemon::TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` passes on `main`.
+- [ ] **TEST-06** — `internal/daemon::TestSetShellWebShareWarned_Default` passes on `main`. Full `internal/daemon` suite green under `-race -shuffle=on -count=3`.
 
----
+### PAPER — Paper-cut bugs from v3.3.1 deferred-items list
+
+- [ ] **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing no longer panics in `renderNewSessionModal`. Defensive fix at the source `lipgloss.Place` call site (`internal/tui/modal.go`), independent of Phase 109 scope addition #3 (`84e1387`) that routed the empty-agent case away from this path. RED test that constructs the empty-agent state and confirms no panic.
+- [ ] **PAPER-02** — `agenthub attach` clears the terminal screen on entry (paper-cut surfaced during Phase 110 UAT). Verified manually + via a smoke test that captures stdout on entry.
+- [ ] **PAPER-03** — `internal/daemon/cleanup.go` `cmd.Wait` goroutine no longer leaks (WR-03 from Phase 110 REVIEW — pre-existing, no new exposure). Verified via `runtime.NumGoroutine()` delta in a regression test that spawns + cleans up N sessions and checks goroutine count returns to baseline.
 
 ## Future Requirements (deferred, not v3.3.1)
 
@@ -72,7 +88,7 @@ These open enhancement issues remain backlog for v3.4 or later:
 - `#10` Intersession communication / orchestration
 - `#9` Networking enhancement
 
-Internal v3.3 carry-forward (also deferred to v3.4):
+Internal v3.3 carry-forward (deferred to v3.4):
 
 - Phase 101 visual-fidelity UAT cosmetic items (5)
 - Phase 101 advisory WR-01..09 + IN-01..06 (15 items)
@@ -80,9 +96,9 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 - Phase 108 WR-01/WR-02 + IN-01..04 (docs/dead-code)
 - Phase 103 process debt — `103-SUMMARY.md` + `103-IIP-DECISION.md` + `103-VERIFICATION.md`
 - Nyquist `*-VALIDATION.md` missing for Phases 101–108
-- `TestOpenCodeANSICapture` data race (pre-existing, skipped)
-- `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests; Phase 108 SPEC §Out-of-scope)
 - Phase 108 PARITY-CLI-03 harness limitation (test skip with `SetShellPathForTest` follow-up sketched)
+
+(Note: `TestOpenCodeANSICapture` data race + `TestShellWebShareWarned_Default`-family failures moved into Phase 116 scope per 2026-05-19 milestone re-scoping. See TEST-03..06.)
 
 ---
 
@@ -122,3 +138,13 @@ Internal v3.3 carry-forward (also deferred to v3.4):
 | PTY-04  | Phase 110 | Complete |
 | TEST-01 | Phase 114 | Complete |
 | TEST-02 | Phase 114 | Complete |
+| WEB-04  | Phase 115 | Active |
+| WEB-05  | Phase 115 | Active |
+| WEB-06  | Phase 115 | Active |
+| TEST-03 | Phase 116 | Active |
+| TEST-04 | Phase 116 | Active |
+| TEST-05 | Phase 116 | Active |
+| TEST-06 | Phase 116 | Active |
+| PAPER-01 | Phase 117 | Active |
+| PAPER-02 | Phase 117 | Active |
+| PAPER-03 | Phase 117 | Active |

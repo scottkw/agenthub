@@ -13,12 +13,12 @@ the assessment is text-based, not color-based).
 
 | Item | Requirement | Surface | Status | Reproduction | Owner |
 |------|-------------|---------|--------|--------------|-------|
-| Web chafa sixel clean prompt | WEB-01, WEB-02 | Web (Chrome on localhost) | human_needed | `./bin/agenthub daemon run &`; `./bin/agenthub web start`; `./bin/agenthub new bash $HOME` (note SID); `./bin/agenthub serve <SID>` (note share URL); open share URL in Chrome (accept self-signed cert); run `curl -fsSLo /tmp/test.png https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/120px-GoldenGateBridge-001.jpg && chafa --format=sixel /tmp/test.png`. **PASS criterion:** the prompt that follows the image is clean — no `10;rgb:...`, `11;rgb:...`, `?1;2c`, or `62;4;9;22c` text injected before the prompt char. Screenshot to `.planning/phases/111-.../uat-evidence/web-chafa.png`. | macOS dev box |
-| Web OSC/DA probe (sensitive) | WEB-01 | Web (Chrome) | human_needed | In the same web terminal: `printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ`. **PASS:** next line shows only `ZZZ` with nothing before it. **FAIL:** junk before `ZZZ`. | macOS dev box |
-| Desktop chafa sixel clean prompt | WEB-02 | macOS desktop (Wails GUI) | human_needed | Build/launch the Wails app (`./build/bin/agenthub.app/Contents/MacOS/agenthub`, or `wails build -tags wailsassets` first per project memory `project_wails_build_requires_tags`). Attach to the same session SID. Repeat the chafa command + the OSC/DA probe. Save `.planning/phases/111-.../uat-evidence/desktop-chafa.png`. | macOS dev box |
-| Parity decision | WEB-02 | both | human_needed | Compare the two screenshots. Both must be clean. If desktop ALSO leaks, **do NOT expand scope** — file a follow-up GitHub issue ("Desktop relay also leaks OSC/DA1 replies (follow-up to #54)") and record `approved with desktop follow-up: #<n>` in the resume signal. | macOS dev box |
-| Regression smoke (web) | WEB-01 | Web (Chrome) | human_needed | In the web terminal: type `ls`, Enter (output renders). Press Up / Down arrows (history works). Type a word, Backspace mid-word (edit works). Confirm no regression. | macOS dev box |
-| Regression smoke (desktop) | WEB-01 | macOS desktop | human_needed | Same in the desktop terminal tab. | macOS dev box |
+| Web chafa sixel clean prompt | WEB-01, WEB-02 | Web (Chrome on localhost) | PASS (2026-05-18, Playwright) | `./bin/agenthub daemon run &`; `./bin/agenthub web start`; `./bin/agenthub new bash $HOME` (note SID); `./bin/agenthub serve <SID>` (note share URL); open share URL in Chrome (accept self-signed cert); run `curl -fsSLo /tmp/test.png https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/GoldenGateBridge-001.jpg/120px-GoldenGateBridge-001.jpg && chafa --format=sixel /tmp/test.png`. **PASS criterion:** the prompt that follows the image is clean — no `10;rgb:...`, `11;rgb:...`, `?1;2c`, or `62;4;9;22c` text injected before the prompt char. Screenshot to `.planning/phases/111-.../uat-evidence/web-chafa.png`. | macOS dev box |
+| Web OSC/DA probe (sensitive) | WEB-01 | Web (Chrome) | PASS (2026-05-18, Playwright) | In the same web terminal: `printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ`. **PASS:** next line shows only `ZZZ` with nothing before it. **FAIL:** junk before `ZZZ`. | macOS dev box |
+| Desktop chafa sixel clean prompt | WEB-02 | macOS desktop (Wails GUI) | PARTIAL — chafa probe PASS, OSC/DA probe FAIL (see follow-up #60) | Build/launch the Wails app (`./build/bin/agenthub.app/Contents/MacOS/agenthub`, or `wails build -tags wailsassets` first per project memory `project_wails_build_requires_tags`). Attach to the same session SID. Repeat the chafa command + the OSC/DA probe. Save `.planning/phases/111-.../uat-evidence/desktop-chafa.png`. | macOS dev box |
+| Parity decision | WEB-02 | both | `approved with desktop follow-up: #60` — web clean, desktop leaks; v3.3.1 ships per patch-release boundary | Compare the two screenshots. Both must be clean. If desktop ALSO leaks, **do NOT expand scope** — file a follow-up GitHub issue ("Desktop relay also leaks OSC/DA1 replies (follow-up to #54)") and record `approved with desktop follow-up: #<n>` in the resume signal. | macOS dev box |
+| Regression smoke (web) | WEB-01 | Web (Chrome) | PASS (2026-05-18, Playwright) | In the web terminal: type `ls`, Enter (output renders). Press Up / Down arrows (history works). Type a word, Backspace mid-word (edit works). Confirm no regression. | macOS dev box |
+| Regression smoke (desktop) | WEB-01 | macOS desktop | PASS (2026-05-18, manual UAT — `ls`, history, mid-word edit all work) | Same in the desktop terminal tab. | macOS dev box |
 
 ## Automated tests
 
@@ -105,3 +105,44 @@ desktop UAT pending operator).
 `web-osc-probe.png` show clean prompts after probes that would have
 leaked `10;rgb:`, `11;rgb:`, `?1;2c`, `62;4;9;22c` on `main`-before-fix.
 Desktop surface UAT deferred to manual operator run.
+
+---
+
+## Desktop surface UAT — 2026-05-18 (post-tag-candidate)
+
+**Date:** 2026-05-18
+**Commit SHA:** 624279b (HEAD of main, v3.3.1 tag candidate)
+**macOS operator:** ken@kscott (manual UAT, Wails production build)
+**Build:** `wails build -tags wailsassets` → `build/bin/agenthub.app`
+**Result:** ❌ **Desktop ALSO leaks** — chafa sixel probe passed clean,
+but the sensitive OSC 11 + DA1 probe contaminated the next prompt:
+
+```
+> printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ_MARKER
+ZZZ_MARKER
+> 11;rgb:1d1d/1f1f/212162;4;9;22c
+```
+
+The trailing prompt line is the OSC 11 response
+(`11;rgb:1d1d/1f1f/2121`) concatenated with the DA1 response
+(`62;4;9;22c`), typed into stdin at the next prompt as if the user
+typed them.
+
+**Regression smoke (desktop):** PASS — `ls`, history arrows, mid-word
+Backspace editing all work.
+
+**Resolution per RESEARCH Open Question 1:** Desktop is empirically
+affected. Phase 111's `InputAbsorber` in `handleWSSRelay`
+(`internal/webserver/server.go`) does not reach the desktop attach
+path, which routes through `internal/relay/server.go` `handleSession`
+→ `hub.WriteInput(payload)` (line 127) with no absorption.
+
+**Follow-up:** GitHub Issue
+[scottkw/agenthub#60](https://github.com/scottkw/agenthub/issues/60)
+"Desktop relay also leaks OSC/DA1 replies (follow-up to #54)" — filed
+2026-05-18 with full repro, root-cause analysis, and two proposed fix
+locations. v3.4 candidate.
+
+**Resume signal:** `approved with desktop follow-up: #60` — v3.3.1
+ships unblocked per the patch-release boundary captured in this
+document's `Sign-off gate` clause.
