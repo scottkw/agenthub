@@ -277,7 +277,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 - [x] Phase 112: WebGL recovery banner rendering (Issue #55) — UI-01, UI-02 (completed 2026-05-18)
 - [x] Phase 113: iPad terminal touch-scroll (Issue #56) — UI-03, UI-04 (completed 2026-05-18)
 - [x] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02 (completed 2026-05-18)
-- [ ] Phase 115: Desktop relay OSC/DA absorption (Issue #60) — WEB-04..06
+- [x] Phase 115: Desktop relay OSC/DA absorption (Issue #60) — WEB-04..06 (completed 2026-05-19)
 - [ ] Phase 116: Pre-existing test stability (4 tests) — TEST-03..06
 - [ ] Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 — PAPER-01..03
 
@@ -315,7 +315,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 112 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 113 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 114 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 115 | v3.3.1 | 0/1 | Not started | - |
+| 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 116 | v3.3.1 | 0/1 | Not started | - |
 | 117 | v3.3.1 | 0/1 | Not started | - |
 
@@ -422,7 +422,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 115-01-PLAN.md — RED integration tests against internal/relay (OSC 10/11 absorbed, DA1 absorbed, keystrokes pass) + GREEN lift absorber into handleSession + cross-surface manual UAT scaffold
+- [x] 115-01-PLAN.md — RED integration tests against internal/relay (OSC 10/11 absorbed, DA1 absorbed, keystrokes pass) + GREEN lift absorber into handleSession + cross-surface manual UAT scaffold
 
 ### Phase 116: Pre-existing test stability
 

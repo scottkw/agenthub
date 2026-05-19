@@ -39,9 +39,9 @@ Web surface only — desktop unaffected. Web frontend's session bridge does not 
 
 Follow-up to #54 surfaced during Phase 111 desktop parity UAT on 2026-05-18. The original Phase 111 fix landed in `internal/webserver/server.go` `handleWSSRelay` (the web-share wrapper); the daemon-direct relay path `internal/relay/server.go` `handleSession` — used by the Wails desktop attach and by CLI `agenthub attach` — has no absorber. xterm.js in the Wails webview answers OSC 10/11 + DA1 queries autonomously and ships those responses upstream as `MsgInput` frames, contaminating shell stdin at the next prompt. v3.3.1 closes both surfaces in this milestone per cross-surface parity discipline.
 
-- [ ] **WEB-04** — On the desktop Wails surface, OSC 10/11 and DA1 responses are absorbed before reaching PTY stdin. The OSC/DA1 probe (`printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ_MARKER`) produces only `ZZZ_MARKER` on its own line followed by a clean prompt — no `11;rgb:…`, `62;4;9;22c` text typed at the next prompt.
-- [ ] **WEB-05** — Web ↔ desktop full parity confirmed via manual UAT on macOS: both surfaces produce identical clean output for the OSC/DA1 probe. Replaces the Phase 111 `approved with desktop follow-up: #60` resume signal with a clean two-surface PASS.
-- [ ] **WEB-06** — Regression tests in `internal/relay` cover OSC 10/11 and DA1 absorption against `handleSession`, independent of the webserver-layer absorber — future regressions on the daemon-direct path fail in CI under `-race -count=3`.
+- [x] **WEB-04** — On the desktop Wails surface, OSC 10/11 and DA1 responses are absorbed before reaching PTY stdin. The OSC/DA1 probe (`printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ_MARKER`) produces only `ZZZ_MARKER` on its own line followed by a clean prompt — no `11;rgb:…`, `62;4;9;22c` text typed at the next prompt.
+- [x] **WEB-05** — Web ↔ desktop full parity confirmed via manual UAT on macOS: both surfaces produce identical clean output for the OSC/DA1 probe. Replaces the Phase 111 `approved with desktop follow-up: #60` resume signal with a clean two-surface PASS.
+- [x] **WEB-06** — Regression tests in `internal/relay` cover OSC 10/11 and DA1 absorption against `handleSession`, independent of the webserver-layer absorber — future regressions on the daemon-direct path fail in CI under `-race -count=3`.
 
 ### UI — Frontend bugs (Issues #55, #56)
 
@@ -138,9 +138,9 @@ Internal v3.3 carry-forward (deferred to v3.4):
 | PTY-04  | Phase 110 | Complete |
 | TEST-01 | Phase 114 | Complete |
 | TEST-02 | Phase 114 | Complete |
-| WEB-04  | Phase 115 | Active |
-| WEB-05  | Phase 115 | Active |
-| WEB-06  | Phase 115 | Active |
+| WEB-04  | Phase 115 | Complete |
+| WEB-05  | Phase 115 | Complete |
+| WEB-06  | Phase 115 | Complete |
 | TEST-03 | Phase 116 | Active |
 | TEST-04 | Phase 116 | Active |
 | TEST-05 | Phase 116 | Active |
