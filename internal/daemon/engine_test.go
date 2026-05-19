@@ -934,10 +934,20 @@ func TestResolveShellSpawn_FreshInstallFallback(t *testing.T) {
 // --- Phase 101 Plan 01: ShellWebShareWarned persistence ----------------------
 
 // TestSetShellWebShareWarned_Default verifies fresh engine reads false.
+//
+// Phase 116 / TEST-06: NewSessionEngine() loads from the user's real
+// ~/.config/agenthub/settings.json at construction time. Reset every field
+// that loadSettingsFromDisk touches so the "default value" assertion is
+// deterministic regardless of the developer's local settings.
 func TestSetShellWebShareWarned_Default(t *testing.T) {
 	e := NewSessionEngine()
 	e.configDir = t.TempDir()
 	e.cliPaths = make(map[string]string)
+	e.startMinimized = false
+	e.shellWebShareWarned = false
+	e.shellPath = ""
+	e.autoCloseSession = nil
+	e.pluginSettings = defaultPluginSettings()
 
 	if v := e.GetShellWebShareWarned(); v != false {
 		t.Errorf("default GetShellWebShareWarned: got %v, want false", v)

@@ -75,6 +75,13 @@ func TestOpenCodeANSICapture(t *testing.T) {
 	cancel() // kill the process
 	_ = cmd.Wait()
 
+	// Phase 116 / TEST-03: wait for the io.Copy goroutine to finish before
+	// reading buf — otherwise the goroutine's bytes.Buffer.grow() races against
+	// the main goroutine's buf.Bytes() call. Closing the PTY master ensures
+	// any pending Read returns so the goroutine reaches close(done).
+	_ = p.Close()
+	<-done
+
 	output := buf.Bytes()
 	t.Logf("Output length: %d bytes", len(output))
 

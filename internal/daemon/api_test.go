@@ -32,9 +32,19 @@ func testDaemon(t *testing.T) (*API, *DaemonClient, string) {
 	}
 	engine := NewSessionEngine()
 	// Isolate from real settings.json that NewSessionEngine may have loaded.
+	// NewSessionEngine() unconditionally reads ~/.config/agenthub/settings.json
+	// at construction time (engine.go: loadSettingsFromDisk(cfgDir)). Any field
+	// the real settings file populates leaks into the test unless explicitly
+	// reset here. Phase 116 / TEST-04..06: every field that loadSettingsFromDisk
+	// touches must appear in this reset block. Future engine fields require an
+	// addition here OR a refactor that decouples NewSessionEngine from disk.
 	engine.configDir = t.TempDir()
 	engine.cliPaths = make(map[string]string)
 	engine.startMinimized = false
+	engine.shellWebShareWarned = false
+	engine.shellPath = ""
+	engine.autoCloseSession = nil
+	engine.pluginSettings = defaultPluginSettings()
 	api := NewAPI(engine)
 	// Use short socket path — macOS t.TempDir() paths exceed the 103-char limit.
 	socketPath := shortSocketPath(t, "api.sock")
