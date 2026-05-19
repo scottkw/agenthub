@@ -279,7 +279,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 - [x] Phase 114: CI test stability — webserver capability test flake (Issue #58) — TEST-01, TEST-02 (completed 2026-05-18)
 - [x] Phase 115: Desktop relay OSC/DA absorption (Issue #60) — WEB-04..06 (completed 2026-05-19)
 - [x] Phase 116: Pre-existing test stability (4 tests) — TEST-03..06 (completed 2026-05-19)
-- [ ] Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 — PAPER-01..03
+- [x] Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 — PAPER-01..03 (completed 2026-05-19)
 
 ## Progress
 
@@ -317,7 +317,7 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 114 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
 | 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-| 117 | v3.3.1 | 0/1 | Not started | - |
+| 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 
 ### Phase 109: Windows daemon named-pipe IPC
 

@@ -70,9 +70,9 @@ v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only
 
 ### PAPER — Paper-cut bugs from v3.3.1 deferred-items list
 
-- [ ] **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing no longer panics in `renderNewSessionModal`. Defensive fix at the source `lipgloss.Place` call site (`internal/tui/modal.go`), independent of Phase 109 scope addition #3 (`84e1387`) that routed the empty-agent case away from this path. RED test that constructs the empty-agent state and confirms no panic.
-- [ ] **PAPER-02** — `agenthub attach` clears the terminal screen on entry (paper-cut surfaced during Phase 110 UAT). Verified manually + via a smoke test that captures stdout on entry.
-- [ ] **PAPER-03** — `internal/daemon/cleanup.go` `cmd.Wait` goroutine no longer leaks (WR-03 from Phase 110 REVIEW — pre-existing, no new exposure). Verified via `runtime.NumGoroutine()` delta in a regression test that spawns + cleans up N sessions and checks goroutine count returns to baseline.
+- [x] **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing no longer panics in `renderNewSessionModal`. Defensive fix at the source `lipgloss.Place` call site (`internal/tui/modal.go`), independent of Phase 109 scope addition #3 (`84e1387`) that routed the empty-agent case away from this path. RED test that constructs the empty-agent state and confirms no panic.
+- [x] **PAPER-02** — `agenthub attach` clears the terminal screen on entry (paper-cut surfaced during Phase 110 UAT). Verified manually + via a smoke test that captures stdout on entry.
+- [x] **PAPER-03** — `internal/daemon/cleanup.go` `cmd.Wait` goroutine no longer leaks (WR-03 from Phase 110 REVIEW — pre-existing, no new exposure). Verified via `runtime.NumGoroutine()` delta in a regression test that spawns + cleans up N sessions and checks goroutine count returns to baseline.
 
 ## Future Requirements (deferred, not v3.3.1)
 
@@ -145,6 +145,6 @@ Internal v3.3 carry-forward (deferred to v3.4):
 | TEST-04 | Phase 116 | Complete |
 | TEST-05 | Phase 116 | Complete |
 | TEST-06 | Phase 116 | Complete |
-| PAPER-01 | Phase 117 | Active |
-| PAPER-02 | Phase 117 | Active |
-| PAPER-03 | Phase 117 | Active |
+| PAPER-01 | Phase 117 | Complete |
+| PAPER-02 | Phase 117 | Complete |
+| PAPER-03 | Phase 117 | Complete |
