@@ -14,6 +14,8 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 
 ## Latest Release
 
+**v3.3.2 — Dependency maintenance** (2026-05-19) — patch release rolling forward direct dependencies (`tailscale.com` 1.96.5, `nfpm/v2` 2.46.3, `golang.org/x/term` 0.42.0, `bubbletea/v2` 2.0.6, `godbus/v5` 5.2.2, plus `pnpm/action-setup` 6.0.8 in CI) and transitive security-relevant bumps (`x/crypto` 0.50.0, `x/net` 0.52.0, `go-git` 5.18.0, `ProtonMail/go-crypto` 1.4.1). No user-visible behavior changes from v3.3.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.3.2).
+
 **v3.3.1 — Bug Sweep** (2026-05-19) — patch release closing all known bugs in v3.3.
 
 - **Windows daemon named-pipe IPC** ([#52](https://github.com/scottkw/agenthub/issues/52)) — daemon now listens on `\\.\pipe\agenthub-daemon` on Windows; GUI / CLI / TUI all work on a fresh Windows install. Credit: [@im-alexandre](https://github.com/im-alexandre) (PR #53).
@@ -24,7 +26,7 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.3.1: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.3.1) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v3.3.2: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.3.2) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
