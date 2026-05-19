@@ -12,6 +12,20 @@ The terminal core is extended by a curated, vendored xterm.js plugin suite — G
 
 Sessions auto-close when the agent process exits — 5-second countdown, toast notification, and Keep Open cancel — and closing the GUI prompts a quit confirmation showing active session count. The system tray is native on each platform: NSStatusBar on macOS, D-Bus StatusNotifierItem on Linux, and Shell_NotifyIcon on Windows. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
+## Latest Release
+
+**v3.3.1 — Bug Sweep** (2026-05-19) — patch release closing all known bugs in v3.3.
+
+- **Windows daemon named-pipe IPC** ([#52](https://github.com/scottkw/agenthub/issues/52)) — daemon now listens on `\\.\pipe\agenthub-daemon` on Windows; GUI / CLI / TUI all work on a fresh Windows install. Credit: [@im-alexandre](https://github.com/im-alexandre) (PR #53).
+- **OSC color-query + DA1 leak fixed on both relay surfaces** ([#54](https://github.com/scottkw/agenthub/issues/54), [#60](https://github.com/scottkw/agenthub/issues/60)) — `chafa --format=sixel`, `vim`, `neovim` (truecolor probe), `mc` and other capability-probing programs no longer leave junk on the shell prompt. Streaming `InputAbsorber` state machine filters OSC 10/11 + DA1 envelopes on both the web-share path and the daemon-direct (desktop / CLI attach) path.
+- **WebGL recovery banner now renders** ([#55](https://github.com/scottkw/agenthub/issues/55)) — `WebGLRecoveryBanner` appears with 8s auto-dismiss when the WebGL context is lost; DOM fallback continues working.
+- **iPad touch-scroll for terminal scrollback** ([#56](https://github.com/scottkw/agenthub/issues/56)) — single-finger drag scrolls xterm scrollback on iPad Safari + iPad Chrome; multi-touch still triggers native pinch-zoom; tap-on-link (OSC 8) preserved.
+- **Linux shell auto-close** ([#57](https://github.com/scottkw/agenthub/issues/57)) — SHELL-12 auto-close (5s countdown + toast on agent exit) now works on Linux, matching macOS behavior. Cross-platform parity achieved via platform-specific PTY exit detector.
+- **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
+- **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
+
+Download v3.3.1: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.3.1) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+
 ## Features
 
 ### Terminal & Sessions
