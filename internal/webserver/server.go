@@ -738,7 +738,7 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 
 	// Read pump — client → PTY
 	readDone := make(chan struct{})
-	absorber := &InputAbsorber{} // Phase 111 / Issue #54: absorb OSC 10/11/DA1 replies.
+	absorber := &relay.InputAbsorber{} // Phase 111 / Issue #54: absorb OSC 10/11/DA1 replies. Phase 115: type moved to relay package.
 	go func() {
 		defer close(readDone)
 		for {

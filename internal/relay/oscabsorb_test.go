@@ -1,4 +1,4 @@
-package webserver
+package relay
 
 import (
 	"bytes"
