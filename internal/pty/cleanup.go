@@ -38,6 +38,15 @@ func killSession(s *Session) error {
 	s.closePTY()
 
 	// Wait for process to exit, with 2-second timeout.
+	//
+	// Phase 117 / PAPER-03: the Wait goroutine below is bounded-lifetime, not
+	// a true leak. After SIGKILL the kernel terminates the process and Wait
+	// returns; the goroutine then closes(done) and exits. On the rare
+	// "process stuck in D-state" path (uninterruptible kernel I/O), the
+	// goroutine may outlive killSession's return, but completes when the OS
+	// eventually reaps the process. We do NOT block killSession on this —
+	// the caller has its own SLA. Goroutine resource cost: one stack frame
+	// (~4 KiB) for at most the duration of the stuck I/O.
 	done := make(chan struct{})
 	go func() {
 		_ = s.cmd.Wait()
@@ -58,7 +67,9 @@ func killSession(s *Session) error {
 		select {
 		case <-done:
 		case <-time.After(1 * time.Second):
-			// Give up — process is truly stuck.
+			// Goroutine still running — process is stuck (e.g. D-state). It
+			// will complete when the OS finally reaps the process; we return
+			// to the caller now per the SLA. See goroutine-lifetime note above.
 		}
 	}
 

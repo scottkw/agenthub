@@ -120,6 +120,17 @@ func cmdAttach(client *daemon.DaemonClient, args []string) error {
 	// Wrap stdout in a LockedWriter to serialize PTY output and bar draws.
 	stdout := attach.NewLockedWriter(os.Stdout)
 
+	// Phase 117 / PAPER-02: clear the local terminal so the attached session
+	// renders from a clean canvas. Without this, the user's prior shell
+	// prompt (e.g. the line "agenthub attach <sid>" they just typed)
+	// remains visible above the session's first frame. Pure ANSI:
+	// CSI 2 J (Erase in Display, all) + CSI H (Cursor Position, home).
+	// Only emitted when stdout is a TTY — non-TTY callers (pipes,
+	// CI redirects) get the existing one-shot banner on stderr instead.
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		_, _ = stdout.Write([]byte("\x1b[2J\x1b[H"))
+	}
+
 	// Create status bar if stdout is a TTY (SB-03).
 	var bar *statusbar.Bar
 	if term.IsTerminal(int(os.Stdout.Fd())) {

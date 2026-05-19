@@ -50,7 +50,17 @@ func (m Model) agentEntries() []agentEntry {
 }
 
 // renderNewSessionModal renders the new-session modal as a centered bordered overlay.
+//
+// Phase 117 / PAPER-01: defensive guard against degenerate dimensions.
+// lipgloss.Place panics with "index out of range [0] with length 0" if width
+// or height is zero (rendered before WindowSizeMsg arrives, or if some future
+// code path leaves them unset). The Phase 109 agentEntries fix closed the
+// "no detected CLIs → empty content → panic" upstream cause; this guard
+// closes the broader class of "any zero-dimension render → panic".
 func (m Model) renderNewSessionModal() string {
+	if m.width <= 0 || m.height <= 0 {
+		return ""
+	}
 	overlayWidth := max(50, min(70, m.width-10))
 
 	content := m.buildNewSessionContent()
