@@ -63,10 +63,10 @@ v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only
 
 - [x] **TEST-01** — `internal/webserver/plugin_config_stream_test.go::TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403). Root cause documented in the fix commit.
 - [x] **TEST-02** — Underlying cause investigated and stated in writing — not a rerun-pass hack. Likely candidates per issue triage: (a) shared-state pollution across tests in `internal/webserver` test setup (testServer / EnableSession / SetSigningKey leaks under specific orderings), (b) base64 strict-decode variance, (c) HMAC implementation. Fix addresses the root, not the symptom.
-- [ ] **TEST-03** — `internal/agent::TestOpenCodeANSICapture` data race fixed at root cause (Phase 71 `a02dd75` 2026-04-13 pre-existing). No `t.Skip()` left behind. Passes under `-race -count=3 -shuffle=on`.
-- [ ] **TEST-04** — `internal/daemon::TestAPIGetShellWebShareWarned_Default` passes on `main` (Phase 101 `42b771f` pre-existing failure). Likely default-value drift after Phase 107 shell-UX collapse.
-- [ ] **TEST-05** — `internal/daemon::TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` passes on `main`.
-- [ ] **TEST-06** — `internal/daemon::TestSetShellWebShareWarned_Default` passes on `main`. Full `internal/daemon` suite green under `-race -shuffle=on -count=3`.
+- [x] **TEST-03** — `internal/agent::TestOpenCodeANSICapture` data race fixed at root cause (Phase 71 `a02dd75` 2026-04-13 pre-existing). No `t.Skip()` left behind. Passes under `-race -count=3 -shuffle=on`.
+- [x] **TEST-04** — `internal/daemon::TestAPIGetShellWebShareWarned_Default` passes on `main` (Phase 101 `42b771f` pre-existing failure). Likely default-value drift after Phase 107 shell-UX collapse.
+- [x] **TEST-05** — `internal/daemon::TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` passes on `main`.
+- [x] **TEST-06** — `internal/daemon::TestSetShellWebShareWarned_Default` passes on `main`. Full `internal/daemon` suite green under `-race -shuffle=on -count=3`.
 
 ### PAPER — Paper-cut bugs from v3.3.1 deferred-items list
 
@@ -141,10 +141,10 @@ Internal v3.3 carry-forward (deferred to v3.4):
 | WEB-04  | Phase 115 | Complete |
 | WEB-05  | Phase 115 | Complete |
 | WEB-06  | Phase 115 | Complete |
-| TEST-03 | Phase 116 | Active |
-| TEST-04 | Phase 116 | Active |
-| TEST-05 | Phase 116 | Active |
-| TEST-06 | Phase 116 | Active |
+| TEST-03 | Phase 116 | Complete |
+| TEST-04 | Phase 116 | Complete |
+| TEST-05 | Phase 116 | Complete |
+| TEST-06 | Phase 116 | Complete |
 | PAPER-01 | Phase 117 | Active |
 | PAPER-02 | Phase 117 | Active |
 | PAPER-03 | Phase 117 | Active |
