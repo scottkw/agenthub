@@ -109,7 +109,17 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read pump — runs in a separate goroutine, parsing client -> PTY frames.
+	//
+	// Phase 115 / Issue #60: per-subscriber InputAbsorber filters OSC 10/11
+	// + DA1 replies emitted by xterm.js in response to terminal queries
+	// before they reach PTY stdin. The webserver-layer handleWSSRelay
+	// applies the same absorber for the web-share path; this one catches
+	// the daemon-direct attach path used by the Wails desktop GUI and by
+	// CLI `agenthub attach`. State must persist across MsgInput frames
+	// because envelopes may split across frames — the zero-value
+	// &InputAbsorber{} is the legitimate "outside, empty buffers" state.
 	readDone := make(chan struct{})
+	absorber := &InputAbsorber{}
 	go func() {
 		defer close(readDone)
 		for {
@@ -124,7 +134,10 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 			switch msgType {
 			case MsgInput:
 				if !sub.ReadOnly { // MC-03: discard input for read-only clients
-					_ = hub.WriteInput(payload)
+					filtered := absorber.Filter(payload)
+					if len(filtered) > 0 {
+						_ = hub.WriteInput(filtered)
+					}
 				}
 			case MsgResize2:
 				if len(payload) >= 4 {
