@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.3.1
 milestone_name: Bug Sweep
-status: planning
-stopped_at: "Phase 114 Plan 01 executed on main (1 task commit 904cd14 Variant A fix + VERIFICATION.md); local macOS stress 100/100 PASS; Linux CI 100/100 gate (Task 4) deferred to operator per `human_needed` checkpoint; Issue #58 ready to close on Linux CI confirmation"
-last_updated: "2026-05-18T17:15:00.000Z"
-last_activity: 2026-05-18 — Phase 114 Plan 01 executed
+status: ready-to-tag
+stopped_at: "Phases 115/116/117 added + completed 2026-05-19 to address all known bugs in v3.3.1 (no v3.4 deferral). Issue #60 (desktop OSC/DA leak) filed + fixed in-milestone via Phase 115. v3.3.1 closes 6 GitHub bugs (#52, #54, #55, #56, #57, #60) — #58 already closed."
+last_updated: "2026-05-19T08:35:00.000Z"
+last_activity: 2026-05-19 — Phases 115/116/117 executed; v3.3.1 ready to tag
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 9
+  completed_phases: 9
+  total_plans: 9
+  completed_plans: 9
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.3 closed. Next: `/gsd-new-milestone` to scope v3.4 (likely v3.3 carry-forward issues #54/#55/#56 + Phase 101 visual UAT cosmetic items + Phase 107/108 deferred cleanups + Phase 103 process-debt retroactive fill + any new GitHub triage).
+**Current focus:** v3.3.1 ready to tag — closes 6 GitHub bugs in-milestone (#52, #54, #55, #56, #57, #60). All 31 REQ-IDs Complete (IPC-01..06 + WEB-01..06 + UI-01..04 + PTY-01..04 + TEST-01..06 + PAPER-01..03). After tag: close issues, then `/gsd-new-milestone` to scope v3.4 (Phase 101 visual UAT cosmetic items + Phase 107/108 deferred cleanups + Phase 103 process-debt retroactive fill + any new GitHub triage).
 
 ## Current Position
 
-Phase: 114 (CI test stability — webserver capability test flake)
-Plan: 01 — **complete-pending-Linux-CI-100/100**
-Status: 1 task commit on `main` (904cd14 fix Variant A + VERIFICATION.md). Issue #58 closure: `issueExpiredCapFor` in `internal/webserver/plugin_config_stream_test.go` rewritten to sign with deliberately wrong 32-byte 0xFF key (vs. previously signing with real key + flipping last base64 char — that flip was a no-op for 6.25% of HMAC outputs when the base64 tail char landed in {A,B,C,D}). Local macOS arm64 stress: `go test -race -shuffle=on -count=100 -run TestPluginConfigStream_ExpiredCap_Returns401 ./internal/webserver/` → 100/100 PASS; package x10 shuffled → PASS no sibling regression. Commit body states base64-padding-bit root cause in writing (TEST-02 acceptance). Task 4 (Linux CI 100/100 gate, `checkpoint:human-verify`) deferred to operator per orchestrator instruction.
-Last activity: 2026-05-18 — Phase 114 Plan 01 executed
+Phase: 117 (Paper-cuts cluster) — **complete**
+Status: All 9 phases of v3.3.1 complete. HEAD `8c9ab5e` (docs(117): PLAN + VERIFICATION + SUMMARY for paper-cuts cluster). Phase 115 closes Issue #60 (desktop relay OSC/DA leak — discovered during Phase 111 desktop parity UAT, fixed via lift of InputAbsorber into internal/relay/handleSession). Phase 116 closes pre-existing test debt (TestOpenCodeANSICapture data race + 3 ShellWebShareWarned_Default-family default-value tests). Phase 117 closes the last 3 deferred items (TUI lipgloss.Place defensive guard + agenthub attach screen-clear + cleanup.go bounded-lifetime goroutine clarity). v3.3.1 commit count since milestone start: 17 (vs. 70 in original audit pre-Phase-115/116/117).
+
+Last activity: 2026-05-19 — Phases 115/116/117 executed; pushed to origin/main
 
 ## Operator Next Steps (carried into v3.4)
 
