@@ -455,9 +455,14 @@ func (ws *WebServer) setupRoutes() {
 	// routes via a small helper to avoid four near-identical literal
 	// blocks. Method-prefixed (GET/HEAD) per Go 1.22+ mux semantics — any
 	// other verb returns 405 automatically without registering an
-	// explicit handler (Pitfall 8 / WEB-02 SC#3). HEAD is registered as
-	// a separate route because the Go 1.22 mux treats HEAD and GET as
-	// distinct methods (Pitfall 1 / FS-06).
+	// explicit handler (Pitfall 8 / WEB-02 SC#3). HEAD /api/files/read is
+	// registered explicitly even though Go 1.22's ServeMux dispatches HEAD
+	// to the GET handler when no HEAD-specific pattern is registered —
+	// explicit registration documents the FS-06 intent (HEAD must hit
+	// ServeContent for Content-Length without body) and locks the
+	// behavior against any future mux semantics change. The /list and
+	// /stat routes intentionally rely on the GET→HEAD auto-dispatch
+	// because their JSON responses do not need the explicit guard.
 	filesDispatch := func(op func(*files.Handler) http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			h := ws.filesHandler
