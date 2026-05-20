@@ -301,6 +301,15 @@ func TestFiles_OpenFromSessions_ResetsModel(t *testing.T) {
 	m = updated.(Model)
 	m.files.cwd = "subdir" // simulate Plan-02 navigation
 
+	// Switch back to Sessions tab so the next 'f' goes through
+	// handleContentKey (NOT the in-tab handleFilesKey stub).
+	for i, t := range m.openTabs {
+		if t == tabSessions {
+			m.activeTab = i
+			break
+		}
+	}
+
 	updated, _ = m.Update(tea.KeyPressMsg{Code: 'f'})
 	r := updated.(Model)
 	if r.files.cwd != "" {

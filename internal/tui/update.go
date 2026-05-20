@@ -136,6 +136,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
+	// Priority 5.5: Files tab active (Phase 121).
+	// Sits BELOW the modal/help priorities (1-5) so kill-confirm, new-session,
+	// QR, and help overlays still capture keys; ABOVE the tab-cycling check
+	// so the Plan-02 navigation dispatch (h/j/k/l, /, Enter, Backspace) is
+	// not intercepted by the main view's handlers.
+	if m.activeTabID() == tabFiles {
+		return m.handleFilesKey(msg)
+	}
 	// Priority 6: Tab cycling (safe here — no modal uses [ or ])
 	if key.Matches(msg, m.keys.PrevTab) {
 		m.cycleTab(-1)
@@ -360,6 +368,37 @@ func (m Model) handleContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.qrContent = q.ToSmallString(false)
 		m.qrURL = url
 		return m, nil
+
+	case key.Matches(msg, m.keys.FilesOpen):
+		// Phase 121: open Files tab from a selected Sessions-list entry.
+		if len(m.unifiedList) == 0 {
+			return m, nil
+		}
+		entry := m.unifiedList[m.selected]
+		if entry.kind == entryRemote {
+			m.toast = "File browser not available for remote sessions in v3.4"
+			m.toastKind = toastInfo
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		if entry.kind != entryLocal || entry.session == nil {
+			return m, nil
+		}
+		sid := entry.session.ID
+		cw := m.contentWidth()
+		listW := cw * 40 / 100
+		previewW := cw - listW - 1
+		if previewW < 1 {
+			previewW = 1
+		}
+		paneH := m.height - 3
+		if paneH < 1 {
+			paneH = 1
+		}
+		// RESEARCH.md Pitfall TUI-PITFALL-6: always reset on `f`.
+		m.files = newFilesModel(sid, listW, paneH-2, previewW, paneH-2)
+		m.openTab(tabFiles)
+		return m, loadDirCmd(m.client, sid, ".")
 	}
 	return m, nil
 }
