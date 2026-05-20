@@ -40,6 +40,7 @@ type SessionEngine struct {
 	shellWebShareWarned bool           // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
 	shellPath           string         // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
 	autoCloseSession    *bool          // nil = default (true); persisted pointer
+	filesRead           *bool          // v3.4 (Phase 118 / FS-14): nil for pre-v3.4 files (defaulted to *true via loadSettingsFromDisk); *true = enabled; *false = explicitly disabled
 	pluginSettings      PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
@@ -83,12 +84,19 @@ func ensureOpenCodeTUIConfig(dir string) string {
 // the defaults-merge load (Pitfall #14 mitigation) requires the plugins
 // block + schemaVersion to always serialize so future loads observe them
 // even when every plugin is at its zero value (all-false).
+//
+// FilesRead is additive (v3.4 / Phase 118 / FS-14) and tagged `omitempty`:
+// the defaults-merge in loadSettingsFromDisk pre-populates it to *true
+// BEFORE Unmarshal, so a v3.2 settings.json (no filesRead key) upgrading
+// to v3.3 lands on FilesRead=true (Pitfall 16 mitigation). An explicit
+// `"filesRead": false` user choice is preserved (TestSettingsMigration_FilesReadExplicitFalse).
 type daemonSettings struct {
 	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized      bool              `json:"startMinimized,omitempty"`
 	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath           string            `json:"shellPath,omitempty"`
 	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
+	FilesRead           *bool             `json:"filesRead,omitempty"`
 	Plugins             PluginSettings    `json:"plugins"`
 	SchemaVersion       int               `json:"schemaVersion"`
 }
@@ -145,8 +153,10 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	// SchemaVersion intentionally NOT pre-populated: it must remain 0 for a
 	// v3.1 file (no schemaVersion key) so the needsUpgradeWrite check below
 	// correctly detects that an upgrade re-write is required.
+	tr := true
 	s := daemonSettings{
-		Plugins: defaultPluginSettings(),
+		FilesRead: &tr, // Phase 118 / FS-14: default ON for v3.2 files lacking the key (Pitfall 16 mitigation)
+		Plugins:   defaultPluginSettings(),
 	}
 	if json.Unmarshal(data, &s) != nil {
 		return
@@ -169,6 +179,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
+	e.filesRead = s.FilesRead // Phase 118 / FS-14
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
 	// CurrentSchemaVersion (e.g. v3.1 file with no key → 0). Re-save so
@@ -195,6 +206,7 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		ShellWebShareWarned: e.shellWebShareWarned,
 		ShellPath:           e.shellPath,
 		AutoCloseSession:    e.autoCloseSession,
+		FilesRead:           e.filesRead, // Phase 118 / FS-14
 		Plugins:             e.pluginSettings,
 		SchemaVersion:       CurrentSchemaVersion,
 	}
