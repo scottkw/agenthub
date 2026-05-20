@@ -34,6 +34,7 @@ function renderPanel(props: Partial<DaemonManagerPanelProps> = {}) {
     webEnabled: {},
     onKill: vi.fn(),
     onToggleWeb: vi.fn(),
+    onOpenFileBrowser: vi.fn(),
   }
   const merged = { ...defaults, ...props }
   const container = document.createElement('div')

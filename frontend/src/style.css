@@ -1505,6 +1505,13 @@ body {
   color: #7aa2f7;
 }
 
+/* Phase 120-04 — Browse files action button (reuses .daemon-panel__btn base;
+   accent hover matches the Web variant since both are non-destructive). */
+.daemon-panel__btn--browse:hover:not(:disabled) {
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+}
+
 /* ── Remote Sessions Panel ─────────────────────────────── */
 .remote-panel {
   display: flex;

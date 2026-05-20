@@ -45,6 +45,7 @@ import { NewSessionModal } from './components/NewSessionModal'
 import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
+import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
@@ -885,6 +886,27 @@ function App(): React.ReactElement {
     setActiveId(DAEMON_MANAGER_TAB.id)
   }, [tabs])
 
+  // Phase 120-04 UI-01 — per-session FileBrowserTab find-or-add. Opens the
+  // file browser for a session, either focusing the existing tab if one is
+  // open or creating a new one keyed by fileBrowserTabId(sessionId).
+  const handleOpenFileBrowser = useCallback((sessionId: string, sessionName: string) => {
+    const tabId = fileBrowserTabId(sessionId)
+    const existing = tabs.find((t) => t.id === tabId)
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    const newTab: Tab = {
+      id: tabId,
+      name: `${sessionName} — Files`,
+      sessionId,
+      cli: '',
+      type: 'file-browser',
+    }
+    setTabs((prev) => [...prev, newTab])
+    setActiveId(newTab.id)
+  }, [tabs])
+
   const handleOpenRemoteSession = useCallback((url: string) => {
     BrowserOpenURL(url)
   }, [])
@@ -1070,6 +1092,7 @@ function App(): React.ReactElement {
           }
           onRequestSave={handleRequestSave}
           tabProgress={tabProgress}
+          onBrowseFiles={handleOpenFileBrowser}
         />
 
         <div className="terminal-container">
@@ -1085,8 +1108,30 @@ function App(): React.ReactElement {
             webEnabled={webEnabled}
             onKill={(id) => void handleCloseTab(id)}
             onToggleWeb={(id) => void handleToggleWeb(id)}
+            onOpenFileBrowser={handleOpenFileBrowser}
           />
         )}
+        {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
+            begins with the __files__ prefix; the tab id encodes the sessionId
+            after the prefix so we can resolve which session to browse. */}
+        {activeId !== null && activeId.startsWith('__files__') && (() => {
+          const fbSessionId = activeId.slice('__files__'.length)
+          const fbSession = panelSessions.find((s) => s.id === fbSessionId)
+          const fbName =
+            fbSession?.name ||
+            tabs.find((t) => t.id === activeId)?.name?.replace(/ — Files$/, '') ||
+            'Session'
+          const fbBaseURL = `http://127.0.0.1:${relayPort ?? 0}`
+          return (
+            <FileBrowserTab
+              sessionId={fbSessionId}
+              sessionName={fbName}
+              isActive={true}
+              isRemote={false}
+              baseURL={fbBaseURL}
+            />
+          )
+        })()}
         {activeId === REMOTE_SESSIONS_TAB.id && (
           <RemoteSessionsPanel
             peers={remotePeers}
@@ -1155,7 +1200,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings') return null
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings' || tab.type === 'file-browser') return null
             const isActive = tab.id === activeId
             return (
               <div
