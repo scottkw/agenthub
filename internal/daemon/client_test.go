@@ -1,8 +1,13 @@
 package daemon
 
 import (
+	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -214,5 +219,154 @@ func TestClientFullLifecycle(t *testing.T) {
 		if s.ID == id {
 			t.Errorf("killed session %q still in list", id)
 		}
+	}
+}
+
+// -------------------------------------------------------------------------
+// Phase 118 / Plan 05: DaemonClient.ListFiles / StatFile / ReadFile / HeadFile
+// integration tests against a real running daemon socket.
+//
+// Each test reuses newFilesAPI (api_test.go) to spin up a tempdir-backed
+// session, then constructs a DaemonClient on the same socket and calls the
+// new methods. The seams under test are:
+//
+//   - URL construction (url.Values.Encode, path encoding)
+//   - HTTP method (GET vs HEAD)
+//   - Status-code → typed-error mapping (413 / 403 / 404 → non-nil error)
+//   - JSON decode of files.FileEntry / files.FileListResponse over the wire
+// -------------------------------------------------------------------------
+
+func TestDaemonClient_ListFiles(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"a.txt", "b.go", "c.md"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("x"), 0600); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	entries, truncated, err := c.ListFiles(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("ListFiles: %v", err)
+	}
+	if truncated {
+		t.Errorf("truncated = true; want false for 3-entry dir")
+	}
+	if len(entries) < 3 {
+		t.Errorf("entries len = %d, want >= 3; got %+v", len(entries), entries)
+	}
+	var foundGo bool
+	for _, e := range entries {
+		if e.Name == "b.go" {
+			foundGo = true
+		}
+	}
+	if !foundGo {
+		t.Errorf("expected b.go in listing; got %+v", entries)
+	}
+}
+
+func TestDaemonClient_StatFile(t *testing.T) {
+	tmp := t.TempDir()
+	payload := []byte("hello world")
+	if err := os.WriteFile(filepath.Join(tmp, "hello.txt"), payload, 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	entry, err := c.StatFile(context.Background(), sid, "hello.txt")
+	if err != nil {
+		t.Fatalf("StatFile: %v", err)
+	}
+	if entry.Name != "hello.txt" {
+		t.Errorf("Name = %q, want 'hello.txt'", entry.Name)
+	}
+	if entry.Size != int64(len(payload)) {
+		t.Errorf("Size = %d, want %d", entry.Size, len(payload))
+	}
+	if entry.IsDir {
+		t.Errorf("IsDir = true; want false")
+	}
+}
+
+func TestDaemonClient_ReadFile(t *testing.T) {
+	tmp := t.TempDir()
+	payload := []byte("some bytes here")
+	if err := os.WriteFile(filepath.Join(tmp, "data.bin"), payload, 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	data, ct, err := c.ReadFile(context.Background(), sid, "data.bin")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(data, payload) {
+		t.Errorf("ReadFile data = %q, want %q", string(data), string(payload))
+	}
+	if ct == "" {
+		t.Errorf("ReadFile content-type empty; want a non-empty value (sniffed)")
+	}
+}
+
+func TestDaemonClient_ReadFile_OverCapReturnsError(t *testing.T) {
+	tmp := t.TempDir()
+	// 5 MiB + 1 byte to trip the maxPreviewBytes cap.
+	oversize := bytes.Repeat([]byte{'A'}, 5*1024*1024+1)
+	if err := os.WriteFile(filepath.Join(tmp, "big.bin"), oversize, 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	_, _, err := c.ReadFile(context.Background(), sid, "big.bin")
+	if err == nil {
+		t.Fatalf("ReadFile on >5MiB returned nil err; want non-nil with 413 or 'too large'")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "413") && !strings.Contains(strings.ToLower(msg), "too large") {
+		t.Errorf("ReadFile oversize err = %q; want substring '413' or 'too large'", msg)
+	}
+}
+
+func TestDaemonClient_HeadFile(t *testing.T) {
+	tmp := t.TempDir()
+	payload := bytes.Repeat([]byte{'B'}, 250)
+	p := filepath.Join(tmp, "p.bin")
+	if err := os.WriteFile(p, payload, 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	size, ct, mtime, err := c.HeadFile(context.Background(), sid, "p.bin")
+	if err != nil {
+		t.Fatalf("HeadFile: %v", err)
+	}
+	if size != int64(len(payload)) {
+		t.Errorf("HeadFile size = %d, want %d", size, len(payload))
+	}
+	if ct == "" {
+		t.Errorf("HeadFile content-type empty; want a non-empty value")
+	}
+	if mtime.IsZero() {
+		t.Errorf("HeadFile mtime IsZero; want a real timestamp")
+	}
+}
+
+func TestDaemonClient_ListFiles_TraversalReturns403Error(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	c := NewDaemonClient(sock)
+
+	_, _, err := c.ListFiles(context.Background(), sid, "../../escape")
+	if err == nil {
+		t.Fatalf("ListFiles traversal returned nil err; want non-nil with 403")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "403") && !strings.Contains(strings.ToLower(msg), "access denied") {
+		t.Errorf("ListFiles traversal err = %q; want substring '403' or 'access denied'", msg)
 	}
 }
