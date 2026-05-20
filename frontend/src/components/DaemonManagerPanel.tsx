@@ -12,6 +12,11 @@ export interface DaemonManagerPanelProps {
   webEnabled: Record<string, boolean>
   onKill: (id: string) => void
   onToggleWeb: (id: string) => void
+  /**
+   * Phase 120-04 UI-01 — open (or focus) the FileBrowserTab for a session.
+   * Provided by App.tsx's handleOpenFileBrowser callback.
+   */
+  onOpenFileBrowser: (sessionId: string, sessionName: string) => void
 }
 
 interface SessionShare {
@@ -29,6 +34,7 @@ export function DaemonManagerPanel({
   webEnabled,
   onKill,
   onToggleWeb,
+  onOpenFileBrowser,
 }: DaemonManagerPanelProps): React.ReactElement {
   // Per-session capability URLs + join codes issued by the daemon on toggle-on.
   // Populated reactively as webEnabled transitions true; cleared when false.
@@ -221,6 +227,14 @@ export function DaemonManagerPanel({
                   }
                 >
                   {isWebOn ? 'Web Off' : 'Web On'}
+                </button>
+                <button
+                  className="daemon-panel__btn daemon-panel__btn--browse"
+                  onClick={() => onOpenFileBrowser(s.id, s.name || s.cli)}
+                  title="Open the file browser for this session"
+                  data-testid={`daemon-panel-browse-${s.id}`}
+                >
+                  Browse files
                 </button>
                 <button
                   className="daemon-panel__btn daemon-panel__btn--kill"

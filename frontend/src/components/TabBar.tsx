@@ -83,6 +83,12 @@ interface TabBarProps {
    * TypeScript error between waves.
    */
   tabProgress?: Record<string, number>
+  /**
+   * Phase 120-04 UI-01 — open (or focus) the FileBrowserTab for a session via
+   * the tab's right-click context menu. Shown only for terminal tabs (those
+   * with a truthy sessionId).
+   */
+  onBrowseFiles?: (sessionId: string, sessionName: string) => void
 }
 
 /**
@@ -99,6 +105,7 @@ export function TabBar({
   sessionStatuses,
   exitCountdowns,
   tabProgress,
+  onBrowseFiles,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -273,6 +280,27 @@ export function TabBar({
           >
             Save Terminal As…
           </button>
+          {/* Phase 120-04 UI-01 — Browse files menu item, gated on terminal
+              tabs (those with a truthy sessionId). Welcome / Settings /
+              file-browser tabs do not get this item. */}
+          {(() => {
+            const tab = tabs.find((t) => t.id === contextMenu.tabId)
+            if (!tab?.sessionId) return null
+            if (!onBrowseFiles) return null
+            return (
+              <button
+                role="menuitem"
+                className="tab__context-menu__item"
+                data-testid="tab-context-browse-files"
+                onClick={() => {
+                  onBrowseFiles(tab.sessionId, tab.name)
+                  setContextMenu(null)
+                }}
+              >
+                Browse files
+              </button>
+            )
+          })()}
         </div>
       )}
     </div>

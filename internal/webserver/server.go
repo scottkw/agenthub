@@ -100,6 +100,14 @@ type WebServer struct {
 	// (mirrors sessionResolver pattern, server.go:82-83).
 	filesHandler *files.Handler
 
+	// staticAppFS is the embedded React frontend bundle served under /app/.
+	// Wired from the daemon at web-start sites (api.go AutoStartWebServer +
+	// handleWebServerStart) via SetStaticAppFS. Read at request time inside
+	// the route closure (Pitfall 2 — setupRoutes runs before SetStaticAppFS
+	// has a chance to set it). nil → /app/ returns 503; this is the
+	// expected dev-build state (assets stub).
+	staticAppFS fs.FS
+
 	// pluginConfigSubscribers is the set of active SSE subscribers for
 	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
 	// BroadcastPluginConfig non-blocking-sends to each. Drop-on-slow-consumer.
@@ -152,6 +160,19 @@ func (ws *WebServer) SetPluginSettingsProvider(fn func() []byte) {
 // set once.
 func (ws *WebServer) SetFilesHandler(h *files.Handler) {
 	ws.filesHandler = h
+}
+
+// SetStaticAppFS installs the React frontend bundle fs.FS used to serve the
+// /app/ route. Phase 120-04 wires this from the daemon at both web-start
+// sites (mirrors SetFilesHandler). nil → /app/ returns 503; that is the
+// expected state under `go build` (no wailsassets tag → assets_stub.go's
+// nil StaticAppFS). Production builds (`wails build` / `go build -tags
+// wailsassets`) get the real embed.FS.
+//
+// Single setter, set once before Start(). Not mutex-protected — mirrors
+// SetFilesHandler pattern.
+func (ws *WebServer) SetStaticAppFS(appFS fs.FS) {
+	ws.staticAppFS = appFS
 }
 
 // EnableSession marks a session as web-served (WEB-01 toggle).
@@ -523,6 +544,52 @@ func (ws *WebServer) setupRoutes() {
 		assetsNoStore(http.FileServerFS(xtermFS))))
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/",
 		assetsNoStore(http.FileServerFS(assetsFS))))
+
+	// Phase 120-04 — /app/ serves the React frontend (FileBrowserTab and the
+	// rest of the SPA) for remote/web-share viewers. The fs.FS is wired from
+	// the daemon at web-start time via SetStaticAppFS; the closure reads
+	// ws.staticAppFS at request time so a missing wiring surfaces as a 503
+	// instead of a nil-deref panic (mirrors filesHandler pattern). Public
+	// tier: no capability gate here — the React bundle is static client code,
+	// and any /api/ call it makes is independently gated.
+	mux.HandleFunc("GET /app/", func(w http.ResponseWriter, r *http.Request) {
+		appFS := ws.staticAppFS
+		if appFS == nil {
+			http.Error(w, "app bundle not configured", http.StatusServiceUnavailable)
+			return
+		}
+		// Strip the /app/ prefix and delegate to FileServerFS. SPA fallback:
+		// any path that doesn't resolve to a real file in the bundle returns
+		// index.html so client-side routing handles it.
+		stripped := http.StripPrefix("/app/", http.FileServerFS(appFS))
+		// Test for file existence before serving; on miss, serve index.html.
+		path := r.URL.Path
+		if path == "/app" || path == "/app/" {
+			serveIndex(w, r, appFS)
+			return
+		}
+		rel := path[len("/app/"):]
+		if _, err := fs.Stat(appFS, rel); err != nil {
+			// SPA fallback for unknown paths.
+			serveIndex(w, r, appFS)
+			return
+		}
+		stripped.ServeHTTP(w, r)
+	})
+}
+
+// serveIndex serves the React bundle's index.html with the correct
+// Content-Type. Used as the SPA fallback for /app/* paths that don't map
+// to a real file in the embedded FS.
+func serveIndex(w http.ResponseWriter, _ *http.Request, appFS fs.FS) {
+	data, err := fs.ReadFile(appFS, "index.html")
+	if err != nil {
+		http.Error(w, "app bundle missing index.html", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = w.Write(data)
 }
 
 // handleDashboard serves the embedded dashboard.html.
