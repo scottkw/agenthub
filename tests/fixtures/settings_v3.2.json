@@ -1,0 +1,32 @@
+{
+    "cliPaths": {
+        "claude": "/usr/local/bin/claude"
+    },
+    "startMinimized": false,
+    "autoCloseSession": true,
+    "plugins": {
+        "webgl": true,
+        "unicode11": true,
+        "search": true,
+        "searchConfig": {
+            "regex": false,
+            "caseSensitive": false,
+            "wholeWord": false
+        },
+        "webLinks": true,
+        "webLinksConfig": {
+            "modifier": "platform",
+            "confirmOSC8": true,
+            "confirmIDN": true,
+            "confirmTyposquat": true
+        },
+        "image": true,
+        "imageConfig": {
+            "storageLimit": 16
+        },
+        "serialize": true,
+        "clipboard": true,
+        "progress": false
+    },
+    "schemaVersion": 2
+}
