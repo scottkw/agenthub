@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/pty"
 )
 
@@ -19,7 +20,17 @@ type Server struct {
 // NewServer creates a Server backed by the given HubManager and SessionBackend
 // and registers routes. backend is used to forward resize events from connected
 // WebSocket clients to the underlying PTY.
-func NewServer(manager *HubManager, backend pty.SessionBackend) *Server {
+//
+// filesHandler, if non-nil, is mounted under /api/files/{list,stat,read} so the
+// Wails desktop GUI (which reaches the daemon over TCP at 127.0.0.1:<relayPort>,
+// NOT the Unix socket) can hit the read-only file API. The daemon's mux already
+// registers the same routes for the Unix-socket transport; both surfaces share
+// the same *files.Handler instance, so behaviour (sandbox enforcement, 5 MiB
+// cap, etc.) is identical. Pass nil in tests that do not need file API coverage.
+//
+// Phase 120 CR-01 (REVIEW.md): before this change, FileBrowserTab in Wails mode
+// 404'd on every /api/files/* call because the relay mux only knew /sessions/*.
+func NewServer(manager *HubManager, backend pty.SessionBackend, filesHandler *files.Handler) *Server {
 	s := &Server{
 		manager: manager,
 		backend: backend,
@@ -27,6 +38,12 @@ func NewServer(manager *HubManager, backend pty.SessionBackend) *Server {
 	}
 	s.mux.HandleFunc("GET /sessions/{id}/ws", s.handleSession)
 	s.mux.HandleFunc("GET /sessions", s.handleListSessions)
+	if filesHandler != nil {
+		s.mux.HandleFunc("GET /api/files/list", filesHandler.List)
+		s.mux.HandleFunc("GET /api/files/stat", filesHandler.Stat)
+		s.mux.HandleFunc("GET /api/files/read", filesHandler.Read)
+		s.mux.HandleFunc("HEAD /api/files/read", filesHandler.Read)
+	}
 	return s
 }
 

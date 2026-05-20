@@ -177,7 +177,12 @@ func (a *API) JoinCodes() *capability.JoinCodeManager {
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
 // Returns the allocated port. Must be called after NewAPI.
 func (a *API) StartRelay() (int, error) {
-	server := relay.NewServer(a.engine.Manager(), a.engine.Backend())
+	// Phase 120 CR-01: mount /api/files/* on the relay HTTP server so the Wails
+	// desktop GUI can reach the read-only file API. The Wails webview hits
+	// 127.0.0.1:<relayPort> (TCP) — it cannot reach the daemon's Unix socket,
+	// where /api/files/* is also registered. Both surfaces share the same
+	// *files.Handler instance, so sandbox + 5 MiB cap behaviour is identical.
+	server := relay.NewServer(a.engine.Manager(), a.engine.Backend(), a.filesHandler)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, fmt.Errorf("relay listener: %w", err)

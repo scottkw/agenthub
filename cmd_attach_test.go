@@ -40,7 +40,7 @@ func setupAttachTest(t *testing.T) (serverURL string, mgr *relay.HubManager, pty
 	mgr = relay.NewHubManager()
 	mgr.Create(sid, ptyOutputR, inputCaptureW, nil)
 
-	srv := httptest.NewServer(relay.NewServer(mgr, nil))
+	srv := httptest.NewServer(relay.NewServer(mgr, nil, nil))
 	t.Cleanup(func() {
 		srv.Close()
 		mgr.Shutdown()
