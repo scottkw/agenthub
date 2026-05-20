@@ -366,7 +366,7 @@ Plans:
 4. A web-share viewer without `files.read` sees a clear permission-denied message ("files.read permission required") in the tab — not a generic 403 error or a blank pane — and the breadcrumb bar correctly bounds navigation to the session cwd so no path (typed, pasted, or breadcrumb-clicked) can navigate above the session root.
 5. Playwright e2e (Chromium + Firefox + WebKit) passes all scenarios: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, binary refusal, over-cap file refusal, download (full + Range), capability-denied viewer (403 with message), empty directory state, and network error state — this suite is the Phase 120 merge gate.
 
-**Plans:** 3/5 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 - [ ] 120-01-PLAN.md — webserver /app/ cap-gated route serving frontend/dist + Playwright fixture extension (seed testdata/files/, viewer cap, SetFilesHandler wire)
@@ -374,6 +374,7 @@ Plans:
 - [x] 120-03-PLAN.md — BreadcrumbBar + FileListPane + FileRow + StatusLine + sortEntries with keyboard nav + ARIA + data-testid taxonomy
 - [x] 120-04-PLAN.md — FileBrowserTab orchestrator + PreviewPane (Text/Markdown/Image/Unsupported/Empty/PermissionDenied/NetworkError) + App.tsx/DaemonManagerPanel/TabBar wiring + webserver SetStaticAppFS production embed
 - [x] 120-05-PLAN.md — Playwright cross-browser e2e merge gate (12 scenarios × Chromium/Firefox/WebKit)
+- [ ] 120-06-PLAN.md — gap closure: App.tsx web-mode detection (URL-param-driven session+cap), playwright-fixture embeds React bundle, DOM-level e2e cells for owner+viewer cap (closes 120-VERIFICATION Human Verification #2)
 
 **UI hint**: yes
 
