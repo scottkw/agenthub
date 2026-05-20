@@ -279,6 +279,48 @@ func TestFilesRoutes_NilHandlerReturns503(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// WEB-05 defense-in-depth: no CSP header / no HTML Content-Type on file routes
+// ---------------------------------------------------------------------------
+
+// TestFilesRoutes_NoCSPHeader is a WEB-05 defense-in-depth regression guard.
+// The CSP middleware (csp_mw.go) is intentionally mounted only on HTML
+// routes — /api/files/* serves JSON/octet-stream and does not need (and
+// must not have) CSP headers. If a future maintainer accidentally wraps
+// these routes in cspHeaders, this test fires.
+func TestFilesRoutes_NoCSPHeader(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,write,files.read")
+
+	resp, body := doRequest(t, client, http.MethodGet, fileURL(ws, "/api/files/list", sid, ".", token))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body=%s)", resp.StatusCode, string(body))
+	}
+	if got := resp.Header.Get("Content-Security-Policy"); got != "" {
+		t.Errorf("unexpected CSP header on JSON route: %q", got)
+	}
+}
+
+// TestFilesRoutes_NoHTMLContentType is a WEB-05 defense-in-depth regression
+// guard. File routes MUST return JSON (List/Stat) or the resolved file MIME
+// (Read) — never text/html. If a future change accidentally serves an HTML
+// error page from a file route, the WEB-05 promise ("file browser flow
+// adds no CSP surface") breaks silently. This test catches that at the
+// package-test layer without needing a browser.
+func TestFilesRoutes_NoHTMLContentType(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,write,files.read")
+
+	resp, body := doRequest(t, client, http.MethodGet, fileURL(ws, "/api/files/list", sid, ".", token))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d (body=%s)", resp.StatusCode, string(body))
+	}
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("expected Content-Type to start with application/json, got %q", ct)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Sandbox traversal still rejected (Phase 118 invariant unchanged) — T-119-03
 // ---------------------------------------------------------------------------
 
