@@ -1804,3 +1804,208 @@ func TestHandleUpdateShellPath_OversizedBody(t *testing.T) {
 		t.Error("PATCH with oversized body returned 204; want 400 or 413")
 	}
 }
+
+// -------------------------------------------------------------------------
+// Phase 118 / Plan 05: file routes wired on the daemon mux.
+//
+// The tests below assert the integration seam between Plan 02 (files.Handler)
+// and the daemon API: the API constructor builds a sandboxResolver that closes
+// over engine.GetSessionWorkDir + files.NewSandbox, then registers four
+// method-prefixed routes (GET list/stat/read, HEAD read). Go 1.22+ mux auto-
+// returns 405 for non-registered verbs (Pitfall 8) — no explicit POST handler.
+// -------------------------------------------------------------------------
+
+// newFilesAPI builds an API + tempdir-backed session and returns the API,
+// socket path, and the live session ID. The session is created via the
+// spyBackend path so no real PTY spawns; the engine populates sessionWorkDirs
+// from the provided workDir, which the file routes consume via the resolver.
+func newFilesAPI(t *testing.T, workDir string) (*API, string, string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("file route tests use Unix domain sockets")
+	}
+	engine := NewSessionEngine()
+	engine.configDir = t.TempDir()
+	engine.cliPaths = make(map[string]string)
+	engine.backend = &spyBackend{}
+	api := NewAPI(engine)
+	socketPath := shortSocketPath(t, "files-api.sock")
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("api.Start: %v", err)
+	}
+	t.Cleanup(func() { api.Stop() })
+	time.Sleep(10 * time.Millisecond)
+
+	sid, err := engine.CreateSession(context.Background(), "cat", "files-test", workDir, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = engine.KillSession(sid) })
+	return api, socketPath, sid
+}
+
+// rawDo issues an arbitrary-method request to the daemon socket and returns
+// status + body. Used to assert 405 / HEAD behaviour the rawGet helper cannot.
+func rawDo(t *testing.T, socketPath, method, path string) (int, http.Header, []byte) {
+	t.Helper()
+	client := &http.Client{Transport: &http.Transport{DialContext: dialUnix(socketPath)}}
+	req, err := http.NewRequest(method, "http://daemon"+path, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, path, err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, resp.Header, body
+}
+
+func TestAPI_FilesList_RealSession(t *testing.T) {
+	tmp := t.TempDir()
+	for _, name := range []string{"a.txt", "b.go", "c.md"} {
+		if err := os.WriteFile(filepath.Join(tmp, name), []byte("x"), 0600); err != nil {
+			t.Fatalf("WriteFile %s: %v", name, err)
+		}
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	status, body := rawGet(t, sock, "/api/files/list?session="+sid+"&path=.")
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/files/list = %d, body=%s; want 200", status, string(body))
+	}
+	var out struct {
+		Entries []struct {
+			Name string `json:"name"`
+		} `json:"entries"`
+		Truncated bool `json:"truncated"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		t.Fatalf("decode body: %v; raw=%s", err, string(body))
+	}
+	if len(out.Entries) < 3 {
+		t.Errorf("entries len = %d, want >= 3; got %+v", len(out.Entries), out.Entries)
+	}
+}
+
+func TestAPI_FilesList_UnknownSessionReturns404(t *testing.T) {
+	_, sock, _ := newFilesAPI(t, t.TempDir())
+	status, body := rawGet(t, sock, "/api/files/list?session=does-not-exist&path=.")
+	if status != http.StatusNotFound {
+		t.Fatalf("unknown session: status = %d, body=%s; want 404", status, string(body))
+	}
+	if !strings.Contains(string(body), "session not found") {
+		t.Errorf("404 body = %q; want substring 'session not found'", string(body))
+	}
+}
+
+func TestAPI_FilesRead_ZeroByteReturns200(t *testing.T) {
+	tmp := t.TempDir()
+	empty := filepath.Join(tmp, "empty.txt")
+	if err := os.WriteFile(empty, nil, 0600); err != nil {
+		t.Fatalf("WriteFile empty: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	// (a) Plain GET, no Range header — use a direct client so we can read headers.
+	client0 := &http.Client{Transport: &http.Transport{DialContext: dialUnix(sock)}}
+	resp0, err0 := client0.Get("http://daemon/api/files/read?session=" + sid + "&path=empty.txt")
+	if err0 != nil {
+		t.Fatalf("0-byte GET: %v", err0)
+	}
+	body0, _ := io.ReadAll(resp0.Body)
+	resp0.Body.Close()
+	if resp0.StatusCode != http.StatusOK {
+		t.Fatalf("0-byte GET = %d, body=%q; want 200 (FS-07)", resp0.StatusCode, string(body0))
+	}
+	if len(body0) != 0 {
+		t.Errorf("0-byte body len = %d, want 0", len(body0))
+	}
+	if cl := resp0.Header.Get("Content-Length"); cl != "" && cl != "0" {
+		t.Errorf("Content-Length = %q; want unset or '0'", cl)
+	}
+
+	// (b) GET with Range: bytes=0- — must still be 200, not 416.
+	client := &http.Client{Transport: &http.Transport{DialContext: dialUnix(sock)}}
+	req, _ := http.NewRequest(http.MethodGet, "http://daemon/api/files/read?session="+sid+"&path=empty.txt", nil)
+	req.Header.Set("Range", "bytes=0-")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Range GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+		t.Fatalf("0-byte + Range returned 416 — FS-07 violation (golang/go#54794)")
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("0-byte + Range status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestAPI_FilesRead_TraversalReturns403(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	status, body := rawGet(t, sock, "/api/files/read?session="+sid+"&path=../../etc/passwd")
+	if status != http.StatusForbidden {
+		t.Fatalf("traversal: status = %d, body=%s; want 403", status, string(body))
+	}
+}
+
+func TestAPI_FilesList_POSTReturns405(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	status, _, body := rawDo(t, sock, http.MethodPost, "/api/files/list?session="+sid+"&path=.")
+	if status != http.StatusMethodNotAllowed {
+		t.Fatalf("POST /api/files/list = %d, body=%s; want 405 (Go 1.22+ mux auto-405)", status, string(body))
+	}
+}
+
+func TestAPI_FilesHeadRead_ReturnsContentLengthNoBody(t *testing.T) {
+	tmp := t.TempDir()
+	payload := bytes.Repeat([]byte{'A'}, 100)
+	if err := os.WriteFile(filepath.Join(tmp, "p.bin"), payload, 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	status, hdr, body := rawDo(t, sock, http.MethodHead, "/api/files/read?session="+sid+"&path=p.bin")
+	if status != http.StatusOK {
+		t.Fatalf("HEAD /api/files/read = %d; want 200", status)
+	}
+	if cl := hdr.Get("Content-Length"); cl != "100" {
+		t.Errorf("HEAD Content-Length = %q, want '100'", cl)
+	}
+	if len(body) != 0 {
+		t.Errorf("HEAD body len = %d, want 0", len(body))
+	}
+}
+
+func TestAPI_FilesStat_ReturnsFileEntry(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "hello.txt"), []byte("world"), 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	status, body := rawGet(t, sock, "/api/files/stat?session="+sid+"&path=hello.txt")
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/files/stat = %d; body=%s", status, string(body))
+	}
+	var entry struct {
+		Name  string `json:"name"`
+		Size  int64  `json:"size"`
+		IsDir bool   `json:"isDir"`
+		MIME  string `json:"mime"`
+	}
+	if err := json.Unmarshal(body, &entry); err != nil {
+		t.Fatalf("decode: %v; raw=%s", err, string(body))
+	}
+	if entry.Name != "hello.txt" {
+		t.Errorf("Name = %q, want 'hello.txt'", entry.Name)
+	}
+	if entry.Size != 5 {
+		t.Errorf("Size = %d, want 5", entry.Size)
+	}
+	if entry.IsDir {
+		t.Errorf("IsDir = true; want false")
+	}
+}
