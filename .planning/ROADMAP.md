@@ -338,10 +338,10 @@ Plans:
 4. Zero new CSP violations: cross-browser Playwright e2e smoke (Chromium + Firefox + WebKit) reports zero CSP violations from a complete file browse flow against the webserver — existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy is sufficient; no amendments needed.
 5. A request with no cap token (`?cap=` absent) returns HTTP 401 — not 404 — confirming routes exist but require auth (no route-existence leak via 404 vs. 401 distinction).
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 119-01-PLAN.md — Mount /api/files/* routes on webserver mux under requireFilesRead + wire SetFilesHandler at both daemon construction sites + integration tests (WEB-01, WEB-02, WEB-03, WEB-04)
+- [x] 119-01-PLAN.md — Mount /api/files/* routes on webserver mux under requireFilesRead + wire SetFilesHandler at both daemon construction sites + integration tests (WEB-01, WEB-02, WEB-03, WEB-04)
 - [ ] 119-02-PLAN.md — CSP defense-in-depth assertions + browser CSP e2e regression check + SetFilesHandlerProvider→SetFilesHandler docstring cleanup (WEB-05)
 
 **UI hint**: no
@@ -434,7 +434,7 @@ Plans:
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
-| 119 | v3.4 | 0/2   | Not started | - |
+| 119 | v3.4 | 1/2 | In Progress|  |
 | 120 | v3.4 | 0/TBD | Not started | - |
 | 121 | v3.4 | 0/TBD | Not started | - |
 
