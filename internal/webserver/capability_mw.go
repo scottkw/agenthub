@@ -73,3 +73,47 @@ func (ws *WebServer) requireCapability(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r.WithContext(ctx))
 	}
 }
+
+// requireFilesRead wraps requireCapability and additionally enforces that
+// claims.Perms contains the files.read whole-token capability bit
+// (FS-11, FS-13).
+//
+// ORDER MATTERS: requireCapability runs first — HMAC verify, session/grant
+// checks, and claims-attach via capability.WithClaims all happen before this
+// wrapper's inner handler executes. Only after those succeed does this
+// wrapper extract claims via capability.ClaimsFromContext and apply the
+// capability.HasPerm(claims.Perms, capability.PermFilesRead) check.
+//
+// On miss, the response is 403 with body "files.read capability required" so
+// the Phase 120 frontend can surface a meaningful permission-denied message
+// (PITFALLS.md UX Pitfalls — never a generic "Forbidden" UX). The literal
+// substring "files.read" in the body is a load-bearing contract assertion
+// (REQUIREMENTS.md FS-13, ROADMAP success criterion 5).
+//
+// SEPARATION INVARIANT: this is a SEPARATE wrapper from requireCapability —
+// adding the files.read check to requireCapability itself would break every
+// existing terminal/relay/plugin route that does not carry the bit (Pitfall 4
+// anti-pattern, T-118-14).
+//
+// MOUNT TIMING: defined in Phase 118 but not yet mounted on any route. Phase
+// 119 attaches it to /api/files/list, /stat, /read via SetFilesHandlerProvider.
+// Phase 118 unit-tests it standalone via httptest (TestRequireFilesRead in
+// capability_test.go).
+func (ws *WebServer) requireFilesRead(next http.HandlerFunc) http.HandlerFunc {
+	return ws.requireCapability(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := capability.ClaimsFromContext(r.Context())
+		if !ok {
+			// requireCapability always attaches claims on the success path it
+			// hands to next, so missing claims here would mean the wrapper
+			// chain is mis-composed. Treat as a hard 403 to avoid silently
+			// trusting an unverified caller.
+			http.Error(w, "files.read capability required", http.StatusForbidden)
+			return
+		}
+		if !capability.HasPerm(claims.Perms, capability.PermFilesRead) {
+			http.Error(w, "files.read capability required", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	})
+}

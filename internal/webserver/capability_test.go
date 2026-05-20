@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -426,6 +428,176 @@ func TestEndToEnd_CapabilityFlow(t *testing.T) {
 		if resp.StatusCode != http.StatusForbidden {
 			t.Errorf("info (revoked): expected 403, got %d", resp.StatusCode)
 		}
+	}
+}
+
+// TestRequireFilesRead exercises the requireFilesRead wrapper as a unit. The
+// wrapper composes requireCapability (HMAC + grant + session-enabled checks)
+// with an additional capability.HasPerm(claims.Perms, PermFilesRead) gate. The
+// wrapper is defined in Phase 118 but not yet mounted on any route — Phase
+// 119 will attach it to /api/files/list, /stat, /read. The unit test therefore
+// installs the wrapper on a one-off mux against the *WebServer test instance
+// and drives requests through that mux via httptest.
+//
+// Source: 118-03-PLAN.md Task 2; RESEARCH.md Validation Architecture FS-11/FS-13
+// option (a); PITFALLS.md Pitfall 4 (separate wrapper, never modify shared
+// requireCapability).
+func TestRequireFilesRead(t *testing.T) {
+	const sid = "sess-fr"
+
+	// newHarness wires up a *WebServer with capTestKey, an enabled session,
+	// and a one-off mux that mounts a sentinel handler under requireFilesRead.
+	// The sentinel records whether it ran. ws is also returned so the caller
+	// can mint tokens via issueCapFor.
+	newHarness := func(t *testing.T) (ws *WebServer, mux *http.ServeMux, sentinelRan *bool) {
+		t.Helper()
+		ws, _ = testServer(t)
+		ws.SetSigningKey(capTestKey)
+		ws.EnableSession(sid)
+		ran := false
+		sentinelRan = &ran
+		mux = http.NewServeMux()
+		mux.HandleFunc("/test/files", ws.requireFilesRead(func(w http.ResponseWriter, r *http.Request) {
+			ran = true
+			// Echo perms so the happy-path assertion can confirm the inner
+			// handler did receive the verified claims context.
+			claims, ok := capability.ClaimsFromContext(r.Context())
+			if !ok {
+				http.Error(w, "claims not in context", http.StatusInternalServerError)
+				return
+			}
+			_, _ = io.WriteString(w, "OK perms="+claims.Perms)
+		}))
+		return ws, mux, sentinelRan
+	}
+
+	// 1. Pass-through when files.read present.
+	t.Run("pass-through when files.read present", func(t *testing.T) {
+		ws, mux, ran := newHarness(t)
+		token := issueCapFor(t, ws, sid, "read,write,files.read")
+
+		req := httptest.NewRequest(http.MethodGet, "/test/files?cap="+token, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 with files.read in perms, got %d (body=%q)", rec.Code, rec.Body.String())
+		}
+		if !*ran {
+			t.Fatal("sentinel handler was not called even though files.read present")
+		}
+		if !strings.Contains(rec.Body.String(), "perms=read,write,files.read") {
+			t.Errorf("expected echoed perms in body, got %q", rec.Body.String())
+		}
+	})
+
+	// 2. 403 when files.read missing (read,write only).
+	t.Run("403 when files.read missing", func(t *testing.T) {
+		ws, mux, ran := newHarness(t)
+		token := issueCapFor(t, ws, sid, "read,write")
+
+		req := httptest.NewRequest(http.MethodGet, "/test/files?cap="+token, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 without files.read, got %d (body=%q)", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "files.read") {
+			t.Errorf("expected body to contain literal \"files.read\" so frontend can surface message, got %q", rec.Body.String())
+		}
+		if *ran {
+			t.Error("sentinel handler ran on a 403 path — requireFilesRead failed to short-circuit")
+		}
+	})
+
+	// 3. 401 from requireCapability takes priority over 403 from
+	// requireFilesRead — confirms the wrappers chain in the documented order
+	// (HMAC verify first, then HasPerm).
+	t.Run("401 path takes priority over 403", func(t *testing.T) {
+		ws, mux, ran := newHarness(t)
+		// Sign with a DIFFERENT key — segments decode cleanly but the HMAC
+		// won't match the server's key, so requireCapability returns 401
+		// BEFORE requireFilesRead's HasPerm check runs.
+		wrongKey := make([]byte, 32)
+		for i := range wrongKey {
+			wrongKey[i] = 0xFF
+		}
+		claims := capability.Claims{
+			SID: sid, Perms: "read,write,files.read",
+			IAT: time.Now().Unix(), GrantID: "grant-wrong-key", V: 1,
+		}
+		token, err := capability.Sign(claims, wrongKey)
+		if err != nil {
+			t.Fatalf("capability.Sign: %v", err)
+		}
+		ws.AddGrant(sid, claims.GrantID)
+
+		req := httptest.NewRequest(http.MethodGet, "/test/files?cap="+token, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 (requireCapability rejects bad sig before requireFilesRead runs), got %d", rec.Code)
+		}
+		if *ran {
+			t.Error("sentinel handler ran on a 401 path")
+		}
+	})
+
+	// 4. Viewer token (read only) gets 403 with "files.read" in body — the
+	// default read-only cap must NOT grant file-browser access (FS-13).
+	t.Run("viewer token (read only) gets 403", func(t *testing.T) {
+		ws, mux, ran := newHarness(t)
+		token := issueCapFor(t, ws, sid, "read")
+
+		req := httptest.NewRequest(http.MethodGet, "/test/files?cap="+token, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected 403 for viewer token, got %d (body=%q)", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), "files.read") {
+			t.Errorf("expected body to contain \"files.read\" for viewer 403, got %q", rec.Body.String())
+		}
+		if *ran {
+			t.Error("sentinel handler ran on a viewer-403 path")
+		}
+	})
+}
+
+// TestRequireCapability_UnchangedByPhase118 is a source-inspection guard that
+// pins the invariant from Pitfall 4: the existing requireCapability function
+// body MUST NOT mention "files.read" — that check belongs in the SEPARATE
+// requireFilesRead wrapper (T-118-14). Adding the check to requireCapability
+// would break every existing terminal/relay/plugin route.
+func TestRequireCapability_UnchangedByPhase118(t *testing.T) {
+	data, err := os.ReadFile("capability_mw.go")
+	if err != nil {
+		t.Fatalf("read capability_mw.go: %v", err)
+	}
+	src := string(data)
+	// Extract the requireCapability function body — bounded at the closing
+	// brace at column 0, which is the canonical end of a Go top-level func.
+	// Bounding at the next "\nfunc " would erroneously include the docstring
+	// of any function that follows.
+	idx := strings.Index(src, "func (ws *WebServer) requireCapability(")
+	if idx < 0 {
+		t.Fatal("capability_mw.go must declare func (ws *WebServer) requireCapability")
+	}
+	rest := src[idx:]
+	end := strings.Index(rest, "\n}\n")
+	if end < 0 {
+		// Tolerate EOF without trailing newline.
+		end = strings.Index(rest, "\n}")
+	}
+	if end < 0 {
+		t.Fatal("could not locate closing brace of requireCapability")
+	}
+	body := rest[:end+2] // include the closing "}"
+	if strings.Contains(body, "files.read") {
+		t.Errorf("requireCapability body must NOT mention \"files.read\" (T-118-14 / Pitfall 4) — use the separate requireFilesRead wrapper instead. Body:\n%s", body)
 	}
 }
 
