@@ -141,10 +141,15 @@ func (ws *WebServer) SetPluginSettingsProvider(fn func() []byte) {
 
 // SetFilesHandler installs the *files.Handler used to serve the
 // /api/files/{list,stat,read} routes on the webserver mux. Must be
-// called before Start(). The handler must already be constructed with
-// its sandbox resolver closure (the daemon's NewAPI does this — Phase
-// 119 reuses a.filesHandler verbatim, no new construction). Mirrors
-// SetSessionResolver — single setter, no mutex, set once.
+// called before the first HTTPS request reaches /api/files/* — production
+// callers (AutoStartWebServer, handleWebServerStart) invoke this before
+// Start() to satisfy that contract; tests may invoke it after Start()
+// because the TLS handshake establishes happens-before synchronization
+// before any request handler reads ws.filesHandler. The handler must
+// already be constructed with its sandbox resolver closure (the daemon's
+// NewAPI does this — Phase 119 reuses a.filesHandler verbatim, no new
+// construction). Mirrors SetSessionResolver — single setter, no mutex,
+// set once.
 func (ws *WebServer) SetFilesHandler(h *files.Handler) {
 	ws.filesHandler = h
 }
