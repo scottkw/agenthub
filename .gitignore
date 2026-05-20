@@ -48,3 +48,7 @@ security-review/
 .playwright/
 frontend/playwright-report/
 frontend/test-results/
+
+# Phase 120-06 — playwright-fixture local dist embed (copied from frontend/dist
+# at global-setup time so //go:embed can reach it without escaping the package).
+cmd/playwright-fixture/dist/

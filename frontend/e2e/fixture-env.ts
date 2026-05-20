@@ -60,13 +60,14 @@ export function filesApiURL(
 }
 
 /**
- * appUrl builds the /app/ entry URL with session + cap query params. The
- * fixture-served /app/ route falls back to index.html for SPA routing — the
- * React bundle currently mounted is Wails-bound (App.tsx imports wailsjs/*),
- * so loading this URL in a browser produces a partially-functional shell
- * (no daemon, no relay port). The files-browser spec uses this URL only for
- * bundle-load + CSP-violation smoke; the 12 functional scenarios exercise
- * the API directly via filesApiURL. See SUMMARY for the architectural gap.
+ * appUrl builds the /app/ entry URL with session + cap query params. Phase
+ * 120-06 wired App.tsx to consult lib/webMode.detectMode() and, when the
+ * pathname starts with `/app/`, skip the Wails RPC suite and source
+ * session/cap from URL params + window.location.origin. The fixture binary
+ * now embeds frontend/dist under -tags=playwrightfixture,wailsassets (see
+ * cmd/playwright-fixture/assets_prod.go), so loading this URL in a browser
+ * mounts a fully-functional file-browser tab — scenarios 13 + 14 in the
+ * files-browser spec exercise that DOM path on all three browsers.
  */
 export function appUrl(env: FixtureEnv = loadFixtureEnv()): string {
   return `${env.baseURL}/app/?session=playwright-test-session&cap=${encodeURIComponent(env.cap)}`

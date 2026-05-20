@@ -363,12 +363,20 @@ describe('BRND-02: welcome tab integration', () => {
     expect(raw).toContain('WELCOME_TAB')
   })
 
-  it('initializes tabs with welcome tab', () => {
-    expect(raw).toContain('useState<Tab[]>([WELCOME_TAB])')
+  it('initializes tabs with welcome tab in desktop mode', () => {
+    // Phase 120-06 — the initial-state literal moved into a mode-aware
+    // `initialTabs` const that resolves to [WELCOME_TAB] under desktop mode
+    // and [] under web mode. Both the const and the desktop-branch literal
+    // must still be present.
+    expect(raw).toContain('useState<Tab[]>(initialTabs)')
+    expect(raw).toMatch(/mode === 'web' \? \[\] : \[WELCOME_TAB\]/)
   })
 
-  it('initializes activeId with welcome tab id', () => {
-    expect(raw).toContain('useState<string | null>(WELCOME_TAB.id)')
+  it('initializes activeId with welcome tab id in desktop mode', () => {
+    // Phase 120-06 — same mode gate: desktop boots into WELCOME_TAB.id,
+    // web boots into null so the auto-open effect can mount the file
+    // browser without WelcomeTab flashing.
+    expect(raw).toMatch(/mode === 'web' \? null : WELCOME_TAB\.id/)
   })
 
   it('renders WelcomeTab when active tab is welcome', () => {

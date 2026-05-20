@@ -112,6 +112,14 @@ func main() {
 		log.Fatalf("NewWebServer: %v", err)
 	}
 	ws.SetSigningKey(fixedTestKey)
+	// Phase 120-06 Task 3 — wire the embedded React bundle so /app/ serves
+	// the SPA under playwright tests. staticAppFixture() returns nil under
+	// `-tags playwrightfixture` alone (assets_stub.go) and the embedded
+	// bundle under `-tags playwrightfixture,wailsassets` (assets_prod.go).
+	// global-setup.ts always builds with both tags so the bundle is present
+	// in normal e2e runs; scenario 12 keeps a 503-tolerant smoke for the
+	// stub case.
+	ws.SetStaticAppFS(staticAppFixture())
 	ws.EnableSession(sessionID)
 	ws.SetSessionResolver(func(id string) (string, string, string, string) {
 		if id == sessionID {
