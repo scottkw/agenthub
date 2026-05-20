@@ -96,7 +96,7 @@ func (ws *WebServer) requireCapability(next http.HandlerFunc) http.HandlerFunc {
 // anti-pattern, T-118-14).
 //
 // MOUNT TIMING: defined in Phase 118 but not yet mounted on any route. Phase
-// 119 attaches it to /api/files/list, /stat, /read via SetFilesHandlerProvider.
+// 119 attaches it to /api/files/list, /stat, /read via SetFilesHandler.
 // Phase 118 unit-tests it standalone via httptest (TestRequireFilesRead in
 // capability_test.go).
 func (ws *WebServer) requireFilesRead(next http.HandlerFunc) http.HandlerFunc {
