@@ -8,40 +8,33 @@
 // ARCHITECTURE NOTE (read before editing — see SUMMARY for the full
 // story):
 //
-// The Plan 05 design assumed the React /app/ bundle could be loaded in a
-// regular browser by navigating to `/app/?session=…&cap=…`, the same way
-// a remote viewer would. In v3.4 this is not the case — `App.tsx` is
-// tightly coupled to the Wails desktop runtime (it imports
-// `wailsjs/wailsjs/runtime/runtime`, calls `GetRelayPort()`,
-// `GetWebServerMode()`, and never reads `?session=` / `?cap=` from
-// `window.location`). Plan 04's SUMMARY acknowledges this explicitly:
-// "Remote browse via web-share is a v3.5 follow-on — the component
-// supports it via props, but the integration trigger is deferred." That
-// means there is no remote-user UI surface to gate in v3.4, only the
-// HTTP API and the unit-tested React components (75+ vitest cases in
-// Plans 03 + 04 already cover the component behaviour).
+// Plan 05 originally landed as an API-surface-only suite because v3.4's
+// App.tsx was tightly coupled to the Wails desktop runtime (imported
+// `wailsjs/wailsjs/runtime/runtime`, called `GetRelayPort()` /
+// `GetWebServerMode()`, never read URL params). Phase 120-06 closes that
+// gap: App.tsx now consults `lib/webMode.detectMode()` and, when the
+// pathname starts with `/app/`, skips the Wails RPC suite and drives
+// `fbBaseURL` from `window.location.origin` + `capToken` from `?cap=`.
 //
-// What this suite DOES verify on all three browsers:
-//   - The full /api/files/{list,stat,read} HTTP surface — the same calls
-//     the React FilesApiClient (Plan 02) and FileBrowserTab orchestrator
-//     (Plan 04) make against the daemon and webserver. Every behaviour
-//     the 12 UI scenarios depend on (capability gate, sandboxing, MIME
-//     cascade, 5 MiB cap, 0-byte short-circuit, Range support, error
-//     codes & error-body wording) is exercised end-to-end across the
-//     real TLS stack with the real capability middleware in front.
+// Scenarios 13 + 14 (added Phase 120-06) exercise the React DOM via the
+// playwright fixture (which now embeds frontend/dist under
+// -tags=playwrightfixture,wailsassets) — owner cap mounts the
+// FileBrowserTab and viewer cap renders the PermissionDeniedTakeover.
+//
+// What this suite verifies on all three browsers:
+//   - The full /api/files/{list,stat,read} HTTP surface (scenarios 1-11) —
+//     the same calls the React FilesApiClient (Plan 02) and FileBrowserTab
+//     orchestrator (Plan 04) make against the daemon and webserver. Every
+//     behaviour the 12 UI scenarios depend on (capability gate, sandboxing,
+//     MIME cascade, 5 MiB cap, 0-byte short-circuit, Range support, error
+//     codes & error-body wording) is exercised end-to-end across the real
+//     TLS stack with the real capability middleware in front.
 //   - The /app/ route loads the React bundle's index.html without CSP
-//     violations and serves bundled assets under the documented CSP.
-//
-// What this suite does NOT verify (because it isn't a v3.4 user-visible
-// surface):
-//   - DOM-level testid wiring through the React tree from a browser-only
-//     remote-viewer path. That path doesn't exist yet — it's a v3.5
-//     follow-on. The testids themselves are verified by the Plan 03/04
-//     vitest suites against jsdom-mounted components.
-//
-// If/when v3.5 adds a Wails-free remote-viewer SPA entry, this suite
-// should grow DOM-level scenarios that mount the React component tree
-// against the same API surface verified here.
+//     violations and serves bundled assets under the documented CSP
+//     (scenario 12).
+//   - DOM-level mounting through the React tree from the browser-only
+//     remote-viewer path (scenarios 13 + 14) — Phase 120-06 closes this
+//     gap that Plan 05 left for v3.5.
 // ──────────────────────────────────────────────────────────────────────
 
 import { test, expect, request as playwrightRequest } from '@playwright/test'
@@ -354,6 +347,52 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
     expect([404, 403], 'unknown session is rejected at the cap layer or the resolver layer').toContain(
       badResp.status(),
     )
+  })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Scenario 13 — Phase 120-06: web-mode owner cap mounts the React tree.
+  // The fixture now embeds frontend/dist under
+  // -tags=playwrightfixture,wailsassets so /app/ serves the SPA. App.tsx
+  // consults lib/webMode.detectMode(), sees the /app/ pathname, skips
+  // Wails RPCs, parses ?session= + ?cap= from window.location, and
+  // mounts the FileBrowserTab. We verify the file-browser tab mounts and
+  // the breadcrumb + seeded entries render via the real DOM.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 13: web mode owner cap → file-browser tab mounts and lists seeded entries', async ({ page }) => {
+    const resp = await page.goto(appUrl())
+    expect(resp?.status(), '/app/ must serve the bundle (200) — fixture now embeds frontend/dist').toBe(200)
+    await expect(
+      page.getByTestId('file-browser-tab'),
+      'file-browser-tab must mount under web mode',
+    ).toBeVisible({ timeout: 15_000 })
+    await expect(
+      page.getByTestId('file-browser-breadcrumb'),
+      'breadcrumb must render',
+    ).toBeVisible()
+    // hello.txt is canonical from the fixture seed (cmd/playwright-fixture/main.go seedFixtureFiles).
+    await expect(
+      page.getByTestId('file-browser-row-hello.txt'),
+      'hello.txt row must render via React DOM',
+    ).toBeVisible({ timeout: 10_000 })
+  })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Scenario 14 — Phase 120-06: web-mode viewer cap (no files.read)
+  // triggers the PermissionDeniedTakeover via the DOM. The viewer cap
+  // grants `read` but NOT `files.read`, so useFilesCapability resolves
+  // to 'denied' and FileBrowserTab dispatches to the takeover. The
+  // heading text is verbatim from PermissionDeniedTakeover.tsx:28.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 14: web mode viewer cap (no files.read) → permission-denied takeover renders verbatim copy', async ({ page }) => {
+    const resp = await page.goto(viewerAppUrl())
+    expect(resp?.status()).toBe(200)
+    await expect(
+      page.getByTestId('file-browser-permission-denied'),
+      'permission-denied takeover must mount under viewer cap',
+    ).toBeVisible({ timeout: 15_000 })
+    await expect(
+      page.getByRole('heading', { name: /^files\.read permission required$/ }),
+    ).toBeVisible()
   })
 
   test.afterEach(() => {
