@@ -154,7 +154,10 @@ func validateRelativePath(p string) error {
 		return errors.New("files: absolute path rejected")
 	}
 	// Windows drive letter "X:..." on non-Windows (IsAbs misses this).
-	if len(p) >= 2 && p[1] == ':' {
+	// Restrict to ASCII A-Z/a-z to match the real Windows grammar — the
+	// later colon-anywhere ban (WR-02) catches non-letter colon prefixes
+	// like "a:foo" with the accurate "colon (ADS) rejected" message.
+	if len(p) >= 2 && p[1] == ':' && isASCIILetter(p[0]) {
 		return errors.New("files: drive letter rejected")
 	}
 	// UNC: \\server\share or //server/share
@@ -189,4 +192,12 @@ func validateRelativePath(p string) error {
 		return errors.New("files: path traversal rejected")
 	}
 	return nil
+}
+
+// isASCIILetter reports whether b is an ASCII letter A-Z or a-z. Used
+// by the drive-letter prefix check (WR-02) — Windows drive letters are
+// strictly ASCII, so a Unicode-aware test would be both over-broad and
+// require pulling in the unicode package for one byte's worth of work.
+func isASCIILetter(b byte) bool {
+	return (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
 }
