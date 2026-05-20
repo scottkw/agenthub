@@ -24,6 +24,35 @@ type Claims struct {
 	V       int    `json:"v"`        // claim schema version; always 1 in v3.1
 }
 
+// PermFilesRead is the capability bit token granting access to /api/files/*
+// routes (FS-10, FS-11). Added in v3.4 (Phase 118). Whole-token
+// comma-separated semantics — never substring (Pitfall 4).
+const PermFilesRead = "files.read"
+
+// HasPerm reports whether perm appears as a whole comma-separated token in
+// perms.
+//
+// Whole-token semantics — NOT strings.Contains, which would allow
+// "no-files.read" to false-positive match "files.read" via substring
+// inclusion (Pitfall 4 mitigation, threat T-118-13).
+//
+//	HasPerm("read,write",          "files.read") -> false
+//	HasPerm("read,files.read",     "files.read") -> true
+//	HasPerm("no-files.read,read",  "files.read") -> false  // critical
+//	HasPerm("files.read,read",     "files.read") -> true
+//	HasPerm("",                    "files.read") -> false
+func HasPerm(perms, perm string) bool {
+	if perms == "" || perm == "" {
+		return false
+	}
+	for _, t := range strings.Split(perms, ",") {
+		if t == perm {
+			return true
+		}
+	}
+	return false
+}
+
 // Sign serialises claims as canonical JSON, computes HMAC-SHA256 with key, and
 // returns a two-segment base64url token in the form "b64Payload.b64Sig". The
 // key must be the 32-byte signing key loaded via KeyStore.
