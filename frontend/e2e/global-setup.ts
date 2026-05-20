@@ -21,6 +21,8 @@ import { dirname, resolve } from 'node:path'
 export interface FixtureEnv {
   baseURL: string
   cap: string
+  viewerCap: string
+  sessionCwd: string
   adminURL: string
   pid: number
 }
@@ -64,17 +66,22 @@ export default async function globalSetup() {
 
     let baseURL = ''
     let cap = ''
+    let viewerCap = ''
+    let sessionCwd = ''
     let adminURL = ''
 
     fixtureProc!.stdout.on('data', (chunk: Buffer) => {
       stdoutBuf += chunk.toString()
       for (const line of stdoutBuf.split('\n')) {
         if (line.startsWith('BASE_URL=')) baseURL = line.slice('BASE_URL='.length).trim()
+        // Match CAP= but NOT VIEWER_CAP= — exact prefix check.
         if (line.startsWith('CAP=')) cap = line.slice('CAP='.length).trim()
+        if (line.startsWith('VIEWER_CAP=')) viewerCap = line.slice('VIEWER_CAP='.length).trim()
+        if (line.startsWith('SESSION_CWD=')) sessionCwd = line.slice('SESSION_CWD='.length).trim()
         if (line.startsWith('ADMIN_URL=')) adminURL = line.slice('ADMIN_URL='.length).trim()
         if (line.startsWith('READY=1')) {
           clearTimeout(timer)
-          resolveEnv({ baseURL, cap, adminURL, pid: fixtureProc!.pid! })
+          resolveEnv({ baseURL, cap, viewerCap, sessionCwd, adminURL, pid: fixtureProc!.pid! })
           return
         }
       }
