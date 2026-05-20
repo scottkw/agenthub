@@ -56,12 +56,16 @@ function formatRowSize(entry: FileEntry): string {
  */
 function formatRowMtime(mtime: string): string {
   if (!mtime) return '—'
-  // Extract the calendar-date prefix (10 chars) cheaply. If the string is
-  // shorter than 10 chars (malformed), fall back to the raw string.
+  // Extract the calendar-date prefix (10 chars) cheaply. Phase 120 WR-04: any
+  // string that does not match the RFC3339 calendar-date shape (YYYY-MM-DD…)
+  // falls back to an em-dash rather than the raw input, so a malformed value
+  // (e.g. "0001-01-01T00:00:00Z" for missing files, or a non-conforming
+  // server response) cannot blow out the row's column width by dumping the
+  // full string into the cell.
   if (mtime.length >= 10 && mtime[4] === '-' && mtime[7] === '-') {
     return mtime.slice(0, 10)
   }
-  return mtime
+  return '—'
 }
 
 /**
