@@ -23,7 +23,8 @@
 - ✅ **v3.1 Security Hardening** — Phases 87-90 (shipped 2026-05-03, closes Issue #35)
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
 - ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
-- 🚧 **v3.3.1 Bug Sweep** — Phases 109-114 (planning 2026-05-18, closes Issues #52, #54, #55, #56, #57, #58)
+- ✅ **v3.3.1 Bug Sweep** — Phases 109-117 (shipped 2026-05-19, closes Issues #52, #54, #55, #56, #57, #58, #60)
+- 🚧 **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-121 (planning 2026-05-20, closes Issues #62 + v3.4 slice of #64)
 
 ## Phases
 
@@ -224,15 +225,12 @@
 <details>
 <summary>✅ v3.1 Security Hardening (Phases 87-90) — SHIPPED 2026-05-03 (v3.1.0, closes Issue #35)</summary>
 
-- [x] **Phase 87: Capability-Based Session Authorization** — Server-issued, signed capability tokens gate session listing, metadata, WebSocket access, and write permission. Tailnet membership is no longer sufficient. (UAT complete 2026-04-21)
-- [x] **Phase 88: WebSocket Handshake Security** — Strict Origin allowlist (Tailscale FQDN, local-mode host, same-origin); cross-site upgrades return 403. Includes Wails desktop webview origin (`wails://wails`) — both production-darwin and dev-mode patterns. (UAT complete 2026-05-02 against rc3 + rc5 dmg)
-- [x] **Phase 89: Vendored Terminal Assets + CSP** — xterm JS/CSS embedded in binary; strict CSP on all three HTML routes (`script-src 'self'`, `connect-src 'self' wss://<host>`, `style-src 'self' 'unsafe-inline'` per D-09). Zero CDN fetches verified across 1779 requests. (UAT complete 2026-05-02)
-- [x] **Phase 90: Release Pipeline Hardening** — All third-party Actions SHA-pinned; build tools pinned via `tools.go`; release.yml split into validate → build-{macos,windows,linux} → sign-macos (gated by required-reviewer rule) → publish; SLSA L2 attestations verified before codesigning. (Pipeline E2E proven through 5 rc cycles before v3.1.0 final tag)
+- [x] **Phase 87: Capability-Based Session Authorization** — completed 2026-04-21
+- [x] **Phase 88: WebSocket Handshake Security** — completed 2026-05-02
+- [x] **Phase 89: Vendored Terminal Assets + CSP** — completed 2026-05-02
+- [x] **Phase 90: Release Pipeline Hardening** — completed 2026-05-03
 
-Distribution follow-ups deferred to a future milestone (see `.planning/deferred/91-distribution-pipeline-followups/91-CONTEXT.md`):
-  - 91-A: Switch `release.yml` from `GITHUB_TOKEN` to PAT so `release.published` auto-triggers `distribute.yml`
-  - 91-B: Fix `submit-winget` step's templating to handle `workflow_dispatch` events (use `RELEASE_TAG` env var instead of `github.event.release.tag_name`)
-  - 91-C: One-time WinGet first-submission to `microsoft/winget-pkgs` (use `wingetcreate new`, not `update`)
+Distribution follow-ups deferred to a future milestone (see `.planning/deferred/91-distribution-pipeline-followups/91-CONTEXT.md`).
 
 </details>
 
@@ -250,8 +248,6 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] Phase 98: Progress Addon (P2 — cuttable, default OFF) (5/5 plans) — completed 2026-05-08
 - [x] Phase 99: Settings UI Polish + Migration + Final CSP Audit — Release Gate (6/6 plans incl. 1 gap-closure) — completed 2026-05-09
 
-Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog feature): see `.planning/milestones/v3.2-MILESTONE-AUDIT.md` and `.planning/v3.2-RELEASE-BLOCKERS.md`.
-
 </details>
 
 <details>
@@ -262,14 +258,15 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 - [x] Phase 102: Web-Links Polish — mailto + IDN (1/1 plan) — completed 2026-05-13
 - [x] Phase 103: Find Bar Dismiss + Test-Env + IIP Polish (inline) — completed 2026-05-12
 - [x] Phase 104: Settings Hyperlinked Index (1/1 plan) — completed 2026-05-12
-- [x] Phase 105: Deferred v3.2 UAT Re-Run (runbook + UAT executed) — completed 2026-05-17 (3 pass + 4 issues filed to v3.4: #54/#55/#56)
-- [x] Phase 106: Distribution Pipeline Followups (workflow edits) — completed 2026-05-13 (code-complete; operator: PAT + WinGet variable pending before next release)
-- [x] Phase 107: Shell UX Collapse + Binary Path Picker + Clean-Exit Handling (4/4 plans) — completed 2026-05-13 (SHELL-12 runtime UAT signed off 5c58277)
-- [x] Phase 108: TUI + CLI shell-entry collapse — parity with Phase 107 GUI (3/3 plans) — completed 2026-05-16 (TUI + CLI UAT smokes PASS 2026-05-17)
+- [x] Phase 105: Deferred v3.2 UAT Re-Run (runbook + UAT executed) — completed 2026-05-17
+- [x] Phase 106: Distribution Pipeline Followups (workflow edits) — completed 2026-05-13
+- [x] Phase 107: Shell UX Collapse + Binary Path Picker + Clean-Exit Handling (4/4 plans) — completed 2026-05-13
+- [x] Phase 108: TUI + CLI shell-entry collapse — parity with Phase 107 GUI (3/3 plans) — completed 2026-05-16
 
 </details>
 
-### 🚧 v3.3.1 Bug Sweep (Phases 109-117) — PLANNING 2026-05-18 (closes Issues #52, #54, #55, #56, #57, #58, #60)
+<details>
+<summary>✅ v3.3.1 Bug Sweep (Phases 109-117) — SHIPPED 2026-05-19 (closes Issues #52, #54, #55, #56, #57, #58, #60)</summary>
 
 - [x] Phase 109: Windows daemon named-pipe IPC (Issue #52, PR #53) — IPC-01..06 (completed 2026-05-18)
 - [x] Phase 110: Linux PTY natural-exit detection (Issue #57) — PTY-01..04 (completed 2026-05-18)
@@ -280,6 +277,113 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 - [x] Phase 115: Desktop relay OSC/DA absorption (Issue #60) — WEB-04..06 (completed 2026-05-19)
 - [x] Phase 116: Pre-existing test stability (4 tests) — TEST-03..06 (completed 2026-05-19)
 - [x] Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 — PAPER-01..03 (completed 2026-05-19)
+
+</details>
+
+### 🚧 v3.4 File Browser (Read-Only) + TUI Parity (Phases 118-121) — PLANNING 2026-05-20 (closes Issues #62 + v3.4 slice of #64)
+
+- [ ] **Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit** — FS-01..FS-14
+- [ ] **Phase 119: WebServer Routes + `files.read` Capability Plumbing** — WEB-01..WEB-05
+- [ ] **Phase 120: FileBrowserTab.tsx (Desktop + Web)** — UI-01..UI-14
+- [ ] **Phase 121: TUI Files View** — TUI-01..TUI-10
+
+## Phase Details
+
+### Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit
+
+**Goal:** The `internal/files/` package exists, is TOCTOU-safe, is fuzz-proven, and daemon-local HTTP routes for list/stat/read are live — so every subsequent phase has a correct, trusted API to build against.
+
+**Depends on:** Phase 117 (v3.3.1 complete). No v3.4 prerequisites. This is the load-bearing foundation for all three other phases.
+
+**Parallelism:** Sequential. Phase 118 must be complete (merged to main, fuzz corpus passing) before Phase 119, 120, or 121 can start. Specifically: the fuzz corpus (`go test -fuzz=FuzzSandboxPath -fuzztime=60s ./internal/files/...` reports zero crashes) is a hard merge gate before Phase 119 begins.
+
+**Requirements:** FS-01, FS-02, FS-03, FS-04, FS-05, FS-06, FS-07, FS-08, FS-09, FS-10, FS-11, FS-12, FS-13, FS-14
+
+**Success Criteria** (what must be TRUE when this phase completes):
+
+1. `go test -fuzz=FuzzSandboxPath -fuzztime=60s ./internal/files/...` reports zero crashes against the 40+ payload corpus from PITFALLS.md — path traversal payloads including `../../etc/passwd`, `%2e%2e%2f`, `%252e%252e%252f`, U+FF0F fullwidth slash, U+2024 one-dot-leader, null bytes, `CON`, `NUL.txt`, `COM1.txt`, `PROGRA~1`, `file.txt:hidden`, `\\?\C:\Windows\System32\`, and all UNC variants all return 400/403 (never 200 for paths outside sandbox).
+2. `curl --unix-socket ~/.agenthub/daemon.sock 'http://localhost/api/files/list?session=<id>&path=.'` returns a JSON array of `FileEntry` objects for the session's cwd — no authentication required on the local socket, directory entries present with Name/Size/Mtime/Mode/IsDir/IsSymlink/IsBinary/MIME fields.
+3. `curl --unix-socket ~/.agenthub/daemon.sock 'http://localhost/api/files/read?session=<id>&path=empty.txt'` on a 0-byte file returns HTTP 200 with an empty body — not 416 Requested Range Not Satisfiable (golang/go#54794 special-case confirmed).
+4. `curl --unix-socket ~/.agenthub/daemon.sock 'http://localhost/api/files/read?session=<id>&path=../../etc/passwd'` returns 400 or 403 — the sandbox rejects the traversal attempt; `/etc/passwd` is never read.
+5. A viewer cap token issued without `files.read` in `Claims.Perms` returns 403 with a response body containing the string `"files.read"` on all three file endpoints (`/list`, `/stat`, `/read`), and `HasPerm("read,write", "files.read")` returns false while `HasPerm("read,files.read", "files.read")` returns true (whole-token match, not substring).
+
+**Plans:** TBD
+
+**UI hint**: no
+
+---
+
+### Phase 119: WebServer Routes + `files.read` Capability Plumbing
+
+**Goal:** The webserver exposes the same three file endpoints under `requireFilesRead` middleware — capability-gated for Tailscale-HTTPS web-share viewers — and an integration test confirms read-only viewers get 403 with an explicit message, not 404.
+
+**Depends on:** Phase 118 (internal/files/ package frozen, HasPerm helper available, daemon-socket routes live). Phase 118 fuzz corpus must be passing before this phase begins.
+
+**Parallelism:** Sequential after Phase 118. Phases 120 and 121 cannot start until this phase is complete (capability token plumbing required for the frontend and TUI to make authenticated requests to the webserver routes).
+
+**Requirements:** WEB-01, WEB-02, WEB-03, WEB-04, WEB-05
+
+**Success Criteria** (what must be TRUE when this phase completes):
+
+1. A session owner's cap token (with `files.read` in Perms) returns HTTP 200 from `GET /api/files/list`, `GET /api/files/stat`, `GET /api/files/read`, and `HEAD /api/files/read` on the Tailscale-HTTPS webserver surface.
+2. A read-only web-share viewer cap token (without `files.read`) returns HTTP 403 — not 404 — from all three file endpoints, and the response body explicitly contains the string `"files.read"` so the frontend can surface a meaningful permission-denied message.
+3. `POST /api/files/list` (and any non-GET/HEAD method on file endpoints) returns HTTP 405 Method Not Allowed — file endpoints are read-only in v3.4.
+4. Zero new CSP violations: cross-browser Playwright e2e smoke (Chromium + Firefox + WebKit) reports zero CSP violations from a complete file browse flow against the webserver — existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy is sufficient; no amendments needed.
+5. A request with no cap token (`?cap=` absent) returns HTTP 401 — not 404 — confirming routes exist but require auth (no route-existence leak via 404 vs. 401 distinction).
+
+**Plans:** TBD
+
+**UI hint**: no
+
+---
+
+### Phase 120: FileBrowserTab.tsx (Desktop + Web)
+
+**Goal:** Users can open a file browser tab for any session, navigate the session's cwd tree, preview text/markdown/image files, download any file, and receive explicit error states for binary/over-cap/permission-denied cases — on both the desktop app and the web frontend.
+
+**Depends on:** Phase 118 (daemon API shape frozen) and Phase 119 (capability token plumbing and webserver routes live). Can run in parallel with Phase 121 once both Phase 118 and Phase 119 are complete.
+
+**Parallelism:** Can run in parallel with Phase 121. Both Phase 120 and Phase 121 depend on Phase 118 (and Phase 119 for the webserver surface). Neither depends on the other. If two implementation sessions are available, Phase 120 (React frontend) and Phase 121 (TUI) can proceed simultaneously after Phase 119 ships.
+
+**Requirements:** UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08, UI-09, UI-10, UI-11, UI-12, UI-13, UI-14
+
+**Success Criteria** (what must be TRUE when this phase completes):
+
+1. A user can open a file browser tab for any running session via the session context menu ("Open file browser") or the Sessions panel; the tab opens scoped to the session's cwd, displays a file list with name/size/mtime columns, and supports keyboard navigation (arrow keys to move, Enter to enter a directory, Backspace to go up, Tab between list and preview panes).
+2. Clicking on a text file (up to 5 MB) opens it in the preview pane as monospaced plain text; clicking on a `.md` file renders it as formatted markdown (GFM tables and task lists via `react-markdown` + `remark-gfm`) — no raw HTML rendering, no syntax highlighting for code files in v3.4.
+3. Clicking on a PNG/JPEG/WebP/GIF/SVG file renders an inline image preview via `<img src="/api/files/read?...">` without base64-in-state; clicking on a binary or over-5-MB file shows a "Sorry, we can't display this file" message with a Download button that triggers the Range-capable `/read` endpoint.
+4. A web-share viewer without `files.read` sees a clear permission-denied message ("files.read permission required") in the tab — not a generic 403 error or a blank pane — and the breadcrumb bar correctly bounds navigation to the session cwd so no path (typed, pasted, or breadcrumb-clicked) can navigate above the session root.
+5. Playwright e2e (Chromium + Firefox + WebKit) passes all scenarios: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, binary refusal, over-cap file refusal, download (full + Range), capability-denied viewer (403 with message), empty directory state, and network error state — this suite is the Phase 120 merge gate.
+
+**Plans:** TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 121: TUI Files View
+
+**Goal:** TUI users can browse and preview files for any session using keyboard navigation inside a lipgloss-bordered file browser pane — with the same sandboxed cwd constraint, type-ahead filter, and text/markdown preview available in the desktop and web surfaces.
+
+**Depends on:** Phase 118 (`DaemonClient.{ListFiles, StatFile, ReadFile}` methods frozen). Phase 121 does NOT depend on Phase 119 or Phase 120 — the TUI uses the daemon-local HTTP API (Unix socket / named pipe), not the webserver capability-gated routes.
+
+**Parallelism:** Can run in parallel with Phase 120 once Phase 118 ships. Phase 121 does not depend on Phase 120 and Phase 120 does not depend on Phase 121. They share only the Phase 118 prerequisite. Explicitly: "Phase 121 can run in parallel with Phase 120 once Phase 118 ships."
+
+**Requirements:** TUI-01, TUI-02, TUI-03, TUI-04, TUI-05, TUI-06, TUI-07, TUI-08, TUI-09, TUI-10
+
+**Success Criteria** (what must be TRUE when this phase completes):
+
+1. Pressing `f` (or equivalent) on a selected session in the TUI Sessions list opens a lipgloss-bordered Files view scoped to that session's cwd, with a file list on the left and a preview pane on the right, rendered in the TokyoNight palette consistent with the existing TUI.
+2. Up/Down/PageUp/PageDown move the file list cursor; Enter enters a directory; Backspace or Left arrow navigates up — and Backspace at the cwd root is a no-op (user cannot navigate above the session's working directory under any input sequence).
+3. Selecting a text file populates the preview pane with the file's contents up to the 5 MB cap; selecting a `.md` file renders it as ANSI-formatted markdown via `charmbracelet/glamour`; selecting a binary file or an over-cap file shows the referral message "Use desktop or web to preview" or "Too large to preview, use desktop or web to download" respectively.
+4. Pressing `/` activates type-ahead filter (current directory only); Escape clears and dismisses; the status line at the bottom shows the session-cwd-relative path (left-truncated as `…/utils/helper.ts` when wider than the pane), file count, and current selection position.
+5. All filesystem I/O is dispatched via `tea.Cmd` (returning `tea.Msg`) — no synchronous `os.ReadDir` or `os.Open` inside the `Update` method; the `?` help overlay in `tabFiles` mode shows the Files view keybindings (`↑/↓`, `PgUp/PgDn`, `Enter`, `Backspace`, `/`, `?`, `Esc`, `q`); and key-dispatch priority correctly places file-browser input above the main view but below kill-confirm/new-session/QR overlay/help overlays.
+
+**Plans:** TBD
+
+**UI hint**: no
+
+---
 
 ## Progress
 
@@ -318,148 +422,10 @@ Deferred to v3.3 (9 UAT scenarios + 6 polish items + shell-session backlog featu
 | 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-
-### Phase 109: Windows daemon named-pipe IPC
-
-**Goal:** AgentHub daemon, GUI, CLI, and TUI all work end-to-end on Windows 11 by listening on `\\.\pipe\agenthub-daemon` instead of failing to bind a Unix socket.
-
-**Requirements:** IPC-01, IPC-02, IPC-03, IPC-04, IPC-05, IPC-06
-
-**Depends on:** Nothing on the v3.3.1 critical path (highest-priority unblocker — Windows is currently 100% broken). Builds on v3.3 daemon HTTP/JSON API surface (Phase 19) and third-party PR #53 as the starting patch.
-
-**Scope:** Adapt `internal/daemon` listener and `DaemonClient` dialer to use `winio` named pipes on Windows; Unix sockets on macOS/Linux. PR #53 evaluation task (rebase vs. re-apply) is mandatory, with `Co-Authored-By: im-alexandre` attribution either way. Cross-surface Windows verification (GUI + CLI + TUI) per v3.3 Phase 108 contract; macOS/Linux smoke for no regression.
-
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 109-01-PLAN.md — Cherry-pick PR #53 (named-pipe IPC abstraction + Windows tests + kernel32 tray fix), preserve Alexandre Castro attribution, scaffold Windows UAT in VERIFICATION.md
-
-### Phase 110: Linux PTY natural-exit detection
-
-**Goal:** On Linux, a shell session whose child process exits cleanly causes the GUI tab / TUI list entry to auto-close — matching macOS behavior shipped in v3.3 SHELL-12.
-
-**Requirements:** PTY-01, PTY-02, PTY-03, PTY-04
-
-**Depends on:** v3.3 Phase 107 (SHELL-12 `autoCloseRef`-gated tab auto-close on `session:exit` with exit-code-0 normalization). This phase fixes the daemon-side blocker that prevents that frontend logic from firing on Linux.
-
-**Scope:** Separate exit-detector goroutine that polls `syscall.Wait4(pid, &status, WNOHANG)` and explicitly closes the PTY to unblock the read loop, coordinated with go-pty's internal `waitOnContext`. Daemon-side fix in `internal/pty` / `internal/daemon/engine.go`. Affects GUI Linux + TUI Linux. Re-enable `TestListSessions_OnExitCallback_ReceivesNormalized` (currently `t.Skip()`'d on Linux).
-
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 110 to break down)
-
-### Phase 111: Web bridge OSC/DA response consumption
-
-**Goal:** On the web-served terminal, OSC color-query (10/11) and Device Attributes (CSI c) responses are consumed by the web bridge and do not leak into shell stdin — `chafa --format=sixel <png>` produces a clean prompt on web, matching desktop.
-
-**Requirements:** WEB-01, WEB-02, WEB-03
-
-**Depends on:** v3.2 Phase 96 (image addon, sixel rendering on web) and Phase 93 (web vendoring + parity).
-
-**Scope:** Web-only bug (desktop unaffected — Wails webview goes through xterm.js directly). Fix lives in the web bridge / relay code (`internal/webserver/relay.go` or equivalent). Cross-surface parity (chafa sixel on web vs. desktop) is the release gate. Regression test exercises OSC response consumption path.
-
-**Plans:** 1 plan
-
-Plans:
-- [x] 111-01-PLAN.md — InputAbsorber + wiring + tests + cross-surface UAT (3 tasks: unit foundation, wire + integration tests, web/desktop chafa parity UAT) — **code-complete 2026-05-18**, pending macOS cross-surface chafa UAT sign-off in `111-VERIFICATION.md`
-
-### Phase 112: WebGL recovery banner rendering
-
-**Goal:** When the terminal's WebGL context is lost, a `WebGLRecoveryBanner` renders inside `.banner-stack` and auto-dismisses after 8s — restoring the Phase 93 user-visible recovery flow.
-
-**Requirements:** UI-01, UI-02
-
-**Depends on:** v3.2 Phase 93 (WebGL recovery banner contract — banner exists but doesn't render; DOM fallback continues to work, masking the bug).
-
-**Scope:** Pure frontend bug. Root cause suspected in `frontend/src/components/TerminalPanel.tsx:391-395` — likely `onContextLoss` closure rot (banner-state setter captured at mount time). Fix is local to `TerminalPanel.tsx` and adjacent banner state. Both desktop + web surfaces benefit from one fix (shared React component).
-
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 112-01-PLAN.md — Reorder onContextLoss (notify-first + microtask defer) + RED-first tests + cross-surface UAT (4 tasks: RED tests, GREEN fix, VERIFICATION.md scaffold, desktop+web UAT execution)
-
-### Phase 113: iPad terminal touch-scroll
-
-**Goal:** On iPad Safari and iPad Chrome, single-finger drag on the terminal area scrolls xterm scrollback — matching desktop wheel-scroll behavior.
-
-**Requirements:** UI-03, UI-04
-
-**Depends on:** v3.2 Phase 96/Phase 95 (web-links + image surface on iPad — touch-event semantics on terminal container are the same shared surface).
-
-**Scope:** Pure frontend bug. Fix is `touchstart`/`touchmove` event wiring on the terminal container (or `touch-action: pan-y` CSS opt-in to delegate scroll to the browser's native touch-scroll). Web-only surface; desktop unaffected. Separate from Phase 112 — different root cause (touch capture vs. closure rot), different verification (physical iPad vs. desktop DevTools).
-
-**Plans:** 1 plan
-
-Plans:
-- [ ] 113-01-PLAN.md — touchScrollHandler module + TerminalPanel wiring + touch-action CSS + VERIFICATION.md scaffold (4 tasks: TDD touchScrollHandler, source-grep wiring tests + impl, full-suite regression, iPad UAT scaffold with human_needed markers)
-
-### Phase 114: CI test stability — webserver capability test flake
-
-**Goal:** `TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403), with the root cause identified and fixed (not papered over).
-
-**Requirements:** TEST-01, TEST-02
-
-**Depends on:** v3.2 Phase 92's `internal/webserver` capability/SSE plumbing.
-
-**Scope:** Investigation-first phase. Likely root cause is test-state pollution across `internal/webserver` tests (testServer / EnableSession / SetSigningKey leaking under specific shuffle orderings). No rerun-pass hacks; the fix addresses why the test sometimes returns 403, not how to suppress the flake. Linux CI surface only.
-
-**Plans:** 1 plan
-
-Plans:
-- [x] 114-01-PLAN.md — Variant A fix to issueExpiredCapFor (sign with wrong key) + VERIFICATION.md + root-cause-stated commit (TEST-01, TEST-02)
-
-### Phase 115: Desktop relay OSC/DA absorption (Issue #60)
-
-**Goal:** `chafa --format=sixel` and OSC 10/11 + DA1 probes on the **desktop Wails surface** produce clean prompts (no `10;rgb:…`, `11;rgb:…`, `?1;2c`, `62;4;9;22c` leaked into shell stdin), matching the web surface fix from Phase 111.
-
-**Requirements:** WEB-04, WEB-05, WEB-06
-
-**Depends on:** Phase 111 `InputAbsorber` (`internal/webserver/oscabsorb.go`) — same proven 117-line state machine, reused as-is.
-
-**Scope:** Lift `InputAbsorber` from `internal/webserver/server.go` `handleWSSRelay` into `internal/relay/server.go` `handleSession`. Per-subscriber instance, applied at line 127 before `hub.WriteInput(payload)`. Catches the daemon-direct relay path used by the Wails desktop attach (and by CLI `agenthub attach`, which uses the same relay). Web-share path now has two absorbers in series — harmless (no-op on already-filtered bytes), kept as defense-in-depth. New integration tests against `internal/relay` for the daemon-direct path; existing absorber unit suite remains the state-machine truth.
-
-**Plans:** 1 plan
-
-Plans:
-- [x] 115-01-PLAN.md — RED integration tests against internal/relay (OSC 10/11 absorbed, DA1 absorbed, keystrokes pass) + GREEN lift absorber into handleSession + cross-surface manual UAT scaffold
-
-### Phase 116: Pre-existing test stability
-
-**Goal:** Four pre-existing test failures in `internal/daemon` and `internal/agent` are fixed at root cause — no `t.Skip()` left behind, no rerun-pass hacks.
-
-**Requirements:** TEST-03, TEST-04, TEST-05, TEST-06
-
-**Depends on:** none (orthogonal investigations per test).
-
-**Scope:** Four distinct failures, each with its own root cause investigation:
-1. `TestOpenCodeANSICapture` data race (`internal/agent`, Phase 71 `a02dd75` 2026-04-13) — shared-state mutation in capture buffer.
-2. `TestAPIGetShellWebShareWarned_Default` (`internal/daemon`, Phase 101 `42b771f`) — likely default-value drift after Phase 107 shell-UX collapse.
-3. `TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` (`internal/daemon`) — same family as #2.
-4. `TestSetShellWebShareWarned_Default` (`internal/daemon`) — same family as #2.
-
-**Plans:** 1 plan
-
-Plans:
-- [ ] 116-01-PLAN.md — Per-test investigation + atomic fix-commits with root cause stated in commit body; full `internal/daemon` and `internal/agent` suites green under `-race -shuffle=on -count=3`
-
-### Phase 117: Paper-cuts — TUI defensive + attach clear + WR-03 leak
-
-**Goal:** Three small bugs from the v3.3.1 deferred-items list are fixed in the same milestone, eliminating known paper-cuts before v3.3.1 tag.
-
-**Requirements:** PAPER-01, PAPER-02, PAPER-03
-
-**Depends on:** none.
-
-**Scope:**
-1. **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing panic in `renderNewSessionModal`. Phase 109 scope addition #3 (`84e1387`) routed the empty-agent case away from this path, but the defensive fix on the underlying `lipgloss.Place` call remains worth applying. Source location: `internal/tui/modal.go` (search for `lipgloss.Place`).
-2. **PAPER-02** — `agenthub attach` does not clear the terminal screen on entry. Paper-cut surfaced during Phase 110 UAT. Source location: `cmd/agenthub/attach.go` (or equivalent CLI attach command).
-3. **PAPER-03** — `cleanup.go` `cmd.Wait` goroutine leak (WR-03 from Phase 110 REVIEW — pre-existing leak, no new exposure but worth closing). Source location: `internal/daemon/cleanup.go`.
-
-**Plans:** 1 plan
-
-Plans:
-- [ ] 117-01-PLAN.md — Three atomic fix-commits with RED tests where feasible (PAPER-01 panic test, PAPER-02 attach-clear smoke, PAPER-03 leak-detection via goroutine count) + VERIFICATION.md
+| 118 | v3.4 | 0/TBD | Not started | - |
+| 119 | v3.4 | 0/TBD | Not started | - |
+| 120 | v3.4 | 0/TBD | Not started | - |
+| 121 | v3.4 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

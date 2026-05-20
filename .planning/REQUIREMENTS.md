@@ -129,18 +129,57 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FS-01..FS-14 | Phase 118 (proposed) | Pending |
-| WEB-01..WEB-05 | Phase 119 (proposed) | Pending |
-| UI-01..UI-14 | Phase 120 (proposed) | Pending |
-| TUI-01..TUI-10 | Phase 121 (proposed) | Pending |
+| FS-01 | Phase 118 | Pending |
+| FS-02 | Phase 118 | Pending |
+| FS-03 | Phase 118 | Pending |
+| FS-04 | Phase 118 | Pending |
+| FS-05 | Phase 118 | Pending |
+| FS-06 | Phase 118 | Pending |
+| FS-07 | Phase 118 | Pending |
+| FS-08 | Phase 118 | Pending |
+| FS-09 | Phase 118 | Pending |
+| FS-10 | Phase 118 | Pending |
+| FS-11 | Phase 118 | Pending |
+| FS-12 | Phase 118 | Pending |
+| FS-13 | Phase 118 | Pending |
+| FS-14 | Phase 118 | Pending |
+| WEB-01 | Phase 119 | Pending |
+| WEB-02 | Phase 119 | Pending |
+| WEB-03 | Phase 119 | Pending |
+| WEB-04 | Phase 119 | Pending |
+| WEB-05 | Phase 119 | Pending |
+| UI-01 | Phase 120 | Pending |
+| UI-02 | Phase 120 | Pending |
+| UI-03 | Phase 120 | Pending |
+| UI-04 | Phase 120 | Pending |
+| UI-05 | Phase 120 | Pending |
+| UI-06 | Phase 120 | Pending |
+| UI-07 | Phase 120 | Pending |
+| UI-08 | Phase 120 | Pending |
+| UI-09 | Phase 120 | Pending |
+| UI-10 | Phase 120 | Pending |
+| UI-11 | Phase 120 | Pending |
+| UI-12 | Phase 120 | Pending |
+| UI-13 | Phase 120 | Pending |
+| UI-14 | Phase 120 | Pending |
+| TUI-01 | Phase 121 | Pending |
+| TUI-02 | Phase 121 | Pending |
+| TUI-03 | Phase 121 | Pending |
+| TUI-04 | Phase 121 | Pending |
+| TUI-05 | Phase 121 | Pending |
+| TUI-06 | Phase 121 | Pending |
+| TUI-07 | Phase 121 | Pending |
+| TUI-08 | Phase 121 | Pending |
+| TUI-09 | Phase 121 | Pending |
+| TUI-10 | Phase 121 | Pending |
 
 **Coverage:**
 
 - v3.4 requirements: 43 total (FS: 14, WEB: 5, UI: 14, TUI: 10)
-- Mapped to phases: 43 (proposed; finalized by roadmapper)
-- Unmapped: 0 ✓ (target)
+- Mapped to phases: 43/43
+- Unmapped: 0 ✓
 
 ---
 
 *Requirements defined: 2026-05-20*
-*Last updated: 2026-05-20 after initial definition; 3 OQs from research resolved: HEAD /read supported, TUI breadcrumb left-truncated, code files render as plain text in v3.4.*
+*Last updated: 2026-05-20 — traceability finalized by roadmapper; all 43 requirements mapped to Phases 118-121.*

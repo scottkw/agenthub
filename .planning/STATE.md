@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: File Browser (Read-Only) + TUI Parity
 status: planning
-last_updated: "2026-05-20T14:10:56.619Z"
+last_updated: "2026-05-20"
 last_activity: 2026-05-20
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
+See: .planning/PROJECT.md (updated 2026-05-20 — v3.4 open)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.3.1 ready to tag — closes 6 GitHub bugs in-milestone (#52, #54, #55, #56, #57, #60). All 31 REQ-IDs Complete (IPC-01..06 + WEB-01..06 + UI-01..04 + PTY-01..04 + TEST-01..06 + PAPER-01..03). After tag: close issues, then `/gsd-new-milestone` to scope v3.4 (Phase 101 visual UAT cosmetic items + Phase 107/108 deferred cleanups + Phase 103 process-debt retroactive fill + any new GitHub triage).
+**Current focus:** v3.4 File Browser (Read-Only) + TUI Parity — roadmap complete, ready for Phase 118 planning.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-20 — Milestone v3.4 started
+Phase: 118 — FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit
+Plan: — (not yet planned)
+Status: Roadmap written; awaiting /gsd:plan-phase 118
+Last activity: 2026-05-20 — v3.4 roadmap created (Phases 118-121)
 
 ## Operator Next Steps (carried into v3.4)
 
@@ -38,38 +38,36 @@ Last activity: 2026-05-20 — Milestone v3.4 started
 
 **GitHub issues filed during v3.3 (deferred to v3.4 backlog):**
 
-- `scottkw/agenthub#54` — chafa OSC 10/11 + DA1 response leak into shell stdin (web surface only; desktop unaffected). Pre-existing, not a v3.3 regression. (UAT-05)
-- `scottkw/agenthub#55` — WebGLRecoveryBanner does not render despite functional DOM fallback. Pre-existing Phase 93 bug. (UAT-01)
-- `scottkw/agenthub#56` — iPad tap-on-link captured by xterm-helper-textarea instead of firing link click handler. Pre-existing iPad-touch polish cluster. (UAT-04)
+- `scottkw/agenthub#54` — chafa OSC 10/11 + DA1 response leak into shell stdin (web surface only; desktop unaffected). Pre-existing, not a v3.3 regression. (UAT-05) — CLOSED in v3.3.1 Phase 111/115
+- `scottkw/agenthub#55` — WebGLRecoveryBanner does not render despite functional DOM fallback. Pre-existing Phase 93 bug. (UAT-01) — CLOSED in v3.3.1 Phase 112
+- `scottkw/agenthub#56` — iPad tap-on-link captured by xterm-helper-textarea instead of firing link click handler. Pre-existing iPad-touch polish cluster. (UAT-04) — CLOSED in v3.3.1 Phase 113
 
 ## Performance Metrics
 
 **Velocity:**
 
 - v3.3 phases: 9 (Phases 100-108, including audit-driven mid-milestone Phases 107 + 108)
-- v3.3 plans: 18 across phases with executable plans (105 + 106 are runbook/workflow-only)
-- v3.3 commits: 133
-- v3.3 timeline: 2026-05-12 → 2026-05-17 (5 days)
-- Cumulative: 22 milestones shipped (v1.0–v3.3), 107 phases, ~204 plans
+- v3.3.1 phases: 9 (Phases 109-117)
+- v3.3.1 plans: 9 across phases
+- v3.3.1 commits: ~17
+- v3.3.1 timeline: 2026-05-15 → 2026-05-19 (5 days)
+- Cumulative: 23 milestones shipped (v1.0–v3.3.1 + v3.3.2 dep-bump patch), 117 phases, ~213 plans
 
 ## Session Continuity
 
-Last session: 2026-05-18T16:50:50.463Z
-Stopped at: Phase 112 Plan 01 executed on main (4 task commits, RED+GREEN+VERIFICATION); manual cross-surface UAT deferred to operator (no GUI display + no Chrome in executor session); Issue #55 ready to close on v3.3.1 tag
+Last session: 2026-05-20
+Stopped at: v3.4 roadmap written (Phases 118-121 defined, REQUIREMENTS.md traceability finalized, STATE.md updated)
 Resume file: None
-Next action: macOS operator runs the six `human_needed` items in `.planning/phases/111-web-bridge-osc-da-response-consumption/111-VERIFICATION.md` (web Chrome chafa + OSC/DA probe + regression smoke; desktop Wails chafa + OSC/DA probe + regression smoke; parity decision); records resume signal (approved / approved with desktop follow-up: #<n> / failed); then `/gsd-verify-work --phase 111` for Plan 01 phase-gate. Linux UAT for Phase 110 + Windows UAT for Phase 109 remain pending in parallel.
+Next action: `/gsd:plan-phase 118` to break Phase 118 into executable plans
 
 ## Deferred Items
 
-Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milestones/v3.3-MILESTONE-AUDIT.md` and `.planning/milestones/v3.3-ROADMAP.md` §Milestone Summary):
+Items carried forward into v3.4 from prior milestones:
 
 | Category | Item | Status |
 |----------|------|--------|
 | operator_runtime | Phase 106 `RELEASE_PUBLISH_TOKEN` PAT | pending (one-time, before next release) |
 | operator_runtime | Phase 106 `WINGET_FIRST_SUBMISSION=true` variable | pending (one-time, first WinGet submission only) |
-| github_issue | #54 chafa OSC leak (web surface) | deferred v3.4 (pre-existing) |
-| github_issue | #55 WebGLRecoveryBanner missing | deferred v3.4 (pre-existing Phase 93 bug) |
-| github_issue | #56 iPad tap-on-link xterm-helper-textarea | deferred v3.4 (pre-existing iPad-touch polish cluster) |
 | visual_uat | Phase 101 5 visual-fidelity items | deferred (cosmetic, non-gating) |
 | tech_debt | Phase 108 WR-01/WR-02 + IN-01..04 (docs/dead-code) | deferred v3.4 |
 | tech_debt | Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch SEARCH_INDEX missing "Shell binary" | deferred v3.4 |
@@ -79,7 +77,15 @@ Items carried forward from v3.3 close on 2026-05-17 (see also `.planning/milesto
 | test_debt | TestOpenCodeANSICapture data race | deferred (pre-existing, skipped) |
 | test_debt | Pre-existing `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests) | deferred v3.4 (SPEC §Out-of-scope for Phase 108) |
 | test_debt | Phase 108 PARITY-CLI-03 harness limitation (one documented test skip with v3.4 `SetShellPathForTest` follow-up sketched) | deferred v3.4 |
-| Phase 112 P01 | 8min | 3 tasks | 5 files |
+
+## v3.4 Plan Execution Log
+
+| Phase | Plan | Status | Duration | Commits | Notes |
+|-------|------|--------|----------|---------|-------|
+| 118 | — | Not started | — | — | Roadmap written 2026-05-20; awaiting /gsd:plan-phase 118 |
+| 119 | — | Not started | — | — | Blocked on Phase 118 merge + fuzz corpus gate |
+| 120 | — | Not started | — | — | Blocked on Phase 118 (API shape) + Phase 119 (cap plumbing) |
+| 121 | — | Not started | — | — | Blocked on Phase 118 (DaemonClient methods); can parallel Phase 120 |
 
 ## v3.3.1 Plan Execution Log
 
