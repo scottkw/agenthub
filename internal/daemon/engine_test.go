@@ -1380,3 +1380,128 @@ func TestListSessions_OnExitCallback_ReceivesNormalized(t *testing.T) {
 		t.Fatal("timeout waiting for onExit callback")
 	}
 }
+
+// Phase 118 / FS-02: sessionWorkDirs map + GetSessionWorkDir.
+//
+// The five subtests below assert the WorkDir-gap closure:
+//   1. Populated: CreateSession with a real workDir → GetSessionWorkDir returns
+//      the EvalSymlinks-resolved absolute path.
+//   2. ResolvesSymlink: a symlink in the workDir argument resolves to its target.
+//   3. ClearedOnKill: after KillSession the entry is removed; GetSessionWorkDir
+//      returns "".
+//   4. EmptyForUnknown: GetSessionWorkDir("does-not-exist") returns "".
+//   5. FallbackOnEvalSymlinksError: bad workDir does not fail CreateSession;
+//      GetSessionWorkDir returns the raw (unresolved) workDir.
+//
+// These tests use spyBackend (see TestCreateSession_OpenCodeEnv) to avoid
+// spawning a real PTY — only the engine-internal map plumbing is under test.
+func TestEngine_SessionWorkDirsPopulated(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	tmpDir := t.TempDir()
+	// EvalSymlinks the expected value so the assertion matches even when
+	// t.TempDir() returns a symlinked path (macOS /var → /private/var).
+	wantResolved, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", tmpDir, err)
+	}
+
+	id, err := e.CreateSession(context.Background(), "cat", "wd-test", tmpDir, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	got := e.GetSessionWorkDir(id)
+	if got != wantResolved {
+		t.Errorf("GetSessionWorkDir(%q) = %q, want %q", id, got, wantResolved)
+	}
+}
+
+func TestEngine_SessionWorkDirsResolvesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink semantics differ on Windows; covered by *_Populated for non-symlink case")
+	}
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	realDir := t.TempDir()
+	wantResolved, err := filepath.EvalSymlinks(realDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", realDir, err)
+	}
+
+	// Create a symlink in another temp dir pointing to realDir.
+	linkParent := t.TempDir()
+	linkPath := filepath.Join(linkParent, "link-to-real")
+	if err := os.Symlink(realDir, linkPath); err != nil {
+		t.Fatalf("Symlink(%q, %q): %v", realDir, linkPath, err)
+	}
+
+	id, err := e.CreateSession(context.Background(), "cat", "sym-test", linkPath, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	got := e.GetSessionWorkDir(id)
+	if got != wantResolved {
+		t.Errorf("GetSessionWorkDir(%q) = %q, want resolved %q (symlink should be followed)", id, got, wantResolved)
+	}
+}
+
+func TestEngine_SessionWorkDirsClearedOnKill(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	tmpDir := t.TempDir()
+	id, err := e.CreateSession(context.Background(), "cat", "kill-wd", tmpDir, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	if got := e.GetSessionWorkDir(id); got == "" {
+		t.Fatalf("precondition: GetSessionWorkDir before kill should be non-empty, got %q", got)
+	}
+
+	if err := e.KillSession(id); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+
+	if got := e.GetSessionWorkDir(id); got != "" {
+		t.Errorf("GetSessionWorkDir after KillSession = %q, want \"\"", got)
+	}
+}
+
+func TestEngine_SessionWorkDirsEmptyForUnknown(t *testing.T) {
+	e := NewSessionEngine()
+	if got := e.GetSessionWorkDir("does-not-exist"); got != "" {
+		t.Errorf("GetSessionWorkDir(unknown) = %q, want \"\"", got)
+	}
+}
+
+func TestEngine_SessionWorkDirsFallbackOnEvalSymlinksError(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	badPath := "/this/path/definitely/does/not/exist/xyz123"
+	id, err := e.CreateSession(context.Background(), "cat", "bad-wd", badPath, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession with bad workDir should not fail (fallback path): %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	got := e.GetSessionWorkDir(id)
+	if got != badPath {
+		t.Errorf("GetSessionWorkDir(%q) = %q, want %q (raw workDir fallback when EvalSymlinks errors)", id, got, badPath)
+	}
+}

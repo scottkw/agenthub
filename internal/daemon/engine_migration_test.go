@@ -171,3 +171,118 @@ func TestSettingsMigrationIdempotent(t *testing.T) {
 		t.Errorf("settings.json mtime changed across idempotent loads: %v -> %v (the second load triggered an unnecessary re-write)", mtime1, mtime2)
 	}
 }
+
+// fixtureV32Path returns the on-disk location of the v3.2 settings fixture.
+// Mirrors fixtureV31Path: the Go test working directory is the package
+// directory (internal/daemon/), so the fixture lives two levels up.
+// Phase 118 / FS-14: v3.2 fixture has plugins block + schemaVersion=2 but
+// NO filesRead key — exercises the defaults-merge mitigation for Pitfall 16.
+func fixtureV32Path(t *testing.T) string {
+	t.Helper()
+	return filepath.Join("..", "..", "tests", "fixtures", "settings_v3.2.json")
+}
+
+// copyV32FixtureToTempDir reads the v3.2 fixture and writes it as settings.json
+// inside dir.
+func copyV32FixtureToTempDir(t *testing.T, dir string) string {
+	t.Helper()
+	data, err := os.ReadFile(fixtureV32Path(t))
+	if err != nil {
+		t.Fatalf("read v3.2 fixture: %v", err)
+	}
+	dst := filepath.Join(dir, "settings.json")
+	if err := os.WriteFile(dst, data, 0600); err != nil {
+		t.Fatalf("write v3.2 fixture into temp: %v", err)
+	}
+	return dst
+}
+
+// TestSettingsMigration_FilesReadDefaultsTrue verifies that a v3.2 settings.json
+// (schemaVersion=2, plugins block, no filesRead key) loads with FilesRead = *true
+// via the defaults-merge constructor pattern. Pitfall 16 mitigation: Go's
+// encoding/json leaves missing keys at zero value, so without the pre-populated
+// default, upgrading users would silently land with filesRead=false and lose
+// access to their own session-cwd file lists.
+func TestSettingsMigration_FilesReadDefaultsTrue(t *testing.T) {
+	dir := t.TempDir()
+	copyV32FixtureToTempDir(t, dir)
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	if e.filesRead == nil {
+		t.Fatalf("e.filesRead = nil after load; want *true (defaults-merge should populate)")
+	}
+	if !*e.filesRead {
+		t.Errorf("e.filesRead = false after load; want true (v3.2 fixture has no filesRead key, default must be true)")
+	}
+}
+
+// TestSettingsMigration_FilesReadExplicitFalse verifies that an explicit
+// `"filesRead": false` in settings.json is NOT clobbered by the defaults-merge
+// pre-population. This guards against the defaults-merge silently overriding
+// explicit user choice (which would re-introduce Pitfall 16 in reverse).
+func TestSettingsMigration_FilesReadExplicitFalse(t *testing.T) {
+	dir := t.TempDir()
+	// Synthetic settings.json with explicit filesRead: false.
+	settings := `{
+		"schemaVersion": 2,
+		"filesRead": false,
+		"plugins": {
+			"webgl": true,
+			"unicode11": true,
+			"search": true,
+			"webLinks": true,
+			"image": true,
+			"serialize": true,
+			"clipboard": true,
+			"progress": false
+		}
+	}`
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(settings), 0600); err != nil {
+		t.Fatalf("write synthetic settings: %v", err)
+	}
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	if e.filesRead == nil {
+		t.Fatalf("e.filesRead = nil after load with explicit false; want *false")
+	}
+	if *e.filesRead {
+		t.Errorf("e.filesRead = true after load with explicit \"filesRead\": false; defaults-merge must NOT clobber explicit user values")
+	}
+}
+
+// TestSettingsMigration_FilesReadSchemaVersionRewrite verifies that loading a
+// v3.2 settings.json (schemaVersion=2) triggers the needsUpgradeWrite path so
+// the on-disk file is rewritten with schemaVersion=3 (CurrentSchemaVersion).
+// Mirrors the v3.1→v3.2 migration test pattern.
+func TestSettingsMigration_FilesReadSchemaVersionRewrite(t *testing.T) {
+	dir := t.TempDir()
+	copyV32FixtureToTempDir(t, dir)
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	raw, err := os.ReadFile(filepath.Join(dir, "settings.json"))
+	if err != nil {
+		t.Fatalf("re-read settings.json: %v", err)
+	}
+	var s daemonSettings
+	if err := json.Unmarshal(raw, &s); err != nil {
+		t.Fatalf("unmarshal rewritten settings: %v", err)
+	}
+	if s.SchemaVersion != CurrentSchemaVersion {
+		t.Errorf("on-disk schemaVersion = %d, want %d (v3.2→v3.3 upgrade re-write should fire)", s.SchemaVersion, CurrentSchemaVersion)
+	}
+}
