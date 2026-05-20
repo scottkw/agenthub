@@ -8,7 +8,11 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
-## Last Shipped Milestone: v3.3 Shell Sessions & Polish (2026-05-17)
+## Last Shipped Milestone: v3.3.1 Bug Sweep (2026-05-19)
+
+**Closes:** GitHub Issues #52 (Windows named pipe IPC, third-party PR #53 from Alexandre Castro rebased), #54 (chafa OSC/DA leak — web surface), #55 (WebGLRecoveryBanner missing), #56 (iPad tap-on-link scroll), #57 (Linux shell exit detection), #58 (TestPluginConfigStream_ExpiredCap_Returns401 CI flake), #60 (desktop relay OSC/DA absorption — discovered + filed + fixed in-milestone). 9 phases (109-117), 31 REQ-IDs (IPC-01..06, WEB-01..06, UI-01..04, PTY-01..04, TEST-01..06, PAPER-01..03), 17 commits across 5 days (2026-05-15 → 2026-05-19). Tagged v3.3.1. Subsequent v3.3.2 patch tag (2026-05-20) was a dependency-bump release (nfpm/v2, tailscale.com, golang.org/x/term, bubbletea/v2) tagged off-workflow with no roadmap.
+
+## Previous Milestone: v3.3 Shell Sessions & Polish (2026-05-17)
 
 **Closes:** GitHub Issues #44 (shell agent) + #45 (Settings hyperlinked index). Absorbs v3.1 Phase 91 distribution-pipeline followups and v3.2 polish/UAT carry-over.
 
@@ -197,29 +201,50 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 - ✓ Distribution pipeline followups (Phase 91 backfill): `release.yml` PAT fallback (`${{ secrets.RELEASE_PUBLISH_TOKEN || secrets.GITHUB_TOKEN }}`) so `release.published` auto-triggers `distribute.yml`; `distribute.yml` reads `$env:RELEASE_TAG` env block; `wingetcreate new`/`update` branching on `WINGET_FIRST_SUBMISSION` — v3.3 Phase 106 (DIST-01, DIST-02, DIST-03; operator-pending: PAT + variable provisioning)
 - ✓ Deferred v3.2 UAT re-run executed on physical iPad + Tailscale (7 scenarios): WebGL DOM fallback, iPad rasterizer banner, 10K-line scrollback perf, Web-Links iPad chain, chafa sixel fidelity, two-client image join, iPad 5-scenario release runbook — v3.3 Phase 105 (UAT-01..07; 3 pass + 2 verified-in-code + 2 issues filed to v3.4: #54/#55/#56)
 
+- ✓ Windows daemon named-pipe IPC fix: cherry-picked + rebased from third-party PR #53 by Alexandre Castro (attribution preserved); CleanupStaleSocket uses winio.DialPipe for `\\.\pipe\...` paths — v3.3.1 Phase 109 (IPC-01..06; closes Issue #52)
+- ✓ Web-served terminal OSC/DA absorption: 5-state `InputAbsorber` machine in `internal/relay/oscabsorb.go` consumes chafa's OSC 10/11 color-query + DA1 responses before they leak into shell stdin; 26 unit subtests + 6 integration tests; 4-line `server.go` wiring with no new deps — v3.3.1 Phase 111 (WEB-01..06; closes Issue #54 web surface)
+- ✓ Desktop relay OSC/DA absorption parity: `InputAbsorber` lifted into `internal/relay/handleSession` so desktop Wails matches web behavior — v3.3.1 Phase 115 (closes Issue #60 — discovered during Phase 111 desktop parity UAT, filed + fixed in-milestone)
+- ✓ WebGLRecoveryBanner rendering fix: `TerminalPanel.tsx` `onContextLoss` reorder — notify React state FIRST, then `queueMicrotask`-deferred dispose with try/catch; refutes initial closure-rot hypothesis (useState setters are identity-stable per React docs) — v3.3.1 Phase 112 (UI-01..04; closes Issue #55)
+- ✓ iPad terminal touch-scroll: new `frontend/src/lib/touchScrollHandler.ts` translates single-finger touch Δy into `term.scrollLines(-lines)`; multi-touch bails for iOS pinch; sub-threshold (<8px) tap path untouched so OSC 8 web-links click handler keeps firing; `touchmove` registered `passive:false`; `touch-action: pan-y` on `.terminal-session-container` preserves pinch-zoom — v3.3.1 Phase 113 (closes Issue #56)
+- ✓ Linux shell auto-close: Wait4-based PTY exit detector (`internal/pty/exit_linux.go`) + no-op stubs for other platforms; closes Issue #57 — v3.3.1 Phase 110 (PTY-01..04)
+- ✓ CI test stability: `TestPluginConfigStream_ExpiredCap_Returns401` deflaked via Variant A rewrite — sign with deliberately wrong 32-byte 0xFF key (vs. previous base64-padding-bit flip which was a 6.25% no-op); exercises production `ErrInvalidSignature → 401` path; 100/100 stress pass — v3.3.1 Phase 114 (TEST-01..06; closes Issue #58)
+- ✓ Paper-cuts cluster: TUI `lipgloss.Place` defensive guard + `agenthub attach` screen-clear + `cleanup.go` bounded-lifetime goroutine clarity — v3.3.1 Phase 117 (PAPER-01..03)
+- ✓ Pre-existing test stability: `TestOpenCodeANSICapture` data race + 3 `ShellWebShareWarned_Default`-family default-value tests fixed — v3.3.1 Phase 116
+
 ### Active
 
-## Current Milestone: v3.3.1 Bug Sweep (patch)
+## Current Milestone: v3.4 File Browser (Read-Only) + TUI Parity
 
-**Goal:** Close all open GitHub bug-labeled issues against v3.3 baseline as a patch release.
+**Goal:** Ship the read-only half of the file browser epic (Issue #24) — sandboxed filesystem API, desktop/web file browser tab, and TUI browse+preview parity — laying the foundation for the write-side work in v3.5.
 
-**Target bugs:**
+**Closes (read-only slice):** GitHub Issues #62 (read-only file browser) + #64 v3.4 slice (TUI browse+preview parity). Umbrella epic #24 stays open across v3.4 + v3.5; closes when v3.5 ships.
 
-- `scottkw/agenthub#52` — Windows daemon fails to start because named pipe path is opened as a Unix socket (third-party report by im-alexandre; PR #53 attached, based on v3.2 commit `032a6e9`, needs evaluation/rebase against v3.3 — author attribution must be preserved)
-- `scottkw/agenthub#54` — Web-served terminal: OSC color-query and DA responses leak into shell as input (chafa repro; web surface only)
-- `scottkw/agenthub#55` — WebGL recovery banner does not appear when context is lost (Phase 93 WGL-02)
-- `scottkw/agenthub#56` — iPad: touch gestures cannot scroll xterm scrollback buffer
-- `scottkw/agenthub#57` — SHELL-12 shell tab auto-close broken on Linux (PTY EOF never fires)
-- `scottkw/agenthub#58` — TestPluginConfigStream_ExpiredCap_Returns401 flaky on Linux CI (gets 403 instead of 401)
+**Target features:**
 
-**Scope discipline:** bugs only. No enhancements, no Phase 101/107/108 advisory tech-debt, no Phase 103 process-debt retroactive fill, no Nyquist `*-VALIDATION.md` backfill. Those remain deferred for v3.4.
+- **Sandboxed filesystem API (Go daemon + webserver):** `GET /api/files/list`, `/stat`, `/read` (Range-capable) scoped to session cwd; `filepath.Clean` → symlink-resolve → prefix-check pattern; reject absolute paths, `..` after cleaning, escaping symlinks, Windows drive letters/UNC, null bytes; path-traversal fuzz tests required before merge
+- **`files.read` capability bit:** default ON for session owner, default OFF for web-share viewers unless grant explicitly includes it; capability-token enforcement on all three endpoints (viewer without `files.read` gets 403)
+- **`FileBrowserTab.tsx` (desktop + web):** tree + list layout, sort by name/size/mtime, type-ahead filter; preview pane for text (5 MB cap), markdown rendered, common image MIME types (PNG/JPEG/WebP/GIF/SVG-as-text); download per file via Range-capable endpoint; breadcrumb path bar bounded at session cwd; opens via session context menu + Sessions panel; works against local AND remote (tailnet) sessions through existing relay
+- **TUI Files view (v3.4 slice of #64):** lipgloss-bordered directory listing in TokyoNight palette; Up/Down/PageUp/PageDown navigation, Enter into dir, Backspace/Left up; never above session cwd; read-only preview pane for text/markdown; binaries show "Use desktop or web to preview"; type-ahead filter; status line with relative path + file count
+- **Cross-cutting acceptance:** Playwright e2e covering desktop + web paths; zero new CSP violations; cross-platform (macOS, Windows, Linux); read-only web-share viewer denial test; no CSP regression
 
-**Operator one-time tasks still required before v3.3.1 release** (carried from v3.3):
+**Scope discipline:**
+
+- Write operations (upload / delete / rename / mkdir / edit) — entirely v3.5
+- CodeMirror 6 vs Monaco editor-library decision — deferred to v3.5 (editor lib only matters for write side)
+- TUI shell-out to `$EDITOR` — v3.5
+- Native file browser UI (no Cloud Commander integration) — locked
+- Phase 101 visual UAT cosmetic items, Phase 107/108 advisory tech-debt, Phase 103 process-debt retroactive fill, Nyquist `*-VALIDATION.md` backfill — remain deferred (out of scope for v3.4; revisit at v3.5/v3.6 boundary)
+
+**Operator one-time tasks still required before next release** (carried from v3.3 → v3.3.1):
 
 1. `RELEASE_PUBLISH_TOKEN` PAT (`Contents: read/write` on `scottkw/agenthub`) — `gh secret set RELEASE_PUBLISH_TOKEN`
 2. `WINGET_FIRST_SUBMISSION=true` (one-time, first submission only) — `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after winget-pkgs accepts first submission.
 
 ## Current State
+
+v3.3.1 Bug Sweep shipped 2026-05-19; v3.3.2 dependency-bump patch tagged 2026-05-20 (off-workflow). v3.4 milestone now open — scoping the read-only half of the file browser epic (Issue #24) per the epic's two-milestone shape: v3.4 = #62 read-only + v3.4 slice of #64 TUI parity; v3.5 = #63 write-side + v3.5 slice of #64 TUI editor shell-out. Library decisions ratified in the epic: native file browser UI (no Cloud Commander integration), CodeMirror 6 vs Monaco decision deferred to v3.5, TUI uses shell-out to `$EDITOR` for editing in v3.5. Cross-surface parity (GUI/TUI/CLI) remains a release-blocking contract.
+
+## Prior State Context
 
 v3.3 Shell Sessions & Polish shipped 2026-05-17. 22 milestones shipped (v1.0–v3.3), 107 phases completed across the project (Phase 91 reserved for v3.1 distribution-pipeline followups was absorbed into v3.3 as Phase 106; v3.3 spans Phases 100-108, including audit-driven mid-milestone Phases 107 + 108). 133 commits in v3.3 (~5-day shipping cycle, 57 source files / +5,784 lines excluding `.planning/`). Closes GitHub Issues #44 (shell agent) + #45 (Settings hyperlinked index). Raw shell sessions now ship as a first-class agent type across all three surfaces (GUI/TUI/CLI) — single "Shell" entry, daemon-resolved `shellPath` (Settings → Paths "Shell binary" field with fallback chain `$SHELL` → `DiscoverShells` → platform default), interactive non-login PTY spawn with WorkDir honored, status-heuristic exclusion (only `running`/`stopped`), opt-in web-share with one-time arbitrary-command-execution confirmation banner, slate-cyan (#89ddff) agent badge, clean-exit auto-close on any natural exit. Settings tab gains sticky jump-link bar + autocomplete search. Web-Links closes `mailto:` + IDN gaps. v3.1 Phase 91 distribution-pipeline backfill landed as workflow edits (release.yml PAT fallback, `distribute.yml` `$env:RELEASE_TAG` + WINGET_FIRST_SUBMISSION branching) — code-complete, operator-pending PAT + variable provisioning before next release. The 9 v3.2-deferred UATs executed end-to-end (3 pass / 2 verified-in-code / 2 with bugs filed to v3.4 backlog: `scottkw/agenthub#54` chafa OSC leak, `#55` WebGLRecoveryBanner missing, `#56` iPad tap-on-link captured by xterm-helper-textarea — all pre-existing, not v3.3 regressions). Security posture from v3.1 + v3.2 carries forward unchanged: capability-based session authorization, byte-for-byte WS Origin allowlist, vendored-only-no-CDN discipline enforced by `vendor_drift_test.go` CI gate. Distribution via GitHub releases (DMG/EXE+NSIS/tar.gz+deb), Homebrew cask, WinGet, with release-please auto-versioning. Audit-driven mid-milestone phase insertion is now a proven pattern: Phase 107 added 2026-05-13 after code-complete audit surfaced shell-UX feedback + clean-exit bug; Phase 108 added 2026-05-16 after 101-UAT Test 3 surfaced release-blocking cross-surface parity gap. Cross-surface (GUI/TUI/CLI) parity is now treated as a release-blocking contract.
 
@@ -440,4 +465,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-18 — v3.3.1 Bug Sweep milestone started. Scope: 6 open GitHub bug-labeled issues (#52, #54, #55, #56, #57, #58) against v3.3 baseline as a patch release. Third-party PR #53 (im-alexandre, based on v3.2 commit `032a6e9`) attached to #52 — needs rebase/re-application against v3.3 with attribution preserved.*
+*Last updated: 2026-05-20 — v3.4 File Browser (Read-Only) + TUI Parity milestone started. Scope: GitHub Issue #62 (read-only file browser tab with sandboxed FS API) + v3.4 slice of #64 (TUI browse+preview parity), driving the v3.4 half of umbrella epic #24. Write operations, editor library, and TUI editor shell-out all deferred to v3.5.*

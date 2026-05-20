@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3.1
-milestone_name: Bug Sweep
-status: ready-to-tag
-stopped_at: "Phases 115/116/117 added + completed 2026-05-19 to address all known bugs in v3.3.1 (no v3.4 deferral). Issue #60 (desktop OSC/DA leak) filed + fixed in-milestone via Phase 115. v3.3.1 closes 6 GitHub bugs (#52, #54, #55, #56, #57, #60) — #58 already closed."
-last_updated: "2026-05-19T08:35:00.000Z"
-last_activity: 2026-05-19 — Phases 115/116/117 executed; v3.3.1 ready to tag
+milestone: v3.4
+milestone_name: File Browser (Read-Only) + TUI Parity
+status: planning
+last_updated: "2026-05-20T14:10:56.619Z"
+last_activity: 2026-05-20
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.3 shipped)
 
 ## Current Position
 
-Phase: 117 (Paper-cuts cluster) — **complete**
-Status: All 9 phases of v3.3.1 complete. HEAD `8c9ab5e` (docs(117): PLAN + VERIFICATION + SUMMARY for paper-cuts cluster). Phase 115 closes Issue #60 (desktop relay OSC/DA leak — discovered during Phase 111 desktop parity UAT, fixed via lift of InputAbsorber into internal/relay/handleSession). Phase 116 closes pre-existing test debt (TestOpenCodeANSICapture data race + 3 ShellWebShareWarned_Default-family default-value tests). Phase 117 closes the last 3 deferred items (TUI lipgloss.Place defensive guard + agenthub attach screen-clear + cleanup.go bounded-lifetime goroutine clarity). v3.3.1 commit count since milestone start: 17 (vs. 70 in original audit pre-Phase-115/116/117).
-
-Last activity: 2026-05-19 — Phases 115/116/117 executed; pushed to origin/main
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-20 — Milestone v3.4 started
 
 ## Operator Next Steps (carried into v3.4)
 
