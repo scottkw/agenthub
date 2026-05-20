@@ -2685,3 +2685,154 @@ body {
     opacity: 1;
   }
 }
+
+/* ─── File Browser Tab (Phase 120) ─── */
+
+/* Breadcrumb bar — top chrome of the file browser tab.
+   Reuses TokyoNight surface tokens already in use elsewhere in this file:
+   #16161e (chrome surface), #292e42 (border), #1a1b26 (dominant), #c0caf5
+   (primary text), #9aa5ce (muted), #7aa2f7 (accent), #1e2030 (elevated). */
+.file-browser__breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 16px;
+  background: #16161e;
+  border-bottom: 1px solid #292e42;
+  font-size: 13px;
+  color: #c0caf5;
+}
+
+.file-browser__breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.file-browser__breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.file-browser__breadcrumb-item + .file-browser__breadcrumb-item::before {
+  content: '/';
+  margin: 0 6px;
+  color: #565f89;
+}
+
+.file-browser__breadcrumb-root {
+  color: #a9b1d6;
+}
+
+.file-browser__breadcrumb-segment {
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  color: #a9b1d6;
+  cursor: pointer;
+  font: inherit;
+  border-radius: 3px;
+}
+
+.file-browser__breadcrumb-segment:hover {
+  color: #7aa2f7;
+  background: #1e2030;
+}
+
+.file-browser__breadcrumb-segment:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+.file-browser__breadcrumb-current {
+  color: #7aa2f7;
+  font-weight: 600;
+  padding: 2px 4px;
+}
+
+.file-browser__breadcrumb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-browser__breadcrumb-refreshed {
+  color: #9aa5ce;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.file-browser__breadcrumb-refresh {
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  color: #a9b1d6;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.file-browser__breadcrumb-refresh:hover {
+  color: #7aa2f7;
+  background: #1e2030;
+}
+
+.file-browser__breadcrumb-refresh:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+.file-browser__breadcrumb-refresh-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Status line — bottom chrome with item count + filter input. */
+.file-browser__status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 28px;
+  padding: 0 16px;
+  background: #16161e;
+  border-top: 1px solid #292e42;
+  color: #9aa5ce;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.file-browser__status-count {
+  white-space: nowrap;
+}
+
+.file-browser__status-filter {
+  flex: 0 1 240px;
+  height: 20px;
+  padding: 0 6px;
+  background: #1a1b26;
+  border: 1px solid #292e42;
+  border-radius: 3px;
+  color: #c0caf5;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: normal;
+}
+
+.file-browser__status-filter:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.file-browser__status-filter-info {
+  color: #a9b1d6;
+  white-space: nowrap;
+}
