@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/scottkw/agenthub/internal/daemon"
 )
 
@@ -316,3 +318,176 @@ func TestFiles_OpenFromSessions_ResetsModel(t *testing.T) {
 		t.Errorf("expected files.cwd reset to \"\" after re-press, got %q (Pitfall TUI-PITFALL-6)", r.files.cwd)
 	}
 }
+
+// --- Plan 02 Task 1: applyFilesListMsg / applyFilesHeadMsg / applyFilesReadMsg ---
+
+// filesTestModel returns a Model whose embedded filesModel is fully initialised
+// against a known session ID — used by the Plan 02 apply-helper tests.
+func filesTestModel(sid string) Model {
+	m := testModel()
+	m.files = newFilesModel(sid, 30, 20, 50, 20)
+	return m
+}
+
+func TestApplyFilesListMsg_HappyPath(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s1",
+		relPath:   "sub",
+		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+		truncated: false,
+	})
+	if cmd != nil {
+		t.Errorf("expected nil cmd, got non-nil")
+	}
+	if updated.files.cwd != "sub" {
+		t.Errorf("expected cwd=sub, got %q", updated.files.cwd)
+	}
+	if len(updated.files.entries) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(updated.files.entries))
+	}
+	if updated.files.selected != 0 {
+		t.Errorf("expected selected=0 after listing, got %d", updated.files.selected)
+	}
+	if updated.files.loading {
+		t.Error("expected loading=false")
+	}
+	if updated.files.err != nil {
+		t.Errorf("expected err=nil, got %v", updated.files.err)
+	}
+}
+
+func TestApplyFilesListMsg_StaleDiscarded(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "original"
+	m.files.entries = []daemon.FileEntry{{Name: "original"}}
+	updated, _ := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s2", // different session
+		relPath:   "sub",
+		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+	})
+	if updated.files.cwd != "original" {
+		t.Errorf("stale msg should not mutate cwd; got %q", updated.files.cwd)
+	}
+	if len(updated.files.entries) != 1 || updated.files.entries[0].Name != "original" {
+		t.Errorf("stale msg should not mutate entries; got %+v", updated.files.entries)
+	}
+}
+
+func TestApplyFilesListMsg_SessionNotFound_FriendlyMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s1",
+		relPath:   ".",
+		err:       errors.New("files list: 404 session not found or has no working directory"),
+	})
+	if updated.files.err == nil {
+		t.Fatal("expected err to be set")
+	}
+	if !strings.Contains(updated.files.err.Error(), "Session no longer running") {
+		t.Errorf("expected friendly 'Session no longer running' message, got %q", updated.files.err.Error())
+	}
+}
+
+func TestApplyFilesHeadMsg_OverCap_RefusalMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "big.bin",
+		size:      6 * 1024 * 1024,
+		mime:      "text/plain", // over-cap beats text/* check
+	})
+	if updated.files.previewKind != previewOverCap {
+		t.Errorf("expected previewOverCap, got %v", updated.files.previewKind)
+	}
+	if cmd != nil {
+		t.Error("expected nil cmd on over-cap (no read dispatched)")
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "Too large") {
+		t.Errorf("expected 'Too large…' content, got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesHeadMsg_Binary_RefusalMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "image.png",
+		size:      100,
+		mime:      "image/png",
+	})
+	if updated.files.previewKind != previewBinary {
+		t.Errorf("expected previewBinary, got %v", updated.files.previewKind)
+	}
+	if cmd != nil {
+		t.Error("expected nil cmd on binary (no read dispatched)")
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "Use desktop or web to preview") {
+		t.Errorf("expected binary refusal content, got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesHeadMsg_Text_DispatchesRead(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "a.txt",
+		size:      100,
+		mime:      "text/plain",
+	})
+	if cmd == nil {
+		t.Error("expected non-nil readFileCmd to be dispatched")
+	}
+	if !updated.files.previewLoading {
+		t.Error("expected previewLoading=true while read is in flight")
+	}
+}
+
+func TestApplyFilesReadMsg_TextSetsContent(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s1",
+		relPath:   "a.txt",
+		data:      []byte("hello"),
+		mime:      "text/plain",
+	})
+	if updated.files.previewKind != previewText {
+		t.Errorf("expected previewText, got %v", updated.files.previewKind)
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "hello") {
+		t.Errorf("expected preview to contain 'hello', got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesReadMsg_MarkdownSuffix_UsesGlamour(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s1",
+		relPath:   "README.md",
+		data:      []byte("# Hello\n\nWorld\n"),
+		mime:      "text/markdown",
+	})
+	if updated.files.previewKind != previewMarkdown {
+		t.Errorf("expected previewMarkdown, got %v", updated.files.previewKind)
+	}
+	// Content must be non-empty after glamour render.
+	if updated.files.preview.GetContent() == "" {
+		t.Error("expected glamour-rendered content to be non-empty")
+	}
+}
+
+func TestApplyFilesReadMsg_StaleSessionID_Discarded(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s2",
+		relPath:   "a.txt",
+		data:      []byte("hello"),
+		mime:      "text/plain",
+	})
+	if updated.files.previewKind != previewEmpty {
+		t.Errorf("stale read should not change previewKind; expected previewEmpty, got %v", updated.files.previewKind)
+	}
+}
+
+// keep ansi import live for later Plan 02 tests
+var _ = ansi.Strip
