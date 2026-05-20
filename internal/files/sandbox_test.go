@@ -6,7 +6,6 @@
 package files_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -343,13 +342,8 @@ func FuzzSandboxPath(f *testing.F) {
 		fp, err := sb.Open(rawPath)
 		if err != nil {
 			// Rejection is fine — fuzz target is to find panics, not to
-			// minimize the rejection set.
-			//
-			// Sanity: the error must be a regular error, not a sentinel
-			// we accidentally swallowed.
-			if !errors.Is(err, err) { // tautology — prevents linter complaining about unused err
-				t.Fatalf("nil error wrapper")
-			}
+			// minimize the rejection set. err is naturally consumed by
+			// the predicate above; no linter-appeasement gymnastics needed.
 			return
 		}
 		// Non-error accept: prove the result is inside root.
