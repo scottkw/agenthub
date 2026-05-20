@@ -91,8 +91,16 @@ function App(): React.ReactElement {
   // the lifetime of the SPA. useMemo keeps the reference stable so dependency
   // arrays of downstream effects never see false re-evaluations.
   const webParams = useMemo(() => readWebModeParams(), [])
-  const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
-  const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
+  // Phase 120-06 — web-mode initial state: no Welcome tab, no Sidebar focus.
+  // The auto-open effect below will populate the file-browser tab from the
+  // ?session= URL param. Starting empty keeps WelcomeTab (which calls
+  // GetVersion + references the absolute /agenthub-title-logo.png path that
+  // 404s under /app/) from briefly mounting before the auto-open fires.
+  const initialTabs: Tab[] = mode === 'web' ? [] : [WELCOME_TAB]
+  const [tabs, setTabs] = useState<Tab[]>(initialTabs)
+  const [activeId, setActiveId] = useState<string | null>(
+    mode === 'web' ? null : WELCOME_TAB.id,
+  )
   const [relayPort, setRelayPort] = useState<number | null>(null)
   const [detectedCLIs, setDetectedCLIs] = useState<DetectedCLI[]>([])
   // Phase 101-02 (SHELL-01 GUI half) — discovered shells from the daemon.
@@ -1203,6 +1211,13 @@ function App(): React.ReactElement {
             onOpen={handleOpenRemoteSession}
           />
         )}
+        {/* Phase 120-06 — SettingsTab is Wails-bound (calls IsWebServerRunning,
+            HasCTDisclosure, GetCLIPaths, etc. unconditionally on mount). In
+            web mode none of those RPCs are reachable; rather than gate each
+            call inside the component, we skip mounting it entirely. The
+            Settings surface has no meaning for a web-share viewer (no daemon
+            to configure). */}
+        {mode !== 'web' && (
         <div style={{ display: activeId === SETTINGS_TAB.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
           <SettingsTab
             clis={detectedCLIs}
@@ -1225,6 +1240,7 @@ function App(): React.ReactElement {
             }}
           />
         </div>
+        )}
         {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings').length === 0 && (
           <div style={{
             background: '#16161e',
