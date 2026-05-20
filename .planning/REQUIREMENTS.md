@@ -22,20 +22,20 @@
 
 The load-bearing foundation. `internal/files/` is a new sub-package with zero coupling to `internal/daemon`, `internal/relay`, or `internal/webserver`. Injected into both muxes via the `SetFilesHandlerProvider` pattern already established by `SetPluginSettingsProvider`. Sandboxing uses Go 1.24+ `os.OpenRoot` / `os.OpenInRoot` exclusively — the two-step `filepath.EvalSymlinks` + `os.Open` pattern has a TOCTOU race window demonstrated exploitable by CVE-2026-27976 (Zed) and CVE-2026-43998 (vm2). All file ops ride existing HTTPS over Tailscale; the relay's PTY fan-out protocol is NOT extended.
 
-- [ ] **FS-01** — `internal/files/` package exists with `Sandbox` type wrapping `*os.Root` scoped to a session's WorkDir; `List`, `Stat`, and `Read` methods reject paths via `os.OpenInRoot` (kernel-level TOCTOU-free sandbox), not via the legacy `filepath.EvalSymlinks` + `os.Open` two-step.
-- [ ] **FS-02** — `SessionEngine` gains a `sessionWorkDirs map[string]string` field (mirroring the established `tabNames` / `sessionCLIs` pattern) populated at `CreateSession` time with the resolved-absolute WorkDir (after `$HOME` substitution). Plugs the existing gap where WorkDir is passed to `cmd.Dir` and discarded after spawn.
-- [ ] **FS-03** — `GET /api/files/list?session=<id>&path=<rel>` returns directory listing as JSON array of `FileEntry{Name, Size, Mtime, Mode, IsDir, IsSymlink, IsBinary, MIME}`; directory entries are not stat'd recursively; uses `os.ReadDir` (streaming) not `ioutil.ReadDir`.
-- [ ] **FS-04** — `GET /api/files/stat?session=<id>&path=<rel>` returns single `FileEntry` for the named path.
-- [ ] **FS-05** — `GET /api/files/read?session=<id>&path=<rel>` streams file bytes via `http.ServeContent` with Range support; honors `If-Modified-Since` and Last-Modified.
-- [ ] **FS-06** — `HEAD /api/files/read?session=<id>&path=<rel>` is supported and returns Content-Length + Content-Type without body; frontend uses it for preflight before deciding inline-preview vs download warning. (Resolved OQ-1.)
-- [ ] **FS-07** — 0-byte files served by `/read` return 200 with empty body (NOT 416). Explicit unit test required — `http.ServeContent`'s default behavior is wrong here.
-- [ ] **FS-08** — Path sandbox rejects: absolute paths (including `C:\...` and `\\?\...` on Windows); paths containing `..` after `filepath.Clean`; encoded variants (`%2e%2e%2f`, `%252e%252e%252f`); Unicode path-traversal variants (U+FF0F fullwidth slash, U+2024 one-dot-leader); null bytes (`\x00`); Windows reserved device names (`CON`, `NUL`, `PRN`, `AUX`, `COM1`–`COM9`, `LPT1`–`LPT9`) cross-platform; Windows alternate data streams (`:` in path); Windows 8.3 short names (`PROGRA~1`); trailing dots/spaces on Windows; symlinks whose resolved target is outside the sandbox.
-- [ ] **FS-09** — `internal/files/sandbox_test.go` includes a `testing.F` fuzz test (`FuzzSandboxPath`) seeded with the 40+ payload corpus from `.planning/research/PITFALLS.md` §Fuzz Corpus. Fuzz run is a merge gate (`go test -fuzz=FuzzSandboxPath -fuzztime=60s ./internal/files/...` must report 0 crashes).
-- [ ] **FS-10** — New capability bit `files.read` added to the comma-separated `Claims.Perms` string in `internal/capability/capability.go`; new `HasPerm(perms, "files.read") bool` helper splits on commas (NOT `strings.Contains` — `"no-files.read"` would false-positive).
-- [ ] **FS-11** — New `requireFilesRead` middleware wrapper (separate from `requireCapability`) gates all three file endpoints. Adding `files.read` to `requireCapability`'s switch is explicitly rejected — would risk breaking existing terminal relay routes.
-- [ ] **FS-12** — Session-owner cap token issuance includes `files.read` in `Perms` by default; web-share viewer token issuance does NOT include `files.read` unless the share grant explicitly enables it (default OFF for viewers).
-- [ ] **FS-13** — Capability-denied test: a viewer token without `files.read` gets 403 on `/api/files/list`, `/api/files/stat`, and `/api/files/read`; verified for both GET and HEAD on `/read`.
-- [ ] **FS-14** — Settings `schemaVersion: 3` migration via the established `defaultSettings()` constructor-merge pattern from v3.2; per-field assertions in migration test for any new persisted file-browser settings (preview cap, default sort, etc.).
+- [x] **FS-01** — `internal/files/` package exists with `Sandbox` type wrapping `*os.Root` scoped to a session's WorkDir; `List`, `Stat`, and `Read` methods reject paths via `os.OpenInRoot` (kernel-level TOCTOU-free sandbox), not via the legacy `filepath.EvalSymlinks` + `os.Open` two-step.
+- [x] **FS-02** — `SessionEngine` gains a `sessionWorkDirs map[string]string` field (mirroring the established `tabNames` / `sessionCLIs` pattern) populated at `CreateSession` time with the resolved-absolute WorkDir (after `$HOME` substitution). Plugs the existing gap where WorkDir is passed to `cmd.Dir` and discarded after spawn.
+- [x] **FS-03** — `GET /api/files/list?session=<id>&path=<rel>` returns directory listing as JSON array of `FileEntry{Name, Size, Mtime, Mode, IsDir, IsSymlink, IsBinary, MIME}`; directory entries are not stat'd recursively; uses `os.ReadDir` (streaming) not `ioutil.ReadDir`.
+- [x] **FS-04** — `GET /api/files/stat?session=<id>&path=<rel>` returns single `FileEntry` for the named path.
+- [x] **FS-05** — `GET /api/files/read?session=<id>&path=<rel>` streams file bytes via `http.ServeContent` with Range support; honors `If-Modified-Since` and Last-Modified.
+- [x] **FS-06** — `HEAD /api/files/read?session=<id>&path=<rel>` is supported and returns Content-Length + Content-Type without body; frontend uses it for preflight before deciding inline-preview vs download warning. (Resolved OQ-1.)
+- [x] **FS-07** — 0-byte files served by `/read` return 200 with empty body (NOT 416). Explicit unit test required — `http.ServeContent`'s default behavior is wrong here.
+- [x] **FS-08** — Path sandbox rejects: absolute paths (including `C:\...` and `\\?\...` on Windows); paths containing `..` after `filepath.Clean`; encoded variants (`%2e%2e%2f`, `%252e%252e%252f`); Unicode path-traversal variants (U+FF0F fullwidth slash, U+2024 one-dot-leader); null bytes (`\x00`); Windows reserved device names (`CON`, `NUL`, `PRN`, `AUX`, `COM1`–`COM9`, `LPT1`–`LPT9`) cross-platform; Windows alternate data streams (`:` in path); Windows 8.3 short names (`PROGRA~1`); trailing dots/spaces on Windows; symlinks whose resolved target is outside the sandbox.
+- [x] **FS-09** — `internal/files/sandbox_test.go` includes a `testing.F` fuzz test (`FuzzSandboxPath`) seeded with the 40+ payload corpus from `.planning/research/PITFALLS.md` §Fuzz Corpus. Fuzz run is a merge gate (`go test -fuzz=FuzzSandboxPath -fuzztime=60s ./internal/files/...` must report 0 crashes).
+- [x] **FS-10** — New capability bit `files.read` added to the comma-separated `Claims.Perms` string in `internal/capability/capability.go`; new `HasPerm(perms, "files.read") bool` helper splits on commas (NOT `strings.Contains` — `"no-files.read"` would false-positive).
+- [x] **FS-11** — New `requireFilesRead` middleware wrapper (separate from `requireCapability`) gates all three file endpoints. Adding `files.read` to `requireCapability`'s switch is explicitly rejected — would risk breaking existing terminal relay routes.
+- [x] **FS-12** — Session-owner cap token issuance includes `files.read` in `Perms` by default; web-share viewer token issuance does NOT include `files.read` unless the share grant explicitly enables it (default OFF for viewers).
+- [x] **FS-13** — Capability-denied test: a viewer token without `files.read` gets 403 on `/api/files/list`, `/api/files/stat`, and `/api/files/read`; verified for both GET and HEAD on `/read`.
+- [x] **FS-14** — Settings `schemaVersion: 3` migration via the established `defaultSettings()` constructor-merge pattern from v3.2; per-field assertions in migration test for any new persisted file-browser settings (preview cap, default sort, etc.).
 
 ### WEB — WebServer Routes + `files.read` Capability Plumbing (Phase 2)
 
@@ -129,20 +129,20 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FS-01 | Phase 118 | Pending |
-| FS-02 | Phase 118 | Pending |
-| FS-03 | Phase 118 | Pending |
-| FS-04 | Phase 118 | Pending |
-| FS-05 | Phase 118 | Pending |
-| FS-06 | Phase 118 | Pending |
-| FS-07 | Phase 118 | Pending |
-| FS-08 | Phase 118 | Pending |
-| FS-09 | Phase 118 | Pending |
-| FS-10 | Phase 118 | Pending |
-| FS-11 | Phase 118 | Pending |
-| FS-12 | Phase 118 | Pending |
-| FS-13 | Phase 118 | Pending |
-| FS-14 | Phase 118 | Pending |
+| FS-01 | Phase 118 | Complete |
+| FS-02 | Phase 118 | Complete |
+| FS-03 | Phase 118 | Complete |
+| FS-04 | Phase 118 | Complete |
+| FS-05 | Phase 118 | Complete |
+| FS-06 | Phase 118 | Complete |
+| FS-07 | Phase 118 | Complete |
+| FS-08 | Phase 118 | Complete |
+| FS-09 | Phase 118 | Complete |
+| FS-10 | Phase 118 | Complete |
+| FS-11 | Phase 118 | Complete |
+| FS-12 | Phase 118 | Complete |
+| FS-13 | Phase 118 | Complete |
+| FS-14 | Phase 118 | Complete |
 | WEB-01 | Phase 119 | Pending |
 | WEB-02 | Phase 119 | Pending |
 | WEB-03 | Phase 119 | Pending |
