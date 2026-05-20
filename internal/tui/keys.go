@@ -19,6 +19,12 @@ type KeyMap struct {
 	TabFocus key.Binding // Phase 86: toggle sidebar/content focus
 	PrevTab  key.Binding // Phase 86: previous tab
 	NextTab  key.Binding // Phase 86: next tab
+
+	// Phase 121: File browser bindings
+	FilesOpen        key.Binding // 'f' — open Files tab from Sessions list
+	FilterStart      key.Binding // '/' — start filter input in Files tab
+	FilterEsc        key.Binding // Esc — clear filter / dismiss Files
+	FilesFocusToggle key.Binding // Tab — toggle list/preview focus inside Files tab
 }
 
 func defaultKeyMap() KeyMap {
@@ -82,6 +88,23 @@ func defaultKeyMap() KeyMap {
 		NextTab: key.NewBinding(
 			key.WithKeys("]"),
 			key.WithHelp("]", "next tab"),
+		),
+		// Phase 121: File browser bindings
+		FilesOpen: key.NewBinding(
+			key.WithKeys("f"),
+			key.WithHelp("f", "open files view"),
+		),
+		FilterStart: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter (current dir)"),
+		),
+		FilterEsc: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("Esc", "clear filter / dismiss"),
+		),
+		FilesFocusToggle: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("Tab", "toggle list/preview focus"),
 		),
 	}
 }

@@ -52,6 +52,7 @@ const (
 	tabSessions tabID = iota
 	tabRemote   tabID = iota
 	tabSettings tabID = iota
+	tabFiles    tabID = iota // Phase 121: TUI file browser
 )
 
 // listEntry represents one row in the unified session list (local session, remote session, or divider).
@@ -158,6 +159,9 @@ type Model struct {
 	activeTab    int             // index into openTabs
 	sidebarFocus int             // 0=Home, 1=Sessions, 2=Remote, 3=Settings
 	version      string          // app version string for Home tab
+
+	// File browser state (Phase 121)
+	files filesModel
 }
 
 // activeTabID returns the tabID of the currently active tab, defaulting to tabSessions.
@@ -179,6 +183,8 @@ func tabName(id tabID) string {
 		return "Remote"
 	case tabSettings:
 		return "Settings"
+	case tabFiles:
+		return "Files"
 	default:
 		return "?"
 	}

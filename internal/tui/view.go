@@ -154,6 +154,8 @@ func (m Model) renderContentPane() string {
 		content = m.renderRemoteTab(cw, contentHeight)
 	case tabSettings:
 		content = m.renderSettingsTab(cw, contentHeight)
+	case tabFiles:
+		content = m.renderFilesTab(cw, contentHeight)
 	default:
 		content = m.renderSessionFrame(cw, contentHeight)
 	}
@@ -748,6 +750,38 @@ func (m Model) nameColWidth() int {
 		return 8
 	}
 	return w
+}
+
+// truncateLeft truncates a string from the LEFT, prefixing "…/" when shortened.
+// Designed for path-shaped strings whose high-information segment is the leaf
+// end (Phase 121 status line). Width is counted in runes, not bytes. Defensive
+// against zero / negative / very-small maxWidth so callers don't need to
+// pre-validate.
+//
+//   - maxWidth <= 0           → ""
+//   - len(runes) <= maxWidth  → s unchanged
+//   - maxWidth <= 2           → rightmost maxWidth runes (no ellipsis prefix)
+//   - else                    → "…/" + (rightmost maxWidth-2 runes, snapped
+//     to the nearest path-segment boundary inside the kept window)
+func truncateLeft(s string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
+		return s
+	}
+	if maxWidth <= 2 {
+		return string(runes[len(runes)-maxWidth:])
+	}
+	keep := maxWidth - 2
+	tail := runes[len(runes)-keep:]
+	// Prefer a path-segment boundary inside the kept window so the result
+	// reads as "…/<dir>/<leaf>" rather than "…/{mid-segment-fragment}".
+	if i := strings.IndexRune(string(tail), '/'); i >= 0 && i < keep-1 {
+		return "…/" + string(tail[i+1:])
+	}
+	return "…/" + string(tail)
 }
 
 // truncate truncates a string to maxWidth characters, appending "..." if truncated.
