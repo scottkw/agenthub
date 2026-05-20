@@ -102,3 +102,70 @@ func TestFiles_KeyMap_BindsF(t *testing.T) {
 
 // silence unused-import warnings if no daemon-using test exists in this file yet
 var _ = daemon.SessionInfo{}
+
+// TestLoadDirCmd_NilClient_ReturnsErrSentinel asserts the nil-client guard in
+// loadDirCmd returns a typed filesListMsg carrying errNilClient and the echo
+// fields populated, so the test-only paths (e.g. testModel() with nil client)
+// don't panic.
+func TestLoadDirCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
+	cmd := loadDirCmd(nil, "sid", ".")
+	if cmd == nil {
+		t.Fatal("loadDirCmd returned nil command")
+	}
+	msg, ok := cmd().(filesListMsg)
+	if !ok {
+		t.Fatalf("expected filesListMsg, got %T", cmd())
+	}
+	if msg.err != errNilClient {
+		t.Errorf("expected errNilClient, got %v", msg.err)
+	}
+	if msg.sessionID != "sid" {
+		t.Errorf("expected echo sessionID=sid, got %q", msg.sessionID)
+	}
+	if msg.relPath != "." {
+		t.Errorf("expected echo relPath=., got %q", msg.relPath)
+	}
+}
+
+func TestReadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
+	cmd := readFileCmd(nil, "sid", "a.txt")
+	if cmd == nil {
+		t.Fatal("readFileCmd returned nil command")
+	}
+	msg, ok := cmd().(filesReadMsg)
+	if !ok {
+		t.Fatalf("expected filesReadMsg, got %T", cmd())
+	}
+	if msg.err != errNilClient {
+		t.Errorf("expected errNilClient, got %v", msg.err)
+	}
+	if msg.sessionID != "sid" || msg.relPath != "a.txt" {
+		t.Errorf("expected echo sessionID=sid relPath=a.txt, got %q %q", msg.sessionID, msg.relPath)
+	}
+}
+
+func TestHeadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
+	cmd := headFileCmd(nil, "sid", "a.txt")
+	if cmd == nil {
+		t.Fatal("headFileCmd returned nil command")
+	}
+	msg, ok := cmd().(filesHeadMsg)
+	if !ok {
+		t.Fatalf("expected filesHeadMsg, got %T", cmd())
+	}
+	if msg.err != errNilClient {
+		t.Errorf("expected errNilClient, got %v", msg.err)
+	}
+	if msg.sessionID != "sid" || msg.relPath != "a.txt" {
+		t.Errorf("expected echo sessionID=sid relPath=a.txt, got %q %q", msg.sessionID, msg.relPath)
+	}
+}
+
+// TestLoadDirCmd_DispatchesAsync proves the factory returns a non-nil tea.Cmd
+// without executing the I/O synchronously — the closure must contain the work.
+func TestLoadDirCmd_DispatchesAsync(t *testing.T) {
+	cmd := loadDirCmd(nil, "sid", ".")
+	if cmd == nil {
+		t.Fatal("loadDirCmd returned nil command — I/O must be deferred to the closure")
+	}
+}
