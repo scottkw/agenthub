@@ -54,7 +54,10 @@ import (
 	"syscall"
 	"time"
 
+	"path/filepath"
+
 	"github.com/scottkw/agenthub/internal/capability"
+	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/webserver"
 )
@@ -129,24 +132,66 @@ func main() {
 		return v.([]byte)
 	})
 
+	// 4a. Phase 120-05 — seed a deterministic test tree in a tempdir and
+	// wire the files.Handler against a sandbox rooted there. The tree is
+	// the canonical set described in Plan 01's <interfaces>:
+	//   hello.txt     14 bytes plain text
+	//   notes.md      GFM markdown with table + task list
+	//   image.png     valid 1x1 PNG
+	//   binary.bin    64 bytes of alternating 0x00 0xFF (binary)
+	//   large.txt     5*1024*1024+1 bytes of 'A' (1 byte over 5 MiB cap)
+	//   empty.txt     0 bytes
+	//   subdir/nested.txt  "nested\n"
+	sessionCwd, err := seedFixtureFiles()
+	if err != nil {
+		log.Fatalf("seedFixtureFiles: %v", err)
+	}
+	sandbox, err := files.NewSandbox(sessionCwd)
+	if err != nil {
+		log.Fatalf("files.NewSandbox: %v", err)
+	}
+	filesHandler := files.NewHandler(func(sid string) (*files.Sandbox, error) {
+		if sid != sessionID {
+			return nil, fmt.Errorf("unknown session: %s", sid)
+		}
+		return sandbox, nil
+	})
+	ws.SetFilesHandler(filesHandler)
+
 	// 5. Start the WebServer's HTTPS listener.
 	if err := ws.Start(); err != nil {
 		log.Fatalf("ws.Start: %v", err)
 	}
 
-	// 6. Mint a read,write capability for the test session.
-	claims := capability.Claims{
+	// 6. Mint two capabilities for the test session:
+	//   - OWNER cap: read,write,files.read (full file browser access)
+	//   - VIEWER cap: read only (no files.read → /api/files/* returns 403
+	//     with the "files.read capability required" body)
+	ownerClaims := capability.Claims{
 		SID:     sessionID,
-		Perms:   "read,write",
+		Perms:   "read,write,files.read",
 		IAT:     time.Now().Unix(),
-		GrantID: "grant-playwright-fixture",
+		GrantID: "grant-playwright-fixture-owner",
 		V:       1,
 	}
-	token, err := capability.Sign(claims, fixedTestKey)
+	token, err := capability.Sign(ownerClaims, fixedTestKey)
 	if err != nil {
-		log.Fatalf("capability.Sign: %v", err)
+		log.Fatalf("capability.Sign owner: %v", err)
 	}
-	ws.AddGrant(sessionID, claims.GrantID)
+	ws.AddGrant(sessionID, ownerClaims.GrantID)
+
+	viewerClaims := capability.Claims{
+		SID:     sessionID,
+		Perms:   "read",
+		IAT:     time.Now().Unix(),
+		GrantID: "grant-playwright-fixture-viewer",
+		V:       1,
+	}
+	viewerToken, err := capability.Sign(viewerClaims, fixedTestKey)
+	if err != nil {
+		log.Fatalf("capability.Sign viewer: %v", err)
+	}
+	ws.AddGrant(sessionID, viewerClaims.GrantID)
 
 	// 7. Admin HTTP server (plain, separate port) for /__test__/plugin-config.
 	adminLn, err := net.Listen("tcp", "127.0.0.1:0")
@@ -197,6 +242,8 @@ func main() {
 	adminURL := "http://" + adminLn.Addr().String()
 	fmt.Printf("BASE_URL=%s\n", baseURL)
 	fmt.Printf("CAP=%s\n", token)
+	fmt.Printf("VIEWER_CAP=%s\n", viewerToken)
+	fmt.Printf("SESSION_CWD=%s\n", sessionCwd)
 	fmt.Printf("ADMIN_URL=%s\n", adminURL)
 	fmt.Println("READY=1")
 
@@ -212,6 +259,90 @@ func main() {
 	manager.Shutdown()
 	_ = ptyOutW.Close()
 	_ = inputCaptureW.Close()
+}
+
+// seedFixtureFiles creates the deterministic test tree described in
+// Plan 120-01's <interfaces> block, in a fresh tempdir. Returns the
+// absolute path to the dir so it can be passed to files.NewSandbox AND
+// printed on stdout (SESSION_CWD=) so specs can correlate.
+//
+// The dir is NOT cleaned up on shutdown — Playwright's harness reruns
+// reuse the same fixture binary across runs in this session, and the
+// dir is small (<6 MiB) and lives under os.TempDir() which the system
+// reaps on its own schedule.
+func seedFixtureFiles() (string, error) {
+	dir, err := os.MkdirTemp("", "playwright-fixture-cwd-*")
+	if err != nil {
+		return "", fmt.Errorf("MkdirTemp: %w", err)
+	}
+	// 1. hello.txt — 14 bytes plain text
+	if err := os.WriteFile(filepath.Join(dir, "hello.txt"), []byte("Hello, world!\n"), 0o644); err != nil {
+		return "", fmt.Errorf("write hello.txt: %w", err)
+	}
+	// 2. notes.md — GFM markdown with table + task list
+	notesMD := "# Notes\n\n" +
+		"A GFM document used by the file browser e2e suite.\n\n" +
+		"## Table\n\n" +
+		"| Header A | Header B |\n" +
+		"| --- | --- |\n" +
+		"| cell 1 | cell 2 |\n" +
+		"| cell 3 | cell 4 |\n\n" +
+		"## Task list\n\n" +
+		"- [x] First task done\n" +
+		"- [ ] Second task open\n"
+	if err := os.WriteFile(filepath.Join(dir, "notes.md"), []byte(notesMD), 0o644); err != nil {
+		return "", fmt.Errorf("write notes.md: %w", err)
+	}
+	// 3. image.png — valid 1×1 transparent PNG (literal byte sequence)
+	pngBytes := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // signature
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89,
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, // IDAT
+		0x78, 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00, 0x05,
+		0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4,
+		0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, // IEND
+		0xAE, 0x42, 0x60, 0x82,
+	}
+	if err := os.WriteFile(filepath.Join(dir, "image.png"), pngBytes, 0o644); err != nil {
+		return "", fmt.Errorf("write image.png: %w", err)
+	}
+	// 4. binary.bin — 64 bytes of alternating 0x00 0xFF
+	binBytes := make([]byte, 64)
+	for i := range binBytes {
+		if i%2 == 1 {
+			binBytes[i] = 0xFF
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "binary.bin"), binBytes, 0o644); err != nil {
+		return "", fmt.Errorf("write binary.bin: %w", err)
+	}
+	// 5. large.txt — 5*1024*1024+1 bytes of 'A' (1 byte over 5 MiB cap)
+	largeBytes := make([]byte, 5*1024*1024+1)
+	for i := range largeBytes {
+		largeBytes[i] = 'A'
+	}
+	if err := os.WriteFile(filepath.Join(dir, "large.txt"), largeBytes, 0o644); err != nil {
+		return "", fmt.Errorf("write large.txt: %w", err)
+	}
+	// 6. empty.txt — 0 bytes
+	if err := os.WriteFile(filepath.Join(dir, "empty.txt"), []byte{}, 0o644); err != nil {
+		return "", fmt.Errorf("write empty.txt: %w", err)
+	}
+	// 7. subdir/nested.txt
+	subdir := filepath.Join(dir, "subdir")
+	if err := os.Mkdir(subdir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir subdir: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(subdir, "nested.txt"), []byte("nested\n"), 0o644); err != nil {
+		return "", fmt.Errorf("write subdir/nested.txt: %w", err)
+	}
+	// 8. emptydir — an empty subdirectory for the empty-state test
+	if err := os.Mkdir(filepath.Join(dir, "emptydir"), 0o755); err != nil {
+		return "", fmt.Errorf("mkdir emptydir: %w", err)
+	}
+	return dir, nil
 }
 
 func defaultPluginSettings() map[string]bool {

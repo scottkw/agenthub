@@ -1,6 +1,12 @@
 // Phase 93 Plan 05 — fixture-env loader for Playwright specs.
 // Reads .playwright/fixture-env.json (written by global-setup.ts) and
-// returns the BASE_URL / CAP / ADMIN_URL the test fixture exposed.
+// returns the BASE_URL / CAP / VIEWER_CAP / SESSION_CWD / ADMIN_URL the
+// test fixture exposed.
+//
+// Phase 120-05 extended: VIEWER_CAP (read-only, no files.read) and
+// SESSION_CWD (absolute path to the seeded test tree) added so the
+// files-browser.spec.ts suite can exercise the capability-denied path
+// (UI-13) and correlate seeded fixtures with API responses.
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -8,6 +14,8 @@ import { resolve } from 'node:path'
 export interface FixtureEnv {
   baseURL: string
   cap: string
+  viewerCap: string
+  sessionCwd: string
   adminURL: string
   pid: number
 }
@@ -24,4 +32,47 @@ export function loadFixtureEnv(): FixtureEnv {
 
 export function sessionURL(env: FixtureEnv = loadFixtureEnv()): string {
   return `${env.baseURL}/sessions/playwright-test-session?cap=${encodeURIComponent(env.cap)}`
+}
+
+/**
+ * filesApiURL builds an absolute URL to one of the /api/files/{list,stat,read}
+ * routes, including session + cap query params. Used by the Phase 120-05
+ * files-browser spec to exercise the real capability-gated API surface.
+ *
+ * @param env  Fixture env (auto-loaded if omitted)
+ * @param op   One of 'list' | 'stat' | 'read'
+ * @param path Relative path inside the seeded session cwd; omit / pass "." for the root
+ * @param cap  Cap token to use; defaults to the owner cap (env.cap). Pass env.viewerCap for the denied path.
+ */
+export function filesApiURL(
+  op: 'list' | 'stat' | 'read',
+  path: string = '.',
+  cap?: string,
+  env: FixtureEnv = loadFixtureEnv(),
+): string {
+  const useCap = cap ?? env.cap
+  const params = new URLSearchParams({
+    session: 'playwright-test-session',
+    path,
+    cap: useCap,
+  })
+  return `${env.baseURL}/api/files/${op}?${params.toString()}`
+}
+
+/**
+ * appUrl builds the /app/ entry URL with session + cap query params. The
+ * fixture-served /app/ route falls back to index.html for SPA routing — the
+ * React bundle currently mounted is Wails-bound (App.tsx imports wailsjs/*),
+ * so loading this URL in a browser produces a partially-functional shell
+ * (no daemon, no relay port). The files-browser spec uses this URL only for
+ * bundle-load + CSP-violation smoke; the 12 functional scenarios exercise
+ * the API directly via filesApiURL. See SUMMARY for the architectural gap.
+ */
+export function appUrl(env: FixtureEnv = loadFixtureEnv()): string {
+  return `${env.baseURL}/app/?session=playwright-test-session&cap=${encodeURIComponent(env.cap)}`
+}
+
+/** Same as appUrl but with the read-only viewer cap (no files.read perm). */
+export function viewerAppUrl(env: FixtureEnv = loadFixtureEnv()): string {
+  return `${env.baseURL}/app/?session=playwright-test-session&cap=${encodeURIComponent(env.viewerCap)}`
 }
