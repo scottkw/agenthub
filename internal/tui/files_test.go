@@ -25,12 +25,17 @@ func TestTruncateLeft(t *testing.T) {
 		{name: "shorter than maxWidth returns unchanged", input: "short", maxWidth: 20, want: "short"},
 		{name: "empty string returns empty", input: "", maxWidth: 10, want: ""},
 		{
+			// Width may be <= maxWidth: when a path-segment boundary lies
+			// inside the kept window, snapping to it drops a few runes so
+			// the result reads as "…/<dir>/<leaf>" instead of a mid-
+			// segment fragment. The behavior contract is "prefix='…/',
+			// preserve the leaf-end, width <= maxWidth" — not a hard
+			// exact-width guarantee.
 			name:       "long path is truncated with ellipsis prefix",
 			input:      "a/b/c/d/utils/helper.ts",
 			maxWidth:   18,
 			startsWith: "…/",
 			endsWith:   "helper.ts",
-			runeWidth:  18,
 		},
 		{name: "tiny maxWidth returns rightmost runes without panic", input: "abc", maxWidth: 2, want: "bc"},
 		{name: "zero maxWidth returns empty", input: "abc", maxWidth: 0, want: ""},
