@@ -30,10 +30,11 @@ type SessionEngine struct {
 	backend  pty.SessionBackend
 	manager  *relay.HubManager
 
-	mu          sync.RWMutex
-	tabNames    map[string]string // sessionID -> display name
-	sessionCLIs map[string]string // sessionID -> raw CLI name (e.g. "opencode")
-	cliPaths    map[string]string // cli name -> custom path override
+	mu              sync.RWMutex
+	tabNames        map[string]string // sessionID -> display name
+	sessionCLIs     map[string]string // sessionID -> raw CLI name (e.g. "opencode")
+	sessionWorkDirs map[string]string // sessionID -> EvalSymlinks-resolved absolute WorkDir (Phase 118 / FS-02)
+	cliPaths        map[string]string // cli name -> custom path override
 
 	startMinimized      bool           // persisted start-minimized preference
 	shellWebShareWarned bool           // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
@@ -218,6 +219,7 @@ func NewSessionEngine() *SessionEngine {
 		manager:           relay.NewHubManager(),
 		tabNames:          make(map[string]string),
 		sessionCLIs:       make(map[string]string),
+		sessionWorkDirs:   make(map[string]string),
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
@@ -297,9 +299,26 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	}
 	hub := e.manager.Create(id, sess, sess, resizeFn)
 
+	// Phase 118 / FS-02: resolve workDir ONCE here so the file browser handler
+	// (Plan 05) can construct a per-session Sandbox rooted at the resolved
+	// absolute path. EvalSymlinks runs OUTSIDE the lock — it does filesystem
+	// I/O — and we cache the result alongside tabNames/sessionCLIs. Fallback
+	// to raw workDir on resolution error so session creation never fails
+	// because of resolution; the file browser will surface a 400 if the user
+	// later attempts to list a non-existent cwd.
+	resolvedWD := ""
+	if workDir != "" {
+		if r, err := filepath.EvalSymlinks(workDir); err == nil {
+			resolvedWD = r
+		} else {
+			resolvedWD = workDir
+		}
+	}
+
 	e.mu.Lock()
 	e.tabNames[id] = name
 	e.sessionCLIs[id] = cli // raw CLI name, NOT cliPath
+	e.sessionWorkDirs[id] = resolvedWD
 	e.mu.Unlock()
 
 	// SHELL-09: shell sessions have no AI-agent state model. Skip status.Watch
@@ -432,6 +451,7 @@ func (e *SessionEngine) KillSession(id string) error {
 	e.mu.Lock()
 	delete(e.tabNames, id)
 	delete(e.sessionCLIs, id)
+	delete(e.sessionWorkDirs, id) // Phase 118 / FS-02
 	e.mu.Unlock()
 
 	e.statusMu.Lock()
@@ -451,6 +471,16 @@ func (e *SessionEngine) GetSessionStatus(sessionID string) string {
 		return string(status.StatusRunning)
 	}
 	return string(s)
+}
+
+// GetSessionWorkDir returns the EvalSymlinks-resolved absolute WorkDir for
+// a session, or empty string if the session is unknown. Used by the file
+// browser handler in Phase 118 to construct a per-session Sandbox.
+// Phase 118 / FS-02.
+func (e *SessionEngine) GetSessionWorkDir(id string) string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.sessionWorkDirs[id]
 }
 
 // ResolveCLI returns the executable path for the named CLI.
