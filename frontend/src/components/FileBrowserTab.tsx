@@ -333,6 +333,26 @@ export function FileBrowserTab({
   // ─── Navigation ───
   const navigateInto = useCallback(
     (name: string) => {
+      // Phase 120 WR-03 — UI-side defence-in-depth: reject any entry name that
+      // could synthesise a sandbox-escape path on the wire. The server's
+      // sandbox.ResolvePath is the actual security boundary (UI-05), but a
+      // bug that ever reduced 'subdir/..' to 'subdir' server-side would
+      // silently violate UI intent — never construct such a path here.
+      // Disallow:
+      //   - '.' / '..' (parent/self traversal)
+      //   - '/' or '\\' embedded in the name (multi-segment hops the listing
+      //     never legitimately returns; List returns one path component per
+      //     entry).
+      // Empty names are also rejected so joinPath cannot produce 'subdir/'.
+      if (
+        name === '' ||
+        name === '.' ||
+        name === '..' ||
+        name.includes('/') ||
+        name.includes('\\')
+      ) {
+        return
+      }
       setPath((p) => joinPath(p, name))
     },
     [],
