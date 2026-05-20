@@ -1979,6 +1979,142 @@ func TestAPI_FilesHeadRead_ReturnsContentLengthNoBody(t *testing.T) {
 	}
 }
 
+// -------------------------------------------------------------------------
+// Phase 118 / Plan 05 Task 3: issueCapabilitiesForSession FilesRead gating.
+//
+// Owner (write) tokens get Perms = "read,write,files.read" when the daemon
+// setting FilesRead is nil or *true (the default-on case). Viewer (read)
+// tokens ALWAYS get Perms = "read" — FS-12 says viewers must NOT receive
+// files.read by default. Explicit *false suppresses files.read on the owner.
+//
+// We verify the post-issuance tokens by decoding them with capability.Verify
+// against the synthetic test signing key. The webserver dependency is real
+// but the listener is not started — issueCapabilitiesForSession only needs
+// ws.AddGrant + ws.BaseURL which work without a live listener.
+// -------------------------------------------------------------------------
+
+func issueCapsTestSetup(t *testing.T, filesRead *bool) (*API, *webserver.WebServer, []byte) {
+	t.Helper()
+	api, _, _ := testDaemon(t)
+	api.engine.filesRead = filesRead
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+	key := configureCapabilityStateForTest(t, api, ws)
+	return api, ws, key
+}
+
+// extractCapTokenForTest pulls the cap= value from a URL string (mirrors the
+// existing extractCapToken in api_test.go for capability-roundtrip tests).
+func extractClaimsFromURL(t *testing.T, urlStr string, key []byte) capability.Claims {
+	t.Helper()
+	tok := extractCapToken(urlStr)
+	if tok == "" {
+		t.Fatalf("no cap token in URL: %q", urlStr)
+	}
+	claims, err := capability.Verify(tok, key)
+	if err != nil {
+		t.Fatalf("capability.Verify: %v", err)
+	}
+	return claims
+}
+
+func TestIssueCapabilities_OwnerHasFilesRead_WhenSettingNil(t *testing.T) {
+	// Default (legacy) case: e.filesRead == nil → defaults-merge would have
+	// flipped it to *true on load; passing nil here proves the in-memory
+	// nil-means-default path of filesReadEnabled().
+	api, _, key := issueCapsTestSetup(t, nil)
+
+	// Need a session ID so the URL the function builds doesn't include "".
+	// Web-enable it so AddGrant/IsSessionEnabled don't trip an invariant.
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-files-read", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+
+	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	claims := extractClaimsFromURL(t, writeURL, key)
+	if !capability.HasPerm(claims.Perms, capability.PermFilesRead) {
+		t.Errorf("owner Perms = %q; want HasPerm(files.read) = true", claims.Perms)
+	}
+	if claims.Perms != "read,write,"+capability.PermFilesRead {
+		t.Errorf("owner Perms = %q; want exact 'read,write,files.read'", claims.Perms)
+	}
+}
+
+func TestIssueCapabilities_ViewerNoFilesRead(t *testing.T) {
+	api, _, key := issueCapsTestSetup(t, nil)
+
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "viewer-no-files-read", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+
+	readURL, _, _, _, err := api.issueCapabilitiesForSession(sid)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	claims := extractClaimsFromURL(t, readURL, key)
+	if claims.Perms != "read" {
+		t.Errorf("viewer Perms = %q; want exact 'read' (FS-12: viewers default-off)", claims.Perms)
+	}
+	if capability.HasPerm(claims.Perms, capability.PermFilesRead) {
+		t.Errorf("viewer HasPerm(files.read) = true; want false (FS-12)")
+	}
+}
+
+func TestIssueCapabilities_OwnerNoFilesReadWhenDisabled(t *testing.T) {
+	// Operator explicitly disabled file-read for new tokens.
+	disabled := false
+	api, _, key := issueCapsTestSetup(t, &disabled)
+
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-disabled", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+
+	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	claims := extractClaimsFromURL(t, writeURL, key)
+	if claims.Perms != "read,write" {
+		t.Errorf("owner Perms with FilesRead=false = %q; want exact 'read,write' (no files.read)", claims.Perms)
+	}
+}
+
+func TestIssueCapabilities_OwnerHasFilesReadWhenExplicitTrue(t *testing.T) {
+	enabled := true
+	api, _, key := issueCapsTestSetup(t, &enabled)
+
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-explicit-true", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+
+	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	if err != nil {
+		t.Fatalf("issueCapabilitiesForSession: %v", err)
+	}
+	claims := extractClaimsFromURL(t, writeURL, key)
+	if claims.Perms != "read,write,"+capability.PermFilesRead {
+		t.Errorf("owner Perms with FilesRead=*true = %q; want 'read,write,files.read'", claims.Perms)
+	}
+}
+
 func TestAPI_FilesStat_ReturnsFileEntry(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "hello.txt"), []byte("world"), 0600); err != nil {
