@@ -104,6 +104,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.toastExp = time.Now().Add(3 * time.Second)
 		}
 		return m, fetchSessions(m.client)
+
+	case filesListMsg:
+		return m.applyFilesListMsg(msg)
+
+	case filesHeadMsg:
+		return m.applyFilesHeadMsg(msg)
+
+	case filesReadMsg:
+		return m.applyFilesReadMsg(msg)
 	}
 
 	return m, nil

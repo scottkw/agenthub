@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"errors"
+	"strings"
+
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -114,7 +117,116 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// glamour is imported now so Plan 02 can use it for markdown rendering.
-// Anchoring the dependency here keeps `go mod tidy` happy while leaving the
-// renderer wiring for Plan 02. The reference is unexported and inert.
-var _ = glamour.WithAutoStyle
+// previewSizeCap is the maximum byte size a file may have to be preview-able
+// inline. Anything larger gets the "Too large…" refusal. Mirrors the daemon-
+// side preview budget; the TUI enforces it independently so a misconfigured
+// daemon can't drown the Update loop in a multi-MB body transfer.
+const previewSizeCap int64 = 5 * 1024 * 1024
+
+// applyFilesListMsg consumes a directory-listing result. Stale results (from
+// a previous session ID) are silently discarded (T-121-04). A
+// "session not found" error from the daemon is translated to a friendly
+// "Session no longer running" message so the tab can stay open with a clear
+// indicator that the underlying session is gone.
+func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
+	if msg.sessionID != m.files.sessionID {
+		return m, nil
+	}
+	m.files.loading = false
+	if msg.err != nil {
+		if strings.Contains(msg.err.Error(), "session not found") {
+			m.files.err = errors.New("Session no longer running")
+		} else {
+			m.files.err = msg.err
+		}
+		return m, nil
+	}
+	m.files.err = nil
+	m.files.cwd = msg.relPath
+	m.files.entries = msg.entries
+	m.files.truncated = msg.truncated
+	m.files.selected = 0
+	// Reset preview when directory changes (T-121-09).
+	m.files.preview.SetContent("")
+	m.files.previewKind = previewEmpty
+	m.files.previewErr = nil
+	m.files.previewMime = ""
+	m.files.previewLoading = false
+	return m, nil
+}
+
+// applyFilesHeadMsg handles a HEAD preflight result. Decision tree:
+//   - error                   → previewErr
+//   - size > previewSizeCap   → previewOverCap (refusal message)
+//   - !strings.HasPrefix(mime, "text/") → previewBinary (refusal message)
+//   - otherwise               → dispatch readFileCmd
+func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
+	if msg.sessionID != m.files.sessionID {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.files.previewKind = previewErr
+		m.files.previewErr = msg.err
+		m.files.previewLoading = false
+		m.files.preview.SetContent("Error: " + msg.err.Error())
+		return m, nil
+	}
+	if msg.size > previewSizeCap {
+		m.files.previewKind = previewOverCap
+		m.files.previewLoading = false
+		m.files.preview.SetContent("Too large to preview, use desktop or web to download")
+		return m, nil
+	}
+	if !strings.HasPrefix(msg.mime, "text/") {
+		m.files.previewKind = previewBinary
+		m.files.previewMime = msg.mime
+		m.files.previewLoading = false
+		m.files.preview.SetContent("Use desktop or web to preview")
+		return m, nil
+	}
+	m.files.previewLoading = true
+	m.files.previewMime = msg.mime
+	return m, readFileCmd(m.client, msg.sessionID, msg.relPath)
+}
+
+// applyFilesReadMsg handles the ReadFile result. Markdown (by suffix OR by
+// mime) is rendered via the glamour markdown renderer; on render error we
+// fall back to plain text so the user still sees something. Style picks
+// "dark" vs "light" based on hasDark — matches Phase 86 lipgloss styling.
+func (m Model) applyFilesReadMsg(msg filesReadMsg) (Model, tea.Cmd) {
+	if msg.sessionID != m.files.sessionID {
+		return m, nil
+	}
+	m.files.previewLoading = false
+	if msg.err != nil {
+		m.files.previewKind = previewErr
+		m.files.previewErr = msg.err
+		m.files.preview.SetContent("Error: " + msg.err.Error())
+		return m, nil
+	}
+	lower := strings.ToLower(msg.relPath)
+	isMarkdown := strings.HasSuffix(lower, ".md") ||
+		strings.HasSuffix(lower, ".markdown") ||
+		strings.HasPrefix(msg.mime, "text/markdown")
+	if isMarkdown {
+		style := "dark"
+		if !m.hasDark {
+			style = "light"
+		}
+		out, err := glamour.Render(string(msg.data), style)
+		if err != nil {
+			// Fall back to plain text on render error so the user still sees
+			// the file contents (T-121-10: glamour is style-only, never
+			// executes embedded HTML/JS).
+			m.files.previewKind = previewText
+			m.files.preview.SetContent(string(msg.data))
+			return m, nil
+		}
+		m.files.previewKind = previewMarkdown
+		m.files.preview.SetContent(out)
+		return m, nil
+	}
+	m.files.previewKind = previewText
+	m.files.preview.SetContent(string(msg.data))
+	return m, nil
+}
