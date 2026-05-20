@@ -172,6 +172,87 @@ func TestVerify_ConstantTimeComparison(t *testing.T) {
 	}
 }
 
+// TestHasPerm asserts that HasPerm uses whole-token comma-split semantics,
+// never strings.Contains. The "no-files.read" false-positive case is the
+// critical Pitfall 4 guard from RESEARCH.md: a substring-based check would
+// match "files.read" inside "no-files.read" and silently grant access.
+//
+// Source: 118-03-PLAN.md Task 1 behavior table; RESEARCH.md Pattern 4 and
+// Pitfall 4; PITFALLS.md Pitfall 4 (Capability Token files.read Bit) and
+// Pitfall 3 (HasPerm false-positive via substring match).
+func TestHasPerm(t *testing.T) {
+	cases := []struct {
+		name  string
+		perms string
+		perm  string
+		want  bool
+	}{
+		{"empty perms", "", "files.read", false},
+		{"empty target perm", "read,files.read", "", false},
+		{"read,write does not grant files.read", "read,write", "files.read", false},
+		{"read,files.read grants files.read", "read,files.read", "files.read", true},
+		{"position-independent — files.read first", "files.read,read", "files.read", true},
+		{"no-files.read false-positive guard", "no-files.read", "files.read", false},
+		{"no-files.read with siblings false-positive guard", "no-files.read,read", "files.read", false},
+		{"suffix attack", "files.read.extra", "files.read", false},
+		{"plain read whole-token", "read", "read", true},
+		{"write present alongside files.read", "read,write,files.read", "write", true},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if got := capability.HasPerm(tc.perms, tc.perm); got != tc.want {
+				t.Fatalf("HasPerm(%q, %q) = %v, want %v", tc.perms, tc.perm, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestPermFilesRead_Constant pins the wire value of PermFilesRead so a future
+// refactor cannot silently change the token string and de-couple it from the
+// owner-token issuance in internal/daemon/api.go (Plan 05).
+func TestPermFilesRead_Constant(t *testing.T) {
+	if capability.PermFilesRead != "files.read" {
+		t.Fatalf("PermFilesRead = %q, want %q", capability.PermFilesRead, "files.read")
+	}
+}
+
+// TestHasPerm_NoStringsContains is a source-inspection guard: the HasPerm
+// implementation must not use strings.Contains for the whole-token check
+// (Pitfall 4). This pairs with the "no-files.read false-positive guard"
+// behavioural subtest above — a substring-based implementation would pass the
+// guard subtest if the check string were re-shaped, but the source inspection
+// catches the regression at the implementation level rather than just the
+// observed behaviour.
+func TestHasPerm_NoStringsContains(t *testing.T) {
+	data, err := os.ReadFile("capability.go")
+	if err != nil {
+		t.Fatalf("ReadFile capability.go: %v", err)
+	}
+	src := string(data)
+	// Extract just the HasPerm function body — the package may use
+	// strings.Contains elsewhere legitimately.
+	idx := strings.Index(src, "func HasPerm")
+	if idx < 0 {
+		t.Fatal("capability.go must declare func HasPerm")
+	}
+	// Bound the search at the next top-level "\nfunc " or end of file.
+	rest := src[idx:]
+	end := strings.Index(rest[1:], "\nfunc ")
+	if end < 0 {
+		end = len(rest)
+	} else {
+		end = end + 1
+	}
+	body := rest[:end]
+	if !strings.Contains(body, "strings.Split") {
+		t.Error("HasPerm body must use strings.Split for whole-token comma-split semantics")
+	}
+	if strings.Contains(body, "strings.Contains") {
+		t.Error("HasPerm body must NOT use strings.Contains (Pitfall 4 — substring false-positive)")
+	}
+}
+
 // TestClaims_Context_RoundTrip asserts that WithClaims attaches Claims to a
 // context.Context and ClaimsFromContext retrieves them. Zero-value claims and
 // the "not present" path are also covered.
