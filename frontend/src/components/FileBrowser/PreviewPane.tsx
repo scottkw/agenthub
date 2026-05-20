@@ -115,12 +115,12 @@ export function PreviewPane({
           )}
         </header>
       )}
-      <div className="file-browser__preview-body">{renderBody(state)}</div>
+      <div className="file-browser__preview-body">{renderBody(state, filename)}</div>
     </section>
   )
 }
 
-function renderBody(state: PreviewState): React.ReactElement {
+function renderBody(state: PreviewState, filename: string | null): React.ReactElement {
   switch (state.kind) {
     case 'idle':
       return (
@@ -141,7 +141,14 @@ function renderBody(state: PreviewState): React.ReactElement {
     case 'markdown':
       return <MarkdownPreview source={state.text} />
     case 'image':
-      return <ImagePreview src={state.url} filename={''} />
+      // Phase 120 WR-07 — pass the real filename through so ImagePreview can
+      // emit alt={filename} instead of alt="". An empty alt tells screen
+      // readers to skip the image entirely, which is wrong for previewed
+      // user content (a blind user has no way to identify the currently
+      // previewed file when focused on the image element). The header
+      // already shows the name visually, but the alt is the only audible
+      // signal for assistive tech. Fall back to 'image' if filename is null.
+      return <ImagePreview src={state.url} filename={filename ?? 'image'} />
     case 'empty':
       return (
         <div className="file-browser__preview--empty">
