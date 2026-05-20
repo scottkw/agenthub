@@ -51,20 +51,20 @@ Wires the new `internal/files/` handler into `internal/webserver` and into the d
 
 Single-pane list + side-by-side preview (NOT tree+list — collides with AgentHub's existing left sidebar). Filter activation key is `/` (NOT `Cmd-F` — keeps parity with TUI and the existing scrollback-search Cmd-F handler in xterm.js). Code-file syntax highlighting is OUT of v3.4 (deferred to v3.5 when CodeMirror 6 lands for editing); markdown rendering via `react-markdown@10.1.0` + `remark-gfm@^4` is in v3.4. (Resolved OQ-3.)
 
-- [ ] **UI-01** — New `frontend/src/components/FileBrowserTab.tsx` registered in the tab system; opens via session context menu ("Open file browser") and from the Sessions panel; singleton find-or-add per-session pattern consistent with Settings/DaemonManager/Remote tabs.
-- [ ] **UI-02** — Single-pane file list (left) + preview pane (right) layout; resize via splitter or fixed 60/40 split; no left tree pane (no nested sidebar inside the tab).
-- [ ] **UI-03** — File list sort by name / size / mtime, ascending or descending; directories sticky at top of each sort; column headers clickable to toggle sort.
-- [ ] **UI-04** — Type-ahead filter activated by `/` key (when tab is focused), Escape clears + dismisses. Matches against displayed names in the current directory; filter scope is current-directory-only (no recursive search in v3.4).
-- [ ] **UI-05** — Breadcrumb path bar at top of tab; each segment is clickable to navigate up; root segment is the session cwd (NOT filesystem root); user cannot navigate above cwd via any path (typed, pasted, or clicked).
-- [ ] **UI-06** — Preview pane renders text files up to a 5 MB server-enforced cap (Content-Length check before stream); over-cap or binary files show GitHub-style "Sorry, we can't display this file. View raw / Download." copy with a Download button wired to the Range-capable `/read` endpoint.
-- [ ] **UI-07** — Markdown files (`.md`, `.markdown`) render via `react-markdown@10.1.0` + `remark-gfm@^4` (GFM tables/task lists); NO `rehype-raw` (raw HTML passthrough — XSS risk in preview pane).
-- [ ] **UI-08** — Source code files (`.go`, `.ts`, `.tsx`, `.py`, etc.) render as monospaced plain text — NO syntax highlighting in v3.4. Code highlighting deferred to v3.5 when the editor lands.
-- [ ] **UI-09** — Image previews use `<img src="/api/files/read?session=...&path=...&cap=...">` (direct stream); explicitly NOT base64-in-state (33% overhead + GC pressure). Common types only: PNG, JPEG, WebP, GIF, SVG (rendered as text — never as embedded SVG).
-- [ ] **UI-10** — Download button per file uses the Range-capable `/api/files/read` endpoint; for files larger than the preview cap, the download path is the only way to retrieve full contents from the browser.
-- [ ] **UI-11** — File browser tab works against local AND remote (tailnet) sessions; the React component uses `fetch()` directly (NOT a new Wails binding — follows the precedent set by `TerminalPanel.tsx` connecting to the relay WSS endpoint directly).
-- [ ] **UI-12** — ARIA semantics: file list has `role="grid"` or `role="listbox"`, preview pane has `role="region"` with aria-label, breadcrumb has `role="navigation"`; keyboard-only operation works end-to-end (arrow keys, Enter into dir, Backspace/Cmd-Up to parent, Tab between panes); WCAG AA 4.5:1 contrast on selection states.
-- [ ] **UI-13** — Empty directory, network-error, and permission-denied states each render with explicit user-readable copy (NOT raw "403 Forbidden"). Permission-denied surfaces the missing `files.read` capability explicitly.
-- [ ] **UI-14** — Playwright e2e covers desktop + web paths for: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, attempt to preview binary (refusal), attempt to preview over-cap file (refusal), download file (full + Range), capability-denied viewer (403). Required as Phase 3 merge gate.
+- [x] **UI-01** — New `frontend/src/components/FileBrowserTab.tsx` registered in the tab system; opens via session context menu ("Open file browser") and from the Sessions panel; singleton find-or-add per-session pattern consistent with Settings/DaemonManager/Remote tabs.
+- [x] **UI-02** — Single-pane file list (left) + preview pane (right) layout; resize via splitter or fixed 60/40 split; no left tree pane (no nested sidebar inside the tab).
+- [x] **UI-03** — File list sort by name / size / mtime, ascending or descending; directories sticky at top of each sort; column headers clickable to toggle sort.
+- [x] **UI-04** — Type-ahead filter activated by `/` key (when tab is focused), Escape clears + dismisses. Matches against displayed names in the current directory; filter scope is current-directory-only (no recursive search in v3.4).
+- [x] **UI-05** — Breadcrumb path bar at top of tab; each segment is clickable to navigate up; root segment is the session cwd (NOT filesystem root); user cannot navigate above cwd via any path (typed, pasted, or clicked).
+- [x] **UI-06** — Preview pane renders text files up to a 5 MB server-enforced cap (Content-Length check before stream); over-cap or binary files show GitHub-style "Sorry, we can't display this file. View raw / Download." copy with a Download button wired to the Range-capable `/read` endpoint.
+- [x] **UI-07** — Markdown files (`.md`, `.markdown`) render via `react-markdown@10.1.0` + `remark-gfm@^4` (GFM tables/task lists); NO `rehype-raw` (raw HTML passthrough — XSS risk in preview pane).
+- [x] **UI-08** — Source code files (`.go`, `.ts`, `.tsx`, `.py`, etc.) render as monospaced plain text — NO syntax highlighting in v3.4. Code highlighting deferred to v3.5 when the editor lands.
+- [x] **UI-09** — Image previews use `<img src="/api/files/read?session=...&path=...&cap=...">` (direct stream); explicitly NOT base64-in-state (33% overhead + GC pressure). Common types only: PNG, JPEG, WebP, GIF, SVG (rendered as text — never as embedded SVG).
+- [x] **UI-10** — Download button per file uses the Range-capable `/api/files/read` endpoint; for files larger than the preview cap, the download path is the only way to retrieve full contents from the browser.
+- [x] **UI-11** — File browser tab works against local AND remote (tailnet) sessions; the React component uses `fetch()` directly (NOT a new Wails binding — follows the precedent set by `TerminalPanel.tsx` connecting to the relay WSS endpoint directly).
+- [x] **UI-12** — ARIA semantics: file list has `role="grid"` or `role="listbox"`, preview pane has `role="region"` with aria-label, breadcrumb has `role="navigation"`; keyboard-only operation works end-to-end (arrow keys, Enter into dir, Backspace/Cmd-Up to parent, Tab between panes); WCAG AA 4.5:1 contrast on selection states.
+- [x] **UI-13** — Empty directory, network-error, and permission-denied states each render with explicit user-readable copy (NOT raw "403 Forbidden"). Permission-denied surfaces the missing `files.read` capability explicitly.
+- [x] **UI-14** — Playwright e2e covers desktop + web paths for: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, attempt to preview binary (refusal), attempt to preview over-cap file (refusal), download file (full + Range), capability-denied viewer (403). Required as Phase 3 merge gate.
 
 ### TUI — TUI Files View (Phase 4)
 
@@ -148,20 +148,20 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 | WEB-03 | Phase 119 | Complete |
 | WEB-04 | Phase 119 | Complete |
 | WEB-05 | Phase 119 | Complete |
-| UI-01 | Phase 120 | Pending |
-| UI-02 | Phase 120 | Pending |
-| UI-03 | Phase 120 | Pending |
-| UI-04 | Phase 120 | Pending |
-| UI-05 | Phase 120 | Pending |
-| UI-06 | Phase 120 | Pending |
-| UI-07 | Phase 120 | Pending |
-| UI-08 | Phase 120 | Pending |
-| UI-09 | Phase 120 | Pending |
-| UI-10 | Phase 120 | Pending |
-| UI-11 | Phase 120 | Pending |
-| UI-12 | Phase 120 | Pending |
-| UI-13 | Phase 120 | Pending |
-| UI-14 | Phase 120 | Pending |
+| UI-01 | Phase 120 | Complete |
+| UI-02 | Phase 120 | Complete |
+| UI-03 | Phase 120 | Complete |
+| UI-04 | Phase 120 | Complete |
+| UI-05 | Phase 120 | Complete |
+| UI-06 | Phase 120 | Complete |
+| UI-07 | Phase 120 | Complete |
+| UI-08 | Phase 120 | Complete |
+| UI-09 | Phase 120 | Complete |
+| UI-10 | Phase 120 | Complete |
+| UI-11 | Phase 120 | Complete |
+| UI-12 | Phase 120 | Complete |
+| UI-13 | Phase 120 | Complete |
+| UI-14 | Phase 120 | Complete |
 | TUI-01 | Phase 121 | Pending |
 | TUI-02 | Phase 121 | Pending |
 | TUI-03 | Phase 121 | Pending |

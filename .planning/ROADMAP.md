@@ -284,7 +284,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit** — FS-01..FS-14 (completed 2026-05-20)
 - [x] **Phase 119: WebServer Routes + `files.read` Capability Plumbing** — WEB-01..WEB-05 (completed 2026-05-20)
-- [ ] **Phase 120: FileBrowserTab.tsx (Desktop + Web)** — UI-01..UI-14
+- [x] **Phase 120: FileBrowserTab.tsx (Desktop + Web)** — UI-01..UI-14 (completed 2026-05-20)
 - [ ] **Phase 121: TUI Files View** — TUI-01..TUI-10
 
 ## Phase Details
@@ -366,7 +366,7 @@ Plans:
 4. A web-share viewer without `files.read` sees a clear permission-denied message ("files.read permission required") in the tab — not a generic 403 error or a blank pane — and the breadcrumb bar correctly bounds navigation to the session cwd so no path (typed, pasted, or breadcrumb-clicked) can navigate above the session root.
 5. Playwright e2e (Chromium + Firefox + WebKit) passes all scenarios: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, binary refusal, over-cap file refusal, download (full + Range), capability-denied viewer (403 with message), empty directory state, and network error state — this suite is the Phase 120 merge gate.
 
-**Plans:** 4/6 plans executed
+**Plans:** 4/6 plans complete
 
 Plans:
 - [ ] 120-01-PLAN.md — webserver /app/ cap-gated route serving frontend/dist + Playwright fixture extension (seed testdata/files/, viewer cap, SetFilesHandler wire)
@@ -443,7 +443,7 @@ Plans:
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
-| 120 | v3.4 | 4/6 | In Progress|  |
+| 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
 | 121 | v3.4 | 0/TBD | Not started | - |
 
 ---
