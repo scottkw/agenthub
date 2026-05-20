@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: File Browser (Read-Only) + TUI Parity
-status: planning
-last_updated: "2026-05-20"
-last_activity: 2026-05-20
+status: executing
+stopped_at: v3.4 roadmap written (Phases 118-121 defined, REQUIREMENTS.md traceability finalized, STATE.md updated)
+last_updated: "2026-05-20T16:30:36.462Z"
+last_activity: 2026-05-20 -- Phase 118 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 5
   completed_plans: 0
   percent: 0
 ---
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-20 — v3.4 open)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.4 File Browser (Read-Only) + TUI Parity — roadmap complete, ready for Phase 118 planning.
+**Current focus:** Phase 118 — FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit
 
 ## Current Position
 
-Phase: 118 — FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit
-Plan: — (not yet planned)
-Status: Roadmap written; awaiting /gsd:plan-phase 118
-Last activity: 2026-05-20 — v3.4 roadmap created (Phases 118-121)
+Phase: 118 (FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 118
+Last activity: 2026-05-20 -- Phase 118 execution started
 
 ## Operator Next Steps (carried into v3.4)
 

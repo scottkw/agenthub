@@ -3,7 +3,8 @@
   "milestone_name": "MVP",
   "workflow": {
     "research": true,
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "skip_discuss": true
   },
   "models": {
     "executor": "sonnet",
