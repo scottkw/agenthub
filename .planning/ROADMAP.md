@@ -398,10 +398,10 @@ Plans:
 4. Pressing `/` activates type-ahead filter (current directory only); Escape clears and dismisses; the status line at the bottom shows the session-cwd-relative path (left-truncated as `…/utils/helper.ts` when wider than the pane), file count, and current selection position.
 5. All filesystem I/O is dispatched via `tea.Cmd` (returning `tea.Msg`) — no synchronous `os.ReadDir` or `os.Open` inside the `Update` method; the `?` help overlay in `tabFiles` mode shows the Files view keybindings (`↑/↓`, `PgUp/PgDn`, `Enter`, `Backspace`, `/`, `?`, `Esc`, `q`); and key-dispatch priority correctly places file-browser input above the main view but below kill-confirm/new-session/QR overlay/help overlays.
 
-**Plans:** 3/3 plans planned
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 121-01-PLAN.md — Core scaffolding: tabFiles + filesModel + tea.Cmd factories + truncateLeft + key-dispatch priority slot + open-from-Sessions wiring (TUI-01, TUI-02, TUI-06, TUI-07, TUI-10)
+- [x] 121-01-PLAN.md — Core scaffolding: tabFiles + filesModel + tea.Cmd factories + truncateLeft + key-dispatch priority slot + open-from-Sessions wiring (TUI-01, TUI-02, TUI-06, TUI-07, TUI-10)
 - [ ] 121-02-PLAN.md — Full handleFilesKey + filter + navigation + glamour preview + status line + help-overlay Files section (TUI-01, TUI-03, TUI-04, TUI-05, TUI-06, TUI-08, TUI-09)
 - [ ] 121-03-PLAN.md — TUI-XX coverage matrix + no-sync-FS source-grep guard + end-to-end integration test (TUI-01..TUI-10 merge gate)
 
@@ -449,7 +449,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 121 | v3.4 | 0/3 | Planned | - |
+| 121 | v3.4 | 1/3 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
