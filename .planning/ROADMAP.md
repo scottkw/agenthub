@@ -307,13 +307,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 4. `curl --unix-socket ~/.agenthub/daemon.sock 'http://localhost/api/files/read?session=<id>&path=../../etc/passwd'` returns 400 or 403 — the sandbox rejects the traversal attempt; `/etc/passwd` is never read.
 5. A viewer cap token issued without `files.read` in `Claims.Perms` returns 403 with a response body containing the string `"files.read"` on all three file endpoints (`/list`, `/stat`, `/read`), and `HasPerm("read,write", "files.read")` returns false while `HasPerm("read,files.read", "files.read")` returns true (whole-token match, not substring).
 
-**Plans:** 5 plans
+**Plans:** 3/5 plans executed
 
 Plans:
-- [ ] 118-01-PLAN.md — internal/files sandbox + FuzzSandboxPath + MIME cascade (FS-01, FS-08, FS-09)
+- [x] 118-01-PLAN.md — internal/files sandbox + FuzzSandboxPath + MIME cascade (FS-01, FS-08, FS-09)
 - [ ] 118-02-PLAN.md — internal/files Handler (List/Stat/Read + HEAD + 0-byte short-circuit + 5 MB cap + darwin filter) (FS-03, FS-04, FS-05, FS-06, FS-07)
-- [ ] 118-03-PLAN.md — capability.PermFilesRead + HasPerm + requireFilesRead wrapper (body) (FS-10, FS-11, FS-13)
-- [ ] 118-04-PLAN.md — engine sessionWorkDirs + GetSessionWorkDir + daemonSettings.FilesRead + schemaVersion 3 migration (FS-02, FS-14)
+- [x] 118-03-PLAN.md — capability.PermFilesRead + HasPerm + requireFilesRead wrapper (body) (FS-10, FS-11, FS-13)
+- [x] 118-04-PLAN.md — engine sessionWorkDirs + GetSessionWorkDir + daemonSettings.FilesRead + schemaVersion 3 migration (FS-02, FS-14)
 - [ ] 118-05-PLAN.md — daemon /api/files/* routes + DaemonClient methods + issueCapabilitiesForSession edit (FS-03, FS-04, FS-05, FS-06, FS-12)
 
 **UI hint**: no
@@ -429,7 +429,7 @@ Plans:
 | 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-| 118 | v3.4 | 0/TBD | Not started | - |
+| 118 | v3.4 | 3/5 | In Progress|  |
 | 119 | v3.4 | 0/TBD | Not started | - |
 | 120 | v3.4 | 0/TBD | Not started | - |
 | 121 | v3.4 | 0/TBD | Not started | - |
