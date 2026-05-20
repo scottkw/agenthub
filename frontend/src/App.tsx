@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import type { IProgressState } from '@xterm/addon-progress'
 import * as xtermThemes from 'xterm-theme'
 import type { ITheme } from '@xterm/xterm'
@@ -8,6 +8,7 @@ import { TerminalPanel } from './components/TerminalPanel'
 import { SettingsTab } from './components/SettingsTab'
 import { stripAnsi } from './lib/stripAnsi'
 import { sanitizeFilename } from './lib/sanitizeFilename'
+import { detectMode, readWebModeParams } from './lib/webMode'
 import {
   CreateSession,
   ListSessions,
@@ -80,6 +81,16 @@ function App(): React.ReactElement {
   const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
   const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
   const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
+  // Phase 120-06 — single source of truth for "is this React shell running in
+  // a regular browser under /app/ vs inside the Wails desktop runtime?" Used
+  // to gate the Wails RPC suite (init, retryInit, sessions polls) so the SPA
+  // can be served to web-share viewers without crashing on Wails-only calls.
+  // See 120-VERIFICATION.md Human Verification #2 + lib/webMode.ts.
+  const mode = detectMode()
+  // webParams is captured once on first mount — URL params don't change for
+  // the lifetime of the SPA. useMemo keeps the reference stable so dependency
+  // arrays of downstream effects never see false re-evaluations.
+  const webParams = useMemo(() => readWebModeParams(), [])
   const [tabs, setTabs] = useState<Tab[]>([WELCOME_TAB])
   const [activeId, setActiveId] = useState<string | null>(WELCOME_TAB.id)
   const [relayPort, setRelayPort] = useState<number | null>(null)
@@ -336,6 +347,16 @@ function App(): React.ReactElement {
     if (splashEl) splashEl.style.display = 'none'
 
     async function init() {
+      // Phase 120-06 — skip the entire Wails RPC suite when running in web
+      // mode (regular browser under /app/?session=…&cap=…). Wails RPCs are
+      // unreachable from a browser; session+cap come from URL params and the
+      // file-browser tab is auto-opened by a separate effect below that runs
+      // AFTER handleOpenFileBrowser is declared. We return early here before
+      // any Wails-bound call to avoid the partially-functional shell flagged
+      // in 120-VERIFICATION.md Human Verification #2.
+      if (mode === 'web') {
+        return
+      }
       // Check if startup() failed before calling methods that need a.client.
       const startupErr = await GetDaemonError()
       if (startupErr) {
@@ -812,6 +833,7 @@ function App(): React.ReactElement {
 
   // Poll sessions when the daemon-manager panel tab is active.
   useEffect(() => {
+    if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
     const isDaemonManagerActive = activeId === DAEMON_MANAGER_TAB.id
     if (!isDaemonManagerActive) return
 
@@ -834,6 +856,7 @@ function App(): React.ReactElement {
 
   // Poll remote sessions when the remote-sessions tab is active.
   useEffect(() => {
+    if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
     if (activeId !== REMOTE_SESSIONS_TAB.id) return
     let cancelled = false
     async function refresh() {
@@ -858,6 +881,7 @@ function App(): React.ReactElement {
 
   // Lift update:available subscription from WelcomeTab (Phase 81 D-06)
   useEffect(() => {
+    if (mode === 'web') return // Phase 120-06: update poller is Wails-only.
     GetLastUpdateInfo()
       .then((info) => { if (info) setUpdate(info) })
       .catch(() => {})
@@ -907,6 +931,19 @@ function App(): React.ReactElement {
     setActiveId(newTab.id)
   }, [tabs])
 
+  // Phase 120-06 — web-mode bootstrap: when the SPA loads under /app/ with a
+  // ?session=<id> param, auto-open the file-browser tab for that session on
+  // first mount. The cap token is consumed inside the FileBrowserTab gate at
+  // render time. Effect runs exactly once because mode + webParams are
+  // mount-stable (mode is read once from window.location.pathname; webParams
+  // is captured via useMemo with [] deps).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (mode === 'web' && webParams.sessionId) {
+      handleOpenFileBrowser(webParams.sessionId, webParams.sessionId)
+    }
+  }, [])
+
   const handleOpenRemoteSession = useCallback((url: string) => {
     BrowserOpenURL(url)
   }, [])
@@ -933,6 +970,11 @@ function App(): React.ReactElement {
 
   const retryInit = useCallback(async () => {
     setDaemonError(null)
+    // Phase 120-06 — web mode has no daemon to retry against. The web-share
+    // shell never sets daemonError (init early-returns before any RPC), so
+    // this is defensive — but keeping the guard documents the contract that
+    // every Wails-bound effect must consult `mode` first.
+    if (mode === 'web') return
     try {
       await RetryDaemon()
     } catch (err) {
@@ -1113,22 +1155,44 @@ function App(): React.ReactElement {
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
             begins with the __files__ prefix; the tab id encodes the sessionId
-            after the prefix so we can resolve which session to browse. */}
+            after the prefix so we can resolve which session to browse.
+
+            Phase 120-06 — mode-aware fbBaseURL + capToken selection. In web
+            mode (regular browser under /app/) the bundle is served from the
+            HTTPS webserver and the React shell must call back to the same
+            origin with the cap token supplied via URL params. In desktop
+            mode (Wails runtime) the relay TCP port is the local-file-only
+            files-API surface; no cap is needed because the relay listener
+            is bound to 127.0.0.1.
+
+            120-06: remote-on-desktop browse (passing a session's web-share
+            URL + cap from the desktop GUI into FileBrowserTab) is a v3.5
+            follow-on — out of scope for the v3.4 parity closure. The
+            desktop file-browser tab keeps wiring against the local relay
+            port, which is the proven path. */}
         {activeId !== null && activeId.startsWith('__files__') && (() => {
           const fbSessionId = activeId.slice('__files__'.length)
           const fbSession = panelSessions.find((s) => s.id === fbSessionId)
           const fbName =
             fbSession?.name ||
             tabs.find((t) => t.id === activeId)?.name?.replace(/ — Files$/, '') ||
+            fbSessionId ||
             'Session'
-          const fbBaseURL = `http://127.0.0.1:${relayPort ?? 0}`
+          const isWeb = mode === 'web'
+          const fbBaseURL = isWeb
+            ? window.location.origin
+            : `http://127.0.0.1:${relayPort ?? 0}`
+          const fbCapToken: string | undefined = isWeb
+            ? (webParams.capToken ?? undefined)
+            : undefined
           return (
             <FileBrowserTab
               sessionId={fbSessionId}
               sessionName={fbName}
               isActive={true}
-              isRemote={false}
+              isRemote={isWeb}
               baseURL={fbBaseURL}
+              capToken={fbCapToken}
             />
           )
         })()}
