@@ -132,14 +132,24 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	// Streaming cap — Pitfall 5. ReadDir(n>0) reads at most n entries
 	// from the open file's directory stream; io.EOF means "fewer than
 	// n entries existed" and is treated as success.
-	entries, err := dir.ReadDir(maxListEntries)
+	//
+	// Read one extra entry beyond the cap to disambiguate the exactly-
+	// maxListEntries case (WR-01): if we asked for exactly maxListEntries
+	// and got that many back, we cannot tell whether more existed. Probing
+	// one past the cap lets us set Truncated correctly: len > cap means
+	// truncated; len <= cap means we saw the entire directory.
+	entries, err := dir.ReadDir(maxListEntries + 1)
 	if err != nil && !errors.Is(err, io.EOF) {
 		http.Error(w, "read directory failed", http.StatusInternalServerError)
 		return
 	}
+	truncated := len(entries) > maxListEntries
+	if truncated {
+		entries = entries[:maxListEntries]
+	}
 	result := FileListResponse{
 		Entries:   make([]FileEntry, 0, len(entries)),
-		Truncated: len(entries) == maxListEntries,
+		Truncated: truncated,
 	}
 	for _, entry := range entries {
 		name := entry.Name()
