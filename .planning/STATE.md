@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: File Browser (Read-Only) + TUI Parity
 status: ready_to_plan
-stopped_at: Phase 118 complete (5/5) — ready to discuss Phase 119
-last_updated: 2026-05-20T18:54:20.590Z
-last_activity: 2026-05-20 -- Phase 118 execution started
+stopped_at: Phase 119 complete (2/2) — ready to discuss Phase 120
+last_updated: 2026-05-20T19:31:16.718Z
+last_activity: 2026-05-20 -- Phase 119 execution started
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 5
-  completed_plans: 5
-  percent: 0
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 7
+  percent: 25
 ---
 
 # Project State
@@ -21,11 +21,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-20 — v3.4 open)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 119 — webserver routes + `files.read` capability plumbing
+**Current focus:** Phase 120 — filebrowsertab.tsx (desktop + web)
 
 ## Current Position
 
-Phase: 119
+Phase: 120
 Plan: Not started
 Status: Ready to plan
 Last activity: 2026-05-20

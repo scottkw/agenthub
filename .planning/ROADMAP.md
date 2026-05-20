@@ -434,7 +434,7 @@ Plans:
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
-| 119 | v3.4 | 2/2 | Complete   | 2026-05-20 |
+| 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 0/TBD | Not started | - |
 | 121 | v3.4 | 0/TBD | Not started | - |
 

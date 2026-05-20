@@ -41,11 +41,11 @@ The load-bearing foundation. `internal/files/` is a new sub-package with zero co
 
 Wires the new `internal/files/` handler into `internal/webserver` and into the daemon's local-socket HTTP API via the `SetFilesHandlerProvider` pattern. The daemon and the webserver share the same handler; capability middleware sits in front of it on the webserver side only.
 
-- [ ] **WEB-01** — Daemon's local-socket HTTP API exposes `/api/files/list`, `/stat`, `/read` (GET + HEAD) for in-process GUI/TUI/CLI consumers; no cap-token middleware on this surface (local Unix-socket / named-pipe is already trusted).
-- [ ] **WEB-02** — Webserver mux exposes the same three endpoints under `/api/files/...` wrapped by `requireFilesRead`; routes are mounted via `SetFilesHandlerProvider` (no direct coupling between `internal/webserver` and `internal/files/`).
-- [ ] **WEB-03** — Read-only web-share viewer cannot use file browser endpoints: an explicit integration test asserts 403 with a viewer cap token across all three endpoints + both methods on `/read`.
-- [ ] **WEB-04** — Web-shared file browser works against tailnet-remote sessions via Tailscale HTTPS (NOT via the relay's binary frame protocol — relay is PTY fan-out only); the frontend uses `fetch()` against the remote peer's HTTPS base URL, same channel already used for tailnet peer discovery.
-- [ ] **WEB-05** — Zero new CSP amendments: existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy is sufficient for the new tab. Cross-browser Playwright e2e (Chromium + Firefox + WebKit) reports zero CSP violations from file browser flows.
+- [x] **WEB-01** — Daemon's local-socket HTTP API exposes `/api/files/list`, `/stat`, `/read` (GET + HEAD) for in-process GUI/TUI/CLI consumers; no cap-token middleware on this surface (local Unix-socket / named-pipe is already trusted).
+- [x] **WEB-02** — Webserver mux exposes the same three endpoints under `/api/files/...` wrapped by `requireFilesRead`; routes are mounted via `SetFilesHandlerProvider` (no direct coupling between `internal/webserver` and `internal/files/`).
+- [x] **WEB-03** — Read-only web-share viewer cannot use file browser endpoints: an explicit integration test asserts 403 with a viewer cap token across all three endpoints + both methods on `/read`.
+- [x] **WEB-04** — Web-shared file browser works against tailnet-remote sessions via Tailscale HTTPS (NOT via the relay's binary frame protocol — relay is PTY fan-out only); the frontend uses `fetch()` against the remote peer's HTTPS base URL, same channel already used for tailnet peer discovery.
+- [x] **WEB-05** — Zero new CSP amendments: existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy is sufficient for the new tab. Cross-browser Playwright e2e (Chromium + Firefox + WebKit) reports zero CSP violations from file browser flows.
 
 ### UI — FileBrowserTab.tsx (Desktop + Web) (Phase 3)
 
@@ -143,11 +143,11 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 | FS-12 | Phase 118 | Complete |
 | FS-13 | Phase 118 | Complete |
 | FS-14 | Phase 118 | Complete |
-| WEB-01 | Phase 119 | Pending |
-| WEB-02 | Phase 119 | Pending |
-| WEB-03 | Phase 119 | Pending |
-| WEB-04 | Phase 119 | Pending |
-| WEB-05 | Phase 119 | Pending |
+| WEB-01 | Phase 119 | Complete |
+| WEB-02 | Phase 119 | Complete |
+| WEB-03 | Phase 119 | Complete |
+| WEB-04 | Phase 119 | Complete |
+| WEB-05 | Phase 119 | Complete |
 | UI-01 | Phase 120 | Pending |
 | UI-02 | Phase 120 | Pending |
 | UI-03 | Phase 120 | Pending |
