@@ -1,150 +1,146 @@
-# Milestone v3.3.1 Requirements — Bug Sweep
+# Milestone v3.4 Requirements — File Browser (Read-Only) + TUI Parity
 
-**Defined:** 2026-05-18
+**Defined:** 2026-05-20
 **Core Value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
-**Milestone Goal:** Close all open GitHub bug-labeled issues against v3.3 baseline as a patch release (v3.3.1). Bugs only — no enhancements, no advisory tech-debt drains, no process-debt retroactive fills. Cross-surface (GUI/TUI/CLI) parity is a release-blocking contract per v3.3 Phase 108.
+**Milestone Goal:** Ship the read-only half of the file browser epic (GitHub Issue #24) — sandboxed filesystem API, desktop/web file browser tab, and TUI browse+preview parity. Let the sandboxed FS API bake under real use before the v3.5 write-side work lands.
 
-**Closes GitHub Issues:** #52, #54, #55, #56, #57, #58.
+**Closes GitHub Issues:** #62 (read-only file browser) + v3.4 slice of #64 (TUI browse+preview parity). Umbrella epic #24 stays open across v3.4 + v3.5; closes when v3.5 ships.
 
-**Carry-forward from v3.3 (operator one-time, before release):**
+**Scope discipline (locked, deferred to v3.5):** write operations (upload/delete/rename/mkdir/edit); CodeMirror 6 vs Monaco editor library decision; TUI shell-out to `$EDITOR`; syntax highlighting in preview pane (markdown rendering is in v3.4, code-file highlighting is v3.5).
+
+**Carry-forward from v3.3 (operator one-time, before next release):**
 
 - `RELEASE_PUBLISH_TOKEN` PAT (`Contents: read/write` on `scottkw/agenthub`) — `gh secret set RELEASE_PUBLISH_TOKEN`
-- `WINGET_FIRST_SUBMISSION=true` (one-time, first submission only) — `gh variable set WINGET_FIRST_SUBMISSION --body "true"`
+- `WINGET_FIRST_SUBMISSION=true` (one-time, first submission only) — `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after winget-pkgs accepts first submission.
 
 ---
 
-## v3.3.1 Requirements
+## v3.4 Requirements
 
-### IPC — Windows daemon named-pipe IPC (Issue #52, third-party PR #53)
+### FS — Sandboxed Filesystem API (Phase 1)
 
-Third-party report by `im-alexandre` with attached PR #53 based on v3.2 (commit `032a6e9`, 140 commits behind v3.3 tip). PR is small (7 files, +214/-13): adds `ipc_{windows,nonwindows}.go` abstraction, threads through `api.go` + `client.go` + `tray_windows.go`. Must be rebased / re-applied against v3.3 with author attribution preserved (`Co-Authored-By: im-alexandre <…>`). Five v3.3 commits since PR base touch `internal/daemon/api.go` and `client.go` (handleListShells, handleUpdateShellPath, ShellWebShareWarned) — likely merge conflicts in those two files; the two new `ipc_*.go` files drop in clean.
+The load-bearing foundation. `internal/files/` is a new sub-package with zero coupling to `internal/daemon`, `internal/relay`, or `internal/webserver`. Injected into both muxes via the `SetFilesHandlerProvider` pattern already established by `SetPluginSettingsProvider`. Sandboxing uses Go 1.24+ `os.OpenRoot` / `os.OpenInRoot` exclusively — the two-step `filepath.EvalSymlinks` + `os.Open` pattern has a TOCTOU race window demonstrated exploitable by CVE-2026-27976 (Zed) and CVE-2026-43998 (vm2). All file ops ride existing HTTPS over Tailscale; the relay's PTY fan-out protocol is NOT extended.
 
-- [x] **IPC-01** — On Windows, the daemon listens on `\\.\pipe\agenthub-daemon` using `winio.ListenPipe` (not `net.Listen("unix", path)`); on macOS/Linux it continues to listen on a Unix socket. Verified by: `agenthub.exe daemon run` succeeds without `bind: A socket operation encountered a dead network` on Windows 11.
-- [x] **IPC-02** — On Windows, `DaemonClient` dials `\\.\pipe\agenthub-daemon` using `winio.DialPipeContext`; CLI subcommands (`list`, `new`, `daemon status`, `tui`) connect to the running daemon without `EnsureDaemon` timeout.
-- [x] **IPC-03** — `API.Stop()` does NOT attempt filesystem removal on named-pipe paths; existing `CleanupStaleSocket` named-pipe probing remains functional.
-- [x] **IPC-04** — Windows regression tests exercise `API.Start` + `DaemonClient.Health()` over a named pipe end-to-end (not just `CleanupStaleSocket`), and `API.Stop` named-pipe path.
-- [x] **IPC-05** — All three surfaces (GUI / CLI / TUI) tested working on Windows 11 — daemon auto-start, session create, session list, attach/detach, web-share toggle.
-- [x] **IPC-06** — PR #53 author (`im-alexandre`) credited via `Co-Authored-By` trailer on the merged/cherry-picked commits, or via dedicated commit message attribution if re-applied from scratch.
+- [ ] **FS-01** — `internal/files/` package exists with `Sandbox` type wrapping `*os.Root` scoped to a session's WorkDir; `List`, `Stat`, and `Read` methods reject paths via `os.OpenInRoot` (kernel-level TOCTOU-free sandbox), not via the legacy `filepath.EvalSymlinks` + `os.Open` two-step.
+- [ ] **FS-02** — `SessionEngine` gains a `sessionWorkDirs map[string]string` field (mirroring the established `tabNames` / `sessionCLIs` pattern) populated at `CreateSession` time with the resolved-absolute WorkDir (after `$HOME` substitution). Plugs the existing gap where WorkDir is passed to `cmd.Dir` and discarded after spawn.
+- [ ] **FS-03** — `GET /api/files/list?session=<id>&path=<rel>` returns directory listing as JSON array of `FileEntry{Name, Size, Mtime, Mode, IsDir, IsSymlink, IsBinary, MIME}`; directory entries are not stat'd recursively; uses `os.ReadDir` (streaming) not `ioutil.ReadDir`.
+- [ ] **FS-04** — `GET /api/files/stat?session=<id>&path=<rel>` returns single `FileEntry` for the named path.
+- [ ] **FS-05** — `GET /api/files/read?session=<id>&path=<rel>` streams file bytes via `http.ServeContent` with Range support; honors `If-Modified-Since` and Last-Modified.
+- [ ] **FS-06** — `HEAD /api/files/read?session=<id>&path=<rel>` is supported and returns Content-Length + Content-Type without body; frontend uses it for preflight before deciding inline-preview vs download warning. (Resolved OQ-1.)
+- [ ] **FS-07** — 0-byte files served by `/read` return 200 with empty body (NOT 416). Explicit unit test required — `http.ServeContent`'s default behavior is wrong here.
+- [ ] **FS-08** — Path sandbox rejects: absolute paths (including `C:\...` and `\\?\...` on Windows); paths containing `..` after `filepath.Clean`; encoded variants (`%2e%2e%2f`, `%252e%252e%252f`); Unicode path-traversal variants (U+FF0F fullwidth slash, U+2024 one-dot-leader); null bytes (`\x00`); Windows reserved device names (`CON`, `NUL`, `PRN`, `AUX`, `COM1`–`COM9`, `LPT1`–`LPT9`) cross-platform; Windows alternate data streams (`:` in path); Windows 8.3 short names (`PROGRA~1`); trailing dots/spaces on Windows; symlinks whose resolved target is outside the sandbox.
+- [ ] **FS-09** — `internal/files/sandbox_test.go` includes a `testing.F` fuzz test (`FuzzSandboxPath`) seeded with the 40+ payload corpus from `.planning/research/PITFALLS.md` §Fuzz Corpus. Fuzz run is a merge gate (`go test -fuzz=FuzzSandboxPath -fuzztime=60s ./internal/files/...` must report 0 crashes).
+- [ ] **FS-10** — New capability bit `files.read` added to the comma-separated `Claims.Perms` string in `internal/capability/capability.go`; new `HasPerm(perms, "files.read") bool` helper splits on commas (NOT `strings.Contains` — `"no-files.read"` would false-positive).
+- [ ] **FS-11** — New `requireFilesRead` middleware wrapper (separate from `requireCapability`) gates all three file endpoints. Adding `files.read` to `requireCapability`'s switch is explicitly rejected — would risk breaking existing terminal relay routes.
+- [ ] **FS-12** — Session-owner cap token issuance includes `files.read` in `Perms` by default; web-share viewer token issuance does NOT include `files.read` unless the share grant explicitly enables it (default OFF for viewers).
+- [ ] **FS-13** — Capability-denied test: a viewer token without `files.read` gets 403 on `/api/files/list`, `/api/files/stat`, and `/api/files/read`; verified for both GET and HEAD on `/read`.
+- [ ] **FS-14** — Settings `schemaVersion: 3` migration via the established `defaultSettings()` constructor-merge pattern from v3.2; per-field assertions in migration test for any new persisted file-browser settings (preview cap, default sort, etc.).
 
-### WEB — Web-served terminal correctness (Issue #54)
+### WEB — WebServer Routes + `files.read` Capability Plumbing (Phase 2)
 
-Web surface only — desktop unaffected. Web frontend's session bridge does not consume OSC color-query / Device Attributes responses, leaking them into shell stdin. Pre-existing (predates v3.3); blocking parity for any sixel-using or capability-probing program (chafa, vim, neovim, mc) on the web surface.
+Wires the new `internal/files/` handler into `internal/webserver` and into the daemon's local-socket HTTP API via the `SetFilesHandlerProvider` pattern. The daemon and the webserver share the same handler; capability middleware sits in front of it on the webserver side only.
 
-- [x] **WEB-01** — On the web-served terminal, OSC 10 (FG color query), OSC 11 (BG color query), and Device Attributes (`CSI c`) responses are consumed by the requesting program and do NOT appear in shell stdin. Reproducible with `chafa --format=sixel /tmp/<png>` in a web-shared shell session.
-- [x] **WEB-02** — Web ↔ desktop parity holds for chafa sixel rendering — the same `chafa --format=sixel` produces clean prompts on both surfaces (no leaked `10;rgb:…`, `11;rgb:…`, `62;4;9;22c` after image render). (Phase 111 fixed web; Phase 115 fixes desktop — together both surfaces clean.)
-- [x] **WEB-03** — Regression test (Go or e2e) covers OSC response consumption on the web bridge; future regressions in the response path fail in CI.
+- [ ] **WEB-01** — Daemon's local-socket HTTP API exposes `/api/files/list`, `/stat`, `/read` (GET + HEAD) for in-process GUI/TUI/CLI consumers; no cap-token middleware on this surface (local Unix-socket / named-pipe is already trusted).
+- [ ] **WEB-02** — Webserver mux exposes the same three endpoints under `/api/files/...` wrapped by `requireFilesRead`; routes are mounted via `SetFilesHandlerProvider` (no direct coupling between `internal/webserver` and `internal/files/`).
+- [ ] **WEB-03** — Read-only web-share viewer cannot use file browser endpoints: an explicit integration test asserts 403 with a viewer cap token across all three endpoints + both methods on `/read`.
+- [ ] **WEB-04** — Web-shared file browser works against tailnet-remote sessions via Tailscale HTTPS (NOT via the relay's binary frame protocol — relay is PTY fan-out only); the frontend uses `fetch()` against the remote peer's HTTPS base URL, same channel already used for tailnet peer discovery.
+- [ ] **WEB-05** — Zero new CSP amendments: existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy is sufficient for the new tab. Cross-browser Playwright e2e (Chromium + Firefox + WebKit) reports zero CSP violations from file browser flows.
 
-### WEB (cont.) — Desktop relay correctness (Issue #60)
+### UI — FileBrowserTab.tsx (Desktop + Web) (Phase 3)
 
-Follow-up to #54 surfaced during Phase 111 desktop parity UAT on 2026-05-18. The original Phase 111 fix landed in `internal/webserver/server.go` `handleWSSRelay` (the web-share wrapper); the daemon-direct relay path `internal/relay/server.go` `handleSession` — used by the Wails desktop attach and by CLI `agenthub attach` — has no absorber. xterm.js in the Wails webview answers OSC 10/11 + DA1 queries autonomously and ships those responses upstream as `MsgInput` frames, contaminating shell stdin at the next prompt. v3.3.1 closes both surfaces in this milestone per cross-surface parity discipline.
+Single-pane list + side-by-side preview (NOT tree+list — collides with AgentHub's existing left sidebar). Filter activation key is `/` (NOT `Cmd-F` — keeps parity with TUI and the existing scrollback-search Cmd-F handler in xterm.js). Code-file syntax highlighting is OUT of v3.4 (deferred to v3.5 when CodeMirror 6 lands for editing); markdown rendering via `react-markdown@10.1.0` + `remark-gfm@^4` is in v3.4. (Resolved OQ-3.)
 
-- [x] **WEB-04** — On the desktop Wails surface, OSC 10/11 and DA1 responses are absorbed before reaching PTY stdin. The OSC/DA1 probe (`printf '\033]11;?\033\\'; printf '\033[c'; echo ZZZ_MARKER`) produces only `ZZZ_MARKER` on its own line followed by a clean prompt — no `11;rgb:…`, `62;4;9;22c` text typed at the next prompt.
-- [x] **WEB-05** — Web ↔ desktop full parity confirmed via manual UAT on macOS: both surfaces produce identical clean output for the OSC/DA1 probe. Replaces the Phase 111 `approved with desktop follow-up: #60` resume signal with a clean two-surface PASS.
-- [x] **WEB-06** — Regression tests in `internal/relay` cover OSC 10/11 and DA1 absorption against `handleSession`, independent of the webserver-layer absorber — future regressions on the daemon-direct path fail in CI under `-race -count=3`.
+- [ ] **UI-01** — New `frontend/src/components/FileBrowserTab.tsx` registered in the tab system; opens via session context menu ("Open file browser") and from the Sessions panel; singleton find-or-add per-session pattern consistent with Settings/DaemonManager/Remote tabs.
+- [ ] **UI-02** — Single-pane file list (left) + preview pane (right) layout; resize via splitter or fixed 60/40 split; no left tree pane (no nested sidebar inside the tab).
+- [ ] **UI-03** — File list sort by name / size / mtime, ascending or descending; directories sticky at top of each sort; column headers clickable to toggle sort.
+- [ ] **UI-04** — Type-ahead filter activated by `/` key (when tab is focused), Escape clears + dismisses. Matches against displayed names in the current directory; filter scope is current-directory-only (no recursive search in v3.4).
+- [ ] **UI-05** — Breadcrumb path bar at top of tab; each segment is clickable to navigate up; root segment is the session cwd (NOT filesystem root); user cannot navigate above cwd via any path (typed, pasted, or clicked).
+- [ ] **UI-06** — Preview pane renders text files up to a 5 MB server-enforced cap (Content-Length check before stream); over-cap or binary files show GitHub-style "Sorry, we can't display this file. View raw / Download." copy with a Download button wired to the Range-capable `/read` endpoint.
+- [ ] **UI-07** — Markdown files (`.md`, `.markdown`) render via `react-markdown@10.1.0` + `remark-gfm@^4` (GFM tables/task lists); NO `rehype-raw` (raw HTML passthrough — XSS risk in preview pane).
+- [ ] **UI-08** — Source code files (`.go`, `.ts`, `.tsx`, `.py`, etc.) render as monospaced plain text — NO syntax highlighting in v3.4. Code highlighting deferred to v3.5 when the editor lands.
+- [ ] **UI-09** — Image previews use `<img src="/api/files/read?session=...&path=...&cap=...">` (direct stream); explicitly NOT base64-in-state (33% overhead + GC pressure). Common types only: PNG, JPEG, WebP, GIF, SVG (rendered as text — never as embedded SVG).
+- [ ] **UI-10** — Download button per file uses the Range-capable `/api/files/read` endpoint; for files larger than the preview cap, the download path is the only way to retrieve full contents from the browser.
+- [ ] **UI-11** — File browser tab works against local AND remote (tailnet) sessions; the React component uses `fetch()` directly (NOT a new Wails binding — follows the precedent set by `TerminalPanel.tsx` connecting to the relay WSS endpoint directly).
+- [ ] **UI-12** — ARIA semantics: file list has `role="grid"` or `role="listbox"`, preview pane has `role="region"` with aria-label, breadcrumb has `role="navigation"`; keyboard-only operation works end-to-end (arrow keys, Enter into dir, Backspace/Cmd-Up to parent, Tab between panes); WCAG AA 4.5:1 contrast on selection states.
+- [ ] **UI-13** — Empty directory, network-error, and permission-denied states each render with explicit user-readable copy (NOT raw "403 Forbidden"). Permission-denied surfaces the missing `files.read` capability explicitly.
+- [ ] **UI-14** — Playwright e2e covers desktop + web paths for: open tab, list cwd, navigate into subdirectory, preview text file, preview markdown file, preview image, attempt to preview binary (refusal), attempt to preview over-cap file (refusal), download file (full + Range), capability-denied viewer (403). Required as Phase 3 merge gate.
 
-### UI — Frontend bugs (Issues #55, #56)
+### TUI — TUI Files View (Phase 4)
 
-- [x] **UI-01** (#55) — When the terminal's WebGL context is lost (`WEBGL_lose_context.loseContext()` or natural loss), `WebGLRecoveryBanner` renders inside `.banner-stack` and auto-dismisses after 8s, per Phase 93 contract. Verified via DevTools console: `document.querySelector('.webgl-recovery-banner')` is non-null after context-loss event.
-- [x] **UI-02** (#55) — DOM fallback continues to work after WebGL loss (terminal content remains readable) — fallback path is not regressed by the banner-rendering fix.
-- [x] **UI-03** (#56) — On iPad Safari and iPad Chrome, single-finger drag on the terminal area scrolls xterm scrollback (matching desktop wheel-scroll behavior). Two-finger drag does not pan the viewport when started on the terminal area.
-- [x] **UI-04** (#56) — iPad touch-scroll does not regress mouse-wheel scrolling on desktop browsers, and does not break the existing iPad tap-on-link cluster (UAT-04 carry-over, separate from this milestone but must not be regressed).
+Custom `bubbles list.Model` + `viewport.Model` joined via `lipgloss.JoinHorizontal` (NOT `bubbles/filepicker` — that's a selection-dialog primitive, not a browse pane). All filesystem I/O via `tea.Cmd` — synchronous `os.ReadDir` freezes the Bubble Tea render loop. Path truncation in the status line is left-truncated (`…/utils/helper.ts`) — preserves the high-information leaf-end. (Resolved OQ-2.) Can run in parallel with Phase 3 once Phase 1 freezes.
 
-### PTY — Linux PTY natural-exit detection (Issue #57)
+- [ ] **TUI-01** — New `internal/tui/files.go` Bubble Tea sub-model with custom `bubbles list.Model` (file list) + `viewport.Model` (preview pane) joined via `lipgloss.JoinHorizontal`; bordered lipgloss frame with TokyoNight palette consistent with existing TUI tabs.
+- [ ] **TUI-02** — New "Files" sidebar entry (or reachable per-session via the Sessions list); opens scoped to the selected session's cwd; closing the file view returns to the prior TUI tab.
+- [ ] **TUI-03** — Navigation: Up/Down arrow keys move the list cursor; PageUp/PageDown jump a page; Enter enters a directory; Backspace or Left arrow goes up; user cannot navigate above session cwd (Backspace at cwd root is a no-op, NOT a parent traversal).
+- [ ] **TUI-04** — Read-only preview pane shows text files (5 MB server-enforced cap); markdown files rendered via `charmbracelet/glamour` (promoted from indirect to direct dep); binary files show "Use desktop or web to preview"; over-cap files show "Too large to preview, use desktop or web to download."
+- [ ] **TUI-05** — Type-ahead filter activated by `/` key (parity with desktop); current-directory only; Escape clears and dismisses.
+- [ ] **TUI-06** — Status line shows session-cwd-relative path (left-truncated when wider than the pane: `…/utils/helper.ts`) + file count + selection position.
+- [ ] **TUI-07** — ALL filesystem I/O routed through `tea.Cmd` (returning `tea.Msg`); a synchronous `os.ReadDir` in Update is a merge-gate failure.
+- [ ] **TUI-08** — TUI Files view works against local AND remote (tailnet) sessions; uses the same daemon-local HTTP API for local and Tailscale HTTPS for remote (no relay frames).
+- [ ] **TUI-09** — Help overlay (`?` key) updated with file-browser keybindings: `↑/↓` `PgUp/PgDn` `Enter` `Backspace` `/` `?` `Esc` `q`.
+- [ ] **TUI-10** — Key-dispatch priority updated in `internal/tui/update.go` to handle file-browser modal correctly (above main view but below kill-confirm/new-session/QR overlay/help).
 
-v3.3 regression candidate — SHELL-12 auto-close was UAT-verified on macOS only per `107-VERIFICATION.md`; Linux PTY EOF semantics differ (`pty.Read()` blocks indefinitely after clean child exit on Linux amd64 with go-pty v0.2.2 + v0.2.3). The `TestListSessions_OnExitCallback_ReceivesNormalized` test was added in Phase 107-02 and silently skipped on Linux via `t.Skip()` pending this fix.
+## v3.5 Requirements (Deferred, not in v3.4 roadmap)
 
-- [x] **PTY-01** — On Linux, a shell session whose child process exits cleanly (`exit 0` at the prompt) causes the GUI tab / TUI list entry to auto-close — same behavior as macOS. Verified manually on a Linux desktop build and via CI test.
-- [x] **PTY-02** — Natural-exit detection is platform-aware: on Linux, a separate exit-detector goroutine polls `syscall.Wait4(pid, &status, WNOHANG)` (or equivalent) and explicitly closes the PTY to unblock the read loop, coordinating with go-pty's `waitOnContext` to avoid double-`Wait` race.
-- [x] **PTY-03** — `TestListSessions_OnExitCallback_ReceivesNormalized` no longer needs `t.Skip()` on Linux — runs and passes deterministically in `linux/amd64` CI under `-race -shuffle=on`.
-- [x] **PTY-04** — Cross-surface parity holds: TUI Linux and CLI Linux benefit from the same daemon-side fix (TUI uses the same daemon path; CLI attach-detach is independent but daemon-side cleanup is fixed). No regression on macOS or Windows.
+Tracked here for visibility; will be promoted to active during v3.5 milestone start.
 
-### TEST — Test-suite stability (Issue #58, pre-existing failures)
+### Write Operations
 
-- [x] **TEST-01** — `internal/webserver/plugin_config_stream_test.go::TestPluginConfigStream_ExpiredCap_Returns401` passes deterministically (100/100 runs) on Linux CI under `-race -shuffle=on`, returning 401 (not 403). Root cause documented in the fix commit.
-- [x] **TEST-02** — Underlying cause investigated and stated in writing — not a rerun-pass hack. Likely candidates per issue triage: (a) shared-state pollution across tests in `internal/webserver` test setup (testServer / EnableSession / SetSigningKey leaks under specific orderings), (b) base64 strict-decode variance, (c) HMAC implementation. Fix addresses the root, not the symptom.
-- [x] **TEST-03** — `internal/agent::TestOpenCodeANSICapture` data race fixed at root cause (Phase 71 `a02dd75` 2026-04-13 pre-existing). No `t.Skip()` left behind. Passes under `-race -count=3 -shuffle=on`.
-- [x] **TEST-04** — `internal/daemon::TestAPIGetShellWebShareWarned_Default` passes on `main` (Phase 101 `42b771f` pre-existing failure). Likely default-value drift after Phase 107 shell-UX collapse.
-- [x] **TEST-05** — `internal/daemon::TestDaemonClient_GetSetShellWebShareWarned_RoundTrip` passes on `main`.
-- [x] **TEST-06** — `internal/daemon::TestSetShellWebShareWarned_Default` passes on `main`. Full `internal/daemon` suite green under `-race -shuffle=on -count=3`.
+- **WRITE-01** — `POST /api/files/write` with If-Match conflict detection
+- **WRITE-02** — `POST /api/files/upload` (chunked) with capability bit `files.upload`
+- **WRITE-03** — Rename / delete / mkdir endpoints with capability bit `files.write`
 
-### PAPER — Paper-cut bugs from v3.3.1 deferred-items list
+### Editor Integration
 
-- [x] **PAPER-01** — TUI `lipgloss.Place([]string{}…)` zero-len slice indexing no longer panics in `renderNewSessionModal`. Defensive fix at the source `lipgloss.Place` call site (`internal/tui/modal.go`), independent of Phase 109 scope addition #3 (`84e1387`) that routed the empty-agent case away from this path. RED test that constructs the empty-agent state and confirms no panic.
-- [x] **PAPER-02** — `agenthub attach` clears the terminal screen on entry (paper-cut surfaced during Phase 110 UAT). Verified manually + via a smoke test that captures stdout on entry.
-- [x] **PAPER-03** — `internal/daemon/cleanup.go` `cmd.Wait` goroutine no longer leaks (WR-03 from Phase 110 REVIEW — pre-existing, no new exposure). Verified via `runtime.NumGoroutine()` delta in a regression test that spawns + cleans up N sessions and checks goroutine count returns to baseline.
+- **EDIT-01** — CodeMirror 6 (subject to ratification at v3.5 plan time) integrated into FileBrowserTab.tsx
+- **EDIT-02** — Cmd/Ctrl+S save; conflict UI on If-Match 412 mismatch
+- **EDIT-03** — Syntax highlighting via CodeMirror language packs (replaces v3.4 plain-text code rendering)
 
-## Future Requirements (deferred, not v3.3.1)
+### Upload UI + Remote Parity
 
-These open enhancement issues remain backlog for v3.4 or later:
+- **UPLD-01** — Drag-and-drop chunked upload with progress
+- **UPLD-02** — Verified denial for read-only web-share viewers
 
-- `#51` Settings flag to enable/disable shell-session sharing warning
-- `#50` Local agent running Gemma 3 1b
-- `#49` Split-window functionality
-- `#47` Admin control to restrict functionality
-- `#42` Let's Encrypt certs when not using Tailscale
-- `#30` iOS/Android mobile app versions
-- `#24` File browser tab with remote capability
-- `#10` Intersession communication / orchestration
-- `#9` Networking enhancement
+### TUI Edit
 
-Internal v3.3 carry-forward (deferred to v3.4):
+- **TUI-EDIT-01** — TUI shells out to `$EDITOR` on Enter/`e` against a text file
+- **TUI-EDIT-02** — `$EDITOR` unset → clear error message pointing to docs
+- **TUI-EDIT-03** — Upload-from-TUI formally implemented or formally descoped with follow-up issue filed
 
-- Phase 101 visual-fidelity UAT cosmetic items (5)
-- Phase 101 advisory WR-01..09 + IN-01..06 (15 items)
-- Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch `SEARCH_INDEX` missing "Shell binary"
-- Phase 108 WR-01/WR-02 + IN-01..04 (docs/dead-code)
-- Phase 103 process debt — `103-SUMMARY.md` + `103-IIP-DECISION.md` + `103-VERIFICATION.md`
-- Nyquist `*-VALIDATION.md` missing for Phases 101–108
-- Phase 108 PARITY-CLI-03 harness limitation (test skip with `SetShellPathForTest` follow-up sketched)
+## Out of Scope (v3.4)
 
-(Note: `TestOpenCodeANSICapture` data race + `TestShellWebShareWarned_Default`-family failures moved into Phase 116 scope per 2026-05-19 milestone re-scoping. See TEST-03..06.)
-
----
-
-## Out of Scope (v3.3.1)
-
-- **Any new feature work** — patch release semantics enforced
-- **Refactors not required by a bug fix** — Chesterton's Fence applies; surgical changes only
-- **Process-debt fills (Phase 103, Nyquist)** — separate v3.4 deliverable
-- **Cosmetic / advisory tech-debt drains** — deferred per scope discipline
-- **Mobile native app** — desktop + web only (general project Out of Scope, reaffirmed)
-- **Plugin system for adding new CLIs** — general project Out of Scope, reaffirmed
-
----
+| Feature | Reason |
+|---------|--------|
+| Recursive search across the cwd subtree | Current-directory-only filter ships first; recursion adds complexity (perf + cap-respect) better validated after read-only bakes |
+| Path-paste input box for breadcrumb | Click-segment navigation only; paste-jump can land in v3.5 with the editor |
+| Right-click context menu | All actions reachable via keyboard + buttons; context-menu UX better lands with write ops in v3.5 |
+| Drag-out file download | Browser-native download via Range endpoint is sufficient; drag-out adds platform-specific complexity |
+| Filesystem-watcher push notifications | Refresh-on-click is the v3.4 coherence contract; SSE/WS push is a v3.5+ concern |
+| Cloud Commander integration | Native UI locked in epic — Cloud Commander's standalone-Node-server auth model conflicts with daemon-centric capability model |
+| Monaco Editor | CodeMirror 6 recommended in epic (~200KB vs ~5MB, CSP-clean); decision ratified at v3.5 plan time, not v3.4 |
+| Syntax highlighting for code files | Deferred to v3.5 when editor lands — preview-only highlighting via shiki adds ~200KB bundle for v3.4-only value, low ROI |
+| In-TUI text editor | Shell-out to `$EDITOR` is the v3.5 path (matches `git commit` / `crontab -e` ergonomics) |
+| Path-paste input in TUI breadcrumb | TUI navigation is keyboard-driven by design |
+| HEAD on `/api/files/list` or `/stat` | Stat already returns full metadata; HEAD on `/read` is the only preflight needed |
+| `Claims.Perms` schema change (struct/array vs comma-string) | Established v3.1+ pattern is comma-string; `HasPerm` helper handles whole-token match cleanly |
 
 ## Traceability
 
-(Populated by roadmapper — REQ-ID → Phase mapping below)
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FS-01..FS-14 | Phase 118 (proposed) | Pending |
+| WEB-01..WEB-05 | Phase 119 (proposed) | Pending |
+| UI-01..UI-14 | Phase 120 (proposed) | Pending |
+| TUI-01..TUI-10 | Phase 121 (proposed) | Pending |
 
-| REQ-ID  | Phase | Status |
-|---------|-------|--------|
-| IPC-01  | Phase 109 | Complete |
-| IPC-02  | Phase 109 | Complete |
-| IPC-03  | Phase 109 | Complete |
-| IPC-04  | Phase 109 | Complete |
-| IPC-05  | Phase 109 | Complete |
-| IPC-06  | Phase 109 | Complete |
-| WEB-01  | Phase 111 | Complete |
-| WEB-02  | Phase 111 | Complete |
-| WEB-03  | Phase 111 | Complete |
-| UI-01   | Phase 112 | Complete |
-| UI-02   | Phase 112 | Complete |
-| UI-03   | Phase 113 | Complete |
-| UI-04   | Phase 113 | Complete |
-| PTY-01  | Phase 110 | Complete |
-| PTY-02  | Phase 110 | Complete |
-| PTY-03  | Phase 110 | Complete |
-| PTY-04  | Phase 110 | Complete |
-| TEST-01 | Phase 114 | Complete |
-| TEST-02 | Phase 114 | Complete |
-| WEB-04  | Phase 115 | Complete |
-| WEB-05  | Phase 115 | Complete |
-| WEB-06  | Phase 115 | Complete |
-| TEST-03 | Phase 116 | Complete |
-| TEST-04 | Phase 116 | Complete |
-| TEST-05 | Phase 116 | Complete |
-| TEST-06 | Phase 116 | Complete |
-| PAPER-01 | Phase 117 | Complete |
-| PAPER-02 | Phase 117 | Complete |
-| PAPER-03 | Phase 117 | Complete |
+**Coverage:**
+
+- v3.4 requirements: 43 total (FS: 14, WEB: 5, UI: 14, TUI: 10)
+- Mapped to phases: 43 (proposed; finalized by roadmapper)
+- Unmapped: 0 ✓ (target)
+
+---
+
+*Requirements defined: 2026-05-20*
+*Last updated: 2026-05-20 after initial definition; 3 OQs from research resolved: HEAD /read supported, TUI breadcrumb left-truncated, code files render as plain text in v3.4.*
