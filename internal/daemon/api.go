@@ -368,6 +368,7 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	a.signingKeyMu.RUnlock()
 	ws.SetSigningKey(key)
 	ws.SetFilesHandler(a.filesHandler)
+	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 	if err := ws.Start(); err != nil {
 		return err
@@ -857,6 +858,7 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 	a.signingKeyMu.RUnlock()
 	ws.SetSigningKey(key)
 	ws.SetFilesHandler(a.filesHandler)
+	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 
 	if err := ws.Start(); err != nil {

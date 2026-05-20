@@ -41,6 +41,13 @@ var appInstance *App
 
 func main() {
 	daemon.BuildVersion = Version
+	// Phase 120-04 — hand the embedded React bundle FS to the daemon package so
+	// the daemon-mode invocation (`agenthub daemon`) can mount it on the
+	// webserver's /app/ route. In dev builds (no wailsassets tag) this
+	// returns nil; the webserver answers /app/ with 503. In prod builds
+	// (wailsassets) this returns the same fs.FS used by Wails for the
+	// desktop bundle, mounted under /app/ for remote/web-share viewers.
+	daemon.SetStaticAppFS(staticAppForDaemon())
 
 	// GUI mode: no args, or first arg is a flag (except help).
 	if len(os.Args) == 1 || strings.HasPrefix(os.Args[1], "-") {

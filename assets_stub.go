@@ -13,3 +13,8 @@ import (
 // When building with `wails build`, the wailsassets build tag activates
 // assets_prod.go which uses //go:embed all:frontend/dist instead.
 var assets fs.FS = os.DirFS(".")
+
+// staticAppForDaemon returns nil in dev builds so the daemon's /app/ route
+// answers 503 instead of accidentally exposing the working directory tree
+// over the web. Phase 120-04 — see internal/daemon/staticapp.go.
+func staticAppForDaemon() fs.FS { return nil }

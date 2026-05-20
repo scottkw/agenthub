@@ -50,6 +50,7 @@ func TestSER03_NoAutoSavePatterns(t *testing.T) {
 		"frontend/node_modules":  true,           // pnpm workspace node_modules
 		"build":                  true,
 		"dist":                   true,
+		"frontend/dist":          true, // built React bundle — minified/mangled, may incidentally contain forbidden substrings (e.g. xterm-theme's auto-import scaffolding)
 		"vendor":                 true,
 		"internal/release":       true, // self — regex literals would false-positive
 		".planning":              true, // research/plan docs cite the patterns by name
