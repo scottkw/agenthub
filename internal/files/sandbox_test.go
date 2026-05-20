@@ -207,6 +207,14 @@ func TestValidatePath_AcceptsLegitimate(t *testing.T) {
 // TestSandbox_SymlinkEscapeBlocked — Pitfall 1 TOCTOU class. Create a
 // symlink inside the root that points outside; opening it via the sandbox
 // must NOT follow the link out. (Skip on Windows where symlinks need admin.)
+//
+// WR-03 hardening: a positive control proves outside/secret actually
+// exists on disk, so any pass MUST come from os.Root rejecting the
+// escape — not from an ENOENT that would mask a broken implementation
+// (e.g., one that called os.Open(filepath.Join(rootPath, rel)) instead
+// of root.Open, which would also fail "not found" via the wrong route).
+// The escaping Open is then required to fail AND its file handle (if
+// any) is closed to prevent leaks if the test ever regresses.
 func TestSandbox_SymlinkEscapeBlocked(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink creation requires admin on Windows")
@@ -214,8 +222,17 @@ func TestSandbox_SymlinkEscapeBlocked(t *testing.T) {
 	sb, root := newTestSandbox(t)
 	// Create an outside target the symlink will point to.
 	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "secret"), []byte("leaked"), 0o644); err != nil {
+	secretPath := filepath.Join(outside, "secret")
+	if err := os.WriteFile(secretPath, []byte("leaked"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	// Positive control: confirm outside/secret really is readable via
+	// a direct os.ReadFile so the negative assertion below can't pass
+	// merely because the target doesn't exist (WR-03).
+	if data, err := os.ReadFile(secretPath); err != nil {
+		t.Fatalf("positive control: outside/secret unreadable: %v", err)
+	} else if string(data) != "leaked" {
+		t.Fatalf("positive control: outside/secret content = %q; want %q", data, "leaked")
 	}
 	linkPath := filepath.Join(root, "escape")
 	if err := os.Symlink(outside, linkPath); err != nil {
@@ -223,7 +240,10 @@ func TestSandbox_SymlinkEscapeBlocked(t *testing.T) {
 	}
 	// Attempting to open through the symlink must fail — os.Root rejects
 	// symlinks that escape the root atomically.
-	if _, err := sb.Open("escape/secret"); err == nil {
+	fp, err := sb.Open("escape/secret")
+	if err == nil {
+		// Close the leaked handle so the test doesn't leave an open fd.
+		fp.Close()
 		t.Errorf("Open through escaping symlink succeeded; want error")
 	}
 }
