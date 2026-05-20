@@ -986,8 +986,18 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	}
 
 	now := time.Now().Unix()
+	// Phase 118 / FS-12: owner token includes files.read unless the operator
+	// has explicitly disabled it via daemonSettings.FilesRead. nil filesRead
+	// (legacy pre-v3.4 file) is treated as enabled — the engine's
+	// loadSettingsFromDisk defaults-merge writes *true at load time (see
+	// Plan 04), so in steady-state nil only occurs in tests. The viewer
+	// (read) token Perms is unchanged — viewers default-off per FS-12.
+	ownerPerms := "read,write"
+	if a.engine.filesReadEnabled() {
+		ownerPerms = "read,write," + capability.PermFilesRead
+	}
 	rClaims := capability.Claims{SID: sessionID, Perms: "read", IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
-	wClaims := capability.Claims{SID: sessionID, Perms: "read,write", IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
+	wClaims := capability.Claims{SID: sessionID, Perms: ownerPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
 
 	rTok, err := capability.Sign(rClaims, key)
 	if err != nil {

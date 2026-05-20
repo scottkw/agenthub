@@ -495,6 +495,18 @@ func (e *SessionEngine) GetSessionWorkDir(id string) string {
 	return e.sessionWorkDirs[id]
 }
 
+// filesReadEnabled reports whether file-browser capability issuance is
+// enabled for owner tokens. nil filesRead (pre-v3.4 / pre-defaults-merge)
+// defaults to true; explicit *true is true; explicit *false is false.
+// Consumed by issueCapabilitiesForSession to decide whether to inject
+// the files.read perm into newly-minted write tokens (FS-12 + FS-14).
+// Phase 118.
+func (e *SessionEngine) filesReadEnabled() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.filesRead == nil || *e.filesRead
+}
+
 // ResolveCLI returns the executable path for the named CLI.
 // Checks custom overrides first, then returns the name as-is.
 func (e *SessionEngine) ResolveCLI(name string) string {
