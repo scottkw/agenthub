@@ -489,5 +489,180 @@ func TestApplyFilesReadMsg_StaleSessionID_Discarded(t *testing.T) {
 	}
 }
 
+// --- Plan 02 Task 2: handleFilesKey full dispatch ---
+
+// filesKeyTestModel returns a Model whose embedded filesModel matches Plan-02
+// dispatch expectations: sessionID="s1", active tab is tabFiles.
+func filesKeyTestModel() Model {
+	m := filesTestModel("s1")
+	m.openTabs = []tabID{tabSessions, tabFiles}
+	m.activeTab = 1
+	return m
+}
+
+func TestHandleFilesKey_Backspace_AtRoot_NoOp(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = ""
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd != nil {
+		t.Error("expected nil cmd at root Backspace")
+	}
+	if updated.(Model).files.cwd != "" {
+		t.Errorf("expected cwd unchanged at root, got %q", updated.(Model).files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Backspace_AtRoot_Dot_NoOp(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = "."
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd != nil {
+		t.Error("expected nil cmd at root='.' Backspace")
+	}
+	if updated.(Model).files.cwd != "." {
+		t.Errorf("expected cwd unchanged at '.', got %q", updated.(Model).files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Backspace_NonRoot_DispatchesParent(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = "a/b"
+	_, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd == nil {
+		t.Error("expected non-nil loadDirCmd at non-root Backspace")
+	}
+}
+
+func TestHandleFilesKey_Slash_ActivatesFilter(t *testing.T) {
+	m := filesKeyTestModel()
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: '/'})
+	if !updated.(Model).files.filterActive {
+		t.Error("expected filterActive=true after '/'")
+	}
+}
+
+func TestHandleFilesKey_FilterActive_EscClears(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.filterActive = true
+	m.files.filterInput.SetValue("abc")
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	r := updated.(Model)
+	if r.files.filterActive {
+		t.Error("expected filterActive=false after Esc")
+	}
+	if r.files.filterInput.Value() != "" {
+		t.Errorf("expected filterInput cleared, got %q", r.files.filterInput.Value())
+	}
+}
+
+func TestHandleFilesKey_FilterActive_BackspaceDoesNotNavigate(t *testing.T) {
+	// Pitfall TUI-PITFALL-2: when filter is active, Backspace MUST go to the
+	// textinput (deleting a char) — never navigate the cwd up.
+	m := filesKeyTestModel()
+	m.files.cwd = "a/b"
+	m.files.filterActive = true
+	m.files.filterInput.SetValue("abc")
+	m.files.filterInput.CursorEnd()
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	r := updated.(Model)
+	if r.files.cwd != "a/b" {
+		t.Errorf("Backspace during filter must NOT navigate up; cwd changed to %q", r.files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Down_MovesCursor(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+	m.files.selected = 0
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	if updated.(Model).files.selected != 1 {
+		t.Errorf("expected selected=1 after Down, got %d", updated.(Model).files.selected)
+	}
+}
+
+func TestHandleFilesKey_Down_ClampedAtEnd(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+	m.files.selected = 2
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	if updated.(Model).files.selected != 2 {
+		t.Errorf("expected selected clamped to 2, got %d", updated.(Model).files.selected)
+	}
+}
+
+func TestHandleFilesKey_Enter_OnDir_DispatchesLoadDir(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "sub", IsDir: true}}
+	m.files.selected = 0
+	_, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil loadDirCmd on Enter for a directory")
+	}
+}
+
+func TestHandleFilesKey_Enter_OnFile_DispatchesHead(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a.txt", IsDir: false}}
+	m.files.selected = 0
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil headFileCmd on Enter for a file")
+	}
+	if !updated.(Model).files.previewLoading {
+		t.Error("expected previewLoading=true on Enter for a file")
+	}
+}
+
+func TestHandleFilesKey_Tab_TogglesPreviewFocus(t *testing.T) {
+	m := filesKeyTestModel()
+	before := m.files.previewFocused
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	if updated.(Model).files.previewFocused == before {
+		t.Error("expected previewFocused to toggle on Tab")
+	}
+}
+
+func TestHandleFilesKey_BracketKeysCycleTabs(t *testing.T) {
+	// Pitfall TUI-PITFALL-7: '[' / ']' must cycle tabs even when
+	// handleFilesKey is the active dispatcher.
+	m := filesKeyTestModel()
+	m.openTabs = []tabID{tabSessions, tabFiles}
+	m.activeTab = 1
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: '['})
+	if updated.(Model).activeTab != 0 {
+		t.Errorf("expected activeTab=0 after '[', got %d", updated.(Model).activeTab)
+	}
+}
+
+func TestParentDir(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"a/b", "a"},
+		{"a", ""},
+		{"", ""},
+		{".", ""},
+		{"a/b/c", "a/b"},
+		{"a/", ""},
+	}
+	for _, tc := range cases {
+		if got := parentDir(tc.in); got != tc.want {
+			t.Errorf("parentDir(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestJoinDir(t *testing.T) {
+	cases := []struct{ base, name, want string }{
+		{"", "a", "a"},
+		{".", "a", "a"},
+		{"a", "b", "a/b"},
+		{"a/b", "c", "a/b/c"},
+	}
+	for _, tc := range cases {
+		if got := joinDir(tc.base, tc.name); got != tc.want {
+			t.Errorf("joinDir(%q, %q) = %q, want %q", tc.base, tc.name, got, tc.want)
+		}
+	}
+}
+
 // keep ansi import live for later Plan 02 tests
 var _ = ansi.Strip
