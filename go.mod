@@ -18,6 +18,7 @@ require (
 	github.com/kardianos/service v1.2.4
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55
+	github.com/wailsapp/mimetype v1.4.1
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
@@ -112,7 +113,6 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
-	github.com/wailsapp/mimetype v1.4.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
