@@ -552,6 +552,17 @@ func (ws *WebServer) setupRoutes() {
 	// instead of a nil-deref panic (mirrors filesHandler pattern). Public
 	// tier: no capability gate here — the React bundle is static client code,
 	// and any /api/ call it makes is independently gated.
+	//
+	// Phase 120 WR-02 — caching policy: index.html is forced Cache-Control:
+	// no-store via serveIndex so clients always pick up the latest entry
+	// point. Other /app/* assets (hashed JS/CSS bundles) inherit Go's
+	// FileServerFS default (Last-Modified from the embed.FS) with NO
+	// Cache-Control header. This is intentional and safe because Vite
+	// content-hashes every asset URL (e.g. index-aB12.js); the hash IS the
+	// cache key, so stale browser caches cannot serve a mismatched bundle
+	// against a fresh index.html. If a future deploy ships unhashed assets
+	// under /app/, this contract breaks — wrap the FileServerFS call in
+	// assetsNoStore (as /assets/ does) before that lands.
 	mux.HandleFunc("GET /app/", func(w http.ResponseWriter, r *http.Request) {
 		appFS := ws.staticAppFS
 		if appFS == nil {
@@ -569,6 +580,16 @@ func (ws *WebServer) setupRoutes() {
 			return
 		}
 		rel := path[len("/app/"):]
+		// Phase 120 WR-01: block directory-index requests. http.FileServerFS
+		// renders a styled HTML listing of an embed.FS directory when given a
+		// trailing-slash path, leaking the bundle's file names + mtimes. The
+		// /assets/* routes guard against this via assetsNoStore; /app/ now
+		// mirrors that defence by falling through to the SPA fallback (which
+		// serves index.html) for any trailing-slash sub-path.
+		if rel != "" && rel[len(rel)-1] == '/' {
+			serveIndex(w, r, appFS)
+			return
+		}
 		if _, err := fs.Stat(appFS, rel); err != nil {
 			// SPA fallback for unknown paths.
 			serveIndex(w, r, appFS)
