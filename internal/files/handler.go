@@ -2,7 +2,7 @@
 // deliberately stateless — one *Handler can be mounted on multiple
 // muxes:
 //   - Plan 05 wires it to the daemon's session-keyed file routes.
-//   - Phase 119 wires it to the webserver via the SetFilesHandlerProvider
+//   - Phase 119 wires it to the webserver via the SetFilesHandler
 //     parity point.
 //
 // The resolver function injected at construction is the seam that lets
