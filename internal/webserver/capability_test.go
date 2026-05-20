@@ -578,20 +578,24 @@ func TestRequireCapability_UnchangedByPhase118(t *testing.T) {
 		t.Fatalf("read capability_mw.go: %v", err)
 	}
 	src := string(data)
-	// Extract the requireCapability function body.
+	// Extract the requireCapability function body — bounded at the closing
+	// brace at column 0, which is the canonical end of a Go top-level func.
+	// Bounding at the next "\nfunc " would erroneously include the docstring
+	// of any function that follows.
 	idx := strings.Index(src, "func (ws *WebServer) requireCapability(")
 	if idx < 0 {
 		t.Fatal("capability_mw.go must declare func (ws *WebServer) requireCapability")
 	}
 	rest := src[idx:]
-	// Bound at the next top-level "\nfunc " (either method or function).
-	end := strings.Index(rest[1:], "\nfunc ")
+	end := strings.Index(rest, "\n}\n")
 	if end < 0 {
-		end = len(rest)
-	} else {
-		end = end + 1
+		// Tolerate EOF without trailing newline.
+		end = strings.Index(rest, "\n}")
 	}
-	body := rest[:end]
+	if end < 0 {
+		t.Fatal("could not locate closing brace of requireCapability")
+	}
+	body := rest[:end+2] // include the closing "}"
 	if strings.Contains(body, "files.read") {
 		t.Errorf("requireCapability body must NOT mention \"files.read\" (T-118-14 / Pitfall 4) — use the separate requireFilesRead wrapper instead. Body:\n%s", body)
 	}
