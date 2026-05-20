@@ -15,8 +15,18 @@ export function humanSize(bytes: number): string {
     value /= 1024
     unitIdx++
   }
-  // One decimal place; truncate (not round half-up) to avoid '5.0 MB' → '5.1 MB'
-  // jitter on the 5-MiB cap boundary check used downstream.
+  // One decimal place, truncated (Math.floor) rather than rounded. Phase 120
+  // WR-05: the previous comment claimed this guarded a downstream 5-MiB
+  // boundary check, but the 5-MiB cap is enforced server-side in bytes (HTTP
+  // 413), never compared against this formatted string — so that rationale
+  // was incorrect. The truncation IS deliberate, but the real reason is
+  // display stability: it gives a single canonical rendering per byte count
+  // (no Math.round half-even ambiguity across JS engines / CI hosts) and
+  // avoids ever upgrading a "5.0 MB" display to "5.1 MB" for a value that is
+  // strictly less than 5 MiB, which would mislead users into thinking they
+  // had crossed the cap. The cost is a consistent low bias of up to 0.1 unit
+  // (e.g. 5.99 MB renders as "5.9 MB"); accept that as the trade for
+  // deterministic UI snapshots.
   const truncated = Math.floor(value * 10) / 10
   return `${truncated.toFixed(1)} ${UNITS[unitIdx]}`
 }
