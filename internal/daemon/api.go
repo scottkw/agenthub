@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/scottkw/agenthub/internal/capability"
+	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/tailnet"
 	"github.com/scottkw/agenthub/internal/webserver"
@@ -43,6 +44,14 @@ type API struct {
 	// The Plan-06 /join/exchange handler on the webserver consumes the same
 	// manager via ws.SetJoinCodes.
 	joinCodes *capability.JoinCodeManager
+
+	// filesHandler serves /api/files/{list,stat,read} on the daemon socket.
+	// Phase 118 / FS-03..FS-07: the resolver closes over engine.GetSessionWorkDir
+	// + files.NewSandbox so each request reconstructs a fresh per-session
+	// Sandbox (no shared mutable state across requests). Loopback transport
+	// is the trust boundary — no auth gate here; the webserver mount
+	// (Phase 119) adds requireFilesRead.
+	filesHandler *files.Handler
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -52,6 +61,20 @@ func NewAPI(engine *SessionEngine) *API {
 		mux:          http.NewServeMux(),
 		tailnetCache: &tailnetCache{},
 	}
+	// Phase 118 / FS-03..FS-07: construct the file Handler BEFORE registerRoutes
+	// so the route registrations have a non-nil target. The resolver closes
+	// over a.engine.GetSessionWorkDir + files.NewSandbox — each request gets
+	// a freshly-constructed Sandbox rooted at the session's resolved workDir.
+	a.filesHandler = files.NewHandler(func(sessionID string) (*files.Sandbox, error) {
+		if sessionID == "" {
+			return nil, errors.New("missing session parameter")
+		}
+		wd := a.engine.GetSessionWorkDir(sessionID)
+		if wd == "" {
+			return nil, errors.New("session not found or has no working directory")
+		}
+		return files.NewSandbox(wd)
+	})
 	a.registerRoutes()
 	return a
 }
@@ -98,6 +121,17 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("POST /sessions/{id}/capabilities", a.handleIssueCapabilities)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
+	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
+	// No auth here — the loopback transport (Unix socket / Windows named pipe)
+	// is the trust boundary (ARCHITECTURE.md Decision 2 + REQUIREMENTS.md WEB-01).
+	// The webserver mounts the same Handler under requireFilesRead in Phase 119.
+	// Method-prefixed routes per Go 1.22+ mux semantics: POST and other verbs
+	// auto-return 405 (Pitfall 8 — do not register a fallback handler that
+	// would mask this).
+	a.mux.HandleFunc("GET /api/files/list", a.filesHandler.List)
+	a.mux.HandleFunc("GET /api/files/stat", a.filesHandler.Stat)
+	a.mux.HandleFunc("GET /api/files/read", a.filesHandler.Read)
+	a.mux.HandleFunc("HEAD /api/files/read", a.filesHandler.Read)
 }
 
 // BootstrapCapabilityState loads or generates the HMAC signing key (D-04) and
