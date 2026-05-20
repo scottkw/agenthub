@@ -3021,3 +3021,360 @@ body {
     animation: file-browser-shimmer 1.2s ease-in-out infinite alternate;
   }
 }
+
+/* ─── File Browser Preview Pane (Phase 120-04) ─── */
+.file-browser__preview {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  background: #16161e;
+  border-left: 1px solid #292e42;
+  min-width: 0;
+  min-height: 0;
+}
+
+.file-browser__preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #16161e;
+  border-bottom: 1px solid #292e42;
+  font-size: 13px;
+  color: #c0caf5;
+  flex: 0 0 auto;
+}
+
+.file-browser__preview-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.file-browser__preview-size {
+  color: #9aa5ce;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.file-browser__preview-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  min-height: 0;
+  padding: 16px;
+}
+
+.file-browser__preview-body-muted {
+  color: #9aa5ce;
+}
+
+.file-browser__preview-heading {
+  margin: 0 0 8px 0;
+  color: #c0caf5;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.file-browser__preview--idle {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9aa5ce;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.file-browser__preview--loading {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #9aa5ce;
+  font-size: 13px;
+}
+
+.file-browser__preview--text {
+  margin: 0;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c0caf5;
+  white-space: pre;
+  word-break: normal;
+  overflow: auto;
+  flex: 1 1 auto;
+}
+
+.file-browser__preview--markdown {
+  flex: 1 1 auto;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c0caf5;
+  overflow: auto;
+}
+
+.file-browser__preview--markdown h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.file-browser__preview--markdown h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+}
+
+.file-browser__preview--markdown h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 12px 0 8px 0;
+}
+
+.file-browser__preview--markdown h4,
+.file-browser__preview--markdown h5,
+.file-browser__preview--markdown h6 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 8px 0;
+}
+
+.file-browser__preview--markdown a {
+  color: #7aa2f7;
+  text-decoration: underline;
+}
+
+.file-browser__preview--markdown code {
+  background: #1e2030;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 13px;
+}
+
+.file-browser__preview--markdown pre {
+  background: #1e2030;
+  padding: 12px;
+  border-radius: 4px;
+  overflow: auto;
+}
+
+.file-browser__preview--markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.file-browser__preview--markdown table {
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.file-browser__preview--markdown th,
+.file-browser__preview--markdown td {
+  border: 1px solid #292e42;
+  padding: 4px 8px;
+}
+
+.file-browser__preview--image {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.file-browser__preview--unsupported,
+.file-browser__preview--empty,
+.file-browser__preview--broken-symlink,
+.file-browser__preview--forbidden {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  color: #c0caf5;
+}
+
+.file-browser__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #292e42;
+  background: transparent;
+  color: #c0caf5;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.file-browser__btn:hover {
+  background: #1e2030;
+}
+
+.file-browser__btn--primary {
+  background: #7aa2f7;
+  color: #1a1b26;
+  border-color: #7aa2f7;
+}
+
+.file-browser__btn--primary:hover {
+  background: #7aa2f7;
+  filter: brightness(1.1);
+}
+
+.file-browser__btn--secondary {
+  border-color: #292e42;
+}
+
+.file-browser__btn--icon {
+  padding: 4px;
+  border-radius: 3px;
+}
+
+.file-browser__btn:focus-visible,
+.file-browser__btn--primary:focus-visible,
+.file-browser__btn--icon:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+/* Full-tab takeover (replaces breadcrumb + list + preview entirely) — used
+   for files.read denial. Border-left destructive accent visually matches
+   .banner--error. */
+.file-browser__takeover {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+  gap: 12px;
+}
+
+.file-browser__takeover--permission-denied {
+  border-left: 3px solid #f7768e;
+}
+
+.file-browser__takeover-heading {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #c0caf5;
+}
+
+.file-browser__takeover-body {
+  margin: 0;
+  font-size: 13px;
+  color: #a9b1d6;
+  max-width: 480px;
+}
+
+/* Centered empty-directory placeholder (rendered inside list pane in place
+   of rows). */
+.file-browser__empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  gap: 4px;
+  color: #c0caf5;
+}
+
+.file-browser__empty-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.file-browser__empty-path {
+  margin: 0;
+  color: #9aa5ce;
+  font-size: 12px;
+}
+
+/* Inline error region (NetworkErrorState, used inside list or preview). */
+.file-browser__error {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: 8px;
+  border-left: 3px solid #f7768e;
+}
+
+.file-browser__error-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #c0caf5;
+}
+
+.file-browser__error-body {
+  margin: 0;
+  font-size: 13px;
+  color: #a9b1d6;
+}
+
+/* Loading spinner used inside preview loading body. Static dots under
+   prefers-reduced-motion (UI-SPEC §Motion). */
+.file-browser__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #292e42;
+  border-top-color: #7aa2f7;
+  border-radius: 50%;
+  animation: file-browser-spin 0.75s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-browser__spinner {
+    animation: none;
+    border: none;
+    width: auto;
+    height: auto;
+  }
+  .file-browser__spinner::before {
+    content: '…';
+    color: #9aa5ce;
+  }
+}
+
+@keyframes file-browser-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* sr-only utility — used by FileBrowserTab to announce "Previewing {filename}"
+   to screen readers without showing the text visually (UI-SPEC §Accessibility). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
