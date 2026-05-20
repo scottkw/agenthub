@@ -12,6 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/scottkw/agenthub/internal/capability"
+	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/relay"
 	webfs "github.com/scottkw/agenthub/web"
 	qrcode "github.com/skip2/go-qrcode"
@@ -90,6 +91,15 @@ type WebServer struct {
 	// webserver→daemon circular import (see 93-RESEARCH Q1).
 	pluginSettingsProvider func() []byte
 
+	// filesHandler is the *files.Handler injected by the daemon via
+	// SetFilesHandler before ws.Start() runs. Stateless; the same instance
+	// is shared with the daemon-local mux (internal/daemon/api.go::NewAPI).
+	// Read at request time inside the route closure (Pitfall 2 — must NOT
+	// be captured at registration time, since setupRoutes runs BEFORE the
+	// daemon can wire it). Set once before Start(); not mutex-protected
+	// (mirrors sessionResolver pattern, server.go:82-83).
+	filesHandler *files.Handler
+
 	// pluginConfigSubscribers is the set of active SSE subscribers for
 	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
 	// BroadcastPluginConfig non-blocking-sends to each. Drop-on-slow-consumer.
@@ -127,6 +137,16 @@ func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string,
 // daemon. Phase 93 PLUG-04.
 func (ws *WebServer) SetPluginSettingsProvider(fn func() []byte) {
 	ws.pluginSettingsProvider = fn
+}
+
+// SetFilesHandler installs the *files.Handler used to serve the
+// /api/files/{list,stat,read} routes on the webserver mux. Must be
+// called before Start(). The handler must already be constructed with
+// its sandbox resolver closure (the daemon's NewAPI does this — Phase
+// 119 reuses a.filesHandler verbatim, no new construction). Mirrors
+// SetSessionResolver — single setter, no mutex, set once.
+func (ws *WebServer) SetFilesHandler(h *files.Handler) {
+	ws.filesHandler = h
 }
 
 // EnableSession marks a session as web-served (WEB-01 toggle).
@@ -426,6 +446,32 @@ func (ws *WebServer) setupRoutes() {
 	// Closes ROADMAP SC#4 ("no manual page reload for hot-swappable plugins").
 	// Capability-gated like the read endpoint above.
 	mux.HandleFunc("GET /api/plugin-config/stream", ws.requireCapability(ws.handleStreamPluginConfig))
+
+	// Phase 119 / WEB-02..WEB-04: capability-gated read-only file API. The
+	// closure captures ws (not ws.filesHandler) so the handler instance is
+	// read at request time, AFTER the daemon has called SetFilesHandler.
+	// Pitfall 2 — registering ws.filesHandler.List directly would bind nil
+	// at setupRoutes() time. The same closure body is reused for all four
+	// routes via a small helper to avoid four near-identical literal
+	// blocks. Method-prefixed (GET/HEAD) per Go 1.22+ mux semantics — any
+	// other verb returns 405 automatically without registering an
+	// explicit handler (Pitfall 8 / WEB-02 SC#3). HEAD is registered as
+	// a separate route because the Go 1.22 mux treats HEAD and GET as
+	// distinct methods (Pitfall 1 / FS-06).
+	filesDispatch := func(op func(*files.Handler) http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			h := ws.filesHandler
+			if h == nil {
+				http.Error(w, "files handler not configured", http.StatusServiceUnavailable)
+				return
+			}
+			op(h)(w, r)
+		}
+	}
+	mux.HandleFunc("GET /api/files/list", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.List })))
+	mux.HandleFunc("GET /api/files/stat", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Stat })))
+	mux.HandleFunc("GET /api/files/read", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Read })))
+	mux.HandleFunc("HEAD /api/files/read", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Read })))
 
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list
