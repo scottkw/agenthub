@@ -1,5 +1,21 @@
 package daemon
 
+import (
+	"github.com/scottkw/agenthub/internal/files"
+)
+
+// FileEntry is the per-entry wire type returned by the file-browser routes
+// (GET /api/files/list, /api/files/stat). Re-exported as an alias from
+// internal/files so DaemonClient consumers (Phase 120 GUI, Phase 121 TUI)
+// import only this package.
+// Phase 118 / FS-03 / FS-04.
+type FileEntry = files.FileEntry
+
+// FileListResponse is the wire envelope for GET /api/files/list.
+// Re-exported alias of files.FileListResponse — same rationale as FileEntry.
+// Phase 118 / FS-03.
+type FileListResponse = files.FileListResponse
+
 // SessionInfo is the JSON-serialisable representation of a session.
 type SessionInfo struct {
 	ID          string `json:"id"`

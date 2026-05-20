@@ -8,8 +8,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
+	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
@@ -346,6 +349,138 @@ func (c *DaemonClient) ListTailnetPeers() ([]tailnet.Peer, error) {
 		peers = []tailnet.Peer{}
 	}
 	return peers, nil
+}
+
+// -------------------------------------------------------------------------
+// Phase 118 / Plan 05: file-browser DaemonClient methods.
+//
+// All four methods use the existing c.http transport (Unix socket / Windows
+// named pipe). url.Values.Encode() handles path quoting so special characters
+// (spaces, '#', '?') do not break the URL. Non-2xx responses surface as
+// errors containing the status code so callers can branch on 403/404/413
+// without re-issuing the request.
+// -------------------------------------------------------------------------
+
+// filesURL builds /api/files/<op>?session=<sid>&path=<rel>. relPath empty
+// is normalised to "." so callers can pass "" for "list the root".
+func (c *DaemonClient) filesURL(op, sessionID, relPath string) string {
+	if relPath == "" {
+		relPath = "."
+	}
+	q := url.Values{}
+	q.Set("session", sessionID)
+	q.Set("path", relPath)
+	return c.base + "/api/files/" + op + "?" + q.Encode()
+}
+
+// ListFiles fetches a directory listing for the given session via the
+// daemon-local socket. The loopback transport is the trust boundary — no
+// cap-token is sent. Returns entries, truncated flag, and any non-2xx
+// status surfaced as a typed error.
+// Phase 118 / FS-03.
+func (c *DaemonClient) ListFiles(ctx context.Context, sessionID, relPath string) ([]files.FileEntry, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.filesURL("list", sessionID, relPath), nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("files list: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, false, fmt.Errorf("files list: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, false, fmt.Errorf("files list: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, false, fmt.Errorf("files list: decode response: %w", err)
+	}
+	return out.Entries, out.Truncated, nil
+}
+
+// StatFile fetches metadata for a single path inside the session's sandbox.
+// Phase 118 / FS-04.
+func (c *DaemonClient) StatFile(ctx context.Context, sessionID, relPath string) (files.FileEntry, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.filesURL("stat", sessionID, relPath), nil)
+	if err != nil {
+		return files.FileEntry{}, fmt.Errorf("files stat: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileEntry{}, fmt.Errorf("files stat: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileEntry{}, fmt.Errorf("files stat: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileEntry
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileEntry{}, fmt.Errorf("files stat: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// ReadFile fetches file bytes via the daemon socket. The daemon enforces the
+// 5 MiB preview cap server-side (Pitfall 5 / FS-05); a 413 surfaces here as
+// a typed error so callers can distinguish "too large" from "not found"
+// without re-issuing the request.
+// Phase 118 / FS-05.
+func (c *DaemonClient) ReadFile(ctx context.Context, sessionID, relPath string) ([]byte, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.filesURL("read", sessionID, relPath), nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("files read: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("files read: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, "", fmt.Errorf("files read: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("files read: read body: %w", err)
+	}
+	return data, resp.Header.Get("Content-Type"), nil
+}
+
+// HeadFile preflights size + Content-Type + modtime without transferring the
+// body. Phase 120 (GUI) uses this for cap-aware previews — query the size
+// before deciding to fetch. Phase 118 / FS-06.
+func (c *DaemonClient) HeadFile(ctx context.Context, sessionID, relPath string) (int64, string, time.Time, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.filesURL("read", sessionID, relPath), nil)
+	if err != nil {
+		return 0, "", time.Time{}, fmt.Errorf("files head: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, "", time.Time{}, fmt.Errorf("files head: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, "", time.Time{}, fmt.Errorf("files head: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	// Content-Length parsing — http.Response.ContentLength is already int64;
+	// -1 means absent. HEAD responses on a known-size body always populate it.
+	size := resp.ContentLength
+	if size < 0 {
+		size = 0
+	}
+	// Last-Modified header — parse with http.ParseTime so RFC1123/RFC850 are
+	// both handled. On parse failure the zero time is returned so callers see
+	// "no usable mtime" rather than a stale value.
+	var mtime time.Time
+	if lm := resp.Header.Get("Last-Modified"); lm != "" {
+		if t, err := http.ParseTime(lm); err == nil {
+			mtime = t
+		}
+	}
+	return size, resp.Header.Get("Content-Type"), mtime, nil
 }
 
 // doJSON is a shared request/response helper. It marshals body (if non-nil),
