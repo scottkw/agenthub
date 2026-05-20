@@ -2836,3 +2836,188 @@ body {
   color: #a9b1d6;
   white-space: nowrap;
 }
+
+/* File list pane — left side of the file browser body row. */
+.file-browser {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1b26;
+}
+
+.file-browser__body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.file-browser__list {
+  flex: 0 0 40%;
+  min-width: 240px;
+  max-width: 480px;
+  background: #1a1b26;
+  border-right: 1px solid #292e42;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-browser__list:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: -2px;
+}
+
+.file-browser__truncated-banner {
+  padding: 8px 12px;
+  border-left: 3px solid #f59e0b;
+  background: #1e2030;
+  color: #c0caf5;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.file-browser__truncated-banner > strong {
+  display: block;
+}
+
+.file-browser__list-header {
+  display: grid;
+  grid-template-columns: 1fr 80px 110px;
+  gap: 8px;
+  height: 28px;
+  align-items: center;
+  padding: 0 12px;
+  background: #16161e;
+  border-bottom: 1px solid #292e42;
+  position: sticky;
+  top: 0;
+}
+
+.file-browser__col {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #9aa5ce;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.file-browser__col--size,
+.file-browser__col--modified {
+  justify-content: flex-start;
+}
+
+.file-browser__col--active {
+  color: #7aa2f7;
+}
+
+.file-browser__col:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+.file-browser__col-chevron {
+  color: #7aa2f7;
+}
+
+.file-browser__list-scroll {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.file-browser__list-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 80px 110px;
+  gap: 8px;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #c0caf5;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.file-browser__list-row:hover {
+  background: #1e2030;
+}
+
+.file-browser__list-row--selected {
+  background: #1e2030;
+  border-left-color: #7aa2f7;
+}
+
+.file-browser__list-row--selected .file-browser__row-name {
+  font-weight: 600;
+}
+
+.file-browser__row-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a9b1d6;
+  width: 14px;
+  height: 14px;
+}
+
+.file-browser__row-icon-overlay {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  color: #f7768e;
+}
+
+.file-browser__row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-browser__row-size {
+  color: #a9b1d6;
+  font-size: 12px;
+  text-align: right;
+}
+
+.file-browser__row-mtime {
+  color: #a9b1d6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.file-browser__list-empty {
+  list-style: none;
+  padding: 24px 16px;
+  color: #9aa5ce;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Skeleton shimmer animation (used by Plan 04 when listing is loading).
+   Gated by prefers-reduced-motion per UI-SPEC §Motion. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes file-browser-shimmer {
+    from {
+      background-color: #1e2030;
+    }
+    to {
+      background-color: #292e42;
+    }
+  }
+  .file-browser__list-row--skeleton {
+    animation: file-browser-shimmer 1.2s ease-in-out infinite alternate;
+  }
+}
