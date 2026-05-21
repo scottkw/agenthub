@@ -225,3 +225,32 @@ func (m Model) renderKillConfirmModal() string {
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center, bordered)
 }
+
+// renderJoinCodePromptModal renders the Phase 122 join-code prompt modal as
+// a centered bordered overlay. The prompt sub-model owns the inner content
+// (textinput, status line, hint line); this wrapper supplies the standard
+// modal frame so visual style stays consistent with the kill-confirm and
+// new-session modals.
+func (m Model) renderJoinCodePromptModal() string {
+	overlayWidth := max(50, min(70, m.width-10))
+	innerWidth := overlayWidth - 6
+	content := m.joinCodePrompt.View(innerWidth, 0)
+
+	bordered := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(m.styles.BorderAccent).
+		Width(overlayWidth - 2).
+		Padding(1, 2).
+		Background(m.styles.BgModal).
+		Render(content)
+
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(m.styles.FgAccent).
+		Render(" Join Remote Session ")
+
+	bordered = injectBorderTitle(bordered, title, m.styles.BorderAccent)
+
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center, bordered)
+}

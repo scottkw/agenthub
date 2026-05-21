@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 	qrcode "github.com/skip2/go-qrcode"
 )
+
+// remoteBaseURLFromSessionURL strips the /sessions/{id} suffix off a
+// RemoteSessionEntry.URL of shape "https://{fqdn}:{port}/sessions/{id}",
+// returning the bare https://{fqdn}:{port} base. Uses net/url so query
+// strings and ports are preserved correctly (Phase 122 RESEARCH
+// §Don't Hand-Roll).
+func remoteBaseURLFromSessionURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
 
 // sidebarTabs maps sidebar item indices to their corresponding tab IDs.
 // This decouples the visual sidebar ordering from the tabID iota values.
@@ -113,9 +127,80 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case filesReadMsg:
 		return m.applyFilesReadMsg(msg)
+
+	case joinCodeResultMsg:
+		return m.applyJoinCodeResultMsg(msg)
+
+	case cancelJoinCodeMsg:
+		m.modal = modalNone
+		return m, nil
 	}
 
 	return m, nil
+}
+
+// handleJoinCodePromptKey routes keypresses inside the join-code prompt
+// modal to the prompt sub-model. The prompt's Update returns either a
+// no-op, the exchange Cmd, or the cancel Cmd.
+func (m Model) handleJoinCodePromptKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Ctrl+C is the universal "quit" contract for this TUI and must not be
+	// swallowed by the textinput inside the prompt. Mirrors the equivalent
+	// guard in handleFilesKey's filter-mode (files.go CR-01).
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit
+	}
+	var cmd tea.Cmd
+	m.joinCodePrompt, cmd = m.joinCodePrompt.Update(msg)
+	return m, cmd
+}
+
+// applyJoinCodeResultMsg consumes the outcome of an exchangeJoinCodeCmd. On
+// success it caches the cap, closes the modal, opens tabFiles against a
+// fresh RemoteFilesClient, and dispatches loadDirCmd. On failure it
+// transitions the prompt to error state so the user can retry.
+//
+// Staleness guard: msg.sessionID is compared against the prompt's
+// sessionID. If the user dismissed the modal and triggered a different
+// remote session between Cmd dispatch and result delivery, we drop the
+// stale result silently (the new flow has already overwritten
+// m.joinCodePrompt).
+func (m Model) applyJoinCodeResultMsg(msg joinCodeResultMsg) (Model, tea.Cmd) {
+	if m.modal != modalJoinCodePrompt || msg.sessionID != m.joinCodePrompt.sessionID {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.joinCodePrompt.state = joinCodePromptError
+		m.joinCodePrompt.errMsg = friendlyJoinCodeError(msg.err)
+		return m, nil
+	}
+
+	// Success: cache the cap, close the modal, build the remote files
+	// client, open the Files tab.
+	sid := m.joinCodePrompt.sessionID
+	baseURL := m.joinCodePrompt.remoteBaseURL
+	if m.remoteCapStore == nil {
+		m.remoteCapStore = make(map[string]remoteCapEntry)
+	}
+	m.remoteCapStore[sid] = remoteCapEntry{baseURL: baseURL, capToken: msg.cap}
+	m.modal = modalNone
+
+	// Recompute pane dimensions in case the window resized while the modal
+	// was open (parity with the cap-cached fast path).
+	cw := m.contentWidth()
+	listW := cw * 40 / 100
+	previewW := cw - listW - 1
+	if previewW < 1 {
+		previewW = 1
+	}
+	paneH := m.height - 3
+	if paneH < 1 {
+		paneH = 1
+	}
+
+	client := NewRemoteFilesClient(baseURL, msg.cap)
+	m.files = newFilesModelWithClient(sid, client, listW, paneH-2, previewW, paneH-2)
+	m.openTab(tabFiles)
+	return m, loadDirCmd(m.files.client, sid, ".", m.files.generation)
 }
 
 // handleKey dispatches key presses with priority-based routing.
@@ -132,6 +217,14 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Priority 3: New session modal
 	if m.modal == modalNewSession {
 		return m.handleNewSessionKey(msg)
+	}
+	// Priority 3.5: Join-code prompt modal (Phase 122).
+	// Sits between kill-confirm and QR overlay because the join-code prompt
+	// is initiated from the Sessions view via `f` (same flow surface as
+	// kill-confirm) and must capture keypresses before they reach the
+	// Files-tab dispatcher below.
+	if m.modal == modalJoinCodePrompt {
+		return m.handleJoinCodePromptKey(msg)
 	}
 	// Priority 4: QR overlay (Phase 78)
 	if m.qrSession != nil {
@@ -380,20 +473,14 @@ func (m Model) handleContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.FilesOpen):
 		// Phase 121: open Files tab from a selected Sessions-list entry.
+		// Phase 122 (REMOTE-03): branch on entryLocal vs entryRemote;
+		// remote-with-cached-cap takes the fast path; remote-without-cap
+		// opens the join-code prompt modal.
 		if len(m.unifiedList) == 0 {
 			return m, nil
 		}
 		entry := m.unifiedList[m.selected]
-		if entry.kind == entryRemote {
-			m.toast = "File browser not available for remote sessions in v3.4"
-			m.toastKind = toastInfo
-			m.toastExp = time.Now().Add(2 * time.Second)
-			return m, nil
-		}
-		if entry.kind != entryLocal || entry.session == nil {
-			return m, nil
-		}
-		sid := entry.session.ID
+
 		cw := m.contentWidth()
 		listW := cw * 40 / 100
 		previewW := cw - listW - 1
@@ -404,10 +491,45 @@ func (m Model) handleContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if paneH < 1 {
 			paneH = 1
 		}
-		// RESEARCH.md Pitfall TUI-PITFALL-6: always reset on `f`.
-		m.files = newFilesModel(sid, listW, paneH-2, previewW, paneH-2)
-		m.openTab(tabFiles)
-		return m, loadDirCmd(m.client, sid, ".", m.files.generation)
+
+		switch entry.kind {
+		case entryLocal:
+			if entry.session == nil {
+				return m, nil
+			}
+			sid := entry.session.ID
+			// RESEARCH.md Pitfall TUI-PITFALL-6: always reset on `f`.
+			m.files = newFilesModelWithClient(sid, m.client, listW, paneH-2, previewW, paneH-2)
+			m.openTab(tabFiles)
+			return m, loadDirCmd(m.files.client, sid, ".", m.files.generation)
+
+		case entryRemote:
+			if entry.remote == nil {
+				return m, nil
+			}
+			sid := entry.remote.ID
+
+			// Cap-cached fast path (REMOTE-03 + D-03).
+			if cached, ok := m.remoteCapStore[sid]; ok {
+				client := NewRemoteFilesClient(cached.baseURL, cached.capToken)
+				m.files = newFilesModelWithClient(sid, client, listW, paneH-2, previewW, paneH-2)
+				m.openTab(tabFiles)
+				return m, loadDirCmd(m.files.client, sid, ".", m.files.generation)
+			}
+
+			// Cap not cached — open join-code prompt modal (D-01 parity).
+			baseURL := remoteBaseURLFromSessionURL(entry.remote.URL)
+			if baseURL == "" {
+				m.toast = "Cannot parse remote session URL"
+				m.toastKind = toastError
+				m.toastExp = time.Now().Add(3 * time.Second)
+				return m, nil
+			}
+			m.joinCodePrompt = newJoinCodePromptModel(sid, entry.remote.Name, entry.remote.Hostname, baseURL)
+			m.modal = modalJoinCodePrompt
+			return m, nil
+		}
+		return m, nil
 	}
 	return m, nil
 }

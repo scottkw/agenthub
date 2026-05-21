@@ -45,6 +45,13 @@ type filesModel struct {
 	loading   bool               // listing in flight
 	err       error              // last error (sticky until next nav)
 
+	// client is the transport handle used by all files Cmds dispatched while
+	// this view is active. Phase 121 used Model.client (the local Unix-socket
+	// DaemonClient) implicitly; Phase 122 makes it explicit so a remote
+	// HTTPS+cap RemoteFilesClient can stand in for cross-tailnet browsing
+	// without touching the rest of the Update loop.
+	client FilesClient
+
 	// generation is a monotonic counter bumped on every reset
 	// (newFilesModel) and on every navigation that supersedes a prior
 	// in-flight request (Enter into dir, Backspace up). Each outgoing
@@ -68,7 +75,21 @@ type filesModel struct {
 
 // newFilesModel zero-initialises a filesModel for the given session and pane
 // dimensions. Plan 02 will populate cwd / entries on the first filesListMsg.
+//
+// Phase 122: this constructor leaves filesModel.client nil — the caller in
+// update.go's FilesOpen branch is responsible for wiring m.client (the local
+// DaemonClient) into m.files.client immediately after newFilesModel returns.
+// Prefer newFilesModelWithClient where the client is known up-front (which is
+// every production path post-Phase 122).
 func newFilesModel(sid string, listW, listH, previewW, previewH int) filesModel {
+	return newFilesModelWithClient(sid, nil, listW, listH, previewW, previewH)
+}
+
+// newFilesModelWithClient is the explicit-client constructor introduced in
+// Phase 122. Local FilesOpen passes m.client (a *daemon.DaemonClient); remote
+// FilesOpen passes a freshly-constructed *RemoteFilesClient. Both satisfy
+// FilesClient.
+func newFilesModelWithClient(sid string, client FilesClient, listW, listH, previewW, previewH int) filesModel {
 	fi := textinput.New()
 	fi.Prompt = "/ "
 	if listW > 4 {
@@ -89,12 +110,20 @@ func newFilesModel(sid string, listW, listH, previewW, previewH int) filesModel 
 	_ = listH // reserved for Plan 02 list-pane sizing
 	return filesModel{
 		sessionID:   sid,
+		client:      client,
 		loading:     true,
 		filterInput: fi,
 		preview:     pv,
 		previewKind: previewEmpty,
 		generation:  1, // start at 1 so a zero-valued msg looks stale
 	}
+}
+
+// isRemoteClient reports whether the active FilesClient is a remote-HTTPS
+// transport. Used by the 401 → forget-cap branch in applyFilesListMsg.
+func (fm filesModel) isRemoteClient() bool {
+	_, ok := fm.client.(*RemoteFilesClient)
+	return ok
 }
 
 // renderFilesListPane renders the left pane (file list + optional inline
@@ -436,7 +465,7 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		parent := parentDir(m.files.cwd)
 		m.files.loading = true
 		m.files.generation++ // WR-03: supersede any in-flight load
-		return m, loadDirCmd(m.client, m.files.sessionID, parent, m.files.generation)
+		return m, loadDirCmd(m.files.client, m.files.sessionID, parent, m.files.generation)
 
 	case key.Matches(msg, m.keys.Up):
 		if m.files.previewFocused {
@@ -502,11 +531,11 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if entry.IsDir {
 			m.files.loading = true
 			m.files.generation++ // WR-03: supersede any in-flight load
-			return m, loadDirCmd(m.client, m.files.sessionID, next, m.files.generation)
+			return m, loadDirCmd(m.files.client, m.files.sessionID, next, m.files.generation)
 		}
 		m.files.previewLoading = true
 		m.files.generation++ // WR-03: supersede any in-flight preview
-		return m, headFileCmd(m.client, m.files.sessionID, next, m.files.generation)
+		return m, headFileCmd(m.files.client, m.files.sessionID, next, m.files.generation)
 
 	case key.Matches(msg, m.keys.FilesFocusToggle):
 		m.files.previewFocused = !m.files.previewFocused
@@ -537,11 +566,45 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // daemon can't drown the Update loop in a multi-MB body transfer.
 const previewSizeCap int64 = 5 * 1024 * 1024
 
+// remoteUnsharedMsg is the verbatim status-line copy specified in Plan 122
+// success criterion D-04 for the "remote upstream rejected our cap" case.
+// Externalised as a const so the grep gate in the plan can assert presence
+// without false-matching boilerplate strings elsewhere.
+const remoteUnsharedMsg = "Remote session must be web-shared to browse files. Ask the owner to enable sharing."
+
+// applyRemote401IfNeeded inspects an error string for a 401 surface that
+// originated at a RemoteFilesClient and, if matched, wipes the cached cap
+// for the session and rewrites the model's status line. Returns the
+// (possibly updated) model and a bool indicating whether the 401 path was
+// taken. The bool lets caller skip the default error-display branch so the
+// "Error: …" line is replaced by the friendlier copy.
+func (m Model) applyRemote401IfNeeded(sid string, err error) (Model, bool) {
+	if err == nil || !m.files.isRemoteClient() {
+		return m, false
+	}
+	if !strings.Contains(err.Error(), "401") {
+		return m, false
+	}
+	// Forget the cached cap — the upstream has rejected it. Next FilesOpen
+	// against this session will re-prompt for a fresh code.
+	if m.remoteCapStore != nil {
+		delete(m.remoteCapStore, sid)
+	}
+	m.files.err = errors.New(remoteUnsharedMsg)
+	m.files.loading = false
+	m.files.previewLoading = false
+	return m, true
+}
+
 // applyFilesListMsg consumes a directory-listing result. Stale results (from
 // a previous session ID) are silently discarded (T-121-04). A
 // "session not found" error from the daemon is translated to a friendly
 // "Session no longer running" message so the tab can stay open with a clear
 // indicator that the underlying session is gone.
+//
+// Phase 122: a remote 401 (cap rejected upstream) wipes the cached cap and
+// surfaces the "must be web-shared" copy — the next `f` on the same session
+// will re-prompt for a code.
 func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
 	if msg.sessionID != m.files.sessionID {
 		return m, nil
@@ -553,6 +616,9 @@ func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
 	}
 	m.files.loading = false
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		if strings.Contains(msg.err.Error(), "session not found") {
 			m.files.err = errors.New("Session no longer running")
 		} else {
@@ -588,6 +654,9 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		m.files.previewKind = previewErr
 		m.files.previewErr = msg.err
 		m.files.previewLoading = false
@@ -611,7 +680,7 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 	m.files.previewMime = msg.mime
 	// WR-03: propagate the head's generation through to the read so a stale
 	// read can't land on a fresher model.
-	return m, readFileCmd(m.client, msg.sessionID, msg.relPath, msg.generation)
+	return m, readFileCmd(m.files.client, msg.sessionID, msg.relPath, msg.generation)
 }
 
 // applyFilesReadMsg handles the ReadFile result. Markdown (by suffix OR by
@@ -628,6 +697,9 @@ func (m Model) applyFilesReadMsg(msg filesReadMsg) (Model, tea.Cmd) {
 	}
 	m.files.previewLoading = false
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		m.files.previewKind = previewErr
 		m.files.previewErr = msg.err
 		m.files.preview.SetContent("Error: " + msg.err.Error())

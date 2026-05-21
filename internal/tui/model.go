@@ -16,7 +16,19 @@ const (
 	modalNone modalState = iota
 	modalNewSession
 	modalKillConfirm
+	// Phase 122: prompt for a join code so the TUI can acquire a session-
+	// scoped cap token before opening the Files view against a remote
+	// tailnet session (REMOTE-04 / D-01 parity-with-GUI).
+	modalJoinCodePrompt
 )
+
+// remoteCapEntry holds the (baseURL, capToken) pair the TUI cached for a
+// given remote session. Lives ONLY in process memory — never persisted to
+// disk (threat T-122-04-02 mitigation).
+type remoteCapEntry struct {
+	baseURL  string
+	capToken string
+}
 
 // toastKind controls the color of toast messages.
 type toastKind int
@@ -162,6 +174,18 @@ type Model struct {
 
 	// File browser state (Phase 121)
 	files filesModel
+
+	// Phase 122 — Remote files cap acquisition.
+	//
+	// remoteCapStore is an in-memory map of sessionID -> (baseURL, capToken).
+	// Populated when the join-code exchange succeeds; consulted on every
+	// FilesOpen against a remote session to skip the prompt (D-03). Entries
+	// are wiped when the upstream returns 401 (forcing a re-prompt) and when
+	// the TUI process exits (no disk persistence — threat T-122-04-02).
+	remoteCapStore map[string]remoteCapEntry
+	// joinCodePrompt is the sub-model driving the join-code text input modal.
+	// Only meaningful while m.modal == modalJoinCodePrompt.
+	joinCodePrompt joinCodePromptModel
 }
 
 // activeTabID returns the tabID of the currently active tab, defaulting to tabSessions.
