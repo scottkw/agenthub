@@ -58,16 +58,31 @@ func (m Model) buildHelpContent() string {
 		formatBinding("[/]", "Cycle tabs"),
 	)
 
-	// Group 2: Sessions
+	// Group 2: Per-tab keybindings.
 	sections = append(sections, "")
-	sections = append(sections, groupStyle.Render("Sessions"))
-	sections = append(sections,
-		formatBinding("Enter", "Attach to session"),
-		formatBinding("q", "QR code / URL"),
-		formatBinding("n", "New session"),
-		formatBinding("d", "Kill session"),
-		formatBinding("r", "Rename session"),
-	)
+	switch m.activeTabID() {
+	case tabFiles:
+		sections = append(sections, groupStyle.Render("Files"))
+		sections = append(sections,
+			formatBinding("Up/Down", "Move cursor"),
+			formatBinding("PgUp/PgDn", "Page list / scroll preview"),
+			formatBinding("Enter", "Enter directory / preview file"),
+			formatBinding("Backspace, Left", "Up one directory"),
+			formatBinding("Tab", "Toggle list/preview focus"),
+			formatBinding("/", "Filter (current dir)"),
+			formatBinding("Esc", "Clear filter"),
+		)
+	default:
+		sections = append(sections, groupStyle.Render("Sessions"))
+		sections = append(sections,
+			formatBinding("Enter", "Attach to session"),
+			formatBinding("f", "Open files view"),
+			formatBinding("q", "QR code / URL"),
+			formatBinding("n", "New session"),
+			formatBinding("d", "Kill session"),
+			formatBinding("r", "Rename session"),
+		)
+	}
 
 	// Group 3: General
 	sections = append(sections, "")

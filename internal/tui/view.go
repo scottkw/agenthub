@@ -722,8 +722,15 @@ func (m Model) renderWebStatus() string {
 }
 
 // renderHintBar renders the keybinding hint bar (bottom-most footer line).
+// Hints are per-tab; Files tab has its own navigation-flavoured set.
 func (m Model) renderHintBar() string {
-	hint := "j/k Up/Down  Enter Attach  q QR  n New  d Kill  r Rename  ? Help  Q Quit"
+	var hint string
+	switch m.activeTabID() {
+	case tabFiles:
+		hint = "Up/Down  Enter Open  Backspace Up  / Filter  Tab Focus  ? Help  Q Quit"
+	default:
+		hint = "j/k Up/Down  Enter Attach  q QR  n New  d Kill  r Rename  ? Help  Q Quit"
+	}
 	return lipgloss.NewStyle().Foreground(m.styles.FgMuted).
 		Width(m.contentWidth()).Render(hint)
 }
