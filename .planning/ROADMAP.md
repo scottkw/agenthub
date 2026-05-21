@@ -427,13 +427,13 @@ Plans:
 4. The same TUI Files view that works against local sessions works against remote sessions — keyboard nav, preview, filter, status line all identical.
 5. Cross-surface parity is now complete: a viewer with `files.read` on a session can browse that session's files from desktop GUI, web browser, OR TUI, with the same observable behavior.
 
-**Plans:** 0/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] 122-01-PLAN.md — Daemon proxy route + RemoteCapStore + ExchangeJoinCodeAtURL helper (REMOTE-01, REMOTE-02, REMOTE-05)
 - [ ] 122-02-PLAN.md — TUI FilesClient interface refactor (REMOTE-03, REMOTE-04)
-- [ ] 122-03-PLAN.md — Desktop GUI: join-code modal + cap caching + App.tsx remote tab gate (REMOTE-01, REMOTE-02, REMOTE-05)
-- [ ] 122-04-PLAN.md — TUI: RemoteFilesClient + join-code prompt + Files view remote branch (REMOTE-03, REMOTE-04, REMOTE-05)
+- [x] 122-03-PLAN.md — Desktop GUI: join-code modal + cap caching + App.tsx remote tab gate (REMOTE-01, REMOTE-02, REMOTE-05)
+- [x] 122-04-PLAN.md — TUI: RemoteFilesClient + join-code prompt + Files view remote branch (REMOTE-03, REMOTE-04, REMOTE-05)
 - [ ] 122-05-PLAN.md — Cross-surface integration tests + VERIFICATION.md (REMOTE-05)
 
 **UI hint**: no (wiring only — no new components)
@@ -480,7 +480,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 122 | v3.4 | 0/5 | Planned    |  |
+| 122 | v3.4 | 3/5 | In Progress|  |
 | 121 | v3.4 | 3/3 | Complete    | 2026-05-21 |
 
 ---
