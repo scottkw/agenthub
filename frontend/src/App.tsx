@@ -47,6 +47,10 @@ import { WelcomeTab } from './components/WelcomeTab'
 import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
+import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
+import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
+import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
+import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
@@ -177,6 +181,21 @@ function App(): React.ReactElement {
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
+
+  // Phase 122-03 — remote-session file-browse state.
+  //   remoteCapsCached: sessionIds whose caps are already deposited in the
+  //     local daemon's RemoteCapStore. Per locked decision D-03, the modal is
+  //     skipped for cached sessions.
+  //   joinModalForSession: the session the paste-join-code modal is open for,
+  //     or null when no modal is showing.
+  const [remoteCapsCached, setRemoteCapsCached] = useState<Set<string>>(
+    () => new Set<string>(),
+  )
+  const [joinModalForSession, setJoinModalForSession] = useState<{
+    id: string
+    name: string
+    hostname: string
+  } | null>(null)
 
   // Update notification state (lifted from WelcomeTab — Phase 81 D-06)
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
@@ -956,6 +975,50 @@ function App(): React.ReactElement {
     BrowserOpenURL(url)
   }, [])
 
+  // Phase 122-03 — remote-session file-browse entry point. If the cap is
+  // already cached (D-03), open the file-browser tab immediately. Otherwise
+  // open the join-code modal for the chosen session.
+  const handleBrowseFilesRemote = useCallback(
+    (sessionId: string, sessionName: string) => {
+      if (remoteCapsCached.has(sessionId)) {
+        handleOpenFileBrowser(sessionId, sessionName)
+        return
+      }
+      const remote = findRemoteSession(sessionId, remotePeers)
+      if (!remote) return
+      setJoinModalForSession({
+        id: sessionId,
+        name: sessionName,
+        hostname: remote.hostname,
+      })
+    },
+    [remoteCapsCached, remotePeers, handleOpenFileBrowser],
+  )
+
+  // Phase 122-03 — modal-exchange handler. Two-step: exchange join code for a
+  // cap against the REMOTE peer's /join/exchange endpoint, then deposit the
+  // cap into the local daemon's RemoteCapStore. On success, mark the session
+  // as cap-cached and open the file-browser tab. The cap token never enters
+  // React state (T-122-03-01).
+  const handleModalExchange = useCallback(
+    async (code: string): Promise<void> => {
+      const pending = joinModalForSession
+      if (!pending) throw new Error('no session pending')
+      const remote = findRemoteSession(pending.id, remotePeers)
+      if (!remote) throw new Error('session-gone')
+      const baseURL = remoteBaseURLFor(remote)
+      const cap = await ExchangeJoinCodeAtURL(baseURL, code)
+      await RegisterRemoteCap(pending.id, baseURL, cap)
+      setRemoteCapsCached((prev) => {
+        const next = new Set(prev)
+        next.add(pending.id)
+        return next
+      })
+      handleOpenFileBrowser(pending.id, pending.name)
+    },
+    [joinModalForSession, remotePeers, handleOpenFileBrowser],
+  )
+
   const handleOpenRemoteSessions = useCallback(() => {
     const existing = tabs.find((t) => t.type === 'remote-sessions')
     if (existing) {
@@ -1165,21 +1228,53 @@ function App(): React.ReactElement {
             begins with the __files__ prefix; the tab id encodes the sessionId
             after the prefix so we can resolve which session to browse.
 
-            Phase 120-06 — mode-aware fbBaseURL + capToken selection. In web
-            mode (regular browser under /app/) the bundle is served from the
-            HTTPS webserver and the React shell must call back to the same
-            origin with the cap token supplied via URL params. In desktop
-            mode (Wails runtime) the relay TCP port is the local-file-only
-            files-API surface; no cap is needed because the relay listener
-            is bound to 127.0.0.1.
+            Phase 120-06 — mode-aware fbBaseURL + capToken selection for the
+            local + web-share paths.
 
-            120-06: remote-on-desktop browse (passing a session's web-share
-            URL + cap from the desktop GUI into FileBrowserTab) is a v3.5
-            follow-on — out of scope for the v3.4 parity closure. The
-            desktop file-browser tab keeps wiring against the local relay
-            port, which is the proven path. */}
+            Phase 122-03 — remote-on-desktop branch: when the sessionId is a
+            REMOTE (tailnet-peer) session, route through the local-daemon
+            proxy at /api/files/remote/{sid}/... (D-02 — no cross-origin
+            browser fetches). The cap lives in the daemon's RemoteCapStore,
+            NOT in React state (T-122-03-01); FilesApiClient sends no cap on
+            the same-origin proxy URL. */}
         {activeId !== null && activeId.startsWith('__files__') && (() => {
           const fbSessionId = activeId.slice('__files__'.length)
+          const remote = findRemoteSession(fbSessionId, remotePeers)
+
+          if (remote) {
+            const reopenJoinModal = () => {
+              setRemoteCapsCached((prev) => {
+                const next = new Set(prev)
+                next.delete(fbSessionId)
+                return next
+              })
+              setJoinModalForSession({
+                id: fbSessionId,
+                name: remote.name,
+                hostname: remote.hostname,
+              })
+            }
+            // Defensive guard: if the user landed on the file-browser tab
+            // for a remote session without going through the modal (e.g.
+            // they reloaded after closing the modal), show the takeover so
+            // they can re-enter the join code.
+            if (!remoteCapsCached.has(fbSessionId)) {
+              return <EnableWebSharingTakeover onReenterJoinCode={reopenJoinModal} />
+            }
+            return (
+              <FileBrowserTab
+                sessionId={fbSessionId}
+                sessionName={remote.name}
+                isActive={true}
+                isRemote={true}
+                baseURL={`http://127.0.0.1:${relayPort ?? 0}`}
+                pathPrefix={`/api/files/remote/${fbSessionId}`}
+                onReenterJoinCode={reopenJoinModal}
+              />
+            )
+          }
+
+          // Local-session path: UNCHANGED from Phase 120-06.
           const fbSession = panelSessions.find((s) => s.id === fbSessionId)
           const fbName =
             fbSession?.name ||
@@ -1209,7 +1304,7 @@ function App(): React.ReactElement {
             peers={remotePeers}
             loading={remoteLoading}
             onOpen={handleOpenRemoteSession}
-            onBrowseFiles={handleOpenFileBrowser}
+            onBrowseFiles={handleBrowseFilesRemote}
           />
         )}
         {/* Phase 120-06 — SettingsTab is Wails-bound (calls IsWebServerRunning,
@@ -1341,6 +1436,15 @@ function App(): React.ReactElement {
           onQuitGUI={() => { setShowQuitModal(false); void QuitGUIOnly() }}
           onQuitAll={() => { setShowQuitModal(false); void QuitAll() }}
           onCancel={() => setShowQuitModal(false)}
+        />
+      )}
+
+      {/* Phase 122-03 — paste-join-code modal for remote-session file browse. */}
+      {joinModalForSession && (
+        <RemoteJoinCodeModal
+          remoteSession={joinModalForSession}
+          onExchange={handleModalExchange}
+          onClose={() => setJoinModalForSession(null)}
         />
       )}
       <ExitToast

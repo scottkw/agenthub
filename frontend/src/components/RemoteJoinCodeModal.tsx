@@ -10,7 +10,7 @@
 //   - T-122-03-03: the join code is held in React state only; never written
 //     to URL, history, or localStorage. Cleared on close.
 //   - T-122-03-05: session name + hostname rendered via React text content
-//     (auto-escaped). No dangerouslySetInnerHTML anywhere.
+//     (auto-escaped). No raw-HTML injection paths anywhere in this component.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 

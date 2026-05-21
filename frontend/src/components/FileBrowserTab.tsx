@@ -29,6 +29,7 @@ import { FileListPane } from './FileBrowser/FileListPane'
 import { StatusLine } from './FileBrowser/StatusLine'
 import { PreviewPane } from './FileBrowser/PreviewPane'
 import { PermissionDeniedTakeover } from './FileBrowser/PermissionDeniedTakeover'
+import { EnableWebSharingTakeover } from './FileBrowser/EnableWebSharingTakeover'
 import { NetworkErrorState } from './FileBrowser/NetworkErrorState'
 import { EmptyDirectoryState } from './FileBrowser/EmptyDirectoryState'
 import { sortEntries } from './FileBrowser/sortEntries'
@@ -44,6 +45,20 @@ export interface FileBrowserTabProps {
   baseURL: string
   /** Capability token — present iff isRemote (web-share cap reuse per CONTEXT D-02). */
   capToken?: string
+  /**
+   * Phase 122-03 — optional path-prefix forwarded to FilesApiClient. Defaults
+   * to `/api/files`. For the desktop GUI's remote-session path, App.tsx passes
+   * `/api/files/remote/{sessionId}` so the local-daemon proxy route is hit
+   * instead of a (cross-origin-blocked) direct fetch to the remote peer.
+   */
+  pathPrefix?: string
+  /**
+   * Phase 122-03 — optional callback invoked when the user clicks "Re-enter
+   * join code" in the EnableWebSharingTakeover (rendered when isRemote and
+   * the fetch returns 401). Required for the remote-session path; absent
+   * for local-session browsing.
+   */
+  onReenterJoinCode?: () => void
 }
 
 /**
@@ -97,6 +112,7 @@ type ListError =
   | 'not-found'
   | 'network-error'
   | 'not-authorized'
+  | 'enable-web-sharing'
 
 const MARKDOWN_EXT = /\.(md|markdown)$/i
 const IMAGE_EXT = /\.(png|jpe?g|webp|gif|svg)$/i
@@ -105,14 +121,16 @@ export function FileBrowserTab({
   sessionId,
   sessionName: _sessionName,
   isActive,
-  isRemote: _isRemote,
+  isRemote,
   baseURL,
   capToken,
+  pathPrefix,
+  onReenterJoinCode,
 }: FileBrowserTabProps): React.ReactElement {
   // FilesApiClient construction — memoized so identity is stable across renders.
   const client = useMemo(
-    () => new FilesApiClient({ baseURL, capToken }),
-    [baseURL, capToken],
+    () => new FilesApiClient({ baseURL, capToken, pathPrefix }),
+    [baseURL, capToken, pathPrefix],
   )
 
   const { state: capState, retry: retryCapability } = useFilesCapability(client, sessionId)
@@ -167,6 +185,14 @@ export function FileBrowserTab({
             return
           }
           if (err.isUnauthorized()) {
+            // Phase 122-03 — when browsing a REMOTE session, a 401 from the
+            // local-daemon proxy means the upstream cap is rejected (web-share
+            // disabled remotely OR cap rotated). Surface the locked D-04
+            // takeover; the user can re-enter the join code to recover.
+            if (isRemote && onReenterJoinCode) {
+              setListError('enable-web-sharing')
+              return
+            }
             setListError('not-authorized')
             return
           }
@@ -187,7 +213,7 @@ export function FileBrowserTab({
       cancelled = true
       abort.abort()
     }
-  }, [client, sessionId, path, dirNonce, capState, retryCapability])
+  }, [client, sessionId, path, dirNonce, capState, retryCapability, isRemote, onReenterJoinCode])
 
   // Reset selection on path change so a stale row doesn't carry forward.
   useEffect(() => {
@@ -502,7 +528,9 @@ export function FileBrowserTab({
       className="file-browser"
       data-testid="file-browser-tab"
     >
-      {listError === 'network-error' ? (
+      {listError === 'enable-web-sharing' && onReenterJoinCode ? (
+        <EnableWebSharingTakeover onReenterJoinCode={onReenterJoinCode} />
+      ) : listError === 'network-error' ? (
         <NetworkErrorState scope="directory" onRetry={refresh} />
       ) : listError === 'not-found' ? (
         <div
