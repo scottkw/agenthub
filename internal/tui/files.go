@@ -432,9 +432,13 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Up):
 		if m.files.previewFocused {
-			var cmd tea.Cmd
-			m.files.preview, cmd = m.files.preview.Update(msg)
-			return m, cmd
+			// WR-05: The bundled viewport only scrolls on PgUp/PgDn/Home/End/
+			// MouseWheel — Up/Down are NOT in its default KeyMap. Forwarding
+			// the arrow keys via Update() was a no-op, leaving "the arrow
+			// keys dead in preview mode". Translate explicitly to a single-
+			// line scroll so the hint bar's "Up/Down" promise is honored.
+			m.files.preview.ScrollUp(1)
+			return m, nil
 		}
 		if m.files.selected > 0 {
 			m.files.selected--
@@ -443,9 +447,9 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.Down):
 		if m.files.previewFocused {
-			var cmd tea.Cmd
-			m.files.preview, cmd = m.files.preview.Update(msg)
-			return m, cmd
+			// WR-05: explicit ScrollDown — see Up branch above.
+			m.files.preview.ScrollDown(1)
+			return m, nil
 		}
 		n := len(m.files.filteredEntries())
 		if m.files.selected < n-1 {
