@@ -17,9 +17,19 @@ export interface RemoteSessionsPanelProps {
   peers: RemotePeerSessions[]
   loading: boolean
   onOpen: (url: string) => void
+  /**
+   * Phase 122-03 — opens the file-browser tab for a remote session via the
+   * paste-join-code flow (App.tsx handles the cap-cache + modal trigger).
+   */
+  onBrowseFiles: (sessionId: string, sessionName: string) => void
 }
 
-export function RemoteSessionsPanel({ peers, loading, onOpen }: RemoteSessionsPanelProps): React.ReactElement {
+export function RemoteSessionsPanel({
+  peers,
+  loading,
+  onOpen,
+  onBrowseFiles,
+}: RemoteSessionsPanelProps): React.ReactElement {
   if (loading && peers.length === 0) {
     return (
       <div className="remote-panel">
@@ -63,6 +73,14 @@ export function RemoteSessionsPanel({ peers, loading, onOpen }: RemoteSessionsPa
                     aria-label={`Open ${s.name} in browser`}
                   >
                     Open Session
+                  </button>
+                  <button
+                    className="remote-panel__btn remote-panel__btn--browse"
+                    onClick={() => onBrowseFiles(s.id, s.name)}
+                    title="Browse files"
+                    aria-label={`Browse files on ${s.name}`}
+                  >
+                    Browse files
                   </button>
                 </div>
               </div>

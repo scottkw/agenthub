@@ -1209,6 +1209,7 @@ function App(): React.ReactElement {
             peers={remotePeers}
             loading={remoteLoading}
             onOpen={handleOpenRemoteSession}
+            onBrowseFiles={handleOpenFileBrowser}
           />
         )}
         {/* Phase 120-06 — SettingsTab is Wails-bound (calls IsWebServerRunning,
