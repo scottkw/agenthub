@@ -24,6 +24,10 @@ export interface FixtureEnv {
   viewerCap: string
   sessionCwd: string
   adminURL: string
+  // Phase 122-05 — mock "remote peer" webserver URL used by scenarios 16+17
+  // to exercise the remote-session file-browse contract. Listens on a second
+  // TLS port served by cmd/playwright-fixture/main.go::startRemotePeerFixture.
+  remotePeerURL: string
   pid: number
 }
 
@@ -133,6 +137,7 @@ export default async function globalSetup() {
     let viewerCap = ''
     let sessionCwd = ''
     let adminURL = ''
+    let remotePeerURL = ''
 
     fixtureProc!.stdout.on('data', (chunk: Buffer) => {
       stdoutBuf += chunk.toString()
@@ -143,9 +148,20 @@ export default async function globalSetup() {
         if (line.startsWith('VIEWER_CAP=')) viewerCap = line.slice('VIEWER_CAP='.length).trim()
         if (line.startsWith('SESSION_CWD=')) sessionCwd = line.slice('SESSION_CWD='.length).trim()
         if (line.startsWith('ADMIN_URL=')) adminURL = line.slice('ADMIN_URL='.length).trim()
+        if (line.startsWith('REMOTE_PEER_URL=')) {
+          remotePeerURL = line.slice('REMOTE_PEER_URL='.length).trim()
+        }
         if (line.startsWith('READY=1')) {
           clearTimeout(timer)
-          resolveEnv({ baseURL, cap, viewerCap, sessionCwd, adminURL, pid: fixtureProc!.pid! })
+          resolveEnv({
+            baseURL,
+            cap,
+            viewerCap,
+            sessionCwd,
+            adminURL,
+            remotePeerURL,
+            pid: fixtureProc!.pid!,
+          })
           return
         }
       }

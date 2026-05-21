@@ -17,6 +17,14 @@ export interface FixtureEnv {
   viewerCap: string
   sessionCwd: string
   adminURL: string
+  /**
+   * Phase 122-05 — mock "remote peer" webserver URL used by remote-session
+   * scenarios (16+17). The fixture's second TLS listener serves a canned
+   * /api/files contract behind a fixed cap token ("FIXTURE_CAP"). Tests
+   * point a fetch at this URL to verify the upstream contract that the
+   * desktop GUI / TUI remote-file paths depend on.
+   */
+  remotePeerURL: string
   pid: number
 }
 

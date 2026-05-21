@@ -201,6 +201,18 @@ func main() {
 	}
 	ws.AddGrant(sessionID, viewerClaims.GrantID)
 
+	// 6b. Phase 122-05 — mock "remote peer" webserver on a second TLS port.
+	//     Mimics a peer AgentHub on the tailnet for the remote-session
+	//     file-browse e2e scenarios (16+17). Serves:
+	//        POST /join/exchange → 303 Location: /sessions/peer-sid?cap=FIXTURE_CAP
+	//        GET /api/files/list?session=peer-sid&path=.&cap=FIXTURE_CAP → 200 canned
+	//        GET /api/files/list (no cap or wrong cap)                  → 401
+	//        GET /api/files/stat / read (with cap)                      → 200 canned
+	//     Listener address is published via the REMOTE_PEER_URL line so
+	//     specs and the e2e/fixtures/remote-peer-setup.ts helper can read it.
+	remotePeerURL, remotePeerStop := startRemotePeerFixture(tlsCfg)
+	defer remotePeerStop()
+
 	// 7. Admin HTTP server (plain, separate port) for /__test__/plugin-config.
 	adminLn, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -253,6 +265,7 @@ func main() {
 	fmt.Printf("VIEWER_CAP=%s\n", viewerToken)
 	fmt.Printf("SESSION_CWD=%s\n", sessionCwd)
 	fmt.Printf("ADMIN_URL=%s\n", adminURL)
+	fmt.Printf("REMOTE_PEER_URL=%s\n", remotePeerURL)
 	fmt.Println("READY=1")
 
 	// 9. Wait for SIGTERM/SIGINT, then clean up.
@@ -372,6 +385,115 @@ func mustMarshal(v any) []byte {
 		panic(err)
 	}
 	return data
+}
+
+// startRemotePeerFixture stands up a second TLS listener that mimics a remote
+// AgentHub peer on the tailnet for the Phase 122-05 remote-session e2e
+// scenarios. Returns the base URL ("https://127.0.0.1:PORT") and a stop
+// closure the caller defers.
+//
+// Endpoints (all under fixtureRemoteCap="FIXTURE_CAP", fixtureRemoteSession="peer-sid"):
+//
+//	POST /join/exchange                                          → 303 Location: /sessions/peer-sid?cap=FIXTURE_CAP
+//	GET  /api/files/list?session=peer-sid&path=.&cap=FIXTURE_CAP → 200 canned FileListResponse
+//	GET  /api/files/list (no/wrong cap)                          → 401 "cap rejected"
+//	GET  /api/files/stat?session=peer-sid&path=a.txt&cap=...     → 200 canned FileEntry
+//	GET  /api/files/read?session=peer-sid&path=a.txt&cap=...     → 200 "hello world"
+//
+// The canned shape matches the Go cross-surface parity test
+// (internal/daemon/remote_files_parity_test.go) so both observers agree on
+// the byte-identical expected response.
+//
+// We reuse the same self-signed TLS config as the main webserver because
+// (a) it's already valid for 127.0.0.1 and (b) the e2e specs use
+// ignoreHTTPSErrors anyway. The shared config is fine — TLS handshake is
+// stateless per connection.
+func startRemotePeerFixture(tlsCfg *tls.Config) (baseURL string, stop func()) {
+	const (
+		fixtureRemoteCap     = "FIXTURE_CAP"
+		fixtureRemoteSession = "peer-sid"
+	)
+
+	canonicalList := map[string]any{
+		"entries": []map[string]any{
+			{"name": "a.txt", "size": 100, "isDir": false},
+			{"name": "sub", "size": 0, "isDir": true},
+		},
+		"truncated": false,
+	}
+	canonicalStat := map[string]any{
+		"name":  "a.txt",
+		"size":  100,
+		"isDir": false,
+	}
+
+	mux := http.NewServeMux()
+
+	guard := func(handler http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("cap") != fixtureRemoteCap {
+				http.Error(w, "cap rejected", http.StatusUnauthorized)
+				return
+			}
+			if got := r.URL.Query().Get("session"); got != fixtureRemoteSession {
+				http.Error(w, "wrong session", http.StatusNotFound)
+				return
+			}
+			handler(w, r)
+		}
+	}
+
+	mux.HandleFunc("POST /join/exchange", func(w http.ResponseWriter, r *http.Request) {
+		// Accept any code (the fixture isn't validating the code itself —
+		// the test asserts on the redirect contract).
+		w.Header().Set("Location", "/sessions/"+fixtureRemoteSession+"?cap="+fixtureRemoteCap)
+		w.WriteHeader(http.StatusSeeOther)
+	})
+	mux.HandleFunc("GET /api/files/list", guard(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(canonicalList)
+	}))
+	mux.HandleFunc("GET /api/files/stat", guard(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(canonicalStat)
+	}))
+	mux.HandleFunc("GET /api/files/read", guard(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Length", "11")
+		w.WriteHeader(http.StatusOK)
+		if r.Method == http.MethodHead {
+			return
+		}
+		_, _ = w.Write([]byte("hello world"))
+	}))
+	mux.HandleFunc("HEAD /api/files/read", guard(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Length", "11")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", tlsCfg)
+	if err != nil {
+		log.Fatalf("remote-peer listen: %v", err)
+	}
+
+	srv := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			log.Printf("remote-peer Serve: %v", err)
+		}
+	}()
+
+	return "https://" + ln.Addr().String(), func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}
 }
 
 // selfSignedTLS generates an in-memory self-signed CA + leaf for 127.0.0.1.
