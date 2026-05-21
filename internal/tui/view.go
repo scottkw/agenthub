@@ -50,6 +50,9 @@ func (m Model) renderFull() string {
 	if m.modal == modalKillConfirm {
 		return m.renderKillConfirmModal()
 	}
+	if m.modal == modalJoinCodePrompt {
+		return m.renderJoinCodePromptModal()
+	}
 	if m.qrSession != nil {
 		return m.renderQROverlay()
 	}

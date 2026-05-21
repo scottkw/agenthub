@@ -239,13 +239,18 @@ func TestFiles_OpenFromSessions_LocalEntry(t *testing.T) {
 	}
 }
 
-// TestFiles_OpenFromSessions_RemoteEntry_ShowsToast asserts pressing 'f' on
-// a remote session surfaces the documented toast and does NOT open tabFiles.
-func TestFiles_OpenFromSessions_RemoteEntry_ShowsToast(t *testing.T) {
+// TestFiles_OpenFromSessions_RemoteEntry_NoCachedCap_OpensPrompt asserts
+// pressing 'f' on a remote session WITHOUT a cached cap opens the join-code
+// prompt modal — Phase 122 replaced the v3.4 toast with the prompt flow.
+func TestFiles_OpenFromSessions_RemoteEntry_NoCachedCap_OpensPrompt(t *testing.T) {
 	m := testModel()
 	m.remoteSessions = []ListRemoteGroup{
 		{Hostname: "peer", Sessions: []RemoteSessionEntry{
-			{ID: "r1", Name: "rem", CLIType: "claude", Status: "running", Hostname: "peer"},
+			{
+				ID: "r1", Name: "rem", CLIType: "claude", Status: "running",
+				Hostname: "peer",
+				URL:      "https://peer.example:9443/sessions/r1",
+			},
 		}},
 	}
 	m.rebuildUnifiedList()
@@ -260,14 +265,20 @@ func TestFiles_OpenFromSessions_RemoteEntry_ShowsToast(t *testing.T) {
 	updated, _ := m.Update(tea.KeyPressMsg{Code: 'f'})
 	r := updated.(Model)
 	if r.activeTabID() == tabFiles {
-		t.Error("expected NOT to open tabFiles on remote-session 'f' press")
+		t.Error("expected NOT to open tabFiles immediately on remote 'f' with no cap")
 	}
-	want := "File browser not available for remote sessions in v3.4"
-	if r.toast != want {
-		t.Errorf("expected toast %q, got %q", want, r.toast)
+	if r.modal != modalJoinCodePrompt {
+		t.Errorf("expected modal=modalJoinCodePrompt, got %v", r.modal)
 	}
-	if r.toastKind != toastInfo {
-		t.Errorf("expected toastKind=toastInfo, got %v", r.toastKind)
+	if r.joinCodePrompt.sessionID != "r1" {
+		t.Errorf("expected joinCodePrompt.sessionID=r1, got %q", r.joinCodePrompt.sessionID)
+	}
+	if r.joinCodePrompt.remoteBaseURL != "https://peer.example:9443" {
+		t.Errorf("expected remoteBaseURL stripped to base, got %q", r.joinCodePrompt.remoteBaseURL)
+	}
+	// The v3.4 toast must be gone.
+	if strings.Contains(r.toast, "File browser not available for remote sessions") {
+		t.Errorf("v3.4 remote-refusal toast must be REMOVED, got %q", r.toast)
 	}
 }
 

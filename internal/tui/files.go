@@ -566,11 +566,45 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // daemon can't drown the Update loop in a multi-MB body transfer.
 const previewSizeCap int64 = 5 * 1024 * 1024
 
+// remoteUnsharedMsg is the verbatim status-line copy specified in Plan 122
+// success criterion D-04 for the "remote upstream rejected our cap" case.
+// Externalised as a const so the grep gate in the plan can assert presence
+// without false-matching boilerplate strings elsewhere.
+const remoteUnsharedMsg = "Remote session must be web-shared to browse files. Ask the owner to enable sharing."
+
+// applyRemote401IfNeeded inspects an error string for a 401 surface that
+// originated at a RemoteFilesClient and, if matched, wipes the cached cap
+// for the session and rewrites the model's status line. Returns the
+// (possibly updated) model and a bool indicating whether the 401 path was
+// taken. The bool lets caller skip the default error-display branch so the
+// "Error: …" line is replaced by the friendlier copy.
+func (m Model) applyRemote401IfNeeded(sid string, err error) (Model, bool) {
+	if err == nil || !m.files.isRemoteClient() {
+		return m, false
+	}
+	if !strings.Contains(err.Error(), "401") {
+		return m, false
+	}
+	// Forget the cached cap — the upstream has rejected it. Next FilesOpen
+	// against this session will re-prompt for a fresh code.
+	if m.remoteCapStore != nil {
+		delete(m.remoteCapStore, sid)
+	}
+	m.files.err = errors.New(remoteUnsharedMsg)
+	m.files.loading = false
+	m.files.previewLoading = false
+	return m, true
+}
+
 // applyFilesListMsg consumes a directory-listing result. Stale results (from
 // a previous session ID) are silently discarded (T-121-04). A
 // "session not found" error from the daemon is translated to a friendly
 // "Session no longer running" message so the tab can stay open with a clear
 // indicator that the underlying session is gone.
+//
+// Phase 122: a remote 401 (cap rejected upstream) wipes the cached cap and
+// surfaces the "must be web-shared" copy — the next `f` on the same session
+// will re-prompt for a code.
 func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
 	if msg.sessionID != m.files.sessionID {
 		return m, nil
@@ -582,6 +616,9 @@ func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
 	}
 	m.files.loading = false
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		if strings.Contains(msg.err.Error(), "session not found") {
 			m.files.err = errors.New("Session no longer running")
 		} else {
@@ -617,6 +654,9 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		m.files.previewKind = previewErr
 		m.files.previewErr = msg.err
 		m.files.previewLoading = false
@@ -657,6 +697,9 @@ func (m Model) applyFilesReadMsg(msg filesReadMsg) (Model, tea.Cmd) {
 	}
 	m.files.previewLoading = false
 	if msg.err != nil {
+		if updated, handled := m.applyRemote401IfNeeded(msg.sessionID, msg.err); handled {
+			return updated, nil
+		}
 		m.files.previewKind = previewErr
 		m.files.previewErr = msg.err
 		m.files.preview.SetContent("Error: " + msg.err.Error())
