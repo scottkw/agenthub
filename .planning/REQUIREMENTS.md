@@ -172,11 +172,11 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 | TUI-08 | Phase 121 | Complete |
 | TUI-09 | Phase 121 | Complete |
 | TUI-10 | Phase 121 | Complete |
-| REMOTE-01 | Phase 122 | Pending |
-| REMOTE-02 | Phase 122 | Pending |
-| REMOTE-03 | Phase 122 | Pending |
-| REMOTE-04 | Phase 122 | Pending |
-| REMOTE-05 | Phase 122 | Pending |
+| REMOTE-01 | Phase 122 | Complete |
+| REMOTE-02 | Phase 122 | Complete |
+| REMOTE-03 | Phase 122 | Complete |
+| REMOTE-04 | Phase 122 | Complete |
+| REMOTE-05 | Phase 122 | Complete |
 
 ## REMOTE — Cross-Surface Remote-Session File Browse (Phase 122)
 
