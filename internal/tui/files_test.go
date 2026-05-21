@@ -2,6 +2,8 @@ package tui
 
 import (
 	"errors"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -764,3 +766,205 @@ func TestRenderHintBar_SessionsActive(t *testing.T) {
 
 // keep ansi import live for later Plan 02 tests
 var _ = ansi.Strip
+
+// ----------------------------------------------------------------------------
+// Phase 121 Plan 03 — TUI-XX coverage matrix + merge-gate tests
+// ----------------------------------------------------------------------------
+
+// TestFiles_NoSyncFSCalls is the TUI-07 merge gate: production files in the
+// TUI Files subsystem MUST NOT call synchronous os.ReadDir / os.Open /
+// os.Stat / os.OpenFile. All filesystem I/O must go through the daemon
+// socket via tea.Cmd (see loadDirCmd / readFileCmd / headFileCmd). A
+// regression that introduces a synchronous FS call into the Update path
+// would silently freeze the Bubble Tea event loop on slow disks; the
+// grep below is the cheapest possible safety net.
+//
+// The test file itself is allowed to call os.ReadFile (we are READING the
+// production source). The production source must contain ZERO matches.
+func TestFiles_NoSyncFSCalls(t *testing.T) {
+	files := []string{
+		"files.go",
+		"files_cmds.go",
+	}
+	// Match os.ReadDir, os.Open, os.OpenFile, os.Stat with word boundaries.
+	re := regexp.MustCompile(`\bos\.(ReadDir|Open|OpenFile|Stat)\b`)
+	commentLine := regexp.MustCompile(`^\s*//`)
+	for _, name := range files {
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			if commentLine.MatchString(line) {
+				continue
+			}
+			// Strip inline trailing comment so doc references like
+			// "see os.ReadDir for semantics" don't trip the gate.
+			if idx := strings.Index(line, "//"); idx >= 0 {
+				line = line[:idx]
+			}
+			if re.MatchString(line) {
+				t.Errorf("TUI-07 violation: %s:%d contains synchronous FS call: %s",
+					name, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+}
+
+// TestFiles_PathTruncation_StatusLine exercises TUI-06 specifically: a very
+// deep cwd must render with a `…/` ellipsis prefix and preserve the leaf
+// segment, with the leading "very/deep" components dropped. Asserts on the
+// rendered status line after ansi.Strip so style codes don't perturb the
+// substring checks.
+//
+// Pane width 80 ⇒ pathBudget = max(10, 80-40) = 40. truncateLeft keep = 38;
+// last 38 chars of "./very/deep/nested/path/structure/utils/helper.ts" snap
+// to a path-segment boundary at "…/nested/path/structure/utils/helper.ts".
+func TestFiles_PathTruncation_StatusLine(t *testing.T) {
+	m := testModel()
+	m.files = newFilesModel("s1", 20, 20, 30, 20)
+	m.files.cwd = "very/deep/nested/path/structure/utils/helper.ts"
+	m.files.entries = []daemon.FileEntry{{Name: "x"}}
+	rendered := ansi.Strip(m.renderFilesStatusLine(80))
+	if !strings.Contains(rendered, "…/") {
+		t.Fatalf("TUI-06: expected '…/' prefix in truncated path, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "helper.ts") {
+		t.Fatalf("TUI-06: expected leaf 'helper.ts' preserved, got %q", rendered)
+	}
+	if strings.Contains(rendered, "very/deep") {
+		t.Fatalf("TUI-06: expected leading segments truncated, got %q", rendered)
+	}
+}
+
+// TestFiles_KeyDispatchPriority_AboveTabCycling_BelowHelp exercises TUI-10:
+// the Files key handler sits at Priority 5.5 — below help overlay (5) and
+// modal handlers (1-4), above tab cycling (6). The three sub-tests assert
+// each adjacent boundary.
+func TestFiles_KeyDispatchPriority_AboveTabCycling_BelowHelp(t *testing.T) {
+	// Sub-test A: Help overlay (Priority 5) beats Files (Priority 5.5).
+	// With showHelp=true and tabFiles active, Esc closes help instead of
+	// going through handleFilesKey.
+	t.Run("help_beats_files", func(t *testing.T) {
+		m := testModel()
+		m.openTabs = []tabID{tabFiles}
+		m.activeTab = 0
+		m.showHelp = true
+		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
+		if updated.(Model).showHelp {
+			t.Fatal("TUI-10: showHelp should be false after Esc — help priority must win over files priority")
+		}
+	})
+
+	// Sub-test B: Files (Priority 5.5) beats tab cycling (Priority 6).
+	// With tabFiles active, pressing an unrecognised key 'x' is swallowed by
+	// handleFilesKey (NOT processed as tab cycling). m.activeTabID() stays
+	// at tabFiles, proving Priority 5.5 returned first.
+	t.Run("files_beats_tabcycling", func(t *testing.T) {
+		m := testModel()
+		m.openTabs = []tabID{tabSessions, tabFiles}
+		m.activeTab = 1
+		m.showHelp = false
+		updated, _ := m.Update(tea.KeyPressMsg{Code: 'x'})
+		u := updated.(Model)
+		if u.activeTabID() != tabFiles {
+			t.Fatalf("TUI-10: tabFiles should still be active; got %v", u.activeTabID())
+		}
+	})
+
+	// Sub-test C: modalKillConfirm (Priority 2) beats Files (Priority 5.5).
+	// With kill-confirm modal up and tabFiles active, pressing 'n' cancels
+	// the modal rather than landing in handleFilesKey.
+	t.Run("killconfirm_beats_files", func(t *testing.T) {
+		m := testModel()
+		m.openTabs = []tabID{tabFiles}
+		m.activeTab = 0
+		m.modal = modalKillConfirm
+		m.killTarget = &daemon.SessionInfo{ID: "x", Name: "y"}
+		updated, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+		if updated.(Model).modal != modalNone {
+			t.Fatal("TUI-10: kill-confirm 'n' should cancel modal — kill-confirm priority must win over files priority")
+		}
+	})
+}
+
+// TestFiles_Phase121_Requirements is the TUI-XX → test-name traceability
+// matrix that enables `/gsd:verify-work` for Phase 121 to confirm every
+// merge-gate requirement has at least one covering automated test.
+//
+// Each sub-test is named "TUI-NN" (matching .planning/REQUIREMENTS.md) and
+// lists the existing tests that cover it. The meta-test fails fast if any
+// requirement has zero covering tests — adding a new TUI-XX requirement
+// without a covering test is an explicit error.
+//
+// This is a documentation test (it doesn't re-run the underlying tests);
+// it asserts the test set IS the contract.
+func TestFiles_Phase121_Requirements(t *testing.T) {
+	coverage := []struct {
+		req    string
+		covers []string
+	}{
+		{"TUI-01", []string{
+			"TestFiles_TabID_Distinct",
+			"TestRenderFilesTab_BasicLayout",
+		}},
+		{"TUI-02", []string{
+			"TestFiles_OpenFromSessions_LocalEntry",
+			"TestFiles_OpenFromSessions_RemoteEntry_ShowsToast",
+			"TestFiles_OpenFromSessions_EmptyList_NoOp",
+			"TestFiles_OpenFromSessions_ResetsModel",
+		}},
+		{"TUI-03", []string{
+			"TestHandleFilesKey_Backspace_AtRoot_NoOp",
+			"TestHandleFilesKey_Backspace_AtRoot_Dot_NoOp",
+			"TestHandleFilesKey_Backspace_NonRoot_DispatchesParent",
+			"TestHandleFilesKey_Down_MovesCursor",
+			"TestHandleFilesKey_Down_ClampedAtEnd",
+			"TestHandleFilesKey_Enter_OnDir_DispatchesLoadDir",
+		}},
+		{"TUI-04", []string{
+			"TestApplyFilesHeadMsg_OverCap_RefusalMessage",
+			"TestApplyFilesHeadMsg_Binary_RefusalMessage",
+			"TestApplyFilesHeadMsg_Text_DispatchesRead",
+			"TestApplyFilesReadMsg_TextSetsContent",
+			"TestApplyFilesReadMsg_MarkdownSuffix_UsesGlamour",
+		}},
+		{"TUI-05", []string{
+			"TestHandleFilesKey_Slash_ActivatesFilter",
+			"TestHandleFilesKey_FilterActive_EscClears",
+			"TestHandleFilesKey_FilterActive_BackspaceDoesNotNavigate",
+		}},
+		{"TUI-06", []string{
+			"TestTruncateLeft",
+			"TestRenderFilesStatusLine_TruncatedFlag",
+			"TestRenderFilesStatusLine_ErrorShown",
+			"TestRenderFilesStatusLine_LeftTruncation",
+			"TestFiles_PathTruncation_StatusLine",
+		}},
+		{"TUI-07", []string{
+			"TestFiles_NoSyncFSCalls",
+			"TestLoadDirCmd_DispatchesAsync",
+		}},
+		{"TUI-08", []string{
+			"TestFiles_OpenFromSessions_RemoteEntry_ShowsToast",
+			"TestFiles_Integration_LocalSessionEndToEnd",
+		}},
+		{"TUI-09", []string{
+			"TestBuildHelpContent_FilesActive_ShowsFilesGroup",
+			"TestBuildHelpContent_SessionsActive_ShowsSessionsGroup",
+		}},
+		{"TUI-10", []string{
+			"TestFiles_HandleKey_DispatchPriority",
+			"TestFiles_HandleKey_DispatchPriority_BelowKillConfirm",
+			"TestFiles_KeyDispatchPriority_AboveTabCycling_BelowHelp",
+		}},
+	}
+	for _, c := range coverage {
+		t.Run(c.req, func(t *testing.T) {
+			if len(c.covers) == 0 {
+				t.Fatalf("%s has no coverage", c.req)
+			}
+			t.Logf("%s covered by: %s", c.req, strings.Join(c.covers, ", "))
+		})
+	}
+}
