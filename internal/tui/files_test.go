@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/scottkw/agenthub/internal/daemon"
 )
 
@@ -316,3 +318,449 @@ func TestFiles_OpenFromSessions_ResetsModel(t *testing.T) {
 		t.Errorf("expected files.cwd reset to \"\" after re-press, got %q (Pitfall TUI-PITFALL-6)", r.files.cwd)
 	}
 }
+
+// --- Plan 02 Task 1: applyFilesListMsg / applyFilesHeadMsg / applyFilesReadMsg ---
+
+// filesTestModel returns a Model whose embedded filesModel is fully initialised
+// against a known session ID — used by the Plan 02 apply-helper tests.
+func filesTestModel(sid string) Model {
+	m := testModel()
+	m.files = newFilesModel(sid, 30, 20, 50, 20)
+	return m
+}
+
+func TestApplyFilesListMsg_HappyPath(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s1",
+		relPath:   "sub",
+		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+		truncated: false,
+	})
+	if cmd != nil {
+		t.Errorf("expected nil cmd, got non-nil")
+	}
+	if updated.files.cwd != "sub" {
+		t.Errorf("expected cwd=sub, got %q", updated.files.cwd)
+	}
+	if len(updated.files.entries) != 2 {
+		t.Errorf("expected 2 entries, got %d", len(updated.files.entries))
+	}
+	if updated.files.selected != 0 {
+		t.Errorf("expected selected=0 after listing, got %d", updated.files.selected)
+	}
+	if updated.files.loading {
+		t.Error("expected loading=false")
+	}
+	if updated.files.err != nil {
+		t.Errorf("expected err=nil, got %v", updated.files.err)
+	}
+}
+
+func TestApplyFilesListMsg_StaleDiscarded(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "original"
+	m.files.entries = []daemon.FileEntry{{Name: "original"}}
+	updated, _ := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s2", // different session
+		relPath:   "sub",
+		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+	})
+	if updated.files.cwd != "original" {
+		t.Errorf("stale msg should not mutate cwd; got %q", updated.files.cwd)
+	}
+	if len(updated.files.entries) != 1 || updated.files.entries[0].Name != "original" {
+		t.Errorf("stale msg should not mutate entries; got %+v", updated.files.entries)
+	}
+}
+
+func TestApplyFilesListMsg_SessionNotFound_FriendlyMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesListMsg(filesListMsg{
+		sessionID: "s1",
+		relPath:   ".",
+		err:       errors.New("files list: 404 session not found or has no working directory"),
+	})
+	if updated.files.err == nil {
+		t.Fatal("expected err to be set")
+	}
+	if !strings.Contains(updated.files.err.Error(), "Session no longer running") {
+		t.Errorf("expected friendly 'Session no longer running' message, got %q", updated.files.err.Error())
+	}
+}
+
+func TestApplyFilesHeadMsg_OverCap_RefusalMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "big.bin",
+		size:      6 * 1024 * 1024,
+		mime:      "text/plain", // over-cap beats text/* check
+	})
+	if updated.files.previewKind != previewOverCap {
+		t.Errorf("expected previewOverCap, got %v", updated.files.previewKind)
+	}
+	if cmd != nil {
+		t.Error("expected nil cmd on over-cap (no read dispatched)")
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "Too large") {
+		t.Errorf("expected 'Too large…' content, got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesHeadMsg_Binary_RefusalMessage(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "image.png",
+		size:      100,
+		mime:      "image/png",
+	})
+	if updated.files.previewKind != previewBinary {
+		t.Errorf("expected previewBinary, got %v", updated.files.previewKind)
+	}
+	if cmd != nil {
+		t.Error("expected nil cmd on binary (no read dispatched)")
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "Use desktop or web to preview") {
+		t.Errorf("expected binary refusal content, got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesHeadMsg_Text_DispatchesRead(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
+		sessionID: "s1",
+		relPath:   "a.txt",
+		size:      100,
+		mime:      "text/plain",
+	})
+	if cmd == nil {
+		t.Error("expected non-nil readFileCmd to be dispatched")
+	}
+	if !updated.files.previewLoading {
+		t.Error("expected previewLoading=true while read is in flight")
+	}
+}
+
+func TestApplyFilesReadMsg_TextSetsContent(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s1",
+		relPath:   "a.txt",
+		data:      []byte("hello"),
+		mime:      "text/plain",
+	})
+	if updated.files.previewKind != previewText {
+		t.Errorf("expected previewText, got %v", updated.files.previewKind)
+	}
+	if !strings.Contains(updated.files.preview.GetContent(), "hello") {
+		t.Errorf("expected preview to contain 'hello', got %q", updated.files.preview.GetContent())
+	}
+}
+
+func TestApplyFilesReadMsg_MarkdownSuffix_UsesGlamour(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s1",
+		relPath:   "README.md",
+		data:      []byte("# Hello\n\nWorld\n"),
+		mime:      "text/markdown",
+	})
+	if updated.files.previewKind != previewMarkdown {
+		t.Errorf("expected previewMarkdown, got %v", updated.files.previewKind)
+	}
+	// Content must be non-empty after glamour render.
+	if updated.files.preview.GetContent() == "" {
+		t.Error("expected glamour-rendered content to be non-empty")
+	}
+}
+
+func TestApplyFilesReadMsg_StaleSessionID_Discarded(t *testing.T) {
+	m := filesTestModel("s1")
+	updated, _ := m.applyFilesReadMsg(filesReadMsg{
+		sessionID: "s2",
+		relPath:   "a.txt",
+		data:      []byte("hello"),
+		mime:      "text/plain",
+	})
+	if updated.files.previewKind != previewEmpty {
+		t.Errorf("stale read should not change previewKind; expected previewEmpty, got %v", updated.files.previewKind)
+	}
+}
+
+// --- Plan 02 Task 2: handleFilesKey full dispatch ---
+
+// filesKeyTestModel returns a Model whose embedded filesModel matches Plan-02
+// dispatch expectations: sessionID="s1", active tab is tabFiles.
+func filesKeyTestModel() Model {
+	m := filesTestModel("s1")
+	m.openTabs = []tabID{tabSessions, tabFiles}
+	m.activeTab = 1
+	return m
+}
+
+func TestHandleFilesKey_Backspace_AtRoot_NoOp(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = ""
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd != nil {
+		t.Error("expected nil cmd at root Backspace")
+	}
+	if updated.(Model).files.cwd != "" {
+		t.Errorf("expected cwd unchanged at root, got %q", updated.(Model).files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Backspace_AtRoot_Dot_NoOp(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = "."
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd != nil {
+		t.Error("expected nil cmd at root='.' Backspace")
+	}
+	if updated.(Model).files.cwd != "." {
+		t.Errorf("expected cwd unchanged at '.', got %q", updated.(Model).files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Backspace_NonRoot_DispatchesParent(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.cwd = "a/b"
+	_, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	if cmd == nil {
+		t.Error("expected non-nil loadDirCmd at non-root Backspace")
+	}
+}
+
+func TestHandleFilesKey_Slash_ActivatesFilter(t *testing.T) {
+	m := filesKeyTestModel()
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: '/'})
+	if !updated.(Model).files.filterActive {
+		t.Error("expected filterActive=true after '/'")
+	}
+}
+
+func TestHandleFilesKey_FilterActive_EscClears(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.filterActive = true
+	m.files.filterInput.SetValue("abc")
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	r := updated.(Model)
+	if r.files.filterActive {
+		t.Error("expected filterActive=false after Esc")
+	}
+	if r.files.filterInput.Value() != "" {
+		t.Errorf("expected filterInput cleared, got %q", r.files.filterInput.Value())
+	}
+}
+
+func TestHandleFilesKey_FilterActive_BackspaceDoesNotNavigate(t *testing.T) {
+	// Pitfall TUI-PITFALL-2: when filter is active, Backspace MUST go to the
+	// textinput (deleting a char) — never navigate the cwd up.
+	m := filesKeyTestModel()
+	m.files.cwd = "a/b"
+	m.files.filterActive = true
+	m.files.filterInput.SetValue("abc")
+	m.files.filterInput.CursorEnd()
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	r := updated.(Model)
+	if r.files.cwd != "a/b" {
+		t.Errorf("Backspace during filter must NOT navigate up; cwd changed to %q", r.files.cwd)
+	}
+}
+
+func TestHandleFilesKey_Down_MovesCursor(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+	m.files.selected = 0
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	if updated.(Model).files.selected != 1 {
+		t.Errorf("expected selected=1 after Down, got %d", updated.(Model).files.selected)
+	}
+}
+
+func TestHandleFilesKey_Down_ClampedAtEnd(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+	m.files.selected = 2
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	if updated.(Model).files.selected != 2 {
+		t.Errorf("expected selected clamped to 2, got %d", updated.(Model).files.selected)
+	}
+}
+
+func TestHandleFilesKey_Enter_OnDir_DispatchesLoadDir(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "sub", IsDir: true}}
+	m.files.selected = 0
+	_, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil loadDirCmd on Enter for a directory")
+	}
+}
+
+func TestHandleFilesKey_Enter_OnFile_DispatchesHead(t *testing.T) {
+	m := filesKeyTestModel()
+	m.files.entries = []daemon.FileEntry{{Name: "a.txt", IsDir: false}}
+	m.files.selected = 0
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Error("expected non-nil headFileCmd on Enter for a file")
+	}
+	if !updated.(Model).files.previewLoading {
+		t.Error("expected previewLoading=true on Enter for a file")
+	}
+}
+
+func TestHandleFilesKey_Tab_TogglesPreviewFocus(t *testing.T) {
+	m := filesKeyTestModel()
+	before := m.files.previewFocused
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: tea.KeyTab})
+	if updated.(Model).files.previewFocused == before {
+		t.Error("expected previewFocused to toggle on Tab")
+	}
+}
+
+func TestHandleFilesKey_BracketKeysCycleTabs(t *testing.T) {
+	// Pitfall TUI-PITFALL-7: '[' / ']' must cycle tabs even when
+	// handleFilesKey is the active dispatcher.
+	m := filesKeyTestModel()
+	m.openTabs = []tabID{tabSessions, tabFiles}
+	m.activeTab = 1
+	updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: '['})
+	if updated.(Model).activeTab != 0 {
+		t.Errorf("expected activeTab=0 after '[', got %d", updated.(Model).activeTab)
+	}
+}
+
+func TestParentDir(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"a/b", "a"},
+		{"a", ""},
+		{"", ""},
+		{".", ""},
+		{"a/b/c", "a/b"},
+		{"a/", ""},
+	}
+	for _, tc := range cases {
+		if got := parentDir(tc.in); got != tc.want {
+			t.Errorf("parentDir(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestJoinDir(t *testing.T) {
+	cases := []struct{ base, name, want string }{
+		{"", "a", "a"},
+		{".", "a", "a"},
+		{"a", "b", "a/b"},
+		{"a/b", "c", "a/b/c"},
+	}
+	for _, tc := range cases {
+		if got := joinDir(tc.base, tc.name); got != tc.want {
+			t.Errorf("joinDir(%q, %q) = %q, want %q", tc.base, tc.name, got, tc.want)
+		}
+	}
+}
+
+// --- Plan 02 Task 3: renderFilesTab + status line + help overlay + hint bar ---
+
+func TestRenderFilesTab_BasicLayout(t *testing.T) {
+	m := filesTestModel("s1")
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	m.files.entries = []daemon.FileEntry{
+		{Name: "alpha.txt"},
+		{Name: "beta.md"},
+		{Name: "gamma"},
+	}
+	got := m.renderFilesTab(120, 24)
+	if got == "" {
+		t.Fatal("renderFilesTab returned empty string")
+	}
+	plain := ansi.Strip(got)
+	if !strings.Contains(plain, "alpha.txt") {
+		t.Errorf("expected output to contain first entry 'alpha.txt'; got %q", plain)
+	}
+}
+
+func TestRenderFilesStatusLine_TruncatedFlag(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "."
+	m.files.truncated = true
+	m.files.entries = []daemon.FileEntry{
+		{Name: "a"}, {Name: "b"}, {Name: "c"}, {Name: "d"}, {Name: "e"},
+	}
+	got := ansi.Strip(m.renderFilesStatusLine(120))
+	if !strings.Contains(got, "(truncated)") {
+		t.Errorf("expected status line to include (truncated); got %q", got)
+	}
+}
+
+func TestRenderFilesStatusLine_ErrorShown(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.err = errors.New("Session no longer running")
+	got := ansi.Strip(m.renderFilesStatusLine(120))
+	if !strings.Contains(got, "Session no longer running") {
+		t.Errorf("expected status line to show the error; got %q", got)
+	}
+}
+
+func TestRenderFilesStatusLine_LeftTruncation(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "very/deep/nested/path/structure/utils/helper.ts"
+	got := ansi.Strip(m.renderFilesStatusLine(60))
+	if !strings.Contains(got, "…/") {
+		t.Errorf("expected left-truncation ellipsis '…/' in status; got %q", got)
+	}
+}
+
+func TestBuildHelpContent_FilesActive_ShowsFilesGroup(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	got := ansi.Strip(m.buildHelpContent())
+	if !strings.Contains(got, "Files") {
+		t.Errorf("expected Files group header; got %q", got)
+	}
+	if !strings.Contains(got, "Enter directory / preview file") {
+		t.Errorf("expected Files-specific Enter binding; got %q", got)
+	}
+}
+
+func TestBuildHelpContent_SessionsActive_ShowsSessionsGroup(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabSessions}
+	m.activeTab = 0
+	got := ansi.Strip(m.buildHelpContent())
+	if !strings.Contains(got, "Sessions") {
+		t.Errorf("expected Sessions group header; got %q", got)
+	}
+	if !strings.Contains(got, "Open files view") {
+		t.Errorf("expected 'Open files view' binding; got %q", got)
+	}
+}
+
+func TestRenderHintBar_FilesActive(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	got := ansi.Strip(m.renderHintBar())
+	if !strings.Contains(got, "Tab Focus") {
+		t.Errorf("expected Files-specific hint 'Tab Focus'; got %q", got)
+	}
+}
+
+func TestRenderHintBar_SessionsActive(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabSessions}
+	m.activeTab = 0
+	got := ansi.Strip(m.renderHintBar())
+	if !strings.Contains(got, "Attach") {
+		t.Errorf("expected Sessions-specific hint 'Attach'; got %q", got)
+	}
+}
+
+// keep ansi import live for later Plan 02 tests
+var _ = ansi.Strip
