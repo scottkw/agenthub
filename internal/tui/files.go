@@ -366,6 +366,14 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.files.selected = max(0, n-1)
 			}
 			return m, nil
+		case "ctrl+c":
+			// CR-01: Ctrl+C is the universal "quit" contract for this TUI
+			// (see Quit binding in keys.go and matching paths in update.go).
+			// The bundled textinput has no Ctrl+C handler — it would
+			// silently swallow the key — so we MUST intercept it BEFORE
+			// forwarding to the textinput. Otherwise the user cannot quit
+			// the TUI while typing a filter.
+			return m, tea.Quit
 		}
 		var cmd tea.Cmd
 		m.files.filterInput, cmd = m.files.filterInput.Update(msg)

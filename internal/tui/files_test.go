@@ -572,6 +572,24 @@ func TestHandleFilesKey_FilterActive_BackspaceDoesNotNavigate(t *testing.T) {
 	}
 }
 
+func TestHandleFilesKey_FilterActive_CtrlCQuits(t *testing.T) {
+	// CR-01 (BLOCKER): Ctrl+C MUST quit the TUI even when the filter input
+	// is active. The bundled textinput has no Ctrl+C handler, so without an
+	// explicit interception the key is silently swallowed and the user
+	// cannot exit the TUI without first pressing Esc.
+	m := filesKeyTestModel()
+	m.files.filterActive = true
+	m.files.filterInput.SetValue("abc")
+	_, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("expected non-nil tea.Quit cmd from Ctrl+C while filtering, got nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(tea.QuitMsg); !ok {
+		t.Errorf("expected tea.QuitMsg from Ctrl+C while filtering, got %T", msg)
+	}
+}
+
 func TestHandleFilesKey_Down_MovesCursor(t *testing.T) {
 	m := filesKeyTestModel()
 	m.files.entries = []daemon.FileEntry{{Name: "a"}, {Name: "b"}, {Name: "c"}}
@@ -933,6 +951,7 @@ func TestFiles_Phase121_Requirements(t *testing.T) {
 			"TestHandleFilesKey_Slash_ActivatesFilter",
 			"TestHandleFilesKey_FilterActive_EscClears",
 			"TestHandleFilesKey_FilterActive_BackspaceDoesNotNavigate",
+			"TestHandleFilesKey_FilterActive_CtrlCQuits",
 		}},
 		{"TUI-06", []string{
 			"TestTruncateLeft",
