@@ -1027,6 +1027,32 @@ func (a *App) GetRemoteSessions() []RemotePeerSessions {
 	return results
 }
 
+// ExchangeJoinCodeAtURL exchanges a 5-character join code against a REMOTE
+// peer's `/join/exchange` endpoint (NOT the local daemon) and returns the cap
+// token extracted from the response.
+//
+// Phase 122-03 / REMOTE-01 — the desktop GUI's paste-join-code modal calls
+// this to obtain a cap for browsing files on a remote tailnet session. The
+// returned cap is subsequently deposited via RegisterRemoteCap; it must NEVER
+// be passed to the React frontend (it lives in the daemon's RemoteCapStore).
+func (a *App) ExchangeJoinCodeAtURL(remoteBaseURL, code string) (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
+	return a.client.ExchangeJoinCodeAtURL(remoteBaseURL, code)
+}
+
+// RegisterRemoteCap deposits a (sessionID, remote baseURL, cap token) tuple
+// into the local daemon's RemoteCapStore. Subsequent file-browser fetches
+// through the local-daemon proxy route /api/files/remote/{sid}/... use this
+// cap. Phase 122-03 / REMOTE-01.
+func (a *App) RegisterRemoteCap(sessionID, baseURL, capToken string) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.RegisterRemoteCap(sessionID, baseURL, capToken)
+}
+
 // startTrayPoller starts a background goroutine that refreshes tray state
 // (icon, tooltip, session list) immediately and then every 5 seconds.
 // The goroutine exits when ctx is cancelled (Wails shutdown).

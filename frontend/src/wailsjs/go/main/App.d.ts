@@ -107,6 +107,10 @@ export interface RemotePeerSessions {
 
 export function GetRemoteSessions(): Promise<RemotePeerSessions[]>
 
+// Phase 122-03 — remote-session file-browse join-code exchange + cap deposit.
+export function ExchangeJoinCodeAtURL(remoteBaseURL: string, code: string): Promise<string>
+export function RegisterRemoteCap(sessionID: string, baseURL: string, capToken: string): Promise<void>
+
 // Auto-install Tailscale bound method
 export function AutoInstallTailscale(): Promise<void>
 

@@ -33,6 +33,17 @@ export interface FilesApiConfig {
   baseURL: string
   /** Optional capability token. Omit on daemon-loopback (no-auth path); pass on webserver-HTTPS. */
   capToken?: string
+  /**
+   * Path prefix BEFORE the operation segment. Default `/api/files`.
+   *
+   * Phase 122-03 introduces this so the desktop GUI can proxy remote-session
+   * file fetches through the local daemon's `/api/files/remote/{sid}/...`
+   * routes (D-02 — no cross-origin browser fetches). For the local-loopback
+   * and web-share paths the default value is correct.
+   *
+   * Leading slash required; trailing slash is stripped internally.
+   */
+  pathPrefix?: string
 }
 
 /**
@@ -76,11 +87,15 @@ export class FilesApiError extends Error {
 export class FilesApiClient {
   private readonly baseURL: string
   private readonly capToken: string | undefined
+  private readonly pathPrefix: string
 
   constructor(cfg: FilesApiConfig) {
     // Strip trailing slash so URL building stays predictable.
     this.baseURL = cfg.baseURL.replace(/\/$/, '')
     this.capToken = cfg.capToken
+    // Default to /api/files; strip trailing slash so concatenation with
+    // /<op> stays unambiguous.
+    this.pathPrefix = (cfg.pathPrefix ?? '/api/files').replace(/\/$/, '')
   }
 
   /** Build a query string with session, path, and optional cap — single source of truth. */
@@ -107,7 +122,7 @@ export class FilesApiClient {
   }
 
   async listFiles(sid: string, path: string): Promise<FileListResponse> {
-    const url = `${this.baseURL}/api/files/list?${this.buildQuery(sid, path).toString()}`
+    const url = `${this.baseURL}${this.pathPrefix}/list?${this.buildQuery(sid, path).toString()}`
     const res = await this.fetchOrThrow(url)
     const json = (await res.json()) as { entries: FileEntry[]; truncated: boolean }
     return {
@@ -118,7 +133,7 @@ export class FilesApiClient {
   }
 
   async statFile(sid: string, path: string): Promise<FileEntry> {
-    const url = `${this.baseURL}/api/files/stat?${this.buildQuery(sid, path).toString()}`
+    const url = `${this.baseURL}${this.pathPrefix}/stat?${this.buildQuery(sid, path).toString()}`
     const res = await this.fetchOrThrow(url)
     return (await res.json()) as FileEntry
   }
@@ -132,7 +147,7 @@ export class FilesApiClient {
     sid: string,
     path: string,
   ): Promise<{ text: string; contentType: string; size: number }> {
-    const url = `${this.baseURL}/api/files/read?${this.buildQuery(sid, path).toString()}`
+    const url = `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
     const res = await this.fetchOrThrow(url)
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
     const sizeHeader = res.headers.get('content-length')
@@ -143,7 +158,7 @@ export class FilesApiClient {
 
   /** HEAD probe for size and content-type without downloading bytes — used by PreviewPane size check. */
   async headFile(sid: string, path: string): Promise<{ size: number; contentType: string }> {
-    const url = `${this.baseURL}/api/files/read?${this.buildQuery(sid, path).toString()}`
+    const url = `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
     const res = await this.fetchOrThrow(url, { method: 'HEAD' })
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
     const sizeHeader = res.headers.get('content-length')
@@ -156,11 +171,11 @@ export class FilesApiClient {
    * Image preview pattern: `<img src={client.buildImageUrl(sid, path)} />`.
    */
   buildImageUrl(sid: string, path: string): string {
-    return `${this.baseURL}/api/files/read?${this.buildQuery(sid, path).toString()}`
+    return `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
   }
 
   /** Pure URL builder for the download fallback button (unsupported / over-cap states). */
   buildDownloadUrl(sid: string, path: string): string {
-    return `${this.baseURL}/api/files/read?${this.buildQuery(sid, path).toString()}`
+    return `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
   }
 }
