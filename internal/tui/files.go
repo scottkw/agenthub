@@ -299,9 +299,14 @@ func (m Model) renderFilesTab(cw, ch int) string {
 	listPane := m.renderFilesListPane(listW, bodyH, !m.files.previewFocused)
 	previewPane := m.renderFilesPreviewPane(previewW, bodyH, m.files.previewFocused)
 
+	// WR-02: strings.Repeat("│\n", bodyH) yields bodyH glyphs PLUS a trailing
+	// newline, making sepCol one row taller than listPane/previewPane. The
+	// extra row either produced a phantom blank line or got silently clipped
+	// — either way a fragile dependency on lipgloss-internal padding. Strip
+	// the trailing newline so all three columns are exactly bodyH lines.
 	sepCol := lipgloss.NewStyle().
 		Foreground(m.styles.BorderNormal).
-		Render(strings.Repeat("│\n", bodyH))
+		Render(strings.TrimRight(strings.Repeat("│\n", bodyH), "\n"))
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listPane, sepCol, previewPane)
 	status := m.renderFilesStatusLine(cw)
