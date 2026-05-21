@@ -265,11 +265,6 @@ func (m Model) renderFilesStatusLine(w int) string {
 	} else if !strings.HasPrefix(displayPath, "/") {
 		displayPath = "./" + displayPath
 	}
-	pathBudget := w - 40
-	if pathBudget < 10 {
-		pathBudget = 10
-	}
-	pathPart := truncateLeft(displayPath, pathBudget)
 
 	entries := m.files.filteredEntries()
 	n := len(entries)
@@ -285,7 +280,20 @@ func (m Model) renderFilesStatusLine(w int) string {
 		}
 	}
 
-	body := fmt.Sprintf("%s • %d entries%s • %d/%d", pathPart, n, trunc, sel, n)
+	// WR-06: Compute the tail string first and subtract its actual width
+	// instead of a magic 40-col reservation. With 9999 entries the tail
+	// approaches 36 chars and "(truncated)" adds 12 — well past 40 once
+	// the daemon's truncation cap is ever bumped. The magic constant
+	// would silently start clipping the leaf segment from the right
+	// (the opposite of truncateLeft's intent).
+	tail := fmt.Sprintf(" • %d entries%s • %d/%d", n, trunc, sel, n)
+	pathBudget := w - lipgloss.Width(tail)
+	if pathBudget < 10 {
+		pathBudget = 10
+	}
+	pathPart := truncateLeft(displayPath, pathBudget)
+
+	body := pathPart + tail
 	return lipgloss.NewStyle().Foreground(m.styles.FgMuted).Width(w).Render(body)
 }
 

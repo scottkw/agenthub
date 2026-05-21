@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -871,15 +872,18 @@ func TestFiles_NoSyncFSCalls(t *testing.T) {
 // rendered status line after ansi.Strip so style codes don't perturb the
 // substring checks.
 //
-// Pane width 80 ⇒ pathBudget = max(10, 80-40) = 40. truncateLeft keep = 38;
-// last 38 chars of "./very/deep/nested/path/structure/utils/helper.ts" snap
-// to a path-segment boundary at "…/nested/path/structure/utils/helper.ts".
+// Post-WR-06: pathBudget is computed as w - lipgloss.Width(tail), not a
+// magic 40. With a deeply-nested cwd longer than the available budget,
+// truncateLeft snaps the result to a path-segment boundary with a '…/'
+// prefix. Pane width 50 + tail ' • 1 entries • 1/1' (~18 cols) ⇒
+// pathBudget = 32 — narrow enough to force truncation of the 49-char
+// "./very/deep/nested/path/structure/utils/helper.ts" path.
 func TestFiles_PathTruncation_StatusLine(t *testing.T) {
 	m := testModel()
 	m.files = newFilesModel("s1", 20, 20, 30, 20)
 	m.files.cwd = "very/deep/nested/path/structure/utils/helper.ts"
 	m.files.entries = []daemon.FileEntry{{Name: "x"}}
-	rendered := ansi.Strip(m.renderFilesStatusLine(80))
+	rendered := ansi.Strip(m.renderFilesStatusLine(50))
 	if !strings.Contains(rendered, "…/") {
 		t.Fatalf("TUI-06: expected '…/' prefix in truncated path, got %q", rendered)
 	}
@@ -888,6 +892,32 @@ func TestFiles_PathTruncation_StatusLine(t *testing.T) {
 	}
 	if strings.Contains(rendered, "very/deep") {
 		t.Fatalf("TUI-06: expected leading segments truncated, got %q", rendered)
+	}
+}
+
+// TestRenderFilesStatusLine_TailAwarePathBudget covers WR-06: pathBudget
+// must be computed from the actual tail width, not a magic 40. With a
+// large entry count + (truncated) flag the tail can exceed 36 chars; the
+// fix subtracts lipgloss.Width(tail) so the leading path is sized to
+// whatever space is actually left.
+func TestRenderFilesStatusLine_TailAwarePathBudget(t *testing.T) {
+	m := testModel()
+	m.files = newFilesModel("s1", 20, 20, 30, 20)
+	m.files.cwd = "src/app"
+	// 9999 entries + truncated flag — tail string is ~36+12 chars.
+	m.files.entries = make([]daemon.FileEntry, 9999)
+	for i := range m.files.entries {
+		m.files.entries[i].Name = fmt.Sprintf("f%d", i)
+	}
+	m.files.truncated = true
+	rendered := ansi.Strip(m.renderFilesStatusLine(80))
+	// The tail must appear in full — its prior 40-col reservation would
+	// have been too tight for "9999 entries (truncated) • 1/9999".
+	if !strings.Contains(rendered, "9999 entries (truncated)") {
+		t.Errorf("expected full tail with 9999 entries and (truncated) flag, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "1/9999") {
+		t.Errorf("expected '1/9999' selection counter, got %q", rendered)
 	}
 }
 
