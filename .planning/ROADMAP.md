@@ -449,7 +449,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 121 | v3.4 | 3/3 | Complete   | 2026-05-21 |
+| 121 | v3.4 | 3/3 | Complete    | 2026-05-21 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

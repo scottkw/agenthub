@@ -70,16 +70,16 @@ Single-pane list + side-by-side preview (NOT tree+list — collides with AgentHu
 
 Custom `bubbles list.Model` + `viewport.Model` joined via `lipgloss.JoinHorizontal` (NOT `bubbles/filepicker` — that's a selection-dialog primitive, not a browse pane). All filesystem I/O via `tea.Cmd` — synchronous `os.ReadDir` freezes the Bubble Tea render loop. Path truncation in the status line is left-truncated (`…/utils/helper.ts`) — preserves the high-information leaf-end. (Resolved OQ-2.) Can run in parallel with Phase 3 once Phase 1 freezes.
 
-- [ ] **TUI-01** — New `internal/tui/files.go` Bubble Tea sub-model with custom `bubbles list.Model` (file list) + `viewport.Model` (preview pane) joined via `lipgloss.JoinHorizontal`; bordered lipgloss frame with TokyoNight palette consistent with existing TUI tabs.
-- [ ] **TUI-02** — New "Files" sidebar entry (or reachable per-session via the Sessions list); opens scoped to the selected session's cwd; closing the file view returns to the prior TUI tab.
-- [ ] **TUI-03** — Navigation: Up/Down arrow keys move the list cursor; PageUp/PageDown jump a page; Enter enters a directory; Backspace or Left arrow goes up; user cannot navigate above session cwd (Backspace at cwd root is a no-op, NOT a parent traversal).
-- [ ] **TUI-04** — Read-only preview pane shows text files (5 MB server-enforced cap); markdown files rendered via `charmbracelet/glamour` (promoted from indirect to direct dep); binary files show "Use desktop or web to preview"; over-cap files show "Too large to preview, use desktop or web to download."
-- [ ] **TUI-05** — Type-ahead filter activated by `/` key (parity with desktop); current-directory only; Escape clears and dismisses.
-- [ ] **TUI-06** — Status line shows session-cwd-relative path (left-truncated when wider than the pane: `…/utils/helper.ts`) + file count + selection position.
-- [ ] **TUI-07** — ALL filesystem I/O routed through `tea.Cmd` (returning `tea.Msg`); a synchronous `os.ReadDir` in Update is a merge-gate failure.
-- [ ] **TUI-08** — TUI Files view works against local AND remote (tailnet) sessions; uses the same daemon-local HTTP API for local and Tailscale HTTPS for remote (no relay frames).
-- [ ] **TUI-09** — Help overlay (`?` key) updated with file-browser keybindings: `↑/↓` `PgUp/PgDn` `Enter` `Backspace` `/` `?` `Esc` `q`.
-- [ ] **TUI-10** — Key-dispatch priority updated in `internal/tui/update.go` to handle file-browser modal correctly (above main view but below kill-confirm/new-session/QR overlay/help).
+- [x] **TUI-01** — New `internal/tui/files.go` Bubble Tea sub-model with custom `bubbles list.Model` (file list) + `viewport.Model` (preview pane) joined via `lipgloss.JoinHorizontal`; bordered lipgloss frame with TokyoNight palette consistent with existing TUI tabs.
+- [x] **TUI-02** — New "Files" sidebar entry (or reachable per-session via the Sessions list); opens scoped to the selected session's cwd; closing the file view returns to the prior TUI tab.
+- [x] **TUI-03** — Navigation: Up/Down arrow keys move the list cursor; PageUp/PageDown jump a page; Enter enters a directory; Backspace or Left arrow goes up; user cannot navigate above session cwd (Backspace at cwd root is a no-op, NOT a parent traversal).
+- [x] **TUI-04** — Read-only preview pane shows text files (5 MB server-enforced cap); markdown files rendered via `charmbracelet/glamour` (promoted from indirect to direct dep); binary files show "Use desktop or web to preview"; over-cap files show "Too large to preview, use desktop or web to download."
+- [x] **TUI-05** — Type-ahead filter activated by `/` key (parity with desktop); current-directory only; Escape clears and dismisses.
+- [x] **TUI-06** — Status line shows session-cwd-relative path (left-truncated when wider than the pane: `…/utils/helper.ts`) + file count + selection position.
+- [x] **TUI-07** — ALL filesystem I/O routed through `tea.Cmd` (returning `tea.Msg`); a synchronous `os.ReadDir` in Update is a merge-gate failure.
+- [x] **TUI-08** — TUI Files view works against local AND remote (tailnet) sessions; uses the same daemon-local HTTP API for local and Tailscale HTTPS for remote (no relay frames).
+- [x] **TUI-09** — Help overlay (`?` key) updated with file-browser keybindings: `↑/↓` `PgUp/PgDn` `Enter` `Backspace` `/` `?` `Esc` `q`.
+- [x] **TUI-10** — Key-dispatch priority updated in `internal/tui/update.go` to handle file-browser modal correctly (above main view but below kill-confirm/new-session/QR overlay/help).
 
 ## v3.5 Requirements (Deferred, not in v3.4 roadmap)
 
@@ -162,16 +162,16 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 | UI-12 | Phase 120 | Complete |
 | UI-13 | Phase 120 | Complete |
 | UI-14 | Phase 120 | Complete |
-| TUI-01 | Phase 121 | Pending |
-| TUI-02 | Phase 121 | Pending |
-| TUI-03 | Phase 121 | Pending |
-| TUI-04 | Phase 121 | Pending |
-| TUI-05 | Phase 121 | Pending |
-| TUI-06 | Phase 121 | Pending |
-| TUI-07 | Phase 121 | Pending |
-| TUI-08 | Phase 121 | Pending |
-| TUI-09 | Phase 121 | Pending |
-| TUI-10 | Phase 121 | Pending |
+| TUI-01 | Phase 121 | Complete |
+| TUI-02 | Phase 121 | Complete |
+| TUI-03 | Phase 121 | Complete |
+| TUI-04 | Phase 121 | Complete |
+| TUI-05 | Phase 121 | Complete |
+| TUI-06 | Phase 121 | Complete |
+| TUI-07 | Phase 121 | Complete |
+| TUI-08 | Phase 121 | Complete |
+| TUI-09 | Phase 121 | Complete |
+| TUI-10 | Phase 121 | Complete |
 
 **Coverage:**
 
