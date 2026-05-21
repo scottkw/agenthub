@@ -427,7 +427,7 @@ Plans:
 4. The same TUI Files view that works against local sessions works against remote sessions — keyboard nav, preview, filter, status line all identical.
 5. Cross-surface parity is now complete: a viewer with `files.read` on a session can browse that session's files from desktop GUI, web browser, OR TUI, with the same observable behavior.
 
-**Plans:** 5 plans
+**Plans:** 0/5 plans executed
 
 Plans:
 - [ ] 122-01-PLAN.md — Daemon proxy route + RemoteCapStore + ExchangeJoinCodeAtURL helper (REMOTE-01, REMOTE-02, REMOTE-05)
@@ -480,7 +480,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 122 | v3.4 | 0/5 | Not started | - |
+| 122 | v3.4 | 0/5 | Planned    |  |
 | 121 | v3.4 | 3/3 | Complete    | 2026-05-21 |
 
 ---
