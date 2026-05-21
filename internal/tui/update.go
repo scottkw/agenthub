@@ -405,9 +405,9 @@ func (m Model) handleContentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			paneH = 1
 		}
 		// RESEARCH.md Pitfall TUI-PITFALL-6: always reset on `f`.
-		m.files = newFilesModel(sid, listW, paneH-2, previewW, paneH-2)
+		m.files = newFilesModelWithClient(sid, m.client, listW, paneH-2, previewW, paneH-2)
 		m.openTab(tabFiles)
-		return m, loadDirCmd(m.client, sid, ".", m.files.generation)
+		return m, loadDirCmd(m.files.client, sid, ".", m.files.generation)
 	}
 	return m, nil
 }
