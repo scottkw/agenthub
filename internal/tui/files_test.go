@@ -112,7 +112,7 @@ var _ = daemon.SessionInfo{}
 // fields populated, so the test-only paths (e.g. testModel() with nil client)
 // don't panic.
 func TestLoadDirCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
-	cmd := loadDirCmd(nil, "sid", ".")
+	cmd := loadDirCmd(nil, "sid", ".", 1)
 	if cmd == nil {
 		t.Fatal("loadDirCmd returned nil command")
 	}
@@ -129,10 +129,13 @@ func TestLoadDirCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
 	if msg.relPath != "." {
 		t.Errorf("expected echo relPath=., got %q", msg.relPath)
 	}
+	if msg.generation != 1 {
+		t.Errorf("expected echo generation=1, got %d", msg.generation)
+	}
 }
 
 func TestReadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
-	cmd := readFileCmd(nil, "sid", "a.txt")
+	cmd := readFileCmd(nil, "sid", "a.txt", 1)
 	if cmd == nil {
 		t.Fatal("readFileCmd returned nil command")
 	}
@@ -149,7 +152,7 @@ func TestReadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
 }
 
 func TestHeadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
-	cmd := headFileCmd(nil, "sid", "a.txt")
+	cmd := headFileCmd(nil, "sid", "a.txt", 1)
 	if cmd == nil {
 		t.Fatal("headFileCmd returned nil command")
 	}
@@ -168,7 +171,7 @@ func TestHeadFileCmd_NilClient_ReturnsErrSentinel(t *testing.T) {
 // TestLoadDirCmd_DispatchesAsync proves the factory returns a non-nil tea.Cmd
 // without executing the I/O synchronously — the closure must contain the work.
 func TestLoadDirCmd_DispatchesAsync(t *testing.T) {
-	cmd := loadDirCmd(nil, "sid", ".")
+	cmd := loadDirCmd(nil, "sid", ".", 1)
 	if cmd == nil {
 		t.Fatal("loadDirCmd returned nil command — I/O must be deferred to the closure")
 	}
@@ -334,10 +337,11 @@ func filesTestModel(sid string) Model {
 func TestApplyFilesListMsg_HappyPath(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, cmd := m.applyFilesListMsg(filesListMsg{
-		sessionID: "s1",
-		relPath:   "sub",
-		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
-		truncated: false,
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "sub",
+		entries:    []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+		truncated:  false,
 	})
 	if cmd != nil {
 		t.Errorf("expected nil cmd, got non-nil")
@@ -364,9 +368,10 @@ func TestApplyFilesListMsg_StaleDiscarded(t *testing.T) {
 	m.files.cwd = "original"
 	m.files.entries = []daemon.FileEntry{{Name: "original"}}
 	updated, _ := m.applyFilesListMsg(filesListMsg{
-		sessionID: "s2", // different session
-		relPath:   "sub",
-		entries:   []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
+		sessionID:  "s2", // different session
+		generation: m.files.generation,
+		relPath:    "sub",
+		entries:    []daemon.FileEntry{{Name: "a"}, {Name: "b"}},
 	})
 	if updated.files.cwd != "original" {
 		t.Errorf("stale msg should not mutate cwd; got %q", updated.files.cwd)
@@ -379,9 +384,10 @@ func TestApplyFilesListMsg_StaleDiscarded(t *testing.T) {
 func TestApplyFilesListMsg_SessionNotFound_FriendlyMessage(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, _ := m.applyFilesListMsg(filesListMsg{
-		sessionID: "s1",
-		relPath:   ".",
-		err:       errors.New("files list: 404 session not found or has no working directory"),
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    ".",
+		err:        errors.New("files list: 404 session not found or has no working directory"),
 	})
 	if updated.files.err == nil {
 		t.Fatal("expected err to be set")
@@ -394,10 +400,11 @@ func TestApplyFilesListMsg_SessionNotFound_FriendlyMessage(t *testing.T) {
 func TestApplyFilesHeadMsg_OverCap_RefusalMessage(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
-		sessionID: "s1",
-		relPath:   "big.bin",
-		size:      6 * 1024 * 1024,
-		mime:      "text/plain", // over-cap beats text/* check
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "big.bin",
+		size:       6 * 1024 * 1024,
+		mime:       "text/plain", // over-cap beats text/* check
 	})
 	if updated.files.previewKind != previewOverCap {
 		t.Errorf("expected previewOverCap, got %v", updated.files.previewKind)
@@ -413,10 +420,11 @@ func TestApplyFilesHeadMsg_OverCap_RefusalMessage(t *testing.T) {
 func TestApplyFilesHeadMsg_Binary_RefusalMessage(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
-		sessionID: "s1",
-		relPath:   "image.png",
-		size:      100,
-		mime:      "image/png",
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "image.png",
+		size:       100,
+		mime:       "image/png",
 	})
 	if updated.files.previewKind != previewBinary {
 		t.Errorf("expected previewBinary, got %v", updated.files.previewKind)
@@ -432,10 +440,11 @@ func TestApplyFilesHeadMsg_Binary_RefusalMessage(t *testing.T) {
 func TestApplyFilesHeadMsg_Text_DispatchesRead(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, cmd := m.applyFilesHeadMsg(filesHeadMsg{
-		sessionID: "s1",
-		relPath:   "a.txt",
-		size:      100,
-		mime:      "text/plain",
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "a.txt",
+		size:       100,
+		mime:       "text/plain",
 	})
 	if cmd == nil {
 		t.Error("expected non-nil readFileCmd to be dispatched")
@@ -448,10 +457,11 @@ func TestApplyFilesHeadMsg_Text_DispatchesRead(t *testing.T) {
 func TestApplyFilesReadMsg_TextSetsContent(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, _ := m.applyFilesReadMsg(filesReadMsg{
-		sessionID: "s1",
-		relPath:   "a.txt",
-		data:      []byte("hello"),
-		mime:      "text/plain",
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "a.txt",
+		data:       []byte("hello"),
+		mime:       "text/plain",
 	})
 	if updated.files.previewKind != previewText {
 		t.Errorf("expected previewText, got %v", updated.files.previewKind)
@@ -464,10 +474,11 @@ func TestApplyFilesReadMsg_TextSetsContent(t *testing.T) {
 func TestApplyFilesReadMsg_MarkdownSuffix_UsesGlamour(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, _ := m.applyFilesReadMsg(filesReadMsg{
-		sessionID: "s1",
-		relPath:   "README.md",
-		data:      []byte("# Hello\n\nWorld\n"),
-		mime:      "text/markdown",
+		sessionID:  "s1",
+		generation: m.files.generation,
+		relPath:    "README.md",
+		data:       []byte("# Hello\n\nWorld\n"),
+		mime:       "text/markdown",
 	})
 	if updated.files.previewKind != previewMarkdown {
 		t.Errorf("expected previewMarkdown, got %v", updated.files.previewKind)
@@ -478,13 +489,38 @@ func TestApplyFilesReadMsg_MarkdownSuffix_UsesGlamour(t *testing.T) {
 	}
 }
 
+func TestApplyFilesListMsg_StaleGenerationDiscarded(t *testing.T) {
+	// WR-03: a reply tagged with an older generation must NOT overwrite a
+	// freshly-reset model. This is the intra-session race: same sessionID
+	// but a prior in-flight loadDir lands after the user has already
+	// navigated/reset.
+	m := filesTestModel("s1")
+	m.files.cwd = "current"
+	m.files.entries = []daemon.FileEntry{{Name: "current_a"}}
+	currentGen := m.files.generation
+	// Simulate a stale message: generation BELOW the current one.
+	updated, _ := m.applyFilesListMsg(filesListMsg{
+		sessionID:  "s1",
+		generation: currentGen - 1, // stale
+		relPath:    "stale",
+		entries:    []daemon.FileEntry{{Name: "stale_a"}},
+	})
+	if updated.files.cwd != "current" {
+		t.Errorf("stale-generation msg should not mutate cwd; got %q", updated.files.cwd)
+	}
+	if len(updated.files.entries) != 1 || updated.files.entries[0].Name != "current_a" {
+		t.Errorf("stale-generation msg should not mutate entries; got %+v", updated.files.entries)
+	}
+}
+
 func TestApplyFilesReadMsg_StaleSessionID_Discarded(t *testing.T) {
 	m := filesTestModel("s1")
 	updated, _ := m.applyFilesReadMsg(filesReadMsg{
-		sessionID: "s2",
-		relPath:   "a.txt",
-		data:      []byte("hello"),
-		mime:      "text/plain",
+		sessionID:  "s2",
+		generation: m.files.generation,
+		relPath:    "a.txt",
+		data:       []byte("hello"),
+		mime:       "text/plain",
 	})
 	if updated.files.previewKind != previewEmpty {
 		t.Errorf("stale read should not change previewKind; expected previewEmpty, got %v", updated.files.previewKind)

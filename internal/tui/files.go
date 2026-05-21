@@ -45,6 +45,14 @@ type filesModel struct {
 	loading   bool               // listing in flight
 	err       error              // last error (sticky until next nav)
 
+	// generation is a monotonic counter bumped on every reset
+	// (newFilesModel) and on every navigation that supersedes a prior
+	// in-flight request (Enter into dir, Backspace up). Each outgoing
+	// loadDir / head / read cmd is stamped with the current generation;
+	// apply*Msg handlers discard messages whose generation < current.
+	// Closes WR-03 (reset-during-fetch race).
+	generation uint64
+
 	// Filter
 	filterActive bool
 	filterInput  textinput.Model
@@ -85,6 +93,7 @@ func newFilesModel(sid string, listW, listH, previewW, previewH int) filesModel 
 		filterInput: fi,
 		preview:     pv,
 		previewKind: previewEmpty,
+		generation:  1, // start at 1 so a zero-valued msg looks stale
 	}
 }
 
@@ -412,7 +421,8 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		parent := parentDir(m.files.cwd)
 		m.files.loading = true
-		return m, loadDirCmd(m.client, m.files.sessionID, parent)
+		m.files.generation++ // WR-03: supersede any in-flight load
+		return m, loadDirCmd(m.client, m.files.sessionID, parent, m.files.generation)
 
 	case key.Matches(msg, m.keys.Up):
 		if m.files.previewFocused {
@@ -473,10 +483,12 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		next := joinDir(m.files.cwd, name)
 		if entry.IsDir {
 			m.files.loading = true
-			return m, loadDirCmd(m.client, m.files.sessionID, next)
+			m.files.generation++ // WR-03: supersede any in-flight load
+			return m, loadDirCmd(m.client, m.files.sessionID, next, m.files.generation)
 		}
 		m.files.previewLoading = true
-		return m, headFileCmd(m.client, m.files.sessionID, next)
+		m.files.generation++ // WR-03: supersede any in-flight preview
+		return m, headFileCmd(m.client, m.files.sessionID, next, m.files.generation)
 
 	case key.Matches(msg, m.keys.FilesFocusToggle):
 		m.files.previewFocused = !m.files.previewFocused
@@ -516,6 +528,11 @@ func (m Model) applyFilesListMsg(msg filesListMsg) (Model, tea.Cmd) {
 	if msg.sessionID != m.files.sessionID {
 		return m, nil
 	}
+	// WR-03: discard messages from superseded in-flight requests so a slow
+	// previous-cwd reply cannot land on a freshly-reset model.
+	if msg.generation < m.files.generation {
+		return m, nil
+	}
 	m.files.loading = false
 	if msg.err != nil {
 		if strings.Contains(msg.err.Error(), "session not found") {
@@ -548,6 +565,10 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 	if msg.sessionID != m.files.sessionID {
 		return m, nil
 	}
+	// WR-03: discard messages from superseded in-flight requests.
+	if msg.generation < m.files.generation {
+		return m, nil
+	}
 	if msg.err != nil {
 		m.files.previewKind = previewErr
 		m.files.previewErr = msg.err
@@ -570,7 +591,9 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 	}
 	m.files.previewLoading = true
 	m.files.previewMime = msg.mime
-	return m, readFileCmd(m.client, msg.sessionID, msg.relPath)
+	// WR-03: propagate the head's generation through to the read so a stale
+	// read can't land on a fresher model.
+	return m, readFileCmd(m.client, msg.sessionID, msg.relPath, msg.generation)
 }
 
 // applyFilesReadMsg handles the ReadFile result. Markdown (by suffix OR by
@@ -579,6 +602,10 @@ func (m Model) applyFilesHeadMsg(msg filesHeadMsg) (Model, tea.Cmd) {
 // "dark" vs "light" based on hasDark — matches Phase 86 lipgloss styling.
 func (m Model) applyFilesReadMsg(msg filesReadMsg) (Model, tea.Cmd) {
 	if msg.sessionID != m.files.sessionID {
+		return m, nil
+	}
+	// WR-03: discard messages from superseded in-flight requests.
+	if msg.generation < m.files.generation {
 		return m, nil
 	}
 	m.files.previewLoading = false
