@@ -72,6 +72,17 @@ func newRemoteFilesClientWithHTTP(baseURL, capToken string, httpClient *http.Cli
 	}
 }
 
+// NewRemoteFilesClientForTest is the EXPORTED test-only constructor mirroring
+// newRemoteFilesClientWithHTTP for callers outside this package. The Phase
+// 122-05 cross-surface parity test lives in `package daemon_test` (because
+// `package daemon` cannot import `internal/tui` — that would cycle, since
+// tui already imports daemon), and needs to build a RemoteFilesClient
+// pointed at an httptest.NewTLSServer with the upstream's self-signed cert.
+// Production code must never call this — use NewRemoteFilesClient instead.
+func NewRemoteFilesClientForTest(baseURL, capToken string, httpClient *http.Client) *RemoteFilesClient {
+	return newRemoteFilesClientWithHTTP(baseURL, capToken, httpClient)
+}
+
 // filesURL builds /api/files/<op>?session=<sid>&path=<rel>&cap=<token>. Empty
 // relPath is normalised to "." so callers can pass "" for "list the root"
 // (mirrors *daemon.DaemonClient.filesURL line 367-368).

@@ -39,6 +39,15 @@
 
 import { test, expect, request as playwrightRequest } from '@playwright/test'
 import { loadFixtureEnv, filesApiURL, appUrl, viewerAppUrl } from './fixture-env'
+import {
+  fixtureRemoteCap,
+  fixtureRemoteSessionId,
+  remoteFilesListURL,
+  remoteFilesReadURL,
+  remoteFilesStatURL,
+  remoteJoinExchangeURL,
+  remotePeerURL,
+} from './fixtures/remote-peer-setup'
 
 // Conservative timeout for the multi-MiB Range download in scenario 9.
 test.describe.configure({ mode: 'serial' })
@@ -393,6 +402,125 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
     await expect(
       page.getByRole('heading', { name: /^files\.read permission required$/ }),
     ).toBeVisible()
+  })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Scenario 16 — Phase 122-05: remote-session browse via owner cap.
+  //
+  // Verifies the upstream-contract half of the REMOTE-05 cross-surface
+  // parity gate: the mock "remote peer" (a second TLS listener inside
+  // the playwright fixture binary, see cmd/playwright-fixture/main.go::
+  // startRemotePeerFixture) serves the byte-shape that BOTH the desktop
+  // GUI's daemon-proxy path AND the TUI's RemoteFilesClient observe.
+  //
+  // The end-to-end DOM flow (RemoteJoinCodeModal click → modal type →
+  // FileBrowserTab mount via the React tree) is covered at the React
+  // testing-library layer by frontend/src/components/__tests__/
+  // App.remoteFileBrowser.test.tsx (Phase 122-03 Task 3). The cross-
+  // surface byte-equivalence is covered by the Go parity test at
+  // internal/daemon/remote_files_parity_test.go (Phase 122-05 Task 1).
+  // This scenario adds the third observer — a browser-launched HTTPS
+  // request against the same fixture — proving the contract is honored
+  // from the same network stack the production Wails webview uses.
+  //
+  // The remote-session label in the test title ("remote-session via
+  // owner cap") matches the --grep "remote-session" gate from the
+  // PLAN.md <verification> block.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 16: remote-session browse via owner cap — upstream contract', async () => {
+    const ctx = await playwrightRequest.newContext({ ignoreHTTPSErrors: true })
+    try {
+      // 1. List the remote peer's root.
+      const listResp = await ctx.get(remoteFilesListURL({ path: '.' }))
+      expect(
+        listResp.status(),
+        'remote peer list with owner cap must return 200',
+      ).toBe(200)
+      const listBody = await listResp.json()
+      expect(listBody.entries, 'entries array').toBeInstanceOf(Array)
+      const names = listBody.entries.map((e: { name: string }) => e.name)
+      expect(names, 'a.txt and sub appear in canonical order').toEqual(['a.txt', 'sub'])
+      // The shape mirrors the canonical FileListResponse that the Go
+      // parity test asserts byte-identical between the daemon proxy
+      // and the TUI's RemoteFilesClient (internal/daemon/
+      // remote_files_parity_test.go::canonicalListResponse).
+      expect(listBody.truncated).toBe(false)
+      const aTxt = listBody.entries.find((e: { name: string }) => e.name === 'a.txt')
+      expect(aTxt).toMatchObject({ name: 'a.txt', size: 100, isDir: false })
+      const sub = listBody.entries.find((e: { name: string }) => e.name === 'sub')
+      expect(sub).toMatchObject({ name: 'sub', size: 0, isDir: true })
+
+      // 2. Stat a.txt.
+      const statResp = await ctx.get(remoteFilesStatURL({ path: 'a.txt' }))
+      expect(statResp.status()).toBe(200)
+      const stat = await statResp.json()
+      expect(stat).toMatchObject({ name: 'a.txt', size: 100, isDir: false })
+
+      // 3. Read a.txt.
+      const readResp = await ctx.get(remoteFilesReadURL({ path: 'a.txt' }))
+      expect(readResp.status()).toBe(200)
+      expect(await readResp.text()).toBe('hello world')
+      expect(readResp.headers()['content-type']).toContain('text/plain')
+
+      // 4. /join/exchange handshake — POST any code, follow no redirects
+      //    so we can inspect the Location header. Playwright's request
+      //    API follows redirects by default; configure maxRedirects=0.
+      const exchangeResp = await ctx.post(remoteJoinExchangeURL(), {
+        form: { code: 'ABCDE' },
+        maxRedirects: 0,
+      })
+      expect(exchangeResp.status(), '/join/exchange returns 303').toBe(303)
+      const loc = exchangeResp.headers()['location']
+      expect(loc, 'Location header includes cap and session').toBe(
+        `/sessions/${fixtureRemoteSessionId}?cap=${fixtureRemoteCap}`,
+      )
+    } finally {
+      await ctx.dispose()
+    }
+  })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Scenario 17 — Phase 122-05: remote-session browse — 401 from
+  // upstream → EnableWebSharingTakeover trigger condition.
+  //
+  // This scenario verifies that when the mock remote peer rejects the
+  // cap (the trigger condition for the desktop GUI's
+  // EnableWebSharingTakeover and the TUI's "Remote session must be
+  // web-shared…" status line), the upstream returns the 401 shape that
+  // both surfaces' 401-handlers consume. The DOM-level takeover render
+  // is covered by frontend/src/components/FileBrowser/__tests__/
+  // EnableWebSharingTakeover.test.tsx + the App-level routing is
+  // covered by App.remoteFileBrowser.test.tsx.
+  //
+  // No-cap and wrong-cap are tested separately because the daemon
+  // proxy strips the caller's ?cap= (TestRemoteFiles_CallerCapStripped
+  // + the cross-surface CapInjectionPrevented assertion), so a "no
+  // cap" request from the GUI surface always reaches the upstream as
+  // "registered cap"; only a STALE registered cap produces 401.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 17: remote-session 401 from upstream — no cap rejected', async () => {
+    const ctx = await playwrightRequest.newContext({ ignoreHTTPSErrors: true })
+    try {
+      // Request without any cap → 401 from the guard middleware.
+      const noCapResp = await ctx.get(remoteFilesListURL({ path: '.', cap: '' }))
+      expect(noCapResp.status(), 'no-cap list must return 401').toBe(401)
+      const noCapBody = await noCapResp.text()
+      expect(noCapBody.toLowerCase()).toContain('cap rejected')
+
+      // Wrong-cap → also 401.
+      const wrongCapResp = await ctx.get(remoteFilesListURL({ path: '.', cap: 'STALE_CAP' }))
+      expect(wrongCapResp.status(), 'wrong-cap list must return 401').toBe(401)
+      const wrongCapBody = await wrongCapResp.text()
+      expect(wrongCapBody.toLowerCase()).toContain('cap rejected')
+
+      // Wrong session → 404 (separate failure path; not the 401-takeover
+      // trigger but useful evidence that the guard discriminates).
+      const wrongSessionURL = `${remotePeerURL()}/api/files/list?session=different-sid&path=.&cap=${fixtureRemoteCap}`
+      const wrongSessionResp = await ctx.get(wrongSessionURL)
+      expect(wrongSessionResp.status(), 'wrong-session must return 404').toBe(404)
+    } finally {
+      await ctx.dispose()
+    }
   })
 
   test.afterEach(() => {
