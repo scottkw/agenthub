@@ -2,32 +2,32 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: File Browser (Read-Only) + TUI Parity
-status: milestone_complete
-stopped_at: Milestone complete (Phase 122 was final phase)
-last_updated: 2026-05-21T03:42:56.236Z
-last_activity: 2026-05-21 -- Phase 122 execution started
+status: milestone_archived
+stopped_at: Milestone archived 2026-05-21 — release tagged v3.4
+last_updated: 2026-05-21T00:00:00.000Z
+last_activity: 2026-05-21 -- v3.4 milestone archived + tagged
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 5
   total_plans: 21
   completed_plans: 20
-  percent: 60
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-20 — v3.4 open)
+See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Milestone complete
+**Current focus:** Planning next milestone (v3.5 expected: write-side file ops + editor)
 
 ## Current Position
 
-Phase: 122
-Plan: Not started
-Status: Milestone complete
+Phase: — (between milestones)
+Plan: —
+Status: v3.4 archived + tagged; awaiting `/gsd:new-milestone`
 Last activity: 2026-05-21
 
 ## Operator Next Steps (carried into v3.4)
@@ -52,41 +52,51 @@ Last activity: 2026-05-21
 - v3.3.1 plans: 9 across phases
 - v3.3.1 commits: ~17
 - v3.3.1 timeline: 2026-05-15 → 2026-05-19 (5 days)
-- Cumulative: 23 milestones shipped (v1.0–v3.3.1 + v3.3.2 dep-bump patch), 117 phases, ~213 plans
+- v3.4 phases: 5 (Phases 118-122, including audit-driven mid-milestone Phase 122)
+- v3.4 plans: 20/21 (Plan 122-01 superseded by 122-01-recovery)
+- v3.4 commits: 176
+- v3.4 timeline: 2026-05-20 → 2026-05-21 (2 days)
+- v3.4 source changes: 197 files, +42,159 / -1,963 lines (incl. `.planning/`)
+- Cumulative: 24 milestones shipped (v1.0–v3.4), 122 phases, ~233 plans
 
 ## Session Continuity
 
-Last session: 2026-05-20
-Stopped at: v3.4 roadmap written (Phases 118-121 defined, REQUIREMENTS.md traceability finalized, STATE.md updated)
+Last session: 2026-05-21
+Stopped at: v3.4 milestone archived + tagged
 Resume file: None
-Next action: `/gsd:plan-phase 118` to break Phase 118 into executable plans
+Next action: `/clear` then `/gsd:new-milestone` to scope v3.5
 
 ## Deferred Items
 
-Items carried forward into v3.4 from prior milestones:
+Items carried forward into v3.5 from v3.4 close (2026-05-21):
 
 | Category | Item | Status |
 |----------|------|--------|
 | operator_runtime | Phase 106 `RELEASE_PUBLISH_TOKEN` PAT | pending (one-time, before next release) |
 | operator_runtime | Phase 106 `WINGET_FIRST_SUBMISSION=true` variable | pending (one-time, first WinGet submission only) |
-| visual_uat | Phase 101 5 visual-fidelity items | deferred (cosmetic, non-gating) |
-| tech_debt | Phase 108 WR-01/WR-02 + IN-01..04 (docs/dead-code) | deferred v3.4 |
-| tech_debt | Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch SEARCH_INDEX missing "Shell binary" | deferred v3.4 |
-| tech_debt | Phase 101 advisory WR-01..09 + IN-01..06 (15 items) | deferred v3.4 |
-| process_debt | Phase 103 missing `103-SUMMARY.md` + `103-IIP-DECISION.md` + `103-VERIFICATION.md` | deferred v3.4 (retroactive fill recommended) |
-| process_debt | Nyquist `*-VALIDATION.md` missing for Phases 101–108 | deferred (process debt; not a blocker) |
-| test_debt | TestOpenCodeANSICapture data race | deferred (pre-existing, skipped) |
-| test_debt | Pre-existing `TestShellWebShareWarned_Default`-family failures (3 internal/daemon tests) | deferred v3.4 (SPEC §Out-of-scope for Phase 108) |
-| test_debt | Phase 108 PARITY-CLI-03 harness limitation (one documented test skip with v3.4 `SetShellPathForTest` follow-up sketched) | deferred v3.4 |
+| manual_uat | TD-1: Phase 120 Wails desktop click-path UAT | deferred (release-eligible after operator runs) |
+| manual_uat | TD-2: Phase 121 visual TokyoNight + lipgloss perceptual UAT (user is colorblind; requires sighted helper) | deferred |
+| manual_uat | TD-3: Phase 122 22-step two-machine tailnet UAT (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface parity + failure-mode takeover) | deferred |
+| tech_debt | TD-4: Phase 120 WR-01..WR-05 (`/app/` dir listings, cache-control, joinPath sanitization, mtime fallback, comment clarity) | deferred v3.5 — file issue OR fix-now plan |
+| tech_debt | TD-5: Phase 122 `ExchangeJoinCodeAtURL` JSON-vs-303 mismatch shim cleanup | deferred v3.5 |
+| visual_uat | Phase 101 5 visual-fidelity items (carried from v3.3) | deferred (cosmetic, non-gating) |
+| tech_debt | Phase 108 WR-01/WR-02 + IN-01..04 (carried from v3.3) | deferred v3.5 |
+| tech_debt | Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch SEARCH_INDEX missing "Shell binary" (carried from v3.3) | deferred v3.5 |
+| tech_debt | Phase 101 advisory WR-01..09 + IN-01..06 (15 items, carried from v3.3) | deferred v3.5 |
+| process_debt | Phase 103 missing `103-SUMMARY.md` + `103-IIP-DECISION.md` + `103-VERIFICATION.md` (carried from v3.3) | deferred v3.5 |
+| process_debt | Nyquist `*-VALIDATION.md` missing for Phases 101–108 (carried from v3.3) | deferred (process debt; not a blocker) |
+| test_debt | TestOpenCodeANSICapture data race (carried from v3.3) | deferred (pre-existing, skipped) |
+| test_debt | Phase 108 PARITY-CLI-03 harness limitation (carried from v3.3) | deferred v3.5 |
 
 ## v3.4 Plan Execution Log
 
-| Phase | Plan | Status | Duration | Commits | Notes |
-|-------|------|--------|----------|---------|-------|
-| 118 | — | Not started | — | — | Roadmap written 2026-05-20; awaiting /gsd:plan-phase 118 |
-| 119 | — | Not started | — | — | Blocked on Phase 118 merge + fuzz corpus gate |
-| 120 | — | Not started | — | — | Blocked on Phase 118 (API shape) + Phase 119 (cap plumbing) |
-| 121 | — | Not started | — | — | Blocked on Phase 118 (DaemonClient methods); can parallel Phase 120 |
+| Phase | Plan | Status | Notes |
+|-------|------|--------|-------|
+| 118 | 01..05 | Complete 2026-05-20 | FS sandbox + FuzzSandboxPath + capability bit + daemon routes (FS-01..14) |
+| 119 | 01..02 | Complete 2026-05-20 | Webserver mux + `requireFilesRead` + CSP regression (WEB-01..05) |
+| 120 | 01..06 | Complete 2026-05-20 | React FileBrowserTab + Playwright cross-browser merge gate + web-mode gap closure (UI-01..14) |
+| 121 | 01..03 + CR-01 + WR-01..06 | Complete 2026-05-21 | TUI Files view + tea.Cmd discipline + glamour preview (TUI-01..10 local) |
+| 122 | 01 (+ recovery) + 02..05 | Complete 2026-05-21 (audit-driven insert) | Remote-session GUI + TUI parity + cross-surface byte-equivalence (REMOTE-01..05, TUI-08 remote half) |
 
 ## v3.3.1 Plan Execution Log
 

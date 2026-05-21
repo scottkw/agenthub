@@ -897,6 +897,58 @@
 
 ---
 
+## Milestone: v3.4 — File Browser (Read-Only) + TUI Parity
+
+**Shipped:** 2026-05-21
+**Phases:** 5 (118-122, including audit-driven Phase 122 insert) | **Plans:** 20/21 | **Commits:** 176 | **Closes:** GitHub Issues #62 + v3.4 slice of #64
+
+### What Was Built
+- TOCTOU-safe sandboxed filesystem API: new `internal/files/` package with `os.OpenRoot`-based `Sandbox` (Go 1.24+ kernel-level path resolution); HTTP `Handler` with Range support + 5 MB read cap + 0-byte short-circuit + darwin-filter; `FuzzSandboxPath` merge gate against 40+ payload corpus (Phase 118 FS-01..14)
+- `files.read` capability bit + `HasPerm` whole-token comma-split + `requireFilesRead` middleware separated from `requireCapability` switch; session-owner default ON, viewer default OFF (Phase 118 FS-10..13)
+- Webserver mounts `/api/files/*` under `requireFilesRead`; daemon socket auth-less by design; viewer-403 body contains `"files.read"`; cross-browser Playwright reports zero CSP violations (Phase 119 WEB-01..05)
+- React `FileBrowserTab` (desktop + web-share): breadcrumb-bounded navigation, `react-markdown` + `remark-gfm` (NO `rehype-raw`), image previews via direct `<img src>`, `/` filter (NOT Cmd-F — preserves xterm.js scrollback search), Range-capable Download, `PermissionDeniedTakeover`, web-mode URL-param detection, 45-cell cross-browser Playwright merge gate (Phase 120 UI-01..14)
+- TUI Files view: lipgloss two-pane + viewport, ALL filesystem I/O via `tea.Cmd` (static-grep gate enforces), `charmbracelet/glamour` for markdown, left-truncated status line, `/` filter, `?` help (Phase 121 TUI-01..10 local half)
+- Cross-surface remote-session file browse parity (audit-driven Phase 122): daemon proxy + `RemoteCapStore`, `ExchangeJoinCodeAtURL` (303 redirect cap exchange), desktop GUI `RemoteJoinCodeModal` + `EnableWebSharingTakeover`, TUI `RemoteFilesClient` implements same `FilesClient` interface as daemon client — same `handleFilesKey` pipeline drives local AND remote (Phase 122 REMOTE-01..05)
+
+### What Worked
+- `os.OpenRoot` (Go 1.24+) as the sandbox primitive — Phase 118 RESEARCH explicitly cited CVE-2026-27976 / CVE-2026-43998 against the legacy `EvalSymlinks` + `Open` two-step. `FuzzSandboxPath` 60s fuzz against 40+ payloads found zero crashes
+- Static-grep gates as merge enforcement (`TestHasPerm_NoStringsContains`, `TestRequireCapability_UnchangedByPhase118`, `TestFiles_NoSyncFSCalls`, Phase 122's 15 source-grep gates) — invariants enforced at CI time, not human review
+- `FilesClient` interface in TUI (Phase 121-02) — enables Phase 122 `RemoteFilesClient` to slot in without touching `handleFilesKey` or the Update pipeline. Interface-first design paid off cleanly
+- 3-observer cross-surface parity test (Phase 122-05): daemon-proxy Go + tui.RemoteFilesClient Go + Playwright HTTPS browser observe byte-identical responses against shared fixture — strongest possible automated evidence pending two-machine UAT
+- 176 commits in 2 days — high velocity sustained by 4 distinct cross-phase parallelization opportunities (Phase 120 and 121 paralleled after Phase 119; Phase 122 plans paralleled across desktop GUI + TUI workstreams)
+- Audit-driven mid-milestone phase insertion pattern (Phase 122) — Phase 121 local-only scope cut surfaced cross-surface remote-browse as a release-blocking gap. Same pattern proven in v3.3 Phases 107/108. Insertion happens in `<24h with full plan-execute-verify discipline
+
+### What Was Inefficient
+- Plan 122-01 first implementation had a structural gap — required 122-01-recovery plan to complete; recovery commit landed cleanly but added 4 extra commits (recovery + 3 follow-ups) on top of the original Plan 01 budget. Indicates the original Plan 01 spec under-specified the daemon proxy + cap-store boundary
+- Phase 120 needed gap-closure Plan 06 after 120-VERIFICATION Human Verification #2 surfaced web-share parity gap (App.tsx didn't honor URL-param-driven web mode). Should have been caught in 120-RESEARCH or pre-merge cross-mode UAT
+- 3 manual UATs deferred at audit close (TD-1 Wails click-path, TD-2 visual TokyoNight, TD-3 22-step two-machine tailnet) — release-eligible, but the v3.4 tag ships ahead of perceptual + tailnet evidence. Cross-surface byte-equivalence (3 observers) is the strongest automation; visual + perceptual UATs are inherently human
+- Phase 121 had 7 review-fix follow-ons (CR-01 + WR-01..06) after initial Plan 03 merge — code review caught real issues (Ctrl+C in filter mode, generation counter for stale-result discard, viewport scroll on Up/Down). Some of these should have been pre-merge concerns
+
+### Patterns Established
+- **`os.OpenRoot`-based sandbox + 40+ payload `FuzzSandboxPath` corpus** as the filesystem-sandbox merge gate (load-bearing across any future filesystem-touching feature)
+- **Static-grep gates as CI-time invariant enforcement** (`HasPerm_NoStringsContains`, `Files_NoSyncFSCalls`, capability-route-count grep) — invariants outlive human reviewers
+- **Interface-first `FilesClient`** in TUI for swappable local vs remote backends — pattern reusable for any future surface that swaps daemon-direct vs network-mediated I/O
+- **3-observer cross-surface parity test** (daemon-proxy Go + same-codebase-different-transport Go + browser Playwright) — strongest automated proof of network-stack byte-equivalence
+- **Daemon-proxy + in-memory `RemoteCapStore` for cap material isolation** — keeps tailnet caps out of renderer process; only daemon holds them
+- **Audit-driven mid-milestone phase insertion** reaffirmed (Phase 122 after Phase 121 local-only scope) — pattern now expected at every milestone close as standard sweep
+
+### Key Lessons
+- Go 1.24's `os.OpenRoot` is non-negotiable for filesystem sandboxes — the two-step `EvalSymlinks` + `Open` pattern is documented-exploitable. Any new filesystem-touching feature should default to `OpenRoot` going forward
+- Static-grep gates pay for themselves on the first invariant-violation prevented. `HasPerm_NoStringsContains` blocks the `"no-files.read"` substring false-positive class; `Files_NoSyncFSCalls` blocks the Bubble Tea render-loop freeze class
+- Interface-first design for cross-surface clients (`FilesClient` here, `Hub` in v2.0, `DaemonClient` since v1.3) pays off when a new transport surfaces — the consumer code doesn't change
+- Cross-surface parity (GUI/TUI/web/CLI) is a release-blocking contract. Phase 121's local-only scope cut would have shipped v3.4 with a parity gap had the audit-driven insertion pattern not been treated as standard
+- Cap material belongs in the daemon, not the renderer. Phase 122's `RemoteCapStore` enforces this trust boundary cleanly
+- 0-byte file special-case via `http.ServeContent` (golang/go#54794) needs an explicit unit test — Go stdlib's default behavior returns 416, which is wrong for an empty file read
+
+### Cost Observations
+- Sessions: ~6 sessions across 2 days (2026-05-20 → 2026-05-21)
+- Commits: 176 (high velocity; exceeds v3.3.1 by 10×)
+- LOC delta: +42,159 / -1,963 across 197 files (incl. `.planning/`)
+- Notable: 2-day shipping cycle is the second-fastest milestone in absolute time (after v1.6's single-phase day). 5 phases × 2 days = 2.5 phases/day, sustained by Phase 120 / 121 / 122 parallelization
+- Audit-driven Phase 122 insertion completed end-to-end in <12 hours (plan → execute → verify) — pattern is now reliable enough to bake into milestone close as a sweep step
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

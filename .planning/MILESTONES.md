@@ -1,5 +1,36 @@
 # Milestones
 
+## v3.4 File Browser (Read-Only) + TUI Parity (Shipped: 2026-05-21)
+
+**Phases completed:** 5 phases (118-122, including Phase 122 inserted mid-milestone), 20/21 plans
+**Requirements:** 48/48 satisfied (FS-01..14, WEB-01..05, UI-01..14, TUI-01..10, REMOTE-01..05)
+**Commits:** 176 | **Timeline:** 2 days (2026-05-20 → 2026-05-21)
+**Source changes:** 197 files, +42,159 / -1,963 lines (includes `.planning/` documentation)
+**Closes:** GitHub Issues #62 (read-only file browser) + v3.4 slice of #64 (TUI browse+preview parity). Umbrella epic #24 stays open across v3.4 + v3.5.
+
+**Key accomplishments:**
+
+- TOCTOU-safe sandboxed filesystem API in new `internal/files/` package: `os.OpenRoot`-based `Sandbox` (Go 1.24+ kernel-level path resolution, NOT the legacy `filepath.EvalSymlinks` + `os.Open` two-step that's exploitable by CVE-2026-27976/43998); HTTP `Handler` for `GET/HEAD /api/files/{list,stat,read}` with Range support + 5 MB read cap + 0-byte short-circuit (golang/go#54794 special case) + darwin-filter; `FuzzSandboxPath` merge gate against 40+ payload corpus (path traversal, `%2e%2e%2f`, `%252e%252e%252f`, U+FF0F fullwidth slash, U+2024 one-dot-leader, null bytes, Windows reserved device names, alt data streams, 8.3 short names, UNC variants) — Phase 118 (FS-01..14)
+- `files.read` capability bit + `HasPerm` whole-token comma-split (NOT `strings.Contains`) + `requireFilesRead` middleware separated from `requireCapability` switch (avoids breaking existing relay routes); session-owner cap includes `files.read` by default, web-share viewer cap excludes by default; `SessionEngine.sessionWorkDirs` map closes the WorkDir gap; `daemonSettings.FilesRead` + `schemaVersion: 3` migration via established defaults-merge constructor — Phase 118 (FS-02, FS-10..14)
+- Webserver mounts `/api/files/*` under `requireFilesRead` (cap-gated for Tailscale-HTTPS web-share viewers); `SetFilesHandler` plumbed at both `AutoStartWebServer` and `handleWebServerStart` daemon construction sites — daemon socket and webserver share the same `*files.Handler` instance with no duplication; viewer without `files.read` gets 403 with body containing `"files.read"` (NOT 404); missing cap → 401; non-GET/HEAD → 405. Cross-browser Playwright (Chromium + Firefox + WebKit) reports zero CSP violations — existing `script-src 'self'` + `style-src 'self' 'unsafe-inline'` + `'wasm-unsafe-eval'` policy unchanged — Phase 119 (WEB-01..05)
+- React `FileBrowserTab` (desktop + web-share): single-pane file list + side-by-side preview (NOT tree+list — collides with sidebar); `BreadcrumbBar` bounded at session cwd (cannot navigate above root via typed/pasted/clicked path); `react-markdown@10.1.0` + `remark-gfm@^4` for GFM tables/task lists (NO `rehype-raw` — XSS risk); image previews via `<img src="/api/files/read?...">` (NOT base64-in-state); type-ahead filter activated by `/` (parity with TUI; NOT Cmd-F — keeps xterm.js scrollback search); over-cap/binary refusal copy + Range-capable Download button; ARIA semantics (`role="grid"`, `role="region"`, `role="navigation"`); 4-state `useFilesCapability` hook surfaces `PermissionDeniedTakeover` with verbatim `"files.read permission required"`; web-mode detection module (`webMode.detectMode`) reads URL-param-driven `session+cap` for `/app/...` web-share mount; Playwright cross-browser e2e merge gate (45 cells across Chromium + Firefox + WebKit including DOM-level scenarios 13 owner + 14 viewer 403) — Phase 120 (UI-01..14)
+- TUI Files view: lipgloss two-pane file list + viewport preview pane joined via `lipgloss.JoinHorizontal`, TokyoNight palette consistent with existing tabs; ALL filesystem I/O dispatched via `tea.Cmd` returning `tea.Msg` (no synchronous `os.ReadDir` in `Update` — would freeze render loop); static-grep gate `TestFiles_NoSyncFSCalls` enforces; key-dispatch priority slot 5.5 (above main view, below kill-confirm/new-session/QR overlay/help); `charmbracelet/glamour` promoted from indirect to direct dep for markdown rendering; `truncateLeft` status line (`…/utils/helper.ts`) preserves high-information leaf-end; `/` filter + Escape dismiss; `?` help overlay updated with Files keybindings; Backspace at cwd root is a no-op (never traverses above session root) — Phase 121 (TUI-01..10 local half; TUI-08 remote half delivered by Phase 122)
+- Cross-surface remote-session file browse parity (audit-driven Phase 122 insert after Phase 121 scoped local-only with toast): daemon proxy route `/api/files/remote/{sid}/{op}` + in-memory `RemoteCapStore` (sid → {baseURL, cap}); `ExchangeJoinCodeAtURL` Wails helper exchanges a join code for a session cap via remote daemon 303 redirect; desktop GUI `RemoteJoinCodeModal` + `EnableWebSharingTakeover` (verbatim copy "Enable web sharing to browse this session's files") + App.tsx remote tab gate routes `FileBrowserTab` through `pathPrefix='/api/files/remote/<sid>'`; TUI `RemoteFilesClient` (HTTPS+cap; TLS 1.2+ pinned; cap redacted from errors) implements same `FilesClient` interface as `*daemon.DaemonClient` → same `handleFilesKey` + `applyFilesListMsg` pipeline drives local AND remote; `joinCodePromptModel` Bubble Tea modal; previous v3.4 toast "File browser not available for remote sessions" removed (grep = 0). Cross-surface byte-equivalence proven by 3 independent observers: daemon-proxy Go + tui.RemoteFilesClient Go + Playwright HTTPS browser against shared fixture — Phase 122 (REMOTE-01..05)
+- Audit-driven mid-milestone phase insertion pattern reaffirmed: Phase 122 inserted after Phase 121 surfaced cross-surface remote-browse as a release-blocking parity gap. Same pattern as v3.3 Phases 107/108. Cross-surface (GUI/TUI/CLI/web) parity remains a release-blocking contract.
+
+**Known deferred items (carried to v3.5):**
+
+- TD-1: Phase 120 — Wails desktop click-path UAT deferred to manual milestone audit (Sessions panel → right-click → Open file browser → verify tab + breadcrumb + file list + previews)
+- TD-2: Phase 121 — Visual TokyoNight + lipgloss border + remote-session perceptual UAT (5 items, user is colorblind — requires sighted spot-check)
+- TD-3: Phase 122 — 22-step two-machine tailnet UAT (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface parity check; failure-mode takeover)
+- TD-4: Phase 120 WARNINGS WR-01..WR-05 open (`/app/` dir listings, cache-control, joinPath sanitization, mtime fallback, comment clarity) — non-blocking
+- TD-5: Phase 122 `ExchangeJoinCodeAtURL` JSON-vs-303 mismatch shim cleanup deferred to v3.5
+- Operator one-time (carry-forward from v3.3): `RELEASE_PUBLISH_TOKEN` PAT + `WINGET_FIRST_SUBMISSION=true` variable (one-time, first WinGet submission)
+- All write operations (upload/delete/rename/mkdir/edit), CodeMirror 6 vs Monaco decision, TUI shell-out to `$EDITOR`, syntax highlighting for code files — all v3.5
+- Known deferred items at close: 5 user-acknowledged TDs (see STATE.md Deferred Items)
+
+---
+
 ## v3.3 Shell Sessions & Polish (Shipped: 2026-05-17)
 
 **Phases completed:** 9 phases (100-108), 18 plans

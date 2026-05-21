@@ -24,7 +24,7 @@
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
 - ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
 - ✅ **v3.3.1 Bug Sweep** — Phases 109-117 (shipped 2026-05-19, closes Issues #52, #54, #55, #56, #57, #58, #60)
-- 🚧 **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-122 (planning 2026-05-20, closes Issues #62 + v3.4 slice of #64)
+- ✅ **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-122 (shipped 2026-05-21, closes Issues #62 + v3.4 slice of #64)
 
 ## Phases
 
@@ -280,14 +280,21 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 </details>
 
-### 🚧 v3.4 File Browser (Read-Only) + TUI Parity (Phases 118-121) — PLANNING 2026-05-20 (closes Issues #62 + v3.4 slice of #64)
+<details>
+<summary>✅ v3.4 File Browser (Read-Only) + TUI Parity (Phases 118-122) — SHIPPED 2026-05-21 (closes Issues #62 + v3.4 slice of #64)</summary>
 
 - [x] **Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit** — FS-01..FS-14 (completed 2026-05-20)
 - [x] **Phase 119: WebServer Routes + `files.read` Capability Plumbing** — WEB-01..WEB-05 (completed 2026-05-20)
 - [x] **Phase 120: FileBrowserTab.tsx (Desktop + Web)** — UI-01..UI-14 (completed 2026-05-20)
 - [x] **Phase 121: TUI Files View** — TUI-01..TUI-10 (completed 2026-05-21)
+- [x] **Phase 122: Remote-Session File Browse Wiring (Desktop GUI + TUI)** — REMOTE-01..REMOTE-05 (completed 2026-05-21, inserted mid-milestone after Phase 121 surfaced cross-surface remote-browse parity gap)
 
-## Phase Details
+</details>
+
+<!-- v3.4 phase details archived to milestones/v3.4-ROADMAP.md -->
+
+<details>
+<summary>📦 Archived v3.4 Phase Details (originally inline; see milestones/v3.4-ROADMAP.md)</summary>
 
 ### Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit
 
@@ -440,6 +447,8 @@ Plans:
 
 ---
 
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -477,11 +486,7 @@ Plans:
 | 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-| 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
-| 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
-| 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 122 | v3.4 | 6/5 | Complete    | 2026-05-21 |
-| 121 | v3.4 | 3/3 | Complete    | 2026-05-21 |
+| 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -506,3 +511,4 @@ Plans:
 *Full v3.2 details: .planning/milestones/v3.2-ROADMAP.md*
 *Full v3.3 details: .planning/milestones/v3.3-ROADMAP.md*
 *Full v3.3.1 details: .planning/milestones/v3.3.1-ROADMAP.md*
+*Full v3.4 details: .planning/milestones/v3.4-ROADMAP.md*
