@@ -664,5 +664,103 @@ func TestJoinDir(t *testing.T) {
 	}
 }
 
+// --- Plan 02 Task 3: renderFilesTab + status line + help overlay + hint bar ---
+
+func TestRenderFilesTab_BasicLayout(t *testing.T) {
+	m := filesTestModel("s1")
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	m.files.entries = []daemon.FileEntry{
+		{Name: "alpha.txt"},
+		{Name: "beta.md"},
+		{Name: "gamma"},
+	}
+	got := m.renderFilesTab(120, 24)
+	if got == "" {
+		t.Fatal("renderFilesTab returned empty string")
+	}
+	plain := ansi.Strip(got)
+	if !strings.Contains(plain, "alpha.txt") {
+		t.Errorf("expected output to contain first entry 'alpha.txt'; got %q", plain)
+	}
+}
+
+func TestRenderFilesStatusLine_TruncatedFlag(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "."
+	m.files.truncated = true
+	m.files.entries = []daemon.FileEntry{
+		{Name: "a"}, {Name: "b"}, {Name: "c"}, {Name: "d"}, {Name: "e"},
+	}
+	got := ansi.Strip(m.renderFilesStatusLine(120))
+	if !strings.Contains(got, "(truncated)") {
+		t.Errorf("expected status line to include (truncated); got %q", got)
+	}
+}
+
+func TestRenderFilesStatusLine_ErrorShown(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.err = errors.New("Session no longer running")
+	got := ansi.Strip(m.renderFilesStatusLine(120))
+	if !strings.Contains(got, "Session no longer running") {
+		t.Errorf("expected status line to show the error; got %q", got)
+	}
+}
+
+func TestRenderFilesStatusLine_LeftTruncation(t *testing.T) {
+	m := filesTestModel("s1")
+	m.files.cwd = "very/deep/nested/path/structure/utils/helper.ts"
+	got := ansi.Strip(m.renderFilesStatusLine(60))
+	if !strings.Contains(got, "…/") {
+		t.Errorf("expected left-truncation ellipsis '…/' in status; got %q", got)
+	}
+}
+
+func TestBuildHelpContent_FilesActive_ShowsFilesGroup(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	got := ansi.Strip(m.buildHelpContent())
+	if !strings.Contains(got, "Files") {
+		t.Errorf("expected Files group header; got %q", got)
+	}
+	if !strings.Contains(got, "Enter directory / preview file") {
+		t.Errorf("expected Files-specific Enter binding; got %q", got)
+	}
+}
+
+func TestBuildHelpContent_SessionsActive_ShowsSessionsGroup(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabSessions}
+	m.activeTab = 0
+	got := ansi.Strip(m.buildHelpContent())
+	if !strings.Contains(got, "Sessions") {
+		t.Errorf("expected Sessions group header; got %q", got)
+	}
+	if !strings.Contains(got, "Open files view") {
+		t.Errorf("expected 'Open files view' binding; got %q", got)
+	}
+}
+
+func TestRenderHintBar_FilesActive(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+	got := ansi.Strip(m.renderHintBar())
+	if !strings.Contains(got, "Tab Focus") {
+		t.Errorf("expected Files-specific hint 'Tab Focus'; got %q", got)
+	}
+}
+
+func TestRenderHintBar_SessionsActive(t *testing.T) {
+	m := testModel()
+	m.openTabs = []tabID{tabSessions}
+	m.activeTab = 0
+	got := ansi.Strip(m.renderHintBar())
+	if !strings.Contains(got, "Attach") {
+		t.Errorf("expected Sessions-specific hint 'Attach'; got %q", got)
+	}
+}
+
 // keep ansi import live for later Plan 02 tests
 var _ = ansi.Strip
