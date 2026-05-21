@@ -30,6 +30,15 @@ type Server struct {
 //
 // Phase 120 CR-01 (REVIEW.md): before this change, FileBrowserTab in Wails mode
 // 404'd on every /api/files/* call because the relay mux only knew /sessions/*.
+//
+// Phase 120.1 hotfix (CORS): the relay listens on 127.0.0.1 only, but a Wails
+// webview's own origin (typically http://wails.localhost on macOS) is cross-
+// origin from 127.0.0.1:<relayPort>. The browser sends a CORS preflight OPTIONS
+// before the GET; without Access-Control-Allow-* headers the browser blocks
+// the actual request. WebSocket relay traffic bypasses CORS preflight, which is
+// why this gap was invisible until the first HTTP fetch (FileBrowserTab) was
+// added. We allow loopback / Wails / Tauri origins only; relay is bound to
+// 127.0.0.1 so the network boundary is already loopback-trusted.
 func NewServer(manager *HubManager, backend pty.SessionBackend, filesHandler *files.Handler) *Server {
 	s := &Server{
 		manager: manager,
@@ -39,12 +48,73 @@ func NewServer(manager *HubManager, backend pty.SessionBackend, filesHandler *fi
 	s.mux.HandleFunc("GET /sessions/{id}/ws", s.handleSession)
 	s.mux.HandleFunc("GET /sessions", s.handleListSessions)
 	if filesHandler != nil {
-		s.mux.HandleFunc("GET /api/files/list", filesHandler.List)
-		s.mux.HandleFunc("GET /api/files/stat", filesHandler.Stat)
-		s.mux.HandleFunc("GET /api/files/read", filesHandler.Read)
-		s.mux.HandleFunc("HEAD /api/files/read", filesHandler.Read)
+		s.mux.HandleFunc("GET /api/files/list", withCORS(filesHandler.List))
+		s.mux.HandleFunc("GET /api/files/stat", withCORS(filesHandler.Stat))
+		s.mux.HandleFunc("GET /api/files/read", withCORS(filesHandler.Read))
+		s.mux.HandleFunc("HEAD /api/files/read", withCORS(filesHandler.Read))
+		s.mux.HandleFunc("OPTIONS /api/files/list", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/stat", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/read", handleFilesPreflight)
 	}
 	return s
+}
+
+// isAllowedFilesOrigin returns true for loopback / Wails / Tauri webview
+// origins. The relay listens on 127.0.0.1 only so this is defense-in-depth.
+func isAllowedFilesOrigin(origin string) bool {
+	if origin == "" {
+		// Same-origin or non-browser caller (curl, Go HTTP client). Allow —
+		// the relay's 127.0.0.1 bind is the actual network boundary.
+		return true
+	}
+	switch origin {
+	case "http://wails.localhost", "https://wails.localhost",
+		"http://tauri.localhost", "https://tauri.localhost",
+		"http://localhost", "https://localhost",
+		"http://127.0.0.1", "https://127.0.0.1",
+		"null": // file:// pages report "null"
+		return true
+	}
+	// Allow http(s)://127.0.0.1:<port> and http(s)://localhost:<port> with any port.
+	for _, prefix := range []string{
+		"http://127.0.0.1:", "https://127.0.0.1:",
+		"http://localhost:", "https://localhost:",
+	} {
+		if len(origin) > len(prefix) && origin[:len(prefix)] == prefix {
+			return true
+		}
+	}
+	return false
+}
+
+// withCORS wraps a handler to emit Access-Control-Allow-Origin on responses
+// when the request Origin is in the loopback allowlist.
+func withCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if isAllowedFilesOrigin(origin) && origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
+		next(w, r)
+	}
+}
+
+// handleFilesPreflight responds to CORS preflight (OPTIONS) for /api/files/*.
+func handleFilesPreflight(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if !isAllowedFilesOrigin(origin) {
+		http.Error(w, "Origin not allowed", http.StatusForbidden)
+		return
+	}
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
+	w.Header().Set("Vary", "Origin")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Range, If-Modified-Since")
+	w.Header().Set("Access-Control-Max-Age", "600")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ServeHTTP implements http.Handler by delegating to the internal mux.
