@@ -24,7 +24,7 @@
 - ✅ **v3.2 Plugin Suite** — Phases 92-99 (shipped 2026-05-12, closes Issue #36; Phase 91 deferred to a future milestone — see `.planning/deferred/91-distribution-pipeline-followups/`)
 - ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
 - ✅ **v3.3.1 Bug Sweep** — Phases 109-117 (shipped 2026-05-19, closes Issues #52, #54, #55, #56, #57, #58, #60)
-- 🚧 **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-121 (planning 2026-05-20, closes Issues #62 + v3.4 slice of #64)
+- 🚧 **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-122 (planning 2026-05-20, closes Issues #62 + v3.4 slice of #64)
 
 ## Phases
 
@@ -409,6 +409,30 @@ Plans:
 
 ---
 
+### Phase 122: Remote-Session File Browse Wiring (Desktop GUI + TUI)
+
+**Goal:** Both the desktop GUI's React FileBrowserTab AND the TUI's Files view work transparently against remote tailnet sessions — the frontend detects a remote session and points at the remote machine's existing webserver `/api/files/*` routes (Phase 119) using the session's existing web-share cap token. The remote machine's daemon does the actual file work; the frontend is just a thin pointer.
+
+**Depends on:** Phases 118, 119, 120, 121 complete. All load-bearing pieces (remote daemon routes, webserver cap-gated mount, FileBrowserTab `(baseURL, capToken?)` API, TUI tea.Cmd I/O layer) already shipped — Phase 122 is small wiring only.
+
+**Parallelism:** Two-pane work (desktop + TUI) can run in parallel — different files.
+
+**Requirements:** REMOTE-01, REMOTE-02, REMOTE-03, REMOTE-04, REMOTE-05
+
+**Success Criteria** (what must be TRUE when this phase completes):
+
+1. In the desktop GUI, selecting "Open file browser" on a remote tailnet session opens FileBrowserTab configured with `baseURL = <remote-tailnet-URL>, capToken = <session's web-share cap>` — and the tab loads the remote machine's file listing successfully.
+2. If a remote session is selected that has NOT been web-shared, the desktop GUI shows a clear "Enable web sharing to browse this session's files" message instead of opening a broken tab.
+3. In the TUI, pressing `f` on a remote tailnet session opens the Files view configured to fetch from the remote webserver over HTTPS with the session's cap token (NOT the local Unix socket). The previous v3.4 toast "File browser not available for remote sessions" is removed.
+4. The same TUI Files view that works against local sessions works against remote sessions — keyboard nav, preview, filter, status line all identical.
+5. Cross-surface parity is now complete: a viewer with `files.read` on a session can browse that session's files from desktop GUI, web browser, OR TUI, with the same observable behavior.
+
+**Plans:** TBD
+
+**UI hint**: no (wiring only — no new components)
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -449,6 +473,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
+| 122 | v3.4 | 0/TBD | Not started | - |
 | 121 | v3.4 | 3/3 | Complete    | 2026-05-21 |
 
 ---

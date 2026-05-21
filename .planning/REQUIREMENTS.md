@@ -172,14 +172,27 @@ Tracked here for visibility; will be promoted to active during v3.5 milestone st
 | TUI-08 | Phase 121 | Complete |
 | TUI-09 | Phase 121 | Complete |
 | TUI-10 | Phase 121 | Complete |
+| REMOTE-01 | Phase 122 | Pending |
+| REMOTE-02 | Phase 122 | Pending |
+| REMOTE-03 | Phase 122 | Pending |
+| REMOTE-04 | Phase 122 | Pending |
+| REMOTE-05 | Phase 122 | Pending |
+
+## REMOTE — Cross-Surface Remote-Session File Browse (Phase 122)
+
+- **REMOTE-01:** Desktop GUI's React `FileBrowserTab` opens against a remote tailnet session by passing `baseURL = <remote-tailnet-URL>` + `capToken = <session's existing web-share cap>`. No new cap-minting flow — reuse the session's web-share cap.
+- **REMOTE-02:** If a remote session has NOT been web-shared, the desktop GUI shows "Enable web sharing to browse this session's files" instead of opening a broken tab.
+- **REMOTE-03:** TUI Files view opens against a remote tailnet session by fetching from the remote webserver over HTTPS with the session's cap token (not the local Unix socket). The previous "File browser not available for remote sessions" toast is removed.
+- **REMOTE-04:** TUI behavior is identical between local and remote sessions: keyboard nav, preview, filter, status line, glamour markdown, binary/over-cap refusals.
+- **REMOTE-05:** Cross-surface parity: a viewer with `files.read` on a session can browse that session's files from desktop GUI, web browser, OR TUI with the same observable behavior.
 
 **Coverage:**
 
-- v3.4 requirements: 43 total (FS: 14, WEB: 5, UI: 14, TUI: 10)
-- Mapped to phases: 43/43
+- v3.4 requirements: 48 total (FS: 14, WEB: 5, UI: 14, TUI: 10, REMOTE: 5)
+- Mapped to phases: 48/48
 - Unmapped: 0 ✓
 
 ---
 
 *Requirements defined: 2026-05-20*
-*Last updated: 2026-05-20 — traceability finalized by roadmapper; all 43 requirements mapped to Phases 118-121.*
+*Last updated: 2026-05-21 — REMOTE-01..05 added for Phase 122 (cross-surface remote browse wiring).*
