@@ -356,7 +356,13 @@ func (fm filesModel) filteredEntries() []daemon.FileEntry {
 	if q == "" {
 		return fm.entries
 	}
-	out := fm.entries[:0:0]
+	// WR-04: Use an explicit allocation rather than fm.entries[:0:0]. The
+	// zero-capacity reslice is safe today (append always allocates fresh
+	// backing storage on first growth) but a future maintainer changing
+	// it to fm.entries[:0] would silently corrupt fm.entries because the
+	// backing array is shared. Allocate cleanly to remove the footgun;
+	// entries are capped by the daemon's truncation limit.
+	out := make([]daemon.FileEntry, 0, len(fm.entries))
 	for _, e := range fm.entries {
 		if strings.Contains(strings.ToLower(ansi.Strip(e.Name)), q) {
 			out = append(out, e)
