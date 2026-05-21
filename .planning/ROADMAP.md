@@ -285,7 +285,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 118: FS Sandbox Core + WorkDir Gap + Daemon Routes + Fuzz Corpus + Capability Bit** — FS-01..FS-14 (completed 2026-05-20)
 - [x] **Phase 119: WebServer Routes + `files.read` Capability Plumbing** — WEB-01..WEB-05 (completed 2026-05-20)
 - [x] **Phase 120: FileBrowserTab.tsx (Desktop + Web)** — UI-01..UI-14 (completed 2026-05-20)
-- [ ] **Phase 121: TUI Files View** — TUI-01..TUI-10
+- [x] **Phase 121: TUI Files View** — TUI-01..TUI-10 (completed 2026-05-21)
 
 ## Phase Details
 
@@ -398,12 +398,12 @@ Plans:
 4. Pressing `/` activates type-ahead filter (current directory only); Escape clears and dismisses; the status line at the bottom shows the session-cwd-relative path (left-truncated as `…/utils/helper.ts` when wider than the pane), file count, and current selection position.
 5. All filesystem I/O is dispatched via `tea.Cmd` (returning `tea.Msg`) — no synchronous `os.ReadDir` or `os.Open` inside the `Update` method; the `?` help overlay in `tabFiles` mode shows the Files view keybindings (`↑/↓`, `PgUp/PgDn`, `Enter`, `Backspace`, `/`, `?`, `Esc`, `q`); and key-dispatch priority correctly places file-browser input above the main view but below kill-confirm/new-session/QR overlay/help overlays.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 121-01-PLAN.md — Core scaffolding: tabFiles + filesModel + tea.Cmd factories + truncateLeft + key-dispatch priority slot + open-from-Sessions wiring (TUI-01, TUI-02, TUI-06, TUI-07, TUI-10)
 - [x] 121-02-PLAN.md — Full handleFilesKey + filter + navigation + glamour preview + status line + help-overlay Files section (TUI-01, TUI-03, TUI-04, TUI-05, TUI-06, TUI-08, TUI-09)
-- [ ] 121-03-PLAN.md — TUI-XX coverage matrix + no-sync-FS source-grep guard + end-to-end integration test (TUI-01..TUI-10 merge gate)
+- [x] 121-03-PLAN.md — TUI-XX coverage matrix + no-sync-FS source-grep guard + end-to-end integration test (TUI-01..TUI-10 merge gate)
 
 **UI hint**: no
 
@@ -449,7 +449,7 @@ Plans:
 | 118 | v3.4 | 5/5 | Complete    | 2026-05-20 |
 | 119 | v3.4 | 2/2 | Complete    | 2026-05-20 |
 | 120 | v3.4 | 4/6 | Complete    | 2026-05-20 |
-| 121 | v3.4 | 2/3 | In Progress|  |
+| 121 | v3.4 | 3/3 | Complete   | 2026-05-21 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
