@@ -104,6 +104,16 @@ func (m Model) renderFilesListPane(w, h int, focused bool) string {
 		innerH = 1
 	}
 
+	// WR-01: Re-sync filter input width on every render so terminal resizes
+	// (and tab-switch-back-into-Files) reflow the input correctly. The
+	// preview viewport applies the same pattern below. The "- 4" matches
+	// the budget used in newFilesModel; clamp to 1 to avoid SetWidth(0).
+	filterW := innerW - 4
+	if filterW < 1 {
+		filterW = 1
+	}
+	m.files.filterInput.SetWidth(filterW)
+
 	entries := m.files.filteredEntries()
 
 	// Reserve a bottom row for the filter input or static filter hint.
