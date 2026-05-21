@@ -158,6 +158,27 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("HEAD /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
 }
 
+// Handler returns the API's underlying http.Handler (the registered mux).
+// Exposed so external test packages (e.g. internal/daemon's package_test
+// suite, the Phase 122-05 cross-surface parity test) can drive the daemon's
+// routes through httptest.NewServer without needing access to the unexported
+// mux field. Production callers do not use this — the daemon socket layer
+// reaches into the mux directly.
+func (a *API) Handler() http.Handler {
+	return a.mux
+}
+
+// SetRemoteFilesClientForTest overrides the daemon's outbound HTTPS client
+// used by the /api/files/remote/{sid}/... proxy with the supplied client.
+// Test-only — wraps the unexported remoteFilesClientForTest field so that
+// external test packages can inject httptest.NewTLSServer's Client() and
+// have the proxy trust the upstream's self-signed certificate. Production
+// code must never call this; the field stays nil and proxyRemoteFiles
+// builds a fresh client per request via newRemoteFilesHTTPClient.
+func (a *API) SetRemoteFilesClientForTest(c *http.Client) {
+	a.remoteFilesClientForTest = c
+}
+
 // BootstrapCapabilityState loads or generates the HMAC signing key (D-04) and
 // constructs the in-memory JoinCodeManager (D-11). Must be called once during
 // daemon startup, BEFORE any web server is created — otherwise requireCapability

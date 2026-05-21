@@ -217,6 +217,16 @@ func (e *SessionEngine) saveSettingsToDisk() {
 	_ = os.WriteFile(settingsPath(e.configDir), data, 0600)
 }
 
+// ConfigDirForTest overrides the engine's configDir field with the supplied
+// path. Test-only — internal daemon tests already mutate engine.configDir
+// directly (engine_migration_test.go, api_test.go), but external test
+// packages (e.g. the Phase 122-05 parity test in package daemon_test) need
+// a public setter. Production code must never call this; configDir is
+// derived from daemonConfigDir() during NewSessionEngine.
+func (e *SessionEngine) ConfigDirForTest(dir string) {
+	e.configDir = dir
+}
+
 // NewSessionEngine creates a SessionEngine with all subsystems initialised.
 func NewSessionEngine() *SessionEngine {
 	hostname, _ := os.Hostname()
