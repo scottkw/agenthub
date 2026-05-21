@@ -82,6 +82,58 @@ describe('FilesApiClient — URL construction', () => {
   })
 })
 
+describe('FilesApiClient — pathPrefix (Phase 122-03 daemon-proxy path shape)', () => {
+  it('uses pathPrefix verbatim before the operation segment on listFiles', async () => {
+    mockFetchOk({ entries: [], truncated: false })
+    const client = new FilesApiClient({
+      baseURL: 'http://127.0.0.1:7070',
+      pathPrefix: '/api/files/remote/sid-abc',
+    })
+    await client.listFiles('sid-abc', '.')
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const url = fetchMock.mock.calls[0][0] as string
+    expect(url).toBe('http://127.0.0.1:7070/api/files/remote/sid-abc/list?session=sid-abc&path=.')
+  })
+
+  it('uses default /api/files when pathPrefix omitted (no regression)', async () => {
+    mockFetchOk({ entries: [], truncated: false })
+    const client = new FilesApiClient({ baseURL: 'http://host' })
+    await client.listFiles('sid', '.')
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const url = fetchMock.mock.calls[0][0] as string
+    expect(url).toBe('http://host/api/files/list?session=sid&path=.')
+  })
+
+  it('honors pathPrefix on statFile, readFileText, headFile, buildImageUrl, buildDownloadUrl', async () => {
+    mockFetchOk({ name: 'x', size: 0, mtime: '', mode: 0, isDir: false, isSymlink: false, isBinary: false })
+    const client = new FilesApiClient({
+      baseURL: 'http://h',
+      pathPrefix: '/api/files/remote/abc',
+    })
+    await client.statFile('abc', 'x')
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    expect(fetchMock.mock.calls[0][0]).toBe('http://h/api/files/remote/abc/stat?session=abc&path=x')
+
+    expect(client.buildImageUrl('abc', 'i.png')).toBe(
+      'http://h/api/files/remote/abc/read?session=abc&path=i.png',
+    )
+    expect(client.buildDownloadUrl('abc', 'd.bin')).toBe(
+      'http://h/api/files/remote/abc/read?session=abc&path=d.bin',
+    )
+  })
+
+  it('strips a trailing slash from pathPrefix', async () => {
+    mockFetchOk({ entries: [], truncated: false })
+    const client = new FilesApiClient({
+      baseURL: 'http://h',
+      pathPrefix: '/api/files/remote/sid/',
+    })
+    await client.listFiles('sid', '.')
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    expect(fetchMock.mock.calls[0][0]).toBe('http://h/api/files/remote/sid/list?session=sid&path=.')
+  })
+})
+
 describe('FilesApiClient — response parsing', () => {
   it('listFiles parses JSON entries and truncated flag and X-Refreshed-At header', async () => {
     mockFetchOk(

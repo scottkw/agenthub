@@ -1676,6 +1676,21 @@ body {
   background: #89b4fa;
 }
 
+/* Phase 122-03 — Browse files button (TokyoNight green accent).
+   Hex pair verified WCAG AAA: #9ece6a fg on #1a1b26 bg ≈ 9.5:1 contrast,
+   distinct hue from the blue Open Session button so colorblind users can
+   distinguish the actions by lightness shift alone. */
+.remote-panel__btn--browse {
+  background: #9ece6a;
+  color: #1a1b26;
+  font-weight: 600;
+  border: none;
+}
+
+.remote-panel__btn--browse:hover {
+  background: #b6dd86;
+}
+
 /* ─── Local Network Banner (Phase 60 — NET-04) ───────────────────── */
 .local-network-banner {
   display: flex;
@@ -3384,4 +3399,132 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ─── Phase 122-03 — Remote Join Code Modal + EnableWebSharing takeover ─── */
+
+.remote-join-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.remote-join-modal {
+  background: #1e2030;
+  border: 1px solid #292e42;
+  border-radius: 8px;
+  width: 440px;
+  max-width: 95vw;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.remote-join-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid #292e42;
+}
+.remote-join-modal__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #c0caf5;
+  line-height: 1.2;
+}
+.remote-join-modal__close {
+  background: transparent;
+  border: none;
+  color: #9aa5ce;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.remote-join-modal__close:hover {
+  color: #f7768e;
+  background: #3b4261;
+}
+.remote-join-modal__body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.remote-join-modal__body-text {
+  margin: 0;
+  color: #a9b1d6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.remote-join-modal__body-text strong {
+  color: #c0caf5;
+}
+.remote-join-modal__input {
+  background: #1a1b26;
+  border: 1px solid #292e42;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #c0caf5;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+.remote-join-modal__input:focus {
+  outline: none;
+  border-color: #7aa2f7;
+}
+.remote-join-modal__error {
+  margin: 0;
+  padding: 8px 12px;
+  background: #2d1f24;
+  border: 1px solid #5a3a44;
+  border-radius: 4px;
+  color: #f7768e;
+  font-size: 12px;
+}
+.remote-join-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #292e42;
+}
+.remote-join-modal__btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid #292e42;
+  background: transparent;
+  color: #a9b1d6;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.remote-join-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.remote-join-modal__btn--submit {
+  background: #7aa2f7;
+  color: #1a1b26;
+  font-weight: 600;
+  border: none;
+}
+.remote-join-modal__btn--submit:hover:not(:disabled) {
+  background: #89b4fa;
+}
+
+.file-browser__takeover--enable-web-sharing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
 }

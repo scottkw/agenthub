@@ -27,6 +27,7 @@ function renderPanel(props: Partial<RemoteSessionsPanelProps> = {}) {
     peers: [],
     loading: false,
     onOpen: vi.fn(),
+    onBrowseFiles: vi.fn(),
   }
   const merged = { ...defaults, ...props }
   const container = document.createElement('div')
@@ -166,5 +167,50 @@ describe('RemoteSessionsPanel DOM', () => {
     expect(headers.length).toBe(2)
     const loadingEl = container.querySelector('.remote-panel__loading')
     expect(loadingEl).toBeNull()
+  })
+})
+
+// --- Phase 122-03 Task 2: "Browse files" button per remote session ---
+
+describe('RemoteSessionsPanel — Phase 122-03 Browse files', () => {
+  it('source: declares the onBrowseFiles prop', () => {
+    expect(raw).toContain('onBrowseFiles')
+  })
+
+  it('source: uses the BEM class remote-panel__btn--browse', () => {
+    expect(raw).toContain('remote-panel__btn--browse')
+  })
+
+  it('renders a Browse files button for every remote session', () => {
+    const { container } = renderPanel({ peers: mockPeers })
+    const buttons = container.querySelectorAll('.remote-panel__btn--browse')
+    expect(buttons.length).toBe(3)
+  })
+
+  it('Browse files button has visible "Browse files" label', () => {
+    const { container } = renderPanel({ peers: mockPeers })
+    const button = container.querySelector('.remote-panel__btn--browse') as HTMLButtonElement
+    expect(button.textContent).toContain('Browse files')
+  })
+
+  it('Browse files button has aria-label including the session name', () => {
+    const { container } = renderPanel({ peers: mockPeers })
+    const buttons = Array.from(
+      container.querySelectorAll('.remote-panel__btn--browse'),
+    ) as HTMLButtonElement[]
+    expect(buttons[0].getAttribute('aria-label')).toBe('Browse files on claude 1')
+  })
+
+  it('Browse files click calls onBrowseFiles(sessionId, sessionName)', () => {
+    const onBrowseFiles = vi.fn()
+    const { container } = renderPanel({ peers: mockPeers, onBrowseFiles })
+    const buttons = Array.from(
+      container.querySelectorAll('.remote-panel__btn--browse'),
+    ) as HTMLButtonElement[]
+    buttons[0].click()
+    expect(onBrowseFiles).toHaveBeenCalledWith('sess-1', 'claude 1')
+
+    buttons[2].click()
+    expect(onBrowseFiles).toHaveBeenCalledWith('sess-3', 'claude 2')
   })
 })
