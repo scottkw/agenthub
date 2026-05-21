@@ -52,6 +52,18 @@ type API struct {
 	// is the trust boundary — no auth gate here; the webserver mount
 	// (Phase 119) adds requireFilesRead.
 	filesHandler *files.Handler
+
+	// remoteCaps caches per-session (baseURL, capToken) tuples used by the
+	// /api/files/remote/{sessionID}/... proxy routes. In-memory only;
+	// daemon restart wipes the cache (Phase 122-01 / REMOTE-01).
+	remoteCaps *RemoteCapStore
+
+	// remoteFilesClientForTest, when non-nil, overrides the outbound HTTPS
+	// client used by the remote-files proxy. Tests inject httptest.NewTLSServer's
+	// Client() here so they can drive the proxy without setting up a real
+	// trusted-cert chain. Production code leaves this nil and the proxy
+	// builds a fresh client per request via newRemoteFilesHTTPClient().
+	remoteFilesClientForTest *http.Client
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -60,6 +72,7 @@ func NewAPI(engine *SessionEngine) *API {
 		engine:       engine,
 		mux:          http.NewServeMux(),
 		tailnetCache: &tailnetCache{},
+		remoteCaps:   NewRemoteCapStore(),
 	}
 	// Phase 118 / FS-03..FS-07: construct the file Handler BEFORE registerRoutes
 	// so the route registrations have a non-nil target. The resolver closes
@@ -132,6 +145,17 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /api/files/stat", a.filesHandler.Stat)
 	a.mux.HandleFunc("GET /api/files/read", a.filesHandler.Read)
 	a.mux.HandleFunc("HEAD /api/files/read", a.filesHandler.Read)
+	// Phase 122-01 / REMOTE-01: remote-files proxy + cap deposit.
+	// POST /api/remote-files/caps accepts (sessionId, baseUrl, capToken) from
+	// the GUI/TUI after a successful join-code exchange; the four GET/HEAD
+	// routes proxy file ops to the remote peer's webserver using that cap.
+	// Loopback transport (Unix socket / Windows named pipe) is the trust
+	// boundary; no auth gate here.
+	a.mux.HandleFunc("POST /api/remote-files/caps", a.handleRegisterRemoteCap)
+	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/list", a.handleRemoteFilesList)
+	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/stat", a.handleRemoteFilesStat)
+	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
+	a.mux.HandleFunc("HEAD /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
 }
 
 // BootstrapCapabilityState loads or generates the HMAC signing key (D-04) and
