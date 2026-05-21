@@ -2,12 +2,15 @@ package tui
 
 import (
 	"errors"
+	"path"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 )
@@ -92,28 +95,183 @@ func (m Model) renderFilesTab(cw, ch int) string {
 	return m.wrapInFrame("Loading…", " Files ", cw, m.styles.BorderNormal)
 }
 
-// handleFilesKey is a Plan-01 stub. It handles only the keys that must keep
-// working from the very first commit (quit, help, tab cycling) and swallows
-// everything else. Plan 02 will replace this with the full filter /
-// navigation / preview dispatch.
+// parentDir returns the parent directory of p using forward-slash path
+// semantics (the daemon side normalises to '/'). Returns "" for root ("",
+// ".", or "/"), and strips a single trailing slash before consulting
+// path.Dir.
+func parentDir(p string) string {
+	p = strings.TrimRight(p, "/")
+	if p == "" || p == "." {
+		return ""
+	}
+	d := path.Dir(p)
+	if d == "." || d == "/" {
+		return ""
+	}
+	return d
+}
+
+// joinDir joins a base relative path with a child entry name. base "" or "."
+// returns just name. Always uses forward slashes — daemon path semantics, not
+// host filesystem.
+func joinDir(base, name string) string {
+	if base == "" || base == "." {
+		return name
+	}
+	return path.Join(base, name)
+}
+
+// filteredEntries returns the visible entries given the current filter input.
+// Uses ansi.Strip on entry names to defend against T-121-06 (filenames with
+// embedded ANSI escapes — daemon trusts cwd, TUI must sanitise on render).
+func (fm filesModel) filteredEntries() []daemon.FileEntry {
+	q := strings.ToLower(strings.TrimSpace(fm.filterInput.Value()))
+	if q == "" {
+		return fm.entries
+	}
+	out := fm.entries[:0:0]
+	for _, e := range fm.entries {
+		if strings.Contains(strings.ToLower(ansi.Strip(e.Name)), q) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// handleFilesKey is the full Plan 02 dispatcher for the Files tab. The
+// filter-mode cascade is strict: when filterActive == true, ALL keys except
+// Esc and Enter route to the textinput. This is what protects
+// Pitfall TUI-PITFALL-2 (Backspace must NOT navigate-up while filtering).
 func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "Q", "ctrl+c":
-		return m, tea.Quit
-	case "?":
+	s := msg.String()
+
+	// Filter-mode capture (Pitfall TUI-PITFALL-2).
+	if m.files.filterActive {
+		switch s {
+		case "esc":
+			m.files.filterActive = false
+			m.files.filterInput.SetValue("")
+			m.files.filterInput.Blur()
+			if m.files.selected >= len(m.files.entries) {
+				m.files.selected = max(0, len(m.files.entries)-1)
+			}
+			return m, nil
+		case "enter":
+			m.files.filterActive = false
+			m.files.filterInput.Blur()
+			if n := len(m.files.filteredEntries()); m.files.selected >= n {
+				m.files.selected = max(0, n-1)
+			}
+			return m, nil
+		}
+		var cmd tea.Cmd
+		m.files.filterInput, cmd = m.files.filterInput.Update(msg)
+		// Reset selection to top so the cursor lands on the first match as
+		// the user types.
+		m.files.selected = 0
+		return m, cmd
+	}
+
+	// Non-filter mode.
+	switch {
+	case key.Matches(msg, m.keys.FilterStart):
+		m.files.filterActive = true
+		cmd := m.files.filterInput.Focus()
+		return m, cmd
+
+	case s == "backspace" || s == "left":
+		// TUI-03: Backspace at root is a hard no-op.
+		if m.files.cwd == "" || m.files.cwd == "." {
+			return m, nil
+		}
+		parent := parentDir(m.files.cwd)
+		m.files.loading = true
+		return m, loadDirCmd(m.client, m.files.sessionID, parent)
+
+	case key.Matches(msg, m.keys.Up):
+		if m.files.previewFocused {
+			var cmd tea.Cmd
+			m.files.preview, cmd = m.files.preview.Update(msg)
+			return m, cmd
+		}
+		if m.files.selected > 0 {
+			m.files.selected--
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Down):
+		if m.files.previewFocused {
+			var cmd tea.Cmd
+			m.files.preview, cmd = m.files.preview.Update(msg)
+			return m, cmd
+		}
+		n := len(m.files.filteredEntries())
+		if m.files.selected < n-1 {
+			m.files.selected++
+		}
+		return m, nil
+
+	case s == "pgup":
+		if m.files.previewFocused {
+			var cmd tea.Cmd
+			m.files.preview, cmd = m.files.preview.Update(msg)
+			return m, cmd
+		}
+		m.files.selected = max(0, m.files.selected-10)
+		return m, nil
+
+	case s == "pgdown":
+		if m.files.previewFocused {
+			var cmd tea.Cmd
+			m.files.preview, cmd = m.files.preview.Update(msg)
+			return m, cmd
+		}
+		n := len(m.files.filteredEntries())
+		target := m.files.selected + 10
+		if target > n-1 {
+			target = n - 1
+		}
+		if target < 0 {
+			target = 0
+		}
+		m.files.selected = target
+		return m, nil
+
+	case s == "enter":
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		name := ansi.Strip(entry.Name)
+		next := joinDir(m.files.cwd, name)
+		if entry.IsDir {
+			m.files.loading = true
+			return m, loadDirCmd(m.client, m.files.sessionID, next)
+		}
+		m.files.previewLoading = true
+		return m, headFileCmd(m.client, m.files.sessionID, next)
+
+	case key.Matches(msg, m.keys.FilesFocusToggle):
+		m.files.previewFocused = !m.files.previewFocused
+		return m, nil
+
+	case key.Matches(msg, m.keys.Help):
 		m.showHelp = true
 		return m, nil
-	case "[":
+
+	case key.Matches(msg, m.keys.PrevTab):
 		m.cycleTab(-1)
 		return m, nil
-	case "]":
+
+	case key.Matches(msg, m.keys.NextTab):
 		m.cycleTab(+1)
 		return m, nil
-	case "esc":
-		// Plan 02 will route esc to clear filter or close the tab.
-		return m, nil
+
+	case key.Matches(msg, m.keys.Quit):
+		return m, tea.Quit
 	}
-	// Swallow all other keys — Plan 02 fills in the rest.
+	// Swallow all other keys (do NOT fall through to handleContentKey).
 	return m, nil
 }
 
