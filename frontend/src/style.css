@@ -2750,6 +2750,28 @@ body {
   color: #a9b1d6;
 }
 
+/* Clickable root (rendered when user is in a subdirectory — navigates back
+   to session cwd root). Mirrors __breadcrumb-segment but kept distinct so
+   the root can be styled independently if needed. */
+.file-browser__breadcrumb-root--clickable {
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+  font: inherit;
+  border-radius: 3px;
+}
+
+.file-browser__breadcrumb-root--clickable:hover {
+  color: #7aa2f7;
+  background: #1e2030;
+}
+
+.file-browser__breadcrumb-root--clickable:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
 .file-browser__breadcrumb-segment {
   background: transparent;
   border: 0;

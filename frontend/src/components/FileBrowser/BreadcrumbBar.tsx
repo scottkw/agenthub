@@ -5,9 +5,12 @@ import type { BreadcrumbSegment } from '../../lib/filesTypes'
 export interface BreadcrumbBarProps {
   /**
    * Path segments from session cwd to the current directory.
-   * First segment is ALWAYS the session cwd root (rendered as non-clickable
-   * "session/" text). Last segment is the current directory (rendered as
-   * text marked as the current page. Middle segments are clickable.
+   * First segment is ALWAYS the session cwd root (rendered as "session/").
+   * When the user is at root (segments.length === 1), root is non-clickable
+   * current-page text. When the user is inside a subdirectory, root becomes
+   * a clickable button so the user can navigate back to the session cwd.
+   * Last segment is the current directory (rendered as text marked as the
+   * current page). Middle segments are clickable.
    */
   segments: BreadcrumbSegment[]
   /** ISO timestamp of last successful list; null while no list has loaded. */
@@ -77,30 +80,23 @@ export function BreadcrumbBar({
           const isRoot = idx === 0
           const isCurrent = idx === lastIndex
           const testId = `file-browser-breadcrumb-segment-${idx}`
-          // Root (index 0) — always non-clickable plain text.
-          // Last segment (the current directory) — text only, aria-current=page.
-          // Middle segments — button that navigates on click.
-          if (isRoot) {
-            return (
-              <li key={idx} className="file-browser__breadcrumb-item">
-                <span
-                  className="file-browser__breadcrumb-root"
-                  data-testid={testId}
-                >
-                  {seg.name}/
-                </span>
-              </li>
-            )
-          }
+          // Three render modes:
+          // - Current segment (last, regardless of root) → aria-current text.
+          // - Root segment when not current → clickable button (navigate back to cwd root).
+          // - Middle segments → clickable button.
           if (isCurrent) {
             return (
               <li key={idx} className="file-browser__breadcrumb-item">
                 <span
-                  className="file-browser__breadcrumb-current"
+                  className={
+                    isRoot
+                      ? 'file-browser__breadcrumb-root'
+                      : 'file-browser__breadcrumb-current'
+                  }
                   aria-current="page"
                   data-testid={testId}
                 >
-                  {seg.name}
+                  {isRoot ? `${seg.name}/` : seg.name}
                 </span>
               </li>
             )
@@ -109,11 +105,15 @@ export function BreadcrumbBar({
             <li key={idx} className="file-browser__breadcrumb-item">
               <button
                 type="button"
-                className="file-browser__breadcrumb-segment"
+                className={
+                  isRoot
+                    ? 'file-browser__breadcrumb-root file-browser__breadcrumb-root--clickable'
+                    : 'file-browser__breadcrumb-segment'
+                }
                 data-testid={testId}
                 onClick={() => onNavigateTo(seg.pathFromCwd)}
               >
-                {seg.name}
+                {isRoot ? `${seg.name}/` : seg.name}
               </button>
             </li>
           )
