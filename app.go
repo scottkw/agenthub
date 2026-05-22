@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -944,6 +946,62 @@ func (a *App) SaveTerminalSession(defaultDir, defaultName, content string) error
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("SaveTerminalSession: write: %w", err)
+	}
+	return nil
+}
+
+// DownloadFile opens a native Save File dialog and writes bytes fetched from
+// the given URL (typically the local relay's /api/files/read endpoint) to
+// the user-chosen path. Cancellation is silent success.
+//
+// Phase 120 UAT-1: the React <a download> attribute is ignored by Wails'
+// WKWebView — clicking a download link just navigates the webview to the
+// URL, replacing the React app with raw file content. This method bridges
+// the gap by performing the save server-side with a native dialog.
+//
+// url MUST be a loopback URL (the relay at 127.0.0.1 or the daemon's
+// local /api/files/remote/{sid}/* proxy). The URL is fetched without auth
+// because both endpoints are bound to 127.0.0.1 and trust the loopback
+// transport (or, for the remote proxy, the cap is injected server-side
+// from RemoteCapStore).
+func (a *App) DownloadFile(url, suggestedName string) error {
+	defaultDir := ""
+	if home, err := os.UserHomeDir(); err == nil {
+		defaultDir = filepath.Join(home, "Downloads")
+		if _, statErr := os.Stat(defaultDir); statErr != nil {
+			defaultDir = home
+		}
+	}
+	path, err := a.saveFileDialogFunc(a.ctx, runtime.SaveDialogOptions{
+		Title:                "Save File As…",
+		DefaultDirectory:     defaultDir,
+		DefaultFilename:      suggestedName,
+		CanCreateDirectories: true,
+	})
+	if err != nil {
+		return fmt.Errorf("DownloadFile: dialog: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled — silent success per SaveTerminalSession precedent
+	}
+	// Loopback fetch with a generous timeout sized for the 5 MiB cap +
+	// network slack. The relay/daemon-proxy never blocks longer than this.
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return fmt.Errorf("DownloadFile: fetch: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("DownloadFile: server returned %d", resp.StatusCode)
+	}
+	out, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("DownloadFile: create: %w", err)
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return fmt.Errorf("DownloadFile: write: %w", err)
 	}
 	return nil
 }

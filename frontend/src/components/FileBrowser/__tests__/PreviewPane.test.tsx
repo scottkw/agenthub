@@ -131,9 +131,14 @@ describe('PreviewPane', () => {
     expect(downloads.length).toBeGreaterThanOrEqual(1)
     const bodyDownload = Array.from(downloads).find((el) =>
       el.closest('[data-testid="file-browser-binary"]'),
-    ) as HTMLAnchorElement | undefined
+    ) as HTMLElement | undefined
     expect(bodyDownload).toBeDefined()
-    expect(bodyDownload!.getAttribute('href')).toBe(url)
+    // Phase 120 UAT-1: in Wails desktop mode the button has data-download-url
+    // (no href); in web mode the <a> has href. Either way the URL plumbs.
+    const got =
+      bodyDownload!.getAttribute('href') ??
+      bodyDownload!.getAttribute('data-download-url')
+    expect(got).toBe(url)
   })
 
   it('over-cap state renders the size in the body copy', () => {

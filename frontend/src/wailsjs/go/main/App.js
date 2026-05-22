@@ -100,6 +100,9 @@ export const SetImageConfig          = (cfg)                => Call('main.App.Se
 // Save terminal session (Phase 97 SER-01).
 export const SaveTerminalSession    = (defaultDir, defaultName, content) => Call('main.App.SaveTerminalSession', [defaultDir, defaultName, content])
 
+// Phase 120 UAT-1 — server-side file download bypassing webview <a download>.
+export const DownloadFile           = (url, suggestedName)   => Call('main.App.DownloadFile', [url, suggestedName])
+
 // Set tray progress quartile (Phase 98 PRG-03).
 export const SetTrayProgress        = (quartile)                => Call('main.App.SetTrayProgress', [quartile])
 

@@ -12,6 +12,7 @@
 // Copy is locked verbatim to UI-SPEC §"Error copy"; do not paraphrase.
 
 import React from 'react'
+import { DownloadButton } from './DownloadButton'
 
 export interface UnsupportedFileProps {
   kind: 'unsupported' | 'over-cap'
@@ -46,14 +47,15 @@ export function UnsupportedFile({
     >
       <h3 className="file-browser__preview-heading">{heading}</h3>
       <p className="file-browser__preview-body">{body}</p>
-      <a
-        download={filename}
-        href={downloadUrl}
+      <DownloadButton
+        url={downloadUrl}
+        filename={filename}
         className="file-browser__btn file-browser__btn--primary"
-        data-testid="file-browser-download"
+        ariaLabel={`Download ${filename}`}
+        title="Download"
       >
         Download
-      </a>
+      </DownloadButton>
     </div>
   )
 }

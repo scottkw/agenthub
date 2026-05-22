@@ -24,6 +24,7 @@ import { MarkdownPreview } from './MarkdownPreview'
 import { ImagePreview } from './ImagePreview'
 import { UnsupportedFile } from './UnsupportedFile'
 import { NetworkErrorState } from './NetworkErrorState'
+import { DownloadButton } from './DownloadButton'
 
 export interface PreviewPaneProps {
   state: PreviewState
@@ -102,16 +103,15 @@ export function PreviewPane({
             <span className="file-browser__preview-size">{fmtHumanSize(size)}</span>
           )}
           {downloadUrl !== null && (
-            <a
-              download={filename ?? ''}
-              href={downloadUrl}
+            <DownloadButton
+              url={downloadUrl}
+              filename={filename ?? ''}
               className="file-browser__btn file-browser__btn--icon"
-              data-testid="file-browser-download"
-              aria-label={`Download ${filename ?? ''}`}
+              ariaLabel={`Download ${filename ?? ''}`}
               title="Download"
             >
               <ArrowDownTrayIcon width={14} height={14} aria-hidden="true" />
-            </a>
+            </DownloadButton>
           )}
         </header>
       )}

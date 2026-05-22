@@ -157,6 +157,10 @@ export function SetImageConfig(arg1: daemon.ImageConfig): Promise<void>
 // Save terminal session (Phase 97 SER-01).
 export function SaveTerminalSession(defaultDir: string, defaultName: string, content: string): Promise<void>
 
+// Phase 120 UAT-1 — server-side file download with native SaveFileDialog,
+// bypassing the Wails WKWebView's ignore-the-<a-download>-attribute behavior.
+export function DownloadFile(url: string, suggestedName: string): Promise<void>
+
 // Set tray progress quartile (Phase 98 PRG-03).
 export function SetTrayProgress(quartile: number): Promise<void>
 
