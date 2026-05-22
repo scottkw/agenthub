@@ -69,10 +69,16 @@ func isAllowedFilesOrigin(origin string) bool {
 	}
 	switch origin {
 	case "http://wails.localhost", "https://wails.localhost",
+		"wails://wails", // macOS Wails v2 custom URL scheme (frontend.go:40)
 		"http://tauri.localhost", "https://tauri.localhost",
 		"http://localhost", "https://localhost",
 		"http://127.0.0.1", "https://127.0.0.1",
-		"null": // file:// pages report "null"
+		"null": // file:// pages and opaque custom-scheme origins report "null"
+		return true
+	}
+	// Allow any wails:// origin (custom URL scheme on macOS — different Wails
+	// versions/builds may vary the host segment).
+	if len(origin) >= len("wails://") && origin[:len("wails://")] == "wails://" {
 		return true
 	}
 	// Allow http(s)://127.0.0.1:<port> and http(s)://localhost:<port> with any port.

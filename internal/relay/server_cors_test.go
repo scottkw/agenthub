@@ -37,6 +37,23 @@ func TestServer_FilesAPI_CORS(t *testing.T) {
 	srv := httptest.NewServer(NewServer(mgr, nil, fh))
 	t.Cleanup(srv.Close)
 
+	t.Run("preflight from macOS wails://wails returns 204 + ACAO", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/api/files/list", nil)
+		req.Header.Set("Origin", "wails://wails")
+		req.Header.Set("Access-Control-Request-Method", "GET")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("preflight: %v", err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusNoContent {
+			t.Fatalf("status: got %d want 204", res.StatusCode)
+		}
+		if got := res.Header.Get("Access-Control-Allow-Origin"); got != "wails://wails" {
+			t.Errorf("ACAO: got %q want %q", got, "wails://wails")
+		}
+	})
+
 	t.Run("preflight from wails.localhost returns 204 + ACAO", func(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/api/files/list", nil)
 		req.Header.Set("Origin", "http://wails.localhost")
