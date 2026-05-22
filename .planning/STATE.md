@@ -97,6 +97,12 @@ Items carried forward into v3.5 from v3.4 close (2026-05-21):
 | 120 | 01..06 | Complete 2026-05-20 | React FileBrowserTab + Playwright cross-browser merge gate + web-mode gap closure (UI-01..14) |
 | 121 | 01..03 + CR-01 + WR-01..06 | Complete 2026-05-21 | TUI Files view + tea.Cmd discipline + glamour preview (TUI-01..10 local) |
 | 122 | 01 (+ recovery) + 02..05 | Complete 2026-05-21 (audit-driven insert) | Remote-session GUI + TUI parity + cross-surface byte-equivalence (REMOTE-01..05, TUI-08 remote half) |
+| UAT | #1 Wails desktop click-path | ✅ PASSED 2026-05-22 | 6 release-blocker hotfixes shipped (`fix(120.1):` commits 74f1490, e641541, 536e137, 4b37e77, 3028d92, 74905e0). Full log in `milestones/v3.4-UAT-LOG.md` |
+| UAT | #2 TUI visual + local browse | ✅ PASSED 2026-05-22 | All 5 Phase 121 success criteria visually confirmed. Cosmetic notes only |
+| UAT | #3 Two-machine tailnet | 🔲 not started | Requires a second box on the tailnet. Runbook in `milestones/v3.4-phases/122-.../122-VERIFICATION.md` |
+| UAT | Open Item #1: share UI mints viewer cap without files.read | 🔲 pending disposition | Per FS-12 by-design; UX gap (no UI to opt-in). See UAT-LOG for A/B/C options |
+| UAT | Open Item #2: share UI surfaces legacy `/sessions/` URL not `/app/` | 🔲 pending disposition | Users never discover file browser via normal share flow. See UAT-LOG |
+| UAT | Open Item #3: Warp terminal swallows Ctrl-\ | 🔲 not an AgentHub bug | Confirmed via `cat -v` test. File Warp issue; optional v3.5 configurable detach key |
 
 ## v3.3.1 Plan Execution Log
 
