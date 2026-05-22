@@ -159,10 +159,23 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		mode := entry.Type()
 		ext := extensionMIME(name)
+		// Phase 120 UAT-1: per-entry Info() so size/mtime show up in the
+		// UI without requiring a follow-up /stat round-trip per row. The
+		// original Pitfall 6 ban on per-entry stat was overly conservative
+		// — users couldn't see file sizes at all. Graceful fallback: if
+		// Info() fails (the file was unlinked between ReadDir and Info),
+		// we still emit the entry with zeroed size/mtime; the directory
+		// listing remains useful.
+		var size int64
+		var mtime string
+		if fi, infoErr := entry.Info(); infoErr == nil {
+			size = fi.Size()
+			mtime = fi.ModTime().UTC().Format(time.RFC3339)
+		}
 		result.Entries = append(result.Entries, FileEntry{
 			Name:      name,
-			Size:      0,  // List never stats per entry (Pitfall 6)
-			Mtime:     "", // List never stats per entry (Pitfall 6)
+			Size:      size,
+			Mtime:     mtime,
 			Mode:      mode.String(),
 			IsDir:     entry.IsDir(),
 			IsSymlink: mode&os.ModeSymlink != 0,

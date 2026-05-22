@@ -152,6 +152,43 @@ export function FileBrowserTab({
   const [filterActive, setFilterActive] = useState<boolean>(false)
   const [filterValue, setFilterValue] = useState<string>('')
 
+  // Phase 120 UAT-1: resizable list/preview split. State is percent of the
+  // body width occupied by the list pane; bounded to [20, 80] so neither
+  // pane collapses entirely. Drag tracked via a ref + window-level mousemove
+  // listener so the cursor can leave the divider mid-drag without losing
+  // the grip.
+  const [listWidthPct, setListWidthPct] = useState<number>(40)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const draggingRef = useRef<boolean>(false)
+  const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    draggingRef.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!draggingRef.current || !bodyRef.current) return
+      const rect = bodyRef.current.getBoundingClientRect()
+      if (rect.width === 0) return
+      const pct = ((e.clientX - rect.left) / rect.width) * 100
+      const clamped = Math.max(20, Math.min(80, pct))
+      setListWidthPct(clamped)
+    }
+    const onUp = () => {
+      if (!draggingRef.current) return
+      draggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
+
   // Refetch counter for the directory listing — bumped on Refresh / retry.
   const [dirNonce, setDirNonce] = useState<number>(0)
 
@@ -578,25 +615,38 @@ export function FileBrowserTab({
             onNavigateTo={navigateTo}
             onRefresh={refresh}
           />
-          <div className="file-browser__body">
-            {sortedEntries.length === 0 ? (
-              <EmptyDirectoryState relativePathFromCwd={path} />
-            ) : (
-              <FileListPane
-                entries={sortedEntries}
-                selectedName={selected}
-                sortKey={sortKey}
-                sortDir={sortDir}
-                filter={filterValue}
-                truncated={truncated}
-                isActive={isActive}
-                onSelect={setSelected}
-                onNavigateInto={navigateInto}
-                onNavigateUp={navigateUp}
-                onSortChange={onSortChange}
-                onFilterActivate={onFilterActivate}
-              />
-            )}
+          <div className="file-browser__body" ref={bodyRef}>
+            <div
+              className="file-browser__list-container"
+              style={{ width: `${listWidthPct}%` }}
+            >
+              {sortedEntries.length === 0 ? (
+                <EmptyDirectoryState relativePathFromCwd={path} />
+              ) : (
+                <FileListPane
+                  entries={sortedEntries}
+                  selectedName={selected}
+                  sortKey={sortKey}
+                  sortDir={sortDir}
+                  filter={filterValue}
+                  truncated={truncated}
+                  isActive={isActive}
+                  onSelect={setSelected}
+                  onNavigateInto={navigateInto}
+                  onNavigateUp={navigateUp}
+                  onSortChange={onSortChange}
+                  onFilterActivate={onFilterActivate}
+                />
+              )}
+            </div>
+            <div
+              className="file-browser__divider"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize file list pane"
+              data-testid="file-browser-divider"
+              onMouseDown={onDividerMouseDown}
+            />
             <PreviewPane
               state={preview}
               filename={selected}

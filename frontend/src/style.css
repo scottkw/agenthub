@@ -2895,15 +2895,47 @@ body {
   min-height: 0;
 }
 
-.file-browser__list {
-  flex: 0 0 40%;
-  min-width: 240px;
-  max-width: 480px;
+/* Phase 120 UAT-1: list pane width is now controlled by an inline `width`
+   set by FileBrowserTab (resizable via the file-browser__divider handle).
+   The container provides the min-width / overflow boundary; the inner
+   FileListPane fills it. */
+.file-browser__list-container {
+  min-width: 0;
   background: #1a1b26;
-  border-right: 1px solid #292e42;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+.file-browser__list {
+  min-width: 0;
+  background: #1a1b26;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+
+/* Vertical resize handle between list and preview panes. 4px wide hit area
+   with a 1px visible separator centered; expands the apparent grip on hover.
+   Cursor change tells the user it's draggable. */
+.file-browser__divider {
+  flex: 0 0 4px;
+  background: #292e42;
+  cursor: col-resize;
+  position: relative;
+  transition: background 120ms ease;
+}
+
+.file-browser__divider:hover,
+.file-browser__divider:active {
+  background: #7aa2f7;
+}
+
+.file-browser__divider:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: -2px;
 }
 
 .file-browser__list:focus-visible {

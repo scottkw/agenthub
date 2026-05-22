@@ -219,10 +219,15 @@ func strconvI(n int) string {
 	return string(buf[i:])
 }
 
-// TestHandler_List_NoDirEntryInfoCalled inspects the handler source to assert
-// that the List function body contains no `.Info()` call (Pitfall 6 — per-
-// entry Info() is N stat syscalls on N entries).
-func TestHandler_List_NoDirEntryInfoCalled(t *testing.T) {
+// TestHandler_List_StatPerEntry asserts that List populates Size and Mtime
+// for each entry via DirEntry.Info(). The original Pitfall 6 guard (no per-
+// entry Info()) was reversed during Phase 120 UAT-1 — users couldn't see
+// file sizes at all, which was a UX regression heavier than the perf cost
+// of N stat syscalls (capped at maxListEntries=10000 anyway).
+//
+// The body MUST handle Info() failure gracefully: a file unlinked between
+// ReadDir and Info should still appear in the listing with Size=0/Mtime="".
+func TestHandler_List_StatPerEntry(t *testing.T) {
 	src, err := os.ReadFile("handler.go")
 	if err != nil {
 		t.Fatalf("read handler.go: %v", err)
@@ -233,15 +238,19 @@ func TestHandler_List_NoDirEntryInfoCalled(t *testing.T) {
 	if listIdx < 0 {
 		t.Fatalf("could not find %q in handler.go", listMarker)
 	}
-	// Find the start of the next top-level func declaration after List.
 	tail := text[listIdx+len(listMarker):]
 	nextIdx := strings.Index(tail, "\nfunc ")
 	if nextIdx < 0 {
 		nextIdx = len(tail)
 	}
 	body := tail[:nextIdx]
-	if strings.Contains(body, ".Info()") {
-		t.Errorf("Handler.List body contains a .Info() call — Pitfall 6 violation")
+	if !strings.Contains(body, "entry.Info()") {
+		t.Error("Handler.List body must call entry.Info() to populate size/mtime")
+	}
+	// Defensive: make sure the call uses the comma-ok / error-checked form
+	// so a deleted file doesn't crash the listing.
+	if !strings.Contains(body, "infoErr") && !strings.Contains(body, "if err") {
+		t.Error("Handler.List body must check the Info() error and continue gracefully")
 	}
 }
 
