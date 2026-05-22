@@ -1,9 +1,42 @@
-import React, { useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import type { FileEntry } from '../../lib/filesApi'
 import type { SortKey, SortDir } from '../../lib/filesTypes'
 import { sortEntries } from './sortEntries'
 import { FileRow } from './FileRow'
+
+// Phase 120 UAT-1: persisted column widths for Size + Modified.
+// Name absorbs remaining space via `1fr`.
+const COL_WIDTH_STORAGE_KEY = 'agenthub.fileBrowser.colWidths.v1'
+const SIZE_COL_DEFAULT = 80
+const MTIME_COL_DEFAULT = 110
+const COL_MIN_PX = 50
+const COL_MAX_PX = 400
+
+interface PersistedColWidths {
+  size: number
+  mtime: number
+}
+
+function clampColPx(px: number): number {
+  if (!Number.isFinite(px)) return SIZE_COL_DEFAULT
+  return Math.max(COL_MIN_PX, Math.min(COL_MAX_PX, Math.round(px)))
+}
+
+function loadPersistedColWidths(): PersistedColWidths {
+  if (typeof window === 'undefined') return { size: SIZE_COL_DEFAULT, mtime: MTIME_COL_DEFAULT }
+  try {
+    const raw = window.localStorage?.getItem(COL_WIDTH_STORAGE_KEY)
+    if (!raw) return { size: SIZE_COL_DEFAULT, mtime: MTIME_COL_DEFAULT }
+    const parsed = JSON.parse(raw) as Partial<PersistedColWidths>
+    return {
+      size: clampColPx(parsed.size ?? SIZE_COL_DEFAULT),
+      mtime: clampColPx(parsed.mtime ?? MTIME_COL_DEFAULT),
+    }
+  } catch {
+    return { size: SIZE_COL_DEFAULT, mtime: MTIME_COL_DEFAULT }
+  }
+}
 
 export interface FileListPaneProps {
   entries: FileEntry[]
@@ -182,12 +215,65 @@ export function FileListPane({
   const filterActiveCount = filter.length > 0 ? displayEntries.length : entries.length
   const isFilterEmpty = filter.length > 0 && displayEntries.length === 0
 
+  // Phase 120 UAT-1: column widths (Size + Modified) — Name absorbs the rest.
+  const [colWidths, setColWidths] = useState<PersistedColWidths>(loadPersistedColWidths)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage?.setItem(COL_WIDTH_STORAGE_KEY, JSON.stringify(colWidths))
+    } catch {
+      // localStorage may be unavailable (private mode, quota); ignore.
+    }
+  }, [colWidths])
+
+  const startColDrag = useCallback(
+    (target: 'size' | 'mtime', e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const startX = e.clientX
+      const startWidth = target === 'size' ? colWidths.size : colWidths.mtime
+      const prevCursor = document.body.style.cursor
+      const prevSelect = document.body.style.userSelect
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      const onMove = (mv: MouseEvent) => {
+        const delta = mv.clientX - startX
+        // Drag east (+delta) = right-side boundary moves east = THIS column
+        // gets smaller (the column gives space to its left neighbor).
+        const next = clampColPx(startWidth - delta)
+        setColWidths((prev) =>
+          target === 'size'
+            ? { ...prev, size: next }
+            : { ...prev, mtime: next },
+        )
+      }
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+        document.body.style.cursor = prevCursor
+        document.body.style.userSelect = prevSelect
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [colWidths.size, colWidths.mtime],
+  )
+
+  // CSS custom properties so .file-browser__list-header and
+  // .file-browser__list-row share the same column widths (grid-template-columns
+  // uses var(--fb-size-col, 80px) + var(--fb-mtime-col, 110px)).
+  const gridStyle = {
+    '--fb-size-col': `${colWidths.size}px`,
+    '--fb-mtime-col': `${colWidths.mtime}px`,
+  } as React.CSSProperties
+
   return (
     <div
       className="file-browser__list"
       data-testid="file-browser-list"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      style={gridStyle}
     >
       {truncated && (
         <div
@@ -207,12 +293,28 @@ export function FileListPane({
           activeDir={sortDir}
           onClick={() => onSortChange('name')}
         />
+        <div
+          className="file-browser__col-divider"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize size column"
+          data-testid="file-browser-col-divider-size"
+          onMouseDown={(e) => startColDrag('size', e)}
+        />
         <ColumnHeader
           col="size"
           label="SIZE"
           activeKey={sortKey}
           activeDir={sortDir}
           onClick={() => onSortChange('size')}
+        />
+        <div
+          className="file-browser__col-divider"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize modified column"
+          data-testid="file-browser-col-divider-mtime"
+          onMouseDown={(e) => startColDrag('mtime', e)}
         />
         <ColumnHeader
           col="modified"

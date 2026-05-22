@@ -118,7 +118,11 @@ export function FileRow({
         )}
       </span>
       <span className="file-browser__row-name">{entry.name}</span>
+      {/* 4px slot aligning under the header's Name|Size divider. */}
+      <span aria-hidden="true" />
       <span className="file-browser__row-size">{formatRowSize(entry)}</span>
+      {/* 4px slot aligning under the header's Size|Modified divider. */}
+      <span aria-hidden="true" />
       <span className="file-browser__row-mtime">{formatRowMtime(entry.mtime)}</span>
     </li>
   )

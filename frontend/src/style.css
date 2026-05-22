@@ -2959,15 +2959,35 @@ body {
 
 .file-browser__list-header {
   display: grid;
-  grid-template-columns: 1fr 80px 110px;
+  /* Phase 120 UAT-1: 5 cells = NAME | divider | SIZE | divider | MODIFIED.
+     Widths come from CSS custom properties set on .file-browser__list
+     (the wrapper); the FileRow grid mirrors this with an extra 22px icon
+     column at the start. */
+  grid-template-columns:
+    1fr 4px var(--fb-size-col, 80px) 4px var(--fb-mtime-col, 110px);
   gap: 8px;
   height: 28px;
-  align-items: center;
+  align-items: stretch;
   padding: 0 12px;
   background: #16161e;
   border-bottom: 1px solid #292e42;
   position: sticky;
   top: 0;
+}
+
+/* Vertical resize handle between header columns. 4px hit area, 1px visible
+   separator centered. Hover/active turn it accent blue. */
+.file-browser__col-divider {
+  width: 4px;
+  background: #292e42;
+  cursor: col-resize;
+  align-self: stretch;
+  transition: background 120ms ease;
+}
+
+.file-browser__col-divider:hover,
+.file-browser__col-divider:active {
+  background: #7aa2f7;
 }
 
 .file-browser__col {
@@ -3015,7 +3035,11 @@ body {
 
 .file-browser__list-row {
   display: grid;
-  grid-template-columns: 22px 1fr 80px 110px;
+  /* Phase 120 UAT-1: mirror the header grid with leading 22px icon column.
+     The 4px slots replace the divider hit areas so cell content lines up
+     under the corresponding header column. */
+  grid-template-columns:
+    22px 1fr 4px var(--fb-size-col, 80px) 4px var(--fb-mtime-col, 110px);
   gap: 8px;
   align-items: center;
   height: 32px;
