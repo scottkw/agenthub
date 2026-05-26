@@ -1,6 +1,6 @@
 module github.com/scottkw/agenthub
 
-go 1.26.1
+go 1.26.3
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -22,7 +22,7 @@ require (
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.42.0
-	tailscale.com v1.96.5
+	tailscale.com v1.98.3
 )
 
 require (
@@ -123,8 +123,8 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
-	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
