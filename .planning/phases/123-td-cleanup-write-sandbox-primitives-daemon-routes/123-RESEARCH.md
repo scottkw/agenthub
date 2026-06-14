@@ -518,17 +518,17 @@ The merge gate: `go test -fuzz=FuzzSandboxWrite -fuzztime=60s ./internal/files/.
 
 ## Open Questions
 
-1. **Should Phase 123 add `daemonSettings.FilesWrite` + `schemaVersion: 4`?**
+1. **Should Phase 123 add `daemonSettings.FilesWrite` + `schemaVersion: 4`?** (RESOLVED — deferred to Phase 124; CAP-08 owns the settings/schemaVersion migration, no FSW requirement gates the auth-less routes on a setting)
    - What we know: ARCHITECTURE.md §8.2/§10 lists it under Phase 123; CAP-08 (Phase 124) also owns settings migration; FSW-01..12 contain no settings requirement; the daemon socket routes are auth-less regardless of any setting.
    - What's unclear: whether the planner wants the settings field landed early (alongside the read-side `FilesRead` pattern) or deferred to Phase 124 with the rest of the capability gating.
    - Recommendation: **Defer to Phase 124.** Phase 123's success criteria do not require it, and adding a schema migration here splits the CAP-08 work awkwardly. If the planner disagrees, the pattern to mirror is `engine.go:99/158/182/209/508-517` and `TestSettingsMigration_FilesReadDefaultsTrue`.
 
-2. **Owner `files.write` default — opt-in vs default-on (documentation conflict, NOT a Phase 123 concern but flag it).**
+2. **Owner `files.write` default — opt-in vs default-on (documentation conflict, NOT a Phase 123 concern but flag it).** (RESOLVED — deferred to Phase 124; the opt-in CAP-04 decision lives with the capability bit, which Phase 123 does not add)
    - What we know: STATE.md §Key Decisions says "Default-ON for session owner (mirrors `files.read`)". REQUIREMENTS.md (CAP-04), the milestone scope table, and the most recent git commit (`808767f docs: make files.write opt-in for all tokens (no owner default-on)`) all say **opt-in, never default-on**.
    - What's unclear: STATE.md is stale relative to the latest decision.
    - Recommendation: The git-committed REQUIREMENTS.md is authoritative — `files.write` is opt-in. This is a **Phase 124 (CAP-04)** decision and does not affect Phase 123 (which has no capability bit), but the planner should note STATE.md needs correcting and not propagate the "default-ON" wording.
 
-3. **Windows rename-over-open-file retry loop.**
+3. **Windows rename-over-open-file retry loop.** (RESOLVED — Windows rename retry implemented in Plan 123-01's `WriteFileAtomic` rename step)
    - What we know: `root.Rename` to an existing destination can fail on Windows if the target is open by another process (PITFALLS §Pitfall 5). The v3.4 code has no retry.
    - What's unclear: whether v3.5 needs the retry now or can defer (cross-platform is a stated target).
    - Recommendation: Add a short bounded retry (3 attempts, ~50ms) in `WriteFileAtomic`'s rename step. Low cost, closes a real Windows failure mode.
