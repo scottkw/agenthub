@@ -62,8 +62,9 @@ func (a *API) remoteFilesClient() *http.Client {
 //
 // Request body: JSON {sessionId, baseUrl, capToken}.
 // Responses:
-//   200 + {"ok": true}                            on success
-//   400 + plain text                              on malformed body or empty fields
+//
+//	200 + {"ok": true}                            on success
+//	400 + plain text                              on malformed body or empty fields
 //
 // 200 (not 204) is used so the response carries a small JSON envelope the
 // frontend can assert on.
@@ -112,6 +113,42 @@ func (a *API) handleRemoteFilesRead(w http.ResponseWriter, r *http.Request) {
 	a.proxyRemoteFiles(w, r, "read")
 }
 
+// Phase 124-03 / CAP-10: remote write proxy routes.
+//
+// These five handlers forward write verbs to the remote peer's webserver
+// using the cap stored by handleRegisterRemoteCap.  proxyRemoteFiles now
+// forwards r.Body + Content-Type for PUT/POST/PATCH (Task 1 fix) so the
+// payloads reach the peer's files.Handler write methods intact.
+//
+// Daemon-socket routes are loopback-trusted (WEB-01); no auth middleware or
+// Origin check is applied here.  The remote peer's webserver enforces
+// requireFilesWrite (including its own CSRF Origin check) on the upstream side.
+
+// handleRemoteFilesWrite proxies PUT /api/files/remote/{sessionID}/write.
+func (a *API) handleRemoteFilesWrite(w http.ResponseWriter, r *http.Request) {
+	a.proxyRemoteFiles(w, r, "write")
+}
+
+// handleRemoteFilesUpload proxies POST /api/files/remote/{sessionID}/upload.
+func (a *API) handleRemoteFilesUpload(w http.ResponseWriter, r *http.Request) {
+	a.proxyRemoteFiles(w, r, "upload")
+}
+
+// handleRemoteFilesDelete proxies DELETE /api/files/remote/{sessionID}/delete.
+func (a *API) handleRemoteFilesDelete(w http.ResponseWriter, r *http.Request) {
+	a.proxyRemoteFiles(w, r, "delete")
+}
+
+// handleRemoteFilesRename proxies POST /api/files/remote/{sessionID}/rename.
+func (a *API) handleRemoteFilesRename(w http.ResponseWriter, r *http.Request) {
+	a.proxyRemoteFiles(w, r, "rename")
+}
+
+// handleRemoteFilesMkdir proxies POST /api/files/remote/{sessionID}/mkdir.
+func (a *API) handleRemoteFilesMkdir(w http.ResponseWriter, r *http.Request) {
+	a.proxyRemoteFiles(w, r, "mkdir")
+}
+
 // proxyRemoteFiles is the shared body for the three /api/files/remote/...
 // routes. It looks up the cap, builds the upstream URL with `?cap=<token>`
 // (mirroring the webserver's requireFilesRead pattern from Phase 119), issues
@@ -119,11 +156,12 @@ func (a *API) handleRemoteFilesRead(w http.ResponseWriter, r *http.Request) {
 // and copies upstream status + selected headers + body back to the caller.
 //
 // Per-status behavior:
-//   no cap registered locally    → 404 + JSON {"error": "no cap registered for session"}
-//   upstream 401                 → 401 (frontend treats as "cap rejected" — re-prompt for join code)
-//   upstream 403                 → 403 verbatim (frontend's PermissionDeniedTakeover already handles)
-//   upstream 2xx                 → 2xx verbatim
-//   upstream dial / TLS failure  → 502 + plain text (cap token redacted)
+//
+//	no cap registered locally    → 404 + JSON {"error": "no cap registered for session"}
+//	upstream 401                 → 401 (frontend treats as "cap rejected" — re-prompt for join code)
+//	upstream 403                 → 403 verbatim (frontend's PermissionDeniedTakeover already handles)
+//	upstream 2xx                 → 2xx verbatim
+//	upstream dial / TLS failure  → 502 + plain text (cap token redacted)
 func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string) {
 	sessionID := r.PathValue("sessionID")
 	if sessionID == "" {
@@ -166,10 +204,29 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 
 	upstreamURL := strings.TrimRight(baseURL, "/") + "/api/files/" + op + "?" + q.Encode()
 
-	req, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, nil)
+	// Forward the request body for write verbs (PUT, POST, PATCH). GET and HEAD
+	// reads are body-less; passing nil is correct for those. Forwarding r.Body
+	// opaquely (as a byte pipe) preserves multipart boundaries and
+	// application/json payloads without re-parsing them (CAP-10 / Pitfall 3).
+	var body io.Reader
+	if r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodPatch {
+		body = r.Body
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, body)
 	if err != nil {
 		http.Error(w, "build upstream request: "+redactCapTokenFromError(err, capToken), http.StatusInternalServerError)
 		return
+	}
+
+	// Forward the inbound Content-Type request header for write verbs so
+	// multipart boundaries and application/json payloads survive transit.
+	// The response-header forwarding (below) already handles response Content-Type;
+	// this block covers the request side which was previously not copied.
+	if body != nil {
+		if ct := r.Header.Get("Content-Type"); ct != "" {
+			req.Header.Set("Content-Type", ct)
+		}
 	}
 
 	client := a.remoteFilesClient()
@@ -217,4 +274,3 @@ func redactCapTokenFromError(err error, capToken string) string {
 	}
 	return strings.ReplaceAll(msg, capToken, "<redacted>")
 }
-
