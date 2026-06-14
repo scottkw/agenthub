@@ -11,6 +11,12 @@ findings:
   total: 11
 reviewed: 2026-06-14
 diff_base: 64f10b8
+resolution: fixed
+resolution_note: >
+  All 2 critical + 6 warning findings fixed (CR-01, CR-02, WR-01..WR-06) plus IN-03
+  (sentinel errors). Commits 1ea4d65, ffe1ea6, c601efc, ba0a4c0, and WR-06 fix.
+  go test -race green (files + daemon), gofmt + vet clean. IN-01 (duplicate
+  renameRequest struct) and IN-02 (magic constants) deferred — Info-only, minor tech debt.
 ---
 
 # Phase 123 Code Review — Write Sandbox Primitives + Daemon Routes
