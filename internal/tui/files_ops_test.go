@@ -600,34 +600,6 @@ func TestFilesNameInput_DispatchPriority(t *testing.T) {
 	})
 }
 
-// TestFiles_Phase126_Requirements is the per-phase traceability matrix.
-// It asserts the test set IS the contract for Phase 126 / TUIW-05.
-func TestFiles_Phase126_Requirements(t *testing.T) {
-	coverage := []struct {
-		req    string
-		covers []string
-	}{
-		{"TUIW-05", []string{
-			"TestFilesOpCmd",
-			"TestFilesDelete_ModalStateSet",
-			"TestFilesDelete_ConfirmHandler",
-			"TestFilesDelete_DispatchPriority",
-			"TestFilesRename",
-			"TestFilesMkdir",
-			"TestFilesDeleteModal_ColorblindSafeText",
-			"TestFilesNameInput_DispatchPriority",
-		}},
-	}
-	for _, c := range coverage {
-		t.Run(c.req, func(t *testing.T) {
-			if len(c.covers) == 0 {
-				t.Fatalf("%s has no coverage", c.req)
-			}
-			t.Logf("%s covered by: %s", c.req, strings.Join(c.covers, ", "))
-		})
-	}
-}
-
 // fmtTypes is a helper for test error messages.
 func fmtTypes(cmds []tea.Cmd) []string {
 	types := make([]string, 0, len(cmds))

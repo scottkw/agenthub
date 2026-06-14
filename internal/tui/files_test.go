@@ -848,14 +848,18 @@ var _ = ansi.Strip
 // The test file itself is allowed to call os.ReadFile (we are READING the
 // production source). The production source must contain ZERO matches.
 func TestFiles_NoSyncFSCalls(t *testing.T) {
-	files := []string{
+	gatedFiles := []string{
 		"files.go",
 		"files_cmds.go",
 	}
-	// Match os.ReadDir, os.Open, os.OpenFile, os.Stat with word boundaries.
-	re := regexp.MustCompile(`\bos\.(ReadDir|Open|OpenFile|Stat)\b`)
+	// Match os.ReadDir, os.Open, os.OpenFile, os.Stat (original read-path gate)
+	// AND os.Create, os.Remove, os.ReadFile, os.WriteFile (TUIW-07 extension for
+	// write commands). The editor temp-file I/O (os.CreateTemp / os.ReadFile /
+	// os.Remove) lives in files_edit.go which is deliberately NOT in this list —
+	// it runs inside tea.Cmd closures, keeping the Update-path files pure.
+	re := regexp.MustCompile(`\bos\.(ReadDir|Open|OpenFile|Stat|Create|Remove|ReadFile|WriteFile)\b`)
 	commentLine := regexp.MustCompile(`^\s*//`)
-	for _, name := range files {
+	for _, name := range gatedFiles {
 		data, err := os.ReadFile(name)
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
@@ -874,6 +878,31 @@ func TestFiles_NoSyncFSCalls(t *testing.T) {
 					name, i+1, strings.TrimSpace(line))
 			}
 		}
+	}
+}
+
+// TestFilesUpload_Descoped verifies TUIW-06: pressing "u" in the Files view
+// sets the status-line error to the verbatim upload-descope message and returns
+// no write command. Upload is the one documented parity gap between TUI and
+// GUI/web (Phase 126 SC#4). The on-screen message is locked; see
+// uploadDescoped const in files.go.
+func TestFilesUpload_Descoped(t *testing.T) {
+	m := filesKeyTestModel()
+	updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: 'u'})
+	u := updated.(Model)
+
+	// Must show exactly the verbatim descope copy.
+	const want = "Use desktop or web to upload files."
+	if u.files.err == nil {
+		t.Fatalf("TUIW-06: expected files.err to be set after 'u' key; got nil")
+	}
+	if got := u.files.err.Error(); got != want {
+		t.Errorf("TUIW-06: wrong descope message\n  got:  %q\n  want: %q", got, want)
+	}
+
+	// Must not dispatch any write command.
+	if cmd != nil {
+		t.Errorf("TUIW-06: 'u' key must return nil cmd (no write attempted); got %T", cmd)
 	}
 }
 
@@ -1142,6 +1171,70 @@ func TestFiles_Phase121_Requirements(t *testing.T) {
 			"TestFiles_HandleKey_DispatchPriority",
 			"TestFiles_HandleKey_DispatchPriority_BelowKillConfirm",
 			"TestFiles_KeyDispatchPriority_AboveTabCycling_BelowHelp",
+		}},
+	}
+	for _, c := range coverage {
+		t.Run(c.req, func(t *testing.T) {
+			if len(c.covers) == 0 {
+				t.Fatalf("%s has no coverage", c.req)
+			}
+			t.Logf("%s covered by: %s", c.req, strings.Join(c.covers, ", "))
+		})
+	}
+}
+
+// TestFiles_Phase126_Requirements is the TUIW-XX → test-name traceability
+// matrix for Phase 126 (TUI write parity + $EDITOR shell-out). Mirrors the
+// established Phase 121 convention: each row names the requirement ID and the
+// test(s) that exercise it. A zero-length covers list is a hard failure.
+func TestFiles_Phase126_Requirements(t *testing.T) {
+	coverage := []struct {
+		req    string
+		covers []string
+	}{
+		{"TUIW-01", []string{
+			// Compile-time guard: var _ FilesClient = (*daemon.DaemonClient)(nil)
+			// in files_client.go fails the build if signatures diverge.
+			// Runtime: RemoteFilesClient satisfies the interface (round-trip tests).
+			"TestRemoteFilesClient_SatisfiesInterface",
+			"TestRemoteFilesClient_Write",
+			"TestRemoteFilesClient_Delete",
+			"TestRemoteFilesClient_Rename",
+			"TestRemoteFilesClient_Mkdir",
+		}},
+		{"TUIW-02", []string{
+			// e key dispatches editFetchCmd; write-back runs in tea.Cmd.
+			"TestHandleFilesKey_Edit",
+		}},
+		{"TUIW-03", []string{
+			// resolveEditor chain ($EDITOR→$VISUAL→nano→vim→vi) + no-editor error.
+			"TestResolveEditor",
+			"TestHandleFilesKey_Edit",
+		}},
+		{"TUIW-04", []string{
+			// editorExitMsg → tea.ClearScreen + loadDirCmd unconditionally.
+			"TestEditorExit_RefreshesUnconditionally",
+		}},
+		{"TUIW-05", []string{
+			// d/r/m affordances: delete-confirm modal, inline rename/mkdir, priority dispatch.
+			"TestFilesOpCmd",
+			"TestFilesDelete_ModalStateSet",
+			"TestFilesDelete_ConfirmHandler",
+			"TestFilesDelete_DispatchPriority",
+			"TestFilesRename",
+			"TestFilesMkdir",
+			"TestFilesDeleteModal_ColorblindSafeText",
+			"TestFilesNameInput_DispatchPriority",
+		}},
+		{"TUIW-06", []string{
+			// u key → verbatim upload-descope message; no write attempted.
+			"TestFilesUpload_Descoped",
+		}},
+		{"TUIW-07", []string{
+			// Static-grep gate: files.go + files_cmds.go contain no forbidden os.*
+			// (broadened to include Create|Remove|ReadFile|WriteFile for write commands).
+			"TestFiles_NoSyncFSCalls",
+			"TestLoadDirCmd_DispatchesAsync",
 		}},
 	}
 	for _, c := range coverage {
