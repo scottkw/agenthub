@@ -510,6 +510,11 @@ func (ws *WebServer) setupRoutes() {
 	// Verbs are frozen by the daemon socket side (internal/daemon/api.go:149-153)
 	// — the webserver tier adds only the requireFilesWrite gate (Phase 124).
 	mux.HandleFunc("PUT /api/files/write", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Write })))
+	// CR-02: HEAD on the write route lets probeWrite (useFilesCapability) reach
+	// the requireFilesWrite middleware so a 403-with-"files.write" is returned
+	// when the cap lacks the perm. Without this, Go's mux returns 405 before
+	// the middleware fires, making the probe fail-open to canWrite=true.
+	mux.HandleFunc("HEAD /api/files/write", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Write })))
 	mux.HandleFunc("POST /api/files/upload", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Upload })))
 	mux.HandleFunc("DELETE /api/files/delete", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Delete })))
 	mux.HandleFunc("POST /api/files/rename", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Rename })))

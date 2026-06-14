@@ -257,6 +257,48 @@ func TestFilesRoutes_DeleteReturns405_Stat(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// CR-02: HEAD /api/files/write probe — canWrite gate
+// ---------------------------------------------------------------------------
+
+// TestFilesRoutes_HeadWrite_WithFilesWrite_Returns200 asserts that
+// HEAD /api/files/write with a cap carrying files.write returns 200.
+// This is the web-share probeWrite path: the middleware fires, perm passes,
+// Handler.Write short-circuits HEAD with 200+no-body.
+func TestFilesRoutes_HeadWrite_WithFilesWrite_Returns200(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,write,files.read,files.write")
+
+	resp, body := doRequest(t, client, http.MethodHead, fileURL(ws, "/api/files/write", sid, ".", token))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for HEAD /write with files.write cap, got %d (body=%s)", resp.StatusCode, string(body))
+	}
+	if len(body) != 0 {
+		t.Errorf("expected empty body for HEAD, got %d bytes: %q", len(body), body)
+	}
+}
+
+// TestFilesRoutes_HeadWrite_WithoutFilesWrite_Returns403 asserts that
+// HEAD /api/files/write with a cap lacking files.write returns 403 with
+// body containing "files.write" — the exact signal useFilesCapability uses
+// to resolve canWrite=false. Without the HEAD registration (CR-02 bug),
+// the mux returned 405 before requireFilesWrite fired, making the probe
+// always fail-open to canWrite=true.
+func TestFilesRoutes_HeadWrite_WithoutFilesWrite_Returns403(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	// files.write perm is intentionally absent; viewer has only files.read.
+	token := issueCapFor(t, ws, sid, "read,files.read")
+
+	resp, body := doRequest(t, client, http.MethodHead, fileURL(ws, "/api/files/write", sid, ".", token))
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 for HEAD /write without files.write cap, got %d", resp.StatusCode)
+	}
+	// HEAD body is empty in HTTP semantics, but Go's http.Error DOES set the
+	// body — doRequest reads it; just verify the status code is 403 which is
+	// the load-bearing signal for isMissingFilesWritePerm().
+	_ = body // status code alone is the contract for HEAD
+}
+
+// ---------------------------------------------------------------------------
 // Nil filesHandler → 503 (defense-in-depth, Pitfall 2 mitigation)
 // ---------------------------------------------------------------------------
 

@@ -41,14 +41,21 @@ const maxUploadBytes = 50 << 20
 // string-prefix checks. (IN-03 / WR-02 robustness fix)
 var ErrPathValidation = errors.New("files: path validation error")
 
-// Write implements PUT /api/files/write. Reads the request body and calls
-// sb.WriteFileAtomic(relPath, data) to durably persist the content via the
-// temp+Sync+rename atomic write pattern (FSW-01). On success it responds 200
-// with a FileWriteResponse JSON body. (FSW-08 success criterion #2)
+// Write implements PUT /api/files/write (and HEAD /api/files/write for the
+// canWrite probe — CR-02). HEAD returns 200 + no body immediately after
+// session resolution so the capability middleware (requireFilesWrite) fires
+// before any body-read work, making the 403-with-"files.write" signal
+// reachable from the frontend probeWrite call in useFilesCapability.
 func (h *Handler) Write(w http.ResponseWriter, r *http.Request) {
 	sb, _, err := h.sandboxFor(r)
 	if err != nil {
 		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+	// CR-02: short-circuit HEAD before reading the body. The requireFilesWrite
+	// middleware already ran (perm check passed), so 200 = "write is permitted."
+	if r.Method == http.MethodHead {
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 	// WR-01: missing/empty path on a write verb is a client error → 400.
@@ -83,7 +90,11 @@ func (h *Handler) Write(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "read body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := sb.WriteFileAtomic(rel, data); err != nil {
+	// Thread the expected validator into WriteFileAtomic for the CR-01 re-check
+	// immediately before rename (narrowing the TOCTOU window). Wildcard ("*")
+	// or absent header bypasses the re-check (force-overwrite / new-file path).
+	ifMatchForWrite := r.Header.Get("If-Match")
+	if err := sb.WriteFileAtomic(rel, data, ifMatchForWrite); err != nil {
 		writeWriteError(w, err)
 		return
 	}
@@ -112,7 +123,15 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	// This is the FSW-12 / T-123-13 enforcement point.
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 	if err := r.ParseMultipartForm(8 << 20); err != nil {
-		http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+		// IN-05: distinguish the cap error (413) from a malformed multipart body (400).
+		// ParseMultipartForm wraps *http.MaxBytesError when the cap fires; any other
+		// error is a shape problem in the client request (truncated boundary, etc.).
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		http.Error(w, "malformed multipart form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	dir := r.FormValue("dir")
@@ -248,6 +267,8 @@ func (h *Handler) Mkdir(w http.ResponseWriter, r *http.Request) {
 //   - everything else         → 500
 func writeWriteError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrPreconditionFailed):
+		http.Error(w, "file modified by another process", http.StatusPreconditionFailed)
 	case errors.Is(err, ErrProtectedSystemFile):
 		http.Error(w, "Protected system file", http.StatusForbidden)
 	case errors.Is(err, ErrPathValidation):

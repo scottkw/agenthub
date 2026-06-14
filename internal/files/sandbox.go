@@ -66,6 +66,12 @@ func (s *Sandbox) RootPath() string {
 // package-wide error-string convention (FSW-06).
 var ErrProtectedSystemFile = errors.New("files: protected system file")
 
+// ErrPreconditionFailed is returned by WriteFileAtomic when the caller
+// supplied a non-empty expectedValidator and the on-disk file's validator
+// no longer matches immediately before the rename. This narrows the TOCTOU
+// window to stat→rename (CR-01 fix). The HTTP handler maps this to 412.
+var ErrPreconditionFailed = errors.New("files: precondition failed: file modified by another process")
+
 // denylistCheck returns ErrProtectedSystemFile if the write target
 // (identified by the cleaned relative path) resolves to a sensitive file
 // under $HOME. It operates on the resolved absolute path so the check fires
@@ -184,6 +190,16 @@ func (s *Sandbox) Stat(relPath string) (os.FileInfo, error) {
 // never observes an empty or partial file because the old inode is visible
 // until the rename completes (FSW-01, RESEARCH §Pattern 1).
 //
+// expectedValidator, when non-empty and not "*", enables CR-01 TOCTOU
+// mitigation: the validator (mtime-UnixNano + size, quoted) is re-checked
+// immediately before root.Rename. If the on-disk value no longer matches,
+// ErrPreconditionFailed is returned and the temp file is removed. This
+// narrows the optimistic-concurrency check window to stat→rename, the
+// minimum achievable without OS-level atomic-compare-and-swap. A residual
+// window (stat fires → another writer lands → rename executes) exists but
+// is microscopic on a local filesystem; it cannot be eliminated without
+// kernel support (e.g. renameat2 RENAME_NOREPLACE is not sufficient here).
+//
 // The temp file is a sibling of the target (same directory) so the rename
 // is intra-filesystem and atomic. The suffix uses crypto/rand to make name
 // collisions between concurrent writers practically impossible; O_EXCL on
@@ -195,7 +211,7 @@ func (s *Sandbox) Stat(relPath string) (os.FileInfo, error) {
 //
 // Writes via temp file only; never in-place truncate. Temp stays inside the
 // sandbox root so the rename is always intra-filesystem (FSW-01).
-func (s *Sandbox) WriteFileAtomic(relPath string, content []byte) error {
+func (s *Sandbox) WriteFileAtomic(relPath string, content []byte, expectedValidator ...string) error {
 	cleaned, err := validateAndClean(relPath)
 	if err != nil {
 		return err
@@ -235,6 +251,28 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte) error {
 	if err := f.Close(); err != nil {
 		_ = root.Remove(tmp)
 		return fmt.Errorf("files: close temp: %w", err)
+	}
+
+	// CR-01 TOCTOU mitigation: re-check the validator immediately before the
+	// rename to narrow the optimistic-concurrency window to stat→rename.
+	// A residual (microscopic) window remains — see WriteFileAtomic doc comment.
+	validator := ""
+	if len(expectedValidator) > 0 {
+		validator = expectedValidator[0]
+	}
+	if validator != "" && validator != "*" {
+		if fi, err := root.Stat(cleaned); err == nil {
+			cur := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+			if cur != validator {
+				_ = root.Remove(tmp)
+				return ErrPreconditionFailed
+			}
+		}
+		// If Stat returns an error (file does not exist), allow the rename —
+		// the caller's pre-write Stat in Handler.Write already verified existence;
+		// a missing file here means another writer deleted it, which is fine for
+		// a new-file write and benign for an existing-file write (the rename will
+		// create it atomically).
 	}
 
 	// Rename temp → target atomically. On Windows a bounded retry loop

@@ -11,6 +11,7 @@ package files_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -725,5 +726,129 @@ func TestWrite_IfMatch_NewFile(t *testing.T) {
 	}
 	if !bytes.Equal(got, content) {
 		t.Errorf("disk content = %q; want %q", got, content)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CR-01: TOCTOU validator re-check inside WriteFileAtomic
+// ---------------------------------------------------------------------------
+
+// TestWriteFileAtomic_ValidatorRecheck verifies that WriteFileAtomic re-checks
+// the validator immediately before rename and returns ErrPreconditionFailed
+// when the file was modified between the caller's pre-write Stat and the
+// WriteFileAtomic call (simulating a concurrent writer landing between the two).
+func TestWriteFileAtomic_ValidatorRecheck(t *testing.T) {
+	tmp := t.TempDir()
+	sb, err := files.NewSandbox(tmp)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	// Seed the file.
+	initial := []byte("original")
+	absPath := filepath.Join(tmp, "recheck.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Capture the validator BEFORE a competing write changes the file.
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	validator := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+
+	// Simulate a concurrent write that lands AFTER we captured the validator.
+	if err := os.WriteFile(absPath, []byte("concurrent update"), 0o644); err != nil {
+		t.Fatalf("concurrent write: %v", err)
+	}
+
+	// Now WriteFileAtomic should detect the mismatch and return ErrPreconditionFailed.
+	writeErr := sb.WriteFileAtomic("recheck.txt", []byte("should not land"), validator)
+	if writeErr == nil {
+		t.Fatal("WriteFileAtomic returned nil; want ErrPreconditionFailed")
+	}
+	if !errors.Is(writeErr, files.ErrPreconditionFailed) {
+		t.Errorf("WriteFileAtomic error = %v; want ErrPreconditionFailed", writeErr)
+	}
+
+	// Verify the concurrent update is still on disk (our write did not land).
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, []byte("concurrent update")) {
+		t.Errorf("disk content = %q; want concurrent update content", got)
+	}
+}
+
+// TestWriteFileAtomic_ValidatorMatch verifies that WriteFileAtomic proceeds
+// when the validator matches the current on-disk state.
+func TestWriteFileAtomic_ValidatorMatch(t *testing.T) {
+	tmp := t.TempDir()
+	sb, err := files.NewSandbox(tmp)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	initial := []byte("before")
+	absPath := filepath.Join(tmp, "match2.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	validator := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+
+	// No concurrent modification — validator should still match.
+	if err := sb.WriteFileAtomic("match2.txt", []byte("after"), validator); err != nil {
+		t.Fatalf("WriteFileAtomic: %v", err)
+	}
+
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, []byte("after")) {
+		t.Errorf("disk content = %q; want \"after\"", got)
+	}
+}
+
+// TestWrite_IfMatch_RecheckViaHTTP verifies the HTTP handler maps
+// ErrPreconditionFailed (from the in-WriteFileAtomic re-check) to 412.
+// It simulates a mid-write file change by seeding a file, capturing its
+// validator, externally updating it, then issuing PUT with the stale validator.
+func TestWrite_IfMatch_RecheckViaHTTP(t *testing.T) {
+	h, root := newHandler(t)
+
+	initial := []byte("version-1")
+	absPath := filepath.Join(root, "recheck-http.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	etag := validatorFor(t, absPath)
+
+	// Concurrent write changes the file after we captured the etag.
+	if err := os.WriteFile(absPath, []byte("version-2-by-concurrent-writer"), 0o644); err != nil {
+		t.Fatalf("concurrent: %v", err)
+	}
+
+	// PUT with the now-stale validator: both the pre-write Stat check AND the
+	// in-WriteFileAtomic re-check should catch this; either way we get 412.
+	rr := invokeWrite(t, h, "recheck-http.txt", []byte("version-3-never-lands"), etag)
+	if rr.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d; want 412; body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Verify only version-2 is on disk.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, []byte("version-2-by-concurrent-writer")) {
+		t.Errorf("disk = %q; want version-2", got)
 	}
 }
