@@ -490,3 +490,185 @@ func TestExchangeJoinCode_SharedClientUnchanged(t *testing.T) {
 		t.Error("remoteFilesHTTPClient.CheckRedirect was mutated; it must remain nil")
 	}
 }
+
+// -------------------------------------------------------------------------
+// Phase 123 / Plan 04: DaemonClient write method round-trip tests (FSW-09).
+//
+// Each test spins up a tempdir-backed API via newFilesAPI and exercises the
+// five new DaemonClient write methods against the real Plan-03 routes:
+//
+//   WriteFile   → PUT  /api/files/write
+//   UploadFile  → POST /api/files/upload  (multipart)
+//   DeleteFile  → DELETE /api/files/delete
+//   RenameFile  → POST /api/files/rename  (JSON body)
+//   MkdirFile   → POST /api/files/mkdir
+//
+// Error and cancellation behaviour are also covered per the plan's
+// acceptance criteria.
+// -------------------------------------------------------------------------
+
+func TestDaemonClientWrite_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	content := []byte("hello from WriteFile")
+	resp, err := c.WriteFile(context.Background(), sid, "roundtrip.txt", content)
+	if err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if resp.Path != "roundtrip.txt" {
+		t.Errorf("WriteFile resp.Path = %q, want %q", resp.Path, "roundtrip.txt")
+	}
+	if resp.Size != int64(len(content)) {
+		t.Errorf("WriteFile resp.Size = %d, want %d", resp.Size, len(content))
+	}
+
+	// Follow-up read must return identical bytes.
+	got, _, err := c.ReadFile(context.Background(), sid, "roundtrip.txt")
+	if err != nil {
+		t.Fatalf("ReadFile after Write: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("ReadFile after Write = %q, want %q", string(got), string(content))
+	}
+}
+
+func TestDaemonClientUpload_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	content := []byte("uploaded bytes content")
+	resp, err := c.UploadFile(context.Background(), sid, ".", "upload.txt", content)
+	if err != nil {
+		t.Fatalf("UploadFile: %v", err)
+	}
+	if resp.Size != int64(len(content)) {
+		t.Errorf("UploadFile resp.Size = %d, want %d", resp.Size, len(content))
+	}
+
+	got, _, err := c.ReadFile(context.Background(), sid, "upload.txt")
+	if err != nil {
+		t.Fatalf("ReadFile after Upload: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("ReadFile after Upload = %q, want %q", string(got), string(content))
+	}
+}
+
+func TestDaemonClientDelete_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	// Pre-populate a file to delete.
+	if err := os.WriteFile(filepath.Join(tmp, "todelete.txt"), []byte("bye"), 0600); err != nil {
+		t.Fatalf("WriteFile seed: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.DeleteFile(context.Background(), sid, "todelete.txt")
+	if err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("DeleteFile resp.OK = false, want true")
+	}
+
+	// Stat should now return a 404 error.
+	_, err = c.StatFile(context.Background(), sid, "todelete.txt")
+	if err == nil {
+		t.Fatal("StatFile after Delete returned nil err; want non-nil (file gone)")
+	}
+}
+
+func TestDaemonClientRename_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "old.txt"), []byte("rename me"), 0600); err != nil {
+		t.Fatalf("WriteFile seed: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.RenameFile(context.Background(), sid, "old.txt", "new.txt")
+	if err != nil {
+		t.Fatalf("RenameFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("RenameFile resp.OK = false, want true")
+	}
+	if opResp.Path != "new.txt" {
+		t.Errorf("RenameFile resp.Path = %q, want %q", opResp.Path, "new.txt")
+	}
+
+	// new.txt must be readable; old.txt must be gone.
+	got, _, err := c.ReadFile(context.Background(), sid, "new.txt")
+	if err != nil {
+		t.Fatalf("ReadFile new.txt after Rename: %v", err)
+	}
+	if string(got) != "rename me" {
+		t.Errorf("ReadFile new.txt = %q, want %q", string(got), "rename me")
+	}
+	_, err = c.StatFile(context.Background(), sid, "old.txt")
+	if err == nil {
+		t.Fatal("StatFile old.txt after Rename returned nil err; want non-nil (file moved)")
+	}
+}
+
+func TestDaemonClientMkdir_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.MkdirFile(context.Background(), sid, "newdir/subdir")
+	if err != nil {
+		t.Fatalf("MkdirFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("MkdirFile resp.OK = false, want true")
+	}
+
+	// The directory must appear in the listing.
+	entries, _, err := c.ListFiles(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("ListFiles after Mkdir: %v", err)
+	}
+	var found bool
+	for _, e := range entries {
+		if e.Name == "newdir" && e.IsDir {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("newdir not found in listing after Mkdir; entries = %+v", entries)
+	}
+}
+
+func TestDaemonClientWrite_NonOKError(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	c := NewDaemonClient(sock)
+
+	// Traversal path triggers 403 from the server — surfaces as a typed error.
+	_, err := c.WriteFile(context.Background(), sid, "../../escape.txt", []byte("x"))
+	if err == nil {
+		t.Fatal("WriteFile traversal returned nil err; want non-nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "403") && !strings.Contains(strings.ToLower(msg), "access denied") {
+		t.Errorf("WriteFile traversal err = %q; want substring '403' or 'access denied'", msg)
+	}
+}
+
+func TestDaemonClientWrite_ContextCancel(t *testing.T) {
+	// Use a cancelled context — the HTTP dial should abort before any bytes fly.
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	c := NewDaemonClient(sock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	_, err := c.WriteFile(ctx, sid, "noop.txt", []byte("x"))
+	if err == nil {
+		t.Fatal("WriteFile with cancelled ctx returned nil err; want non-nil")
+	}
+}
