@@ -362,19 +362,22 @@ case editorExitMsg:
 | A3 | Remote write via `RemoteFilesClient` is implemented + unit-tested in Phase 126, but full two-machine remote write parity UAT is Phase 128's gate (per ROADMAP). | Pitfall 2 / Open Questions | If Phase 126 is expected to fully prove remote write end-to-end, scope expands. ROADMAP clearly assigns remote parity to 128, so low risk. |
 | A4 | The no-editor error and the upload-descope message are surfaced via `m.files.err` (status line) / status copy, consistent with existing Files error display. | resolveEditor / Upload Descope | If a toast is preferred, trivial change. Negligible risk. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Literal "sandbox-absolute path" vs temp-file round-trip (the one real design fork).**
+   RESOLVED: temp-file round-trip adopted (ARCHITECTURE.md §5.3/§7.3; preserves local+remote parity).
    - What we know: Milestone ARCHITECTURE.md §5.3 + §7.3 + SUMMARY.md all specify read-to-temp + WriteFile-back, working uniformly for local+remote. The TUI has NO client method to obtain a session's absolute work dir (verified: `DaemonClient` exposes no `GetSessionWorkDir`; resolution is server-side only, api.go:85).
    - What's unclear: The CONTEXT/ROADMAP success criterion literally says "spawn `$EDITOR` … with the sandbox-absolute path." Taken literally for local sessions, that would require either a new daemon client method or having the TUI compute the abs path — and it would break remote parity.
    - Recommendation: Implement the temp-file round-trip (A1). Surface this in discuss-phase / plan as the resolved interpretation. If the user insists on literal in-place editing for *local* sessions, that is a divergent design (local fast-path edits abs path; remote falls back to temp round-trip) — more code, breaks the "one pipeline" parity elegance, and needs a new `GetSessionWorkDir` client method. Flag before locking.
 
 2. **Does the remote write path's cap carry `files.write`, and does the remote webserver accept TUI-originated writes?**
+   RESOLVED: RemoteFilesClient write methods implemented + httptest.TLSServer tested now, two-machine UAT deferred to Phase 128.
    - What we know: TUI uses `RemoteFilesClient` directly (no proxy). Phase 124 adds `requireFilesWrite` + cap issuance; Phase 128 owns remote write parity.
    - What's unclear: Whether the join-code-exchanged cap the TUI holds includes `files.write` by the time Phase 126 ships (Phase 124 controls issuance; build order has 124 before 126).
    - Recommendation: Implement `RemoteFilesClient` write methods + an `httptest.TLSServer` round-trip unit test now. Defer the live two-machine remote write UAT to Phase 128 (its stated gate). Don't block Phase 126 on remote infra.
 
 3. **Recursive directory delete confirmation copy + behavior.**
+   RESOLVED: recursive-dir delete uses confirm dialog with the kill-confirm pattern (child-count display optional/at executor discretion).
    - What we know: Server-side `Handler.Delete` supports recursive dir delete (Phase 123); CONTEXT locks "recursive delete for dirs."
    - What's unclear: Whether to show the child count before deleting (PITFALLS.md §14 UX suggestion) — nice-to-have, not locked.
    - Recommendation: Distinct confirm copy for dirs (`Delete directory "x" and all contents?`). Child-count display is optional polish; defer unless trivial.
