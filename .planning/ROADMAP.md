@@ -324,11 +324,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 4. `DaemonClient.ExchangeJoinCodeAtURL` correctly parses a `303 Location: ...?cap=<token>` response (TD-5 fixed): a desktop GUI can now acquire a remote session cap without silent failure, unblocking all remote-write testing in Phase 128.
 5. `go test ./internal/files/... ./internal/daemon/...` is green with the race detector enabled; the five daemon write routes (`PUT /api/files/write`, `POST /api/files/upload`, `DELETE /api/files/delete`, `POST /api/files/rename`, `POST /api/files/mkdir`) are accessible on the local Unix socket with no authentication required (loopback trust, WEB-01 precedent).
 
-**Plans:** 4 plans in 3 waves
+**Plans:** 2/4 plans executed
 
 Plans:
-- [ ] 123-01-PLAN.md — Sandbox write primitives (atomic write, rename, mkdir, delete) + shell-RC denylist + FuzzSandboxWrite (FSW-01..04, 06, 07)
-- [ ] 123-02-PLAN.md — TD cleanup: TD-5 ExchangeJoinCodeAtURL 303 parse + TD-4 WR-03/04/05 hardening (FSW-10, 11)
+- [x] 123-01-PLAN.md — Sandbox write primitives (atomic write, rename, mkdir, delete) + shell-RC denylist + FuzzSandboxWrite (FSW-01..04, 06, 07)
+- [x] 123-02-PLAN.md — TD cleanup: TD-5 ExchangeJoinCodeAtURL 303 parse + TD-4 WR-03/04/05 hardening (FSW-10, 11)
 - [ ] 123-03-PLAN.md — HTTP write handlers + 5 auth-less daemon routes + 50 MiB upload cap (FSW-05, 08, 12)
 - [ ] 123-04-PLAN.md — DaemonClient write methods (FSW-09)
 
@@ -484,7 +484,7 @@ Plans:
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
-| 123 | v3.5 | 0/4 | Not started | - |
+| 123 | v3.5 | 2/4 | In Progress|  |
 | 124 | v3.5 | 0/TBD | Not started | - |
 | 125 | v3.5 | 0/TBD | Not started | - |
 | 126 | v3.5 | 0/TBD | Not started | - |
