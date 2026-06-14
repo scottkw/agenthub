@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -209,4 +210,127 @@ func (c *RemoteFilesClient) HeadFile(ctx context.Context, sid, rel string) (int6
 		}
 	}
 	return size, resp.Header.Get("Content-Type"), mtime, nil
+}
+
+// WriteFile writes data to relPath inside the remote session sandbox via PUT
+// /api/files/write with Content-Type application/octet-stream. Returns a
+// FileWriteResponse on 200. Mirrors DaemonClient.WriteFile (client.go:513-533).
+//
+// CAP-LEAK invariant (T-126-01): error strings interpolate only (statusCode,
+// body) — never the full URL (which carries cap=).
+func (c *RemoteFilesClient) WriteFile(ctx context.Context, sid, rel string, data []byte) (files.FileWriteResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.filesURL("write", sid, rel), bytes.NewReader(data))
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("remote files write: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("remote files write: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileWriteResponse{}, fmt.Errorf("remote files write: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileWriteResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("remote files write: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// DeleteFile removes relPath inside the remote session sandbox via DELETE
+// /api/files/delete. Returns FileOpResponse{OK: true} on success. Mirrors
+// DaemonClient.DeleteFile (client.go:582-601).
+//
+// CAP-LEAK invariant (T-126-01): error strings interpolate only (statusCode,
+// body) — never the full URL.
+func (c *RemoteFilesClient) DeleteFile(ctx context.Context, sid, rel string) (files.FileOpResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.filesURL("delete", sid, rel), nil)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files delete: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files delete: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("remote files delete: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files delete: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// remoteRenameRequest is the JSON body sent to POST /api/files/rename.
+// Mirrors daemon.renameRequest (client.go:604-607).
+type remoteRenameRequest struct {
+	OldRel string `json:"oldRel"`
+	NewRel string `json:"newRel"`
+}
+
+// RenameFile moves oldRel to newRel inside the remote session sandbox via POST
+// /api/files/rename with a JSON body. Both paths are validated server-side.
+// Mirrors DaemonClient.RenameFile (client.go:612-637).
+//
+// CAP-LEAK invariant (T-126-01): error strings interpolate only (statusCode,
+// body) — never the full URL.
+func (c *RemoteFilesClient) RenameFile(ctx context.Context, sid, oldRel, newRel string) (files.FileOpResponse, error) {
+	body := remoteRenameRequest{OldRel: oldRel, NewRel: newRel}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files rename: marshal request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.filesURL("rename", sid, "."), bytes.NewReader(b))
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files rename: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files rename: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body2, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("remote files rename: %d %s", resp.StatusCode, strings.TrimSpace(string(body2)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files rename: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// MkdirFile creates relPath (and all missing parent directories) inside the
+// remote session sandbox via POST /api/files/mkdir. The target path is passed
+// via filesURL's path query parameter. Mirrors DaemonClient.MkdirFile
+// (client.go:642-661).
+//
+// CAP-LEAK invariant (T-126-01): error strings interpolate only (statusCode,
+// body) — never the full URL.
+func (c *RemoteFilesClient) MkdirFile(ctx context.Context, sid, rel string) (files.FileOpResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.filesURL("mkdir", sid, rel), nil)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: decode response: %w", err)
+	}
+	return out, nil
 }
