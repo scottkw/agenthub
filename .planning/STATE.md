@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: File Browser — Write Operations & Editor
-status: executing
+status: completed
 stopped_at: v3.5 roadmap created
-last_updated: "2026-06-14T15:14:39.186Z"
-last_activity: 2026-06-14 -- Phase 123 execution started
+last_updated: "2026-06-14T16:26:06.312Z"
+last_activity: 2026-06-14 -- Phase 123 marked complete
 progress:
-  total_phases: 1
+  total_phases: 6
   completed_phases: 0
-  total_plans: 4
-  completed_plans: 0
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 ## Current Position
 
-Phase: 123 (TD Cleanup + Write Sandbox Primitives + Daemon Routes) — EXECUTING
+Phase: 123 — COMPLETE
 Plan: 1 of 4
-Status: Executing Phase 123
-Last activity: 2026-06-14 -- Phase 123 execution started
+Status: Phase 123 complete
+Last activity: 2026-06-14 -- Phase 123 marked complete
 
 ```
 v3.5 Progress: [                    ] 0% (0/6 phases)
