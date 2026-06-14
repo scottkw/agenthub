@@ -14,7 +14,18 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 
 ## Latest Release
 
-**v3.3.2 — Dependency maintenance** (2026-05-19) — patch release rolling forward direct dependencies (`tailscale.com` 1.96.5, `nfpm/v2` 2.46.3, `golang.org/x/term` 0.42.0, `bubbletea/v2` 2.0.6, `godbus/v5` 5.2.2, plus `pnpm/action-setup` 6.0.8 in CI) and transitive security-relevant bumps (`x/crypto` 0.50.0, `x/net` 0.52.0, `go-git` 5.18.0, `ProtonMail/go-crypto` 1.4.1). No user-visible behavior changes from v3.3.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.3.2).
+**v3.4 — File Browser (Read-Only) + TUI Parity** (2026-06-13) — browse, preview, and download files from any session across all three surfaces, including remote tailnet sessions.
+
+- **Sandboxed read-only file browser** ([#62](https://github.com/scottkw/agenthub/issues/62)) — list, preview, and download files scoped to each session's working directory. TOCTOU-safe `os.OpenRoot`-based sandbox (Go 1.24+ kernel-level path resolution), 5 MB read cap with HTTP Range support, fuzz-gated against 40+ path-traversal payloads.
+- **Capability-gated web-share access** — a new `files.read` capability bit gates `/api/files/*`; session owners hold it by default, web-share viewers do not (opt-in). Viewers without it get an explicit 403, never a silent failure.
+- **Desktop + web-share UI** — React `FileBrowserTab` with single-pane file list + side-by-side preview, GFM markdown rendering, inline image previews, `/`-activated type-ahead filter, a breadcrumb bounded at the session root, and resizable list/preview columns.
+- **TUI parity** ([#64](https://github.com/scottkw/agenthub/issues/64)) — full Files view in the Bubble Tea TUI: two-pane list + preview with glamour markdown, `/` filter, and async-only filesystem I/O that never blocks the render loop.
+- **Remote-session file browse** — browse files on sessions hosted by other tailnet machines from desktop and TUI via a daemon proxy + join-code capability exchange; byte-equivalent results proven across Go and browser clients.
+- **Post-milestone fixes** — Wails webview CORS for `/api/files/*`, clickable breadcrumb root, size/mtime population in the list, a native save dialog for desktop downloads, and resizable Size/Modified columns with persistence.
+
+Closes [#62](https://github.com/scottkw/agenthub/issues/62) and the TUI-parity slice of [#64](https://github.com/scottkw/agenthub/issues/64).
+
+**v3.3.2 — Dependency maintenance** (2026-05-19) — patch release rolling forward direct dependencies and transitive security-relevant bumps. No user-visible behavior changes from v3.3.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.3.2).
 
 **v3.3.1 — Bug Sweep** (2026-05-19) — patch release closing all known bugs in v3.3.
 
@@ -26,7 +37,7 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.3.2: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.3.2) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v3.4: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.4) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
