@@ -132,23 +132,39 @@ func (c *DaemonClient) ExchangeJoinCodeAtURL(remoteBaseURL, code string) (string
 
 	loc := resp.Header.Get("Location")
 
-	// Error-shape Location: /join?error=<kind> — map kind onto the modal
-	// error-substring contract (mirrors joincode_prompt.go:186-194).
-	if strings.Contains(loc, "/join?error=") {
-		kind := strings.TrimPrefix(loc, "/join?error=")
-		// Strip any extra query suffix.
-		if i := strings.IndexByte(kind, '&'); i >= 0 {
-			kind = kind[:i]
-		}
+	// WR-05: parse Location once and read the error query param via the
+	// url package rather than string surgery. This handles absolute error
+	// URLs (e.g. https://host/join?error=expired) correctly and avoids
+	// the TrimPrefix-on-Contains mismatch where an absolute URL like
+	// "https://host/join?error=expired" would not strip the prefix and
+	// would return the full URL as the kind.
+	locURL, locParseErr := url.Parse(loc)
+
+	// Error-shape Location: path matches /join?error=<kind>
+	// Check via parsed URL path so absolute and relative forms both work.
+	if locParseErr == nil && locURL.Path == "/join" && locURL.Query().Get("error") != "" {
+		kind := locURL.Query().Get("error")
 		return "", fmt.Errorf("join exchange: %s", kind)
 	}
 
+	// WR-04: if the Location URL is absolute (has a host), assert its host
+	// and scheme match the request target (parsed.Host / parsed.Scheme) before
+	// accepting the cap token. With InsecureSkipVerify on the transport, a
+	// tailnet MITM could return a Location pointing at an attacker-controlled
+	// host carrying a forged cap token.
+	if locParseErr == nil && locURL.Host != "" {
+		if locURL.Host != parsed.Host || locURL.Scheme != parsed.Scheme {
+			return "", fmt.Errorf("join exchange: no cap in location (invalid)")
+		}
+	}
+
 	// Success-shape Location: /sessions/<id>?cap=<token>.
-	u, err := url.Parse(loc)
-	if err != nil {
+	// Re-use the already-parsed locURL if parse succeeded; otherwise re-parse
+	// (should not happen given the checks above, but be defensive).
+	if locParseErr != nil {
 		return "", fmt.Errorf("join exchange: bad location header")
 	}
-	capTok := u.Query().Get("cap")
+	capTok := locURL.Query().Get("cap")
 	if capTok == "" {
 		return "", fmt.Errorf("join exchange: no cap in location (invalid)")
 	}

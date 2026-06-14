@@ -491,6 +491,83 @@ func TestExchangeJoinCode_SharedClientUnchanged(t *testing.T) {
 	}
 }
 
+// TestExchangeJoinCode_AbsoluteLocationHostMismatch: 303 with an absolute
+// Location pointing at a different host → error containing "invalid" (WR-04).
+// With InsecureSkipVerify on the dedicated transport, a tailnet MITM could
+// return Location: https://attacker/sessions/x?cap=STEAL — the host check
+// must reject it before returning the cap token.
+func TestExchangeJoinCode_AbsoluteLocationHostMismatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return an absolute Location whose host differs from the request target.
+		http.Redirect(w, r, "https://attacker.example.com/sessions/x?cap=STOLEN", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err == nil {
+		t.Fatal("want error for mismatched Location host, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("error %q should contain 'invalid' for mismatched host", err.Error())
+	}
+}
+
+// TestExchangeJoinCode_AbsoluteLocationSameHost: absolute Location with the
+// same host and scheme as the request target must succeed (WR-04 positive control).
+func TestExchangeJoinCode_AbsoluteLocationSameHost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/join/exchange" {
+			// Return an absolute Location pointing at the same host.
+			http.Redirect(w, r, "http://"+r.Host+"/sessions/abc?cap=TOKEN_ABS", http.StatusSeeOther)
+		}
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL with same-host absolute Location: %v", err)
+	}
+	if tok != "TOKEN_ABS" {
+		t.Errorf("token = %q, want %q", tok, "TOKEN_ABS")
+	}
+}
+
+// TestExchangeJoinCode_WR05_AbsoluteErrorLocation: absolute Location of the
+// form "http://host/join?error=expired" must extract error kind via url.Parse
+// (WR-05). The old strings.TrimPrefix approach would return the full URL as
+// the kind; the new url.Parse approach extracts just "expired".
+func TestExchangeJoinCode_WR05_AbsoluteErrorLocation(t *testing.T) {
+	cases := []struct {
+		kind    string
+		wantSub string
+	}{
+		{"expired", "expired"},
+		{"session-gone", "session-gone"},
+		{"not-found", "not-found"},
+		{"invalid", "invalid"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Return an ABSOLUTE error Location (same host, different path).
+				http.Redirect(w, r, "http://"+r.Host+"/join?error="+tc.kind, http.StatusSeeOther)
+			}))
+			defer srv.Close()
+
+			c := &DaemonClient{}
+			_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+			if err == nil {
+				t.Fatalf("want error containing %q, got nil", tc.wantSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantSub) {
+				t.Errorf("error %q does not contain %q (WR-05: absolute error Location not parsed correctly)", err.Error(), tc.wantSub)
+			}
+		})
+	}
+}
+
 // -------------------------------------------------------------------------
 // Phase 123 / Plan 04: DaemonClient write method round-trip tests (FSW-09).
 //
