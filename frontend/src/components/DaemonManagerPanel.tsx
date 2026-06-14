@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import type { SessionInfo } from '../wailsjs/go/main/App'
-import { IssueCapabilities, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
+import { IssueCapabilities, SetSessionFilesWrite, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
 import { ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
 import { SessionSharePanel } from './SessionSharePanel'
+import { HomeDirWriteWarning } from './HomeDirWriteWarning'
 
 export interface DaemonManagerPanelProps {
   sessions: SessionInfo[]
@@ -24,6 +25,8 @@ interface SessionShare {
   writeURL: string
   readCode: string
   writeCode: string
+  /** Phase 124 / CAP-06: true when session cwd equals EvalSymlinks($HOME) */
+  homeDir: boolean
 }
 
 export function DaemonManagerPanel({
@@ -39,6 +42,17 @@ export function DaemonManagerPanel({
   // Per-session capability URLs + join codes issued by the daemon on toggle-on.
   // Populated reactively as webEnabled transitions true; cleared when false.
   const [sessionShares, setSessionShares] = useState<Record<string, SessionShare>>({})
+
+  // Phase 124 / CAP-04: per-session write enabled state (owner toggle, Surface 1).
+  // Default OFF for every session (T-124-14; opt-in for all per CAP-08).
+  const [sessionWrites, setSessionWrites] = useState<Record<string, boolean>>({})
+  // Phase 124 / CAP-04: tracks in-flight toggle saves to disable during save.
+  const [writeSaving, setWriteSaving] = useState<Record<string, boolean>>({})
+  // Phase 124 / CAP-04: error messages per session for failed write toggle.
+  const [writeError, setWriteError] = useState<Record<string, string>>({})
+  // Phase 124 / CAP-06: per-session home-dir banner dismissal. Re-shows on re-enable.
+  // Key = sessionId, value = the filesWrite state at which it was dismissed.
+  const [homeDirDismissed, setHomeDirDismissed] = useState<Record<string, boolean>>({})
 
   // P-3: Show LAN Basic Auth password inline on this panel when running in
   // local-network-fallback mode. The same value is in Settings, but a fresh
@@ -62,6 +76,61 @@ export function DaemonManagerPanel({
       setTimeout(() => setLanPasswordCopied(false), 1500)
     } catch {
       // ClipboardSetText failure — no user-visible action; password remains visible
+    }
+  }
+
+  // Phase 124 / CAP-04: Toggle the per-session owner write capability.
+  // Calls SetSessionFilesWrite, then re-issues capabilities to refresh URLs.
+  // Dismiss banner on re-enable so it re-shows when writes are turned back on.
+  async function handleToggleFilesWrite(sessionId: string, enabled: boolean): Promise<void> {
+    setWriteSaving((prev) => ({ ...prev, [sessionId]: true }))
+    setWriteError((prev) => ({ ...prev, [sessionId]: '' }))
+    try {
+      await SetSessionFilesWrite(sessionId, enabled)
+      setSessionWrites((prev) => ({ ...prev, [sessionId]: enabled }))
+      // Re-dismiss banner state so it shows again when writes are re-enabled.
+      if (enabled) {
+        setHomeDirDismissed((prev) => ({ ...prev, [sessionId]: false }))
+      }
+      // Re-issue capabilities so URLs reflect the new write state.
+      if (webEnabled[sessionId]) {
+        try {
+          const resp = await IssueCapabilities(sessionId)
+          setSessionShares((prev) => ({
+            ...prev,
+            [sessionId]: {
+              readURL: resp.readUrl,
+              writeURL: resp.writeUrl,
+              readCode: resp.readCode,
+              writeCode: resp.writeCode,
+              homeDir: resp.homeDir ?? false,
+            },
+          }))
+        } catch (capErr) {
+          // IN-01: IssueCapabilities failed after SetSessionFilesWrite succeeded.
+          // The cached share entry now reflects the pre-toggle token (which may
+          // incorrectly carry or lack files.write). Clear it so the reconcile
+          // effect below refetches fresh capabilities on the next render cycle,
+          // preventing stale URLs from being displayed.
+          setSessionShares((prev) => {
+            const next = { ...prev }
+            delete next[sessionId]
+            return next
+          })
+          setWriteError((prev) => ({
+            ...prev,
+            [sessionId]: 'Links may be stale — try toggling off and on to refresh.',
+          }))
+          console.warn('[DaemonManagerPanel] IssueCapabilities after write-toggle failed', capErr)
+        }
+      }
+    } catch {
+      setWriteError((prev) => ({
+        ...prev,
+        [sessionId]: "Couldn't save the write setting. Try again.",
+      }))
+    } finally {
+      setWriteSaving((prev) => ({ ...prev, [sessionId]: false }))
     }
   }
 
@@ -115,6 +184,7 @@ export function DaemonManagerPanel({
                 writeURL: resp.writeUrl,
                 readCode: resp.readCode,
                 writeCode: resp.writeCode,
+                homeDir: resp.homeDir ?? false,
               },
             }
           })
@@ -244,6 +314,50 @@ export function DaemonManagerPanel({
                   Kill
                 </button>
               </div>
+              {/* Phase 124 / CAP-04: owner "Enable file writes" toggle (Surface 1).
+                  Renders for every session (not just web-on) so the owner can
+                  pre-enable writes before sharing. Verbatim label from 124-UI-SPEC. */}
+              <div className="daemon-panel__files-write">
+                <label
+                  className={`settings-panel__toggle-row${sessionWrites[s.id] ? ' settings-panel__toggle-row--checked' : ''}${writeSaving[s.id] ? ' settings-panel__toggle-row--saving' : ''}`}
+                  style={writeSaving[s.id] ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    className="settings-panel__toggle-input"
+                    role="switch"
+                    aria-checked={!!sessionWrites[s.id]}
+                    aria-label="Enable file writes"
+                    checked={!!sessionWrites[s.id]}
+                    disabled={!!writeSaving[s.id]}
+                    onChange={() => void handleToggleFilesWrite(s.id, !sessionWrites[s.id])}
+                  />
+                  <span className="settings-panel__toggle-track">
+                    <span className="settings-panel__toggle-thumb" />
+                  </span>
+                  <span className="settings-panel__toggle-label">Enable file writes</span>
+                </label>
+                <p className="settings-panel__toggle-helptext" style={{ margin: '0 0 4px 46px', fontSize: 12, color: '#9aa5ce', lineHeight: 1.4 }}>
+                  Lets this session create, edit, delete, rename, and upload files in its working directory. Off by default.
+                </p>
+                {writeError[s.id] && (
+                  <p className="settings-panel__error" style={{ margin: '0 0 4px 46px', fontSize: 12 }}>
+                    {writeError[s.id]}
+                  </p>
+                )}
+                {/* Phase 124 / CAP-06 / WR-04: home-dir write warning banner (Surface 3).
+                    Source homeDir from SessionInfo.homeDir (the ListSessions-derived
+                    field, same source of truth the TUI uses in internal/tui/files.go)
+                    rather than share?.homeDir (per-capability response, can be stale
+                    if IssueCapabilities fails or has not yet run). Both surfaces now
+                    collapse to the single server-side source of truth documented in
+                    engine.go:461-467 for cross-surface parity. */}
+                {sessionWrites[s.id] && s.homeDir && !homeDirDismissed[s.id] && (
+                  <HomeDirWriteWarning
+                    onDismiss={() => setHomeDirDismissed((prev) => ({ ...prev, [s.id]: true }))}
+                  />
+                )}
+              </div>
               {isWebOn && share && (
                 <SessionSharePanel
                   sessionId={s.id}
@@ -251,6 +365,7 @@ export function DaemonManagerPanel({
                   writeURL={share.writeURL}
                   readCode={share.readCode}
                   writeCode={share.writeCode}
+                  ownerWriteEnabled={!!sessionWrites[s.id]}
                 />
               )}
             </div>

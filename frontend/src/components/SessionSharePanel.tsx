@@ -8,6 +8,12 @@ interface SessionSharePanelProps {
   writeURL: string
   readCode: string
   writeCode: string
+  /**
+   * Phase 124 / CAP-04: true when the owner has enabled file writes for this
+   * session. Gates the "Allow file editing" viewer opt-in (Surface 2).
+   * When false, the opt-in row is disabled (aria-disabled, opacity 0.6).
+   */
+  ownerWriteEnabled?: boolean
 }
 
 /**
@@ -19,6 +25,14 @@ interface SessionSharePanelProps {
  *
  * Only one QR is visible per session at a time: activating one QR implicitly
  * hides the other.
+ *
+ * Phase 124 / CAP-05 two-gate model (WR-01 fix): the Full Access Link
+ * (files.write URL + token) is ONLY surfaced when BOTH conditions hold:
+ *   1. Owner-side write toggle is ON  (ownerWriteEnabled prop, Surface 1)
+ *   2. Viewer has confirmed "Allow file editing" opt-in (Surface 2)
+ * When either gate is off, the Full Access Link row shows a locked placeholder
+ * instead of the write URL/token, preventing disclosure of the files.write cap
+ * before explicit per-share consent.  The read-only token is unaffected.
  */
 export function SessionSharePanel({
   sessionId,
@@ -26,6 +40,7 @@ export function SessionSharePanel({
   writeURL,
   readCode,
   writeCode,
+  ownerWriteEnabled = false,
 }: SessionSharePanelProps): React.ReactElement {
   const [readCopied, setReadCopied] = useState(false)
   const [writeCopied, setWriteCopied] = useState(false)
@@ -34,6 +49,17 @@ export function SessionSharePanel({
   const [readQRb64, setReadQRb64] = useState<string | null>(null)
   const [writeQRb64, setWriteQRb64] = useState<string | null>(null)
   const [qrError, setQrError] = useState<string | null>(null)
+
+  // Phase 124 / CAP-05: "Allow file editing" viewer opt-in state.
+  // Default OFF per T-124-14 (elevation of privilege if ON by default).
+  const [allowFileEditing, setAllowFileEditing] = useState(false)
+  // Inline confirmation state — shown when user toggles ON.
+  const [showWriteConfirm, setShowWriteConfirm] = useState(false)
+
+  // Phase 124 / CAP-05 two-gate (WR-01): the files.write link is only surfaced
+  // after BOTH owner enables writes AND viewer confirms opt-in. Changing either
+  // gate to false immediately hides the link (no stale token visible).
+  const surfaceWriteLink = ownerWriteEnabled && allowFileEditing
 
   async function handleCopy(url: string, setter: (v: boolean) => void): Promise<void> {
     try {
@@ -54,6 +80,34 @@ export function SessionSharePanel({
     return `${u.protocol}//${u.host}/join?code=${code}`
   }
 
+  // Phase 124 / CAP-05: toggle handler for "Allow file editing" viewer opt-in.
+  // Default OFF (T-124-14). ON is gated on ownerWriteEnabled (T-124-15).
+  // Toggling ON opens inline confirmation before activating.
+  function handleWriteOptinToggle(): void {
+    if (!ownerWriteEnabled) return // disabled guard (T-124-15)
+    if (allowFileEditing) {
+      // Toggle OFF: revert immediately. QR hides because surfaceWriteLink becomes false.
+      setAllowFileEditing(false)
+      setShowWriteConfirm(false)
+      // Collapse write QR when opt-in is revoked so stale QR is not left visible.
+      setShowWriteQR(false)
+      setWriteQRb64(null)
+    } else {
+      // Toggle ON: show inline confirmation before granting.
+      setShowWriteConfirm(true)
+    }
+  }
+
+  function handleWriteOptinConfirm(): void {
+    setAllowFileEditing(true)
+    setShowWriteConfirm(false)
+  }
+
+  function handleWriteOptinCancel(): void {
+    setAllowFileEditing(false)
+    setShowWriteConfirm(false)
+  }
+
   async function handleToggleQR(which: 'read' | 'write'): Promise<void> {
     if (which === 'read') {
       if (showReadQR) {
@@ -68,7 +122,7 @@ export function SessionSharePanel({
           const b64 = await GetCapabilityQRCode(joinURLFor(readURL, readCode))
           setReadQRb64(b64)
         } catch {
-          setQrError('QR unavailable \u2014 tap to retry')
+          setQrError('QR unavailable — tap to retry')
           return
         }
       }
@@ -76,6 +130,7 @@ export function SessionSharePanel({
       return
     }
 
+    // Write QR: only reachable when surfaceWriteLink is true (button is not rendered otherwise).
     if (showWriteQR) {
       setShowWriteQR(false)
       return
@@ -87,7 +142,7 @@ export function SessionSharePanel({
         const b64 = await GetCapabilityQRCode(joinURLFor(writeURL, writeCode))
         setWriteQRb64(b64)
       } catch {
-        setQrError('QR unavailable \u2014 tap to retry')
+        setQrError('QR unavailable — tap to retry')
         return
       }
     }
@@ -133,34 +188,104 @@ export function SessionSharePanel({
         />
       )}
 
-      <div className="session-share-panel__link-row">
-        <span className="session-share-panel__label">Full Access Link</span>
-        <span className="session-share-panel__url" title={writeURL}>{writeURL}</span>
-        <div className="session-share-panel__actions">
-          <button
-            className="daemon-panel__btn"
-            onClick={() => void handleCopy(writeURL, setWriteCopied)}
-            aria-label="Copy full-access link to clipboard"
-          >
-            {writeCopied ? 'Copied!' : 'Copy'}
-          </button>
-          <button
-            className="daemon-panel__btn"
-            onClick={() => BrowserOpenURL(writeURL)}
-            aria-label="Open full-access link in browser"
-          >
-            Open
-          </button>
-          <button
-            className="daemon-panel__btn"
-            onClick={() => void handleToggleQR('write')}
-            aria-label={showWriteQR ? 'Hide full-access QR code' : 'Show full-access QR code'}
-          >
-            {showWriteQR ? 'Hide QR' : 'QR'}
-          </button>
-        </div>
+      {/* Phase 124 / CAP-05: "Allow file editing" viewer opt-in row.
+          Renders ABOVE the Full Access Link row per UI-SPEC Surface 2.
+          Default OFF (T-124-14). Disabled unless owner write is on (T-124-15).
+          WR-01: confirming this opt-in is REQUIRED before the Full Access Link
+          (files.write token) is surfaced — it is the second consent gate. */}
+      <div
+        className="session-share-panel__write-optin"
+        aria-disabled={!ownerWriteEnabled}
+        style={!ownerWriteEnabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
+      >
+        <label
+          className={`settings-panel__toggle-row${allowFileEditing ? ' settings-panel__toggle-row--checked' : ''}`}
+          style={{ cursor: ownerWriteEnabled ? 'pointer' : 'not-allowed' }}
+        >
+          <input
+            type="checkbox"
+            className="settings-panel__toggle-input"
+            role="switch"
+            aria-checked={allowFileEditing}
+            aria-label="Allow file editing"
+            checked={allowFileEditing}
+            disabled={!ownerWriteEnabled}
+            onChange={handleWriteOptinToggle}
+          />
+          <span className="settings-panel__toggle-track">
+            <span className="settings-panel__toggle-thumb" />
+          </span>
+          <span className="settings-panel__toggle-label">Allow file editing</span>
+        </label>
+        {showWriteConfirm && (
+          <div className="session-share-panel__write-confirm">
+            <p className="session-share-panel__write-confirm-body">
+              This will allow the recipient to create, edit, delete, rename, and upload files in this session&apos;s working directory.
+            </p>
+            <div className="session-share-panel__write-confirm-actions">
+              <button
+                type="button"
+                className="daemon-panel__btn"
+                onClick={handleWriteOptinConfirm}
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                className="daemon-panel__btn"
+                onClick={handleWriteOptinCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      {showWriteQR && writeQRb64 && (
+
+      {/* Phase 124 / CAP-05 two-gate (WR-01): Full Access Link row.
+          The files.write URL and token are ONLY surfaced when surfaceWriteLink
+          is true (owner enabled writes AND viewer confirmed opt-in). When either
+          gate is off a locked placeholder is shown so the UI still communicates
+          that a full-access link exists without disclosing the token. */}
+      {surfaceWriteLink ? (
+        <div className="session-share-panel__link-row" data-testid="full-access-link-row">
+          <span className="session-share-panel__label">Full Access Link</span>
+          <span className="session-share-panel__url" title={writeURL}>{writeURL}</span>
+          <div className="session-share-panel__actions">
+            <button
+              className="daemon-panel__btn"
+              onClick={() => void handleCopy(writeURL, setWriteCopied)}
+              aria-label="Copy full-access link to clipboard"
+            >
+              {writeCopied ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              className="daemon-panel__btn"
+              onClick={() => BrowserOpenURL(writeURL)}
+              aria-label="Open full-access link in browser"
+            >
+              Open
+            </button>
+            <button
+              className="daemon-panel__btn"
+              onClick={() => void handleToggleQR('write')}
+              aria-label={showWriteQR ? 'Hide full-access QR code' : 'Show full-access QR code'}
+            >
+              {showWriteQR ? 'Hide QR' : 'QR'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="session-share-panel__link-row session-share-panel__link-row--locked" data-testid="full-access-link-locked">
+          <span className="session-share-panel__label">Full Access Link</span>
+          <span className="session-share-panel__url session-share-panel__url--locked">
+            {ownerWriteEnabled
+              ? 'Enable “Allow file editing” above to generate a write link'
+              : 'Enable file writes to generate a write link'}
+          </span>
+        </div>
+      )}
+      {surfaceWriteLink && showWriteQR && writeQRb64 && (
         <img
           className="session-share-panel__qr"
           src={`data:image/png;base64,${writeQRb64}`}

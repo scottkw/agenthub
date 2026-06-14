@@ -132,6 +132,9 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
 	// Phase 87 capability-based authorization endpoints (D-06, D-09, D-16).
 	a.mux.HandleFunc("POST /sessions/{id}/capabilities", a.handleIssueCapabilities)
+	// Phase 124 / CAP-04: per-session file-write toggle.
+	// Loopback-trust (daemon socket): no auth gate — the owner's GUI is the only caller.
+	a.mux.HandleFunc("POST /sessions/{id}/files-write", a.handleSetSessionFilesWrite)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -141,10 +144,16 @@ func (a *API) registerRoutes() {
 	// Method-prefixed routes per Go 1.22+ mux semantics: POST and other verbs
 	// auto-return 405 (Pitfall 8 — do not register a fallback handler that
 	// would mask this).
+	// Phase 123-03 / FSW-08: write routes added on the same loopback-trust basis.
 	a.mux.HandleFunc("GET /api/files/list", a.filesHandler.List)
 	a.mux.HandleFunc("GET /api/files/stat", a.filesHandler.Stat)
 	a.mux.HandleFunc("GET /api/files/read", a.filesHandler.Read)
 	a.mux.HandleFunc("HEAD /api/files/read", a.filesHandler.Read)
+	a.mux.HandleFunc("PUT /api/files/write", a.filesHandler.Write)
+	a.mux.HandleFunc("POST /api/files/upload", a.filesHandler.Upload)
+	a.mux.HandleFunc("DELETE /api/files/delete", a.filesHandler.Delete)
+	a.mux.HandleFunc("POST /api/files/rename", a.filesHandler.Rename)
+	a.mux.HandleFunc("POST /api/files/mkdir", a.filesHandler.Mkdir)
 	// Phase 122-01 / REMOTE-01: remote-files proxy + cap deposit.
 	// POST /api/remote-files/caps accepts (sessionId, baseUrl, capToken) from
 	// the GUI/TUI after a successful join-code exchange; the four GET/HEAD
@@ -156,6 +165,14 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/stat", a.handleRemoteFilesStat)
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
 	a.mux.HandleFunc("HEAD /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
+	// Phase 124-03 / CAP-10: five remote write proxy routes.
+	// These are daemon-socket loopback routes (WEB-01) — no auth middleware or
+	// Origin check; the remote peer's requireFilesWrite enforces cap+CSRF.
+	a.mux.HandleFunc("PUT /api/files/remote/{sessionID}/write", a.handleRemoteFilesWrite)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/upload", a.handleRemoteFilesUpload)
+	a.mux.HandleFunc("DELETE /api/files/remote/{sessionID}/delete", a.handleRemoteFilesDelete)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/rename", a.handleRemoteFilesRename)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/mkdir", a.handleRemoteFilesMkdir)
 }
 
 // Handler returns the API's underlying http.Handler (the registered mux).
@@ -1050,6 +1067,14 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	if a.engine.filesReadEnabled() {
 		ownerPerms = "read,write," + capability.PermFilesRead
 	}
+	// Phase 124 / CAP-04: append files.write to the owner token ONLY when the
+	// per-session write toggle is ON. This is a per-session check (Inversion 2 —
+	// NOT a global flag). Uses capability.HasPerm semantics via
+	// filesWriteEnabledFor, never strings.Contains (T-124-09 + static-grep gate).
+	// The read-only (rClaims) token Perms is "read" — NEVER affected.
+	if a.engine.filesWriteEnabledFor(sessionID) {
+		ownerPerms += "," + capability.PermFilesWrite
+	}
 	rClaims := capability.Claims{SID: sessionID, Perms: "read", IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
 	wClaims := capability.Claims{SID: sessionID, Perms: ownerPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
 
@@ -1110,6 +1135,7 @@ func (a *API) handleIssueCapabilities(w http.ResponseWriter, r *http.Request) {
 		WriteURL:  writeURL,
 		ReadCode:  readCode,
 		WriteCode: writeCode,
+		HomeDir:   a.engine.sessionCwdIsHome(id), // Phase 124 / CAP-06: EvalSymlinks-normalized home-dir signal for the GUI warning banner
 	})
 }
 
@@ -1205,4 +1231,18 @@ func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	peers := a.tailnetCache.getOrRefresh(ctx, tailnet.DiscoverAndProbe)
 	writeJSON(w, http.StatusOK, peers)
+}
+
+// handleSetSessionFilesWrite handles POST /sessions/{id}/files-write.
+// It toggles the per-session write capability flag for the given session.
+// Phase 124 / CAP-04. Loopback-trust (daemon socket): no auth gate needed.
+func (a *API) handleSetSessionFilesWrite(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req SessionFilesWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetSessionFilesWrite(id, req.Enabled)
+	w.WriteHeader(http.StatusNoContent)
 }

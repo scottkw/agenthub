@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -308,6 +309,14 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
+// SetSessionFilesWrite sets the per-session file-write toggle for a session.
+// Phase 124 / CAP-04. Mirrors ToggleWebServing but routes to the engine's
+// per-session write map (not a global write flag).
+func (c *DaemonClient) SetSessionFilesWrite(sessionID string, enabled bool) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/files-write",
+		SessionFilesWriteRequest{Enabled: enabled}, nil)
+}
+
 // IssueCapabilities mints the read + read,write capability pair for a
 // web-enabled session (D-07). Returns the URLs and single-use join codes
 // (D-09) for each. Called by the GUI/CLI/TUI after toggle-on.
@@ -481,6 +490,174 @@ func (c *DaemonClient) HeadFile(ctx context.Context, sessionID, relPath string) 
 		}
 	}
 	return size, resp.Header.Get("Content-Type"), mtime, nil
+}
+
+// -------------------------------------------------------------------------
+// Phase 123 / Plan 04: DaemonClient write methods (FSW-09).
+//
+// All five methods mirror the read-method patterns established in Plan 118/05:
+//   - filesURL helper for URL construction (op, sessionID, relPath)
+//   - http.NewRequestWithContext for context-aware requests
+//   - non-2xx status surfaced as a typed error: "files <op>: %d %s"
+//   - doJSON for JSON-bodied ops (RenameFile, MkdirFile)
+//
+// Auth-less by design — the daemon Unix socket is the trust boundary (WEB-01).
+// The FilesClient interface in internal/tui/files_client.go is NOT extended
+// here — that is Phase 126 (TUIW-01) scope (RESEARCH Assumption A2).
+// -------------------------------------------------------------------------
+
+// WriteFile writes data to relPath inside the session sandbox via PUT
+// /api/files/write. Uses Content-Type application/octet-stream with the
+// raw bytes as the body. Non-2xx responses surface as a typed error.
+// Phase 123 / FSW-09 / T-123-18 (ctx cancellation closes the hang risk).
+func (c *DaemonClient) WriteFile(ctx context.Context, sessionID, relPath string, data []byte) (files.FileWriteResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.filesURL("write", sessionID, relPath), bytes.NewReader(data))
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files write: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files write: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileWriteResponse{}, fmt.Errorf("files write: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileWriteResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files write: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// UploadFile sends data as a multipart/form-data POST to /api/files/upload.
+// dir is the sandbox-relative target directory ("." for root). filename is
+// the base name of the file part; the server applies filepath.Base for an
+// additional traversal defence. Phase 123 / FSW-09.
+func (c *DaemonClient) UploadFile(ctx context.Context, sessionID, dir, filename string, data []byte) (files.FileWriteResponse, error) {
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	if err := mw.WriteField("dir", dir); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: write dir field: %w", err)
+	}
+	fw, err := mw.CreateFormFile("file", filename)
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: create form file: %w", err)
+	}
+	if _, err := fw.Write(data); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: write file data: %w", err)
+	}
+	if err := mw.Close(); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: close multipart writer: %w", err)
+	}
+
+	// filesURL adds session+path query params; path is unused for upload (dir
+	// comes from the form field) but we pass "." to satisfy the helper signature.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.filesURL("upload", sessionID, "."), &buf)
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileWriteResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileWriteResponse{}, fmt.Errorf("files upload: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// DeleteFile removes relPath inside the session sandbox via DELETE
+// /api/files/delete. Returns FileOpResponse{OK: true} on success.
+// Phase 123 / FSW-09.
+func (c *DaemonClient) DeleteFile(ctx context.Context, sessionID, relPath string) (files.FileOpResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.filesURL("delete", sessionID, relPath), nil)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files delete: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files delete: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("files delete: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files delete: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// renameRequest is the JSON body sent to POST /api/files/rename.
+type renameRequest struct {
+	OldRel string `json:"oldRel"`
+	NewRel string `json:"newRel"`
+}
+
+// RenameFile moves oldRel to newRel inside the session sandbox via POST
+// /api/files/rename with a JSON body. Both paths are validated server-side
+// (T-123-01 destination traversal risk). Phase 123 / FSW-09.
+func (c *DaemonClient) RenameFile(ctx context.Context, sessionID, oldRel, newRel string) (files.FileOpResponse, error) {
+	body := renameRequest{OldRel: oldRel, NewRel: newRel}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files rename: marshal request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.filesURL("rename", sessionID, "."), bytes.NewReader(b))
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files rename: new request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files rename: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body2, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("files rename: %d %s", resp.StatusCode, strings.TrimSpace(string(body2)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files rename: decode response: %w", err)
+	}
+	return out, nil
+}
+
+// MkdirFile creates relPath (and all missing parent directories) inside the
+// session sandbox via POST /api/files/mkdir. Uses the path query parameter —
+// relPath is passed via filesURL. Phase 123 / FSW-09.
+func (c *DaemonClient) MkdirFile(ctx context.Context, sessionID, relPath string) (files.FileOpResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.filesURL("mkdir", sessionID, relPath), nil)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files mkdir: new request: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files mkdir: do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return files.FileOpResponse{}, fmt.Errorf("files mkdir: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var out files.FileOpResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return files.FileOpResponse{}, fmt.Errorf("files mkdir: decode response: %w", err)
+	}
+	return out, nil
 }
 
 // doJSON is a shared request/response helper. It marshals body (if non-nil),

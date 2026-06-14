@@ -19,9 +19,15 @@
 // Document-level '/' filter activation: a keydown listener is mounted iff
 // isActive, mirroring isXtermFocused-style gating.
 
+// Phase 125-03: Editor + save flow + unsaved-changes guard + 412 conflict modal.
+// All navigation triggers (file-switch, navigate-up, tab-close) route through
+// guardThen() which opens UnsavedChangesModal when the buffer is dirty.
+// NO beforeunload — Wails blocks it; guard is entirely React-level (EDIT-07).
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FilesApiClient, FilesApiError, type FileEntry } from '../lib/filesApi'
+import { FilesApiClient, FilesApiError, MAX_UPLOAD_BYTES, type FileEntry } from '../lib/filesApi'
 import { useFilesCapability } from '../lib/useFilesCapability'
+import { useFilesWrite } from '../lib/useFilesWrite'
 import type { BreadcrumbSegment, PreviewState, SortKey, SortDir } from '../lib/filesTypes'
 import { humanSize } from '../lib/humanSize'
 import { BreadcrumbBar } from './FileBrowser/BreadcrumbBar'
@@ -33,6 +39,16 @@ import { EnableWebSharingTakeover } from './FileBrowser/EnableWebSharingTakeover
 import { NetworkErrorState } from './FileBrowser/NetworkErrorState'
 import { EmptyDirectoryState } from './FileBrowser/EmptyDirectoryState'
 import { sortEntries } from './FileBrowser/sortEntries'
+import { Editor } from './Editor'
+import { EditorHeader } from './FileBrowser/EditorHeader'
+import { UnsavedChangesModal } from './FileBrowser/modals/UnsavedChangesModal'
+import { ConflictModal } from './FileBrowser/modals/ConflictModal'
+import { DeleteConfirmModal } from './FileBrowser/modals/DeleteConfirmModal'
+import { CollisionConfirmModal } from './FileBrowser/modals/CollisionConfirmModal'
+import { MoveToPickerModal } from './FileBrowser/modals/MoveToPickerModal'
+import { InlineNameInput } from './FileBrowser/InlineNameInput'
+import { UploadQueuePanel, type UploadQueueItem } from './FileBrowser/UploadQueuePanel'
+import { UploadDropOverlay } from './FileBrowser/UploadDropOverlay'
 
 export interface FileBrowserTabProps {
   sessionId: string
@@ -133,7 +149,84 @@ export function FileBrowserTab({
     [baseURL, capToken, pathPrefix],
   )
 
-  const { state: capState, retry: retryCapability } = useFilesCapability(client, sessionId)
+  const { state: capState, retry: retryCapability, canWrite } = useFilesCapability(client, sessionId)
+
+  // Phase 125-03/04/05: write hook — write/del/rename/mkdir/upload + save state.
+  const {
+    write: writeFile,
+    del,
+    rename,
+    mkdir,
+    upload,
+    isSaving,
+    saveState,
+    saveError,
+    isConflict,
+    clearConflict,
+    clearSaveError,
+  } = useFilesWrite(client, sessionId)
+
+  // ─── Editor state (EDIT-02, EDIT-05/06/07/08) ───
+  // `editingEntry` — the FileEntry being edited (null = preview/browse mode).
+  // `editContent`  — current CM6 buffer content (updated via onSave/onDirty).
+  // `editEtag`     — ETag echoed from readFileText; used as If-Match on save.
+  // `editDirty`    — true when buffer ≠ saved snapshot.
+  const [editingEntry, setEditingEntry] = useState<FileEntry | null>(null)
+  const [editContent, setEditContent] = useState<string>('')
+  const [editEtag, setEditEtag] = useState<string | undefined>(undefined)
+  const [editDirty, setEditDirty] = useState<boolean>(false)
+
+  // Unsaved-changes modal state (EDIT-07)
+  const [unsavedModalOpen, setUnsavedModalOpen] = useState<boolean>(false)
+  // Deferred action that will run after the unsaved-changes guard resolves.
+  const pendingActionRef = useRef<(() => void) | null>(null)
+
+  // Conflict modal state (EDIT-08) — opened by useFilesWrite when 412 fires.
+  // isConflict from useFilesWrite drives the modal open state directly.
+
+  // ─── Plan 04: write affordance state (EDIT-09) ────────────────────────────────
+  // delete modal
+  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
+  const [deleteFileCount, setDeleteFileCount] = useState<number>(0)
+  // collision modal — shown on 409 from rename/create/mkdir
+  const [collisionModalOpen, setCollisionModalOpen] = useState<boolean>(false)
+  const [collisionName, setCollisionName] = useState<string>('')
+  // Pending retry function for collision (re-issue with force semantics)
+  const collisionRetryRef = useRef<(() => Promise<void>) | null>(null)
+  // move-to picker modal
+  const [moveTarget, setMoveTarget] = useState<FileEntry | null>(null)
+  // inline name input mode: null = hidden
+  type InlineMode = 'create-file' | 'new-folder' | 'rename'
+  const [inlineMode, setInlineMode] = useState<InlineMode | null>(null)
+  const [inlineTarget, setInlineTarget] = useState<FileEntry | null>(null) // for rename
+  // generic write operation error (e.g. 500 on delete/mkdir)
+  const [writeOpError, setWriteOpError] = useState<string | null>(null)
+
+  // ─── Plan 05: upload state (EDIT-10) ─────────────────────────────────────────
+  /** Per-file upload queue items. */
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([])
+  /** True when a drag is over the list container and canWrite is true. */
+  const [isDragOver, setIsDragOver] = useState<boolean>(false)
+  /** Hidden file input ref — triggered by the Upload toolbar button. */
+  const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  /** WR-03: stable id counter for upload queue items — never resets, monotonically increasing. */
+  const uploadIdCounterRef = useRef<number>(0)
+
+  // ─── guardThen: wrap any navigation action through the unsaved-changes guard ───
+  // All three navigation triggers (file-switch, navigate-up, tab-close) route here.
+  // NO beforeunload — Wails blocks it; this is pure React-level guarding (EDIT-07).
+  const guardThen = useCallback(
+    (action: () => void) => {
+      if (!editDirty || editingEntry === null) {
+        action()
+        return
+      }
+      // Buffer is dirty — open the modal and park the action.
+      pendingActionRef.current = action
+      setUnsavedModalOpen(true)
+    },
+    [editDirty, editingEntry],
+  )
 
   // Directory state
   const [path, setPath] = useState<string>('.')
@@ -253,11 +346,16 @@ export function FileBrowserTab({
   }, [client, sessionId, path, dirNonce, capState, retryCapability, isRemote, onReenterJoinCode])
 
   // Reset selection on path change so a stale row doesn't carry forward.
+  // Also exit edit mode when navigating to a new directory.
   useEffect(() => {
     setSelected(null)
     setPreview({ kind: 'idle' })
     setFilterActive(false)
     setFilterValue('')
+    setEditingEntry(null)
+    setEditContent('')
+    setEditDirty(false)
+    setEditEtag(undefined)
   }, [path])
 
   // ─── Preview fetch effect ───
@@ -315,6 +413,8 @@ export function FileBrowserTab({
           const body = await client.readFileText(sessionId, requestPath)
           if (cancelled || abort.signal.aborted) return
           if (requestSelected !== selected) return
+          // Phase 125-03: capture ETag for If-Match on subsequent write (EDIT-05).
+          setEditEtag(body.etag)
           setPreview({
             kind: 'markdown',
             text: body.text,
@@ -328,6 +428,8 @@ export function FileBrowserTab({
           const body = await client.readFileText(sessionId, requestPath)
           if (cancelled || abort.signal.aborted) return
           if (requestSelected !== selected) return
+          // Phase 125-03: capture ETag for If-Match on subsequent write (EDIT-05).
+          setEditEtag(body.etag)
           setPreview({
             kind: 'text',
             text: body.text,
@@ -393,7 +495,7 @@ export function FileBrowserTab({
     }
   }, [client, sessionId, path, selected, entries])
 
-  // ─── Navigation ───
+  // ─── Navigation (EDIT-07: all three triggers route through guardThen) ───
   const navigateInto = useCallback(
     (name: string) => {
       // Phase 120 WR-03 — UI-side defence-in-depth: reject any entry name that
@@ -416,27 +518,380 @@ export function FileBrowserTab({
       ) {
         return
       }
-      setPath((p) => joinPath(p, name))
+      // Guard: if a dirty file is open, confirm before navigating into a directory.
+      guardThen(() => setPath((p) => joinPath(p, name)))
     },
-    [],
+    [guardThen],
   )
 
   const navigateUp = useCallback(() => {
-    setPath((p) => (p === '.' || p === '' ? p : dirname(p)))
-  }, [])
+    // Guard: if a dirty file is open, confirm before navigating up.
+    guardThen(() => setPath((p) => (p === '.' || p === '' ? p : dirname(p))))
+  }, [guardThen])
 
   const navigateTo = useCallback(
     (segmentPath: string) => {
       // Defense-in-depth (UI-05): only accept '.' or a strict prefix of the
       // current path. The server sandbox is the actual security boundary.
-      setPath((p) => (isPrefixOrEqual(segmentPath, p) ? segmentPath : p))
+      // Guard: if a dirty file is open, confirm before jumping via breadcrumb.
+      guardThen(() =>
+        setPath((p) => (isPrefixOrEqual(segmentPath, p) ? segmentPath : p)),
+      )
     },
-    [],
+    [guardThen],
   )
 
   const refresh = useCallback(() => {
     setDirNonce((n) => n + 1)
   }, [])
+
+  // ─── Plan 04: write affordance helpers (EDIT-09) ────────────────────────────
+
+  /**
+   * Count files recursively in a directory for the delete-confirm body copy.
+   * Client-side listFiles walk — avoids a server change (RESEARCH Open Q3).
+   * Returns a non-negative integer; errors treated as 0 (conservative display).
+   */
+  const countFilesRecursive = useCallback(
+    async (dirPath: string): Promise<number> => {
+      if (client === null) return 0
+      let count = 0
+      async function walk(p: string) {
+        try {
+          const resp = await client!.listFiles(sessionId, p)
+          for (const e of resp.entries) {
+            if (e.isDir) {
+              await walk(p === '.' ? e.name : `${p}/${e.name}`)
+            } else {
+              count++
+            }
+          }
+        } catch {
+          // Ignore errors in recursive walk — show 0 on failure.
+        }
+      }
+      await walk(dirPath)
+      return count
+    },
+    [client, sessionId],
+  )
+
+  /** Open the delete confirm modal for a given entry. Counts files first for dirs. */
+  const handleDeleteRequest = useCallback(
+    async (entry: FileEntry) => {
+      if (!canWrite) return
+      if (entry.isDir) {
+        const dirPath = joinPath(path, entry.name)
+        const count = await countFilesRecursive(dirPath)
+        setDeleteFileCount(count)
+      }
+      setDeleteTarget(entry)
+    },
+    [canWrite, path, countFilesRecursive],
+  )
+
+  /** Execute delete after confirmation. */
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteTarget === null) return
+    const targetPath = joinPath(path, deleteTarget.name)
+    try {
+      await del(targetPath)
+      // Deselect if the deleted file was selected.
+      if (selected === deleteTarget.name) {
+        setSelected(null)
+        setPreview({ kind: 'idle' })
+      }
+      setDeleteTarget(null)
+      refresh()
+    } catch {
+      setWriteOpError("Couldn't complete that. Try again.")
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, path, del, selected, refresh])
+
+  /**
+   * Open collision modal with a pending retry function.
+   * The retryFn is called if the user chooses Replace.
+   */
+  const openCollisionModal = useCallback(
+    (name: string, retryFn: () => Promise<void>) => {
+      collisionRetryRef.current = retryFn
+      setCollisionName(name)
+      setCollisionModalOpen(true)
+    },
+    [],
+  )
+
+  /** Open inline name input for creating a new file. */
+  const handleNewFile = useCallback(() => {
+    if (!canWrite) return
+    setInlineMode('create-file')
+    setInlineTarget(null)
+  }, [canWrite])
+
+  /** Open inline name input for creating a new folder. */
+  const handleNewFolder = useCallback(() => {
+    if (!canWrite) return
+    setInlineMode('new-folder')
+    setInlineTarget(null)
+  }, [canWrite])
+
+  /** Handle inline name input commit (create-file / new-folder / rename). */
+  const handleInlineCommit = useCallback(
+    async (name: string) => {
+      if (!inlineMode) return
+      const trimmed = name.trim()
+      if (!trimmed) {
+        setInlineMode(null)
+        return
+      }
+      try {
+        if (inlineMode === 'create-file') {
+          const newPath = joinPath(path, trimmed)
+          // Create an empty file by writing an empty body (no If-Match = new file).
+          await client?.writeFile(sessionId, newPath, '')
+          setInlineMode(null)
+          refresh()
+        } else if (inlineMode === 'new-folder') {
+          const newPath = joinPath(path, trimmed)
+          await mkdir(newPath)
+          setInlineMode(null)
+          refresh()
+        } else if (inlineMode === 'rename' && inlineTarget) {
+          const oldPath = joinPath(path, inlineTarget.name)
+          const newPath = joinPath(path, trimmed)
+          await rename(oldPath, newPath)
+          if (selected === inlineTarget.name) setSelected(trimmed)
+          setInlineMode(null)
+          setInlineTarget(null)
+          refresh()
+        }
+      } catch (err) {
+        if (err instanceof FilesApiError && err.isCollision()) {
+          const finalName = trimmed
+          const finalMode = inlineMode
+          const finalTarget = inlineTarget
+          openCollisionModal(trimmed, async () => {
+            // Replace: re-issue with force semantics.
+            // For create-file: PUT with If-Match='*' (overwrite existing).
+            // For rename: we can't truly force a rename; just close and report.
+            // (Server currently doesn't support a force-rename flag — no-op Replace.)
+            if (finalMode === 'create-file') {
+              const newPath = joinPath(path, finalName)
+              await client?.writeFile(sessionId, newPath, '', '*')
+              setInlineMode(null)
+              refresh()
+            } else if (finalMode === 'new-folder') {
+              // mkdir collision: can't overwrite a directory — dismiss.
+              setInlineMode(null)
+            } else if (finalMode === 'rename' && finalTarget) {
+              // rename collision: close inline input; user must choose a different name.
+              setInlineMode(null)
+              setInlineTarget(null)
+            }
+          })
+        } else {
+          setWriteOpError("Couldn't complete that. Try again.")
+          setInlineMode(null)
+          setInlineTarget(null)
+        }
+      }
+    },
+    [
+      inlineMode, inlineTarget, path, client, sessionId, mkdir, rename,
+      selected, refresh, openCollisionModal,
+    ],
+  )
+
+  /** Open inline rename input for a row. */
+  const handleRenameRequest = useCallback(
+    (entry: FileEntry) => {
+      if (!canWrite) return
+      setInlineTarget(entry)
+      setInlineMode('rename')
+    },
+    [canWrite],
+  )
+
+  /** Open the Move to… picker for a row. */
+  const handleMoveRequest = useCallback(
+    (entry: FileEntry) => {
+      if (!canWrite) return
+      setMoveTarget(entry)
+    },
+    [canWrite],
+  )
+
+  /** Execute move (cross-dir rename) after picker confirms. */
+  const handleMoveConfirm = useCallback(
+    async (destDir: string) => {
+      if (moveTarget === null) return
+      const oldPath = joinPath(path, moveTarget.name)
+      const newPath = joinPath(destDir, moveTarget.name)
+      try {
+        await rename(oldPath, newPath)
+        if (selected === moveTarget.name) {
+          setSelected(null)
+          setPreview({ kind: 'idle' })
+        }
+        setMoveTarget(null)
+        refresh()
+      } catch (err) {
+        if (err instanceof FilesApiError && err.isCollision()) {
+          const capturedTarget = moveTarget
+          const capturedDestDir = destDir
+          setMoveTarget(null)
+          openCollisionModal(capturedTarget.name, async () => {
+            // Replace: re-issue rename — server will overwrite existing.
+            // NOTE: server rename with ErrExist; if server supports it, this retries.
+            // For now, just report — server may not support force-rename.
+            const old = joinPath(path, capturedTarget.name)
+            const dest = joinPath(capturedDestDir, capturedTarget.name)
+            await rename(old, dest)
+            if (selected === capturedTarget.name) {
+              setSelected(null)
+              setPreview({ kind: 'idle' })
+            }
+            refresh()
+          })
+        } else {
+          setWriteOpError("Couldn't complete that. Try again.")
+          setMoveTarget(null)
+        }
+      }
+    },
+    [moveTarget, path, rename, selected, refresh, openCollisionModal],
+  )
+
+  // ─── Plan 05: upload handlers (EDIT-10) ────────────────────────────────────
+
+  /**
+   * Enqueue files for upload and run them sequentially.
+   * Each file gets its own queue item with live progress. After all files finish,
+   * the directory listing is refreshed.
+   */
+  const handleUploadFiles = useCallback(
+    async (files: File[]) => {
+      if (!canWrite || files.length === 0) return
+
+      // WR-03: assign stable ids from the monotonic counter — not positional indices.
+      // This makes progress-row updates by id lookup safe across concurrent batches.
+      const newItems: UploadQueueItem[] = files.map((f) => {
+        uploadIdCounterRef.current += 1
+        return { id: `upload-${uploadIdCounterRef.current}`, file: f, status: 'uploading', progress: 0 }
+      })
+      const itemIds = newItems.map((item) => item.id)
+
+      setUploadQueue((prev) => [...prev, ...newItems])
+
+      // WR-01: track actual upload successes — only refresh when ≥1 succeeded.
+      let didSucceed = false
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const itemId = itemIds[i]
+
+        // WR-06: use imported constant — single source of truth, never drifts from server.
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setUploadQueue((prev) =>
+            prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
+          )
+          continue
+        }
+
+        try {
+          // WR-07: server returns 409 when target exists (EDIT-10 contract).
+          // overwrite=undefined here → normal upload path.
+          await upload(path, file, (pct) => {
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, progress: pct } : item))
+            )
+          })
+          setUploadQueue((prev) =>
+            prev.map((item) => (item.id === itemId ? { ...item, status: 'done', progress: 100 } : item))
+          )
+          // WR-01: mark success so we refresh after the loop.
+          didSucceed = true
+        } catch (err) {
+          if (err instanceof FilesApiError && err.isCollision()) {
+            // Per-file 409 — show inline Replace? prompt; does not block other files.
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, status: 'collision', progress: 0 } : item))
+            )
+          } else if (err instanceof FilesApiError && err.isOverCap()) {
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
+            )
+          } else {
+            setUploadQueue((prev) =>
+              prev.map((item) =>
+                item.id === itemId
+                  ? { ...item, status: 'failed', progress: 0, error: err instanceof Error ? err.message : 'upload failed' }
+                  : item
+              )
+            )
+          }
+        }
+      }
+
+      // WR-01: refresh only when at least one file actually succeeded.
+      if (didSucceed) refresh()
+    },
+    [canWrite, upload, path, refresh],
+  )
+
+  /** Re-upload a collision item with overwrite semantics (WR-07: passes overwrite=1). */
+  const handleUploadReplace = useCallback(
+    async (index: number) => {
+      const item = uploadQueue[index]
+      if (!item || item.status !== 'collision') return
+      const itemId = item.id
+
+      setUploadQueue((prev) =>
+        prev.map((it) => (it.id === itemId ? { ...it, status: 'uploading', progress: 0 } : it))
+      )
+
+      try {
+        // WR-07: pass overwrite=true so the server skips the 409 collision check.
+        await upload(path, item.file, (pct) => {
+          setUploadQueue((prev) =>
+            prev.map((it) => (it.id === itemId ? { ...it, progress: pct } : it))
+          )
+        }, true)
+        setUploadQueue((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, status: 'done', progress: 100 } : it))
+        )
+        refresh()
+      } catch {
+        setUploadQueue((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, status: 'failed', progress: 0 } : it))
+        )
+      }
+    },
+    [uploadQueue, upload, path, refresh],
+  )
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (!canWrite) return
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(true)
+    },
+    [canWrite],
+  )
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (files: File[]) => {
+      setIsDragOver(false)
+      void handleUploadFiles(files)
+    },
+    [handleUploadFiles],
+  )
 
   // ─── Sort change ───
   const onSortChange = useCallback(
@@ -453,6 +908,56 @@ export function FileBrowserTab({
       })
     },
     [],
+  )
+
+  // ─── Editor open handler (EDIT-02/03/12) ───
+  // Called when the user clicks the Edit button in PreviewPane.
+  // Captures the ETag from the already-loaded preview bytes — no re-fetch (RESEARCH anti-pattern).
+  const handleEdit = useCallback(() => {
+    if (selected === null) return
+    const entry = entries.find((e) => e.name === selected)
+    if (!entry || entry.isDir || entry.isBinary) return
+
+    // Capture the preview text and ETag from the current preview state.
+    let initialText = ''
+    let etag: string | undefined = undefined
+    if (preview.kind === 'text' || preview.kind === 'markdown') {
+      initialText = preview.text
+    }
+    // ETag is stored on the preview state if we added it; fall back to undefined.
+    // In the current architecture the preview fetch (readFileText) returns etag;
+    // we thread it via a parallel editEtag state set in the preview effect.
+    etag = editEtag
+
+    setEditContent(initialText)
+    setEditDirty(false)
+    setEditingEntry(entry)
+    // If the preview fetch stored the etag, it's already in editEtag state.
+    // If not, we'll write with no If-Match (new-file semantics — safe fallback).
+    void etag // suppress unused warning; it's read from editEtag in onSave
+  }, [selected, entries, preview, editEtag])
+
+  // ─── Save handler (EDIT-05) ───
+  // Called by EditorHeader.onSave and by the Cmd-S keymap in Editor.tsx.
+  // WR-02: branches on the discriminated WriteOutcome returned from writeFile()
+  // instead of reading the stale isConflict closure — React state updates are
+  // async; the isConflict value captured in the closure reflects the pre-call
+  // state, not the state writeFile just set.
+  const handleSave = useCallback(
+    async (content?: string): Promise<import('../lib/useFilesWrite').WriteOutcome> => {
+      if (editingEntry === null) return 'error'
+      const filePath = joinPath(path, editingEntry.name)
+      const body = content ?? editContent
+      const outcome = await writeFile(filePath, body, editEtag)
+      // On 'saved', update editContent so subsequent dirty checks use the new snapshot.
+      // The etag will be refreshed on next read — the old one stays for now.
+      if (outcome === 'saved') {
+        setEditContent(body)
+        setEditDirty(false)
+      }
+      return outcome
+    },
+    [editingEntry, path, editContent, editEtag, writeFile],
   )
 
   // ─── Filter helpers ───
@@ -609,18 +1114,52 @@ export function FileBrowserTab({
         </div>
       ) : (
         <>
+          {/* Hidden file input for Upload button (EDIT-10) */}
+          <input
+            ref={uploadInputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            aria-hidden="true"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              e.target.value = ''
+              void handleUploadFiles(files)
+            }}
+          />
           <BreadcrumbBar
             segments={segmentsFor(path)}
             refreshedAt={refreshedAt}
             onNavigateTo={navigateTo}
             onRefresh={refresh}
+            canWrite={canWrite}
+            onNewFile={handleNewFile}
+            onNewFolder={handleNewFolder}
+            onUpload={() => uploadInputRef.current?.click()}
           />
           <div className="file-browser__body" ref={bodyRef}>
             <div
               className="file-browser__list-container"
-              style={{ width: `${listWidthPct}%` }}
+              style={{ width: `${listWidthPct}%`, position: 'relative' }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
             >
-              {sortedEntries.length === 0 ? (
+              {/* Phase 125-05: drag-and-drop overlay (canWrite only) */}
+              {isDragOver && canWrite && (
+                <UploadDropOverlay
+                  onDrop={handleDrop}
+                  onDragLeave={handleDragLeave}
+                />
+              )}
+              {/* Phase 125-04: inline name input (create-file / new-folder / rename) */}
+              {inlineMode !== null && inlineMode !== 'rename' && canWrite && (
+                <InlineNameInput
+                  mode={inlineMode}
+                  onCommit={handleInlineCommit}
+                  onCancel={() => { setInlineMode(null); setInlineTarget(null) }}
+                />
+              )}
+              {sortedEntries.length === 0 && inlineMode === null ? (
                 <EmptyDirectoryState relativePathFromCwd={path} />
               ) : (
                 <FileListPane
@@ -631,11 +1170,48 @@ export function FileBrowserTab({
                   filter={filterValue}
                   truncated={truncated}
                   isActive={isActive}
-                  onSelect={setSelected}
+                  // Phase 125-03: file-switch routes through guardThen (EDIT-07)
+                  onSelect={(name) => guardThen(() => setSelected(name))}
                   onNavigateInto={navigateInto}
                   onNavigateUp={navigateUp}
                   onSortChange={onSortChange}
                   onFilterActivate={onFilterActivate}
+                  // Phase 125-04: write affordances (EDIT-09/12)
+                  canWrite={canWrite}
+                  onRowEdit={(entry) => {
+                    guardThen(() => {
+                      setSelected(entry.name)
+                      // handleEdit will be triggered by the preview pane once selected
+                      // For direct row edit we set selection and trigger edit
+                      if (!entry.isDir && !entry.isBinary) {
+                        setSelected(entry.name)
+                        // If preview is loaded for this entry, open editor directly.
+                        // Otherwise, selection will load the preview first.
+                        if (selected === entry.name && (preview.kind === 'text' || preview.kind === 'markdown')) {
+                          handleEdit()
+                        }
+                      }
+                    })
+                  }}
+                  onRowRename={(entry) => {
+                    // Show inline rename for this entry
+                    handleRenameRequest(entry)
+                  }}
+                  onRowMove={(entry) => {
+                    void handleMoveRequest(entry)
+                  }}
+                  onRowDelete={(entry) => {
+                    void handleDeleteRequest(entry)
+                  }}
+                />
+              )}
+              {/* Rename inline input for a specific entry (shown inside list) */}
+              {inlineMode === 'rename' && inlineTarget !== null && canWrite && (
+                <InlineNameInput
+                  mode="rename"
+                  initialValue={inlineTarget.name}
+                  onCommit={handleInlineCommit}
+                  onCancel={() => { setInlineMode(null); setInlineTarget(null) }}
                 />
               )}
             </div>
@@ -647,11 +1223,71 @@ export function FileBrowserTab({
               data-testid="file-browser-divider"
               onMouseDown={onDividerMouseDown}
             />
-            <PreviewPane
-              state={preview}
-              filename={selected}
-              downloadUrl={downloadUrlForSelected}
-            />
+            {/* Phase 125-03: show Editor when in edit mode, PreviewPane otherwise */}
+            {editingEntry !== null ? (
+              <div className="file-browser__preview" data-testid="file-browser-preview">
+                <EditorHeader
+                  filename={editingEntry.name}
+                  filePath={joinPath(path, editingEntry.name)}
+                  dirty={editDirty}
+                  saveState={saveState}
+                  hasError={saveError !== null}
+                  isSaving={isSaving}
+                  onSave={() => { void handleSave() }}
+                  onCancel={() => {
+                    // Cancel routes through the guard if dirty
+                    guardThen(() => {
+                      setEditingEntry(null)
+                      setEditDirty(false)
+                    })
+                  }}
+                />
+                {/* Inline save error bar — non-takeover; content stays visible (EDIT-06) */}
+                {saveError !== null && (
+                  <div
+                    className="file-browser__editor-error"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    <span>{saveError}</span>
+                    <button
+                      type="button"
+                      className="file-browser__btn file-browser__btn--icon"
+                      aria-label="Dismiss error"
+                      onClick={clearSaveError}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <Editor
+                  key={editingEntry.name}
+                  filename={editingEntry.name}
+                  initialContent={editContent}
+                  fileSize={editingEntry.size}
+                  onDirty={setEditDirty}
+                  onSave={(content) => {
+                    setEditContent(content)
+                    void handleSave(content)
+                  }}
+                  onCancel={() => {
+                    guardThen(() => {
+                      setEditingEntry(null)
+                      setEditDirty(false)
+                    })
+                  }}
+                />
+              </div>
+            ) : (
+              <PreviewPane
+                state={preview}
+                filename={selected}
+                downloadUrl={downloadUrlForSelected}
+                canWrite={canWrite}
+                isBinary={entries.find((e) => e.name === selected)?.isBinary ?? false}
+                onEdit={handleEdit}
+              />
+            )}
           </div>
           <StatusLine
             itemCount={visibleCount}
@@ -661,6 +1297,178 @@ export function FileBrowserTab({
             onFilterChange={setFilterValue}
             onFilterDismiss={onFilterDismiss}
           />
+
+          {/* Phase 125-03: Modals rendered at FileBrowserTab root (portal-free, QuitConfirmModal pattern) */}
+
+          {/* Unsaved-changes navigation guard (EDIT-07) — NO beforeunload */}
+          <UnsavedChangesModal
+            isOpen={unsavedModalOpen}
+            onSave={() => {
+              setUnsavedModalOpen(false)
+              // WR-02: branch on the returned outcome — not the stale isConflict closure.
+              void handleSave().then((outcome) => {
+                if (outcome === 'saved') {
+                  const action = pendingActionRef.current
+                  pendingActionRef.current = null
+                  if (action) {
+                    setEditingEntry(null)
+                    setEditDirty(false)
+                    action()
+                  }
+                }
+                // 'conflict' → ConflictModal opens automatically via isConflict state.
+                // 'error' → inline saveError shows; no navigation.
+              })
+            }}
+            onDiscard={() => {
+              setUnsavedModalOpen(false)
+              setEditingEntry(null)
+              setEditDirty(false)
+              const action = pendingActionRef.current
+              pendingActionRef.current = null
+              if (action) action()
+            }}
+            onCancel={() => {
+              setUnsavedModalOpen(false)
+              pendingActionRef.current = null
+            }}
+          />
+
+          {/* 412 Conflict modal (EDIT-08) — isConflict from useFilesWrite */}
+          <ConflictModal
+            isOpen={isConflict}
+            onForceOverwrite={() => {
+              clearConflict()
+              // WR-04: guard against null editingEntry (race: modal open + nav).
+              if (!editingEntry) return
+              // Force overwrite: re-PUT with If-Match="*" (server skip-check)
+              void writeFile(joinPath(path, editingEntry.name), editContent, '*')
+            }}
+            onSaveAsNew={() => {
+              clearConflict()
+              // CR-03: guard against null editingEntry.
+              if (!editingEntry) return
+              const ext = editingEntry.name.includes('.')
+                ? '.' + editingEntry.name.split('.').pop()!
+                : ''
+              const base = ext
+                ? editingEntry.name.slice(0, editingEntry.name.lastIndexOf('.'))
+                : editingEntry.name
+              // CR-03: disambiguate if {base}-copy{ext} already exists in listing.
+              const existingNames = new Set(entries.map((e) => e.name))
+              let candidate = `${base}-copy${ext}`
+              let copyN = 2
+              while (existingNames.has(candidate)) {
+                candidate = `${base}-copy-${copyN}${ext}`
+                copyN += 1
+              }
+              const newName = candidate
+              const newPath = joinPath(path, newName)
+              // No If-Match (new file — never existed); collision guard above handles duplicates.
+              void writeFile(newPath, editContent).then((outcome) => {
+                if (outcome === 'saved') {
+                  refresh()
+                  // CR-03: re-point editor at the new file so subsequent saves target it.
+                  setEditingEntry({ ...editingEntry, name: newName })
+                  // CR-03: re-read to capture the new file's ETag for future If-Match.
+                  void client.readFileText(sessionId, newPath).then((body) => {
+                    setEditEtag(body.etag)
+                  })
+                  setEditDirty(false)
+                }
+              })
+            }}
+            onDiscard={() => {
+              clearConflict()
+              // Discard: re-fetch server content and replace the buffer.
+              if (selected !== null) {
+                const filePath = joinPath(path, selected)
+                void client.readFileText(sessionId, filePath).then((body) => {
+                  setEditContent(body.text)
+                  setEditEtag(body.etag)
+                  setEditDirty(false)
+                })
+              }
+            }}
+            onCancel={() => {
+              clearConflict()
+            }}
+          />
+
+          {/* Phase 125-04: Plan 04 modals (EDIT-09) */}
+
+          {/* Delete confirm (file + recursive-dir with count) */}
+          <DeleteConfirmModal
+            isOpen={deleteTarget !== null}
+            name={deleteTarget?.name ?? ''}
+            isDir={deleteTarget?.isDir ?? false}
+            fileCount={deleteFileCount}
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => setDeleteTarget(null)}
+          />
+
+          {/* 409 Collision replace modal — Cancel DEFAULT focus */}
+          <CollisionConfirmModal
+            isOpen={collisionModalOpen}
+            name={collisionName}
+            onReplace={async () => {
+              setCollisionModalOpen(false)
+              const retry = collisionRetryRef.current
+              collisionRetryRef.current = null
+              if (retry) {
+                try {
+                  await retry()
+                } catch {
+                  setWriteOpError("Couldn't complete that. Try again.")
+                }
+              }
+            }}
+            onCancel={() => {
+              setCollisionModalOpen(false)
+              collisionRetryRef.current = null
+            }}
+          />
+
+          {/* Move to… picker modal */}
+          <MoveToPickerModal
+            isOpen={moveTarget !== null}
+            sessionId={sessionId}
+            entry={moveTarget ?? { name: '', size: 0, mtime: '', mode: 0, isDir: false, isSymlink: false, isBinary: false }}
+            currentDir={path}
+            client={client}
+            onMove={(destDir) => { void handleMoveConfirm(destDir) }}
+            onCancel={() => setMoveTarget(null)}
+          />
+
+          {/* Phase 125-05: Upload queue panel (EDIT-10) */}
+          {uploadQueue.length > 0 && (
+            <UploadQueuePanel
+              items={uploadQueue}
+              onReplace={(idx) => { void handleUploadReplace(idx) }}
+              onDismiss={() => setUploadQueue([])}
+            />
+          )}
+
+          {/* Generic write-operation error banner */}
+          {writeOpError !== null && (
+            <div
+              className="file-browser__error"
+              role="alert"
+              aria-live="assertive"
+              style={{ position: 'absolute', bottom: 40, left: 0, right: 0, zIndex: 10 }}
+            >
+              <span>{writeOpError}</span>
+              <button
+                type="button"
+                className="file-browser__btn file-browser__btn--icon"
+                aria-label="Dismiss error"
+                onClick={() => setWriteOpError(null)}
+                style={{ marginLeft: 8 }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>

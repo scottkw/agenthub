@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -300,5 +302,212 @@ func TestRedactCapFromURL(t *testing.T) {
 	}
 	if !strings.Contains(got, "session=sid") || !strings.Contains(got, "path=.") {
 		t.Errorf("redactCapFromURL clobbered non-cap params: %q", got)
+	}
+}
+
+// TestRemoteFilesClient_Write verifies WriteFile sends PUT with
+// application/octet-stream body and decodes the FileWriteResponse (TUIW-01).
+func TestRemoteFilesClient_Write(t *testing.T) {
+	const wantCap = "write-cap-token"
+	payload := []byte("hello, world")
+	want := files.FileWriteResponse{Path: "notes.txt", Size: int64(len(payload))}
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/files/write" {
+			t.Errorf("expected path /api/files/write, got %q", r.URL.Path)
+		}
+		if r.Method != http.MethodPut {
+			t.Errorf("expected PUT, got %s", r.Method)
+		}
+		if r.URL.Query().Get("session") != "sid1" {
+			t.Errorf("expected session=sid1, got %q", r.URL.Query().Get("session"))
+		}
+		if r.URL.Query().Get("path") != "notes.txt" {
+			t.Errorf("expected path=notes.txt, got %q", r.URL.Query().Get("path"))
+		}
+		if r.URL.Query().Get("cap") != wantCap {
+			t.Errorf("expected cap=%q, got %q", wantCap, r.URL.Query().Get("cap"))
+		}
+		ct := r.Header.Get("Content-Type")
+		if ct != "application/octet-stream" {
+			t.Errorf("expected Content-Type application/octet-stream, got %q", ct)
+		}
+		body, _ := io.ReadAll(r.Body)
+		if !bytes.Equal(body, payload) {
+			t.Errorf("body mismatch: got %q, want %q", body, payload)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer srv.Close()
+
+	c := NewRemoteFilesClientForTest(srv.URL, wantCap, srv.Client())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	got, err := c.WriteFile(ctx, "sid1", "notes.txt", payload)
+	if err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if got.Path != want.Path {
+		t.Errorf("WriteFile Path = %q, want %q", got.Path, want.Path)
+	}
+	if got.Size != want.Size {
+		t.Errorf("WriteFile Size = %d, want %d", got.Size, want.Size)
+	}
+}
+
+// TestRemoteFilesClient_Delete verifies DeleteFile sends DELETE with nil body
+// and decodes FileOpResponse (TUIW-01).
+func TestRemoteFilesClient_Delete(t *testing.T) {
+	const wantCap = "delete-cap-token"
+	want := files.FileOpResponse{OK: true}
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/files/delete" {
+			t.Errorf("expected path /api/files/delete, got %q", r.URL.Path)
+		}
+		if r.Method != http.MethodDelete {
+			t.Errorf("expected DELETE, got %s", r.Method)
+		}
+		if r.URL.Query().Get("session") != "sid2" {
+			t.Errorf("expected session=sid2, got %q", r.URL.Query().Get("session"))
+		}
+		if r.URL.Query().Get("path") != "old.txt" {
+			t.Errorf("expected path=old.txt, got %q", r.URL.Query().Get("path"))
+		}
+		if r.URL.Query().Get("cap") != wantCap {
+			t.Errorf("expected cap=%q, got %q", wantCap, r.URL.Query().Get("cap"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer srv.Close()
+
+	c := NewRemoteFilesClientForTest(srv.URL, wantCap, srv.Client())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	got, err := c.DeleteFile(ctx, "sid2", "old.txt")
+	if err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if !got.OK {
+		t.Errorf("DeleteFile OK = false, want true")
+	}
+}
+
+// TestRemoteFilesClient_Rename verifies RenameFile sends POST with JSON body
+// {oldRel,newRel} and decodes FileOpResponse (TUIW-01).
+func TestRemoteFilesClient_Rename(t *testing.T) {
+	const wantCap = "rename-cap-token"
+	want := files.FileOpResponse{OK: true}
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/files/rename" {
+			t.Errorf("expected path /api/files/rename, got %q", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Query().Get("cap") != wantCap {
+			t.Errorf("expected cap=%q, got %q", wantCap, r.URL.Query().Get("cap"))
+		}
+		ct := r.Header.Get("Content-Type")
+		if !strings.HasPrefix(ct, "application/json") {
+			t.Errorf("expected Content-Type application/json, got %q", ct)
+		}
+		var body struct {
+			OldRel string `json:"oldRel"`
+			NewRel string `json:"newRel"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode rename body: %v", err)
+		}
+		if body.OldRel != "old.txt" {
+			t.Errorf("oldRel = %q, want old.txt", body.OldRel)
+		}
+		if body.NewRel != "new.txt" {
+			t.Errorf("newRel = %q, want new.txt", body.NewRel)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer srv.Close()
+
+	c := NewRemoteFilesClientForTest(srv.URL, wantCap, srv.Client())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	got, err := c.RenameFile(ctx, "sid3", "old.txt", "new.txt")
+	if err != nil {
+		t.Fatalf("RenameFile: %v", err)
+	}
+	if !got.OK {
+		t.Errorf("RenameFile OK = false, want true")
+	}
+}
+
+// TestRemoteFilesClient_Mkdir verifies MkdirFile sends POST with nil body and
+// decodes FileOpResponse (TUIW-01).
+func TestRemoteFilesClient_Mkdir(t *testing.T) {
+	const wantCap = "mkdir-cap-token"
+	want := files.FileOpResponse{OK: true}
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/files/mkdir" {
+			t.Errorf("expected path /api/files/mkdir, got %q", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Query().Get("session") != "sid4" {
+			t.Errorf("expected session=sid4, got %q", r.URL.Query().Get("session"))
+		}
+		if r.URL.Query().Get("path") != "newdir" {
+			t.Errorf("expected path=newdir, got %q", r.URL.Query().Get("path"))
+		}
+		if r.URL.Query().Get("cap") != wantCap {
+			t.Errorf("expected cap=%q, got %q", wantCap, r.URL.Query().Get("cap"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	}))
+	defer srv.Close()
+
+	c := NewRemoteFilesClientForTest(srv.URL, wantCap, srv.Client())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	got, err := c.MkdirFile(ctx, "sid4", "newdir")
+	if err != nil {
+		t.Fatalf("MkdirFile: %v", err)
+	}
+	if !got.OK {
+		t.Errorf("MkdirFile OK = false, want true")
+	}
+}
+
+// TestRemoteFilesClient_WriteCapLeak proves the CAP-LEAK invariant (T-126-01):
+// on a non-200 response from a write method, the returned error string must
+// contain the status code but NOT the cap token.
+func TestRemoteFilesClient_WriteCapLeak(t *testing.T) {
+	const sensitiveCap = "SUPER-SECRET-WRITE-CAP"
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	c := NewRemoteFilesClientForTest(srv.URL, sensitiveCap, srv.Client())
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := c.WriteFile(ctx, "sid", "file.txt", []byte("data"))
+	if err == nil {
+		t.Fatal("expected error on 403, got nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "403") {
+		t.Errorf("expected error to contain status code 403, got %q", msg)
+	}
+	if strings.Contains(msg, sensitiveCap) {
+		t.Errorf("CAP-LEAK INVARIANT VIOLATED — error contains cap token: %q", msg)
 	}
 }

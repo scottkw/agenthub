@@ -22,7 +22,6 @@ package daemon
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -43,12 +42,24 @@ var remoteFilesHTTPClient = &http.Client{
 
 // ExchangeJoinCodeAtURL POSTs the 5-character join code to the remote
 // webserver's `/join/exchange` endpoint and returns the cap token extracted
-// from the response.
+// from the 303 See Other Location header.
+//
+// Phase 123-02 TD-5 (FSW-10): the webserver returns HTTP 303 See Other with a
+// Location header of the form:
+//
+//	/sessions/<id>?cap=<token>       — success
+//	/join?error=<kind>               — error (kind is one of the substrings below)
+//
+// A dedicated http.Client with CheckRedirect returning http.ErrUseLastResponse
+// is constructed inside this function to prevent Go from auto-following the
+// 303 into /sessions/<id> (which would lose the cap). The shared
+// remoteFilesHTTPClient is NOT used on the success path — it remains unmutated
+// so RegisterRemoteCap and future callers are unaffected.
 //
 // Error strings (substrings checked by the modal UI):
-//   - "expired"     → user must request a fresh code from the owner
-//   - "invalid"     → code typo / wrong code
-//   - "not-found"   → upstream session no longer exists
+//   - "expired"      → user must request a fresh code from the owner
+//   - "invalid"      → code typo / wrong code / missing cap in Location
+//   - "not-found"    → upstream session no longer exists
 //   - "session-gone" → web-share toggled off after code was issued
 //
 // Plan 122-01 may move this to a proxied-by-daemon variant; the public
@@ -66,6 +77,20 @@ func (c *DaemonClient) ExchangeJoinCodeAtURL(remoteBaseURL, code string) (string
 
 	endpoint := parsed.String() + "/join/exchange"
 
+	// Dedicated client: CheckRedirect returns ErrUseLastResponse so we
+	// observe the 303 directly and can read the Location header. The shared
+	// remoteFilesHTTPClient deliberately has no CheckRedirect set; do NOT
+	// add it there (RESEARCH Pitfall 5, T-123-09).
+	dedicated := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // tailnet peer with self-signed cert
+		},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	form := url.Values{}
 	form.Set("code", trimmed)
 
@@ -77,44 +102,73 @@ func (c *DaemonClient) ExchangeJoinCodeAtURL(remoteBaseURL, code string) (string
 		return "", fmt.Errorf("build /join/exchange request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
 
-	resp, err := remoteFilesHTTPClient.Do(req)
+	resp, err := dedicated.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("contact remote /join/exchange: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Status-code → error-substring mapping that the modal pivots on.
-	if resp.StatusCode == http.StatusGone {
-		return "", fmt.Errorf("join code is session-gone (status 410)")
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return "", fmt.Errorf("join code not-found (status 404)")
-	}
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return "", fmt.Errorf("join code is invalid (status %d)", resp.StatusCode)
-	}
-	if resp.StatusCode == http.StatusRequestTimeout {
-		return "", fmt.Errorf("join code expired (status 408)")
-	}
-	if resp.StatusCode >= 400 {
-		// Defensive: any other 4xx/5xx surfaces as "invalid" so the modal
-		// shows the user-friendly fallback rather than a raw status code.
+	// Expect 303 See Other — the webserver always redirects on exchange.
+	// Any other status is an error path (fall through to the 4xx mapping below).
+	if resp.StatusCode != http.StatusSeeOther {
+		// Status-code → error-substring mapping that the modal pivots on.
+		if resp.StatusCode == http.StatusGone {
+			return "", fmt.Errorf("join code is session-gone (status 410)")
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			return "", fmt.Errorf("join code not-found (status 404)")
+		}
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return "", fmt.Errorf("join code is invalid (status %d)", resp.StatusCode)
+		}
+		if resp.StatusCode == http.StatusRequestTimeout {
+			return "", fmt.Errorf("join code expired (status 408)")
+		}
+		// Defensive: any other 4xx/5xx → "invalid" so the modal shows the
+		// user-friendly fallback rather than a raw status code.
 		return "", fmt.Errorf("join code is invalid (status %d)", resp.StatusCode)
 	}
 
-	// Successful path: response body is JSON `{"cap":"..."}`.
-	var body struct {
-		Cap string `json:"cap"`
+	loc := resp.Header.Get("Location")
+
+	// WR-05: parse Location once and read the error query param via the
+	// url package rather than string surgery. This handles absolute error
+	// URLs (e.g. https://host/join?error=expired) correctly and avoids
+	// the TrimPrefix-on-Contains mismatch where an absolute URL like
+	// "https://host/join?error=expired" would not strip the prefix and
+	// would return the full URL as the kind.
+	locURL, locParseErr := url.Parse(loc)
+
+	// Error-shape Location: path matches /join?error=<kind>
+	// Check via parsed URL path so absolute and relative forms both work.
+	if locParseErr == nil && locURL.Path == "/join" && locURL.Query().Get("error") != "" {
+		kind := locURL.Query().Get("error")
+		return "", fmt.Errorf("join exchange: %s", kind)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return "", fmt.Errorf("decode /join/exchange response: %w", err)
+
+	// WR-04: if the Location URL is absolute (has a host), assert its host
+	// and scheme match the request target (parsed.Host / parsed.Scheme) before
+	// accepting the cap token. With InsecureSkipVerify on the transport, a
+	// tailnet MITM could return a Location pointing at an attacker-controlled
+	// host carrying a forged cap token.
+	if locParseErr == nil && locURL.Host != "" {
+		if locURL.Host != parsed.Host || locURL.Scheme != parsed.Scheme {
+			return "", fmt.Errorf("join exchange: no cap in location (invalid)")
+		}
 	}
-	if body.Cap == "" {
-		return "", fmt.Errorf("join code exchange returned empty cap (invalid)")
+
+	// Success-shape Location: /sessions/<id>?cap=<token>.
+	// Re-use the already-parsed locURL if parse succeeded; otherwise re-parse
+	// (should not happen given the checks above, but be defensive).
+	if locParseErr != nil {
+		return "", fmt.Errorf("join exchange: bad location header")
 	}
-	return body.Cap, nil
+	capTok := locURL.Query().Get("cap")
+	if capTok == "" {
+		return "", fmt.Errorf("join exchange: no cap in location (invalid)")
+	}
+	return capTok, nil
 }
 
 // RegisterRemoteCap deposits a (sessionID, baseURL, capToken) tuple into the

@@ -31,6 +31,7 @@ package files
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -289,6 +290,11 @@ func (h *Handler) Read(w http.ResponseWriter, r *http.Request) {
 		_, _ = f.Seek(0, io.SeekStart)
 	}
 	w.Header().Set("Content-Type", contentType)
+	// EDIT-05/08 ETag contract — emit the same "<UnixNano>-<size>" validator
+	// that Handler.Write compares against If-Match. The client echoes this
+	// header verbatim as If-Match on the next write (RESEARCH Open Q6 resolution:
+	// server emits ETag, client echoes, eliminating RFC3339-vs-UnixNano mismatch).
+	w.Header().Set("ETag", fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size())))
 	// (2) 0-byte short-circuit BEFORE http.ServeContent — FS-07 /
 	// golang/go#54794. ServeContent on a 0-byte file with a Range
 	// header returns 416, which breaks the FS-07 contract.

@@ -3,9 +3,10 @@ package daemon
 // CurrentSchemaVersion is the on-disk daemonSettings schema version.
 // v3.1 settings.json files have no schemaVersion field (treated as 0);
 // v3.2 introduces the plugins block and bumps to 2; v3.4 (Phase 118)
-// adds the daemon-wide FilesRead flag and bumps to 3. Future migrations
-// bump and re-save via the same defaults-merge load path.
-const CurrentSchemaVersion = 3
+// adds the daemon-wide FilesRead flag and bumps to 3; Phase 124 adds the
+// per-session FilesWrite opt-in default (plain bool, zero-value false) and
+// bumps to 4.
+const CurrentSchemaVersion = 4
 
 // SearchConfig persists per-flag default state for the find-bar toggle row.
 // Phase 94 (SRC-02). All defaults FALSE — the toggles ship in their "off"

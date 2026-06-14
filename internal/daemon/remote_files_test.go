@@ -407,6 +407,146 @@ func TestRegisterRemoteCap_IntegrationWithDaemonClient(t *testing.T) {
 	}
 }
 
+// TestRemoteFilesWrite_ForwardsBody verifies that a PUT request through the
+// remote-files proxy delivers the caller's body bytes verbatim to the upstream,
+// and that the inbound Content-Type header is forwarded on write verbs.
+//
+// RED phase: this test MUST fail under the current nil-body proxy (remote_files.go:169
+// passes nil as the body to http.NewRequestWithContext). The fix in Task 1 makes it green.
+func TestRemoteFilesWrite_ForwardsBody(t *testing.T) {
+	wantBody := []byte(`{"path":"test.txt","content":"hello from proxy"}`)
+	wantCT := "application/json"
+
+	var (
+		gotBody []byte
+		gotCT   string
+		gotCap  string
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /api/files/write", func(w http.ResponseWriter, r *http.Request) {
+		gotCap = r.URL.Query().Get("cap")
+		gotCT = r.Header.Get("Content-Type")
+		var err error
+		gotBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "read body: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+
+	upstream := httptest.NewTLSServer(mux)
+	defer upstream.Close()
+
+	api, srv := proxyTestAPI(t, upstream)
+	_ = api.remoteCaps.Put("sid-write", upstream.URL, "store-cap")
+
+	req, err := http.NewRequest(http.MethodPut,
+		srv.URL+"/api/files/remote/sid-write/write?path=test.txt",
+		bytes.NewReader(wantBody),
+	)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	req.Header.Set("Content-Type", wantCT)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status %d; body=%s", resp.StatusCode, b)
+	}
+
+	// Assert the upstream received the correct cap (caller-supplied cap stripped).
+	if gotCap != "store-cap" {
+		t.Errorf("upstream saw cap %q; want store-cap", gotCap)
+	}
+
+	// Assert body was forwarded verbatim.
+	if len(gotBody) == 0 {
+		t.Error("upstream received empty body; proxy is still passing nil (nil-body bug not fixed)")
+	} else if !bytes.Equal(gotBody, wantBody) {
+		t.Errorf("body mismatch:\n  got  %q\n  want %q", gotBody, wantBody)
+	}
+
+	// Assert Content-Type was forwarded.
+	if gotCT != wantCT {
+		t.Errorf("Content-Type mismatch: got %q; want %q", gotCT, wantCT)
+	}
+}
+
+// TestRemoteFilesWrite_CallerCapStripped verifies that the write proxy strips
+// a caller-injected ?cap= and force-sets the registered cap — the same
+// anti-smuggling guarantee as the read proxy.
+func TestRemoteFilesWrite_CallerCapStripped(t *testing.T) {
+	var sawCap string
+	mux := http.NewServeMux()
+	mux.HandleFunc("PUT /api/files/write", func(w http.ResponseWriter, r *http.Request) {
+		sawCap = r.URL.Query().Get("cap")
+		// drain body so the proxy does not stall
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+
+	upstream := httptest.NewTLSServer(mux)
+	defer upstream.Close()
+
+	api, srv := proxyTestAPI(t, upstream)
+	_ = api.remoteCaps.Put("sid-w2", upstream.URL, "registered-write-cap")
+
+	req, _ := http.NewRequest(http.MethodPut,
+		srv.URL+"/api/files/remote/sid-w2/write?path=foo.txt&cap=injected-evil",
+		bytes.NewReader([]byte(`{}`)),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT: %v", err)
+	}
+	resp.Body.Close()
+
+	if sawCap != "registered-write-cap" {
+		t.Fatalf("upstream saw cap %q; want only registered-write-cap (caller cap not stripped)", sawCap)
+	}
+}
+
+// TestRemoteFilesWrite_GetPassesNilBody verifies that GET/HEAD methods through
+// the proxy are unaffected by the write-verb body fix — they must still send
+// no body so we don't break read proxying.
+func TestRemoteFilesWrite_GetPassesNilBody(t *testing.T) {
+	var gotContentLength string
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/files/list", func(w http.ResponseWriter, r *http.Request) {
+		// Content-Length header is absent / 0 for a GET with nil body.
+		gotContentLength = r.Header.Get("Content-Length")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("{}"))
+	})
+
+	upstream := httptest.NewTLSServer(mux)
+	defer upstream.Close()
+
+	api, srv := proxyTestAPI(t, upstream)
+	_ = api.remoteCaps.Put("sid-get", upstream.URL, "ok-cap")
+
+	resp, err := http.Get(srv.URL + "/api/files/remote/sid-get/list?path=.")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	resp.Body.Close()
+
+	// A GET with nil body must not carry a body-length indicator.
+	if gotContentLength != "" && gotContentLength != "0" {
+		t.Errorf("GET request should have no body; Content-Length=%q", gotContentLength)
+	}
+}
+
 // ---- helpers --------------------------------------------------------------
 
 // urlEncode is a thin wrapper around url.QueryEscape so the test reads

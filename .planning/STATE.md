@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.4
-milestone_name: File Browser (Read-Only) + TUI Parity
-status: milestone_archived
-stopped_at: Milestone archived 2026-05-21 — release tagged v3.4
-last_updated: 2026-05-21T00:00:00.000Z
-last_activity: 2026-05-21 -- v3.4 milestone archived + tagged
+milestone: v3.5
+milestone_name: File Browser — Write Operations & Editor
+status: executing
+stopped_at: v3.5 roadmap created
+last_updated: "2026-06-14T22:04:50.372Z"
+last_activity: 2026-06-14 -- Phase 126 execution started
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 20
-  percent: 100
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 19
+  completed_plans: 15
+  percent: 75
 ---
 
 # Project State
@@ -21,37 +21,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Planning next milestone (v3.5 expected: write-side file ops + editor)
+**Current focus:** Phase 126 — TUI Write Parity ($EDITOR Shell-Out)
 
 ## Current Position
 
-Phase: — (between milestones)
-Plan: —
-Status: v3.4 archived + tagged; awaiting `/gsd:new-milestone`
-Last activity: 2026-05-21
+Phase: 126 (TUI Write Parity ($EDITOR Shell-Out)) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 126
+Last activity: 2026-06-14 -- Phase 126 execution started
 
-## Operator Next Steps (carried into v3.4)
+```
+v3.5 Progress: [                    ] 0% (0/6 phases)
+```
 
-**Pre-next-release operator follow-ups (no coding, will be exercised by next tagged release):**
+## Operator Next Steps (pre-release, carry-forward)
 
-1. **Phase 106 `RELEASE_PUBLISH_TOKEN`** (one-time): create fine-grained PAT scoped to `Contents: read/write` on `scottkw/agenthub`, then `gh secret set RELEASE_PUBLISH_TOKEN`. Without this, `release.published` will not auto-trigger `distribute.yml` (workflow currently falls back to `GITHUB_TOKEN`, which mutes the trigger).
-2. **Phase 106 `WINGET_FIRST_SUBMISSION=true`** (one-time, first submission only): `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after microsoft/winget-pkgs accepts the first submission.
+**Pre-next-release operator follow-ups (no coding, required before next tagged release):**
 
-**GitHub issues filed during v3.3 (deferred to v3.4 backlog):**
-
-- `scottkw/agenthub#54` — chafa OSC 10/11 + DA1 response leak into shell stdin (web surface only; desktop unaffected). Pre-existing, not a v3.3 regression. (UAT-05) — CLOSED in v3.3.1 Phase 111/115
-- `scottkw/agenthub#55` — WebGLRecoveryBanner does not render despite functional DOM fallback. Pre-existing Phase 93 bug. (UAT-01) — CLOSED in v3.3.1 Phase 112
-- `scottkw/agenthub#56` — iPad tap-on-link captured by xterm-helper-textarea instead of firing link click handler. Pre-existing iPad-touch polish cluster. (UAT-04) — CLOSED in v3.3.1 Phase 113
+1. **`RELEASE_PUBLISH_TOKEN`** (one-time): create fine-grained PAT scoped to `Contents: read/write` on `scottkw/agenthub`, then `gh secret set RELEASE_PUBLISH_TOKEN`. Without this, `release.published` will not auto-trigger `distribute.yml`.
+2. **`WINGET_FIRST_SUBMISSION=true`** (one-time, first WinGet submission only): `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after microsoft/winget-pkgs accepts the first submission.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- v3.3 phases: 9 (Phases 100-108, including audit-driven mid-milestone Phases 107 + 108)
-- v3.3.1 phases: 9 (Phases 109-117)
-- v3.3.1 plans: 9 across phases
-- v3.3.1 commits: ~17
-- v3.3.1 timeline: 2026-05-15 → 2026-05-19 (5 days)
 - v3.4 phases: 5 (Phases 118-122, including audit-driven mid-milestone Phase 122)
 - v3.4 plans: 20/21 (Plan 122-01 superseded by 122-01-recovery)
 - v3.4 commits: 176
@@ -61,32 +54,52 @@ Last activity: 2026-05-21
 
 ## Session Continuity
 
-Last session: 2026-05-21
-Stopped at: v3.4 milestone archived + tagged
+Last session: 2026-06-14
+Stopped at: v3.5 roadmap created
 Resume file: None
-Next action: `/clear` then `/gsd:new-milestone` to scope v3.5
+Next action: `/gsd:plan-phase 123`
 
 ## Deferred Items
 
-Items carried forward into v3.5 from v3.4 close (2026-05-21):
+Items carried forward from v3.4 close (2026-05-21) and pre-release operator tasks:
 
 | Category | Item | Status |
 |----------|------|--------|
-| operator_runtime | Phase 106 `RELEASE_PUBLISH_TOKEN` PAT | pending (one-time, before next release) |
-| operator_runtime | Phase 106 `WINGET_FIRST_SUBMISSION=true` variable | pending (one-time, first WinGet submission only) |
-| manual_uat | TD-1: Phase 120 Wails desktop click-path UAT | deferred (release-eligible after operator runs) |
-| manual_uat | TD-2: Phase 121 visual TokyoNight + lipgloss perceptual UAT (user is colorblind; requires sighted helper) | deferred |
-| manual_uat | TD-3: Phase 122 22-step two-machine tailnet UAT (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface parity + failure-mode takeover) | deferred |
-| tech_debt | TD-4: Phase 120 WR-01..WR-05 (`/app/` dir listings, cache-control, joinPath sanitization, mtime fallback, comment clarity) | deferred v3.5 — file issue OR fix-now plan |
-| tech_debt | TD-5: Phase 122 `ExchangeJoinCodeAtURL` JSON-vs-303 mismatch shim cleanup | deferred v3.5 |
+| operator_runtime | `RELEASE_PUBLISH_TOKEN` PAT | pending (one-time, before next release) |
+| operator_runtime | `WINGET_FIRST_SUBMISSION=true` variable | pending (one-time, first WinGet submission only) |
+| manual_uat | TD-1: Phase 120 Wails desktop click-path UAT | PASSED 2026-05-22 (6 hotfix commits) |
+| manual_uat | TD-2: Phase 121 visual TokyoNight + lipgloss perceptual UAT | PASSED 2026-05-22 |
+| manual_uat | TD-3: Phase 122 22-step two-machine tailnet UAT | pending (requires second tailnet machine) |
+| uat_open_item | UAT Open Item #1: share UI mints viewer cap without files.read | pending disposition (A/B/C options in UAT-LOG) |
+| uat_open_item | UAT Open Item #2: share UI surfaces legacy /sessions/ URL not /app/ | pending disposition |
+| tech_debt | TD-4: Phase 120 WR-01..WR-05 (`/app/` dir listings, cache-control, joinPath sanitization, mtime fallback, comment clarity) | FOLDED INTO Phase 123 (FSW-11) |
+| tech_debt | TD-5: Phase 122 `ExchangeJoinCodeAtURL` JSON-vs-303 mismatch shim cleanup | FOLDED INTO Phase 123 (FSW-10) |
 | visual_uat | Phase 101 5 visual-fidelity items (carried from v3.3) | deferred (cosmetic, non-gating) |
-| tech_debt | Phase 108 WR-01/WR-02 + IN-01..04 (carried from v3.3) | deferred v3.5 |
-| tech_debt | Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch SEARCH_INDEX missing "Shell binary" (carried from v3.3) | deferred v3.5 |
-| tech_debt | Phase 101 advisory WR-01..09 + IN-01..06 (15 items, carried from v3.3) | deferred v3.5 |
-| process_debt | Phase 103 missing `103-SUMMARY.md` + `103-IIP-DECISION.md` + `103-VERIFICATION.md` (carried from v3.3) | deferred v3.5 |
-| process_debt | Nyquist `*-VALIDATION.md` missing for Phases 101–108 (carried from v3.3) | deferred (process debt; not a blocker) |
-| test_debt | TestOpenCodeANSICapture data race (carried from v3.3) | deferred (pre-existing, skipped) |
-| test_debt | Phase 108 PARITY-CLI-03 harness limitation (carried from v3.3) | deferred v3.5 |
+| tech_debt | Phase 108 WR-01/WR-02 + IN-01..04 (carried from v3.3) | deferred |
+| tech_debt | Phase 107 IN-01/02/03 + Browse-button aria-label + SettingsSearch SEARCH_INDEX missing "Shell binary" | deferred |
+
+## v3.5 Phase Plan
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 123 | TD Cleanup + Write Sandbox Primitives + Daemon Routes | FSW-01..FSW-12 (12) | Not started |
+| 124 | `files.write` Capability + Webserver Write Routes + Web-Share Opt-In | CAP-01..CAP-10 (10) | Not started |
+| 125 | React Editor (CodeMirror 6) — Desktop + Web | EDIT-01..EDIT-13 (13) | Not started |
+| 126 | TUI Write Parity (`$EDITOR` Shell-Out) | TUIW-01..TUIW-07 (7) | Not started |
+| 127 | Web-Share Write Security Hardening | SEC-01..SEC-07 (7) | Not started |
+| 128 | Remote Write Parity + Cross-Surface Integration | RMW-01..RMW-06 (6) | Not started |
+
+## Key Decisions (v3.5)
+
+| Decision | Resolution |
+|----------|------------|
+| Editor library | CodeMirror 6 (research-ratified; Monaco rejected — requires `worker-src blob:` CSP amendment) |
+| Owner `files.write` default | Default-ON for session owner (mirrors `files.read`); web-share viewers remain opt-in (default OFF) |
+| Multi-file upload | IN scope (P1) — batched upload-queue UI in Phase 125 |
+| Cross-directory move | IN scope (P1) — "Move to…" picker UI in Phase 125; server-side rename already move-capable |
+| Upload size cap | 50 MiB hardcoded (`http.MaxBytesReader`); configurable `UploadMaxBytes` deferred |
+| Auto-save | OUT — explicit anti-feature (AI agents watch FS; partial saves would corrupt live coding sessions) |
+| TUI upload | Formally descoped (TUIW-06); on-screen message + follow-up GitHub issue filed |
 
 ## v3.4 Plan Execution Log
 
@@ -97,20 +110,6 @@ Items carried forward into v3.5 from v3.4 close (2026-05-21):
 | 120 | 01..06 | Complete 2026-05-20 | React FileBrowserTab + Playwright cross-browser merge gate + web-mode gap closure (UI-01..14) |
 | 121 | 01..03 + CR-01 + WR-01..06 | Complete 2026-05-21 | TUI Files view + tea.Cmd discipline + glamour preview (TUI-01..10 local) |
 | 122 | 01 (+ recovery) + 02..05 | Complete 2026-05-21 (audit-driven insert) | Remote-session GUI + TUI parity + cross-surface byte-equivalence (REMOTE-01..05, TUI-08 remote half) |
-| UAT | #1 Wails desktop click-path | ✅ PASSED 2026-05-22 | 6 release-blocker hotfixes shipped (`fix(120.1):` commits 74f1490, e641541, 536e137, 4b37e77, 3028d92, 74905e0). Full log in `milestones/v3.4-UAT-LOG.md` |
-| UAT | #2 TUI visual + local browse | ✅ PASSED 2026-05-22 | All 5 Phase 121 success criteria visually confirmed. Cosmetic notes only |
-| UAT | #3 Two-machine tailnet | 🔲 not started | Requires a second box on the tailnet. Runbook in `milestones/v3.4-phases/122-.../122-VERIFICATION.md` |
-| UAT | Open Item #1: share UI mints viewer cap without files.read | 🔲 pending disposition | Per FS-12 by-design; UX gap (no UI to opt-in). See UAT-LOG for A/B/C options |
-| UAT | Open Item #2: share UI surfaces legacy `/sessions/` URL not `/app/` | 🔲 pending disposition | Users never discover file browser via normal share flow. See UAT-LOG |
-| UAT | Open Item #3: Warp terminal swallows Ctrl-\ | 🔲 not an AgentHub bug | Confirmed via `cat -v` test. File Warp issue; optional v3.5 configurable detach key |
-
-## v3.3.1 Plan Execution Log
-
-| Phase | Plan | Status | Duration | Commits | Notes |
-|-------|------|--------|----------|---------|-------|
-| 109 | 01 | code-complete; pending human Windows UAT (IPC-05) | 7min | 4 (3 cherry-picks from PR #53 by Alexandre Castro + 1 planner doc) | `phase-109-windows-named-pipe-ipc` branch; SUMMARY.md written; pre-existing ShellWebShareWarned failures documented in `deferred-items.md` (already known per line 81 deferred table above) |
-| 110 | 01 | code-complete; pending human Linux UAT (PTY-01..04 runtime) | 10min | 7 task commits on `main` (768f999, f6c1b79, eafa6aa, cafd1e8, 6f6138a, 838ba83, + SUMMARY meta-commit) | Linux Wait4 exit detector + no-op stub + 3 unit tests + native.go wire-up + engine_test.go skip flip + 110-VERIFICATION.md + 110-01-SUMMARY.md + deferred-items.md; macOS race regression all PASS (excluding 4 pre-existing failures documented in deferred-items.md); closes Issue #57 once Linux UAT signs off |
-| 111 | 01 | code-complete; pending human macOS cross-surface chafa UAT (WEB-02) | 5min | 4 task commits on `main` (c343a1d test RED, 9082f5a feat GREEN unit, 31e5d68 feat GREEN integration + wiring, bcf2bf5 docs VERIFICATION) | InputAbsorber 5-state machine (oscabsorb.go 117 source lines) + 26 unit subtests + 6 integration tests + 4-line server.go wiring; `internal/relay/server.go` UNTOUCHED, no new deps; closes Issue #54 web surface once macOS operator confirms web vs. desktop chafa parity; Open Question 1 (desktop empirical state) deferred to that UAT |
-| 112 | 01 | code-complete; pending human cross-surface UAT (UI-01 desktop Wails + UI-01 web Chrome) | 8min | 4 task commits on `main` (b889c63 test RED, a4cdc2e fix GREEN, 99a42c7 docs VERIFICATION, 7e35bcd docs issue-cross-check) | TerminalPanel.tsx onContextLoss reorder (24 changed lines, one block): notify React FIRST then queueMicrotask-deferred dispose with try/catch. RESEARCH §5 pattern; CONTEXT closure-rot hypothesis refuted (RESEARCH §Pattern 1 — React useState setters are identity-stable). Full frontend suite 907/907 PASS; tsc --noEmit clean. UI-02 (DOM fallback) source-traced via WebglAddon.dispose() → renderService.setRenderer(_createRenderer()). Manual UAT deferred (no GUI display + no Chrome in executor session); closes Issue #55 once operator runs 112-VERIFICATION.md UAT-1 + UAT-2 |
-| 113 | 01 | code-complete; pending human physical-iPad UAT (UI-03 + UI-04, 5 human_needed items) | ~30min | 5 task commits on `main` (5745c02 test RED, c9a8506 feat GREEN handler, 49e88d2 test RED wiring, 8f06df7 feat GREEN wiring + CSS, 821d7e0 docs VERIFICATION) | New frontend/src/lib/touchScrollHandler.ts (117 src lines) — `attachTouchScroll(container, term) => cleanup`. Translates single-finger touch Δy into `term.scrollLines(-lines)` against xterm public API; multi-touch bails so iOS handles pinch; sub-threshold (<8px) tap path untouched so OSC 8 WebLinksAddon click handler keeps firing; touchmove registered `passive:false` for `preventDefault` on confirmed scroll. TerminalPanel.tsx: 1 import + 1 new useEffect with `[sessionId]` dep array right after existing mount effect; binds to React-owned outer containerRef <div> so it survives `term.dispose()`. style.css: `touch-action: pan-y` on `.terminal-session-container` (companion CSS — does NOT use `touch-action: none`, preserves pinch-zoom). Tests: 10/10 unit + 5/5 source-grep + 922/922 full frontend suite + tsc --noEmit clean. No new deps. Closes Issue #56 once physical iPad UAT confirms; probes the v3.3 UAT-04 carry-over (iPad tap-on-link) as possible bonus side-effect repair. |
-| 114 | 01 | code-complete; pending human Linux CI 100/100 gate (TEST-01 final acceptance, Task 4 `checkpoint:human-verify`) | ~3min | 1 task commit on `main` (904cd14 fix VARIANT A + VERIFICATION.md) | Variant A rewrite of `issueExpiredCapFor` in `internal/webserver/plugin_config_stream_test.go` — sign with deliberately wrong 32-byte 0xFF key (vs. previously signing with real key + flipping last base64 char). Removes the wall-clock-second base64-padding-bit no-op (alphabet chars A/B/C/D share top 4 bits, low 2 bits are padding → 6.25% of HMAC outputs the A↔B flip was a no-op → handler hit 403 'capability revoked' instead of 401). Exercises the production ErrInvalidSignature → 401 path already proven non-flaky by TestCapability_InvalidSignatureReturns401. Local stress: `go test -race -shuffle=on -count=100 -run TestPluginConfigStream_ExpiredCap_Returns401 ./internal/webserver/` → 100/100 PASS; full package x10 shuffled → PASS no sibling regression. Commit body states base64-padding-bit root cause in writing (TEST-02 acceptance). Closes Issue #58 once operator confirms Linux CI 100/100. |
+| UAT | #1 Wails desktop click-path | PASSED 2026-05-22 | 6 release-blocker hotfixes shipped |
+| UAT | #2 TUI visual + local browse | PASSED 2026-05-22 | All 5 Phase 121 success criteria visually confirmed |
+| UAT | #3 Two-machine tailnet | pending | Requires second machine on tailnet |

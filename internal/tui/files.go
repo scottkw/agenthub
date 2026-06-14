@@ -326,8 +326,18 @@ func (m Model) renderFilesStatusLine(w int) string {
 	return lipgloss.NewStyle().Foreground(m.styles.FgMuted).Width(w).Render(body)
 }
 
+// homeDirWriteWarning is the verbatim TUI warning copy from 124-UI-SPEC §TUI Surface 4.
+// The ⚠ glyph + literal "Warning:" carry the signal for colorblind users;
+// StatusWaiting amber is reinforcement only (T-124-17 mitigation).
+const homeDirWriteWarning = "⚠ Warning: cwd is $HOME — writes can affect dotfiles, SSH keys, and shell config. Protected files are blocked."
+
 // renderFilesTab assembles the two-pane (list | preview) layout plus the
 // status line. 40 % / 60 % split with a 1-char separator column.
+//
+// Phase 124 CAP-06: when the active session has HomeDir=true AND FilesWrite=true,
+// a colorblind-safe warning line is inserted between the body panes and the status
+// line. The condition mirrors the GUI banner (HomeDirWriteWarning.tsx) exactly
+// (cross-surface parity is release-blocking, T-124-18).
 func (m Model) renderFilesTab(cw, ch int) string {
 	listW := cw * 40 / 100
 	if listW < 10 {
@@ -356,7 +366,27 @@ func (m Model) renderFilesTab(cw, ch int) string {
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listPane, sepCol, previewPane)
 	status := m.renderFilesStatusLine(cw)
-	return lipgloss.JoinVertical(lipgloss.Left, body, status)
+
+	// Phase 124 CAP-06: home-dir write warning line.
+	// Look up the SessionInfo for the session this Files view is scoped to.
+	// When that session has HomeDir && FilesWrite, render the warning line
+	// directly above the status line. Color (StatusWaiting amber) is
+	// reinforcement — the ⚠ glyph + "Warning:" text carry the meaning.
+	var rows []string
+	rows = append(rows, body)
+	for i := range m.sessions {
+		if m.sessions[i].ID == m.files.sessionID &&
+			m.sessions[i].HomeDir && m.sessions[i].FilesWrite {
+			warning := lipgloss.NewStyle().
+				Foreground(m.styles.StatusWaiting).
+				Width(cw).
+				Render(truncate(homeDirWriteWarning, cw))
+			rows = append(rows, warning)
+			break
+		}
+	}
+	rows = append(rows, status)
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 // parentDir returns the parent directory of p using forward-slash path

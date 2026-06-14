@@ -15,6 +15,10 @@ export interface SessionInfo {
   viewerCount: number
   exitCode?: number
   duration?: number
+  /** Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME). Server-side source of truth for the home-dir write warning on both GUI and TUI. */
+  homeDir: boolean
+  /** Phase 124 / CAP-04: true when the per-session owner write toggle is ON. Server-side source of truth for cross-surface parity. */
+  filesWrite: boolean
 }
 
 export interface DetectedCLI {
@@ -174,8 +178,12 @@ export interface IssueCapabilitiesResponse {
   writeUrl: string
   readCode: string
   writeCode: string
+  homeDir: boolean  // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
 }
 export function IssueCapabilities(sessionID: string): Promise<IssueCapabilitiesResponse>
 export function ExchangeJoinCode(code: string): Promise<string>
 export function RegenerateSigningKey(): Promise<void>
 export function GetCapabilityQRCode(joinURL: string): Promise<string>
+
+// Phase 124 / CAP-04: per-session file-write toggle (owner binding).
+export function SetSessionFilesWrite(sessionID: string, enabled: boolean): Promise<void>

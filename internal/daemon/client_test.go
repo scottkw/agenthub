@@ -370,3 +370,382 @@ func TestDaemonClient_ListFiles_TraversalReturns403Error(t *testing.T) {
 		t.Errorf("ListFiles traversal err = %q; want substring '403' or 'access denied'", msg)
 	}
 }
+
+// ─── Phase 123-02 Task 1: TestExchangeJoinCode_* ─────────────────────────────
+//
+// Tests for DaemonClient.ExchangeJoinCodeAtURL (FSW-10 / TD-5). The function
+// must parse a 303 See Other Location header to extract the ?cap=<token>, map
+// error-shape Locations (/join?error=<kind>) onto the modal error-substring
+// contract, and NOT auto-follow the redirect.
+
+// TestExchangeJoinCode_303Success: 303 with Location "/sessions/abc?cap=TOKEN123" → "TOKEN123", nil.
+func TestExchangeJoinCode_303Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/join/exchange" {
+			http.Error(w, "unexpected", http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, "/sessions/abc?cap=TOKEN123", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: unexpected error: %v", err)
+	}
+	if tok != "TOKEN123" {
+		t.Errorf("token = %q, want %q", tok, "TOKEN123")
+	}
+}
+
+// TestExchangeJoinCode_NoAutoFollow: the redirect target (/sessions/abc) must NOT be hit.
+func TestExchangeJoinCode_NoAutoFollow(t *testing.T) {
+	redirectHit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/join/exchange":
+			http.Redirect(w, r, "/sessions/abc?cap=CAPS99", http.StatusSeeOther)
+		case "/sessions/abc":
+			redirectHit = true
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "unexpected path: "+r.URL.Path, http.StatusBadRequest)
+		}
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: unexpected error: %v", err)
+	}
+	if tok != "CAPS99" {
+		t.Errorf("token = %q, want %q", tok, "CAPS99")
+	}
+	if redirectHit {
+		t.Error("redirect target /sessions/abc was followed; CheckRedirect: ErrUseLastResponse must be set")
+	}
+}
+
+// TestExchangeJoinCode_ErrorLocation: Location /join?error=<kind> → error containing that substring.
+func TestExchangeJoinCode_ErrorLocation(t *testing.T) {
+	cases := []struct {
+		kind    string
+		wantSub string
+	}{
+		{"expired", "expired"},
+		{"invalid", "invalid"},
+		{"not-found", "not-found"},
+		{"session-gone", "session-gone"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/join?error="+tc.kind, http.StatusSeeOther)
+			}))
+			defer srv.Close()
+
+			c := &DaemonClient{}
+			_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+			if err == nil {
+				t.Fatalf("want error containing %q, got nil", tc.wantSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantSub) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantSub)
+			}
+		})
+	}
+}
+
+// TestExchangeJoinCode_EmptyCap: 303 with Location lacking a cap query → error containing "invalid".
+func TestExchangeJoinCode_EmptyCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/sessions/abc", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err == nil {
+		t.Fatal("want error containing 'invalid', got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("error %q does not contain 'invalid'", err.Error())
+	}
+}
+
+// TestExchangeJoinCode_SharedClientUnchanged: remoteFilesHTTPClient.CheckRedirect is still nil after the call.
+func TestExchangeJoinCode_SharedClientUnchanged(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/sessions/x?cap=TOK", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	if _, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE"); err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: %v", err)
+	}
+	if remoteFilesHTTPClient.CheckRedirect != nil {
+		t.Error("remoteFilesHTTPClient.CheckRedirect was mutated; it must remain nil")
+	}
+}
+
+// TestExchangeJoinCode_AbsoluteLocationHostMismatch: 303 with an absolute
+// Location pointing at a different host → error containing "invalid" (WR-04).
+// With InsecureSkipVerify on the dedicated transport, a tailnet MITM could
+// return Location: https://attacker/sessions/x?cap=STEAL — the host check
+// must reject it before returning the cap token.
+func TestExchangeJoinCode_AbsoluteLocationHostMismatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return an absolute Location whose host differs from the request target.
+		http.Redirect(w, r, "https://attacker.example.com/sessions/x?cap=STOLEN", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err == nil {
+		t.Fatal("want error for mismatched Location host, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("error %q should contain 'invalid' for mismatched host", err.Error())
+	}
+}
+
+// TestExchangeJoinCode_AbsoluteLocationSameHost: absolute Location with the
+// same host and scheme as the request target must succeed (WR-04 positive control).
+func TestExchangeJoinCode_AbsoluteLocationSameHost(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/join/exchange" {
+			// Return an absolute Location pointing at the same host.
+			http.Redirect(w, r, "http://"+r.Host+"/sessions/abc?cap=TOKEN_ABS", http.StatusSeeOther)
+		}
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL with same-host absolute Location: %v", err)
+	}
+	if tok != "TOKEN_ABS" {
+		t.Errorf("token = %q, want %q", tok, "TOKEN_ABS")
+	}
+}
+
+// TestExchangeJoinCode_WR05_AbsoluteErrorLocation: absolute Location of the
+// form "http://host/join?error=expired" must extract error kind via url.Parse
+// (WR-05). The old strings.TrimPrefix approach would return the full URL as
+// the kind; the new url.Parse approach extracts just "expired".
+func TestExchangeJoinCode_WR05_AbsoluteErrorLocation(t *testing.T) {
+	cases := []struct {
+		kind    string
+		wantSub string
+	}{
+		{"expired", "expired"},
+		{"session-gone", "session-gone"},
+		{"not-found", "not-found"},
+		{"invalid", "invalid"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Return an ABSOLUTE error Location (same host, different path).
+				http.Redirect(w, r, "http://"+r.Host+"/join?error="+tc.kind, http.StatusSeeOther)
+			}))
+			defer srv.Close()
+
+			c := &DaemonClient{}
+			_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+			if err == nil {
+				t.Fatalf("want error containing %q, got nil", tc.wantSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantSub) {
+				t.Errorf("error %q does not contain %q (WR-05: absolute error Location not parsed correctly)", err.Error(), tc.wantSub)
+			}
+		})
+	}
+}
+
+// -------------------------------------------------------------------------
+// Phase 123 / Plan 04: DaemonClient write method round-trip tests (FSW-09).
+//
+// Each test spins up a tempdir-backed API via newFilesAPI and exercises the
+// five new DaemonClient write methods against the real Plan-03 routes:
+//
+//   WriteFile   → PUT  /api/files/write
+//   UploadFile  → POST /api/files/upload  (multipart)
+//   DeleteFile  → DELETE /api/files/delete
+//   RenameFile  → POST /api/files/rename  (JSON body)
+//   MkdirFile   → POST /api/files/mkdir
+//
+// Error and cancellation behaviour are also covered per the plan's
+// acceptance criteria.
+// -------------------------------------------------------------------------
+
+func TestDaemonClientWrite_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	content := []byte("hello from WriteFile")
+	resp, err := c.WriteFile(context.Background(), sid, "roundtrip.txt", content)
+	if err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if resp.Path != "roundtrip.txt" {
+		t.Errorf("WriteFile resp.Path = %q, want %q", resp.Path, "roundtrip.txt")
+	}
+	if resp.Size != int64(len(content)) {
+		t.Errorf("WriteFile resp.Size = %d, want %d", resp.Size, len(content))
+	}
+
+	// Follow-up read must return identical bytes.
+	got, _, err := c.ReadFile(context.Background(), sid, "roundtrip.txt")
+	if err != nil {
+		t.Fatalf("ReadFile after Write: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("ReadFile after Write = %q, want %q", string(got), string(content))
+	}
+}
+
+func TestDaemonClientUpload_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	content := []byte("uploaded bytes content")
+	resp, err := c.UploadFile(context.Background(), sid, ".", "upload.txt", content)
+	if err != nil {
+		t.Fatalf("UploadFile: %v", err)
+	}
+	if resp.Size != int64(len(content)) {
+		t.Errorf("UploadFile resp.Size = %d, want %d", resp.Size, len(content))
+	}
+
+	got, _, err := c.ReadFile(context.Background(), sid, "upload.txt")
+	if err != nil {
+		t.Fatalf("ReadFile after Upload: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("ReadFile after Upload = %q, want %q", string(got), string(content))
+	}
+}
+
+func TestDaemonClientDelete_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	// Pre-populate a file to delete.
+	if err := os.WriteFile(filepath.Join(tmp, "todelete.txt"), []byte("bye"), 0600); err != nil {
+		t.Fatalf("WriteFile seed: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.DeleteFile(context.Background(), sid, "todelete.txt")
+	if err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("DeleteFile resp.OK = false, want true")
+	}
+
+	// Stat should now return a 404 error.
+	_, err = c.StatFile(context.Background(), sid, "todelete.txt")
+	if err == nil {
+		t.Fatal("StatFile after Delete returned nil err; want non-nil (file gone)")
+	}
+}
+
+func TestDaemonClientRename_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "old.txt"), []byte("rename me"), 0600); err != nil {
+		t.Fatalf("WriteFile seed: %v", err)
+	}
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.RenameFile(context.Background(), sid, "old.txt", "new.txt")
+	if err != nil {
+		t.Fatalf("RenameFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("RenameFile resp.OK = false, want true")
+	}
+	if opResp.Path != "new.txt" {
+		t.Errorf("RenameFile resp.Path = %q, want %q", opResp.Path, "new.txt")
+	}
+
+	// new.txt must be readable; old.txt must be gone.
+	got, _, err := c.ReadFile(context.Background(), sid, "new.txt")
+	if err != nil {
+		t.Fatalf("ReadFile new.txt after Rename: %v", err)
+	}
+	if string(got) != "rename me" {
+		t.Errorf("ReadFile new.txt = %q, want %q", string(got), "rename me")
+	}
+	_, err = c.StatFile(context.Background(), sid, "old.txt")
+	if err == nil {
+		t.Fatal("StatFile old.txt after Rename returned nil err; want non-nil (file moved)")
+	}
+}
+
+func TestDaemonClientMkdir_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+	c := NewDaemonClient(sock)
+
+	opResp, err := c.MkdirFile(context.Background(), sid, "newdir/subdir")
+	if err != nil {
+		t.Fatalf("MkdirFile: %v", err)
+	}
+	if !opResp.OK {
+		t.Errorf("MkdirFile resp.OK = false, want true")
+	}
+
+	// The directory must appear in the listing.
+	entries, _, err := c.ListFiles(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("ListFiles after Mkdir: %v", err)
+	}
+	var found bool
+	for _, e := range entries {
+		if e.Name == "newdir" && e.IsDir {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("newdir not found in listing after Mkdir; entries = %+v", entries)
+	}
+}
+
+func TestDaemonClientWrite_NonOKError(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	c := NewDaemonClient(sock)
+
+	// Traversal path triggers 403 from the server — surfaces as a typed error.
+	_, err := c.WriteFile(context.Background(), sid, "../../escape.txt", []byte("x"))
+	if err == nil {
+		t.Fatal("WriteFile traversal returned nil err; want non-nil")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "403") && !strings.Contains(strings.ToLower(msg), "access denied") {
+		t.Errorf("WriteFile traversal err = %q; want substring '403' or 'access denied'", msg)
+	}
+}
+
+func TestDaemonClientWrite_ContextCancel(t *testing.T) {
+	// Use a cancelled context — the HTTP dial should abort before any bytes fly.
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+	c := NewDaemonClient(sock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	_, err := c.WriteFile(ctx, sid, "noop.txt", []byte("x"))
+	if err == nil {
+		t.Fatal("WriteFile with cancelled ctx returned nil err; want non-nil")
+	}
+}

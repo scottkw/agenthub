@@ -983,6 +983,95 @@ func TestFiles_KeyDispatchPriority_AboveTabCycling_BelowHelp(t *testing.T) {
 	})
 }
 
+// ----------------------------------------------------------------------------
+// Phase 124 Plan 05 — CAP-06 home-dir write warning line (TUI parity)
+// ----------------------------------------------------------------------------
+
+// homeDirWarningModel constructs a Model whose files view is scoped to a
+// session identified by sid. It populates m.sessions with a SessionInfo whose
+// HomeDir/FilesWrite flags are set from the given arguments, mirroring exactly
+// how renderFilesTab reads the signal (iterate m.sessions, match on sessionID).
+func homeDirWarningModel(sid string, homeDir, filesWrite bool) Model {
+	m := filesTestModel(sid)
+	m.sessions = []daemon.SessionInfo{
+		{
+			ID:         sid,
+			Name:       "test",
+			CLI:        "claude",
+			Status:     "running",
+			HomeDir:    homeDir,
+			FilesWrite: filesWrite,
+		},
+	}
+	return m
+}
+
+// TestRenderFilesTab_HomeDirWarning_ShownWhenBothTrue asserts the verbatim
+// warning line appears in renderFilesTab output when HomeDir=true AND
+// FilesWrite=true for the active session. The ⚠ glyph and the literal
+// "Warning:" token carry the colorblind-safe signal — their presence is the
+// source-level UAT assertion.
+func TestRenderFilesTab_HomeDirWarning_ShownWhenBothTrue(t *testing.T) {
+	m := homeDirWarningModel("sess-hw", true, true)
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+
+	got := ansi.Strip(m.renderFilesTab(120, 24))
+
+	const wantGlyph = "⚠"
+	const wantToken = "Warning:"
+	const wantVerb = "Warning: cwd is $HOME"
+
+	if !strings.Contains(got, wantGlyph) {
+		t.Errorf("HomeDirWarning: output missing ⚠ glyph (colorblind-safety FAIL); got:\n%s", got)
+	}
+	if !strings.Contains(got, wantToken) {
+		t.Errorf("HomeDirWarning: output missing literal 'Warning:' token (colorblind-safety FAIL); got:\n%s", got)
+	}
+	if !strings.Contains(got, wantVerb) {
+		t.Errorf("HomeDirWarning: output missing verbatim 'Warning: cwd is $HOME'; got:\n%s", got)
+	}
+}
+
+// TestRenderFilesTab_HomeDirWarning_AbsentWhenFilesWriteFalse asserts the
+// warning line is NOT shown when HomeDir=true but FilesWrite=false.
+func TestRenderFilesTab_HomeDirWarning_AbsentWhenFilesWriteFalse(t *testing.T) {
+	m := homeDirWarningModel("sess-hw", true, false)
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+
+	got := ansi.Strip(m.renderFilesTab(120, 24))
+	if strings.Contains(got, "Warning: cwd is $HOME") {
+		t.Errorf("HomeDirWarning must NOT appear when FilesWrite=false; got:\n%s", got)
+	}
+}
+
+// TestRenderFilesTab_HomeDirWarning_AbsentWhenHomeDirFalse asserts the
+// warning line is NOT shown when FilesWrite=true but HomeDir=false.
+func TestRenderFilesTab_HomeDirWarning_AbsentWhenHomeDirFalse(t *testing.T) {
+	m := homeDirWarningModel("sess-hw", false, true)
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+
+	got := ansi.Strip(m.renderFilesTab(120, 24))
+	if strings.Contains(got, "Warning: cwd is $HOME") {
+		t.Errorf("HomeDirWarning must NOT appear when HomeDir=false; got:\n%s", got)
+	}
+}
+
+// TestRenderFilesTab_HomeDirWarning_AbsentWhenBothFalse asserts the warning
+// line is absent when both HomeDir=false and FilesWrite=false.
+func TestRenderFilesTab_HomeDirWarning_AbsentWhenBothFalse(t *testing.T) {
+	m := homeDirWarningModel("sess-hw", false, false)
+	m.openTabs = []tabID{tabFiles}
+	m.activeTab = 0
+
+	got := ansi.Strip(m.renderFilesTab(120, 24))
+	if strings.Contains(got, "Warning: cwd is $HOME") {
+		t.Errorf("HomeDirWarning must NOT appear when both HomeDir=false and FilesWrite=false; got:\n%s", got)
+	}
+}
+
 // TestFiles_Phase121_Requirements is the TUI-XX → test-name traceability
 // matrix that enables `/gsd:verify-work` for Phase 121 to confirm every
 // merge-gate requirement has at least one covering automated test.

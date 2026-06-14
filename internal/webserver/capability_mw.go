@@ -117,3 +117,82 @@ func (ws *WebServer) requireFilesRead(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	})
 }
+
+// requireFilesWrite wraps requireCapability and additionally enforces that
+// claims.Perms contains the files.write whole-token capability bit (CAP-02,
+// CAP-09) AND that the request passes the CSRF Origin check (CAP-03).
+//
+// ORDER MATTERS (Pitfall 6): requireCapability runs first — HMAC verify,
+// session/grant checks, and claims-attach via capability.WithClaims all
+// happen before this wrapper's inner handler executes. Only after those
+// succeed does this wrapper extract claims via capability.ClaimsFromContext
+// and apply the capability.HasPerm(claims.Perms, capability.PermFilesWrite)
+// check, then the CSRF Origin check.
+//
+// On perm miss the response is 403 with body "files.write capability required"
+// (load-bearing contract assertion, SC#1 / CAP-09). The literal substring
+// "files.write" in the body allows the frontend to surface a meaningful
+// permission-denied message.
+//
+// The CSRF Origin check (originAllowedForWrite) is the INVERSE of
+// requireAllowedOrigin: an absent Origin passes vacuously (desktop Wails
+// fetch sends none), while a present-and-mismatched Origin returns 403
+// "forbidden". See Pitfall 1 in RESEARCH.md and Critical Inversion 1 in
+// PATTERNS.md.
+//
+// SEPARATION INVARIANT (CAP-02): this is a THIRD separate wrapper — it does
+// NOT touch requireCapability or requireFilesRead. Adding files.write to
+// requireCapability would break every non-file route (T-124-04). The
+// TestRequireCapability_UnchangedByPhase118 static-grep gate pins this.
+func (ws *WebServer) requireFilesWrite(next http.HandlerFunc) http.HandlerFunc {
+	return ws.requireCapability(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := capability.ClaimsFromContext(r.Context())
+		if !ok {
+			// requireCapability always attaches claims on success; missing
+			// claims here indicates a mis-composed wrapper chain.
+			http.Error(w, "files.write capability required", http.StatusForbidden)
+			return
+		}
+		if !capability.HasPerm(claims.Perms, capability.PermFilesWrite) {
+			http.Error(w, "files.write capability required", http.StatusForbidden)
+			return
+		}
+		// CSRF Origin check — must run AFTER the cap check so a missing-perm
+		// request 403s with the informative body rather than the generic
+		// "forbidden" origin error. Ordering: requireCapability (401) →
+		// HasPerm (403) → Origin (403). (T-124-03, T-124-05)
+		if !ws.originAllowedForWrite(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	})
+}
+
+// originAllowedForWrite reports whether the request's Origin header permits a
+// write operation.
+//
+// CRITICAL INVERSION (Critical Inversion 1 in PATTERNS.md, Pitfall 1 in
+// RESEARCH.md): this is the OPPOSITE of requireAllowedOrigin.
+//
+// requireAllowedOrigin (WS-upgrade-only, origin_mw.go:31) REJECTS an absent
+// Origin header because browsers always send Origin on WebSocket upgrade.
+// Write routes are reached by both browser (web-share) and desktop Wails
+// fetch(); desktop Wails fetch() sends NO Origin header. Therefore:
+//
+//   - Absent Origin → return true (pass vacuously; trusted desktop caller).
+//   - Present Origin → strict byte-for-byte match against ws.BaseURL().
+//   - Present Origin with empty BaseURL (listener not ready) → return false
+//     (fail closed; CLAUDE.md "Silent Fallbacks Forbidden").
+func (ws *WebServer) originAllowedForWrite(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Desktop Wails fetch() sends no Origin — pass vacuously (CAP-03).
+		return true
+	}
+	// Present Origin: strict byte-for-byte match required (D-03).
+	// Fail closed when BaseURL() is empty (listener not ready with a present
+	// Origin — never silently allow).
+	allowed := ws.BaseURL()
+	return allowed != "" && origin == allowed
+}
