@@ -770,6 +770,16 @@ func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
 	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
+// SetSessionFilesWrite enables or disables the per-session file-write capability
+// for a specific session. Phase 124 / CAP-04. Mirrors ToggleWebServing but
+// targets the engine's per-session write map (not a global flag).
+func (a *App) SetSessionFilesWrite(sessionID string, enabled bool) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.SetSessionFilesWrite(sessionID, enabled)
+}
+
 // NotifyThemeChange signals active OpenCode terminal sessions to re-query
 // the terminal palette after a theme change in Settings > Appearance.
 // Fire-and-forget from the frontend — errors are logged, not surfaced to UI.

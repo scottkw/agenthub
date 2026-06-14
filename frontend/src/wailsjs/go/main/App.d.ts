@@ -174,8 +174,12 @@ export interface IssueCapabilitiesResponse {
   writeUrl: string
   readCode: string
   writeCode: string
+  homeDir: boolean  // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
 }
 export function IssueCapabilities(sessionID: string): Promise<IssueCapabilitiesResponse>
 export function ExchangeJoinCode(code: string): Promise<string>
 export function RegenerateSigningKey(): Promise<void>
 export function GetCapabilityQRCode(joinURL: string): Promise<string>
+
+// Phase 124 / CAP-04: per-session file-write toggle (owner binding).
+export function SetSessionFilesWrite(sessionID: string, enabled: boolean): Promise<void>

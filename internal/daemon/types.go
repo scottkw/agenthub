@@ -120,6 +120,12 @@ type WebServeRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
+// SessionFilesWriteRequest is the request body for
+// POST /sessions/{id}/files-write (Phase 124 / CAP-04).
+type SessionFilesWriteRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
 // --- Phase 87 capability types (D-06, D-07, D-09, D-11) ------------------
 
 // IssueCapabilitiesResponse is the response body for POST

@@ -132,6 +132,9 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
 	// Phase 87 capability-based authorization endpoints (D-06, D-09, D-16).
 	a.mux.HandleFunc("POST /sessions/{id}/capabilities", a.handleIssueCapabilities)
+	// Phase 124 / CAP-04: per-session file-write toggle.
+	// Loopback-trust (daemon socket): no auth gate — the owner's GUI is the only caller.
+	a.mux.HandleFunc("POST /sessions/{id}/files-write", a.handleSetSessionFilesWrite)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -1228,4 +1231,18 @@ func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	peers := a.tailnetCache.getOrRefresh(ctx, tailnet.DiscoverAndProbe)
 	writeJSON(w, http.StatusOK, peers)
+}
+
+// handleSetSessionFilesWrite handles POST /sessions/{id}/files-write.
+// It toggles the per-session write capability flag for the given session.
+// Phase 124 / CAP-04. Loopback-trust (daemon socket): no auth gate needed.
+func (a *API) handleSetSessionFilesWrite(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req SessionFilesWriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetSessionFilesWrite(id, req.Enabled)
+	w.WriteHeader(http.StatusNoContent)
 }
