@@ -151,16 +151,66 @@ Tracked for visibility; not in the v3.5 roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _All FSW / CAP / EDIT / TUIW / SEC / RMW requirements_ | _assigned by roadmapper_ | Pending |
+| FSW-01 | Phase 123 | Pending |
+| FSW-02 | Phase 123 | Pending |
+| FSW-03 | Phase 123 | Pending |
+| FSW-04 | Phase 123 | Pending |
+| FSW-05 | Phase 123 | Pending |
+| FSW-06 | Phase 123 | Pending |
+| FSW-07 | Phase 123 | Pending |
+| FSW-08 | Phase 123 | Pending |
+| FSW-09 | Phase 123 | Pending |
+| FSW-10 | Phase 123 | Pending |
+| FSW-11 | Phase 123 | Pending |
+| FSW-12 | Phase 123 | Pending |
+| CAP-01 | Phase 124 | Pending |
+| CAP-02 | Phase 124 | Pending |
+| CAP-03 | Phase 124 | Pending |
+| CAP-04 | Phase 124 | Pending |
+| CAP-05 | Phase 124 | Pending |
+| CAP-06 | Phase 124 | Pending |
+| CAP-07 | Phase 124 | Pending |
+| CAP-08 | Phase 124 | Pending |
+| CAP-09 | Phase 124 | Pending |
+| CAP-10 | Phase 124 | Pending |
+| EDIT-01 | Phase 125 | Pending |
+| EDIT-02 | Phase 125 | Pending |
+| EDIT-03 | Phase 125 | Pending |
+| EDIT-04 | Phase 125 | Pending |
+| EDIT-05 | Phase 125 | Pending |
+| EDIT-06 | Phase 125 | Pending |
+| EDIT-07 | Phase 125 | Pending |
+| EDIT-08 | Phase 125 | Pending |
+| EDIT-09 | Phase 125 | Pending |
+| EDIT-10 | Phase 125 | Pending |
+| EDIT-11 | Phase 125 | Pending |
+| EDIT-12 | Phase 125 | Pending |
+| EDIT-13 | Phase 125 | Pending |
+| TUIW-01 | Phase 126 | Pending |
+| TUIW-02 | Phase 126 | Pending |
+| TUIW-03 | Phase 126 | Pending |
+| TUIW-04 | Phase 126 | Pending |
+| TUIW-05 | Phase 126 | Pending |
+| TUIW-06 | Phase 126 | Pending |
+| TUIW-07 | Phase 126 | Pending |
+| SEC-01 | Phase 127 | Pending |
+| SEC-02 | Phase 127 | Pending |
+| SEC-03 | Phase 127 | Pending |
+| SEC-04 | Phase 127 | Pending |
+| SEC-05 | Phase 127 | Pending |
+| SEC-06 | Phase 127 | Pending |
+| SEC-07 | Phase 127 | Pending |
+| RMW-01 | Phase 128 | Pending |
+| RMW-02 | Phase 128 | Pending |
+| RMW-03 | Phase 128 | Pending |
+| RMW-04 | Phase 128 | Pending |
+| RMW-05 | Phase 128 | Pending |
+| RMW-06 | Phase 128 | Pending |
 
-> Traceability is filled by the roadmapper (`/gsd:new-milestone` step 10) when phases are derived. Phase numbering continues from v3.4 (last phase 122) — v3.5 begins at Phase 123.
-
-**Coverage (pre-roadmap):**
-
-- v3.5 requirements: 55 total (FSW: 12, CAP: 10, EDIT: 13, TUIW: 7, SEC: 7, RMW: 6)
-- Carried tech-debt folded in: TD-4 (FSW-11), TD-5 (FSW-10)
+**Coverage:** 55/55 requirements mapped (100%). No orphaned requirements.
 
 ---
 
 *Requirements defined: 2026-06-14*
 *Research basis: `.planning/research/SUMMARY.md` (HIGH confidence) + 4 dimension files (STACK / FEATURES / ARCHITECTURE / PITFALLS).*
+*Traceability filled: 2026-06-14 (roadmapper).*
