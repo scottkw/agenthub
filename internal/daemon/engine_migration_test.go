@@ -286,3 +286,54 @@ func TestSettingsMigration_FilesReadSchemaVersionRewrite(t *testing.T) {
 		t.Errorf("on-disk schemaVersion = %d, want %d (v3.2→v3.3 upgrade re-write should fire)", s.SchemaVersion, CurrentSchemaVersion)
 	}
 }
+
+// TestSettingsMigration_FilesWriteDefaultsFalse verifies that a v3.2
+// settings.json (no filesWrite key) loads with FilesWrite = false (opt-in for
+// all). This is the INVERSION of TestSettingsMigration_FilesReadDefaultsTrue:
+// files.write is an explicit opt-in, so the absence of the key must yield false,
+// not true. T-124-06 mitigation.
+func TestSettingsMigration_FilesWriteDefaultsFalse(t *testing.T) {
+	dir := t.TempDir()
+	copyV32FixtureToTempDir(t, dir)
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	// FilesWrite must default to false on a v3 file with no filesWrite key.
+	// Zero-value false is the correct opt-in default (CAP-08); do NOT pre-populate
+	// a true default as filesRead does.
+	if e.filesWriteDefault {
+		t.Errorf("e.filesWriteDefault = true after loading v3 fixture with no filesWrite key; want false (opt-in for all)")
+	}
+}
+
+// TestSettingsMigration_FilesWriteSchemaVersionRewrite verifies that loading a
+// v3.2 settings.json (schemaVersion=2) triggers the needsUpgradeWrite path so
+// the on-disk file is rewritten with schemaVersion=4 (CurrentSchemaVersion after
+// Phase 124 bump). Mirrors TestSettingsMigration_FilesReadSchemaVersionRewrite
+// with the updated target version.
+func TestSettingsMigration_FilesWriteSchemaVersionRewrite(t *testing.T) {
+	dir := t.TempDir()
+	copyV32FixtureToTempDir(t, dir)
+
+	e := &SessionEngine{
+		configDir: dir,
+		cliPaths:  make(map[string]string),
+	}
+	e.loadSettingsFromDisk(dir)
+
+	raw, err := os.ReadFile(filepath.Join(dir, "settings.json"))
+	if err != nil {
+		t.Fatalf("re-read settings.json: %v", err)
+	}
+	var s daemonSettings
+	if err := json.Unmarshal(raw, &s); err != nil {
+		t.Fatalf("unmarshal rewritten settings: %v", err)
+	}
+	if s.SchemaVersion != 4 {
+		t.Errorf("on-disk schemaVersion = %d, want 4 (v3→v4 upgrade re-write should fire after Phase 124 bump)", s.SchemaVersion)
+	}
+}
