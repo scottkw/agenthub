@@ -6,6 +6,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/scottkw/agenthub/internal/testutil"
 )
 
 // makeTestHub creates a Hub backed by an io.Pipe for testing.
@@ -124,16 +126,13 @@ func TestHubSlowSubscriberGetsDisconnected(t *testing.T) {
 		t.Fatal("timeout waiting for fast subscriber")
 	}
 
-	// Give CloseSlow goroutine time to run
-	time.Sleep(100 * time.Millisecond)
-
-	mu.Lock()
-	closed := slowClosed
-	mu.Unlock()
-
-	if !closed {
-		t.Error("slow subscriber CloseSlow was not called")
-	}
+	// CloseSlow runs in the hub goroutine; poll for it instead of a fixed sleep
+	// that races the eviction under load (issue #80).
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return slowClosed
+	}, "slow subscriber CloseSlow was not called")
 
 	ptyWriter.Close()
 }

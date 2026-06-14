@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/scottkw/agenthub/internal/testutil"
 )
 
 // setupTestServer creates a test HTTP server with a relay Server backed by a
@@ -187,16 +188,15 @@ func TestServer_ClientNameQueryParam(t *testing.T) {
 
 	_ = dialWSWithQuery(t, srv.URL, sessionID, "client=macbook")
 
-	// Give the server a moment to subscribe.
-	time.Sleep(50 * time.Millisecond)
-
 	hub, ok := manager.Get(sessionID)
 	if !ok {
 		t.Fatal("session not found in manager")
 	}
-	if count := hub.SubscriberCount(); count < 1 {
-		t.Errorf("SubscriberCount = %d, want >= 1", count)
-	}
+	// The connection handler subscribes asynchronously; poll until it registers
+	// rather than sleeping a fixed interval that races the Subscribe (issue #80).
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		return hub.SubscriberCount() >= 1
+	}, "SubscriberCount stayed < 1: connection handler never registered the subscriber")
 }
 
 // TestHub_TwoClientsFanOut verifies criterion 1: two WS clients connected to the

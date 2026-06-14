@@ -7,6 +7,7 @@ import (
 
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/status"
+	"github.com/scottkw/agenthub/internal/testutil"
 )
 
 // --- mock hub for Watch tests ---
@@ -56,6 +57,25 @@ func (m *mockHub) send(b []byte) {
 
 func (m *mockHub) close() {
 	close(m.done)
+}
+
+// subscribed reports whether Watch has registered its subscriber yet. Tests
+// must wait for this before send(), otherwise the frame is silently dropped.
+func (m *mockHub) subscribed() bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.sub != nil
+}
+
+// pending reports the number of frames queued but not yet consumed by the
+// detector goroutine, or -1 if not yet subscribed.
+func (m *mockHub) pending() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.sub == nil {
+		return -1
+	}
+	return len(m.sub.Msgs)
 }
 
 // --- helper: newDetector creates a Detector with Claude patterns ---
@@ -249,27 +269,24 @@ func TestWatch_IdleTransition(t *testing.T) {
 		})
 	}()
 
-	// Give Watch time to start and subscribe.
-	time.Sleep(10 * time.Millisecond)
+	// Wait for Watch to subscribe before sending; otherwise the frame is
+	// dropped by the mock hub's nil-subscriber guard (issue #80).
+	testutil.WaitFor(t, 2*time.Second, hub.subscribed, "Watch did not subscribe")
 
 	// Send a framed MsgOutput containing the Claude Code idle prompt.
 	prompt := relay.MakeOutputFrame([]byte("❯ "))
 	hub.send(prompt)
 
-	// Give detector time to process.
-	time.Sleep(20 * time.Millisecond)
+	// Poll for the detector to report the transition instead of sleeping.
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return got == status.StatusIdle
+	}, "expected StatusIdle after framed prompt")
 
 	// Close hub so Watch exits.
 	hub.close()
 	wg.Wait()
-
-	mu.Lock()
-	result := got
-	mu.Unlock()
-
-	if result != status.StatusIdle {
-		t.Errorf("expected StatusIdle after framed prompt, got %q", result)
-	}
 }
 
 // TestWatch_NonOutputFrameIgnored verifies that MsgResize frames are not fed
@@ -293,13 +310,19 @@ func TestWatch_NonOutputFrameIgnored(t *testing.T) {
 		})
 	}()
 
-	time.Sleep(10 * time.Millisecond)
+	// Wait for the subscription so the resize frame isn't dropped (issue #80).
+	testutil.WaitFor(t, 2*time.Second, hub.subscribed, "Watch did not subscribe")
 
 	// Send a resize frame — should not trigger additional transitions.
 	resize := relay.MakeResizeFrame(80, 24)
 	hub.send(resize)
 
-	time.Sleep(20 * time.Millisecond)
+	// Wait until the resize frame is consumed; a resize cannot produce a
+	// transition, so once it's drained the count is authoritative (issue #80).
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		return hub.pending() == 0
+	}, "resize frame was not consumed by the detector")
+
 	hub.close()
 	wg.Wait()
 
@@ -335,8 +358,9 @@ func TestDetectorShutdown(t *testing.T) {
 		status.Watch(hub, "s1", "claude", func(string, status.SessionStatus) {})
 	}()
 
-	// Give Watch time to start and subscribe.
-	time.Sleep(10 * time.Millisecond)
+	// Wait until Watch has subscribed so we know the goroutine is running
+	// before we close (issue #80).
+	testutil.WaitFor(t, 2*time.Second, hub.subscribed, "Watch did not subscribe")
 
 	// Close the hub done channel.
 	hub.close()
