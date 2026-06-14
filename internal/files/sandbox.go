@@ -167,8 +167,8 @@ func (s *Sandbox) Stat(relPath string) (os.FileInfo, error) {
 // A bounded 3-attempt retry loop (~50ms between attempts) is applied on
 // Windows only (FSW-01 §Pitfall 5, RESEARCH Open Q3).
 //
-// No O_TRUNC in-place write; no os.TempDir (temp stays inside the sandbox
-// root so the rename is always intra-filesystem).
+// Writes via temp file only; never in-place truncate. Temp stays inside the
+// sandbox root so the rename is always intra-filesystem (FSW-01).
 func (s *Sandbox) WriteFileAtomic(relPath string, content []byte) error {
 	cleaned, err := validateAndClean(relPath)
 	if err != nil {

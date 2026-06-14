@@ -191,7 +191,7 @@ func TestValidatePath_AcceptsLegitimate(t *testing.T) {
 		"a.txt",
 		"sub",
 		"sub/b.txt",
-		"./a.txt",   // ./ should be normalized to a.txt by Clean
+		"./a.txt", // ./ should be normalized to a.txt by Clean
 		"./sub/b.txt",
 	}
 	for _, p := range cases {
