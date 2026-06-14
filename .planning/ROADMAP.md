@@ -332,7 +332,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 ### Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In
 
-**Goal:** The `files.write` capability bit exists, `requireFilesWrite` middleware (with CSRF Origin check) gates all five webserver write routes, the session-owner token carries `files.write` by default, web-share viewers require an explicit opt-in toggle, and `schemaVersion: 4` migration is in place — so any surface that authenticates via the webserver can now exercise write operations.
+**Goal:** The `files.write` capability bit exists, `requireFilesWrite` middleware (with CSRF Origin check) gates all five webserver write routes, `files.write` is opt-in for every token (a per-session "Enable file writes" toggle gates the owner cap; web-share viewers require a further explicit opt-in), and `schemaVersion: 4` migration is in place — so any surface that authenticates via the webserver can exercise write operations only after writes are explicitly enabled.
 
 **Depends on:** Phase 123 (write sandbox primitives and daemon routes frozen).
 
@@ -340,7 +340,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Success Criteria** (what must be TRUE):
 
-1. A session-owner cap token (which now carries `files.write` by default) returns HTTP 2xx on all five webserver write routes; a web-share viewer cap issued without the `files.write` opt-in returns HTTP 403 on all five routes — not 404, not 401.
+1. A cap token issued WITHOUT writes enabled (the default for both owner and viewer) returns HTTP 403 on all five webserver write routes — not 404, not 401; once writes are explicitly enabled for the session, the resulting `files.write`-bearing cap returns HTTP 2xx on all five routes.
 2. A POST/PUT/DELETE request to a write route with an `Origin` header that does not match the server FQDN is rejected with HTTP 403 (CSRF Origin check); a request with no `Origin` header (desktop Wails fetch) passes vacuously — confirming the Phase 88 pattern is correctly applied to the write surface.
 3. `TestHasPerm_NoStringsContains_Write` static-grep gate passes: no write-path code calls `strings.Contains(perms, "files.write")` — all permission checks use the `HasPerm` whole-token comma-split helper.
 4. The web-share grant UI shows an explicit `files.write` opt-in toggle (default OFF), and toggling it on includes the string `"files.write"` in the issued viewer cap token; the home-directory write warning is visible in both GUI and TUI when `files.write` is active for a session whose cwd is `$HOME`.
