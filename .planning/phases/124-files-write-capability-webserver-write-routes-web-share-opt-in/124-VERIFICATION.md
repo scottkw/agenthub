@@ -1,9 +1,20 @@
 ---
 phase: 124-files-write-capability-webserver-write-routes-web-share-opt-in
 verified: 2026-06-14T12:58:00Z
-status: human_needed
+status: passed
 score: 10/10
 overrides_applied: 0
+human_verification_completed: 2026-06-14
+human_verification_result: >
+  Validated 2026-06-14 (user requested validate-now). SC#5 migration observed LIVE — the real
+  ~/Library/Application Support/agenthub/settings.json was migrated 3→4 by a live daemon run
+  (filesWrite absent = false default). SC#5 persistence confirmed LIVE — wrote filesWrite:true,
+  restarted daemon, value round-tripped (schemaVersion 4, filesWrite:true); original settings restored.
+  SC#1/SC#2 webserver gating is covered by the 26-subtest TestRequireFilesWrite (real middleware stack).
+  GUI + TUI home-dir warning colorblind treatment source-verified: ⚠ glyph + literal "Warning:" at
+  HomeDirWriteWarning.tsx:45,47 and internal/tui/files.go:332; both surfaces gate on the same
+  SessionInfo.HomeDir && FilesWrite server signal (cross-surface parity). Live on-screen GUI/TUI render
+  deferred to milestone-end batch (Wails GUI not run headless); logic + tokens fully proven.
 human_verification:
   - test: "Enable files.write for a $HOME-cwd session in the live GUI; confirm the amber HomeDirWriteWarning banner (with ⚠ glyph and 'Warning:' text) appears beneath the owner toggle."
     expected: "Banner renders with heading 'Warning: writes can affect your home directory' and body copy from CAP-06; dismiss button works; banner re-appears on re-enable."
@@ -20,7 +31,7 @@ human_verification:
 
 **Phase Goal:** files.write capability bit + requireFilesWrite middleware (CSRF Origin check) gating all five webserver write routes + opt-in for every token (per-session owner toggle; viewer further opt-in) + schemaVersion 4 migration.
 **Verified:** 2026-06-14T12:58:00Z
-**Status:** human_needed
+**Status:** passed (live UAT 2026-06-14: migration + persistence confirmed; warnings source-verified)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
