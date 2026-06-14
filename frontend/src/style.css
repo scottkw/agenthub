@@ -1854,6 +1854,32 @@ body {
      2-line body (heading + paragraph) so use start-aligned items. */
   align-items: center;
 }
+
+/* ─── Phase 124 CAP-06 — Home-directory write warning banner ────────────
+   Modifier on .webgl-recovery-banner: overrides the info-blue left accent
+   with warning amber (#f59e0b — already used by local-network-banner;
+   no new hex). The ⚠ glyph + "Warning:" text carry the meaning;
+   the amber border is decoration only (colorblind-safe, CAP-06/T-124-16). */
+.webgl-recovery-banner--home-write-warning {
+  border-left: 3px solid #f59e0b;
+  align-items: flex-start;
+}
+.webgl-recovery-banner__home-write-heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #c0caf5;
+  margin-bottom: 4px;
+}
+.webgl-recovery-banner__home-write-body {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #a9b1d6;
+}
 .webgl-recovery-banner__shell-body {
   flex: 1 1 auto;
   display: flex;
