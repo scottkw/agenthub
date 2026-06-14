@@ -107,6 +107,20 @@ export function DaemonManagerPanel({
             },
           }))
         } catch (capErr) {
+          // IN-01: IssueCapabilities failed after SetSessionFilesWrite succeeded.
+          // The cached share entry now reflects the pre-toggle token (which may
+          // incorrectly carry or lack files.write). Clear it so the reconcile
+          // effect below refetches fresh capabilities on the next render cycle,
+          // preventing stale URLs from being displayed.
+          setSessionShares((prev) => {
+            const next = { ...prev }
+            delete next[sessionId]
+            return next
+          })
+          setWriteError((prev) => ({
+            ...prev,
+            [sessionId]: 'Links may be stale — try toggling off and on to refresh.',
+          }))
           console.warn('[DaemonManagerPanel] IssueCapabilities after write-toggle failed', capErr)
         }
       }
