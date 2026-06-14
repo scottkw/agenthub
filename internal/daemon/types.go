@@ -29,6 +29,14 @@ type SessionInfo struct {
 	ViewerCount int    `json:"viewerCount"`        // MC-04: number of active WebSocket subscribers
 	ExitCode    *int   `json:"exitCode,omitempty"` // nil while running; set when State is "stopped"
 	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
+
+	// Phase 124 CAP-06: server-computed signals consumed by the GUI banner
+	// (HomeDirWriteWarning.tsx) and TUI warning line (renderFilesTab).
+	// HomeDir is true when the session's resolved cwd equals EvalSymlinks($HOME).
+	// FilesWrite is true when the owner's per-session files.write toggle is ON.
+	// Both fields are read-only from the TUI perspective — no TUI mutation.
+	HomeDir    bool `json:"homeDir,omitempty"`
+	FilesWrite bool `json:"filesWrite,omitempty"`
 }
 
 // CreateRequest is the request body for POST /sessions.
