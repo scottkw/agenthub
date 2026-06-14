@@ -36,14 +36,14 @@ type SessionEngine struct {
 	sessionWorkDirs map[string]string // sessionID -> EvalSymlinks-resolved absolute WorkDir (Phase 118 / FS-02)
 	cliPaths        map[string]string // cli name -> custom path override
 
-	startMinimized      bool           // persisted start-minimized preference
-	shellWebShareWarned bool           // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
-	shellPath           string         // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
-	autoCloseSession    *bool          // nil = default (true); persisted pointer
-	filesRead           *bool          // v3.4 (Phase 118 / FS-14): nil for pre-v3.4 files (defaulted to *true via loadSettingsFromDisk); *true = enabled; *false = explicitly disabled
-	filesWriteDefault   bool           // Phase 124 / CAP-08: persisted default for per-session write toggle; false = opt-in for all (T-124-06)
+	startMinimized      bool            // persisted start-minimized preference
+	shellWebShareWarned bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
+	shellPath           string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
+	autoCloseSession    *bool           // nil = default (true); persisted pointer
+	filesRead           *bool           // v3.4 (Phase 118 / FS-14): nil for pre-v3.4 files (defaulted to *true via loadSettingsFromDisk); *true = enabled; *false = explicitly disabled
+	filesWriteDefault   bool            // Phase 124 / CAP-08: persisted default for per-session write toggle; false = opt-in for all (T-124-06)
 	sessionWrites       map[string]bool // Phase 124 / CAP-04: per-session write toggle (in-memory, seeded from filesWriteDefault at session creation; T-124-07)
-	pluginSettings      PluginSettings // populated by loadSettingsFromDisk via defaults-merge
+	pluginSettings      PluginSettings  // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
 	// SetPluginSettings AFTER the new value is persisted, while the engine
@@ -188,8 +188,8 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
-	e.filesRead = s.FilesRead           // Phase 118 / FS-14
-	e.filesWriteDefault = s.FilesWrite  // Phase 124 / CAP-08: zero-value false is the opt-in default
+	e.filesRead = s.FilesRead          // Phase 118 / FS-14
+	e.filesWriteDefault = s.FilesWrite // Phase 124 / CAP-08: zero-value false is the opt-in default
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
 	// CurrentSchemaVersion (e.g. v3.1 file with no key → 0). Re-save so
@@ -216,8 +216,8 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		ShellWebShareWarned: e.shellWebShareWarned,
 		ShellPath:           e.shellPath,
 		AutoCloseSession:    e.autoCloseSession,
-		FilesRead:           e.filesRead,           // Phase 118 / FS-14
-		FilesWrite:          e.filesWriteDefault,   // Phase 124 / CAP-08
+		FilesRead:           e.filesRead,         // Phase 118 / FS-14
+		FilesWrite:          e.filesWriteDefault, // Phase 124 / CAP-08
 		Plugins:             e.pluginSettings,
 		SchemaVersion:       CurrentSchemaVersion,
 	}
