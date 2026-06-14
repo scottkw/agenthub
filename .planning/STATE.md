@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: File Browser — Write Operations & Editor
-status: roadmapped
-last_updated: "2026-06-14"
-last_activity: 2026-06-14
+status: executing
+stopped_at: v3.5 roadmap created
+last_updated: "2026-06-14T15:14:39.186Z"
+last_activity: 2026-06-14 -- Phase 123 execution started
 progress:
-  total_phases: 6
+  total_phases: 1
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.5 roadmap defined — ready to plan Phase 123
+**Current focus:** Phase 123 — TD Cleanup + Write Sandbox Primitives + Daemon Routes
 
 ## Current Position
 
-Phase: 123 (not started — roadmap complete, awaiting plan-phase)
-Plan: —
-Status: Roadmapped
-Last activity: 2026-06-14 — v3.5 roadmap created (Phases 123-128, 55 requirements mapped)
+Phase: 123 (TD Cleanup + Write Sandbox Primitives + Daemon Routes) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 123
+Last activity: 2026-06-14 -- Phase 123 execution started
 
 ```
 v3.5 Progress: [                    ] 0% (0/6 phases)
