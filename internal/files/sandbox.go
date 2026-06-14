@@ -15,11 +15,15 @@
 package files
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 )
 
 // Sandbox is a per-session view of a single resolved working directory.
@@ -54,6 +58,61 @@ func NewSandbox(workDir string) (*Sandbox, error) {
 // RootPath returns the EvalSymlinks-resolved absolute sandbox root.
 func (s *Sandbox) RootPath() string {
 	return s.rootPath
+}
+
+// ErrProtectedSystemFile is returned by all Sandbox write methods when the
+// target resolves to a shell-RC file, SSH key, Claude config, or daemon
+// config directory under the user's $HOME. The "files: " prefix matches the
+// package-wide error-string convention (FSW-06).
+var ErrProtectedSystemFile = errors.New("files: protected system file")
+
+// denylistCheck returns ErrProtectedSystemFile if the write target
+// (identified by the cleaned relative path) resolves to a sensitive file
+// under $HOME. It operates on the resolved absolute path so the check fires
+// only when the session's working directory IS at or below $HOME — the
+// dangerous case for AI-agent writes (FSW-06, RESEARCH §Pattern 4).
+//
+// Canonical denylist:
+//   - Shell RC files: .bashrc, .zshrc, .profile, .bash_profile, .zprofile,
+//     .zshenv, .bash_login
+//   - SSH directory: anything under .ssh/ (authorized_keys, config, etc.)
+//   - Claude config: anything under .claude/
+//   - Daemon config: anything under .config/agenthub/
+//
+// Returns nil when the target is not under $HOME or $HOME is unavailable.
+func (s *Sandbox) denylistCheck(cleaned string) error {
+	abs := filepath.Join(s.rootPath, cleaned)
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return nil
+	}
+	// EvalSymlinks on home so the resolved rootPath (already EvalSymlinks-d
+	// in NewSandbox) and home are on the same canonical path prefix.
+	// On macOS /var/folders/... resolves to /private/var/folders/... and
+	// without this step filepath.Rel returns ".." paths for valid home targets.
+	if resolved, err := filepath.EvalSymlinks(home); err == nil {
+		home = resolved
+	}
+	rel, err := filepath.Rel(home, abs)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return nil // target is not under $HOME — denylist does not apply
+	}
+	// Shell RC files — exact base-name match.
+	base := filepath.Base(abs)
+	switch base {
+	case ".bashrc", ".zshrc", ".profile", ".bash_profile",
+		".zprofile", ".zshenv", ".bash_login":
+		return ErrProtectedSystemFile
+	}
+	// Directory-prefix protections (forward-slash normalised so the check
+	// is consistent across Windows, macOS, and Linux path formats).
+	relSlash := filepath.ToSlash(rel)
+	for _, dir := range []string{".ssh/", ".claude/", ".config/agenthub/"} {
+		if relSlash == strings.TrimSuffix(dir, "/") || strings.HasPrefix(relSlash, dir) {
+			return ErrProtectedSystemFile
+		}
+	}
+	return nil
 }
 
 // Open returns an *os.File for relPath within the sandbox root. The open is
@@ -92,6 +151,183 @@ func (s *Sandbox) Stat(relPath string) (os.FileInfo, error) {
 	}
 	defer root.Close()
 	return root.Stat(cleaned)
+}
+
+// WriteFileAtomic writes content to relPath inside the sandbox using a
+// sibling temp file + f.Sync() + atomic root.Rename. A concurrent reader
+// never observes an empty or partial file because the old inode is visible
+// until the rename completes (FSW-01, RESEARCH §Pattern 1).
+//
+// The temp file is a sibling of the target (same directory) so the rename
+// is intra-filesystem and atomic. The suffix uses crypto/rand to make name
+// collisions between concurrent writers practically impossible; O_EXCL on
+// the temp create guarantees no silent clobber (FSW-01 §Pitfall 5).
+//
+// On Windows, rename-over-an-open-file fails with a sharing-violation.
+// A bounded 3-attempt retry loop (~50ms between attempts) is applied on
+// Windows only (FSW-01 §Pitfall 5, RESEARCH Open Q3).
+//
+// Writes via temp file only; never in-place truncate. Temp stays inside the
+// sandbox root so the rename is always intra-filesystem (FSW-01).
+func (s *Sandbox) WriteFileAtomic(relPath string, content []byte) error {
+	cleaned, err := validateAndClean(relPath)
+	if err != nil {
+		return err
+	}
+	if err := s.denylistCheck(cleaned); err != nil { // FSW-06
+		return err
+	}
+	root, err := os.OpenRoot(s.rootPath)
+	if err != nil {
+		return fmt.Errorf("files: open root: %w", err)
+	}
+	defer root.Close()
+
+	var rnd [8]byte
+	_, _ = rand.Read(rnd[:])
+	tmp := cleaned + ".agenthub-tmp-" + hex.EncodeToString(rnd[:])
+
+	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return fmt.Errorf("files: create temp: %w", err)
+	}
+	if _, err := f.Write(content); err != nil {
+		f.Close()
+		_ = root.Remove(tmp)
+		return fmt.Errorf("files: write temp: %w", err)
+	}
+	if err := f.Sync(); err != nil { // fdatasync before rename — crash durability
+		f.Close()
+		_ = root.Remove(tmp)
+		return fmt.Errorf("files: sync temp: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		_ = root.Remove(tmp)
+		return fmt.Errorf("files: close temp: %w", err)
+	}
+
+	// Rename temp → target atomically. On Windows a bounded retry loop
+	// handles sharing-violation errors when the target is open (FSW-01).
+	if err := writeAtomicRename(root, tmp, cleaned); err != nil {
+		_ = root.Remove(tmp)
+		return fmt.Errorf("files: rename temp: %w", err)
+	}
+	return nil
+}
+
+// writeAtomicRename performs root.Rename(tmp, dst). On Windows it retries
+// up to 3 times with a 50ms delay to tolerate sharing-violation errors
+// caused by another process holding the destination open. On non-Windows
+// platforms a single attempt is made (RESEARCH Open Q3, PITFALLS §Pitfall 5).
+func writeAtomicRename(root *os.Root, tmp, dst string) error {
+	const maxAttempts = 3
+	attempts := maxAttempts
+	if runtime.GOOS != "windows" {
+		attempts = 1
+	}
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		if err := root.Rename(tmp, dst); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		if i < attempts-1 {
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	return lastErr
+}
+
+// Rename moves the file or directory at oldRel to newRel within the
+// sandbox root. Both paths are validated through validateAndClean and the
+// denylist before os.Root sees them — the destination is the #1
+// write-side traversal risk if skipped (FSW-02, RESEARCH §Pitfall 1).
+//
+// Uses native root.Rename (relative-to-root, TOCTOU-safe) rather than the
+// hand-rolled os.Rename(absOld, absNew) workaround documented in PITFALLS.md
+// — the native method is strictly safer because it closes the TOCTOU window
+// the hand-rolled approach re-opens (RESEARCH §State of the Art).
+func (s *Sandbox) Rename(oldRel, newRel string) error {
+	oldClean, err := validateAndClean(oldRel)
+	if err != nil {
+		return fmt.Errorf("files: rename source: %w", err)
+	}
+	newClean, err := validateAndClean(newRel) // THE #1 write-side traversal risk if skipped
+	if err != nil {
+		return fmt.Errorf("files: rename destination: %w", err)
+	}
+	if err := s.denylistCheck(newClean); err != nil { // cannot rename INTO a protected path
+		return err
+	}
+	if err := s.denylistCheck(oldClean); err != nil { // nor move a protected path out
+		return err
+	}
+	root, err := os.OpenRoot(s.rootPath)
+	if err != nil {
+		return fmt.Errorf("files: open root: %w", err)
+	}
+	defer root.Close()
+	return root.Rename(oldClean, newClean) // native; both paths relative to root (FSW-02)
+}
+
+// Mkdir creates a single directory at relPath within the sandbox root.
+// The path is validated through validateAndClean and the denylist before
+// any syscall. Uses native root.Mkdir (TOCTOU-safe, relative-to-root)
+// (FSW-03).
+func (s *Sandbox) Mkdir(relPath string) error {
+	cleaned, err := validateAndClean(relPath)
+	if err != nil {
+		return err
+	}
+	if err := s.denylistCheck(cleaned); err != nil { // FSW-06
+		return err
+	}
+	root, err := os.OpenRoot(s.rootPath)
+	if err != nil {
+		return fmt.Errorf("files: open root: %w", err)
+	}
+	defer root.Close()
+	return root.Mkdir(cleaned, 0o755)
+}
+
+// MkdirAll creates relPath and any missing parent directories within the
+// sandbox root. Uses native root.MkdirAll which is TOCTOU-safe and
+// relative-to-root — no iterative root.Mkdir loop required (FSW-03,
+// RESEARCH §State of the Art).
+func (s *Sandbox) MkdirAll(relPath string) error {
+	cleaned, err := validateAndClean(relPath)
+	if err != nil {
+		return err
+	}
+	if err := s.denylistCheck(cleaned); err != nil { // FSW-06
+		return err
+	}
+	root, err := os.OpenRoot(s.rootPath)
+	if err != nil {
+		return fmt.Errorf("files: open root: %w", err)
+	}
+	defer root.Close()
+	return root.MkdirAll(cleaned, 0o755)
+}
+
+// Delete removes the file or directory subtree at relPath within the
+// sandbox root. Uses native root.RemoveAll (TOCTOU-safe, confined by
+// construction — cannot escape the root) (FSW-04).
+func (s *Sandbox) Delete(relPath string) error {
+	cleaned, err := validateAndClean(relPath)
+	if err != nil {
+		return err
+	}
+	if err := s.denylistCheck(cleaned); err != nil { // FSW-06
+		return err
+	}
+	root, err := os.OpenRoot(s.rootPath)
+	if err != nil {
+		return fmt.Errorf("files: open root: %w", err)
+	}
+	defer root.Close()
+	return root.RemoveAll(cleaned)
 }
 
 // validateAndClean validates relPath through the layered-defense checks and

@@ -224,9 +224,28 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 ### Active
 
-## Next Milestone: TBD (v3.5 expected: write-side file ops + editor)
+Requirements for v3.5 are scoped in `.planning/REQUIREMENTS.md` (write-side file browser + editor). Active items move to Validated as phases complete.
 
-**Anchor:** v3.5 will ship the write-side half of the file browser epic (Issue #24) — write/upload/delete/rename/mkdir/edit endpoints, editor library (CodeMirror 6 vs Monaco decision ratified at plan time), TUI shell-out to `$EDITOR`, syntax highlighting via editor language packs (replaces v3.4 plain-text code rendering). Umbrella epic #24 closes when v3.5 ships.
+## Current Milestone: v3.5 File Browser — Write Operations & Editor
+
+**Goal:** Ship the write-side half of the file-browser epic with full cross-surface parity, closing umbrella Issue #24.
+
+**Target features:**
+- Write endpoints — create/edit-save, upload, delete, rename, mkdir on the sandboxed `os.OpenRoot` filesystem API (extends the v3.4 `/api/files/*` contract)
+- In-app code editor (CodeMirror 6 vs Monaco ratified at plan time) replacing v3.4 plain-text rendering, with syntax highlighting via editor language packs
+- TUI editing via shell-out to `$EDITOR` for the Files view (cross-surface parity)
+- New opt-in `files.write` capability bit gating the network-facing webserver surface (parallels v3.4's `files.read`) — full web-share write parity
+- Remote write parity — edit/upload/delete/rename/mkdir on remote tailnet peer sessions, matching v3.4's proven read parity
+- Carried tech-debt: TD-4 (Phase 120 WR-01..05 file-browser hardening) + TD-5 (Phase 122 `ExchangeJoinCode` shim cleanup)
+
+**Closes:** GitHub Issues #63 (editing + upload), #64 (TUI edit parity); retires umbrella epic #24.
+
+**Scope decisions ratified at milestone scoping (2026-06-14):**
+- Web-share writes IN scope — `files.write` is an opt-in capability grantable to web-share viewers (most-exposed surface; requires a dedicated security-focused phase).
+- Remote tailnet peer write parity IN scope — honors the release-blocking cross-surface parity contract.
+- Editor library (CodeMirror 6 vs Monaco) decision deferred to plan time.
+
+**Phase numbering:** continues from v3.4 (last phase 122) — v3.5 starts at Phase 123.
 
 **Carry-forward operator one-time tasks (still required before next release):**
 
@@ -484,4 +503,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-21 — v3.4 File Browser (Read-Only) + TUI Parity milestone shipped. 5 phases (118-122, audit-driven Phase 122 insert), 48/48 requirements satisfied, 176 commits across 2 days. Audit status `tech_debt` — release-eligible after 3 user-acknowledged manual UATs (TD-1 Wails click-path, TD-2 visual TokyoNight, TD-3 two-machine tailnet). Next: v3.5 write-side file ops + editor (CodeMirror 6 vs Monaco ratified at plan time).*
+*Last updated: 2026-06-14 — v3.5 File Browser Write Operations & Editor milestone scoped. Write-side half of the file-browser epic (Issue #24): write/upload/delete/rename/mkdir/edit endpoints + in-app editor (CodeMirror 6 vs Monaco at plan time) + TUI `$EDITOR` shell-out + syntax highlighting via language packs. Full cross-surface parity including opt-in `files.write` web-share capability and remote tailnet peer writes. Folds in TD-4/TD-5 carried debt. Closes #63, #64; retires #24. Phase numbering continues from 122 (starts at 123). Defining requirements next.*
