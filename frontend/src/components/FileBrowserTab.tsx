@@ -43,6 +43,10 @@ import { Editor } from './Editor'
 import { EditorHeader } from './FileBrowser/EditorHeader'
 import { UnsavedChangesModal } from './FileBrowser/modals/UnsavedChangesModal'
 import { ConflictModal } from './FileBrowser/modals/ConflictModal'
+import { DeleteConfirmModal } from './FileBrowser/modals/DeleteConfirmModal'
+import { CollisionConfirmModal } from './FileBrowser/modals/CollisionConfirmModal'
+import { MoveToPickerModal } from './FileBrowser/modals/MoveToPickerModal'
+import { InlineNameInput } from './FileBrowser/InlineNameInput'
 
 export interface FileBrowserTabProps {
   sessionId: string
@@ -145,9 +149,12 @@ export function FileBrowserTab({
 
   const { state: capState, retry: retryCapability, canWrite } = useFilesCapability(client, sessionId)
 
-  // Phase 125-03: write hook — write/del/rename/mkdir/upload + save state.
+  // Phase 125-03/04: write hook — write/del/rename/mkdir/upload + save state.
   const {
     write: writeFile,
+    del,
+    rename,
+    mkdir,
     isSaving,
     saveState,
     saveError,
@@ -173,6 +180,24 @@ export function FileBrowserTab({
 
   // Conflict modal state (EDIT-08) — opened by useFilesWrite when 412 fires.
   // isConflict from useFilesWrite drives the modal open state directly.
+
+  // ─── Plan 04: write affordance state (EDIT-09) ────────────────────────────────
+  // delete modal
+  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
+  const [deleteFileCount, setDeleteFileCount] = useState<number>(0)
+  // collision modal — shown on 409 from rename/create/mkdir
+  const [collisionModalOpen, setCollisionModalOpen] = useState<boolean>(false)
+  const [collisionName, setCollisionName] = useState<string>('')
+  // Pending retry function for collision (re-issue with force semantics)
+  const collisionRetryRef = useRef<(() => Promise<void>) | null>(null)
+  // move-to picker modal
+  const [moveTarget, setMoveTarget] = useState<FileEntry | null>(null)
+  // inline name input mode: null = hidden
+  type InlineMode = 'create-file' | 'new-folder' | 'rename'
+  const [inlineMode, setInlineMode] = useState<InlineMode | null>(null)
+  const [inlineTarget, setInlineTarget] = useState<FileEntry | null>(null) // for rename
+  // generic write operation error (e.g. 500 on delete/mkdir)
+  const [writeOpError, setWriteOpError] = useState<string | null>(null)
 
   // ─── guardThen: wrap any navigation action through the unsaved-changes guard ───
   // All three navigation triggers (file-switch, navigate-up, tab-close) route here.
@@ -507,6 +532,224 @@ export function FileBrowserTab({
     setDirNonce((n) => n + 1)
   }, [])
 
+  // ─── Plan 04: write affordance helpers (EDIT-09) ────────────────────────────
+
+  /**
+   * Count files recursively in a directory for the delete-confirm body copy.
+   * Client-side listFiles walk — avoids a server change (RESEARCH Open Q3).
+   * Returns a non-negative integer; errors treated as 0 (conservative display).
+   */
+  const countFilesRecursive = useCallback(
+    async (dirPath: string): Promise<number> => {
+      if (client === null) return 0
+      let count = 0
+      async function walk(p: string) {
+        try {
+          const resp = await client!.listFiles(sessionId, p)
+          for (const e of resp.entries) {
+            if (e.isDir) {
+              await walk(p === '.' ? e.name : `${p}/${e.name}`)
+            } else {
+              count++
+            }
+          }
+        } catch {
+          // Ignore errors in recursive walk — show 0 on failure.
+        }
+      }
+      await walk(dirPath)
+      return count
+    },
+    [client, sessionId],
+  )
+
+  /** Open the delete confirm modal for a given entry. Counts files first for dirs. */
+  const handleDeleteRequest = useCallback(
+    async (entry: FileEntry) => {
+      if (!canWrite) return
+      if (entry.isDir) {
+        const dirPath = joinPath(path, entry.name)
+        const count = await countFilesRecursive(dirPath)
+        setDeleteFileCount(count)
+      }
+      setDeleteTarget(entry)
+    },
+    [canWrite, path, countFilesRecursive],
+  )
+
+  /** Execute delete after confirmation. */
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteTarget === null) return
+    const targetPath = joinPath(path, deleteTarget.name)
+    try {
+      await del(targetPath)
+      // Deselect if the deleted file was selected.
+      if (selected === deleteTarget.name) {
+        setSelected(null)
+        setPreview({ kind: 'idle' })
+      }
+      setDeleteTarget(null)
+      refresh()
+    } catch {
+      setWriteOpError("Couldn't complete that. Try again.")
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, path, del, selected, refresh])
+
+  /**
+   * Open collision modal with a pending retry function.
+   * The retryFn is called if the user chooses Replace.
+   */
+  const openCollisionModal = useCallback(
+    (name: string, retryFn: () => Promise<void>) => {
+      collisionRetryRef.current = retryFn
+      setCollisionName(name)
+      setCollisionModalOpen(true)
+    },
+    [],
+  )
+
+  /** Open inline name input for creating a new file. */
+  const handleNewFile = useCallback(() => {
+    if (!canWrite) return
+    setInlineMode('create-file')
+    setInlineTarget(null)
+  }, [canWrite])
+
+  /** Open inline name input for creating a new folder. */
+  const handleNewFolder = useCallback(() => {
+    if (!canWrite) return
+    setInlineMode('new-folder')
+    setInlineTarget(null)
+  }, [canWrite])
+
+  /** Handle inline name input commit (create-file / new-folder / rename). */
+  const handleInlineCommit = useCallback(
+    async (name: string) => {
+      if (!inlineMode) return
+      const trimmed = name.trim()
+      if (!trimmed) {
+        setInlineMode(null)
+        return
+      }
+      try {
+        if (inlineMode === 'create-file') {
+          const newPath = joinPath(path, trimmed)
+          // Create an empty file by writing an empty body (no If-Match = new file).
+          await client?.writeFile(sessionId, newPath, '')
+          setInlineMode(null)
+          refresh()
+        } else if (inlineMode === 'new-folder') {
+          const newPath = joinPath(path, trimmed)
+          await mkdir(newPath)
+          setInlineMode(null)
+          refresh()
+        } else if (inlineMode === 'rename' && inlineTarget) {
+          const oldPath = joinPath(path, inlineTarget.name)
+          const newPath = joinPath(path, trimmed)
+          await rename(oldPath, newPath)
+          if (selected === inlineTarget.name) setSelected(trimmed)
+          setInlineMode(null)
+          setInlineTarget(null)
+          refresh()
+        }
+      } catch (err) {
+        if (err instanceof FilesApiError && err.isCollision()) {
+          const finalName = trimmed
+          const finalMode = inlineMode
+          const finalTarget = inlineTarget
+          openCollisionModal(trimmed, async () => {
+            // Replace: re-issue with force semantics.
+            // For create-file: PUT with If-Match='*' (overwrite existing).
+            // For rename: we can't truly force a rename; just close and report.
+            // (Server currently doesn't support a force-rename flag — no-op Replace.)
+            if (finalMode === 'create-file') {
+              const newPath = joinPath(path, finalName)
+              await client?.writeFile(sessionId, newPath, '', '*')
+              setInlineMode(null)
+              refresh()
+            } else if (finalMode === 'new-folder') {
+              // mkdir collision: can't overwrite a directory — dismiss.
+              setInlineMode(null)
+            } else if (finalMode === 'rename' && finalTarget) {
+              // rename collision: close inline input; user must choose a different name.
+              setInlineMode(null)
+              setInlineTarget(null)
+            }
+          })
+        } else {
+          setWriteOpError("Couldn't complete that. Try again.")
+          setInlineMode(null)
+          setInlineTarget(null)
+        }
+      }
+    },
+    [
+      inlineMode, inlineTarget, path, client, sessionId, mkdir, rename,
+      selected, refresh, openCollisionModal,
+    ],
+  )
+
+  /** Open inline rename input for a row. */
+  const handleRenameRequest = useCallback(
+    (entry: FileEntry) => {
+      if (!canWrite) return
+      setInlineTarget(entry)
+      setInlineMode('rename')
+    },
+    [canWrite],
+  )
+
+  /** Open the Move to… picker for a row. */
+  const handleMoveRequest = useCallback(
+    (entry: FileEntry) => {
+      if (!canWrite) return
+      setMoveTarget(entry)
+    },
+    [canWrite],
+  )
+
+  /** Execute move (cross-dir rename) after picker confirms. */
+  const handleMoveConfirm = useCallback(
+    async (destDir: string) => {
+      if (moveTarget === null) return
+      const oldPath = joinPath(path, moveTarget.name)
+      const newPath = joinPath(destDir, moveTarget.name)
+      try {
+        await rename(oldPath, newPath)
+        if (selected === moveTarget.name) {
+          setSelected(null)
+          setPreview({ kind: 'idle' })
+        }
+        setMoveTarget(null)
+        refresh()
+      } catch (err) {
+        if (err instanceof FilesApiError && err.isCollision()) {
+          const capturedTarget = moveTarget
+          const capturedDestDir = destDir
+          setMoveTarget(null)
+          openCollisionModal(capturedTarget.name, async () => {
+            // Replace: re-issue rename — server will overwrite existing.
+            // NOTE: server rename with ErrExist; if server supports it, this retries.
+            // For now, just report — server may not support force-rename.
+            const old = joinPath(path, capturedTarget.name)
+            const dest = joinPath(capturedDestDir, capturedTarget.name)
+            await rename(old, dest)
+            if (selected === capturedTarget.name) {
+              setSelected(null)
+              setPreview({ kind: 'idle' })
+            }
+            refresh()
+          })
+        } else {
+          setWriteOpError("Couldn't complete that. Try again.")
+          setMoveTarget(null)
+        }
+      }
+    },
+    [moveTarget, path, rename, selected, refresh, openCollisionModal],
+  )
+
   // ─── Sort change ───
   const onSortChange = useCallback(
     (key: SortKey) => {
@@ -729,13 +972,24 @@ export function FileBrowserTab({
             refreshedAt={refreshedAt}
             onNavigateTo={navigateTo}
             onRefresh={refresh}
+            canWrite={canWrite}
+            onNewFile={handleNewFile}
+            onNewFolder={handleNewFolder}
           />
           <div className="file-browser__body" ref={bodyRef}>
             <div
               className="file-browser__list-container"
               style={{ width: `${listWidthPct}%` }}
             >
-              {sortedEntries.length === 0 ? (
+              {/* Phase 125-04: inline name input (create-file / new-folder / rename) */}
+              {inlineMode !== null && inlineMode !== 'rename' && canWrite && (
+                <InlineNameInput
+                  mode={inlineMode}
+                  onCommit={handleInlineCommit}
+                  onCancel={() => { setInlineMode(null); setInlineTarget(null) }}
+                />
+              )}
+              {sortedEntries.length === 0 && inlineMode === null ? (
                 <EmptyDirectoryState relativePathFromCwd={path} />
               ) : (
                 <FileListPane
@@ -752,6 +1006,42 @@ export function FileBrowserTab({
                   onNavigateUp={navigateUp}
                   onSortChange={onSortChange}
                   onFilterActivate={onFilterActivate}
+                  // Phase 125-04: write affordances (EDIT-09/12)
+                  canWrite={canWrite}
+                  onRowEdit={(entry) => {
+                    guardThen(() => {
+                      setSelected(entry.name)
+                      // handleEdit will be triggered by the preview pane once selected
+                      // For direct row edit we set selection and trigger edit
+                      if (!entry.isDir && !entry.isBinary) {
+                        setSelected(entry.name)
+                        // If preview is loaded for this entry, open editor directly.
+                        // Otherwise, selection will load the preview first.
+                        if (selected === entry.name && (preview.kind === 'text' || preview.kind === 'markdown')) {
+                          handleEdit()
+                        }
+                      }
+                    })
+                  }}
+                  onRowRename={(entry) => {
+                    // Show inline rename for this entry
+                    handleRenameRequest(entry)
+                  }}
+                  onRowMove={(entry) => {
+                    void handleMoveRequest(entry)
+                  }}
+                  onRowDelete={(entry) => {
+                    void handleDeleteRequest(entry)
+                  }}
+                />
+              )}
+              {/* Rename inline input for a specific entry (shown inside list) */}
+              {inlineMode === 'rename' && inlineTarget !== null && canWrite && (
+                <InlineNameInput
+                  mode="rename"
+                  initialValue={inlineTarget.name}
+                  onCommit={handleInlineCommit}
+                  onCancel={() => { setInlineMode(null); setInlineTarget(null) }}
                 />
               )}
             </div>
@@ -910,6 +1200,72 @@ export function FileBrowserTab({
               clearConflict()
             }}
           />
+
+          {/* Phase 125-04: Plan 04 modals (EDIT-09) */}
+
+          {/* Delete confirm (file + recursive-dir with count) */}
+          <DeleteConfirmModal
+            isOpen={deleteTarget !== null}
+            name={deleteTarget?.name ?? ''}
+            isDir={deleteTarget?.isDir ?? false}
+            fileCount={deleteFileCount}
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => setDeleteTarget(null)}
+          />
+
+          {/* 409 Collision replace modal — Cancel DEFAULT focus */}
+          <CollisionConfirmModal
+            isOpen={collisionModalOpen}
+            name={collisionName}
+            onReplace={async () => {
+              setCollisionModalOpen(false)
+              const retry = collisionRetryRef.current
+              collisionRetryRef.current = null
+              if (retry) {
+                try {
+                  await retry()
+                } catch {
+                  setWriteOpError("Couldn't complete that. Try again.")
+                }
+              }
+            }}
+            onCancel={() => {
+              setCollisionModalOpen(false)
+              collisionRetryRef.current = null
+            }}
+          />
+
+          {/* Move to… picker modal */}
+          <MoveToPickerModal
+            isOpen={moveTarget !== null}
+            sessionId={sessionId}
+            entry={moveTarget ?? { name: '', size: 0, mtime: '', mode: 0, isDir: false, isSymlink: false, isBinary: false }}
+            currentDir={path}
+            client={client}
+            onMove={(destDir) => { void handleMoveConfirm(destDir) }}
+            onCancel={() => setMoveTarget(null)}
+          />
+
+          {/* Generic write-operation error banner */}
+          {writeOpError !== null && (
+            <div
+              className="file-browser__error"
+              role="alert"
+              aria-live="assertive"
+              style={{ position: 'absolute', bottom: 40, left: 0, right: 0, zIndex: 10 }}
+            >
+              <span>{writeOpError}</span>
+              <button
+                type="button"
+                className="file-browser__btn file-browser__btn--icon"
+                aria-label="Dismiss error"
+                onClick={() => setWriteOpError(null)}
+                style={{ marginLeft: 8 }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </>
       )}
     </section>
