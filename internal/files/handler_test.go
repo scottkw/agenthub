@@ -845,3 +845,138 @@ func TestHandlerDelete(t *testing.T) {
 		t.Errorf("del.txt should not exist after delete")
 	}
 }
+
+// --------------------------------------------------------------------------
+// CR-01 — Upload empty/dot filename → 400
+// --------------------------------------------------------------------------
+
+// invokeUploadWithFilename issues a multipart POST to h.Upload using a real
+// httptest.Server (required by ParseMultipartForm). The Content-Disposition
+// filename is set to the provided rawFilename (which may be empty or ".").
+func invokeUploadWithFilename(t *testing.T, h *files.Handler, rawFilename string) *http.Response {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(h.Upload))
+	t.Cleanup(srv.Close)
+
+	boundary := "testboundary123"
+	var buf strings.Builder
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(`Content-Disposition: form-data; name="dir"` + "\r\n\r\n")
+	buf.WriteString(".")
+	buf.WriteString("\r\n")
+	buf.WriteString("--" + boundary + "\r\n")
+	// Build Content-Disposition with the raw filename (including empty case).
+	buf.WriteString(`Content-Disposition: form-data; name="file"; filename="` + rawFilename + `"` + "\r\n")
+	buf.WriteString("Content-Type: application/octet-stream\r\n\r\n")
+	buf.WriteString("data")
+	buf.WriteString("\r\n--" + boundary + "--\r\n")
+
+	resp, err := http.Post(
+		srv.URL+"/?session=good",
+		"multipart/form-data; boundary="+boundary,
+		strings.NewReader(buf.String()),
+	)
+	if err != nil {
+		t.Fatalf("POST upload: %v", err)
+	}
+	return resp
+}
+
+// TestHandlerUpload_EmptyFilename400: empty filename → 400 (CR-01).
+// filepath.Base("") == "." which would collapse target to the sandbox root
+// directory; WriteFileAtomic would attempt to rename a regular temp file onto
+// a directory → opaque 500 + stray temp file. The guard now rejects early.
+func TestHandlerUpload_EmptyFilename400(t *testing.T) {
+	h, _ := newHandler(t)
+	resp := invokeUploadWithFilename(t, h, "")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Errorf("empty filename: status = %d; want 400; body=%s", resp.StatusCode, body)
+	}
+}
+
+// TestHandlerUpload_DotFilename400: filename "." (or path that reduces to ".")
+// → 400 (CR-01). filepath.Base("/") == "." which would cause the same
+// directory-collision as the empty case.
+func TestHandlerUpload_DotFilename400(t *testing.T) {
+	h, _ := newHandler(t)
+	resp := invokeUploadWithFilename(t, h, ".")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Errorf("dot filename: status = %d; want 400; body=%s", resp.StatusCode, body)
+	}
+}
+
+// TestHandlerUpload_DotDotFilename400: ".." filename → 400 (CR-01).
+func TestHandlerUpload_DotDotFilename400(t *testing.T) {
+	h, _ := newHandler(t)
+	resp := invokeUploadWithFilename(t, h, "..")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Errorf("dotdot filename: status = %d; want 400; body=%s", resp.StatusCode, body)
+	}
+}
+
+// --------------------------------------------------------------------------
+// WR-01 — Missing ?path= on write verbs → 400
+// --------------------------------------------------------------------------
+
+// invokeNoPath issues a request with session=good but NO path query parameter.
+func invokeNoPath(t *testing.T, h func(http.ResponseWriter, *http.Request), method string, body []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var bodyReader *strings.Reader
+	if body != nil {
+		bodyReader = strings.NewReader(string(body))
+	} else {
+		bodyReader = strings.NewReader("")
+	}
+	req := httptest.NewRequest(method, "/?session=good", bodyReader) // no &path=
+	rr := httptest.NewRecorder()
+	h(rr, req)
+	return rr
+}
+
+// TestHandlerWrite_MissingPath400: PUT /api/files/write without ?path= → 400 (WR-01).
+func TestHandlerWrite_MissingPath400(t *testing.T) {
+	h, _ := newHandler(t)
+	rr := invokeNoPath(t, h.Write, "PUT", []byte("data"))
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Write missing path: status = %d; want 400; body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandlerDelete_MissingPath400: DELETE /api/files/delete without ?path= → 400 (WR-01).
+func TestHandlerDelete_MissingPath400(t *testing.T) {
+	h, _ := newHandler(t)
+	rr := invokeNoPath(t, h.Delete, "DELETE", nil)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Delete missing path: status = %d; want 400; body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandlerMkdir_MissingPath400: POST /api/files/mkdir without ?path= → 400 (WR-01).
+func TestHandlerMkdir_MissingPath400(t *testing.T) {
+	h, _ := newHandler(t)
+	rr := invokeNoPath(t, h.Mkdir, "POST", nil)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Mkdir missing path: status = %d; want 400; body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandlerList_MissingPathStillDefaultsToDot: GET /api/files/list without
+// ?path= must still default to "." (read-side behavior is unchanged by WR-01).
+func TestHandlerList_MissingPathStillDefaultsToDot(t *testing.T) {
+	h, root := newHandler(t)
+	if err := os.WriteFile(filepath.Join(root, "probe.txt"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest("GET", "/?session=good", nil) // no path param
+	rr := httptest.NewRecorder()
+	h.List(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("List missing path: status = %d; want 200 (read-side unchanged)", rr.Code)
+	}
+}
