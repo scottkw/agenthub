@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"path/filepath"
+	"strings"
 )
 
 // maxUploadBytes is the server-side upload cap — FSW-12. Strictly matches
@@ -30,6 +32,13 @@ import (
 //
 // Mirrors the maxPreviewBytes idiom from handler.go:104.
 const maxUploadBytes = 50 << 20
+
+// ErrPathValidation is the sentinel error type for all path-level validation
+// failures (empty path, traversal, device names, ADS, etc.). Errors from
+// validateRelativePath and validateAndClean are wrapped with this sentinel so
+// callers can use errors.Is(err, ErrPathValidation) instead of brittle
+// string-prefix checks. (IN-03 / WR-02 robustness fix)
+var ErrPathValidation = errors.New("files: path validation error")
 
 // Write implements PUT /api/files/write. Reads the request body and calls
 // sb.WriteFileAtomic(relPath, data) to durably persist the content via the
@@ -41,7 +50,12 @@ func (h *Handler) Write(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
-	rel := h.relPath(r)
+	// WR-01: missing/empty path on a write verb is a client error → 400.
+	rel := r.URL.Query().Get("path")
+	if rel == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "read body: "+err.Error(), http.StatusBadRequest)
@@ -94,6 +108,17 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	// T-123-12 / FSW-05. validateAndClean inside WriteFileAtomic adds a second
 	// defense layer.
 	safeName := filepath.Base(header.Filename)
+
+	// CR-01: reject empty, dot, or separator-only filenames that filepath.Base
+	// produces from empty or path-separator-only inputs. Without this guard,
+	// safeName=="." collapses target to dir (a directory) and WriteFileAtomic
+	// tries to rename a regular temp file onto an existing directory → opaque
+	// 500 + stray .agenthub-tmp-* sibling.
+	if safeName == "" || safeName == "." || safeName == ".." || strings.ContainsAny(safeName, `/\`) {
+		http.Error(w, "invalid upload filename", http.StatusBadRequest)
+		return
+	}
+
 	target := filepath.Join(dir, safeName)
 
 	// io.ReadAll is bounded by the MaxBytesReader cap applied above.
@@ -119,7 +144,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
-	rel := h.relPath(r)
+	// WR-01: missing/empty path on a write verb is a client error → 400.
+	rel := r.URL.Query().Get("path")
+	if rel == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
 	if err := sb.Delete(rel); err != nil {
 		writeWriteError(w, err)
 		return
@@ -171,7 +201,12 @@ func (h *Handler) Mkdir(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
-	rel := h.relPath(r)
+	// WR-01: missing/empty path on a write verb is a client error → 400.
+	rel := r.URL.Query().Get("path")
+	if rel == "" {
+		http.Error(w, "path is required", http.StatusBadRequest)
+		return
+	}
 	if err := sb.MkdirAll(rel); err != nil {
 		writeWriteError(w, err)
 		return
@@ -185,29 +220,21 @@ func (h *Handler) Mkdir(w http.ResponseWriter, r *http.Request) {
 // §Pattern 5). The mapping is:
 //
 //   - ErrProtectedSystemFile  → 403 "Protected system file" (T-123-14, FSW-06)
-//   - validation/traversal    → 403 "access denied: ..." (same as read side)
+//   - ErrPathValidation       → 403 "access denied: ..." (traversal/validation)
+//   - fs.ErrNotExist          → 404 (missing parent directory, missing source)
+//   - fs.ErrExist             → 409 (rename/mkdir onto existing target)
 //   - everything else         → 500
 func writeWriteError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrProtectedSystemFile):
 		http.Error(w, "Protected system file", http.StatusForbidden)
-	case isValidationError(err):
+	case errors.Is(err, ErrPathValidation):
 		http.Error(w, "access denied: "+err.Error(), http.StatusForbidden)
+	case errors.Is(err, fs.ErrNotExist):
+		http.Error(w, err.Error(), http.StatusNotFound)
+	case errors.Is(err, fs.ErrExist):
+		http.Error(w, err.Error(), http.StatusConflict)
 	default:
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// isValidationError reports whether err originated from validateRelativePath
-// or the traversal-reject check in validateAndClean. These errors always begin
-// with "files: " and describe path-level rejections that map to 403.
-func isValidationError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	// All errors from validateRelativePath / validateAndClean start with "files: "
-	// and do NOT include the ErrProtectedSystemFile message, so we can distinguish
-	// them from OS errors (which don't carry the "files: " prefix).
-	return len(msg) > 7 && msg[:7] == "files: " && !errors.Is(err, ErrProtectedSystemFile)
 }
