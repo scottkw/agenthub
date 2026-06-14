@@ -19,6 +19,7 @@ package files
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -55,6 +56,18 @@ func (h *Handler) Write(w http.ResponseWriter, r *http.Request) {
 	if rel == "" {
 		http.Error(w, "path is required", http.StatusBadRequest)
 		return
+	}
+	// EDIT-05/08 optimistic concurrency. If-Match present + not wildcard → the
+	// caller asserts a known on-disk validator; reject (412) if the file changed.
+	// Wildcard ("*") or absent header → force-overwrite / new-file path; proceed.
+	if ifMatch := r.Header.Get("If-Match"); ifMatch != "" && ifMatch != "*" {
+		if fi, statErr := sb.Stat(rel); statErr == nil { // target exists; missing → new file, skip
+			cur := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+			if ifMatch != cur {
+				http.Error(w, "file modified by another process", http.StatusPreconditionFailed)
+				return
+			}
+		}
 	}
 	// WR-06: cap the write body the same way Upload caps multipart (FSW-12 DoS
 	// mitigation). The same Handler is mounted on the relay TCP surface and the
