@@ -2,6 +2,7 @@ package files_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -534,5 +535,313 @@ func TestHandler_Read_IfModifiedSince_Future(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotModified {
 		t.Errorf("status = %d; want 304", resp.StatusCode)
+	}
+}
+
+// --------------------------------------------------------------------------
+// Plan 123-03 — Handler write methods (RED tests, FSW-05/08/12)
+// --------------------------------------------------------------------------
+
+// newHandlerWithHomeSandbox builds a Handler whose sandbox is rooted at a
+// sub-directory of os.UserHomeDir() so the denylist fires on protected names.
+// Returns the handler and the EvalSymlinks-resolved root path.
+func newHandlerWithHomeSandbox(t *testing.T) (*files.Handler, string) {
+	t.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("os.UserHomeDir: %v", err)
+	}
+	// Use a *named* temp dir under $HOME so the denylist can fire.
+	dir, err := os.MkdirTemp(home, "agenthub-test-sandbox-*")
+	if err != nil {
+		t.Skipf("MkdirTemp under $HOME: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	sb, err := files.NewSandbox(dir)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+	h := files.NewHandler(func(sessionID string) (*files.Sandbox, error) {
+		if sessionID == "good" {
+			return sb, nil
+		}
+		return nil, os.ErrNotExist
+	})
+	return h, sb.RootPath()
+}
+
+// invokeWithBody issues an HTTP request with the given method and body to the
+// handler, returning the response recorder.
+func invokeWithBody(t *testing.T, h func(http.ResponseWriter, *http.Request), method, p string, body []byte, contentType string) *httptest.ResponseRecorder {
+	t.Helper()
+	u := "/?session=good"
+	if p != "" {
+		u += "&path=" + p
+	}
+	var bodyReader *strings.Reader
+	if body != nil {
+		bodyReader = strings.NewReader(string(body))
+	} else {
+		bodyReader = strings.NewReader("")
+	}
+	req := httptest.NewRequest(method, u, bodyReader)
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	rr := httptest.NewRecorder()
+	h(rr, req)
+	return rr
+}
+
+// TestHandlerWrite_RoundTrip: PUT body to write handler → 200 + FileWriteResponse;
+// subsequent Read returns identical bytes. (FSW-08 success criterion #2)
+func TestHandlerWrite_RoundTrip(t *testing.T) {
+	h, _ := newHandler(t)
+	payload := []byte("hello from write test")
+	rr := invokeWithBody(t, h.Write, "PUT", "hello.txt", payload, "application/octet-stream")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Write status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	var wr files.FileWriteResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &wr); err != nil {
+		t.Fatalf("decode FileWriteResponse: %v; body=%s", err, rr.Body.String())
+	}
+	if wr.Path != "hello.txt" {
+		t.Errorf("FileWriteResponse.Path = %q; want 'hello.txt'", wr.Path)
+	}
+	if wr.Size != int64(len(payload)) {
+		t.Errorf("FileWriteResponse.Size = %d; want %d", wr.Size, len(payload))
+	}
+	// Read back via the read handler.
+	rr2 := invoke(t, h.Read, "GET", "hello.txt", nil)
+	if rr2.Code != http.StatusOK {
+		t.Fatalf("Read after Write status = %d; want 200; body=%s", rr2.Code, rr2.Body.String())
+	}
+	if got := rr2.Body.Bytes(); string(got) != string(payload) {
+		t.Errorf("Read body = %q; want %q", got, payload)
+	}
+}
+
+// TestHandlerWrite_DenylistForbidden: write/rename/delete/mkdir targeting a
+// denylisted $HOME path gives 403 "Protected system file". (FSW-06 HTTP layer)
+func TestHandlerWrite_DenylistForbidden(t *testing.T) {
+	h, _ := newHandlerWithHomeSandbox(t)
+	// Write to .bashrc inside the home-rooted sandbox
+	rr := invokeWithBody(t, h.Write, "PUT", ".bashrc", []byte("evil"), "application/octet-stream")
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("Write .bashrc status = %d; want 403; body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "Protected system file") {
+		t.Errorf("body = %q; want contains 'Protected system file'", rr.Body.String())
+	}
+}
+
+// TestHandlerWrite_Traversal403: traversal relpath gives 403 "access denied: ...".
+func TestHandlerWrite_Traversal403(t *testing.T) {
+	h, _ := newHandler(t)
+	rr := invokeWithBody(t, h.Write, "PUT", "../escape.txt", []byte("evil"), "application/octet-stream")
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("Write traversal status = %d; want 403; body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "access denied:") {
+		t.Errorf("body = %q; want contains 'access denied:'", rr.Body.String())
+	}
+}
+
+// TestHandlerUpload_DenylistForbidden: a multipart upload targeting a denylisted
+// path within a home-rooted sandbox gives 403 "Protected system file".
+// (FSW-05 + FSW-06: HTTP-upload-layer denylist evidence)
+func TestHandlerUpload_DenylistForbidden(t *testing.T) {
+	h, _ := newHandlerWithHomeSandbox(t)
+	// Use httptest.NewServer + real multipart to test Upload which calls
+	// r.ParseMultipartForm internally (needs a real HTTP round-trip for MIME).
+	srv := httptest.NewServer(http.HandlerFunc(h.Upload))
+	defer srv.Close()
+
+	// Build a multipart form targeting the denylist (.bashrc under the home-rooted sandbox).
+	var buf strings.Builder
+	boundary := "testboundary"
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(`Content-Disposition: form-data; name="dir"` + "\r\n\r\n")
+	buf.WriteString(".") // dir = "." (sandbox root, which is under $HOME)
+	buf.WriteString("\r\n")
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(`Content-Disposition: form-data; name="file"; filename=".bashrc"` + "\r\n")
+	buf.WriteString("Content-Type: application/octet-stream\r\n\r\n")
+	buf.WriteString("evil content")
+	buf.WriteString("\r\n--" + boundary + "--\r\n")
+
+	resp, err := http.Post(
+		srv.URL+"/?session=good",
+		"multipart/form-data; boundary="+boundary,
+		strings.NewReader(buf.String()),
+	)
+	if err != nil {
+		t.Fatalf("POST upload: %v", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("Upload denylist status = %d; want 403; body=%s", resp.StatusCode, string(respBody))
+	}
+	if !strings.Contains(string(respBody), "Protected system file") {
+		t.Errorf("body = %q; want contains 'Protected system file'", string(respBody))
+	}
+}
+
+// TestHandlerUpload_FilenameSanitized: multipart with FileHeader.Filename
+// "../../.bashrc" lands as ".bashrc" under the target dir (filepath.Base strip).
+func TestHandlerUpload_FilenameSanitized(t *testing.T) {
+	h, root := newHandler(t)
+	srv := httptest.NewServer(http.HandlerFunc(h.Upload))
+	defer srv.Close()
+
+	var buf strings.Builder
+	boundary := "testbound2"
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(`Content-Disposition: form-data; name="dir"` + "\r\n\r\n")
+	buf.WriteString(".")
+	buf.WriteString("\r\n")
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString(`Content-Disposition: form-data; name="file"; filename="../../.bashrc"` + "\r\n")
+	buf.WriteString("Content-Type: text/plain\r\n\r\n")
+	buf.WriteString("sanitized")
+	buf.WriteString("\r\n--" + boundary + "--\r\n")
+
+	resp, err := http.Post(
+		srv.URL+"/?session=good",
+		"multipart/form-data; boundary="+boundary,
+		strings.NewReader(buf.String()),
+	)
+	if err != nil {
+		t.Fatalf("POST upload: %v", err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Upload status = %d; want 200; body=%s", resp.StatusCode, string(respBody))
+	}
+	// File must land at root/.bashrc, not at root/../../.bashrc
+	if _, err := os.Stat(filepath.Join(root, ".bashrc")); err != nil {
+		t.Errorf("expected .bashrc at sandbox root, got error: %v", err)
+	}
+	// Confirm nothing was written outside the sandbox root
+	escapeTarget := filepath.Join(filepath.Dir(root), ".bashrc")
+	if _, err := os.Stat(escapeTarget); err == nil {
+		t.Errorf("SECURITY: file written outside sandbox root at %s", escapeTarget)
+	}
+}
+
+// TestHandlerUpload_OverCap413: multipart body exceeding 50 MiB gives 413.
+func TestHandlerUpload_OverCap413(t *testing.T) {
+	if testing.Short() {
+		t.Skip("generates 51 MiB body")
+	}
+	h, root := newHandler(t)
+	srv := httptest.NewServer(http.HandlerFunc(h.Upload))
+	defer srv.Close()
+
+	// Build a multipart body slightly over 50 MiB.
+	const overCap = 51 * 1024 * 1024
+	boundary := "bigboundary"
+	header := "--" + boundary + "\r\n" +
+		`Content-Disposition: form-data; name="dir"` + "\r\n\r\n.\r\n" +
+		"--" + boundary + "\r\n" +
+		`Content-Disposition: form-data; name="file"; filename="big.bin"` + "\r\n" +
+		"Content-Type: application/octet-stream\r\n\r\n"
+	footer := "\r\n--" + boundary + "--\r\n"
+
+	bigContent := make([]byte, overCap)
+	body := strings.NewReader(header + string(bigContent) + footer)
+
+	resp, err := http.Post(
+		srv.URL+"/?session=good",
+		"multipart/form-data; boundary="+boundary,
+		body,
+	)
+	if err != nil {
+		t.Fatalf("POST upload: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("over-cap status = %d; want 413", resp.StatusCode)
+	}
+	// No truncated file should remain on disk.
+	if _, err := os.Stat(filepath.Join(root, "big.bin")); !os.IsNotExist(err) {
+		t.Errorf("over-cap: big.bin should not exist on disk; got: %v", err)
+	}
+}
+
+// TestHandlerRename: rename happy path gives 200 FileOpResponse.
+func TestHandlerRename(t *testing.T) {
+	h, root := newHandler(t)
+	if err := os.WriteFile(filepath.Join(root, "old.txt"), []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// Rename uses JSON body: {"oldRel":"old.txt","newRel":"new.txt"}
+	req := httptest.NewRequest("POST", "/?session=good", strings.NewReader(`{"oldRel":"old.txt","newRel":"new.txt"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h.Rename(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Rename status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	var resp files.FileOpResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode FileOpResponse: %v", err)
+	}
+	if !resp.OK {
+		t.Errorf("FileOpResponse.OK = false; want true")
+	}
+	if _, err := os.Stat(filepath.Join(root, "new.txt")); err != nil {
+		t.Errorf("new.txt should exist after rename: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "old.txt")); !os.IsNotExist(err) {
+		t.Errorf("old.txt should not exist after rename")
+	}
+}
+
+// TestHandlerMkdir: mkdir happy path gives 200 FileOpResponse.
+func TestHandlerMkdir(t *testing.T) {
+	h, root := newHandler(t)
+	rr := invokeWithBody(t, h.Mkdir, "POST", "newdir", nil, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Mkdir status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	var resp files.FileOpResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode FileOpResponse: %v", err)
+	}
+	if !resp.OK {
+		t.Errorf("FileOpResponse.OK = false; want true")
+	}
+	fi, err := os.Stat(filepath.Join(root, "newdir"))
+	if err != nil {
+		t.Fatalf("newdir should exist: %v", err)
+	}
+	if !fi.IsDir() {
+		t.Errorf("newdir should be a directory")
+	}
+}
+
+// TestHandlerDelete: delete happy path gives 200 FileOpResponse.
+func TestHandlerDelete(t *testing.T) {
+	h, root := newHandler(t)
+	if err := os.WriteFile(filepath.Join(root, "del.txt"), []byte("bye"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	rr := invokeWithBody(t, h.Delete, "DELETE", "del.txt", nil, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Delete status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	var resp files.FileOpResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode FileOpResponse: %v", err)
+	}
+	if !resp.OK {
+		t.Errorf("FileOpResponse.OK = false; want true")
+	}
+	if _, err := os.Stat(filepath.Join(root, "del.txt")); !os.IsNotExist(err) {
+		t.Errorf("del.txt should not exist after delete")
 	}
 }
