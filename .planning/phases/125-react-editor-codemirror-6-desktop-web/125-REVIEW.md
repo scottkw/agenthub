@@ -19,7 +19,16 @@ findings:
   warning: 7
   info: 5
   total: 15
-status: issues_found
+status: resolved
+resolution: fixed
+resolution_note: >
+  All 3 critical + 7 warning + IN-01/IN-04/IN-05 fixed. CR-01 TOCTOU narrowed via
+  re-stat-before-rename in WriteFileAtomic (ErrPreconditionFailed→412); CR-02 HEAD
+  /api/files/write registered through requireFilesWrite so the canWrite probe gates
+  correctly; CR-03 save-as-new re-points editor + refreshes etag + disambiguates -copy;
+  WR-07 upload now 409s on collision without overwrite=1 (Replace sends overwrite=1).
+  Commits 890d811, 02201be, 7228900. go test -race green (files+webserver), frontend
+  1273 tests + tsc + build clean. IN-02/IN-03 skipped (cosmetic, out of fix scope).
 ---
 
 # Phase 125: Code Review Report
