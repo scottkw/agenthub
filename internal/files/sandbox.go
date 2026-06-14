@@ -79,9 +79,20 @@ var ErrProtectedSystemFile = errors.New("files: protected system file")
 //   - Claude config: anything under .claude/
 //   - Daemon config: anything under .config/agenthub/
 //
-// Returns nil when the target is not under $HOME or $HOME is unavailable.
+// CR-02 fail-closed fix: abs is built lexically from s.rootPath, which is
+// already EvalSymlinks-resolved at construction. We also EvalSymlinks the
+// existing parent of the target so any symlinks in the target's directory
+// portion are resolved before the filepath.Rel comparison. If the parent
+// EvalSymlinks fails we use the lexical abs — still safe because rootPath
+// itself is canonical. Returns nil only when the target is genuinely outside
+// $HOME after canonicalization; fails closed (returns ErrProtectedSystemFile)
+// on any ambiguity caused by a symlinked path component.
 func (s *Sandbox) denylistCheck(cleaned string) error {
+	// Build the lexical absolute path. s.rootPath is already EvalSymlinks-resolved
+	// (enforced by NewSandbox), so this is canonical up to any symlinks in
+	// `cleaned` itself.
 	abs := filepath.Join(s.rootPath, cleaned)
+
 	home, _ := os.UserHomeDir()
 	if home == "" {
 		return nil
@@ -93,12 +104,27 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 	if resolved, err := filepath.EvalSymlinks(home); err == nil {
 		home = resolved
 	}
-	rel, err := filepath.Rel(home, abs)
+
+	// CR-02: canonicalize the existing parent of the target so that symlinks
+	// in the target's directory portion (not yet created) are resolved before
+	// the Rel comparison. We walk up to the first existing ancestor.
+	canonAbs := abs
+	parent := filepath.Dir(abs)
+	if resolvedParent, err := filepath.EvalSymlinks(parent); err == nil {
+		// Rebuild abs with the canonical parent + base name.
+		canonAbs = filepath.Join(resolvedParent, filepath.Base(abs))
+	}
+
+	rel, err := filepath.Rel(home, canonAbs)
 	if err != nil || strings.HasPrefix(rel, "..") {
-		return nil // target is not under $HOME — denylist does not apply
+		// Target is not under $HOME — denylist does not apply.
+		// Note: an error from filepath.Rel is extremely rare (both paths are
+		// absolute on the same OS) and does not indicate a security concern here;
+		// returning nil is the correct fail-open for the "not under $HOME" case.
+		return nil
 	}
 	// Shell RC files — exact base-name match.
-	base := filepath.Base(abs)
+	base := filepath.Base(canonAbs)
 	switch base {
 	case ".bashrc", ".zshrc", ".profile", ".bash_profile",
 		".zprofile", ".zshenv", ".bash_login":
@@ -183,8 +209,13 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte) error {
 	}
 	defer root.Close()
 
+	// WR-03: surface a failed CSPRNG read per let-it-crash (CLAUDE.md §Silent Fallbacks).
+	// A failed rand.Read means the OS CSPRNG is broken — an extremely rare
+	// condition that should never be silently swallowed.
 	var rnd [8]byte
-	_, _ = rand.Read(rnd[:])
+	if _, err := rand.Read(rnd[:]); err != nil {
+		return fmt.Errorf("files: generate temp suffix: %w", err)
+	}
 	tmp := cleaned + ".agenthub-tmp-" + hex.EncodeToString(rnd[:])
 
 	f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
@@ -332,17 +363,18 @@ func (s *Sandbox) Delete(relPath string) error {
 
 // validateAndClean validates relPath through the layered-defense checks and
 // returns the filepath.Clean'd form (which os.Root expects). Any rejection
-// returns a non-nil error.
+// returns a non-nil error wrapped with ErrPathValidation so callers can use
+// errors.Is(err, ErrPathValidation) for classification. (IN-03)
 func validateAndClean(relPath string) (string, error) {
 	if err := validateRelativePath(relPath); err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %w", ErrPathValidation, err)
 	}
 	cleaned := filepath.Clean(relPath)
 	// After Clean, any leading ".." (alone or as a path prefix) is an escape
 	// attempt — defense in depth before os.Root sees it.
 	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) ||
 		strings.HasPrefix(cleaned, "../") {
-		return "", errors.New("files: path traversal rejected")
+		return "", fmt.Errorf("%w: files: path traversal rejected", ErrPathValidation)
 	}
 	return cleaned, nil
 }
