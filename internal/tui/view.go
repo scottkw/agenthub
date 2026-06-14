@@ -53,6 +53,9 @@ func (m Model) renderFull() string {
 	if m.modal == modalJoinCodePrompt {
 		return m.renderJoinCodePromptModal()
 	}
+	if m.modal == modalFileDeleteConfirm {
+		return m.renderFileDeleteConfirmModal()
+	}
 	if m.qrSession != nil {
 		return m.renderQROverlay()
 	}

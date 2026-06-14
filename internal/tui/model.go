@@ -20,7 +20,18 @@ const (
 	// scoped cap token before opening the Files view against a remote
 	// tailnet session (REMOTE-04 / D-01 parity-with-GUI).
 	modalJoinCodePrompt
+	// Phase 126 / TUIW-05: delete confirmation modal shown when the user
+	// presses 'd' on a file or directory in the Files view.
+	modalFileDeleteConfirm
 )
+
+// fileDeleteTarget holds the identity of the entry the user has selected for
+// deletion. Populated when 'd' is pressed and cleared when the modal closes.
+type fileDeleteTarget struct {
+	relPath string // sandbox-relative path sent to DeleteFile
+	isDir   bool   // true when the target is a directory (affects modal copy)
+	name    string // display name shown in the confirmation dialog
+}
 
 // remoteCapEntry holds the (baseURL, capToken) pair the TUI cached for a
 // given remote session. Lives ONLY in process memory — never persisted to
@@ -148,6 +159,14 @@ type Model struct {
 	// Kill confirmation state (Phase 77)
 	killTarget   *daemon.SessionInfo
 	killFocusYes bool
+
+	// File delete confirmation state (Phase 126 / TUIW-05).
+	// fileDeleteTarget is the entry targeted for deletion; nil when no delete
+	// confirmation is pending. fileDeleteFocusYes mirrors killFocusYes — tracks
+	// which button ("No" default, "Yes" after toggle) has keyboard focus in the
+	// delete-confirm modal. Cleared when modal closes.
+	fileDeleteTarget   *fileDeleteTarget
+	fileDeleteFocusYes bool
 
 	// Inline rename state (Phase 77)
 	editing       bool

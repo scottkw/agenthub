@@ -71,6 +71,17 @@ type filesModel struct {
 	previewLoading bool
 	previewErr     error
 	previewFocused bool // PgUp/PgDn route to viewport vs list
+
+	// Inline name-input state (Phase 126 / TUIW-05).
+	// Used for 'r' (rename) and 'm' (mkdir). Kept SEPARATE from the session
+	// editInput (model.go) to avoid colliding with session-rename state.
+	// nameInputActive is true while the user is typing; nameInputMode is
+	// "rename" or "mkdir"; nameInputOriginal holds the pre-edit name for the
+	// no-op guard on rename.
+	nameInputActive   bool
+	nameInputMode     string // "rename" | "mkdir"
+	nameInputOriginal string // original name for no-op guard (rename only)
+	nameInput         textinput.Model
 }
 
 // newFilesModel zero-initialises a filesModel for the given session and pane
@@ -107,12 +118,24 @@ func newFilesModelWithClient(sid string, client FilesClient, listW, listH, previ
 		pv.SetHeight(previewH)
 	}
 
+	// Name-input for inline rename ('r') and mkdir ('m') — separate from the
+	// session editInput to avoid state collisions (WR-design decision, Plan 03).
+	ni := textinput.New()
+	ni.Prompt = ""
+	if listW > 4 {
+		ni.SetWidth(listW - 4)
+	} else {
+		ni.SetWidth(1)
+	}
+	ni.CharLimit = 256
+
 	_ = listH // reserved for Plan 02 list-pane sizing
 	return filesModel{
 		sessionID:   sid,
 		client:      client,
 		loading:     true,
 		filterInput: fi,
+		nameInput:   ni,
 		preview:     pv,
 		previewKind: previewEmpty,
 		generation:  1, // start at 1 so a zero-valued msg looks stale
@@ -549,6 +572,49 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.files.selected = target
 		return m, nil
+
+	case s == "d":
+		// TUIW-05: delete a file or directory (with confirmation).
+		// Shows a confirm modal; actual dispatch happens in handleFileDeleteConfirmKey.
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		name := ansi.Strip(entry.Name)
+		rel := joinDir(m.files.cwd, name)
+		m.fileDeleteTarget = &fileDeleteTarget{
+			relPath: rel,
+			isDir:   entry.IsDir,
+			name:    name,
+		}
+		m.fileDeleteFocusYes = false // default focus is No (safe)
+		m.modal = modalFileDeleteConfirm
+		return m, nil
+
+	case s == "r":
+		// TUIW-05: inline rename — opens the name input prefilled with current name.
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		name := ansi.Strip(entry.Name)
+		m.files.nameInputMode = "rename"
+		m.files.nameInputOriginal = name
+		m.files.nameInput.SetValue(name)
+		cmd := m.files.nameInput.Focus()
+		m.files.nameInputActive = true
+		return m, cmd
+
+	case s == "m":
+		// TUIW-05: inline mkdir — opens the name input empty.
+		m.files.nameInputMode = "mkdir"
+		m.files.nameInputOriginal = ""
+		m.files.nameInput.SetValue("")
+		cmd := m.files.nameInput.Focus()
+		m.files.nameInputActive = true
+		return m, cmd
 
 	case s == "e":
 		// TUIW-02: edit a file in the user's $EDITOR via a temp-file round-trip.

@@ -35,6 +35,7 @@ type agentEntry struct {
 //     pick Shell, blocking shell-session creation on Windows.
 //   - lipgloss.Place panicked on the empty modal content (modal.go:69
 //     "runtime error: index out of range [0] with length 0").
+//
 // Mirrors the parallel GUI fix to handleAddTab in App.tsx.
 //
 // Phase 108 PARITY-TUI-01: replaces the Phase 101 multi-row per-shell
@@ -226,6 +227,87 @@ func (m Model) renderKillConfirmModal() string {
 		lipgloss.Center, lipgloss.Center, bordered)
 }
 
+// renderFileDeleteConfirmModal renders the Phase 126 / TUIW-05 delete-confirm
+// dialog. It clones renderKillConfirmModal with two colorblind-safe changes:
+//
+//  1. The question line uses the explicit word "Delete" (+ "and all contents?"
+//     for directories) so that the danger signal is carried by TEXT, not color
+//     alone (MEMORY colorblind constraint + homeDirWriteWarning pattern).
+//
+//  2. The detail line reads "This cannot be undone." — again plain text, not
+//     color-only (FgDanger is reinforcement only).
+func (m Model) renderFileDeleteConfirmModal() string {
+	if m.fileDeleteTarget == nil {
+		return ""
+	}
+	overlayWidth := max(40, min(60, m.width-20))
+	innerWidth := overlayWidth - 6 // subtract border (2) + padding (4)
+
+	// Question line — colorblind-safe: text carries the meaning.
+	var questionText string
+	if m.fileDeleteTarget.isDir {
+		questionText = fmt.Sprintf("Delete directory %q and all contents?", m.fileDeleteTarget.name)
+	} else {
+		questionText = fmt.Sprintf("Delete %q?", m.fileDeleteTarget.name)
+	}
+	question := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(m.styles.FgDanger).
+		Render(questionText)
+
+	// Detail line — explicit "cannot be undone" text (non-color danger signal).
+	detail := lipgloss.NewStyle().
+		Foreground(m.styles.FgMuted).
+		Render("This cannot be undone.")
+
+	// Button rendering — same focus logic as renderKillConfirmModal.
+	var noBtn, yesBtn string
+	if !m.fileDeleteFocusYes {
+		// No is focused (safe default)
+		noBtn = lipgloss.NewStyle().Bold(true).Reverse(true).Render("[ No ]")
+		yesBtn = lipgloss.NewStyle().Foreground(m.styles.FgDanger).Render("[ Delete ]")
+	} else {
+		// Yes (Delete) is focused
+		noBtn = lipgloss.NewStyle().Foreground(m.styles.FgNormal).Render("[ No ]")
+		yesBtn = lipgloss.NewStyle().Bold(true).Reverse(true).Render("[ Delete ]")
+	}
+
+	// Button row centered within innerWidth.
+	buttonRow := noBtn + "  " + yesBtn
+	btnWidth := lipgloss.Width(buttonRow)
+	leftPad := 0
+	if innerWidth > btnWidth {
+		leftPad = (innerWidth - btnWidth) / 2
+	}
+	buttonRow = strings.Repeat(" ", leftPad) + buttonRow
+
+	content := strings.Join([]string{
+		question,
+		detail,
+		"",
+		buttonRow,
+	}, "\n")
+
+	bordered := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(m.styles.BorderNormal).
+		Width(overlayWidth-2).
+		Padding(1, 2).
+		Background(m.styles.BgModal).
+		Render(content)
+
+	// Title in danger color — FgDanger is reinforcement; "Delete" text is primary.
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(m.styles.FgDanger).
+		Render(" Delete ")
+
+	bordered = injectBorderTitle(bordered, title, m.styles.BorderNormal)
+
+	return lipgloss.Place(m.width, m.height,
+		lipgloss.Center, lipgloss.Center, bordered)
+}
+
 // renderJoinCodePromptModal renders the Phase 122 join-code prompt modal as
 // a centered bordered overlay. The prompt sub-model owns the inner content
 // (textinput, status line, hint line); this wrapper supplies the standard
@@ -239,7 +321,7 @@ func (m Model) renderJoinCodePromptModal() string {
 	bordered := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(m.styles.BorderAccent).
-		Width(overlayWidth - 2).
+		Width(overlayWidth-2).
 		Padding(1, 2).
 		Background(m.styles.BgModal).
 		Render(content)

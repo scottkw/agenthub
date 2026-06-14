@@ -224,6 +224,19 @@ func (m Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.modal == modalKillConfirm {
 		return m.handleKillConfirmKey(msg)
 	}
+	// Priority 2.5: File delete confirmation dialog (Phase 126 / TUIW-05).
+	// Sits immediately after kill-confirm so the "y" key consumed by the
+	// confirm dialog cannot leak to handleFilesKey (Tab cycling, etc.).
+	// Priority sub-test: TestFilesDelete_DispatchPriority.
+	if m.modal == modalFileDeleteConfirm {
+		return m.handleFileDeleteConfirmKey(msg)
+	}
+	// Priority 2.6: Files inline name-input (rename / mkdir) (Phase 126 / TUIW-05).
+	// Sits above the Files-tab dispatcher (5.5) so Enter and Esc are consumed
+	// by the input handler and never reach handleFilesKey (which would navigate).
+	if m.files.nameInputActive {
+		return m.handleFilesNameInputKey(msg)
+	}
 	// Priority 3: New session modal
 	if m.modal == modalNewSession {
 		return m.handleNewSessionKey(msg)
@@ -715,6 +728,99 @@ func (m Model) executeKill() (tea.Model, tea.Cmd) {
 	return m, killSession(m.client, id)
 }
 
+// handleFileDeleteConfirmKey handles keys when the file-delete confirmation
+// dialog is open. Clones handleKillConfirmKey with delete semantics.
+//
+// y / Enter-on-Yes → dispatch deleteCmd + close modal
+// n / esc           → close modal without dispatch (T-126-09)
+// Enter-on-No       → close modal without dispatch
+// left/right/h/l/tab → toggle focus between No (default) and Yes (Delete)
+func (m Model) handleFileDeleteConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	s := msg.String()
+	switch {
+	case s == "y":
+		return m.executeFileDelete()
+	case s == "n", s == "esc":
+		m.modal = modalNone
+		m.fileDeleteTarget = nil
+		return m, nil
+	case s == "enter":
+		if m.fileDeleteFocusYes {
+			return m.executeFileDelete()
+		}
+		m.modal = modalNone
+		m.fileDeleteTarget = nil
+		return m, nil
+	case s == "left", s == "right", s == "h", s == "l", s == "tab":
+		m.fileDeleteFocusYes = !m.fileDeleteFocusYes
+		return m, nil
+	}
+	return m, nil
+}
+
+// executeFileDelete sends the deleteCmd and cleans up modal state.
+func (m Model) executeFileDelete() (tea.Model, tea.Cmd) {
+	if m.fileDeleteTarget == nil {
+		m.modal = modalNone
+		return m, nil
+	}
+	target := m.fileDeleteTarget
+	m.modal = modalNone
+	m.fileDeleteTarget = nil
+	m.toast = "Deleting..."
+	m.toastKind = toastInfo
+	m.toastExp = time.Now().Add(10 * time.Second)
+	m.files.generation++ // WR-03: supersede any in-flight request
+	return m, deleteCmd(m.files.client, m.files.sessionID, target.relPath, m.files.generation)
+}
+
+// handleFilesNameInputKey handles keys while the inline name-input (rename or
+// mkdir) is active. Clones handleRenameKey with files semantics.
+//
+// enter → trim value; dispatch renameCmd or mkdirCmd; clear input state
+// esc   → cancel; clear input state
+// default → forward to nameInput.Update (textinput handles typing + backspace)
+func (m Model) handleFilesNameInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	s := msg.String()
+	switch {
+	case s == "enter":
+		name := strings.TrimSpace(m.files.nameInput.Value())
+		if name == "" {
+			m.toast = "Name cannot be empty"
+			m.toastKind = toastError
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
+		m.files.nameInputActive = false
+		m.files.nameInput.Blur()
+
+		switch m.files.nameInputMode {
+		case "rename":
+			if name == m.files.nameInputOriginal {
+				// No-op guard: user pressed Enter without changing the name.
+				return m, nil
+			}
+			oldRel := joinDir(m.files.cwd, m.files.nameInputOriginal)
+			newRel := joinDir(m.files.cwd, name)
+			m.files.generation++ // WR-03
+			return m, renameCmd(m.files.client, m.files.sessionID, oldRel, newRel, m.files.generation)
+		case "mkdir":
+			newRel := joinDir(m.files.cwd, name)
+			m.files.generation++ // WR-03
+			return m, mkdirCmd(m.files.client, m.files.sessionID, newRel, m.files.generation)
+		}
+		return m, nil
+	case s == "esc":
+		m.files.nameInputActive = false
+		m.files.nameInput.Blur()
+		return m, nil
+	default:
+		var cmd tea.Cmd
+		m.files.nameInput, cmd = m.files.nameInput.Update(msg)
+		return m, cmd
+	}
+}
+
 // handleNewSessionKey handles keys when new-session modal is open.
 func (m Model) handleNewSessionKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := msg.String()
@@ -934,9 +1040,10 @@ func (m Model) applyEditorExitMsg(msg editorExitMsg) (tea.Model, tea.Cmd) {
 
 // applyFilesOpMsg handles the result of a write operation (edit write-back,
 // delete, rename, mkdir). Stale messages (generation behind current) are
-// silently discarded (WR-03). On error, a toast is shown. On success the
-// listing is already refreshed by the unconditional loadDirCmd in the
-// editorExitMsg / op handler.
+// silently discarded (WR-03). On error, a toast is shown and the listing is
+// refreshed to show current state. On success, delete/rename/mkdir refresh
+// the listing unconditionally (edit write-back is already refreshed by the
+// unconditional loadDirCmd in applyEditorExitMsg).
 func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 	if msg.generation < m.files.generation {
 		return m, nil // stale — discard
@@ -946,6 +1053,13 @@ func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 		m.toastKind = toastError
 		m.toastExp = time.Now().Add(3 * time.Second)
 		// Re-run a fresh listing so the UI shows the current state.
+		m.files.generation++
+		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
+	}
+	// Success: refresh listing for delete/rename/mkdir (TUIW-05). Edit
+	// write-back is excluded (op=="edit") — applyEditorExitMsg already
+	// batched the unconditional loadDirCmd ahead of this msg.
+	if msg.op != "edit" {
 		m.files.generation++
 		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
 	}
