@@ -217,6 +217,53 @@ export class FilesApiClient {
   }
 
   /**
+   * Delete a file or directory via DELETE /api/files/delete.
+   *
+   * Server performs recursive delete for directories within the os.Root-confined
+   * sandbox (Phase 123 FSW-04). Throws FilesApiError(409) on name collision
+   * (not expected for delete, but defensive).
+   *
+   * EDIT-09: client-side recursive file count walk happens BEFORE calling del
+   * (in FileBrowserTab before opening DeleteConfirmModal). del itself has no
+   * count semantics — the count is display-only.
+   */
+  async del(sid: string, path: string): Promise<void> {
+    const url = `${this.baseURL}${this.pathPrefix}/delete?${this.buildQuery(sid, path).toString()}`
+    await this.fetchOrThrow(url, { method: 'DELETE' })
+  }
+
+  /**
+   * Rename or move a file/directory via POST /api/files/rename.
+   *
+   * Body is JSON {oldRel, newRel} (matches server renameRequest, write.go:171-174).
+   * Cross-directory move is a rename with different directory components — the
+   * server Rename method validates BOTH paths via validateAndClean (T-125-10).
+   *
+   * Throws FilesApiError(409) on name collision (fs.ErrExist → 409, write.go:244-245).
+   */
+  async rename(sid: string, oldRel: string, newRel: string): Promise<void> {
+    const params = new URLSearchParams()
+    params.set('session', sid)
+    if (this.capToken) params.set('cap', this.capToken)
+    const url = `${this.baseURL}${this.pathPrefix}/rename?${params.toString()}`
+    await this.fetchOrThrow(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldRel, newRel }),
+    })
+  }
+
+  /**
+   * Create a directory via POST /api/files/mkdir.
+   *
+   * Throws FilesApiError(409) on name collision (directory already exists).
+   */
+  async mkdir(sid: string, path: string): Promise<void> {
+    const url = `${this.baseURL}${this.pathPrefix}/mkdir?${this.buildQuery(sid, path).toString()}`
+    await this.fetchOrThrow(url, { method: 'POST' })
+  }
+
+  /**
    * Probe the write route to determine if the cap token carries files.write perm.
    *
    * Uses a HEAD request to the write endpoint with an empty body; the server's
