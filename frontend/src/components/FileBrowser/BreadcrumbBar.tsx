@@ -3,7 +3,7 @@
 // Buttons use DocumentPlusIcon and FolderPlusIcon per UI-SPEC §5 Component Tree.
 
 import React, { useEffect, useState } from 'react'
-import { ArrowPathIcon, DocumentPlusIcon, FolderPlusIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, ArrowUpTrayIcon, DocumentPlusIcon, FolderPlusIcon } from '@heroicons/react/24/outline'
 import type { BreadcrumbSegment } from '../../lib/filesTypes'
 
 export interface BreadcrumbBarProps {
@@ -23,13 +23,19 @@ export interface BreadcrumbBarProps {
   onNavigateTo: (pathFromCwd: string) => void
   /** Click handler for the refresh icon. */
   onRefresh: () => void
-  // ─── Optional write affordance props (Plan 04, EDIT-09/12) ───────────────
-  /** True when the session has files.write perm. Gates New file / New folder. */
+  // ─── Optional write affordance props (Plan 04/05, EDIT-09/10/12) ────────────
+  /** True when the session has files.write perm. Gates New file / New folder / Upload. */
   canWrite?: boolean
   /** Called when the New file button is clicked (canWrite only). */
   onNewFile?: () => void
   /** Called when the New folder button is clicked (canWrite only). */
   onNewFolder?: () => void
+  /**
+   * Called when the Upload button is clicked (canWrite only).
+   * Caller should trigger a hidden <input type="file" multiple> click.
+   * EDIT-10 — Phase 125-05.
+   */
+  onUpload?: () => void
 }
 
 /**
@@ -79,6 +85,7 @@ export function BreadcrumbBar({
   canWrite,
   onNewFile,
   onNewFolder,
+  onUpload,
 }: BreadcrumbBarProps): React.ReactElement {
   const refreshedText = useRefreshedText(refreshedAt)
   const lastIndex = segments.length - 1
@@ -162,6 +169,19 @@ export function BreadcrumbBar({
             onClick={onNewFolder}
           >
             <FolderPlusIcon aria-hidden="true" width={14} height={14} />
+          </button>
+        )}
+        {/* Phase 125-05: Upload toolbar button — canWrite only (EDIT-10) */}
+        {canWrite && onUpload && (
+          <button
+            type="button"
+            className="file-browser__btn file-browser__btn--icon"
+            aria-label="Upload"
+            title="Upload"
+            data-testid="file-browser-upload"
+            onClick={onUpload}
+          >
+            <ArrowUpTrayIcon aria-hidden="true" width={14} height={14} />
           </button>
         )}
         <button

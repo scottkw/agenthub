@@ -280,4 +280,69 @@ export class FilesApiClient {
     const url = `${this.baseURL}${this.pathPrefix}/write?${this.buildQuery(sid, path).toString()}`
     await this.fetchOrThrow(url, { method: 'HEAD' })
   }
+
+  /**
+   * Upload a single file via XMLHttpRequest (NOT fetch — XHR is required for
+   * per-file upload.onprogress events; fetch has no upload-progress API).
+   *
+   * Server Handler.Upload (write.go:105-131) takes ONE multipart `file` part
+   * plus a `dir` field. Multi-file upload = N calls, one file part each.
+   * Cap token threads via URL query param (buildQuery includes it when present).
+   *
+   * EDIT-10: Phase 125-05
+   *
+   * @param sid       Session ID
+   * @param dir       Target directory (relative to session cwd)
+   * @param file      The File object to upload
+   * @param onProgress Optional callback receiving integer 0-100 percent
+   * @returns Promise that resolves on 2xx; rejects with FilesApiError on
+   *   409 (collision → isCollision()) or 413 (over-cap → isOverCap()).
+   */
+  uploadFile(
+    sid: string,
+    dir: string,
+    file: File,
+    onProgress?: (pct: number) => void,
+  ): Promise<void> {
+    // Build URL — session + optional cap go in query params (no auth header).
+    const params = new URLSearchParams()
+    params.set('session', sid)
+    if (this.capToken) params.set('cap', this.capToken)
+    const url = `${this.baseURL}${this.pathPrefix}/upload?${params.toString()}`
+
+    const formData = new FormData()
+    formData.append('dir', dir)
+    formData.append('file', file)
+
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+
+      // Per-file upload progress events — the reason for XHR over fetch.
+      xhr.upload.addEventListener('progress', (evt: ProgressEvent) => {
+        if (evt.lengthComputable && onProgress) {
+          const pct = Math.round((evt.loaded / evt.total) * 100)
+          onProgress(pct)
+        }
+      })
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve()
+        } else {
+          reject(new FilesApiError(xhr.status, xhr.responseText ?? ''))
+        }
+      })
+
+      xhr.addEventListener('error', () => {
+        reject(new FilesApiError(0, 'network error'))
+      })
+
+      xhr.addEventListener('abort', () => {
+        reject(new FilesApiError(0, 'upload aborted'))
+      })
+
+      xhr.open('POST', url)
+      xhr.send(formData)
+    })
+  }
 }
