@@ -381,10 +381,10 @@ Plans:
 4. All write affordances (create file, mkdir, delete, rename, cross-directory move via "Move to…" picker, single file upload, multi-file upload with per-file progress, drag-and-drop into the directory listing) are visible and operable only when `canWrite` is true; a 409 name-collision on rename or upload shows "A file named X already exists. Replace it?" with Cancel as the default action.
 5. Playwright cross-browser e2e (Chromium + Firefox + WebKit) passes all scenarios: local write-and-save, web-share write with a `files.write` cap, 403 without the cap, create file, mkdir, delete file, delete directory (recursive confirm with file count), rename, cross-directory move, single upload, multi-file upload, 412 conflict flow, binary-file no-edit, large-file guard — zero CSP violations in any browser; `vendor_drift_test.go` passes with CodeMirror packages version-matched.
 
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
-- [ ] 125-01-PLAN.md — Server If-Match/412 + ETag + CodeMirror vendor-drift gate + Playwright WRITE_CAP fixture (Wave 0)
+- [x] 125-01-PLAN.md — Server If-Match/412 + ETag + CodeMirror vendor-drift gate + Playwright WRITE_CAP fixture (Wave 0)
 - [ ] 125-02-PLAN.md — CodeMirror 6 install + Editor core (mount, Compartment toggle, language-by-extension, large-file/binary guards, Edit button, canWrite)
 - [ ] 125-03-PLAN.md — Save flow: Cmd/Ctrl+S + If-Match, three-state indicator, dirty state, unsaved guard, 412 conflict modal
 - [ ] 125-04-PLAN.md — Directory write affordances: create file, mkdir, rename, delete (recursive count), cross-directory move
@@ -501,7 +501,7 @@ Plans:
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
 | 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
 | 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
-| 125 | v3.5 | 0/TBD | Not started | - |
+| 125 | v3.5 | 1/6 | In Progress|  |
 | 126 | v3.5 | 0/TBD | Not started | - |
 | 127 | v3.5 | 0/TBD | Not started | - |
 | 128 | v3.5 | 0/TBD | Not started | - |
