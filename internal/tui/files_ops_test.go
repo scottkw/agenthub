@@ -329,12 +329,10 @@ func TestFilesRename(t *testing.T) {
 		m.files.entries = []daemon.FileEntry{{Name: "README.md", IsDir: false}}
 		m.files.selected = 0
 
-		updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: 'r'})
+		updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: 'r'})
 		r := updated.(Model)
 
-		if cmd != nil {
-			t.Error("expected nil cmd from 'r' (just sets input state)")
-		}
+		// cmd may be non-nil (nameInput.Focus() returns a focus cmd) — that is fine.
 		if !r.files.nameInputActive {
 			t.Error("expected files.nameInputActive=true after 'r'")
 		}
@@ -460,12 +458,10 @@ func TestFilesMkdir(t *testing.T) {
 		m.files.entries = []daemon.FileEntry{{Name: "existing.txt", IsDir: false}}
 		m.files.selected = 0
 
-		updated, cmd := m.handleFilesKey(tea.KeyPressMsg{Code: 'm'})
+		updated, _ := m.handleFilesKey(tea.KeyPressMsg{Code: 'm'})
 		r := updated.(Model)
 
-		if cmd != nil {
-			t.Error("expected nil cmd from 'm' (just sets input state)")
-		}
+		// cmd may be non-nil (nameInput.Focus() returns a focus cmd) — that is fine.
 		if !r.files.nameInputActive {
 			t.Error("expected files.nameInputActive=true after 'm'")
 		}

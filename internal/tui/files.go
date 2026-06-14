@@ -573,6 +573,49 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.files.selected = target
 		return m, nil
 
+	case s == "d":
+		// TUIW-05: delete a file or directory (with confirmation).
+		// Shows a confirm modal; actual dispatch happens in handleFileDeleteConfirmKey.
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		name := ansi.Strip(entry.Name)
+		rel := joinDir(m.files.cwd, name)
+		m.fileDeleteTarget = &fileDeleteTarget{
+			relPath: rel,
+			isDir:   entry.IsDir,
+			name:    name,
+		}
+		m.fileDeleteFocusYes = false // default focus is No (safe)
+		m.modal = modalFileDeleteConfirm
+		return m, nil
+
+	case s == "r":
+		// TUIW-05: inline rename — opens the name input prefilled with current name.
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		name := ansi.Strip(entry.Name)
+		m.files.nameInputMode = "rename"
+		m.files.nameInputOriginal = name
+		m.files.nameInput.SetValue(name)
+		cmd := m.files.nameInput.Focus()
+		m.files.nameInputActive = true
+		return m, cmd
+
+	case s == "m":
+		// TUIW-05: inline mkdir — opens the name input empty.
+		m.files.nameInputMode = "mkdir"
+		m.files.nameInputOriginal = ""
+		m.files.nameInput.SetValue("")
+		cmd := m.files.nameInput.Focus()
+		m.files.nameInputActive = true
+		return m, cmd
+
 	case s == "e":
 		// TUIW-02: edit a file in the user's $EDITOR via a temp-file round-trip.
 		// Works uniformly for local AND remote sessions (temp file is always
