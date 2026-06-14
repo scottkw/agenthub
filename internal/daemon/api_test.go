@@ -2144,3 +2144,121 @@ func TestAPI_FilesStat_ReturnsFileEntry(t *testing.T) {
 		t.Errorf("IsDir = true; want false")
 	}
 }
+
+// -------------------------------------------------------------------------
+// Plan 123-03 — Write route tests (FSW-08, FSW-12)
+// These tests verify the five auth-less method-prefixed write routes on the
+// daemon socket: PUT write, POST upload, DELETE delete, POST rename, POST
+// mkdir. Go 1.22+ mux auto-returns 405 for the wrong verb.
+// -------------------------------------------------------------------------
+
+// rawPut performs PUT http://daemon{path} with the given body and Content-Type.
+func rawPut(t *testing.T, socketPath, path string, body []byte, contentType string) (int, []byte) {
+	t.Helper()
+	client := &http.Client{Transport: &http.Transport{DialContext: dialUnix(socketPath)}}
+	req, err := http.NewRequest(http.MethodPut, "http://daemon"+path, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest PUT %s: %v", path, err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("PUT %s: %v", path, err)
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, respBody
+}
+
+// TestFilesWriteRoutes_WrongVerb405: GET /api/files/write → 405; POST /api/files/read → 405.
+// (FSW-08, Pitfall 6 — method-prefixed mux auto-405)
+func TestFilesWriteRoutes_WrongVerb405(t *testing.T) {
+	_, sock, sid := newFilesAPI(t, t.TempDir())
+
+	// GET on a PUT-only route → 405
+	status, _, body := rawDo(t, sock, http.MethodGet, "/api/files/write?session="+sid+"&path=f.txt")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("GET /api/files/write = %d, body=%s; want 405", status, string(body))
+	}
+
+	// POST on a GET-only route → 405
+	status, _, body = rawDo(t, sock, http.MethodPost, "/api/files/read?session="+sid+"&path=.")
+	if status != http.StatusMethodNotAllowed {
+		t.Errorf("POST /api/files/read = %d, body=%s; want 405", status, string(body))
+	}
+}
+
+// TestFilesWriteRoutes_Registered: each of the five routes resolves to its handler.
+func TestFilesWriteRoutes_Registered(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	// PUT /api/files/write with a valid session and path → 200 (not 404/405)
+	payload := []byte("test content from route test")
+	status, body := rawPut(t, sock, "/api/files/write?session="+sid+"&path=routetest.txt",
+		payload, "application/octet-stream")
+	if status != http.StatusOK {
+		t.Errorf("PUT /api/files/write = %d, body=%s; want 200", status, string(body))
+	}
+
+	// DELETE /api/files/delete → 200 (file we just created)
+	status, body = rawDelete(t, sock, "/api/files/delete?session="+sid+"&path=routetest.txt")
+	if status != http.StatusOK {
+		t.Errorf("DELETE /api/files/delete = %d, body=%s; want 200", status, string(body))
+	}
+
+	// POST /api/files/mkdir → 200
+	status, body = rawPost(t, sock, "/api/files/mkdir?session="+sid+"&path=newroute-dir", "")
+	if status != http.StatusOK {
+		t.Errorf("POST /api/files/mkdir = %d, body=%s; want 200", status, string(body))
+	}
+
+	// POST /api/files/rename → 200 (rename the mkdir we just created)
+	renameBody := `{"oldRel":"newroute-dir","newRel":"renamed-dir"}`
+	status, body = rawPost(t, sock, "/api/files/rename?session="+sid, renameBody)
+	if status != http.StatusOK {
+		t.Errorf("POST /api/files/rename = %d, body=%s; want 200", status, string(body))
+	}
+
+	// POST /api/files/upload → needs multipart; just check it returns non-405 for valid content.
+	// (Full upload behavior tested in TestHandlerUpload_* handler tests)
+	status, _, _ = rawDo(t, sock, http.MethodPost, "/api/files/upload?session="+sid)
+	if status == http.StatusMethodNotAllowed {
+		t.Errorf("POST /api/files/upload returned 405 — route not registered")
+	}
+}
+
+// TestFilesWriteRoutes_WriteRoundTrip: PUT write then GET read returns identical bytes.
+// (FSW-08 success criterion #2 — byte-identical round-trip over the daemon socket)
+func TestFilesWriteRoutes_WriteRoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	_, sock, sid := newFilesAPI(t, tmp)
+
+	payload := []byte("round-trip payload content")
+	status, body := rawPut(t, sock, "/api/files/write?session="+sid+"&path=rt.txt",
+		payload, "application/octet-stream")
+	if status != http.StatusOK {
+		t.Fatalf("PUT /api/files/write = %d, body=%s; want 200", status, string(body))
+	}
+	var wr struct {
+		Path string `json:"path"`
+		Size int64  `json:"size"`
+	}
+	if err := json.Unmarshal(body, &wr); err != nil {
+		t.Fatalf("decode write response: %v; raw=%s", err, string(body))
+	}
+	if wr.Size != int64(len(payload)) {
+		t.Errorf("write Size = %d; want %d", wr.Size, len(payload))
+	}
+
+	// Read back.
+	status, readBody := rawGet(t, sock, "/api/files/read?session="+sid+"&path=rt.txt")
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/files/read after write = %d, body=%s", status, string(readBody))
+	}
+	if string(readBody) != string(payload) {
+		t.Errorf("read body = %q; want %q", string(readBody), string(payload))
+	}
+}

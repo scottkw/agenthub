@@ -1,28 +1,26 @@
-# Stack Research — v3.4 Read-Only File Browser
+# Stack Research — v3.5 Write-Side File Browser + In-App Code Editor
 
-**Domain:** Sandboxed filesystem API + desktop/web file browser tab + TUI file listing/preview
-**Researched:** 2026-05-20
-**Confidence:** HIGH (Go stdlib and major libraries verified against official docs and release pages; React library versions verified against npm/GitHub; confidence notes per item below)
+**Domain:** Write operations (create/upload/delete/rename/mkdir) + in-app code editor with syntax highlighting + TUI $EDITOR shell-out
+**Researched:** 2026-06-14
+**Confidence:** HIGH (all library versions verified against npm registry; Bubble Tea v2 API verified against Context7/pkg.go.dev; CSP impact verified against live codebase; Monaco CSP issues verified against tracked GitHub issues)
 
-This is a **subsequent-milestone STACK.md** — it does NOT re-survey the React/Wails/Go base stack already validated through v3.3.1. All validated stack items (xterm.js 6, React 19.2.4, Vite 8, Vitest 4, Go 1.26.1, Bubble Tea v2, lipgloss/v2, bubbles/v2, charmbracelet/glamour) are in-place and confirmed via `go list -m all` and `frontend/package.json`. This document covers only the NEW capabilities required for v3.4.
+This is a **subsequent-milestone STACK.md** — it does NOT re-survey the React/Wails/Go base stack already validated through v3.4. All validated stack items (`os.OpenRoot`, `wailsapp/mimetype`, `react-markdown`, `remark-gfm`, `shiki`, `charmbracelet/glamour`, `charm.land/bubbles/v2@v2.1.0`, Go 1.26.3, React 19.2.4, Vite 8, Vitest 4) are in-place and confirmed via `go.mod` and `frontend/package.json`. This document covers only the NEW capabilities required for v3.5.
 
-Go version confirmed: **go 1.26.1** — `os.Root` (added in Go 1.24) is fully available.
+Go version confirmed: **go 1.26.3**. Bubble Tea version confirmed: **charm.land/bubbletea/v2 v2.0.6**.
 
 ---
 
 ## TL;DR
 
-1. **Go sandboxing**: Use `os.OpenRoot` / `os.Root` (stdlib, Go 1.24+) for traversal-resistant FS access. No new Go module needed for safe path resolution.
-2. **MIME detection**: Use `github.com/wailsapp/mimetype` v1.4.1 — already in `go.sum` as a Wails transitive dep; not yet in `go.mod` as a direct dep. Promote to direct. Do NOT add `gabriel-vasile/mimetype` as a separate dep (it is the upstream origin of wailsapp/mimetype).
-3. **HTTP Range streaming**: Use `http.ServeContent` (stdlib). `io.ReadSeeker` via `os.Root.Open()` → `*os.File` is sufficient. No new dep.
-4. **Markdown rendering (React)**: Add `react-markdown@10.1.0` + `remark-gfm` (GFM tables/strikethrough/task lists). CSP-clean: no `eval`, no inline scripts, virtual DOM only.
-5. **Syntax highlighting (read-only preview)**: Add `shiki@4.1.0` with `createJavaScriptRegexEngine()` — avoids Oniguruma WASM, no `'wasm-unsafe-eval'` CSP amendment needed. Use `shiki/core` fine-grained bundle with ~15 curated languages.
-6. **Type-ahead filter**: No library. `useMemo` + inline substring match is sufficient for a directory listing (typically <10K entries). Optionally `fuzzysort@3.1.0` (~3 KB gzipped) if fuzzy matching is requested.
-7. **TUI markdown/file preview**: `charmbracelet/glamour@v0.8.0` — already a transitive dep (`go list -m all` confirmed). Promote to direct dep. Renders markdown with ANSI styling.
-8. **TUI file listing**: `charm.land/bubbles/v2@v2.1.0` `filepicker` component — already in `go.mod` as a direct dep (it's the Charm v2 ecosystem module used by the existing TUI).
-9. **Fuzz testing**: `testing.F` (stdlib). No external fuzz library needed. Seed corpus of known path-traversal payloads in `testdata/fuzz/FuzzSandboxPath/`.
+1. **Editor library**: Use **CodeMirror 6** (`codemirror@6.0.2` + `@codemirror/*` packages). **Do NOT use Monaco.** Monaco requires `worker-src blob:` in CSP — a new CSP amendment that violates project security discipline. CodeMirror 6 is already covered by the existing `style-src 'self' 'unsafe-inline'` policy (inline style injection is already allowed for xterm.js). Bundle 135 KB gzipped vs Monaco's 2.4–6+ MB.
 
-**CSP status**: Zero new CSP amendments required. All choices are `script-src 'self'`-clean.
+2. **Syntax highlighting**: CodeMirror 6 provides its own Lezer-based syntax highlighting via per-language packages (`@codemirror/lang-*`). **Shiki is not needed for the editor** — it stays in place for the read-only file preview pane (shipped v3.4). Do not add a separate highlighter alongside the editor.
+
+3. **File upload (Go side)**: Use `net/http` stdlib (`r.ParseMultipartForm` + `r.FormFile`). `mime/multipart` is sufficient for browser multipart POST. Gate with `http.MaxBytesReader` before parsing. No new Go dep needed.
+
+4. **TUI $EDITOR shell-out**: Use `tea.Exec(cmd, callback)` + implement `tea.ExecCommand` interface. This is **already proven and in use** in v3.4's `internal/tui/attach.go` (`attachCmd` struct). The `$EDITOR` shell-out follows the identical pattern — implement `ExecCommand`, call `tea.Exec`, handle `editorDoneMsg` in `Update`. No new dep, no new API to learn.
+
+**CSP status after v3.5**: Zero new CSP amendments required. CodeMirror 6 inline style injection is already permitted by `style-src 'self' 'unsafe-inline'` (Amendment 1, Phase 89). No `worker-src`, no `script-src` changes needed.
 
 ---
 
@@ -30,423 +28,311 @@ Go version confirmed: **go 1.26.1** — `os.Root` (added in Go 1.24) is fully av
 
 ### Core Technologies (in-place — for integration reference only)
 
-| Technology | Version | Relevant to v3.4 |
+| Technology | Version | Relevant to v3.5 |
 |------------|---------|-----------------|
-| Go | 1.26.1 | `os.Root` available (added Go 1.24); `http.ServeContent` for Range |
-| `charm.land/bubbles/v2` | v2.1.0 | `filepicker` component for TUI Files view |
-| `charmbracelet/glamour` | v0.8.0 | Markdown rendering in TUI (transitive dep, promote to direct) |
-| `github.com/wailsapp/mimetype` | v1.4.1 | MIME detection (transitive dep via Wails, promote to direct) |
-| React | 19.2.4 | `FileBrowserTab.tsx` — already in use |
-| Vite + pnpm | 8.x | Build tooling — no change |
+| Go | 1.26.3 | `os.OpenRoot` write methods; `mime/multipart` for upload |
+| `charm.land/bubbletea/v2` | v2.0.6 | `tea.Exec` + `tea.ExecCommand` for $EDITOR shell-out |
+| `charmbracelet/glamour` | v0.8.0 | Markdown preview (unchanged from v3.4) |
+| React | 19.2.4 | `CodeEditorTab.tsx` — already in use |
+| Vite | 8.x | Build tooling — no change needed |
+| `shiki` | 4.2.0 (in v3.4 as 4.1.0) | Read-only file preview pane syntax highlighting — already shipped |
 
-### New Go Dependencies (v3.4 adds)
-
-| Library | Version | Purpose | Why |
-|---------|---------|---------|-----|
-| `github.com/wailsapp/mimetype` | v1.4.1 | MIME type detection from magic bytes | Already an indirect dep via Wails; promoting to direct. Detects 200+ MIME types vs stdlib's ~15. MIT license. Forked from `gabriel-vasile/mimetype` — do not add both. |
-
-No other new Go deps. Everything else uses stdlib (`os.Root`, `http.ServeContent`, `testing.F`) or already-direct deps (`charm.land/bubbles/v2`, `charmbracelet/glamour`).
-
-### New Frontend Dependencies (v3.4 adds)
+### New Frontend Dependencies (v3.5 adds)
 
 | Library | Version | Purpose | Bundle size (min+gz) | CSP impact |
 |---------|---------|---------|---------------------|------------|
-| `react-markdown` | 10.1.0 | Markdown rendering in preview pane | ~43 KB | None — virtual DOM, no eval, no inline scripts |
-| `remark-gfm` | latest (^4) | GFM extensions: tables, strikethrough, task lists, autolink | ~8 KB | None |
-| `shiki` | 4.1.0 | Read-only syntax highlighting in preview pane | ~12 KB core + ~20–40 KB per language (lazy) | None with JS engine — see note below |
+| `codemirror` | 6.0.2 | Editor metapackage (`basicSetup` + `EditorView` + `EditorState`) | ~135 KB gzipped (full bundle with minification) | None new — `style-src 'unsafe-inline'` already set (Amendment 1, Phase 89) |
+| `@codemirror/state` | 6.6.0 | State model (`EditorState`, `Compartment`, transactions) | Included in `codemirror` metapackage | None |
+| `@codemirror/view` | 6.43.1 | DOM rendering (`EditorView`, `keymap`) | Included in `codemirror` metapackage | None |
+| `@codemirror/lang-javascript` | 6.2.5 | JS/TS syntax highlighting + indentation | ~35 KB per lang (lazy loaded) | None |
+| `@codemirror/lang-python` | 6.2.1 | Python syntax highlighting | Same | None |
+| `@codemirror/lang-go` | 6.0.1 | Go syntax highlighting | Same | None |
+| `@codemirror/lang-markdown` | 6.5.0 | Markdown syntax highlighting in editor (separate from preview) | Same | None |
+| `@codemirror/lang-json` | 6.0.2 | JSON syntax highlighting | Same | None |
+| `@codemirror/lang-yaml` | 6.1.3 | YAML syntax highlighting | Same | None |
+| `@codemirror/lang-css` | 6.3.1 | CSS syntax highlighting | Same | None |
+| `@codemirror/lang-html` | 6.4.11 | HTML syntax highlighting | Same | None |
+| `@codemirror/lang-rust` | 6.0.2 | Rust syntax highlighting | Same | None |
+| `@codemirror/lang-cpp` | 6.0.3 | C/C++ syntax highlighting | Same | None |
+| `@codemirror/language-data` | 6.5.2 | Lazy language registry (120+ langs via dynamic import) | ~10 KB core; langs loaded on demand | None |
+| `@codemirror/theme-one-dark` | 6.1.3 | Tokyo-Night-compatible dark theme | ~5 KB | None — CSS injected via existing `'unsafe-inline'` |
 
-**shiki CSP note**: Shiki's default Oniguruma WASM engine requires `'wasm-unsafe-eval'` in CSP (confirmed via GitHub issue vercel/streamdown#384). Using `createJavaScriptRegexEngine()` (available since Shiki v1.x, confirmed stable in v4.x) switches to native JS `RegExp` — no WASM, no eval, no new CSP amendment. This is the mandatory configuration for AgentHub.
+**Total new JS weight**: ~135 KB gzipped for the editor core + ~35 KB per language loaded lazily. For the 13 curated languages above: ~135 KB + ~350 KB loaded-on-demand = ~485 KB maximum, only if all 13 languages are opened in the same session. In practice, 1–2 languages active at once.
 
-**remark-gfm version note**: `remark-gfm@^4` is the ESM-only v4 release compatible with `react-markdown@10`. Verify with `pnpm add remark-gfm@^4`.
+**No new Go dependencies** are required for v3.5. Write operations extend the existing `internal/files/` package using Go stdlib exclusively.
 
-### Optional Frontend Dependency (if fuzzy type-ahead is requested)
+### New Go Capabilities (stdlib only — no new modules)
 
-| Library | Version | Purpose | Bundle size | CSP impact |
-|---------|---------|---------|------------|------------|
-| `fuzzysort` | 3.1.0 | Fuzzy match with score + highlight | ~3 KB min+gz | None |
+| Capability | Package | Purpose |
+|-----------|---------|---------|
+| Write file | `os.Root.Create` / `os.Root.OpenFile` | Create or overwrite files within sandbox root |
+| Delete file | `os.Root.Remove` | Remove a file within sandbox root |
+| Rename/move | `os.Root.Rename` | Rename or move within sandbox (cross-dir allowed within root) |
+| Create directory | `os.Root.Mkdir` | Create directory within sandbox root |
+| Multipart upload | `net/http` + `mime/multipart` | Parse browser `multipart/form-data` uploads |
+| Upload size guard | `net/http.MaxBytesReader` | Wrap `r.Body` before `ParseMultipartForm` to enforce size cap |
 
-Default recommendation: skip `fuzzysort` for v3.4. `useMemo` + `filename.toLowerCase().includes(query)` is sufficient for a directory listing and avoids a dep. If users request fuzzy matching (SublimeText-style), add `fuzzysort@3.1.0` (MIT, zero deps, 3 KB). Do not use the `react-fuzzysort` wrapper — wire directly.
-
-### Development Tools (unchanged)
-
-| Tool | Purpose | Notes for v3.4 |
-|------|---------|----------------|
-| `testing.F` (stdlib) | Path-traversal fuzz testing | Seed corpus in `testdata/fuzz/FuzzSandboxPath/` |
-| Playwright (Chromium + Firefox + WebKit) | e2e for `FileBrowserTab` | Already in use via `@playwright/test^1.59.1` |
-| Vitest 4 + jsdom 29 | Frontend unit tests | `?raw` source-inspection for React components without DOM |
-
----
-
-## Go Sandboxing: `os.Root` vs Alternatives
-
-### Recommendation: `os.Root` (stdlib)
-
-**Go 1.24** added `os.OpenRoot(dir string) (*os.Root, error)` and `os.OpenInRoot(dir, path string) (*os.File, error)`. Since the project uses Go 1.26.1, these are fully available.
-
-`os.Root` provides:
-- Blocks `../` components that resolve outside the root
-- Blocks absolute paths (e.g., `/etc/passwd`)
-- Prevents symlinks escaping the root (RESOLVE_BENEATH semantics)
-- Eliminates TOCTOU races via kernel-level atomic operations (openat2 on Linux)
-- Windows: blocks reserved device names (`NUL`, `COM1`, `COM2`, etc.)
-
-**Usage pattern for the FS handler:**
-
-```go
-// Open sandbox root once per request, scoped to session WorkDir
-root, err := os.OpenRoot(session.WorkDir)
-if err != nil { ... }
-defer root.Close()
-
-// Safe: cannot escape WorkDir regardless of what untrustedPath contains
-f, err := root.Open(untrustedPath)
-```
-
-**Windows gotcha — EvalSymlinks link-type bug (Go issue #71165):** `filepath.EvalSymlinks` on Windows does not respect the Windows distinction between file-symlinks and directory-symlinks (open as of 2026-05-20, labeled NeedsDecision/Backlog). This is NOT a concern for `os.Root` — `os.Root.Open()` uses the kernel-level `openat2`/`NtCreateFile` path which does not use `EvalSymlinks` internally. Do NOT use `filepath.EvalSymlinks` as a pre-check on Windows; use `os.Root` exclusively.
-
-**Additional validation layer** (defense in depth — not a replacement for `os.Root`):
-```go
-func validateRelativePath(p string) error {
-    if p == "" { return errors.New("empty path") }
-    if strings.ContainsRune(p, 0) { return errors.New("null byte in path") }
-    // filepath.Clean is a pre-screen only; os.Root is the real guard
-    cleaned := filepath.Clean(p)
-    if filepath.IsAbs(cleaned) { return errors.New("absolute path rejected") }
-    // Windows drive letters and UNC
-    if len(cleaned) >= 2 && cleaned[1] == ':' { return errors.New("drive letter rejected") }
-    if strings.HasPrefix(cleaned, `\\`) { return errors.New("UNC path rejected") }
-    return nil
-}
-```
-
-### Why not `github.com/cyphar/filepath-securejoin` (v0.6.1)?
-
-- Legacy `SecureJoin` API is explicitly documented as "fundamentally unsafe against TOCTOU attacks" by its own maintainer.
-- The modern `pathrs-lite` sub-API only works on Linux — Windows is unsupported.
-- `os.Root` is the stdlib solution that supersedes it for this use case.
-- `filepath-securejoin` is dual-licensed BSD-3/MPL-2.0. MPL-2.0 has a weak copyleft clause — avoid introducing it unless strictly necessary.
-
-### Why not `go-billy/v5` (already in go.sum as a transitive dep)?
-
-- `go-billy/v5 ChrootOS` had a critical path traversal CVE (CVE-2023-49569) demonstrating that the abstraction is easy to misuse.
-- `go-billy` is designed for virtual filesystems (git operations), not syscall-level sandboxing.
-- No advantage over `os.Root` for this use case.
-- Do NOT use for sandboxing.
+All these methods exist on the `os.Root` type (Go 1.24+). Verified via pkg.go.dev — `os.Root` exposes `Create`, `Mkdir`, `OpenFile`, `Remove`, `Rename` in addition to the v3.4-used `Open`. No new module import.
 
 ---
 
-## HTTP Range Streaming: `http.ServeContent`
+## Decision 1: Editor Library — CodeMirror 6 vs Monaco
 
-### Recommendation: stdlib `http.ServeContent`
+### Recommendation: CodeMirror 6
 
-`http.ServeContent(w, r, name, modtime, content)` handles:
-- `Range` header parsing and partial-content (206) responses
-- Multi-range (multipart/byteranges) automatically
-- `If-Modified-Since`, `If-None-Match`, `ETag` conditional requests
-- Content-Type sniffing from the `name` parameter
-- Seek-to-end for Content-Length determination
+**Verdict**: CodeMirror 6. Rationale is architectural, not preference.
 
-`os.Root.Open()` returns `*os.File` which implements `io.ReadSeeker` — pass directly to `http.ServeContent`. No hand-rolled partial content handling needed.
+### Comparison Matrix
 
-**Pattern:**
-```go
-// GET /api/files/read?path=<relative>
-root, _ := os.OpenRoot(session.WorkDir)
-defer root.Close()
-f, err := root.Open(relPath)
-if err != nil { http.Error(w, "not found", 404); return }
-defer f.Close()
-stat, _ := f.Stat()
-http.ServeContent(w, r, stat.Name(), stat.ModTime(), f)
-```
+| Criterion | CodeMirror 6 | Monaco Editor |
+|-----------|-------------|---------------|
+| **Bundle size (gzipped)** | ~135 KB (minified; verified via official bundle example docs) | 2.4–6+ MB total; TypeScript worker alone is 6.68 MB uncompressed (monaco-editor/issues/5154) |
+| **CSP: script-src** | No new requirement — uses no eval, no workers | Requires `worker-src blob:` for language workers (confirmed: payloadcms/payload#10229, keycloak/keycloak#32901); falls back to main-thread with warnings when workers blocked |
+| **CSP: style-src** | Requires `'unsafe-inline'` (dynamic `<style>` injection) — ALREADY PERMITTED by Amendment 1 (Phase 89) | Also requires `'unsafe-inline'` + inline style violations (monaco-editor/issues/4927) |
+| **Worker model** | No web workers in core; Lezer parser runs synchronously on main thread | Mandatory per-language web workers (`editor.worker`, `json.worker`, `ts.worker`, etc.); worker loading via `MonacoEnvironment.getWorker` |
+| **Vite/Wails compatibility** | Clean Vite ESM — `pnpm add codemirror` is sufficient | Requires `vite-plugin-monaco-editor` or manual `getWorker` config; Vite 8 regression with Oxc minifier (vitejs/vite#22009) |
+| **Vendoring feasibility** | Standard Vite-bundled npm dep — no web-served files, no CDN. Zero `vendor_drift_test.go` changes. | Same npm bundling — BUT worker `.js` files must be reachable via URL at runtime, complicating embed.FS + single-binary packaging |
+| **Mobile/iPad touch (web-share)** | Native platform selection and editing on iOS; CodeMirror 6 is widely reported mobile-friendly; no virtual-keyboard regression | Less mobile-tested; worker overhead adds latency on slower tablet CPUs |
+| **Read-only to editable transition** | `EditorView.editable.of(false)` + `EditorState.readOnly.of(true)` configurable via `Compartment.reconfigure()` — clean runtime toggle, no remount | `editor.updateOptions({ readOnly: true/false })` — also clean, but irrelevant given CSP blocker |
+| **Language packs** | Per-package: `@codemirror/lang-*` (one npm pkg per language, lazy-loadable); `@codemirror/language-data` registry for 120+ langs | Built-in 70+ language support — but baked into the large worker bundles |
+| **License** | MIT | MIT |
+| **Proven migration precedent** | Sourcegraph migrated FROM Monaco TO CM6: -43% JS download (2.4 MB Monaco alone); Replit uses CM6; Firefox DevTools uses CM6 | VS Code, CodeSandbox, StackBlitz — all projects with different CSP/bundle constraints than AgentHub |
 
-**5 MB read cap for preview pane**: The `/api/files/read` endpoint should enforce a content-length check from `stat.Size()` before serving. For the preview pane, return `400` if `stat.Size() > 5*1024*1024` with a `"file too large for preview"` JSON error. The download path (no preview limit) uses the same endpoint with the client sending `Accept: application/octet-stream` or an explicit `?download=1` flag — serve via `ServeContent` without the size check in that case.
+### The CSP Blocker
 
-No new Go dep. `net/http.ServeContent` is sufficient.
+Monaco requires web workers for its language features. The standard integration loads workers via blob URLs (`new Worker(blob:...)`). This requires `worker-src blob:` in CSP.
 
----
+AgentHub's current CSP (`csp_mw.go`) has no `worker-src` directive — the `script-src` fallback applies, which is `'self' 'wasm-unsafe-eval'`. Blob URLs are NOT same-origin, so Monaco workers would silently fail and fall back to synchronous in-main-thread mode (causing UI freezes on large files).
 
-## MIME Detection
+Alternatives to blob URLs (inline workers, AMD loader from static files) exist but require significant Monaco configuration work that defeats Monaco's purpose. The cost-benefit is negative: Monaco is a wrong-fit library for this CSP and single-binary architecture.
 
-### Recommendation: `github.com/wailsapp/mimetype` v1.4.1 (promote to direct dep)
+**CodeMirror 6 has no web worker requirement.** Its Lezer-based parser runs synchronously on the main thread. This is CSP-clean by design.
 
-`github.com/wailsapp/mimetype` is already in `go.sum` as an indirect dep from Wails. It is a fork of `gabriel-vasile/mimetype` (MIT) maintained by the Wails team. The upstream `gabriel-vasile/mimetype@v1.4.13` (latest as of 2026-02-01) has the same API — promoting `wailsapp/mimetype` to a direct dep avoids duplicating the same library under two module paths.
+### Read-Only to Editable Transition
 
-**Why not `http.DetectContentType`?**
-- Only examines first 512 bytes
-- Returns only ~15 MIME types
-- Cannot distinguish `.json`, `.csv`, `.ts`, `.go`, `.md` from `text/plain`
-- Cannot detect Office formats (`.docx`, `.xlsx`, `.pptx`)
-
-**wailsapp/mimetype** detects 200+ MIME types via magic bytes, handles text/binary differentiation, and has no external deps.
-
-**Usage pattern:**
-```go
-// Stat first (cheap), then detect on first N bytes
-f, _ := root.Open(relPath)
-mtype, err := mimetype.DetectReader(f)
-// Reset read position before ServeContent
-f.Seek(0, io.SeekStart)
-```
-
-**JS side (browser)**: Do not use `file-type` npm package — it uses WASM and is over-engineered for this use case. The Go daemon returns `Content-Type` in the HTTP response; the React frontend reads `response.headers.get('content-type')` to decide preview mode (text/markdown/image/binary). No new JS MIME library needed.
-
----
-
-## Markdown Rendering (React Preview Pane)
-
-### Recommendation: `react-markdown@10.1.0` + `remark-gfm@^4`
-
-**`react-markdown@10.1.0`** (latest stable, released March 7, 2025):
-- Renders markdown as React virtual DOM — no `dangerouslySetInnerHTML`
-- No `eval`, no inline scripts — fully compatible with `script-src 'self'`
-- Safe by default: HTML is stripped unless `rehype-raw` is explicitly added (do NOT add `rehype-raw` for v3.4 — no HTML passthrough needed)
-- ~43 KB minified+gzipped (base, per community measurement; includes remark + unified)
-- ESM-only; Vite handles tree-shaking correctly
-
-**`remark-gfm@^4`**: Adds GitHub Flavored Markdown extensions (tables, strikethrough, task lists, autolinks). ~8 KB. Required for displaying Claude Code's markdown output correctly.
-
-**CSP impact: none.** Confirmed: react-markdown renders via React's virtual DOM reconciler, not via DOM innerHTML or script injection.
-
-**Vendoring note**: react-markdown is a Vite-bundled frontend dep only — it is NOT served to the web-served terminal page. The file browser tab is a desktop+web feature that uses the React build path, not the `web/vendor/xterm/` vendoring pipeline. No `vendor_drift_test.go` changes needed for this dep.
-
-**Installation:**
-```bash
-# In frontend/
-pnpm add react-markdown@10.1.0 remark-gfm@^4
-```
-
-**Usage pattern:**
-```tsx
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-
-<ReactMarkdown remarkPlugins={[remarkGfm]}>
-  {markdownContent}
-</ReactMarkdown>
-```
-
-### Why not `marked` or `micromark` directly?
-
-- `marked` requires `DOMPurify` or explicit sanitization to be safe — extra dep, extra risk.
-- `micromark` is the underlying parser for `react-markdown`; using it directly means writing your own React renderer.
-- `react-markdown` gives the right abstraction at the right layer.
-
----
-
-## Read-Only Syntax Highlighting (Code Preview)
-
-### Recommendation: `shiki@4.1.0` with JavaScript RegExp engine + fine-grained bundle
-
-**Version**: 4.1.0 (latest stable, confirmed May 2026)
-
-**Critical configuration — JavaScript engine, not WASM:**
-
-Shiki's default Oniguruma engine uses WebAssembly and requires `'wasm-unsafe-eval'` in CSP (confirmed via Vercel/streamdown#384). This would be a **new CSP amendment** — a red flag per the quality gate.
-
-Shiki v1+ provides `createJavaScriptRegexEngine()` from `shiki/engine/javascript` which uses native `RegExp` — no WASM, no eval, no CSP amendment needed.
+CodeMirror 6 uses `Compartment` to reconfigure facets at runtime without remounting:
 
 ```typescript
-import { createHighlighterCore } from 'shiki/core';
-import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
+import { Compartment } from "@codemirror/state";
+import { EditorView, basicSetup } from "codemirror";
+import { EditorState } from "@codemirror/state";
 
-const highlighter = await createHighlighterCore({
-  themes: [import('shiki/themes/tokyo-night')],  // matches TUI palette
-  langs: [
-    import('shiki/langs/typescript'),
-    import('shiki/langs/javascript'),
-    import('shiki/langs/go'),
-    import('shiki/langs/python'),
-    import('shiki/langs/markdown'),
-    import('shiki/langs/json'),
-    import('shiki/langs/yaml'),
-    import('shiki/langs/bash'),
-    import('shiki/langs/css'),
-    import('shiki/langs/html'),
-  ],
-  engine: createJavaScriptRegexEngine(),  // NO WASM, NO unsafe-eval
+const editableCompartment = new Compartment();
+
+// Initial state: read-only (matches v3.4 plain-text rendering)
+const extensions = [
+  basicSetup,
+  editableCompartment.of([
+    EditorView.editable.of(false),
+    EditorState.readOnly.of(true),
+  ]),
+];
+
+// When files.write capability confirmed AND user clicks Edit button:
+view.dispatch({
+  effects: editableCompartment.reconfigure([
+    EditorView.editable.of(true),
+    EditorState.readOnly.of(false),
+  ]),
 });
 ```
 
-**Bundle approach**: Use `shiki/core` (fine-grained bundle) — import only the languages needed for the v3.4 file browser preview. Shiki's full bundle is 6.4 MB minified; core + 10 languages is approximately 200–300 KB minified before Vite tree-shaking. Load the highlighter lazily (dynamic `import()`) — only needed when the preview pane renders a code file.
+The editor renders identically in both modes (same syntax highlighting, same theme, same line numbers). No remount or component teardown required.
 
-**Theme**: Use `tokyo-night` to match the existing TUI and GUI TokyoNight palette.
+### Language Detection and Dynamic Loading
 
-**CSP impact: none.** JavaScript engine confirmed CSP-clean under `script-src 'self'`.
-
-**Vendoring note**: Shiki is a Vite-bundled frontend dep, NOT served to the web terminal page. No `vendor_drift_test.go` entry needed.
-
-**Installation:**
-```bash
-pnpm add shiki@4.1.0
-```
-
-### Why not Prism or highlight.js?
-
-| Library | Problem |
-|---------|---------|
-| `highlight.js` (full) | ~1 MB unminified for all languages; custom language builds reduce it but add build complexity |
-| `react-syntax-highlighter` | Wraps both prism and hljs; heavy; complex bundle (esbuild issue #1836: tons of unnecessary files) |
-| Prism | Older ecosystem; Prism v2 is in development but not stable; smaller community momentum than Shiki |
-
-Shiki v4 with fine-grained bundle + JS engine is the current best-practice for CSP-strict apps (confirmed via Nuxt blog post "Evolution of Shiki v1.0" and streamdown fix).
-
----
-
-## Type-Ahead Filter
-
-### Recommendation: `useMemo` + substring match (no library for v3.4)
-
-A directory listing is bounded by filesystem conventions: even a large `node_modules` directory is well under 50K entries. A simple `useMemo` substring filter is O(n) and renders imperceptibly fast for ≤50K entries.
+Use `@codemirror/language-data` for file-extension-based language detection and lazy loading:
 
 ```typescript
-const filtered = useMemo(() =>
-  query
-    ? entries.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
-    : entries,
-  [entries, query]
-);
+import { languages } from "@codemirror/language-data";
+import { Compartment } from "@codemirror/state";
+
+const langCompartment = new Compartment();
+
+async function getLanguageExtension(filename: string) {
+  const ext = filename.split(".").pop() ?? "";
+  const langDesc = languages.find(l =>
+    l.extensions?.includes(ext) || l.filename?.test(filename)
+  );
+  if (!langDesc) return [];
+  const lang = await langDesc.load(); // dynamic import — Vite code-splits automatically
+  return langCompartment.of(lang.language.support);
+}
 ```
 
-**If fuzzy matching is requested post-v3.4**: Add `fuzzysort@3.1.0` (MIT, zero deps, ~3 KB min+gz). Do NOT add the `react-fuzzysort` wrapper — wire to `fuzzysort.go()` directly in a `useMemo`.
+This pattern loads language packs lazily — the initial bundle contains only the registry metadata (~10 KB), not the grammar bytecode. Languages are fetched via Vite code-splitting on first open.
 
 ---
 
-## TUI Files View: Bubble Tea Components
+## Decision 2: Syntax Highlighting in the Editor
 
-### TUI Markdown Preview: `charmbracelet/glamour@v0.8.0` (promote to direct dep)
+### Recommendation: CodeMirror 6 Lezer grammars (built-in to lang packages)
 
-`charmbracelet/glamour` is already a **transitive dep** (`go list -m all` confirms `github.com/charmbracelet/glamour v0.8.0`). Promoting to a direct dep in `go.mod` requires a single `go get` call — no new binary is downloaded.
+Do not add Shiki alongside the editor. Shiki is a static HTML highlighter designed for pre-rendered output. CodeMirror 6 provides live incremental syntax highlighting via its Lezer parser, which supports:
+- Incremental re-parse on keystrokes (O(change_size) not O(file_size))
+- Contextual highlighting (scope-aware, not regex-only)
+- The same Lezer grammars that Shiki 4.x uses for several languages
 
-Glamour renders markdown to ANSI-styled terminal output:
-```go
-import "github.com/charmbracelet/glamour"
+**Shiki v3.4 usage is unchanged**: Shiki remains in the read-only file preview pane (`FileBrowserTab.tsx`) for syntax-highlighted static preview of files that have NOT been opened for editing. When a file is opened in the CodeMirror editor, the editor's own Lezer highlighting replaces Shiki's static output.
 
-out, err := glamour.Render(markdownContent, "dark")
-// out is an ANSI-escaped string ready to embed in a lipgloss viewport
+### Bundle Size Implications
+
+| Scenario | JS loaded (gzipped) |
+|----------|-------------------|
+| Editor core only (`codemirror` package) | ~135 KB |
+| + 1 language (e.g., `@codemirror/lang-go`) | ~170 KB |
+| + 13 curated languages (all loaded simultaneously) | ~485 KB |
+| Monaco minimum (editor.worker + core) | ~2.4 MB (Sourcegraph measurement) |
+| Monaco with TypeScript worker | ~8+ MB uncompressed |
+
+### Theme
+
+Use `@codemirror/theme-one-dark` (6.1.3) as the base for v3.5. One Dark is structurally similar to TokyoNight and serves as an immediate dark theme. A full TokyoNight port can be done as a follow-on if visual parity becomes a release requirement — it is not complex (CodeMirror themes are pure TS extension objects with hex colors).
+
+---
+
+## Decision 3: File Upload — Browser Side + Go Side
+
+### Recommendation: `multipart/form-data` POST + stdlib `mime/multipart` (no new dep)
+
+**Browser side** (React `FileBrowserTab.tsx`): Standard `<input type="file">` with `FormData` API:
+
+```typescript
+async function uploadFile(
+  sessionId: string,
+  dir: string,
+  file: File,
+  cap: string
+) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("dir", dir);
+  const res = await fetch(`/api/files/upload?session=${sessionId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cap}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
 ```
 
-Use `glamour.WithAutoStyle()` so it adapts to the terminal's color profile — consistent with the existing TokyoNight TUI palette.
+No JS library needed. `FormData` + `fetch` is universal in all supported browsers (Chromium, Firefox, WebKit, Safari on iPad).
 
-**v3.4 scope**: Glamour is used only for markdown preview in the TUI read-only preview pane. Plain text files use a raw `viewport` (already in `charm.land/bubbles/v2`). Binary files show a static "Use desktop or web to preview" message.
-
-### TUI Directory Listing: `charm.land/bubbles/v2@v2.1.0` `filepicker`
-
-`charm.land/bubbles/v2` is already a **direct dep** in `go.mod` (confirmed). The `filepicker` sub-package provides:
-
-- Directory navigation with `Up`/`Down`/`PageUp`/`PageDown`/`Back`/`Open` keybindings
-- `ShowPermissions`, `ShowSize`, `ShowHidden` display options
-- `AllowedTypes` filter (not relevant for v3.4 browse-all mode)
-- `HighlightedPath()` returns the currently selected entry path
-- `DirAllowed: true`, `FileAllowed: true` for full navigation
-
-**v3.4 customization required**: The stock `filepicker` component allows navigating above its start directory. AgentHub's requirement is "never above session cwd." This requires wrapping the `filepicker` model and intercepting the `Back`/`Open` messages when at the cwd root:
+**Go side** (`internal/files/handler.go` — new endpoint):
 
 ```go
-type FilesModel struct {
-    cwd    string
-    picker filepicker.Model
-}
+// POST /api/files/upload
+func (h *Handler) handleUpload(w http.ResponseWriter, r *http.Request) {
+    // MaxBytesReader wraps body FIRST — prevents OOM before parsing
+    r.Body = http.MaxBytesReader(w, r.Body, 50<<20) // 50 MB upload cap
 
-func (m FilesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    if key, ok := msg.(tea.KeyMsg); ok {
-        // Block Back key when picker is already at cwd
-        if key.Type == tea.KeyLeft || key.String() == "backspace" {
-            if m.picker.CurrentDirectory == m.cwd {
-                return m, nil // swallow the Back key
-            }
-        }
+    if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB in-memory
+        http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+        return
     }
-    // ... delegate to picker
+
+    dir := r.FormValue("dir") // relative path within session root
+
+    file, header, err := r.FormFile("file")
+    if err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }
+    defer file.Close()
+
+    // os.Root.Create sandboxes the path — cannot escape WorkDir
+    dst, err := h.sandbox.Create(filepath.Join(dir, header.Filename))
+    if err != nil { http.Error(w, err.Error(), http.StatusInternalServerError); return }
+    defer dst.Close()
+
+    if _, err := io.Copy(dst, file); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.WriteHeader(http.StatusCreated)
 }
 ```
 
-**Type-ahead filter in TUI**: The `bubbles/v2/list` component has built-in filtering via the `/` key — consider using `list.Model` with custom `list.Item` entries instead of `filepicker` if type-ahead is required at the list level. The `filepicker` component does not have built-in type-ahead; a separate `textinput.Model` for filtering is straightforward to add.
+**Why stdlib is sufficient**: `mime/multipart` is Go's standard implementation of RFC 2046/2388. It:
+- Parses `multipart/form-data` correctly for all major browsers
+- Streams to disk for files exceeding `maxMemory` parameter
+- Exposes `multipart.FileHeader.Filename` for the uploaded filename
+- Has zero external deps
 
-### TUI Text Preview: `bubbles/v2/viewport`
+The security pattern: `MaxBytesReader` wraps the body FIRST (prevents OOM from oversized uploads), then `ParseMultipartForm` parses into memory/disk, then `os.Root.Create` sandboxes the destination path. Same three-layer defense as v3.4's read handler.
 
-The `charm.land/bubbles/v2` `viewport` sub-package provides a scrollable pane — already in use in the existing TUI layout. Use it as the read-only preview pane for text and markdown. No new component needed.
+**Security note**: Go 1.22+ fixed `GO-2024-2599` (multipart disk unbounded). Current go 1.26.3 is safe. The `MaxBytesReader` pattern is still required to prevent network-level DoS regardless of Go version.
 
 ---
 
-## Fuzz Testing for Path Traversal
+## Decision 4: TUI $EDITOR Shell-Out — Bubble Tea v2
 
-### Recommendation: `testing.F` (stdlib)
+### Recommendation: `tea.Exec` + `tea.ExecCommand` interface (already in use — zero new API)
 
-Go's built-in fuzzer (`go test -fuzz=FuzzSandboxPath -fuzztime=60s`) is sufficient. No external fuzz library needed.
+This is not a new API. `tea.Exec` is already implemented in v3.4 for TUI attach (`internal/tui/attach.go`). The `$EDITOR` shell-out follows the **identical pattern** with a different `ExecCommand` implementation body.
 
-**Required seed corpus** (place in `internal/daemon/testdata/fuzz/FuzzSandboxPath/`):
-```
-../etc/passwd
-../../etc/shadow
-/etc/passwd
-....//....//etc/passwd
-%2e%2e%2fetc%2fpasswd
-..%2Fetc%2Fpasswd
-\..\..\Windows\System32
-C:\Windows\System32\config\SAM
-\\server\share
-null\x00byte
-COM1
-NUL
-..\path
-../path
-```
+### API Verification (Context7 + codebase)
 
-**Fuzz test structure:**
+In Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.6`), the function is `tea.Exec` (NOT `tea.ExecProcess` — that was the v1 name):
+
 ```go
-func FuzzSandboxPath(f *testing.F) {
-    // Seed corpus — known path traversal payloads
-    f.Add("../etc/passwd")
-    f.Add("../../etc/shadow")
-    f.Add("/etc/passwd")
-    f.Add("C:\\Windows\\System32")
-    f.Add("\\\\server\\share")
-    f.Add("file\x00with\x00nulls")
-    f.Add("COM1")
-    
-    f.Fuzz(func(t *testing.T, p string) {
-        // validateRelativePath should reject all traversal attempts
-        // os.Root should never produce a path outside WorkDir
-        root, err := os.OpenRoot(t.TempDir())
-        require.NoError(t, err)
-        defer root.Close()
-        
-        // Must not panic; may return error
-        f, err := root.Open(p)
-        if err == nil {
-            f.Close()
-            // If Open succeeded, verify the resolved path is under root
-            // (os.Root enforces this at the kernel level — this is a sanity check)
-        }
-    })
+// tea.Exec suspends the TUI, runs the ExecCommand, resumes.
+// Confirmed in pkg.go.dev and in use at internal/tui/update.go:
+//   return m, tea.Exec(cmd, func(err error) tea.Msg { return attachDoneMsg{err: err} })
+func tea.Exec(c tea.ExecCommand, fn tea.ExecCallback) tea.Cmd
+```
+
+### $EDITOR ExecCommand Implementation
+
+```go
+// editorCmd implements tea.ExecCommand to shell out to $EDITOR.
+// Structure is identical to attachCmd in attach.go.
+type editorCmd struct {
+    path   string    // absolute path to file (resolved through os.Root first)
+    stdin  io.Reader
+    stdout io.Writer
+    stderr io.Writer
+}
+
+func (e *editorCmd) SetStdin(r io.Reader)  { e.stdin = r }
+func (e *editorCmd) SetStdout(w io.Writer) { e.stdout = w }
+func (e *editorCmd) SetStderr(w io.Writer) { e.stderr = w }
+
+func (e *editorCmd) Run() error {
+    editorBin := os.Getenv("EDITOR")
+    if editorBin == "" {
+        editorBin = "vi" // universal fallback
+    }
+    cmd := exec.Command(editorBin, e.path)
+    cmd.Stdin = e.stdin   // Bubble Tea provides raw stdin
+    cmd.Stdout = e.stdout // Bubble Tea provides raw stdout
+    cmd.Stderr = e.stderr
+    return cmd.Run()
 }
 ```
 
-**CI gate**: Add `go test -fuzz=FuzzSandboxPath -fuzztime=30s` as a required step in the PR checks for the `internal/daemon` package. The fuzz test is a merge-blocker, not optional.
+**Calling site** (`Model.Update` in `internal/tui/update.go`):
 
----
+```go
+case tea.KeyPressMsg:
+    if msg.String() == "e" && m.files.selectedIsFile() {
+        return m, tea.Exec(&editorCmd{path: m.files.selectedAbsPath()}, func(err error) tea.Msg {
+            return editorDoneMsg{err: err}
+        })
+    }
+```
 
-## Alternatives Considered
+### What Bubble Tea Does on `tea.Exec`
 
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Go sandbox | `os.Root` (stdlib) | `cyphar/filepath-securejoin@v0.6.1` | Legacy API is TOCTOU-unsafe; modern API Linux-only; MPL-2.0 license concern |
-| Go sandbox | `os.Root` (stdlib) | `go-billy/v5 ChrootOS` | CVE-2023-49569 path traversal; designed for virtual FS, not syscall sandboxing |
-| Go sandbox | `os.Root` (stdlib) | `filepath.EvalSymlinks` + prefix check | Two-step is TOCTOU-prone; Windows link-type bug (issue #71165) unresolved |
-| MIME detection | `wailsapp/mimetype` (already indirect) | `gabriel-vasile/mimetype@v1.4.13` | Same codebase; adding both creates a duplicate dep under two module paths |
-| MIME detection | `wailsapp/mimetype` | `http.DetectContentType` (stdlib) | Only 512 bytes, ~15 types; cannot distinguish JSON/YAML/Go/Markdown from text/plain |
-| HTTP Range | `http.ServeContent` (stdlib) | Hand-rolled partial content | ServeContent is battle-tested for multipart range + ETags; no upside to replacing it |
-| Markdown (React) | `react-markdown@10` | `marked` | Requires DOMPurify for safe rendering; extra dep; lacks React virtual DOM integration |
-| Markdown (React) | `react-markdown@10` | `micromark` directly | Underlying parser without React renderer — requires custom component tree |
-| Syntax highlight | `shiki@4.1.0` + JS engine | `shiki@4.1.0` + WASM (default) | WASM engine requires `'wasm-unsafe-eval'` CSP amendment — red flag |
-| Syntax highlight | `shiki@4.1.0` | `highlight.js` | Full bundle ~1 MB; custom language builds add build complexity; less active ecosystem |
-| Syntax highlight | `shiki@4.1.0` | `react-syntax-highlighter` | Heavy wrapper over prism/hljs; esbuild issue #1836 (unnecessary files); no tree-shaking |
-| Type-ahead | `useMemo` + substring | `fuzzysort@3.1.0` | Not needed for v3.4; add only if user requests fuzzy matching |
-| TUI markdown | `glamour@v0.8.0` (already dep) | Hand-rolled ANSI | Glamour is already in go.sum and supports dark/light auto-detection |
-| TUI file list | `bubbles/v2/filepicker` | Custom lipgloss list | filepicker already handles keybindings, permissions, size display; custom wrapper is minimal |
-| JS MIME (browser) | `response.headers.get('content-type')` | `file-type` npm package | file-type uses WASM; over-engineered; daemon already returns correct Content-Type |
-| Go fuzz | `testing.F` (stdlib) | External fuzz library (dvyukov/go-fuzz) | stdlib fuzzer is sufficient; dvyukov/go-fuzz predates Go 1.18 native fuzzing and is unmaintained |
+1. Suspends its renderer (clears alt screen if active)
+2. Restores terminal to cooked mode
+3. Calls `cmd.SetStdin/SetStdout/SetStderr` with its wrapped I/O
+4. Calls `cmd.Run()` — blocks until $EDITOR exits
+5. Re-enters alt screen, resumes renderer
+6. Delivers `editorDoneMsg` to `Update`
+
+No teardown code needed in `editorCmd.Run()` — Bubble Tea handles the suspend/resume lifecycle. Contrast with `attachCmd.Run()` which manually sets raw mode (needed for PTY byte-level input); `editorCmd` does NOT set raw mode — the $EDITOR handles its own terminal mode.
+
+### Path Safety for $EDITOR
+
+The path passed to `editorCmd` must be an absolute real path on the local filesystem. The `$EDITOR` process runs as a child of the TUI process and is outside the `os.Root` sandbox. Security responsibility stays with the file handler: the path must have been resolved through `os.Root` first (confirming it is within the session's WorkDir). For remote sessions, $EDITOR shell-out is local-only — the remote files capability goes through the daemon proxy, not local disk, so there is no $EDITOR equivalent for remote sessions (correct: same as v3.4 remote read was API-only, not fs-local).
 
 ---
 
@@ -454,85 +340,135 @@ func FuzzSandboxPath(f *testing.F) {
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `shiki` with default (Oniguruma) engine | Triggers `'wasm-unsafe-eval'` CSP violation — confirmed via vercel/streamdown#384 | `shiki` with `createJavaScriptRegexEngine()` |
-| `rehype-raw` plugin with `react-markdown` | Enables raw HTML passthrough — creates XSS risk in file preview pane | Omit `rehype-raw` entirely for v3.4 |
-| `filepath.EvalSymlinks` as primary sandbox guard | TOCTOU-prone on all platforms; Windows link-type bug (Go issue #71165) unresolved | `os.Root.Open()` exclusively |
-| `gabriel-vasile/mimetype` as a direct dep | Duplicates `wailsapp/mimetype` which is already in go.sum | `wailsapp/mimetype` promoted to direct dep |
-| CDN-served Shiki or react-markdown | Violates vendor-only discipline (`vendor_drift_test.go` CI gate); CSP `script-src 'self'` forbids it | Vite-bundled npm deps (these are frontend build deps, not web-served terminal page assets) |
-| `@xterm/addon-image` or any terminal addon | These are for the terminal panel, not the file browser | React component tree for `FileBrowserTab.tsx` |
-| CodeMirror 6 / Monaco editor | v3.5 decision — editor lib only relevant for write side | Deferred to v3.5 |
-| Cloud Commander integration | Locked to native UI — not in scope for any milestone | Native file browser UI |
-| Upload / write / rename / mkdir deps | v3.5 scope | Deferred |
+| Monaco Editor (`monaco-editor@0.55.1`) | Requires `worker-src blob:` CSP amendment — blocked by project security discipline. Workers silently fall back to main-thread when blocked, causing UI freezes. Bundle 2.4–6+ MB. Vite 8 Oxc minifier regression (vitejs/vite#22009). | CodeMirror 6 |
+| `@monaco-editor/react` (suren-atoyan) | Wraps Monaco — inherits ALL Monaco CSP issues | `codemirror` direct |
+| `vite-plugin-monaco-editor` | Automates Monaco worker configuration — does NOT resolve `worker-src blob:` CSP requirement | N/A |
+| Shiki in the editor | Static HTML highlighter — no incremental re-parse, no cursor, no editing support | CodeMirror 6's Lezer grammars (built into lang packages) |
+| `highlight.js` or `prism` in the editor | Same reason as Shiki — static highlighters only | CodeMirror 6's Lezer grammars |
+| `react-codemirror2` (uiwjs v5 wrapper) | Wraps CodeMirror 5, not 6 — wrong version | `codemirror` (v6) |
+| `@uiw/react-codemirror` React wrapper | Opinionated abstraction; hides `Compartment` API needed for read-only toggle; adds dep for no gain | Wire CodeMirror 6 directly in `useEffect` |
+| CDN-loaded CodeMirror | Violates `vendor_drift_test.go` discipline and `script-src 'self'` CSP | Vite-bundled npm dep (these are build-time bundled, NOT web-served terminal page assets) |
+| `multer` or other Node.js upload libs | Wrong runtime — Go server | stdlib `mime/multipart` |
+| `tea.ExecProcess` | v1 Bubble Tea API name — compile error with `charm.land/bubbletea/v2` | `tea.Exec` (already in codebase, confirmed in `internal/tui/update.go`) |
+| `os/exec.Command` called directly in `Update()` | Blocks the TUI event loop — freezes renderer | `tea.Exec` (suspends TUI cleanly) |
+| Write paths via `filepath.Join` without `os.Root` | TOCTOU-vulnerable — same risk as v3.4 read side | All write paths through `os.Root` methods (`Create`, `Mkdir`, `Remove`, `Rename`) |
+| `rehype-raw` with react-markdown (v3.4 carry-forward) | Enables raw HTML passthrough in file preview — XSS risk | Omit `rehype-raw` (already absent in v3.4) |
+
+---
+
+## CSP Impact Assessment
+
+| New Capability | CSP Change Required | Notes |
+|---------------|-------------------|-------|
+| CodeMirror 6 editor | None | `style-src 'unsafe-inline'` already set (Amendment 1, Phase 89); no workers, no eval, no WASM |
+| CodeMirror 6 lang packs | None | Loaded via Vite code-splitting (bundled JS, same-origin) |
+| File upload (POST multipart) | None | `form-action 'self'` already set; `connect-src 'self'` covers fetch to same-origin API |
+| Save file (PUT/PATCH text) | None | `connect-src 'self'` already covers fetch to same-origin API |
+| DELETE/rename/mkdir | None | Same as above |
+| `$EDITOR` shell-out | N/A | TUI-only; no browser surface, no CSP involvement |
+| `files.write` capability bit | None | Protocol-level; no new CSP directives |
+
+**Zero new CSP amendments required for v3.5.** This is a strong architectural win for choosing CodeMirror 6.
+
+**Desktop WebView note**: The CSP middleware (`csp_mw.go`) applies only to webserver routes (`/sessions/{id}`, `/dashboard`, `/join`). The Wails desktop WebView uses Chromium's default policy (no `Content-Security-Policy` response header). CodeMirror 6 works correctly in both surfaces with identical configuration.
+
+---
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Editor | CodeMirror 6 | Monaco Editor 0.55.1 | `worker-src blob:` CSP requirement is a hard architectural blocker; 2.4–6 MB bundle; Vite 8 regression |
+| Editor | CodeMirror 6 | Ace Editor | Older architecture; less active development; not tree-shakeable; inferior mobile support |
+| Editor | CodeMirror 6 | `@uiw/react-codemirror` React wrapper | Opinionated abstraction hides `Compartment` API needed for read-only toggle |
+| Editor syntax | Lezer (CodeMirror built-in) | Shiki alongside CodeMirror | Static HTML highlighter; CodeMirror already provides live incremental highlighting |
+| Upload (Go) | stdlib `mime/multipart` | Any Node.js upload library | Wrong runtime |
+| Upload (Go) | stdlib `mime/multipart` | Manual body streaming | stdlib already handles streaming to disk for large files |
+| TUI editor shell-out | `tea.Exec` + `ExecCommand` | `tea.ExecProcess` | v1 API name; renamed to `tea.Exec` in v2 |
+| TUI editor shell-out | `tea.Exec` shell-out to `$EDITOR` | Embedded `bubbles/v2/textarea` | textarea is for single-line/small inputs; $EDITOR is the Unix-idiomatic pattern for file editing in a TUI; no new dep |
 
 ---
 
 ## Integration Points with Existing Architecture
 
-| New Capability | Where It Hooks In | Protocol Change |
-|---------------|-------------------|-----------------|
-| `GET /api/files/list` | `internal/webserver` new route, behind cap-token middleware (`files.read` cap bit) | None — same HTTP/JSON over Tailscale TLS |
-| `GET /api/files/stat` | Same as above | None |
-| `GET /api/files/read` | Same as above; returns file bytes via `http.ServeContent` + `os.Root` | None — adds `Range` / `206` support |
-| `files.read` cap bit | `internal/daemon` capability token — default ON for session owner, default OFF for web-share viewers | Additive to existing capability bit system |
-| `FileBrowserTab.tsx` | New React tab component, wired to session context menu + Sessions panel | None |
-| TUI Files view | New `internal/tui/files.go` model, added to existing two-pane tab bar | None |
-| `os.Root` sandbox | `internal/daemon` new `files.go` handler | None |
-| `glamour` markdown preview | `internal/tui/files.go` — call `glamour.Render()` on `.md` files in preview pane | None |
-
-**CSP regression risk**: None. All new choices are verified `script-src 'self'`-clean. The existing CSP policy (`script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `'wasm-unsafe-eval'` for addon-image) is unchanged by v3.4.
+| New Capability | Where It Hooks In | Protocol / Contract Change |
+|---------------|-------------------|-----------------------------|
+| `POST /api/files/upload` | `internal/files/handler.go` new handler; behind `requireFilesWrite` middleware | Additive — new route in existing `/api/files/*` namespace |
+| `PUT /api/files/write` (save from editor) | Same handler; new verb | Additive |
+| `DELETE /api/files/delete` | Same handler | Additive |
+| `POST /api/files/rename` | Same handler | Additive |
+| `POST /api/files/mkdir` | Same handler | Additive |
+| `files.write` capability bit | `internal/daemon` cap token — new bit alongside `files.read` (parallels v3.4 pattern exactly); `HasPerm` comma-split handles it automatically | Additive — add constant + `requireFilesWrite` middleware |
+| CodeMirror editor in `FileBrowserTab.tsx` | Replaces v3.4 plain-text `<pre>` rendering; editor mounted in `useEffect`, unmounted on cleanup | No protocol change; same `/api/files/read` endpoint for initial load |
+| `editorCmd` (TUI) | New `internal/tui/editor.go`; mirrors `internal/tui/attach.go` structure exactly | No protocol change |
+| Remote write parity | Extends daemon proxy `/api/files/remote/{sid}/{op}` to forward write verbs | Additive to existing proxy pattern (v3.4 REMOTE-01..05) |
+| TD-4 (`FileBrowserTab.tsx` hardening) | Existing component; source-inspection test cleanup | No new deps |
+| TD-5 (`ExchangeJoinCode` shim cleanup) | Existing Wails binding | No new deps |
 
 ---
 
 ## Installation Summary
 
 ```bash
-# Go: promote indirect deps to direct (no new binary download)
-go get github.com/wailsapp/mimetype@v1.4.1
-go get github.com/charmbracelet/glamour@v0.8.0  # already indirect; now direct
-
-# Frontend (Vite-bundled build deps — NOT served to web terminal page)
+# Frontend (Vite-bundled build deps — NOT served to web terminal page; no vendor_drift_test.go changes)
 cd frontend/
-pnpm add react-markdown@10.1.0 remark-gfm@^4 shiki@4.1.0
 
-# Optional (only if fuzzy type-ahead requested)
-pnpm add fuzzysort@3.1.0
+# Editor core + curated language packs + theme
+pnpm add codemirror@6.0.2 \
+         @codemirror/lang-javascript@6.2.5 \
+         @codemirror/lang-python@6.2.1 \
+         @codemirror/lang-go@6.0.1 \
+         @codemirror/lang-markdown@6.5.0 \
+         @codemirror/lang-json@6.0.2 \
+         @codemirror/lang-yaml@6.1.3 \
+         @codemirror/lang-css@6.3.1 \
+         @codemirror/lang-html@6.4.11 \
+         @codemirror/lang-rust@6.0.2 \
+         @codemirror/lang-cpp@6.0.3 \
+         @codemirror/language-data@6.5.2 \
+         @codemirror/theme-one-dark@6.1.3
+
+# No new Go deps. Write operations use os.Root (stdlib Go 1.24+), mime/multipart (stdlib), net/http.MaxBytesReader (stdlib).
+# No go.mod changes needed beyond existing deps.
 ```
 
-No `vendor_drift_test.go` changes. No web/vendor/ changes. No `embed.go` changes. No CSP changes.
+No `vendor_drift_test.go` changes. No `web/vendor/` changes. No `embed.go` changes. No CSP changes.
 
 ---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `os.Root` | Go 1.24+ | Go 1.26.1 confirmed — fully available |
-| `wailsapp/mimetype@v1.4.1` | All platforms | Already in go.sum as indirect dep |
-| `charm.land/bubbles/v2@v2.1.0` | `charm.land/bubbletea/v2@v2.0.6` | Both already direct deps |
-| `charmbracelet/glamour@v0.8.0` | Go 1.18+ | Already in go.sum as transitive dep |
-| `react-markdown@10.1.0` | React 19.x | ESM-only; compatible with Vite 8 |
-| `remark-gfm@^4` | `react-markdown@10.x` | v4 is the ESM version; v3 is CJS-only |
-| `shiki@4.1.0` (JS engine) | React 19 / Vite 8 | `shiki/engine/javascript` available since v1.x; no WASM peer dep |
-| `shiki/core` fine-grained | Vite 8 tree-shaking | Dynamic `import()` for lazy language loading |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| `codemirror` | 6.0.2 | React 19, Vite 8, TypeScript 5.9 | Framework-agnostic; wired via `useEffect` — no React peer dep |
+| `@codemirror/lang-*` | see table above | `codemirror@6.x` | All `@codemirror/*` packages use unified v6 versioning |
+| `@codemirror/language-data` | 6.5.2 | `codemirror@6.x` | Uses dynamic `import()` — Vite code-splits automatically |
+| `@codemirror/theme-one-dark` | 6.1.3 | `codemirror@6.x` | Pure CSS injection via `'unsafe-inline'` — already permitted |
+| `tea.Exec` / `tea.ExecCommand` | `charm.land/bubbletea/v2 v2.0.6` | Already in go.mod | API confirmed in use in `internal/tui/attach.go` and `internal/tui/update.go` |
+| `os.Root` write methods (`Create`, `Mkdir`, etc.) | Go 1.26.3 | Go 1.24+ | All write methods available |
+| `mime/multipart` | stdlib | All Go versions | `MaxBytesReader` pattern required; CVE GO-2024-2599 fixed in Go 1.22+ |
 
 ---
 
 ## Sources
 
-- [Go 1.24 os.Root blog post](https://go.dev/blog/osroot) — confirms traversal-resistant semantics, TOCTOU elimination, Windows device name blocking
-- [Go issue #71165](https://github.com/golang/go/issues/71165) — `filepath.EvalSymlinks` Windows link-type bug (open, unresolved)
-- [Gabriel-vasile/mimetype v1.4.13](https://pkg.go.dev/github.com/gabriel-vasile/mimetype) — latest upstream; 200+ MIME types, MIT license
-- [cyphar/filepath-securejoin v0.6.1](https://pkg.go.dev/github.com/cyphar/filepath-securejoin) — modern API Linux-only; legacy API TOCTOU-unsafe per maintainer docs
-- [go-billy CVE-2023-49569](https://dailycve.com/go-git-go-billy-path-traversal-symlink-following-cve-2023-49569-critical/) — confirms ChrootOS path traversal risk
-- [react-markdown GitHub](https://github.com/remarkjs/react-markdown) — v10.1.0 stable, no dangerouslySetInnerHTML, virtual DOM rendering
-- [Shiki JavaScript RegExp engine](https://shiki.style/guide/regex-engines) — native RegExp, no WASM
-- [Shiki CSP/eval issue — vercel/streamdown#384](https://github.com/vercel/streamdown/issues/384) — confirms WASM engine requires `wasm-unsafe-eval`; JS engine fixes it
-- [Shiki bundle sizes](https://shiki.style/guide/bundles) — full 6.4 MB; core ~12 KB + per-lang imports
-- [charm.land/bubbles/v2@v2.1.0 filepicker](https://pkg.go.dev/charm.land/bubbles/v2@v2.1.0/filepicker) — confirmed filepicker component, keybindings, v2.1.0 released Mar 2026
-- [charmbracelet/glamour v0.8.0](https://pkg.go.dev/github.com/charmbracelet/glamour@v0.8.0) — ANSI markdown renderer, MIT, already transitive dep
-- `go list -m all` — confirmed all charmbracelet/v2 ecosystem, glamour, wailsapp/mimetype as existing deps
-- `frontend/package.json` — confirmed React 19.2.4, Vite 8, Vitest 4, Playwright confirmed
+- [CodeMirror bundle size docs](https://codemirror.net/examples/bundle/) — ~400 KB unminified → ~135 KB gzipped with minification; verified via Context7 `/codemirror/website`
+- [Monaco worker-src blob CSP issue — payloadcms/payload#10229](https://github.com/payloadcms/payload/issues/10229) — confirmed `worker-src blob:` required
+- [Monaco CSP issues — keycloak/keycloak#32901](https://github.com/keycloak/keycloak/issues/32901) — confirmed `worker-src blob:` required; recommends replacing Monaco with CSP-compliant alternative
+- [Monaco 0.55 bundle size — monaco-editor#5154](https://github.com/microsoft/monaco-editor/issues/5154) — ts.worker.js 6.68 MB, main bundle 3.88 MB
+- [Sourcegraph migration blog: Monaco to CodeMirror](https://sourcegraph.com/blog/migrating-monaco-codemirror) — 43% JS reduction; Monaco alone was 2.4 MB of search page JS; HIGH confidence
+- [Vite 8 Monaco Oxc minifier regression — vitejs/vite#22009](https://github.com/vitejs/vite/issues/22009) — additional Vite 8 incompatibility
+- [CodeMirror CSP style-src issue — codemirror/dev#395](https://github.com/codemirror/dev/issues/395) — inline style injection confirmed; covered by existing Amendment 1
+- [CodeMirror read-only docs — codemirror.net/examples/readonly](https://codemirror.net/examples/readonly/) — `EditorView.editable.of(false)` + `EditorState.readOnly.of(true)` pattern; Context7 verified
+- [Bubble Tea v2 `tea.Exec` API — pkg.go.dev](https://pkg.go.dev/github.com/charmbracelet/bubbletea) — Context7 confirmed; `tea.Exec` is v2 name; in production use in `internal/tui/update.go`
+- [Go mime/multipart pkg.go.dev](https://pkg.go.dev/mime/multipart) — stdlib sufficiency confirmed; security limits documented
+- [Go os.Root blog post](https://go.dev/blog/osroot) — `Create`, `Mkdir`, `OpenFile`, `Remove`, `Rename` all documented for Go 1.24+
+- npm registry (verified via `npm view`): `codemirror@6.0.2`, `@codemirror/view@6.43.1`, `@codemirror/state@6.6.0`, `@codemirror/language-data@6.5.2`, `shiki@4.2.0`, `monaco-editor@0.55.1`
+- `/Users/ken/dev/agenthub/go.mod` — confirmed `charm.land/bubbletea/v2 v2.0.6`, `go 1.26.3`
+- `/Users/ken/dev/agenthub/frontend/package.json` — confirmed React 19.2.4, Vite 8, existing deps
+- `/Users/ken/dev/agenthub/internal/webserver/csp_mw.go` — confirmed existing CSP: `style-src 'self' 'unsafe-inline'` already set; no `worker-src` directive
+- `/Users/ken/dev/agenthub/internal/tui/attach.go` + `update.go` — confirmed `tea.Exec` + `tea.ExecCommand` pattern in production use
 
 ---
-*Stack research for: v3.4 read-only file browser (Issue #62, v3.4 slice of #64)*
-*Researched: 2026-05-20*
+*Stack research for: v3.5 write-side file browser + in-app code editor (Issues #63, #64, umbrella #24)*
+*Researched: 2026-06-14*

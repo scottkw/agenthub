@@ -601,6 +601,203 @@ func TestRequireCapability_UnchangedByPhase118(t *testing.T) {
 	}
 }
 
+// TestRequireFilesWrite exercises the requireFilesWrite wrapper as a unit. The
+// wrapper composes requireCapability (HMAC + grant + session-enabled checks)
+// with an additional capability.HasPerm(claims.Perms, PermFilesWrite) gate AND
+// an originAllowedForWrite CSRF check. This test is the RED skeleton for Phase
+// 124 Plan 01; it is written before requireFilesWrite exists and is expected to
+// fail to build until Plan 01 Task 1 adds the function. (CAP-02, CAP-03, CAP-09)
+func TestRequireFilesWrite(t *testing.T) {
+	const sid = "sess-fw"
+
+	// newHarness wires up a *WebServer with capTestKey, an enabled session,
+	// and a one-off mux that mounts a sentinel handler under requireFilesWrite
+	// for a given method and path. The sentinel records whether it ran.
+	newHarness := func(t *testing.T, method, pattern string) (ws *WebServer, mux *http.ServeMux, sentinelRan *bool) {
+		t.Helper()
+		ws, _ = testServer(t)
+		ws.SetSigningKey(capTestKey)
+		ws.EnableSession(sid)
+		ran := false
+		sentinelRan = &ran
+		mux = http.NewServeMux()
+		mux.HandleFunc(method+" "+pattern, ws.requireFilesWrite(func(w http.ResponseWriter, r *http.Request) {
+			ran = true
+			claims, ok := capability.ClaimsFromContext(r.Context())
+			if !ok {
+				http.Error(w, "claims not in context", http.StatusInternalServerError)
+				return
+			}
+			_, _ = io.WriteString(w, "OK perms="+claims.Perms)
+		}))
+		return ws, mux, sentinelRan
+	}
+
+	// routeCases enumerates the five write routes with their HTTP verbs. Every
+	// sub-test runs the 403/2xx matrix for each route.
+	type routeCase struct {
+		method  string
+		pattern string
+	}
+	routes := []routeCase{
+		{"PUT", "/api/files/write"},
+		{"POST", "/api/files/upload"},
+		{"DELETE", "/api/files/delete"},
+		{"POST", "/api/files/rename"},
+		{"POST", "/api/files/mkdir"},
+	}
+
+	for _, rc := range routes {
+		rc := rc // capture
+		t.Run(rc.method+" "+rc.pattern, func(t *testing.T) {
+			// Sub-test 1: 403 when files.write missing (read,write only).
+			t.Run("403 when files.write missing", func(t *testing.T) {
+				ws, mux, ran := newHarness(t, rc.method, rc.pattern)
+				token := issueCapFor(t, ws, sid, "read,write")
+
+				req := httptest.NewRequest(rc.method, rc.pattern+"?cap="+token, nil)
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusForbidden {
+					t.Fatalf("expected 403 without files.write, got %d (body=%q)", rec.Code, rec.Body.String())
+				}
+				if !strings.Contains(rec.Body.String(), "files.write") {
+					t.Errorf("expected body to contain literal \"files.write capability required\", got %q", rec.Body.String())
+				}
+				if *ran {
+					t.Error("sentinel handler ran on a 403 path — requireFilesWrite failed to short-circuit")
+				}
+			})
+
+			// Sub-test 2: 2xx when files.write present.
+			t.Run("2xx when files.write present", func(t *testing.T) {
+				ws, mux, ran := newHarness(t, rc.method, rc.pattern)
+				token := issueCapFor(t, ws, sid, "read,write,files.write")
+
+				req := httptest.NewRequest(rc.method, rc.pattern+"?cap="+token, nil)
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusOK {
+					t.Fatalf("expected 200 with files.write in perms, got %d (body=%q)", rec.Code, rec.Body.String())
+				}
+				if !*ran {
+					t.Fatal("sentinel handler was not called even though files.write present")
+				}
+			})
+
+			// Sub-test 3: Origin present and mismatched → 403 (CSRF, SC#2).
+			t.Run("403 on mismatched Origin", func(t *testing.T) {
+				ws, mux, _ := newHarness(t, rc.method, rc.pattern)
+				token := issueCapFor(t, ws, sid, "read,write,files.write")
+
+				req := httptest.NewRequest(rc.method, rc.pattern+"?cap="+token, nil)
+				req.Header.Set("Origin", "https://evil.example.com")
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusForbidden {
+					t.Fatalf("expected 403 on mismatched Origin, got %d (body=%q)", rec.Code, rec.Body.String())
+				}
+			})
+
+			// Sub-test 4: Origin absent → passes vacuously (desktop Wails, SC#2).
+			t.Run("passes vacuously on absent Origin", func(t *testing.T) {
+				ws, mux, ran := newHarness(t, rc.method, rc.pattern)
+				token := issueCapFor(t, ws, sid, "read,write,files.write")
+
+				req := httptest.NewRequest(rc.method, rc.pattern+"?cap="+token, nil)
+				// No Origin header set — mimics desktop Wails fetch.
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusOK {
+					t.Fatalf("expected 200 on absent Origin, got %d (body=%q)", rec.Code, rec.Body.String())
+				}
+				if !*ran {
+					t.Fatal("sentinel handler did not run on absent-Origin path")
+				}
+			})
+
+			// Sub-test 5: Origin matching BaseURL → passes (valid web-share browser).
+			t.Run("passes on matching Origin", func(t *testing.T) {
+				ws, mux, ran := newHarness(t, rc.method, rc.pattern)
+				token := issueCapFor(t, ws, sid, "read,write,files.write")
+
+				req := httptest.NewRequest(rc.method, rc.pattern+"?cap="+token, nil)
+				req.Header.Set("Origin", ws.BaseURL())
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusOK {
+					t.Fatalf("expected 200 on matching Origin, got %d (body=%q)", rec.Code, rec.Body.String())
+				}
+				if !*ran {
+					t.Fatal("sentinel handler did not run on matching-Origin path")
+				}
+			})
+		})
+	}
+
+	// 401 path takes priority over 403 — confirms requireCapability runs first
+	// (HMAC verify before HasPerm, Pitfall 6).
+	t.Run("401 takes priority over 403", func(t *testing.T) {
+		ws, mux, ran := newHarness(t, http.MethodPut, "/api/files/write")
+		wrongKey := make([]byte, 32)
+		for i := range wrongKey {
+			wrongKey[i] = 0xFF
+		}
+		claims := capability.Claims{
+			SID: sid, Perms: "read,write,files.write",
+			IAT: time.Now().Unix(), GrantID: "grant-wrong-key-fw", V: 1,
+		}
+		token, err := capability.Sign(claims, wrongKey)
+		if err != nil {
+			t.Fatalf("capability.Sign: %v", err)
+		}
+		ws.AddGrant(sid, claims.GrantID)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/files/write?cap="+token, nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 (requireCapability rejects bad sig before requireFilesWrite), got %d", rec.Code)
+		}
+		if *ran {
+			t.Error("sentinel handler ran on a 401 path")
+		}
+	})
+}
+
+// TestHasPerm_NoStringsContains_Write is a static-grep gate that enforces
+// CAP-01/SC#3: no write-path source file may use strings.Contains together
+// with the "files.write" literal for a permission check. Any such combination
+// would be a false-positive substring check (e.g. "no-files.write" passes)
+// instead of the required capability.HasPerm whole-token comma-split check.
+// This mirrors TestRequireCapability_UnchangedByPhase118 (Phase 118 analog).
+func TestHasPerm_NoStringsContains_Write(t *testing.T) {
+	// writePath files are the only files where the files.write permission
+	// string is expected to appear. Any use of strings.Contains(..., "files.write")
+	// in these files is a bug — must use capability.HasPerm instead.
+	writePaths := []string{
+		"capability_mw.go",
+		"../../internal/daemon/api.go",
+	}
+	for _, f := range writePaths {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			// File not existing is acceptable (e.g. not all paths need to exist yet).
+			continue
+		}
+		src := string(data)
+		if strings.Contains(src, `strings.Contains(`) && strings.Contains(src, `"files.write"`) {
+			t.Errorf("%s: use capability.HasPerm, not strings.Contains, for files.write permission check (T-124-01 / T-124-02)", f)
+		}
+	}
+}
+
 // readPipeMustTimeout asserts that no bytes arrive on r within timeout. The
 // positive signal for a blocked write path is a timeout: if even a single
 // byte reaches the PTY pipe, the server failed to filter the input.

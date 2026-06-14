@@ -504,6 +504,17 @@ func (ws *WebServer) setupRoutes() {
 	mux.HandleFunc("GET /api/files/read", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Read })))
 	mux.HandleFunc("HEAD /api/files/read", ws.requireFilesRead(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Read })))
 
+	// Five write routes: requireFilesWrite (capability + HasPerm(files.write) +
+	// CSRF Origin check) wraps the same filesDispatch closure used for reads.
+	// Verb-prefixed for Go 1.22+ auto-405 on wrong verbs (WEB-02 / CAP-07).
+	// Verbs are frozen by the daemon socket side (internal/daemon/api.go:149-153)
+	// — the webserver tier adds only the requireFilesWrite gate (Phase 124).
+	mux.HandleFunc("PUT /api/files/write", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Write })))
+	mux.HandleFunc("POST /api/files/upload", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Upload })))
+	mux.HandleFunc("DELETE /api/files/delete", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Delete })))
+	mux.HandleFunc("POST /api/files/rename", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Rename })))
+	mux.HandleFunc("POST /api/files/mkdir", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Mkdir })))
+
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list
 	// lookup already implies web-enabled (grants are cleared on toggle-off).

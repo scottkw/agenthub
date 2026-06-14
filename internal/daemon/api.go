@@ -141,10 +141,16 @@ func (a *API) registerRoutes() {
 	// Method-prefixed routes per Go 1.22+ mux semantics: POST and other verbs
 	// auto-return 405 (Pitfall 8 — do not register a fallback handler that
 	// would mask this).
+	// Phase 123-03 / FSW-08: write routes added on the same loopback-trust basis.
 	a.mux.HandleFunc("GET /api/files/list", a.filesHandler.List)
 	a.mux.HandleFunc("GET /api/files/stat", a.filesHandler.Stat)
 	a.mux.HandleFunc("GET /api/files/read", a.filesHandler.Read)
 	a.mux.HandleFunc("HEAD /api/files/read", a.filesHandler.Read)
+	a.mux.HandleFunc("PUT /api/files/write", a.filesHandler.Write)
+	a.mux.HandleFunc("POST /api/files/upload", a.filesHandler.Upload)
+	a.mux.HandleFunc("DELETE /api/files/delete", a.filesHandler.Delete)
+	a.mux.HandleFunc("POST /api/files/rename", a.filesHandler.Rename)
+	a.mux.HandleFunc("POST /api/files/mkdir", a.filesHandler.Mkdir)
 	// Phase 122-01 / REMOTE-01: remote-files proxy + cap deposit.
 	// POST /api/remote-files/caps accepts (sessionId, baseUrl, capToken) from
 	// the GUI/TUI after a successful join-code exchange; the four GET/HEAD

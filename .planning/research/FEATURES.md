@@ -1,404 +1,272 @@
 # Feature Research
 
-**Domain:** Read-only file browser tab (desktop + web + TUI) — AgentHub v3.4
-**Researched:** 2026-05-20
-**Confidence:** HIGH — primary sources are MDN/ARIA spec, charmbracelet official docs, VS Code
-documentation, ranger/lf docs; competitor UX observations are MEDIUM (public docs + screenshots).
+**Domain:** Write-side file browser + in-app code editor — AgentHub v3.5
+**Researched:** 2026-06-14
+**Confidence:** HIGH — based on v3.4 shipped API contract (authoritative), v3.4 FEATURES.md prior research,
+PROJECT.md milestone decisions, and confirmed existing capability/sandbox architecture.
 
-> Scope: v3.4 ships Issue #62 (read-only file browser tab for GUI + web) and the v3.4 slice of #64
-> (TUI browse+preview parity). Write operations, editor integration, and TUI $EDITOR shell-out are
-> all v3.5. This research covers only the read-only shape.
+> Scope: v3.5 adds write operations (create/edit-save/upload/delete/rename/mkdir), an in-app code
+> editor replacing the v3.4 plain-text preview, TUI `$EDITOR` shell-out parity, opt-in `files.write`
+> capability for web-share, remote tailnet peer write parity, and carried tech-debt TD-4/TD-5.
+> This file focuses on the NEW write-side capability set only.
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Users Expect These)
+### Table Stakes — Write Operations (Users Expect These)
 
-Features a user expects from any embedded file browser. Missing these makes the tab feel half-shipped.
+These are expected of any embedded file browser that supports writes. Missing them makes the write
+side feel broken or half-shipped.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Directory listing with file/folder distinction** | Every file browser since 1984 shows this; without it users cannot orient themselves | LOW | Icons or glyphs to distinguish directories, files, symlinks; symlinks should show `→ target` in description |
-| **Keyboard navigation (arrows, Enter, Backspace)** | Power users — the primary AgentHub audience — expect a keyboard-first interface; mouse-only feels broken | MEDIUM | Up/Down navigate list; Enter opens dir or triggers preview; Backspace/Left goes up one level; Home/End jump; PageUp/PageDown for long dirs |
-| **Breadcrumb / path bar** | Users need to know where they are; every file browser (VS Code Explorer, Finder, FileZilla, GitHub) shows the current path | LOW | Clickable segments to navigate up; never allows navigating above session cwd root; display relative path from session cwd |
-| **Sort by name / size / mtime** | All three are expected in any list view; size and mtime are used constantly in dev workflows | LOW | Default: name ascending, directories first. Sort header clicks toggle asc/desc. Persistence per-session is nice-to-have not required. |
-| **Directories-first ordering** | Every major file browser (VS Code, macOS Finder column/list, Windows Explorer, GitHub) puts directories at top when sorting by name | LOW | Sticky regardless of sort column in v3.4 (directories always precede files within the same sort); can be made optional in v3.5. |
-| **Type-ahead filter / search** | Users expect to type to narrow a long directory listing; VS Code Explorer (Ctrl-E / type directly), ranger (/), lf (/), nnn (/) all do this | MEDIUM | See Cmd-F collision note below. Default activation: `/` key (not Cmd-F — Cmd-F is the existing scrollback search bar). Filter scoped to current directory only in v3.4; recursive search is v3.5. |
-| **Text file preview** | GitHub web viewer, VS Code, Cyberduck all preview text files inline; this is the core read-only value proposition | MEDIUM | Preview panel for text files up to 5 MB (configurable cap). Display raw text with monospace font. |
-| **Markdown rendered preview** | Developers constantly open README.md, CHANGELOG.md, docs — expecting rendered markdown is now standard (GitHub, VS Code, GitLab all render it) | MEDIUM | Render markdown in the preview pane. A lightweight renderer (marked.js or similar, already-vendored or simple) is sufficient; not a full GitHub-flavored pipeline. |
-| **Image preview** | VS Code Explorer shows image preview on click; Cyberduck shows thumbnails; GitHub shows inline image preview | MEDIUM | PNG, JPEG, WebP, GIF, SVG (render as `<img>` for raster; inline `<img>` for SVG is fine given CSP is `img-src 'self' data:`). Respect aspect ratio. Size: fit-within pane. |
-| **Binary file refusal message** | GitHub, GitLab, VS Code all display an explicit message when a file cannot be previewed; silence is worse than refusal | LOW | See exact copy recommendation in Anti-Features section. |
-| **Empty directory state** | Every file browser shows "this folder is empty"; without it users think it's broken | LOW | Simple centered message: "Empty directory" with the current path shown. |
-| **Loading / error states** | Remote sessions have latency; network errors happen; permission errors happen | LOW-MEDIUM | Spinner during list fetch; specific error messages for permission-denied, not-found, network error; broken-symlink indicator. |
-| **File count / status line** | VS Code status bar shows item count; ranger shows it at bottom; users want context on large directories | LOW | Status line below the list: `n items` or `n directories, m files`. For remote sessions: add `(remote)` indicator. |
+| **Edit-and-save existing file** | Every file manager with write access lets you edit an existing file. This is the primary motivation for Issue #63. | MEDIUM | Opens file in editor; Cmd/Ctrl+S saves. Dirty-state indicator required. Requires new `POST /api/files/write` endpoint + If-Match for conflict detection. Depends on editor library landing (CodeMirror 6). |
+| **Create new file (touch)** | VS Code Explorer, GitHub web editor, Finder, and every other file manager let you create a new file in the current directory. | LOW | Inline rename-on-creation UX (name input appears in file list, Enter confirms, Esc cancels). Maps to `POST /api/files/create` or `write` with empty body. |
+| **mkdir — create new directory** | Counterpart to file creation. Any file manager with create-file also has create-folder. | LOW | Same inline-creation UX as file create. Maps to `POST /api/files/mkdir`. |
+| **Delete file** | Users need to remove files. Conspicuously absent without it. | LOW-MEDIUM | Confirmation modal required (see Safety UX). Keyboard shortcut: Delete/Backspace with confirmation prompt. Maps to `DELETE /api/files/delete`. |
+| **Delete directory (recursive)** | Follows from delete-file. VS Code Explorer, Finder, GitHub Codespaces all delete directories recursively with confirmation. | MEDIUM | Needs explicit recursive-delete warning in confirmation modal ("This will delete 14 files. This cannot be undone."). Higher complexity than file delete — server must walk and delete entire subtree. Shares endpoint with file delete but daemon-side logic is distinct. |
+| **Rename file or directory** | Core file management. GitHub web editor, VS Code, and every other manager support rename. | LOW-MEDIUM | Inline rename UX (F2 or click-to-rename on name cell). Maps to `PATCH /api/files/rename` with `{from, to}`. Rename within same directory only in v3.5 (move across directories is a differentiator). |
+| **Upload single file** | Every hosted-code tool (GitHub Codespaces, VS Code Server, Cyberduck) allows uploading a file from the local machine into the browser session. | MEDIUM | File picker via `<input type="file">` or drag-and-drop into the file list. Streamed multipart upload to `POST /api/files/upload`. Progress indicator for files > ~100KB. |
+| **`files.write` capability bit** | The v3.4 `files.read` pattern established that write access is capability-gated. Web-share viewers and remote sessions need explicit grant control. | MEDIUM | New `files.write` comma-separated capability bit following the `HasPerm` whole-token pattern. Session-owner cap includes `files.write` by default. Web-share viewer cap excludes by default (opt-in). Maps to new `requireFilesWrite` middleware separate from `requireFilesRead`. |
+| **Dirty-state indicator in editor** | Every editor (VS Code, CodeMirror, Monaco, GitHub web editor) shows an unsaved-changes indicator — typically a dot on the tab or in the header. Users cannot safely switch away without it. | LOW | Modified indicator (bullet or asterisk) on the file browser tab or editor header. Keyed off CodeMirror's `EditorState.doc` !== saved content snapshot. |
+| **Unsaved-changes warning on navigate-away** | VS Code, GitHub web editor, and every browser-based editor warn before discarding edits on tab close or navigation. | LOW-MEDIUM | Intercept navigation away from the editor (clicking another file, closing the tab, navigating up the directory tree). Show: "You have unsaved changes. Save or discard?" modal. Does NOT use browser `beforeunload` on desktop (Wails blocks this); must be React-level guard. |
+| **Keyboard save (Cmd/Ctrl+S)** | Universal keyboard shortcut for save. Users muscle-memory this. Its absence is immediately felt. | LOW | `Cmd+S` on macOS, `Ctrl+S` on Windows/Linux. Must intercept before browser default. CodeMirror provides extension hooks for this. |
+| **Save confirmation / feedback** | After save, users need to know the save succeeded. Matches the established three-state Save button pattern from Settings (idle/saving/saved). | LOW | Show "Saved" transient indicator (1.5s matches Settings pattern) or a brief status-line message. |
+| **Error on save failure** | If the save fails (permissions changed, disk full, concurrent-edit conflict), users need an actionable error, not silence. | LOW-MEDIUM | Surface specific error: "Save failed: permission denied", "Save failed: file was modified by another process (409)." With option to force-overwrite or save as new file. |
+| **Syntax highlighting in editor** | As of v3.4, code files display as plain monospace. v3.5 is explicitly the milestone where the editor library lands. Users expect syntax highlighting for code files once an editor is present. | MEDIUM | Provided by CodeMirror 6 language packs. Requires language detection from file extension. Common languages: Go, TypeScript/TSX, JavaScript/JSX, Python, JSON, YAML, Markdown, Bash, HTML, CSS. |
+| **Read-only to edit toggle** | Users expect a "view first, edit intentionally" model, not auto-edit-mode on every file open. GitHub web editor, Gitea, and VS Code all require an explicit edit action. | LOW | Edit button (pencil icon) in the preview pane header. Switches preview pane to editor. The toggle is explicit and visible — avoids accidental edits. |
 
-### Differentiators (Competitive Advantage)
+---
 
-Features that fit AgentHub's specific context — a session-management app with Tailscale remote access — better than a generic file manager.
+### Table Stakes — Editor UX (In-App Code Editor)
+
+The specific UX behaviors expected of any embedded code editor.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **CodeMirror 6 as editor library** | Decision pre-ratified at v3.5 plan time per v3.4 REQUIREMENTS.md OQ-3 / PROJECT.md scope decisions. ~200KB vs Monaco ~5MB. CSP-clean (no `eval`). | MEDIUM | `@codemirror/view`, `@codemirror/state`, `@codemirror/commands`. Must be vendored under `web/vendor/` to satisfy `vendor_drift_test.go` CI gate. Language packs: `@codemirror/lang-*`. |
+| **Line numbers** | Users expect line numbers in any code editor — CodeMirror 6, Monaco, ACE all show them by default. | LOW | CodeMirror `lineNumbers()` extension. |
+| **Cursor position in status line** | VS Code shows `Ln N, Col N` in the status bar. GitHub Codespaces and CodeMirror-based editors all show cursor position. | LOW | CodeMirror `EditorView.updateListener` exposes selection state. Show in file browser status line. |
+| **Large-file handling — open-but-disable-some-features** | VS Code warns for files over ~2MB (syntax highlighting disabled). GitHub web editor refuses files over 1MB. | MEDIUM | v3.4 established a 5MB preview cap. Editor should use the same cap. For files near the cap (> ~500KB), disable syntax highlighting (plain text mode) to avoid parser perf cliff. Show: "Syntax highlighting disabled for large files." |
+| **Large-file warning before editing** | Users opening a 4MB log file in an editor should know what they're doing — editing a 4MB file in-browser is unusual. | LOW | Warn at open-for-edit time for files > 500KB: "This is a large file (N MB). Edits may be slow." Warn-then-proceed, not block. |
+| **Binary file — no edit mode** | Binary files cannot be meaningfully edited in a text editor. GitHub web editor, VS Code both block this. | LOW | If `IsBinary = true` in the `FileEntry` stat response, hide the Edit button entirely. Show only "Download" affordance. |
+
+---
+
+### Table Stakes — Safety UX
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Delete confirmation modal** | Every file manager (Finder, VS Code, Windows Explorer) requires confirmation before delete. Missing it = user anger the first time they fat-finger Delete. | LOW | Modal: "Delete `filename`? This cannot be undone." Two buttons: Cancel (default focus) / Delete (destructive, red). For directories: "Delete `dirname` and all N files inside? This cannot be undone." |
+| **Overwrite-on-save conflict detection (If-Match)** | When two web-share viewers or GUI + terminal are editing the same file, last-writer-wins silently discards edits. Every server-side editor (GitHub, Gitea, Codespaces) uses ETag/If-Match to detect this. | MEDIUM | `POST /api/files/write` accepts `If-Match: <etag>` header. Returns 412 Precondition Failed when ETag mismatches. Client shows: "This file was modified by another process. [Force overwrite] [Save as new file] [Discard my changes]". ETag is file mtime + size, not full content hash (performance). |
+| **Atomic-write (temp file + rename)** | Writing directly to the target file risks partial writes corrupting the file on daemon crash or disk-full. VS Code uses atomic writes. | MEDIUM | Daemon writes to `filename.tmp` in the same directory, then `os.Rename` to target. `os.Rename` is atomic on POSIX. On Windows, Go's `os.Rename` calls `MoveFileEx(MOVEFILE_REPLACE_EXISTING)`. The sandboxed `os.OpenRoot` constraint means the temp file must be within the sandbox — use a sibling `.agenthubtmp_<random>` name. |
+| **Rename collision warning** | Attempting to rename a file to a name that already exists should warn, not silently overwrite. | LOW | Daemon returns 409 Conflict if target exists. Client shows: "A file named `filename` already exists. Replace it?" with Cancel (default) / Replace. |
+| **Upload overwrite warning** | Uploading a file whose name already exists in the directory should warn. GitHub web editor shows "A file with this name already exists. Replace it?" | LOW | Same 409 pattern as rename collision. Show warning before completing the upload. |
+
+---
+
+### Differentiators (Competitive Advantage in AgentHub's Context)
+
+These features are not universally expected in embedded file browsers but fit AgentHub's specific
+Tailscale/AI-session context and elevate the experience above a generic file manager.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Remote session visual indicator** | AgentHub's Tailscale model means the file browser may be talking to a remote daemon; users need to know this is remote so they understand latency is normal | LOW | Badge or label in the path bar / status line: `via tailnet` (or hostname) for remote sessions. Not a blocking indicator — just ambient context. |
-| **Lazy-load / streaming for remote dirs** | Remote sessions over the relay have real latency; showing a spinner per-directory-open is better than blocking the whole tab | MEDIUM | Daemon returns listing synchronously but the React component can show a row spinner while the `GET /api/files/list` round-trips. For TUI: show `Loading…` status line while fetching. |
-| **Preview size indicator** | When previewing large-ish files (500 KB — 5 MB), show the file size so users know why it loaded slowly; prevents "is it broken?" confusion | LOW | Show `42 KB` or `3.2 MB` in the preview pane header alongside the filename. |
-| **"Too large to preview" download affordance** | GitHub shows "View raw" + "Download"; for AgentHub, users should be able to trigger a Range-capable download instead of nothing | LOW | When file exceeds preview cap, show: "File too large to preview (8.4 MB). [Download]" button that triggers the Range-capable `/api/files/read` endpoint. |
-| **Capability-gated web-share behavior** | Users who shared their session with `files.read` OFF should see the file browser disabled with an explanation, not a broken 403 | LOW | When a web-share viewer lacks `files.read`, show: "File browsing is not enabled for this shared session." at the tab level. |
-| **Broken symlink visibility** | Developer sessions frequently have broken symlinks (virtualenv artifacts, stale build outputs). VS Code Explorer shows broken symlinks dimmed. | LOW | Show broken symlinks with a `⚠ broken symlink` annotation in the description column. Do not follow them (daemon already rejects). |
-| **Session cwd as root enforcement** | AgentHub sandboxes to session cwd. Making this visually clear — no ".." above root, breadcrumb stops at root — prevents user confusion when navigation stops | LOW | Breadcrumb top segment is always the session cwd displayed as `~/project` or an abbreviated path. Navigation stops here. Up arrow / Backspace is a no-op at root. |
-| **TUI file browser with TokyoNight palette** | GUI/TUI cross-surface parity is a release-blocking contract. The TUI surface needs the same browse+preview capability with consistent visual language. | MEDIUM | Lipgloss-bordered directory listing, TokyoNight palette (matches existing TUI), viewport split with `JoinHorizontal`. No `bubbles/filepicker` (see below). |
+| **Upload multiple files** | VS Code drag-and-drop to Explorer, GitHub web uploader, Cyberduck all do multi-file upload. Single-file is table stakes; multi-file is the power-user differentiator. | MEDIUM | Multi-select via `<input type="file" multiple>` or drag-and-drop of multiple files into the directory listing. Shows upload queue with per-file progress bars. Chunked upload stream to avoid timeout on large files. |
+| **`files.write` opt-in for web-share viewers** | AgentHub's Tailscale model lets you share a session URL with a teammate who can then edit files in the session's working directory. No other terminal-sharing tool does this with sandboxed, capability-gated file writes. | HIGH | Requires a dedicated security phase. The web-share grant flow must present explicit `files.write` opt-in (separate from `files.read`). Default OFF. Dangerous without explicit user understanding — requires a confirmation dialog: "This will allow the recipient to create, edit, delete, and upload files in this session's working directory." |
+| **Remote tailnet peer write parity** | Editing files on a remote peer session over Tailscale with the same UI as local — no other tool does this. Directly extends the v3.4 remote-read parity. | HIGH | Follows the v3.4 Phase 122 proxy pattern: desktop GUI uses `daemon proxy /api/files/remote/{sid}/write` etc. TUI uses direct HTTPS to the remote peer. Requires `files.write` cap on the remote session's cap token. |
+| **TUI edit via `$EDITOR` shell-out** | Matches `git commit`, `crontab -e`, `kubectl edit` — the Unix-native way to edit files from a TUI. Power users expect pressing `e` on a file in the TUI file browser to open `$EDITOR`. | MEDIUM | TUI shell-out using `tea.Exec` (suspend TUI, spawn `$EDITOR` with file path, resume TUI). Requires `$EDITOR` to be set; if unset, show clear error: "`$EDITOR` is not set. Set it in your shell profile (e.g., `export EDITOR=nano`)." No in-TUI CodeMirror — shell-out is the correct TUI edit pattern. |
+| **Move file across directories** | Renaming within the same directory is table stakes; moving across directories (drag-and-drop or cut-paste) is a power-user feature that VS Code and GitHub Codespaces support. | HIGH | Path: `PATCH /api/files/rename` already accepts `{from, to}` — daemon validates both paths are within the sandbox. UI: drag-and-drop from list to breadcrumb segment, or a "Move to..." picker modal. Explicitly a v3.5 stretch goal — confirm scope at plan time. |
+| **Concurrent-edit viewer count indicator** | When multiple web-share viewers have the same file open in edit mode, showing "2 others editing this file" prevents overwrite surprises. | MEDIUM | Requires daemon-side per-file edit-session tracking (a map of `filepath → [capToken]`). Not required for v3.5 correctness (If-Match covers safety), but a meaningful DX improvement for collaborative sessions. Explicitly a stretch goal. |
+| **Filesystem-change auto-refresh** | When the AI agent running in the terminal modifies a file (writes a new component, patches a config), the file browser should reflect the change without manual refresh. | HIGH | Requires inotify (Linux) / FSEvents (macOS) / ReadDirectoryChangesW (Windows) push via SSE or WebSocket from daemon. High implementation complexity; not required for v3.5 correctness (refresh-on-navigate covers the basic case). Explicitly deferred to v3.6+. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+---
+
+### Anti-Features (Explicitly Not This Milestone)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Cmd-F to open filter** | Users already use Cmd-F universally for "find in this view" | Cmd-F is already wired to the xterm.js scrollback search find bar (v3.2 Phase 94). Opening file filter with Cmd-F when the tab's terminal might still intercept it would create a collision; worse, it trains different Cmd-F semantics per tab | Use `/` key (ranger/lf/nnn convention, universally known in TUI tools) or a dedicated filter input that activates only in the file browser tab. If Cmd-F is pressed while the file browser tab is active (not a terminal tab), it is safe to use — but this needs explicit focus-conditional handling mirroring the `SRC-01` pattern from v3.2. Document the collision risk explicitly in the implementation phase. |
-| **Write operations (upload / delete / rename / mkdir)** | Users naturally want to manage files, not just read them | Explicitly deferred to v3.5 per milestone scope. Shipping any write UI in v3.4 grows the sandboxed FS API attack surface before the read path has baked under real use | v3.5 |
-| **Recursive filter / search** | "Find all files named X in the project" is a common workflow | Requires server-side recursive walk (potentially expensive for large trees over remote relay), response streaming, and a significantly more complex UI to surface results. Read-only v3.4 has no foundation for this yet | Current directory filter only in v3.4. File by file recursion via CLI (`find`, `rg`) is already available in the terminal tabs. |
-| **Editor (CodeMirror / Monaco) for read-only display** | "Why not show source with syntax highlighting?" | Editor library decision is deferred to v3.5 (write side). Pulling in a 2 MB editor bundle just for syntax highlighting in v3.4 is premature; plain monospace text suffices for a read-only preview that establishes the API shape | Plain text preview. Syntax highlighting is v3.5 when the editor library decision is made. |
-| **bubbles/filepicker as TUI implementation** | Charm provides a filepicker component that seems purpose-built | The `filepicker` component is selection-dialog oriented, not browse-pane oriented. It has no built-in read-only mode, no preview integration, no viewport split, and poor layout integration with existing bordered frames. Deep customization requires effectively rewriting it. | Custom `list.Model` + `viewport.Model` split with `lipgloss.JoinHorizontal` — matches the pattern already established in AgentHub's TUI (two-pane sidebar+content). Custom rendering costs ~200 LoC but gives full control over TokyoNight palette, status line, and breadcrumb display. |
-| **Drag-out for download in the TUI** | Drag-and-drop is how desktop file managers transfer files | TUI has no drag-and-drop. Not applicable. | Press Enter on a file in TUI to trigger download / copy path to clipboard if CLI tools allow. |
-| **Image preview in TUI** | Users see images in GUI, expect parity | Sixel/chafa rendering in TUI is a separate rendering system; AgentHub's TUI runs in a real terminal (not xterm.js) so sixel could work, but it introduces a complex dependency chain and is not part of the v3.4 scope | TUI shows: "Use the desktop or web app to preview images." Consistent with the existing TUI principle of referring users to the GUI for rich-media features. |
-| **Multiple sort column persistence** | "I want mtime sort in this directory and name sort in that one" | Per-directory sort state requires a session-scoped store that doesn't exist yet; adds complexity for marginal gain | One global sort setting per file-browser session tab, remembered in component state only (no persistence in v3.4). |
-| **Context menu on right-click (web)** | Right-click should give a context menu with "Download", "Copy path" etc | Context menus add click-event intercept overhead and interact badly with browser native context menus on Tailscale-served web. The download affordance is already in the preview pane. | Explicit "Download" button in the preview pane header. "Copy path" as a toolbar button. No right-click menu in v3.4. |
-| **Full path paste to navigate (path bar)** | macOS Finder address bar accepts pasted absolute paths | Sandbox enforcement requires path cleaning, symlink resolution, and prefix-check on every navigation; pasting an absolute path outside the session cwd sandbox must be rejected. The rejection UX (error message vs silent clamp) requires design work. | Breadcrumb segments are clickable for navigation; type-ahead filter handles find-within-dir. Absolute path input is v3.5 with explicit sandbox violation UI designed. |
+| **Monaco Editor** | VS Code uses it; power users know it; rich built-in features. | ~5MB bundle (vs CodeMirror 6 ~200KB); requires `eval`-based CSP carve-outs (conflicts with existing strict `script-src 'self'` policy); complex vendoring. The v3.4 REQUIREMENTS.md explicitly deferred this at OQ-3 resolution; CodeMirror 6 was selected. | CodeMirror 6 — CSP-clean, ~200KB, extensible language packs, wide adoption (GitHub, Replit, Glitch all use it). Decision ratified. |
+| **In-TUI CodeMirror rendering** | "Why not show a full editor inside the TUI?" | TUI runs in a real terminal (not WebView/browser). CodeMirror is a browser-DOM library. Embedding it in Bubble Tea would require xterm.js-style WebView passthrough which is out of scope. | TUI shells out to `$EDITOR` via `tea.Exec` — the established Unix pattern. Matches `git commit -e`, `kubectl edit`. |
+| **Drag-out to download from editor** | "Let me drag the file out to my filesystem." | Browser security model prevents drag-out-to-filesystem from non-native browser windows. Wails WebView has the same restriction. Complex and unreliable cross-platform. | Download button in the preview/editor header wired to the Range-capable `/api/files/read` endpoint (already shipping in v3.4). |
+| **Real-time multi-cursor collaborative editing (CRDT/OT)** | Google Docs model; multiple cursors editing simultaneously. | Requires CRDT (e.g., Yjs) or Operational Transform on the server — a fundamentally different architecture from single-writer ETag/If-Match. Would take a full separate milestone. The AgentHub use case is one operator + AI agent, not multi-human real-time collab. | If-Match conflict detection (last-writer-wins with 412 warning) covers the actual concurrency risk in AgentHub sessions. |
+| **Auto-save (save on every keystroke or timer)** | VS Code has auto-save. Users sometimes expect it. | AI agents are actively watching the filesystem. Auto-saving partial edits would inject corrupted half-finished files into a live AI coding session. This is dangerous in AgentHub's specific context — the AI agent might immediately read and act on the partial edit. | Explicit Cmd/Ctrl+S save only. The save action is intentional, not ambient. |
+| **Git integration (diff view, stage/unstage, commit)** | VS Code Source Control panel does this. Embedded git UI is popular. | Out of scope for the file browser epic. Would require a separate `internal/git/` package, new API surface, and a multi-phase implementation. The terminal tabs already give direct access to git CLI. | Users already have full git via terminal sessions. File browser + editor covers "view and edit" without git semantics. |
+| **Recursive file search** | "Find all files matching pattern across the project" | Expensive server-side walk for large projects over remote relay; requires streaming response; complex UI to surface search results. No foundation laid in v3.4 read-only. | Current-directory `/` filter (v3.4) covers the in-directory case. Full-project search via `rg`/`find` in the terminal tab covers the recursive case. |
+| **Drag-and-drop move within the file list** | VS Code drag to reorder / move files in Explorer. | Requires implementing drag sources and drop targets in the React file list — significant event plumbing on top of the current simple list. Drag-and-drop across directories adds sandbox validation complexity. First-release writes should use explicit named actions (rename/move via modal), not gestures. | `PATCH /api/files/rename` with a "Move to..." picker modal is a v3.5 stretch. Drag-and-drop is a v3.6 polish item. |
+| **Binary file hex editor** | Power users editing ELF binaries, compiled assets. | A hex editor is a separate product-grade feature. The binary-refusal path (v3.4) is correct for a file browser embedded in an AI session management tool. | Download the binary, edit with a native tool. |
+| **Upload entire directory (zip/unzip)** | "Let me upload my whole project." | Browser drag-and-drop of directories produces a list of individual File objects (no directory structure preserved in the multipart boundary). Server-side zip extraction adds a new attack surface (zip-slip vulnerabilities). | Multi-file upload within a directory. The AI agent running in the terminal can handle bulk operations via shell commands. |
+| **Per-session write audit log** | "Show me what files were changed in this session." | Requires a new persistent audit store, API surface, and UI panel. Not justified for v3.5 scope. | Bash history in the terminal and git log cover the audit-trail need for the primary AI-coding use case. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Sandboxed FS API (daemon: GET /api/files/list, /stat, /read)
-    └──required by──> FileBrowserTab.tsx (desktop + web)
-    └──required by──> TUI Files view
-    └──required by──> capability-gated access (files.read bit)
+files.write capability bit (new, mirrors files.read)
+    └──required by──> POST /api/files/write (edit-save)
+    └──required by──> POST /api/files/upload
+    └──required by──> DELETE /api/files/delete
+    └──required by──> PATCH /api/files/rename
+    └──required by──> POST /api/files/mkdir
+    └──required by──> web-share write access (opt-in grant)
+    └──required by──> remote tailnet peer write parity
+    └──depends on──> v3.4 HasPerm whole-token comma-split (already shipped)
+    └──depends on──> v3.4 requireFilesRead middleware pattern (new parallel middleware)
 
-files.read capability bit (v3.1 cap-token system)
-    └──required by──> web-share viewer access control
-    └──required by──> 403 denial UX at tab level
+os.OpenRoot sandbox (v3.4 internal/files/ Sandbox, already shipped)
+    └──required by──> all write endpoints (sandbox must wrap write ops too)
+    └──note: write ops (mkdir, delete, rename across dirs) need new sandbox methods
+    └──extends: Read/List/Stat -> add Write/Upload/Delete/Rename/Mkdir methods
 
-FileBrowserTab.tsx
-    └──depends on──> Sandboxed FS API
-    └──uses──> existing Tab pattern (singleton or per-session tab)
-    └──uses──> existing BannerStack (for error states)
-    └──uses──> existing session context (cwd, session ID, local vs remote)
-    └──has──> directory listing pane (left/main)
-    └──has──> preview pane (right/inline)
-    └──has──> breadcrumb path bar (top)
-    └──has──> sort controls (name/size/mtime, asc/desc, dirs-first)
-    └──has──> type-ahead filter (/key activation, current dir scope)
+Atomic-write (temp + rename)
+    └──required by──> POST /api/files/write (data integrity)
+    └──requires──> temp file within sandbox bounds (sibling .agenthubtmp_<random>)
 
-Preview pane
-    └──depends on──> GET /api/files/read (Range-capable)
-    └──requires──> MIME type detection (daemon stat response)
-    └──renders──> text (plain monospace), markdown (rendered), images (PNG/JPEG/WebP/GIF/SVG)
-    └──refuses──> binary (message + download affordance)
-    └──cap-checks──> 5 MB default hard cap (show size in header, offer download above cap)
+If-Match / ETag conflict detection
+    └──required by──> POST /api/files/write (concurrent-edit safety)
+    └──depends on──> GET /api/files/stat response (mtime + size as ETag, already shipped)
 
-TUI Files view
-    └──depends on──> Sandboxed FS API (same endpoints as GUI)
-    └──uses──> bubbles/v2 list.Model (custom delegate, NOT filepicker)
-    └──uses──> bubbles/v2 viewport.Model (preview pane)
-    └──layout──> lipgloss.JoinHorizontal(lipgloss.Top, listing, preview)
-    └──uses──> TokyoNight palette (existing TUI token set)
-    └──matches──> GUI feature set: dir listing, type-ahead, breadcrumb, text/md preview
-    └──differs──> no image preview, no download gesture (show referral message)
+CodeMirror 6 (new frontend dep)
+    └──required by──> in-app editor UI (FileBrowserTab.tsx edit mode)
+    └──required by──> syntax highlighting
+    └──required by──> Cmd/Ctrl+S save shortcut
+    └──must be──> vendored under web/vendor/ (vendor_drift_test.go CI gate)
+    └──enables──> dirty-state tracking (EditorState.doc !== saved snapshot)
 
-Remote session (tailnet)
-    └──all endpoints route through existing relay
-    └──adds──> visual indicator in path bar ("via tailnet") — no new protocol changes
-    └──adds──> spinner on per-fetch latency (uses existing loading state pattern)
+Editor (CodeMirror 6) in FileBrowserTab
+    └──required by──> edit-and-save workflow
+    └──required by──> dirty-state indicator
+    └──required by──> unsaved-changes warning on navigate-away
+    └──depends on──> files.write capability (must be present to enable Edit button)
+    └──replaces──> v3.4 plain-text preview pane for code files
+
+Delete endpoint (DELETE /api/files/delete)
+    └──required by──> delete-file UX
+    └──required by──> delete-directory UX (recursive, server-side walk)
+
+Rename endpoint (PATCH /api/files/rename)
+    └──required by──> inline rename UX
+    └──required by──> move-across-directories (stretch; same endpoint, both paths validated)
+
+Upload endpoint (POST /api/files/upload)
+    └──required by──> single-file upload
+    └──required by──> multi-file upload (same endpoint, batched)
+
+TUI $EDITOR shell-out
+    └──requires──> tea.Exec suspend/resume (already used in TUI attach; pattern established)
+    └──requires──> $EDITOR env var detection at shell-out time
+    └──note: local-only; remote TUI write uses HTTPS stream, not $EDITOR
+
+web-share files.write opt-in
+    └──requires──> files.write capability bit
+    └──requires──> explicit user grant UI (new confirmation modal at share time)
+    └──requires──> security-focused phase (separate from write endpoint phase)
+    └──requires──> FuzzSandboxWrite corpus extending v3.4 FuzzSandboxPath
+
+remote tailnet peer writes
+    └──requires──> write endpoints on the remote peer's webserver (Phase 119 parallel)
+    └──requires──> files.write cap on the remote session's cap token
+    └──follows──> v3.4 Phase 122 proxy pattern (desktop GUI via daemon proxy, TUI via direct HTTPS)
+    └──version constraint──> remote peer must run v3.5+ (write endpoints absent on v3.4 peers)
 ```
 
 ### Dependency Notes
 
-- **Cmd-F collision:** The v3.2 find bar (SRC-01..05) uses a focus-conditional pattern: Cmd-F only intercepts when the xterm Terminal instance has focus. The file browser tab has no xterm Terminal, so Cmd-F is technically safe here. However, the file browser should use `/` as its filter activation key to match TUI conventions and avoid any ambiguity. If Cmd-F is later added as a secondary shortcut for filter, it must be gated on `fileBrowserTabActive && !xterm.hasFocus`.
+- **Write ops and the v3.4 sandbox:** The v3.4 `Sandbox` type wraps `*os.Root` and has `List`, `Stat`, `Read` methods. v3.5 must add `Write`, `Upload`, `Delete`, `Rename`, and `Mkdir` methods to the same type. All use `os.OpenInRoot` for TOCTOU-free path resolution — the same kernel guarantee that secured the read side covers writes automatically when using `os.OpenRoot.OpenFile()` with write flags.
 
-- **bubbles/v2 vs v1:** AgentHub already uses `charmbracelet/bubbles/v2` (confirmed in PROJECT.md tech stack). The `list.Model` in v2 requires getter/setter methods, not exported fields. The custom delegate pattern (implementing `list.ItemDelegate` with `Render`, `Height`, `Spacing`, `Update`) is the right integration point for custom file entry rendering with icons, sizes, and symlink annotations.
+- **ETag strategy:** Using mtime + size (not content hash) for ETags means a file edited and restored to the same content within a 1-second window could cause a false-positive 412. This is acceptable — false-positives on conflict detection are safe (user sees "conflict" but there is not one); false-negatives (silent overwrite) are dangerous. Content hashing would require reading the full file on every stat call — too expensive.
 
-- **viewport for preview:** `bubbles/v2/viewport` handles scrollable content with `SetContent(string)`, default vim-style keybindings (j/k, Ctrl-d/u, PageUp/PageDown), and composable with `lipgloss.JoinHorizontal`. For the TUI preview pane this is the correct primitive — not a custom string printer.
+- **CodeMirror 6 vendoring:** The existing `vendor_drift_test.go` CI gate enforces version parity between `package.json` and vendored assets for every `@xterm/addon-*`. The same gate pattern must be extended to enforce CodeMirror version parity. CodeMirror packages (`@codemirror/view`, `@codemirror/state`, `@codemirror/commands`, `@codemirror/lang-*`) must all land in `web/vendor/codemirror/` or equivalent flat structure under `web/vendor/`.
 
-- **CSP:** The existing `script-src 'self'` and `img-src 'self' data:` (verify current policy) covers image preview via `<img src="blob:">` or data-URLs derived from the `/api/files/read` response. No new CSP carve-outs needed if images are fetched via `fetch()` and converted to object URLs in-browser. Confirm this in Phase 1 of v3.4.
+- **Unsaved-changes guard on desktop (Wails):** Wails v2 does not expose `window.onbeforeunload` in a way that reliably intercepts window close or tab navigation. The guard must be a React-level concern: a `useEffect` that registers against the existing `app:quit-requested` event pathway when the editor is dirty. Navigation to another file within the file browser tab must also check dirty state before replacing the editor content.
 
----
+- **TUI shell-out file path:** The TUI `$EDITOR` shell-out passes the file's absolute path (within the sandbox) to the editor. The daemon resolves this from the session's WorkDir + relative path before handing it to the TUI. This is local-only — remote TUI writes stream file content via HTTPS to the remote peer, not via `$EDITOR` on the remote machine.
 
-## Layout Pattern Recommendation
+- **web-share files.write security phase:** The `files.write` opt-in for web-share is the highest-risk surface in v3.5. It MUST be a separate phase with dedicated security review. The security concerns: (1) path traversal on writes (sandbox handles this, but new write code paths need the same fuzz testing as v3.4 read paths); (2) upload size limits and DoS via large uploads; (3) the capability grant UI must make the risk explicit to the session owner. This phase should include a new `FuzzSandboxWrite` fuzz corpus extending v3.4's `FuzzSandboxPath`.
 
-### Why NOT tree + list (VS Code Explorer style) inside the tab
-
-AgentHub already has a left sidebar. Adding a second tree pane inside the file browser tab creates a dual-sidebar visual: `[AgentHub sidebar] | [file tree pane] | [file list pane]`. This is visually crowded and creates a conceptual mismatch — the AgentHub sidebar is for app-level navigation (sessions, settings) while the file tree would be for within-session navigation. Users would need to track two distinct navigation hierarchies simultaneously.
-
-VS Code can do this because its sidebar IS the file tree — there is no separate app-level sidebar above it. AgentHub does not have that luxury.
-
-### Why NOT miller columns (macOS Finder columns view)
-
-Miller columns work well for deep hierarchies where you explore multiple branches simultaneously. File trees inside an AI session's working directory are typically shallow (2-4 levels) and users usually know roughly what they are looking for. The columns model also requires significant horizontal space; inside a tab that may be 800–1200px wide, three usable columns would each be ~280px — not enough for typical paths. Miller columns also have notorious horizontal-scroll complexity for deeper trees.
-
-### Recommended: Single-pane list with inline preview (GitHub web viewer model)
-
-The best fit for AgentHub's existing chrome is a **flat single-pane directory listing with a slide-in or side-by-side preview panel**, matching GitHub's file viewer and VS Code's Explorer single-panel-click-to-preview behavior.
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ [AgentHub sidebar]  │  /project/src  >  components  >  Button.tsx  [remote] │
-│                     │ ─────────────────────────────────────────────────────  │
-│                     │ Name ↑        Size       Modified          Preview     │
-│                     │ ─────────────────────────────────────────────────────  │
-│                     │ 📁 __tests__             2026-05-18        ──────────  │
-│                     │ 📁 utils                 2026-05-17        Button.tsx  │
-│                     │ 📄 Button.tsx      3 KB  2026-05-20        ────────── │
-│                     │ 📄 index.ts        1 KB  2026-05-19        <preview>  │
-│                     │ ────────────────────────              (text/markdown   │
-│                     │ 4 items          [/] filter                /image)     │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-- When the pane is narrow (< ~600px), the preview hides and the list fills the width. Clicking/Enter on a file opens the preview in a slide-over or modal.
-- When wide, the list is ~40% of the tab width and the preview fills the rest.
-- The breadcrumb path bar is pinned at the top of the tab content area, below the tab chrome.
-- No tree pane. Navigation is purely linear: click/Enter into a directory, Backspace/click breadcrumb to go up.
-
-This matches what users expect from a **file browser embedded in a session-management app** (not a standalone file manager): simple, list-based, good for opening specific files you already know are there or doing quick directory exploration.
+- **Remote peer version gate:** Remote write attempts against a v3.4 peer (which has no write endpoints) return 405 Method Not Allowed. The client must detect 405 and show: "The remote session is running an older version of AgentHub that does not support file writes." Do not surface a generic network error.
 
 ---
 
-## Browse Interaction Details
+## Cross-Surface Parity Analysis
 
-### Keyboard Navigation (GUI + Web)
+The release-blocking parity contract (established in v3.3 Phases 107/108, reaffirmed in v3.4
+Phase 122) requires write operations to behave equivalently across all surfaces.
 
-The file list must behave as an ARIA `tree` (folders with children) or `grid`/`listbox` (flat list) — for a flat single-pane model, `role="listbox"` or `role="grid"` is the correct ARIA pattern (not `role="tree"` which implies a persistent visible hierarchy). Given the flat navigation model:
+### What Parity Means for Write Operations
 
-| Key | Behavior |
-|-----|----------|
-| Up / Down arrows | Move selection |
-| Enter | Open directory (navigate into) / open preview for file |
-| Backspace | Navigate up one level (no-op at root) |
-| Home / End | Jump to first / last item |
-| PageUp / PageDown | Scroll by page |
-| `/` | Activate type-ahead filter input |
-| Escape | Clear filter if active; otherwise does nothing |
+| Operation | Desktop GUI | Web-share Browser | TUI | CLI |
+|-----------|-------------|-------------------|-----|-----|
+| Edit-and-save | CodeMirror 6 editor in FileBrowserTab, Cmd+S | Same editor via web-share HTTPS, Ctrl+S | `$EDITOR` shell-out (local); HTTPS stream (remote) | Out of scope — use terminal tab |
+| Upload | File picker + drag-and-drop in FileBrowserTab | Same UI via web-share | No in-TUI upload; TUI shows "use desktop/web" message | Out of scope — use terminal tab |
+| Delete | Delete key + confirmation modal | Same UI via web-share | `d` key + confirmation modal (Bubble Tea dialog) | Out of scope — use terminal tab |
+| Rename | F2 inline edit | Same UI via web-share | `r` key + inline rename | Out of scope — use terminal tab |
+| Mkdir | Toolbar button + inline name input | Same UI via web-share | `m` key + inline name input | Out of scope — use terminal tab |
+| Remote session | daemon proxy `/api/files/remote/{sid}/write` | N/A (remote web-share has own HTTPS) | Direct HTTPS to remote peer with `files.write` cap | N/A |
 
-**Type-ahead filter:** Activated by `/`. As the user types, the list narrows to items whose name contains the typed string (case-insensitive substring, not fuzzy — predictable for this context). Results are current directory only. The filter state is shown in the status line: `Filtering: "comp"` with item count. ESC clears.
+### TUI Parity Notes
 
-**Single-click vs double-click semantics:** Single click selects (shows preview). Double-click opens directory. This matches VS Code Explorer and GitHub. Rationale: double-click matches OS file browser conventions for "open"; single-click for preview matches VS Code's "peek" behavior.
+- **Edit:** `$EDITOR` shell-out is the TUI parity for the GUI editor. The parity is behavioral (edit-and-save is possible on all surfaces) not visual (TUI does not embed CodeMirror).
+- **Upload:** TUI has no upload mechanism. This is the one intentional parity gap — TUI shows "Use desktop or web to upload files." (same pattern as image preview in v3.4). Follow-up issue may be filed if demand arises.
+- **Delete/Rename/Mkdir:** These use standard Bubble Tea interaction patterns (key + confirmation dialog using the existing kill-session confirmation dialog pattern). Full TUI parity for these three operations.
+- **Remote writes in TUI:** Direct HTTPS to remote peer with `files.write` cap (same as v3.4 TUI remote read pattern via `RemoteFilesClient`).
 
-**Drag-out:** Not in scope for v3.4 (web security model for drag-out-to-download is complex; the download button in the preview pane covers the use case).
+### CLI Parity Notes
 
----
-
-## Preview Pane Details
-
-### When to Render What
-
-| File Type | Preview |
-|-----------|---------|
-| Text (plain, source code, config, .env, .txt, .log) | Raw monospace text, no syntax highlighting in v3.4 |
-| Markdown (.md, .markdown, .mdx) | Rendered markdown (use existing or vendored renderer) |
-| Images (PNG, JPEG, WebP, GIF, SVG) | `<img>` element with `object-fit: contain`, max-height of preview pane. Size displayed in header. |
-| Binary (detected by MIME type or null-byte heuristic in daemon) | Refusal message + download button (see copy below) |
-| File > 5 MB (default cap, configurable) | "File too large to preview" message + download button |
-| Empty file | "Empty file (0 bytes)" |
-| Symlink to file | Preview the target, with a header note: `→ actual/path` |
-| Broken symlink | "Broken symlink: target does not exist" |
-
-### Binary / Too Large Copy
-
-Both cases should be informative and offer a next action:
-
-**Binary file:** "This file cannot be previewed (binary content). [Download]"
-- Matches GitHub's "Sorry, we can't display non-text files inline." pattern but adds the download CTA.
-
-**Too large:** "This file is too large to preview (12.3 MB, limit is 5 MB). [Download]"
-- Shows actual size and current limit so the user understands the constraint.
-
-### Image Preview Sizing
-
-- `object-fit: contain` inside the preview pane bounds.
-- Preserve aspect ratio. No upscaling beyond natural size.
-- Display dimensions below the image: `1920 × 1080 px — 245 KB`.
-- For SVGs: render with `<img>` (not inline SVG injection, which would be an XSS risk even for internal files). CSP `img-src 'self' blob:` covers this if served via the files endpoint.
-
-### Preview Pane in TUI
-
-The TUI cannot render images (no sixel for this path — see anti-features). It renders:
-- Text and markdown: plain text in a `viewport.Model` (markdown stripped of formatting, or rendered as lipgloss-styled plain text for headings/emphasis — a simple pass over the content).
-- Binary / too large: "Use the desktop or web app to preview this file type."
-- Status line shows: relative path + file type + size.
+CLI does not expose file browser commands — users interact with files via the terminal session itself. This is consistent with v3.4 (CLI exposes no file-browse commands either). Not a parity gap.
 
 ---
 
-## Sort and Filter Defaults
+## Remote Writes — Behavior and Constraints
 
-| Column | Default | Toggle Behavior |
-|--------|---------|-----------------|
-| Name | Ascending (A→Z) | Click/key: toggle asc/desc |
-| Size | Descending on first click | Toggle asc/desc |
-| Modified (mtime) | Descending on first click (newest first) | Toggle asc/desc |
-| Directories-first | Always ON in v3.4 | Not user-toggleable in v3.4 (v3.5) |
-
-**Filter scope:** Current directory only. Not recursive.
-
-**Filter activation:** `/` key. This avoids the Cmd-F collision with xterm.js scrollback search. The bubbles `list.Model` uses `/` as its default filter key natively — this aligns well for TUI consistency.
+| Scenario | Expected Behavior | Constraint |
+|----------|-------------------|------------|
+| Local session (desktop GUI) | Write directly via daemon Unix socket; cap not required on socket side (trusted local surface, WEB-01 decision from v3.4) | None — full writes available |
+| Local session (TUI) | Same daemon Unix socket path | None |
+| Remote session (desktop GUI) | GUI hits `daemon proxy /api/files/remote/{sid}/write`, daemon proxies to remote peer's `/api/files/write` with `files.write` cap | Remote peer must have web-sharing enabled; remote session owner must have granted `files.write` in cap |
+| Remote session (TUI) | `RemoteFilesClient` dials remote peer HTTPS directly, sends `files.write`-bearing cap token | Same as above; TLS 1.2+ pinned |
+| Web-share viewer (local session) | Browser hits `/api/files/write` on the hosting peer; `requireFilesWrite` middleware gates | Viewer must have been granted `files.write` in the web-share cap grant |
+| Web-share viewer (remote session) | Browser accesses the remote peer's HTTPS directly with cap | `files.write` cap must be granted on the remote session's web-share grant |
 
 ---
 
-## Path Bar / Breadcrumb
+## MVP Definition for v3.5
 
-- Segments are clickable (navigate up to that level).
-- The root segment is the session cwd, displayed as a shortened form: `~/project` or `/home/user/project`. It is not clickable (already at root).
-- When user attempts to navigate above root (via Backspace at root, or clicking root breadcrumb): no-op. Root breadcrumb is not a link, it is plain text.
-- No free-form path input in v3.4. Absolute path paste is an anti-feature this milestone (see above). The breadcrumb is display-only + clickable segments only.
-- For remote sessions: show `(remote: hostname)` or `via tailnet` as a non-clickable badge at the right end of the path bar.
+### Launch With (Core Write + Editor)
 
----
+- [ ] `files.write` capability bit + `requireFilesWrite` middleware (mirrors `files.read`/`requireFilesRead`)
+- [ ] `POST /api/files/write` with atomic temp+rename and If-Match ETag conflict detection
+- [ ] `DELETE /api/files/delete` (file + directory recursive, sandbox-validated)
+- [ ] `PATCH /api/files/rename` (within sandbox, same directory)
+- [ ] `POST /api/files/mkdir` (within sandbox)
+- [ ] `POST /api/files/upload` (single file, streamed multipart)
+- [ ] CodeMirror 6 vendored + integrated into FileBrowserTab (replaces plain-text preview for editable files)
+- [ ] Read-only to edit toggle (explicit Edit button; no auto-edit)
+- [ ] Dirty-state indicator in editor header
+- [ ] Unsaved-changes warning on navigate-away (React-level guard)
+- [ ] Cmd/Ctrl+S save shortcut
+- [ ] Save success/failure feedback (three-state pattern)
+- [ ] 412 conflict UX (force-overwrite / save-as / discard options)
+- [ ] Delete confirmation modal (file + directory variants)
+- [ ] Rename collision warning (409)
+- [ ] TUI `$EDITOR` shell-out on `e` key (local sessions only)
+- [ ] `$EDITOR` unset error message
+- [ ] Syntax highlighting via CodeMirror language packs (common languages)
+- [ ] Binary file — no Edit button (IsBinary = true from stat)
+- [ ] Large-file editor guard (warn + disable syntax highlight > 500KB)
+- [ ] `files.write` opt-in for web-share (security-focused phase, explicit confirmation, FuzzSandboxWrite corpus)
+- [ ] Remote tailnet peer write parity (GUI + TUI, following v3.4 Phase 122 proxy pattern)
+- [ ] TD-4 (Phase 120 WR-01..05 hardening) and TD-5 (ExchangeJoinCode shim cleanup) folded in
 
-## Remote Session Handling
+### Add After Validation (v3.5.x or v3.6)
 
-- **Visual indicator:** A `remote` badge in the path bar or status line showing the session hostname. Not a blocking UI — just ambient context. Matches how the CLI attach bar shows `hostname` already.
-- **Latency:** `GET /api/files/list` goes through the existing relay for remote sessions. The React component shows a per-directory spinner (not a full-tab loading state) while waiting. This matches how RemoteSessionsPanel handles its 30s auto-refresh: data shows while stale until fresh.
-- **Large preview downloads over relay:** The daemon streams the file via Range-capable `GET /api/files/read`. The preview pane should show a "Downloading…" progress indicator while the response streams, especially for files approaching the 5 MB cap. A simple progress bar or "Loading (2.1 MB / 5 MB)…" line is sufficient.
-- **Network error:** Show in the listing pane: "Could not load directory — network error. [Retry]". Use BannerStack for persistent network error messaging, not an inline replaced-list message.
-
----
-
-## Empty / Loading / Error States
-
-| State | Display |
-|-------|---------|
-| **Loading directory** | Spinner row replacing the list; "Loading…" in status line |
-| **Empty directory** | Centered: "This directory is empty." (with the path in the breadcrumb for context) |
-| **Permission denied** | "Permission denied: cannot list this directory." with the path. No retry affordance (it won't change without write access). |
-| **Not found (path deleted mid-session)** | "Directory not found. It may have been moved or deleted. [Go to root]" |
-| **Network error (remote session)** | BannerStack error: "Lost connection to remote session. [Retry]" |
-| **Broken symlink in listing** | Row shows `⚠ broken symlink` annotation in dimmed text. Still selectable; preview pane shows "Broken symlink: target does not exist." |
-| **Empty file** | Preview pane: "Empty file (0 bytes)." |
-| **File read error** | "Could not read this file — permission denied." or generic "read error." |
-
----
-
-## TUI File Browser Patterns
-
-### Architecture Decision: Custom list.Model, Not bubbles/filepicker
-
-The `bubbles/filepicker` component (v2) is a selection-dialog pattern: its core abstraction is "pick a file and return the selected path." It has no built-in read-only browse mode, no viewport split, no preview integration, and its styling is constrained to predefined `Styles` struct fields. For AgentHub's use case — a persistent tab with list+preview split — custom is the right choice.
-
-**Recommended TUI architecture:**
-
-```
-TUI Files View (tea.Model)
-├── list.Model (custom ItemDelegate)
-│     └── FileItem{name, isDir, size, mtime, isSymlink, isBroken}
-│     └── FilterValue() = name (fuzzy match via built-in list filter)
-│     └── Delegate.Render: icon + name + size + mtime, TokyoNight colors
-│     └── Default keys: up/down/pgup/pgdown/home/end + "/" filter
-├── viewport.Model (preview pane)
-│     └── SetContent(previewText) — plain text or stripped markdown
-│     └── Keys: j/k, Ctrl-d/u, PageUp/PageDown (viewport defaults)
-├── breadcrumb []string (current path components)
-├── focused: "list" | "preview"
-└── Tab key: toggle focus between list and preview panes
-
-View():
-    left  := lipgloss.NewStyle().Border(...).Width(leftW).Render(m.list.View())
-    right := lipgloss.NewStyle().Border(...).Width(rightW).Render(m.preview.View())
-    body  := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
-    return lipgloss.JoinVertical(lipgloss.Left, breadcrumbBar, body, statusLine)
-```
-
-### Split Pane Width Allocation
-
-For terminals wider than ~120 columns: 40% list / 60% preview.
-For terminals 80–119 columns: 50% / 50%.
-For terminals < 80 columns: full-width list, no preview pane (show preview on Enter in a modal overlay using the existing TUI overlay pattern).
-
-### Preview in TUI
-
-- Text files: pass through `viewport.SetContent()`. Use `lipgloss.NewStyle().Foreground(tokyonightFg)` for the content.
-- Markdown: render as plain text with simple styling: `#` headings become bold, `**` becomes bright. No full markdown-to-ANSI pipeline needed. An `ansi`-aware string formatter is sufficient.
-- Binary / image: "Use the desktop or web app to preview this file type." centered in the viewport.
-- Large files: "File too large to preview in TUI (12 MB)." — no download affordance in TUI (no system browser integration from TUI context).
-
-### TUI Filter
-
-The `list.Model` has built-in filter with `/` activation. Use it directly — no need to reimplement. Filter state is shown in the list's built-in filter status bar. This matches the GUI's `/` activation choice, giving consistent UX across surfaces.
-
----
-
-## Accessibility (GUI + Web)
-
-### Required for WCAG AA
-
-| Requirement | Implementation |
-|-------------|----------------|
-| **Keyboard-only operation** | Full keyboard navigation with the keybindings in the table above. No mouse-only affordance. |
-| **ARIA landmark for file list** | `role="region"` with `aria-label="File browser"` wrapping the entire tab content. |
-| **List semantics** | The flat listing: `role="listbox"` with `aria-label="Directory contents"`. Each item: `role="option"`. Selected item: `aria-selected="true"`. |
-| **Preview region** | `role="region"` with `aria-label="File preview"`. Dynamic content: `aria-live="polite"` so screen readers announce file name / type when preview changes. |
-| **Breadcrumb nav** | `<nav aria-label="Path">` with `<ol>` of `<li>` segments; current location as `aria-current="page"` on the last segment. |
-| **Sort button accessibility** | Sort column buttons: `aria-sort="ascending"` / `"descending"` / `"none"`. |
-| **Focus management** | When navigating into a directory, focus moves to the first item in the new listing (not back to the breadcrumb). |
-| **Error messages** | Error states announced via `role="alert"` or `aria-live="assertive"`. |
-| **Selection contrast** | Selected item background must meet 3:1 contrast ratio against the list background. Use TokyoNight selection tokens (already audited in v1.14 Phase 72). |
-| **Icon non-text content** | Directory/file icons: `aria-hidden="true"` on the icon, visible text name carries the accessible label. |
-| **Type-ahead filter input** | When `/` activates filter: move focus to the filter input element. `aria-label="Filter files"`, `role="searchbox"`. |
-
-### Contrast for Selection States
-
-AgentHub's existing WCAG audit (v1.14 Phase 72) established `#9aa5ce` on dark backgrounds. For file browser selection, use the TokyoNight selection highlight (`#2d4f67` background with `#c0caf5` text) — this is the same selection color used in the existing TUI. Verify 4.5:1 contrast ratio for text on selection background before shipping.
-
----
-
-## User Expectation Gap: Embedded vs Standalone
-
-Users approaching a file browser **inside a session management app** have different expectations than users of a standalone file manager (Finder, Explorer, Cyberduck):
-
-| Dimension | Standalone file manager | AgentHub file browser tab |
-|-----------|-------------------------|--------------------------|
-| **Scope expectation** | Full filesystem, mounted volumes, network shares | Just "what is in this session's working directory" — users already understand the session has a cwd |
-| **Action expectation** | Copy, move, delete, rename, create | Read, preview, download — users accept read-only when the context is "inspect this session's files" |
-| **Navigation depth** | Arbitrary, often with bookmarks | Shallow — 2-4 levels is typical for a project directory |
-| **Discoverability** | Primary use case | Secondary use case — the primary value is the terminal; file browser is supporting context |
-| **Refresh expectation** | Automatic (filesystem events) | Manual or on-navigate — users in a dev session understand files change; a Refresh button is sufficient |
-| **Find/search scope** | Full filesystem search | Current directory filter is sufficient; they have `find`/`rg` in the terminal |
-| **Download affordance** | Copy/move to another location | Download to local machine — especially important for remote Tailscale sessions |
-
-The key implication: **the bar is lower than a standalone file manager** but **higher than a tree sidebar** in an IDE. Users expect a clean functional read-only browser, not macOS Finder feature parity.
-
----
-
-## MVP Definition (v3.4)
-
-### Launch With
-
-- [ ] **Directory listing:** name, size, mtime columns, directories-first, sorted by name ascending by default
-- [ ] **Keyboard navigation:** Up/Down/Enter/Backspace/Home/End/PageUp/PageDown
-- [ ] **Breadcrumb path bar:** clickable segments, sandboxed to session cwd, remote indicator
-- [ ] **Type-ahead filter:** `/` key activation, current directory scope, ESC to clear
-- [ ] **Sort by name / size / mtime:** click column header toggles asc/desc
-- [ ] **Text preview:** raw monospace, 5 MB cap, size shown in header
-- [ ] **Markdown rendered preview:** markdown → HTML render, same 5 MB cap
-- [ ] **Image preview:** PNG / JPEG / WebP / GIF / SVG, aspect-ratio preserved
-- [ ] **Binary refusal:** explicit message + Download button
-- [ ] **Too large refusal:** explicit message with size + cap + Download button
-- [ ] **Empty directory state:** "This directory is empty."
-- [ ] **Loading / error states:** spinner, permission-denied, not-found, network-error messages
-- [ ] **Broken symlink display:** annotated row, preview shows "broken symlink" message
-- [ ] **Capability-gate for web-share viewers without files.read:** tab-level message
-- [ ] **TUI Files view:** list.Model + viewport.Model split, TokyoNight palette, text/markdown preview, image/binary referral message, type-ahead filter, breadcrumb status line
-- [ ] **Cross-surface parity:** GUI + Web + TUI all expose browse+preview (with image delta noted)
-- [ ] **ARIA landmarks + keyboard accessibility:** listbox, region, nav breadcrumb, aria-live preview
-
-### Add After Validation (v3.5)
-
-- [ ] **Write operations:** upload, delete, rename, mkdir — v3.5 explicit
-- [ ] **Syntax-highlighted preview:** editor library (CodeMirror 6 vs Monaco) decided in v3.5
-- [ ] **Recursive filter / file search**
-- [ ] **Absolute path input in breadcrumb**
-- [ ] **Sort persistence per session**
-- [ ] **Auto-refresh on filesystem change (inotify / FSEvents)**
-- [ ] **TUI $EDITOR shell-out**
-- [ ] **Context menu (right-click)**
-- [ ] **Directories-first toggle**
+- [ ] Multi-file upload — trigger: single-file upload bakes under real use
+- [ ] Move across directories — trigger: rename lands cleanly; confirm demand
+- [ ] Concurrent-edit viewer count indicator — trigger: multi-viewer write collision reported
+- [ ] Filesystem-change auto-refresh (inotify/FSEvents/ReadDirectoryChanges) — trigger: user-reported friction with stale listings
+- [ ] Right-click context menu with write ops — trigger: write ops are table stakes; context menu is discoverability polish
 
 ---
 
@@ -406,87 +274,84 @@ The key implication: **the bar is lower than a standalone file manager** but **h
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Directory listing + keyboard nav | HIGH | LOW | P1 |
-| Breadcrumb path bar | HIGH | LOW | P1 |
-| Type-ahead filter (/ key) | HIGH | MEDIUM (Cmd-F collision avoidance) | P1 |
-| Text file preview | HIGH | MEDIUM | P1 |
-| Markdown rendered preview | HIGH | MEDIUM | P1 |
-| Sort name/size/mtime | MEDIUM | LOW | P1 |
-| Image preview | MEDIUM | MEDIUM | P1 |
-| Binary / too-large refusal + download | HIGH | LOW | P1 |
-| Empty / error / loading states | HIGH | LOW | P1 |
-| Broken symlink display | MEDIUM | LOW | P1 |
-| Remote session indicator | MEDIUM | LOW | P1 |
-| Capability gate for web-share | HIGH | LOW | P1 |
-| TUI Files view (custom list+viewport) | HIGH (parity contract) | MEDIUM | P1 |
-| ARIA accessibility | HIGH (release contract) | MEDIUM | P1 |
-| Lazy-load / download progress for remote | LOW-MEDIUM | MEDIUM | P2 |
-| Context menu (right-click) | LOW | MEDIUM | P3 |
-| Absolute path paste input | LOW | MEDIUM | P3 (v3.5) |
-| Recursive filter | MEDIUM | HIGH | P3 (v3.5) |
-| Syntax highlighting | MEDIUM | HIGH | P3 (v3.5, editor library) |
-| Write operations | HIGH | HIGH | OUT (v3.5) |
-| Directories-first toggle | LOW | LOW | P3 (v3.5) |
-| TUI image preview (sixel) | LOW | HIGH | OUT (v3.4); revisit v3.5 |
+| `files.write` capability bit + middleware | HIGH (gating all writes) | LOW | P1 |
+| `POST /api/files/write` + atomic + If-Match | HIGH | MEDIUM | P1 |
+| `DELETE /api/files/delete` (file + dir) | HIGH | MEDIUM | P1 |
+| `PATCH /api/files/rename` | HIGH | LOW | P1 |
+| `POST /api/files/mkdir` | HIGH | LOW | P1 |
+| `POST /api/files/upload` (single) | HIGH | MEDIUM | P1 |
+| CodeMirror 6 integration | HIGH (milestone centrepiece) | MEDIUM | P1 |
+| Edit toggle (explicit, not auto) | HIGH | LOW | P1 |
+| Dirty-state indicator | HIGH | LOW | P1 |
+| Unsaved-changes warning | HIGH | LOW-MEDIUM | P1 |
+| Cmd/Ctrl+S save | HIGH | LOW | P1 |
+| Save feedback (three-state) | MEDIUM | LOW | P1 |
+| 412 conflict UX | HIGH (data safety) | MEDIUM | P1 |
+| Delete confirmation modal | HIGH (safety) | LOW | P1 |
+| Syntax highlighting (common languages) | HIGH (reason for editor library) | MEDIUM | P1 |
+| Binary file — no edit button | HIGH (correctness) | LOW | P1 |
+| TUI `$EDITOR` shell-out | HIGH (parity contract) | MEDIUM | P1 |
+| `$EDITOR` unset error | MEDIUM | LOW | P1 |
+| web-share `files.write` opt-in | HIGH (most-exposed surface) | HIGH (dedicated security phase) | P1 |
+| Remote tailnet peer writes | HIGH (release-blocking parity) | HIGH | P1 |
+| Large-file editor guard | MEDIUM | LOW | P1 |
+| Rename collision warning (409) | MEDIUM | LOW | P1 |
+| Upload overwrite warning (409) | MEDIUM | LOW | P1 |
+| Multi-file upload | MEDIUM | MEDIUM | P2 |
+| Move across directories | MEDIUM | MEDIUM-HIGH | P2 |
+| Concurrent-edit viewer count indicator | LOW-MEDIUM | MEDIUM | P3 |
+| Filesystem-change auto-refresh | MEDIUM | HIGH | P3 (v3.6) |
+| Right-click context menu (write ops) | LOW-MEDIUM | MEDIUM | P3 |
+| Git diff integration | LOW | HIGH | OUT |
+| Real-time multi-cursor (CRDT/OT) | LOW (wrong use case) | VERY HIGH | OUT |
+| Auto-save | LOW (dangerous in AI session context) | LOW | OUT |
+| Binary hex editor | LOW | HIGH | OUT |
+
+**Priority key:**
+- P1: Must have for v3.5 release (closes Issues #63, #64, #24)
+- P2: Should have; add when core is validated
+- P3: Nice to have; v3.6+
+- OUT: Explicitly out of scope
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | VS Code Explorer | GitHub web viewer | Ranger (TUI) | Cyberduck/FileZilla | AgentHub v3.4 (proposed) |
-|---------|-----------------|-------------------|--------------|---------------------|--------------------------|
-| Layout | Tree pane in sidebar + list (but sidebar IS the tree pane) | Single-pane list with inline preview | Three-column miller (parent / current / preview) | Split: local + remote panes | Single-pane list + slide-in/side-by-side preview within tab |
-| Keyboard nav | Full arrow + Enter; j/k with Vim mode extension | Arrow keys partial; primarily mouse | vi-style hjkl; / for search | Tab between panes, arrow keys | Up/Down/Enter/Backspace/Home/End/PgUp/PgDn + / filter |
-| Filter | Explorer filter (Ctrl-P for file, Ctrl-E for within Explorer) | Search in repo (separate feature) | / in ranger | Name filter in toolbar | / key, current dir scope |
-| Sort | Name/size/mtime with dirs-first option | Name/type; dirs first by default | By name, type, time | Name/size/date | Name/size/mtime with dirs-first |
-| Preview | Click file → opens in editor | Click file → inline preview with syntax highlight (for text); image inline | Right panel shows preview (text/image via w3m/ueberzug) | Preview via macOS Quick Look | Side-by-side pane: text/markdown/image; binary refusal + download |
-| Binary handling | "Binary files cannot be displayed" | "Sorry, we can't display non-text files inline. You can view the raw file or download it." | Shows hex dump option | Download only | "This file cannot be previewed (binary content). [Download]" |
-| Too-large handling | Warns + offers Raw view | "The file is too large to display." + Raw/Download links | Shows size, offers download via opener | Streams large files | "File too large to preview (N MB, limit 5 MB). [Download]" |
-| Markdown | Side-by-side preview (Cmd-K V) | Rendered inline | Not rendered (plain text) | Not rendered | Rendered in preview pane |
-| Image preview | Preview in editor pane | Inline in viewer | Via w3m/ueberzug (external) | Via Quick Look (macOS) | Inline in preview pane, aspect-ratio preserved |
-| Remote indicator | No (always local) | No (always web) | No | Strong: local vs remote explicit split panes | `(remote: hostname)` badge in path bar |
-| Accessibility | Good; full keyboard, ARIA tree | Moderate; some ARIA landmark issues | TUI-only; inherently keyboard-first | Moderate | ARIA listbox + region + breadcrumb nav; aria-live preview |
-| TUI parity | N/A | N/A | IS the TUI | N/A | Custom list.Model + viewport.Model, TokyoNight palette |
+| Feature | VS Code / Codespaces | GitHub Web Editor | Gitea/Forgejo Web | AgentHub v3.5 (proposed) |
+|---------|----------------------|-------------------|-------------------|--------------------------|
+| Edit-and-save | CodeMirror (web) / Monaco (desktop) | CodeMirror 6 (github.dev) | CodeMirror 6 | CodeMirror 6 |
+| Conflict detection | None (last-write-wins in Codespaces) | ETag/If-Match on raw file API | Optimistic locking via commit SHA | If-Match on mtime+size ETag (412 UX prompt) |
+| Atomic write | Yes (VS Code uses tmp+rename) | Server-side (GitHub storage layer) | Server-side | Yes (tmp+rename within sandbox) |
+| Delete | Confirmation modal | Confirmation modal | Confirmation with commit message | Confirmation modal (no commit) |
+| Upload | Drag-and-drop, multi-file | Drag-and-drop | Web UI upload | Single file (v3.5); multi-file (v3.5 stretch) |
+| Rename/move | Drag + F2, cross-directory | Web UI (limited) | Web UI | F2 inline, same-directory (v3.5); cross-dir stretch |
+| TUI equivalent | Terminal + `$EDITOR` | N/A | N/A | `$EDITOR` shell-out (tea.Exec) |
+| Remote writes | Local only in Codespaces | N/A (always remote) | N/A | Remote tailnet peer writes via HTTPS |
+| Capability gating | Role-based (repo permissions) | Repo write permission | Repo write permission | `files.write` capability bit, per-session, opt-in for web-share |
+| Auto-save | Yes (configurable) | Yes | No | No (intentionally — AI session context) |
+| Syntax highlighting | Extensive language packs | Extensive language packs | CodeMirror 6 built-ins | CodeMirror 6 common language packs |
 
 ---
 
 ## Sources
 
-**ARIA / Accessibility (HIGH confidence — official spec):**
-- [ARIA: tree role — MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Roles/tree_role)
-- [Tree View Pattern — W3C WAI-ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/patterns/treeview/)
-- [ARIA: treeitem role — MDN](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/treeitem_role)
+**Architecture (HIGH confidence — authoritative project source):**
+- v3.4 REQUIREMENTS.md (shipped, 48/48 requirements satisfied) — existing API contract, capability model, sandbox design, `os.OpenRoot` pattern, `requireFilesRead` middleware, `HasPerm` whole-token split
+- PROJECT.md v3.5 milestone scoping — ratified scope, `files.write` design, editor library decision, phase numbering, TD-4/TD-5 carry
+- v3.4 FEATURES.md (prior research) — read-side feature landscape and dependency patterns that v3.5 extends
 
-**Charmbracelet / Bubble Tea (HIGH confidence — official docs):**
-- [bubbles list.Model — pkg.go.dev](https://pkg.go.dev/github.com/charmbracelet/bubbles/list)
-- [bubbles list README — GitHub](https://github.com/charmbracelet/bubbles/blob/master/list/README.md)
-- [bubbles/v2 viewport — pkg.go.dev](https://pkg.go.dev/github.com/charmbracelet/bubbles/v2/viewport)
-- [bubbles filepicker — pkg.go.dev](https://pkg.go.dev/github.com/charmbracelet/bubbles/filepicker)
-- [charmbracelet/bubbles — GitHub](https://github.com/charmbracelet/bubbles)
-- [charmbracelet/bubbletea — GitHub](https://github.com/charmbracelet/bubbletea)
+**CodeMirror 6 (MEDIUM-HIGH confidence — well-documented community knowledge):**
+- CodeMirror 6 is used by GitHub (github.dev, github.com file editor), Replit, and Glitch. ~200KB bundle, CSP-clean (no `eval`), extensible language packs. PROJECT.md and v3.4 REQUIREMENTS.md explicitly name CodeMirror 6 as the ratified choice, closing the Monaco vs CodeMirror decision.
 
-**TUI file manager patterns (MEDIUM confidence — docs + community):**
-- [ranger wiki — Keybindings](https://github.com/ranger/ranger/wiki/Keybindings)
-- [ranger — Arch Wiki](https://wiki.archlinux.org/title/Ranger)
-- [Terminal file managers — DEV Community](https://dev.to/ccoveille/terminal-file-managers-1b5l)
-- [tere — terminal file explorer](https://github.com/mgunyho/tere)
+**Atomic-write patterns (HIGH confidence — Go stdlib + POSIX spec):**
+- `os.Rename` is atomic on POSIX when source and destination are on the same filesystem (POSIX `rename(2)` spec). Same-directory temp file satisfies this within the sandboxed `os.OpenRoot` scope. Go's `os.Rename` calls `MoveFileEx(MOVEFILE_REPLACE_EXISTING)` on Windows since Go 1.5+.
 
-**VS Code Explorer (MEDIUM confidence — public docs):**
-- [VS Code User Interface](https://code.visualstudio.com/docs/getstarted/userinterface)
-- [VS Code Custom Layout](https://code.visualstudio.com/docs/configure/custom-layout)
+**ETag/If-Match conflict detection (HIGH confidence — HTTP spec + GitHub API patterns):**
+- RFC 7232 defines `If-Match` / `ETag` semantics and 412 Precondition Failed. GitHub Content API uses ETag on file SHA for conflict detection. mtime+size shortcut is a standard REST API implementation simplification.
 
-**GitHub / GitLab file viewer limits (MEDIUM confidence — official docs + community):**
-- [About large files on GitHub — GitHub Docs](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github)
-- [GitHub community: too big / binary files not displayed](https://github.com/orgs/community/discussions/46179)
-- [GitLab forum: PDF too large to display](https://forum.gitlab.com/t/this-pdf-is-too-large-to-display-please-download-to-view/105829)
-
-**Cyberduck (MEDIUM confidence — official docs):**
-- [Cyberduck Browser documentation](https://docs.cyberduck.io/cyberduck/browser/)
-
-**Miller columns (MEDIUM confidence — Wikipedia + UX articles):**
-- [Miller columns — Wikipedia](https://en.wikipedia.org/wiki/Miller_columns)
-- [Interaction Design for Trees — Medium](https://medium.com/@hagan.rivers/interaction-design-for-trees-5e915b408ed2)
+**`tea.Exec` for `$EDITOR` shell-out (HIGH confidence — established in AgentHub TUI attach):**
+- The `tea.Exec` suspend/resume pattern is already used in AgentHub's TUI attach (`internal/tui/update.go`). The `$EDITOR` shell-out is structurally identical. No new primitives required.
 
 ---
-*Feature research for: AgentHub v3.4 read-only file browser (GUI + web + TUI parity)*
-*Researched: 2026-05-20*
+*Feature research for: AgentHub v3.5 write-side file browser + in-app code editor*
+*Researched: 2026-06-14*
