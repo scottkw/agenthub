@@ -156,6 +156,14 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/stat", a.handleRemoteFilesStat)
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
 	a.mux.HandleFunc("HEAD /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
+	// Phase 124-03 / CAP-10: five remote write proxy routes.
+	// These are daemon-socket loopback routes (WEB-01) — no auth middleware or
+	// Origin check; the remote peer's requireFilesWrite enforces cap+CSRF.
+	a.mux.HandleFunc("PUT /api/files/remote/{sessionID}/write", a.handleRemoteFilesWrite)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/upload", a.handleRemoteFilesUpload)
+	a.mux.HandleFunc("DELETE /api/files/remote/{sessionID}/delete", a.handleRemoteFilesDelete)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/rename", a.handleRemoteFilesRename)
+	a.mux.HandleFunc("POST /api/files/remote/{sessionID}/mkdir", a.handleRemoteFilesMkdir)
 }
 
 // Handler returns the API's underlying http.Handler (the registered mux).
