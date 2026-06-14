@@ -299,7 +299,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12 (completed 2026-06-14)
 - [x] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10 (completed 2026-06-14)
-- [ ] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13
+- [x] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13 (completed 2026-06-14)
 - [ ] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07
 - [ ] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07
 - [ ] **Phase 128: Remote Write Parity + Cross-Surface Integration** — RMW-01..RMW-06
@@ -381,7 +381,7 @@ Plans:
 4. All write affordances (create file, mkdir, delete, rename, cross-directory move via "Move to…" picker, single file upload, multi-file upload with per-file progress, drag-and-drop into the directory listing) are visible and operable only when `canWrite` is true; a 409 name-collision on rename or upload shows "A file named X already exists. Replace it?" with Cancel as the default action.
 5. Playwright cross-browser e2e (Chromium + Firefox + WebKit) passes all scenarios: local write-and-save, web-share write with a `files.write` cap, 403 without the cap, create file, mkdir, delete file, delete directory (recursive confirm with file count), rename, cross-directory move, single upload, multi-file upload, 412 conflict flow, binary-file no-edit, large-file guard — zero CSP violations in any browser; `vendor_drift_test.go` passes with CodeMirror packages version-matched.
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 - [x] 125-01-PLAN.md — Server If-Match/412 + ETag + CodeMirror vendor-drift gate + Playwright WRITE_CAP fixture (Wave 0)
@@ -389,7 +389,7 @@ Plans:
 - [x] 125-03-PLAN.md — Save flow: Cmd/Ctrl+S + If-Match, three-state indicator, dirty state, unsaved guard, 412 conflict modal
 - [x] 125-04-PLAN.md — Directory write affordances: create file, mkdir, rename, delete (recursive count), cross-directory move
 - [x] 125-05-PLAN.md — Upload (single + multi, XHR per-file progress) + drag-and-drop
-- [ ] 125-06-PLAN.md — Playwright cross-browser e2e (14 scenarios) + CSP-violation gate + desktop parity checkpoint
+- [x] 125-06-PLAN.md — Playwright cross-browser e2e (14 scenarios) + CSP-violation gate + desktop parity checkpoint
 
 **UI hint**: yes
 
@@ -501,7 +501,7 @@ Plans:
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
 | 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
 | 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
-| 125 | v3.5 | 5/6 | In Progress|  |
+| 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
 | 126 | v3.5 | 0/TBD | Not started | - |
 | 127 | v3.5 | 0/TBD | Not started | - |
 | 128 | v3.5 | 0/TBD | Not started | - |
