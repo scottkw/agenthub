@@ -164,12 +164,23 @@ export function useFilesWrite(
     [client, sessionId],
   )
 
+  // ─── Plan 05: upload — XHR with per-file progress (EDIT-10) ─────────────────
+
+  /**
+   * Upload a single file via XHR to the current directory.
+   *
+   * Uses XMLHttpRequest for per-file upload.onprogress events — fetch has no
+   * upload-progress API (PATTERNS §Upload is the exception to fetchOrThrow).
+   *
+   * Throws FilesApiError(409) on collision (caller shows CollisionConfirmModal),
+   * FilesApiError(413) on over-cap (caller surfaces the skip message).
+   */
   const upload = useCallback(
-    async (_dir: string, _file: File, _onProgress?: (pct: number) => void): Promise<void> => {
-      // Plan 05: XHR upload with progress — stub.
-      throw new Error('upload not implemented (Plan 05)')
+    async (dir: string, file: File, onProgress?: (pct: number) => void): Promise<void> => {
+      if (client === null) return
+      await client.uploadFile(sessionId, dir, file, onProgress)
     },
-    [],
+    [client, sessionId],
   )
 
   const clearConflict = useCallback(() => {

@@ -75,25 +75,32 @@ describe('useFilesWrite.ts — upload real implementation (Plan 05)', () => {
 // ─── Task 1: XHR functional test — uploadFile sends correct request ───────────
 
 describe('filesApi.uploadFile() — XHR functional test', () => {
+  // Shared mutable state captured from XHR instance construction.
   let xhrOpenCalls: Array<[string, string]> = []
   let xhrSendArg: unknown = null
-  let xhrListeners: Record<string, Function> = {}
-  let xhrUploadListeners: Record<string, Function> = {}
-  let XhrSpy: new () => object
+  // Pointer to the ACTUAL XHR instance created by uploadFile() — lets us
+  // mutate `status`/`responseText` on the real object before firing 'load'.
+  let xhrInstanceRef: Record<string, unknown> | null = null
 
   beforeEach(() => {
     xhrOpenCalls = []
     xhrSendArg = null
-    xhrListeners = {}
-    xhrUploadListeners = {}
+    xhrInstanceRef = null
 
-    XhrSpy = class {
+    vi.stubGlobal('XMLHttpRequest', class {
       status = 200
       responseText = ''
+      _listeners: Record<string, Function> = {}
+      _uploadListeners: Record<string, Function> = {}
       upload = {
-        addEventListener(ev: string, fn: Function) {
-          xhrUploadListeners[ev] = fn
+        addEventListener: (ev: string, fn: Function) => {
+          this._uploadListeners[ev] = fn
         },
+      }
+      constructor() {
+        // Store a reference to THIS instance so tests can mutate it.
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        xhrInstanceRef = this as unknown as Record<string, unknown>
       }
       open(method: string, url: string) {
         xhrOpenCalls.push([method, url])
@@ -103,15 +110,32 @@ describe('filesApi.uploadFile() — XHR functional test', () => {
       }
       setRequestHeader() {}
       addEventListener(ev: string, fn: Function) {
-        xhrListeners[ev] = fn
+        this._listeners[ev] = fn
       }
-    }
-    vi.stubGlobal('XMLHttpRequest', XhrSpy)
+    })
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
+
+  /** Helper: set status on the captured XHR instance and fire its 'load' listener. */
+  function fireLoad(status: number, responseText = '') {
+    if (!xhrInstanceRef) throw new Error('XHR instance not captured')
+    xhrInstanceRef['status'] = status
+    xhrInstanceRef['responseText'] = responseText
+    const listeners = xhrInstanceRef['_listeners'] as Record<string, Function>
+    const fn = listeners['load']
+    if (fn) fn.call(xhrInstanceRef, new Event('load'))
+  }
+
+  /** Helper: fire the upload 'progress' listener. */
+  function fireProgress(loaded: number, total: number) {
+    if (!xhrInstanceRef) throw new Error('XHR instance not captured')
+    const uploadListeners = xhrInstanceRef['_uploadListeners'] as Record<string, Function>
+    const fn = uploadListeners['progress']
+    if (fn) fn.call(null, { lengthComputable: true, loaded, total })
+  }
 
   it('uses POST for the upload request', async () => {
     const { FilesApiClient } = await import('../../../lib/filesApi')
@@ -119,9 +143,7 @@ describe('filesApi.uploadFile() — XHR functional test', () => {
     const file = new File(['hello'], 'test.txt', { type: 'text/plain' })
 
     const promise = client.uploadFile('sid1', 'docs', file)
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) loadFn.call({ status: 200 }, new Event('load'))
+    fireLoad(200)
     await promise
 
     expect(xhrOpenCalls.length).toBe(1)
@@ -137,9 +159,7 @@ describe('filesApi.uploadFile() — XHR functional test', () => {
     const file = new File(['data'], 'file.txt')
 
     const promise = client.uploadFile('sess99', 'images', file)
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) loadFn.call({ status: 200 }, new Event('load'))
+    fireLoad(200)
     await promise
 
     const url = xhrOpenCalls[0][1]
@@ -154,9 +174,7 @@ describe('filesApi.uploadFile() — XHR functional test', () => {
     const file = new File(['abc'], 'notes.txt')
 
     const promise = client.uploadFile('s1', 'my/dir', file)
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) loadFn.call({ status: 200 }, new Event('load'))
+    fireLoad(200)
     await promise
 
     expect(xhrSendArg).toBeInstanceOf(FormData)
@@ -175,50 +193,37 @@ describe('filesApi.uploadFile() — XHR functional test', () => {
 
     const promise = client.uploadFile('s1', '.', file, (pct) => captured.push(pct))
 
-    const progressFn = xhrUploadListeners['progress']
-    if (progressFn) {
-      progressFn.call(null, { lengthComputable: true, loaded: 50, total: 100 })
-    }
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) loadFn.call({ status: 200 }, new Event('load'))
+    fireProgress(50, 100)
+    fireLoad(200)
     await promise
 
     expect(captured).toContain(50)
   })
 
   it('rejects with FilesApiError(isCollision) on 409', async () => {
-    const { FilesApiClient, FilesApiError } = await import('../../../lib/filesApi')
-    const client = new FilesApiClient({ baseURL: 'http://localhost:8080' })
+    const mod = await import('../../../lib/filesApi')
+    const client = new mod.FilesApiClient({ baseURL: 'http://localhost:8080' })
     const file = new File(['x'], 'dup.txt')
 
     const promise = client.uploadFile('s1', '.', file)
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) {
-      loadFn.call({ status: 409, responseText: 'file exists' }, new Event('load'))
-    }
+    fireLoad(409, 'file exists')
 
     const err = await promise.then(() => null).catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(FilesApiError)
-    expect((err as FilesApiError).isCollision()).toBe(true)
+    expect(err).toBeInstanceOf(mod.FilesApiError)
+    expect((err as InstanceType<typeof mod.FilesApiError>).isCollision()).toBe(true)
   })
 
   it('rejects with FilesApiError(isOverCap) on 413', async () => {
-    const { FilesApiClient, FilesApiError } = await import('../../../lib/filesApi')
-    const client = new FilesApiClient({ baseURL: 'http://localhost:8080' })
+    const mod = await import('../../../lib/filesApi')
+    const client = new mod.FilesApiClient({ baseURL: 'http://localhost:8080' })
     const file = new File(['x'], 'huge.zip')
 
     const promise = client.uploadFile('s1', '.', file)
-
-    const loadFn = xhrListeners['load']
-    if (loadFn) {
-      loadFn.call({ status: 413, responseText: 'too large' }, new Event('load'))
-    }
+    fireLoad(413, 'too large')
 
     const err = await promise.then(() => null).catch((e: unknown) => e)
-    expect(err).toBeInstanceOf(FilesApiError)
-    expect((err as FilesApiError).isOverCap()).toBe(true)
+    expect(err).toBeInstanceOf(mod.FilesApiError)
+    expect((err as InstanceType<typeof mod.FilesApiError>).isOverCap()).toBe(true)
   })
 })
 
