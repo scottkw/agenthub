@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -127,6 +128,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case filesReadMsg:
 		return m.applyFilesReadMsg(msg)
+
+	case filesEditReadyMsg:
+		return m.applyFilesEditReadyMsg(msg)
+
+	case editorExitMsg:
+		return m.applyEditorExitMsg(msg)
+
+	case filesOpMsg:
+		return m.applyFilesOpMsg(msg)
 
 	case joinCodeResultMsg:
 		return m.applyJoinCodeResultMsg(msg)
@@ -872,4 +882,72 @@ func isShellCLI(cli string) bool {
 		return true
 	}
 	return false
+}
+
+// applyFilesEditReadyMsg handles the result of editFetchCmd: the file bytes
+// have been written to a host-local temp file. If fetching failed, set an
+// error toast and refresh the listing. On success, suspend the TUI and hand
+// the terminal to the editor process. The editor path + temp file path arrive
+// in msg — no need to call resolveEditor() again (T-126-04: argv, not shell).
+func (m Model) applyFilesEditReadyMsg(msg filesEditReadyMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.toast = fmt.Sprintf("Edit: %s", msg.err)
+		m.toastKind = toastError
+		m.toastExp = time.Now().Add(3 * time.Second)
+		m.files.generation++
+		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
+	}
+	// T-126-04: pass tmpPath as a separate argv element, never via shell string.
+	cmd := exec.Command(msg.editor, msg.tmpPath) //nolint:gosec // editor resolved via LookPath; tmpPath is a controlled os.CreateTemp path
+	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return editorExitMsg{
+			sessionID:  msg.sessionID,
+			generation: msg.generation,
+			tmpPath:    msg.tmpPath,
+			relPath:    msg.relPath,
+			exitErr:    err,
+		}
+	})
+}
+
+// applyEditorExitMsg handles editorExitMsg: the editor process has exited.
+// Per TUIW-04, the write-back and listing refresh are UNCONDITIONAL — they
+// happen regardless of the editor's exit code. This matches the locked
+// design decision that prevents silent data loss when an editor exits non-zero
+// (e.g. the user force-quit vim). A toast is shown on non-zero exit, but the
+// write-back still runs.
+//
+// Batch order: tea.ClearScreen, editWriteBackCmd, loadDirCmd (TUIW-04).
+func (m Model) applyEditorExitMsg(msg editorExitMsg) (tea.Model, tea.Cmd) {
+	cmds := []tea.Cmd{tea.ClearScreen}
+	if msg.exitErr != nil {
+		m.toast = fmt.Sprintf("Editor exited with error: %s", msg.exitErr)
+		m.toastKind = toastError
+		m.toastExp = time.Now().Add(3 * time.Second)
+	}
+	// UNCONDITIONAL write-back — NOT gated on exitErr==nil (TUIW-04).
+	cmds = append(cmds, editWriteBackCmd(m.files.client, msg.sessionID, msg.relPath, msg.tmpPath, msg.generation))
+	m.files.generation++
+	cmds = append(cmds, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation))
+	return m, tea.Batch(cmds...)
+}
+
+// applyFilesOpMsg handles the result of a write operation (edit write-back,
+// delete, rename, mkdir). Stale messages (generation behind current) are
+// silently discarded (WR-03). On error, a toast is shown. On success the
+// listing is already refreshed by the unconditional loadDirCmd in the
+// editorExitMsg / op handler.
+func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
+	if msg.generation < m.files.generation {
+		return m, nil // stale — discard
+	}
+	if msg.err != nil {
+		m.toast = fmt.Sprintf("%s failed: %s", msg.op, msg.err)
+		m.toastKind = toastError
+		m.toastExp = time.Now().Add(3 * time.Second)
+		// Re-run a fresh listing so the UI shows the current state.
+		m.files.generation++
+		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
+	}
+	return m, nil
 }

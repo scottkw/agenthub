@@ -550,6 +550,28 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.files.selected = target
 		return m, nil
 
+	case s == "e":
+		// TUIW-02: edit a file in the user's $EDITOR via a temp-file round-trip.
+		// Works uniformly for local AND remote sessions (temp file is always
+		// host-local; only the byte transport differs — ARCHITECTURE.md §5.3).
+		entries := m.files.filteredEntries()
+		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
+			return m, nil
+		}
+		entry := entries[m.files.selected]
+		if entry.IsDir {
+			return m, nil // 'e' is a no-op on directories
+		}
+		editor := resolveEditor()
+		if editor == "" {
+			// TUIW-03: verbatim locked error copy — no crash, no silent no-op.
+			m.files.err = errors.New("`$EDITOR` is not set. Set it in your shell profile (e.g. `export EDITOR=nano`).")
+			return m, nil
+		}
+		rel := joinDir(m.files.cwd, ansi.Strip(entry.Name))
+		m.files.generation++ // WR-03: supersede any in-flight request
+		return m, editFetchCmd(m.files.client, m.files.sessionID, rel, editor, m.files.generation)
+
 	case s == "enter":
 		entries := m.files.filteredEntries()
 		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {

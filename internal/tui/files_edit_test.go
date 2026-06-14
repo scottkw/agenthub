@@ -244,9 +244,9 @@ func TestEditorExit_RefreshesUnconditionally(t *testing.T) {
 		_, cmd := m.Update(msg)
 		cmds := unpackBatch(t, cmd)
 
-		// ClearScreen is a func that returns tui.clearScreenMsg (unexported type).
-		// Identify it by its package-qualified type name.
-		assertBatchContainsMsgType(t, cmds, "tui.clearScreenMsg")
+		// ClearScreen is a func that returns tea.clearScreenMsg (unexported type
+		// in the bubbletea package). Identify it by its package-qualified type name.
+		assertBatchContainsMsgType(t, cmds, "tea.clearScreenMsg")
 		// editWriteBackCmd with nil client returns filesOpMsg.
 		assertBatchContainsMsgType(t, cmds, "tui.filesOpMsg")
 		// loadDirCmd with nil client returns filesListMsg.
@@ -276,7 +276,7 @@ func TestEditorExit_RefreshesUnconditionally(t *testing.T) {
 
 		// KEY ASSERTION: write-back must be present even when exitErr != nil.
 		// A regression that gates write-back on exitErr==nil would fail here.
-		assertBatchContainsMsgType(t, cmds, "tui.clearScreenMsg")
+		assertBatchContainsMsgType(t, cmds, "tea.clearScreenMsg")
 		assertBatchContainsMsgType(t, cmds, "tui.filesOpMsg")   // editWriteBackCmd
 		assertBatchContainsMsgType(t, cmds, "tui.filesListMsg") // loadDirCmd
 	})
