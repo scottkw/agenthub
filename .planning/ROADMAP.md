@@ -297,7 +297,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 <details>
 <summary>🚧 v3.5 File Browser — Write Operations & Editor (Phases 123-128) — IN PROGRESS</summary>
 
-- [ ] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12
+- [x] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12 (completed 2026-06-14)
 - [ ] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10
 - [ ] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13
 - [ ] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07
@@ -324,13 +324,13 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 4. `DaemonClient.ExchangeJoinCodeAtURL` correctly parses a `303 Location: ...?cap=<token>` response (TD-5 fixed): a desktop GUI can now acquire a remote session cap without silent failure, unblocking all remote-write testing in Phase 128.
 5. `go test ./internal/files/... ./internal/daemon/...` is green with the race detector enabled; the five daemon write routes (`PUT /api/files/write`, `POST /api/files/upload`, `DELETE /api/files/delete`, `POST /api/files/rename`, `POST /api/files/mkdir`) are accessible on the local Unix socket with no authentication required (loopback trust, WEB-01 precedent).
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 123-01-PLAN.md — Sandbox write primitives (atomic write, rename, mkdir, delete) + shell-RC denylist + FuzzSandboxWrite (FSW-01..04, 06, 07)
 - [x] 123-02-PLAN.md — TD cleanup: TD-5 ExchangeJoinCodeAtURL 303 parse + TD-4 WR-03/04/05 hardening (FSW-10, 11)
 - [x] 123-03-PLAN.md — HTTP write handlers + 5 auth-less daemon routes + 50 MiB upload cap (FSW-05, 08, 12)
-- [ ] 123-04-PLAN.md — DaemonClient write methods (FSW-09)
+- [x] 123-04-PLAN.md — DaemonClient write methods (FSW-09)
 
 **UI hint**: no
 
@@ -484,7 +484,7 @@ Plans:
 | 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
-| 123 | v3.5 | 3/4 | In Progress|  |
+| 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
 | 124 | v3.5 | 0/TBD | Not started | - |
 | 125 | v3.5 | 0/TBD | Not started | - |
 | 126 | v3.5 | 0/TBD | Not started | - |
