@@ -120,30 +120,48 @@ export function useFilesWrite(
     [client, sessionId, clearSavedTimer],
   )
 
-  // ─── Stub members for Plan 04/05 ─────────────────────────────────────────
+  // ─── Plan 04: del / rename / mkdir real implementations ─────────────────────
 
+  /**
+   * Delete a file or directory. The server handles recursive directory delete
+   * within the os.Root sandbox. The caller is responsible for showing the
+   * DeleteConfirmModal (with file count for directories) before calling this.
+   *
+   * Throws FilesApiError on server errors (404 / 403 / 500).
+   */
   const del = useCallback(
-    async (_path: string): Promise<void> => {
-      // Plan 04: delete file/dir — stub.
-      throw new Error('del not implemented (Plan 04)')
+    async (path: string): Promise<void> => {
+      if (client === null) return
+      await client.del(sessionId, path)
     },
-    [],
+    [client, sessionId],
   )
 
+  /**
+   * Rename a file/directory, or move it across directories (a rename with a
+   * different parent path). Cross-directory move calls rename with both the
+   * oldRel and newRel paths — the server validates BOTH via validateAndClean
+   * (T-125-10, Phase 123 FSW-02).
+   *
+   * Throws FilesApiError(409) on name collision (fs.ErrExist → 409).
+   */
   const rename = useCallback(
-    async (_oldPath: string, _newPath: string): Promise<void> => {
-      // Plan 04: rename/move — stub.
-      throw new Error('rename not implemented (Plan 04)')
+    async (oldPath: string, newPath: string): Promise<void> => {
+      if (client === null) return
+      await client.rename(sessionId, oldPath, newPath)
     },
-    [],
+    [client, sessionId],
   )
 
+  /**
+   * Create a directory (mkdir). Throws FilesApiError(409) on collision.
+   */
   const mkdir = useCallback(
-    async (_path: string): Promise<void> => {
-      // Plan 04: create directory — stub.
-      throw new Error('mkdir not implemented (Plan 04)')
+    async (path: string): Promise<void> => {
+      if (client === null) return
+      await client.mkdir(sessionId, path)
     },
-    [],
+    [client, sessionId],
   )
 
   const upload = useCallback(

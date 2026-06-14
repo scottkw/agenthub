@@ -60,6 +60,17 @@ export interface FileListPaneProps {
   onSortChange: (key: SortKey) => void
   /** '/' key while list has focus — parent reveals filter input. */
   onFilterActivate: () => void
+  // ─── Optional write affordance props (Plan 04, EDIT-09/12) ───────────────
+  /** True when the session has files.write perm. Gates FileRowActions. */
+  canWrite?: boolean
+  /** Called when Edit is clicked for a specific entry. */
+  onRowEdit?: (entry: FileEntry) => void
+  /** Called when Rename is clicked for a specific entry (also triggered by F2). */
+  onRowRename?: (entry: FileEntry) => void
+  /** Called when Move is clicked for a specific entry. */
+  onRowMove?: (entry: FileEntry) => void
+  /** Called when Delete is clicked for a specific entry. */
+  onRowDelete?: (entry: FileEntry) => void
 }
 
 // Page size for PgUp/PgDn keys. Static value — UI-SPEC says viewport÷row-height
@@ -138,6 +149,11 @@ export function FileListPane({
   onNavigateUp,
   onSortChange,
   onFilterActivate,
+  canWrite,
+  onRowEdit,
+  onRowRename,
+  onRowMove,
+  onRowDelete,
 }: FileListPaneProps): React.ReactElement {
   // Compute the display list: filter, then sort.
   const displayEntries: FileEntry[] = useMemo(() => {
@@ -206,6 +222,15 @@ export function FileListPane({
         e.preventDefault()
         onFilterActivate()
         return
+      case 'F2': {
+        // F2 — rename selected row when canWrite (UI-SPEC §Keyboard affordances)
+        e.preventDefault()
+        if (canWrite && onRowRename && selectedIndex >= 0) {
+          const selected = displayEntries[selectedIndex]
+          if (selected) onRowRename(selected)
+        }
+        return
+      }
       default:
         // Tab + other keys fall through to native handling.
         return
@@ -351,6 +376,12 @@ export function FileListPane({
                 if (entry.isDir) onNavigateInto(entry.name)
                 else onSelect(entry.name)
               }}
+              // Phase 125-04: write affordances (optional — existing callers unaffected)
+              canWrite={canWrite}
+              onEdit={onRowEdit ? () => onRowEdit(entry) : undefined}
+              onRename={onRowRename ? () => onRowRename(entry) : undefined}
+              onMove={onRowMove ? () => onRowMove(entry) : undefined}
+              onDelete={onRowDelete ? () => onRowDelete(entry) : undefined}
             />
           ))
         )}

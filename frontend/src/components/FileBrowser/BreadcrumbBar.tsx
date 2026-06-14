@@ -1,5 +1,9 @@
+// Phase 125-04: New file / New folder toolbar buttons added to breadcrumb-actions.
+// These are rendered only when canWrite is true (EDIT-09/12).
+// Buttons use DocumentPlusIcon and FolderPlusIcon per UI-SPEC §5 Component Tree.
+
 import React, { useEffect, useState } from 'react'
-import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, DocumentPlusIcon, FolderPlusIcon } from '@heroicons/react/24/outline'
 import type { BreadcrumbSegment } from '../../lib/filesTypes'
 
 export interface BreadcrumbBarProps {
@@ -19,6 +23,13 @@ export interface BreadcrumbBarProps {
   onNavigateTo: (pathFromCwd: string) => void
   /** Click handler for the refresh icon. */
   onRefresh: () => void
+  // ─── Optional write affordance props (Plan 04, EDIT-09/12) ───────────────
+  /** True when the session has files.write perm. Gates New file / New folder. */
+  canWrite?: boolean
+  /** Called when the New file button is clicked (canWrite only). */
+  onNewFile?: () => void
+  /** Called when the New folder button is clicked (canWrite only). */
+  onNewFolder?: () => void
 }
 
 /**
@@ -65,6 +76,9 @@ export function BreadcrumbBar({
   refreshedAt,
   onNavigateTo,
   onRefresh,
+  canWrite,
+  onNewFile,
+  onNewFolder,
 }: BreadcrumbBarProps): React.ReactElement {
   const refreshedText = useRefreshedText(refreshedAt)
   const lastIndex = segments.length - 1
@@ -124,6 +138,31 @@ export function BreadcrumbBar({
           <span className="file-browser__breadcrumb-refreshed">
             {refreshedText}
           </span>
+        )}
+        {/* Phase 125-04: New file / New folder toolbar buttons — canWrite only (EDIT-09/12) */}
+        {canWrite && onNewFile && (
+          <button
+            type="button"
+            className="file-browser__btn file-browser__btn--icon"
+            aria-label="New file"
+            title="New file"
+            data-testid="file-browser-new-file"
+            onClick={onNewFile}
+          >
+            <DocumentPlusIcon aria-hidden="true" width={14} height={14} />
+          </button>
+        )}
+        {canWrite && onNewFolder && (
+          <button
+            type="button"
+            className="file-browser__btn file-browser__btn--icon"
+            aria-label="New folder"
+            title="New folder"
+            data-testid="file-browser-new-folder"
+            onClick={onNewFolder}
+          >
+            <FolderPlusIcon aria-hidden="true" width={14} height={14} />
+          </button>
         )}
         <button
           type="button"
