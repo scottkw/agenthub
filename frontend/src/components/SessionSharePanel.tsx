@@ -8,6 +8,12 @@ interface SessionSharePanelProps {
   writeURL: string
   readCode: string
   writeCode: string
+  /**
+   * Phase 124 / CAP-04: true when the owner has enabled file writes for this
+   * session. Gates the "Allow file editing" viewer opt-in (Surface 2).
+   * When false, the opt-in row is disabled (aria-disabled, opacity 0.6).
+   */
+  ownerWriteEnabled?: boolean
 }
 
 /**
@@ -26,6 +32,7 @@ export function SessionSharePanel({
   writeURL,
   readCode,
   writeCode,
+  ownerWriteEnabled = false,
 }: SessionSharePanelProps): React.ReactElement {
   const [readCopied, setReadCopied] = useState(false)
   const [writeCopied, setWriteCopied] = useState(false)
@@ -34,6 +41,12 @@ export function SessionSharePanel({
   const [readQRb64, setReadQRb64] = useState<string | null>(null)
   const [writeQRb64, setWriteQRb64] = useState<string | null>(null)
   const [qrError, setQrError] = useState<string | null>(null)
+
+  // Phase 124 / CAP-05: "Allow file editing" viewer opt-in state.
+  // Default OFF per T-124-14 (elevation of privilege if ON by default).
+  const [allowFileEditing, setAllowFileEditing] = useState(false)
+  // Inline confirmation state — shown when user toggles ON.
+  const [showWriteConfirm, setShowWriteConfirm] = useState(false)
 
   async function handleCopy(url: string, setter: (v: boolean) => void): Promise<void> {
     try {
@@ -52,6 +65,31 @@ export function SessionSharePanel({
     // exchange — encoding the cap directly would defeat that mitigation.
     const u = new URL(capURL)
     return `${u.protocol}//${u.host}/join?code=${code}`
+  }
+
+  // Phase 124 / CAP-05: toggle handler for "Allow file editing" viewer opt-in.
+  // Default OFF (T-124-14). ON is gated on ownerWriteEnabled (T-124-15).
+  // Toggling ON opens inline confirmation before activating.
+  function handleWriteOptinToggle(): void {
+    if (!ownerWriteEnabled) return // disabled guard (T-124-15)
+    if (allowFileEditing) {
+      // Toggle OFF: revert immediately.
+      setAllowFileEditing(false)
+      setShowWriteConfirm(false)
+    } else {
+      // Toggle ON: show inline confirmation before granting.
+      setShowWriteConfirm(true)
+    }
+  }
+
+  function handleWriteOptinConfirm(): void {
+    setAllowFileEditing(true)
+    setShowWriteConfirm(false)
+  }
+
+  function handleWriteOptinCancel(): void {
+    setAllowFileEditing(false)
+    setShowWriteConfirm(false)
   }
 
   async function handleToggleQR(which: 'read' | 'write'): Promise<void> {
@@ -132,6 +170,58 @@ export function SessionSharePanel({
           alt="QR code for read-only share link"
         />
       )}
+
+      {/* Phase 124 / CAP-05: "Allow file editing" viewer opt-in row.
+          Renders ABOVE the Full Access Link row per UI-SPEC Surface 2.
+          Default OFF (T-124-14). Disabled unless owner write is on (T-124-15). */}
+      <div
+        className="session-share-panel__write-optin"
+        aria-disabled={!ownerWriteEnabled}
+        style={!ownerWriteEnabled ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
+      >
+        <label
+          className={`settings-panel__toggle-row${allowFileEditing ? ' settings-panel__toggle-row--checked' : ''}`}
+          style={{ cursor: ownerWriteEnabled ? 'pointer' : 'not-allowed' }}
+        >
+          <input
+            type="checkbox"
+            className="settings-panel__toggle-input"
+            role="switch"
+            aria-checked={allowFileEditing}
+            aria-label="Allow file editing"
+            checked={allowFileEditing}
+            disabled={!ownerWriteEnabled}
+            onChange={handleWriteOptinToggle}
+          />
+          <span className="settings-panel__toggle-track">
+            <span className="settings-panel__toggle-thumb" />
+          </span>
+          <span className="settings-panel__toggle-label">Allow file editing</span>
+        </label>
+        {showWriteConfirm && (
+          <div className="session-share-panel__write-confirm">
+            <p className="session-share-panel__write-confirm-body">
+              This will allow the recipient to create, edit, delete, rename, and upload files in this session&apos;s working directory.
+            </p>
+            <div className="session-share-panel__write-confirm-actions">
+              <button
+                type="button"
+                className="daemon-panel__btn"
+                onClick={handleWriteOptinConfirm}
+              >
+                Confirm
+              </button>
+              <button
+                type="button"
+                className="daemon-panel__btn"
+                onClick={handleWriteOptinCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="session-share-panel__link-row">
         <span className="session-share-panel__label">Full Access Link</span>
