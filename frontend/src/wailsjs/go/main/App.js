@@ -115,3 +115,6 @@ export const IssueCapabilities       = (sessionID)          => Call('main.App.Is
 export const ExchangeJoinCode        = (code)               => Call('main.App.ExchangeJoinCode', [code])
 export const RegenerateSigningKey    = ()                   => Call('main.App.RegenerateSigningKey', [])
 export const GetCapabilityQRCode     = (joinURL)            => Call('main.App.GetCapabilityQRCode', [joinURL])
+
+// Phase 124 / CAP-04: per-session file-write toggle (owner binding).
+export const SetSessionFilesWrite    = (sessionID, enabled) => Call('main.App.SetSessionFilesWrite', [sessionID, enabled])

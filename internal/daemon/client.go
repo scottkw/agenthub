@@ -309,6 +309,14 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
+// SetSessionFilesWrite sets the per-session file-write toggle for a session.
+// Phase 124 / CAP-04. Mirrors ToggleWebServing but routes to the engine's
+// per-session write map (not a global write flag).
+func (c *DaemonClient) SetSessionFilesWrite(sessionID string, enabled bool) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/files-write",
+		SessionFilesWriteRequest{Enabled: enabled}, nil)
+}
+
 // IssueCapabilities mints the read + read,write capability pair for a
 // web-enabled session (D-07). Returns the URLs and single-use join codes
 // (D-09) for each. Called by the GUI/CLI/TUI after toggle-on.
