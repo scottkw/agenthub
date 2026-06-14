@@ -83,11 +83,11 @@ func TestXtermVendorVersionsMatchPnpmLock(t *testing.T) {
 }
 
 // pnpmCMKeyRe matches top-level pnpm-lock.yaml package keys for @codemirror/* and the
-// bare "codemirror" meta-package. Examples:
+// bare "codemirror" meta-package. pnpm v9 quotes scoped packages but NOT bare names:
 //
-//	  '@codemirror/state@6.4.1':
-//	  'codemirror@6.0.0':
-var pnpmCMKeyRe = regexp.MustCompile(`^  '(@codemirror/[\w-]+|codemirror)@([0-9][^']+)':`)
+//	  '@codemirror/state@6.4.1':    ← scoped, quoted
+//	  codemirror@6.0.2:             ← bare, no quotes
+var pnpmCMKeyRe = regexp.MustCompile(`^  '?(@codemirror/[\w-]+|codemirror)@([0-9][^':]+)'?:`)
 
 // TestCodeMirrorVersionsMatchPnpmLock asserts that every @codemirror/* package and
 // the bare "codemirror" package declared in frontend/package.json have the same
