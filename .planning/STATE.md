@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.4
-milestone_name: File Browser (Read-Only) + TUI Parity
-status: milestone_archived
-stopped_at: Milestone archived 2026-05-21 — release tagged v3.4
-last_updated: 2026-05-21T00:00:00.000Z
-last_activity: 2026-05-21 -- v3.4 milestone archived + tagged
+milestone: v3.5
+milestone_name: File Browser — Write Operations & Editor
+status: planning
+last_updated: "2026-06-14T06:14:38.289Z"
+last_activity: 2026-06-14
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 20
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 ## Current Position
 
-Phase: — (between milestones)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v3.4 archived + tagged; awaiting `/gsd:new-milestone`
-Last activity: 2026-05-21
+Status: Defining requirements
+Last activity: 2026-06-14 — Milestone v3.5 started
 
 ## Operator Next Steps (carried into v3.4)
 
