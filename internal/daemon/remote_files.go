@@ -166,10 +166,29 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 
 	upstreamURL := strings.TrimRight(baseURL, "/") + "/api/files/" + op + "?" + q.Encode()
 
-	req, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, nil)
+	// Forward the request body for write verbs (PUT, POST, PATCH). GET and HEAD
+	// reads are body-less; passing nil is correct for those. Forwarding r.Body
+	// opaquely (as a byte pipe) preserves multipart boundaries and
+	// application/json payloads without re-parsing them (CAP-10 / Pitfall 3).
+	var body io.Reader
+	if r.Method == http.MethodPut || r.Method == http.MethodPost || r.Method == http.MethodPatch {
+		body = r.Body
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL, body)
 	if err != nil {
 		http.Error(w, "build upstream request: "+redactCapTokenFromError(err, capToken), http.StatusInternalServerError)
 		return
+	}
+
+	// Forward the inbound Content-Type request header for write verbs so
+	// multipart boundaries and application/json payloads survive transit.
+	// The response-header forwarding (below) already handles response Content-Type;
+	// this block covers the request side which was previously not copied.
+	if body != nil {
+		if ct := r.Header.Get("Content-Type"); ct != "" {
+			req.Header.Set("Content-Type", ct)
+		}
 	}
 
 	client := a.remoteFilesClient()
