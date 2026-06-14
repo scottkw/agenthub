@@ -19,9 +19,15 @@
 // Document-level '/' filter activation: a keydown listener is mounted iff
 // isActive, mirroring isXtermFocused-style gating.
 
+// Phase 125-03: Editor + save flow + unsaved-changes guard + 412 conflict modal.
+// All navigation triggers (file-switch, navigate-up, tab-close) route through
+// guardThen() which opens UnsavedChangesModal when the buffer is dirty.
+// NO beforeunload — Wails blocks it; guard is entirely React-level (EDIT-07).
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FilesApiClient, FilesApiError, type FileEntry } from '../lib/filesApi'
 import { useFilesCapability } from '../lib/useFilesCapability'
+import { useFilesWrite } from '../lib/useFilesWrite'
 import type { BreadcrumbSegment, PreviewState, SortKey, SortDir } from '../lib/filesTypes'
 import { humanSize } from '../lib/humanSize'
 import { BreadcrumbBar } from './FileBrowser/BreadcrumbBar'
@@ -33,6 +39,10 @@ import { EnableWebSharingTakeover } from './FileBrowser/EnableWebSharingTakeover
 import { NetworkErrorState } from './FileBrowser/NetworkErrorState'
 import { EmptyDirectoryState } from './FileBrowser/EmptyDirectoryState'
 import { sortEntries } from './FileBrowser/sortEntries'
+import { Editor } from './Editor'
+import { EditorHeader } from './FileBrowser/EditorHeader'
+import { UnsavedChangesModal } from './FileBrowser/modals/UnsavedChangesModal'
+import { ConflictModal } from './FileBrowser/modals/ConflictModal'
 
 export interface FileBrowserTabProps {
   sessionId: string
@@ -133,7 +143,52 @@ export function FileBrowserTab({
     [baseURL, capToken, pathPrefix],
   )
 
-  const { state: capState, retry: retryCapability } = useFilesCapability(client, sessionId)
+  const { state: capState, retry: retryCapability, canWrite } = useFilesCapability(client, sessionId)
+
+  // Phase 125-03: write hook — write/del/rename/mkdir/upload + save state.
+  const {
+    write: writeFile,
+    isSaving,
+    saveState,
+    saveError,
+    isConflict,
+    clearConflict,
+    clearSaveError,
+  } = useFilesWrite(client, sessionId)
+
+  // ─── Editor state (EDIT-02, EDIT-05/06/07/08) ───
+  // `editingEntry` — the FileEntry being edited (null = preview/browse mode).
+  // `editContent`  — current CM6 buffer content (updated via onSave/onDirty).
+  // `editEtag`     — ETag echoed from readFileText; used as If-Match on save.
+  // `editDirty`    — true when buffer ≠ saved snapshot.
+  const [editingEntry, setEditingEntry] = useState<FileEntry | null>(null)
+  const [editContent, setEditContent] = useState<string>('')
+  const [editEtag, setEditEtag] = useState<string | undefined>(undefined)
+  const [editDirty, setEditDirty] = useState<boolean>(false)
+
+  // Unsaved-changes modal state (EDIT-07)
+  const [unsavedModalOpen, setUnsavedModalOpen] = useState<boolean>(false)
+  // Deferred action that will run after the unsaved-changes guard resolves.
+  const pendingActionRef = useRef<(() => void) | null>(null)
+
+  // Conflict modal state (EDIT-08) — opened by useFilesWrite when 412 fires.
+  // isConflict from useFilesWrite drives the modal open state directly.
+
+  // ─── guardThen: wrap any navigation action through the unsaved-changes guard ───
+  // All three navigation triggers (file-switch, navigate-up, tab-close) route here.
+  // NO beforeunload — Wails blocks it; this is pure React-level guarding (EDIT-07).
+  const guardThen = useCallback(
+    (action: () => void) => {
+      if (!editDirty || editingEntry === null) {
+        action()
+        return
+      }
+      // Buffer is dirty — open the modal and park the action.
+      pendingActionRef.current = action
+      setUnsavedModalOpen(true)
+    },
+    [editDirty, editingEntry],
+  )
 
   // Directory state
   const [path, setPath] = useState<string>('.')
@@ -253,11 +308,16 @@ export function FileBrowserTab({
   }, [client, sessionId, path, dirNonce, capState, retryCapability, isRemote, onReenterJoinCode])
 
   // Reset selection on path change so a stale row doesn't carry forward.
+  // Also exit edit mode when navigating to a new directory.
   useEffect(() => {
     setSelected(null)
     setPreview({ kind: 'idle' })
     setFilterActive(false)
     setFilterValue('')
+    setEditingEntry(null)
+    setEditContent('')
+    setEditDirty(false)
+    setEditEtag(undefined)
   }, [path])
 
   // ─── Preview fetch effect ───
@@ -315,6 +375,8 @@ export function FileBrowserTab({
           const body = await client.readFileText(sessionId, requestPath)
           if (cancelled || abort.signal.aborted) return
           if (requestSelected !== selected) return
+          // Phase 125-03: capture ETag for If-Match on subsequent write (EDIT-05).
+          setEditEtag(body.etag)
           setPreview({
             kind: 'markdown',
             text: body.text,
@@ -328,6 +390,8 @@ export function FileBrowserTab({
           const body = await client.readFileText(sessionId, requestPath)
           if (cancelled || abort.signal.aborted) return
           if (requestSelected !== selected) return
+          // Phase 125-03: capture ETag for If-Match on subsequent write (EDIT-05).
+          setEditEtag(body.etag)
           setPreview({
             kind: 'text',
             text: body.text,
@@ -393,7 +457,7 @@ export function FileBrowserTab({
     }
   }, [client, sessionId, path, selected, entries])
 
-  // ─── Navigation ───
+  // ─── Navigation (EDIT-07: all three triggers route through guardThen) ───
   const navigateInto = useCallback(
     (name: string) => {
       // Phase 120 WR-03 — UI-side defence-in-depth: reject any entry name that
@@ -416,22 +480,27 @@ export function FileBrowserTab({
       ) {
         return
       }
-      setPath((p) => joinPath(p, name))
+      // Guard: if a dirty file is open, confirm before navigating into a directory.
+      guardThen(() => setPath((p) => joinPath(p, name)))
     },
-    [],
+    [guardThen],
   )
 
   const navigateUp = useCallback(() => {
-    setPath((p) => (p === '.' || p === '' ? p : dirname(p)))
-  }, [])
+    // Guard: if a dirty file is open, confirm before navigating up.
+    guardThen(() => setPath((p) => (p === '.' || p === '' ? p : dirname(p))))
+  }, [guardThen])
 
   const navigateTo = useCallback(
     (segmentPath: string) => {
       // Defense-in-depth (UI-05): only accept '.' or a strict prefix of the
       // current path. The server sandbox is the actual security boundary.
-      setPath((p) => (isPrefixOrEqual(segmentPath, p) ? segmentPath : p))
+      // Guard: if a dirty file is open, confirm before jumping via breadcrumb.
+      guardThen(() =>
+        setPath((p) => (isPrefixOrEqual(segmentPath, p) ? segmentPath : p)),
+      )
     },
-    [],
+    [guardThen],
   )
 
   const refresh = useCallback(() => {
@@ -453,6 +522,52 @@ export function FileBrowserTab({
       })
     },
     [],
+  )
+
+  // ─── Editor open handler (EDIT-02/03/12) ───
+  // Called when the user clicks the Edit button in PreviewPane.
+  // Captures the ETag from the already-loaded preview bytes — no re-fetch (RESEARCH anti-pattern).
+  const handleEdit = useCallback(() => {
+    if (selected === null) return
+    const entry = entries.find((e) => e.name === selected)
+    if (!entry || entry.isDir || entry.isBinary) return
+
+    // Capture the preview text and ETag from the current preview state.
+    let initialText = ''
+    let etag: string | undefined = undefined
+    if (preview.kind === 'text' || preview.kind === 'markdown') {
+      initialText = preview.text
+    }
+    // ETag is stored on the preview state if we added it; fall back to undefined.
+    // In the current architecture the preview fetch (readFileText) returns etag;
+    // we thread it via a parallel editEtag state set in the preview effect.
+    etag = editEtag
+
+    setEditContent(initialText)
+    setEditDirty(false)
+    setEditingEntry(entry)
+    // If the preview fetch stored the etag, it's already in editEtag state.
+    // If not, we'll write with no If-Match (new-file semantics — safe fallback).
+    void etag // suppress unused warning; it's read from editEtag in onSave
+  }, [selected, entries, preview, editEtag])
+
+  // ─── Save handler (EDIT-05) ───
+  // Called by EditorHeader.onSave and by the Cmd-S keymap in Editor.tsx.
+  const handleSave = useCallback(
+    async (content?: string) => {
+      if (editingEntry === null) return
+      const filePath = joinPath(path, editingEntry.name)
+      const body = content ?? editContent
+      await writeFile(filePath, body, editEtag)
+      // On success (no throw), update editContent so subsequent dirty checks are
+      // against the new snapshot. The etag will be updated on the next read —
+      // for now continue with the same etag (server will 412 on next conflict).
+      if (!isConflict) {
+        setEditContent(body)
+        setEditDirty(false)
+      }
+    },
+    [editingEntry, path, editContent, editEtag, writeFile, isConflict],
   )
 
   // ─── Filter helpers ───
@@ -631,7 +746,8 @@ export function FileBrowserTab({
                   filter={filterValue}
                   truncated={truncated}
                   isActive={isActive}
-                  onSelect={setSelected}
+                  // Phase 125-03: file-switch routes through guardThen (EDIT-07)
+                  onSelect={(name) => guardThen(() => setSelected(name))}
                   onNavigateInto={navigateInto}
                   onNavigateUp={navigateUp}
                   onSortChange={onSortChange}
@@ -647,11 +763,70 @@ export function FileBrowserTab({
               data-testid="file-browser-divider"
               onMouseDown={onDividerMouseDown}
             />
-            <PreviewPane
-              state={preview}
-              filename={selected}
-              downloadUrl={downloadUrlForSelected}
-            />
+            {/* Phase 125-03: show Editor when in edit mode, PreviewPane otherwise */}
+            {editingEntry !== null ? (
+              <div className="file-browser__preview" data-testid="file-browser-preview">
+                <EditorHeader
+                  filename={editingEntry.name}
+                  filePath={joinPath(path, editingEntry.name)}
+                  dirty={editDirty}
+                  saveState={saveState}
+                  hasError={saveError !== null}
+                  isSaving={isSaving}
+                  onSave={() => { void handleSave() }}
+                  onCancel={() => {
+                    // Cancel routes through the guard if dirty
+                    guardThen(() => {
+                      setEditingEntry(null)
+                      setEditDirty(false)
+                    })
+                  }}
+                />
+                {/* Inline save error bar — non-takeover; content stays visible (EDIT-06) */}
+                {saveError !== null && (
+                  <div
+                    className="file-browser__editor-error"
+                    role="alert"
+                    aria-live="assertive"
+                  >
+                    <span>{saveError}</span>
+                    <button
+                      type="button"
+                      className="file-browser__btn file-browser__btn--icon"
+                      aria-label="Dismiss error"
+                      onClick={clearSaveError}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                <Editor
+                  filename={editingEntry.name}
+                  initialContent={editContent}
+                  fileSize={editingEntry.size}
+                  onDirty={setEditDirty}
+                  onSave={(content) => {
+                    setEditContent(content)
+                    void handleSave(content)
+                  }}
+                  onCancel={() => {
+                    guardThen(() => {
+                      setEditingEntry(null)
+                      setEditDirty(false)
+                    })
+                  }}
+                />
+              </div>
+            ) : (
+              <PreviewPane
+                state={preview}
+                filename={selected}
+                downloadUrl={downloadUrlForSelected}
+                canWrite={canWrite}
+                isBinary={entries.find((e) => e.name === selected)?.isBinary ?? false}
+                onEdit={handleEdit}
+              />
+            )}
           </div>
           <StatusLine
             itemCount={visibleCount}
@@ -660,6 +835,80 @@ export function FileBrowserTab({
             filterValue={filterValue}
             onFilterChange={setFilterValue}
             onFilterDismiss={onFilterDismiss}
+          />
+
+          {/* Phase 125-03: Modals rendered at FileBrowserTab root (portal-free, QuitConfirmModal pattern) */}
+
+          {/* Unsaved-changes navigation guard (EDIT-07) — NO beforeunload */}
+          <UnsavedChangesModal
+            isOpen={unsavedModalOpen}
+            onSave={() => {
+              setUnsavedModalOpen(false)
+              // Save, then proceed with the deferred action on success.
+              void handleSave().then(() => {
+                if (!isConflict) {
+                  const action = pendingActionRef.current
+                  pendingActionRef.current = null
+                  if (action) {
+                    setEditingEntry(null)
+                    setEditDirty(false)
+                    action()
+                  }
+                }
+              })
+            }}
+            onDiscard={() => {
+              setUnsavedModalOpen(false)
+              setEditingEntry(null)
+              setEditDirty(false)
+              const action = pendingActionRef.current
+              pendingActionRef.current = null
+              if (action) action()
+            }}
+            onCancel={() => {
+              setUnsavedModalOpen(false)
+              pendingActionRef.current = null
+            }}
+          />
+
+          {/* 412 Conflict modal (EDIT-08) — isConflict from useFilesWrite */}
+          <ConflictModal
+            isOpen={isConflict}
+            onForceOverwrite={() => {
+              clearConflict()
+              // Force overwrite: re-PUT with If-Match="*" (server skip-check)
+              void writeFile(joinPath(path, editingEntry?.name ?? ''), editContent, '*')
+            }}
+            onSaveAsNew={() => {
+              clearConflict()
+              // Save as new file: derive {basename}-copy{ext} path
+              if (editingEntry) {
+                const ext = editingEntry.name.includes('.')
+                  ? '.' + editingEntry.name.split('.').pop()!
+                  : ''
+                const base = ext
+                  ? editingEntry.name.slice(0, editingEntry.name.lastIndexOf('.'))
+                  : editingEntry.name
+                const newName = `${base}-copy${ext}`
+                const newPath = joinPath(path, newName)
+                void writeFile(newPath, editContent)
+              }
+            }}
+            onDiscard={() => {
+              clearConflict()
+              // Discard: re-fetch server content and replace the buffer.
+              if (selected !== null) {
+                const filePath = joinPath(path, selected)
+                void client.readFileText(sessionId, filePath).then((body) => {
+                  setEditContent(body.text)
+                  setEditEtag(body.etag)
+                  setEditDirty(false)
+                })
+              }
+            }}
+            onCancel={() => {
+              clearConflict()
+            }}
           />
         </>
       )}

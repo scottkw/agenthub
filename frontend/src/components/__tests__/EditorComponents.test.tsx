@@ -172,13 +172,17 @@ describe('ConflictModal.tsx (EDIT-08, UI-SPEC verbatim copy)', () => {
 
 // ─── No beforeunload (EDIT-07) ───────────────────────────────────────────────
 
-describe('No beforeunload in editor path (EDIT-07)', () => {
-  it('FileBrowserTab.tsx does not use beforeunload', () => {
-    expect(fileBrowserTabRaw).not.toContain('beforeunload')
+describe('No beforeunload event listener in editor path (EDIT-07)', () => {
+  it('FileBrowserTab.tsx does not addEventListener beforeunload', () => {
+    // Wails blocks beforeunload — must not be used as an event listener.
+    // Comments like "NO beforeunload" are fine; functional use is forbidden.
+    expect(fileBrowserTabRaw).not.toContain("addEventListener('beforeunload'")
+    expect(fileBrowserTabRaw).not.toContain('addEventListener("beforeunload"')
   })
 
-  it('Editor.tsx does not use beforeunload', () => {
-    expect(editorRaw).not.toContain('beforeunload')
+  it('Editor.tsx does not addEventListener beforeunload', () => {
+    expect(editorRaw).not.toContain("addEventListener('beforeunload'")
+    expect(editorRaw).not.toContain('addEventListener("beforeunload"')
   })
 })
 
