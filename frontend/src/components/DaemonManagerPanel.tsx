@@ -341,7 +341,7 @@ export function DaemonManagerPanel({
                   Lets this session create, edit, delete, rename, and upload files in its working directory. Off by default.
                 </p>
                 {writeError[s.id] && (
-                  <p className="settings-panel__error" style={{ margin: '0 0 4px 46px', fontSize: 12, color: '#f7768e' }}>
+                  <p className="settings-panel__error" style={{ margin: '0 0 4px 46px', fontSize: 12 }}>
                     {writeError[s.id]}
                   </p>
                 )}

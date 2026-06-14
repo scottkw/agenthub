@@ -10,7 +10,7 @@
  *   - Cancel closes confirmation and reverts to OFF
  *   - Both the opt-in toggle and owner toggle expose role="switch" + aria-checked
  */
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
@@ -93,7 +93,7 @@ describe('SessionSharePanel — Allow file editing opt-in (CAP-05)', () => {
     const hasDisabled =
       writeOptinRow!.getAttribute('aria-disabled') === 'true' ||
       writeOptinRow!.querySelector('[aria-disabled="true"]') !== null ||
-      (writeOptinRow!.style.opacity === '0.6') ||
+      ((writeOptinRow as HTMLElement).style.opacity === '0.6') ||
       writeOptinRow!.classList.contains('settings-panel__toggle-row--disabled')
     expect(hasDisabled).toBe(true)
   })
