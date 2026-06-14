@@ -139,21 +139,22 @@ export class FilesApiClient {
   }
 
   /**
-   * Read a text file. Returns the text body, the content-type, and the byte
-   * size (from content-length header — preflight-cheap for callers since the
-   * server has already produced the response).
+   * Read a text file. Returns the text body, the content-type, the byte size
+   * (from content-length header), and the ETag (from ETag header — emitted by
+   * Phase 125-01 handler.go; used as If-Match on subsequent writes, EDIT-05).
    */
   async readFileText(
     sid: string,
     path: string,
-  ): Promise<{ text: string; contentType: string; size: number }> {
+  ): Promise<{ text: string; contentType: string; size: number; etag: string | undefined }> {
     const url = `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
     const res = await this.fetchOrThrow(url)
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
     const sizeHeader = res.headers.get('content-length')
     const size = sizeHeader ? Number.parseInt(sizeHeader, 10) : 0
+    const etag = res.headers.get('etag') ?? undefined
     const text = await res.text()
-    return { text, contentType, size }
+    return { text, contentType, size, etag }
   }
 
   /** HEAD probe for size and content-type without downloading bytes — used by PreviewPane size check. */
@@ -177,5 +178,23 @@ export class FilesApiClient {
   /** Pure URL builder for the download fallback button (unsupported / over-cap states). */
   buildDownloadUrl(sid: string, path: string): string {
     return `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
+  }
+
+  /**
+   * Probe the write route to determine if the cap token carries files.write perm.
+   *
+   * Uses a HEAD request to the write endpoint with an empty body; the server's
+   * requireFilesWrite middleware runs before path resolution so a missing-perm
+   * 403 fires before any path-related error. Used by useFilesCapability on the
+   * web-share surface to resolve canWrite (Phase 125-02, EDIT-12).
+   *
+   * Throws FilesApiError(403) with body "files.write capability required" when
+   * the cap lacks files.write. Throws FilesApiError(405) if HEAD is not
+   * supported — callers treat any non-403-files.write error as canWrite=true
+   * (server is the real authority; the UI gate is advisory).
+   */
+  async probeWrite(sid: string, path: string): Promise<void> {
+    const url = `${this.baseURL}${this.pathPrefix}/write?${this.buildQuery(sid, path).toString()}`
+    await this.fetchOrThrow(url, { method: 'HEAD' })
   }
 }
