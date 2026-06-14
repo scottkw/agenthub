@@ -298,7 +298,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 <summary>🚧 v3.5 File Browser — Write Operations & Editor (Phases 123-128) — IN PROGRESS</summary>
 
 - [x] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12 (completed 2026-06-14)
-- [ ] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10
+- [x] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10 (completed 2026-06-14)
 - [ ] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13
 - [ ] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07
 - [ ] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07
@@ -352,13 +352,13 @@ Plans:
 4. The web-share grant UI shows an explicit `files.write` opt-in toggle (default OFF), and toggling it on includes the string `"files.write"` in the issued viewer cap token; the home-directory write warning is visible in both GUI and TUI when `files.write` is active for a session whose cwd is `$HOME`.
 5. `TestSettingsMigration_FilesWriteDefaultsFalse` passes: a settings file at `schemaVersion: 3` migrates to `schemaVersion: 4` with `FilesWrite: false` default; web-share `files.write` opt-in state persists across daemon restarts.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 124-01-PLAN.md — files.write cap const + requireFilesWrite middleware (HasPerm + CSRF Origin) + 5 webserver route mounts + integration/static-grep tests (CAP-01,02,03,07,09)
 - [x] 124-02-PLAN.md — per-session write opt-in state + schemaVersion 4 migration + cap-mint wiring + EvalSymlinks home-dir signal on SessionInfo/IssueCapabilities (CAP-04,06,08)
 - [x] 124-03-PLAN.md — proxyRemoteFiles body+Content-Type forwarding fix + 5 remote write proxy routes (CAP-10)
-- [ ] 124-04-PLAN.md — GUI owner write toggle + Wails binding chain + viewer "Allow file editing" opt-in + home-dir warning banner (CAP-04,05,06)
+- [x] 124-04-PLAN.md — GUI owner write toggle + Wails binding chain + viewer "Allow file editing" opt-in + home-dir warning banner (CAP-04,05,06)
 - [x] 124-05-PLAN.md — TUI home-dir write warning line, cross-surface parity (CAP-06)
 
 **UI hint**: yes
@@ -492,7 +492,7 @@ Plans:
 | 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
 | 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
-| 124 | v3.5 | 4/5 | In Progress|  |
+| 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
 | 125 | v3.5 | 0/TBD | Not started | - |
 | 126 | v3.5 | 0/TBD | Not started | - |
 | 127 | v3.5 | 0/TBD | Not started | - |
