@@ -101,6 +101,51 @@ func TestRemoteCapStore_PutRejectsEmpty(t *testing.T) {
 	}
 }
 
+// TestRemoteCapStore_PutRejectsMalformedBaseURL verifies WR-03: Put rejects
+// non-https or unparseable baseURLs at deposit time so proxyRemoteFiles can
+// never build a request from stored garbage and 500.
+func TestRemoteCapStore_PutRejectsMalformedBaseURL(t *testing.T) {
+	s := NewRemoteCapStore()
+	cases := []struct {
+		name    string
+		baseURL string
+	}{
+		{"http scheme", "http://peer.example"},
+		{"no scheme", "peer.example"},
+		{"empty host", "https://"},
+		{"ftp scheme", "ftp://peer.example"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := s.Put("sid", c.baseURL, "tok-abc")
+			if err == nil {
+				t.Fatalf("Put(%q): expected error for invalid baseURL; got nil", c.baseURL)
+			}
+		})
+	}
+}
+
+// TestRemoteCapStore_PutAcceptsValidHTTPS verifies WR-03: Put accepts well-formed
+// https:// URLs (with and without an explicit port).
+func TestRemoteCapStore_PutAcceptsValidHTTPS(t *testing.T) {
+	s := NewRemoteCapStore()
+	cases := []struct {
+		name    string
+		baseURL string
+	}{
+		{"bare hostname", "https://peer.example"},
+		{"hostname with port", "https://peer.example:8443"},
+		{"IP with port", "https://127.0.0.1:9000"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if err := s.Put("sid-"+c.name, c.baseURL, "tok-abc"); err != nil {
+				t.Fatalf("Put(%q): unexpected error: %v", c.baseURL, err)
+			}
+		})
+	}
+}
+
 func TestRemoteCapStore_NoDiskWriteAPIs(t *testing.T) {
 	// Source-grep guard for the no-disk-persistence invariant. If a future
 	// edit reaches for os.WriteFile, os.Create, or ioutil.WriteFile in

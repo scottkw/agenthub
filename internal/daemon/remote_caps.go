@@ -14,6 +14,8 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"sync"
 )
 
@@ -48,6 +50,14 @@ func NewRemoteCapStore() *RemoteCapStore {
 // for the same sessionID. Empty inputs are rejected with an explicit error
 // rather than silently no-op'd, so the POST /api/remote-files/caps handler
 // can surface 400 to the caller (Pitfall 4 in the plan).
+//
+// WR-03: baseURL is validated as a well-formed https:// URL with a non-empty
+// host at deposit time. This prevents proxyRemoteFiles from receiving a
+// malformed or non-https baseURL and failing later with a 500 when building
+// the upstream request. Rejecting here returns a clean 400 at deposit time.
+// The tailnet self-signed cert pattern (InsecureSkipVerify) only applies to
+// TLS handshake verification, not to the URL scheme itself; http:// is still
+// rejected to prevent accidental cleartext transmission of the cap token.
 func (s *RemoteCapStore) Put(sessionID, baseURL, capToken string) error {
 	if sessionID == "" {
 		return errors.New("remote caps: sessionID required")
@@ -57,6 +67,17 @@ func (s *RemoteCapStore) Put(sessionID, baseURL, capToken string) error {
 	}
 	if capToken == "" {
 		return errors.New("remote caps: capToken required")
+	}
+	// WR-03: validate baseURL is a parseable https:// URL with a non-empty host.
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("remote caps: baseURL parse error: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("remote caps: baseURL must use https scheme, got %q", u.Scheme)
+	}
+	if u.Host == "" {
+		return errors.New("remote caps: baseURL must have a non-empty host")
 	}
 	s.mu.Lock()
 	s.entries[sessionID] = remoteCapEntry{baseURL: baseURL, capToken: capToken}
