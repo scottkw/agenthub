@@ -145,3 +145,47 @@ func headFileCmd(client FilesClient, sid, relPath string, gen uint64) tea.Cmd {
 		}
 	}
 }
+
+// deleteCmd returns a tea.Cmd that deletes a file or directory (recursively)
+// inside the session sandbox. Nil-client guard mirrors loadDirCmd. The gen
+// value (WR-03) is stamped on the result so the Update-side handler can
+// discard stale messages.
+func deleteCmd(client FilesClient, sid, relPath string, gen uint64) tea.Cmd {
+	return func() tea.Msg {
+		if isNilFilesClient(client) {
+			return filesOpMsg{sessionID: sid, generation: gen, op: "delete", err: errNilClient}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err := client.DeleteFile(ctx, sid, relPath)
+		return filesOpMsg{sessionID: sid, generation: gen, op: "delete", err: err}
+	}
+}
+
+// renameCmd returns a tea.Cmd that renames a file or directory inside the
+// session sandbox. oldRel and newRel are sandbox-relative paths (SECURITY V5).
+func renameCmd(client FilesClient, sid, oldRel, newRel string, gen uint64) tea.Cmd {
+	return func() tea.Msg {
+		if isNilFilesClient(client) {
+			return filesOpMsg{sessionID: sid, generation: gen, op: "rename", err: errNilClient}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err := client.RenameFile(ctx, sid, oldRel, newRel)
+		return filesOpMsg{sessionID: sid, generation: gen, op: "rename", err: err}
+	}
+}
+
+// mkdirCmd returns a tea.Cmd that creates a new directory inside the session
+// sandbox. relPath is the sandbox-relative path for the new directory.
+func mkdirCmd(client FilesClient, sid, relPath string, gen uint64) tea.Cmd {
+	return func() tea.Msg {
+		if isNilFilesClient(client) {
+			return filesOpMsg{sessionID: sid, generation: gen, op: "mkdir", err: errNilClient}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_, err := client.MkdirFile(ctx, sid, relPath)
+		return filesOpMsg{sessionID: sid, generation: gen, op: "mkdir", err: err}
+	}
+}
