@@ -82,6 +82,22 @@ export class FilesApiError extends Error {
   isOverCap(): boolean {
     return this.status === 413
   }
+
+  /** 412 → If-Match precondition failed; another process changed the file (EDIT-08). */
+  isConflict(): boolean {
+    return this.status === 412
+  }
+
+  /** 409 → name collision on write/rename/mkdir/upload (EDIT-09/10). */
+  isCollision(): boolean {
+    return this.status === 409
+  }
+
+  /** 403 with body containing 'files.write' → cap is missing files.write perm. */
+  isMissingFilesWritePerm(): boolean {
+    if (this.status !== 403) return false
+    return this.bodyText.toLowerCase().includes('files.write')
+  }
 }
 
 export class FilesApiClient {
@@ -178,6 +194,26 @@ export class FilesApiClient {
   /** Pure URL builder for the download fallback button (unsupported / over-cap states). */
   buildDownloadUrl(sid: string, path: string): string {
     return `${this.baseURL}${this.pathPrefix}/read?${this.buildQuery(sid, path).toString()}`
+  }
+
+  /**
+   * Write a file atomically via PUT /api/files/write.
+   *
+   * Sends the body as application/octet-stream. When `ifMatch` is provided,
+   * includes it as the `If-Match` header for optimistic concurrency (EDIT-05).
+   * The server (Phase 125-01) compares the validator against the on-disk file's
+   * mtime+size and returns 412 Precondition Failed on mismatch (EDIT-08).
+   *
+   * Force-overwrite: pass ifMatch="*" or omit ifMatch entirely.
+   * New file (no prior content): omit ifMatch.
+   *
+   * Throws FilesApiError(412) on conflict, FilesApiError(409) on name collision.
+   */
+  async writeFile(sid: string, path: string, body: BodyInit, ifMatch?: string): Promise<void> {
+    const url = `${this.baseURL}${this.pathPrefix}/write?${this.buildQuery(sid, path).toString()}`
+    const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream' }
+    if (ifMatch) headers['If-Match'] = ifMatch
+    await this.fetchOrThrow(url, { method: 'PUT', headers, body })
   }
 
   /**
