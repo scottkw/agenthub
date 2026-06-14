@@ -370,3 +370,123 @@ func TestDaemonClient_ListFiles_TraversalReturns403Error(t *testing.T) {
 		t.Errorf("ListFiles traversal err = %q; want substring '403' or 'access denied'", msg)
 	}
 }
+
+// ─── Phase 123-02 Task 1: TestExchangeJoinCode_* ─────────────────────────────
+//
+// Tests for DaemonClient.ExchangeJoinCodeAtURL (FSW-10 / TD-5). The function
+// must parse a 303 See Other Location header to extract the ?cap=<token>, map
+// error-shape Locations (/join?error=<kind>) onto the modal error-substring
+// contract, and NOT auto-follow the redirect.
+
+// TestExchangeJoinCode_303Success: 303 with Location "/sessions/abc?cap=TOKEN123" → "TOKEN123", nil.
+func TestExchangeJoinCode_303Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/join/exchange" {
+			http.Error(w, "unexpected", http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, "/sessions/abc?cap=TOKEN123", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: unexpected error: %v", err)
+	}
+	if tok != "TOKEN123" {
+		t.Errorf("token = %q, want %q", tok, "TOKEN123")
+	}
+}
+
+// TestExchangeJoinCode_NoAutoFollow: the redirect target (/sessions/abc) must NOT be hit.
+func TestExchangeJoinCode_NoAutoFollow(t *testing.T) {
+	redirectHit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/join/exchange":
+			http.Redirect(w, r, "/sessions/abc?cap=CAPS99", http.StatusSeeOther)
+		case "/sessions/abc":
+			redirectHit = true
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "unexpected path: "+r.URL.Path, http.StatusBadRequest)
+		}
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	tok, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: unexpected error: %v", err)
+	}
+	if tok != "CAPS99" {
+		t.Errorf("token = %q, want %q", tok, "CAPS99")
+	}
+	if redirectHit {
+		t.Error("redirect target /sessions/abc was followed; CheckRedirect: ErrUseLastResponse must be set")
+	}
+}
+
+// TestExchangeJoinCode_ErrorLocation: Location /join?error=<kind> → error containing that substring.
+func TestExchangeJoinCode_ErrorLocation(t *testing.T) {
+	cases := []struct {
+		kind    string
+		wantSub string
+	}{
+		{"expired", "expired"},
+		{"invalid", "invalid"},
+		{"not-found", "not-found"},
+		{"session-gone", "session-gone"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/join?error="+tc.kind, http.StatusSeeOther)
+			}))
+			defer srv.Close()
+
+			c := &DaemonClient{}
+			_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+			if err == nil {
+				t.Fatalf("want error containing %q, got nil", tc.wantSub)
+			}
+			if !strings.Contains(err.Error(), tc.wantSub) {
+				t.Errorf("error %q does not contain %q", err.Error(), tc.wantSub)
+			}
+		})
+	}
+}
+
+// TestExchangeJoinCode_EmptyCap: 303 with Location lacking a cap query → error containing "invalid".
+func TestExchangeJoinCode_EmptyCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/sessions/abc", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	_, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")
+	if err == nil {
+		t.Fatal("want error containing 'invalid', got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid") {
+		t.Errorf("error %q does not contain 'invalid'", err.Error())
+	}
+}
+
+// TestExchangeJoinCode_SharedClientUnchanged: remoteFilesHTTPClient.CheckRedirect is still nil after the call.
+func TestExchangeJoinCode_SharedClientUnchanged(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/sessions/x?cap=TOK", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{}
+	if _, err := c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE"); err != nil {
+		t.Fatalf("ExchangeJoinCodeAtURL: %v", err)
+	}
+	if remoteFilesHTTPClient.CheckRedirect != nil {
+		t.Error("remoteFilesHTTPClient.CheckRedirect was mutated; it must remain nil")
+	}
+}
