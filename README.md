@@ -14,6 +14,8 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 
 ## Latest Release
 
+**v3.4.2 — Dependency maintenance** (2026-06-14) — patch release rolling forward direct dependencies and the transitive bumps they pull in. Consolidates six Dependabot updates: `tailscale.com` 1.96.5 → 1.98.3, `golang.org/x/sys` 0.43.0 → 0.45.0, `golang.org/x/term` 0.42.0 → 0.43.0, `github.com/aymanbagabas/go-pty` 0.2.2 → 0.2.3, `github.com/Masterminds/semver/v3` 3.4.0 → 3.5.0, and the `actions/checkout` CI action 6.0.2 → 6.0.3. No user-visible behavior changes from v3.4.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.4.2).
+
 **v3.4.1 — Test reliability** (2026-06-14) — patch release. Deflakes a class of CI tests that asserted hub subscriber/viewer counts (and async goroutine state) after a fixed delay, racing the asynchronous subscription and intermittently failing the release gate. Adds a shared `WaitFor` poll-until-condition test helper. No user-visible behavior changes from v3.4. Closes [#80](https://github.com/scottkw/agenthub/issues/80). [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.4.1).
 
 **v3.4 — File Browser (Read-Only) + TUI Parity** (2026-06-13) — browse, preview, and download files from any session across all three surfaces, including remote tailnet sessions.
@@ -39,7 +41,7 @@ Closes [#62](https://github.com/scottkw/agenthub/issues/62) and the TUI-parity s
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.4.1: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.4.1) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v3.4.2: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.4.2) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
