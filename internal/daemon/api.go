@@ -1050,6 +1050,14 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	if a.engine.filesReadEnabled() {
 		ownerPerms = "read,write," + capability.PermFilesRead
 	}
+	// Phase 124 / CAP-04: append files.write to the owner token ONLY when the
+	// per-session write toggle is ON. This is a per-session check (Inversion 2 —
+	// NOT a global flag). Uses capability.HasPerm semantics via
+	// filesWriteEnabledFor, never strings.Contains (T-124-09 + static-grep gate).
+	// The read-only (rClaims) token Perms is "read" — NEVER affected.
+	if a.engine.filesWriteEnabledFor(sessionID) {
+		ownerPerms += "," + capability.PermFilesWrite
+	}
 	rClaims := capability.Claims{SID: sessionID, Perms: "read", IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
 	wClaims := capability.Claims{SID: sessionID, Perms: ownerPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
 
@@ -1110,6 +1118,7 @@ func (a *API) handleIssueCapabilities(w http.ResponseWriter, r *http.Request) {
 		WriteURL:  writeURL,
 		ReadCode:  readCode,
 		WriteCode: writeCode,
+		HomeDir:   a.engine.sessionCwdIsHome(id), // Phase 124 / CAP-06: EvalSymlinks-normalized home-dir signal for the GUI warning banner
 	})
 }
 

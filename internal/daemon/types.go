@@ -126,11 +126,16 @@ type WebServeRequest struct {
 // /sessions/{id}/capabilities. Each call produces TWO capabilities (D-07):
 // one read-only link and one read-write link. Each capability is paired with
 // a single-use 5-minute join code (D-09/D-11).
+//
+// HomeDir (Phase 124 / CAP-06): true when the session's cwd equals
+// EvalSymlinks($HOME). The frontend reads this field to decide whether to show
+// the home-write warning banner. Populated from engine.sessionCwdIsHome.
 type IssueCapabilitiesResponse struct {
 	ReadURL   string `json:"readUrl"`
 	WriteURL  string `json:"writeUrl"`
 	ReadCode  string `json:"readCode"`
 	WriteCode string `json:"writeCode"`
+	HomeDir   bool   `json:"homeDir"` // Phase 124 / CAP-06: true when session cwd == EvalSymlinks($HOME)
 }
 
 // ExchangeJoinCodeRequest is the body for POST /join/exchange.
