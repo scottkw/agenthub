@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -866,5 +867,123 @@ func TestWrite_IfMatch_RecheckViaHTTP(t *testing.T) {
 	}
 	if !bytes.Equal(got, []byte("version-2-by-concurrent-writer")) {
 		t.Errorf("disk = %q; want version-2", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// WR-07 / IN-05: Upload collision (409) + overwrite=1 path
+// ---------------------------------------------------------------------------
+
+// invokeUpload is a helper that calls Handler.Upload with a multipart form.
+// Pass overwrite="1" to test the WR-07 overwrite path, "" for the normal path.
+func invokeUpload(t *testing.T, h *files.Handler, dir, filename, content, overwrite string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	_ = mw.WriteField("dir", dir)
+	if overwrite != "" {
+		_ = mw.WriteField("overwrite", overwrite)
+	}
+	fw, err := mw.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := fw.Write([]byte(content)); err != nil {
+		t.Fatalf("write part: %v", err)
+	}
+	mw.Close()
+
+	u := "/?session=good"
+	req := httptest.NewRequest(http.MethodPost, u, &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rr := httptest.NewRecorder()
+	h.Upload(rr, req)
+	return rr
+}
+
+// TestUpload_NewFile verifies that uploading a new file (no prior content)
+// returns 200 and the file is placed on disk.
+func TestUpload_NewFile(t *testing.T) {
+	h, root := newHandler(t)
+
+	rr := invokeUpload(t, h, ".", "upload-new.txt", "hello upload", "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	got, err := os.ReadFile(filepath.Join(root, "upload-new.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != "hello upload" {
+		t.Errorf("disk = %q; want \"hello upload\"", got)
+	}
+}
+
+// TestUpload_Collision_Returns409 verifies the WR-07 contract: uploading a file
+// whose name already exists (without overwrite=1) returns 409 Conflict.
+func TestUpload_Collision_Returns409(t *testing.T) {
+	h, root := newHandler(t)
+
+	// Seed the file.
+	if err := os.WriteFile(filepath.Join(root, "existing.txt"), []byte("original"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rr := invokeUpload(t, h, ".", "existing.txt", "new content", "" /* no overwrite */)
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("status = %d; want 409; body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Original content must be unchanged.
+	got, err := os.ReadFile(filepath.Join(root, "existing.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != "original" {
+		t.Errorf("disk = %q; want \"original\" after rejected collision", got)
+	}
+}
+
+// TestUpload_Overwrite_Returns200 verifies the WR-07 contract: uploading with
+// overwrite=1 skips the collision check and overwrites the existing file (200).
+func TestUpload_Overwrite_Returns200(t *testing.T) {
+	h, root := newHandler(t)
+
+	// Seed the file.
+	if err := os.WriteFile(filepath.Join(root, "overwrite-me.txt"), []byte("v1"), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	rr := invokeUpload(t, h, ".", "overwrite-me.txt", "v2", "1" /* overwrite=1 */)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+
+	got, err := os.ReadFile(filepath.Join(root, "overwrite-me.txt"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(got) != "v2" {
+		t.Errorf("disk = %q; want \"v2\" after overwrite", got)
+	}
+}
+
+// TestUpload_IN05_MalformedMultipart_Returns400 verifies IN-05: a malformed
+// multipart body (not an over-cap error) returns 400 rather than 413.
+func TestUpload_IN05_MalformedMultipart_Returns400(t *testing.T) {
+	h, _ := newHandler(t)
+
+	// Send a non-multipart body to trigger ParseMultipartForm failure.
+	req := httptest.NewRequest(http.MethodPost, "/?session=good", strings.NewReader("not-multipart"))
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=nonexistent")
+	rr := httptest.NewRecorder()
+	h.Upload(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d; want 400 for malformed multipart; body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "malformed") {
+		t.Errorf("body = %q; want 'malformed' in error message", rr.Body.String())
 	}
 }

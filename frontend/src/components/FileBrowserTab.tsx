@@ -25,7 +25,7 @@
 // NO beforeunload — Wails blocks it; guard is entirely React-level (EDIT-07).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FilesApiClient, FilesApiError, type FileEntry } from '../lib/filesApi'
+import { FilesApiClient, FilesApiError, MAX_UPLOAD_BYTES, type FileEntry } from '../lib/filesApi'
 import { useFilesCapability } from '../lib/useFilesCapability'
 import { useFilesWrite } from '../lib/useFilesWrite'
 import type { BreadcrumbSegment, PreviewState, SortKey, SortDir } from '../lib/filesTypes'
@@ -209,6 +209,8 @@ export function FileBrowserTab({
   const [isDragOver, setIsDragOver] = useState<boolean>(false)
   /** Hidden file input ref — triggered by the Upload toolbar button. */
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  /** WR-03: stable id counter for upload queue items — never resets, monotonically increasing. */
+  const uploadIdCounterRef = useRef<number>(0)
 
   // ─── guardThen: wrap any navigation action through the unsaved-changes guard ───
   // All three navigation triggers (file-switch, navigate-up, tab-close) route here.
@@ -772,120 +774,98 @@ export function FileBrowserTab({
     async (files: File[]) => {
       if (!canWrite || files.length === 0) return
 
-      // Initialise queue with 'uploading' state for all files.
-      const newItems: UploadQueueItem[] = files.map((f) => ({
-        file: f,
-        status: 'uploading',
-        progress: 0,
-      }))
+      // WR-03: assign stable ids from the monotonic counter — not positional indices.
+      // This makes progress-row updates by id lookup safe across concurrent batches.
+      const newItems: UploadQueueItem[] = files.map((f) => {
+        uploadIdCounterRef.current += 1
+        return { id: `upload-${uploadIdCounterRef.current}`, file: f, status: 'uploading', progress: 0 }
+      })
+      const itemIds = newItems.map((item) => item.id)
 
       setUploadQueue((prev) => [...prev, ...newItems])
-      const startIdx = uploadQueue.length
 
-      let didRefresh = false
+      // WR-01: track actual upload successes — only refresh when ≥1 succeeded.
+      let didSucceed = false
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        const queueIdx = startIdx + i
+        const itemId = itemIds[i]
 
-        // Pre-check: if file is over the 50 MiB cap, skip it immediately.
-        const MAX_BYTES = 50 * 1024 * 1024
-        if (file.size > MAX_BYTES) {
-          setUploadQueue((prev) => {
-            const next = [...prev]
-            if (next[queueIdx]) next[queueIdx] = { ...next[queueIdx], status: 'over-cap', progress: 0 }
-            return next
-          })
+        // WR-06: use imported constant — single source of truth, never drifts from server.
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setUploadQueue((prev) =>
+            prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
+          )
           continue
         }
 
         try {
+          // WR-07: server returns 409 when target exists (EDIT-10 contract).
+          // overwrite=undefined here → normal upload path.
           await upload(path, file, (pct) => {
-            setUploadQueue((prev) => {
-              const next = [...prev]
-              if (next[queueIdx]) next[queueIdx] = { ...next[queueIdx], progress: pct }
-              return next
-            })
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, progress: pct } : item))
+            )
           })
-          setUploadQueue((prev) => {
-            const next = [...prev]
-            if (next[queueIdx]) next[queueIdx] = { ...next[queueIdx], status: 'done', progress: 100 }
-            return next
-          })
-          didRefresh = false // mark that we need a refresh
+          setUploadQueue((prev) =>
+            prev.map((item) => (item.id === itemId ? { ...item, status: 'done', progress: 100 } : item))
+          )
+          // WR-01: mark success so we refresh after the loop.
+          didSucceed = true
         } catch (err) {
           if (err instanceof FilesApiError && err.isCollision()) {
             // Per-file 409 — show inline Replace? prompt; does not block other files.
-            setUploadQueue((prev) => {
-              const next = [...prev]
-              if (next[queueIdx]) next[queueIdx] = { ...next[queueIdx], status: 'collision', progress: 0 }
-              return next
-            })
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, status: 'collision', progress: 0 } : item))
+            )
           } else if (err instanceof FilesApiError && err.isOverCap()) {
-            setUploadQueue((prev) => {
-              const next = [...prev]
-              if (next[queueIdx]) next[queueIdx] = { ...next[queueIdx], status: 'over-cap', progress: 0 }
-              return next
-            })
+            setUploadQueue((prev) =>
+              prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
+            )
           } else {
-            setUploadQueue((prev) => {
-              const next = [...prev]
-              if (next[queueIdx]) {
-                next[queueIdx] = {
-                  ...next[queueIdx],
-                  status: 'failed',
-                  progress: 0,
-                  error: err instanceof Error ? err.message : 'upload failed',
-                }
-              }
-              return next
-            })
+            setUploadQueue((prev) =>
+              prev.map((item) =>
+                item.id === itemId
+                  ? { ...item, status: 'failed', progress: 0, error: err instanceof Error ? err.message : 'upload failed' }
+                  : item
+              )
+            )
           }
         }
       }
 
-      // Refresh listing after any successful upload.
-      if (!didRefresh) refresh()
+      // WR-01: refresh only when at least one file actually succeeded.
+      if (didSucceed) refresh()
     },
-    [canWrite, upload, path, refresh, uploadQueue.length],
+    [canWrite, upload, path, refresh],
   )
 
-  /** Re-upload a collision item with overwrite semantics. */
+  /** Re-upload a collision item with overwrite semantics (WR-07: passes overwrite=1). */
   const handleUploadReplace = useCallback(
     async (index: number) => {
       const item = uploadQueue[index]
       if (!item || item.status !== 'collision') return
+      const itemId = item.id
 
-      setUploadQueue((prev) => {
-        const next = [...prev]
-        next[index] = { ...next[index], status: 'uploading', progress: 0 }
-        return next
-      })
+      setUploadQueue((prev) =>
+        prev.map((it) => (it.id === itemId ? { ...it, status: 'uploading', progress: 0 } : it))
+      )
 
       try {
-        // Re-upload the file. The server overwrites on collision (files.write perm).
-        // We can't pass overwrite flag in the current API; instead we delete first
-        // then re-upload. For simplicity here we just re-call upload — the server
-        // may 409 again if it requires explicit overwrite. The UI re-queues as failed.
-        // TODO: server overwrite flag or delete-before-upload when needed.
+        // WR-07: pass overwrite=true so the server skips the 409 collision check.
         await upload(path, item.file, (pct) => {
-          setUploadQueue((prev) => {
-            const next = [...prev]
-            next[index] = { ...next[index], progress: pct }
-            return next
-          })
-        })
-        setUploadQueue((prev) => {
-          const next = [...prev]
-          next[index] = { ...next[index], status: 'done', progress: 100 }
-          return next
-        })
+          setUploadQueue((prev) =>
+            prev.map((it) => (it.id === itemId ? { ...it, progress: pct } : it))
+          )
+        }, true)
+        setUploadQueue((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, status: 'done', progress: 100 } : it))
+        )
         refresh()
       } catch {
-        setUploadQueue((prev) => {
-          const next = [...prev]
-          next[index] = { ...next[index], status: 'failed', progress: 0 }
-          return next
-        })
+        setUploadQueue((prev) =>
+          prev.map((it) => (it.id === itemId ? { ...it, status: 'failed', progress: 0 } : it))
+        )
       }
     },
     [uploadQueue, upload, path, refresh],
@@ -959,21 +939,25 @@ export function FileBrowserTab({
 
   // ─── Save handler (EDIT-05) ───
   // Called by EditorHeader.onSave and by the Cmd-S keymap in Editor.tsx.
+  // WR-02: branches on the discriminated WriteOutcome returned from writeFile()
+  // instead of reading the stale isConflict closure — React state updates are
+  // async; the isConflict value captured in the closure reflects the pre-call
+  // state, not the state writeFile just set.
   const handleSave = useCallback(
-    async (content?: string) => {
-      if (editingEntry === null) return
+    async (content?: string): Promise<import('../lib/useFilesWrite').WriteOutcome> => {
+      if (editingEntry === null) return 'error'
       const filePath = joinPath(path, editingEntry.name)
       const body = content ?? editContent
-      await writeFile(filePath, body, editEtag)
-      // On success (no throw), update editContent so subsequent dirty checks are
-      // against the new snapshot. The etag will be updated on the next read —
-      // for now continue with the same etag (server will 412 on next conflict).
-      if (!isConflict) {
+      const outcome = await writeFile(filePath, body, editEtag)
+      // On 'saved', update editContent so subsequent dirty checks use the new snapshot.
+      // The etag will be refreshed on next read — the old one stays for now.
+      if (outcome === 'saved') {
         setEditContent(body)
         setEditDirty(false)
       }
+      return outcome
     },
-    [editingEntry, path, editContent, editEtag, writeFile, isConflict],
+    [editingEntry, path, editContent, editEtag, writeFile],
   )
 
   // ─── Filter helpers ───
@@ -1277,6 +1261,7 @@ export function FileBrowserTab({
                   </div>
                 )}
                 <Editor
+                  key={editingEntry.name}
                   filename={editingEntry.name}
                   initialContent={editContent}
                   fileSize={editingEntry.size}
@@ -1320,9 +1305,9 @@ export function FileBrowserTab({
             isOpen={unsavedModalOpen}
             onSave={() => {
               setUnsavedModalOpen(false)
-              // Save, then proceed with the deferred action on success.
-              void handleSave().then(() => {
-                if (!isConflict) {
+              // WR-02: branch on the returned outcome — not the stale isConflict closure.
+              void handleSave().then((outcome) => {
+                if (outcome === 'saved') {
                   const action = pendingActionRef.current
                   pendingActionRef.current = null
                   if (action) {
@@ -1331,6 +1316,8 @@ export function FileBrowserTab({
                     action()
                   }
                 }
+                // 'conflict' → ConflictModal opens automatically via isConflict state.
+                // 'error' → inline saveError shows; no navigation.
               })
             }}
             onDiscard={() => {
@@ -1352,23 +1339,44 @@ export function FileBrowserTab({
             isOpen={isConflict}
             onForceOverwrite={() => {
               clearConflict()
+              // WR-04: guard against null editingEntry (race: modal open + nav).
+              if (!editingEntry) return
               // Force overwrite: re-PUT with If-Match="*" (server skip-check)
-              void writeFile(joinPath(path, editingEntry?.name ?? ''), editContent, '*')
+              void writeFile(joinPath(path, editingEntry.name), editContent, '*')
             }}
             onSaveAsNew={() => {
               clearConflict()
-              // Save as new file: derive {basename}-copy{ext} path
-              if (editingEntry) {
-                const ext = editingEntry.name.includes('.')
-                  ? '.' + editingEntry.name.split('.').pop()!
-                  : ''
-                const base = ext
-                  ? editingEntry.name.slice(0, editingEntry.name.lastIndexOf('.'))
-                  : editingEntry.name
-                const newName = `${base}-copy${ext}`
-                const newPath = joinPath(path, newName)
-                void writeFile(newPath, editContent)
+              // CR-03: guard against null editingEntry.
+              if (!editingEntry) return
+              const ext = editingEntry.name.includes('.')
+                ? '.' + editingEntry.name.split('.').pop()!
+                : ''
+              const base = ext
+                ? editingEntry.name.slice(0, editingEntry.name.lastIndexOf('.'))
+                : editingEntry.name
+              // CR-03: disambiguate if {base}-copy{ext} already exists in listing.
+              const existingNames = new Set(entries.map((e) => e.name))
+              let candidate = `${base}-copy${ext}`
+              let copyN = 2
+              while (existingNames.has(candidate)) {
+                candidate = `${base}-copy-${copyN}${ext}`
+                copyN += 1
               }
+              const newName = candidate
+              const newPath = joinPath(path, newName)
+              // No If-Match (new file — never existed); collision guard above handles duplicates.
+              void writeFile(newPath, editContent).then((outcome) => {
+                if (outcome === 'saved') {
+                  refresh()
+                  // CR-03: re-point editor at the new file so subsequent saves target it.
+                  setEditingEntry({ ...editingEntry, name: newName })
+                  // CR-03: re-read to capture the new file's ETag for future If-Match.
+                  void client.readFileText(sessionId, newPath).then((body) => {
+                    setEditEtag(body.etag)
+                  })
+                  setEditDirty(false)
+                }
+              })
             }}
             onDiscard={() => {
               clearConflict()

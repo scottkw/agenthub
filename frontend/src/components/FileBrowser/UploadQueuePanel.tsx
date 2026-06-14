@@ -26,6 +26,8 @@ import {
 export type UploadItemStatus = 'uploading' | 'done' | 'failed' | 'over-cap' | 'collision'
 
 export interface UploadQueueItem {
+  /** Stable per-item id used to update progress by identity (WR-03). */
+  id: string
   file: File
   status: UploadItemStatus
   /** Integer 0–100. */

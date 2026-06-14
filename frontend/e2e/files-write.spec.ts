@@ -378,6 +378,53 @@ test.describe('Phase 125 EDIT-13 write surface merge-gate (cross-browser)', () =
   })
 
   // ───────────────────────────────────────────────────────────────────
+  // Scenario 11b — EDIT-13 / EDIT-10 / WR-07: upload-collision 409 + overwrite.
+  // The new contract (WR-07): upload 409s when the target exists UNLESS
+  // overwrite=1 is present. This makes the Replace affordance reachable.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 11b: upload-collision 409 and overwrite=1 path', async ({ request }) => {
+    const env = loadFixtureEnv()
+    const uploadDir = '.'
+    const params = new URLSearchParams({ session: 'playwright-test-session', cap: env.writeCap })
+    const uploadUrl = `${env.baseURL}/api/files/upload?${params.toString()}`
+    const fileName = `collision-upload-${Date.now()}.txt`
+
+    // First upload — new file, expect 200.
+    const first = await request.post(uploadUrl, {
+      multipart: {
+        dir: uploadDir,
+        file: { name: fileName, mimeType: 'text/plain', buffer: Buffer.from('v1') },
+      },
+    })
+    expect(first.status(), 'first upload (new file) returns 200').toBe(200)
+
+    // Second upload of the same name WITHOUT overwrite=1 — expect 409 (collision).
+    const second = await request.post(uploadUrl, {
+      multipart: {
+        dir: uploadDir,
+        file: { name: fileName, mimeType: 'text/plain', buffer: Buffer.from('v2') },
+      },
+    })
+    expect(second.status(), 'second upload (same name, no overwrite) returns 409').toBe(409)
+
+    // Third upload WITH overwrite=1 — expect 200 (Replace semantics).
+    const overwriteParams = new URLSearchParams({ session: 'playwright-test-session', cap: env.writeCap })
+    const overwriteUrl = `${env.baseURL}/api/files/upload?${overwriteParams.toString()}`
+    const third = await request.post(overwriteUrl, {
+      multipart: {
+        dir: uploadDir,
+        overwrite: '1',
+        file: { name: fileName, mimeType: 'text/plain', buffer: Buffer.from('v3-overwrite') },
+      },
+    })
+    expect(third.status(), 'third upload with overwrite=1 returns 200').toBe(200)
+
+    // Verify v3 content is on disk.
+    const readResp = await request.get(filesApiURL('read', fileName))
+    expect(await readResp.text(), 'overwrite=1 lands v3 content').toBe('v3-overwrite')
+  })
+
+  // ───────────────────────────────────────────────────────────────────
   // Scenario 12 — EDIT-13 / EDIT-08: 412 conflict flow (stale If-Match).
   // Write a file, capture its ETag, then stale it by writing again, then
   // send a PUT with the STALE If-Match. Server must return 412.
@@ -503,11 +550,9 @@ test.describe('Phase 125 EDIT-13 write surface merge-gate (cross-browser)', () =
 
     // Allowed console errors (pre-existing app behaviors that are not regressions):
     //   1. 503 — dev builds without -tags wailsassets don't embed the bundle; /app/ returns 503.
-    //   2. 404 — the React app's canWrite probe (useFilesCapability.probeWrite uses HEAD to
-    //      /api/files/write?path=.) returns 404 when the path is a directory. This is the
-    //      expected probe response on a directory path; the 403-with-files.write body is the
-    //      real gate (capability_mw.go). The app logs this as console.error which is pre-existing
-    //      behavior from the useFilesCapability error handler.
+    //   2. 404 — other resource-not-found errors from app initialization.
+    //   Note: after CR-02 fix, HEAD /api/files/write now returns 200 (with files.write cap)
+    //   or 403 (without), never 405. The 404 allowance covers other non-write routes.
     const ALLOWED: RegExp[] = [
       /Failed to load resource: the server responded with a status of 503/,
       /Failed to load resource: the server responded with a status of 404/,

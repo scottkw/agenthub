@@ -57,11 +57,23 @@ export function ConflictModal({
   // Default focus on "Discard my changes" (safe button — PATTERNS §modals)
   const discardRef = useRef<HTMLButtonElement>(null)
 
-  // Escape-closes (QuitConfirmModal pattern)
+  // WR-05: reset acting whenever modal becomes open (isOpen flips true) OR
+  // re-fires (same-tick clear+re-set of isConflict causes isOpen to stay true
+  // across a re-412, so we key on isOpen unconditionally — setActing(false) is
+  // a no-op when acting is already false). This prevents permanent button lockout
+  // when a re-412 fires without an intermediate isOpen=false transition.
+  useEffect(() => {
+    setActing(false)
+  }, [isOpen])
+
+  // Escape-closes (QuitConfirmModal pattern) — reset acting so a re-open is clean.
   useEffect(() => {
     if (!isOpen) return
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel()
+      if (e.key === 'Escape') {
+        setActing(false)
+        onCancel()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -72,15 +84,10 @@ export function ConflictModal({
     if (isOpen) discardRef.current?.focus()
   }, [isOpen])
 
-  // Reset acting guard on reopen
-  useEffect(() => {
-    if (isOpen) setActing(false)
-  }, [isOpen])
-
   if (!isOpen) return null
 
   return (
-    <div className="quit-modal-overlay" onClick={onCancel}>
+    <div className="quit-modal-overlay" onClick={() => { setActing(false); onCancel() }}>
       <div
         className="quit-modal"
         role="dialog"

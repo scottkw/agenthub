@@ -169,6 +169,19 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	target := filepath.Join(dir, safeName)
 
+	// WR-07 / EDIT-10 upload-collision contract: return 409 when the target
+	// already exists UNLESS the client passes overwrite=1. This makes the
+	// collision modal reachable — without it the server silently overwrites and
+	// the Replace affordance in UploadQueuePanel is a dead end.
+	overwrite := r.FormValue("overwrite") == "1"
+	if !overwrite {
+		if _, statErr := sb.Stat(target); statErr == nil {
+			// File exists and caller did not request overwrite → 409 Conflict.
+			http.Error(w, "file already exists: "+safeName, http.StatusConflict)
+			return
+		}
+	}
+
 	// io.ReadAll is bounded by the MaxBytesReader cap applied above.
 	data, err := io.ReadAll(file)
 	if err != nil {

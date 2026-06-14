@@ -26,17 +26,28 @@ const SAVED_TIMEOUT = 1500
 /** Three-state save indicator state. Idle = no indicator shown. */
 export type SaveState = 'idle' | 'saving' | 'saved'
 
+/**
+ * Discriminated outcome from write(). Callers MUST branch on this value
+ * rather than reading the async isConflict state after await (WR-02: stale
+ * closure bug — React state updates are async; reading isConflict immediately
+ * after await still sees the pre-write value).
+ */
+export type WriteOutcome = 'saved' | 'conflict' | 'error'
+
 export interface UseFilesWriteResult {
-  /** Trigger a PUT /api/files/write with If-Match. Sets isSaving during the request. */
-  write: (path: string, content: string, etag?: string) => Promise<void>
+  /**
+   * Trigger a PUT /api/files/write with If-Match. Sets isSaving during the request.
+   * Returns a discriminated outcome so callers can branch synchronously (WR-02).
+   */
+  write: (path: string, content: string, etag?: string) => Promise<WriteOutcome>
   /** Delete a file or directory (stub — Plan 04). */
   del: (path: string) => Promise<void>
   /** Rename/move a file (stub — Plan 04). */
   rename: (oldPath: string, newPath: string) => Promise<void>
   /** Create a directory (stub — Plan 04). */
   mkdir: (path: string) => Promise<void>
-  /** Upload a file via XHR with progress (stub — Plan 05). */
-  upload: (dir: string, file: File, onProgress?: (pct: number) => void) => Promise<void>
+  /** Upload a file via XHR with progress. Pass overwrite=true to skip collision check (WR-07). */
+  upload: (dir: string, file: File, onProgress?: (pct: number) => void, overwrite?: boolean) => Promise<void>
   /** True while a save PUT is in flight. */
   isSaving: boolean
   /** Three-state save indicator: idle / saving / saved. */
@@ -79,8 +90,8 @@ export function useFilesWrite(
   }, [])
 
   const write = useCallback(
-    async (path: string, content: string, etag?: string): Promise<void> => {
-      if (client === null) return
+    async (path: string, content: string, etag?: string): Promise<WriteOutcome> => {
+      if (client === null) return 'error'
 
       // Clear prior transient and error state.
       clearSavedTimer()
@@ -101,6 +112,8 @@ export function useFilesWrite(
           setSaveState('idle')
           savedTimerRef.current = null
         }, SAVED_TIMEOUT)
+        // WR-02: return discriminated outcome so callers don't read stale isConflict state.
+        return 'saved'
       } catch (err) {
         setIsSaving(false)
 
@@ -109,12 +122,13 @@ export function useFilesWrite(
           // Signal the parent to open ConflictModal.
           setIsConflict(true)
           setSaveState('idle')
-          return
+          return 'conflict'
         }
 
         // Non-412 error — show inline save error (EDIT-06 verbatim copy).
         setSaveError("Couldn't save the file. Your changes are still here — try again.")
         setSaveState('idle')
+        return 'error'
       }
     },
     [client, sessionId, clearSavedTimer],
@@ -176,9 +190,9 @@ export function useFilesWrite(
    * FilesApiError(413) on over-cap (caller surfaces the skip message).
    */
   const upload = useCallback(
-    async (dir: string, file: File, onProgress?: (pct: number) => void): Promise<void> => {
+    async (dir: string, file: File, onProgress?: (pct: number) => void, overwrite?: boolean): Promise<void> => {
       if (client === null) return
-      await client.uploadFile(sessionId, dir, file, onProgress)
+      await client.uploadFile(sessionId, dir, file, onProgress, overwrite)
     },
     [client, sessionId],
   )

@@ -175,7 +175,10 @@ export class FilesApiClient {
     const res = await this.fetchOrThrow(url)
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
     const sizeHeader = res.headers.get('content-length')
-    const size = sizeHeader ? Number.parseInt(sizeHeader, 10) : 0
+    // IN-04: guard against NaN from malformed/absent header — Number.parseInt on
+    // non-numeric input yields NaN, which propagates into size checks and humanSize.
+    const sizeRaw = Number.parseInt(sizeHeader ?? '', 10)
+    const size = Number.isFinite(sizeRaw) ? sizeRaw : 0
     const etag = res.headers.get('etag') ?? undefined
     const text = await res.text()
     return { text, contentType, size, etag }
@@ -187,7 +190,9 @@ export class FilesApiClient {
     const res = await this.fetchOrThrow(url, { method: 'HEAD' })
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream'
     const sizeHeader = res.headers.get('content-length')
-    const size = sizeHeader ? Number.parseInt(sizeHeader, 10) : 0
+    // IN-04: guard against NaN from malformed/absent header.
+    const sizeRaw = Number.parseInt(sizeHeader ?? '', 10)
+    const size = Number.isFinite(sizeRaw) ? sizeRaw : 0
     return { size, contentType }
   }
 
@@ -293,16 +298,19 @@ export class FilesApiClient {
    * Upload a single file via XMLHttpRequest (NOT fetch — XHR is required for
    * per-file upload.onprogress events; fetch has no upload-progress API).
    *
-   * Server Handler.Upload (write.go:105-131) takes ONE multipart `file` part
-   * plus a `dir` field. Multi-file upload = N calls, one file part each.
+   * Server Handler.Upload (write.go) takes ONE multipart `file` part plus a
+   * `dir` field. Multi-file upload = N calls, one file part each.
    * Cap token threads via URL query param (buildQuery includes it when present).
    *
-   * EDIT-10: Phase 125-05
+   * EDIT-10 / WR-07: When `overwrite` is true, appends `overwrite=1` to the
+   * form; the server skips the collision check and overwrites existing files.
+   * Without it the server returns 409 when the target exists (EDIT-10 contract).
    *
-   * @param sid       Session ID
-   * @param dir       Target directory (relative to session cwd)
-   * @param file      The File object to upload
+   * @param sid        Session ID
+   * @param dir        Target directory (relative to session cwd)
+   * @param file       The File object to upload
    * @param onProgress Optional callback receiving integer 0-100 percent
+   * @param overwrite  When true, send overwrite=1 to skip the 409 collision check
    * @returns Promise that resolves on 2xx; rejects with FilesApiError on
    *   409 (collision → isCollision()) or 413 (over-cap → isOverCap()).
    */
@@ -311,6 +319,7 @@ export class FilesApiClient {
     dir: string,
     file: File,
     onProgress?: (pct: number) => void,
+    overwrite?: boolean,
   ): Promise<void> {
     // Build URL — session + optional cap go in query params (no auth header).
     const params = new URLSearchParams()
@@ -321,6 +330,7 @@ export class FilesApiClient {
     const formData = new FormData()
     formData.append('dir', dir)
     formData.append('file', file)
+    if (overwrite) formData.append('overwrite', '1')
 
     return new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest()
