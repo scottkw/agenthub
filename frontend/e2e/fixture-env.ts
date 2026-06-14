@@ -15,6 +15,14 @@ export interface FixtureEnv {
   baseURL: string
   cap: string
   viewerCap: string
+  /**
+   * Phase 125-01 — files.write cap for web-share write + 412 e2e scenarios
+   * (EDIT-13). Minted by cmd/playwright-fixture/main.go with
+   * Perms="read,files.read,files.write". Use writeAppUrl(env) to build the
+   * /app/ URL with this cap; use viewerAppUrl(env) for the 403-without-cap
+   * scenario (viewer has no files.write).
+   */
+  writeCap: string
   sessionCwd: string
   adminURL: string
   /**
@@ -84,4 +92,12 @@ export function appUrl(env: FixtureEnv = loadFixtureEnv()): string {
 /** Same as appUrl but with the read-only viewer cap (no files.read perm). */
 export function viewerAppUrl(env: FixtureEnv = loadFixtureEnv()): string {
   return `${env.baseURL}/app/?session=playwright-test-session&cap=${encodeURIComponent(env.viewerCap)}`
+}
+
+/**
+ * Same as appUrl but with the files.write cap (read,files.read,files.write).
+ * Use this for Phase 125 write + 412 web-share e2e scenarios (EDIT-13).
+ */
+export function writeAppUrl(env: FixtureEnv = loadFixtureEnv()): string {
+  return `${env.baseURL}/app/?session=playwright-test-session&cap=${encodeURIComponent(env.writeCap)}`
 }

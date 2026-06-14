@@ -201,6 +201,22 @@ func main() {
 	}
 	ws.AddGrant(sessionID, viewerClaims.GrantID)
 
+	// Phase 125-01 — third cap with files.write for the web-share write + 412
+	// e2e scenarios (EDIT-13). The viewer read-only cap (no files.write) covers
+	// the 403-without-cap scenario; this write cap covers the write-enabled path.
+	writeClaims := capability.Claims{
+		SID:     sessionID,
+		Perms:   "read,files.read,files.write",
+		IAT:     time.Now().Unix(),
+		GrantID: "grant-playwright-fixture-write",
+		V:       1,
+	}
+	writeToken, err := capability.Sign(writeClaims, fixedTestKey)
+	if err != nil {
+		log.Fatalf("capability.Sign write: %v", err)
+	}
+	ws.AddGrant(sessionID, writeClaims.GrantID)
+
 	// 6b. Phase 122-05 — mock "remote peer" webserver on a second TLS port.
 	//     Mimics a peer AgentHub on the tailnet for the remote-session
 	//     file-browse e2e scenarios (16+17). Serves:
@@ -263,6 +279,7 @@ func main() {
 	fmt.Printf("BASE_URL=%s\n", baseURL)
 	fmt.Printf("CAP=%s\n", token)
 	fmt.Printf("VIEWER_CAP=%s\n", viewerToken)
+	fmt.Printf("WRITE_CAP=%s\n", writeToken)
 	fmt.Printf("SESSION_CWD=%s\n", sessionCwd)
 	fmt.Printf("ADMIN_URL=%s\n", adminURL)
 	fmt.Printf("REMOTE_PEER_URL=%s\n", remotePeerURL)
