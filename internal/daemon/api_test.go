@@ -698,78 +698,77 @@ func TestAPI_ListSessionsViewerCount(t *testing.T) {
 	}
 	t.Cleanup(func() { rawDelete(t, socketPath, fmt.Sprintf("/sessions/%s", cr.ID)) })
 
-	// Capture the baseline ViewerCount. CreateSession starts a status.Watch
-	// goroutine that subscribes to the hub, so the baseline is typically 1
-	// (the status detector). We measure the delta rather than absolute values.
-	_, listBody := rawGet(t, socketPath, "/sessions")
-	var sessions []SessionInfo
-	if err := json.Unmarshal(listBody, &sessions); err != nil {
-		t.Fatalf("decode sessions: %v", err)
-	}
-	var found *SessionInfo
-	for i := range sessions {
-		if sessions[i].ID == cr.ID {
-			found = &sessions[i]
-			break
-		}
-	}
-	if found == nil {
-		t.Fatalf("session %s not found in list", cr.ID)
-	}
-	baseline := found.ViewerCount
-
-	// Subscribe a client to the session's hub.
+	// CreateSession starts a status.Watch goroutine that subscribes to the hub
+	// asynchronously (the status detector). Capturing the baseline before that
+	// subscription lands races the detector and makes the delta assertions flake
+	// by +1 under load (observed on CI). Resolve the hub up front and read the
+	// ViewerCount via the API helper below.
 	hub, ok := api.engine.Manager().Get(cr.ID)
 	if !ok {
 		t.Fatalf("hub for session %s not found in manager", cr.ID)
 	}
+
+	// viewerCount fetches the current ViewerCount for this session via the API.
+	viewerCount := func() int {
+		t.Helper()
+		_, listBody := rawGet(t, socketPath, "/sessions")
+		var sessions []SessionInfo
+		if err := json.Unmarshal(listBody, &sessions); err != nil {
+			t.Fatalf("decode sessions: %v", err)
+		}
+		for i := range sessions {
+			if sessions[i].ID == cr.ID {
+				return sessions[i].ViewerCount
+			}
+		}
+		t.Fatalf("session %s not found in list", cr.ID)
+		return 0
+	}
+
+	// waitViewerCount polls until ViewerCount reaches want (subscribe/unsubscribe
+	// are observed asynchronously through the listing).
+	waitViewerCount := func(want int) {
+		t.Helper()
+		deadline := time.Now().Add(3 * time.Second)
+		var got int
+		for time.Now().Before(deadline) {
+			if got = viewerCount(); got == want {
+				return
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		t.Errorf("ViewerCount: want %d, got %d (timed out)", want, got)
+	}
+
+	// Wait for the detector subscription to settle so the baseline is stable: the
+	// count must hold steady for a short window before we trust it.
+	baseline := viewerCount()
+	stableSince := time.Now()
+	settleDeadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(settleDeadline) {
+		time.Sleep(20 * time.Millisecond)
+		if c := viewerCount(); c != baseline {
+			baseline = c
+			stableSince = time.Now()
+			continue
+		}
+		if time.Since(stableSince) >= 300*time.Millisecond {
+			break
+		}
+	}
+
+	// Subscribe a client to the session's hub; ViewerCount should rise by 1.
 	sub := &relay.Subscriber{
 		Msgs:      make(chan []byte, 256),
 		CloseSlow: func() {},
 	}
 	hub.Subscribe(sub)
 	defer hub.Unsubscribe(sub)
+	waitViewerCount(baseline + 1)
 
-	// Verify ViewerCount increased by 1 with our subscriber.
-	_, listBody2 := rawGet(t, socketPath, "/sessions")
-	var sessions2 []SessionInfo
-	if err := json.Unmarshal(listBody2, &sessions2); err != nil {
-		t.Fatalf("decode sessions after subscribe: %v", err)
-	}
-	var found2 *SessionInfo
-	for i := range sessions2 {
-		if sessions2[i].ID == cr.ID {
-			found2 = &sessions2[i]
-			break
-		}
-	}
-	if found2 == nil {
-		t.Fatalf("session %s not found in list after subscribe", cr.ID)
-	}
-	if found2.ViewerCount != baseline+1 {
-		t.Errorf("ViewerCount with 1 extra subscriber: want %d, got %d", baseline+1, found2.ViewerCount)
-	}
-
-	// Unsubscribe and verify ViewerCount returns to baseline.
+	// Unsubscribe; ViewerCount should return to the baseline.
 	hub.Unsubscribe(sub)
-	_, listBody3 := rawGet(t, socketPath, "/sessions")
-	var sessions3 []SessionInfo
-	if err := json.Unmarshal(listBody3, &sessions3); err != nil {
-		t.Fatalf("decode sessions after unsubscribe: %v", err)
-	}
-	var found3 *SessionInfo
-	for i := range sessions3 {
-		if sessions3[i].ID == cr.ID {
-			found3 = &sessions3[i]
-			break
-		}
-	}
-	if found3 == nil {
-		t.Fatalf("session %s not found in list after unsubscribe", cr.ID)
-	}
-	if found3.ViewerCount != baseline {
-		t.Errorf("ViewerCount after unsubscribe: want %d, got %d", baseline, found3.ViewerCount)
-	}
+	waitViewerCount(baseline)
 }
 
 // TestAPIGetStartMinimized verifies GET /settings/start-minimized returns 200
