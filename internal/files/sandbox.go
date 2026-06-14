@@ -56,6 +56,54 @@ func (s *Sandbox) RootPath() string {
 	return s.rootPath
 }
 
+// ErrProtectedSystemFile is returned by all Sandbox write methods when the
+// target resolves to a shell-RC file, SSH key, Claude config, or daemon
+// config directory under the user's $HOME. The "files: " prefix matches the
+// package-wide error-string convention (FSW-06).
+var ErrProtectedSystemFile = errors.New("files: protected system file")
+
+// denylistCheck returns ErrProtectedSystemFile if the write target
+// (identified by the cleaned relative path) resolves to a sensitive file
+// under $HOME. It operates on the resolved absolute path so the check fires
+// only when the session's working directory IS at or below $HOME — the
+// dangerous case for AI-agent writes (FSW-06, RESEARCH §Pattern 4).
+//
+// Canonical denylist:
+//   - Shell RC files: .bashrc, .zshrc, .profile, .bash_profile, .zprofile,
+//     .zshenv, .bash_login
+//   - SSH directory: anything under .ssh/ (authorized_keys, config, etc.)
+//   - Claude config: anything under .claude/
+//   - Daemon config: anything under .config/agenthub/
+//
+// Returns nil when the target is not under $HOME or $HOME is unavailable.
+func (s *Sandbox) denylistCheck(cleaned string) error {
+	abs := filepath.Join(s.rootPath, cleaned)
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return nil
+	}
+	rel, err := filepath.Rel(home, abs)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return nil // target is not under $HOME — denylist does not apply
+	}
+	// Shell RC files — exact base-name match.
+	base := filepath.Base(abs)
+	switch base {
+	case ".bashrc", ".zshrc", ".profile", ".bash_profile",
+		".zprofile", ".zshenv", ".bash_login":
+		return ErrProtectedSystemFile
+	}
+	// Directory-prefix protections (forward-slash normalised so the check
+	// is consistent across Windows, macOS, and Linux path formats).
+	relSlash := filepath.ToSlash(rel)
+	for _, dir := range []string{".ssh/", ".claude/", ".config/agenthub/"} {
+		if relSlash == strings.TrimSuffix(dir, "/") || strings.HasPrefix(relSlash, dir) {
+			return ErrProtectedSystemFile
+		}
+	}
+	return nil
+}
+
 // Open returns an *os.File for relPath within the sandbox root. The open is
 // atomic at the syscall level via os.Root — symlinks that escape the root
 // are rejected without any TOCTOU window. The caller is responsible for

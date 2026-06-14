@@ -44,3 +44,24 @@ type FileListResponse struct {
 	Entries   []FileEntry `json:"entries"`
 	Truncated bool        `json:"truncated"`
 }
+
+// FileWriteResponse is the JSON body returned by Handler.Write and
+// Handler.Upload on success. Path is the sandbox-relative path that was
+// written; Size is the byte count of the persisted content. Both fields
+// mirror the camelCase JSON-tag convention used by FileEntry (FSW-01,
+// FSW-05).
+type FileWriteResponse struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+// FileOpResponse is the JSON body returned by Handler.Rename,
+// Handler.Mkdir, and Handler.Delete on success. Path is the
+// sandbox-relative target path; OK is always true on the success path
+// (non-2xx responses carry a plain-text error body instead). Follows the
+// same declaration-order field convention as FileWriteResponse (FSW-02,
+// FSW-03, FSW-04).
+type FileOpResponse struct {
+	Path string `json:"path"`
+	OK   bool   `json:"ok"`
+}
