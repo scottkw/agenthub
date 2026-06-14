@@ -56,8 +56,17 @@ func (h *Handler) Write(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "path is required", http.StatusBadRequest)
 		return
 	}
+	// WR-06: cap the write body the same way Upload caps multipart (FSW-12 DoS
+	// mitigation). The same Handler is mounted on the relay TCP surface and the
+	// webserver, so loopback trust does not justify an unbounded io.ReadAll.
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "read body: "+err.Error(), http.StatusBadRequest)
 		return
 	}

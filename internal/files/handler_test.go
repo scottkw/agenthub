@@ -1,6 +1,7 @@
 package files_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -765,6 +766,37 @@ func TestHandlerUpload_OverCap413(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Errorf("over-cap status = %d; want 413", resp.StatusCode)
+	}
+	// No truncated file should remain on disk.
+	if _, err := os.Stat(filepath.Join(root, "big.bin")); !os.IsNotExist(err) {
+		t.Errorf("over-cap: big.bin should not exist on disk; got: %v", err)
+	}
+}
+
+// TestHandlerWrite_OverCap413: a PUT /write body over the 50 MiB cap gives 413
+// and writes no file. (WR-06 — parity with Upload's FSW-12 cap.)
+func TestHandlerWrite_OverCap413(t *testing.T) {
+	if testing.Short() {
+		t.Skip("generates 51 MiB body")
+	}
+	h, root := newHandler(t)
+	srv := httptest.NewServer(http.HandlerFunc(h.Write))
+	defer srv.Close()
+
+	const overCap = 51 * 1024 * 1024
+	body := bytes.NewReader(make([]byte, overCap))
+	req, err := http.NewRequest("PUT", srv.URL+"/?session=good&path=big.bin", body)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT write: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Errorf("over-cap write status = %d; want 413", resp.StatusCode)
 	}
 	// No truncated file should remain on disk.
 	if _, err := os.Stat(filepath.Join(root, "big.bin")); !os.IsNotExist(err) {
