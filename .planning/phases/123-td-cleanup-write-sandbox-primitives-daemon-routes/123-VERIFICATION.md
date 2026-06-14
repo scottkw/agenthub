@@ -1,13 +1,14 @@
 ---
 phase: 123-td-cleanup-write-sandbox-primitives-daemon-routes
 verified: 2026-06-14T17:00:00Z
-status: human_needed
+status: passed
 score: 5/5
 overrides_applied: 0
+human_verification_completed: 2026-06-14
 human_verification:
-  - test: "Live daemon smoke: start agenthub daemon with an active session, then run: curl --unix-socket ~/.agenthub/daemon.sock -X PUT 'http://localhost/api/files/write?session=<id>&path=hello.txt' --data-binary 'hello' and confirm 200 + FileWriteResponse; follow up with a GET read-back to verify byte-identical content."
-    expected: "PUT returns 200 with JSON {\"path\":\"hello.txt\",\"size\":5}; subsequent GET /api/files/read?session=<id>&path=hello.txt returns identical bytes."
-    why_human: "Requires a live running daemon and a real file-browser session. VALIDATION.md explicitly documents this as manual-only. All automated evidence (TestFilesWriteRoutes_WriteRoundTrip, TestDaemonClientWrite_RoundTrip) confirms the round-trip logic is correct; only the live socket smoke is not automatable without a daemon process."
+  - test: "Live daemon smoke: start agenthub daemon with an active session, then run: curl --unix-socket <daemon.sock> -X PUT 'http://localhost/api/files/write?session=<id>&path=hello.txt' --data-binary 'hello' and confirm 200 + FileWriteResponse; follow up with a GET read-back to verify byte-identical content."
+    expected: "PUT returns 200 with JSON FileWriteResponse; subsequent GET returns identical bytes."
+    result: "PASSED 2026-06-14 — fresh build, daemon run, shell session in /tmp/uat123-work. PUT /api/files/write → HTTP 200 {\"path\":\"hello.txt\",\"size\":11}; GET /api/files/read → byte-identical 'hello world'; on-disk content confirmed. Also verified live: denylist write to ~/.bashrc in a home-rooted session → HTTP 403 'Protected system file' (SC#3); wrong verb on write route → HTTP 405 (SC#5). Socket on macOS at ~/Library/Application Support/agenthub/daemon.sock."
 ---
 
 # Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes Verification Report
@@ -15,7 +16,7 @@ human_verification:
 **Phase Goal:** The internal/files/ sandbox has all write primitives (atomic write, rename, delete, mkdir, upload), the shell-RC denylist is enforced on all write paths, the two carried tech-debts (TD-4 and TD-5) are closed, and the daemon local-socket write routes are live — so every subsequent phase has a correct, trusted, fuzz-proven write API to build against.
 
 **Verified:** 2026-06-14T17:00:00Z
-**Status:** human_needed
+**Status:** passed (live human verification completed 2026-06-14)
 **HEAD:** ce9659fc0925b16724e8071d5d64fa5aa3892116
 **Re-verification:** No — initial verification
 
