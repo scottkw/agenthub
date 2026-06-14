@@ -27,12 +27,19 @@ import (
 	"strings"
 )
 
-// maxUploadBytes is the server-side upload cap — FSW-12. Strictly matches
+// MaxUploadBytes is the server-side upload cap — FSW-12. Strictly matches
 // the 50 MiB milestone-locked value. Enforced via http.MaxBytesReader BEFORE
 // ParseMultipartForm so the cap fires before any bytes hit disk.
 //
+// WR-06: exported so tests can assert this matches the frontend MAX_UPLOAD_BYTES
+// constant (filesApi.ts) — cross-surface parity is release-blocking.
+//
 // Mirrors the maxPreviewBytes idiom from handler.go:104.
-const maxUploadBytes = 50 << 20
+const MaxUploadBytes = 50 << 20
+
+// maxUploadBytes is the internal alias kept for backward compat with
+// existing usages in this file (unexported name convention in handler.go).
+const maxUploadBytes = MaxUploadBytes
 
 // ErrPathValidation is the sentinel error type for all path-level validation
 // failures (empty path, traversal, device names, ADS, etc.). Errors from

@@ -100,6 +100,14 @@ export class FilesApiError extends Error {
   }
 }
 
+/**
+ * Client-side upload cap — must match the server's maxUploadBytes (50 MiB).
+ * Single source of truth: import this constant everywhere the limit is
+ * referenced on the frontend (WR-06). The Go test TestMaxUploadBytesMatch
+ * in internal/webserver asserts the server value equals this number.
+ */
+export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+
 export class FilesApiClient {
   private readonly baseURL: string
   private readonly capToken: string | undefined

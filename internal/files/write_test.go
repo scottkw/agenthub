@@ -730,6 +730,22 @@ func TestWrite_IfMatch_NewFile(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// WR-06: cross-surface upload cap parity assertion
+// ---------------------------------------------------------------------------
+
+// TestMaxUploadBytes_Is50MiB asserts that the server-side MaxUploadBytes
+// constant is exactly 50 MiB — the milestone-locked value. This is the Go
+// half of the cross-surface parity check; the frontend MAX_UPLOAD_BYTES
+// constant (filesApi.ts) must equal the same value. Failing this test means
+// the cap drifted and the client pre-check would diverge from the server cap.
+func TestMaxUploadBytes_Is50MiB(t *testing.T) {
+	const want = 50 * 1024 * 1024
+	if files.MaxUploadBytes != want {
+		t.Errorf("MaxUploadBytes = %d; want %d (50 MiB — milestone-locked cap)", files.MaxUploadBytes, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // CR-01: TOCTOU validator re-check inside WriteFileAtomic
 // ---------------------------------------------------------------------------
 
