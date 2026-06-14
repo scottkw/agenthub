@@ -3671,3 +3671,333 @@ body {
   padding: 32px;
   text-align: center;
 }
+
+/* ─── Phase 125 — Editor + Write Affordance CSS ─────────────────────────────
+   All rules below correspond 1:1 to BEM classNames emitted by the Phase 125
+   components. Zero new color values — every hex reuses an existing TokyoNight
+   token from this file. */
+
+/* ── Editor notices (large-file warning banner, syntax-disabled caption) ── */
+.file-browser__editor-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #1e2030;
+  border-bottom: 1px solid #292e42;
+  font-size: 12px;
+  color: #a9b1d6;
+  flex: 0 0 auto;
+}
+
+/* --info variant: no dismiss button — just a single-line caption */
+.file-browser__editor-notice--info {
+  justify-content: flex-start;
+  color: #9aa5ce;
+  font-style: italic;
+}
+
+/* CM6 mount host — flex fill; CM6 sets its own width/height internally */
+.file-browser__editor-mount {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Inline save-error bar — non-takeover; sits below the editor, above status */
+.file-browser__editor-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #1e2030;
+  border-top: 1px solid #292e42;
+  border-left: 3px solid #f7768e;
+  font-size: 12px;
+  color: #f7768e;
+  flex: 0 0 auto;
+}
+
+/* ── Editor header (EditorHeader.tsx) ──────────────────────────────────────── */
+
+/* Wraps filename + dirty marker as a flex group that acts as the single flex
+   child taking up remaining header space (replaces the old lone preview-name
+   as a direct flex child). */
+.file-browser__preview-name-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* Dirty bullet — accent color, no extra spacing (gap on the sibling handles it).
+   The ● glyph + aria-label carry the signal; color is reinforcement only. */
+.file-browser__dirty-marker {
+  color: #7aa2f7;
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Path sub-caption under the filename */
+.file-browser__preview-path {
+  font-size: 11px;
+  font-weight: 400;
+  color: #9aa5ce;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Right cluster: save indicator + Save button + Cancel button */
+.file-browser__preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* ── Save indicator (SaveIndicator.tsx) ──────────────────────────────────── */
+
+/* The live region wrapper; flex so icon and text sit side by side */
+.file-browser__save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #9aa5ce;
+  flex: 0 0 auto;
+}
+
+.file-browser__save-indicator-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+/* Saving state: amber icon, spin animation */
+.file-browser__save-indicator-icon--saving {
+  color: #e0af68;
+  animation: file-browser-spin 0.75s linear infinite;
+}
+
+/* Saved state: green icon */
+.file-browser__save-indicator-icon--saved {
+  color: #9ece6a;
+}
+
+/* Error state: destructive red icon */
+.file-browser__save-indicator-icon--error {
+  color: #f7768e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-browser__save-indicator-icon--saving {
+    animation: none;
+  }
+}
+
+.file-browser__save-indicator-text {
+  font-size: 12px;
+  color: #9aa5ce;
+  line-height: 1.5;
+}
+
+/* ── Inline name input (InlineNameInput.tsx) ──────────────────────────────── */
+
+/* Row that hosts the inline create/rename input — same grid as list-row but
+   shows an input instead of a name span. */
+.file-browser__list-row--inline-input {
+  background: #1e2030;
+  border-left-color: #7aa2f7;
+}
+
+/* The text input itself */
+.file-browser__inline-name-input {
+  background: #1a1b26;
+  border: 1px solid #7aa2f7;
+  border-radius: 3px;
+  color: #c0caf5;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  outline: none;
+}
+
+.file-browser__inline-name-input:focus {
+  border-color: #7aa2f7;
+  outline: 2px solid #7aa2f7;
+  outline-offset: 1px;
+}
+
+/* ── Per-row action cluster (FileRow.tsx / FileRowActions) ─────────────────── */
+
+/* Hidden by default; revealed on row hover or keyboard focus within the row.
+   Also stays visible when the row is selected (--selected covers both mouse
+   and keyboard selection). SPEC §1 behavioral contract. */
+.file-browser__row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.file-browser__list-row:hover .file-browser__row-actions,
+.file-browser__list-row:focus-within .file-browser__row-actions,
+.file-browser__list-row--selected .file-browser__row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Destructive icon button variant ──────────────────────────────────────── */
+
+/* Red icon — used for the per-row Delete button and can be applied to any
+   btn--icon to signal a destructive action. The TrashIcon glyph carries the
+   meaning; color is reinforcement only (colorblind contract preserved). */
+.file-browser__btn--destructive {
+  color: #f7768e;
+  border-color: transparent;
+}
+
+.file-browser__btn--destructive:hover {
+  color: #f7768e;
+  background: rgba(247, 118, 142, 0.1);
+  border-color: #f7768e;
+}
+
+/* ── Move-to picker tree (MoveToPickerModal.tsx) ──────────────────────────── */
+
+/* Node wrapper: holds the indented row + its children */
+.file-browser__move-tree-node {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Clickable directory row inside the picker */
+.file-browser__move-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  color: #c0caf5;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.1s ease;
+}
+
+.file-browser__move-tree-row:hover {
+  background: #1e2030;
+}
+
+/* Selected target directory */
+.file-browser__move-tree-row--selected {
+  background: #1e2030;
+  border-color: #7aa2f7;
+  color: #c0caf5;
+}
+
+/* Disabled directory (e.g. the source dir or a child of it) */
+.file-browser__move-tree-row--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Upload queue panel (UploadQueuePanel.tsx) ──────────────────────────────
+   The panel reuses .new-session-modal* for its chrome; these rules cover the
+   per-file row contents and the progress-bar structure within the body. */
+
+/* Supplement: new-session-modal__title on an h3 — the existing rule only
+   styles h2; this ensures the panel heading inherits the same appearance. */
+.new-session-modal__header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #c0caf5;
+  line-height: 1.2;
+}
+
+/* Panel overlay — reuses quit-modal-overlay stacking context */
+.new-session-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Upload drop overlay — full-list drag target */
+.file-browser__upload-drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(26, 27, 38, 0.85);
+  border: 2px dashed #7aa2f7;
+  border-radius: 4px;
+  z-index: 10;
+  pointer-events: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7aa2f7;
+}
+
+/* Per-file upload row */
+.file-browser__upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: #c0caf5;
+  border-bottom: 1px solid #292e42;
+}
+
+.file-browser__upload-row:last-child {
+  border-bottom: none;
+}
+
+/* Upload progress bar track */
+.file-browser__upload-progress {
+  flex: 1 1 auto;
+  height: 4px;
+  background: #292e42;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* Upload progress bar fill */
+.file-browser__upload-progress-fill {
+  height: 100%;
+  background: #7aa2f7;
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+/* Upload status text (Done / Failed / percentage) */
+.file-browser__upload-status {
+  font-size: 11px;
+  color: #9aa5ce;
+  flex: 0 0 auto;
+  min-width: 48px;
+  text-align: right;
+}
