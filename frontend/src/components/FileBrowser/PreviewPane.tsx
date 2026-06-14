@@ -16,7 +16,7 @@
 // branching on state.
 
 import React from 'react'
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { ArrowDownTrayIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
 import type { PreviewState } from '../../lib/filesTypes'
 import { humanSize as fmtHumanSize } from '../../lib/humanSize'
 import { TextPreview } from './TextPreview'
@@ -37,6 +37,23 @@ export interface PreviewPaneProps {
   filename: string | null
   /** Download URL for the currently-selected entry, or null when no selection. */
   downloadUrl: string | null
+  /**
+   * Phase 125-02: true when the current session has write permission on this
+   * surface (desktop: SessionInfo.filesWrite; web-share: files.write cap bit).
+   * When true and the selected file is text/markdown and not binary, the pencil
+   * Edit button is rendered. UI authority only — server is the real gate (EDIT-12).
+   */
+  canWrite?: boolean
+  /**
+   * Phase 125-02: true when the selected entry is a binary file (isBinary from
+   * FileEntry). Binary files never show the Edit affordance (EDIT-03).
+   */
+  isBinary?: boolean
+  /**
+   * Phase 125-02: callback invoked when the user clicks the Edit button.
+   * Opens the Editor component for the currently-selected file.
+   */
+  onEdit?: () => void
 }
 
 /**
@@ -79,9 +96,20 @@ export function PreviewPane({
   state,
   filename,
   downloadUrl,
+  canWrite = false,
+  isBinary = false,
+  onEdit,
 }: PreviewPaneProps): React.ReactElement {
   const showHeader = hasHeaderForKind(state.kind) && filename !== null
   const size = sizeOf(state)
+
+  // Edit button is shown when canWrite AND text/markdown AND NOT binary (EDIT-03/12).
+  // Absence is the colorblind-safe signal for binary/no-permission (no greyed ghost).
+  const showEditButton =
+    canWrite &&
+    !isBinary &&
+    (state.kind === 'text' || state.kind === 'markdown') &&
+    onEdit !== undefined
 
   return (
     <section
@@ -112,6 +140,18 @@ export function PreviewPane({
             >
               <ArrowDownTrayIcon width={14} height={14} aria-hidden="true" />
             </DownloadButton>
+          )}
+          {/* Phase 125-02 Edit button — gated on canWrite && !isBinary && text/markdown.
+              Absence is the signal for binary/no-permission (colorblind contract). */}
+          {showEditButton && (
+            <button
+              className="file-browser__btn file-browser__btn--icon"
+              aria-label={`Edit ${filename ?? ''}`}
+              title="Edit"
+              onClick={onEdit}
+            >
+              <PencilSquareIcon width={14} height={14} aria-hidden="true" />
+            </button>
           )}
         </header>
       )}
