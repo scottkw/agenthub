@@ -398,17 +398,19 @@ The planner should scope the file list to the actual write-path files and assert
 
 **Note:** Both assumptions are implementation-shape choices within Claude's Discretion (per CONTEXT.md), not factual claims about external systems. No user confirmation is blocking; the planner picks the shape.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Per-session write opt-in: persistence model.**
    - What we know: CAP-04 requires a per-session toggle; CAP-08 requires `FilesWrite: false` to persist in `settings.json` schemaVersion 4. The existing `FilesRead` is a single global `*bool`.
    - What's unclear: Is `FilesWrite` (a) a global *default* in settings that seeds each new session's in-memory write state (sessions are ephemeral, so per-session persistence across restart may be moot since sessions don't survive daemon restart), or (b) a per-session persisted map? Sessions in this codebase do NOT survive daemon restart (the engine rebuilds session state on start), so "web-share opt-in persists across daemon restarts" (SC#5) most plausibly means the **settings-level default** persists, while the per-session toggle is in-memory for live sessions.
    - Recommendation: Model `FilesWrite bool` as a persisted settings DEFAULT (schemaVersion 4, default false) AND a per-session in-memory override map (`map[string]bool` under `e.mu`). New sessions inherit the settings default (false); the GUI per-session toggle flips the in-memory map; cap minting reads the map. The migration test (`TestSettingsMigration_FilesWriteDefaultsFalse`) asserts the settings default. The "persists across daemon restarts" criterion is satisfied by the settings default (since sessions themselves don't persist). **Planner should confirm this interpretation against the ROADMAP SC#5 wording during planning.**
+   - RESOLVED: Per-session in-memory override map + persisted `FilesWrite` bool default false in settings.json (schemaVersion 4); new sessions seed from the persisted default, GUI toggle flips the in-memory map, cap minting reads the map.
 
 2. **Does the home-dir warning need a new daemon endpoint or can it ride existing session-info?**
    - What we know: `handleSessionInfo` (`server.go:746`) exists and populates the terminal status bar with perms.
    - What's unclear: whether to extend that response with `homeDir`/`canWrite` or add it to `IssueCapabilitiesResponse`.
    - Recommendation: Extend the existing response the GUI already polls per session (least new surface). Planner's discretion.
+   - RESOLVED: Expose the home-dir/`canWrite` signal on BOTH `SessionInfo` (TUI) and `IssueCapabilitiesResponse` (GUI), backed by a single server-side source of truth so the two surfaces never diverge.
 
 ## Environment Availability
 

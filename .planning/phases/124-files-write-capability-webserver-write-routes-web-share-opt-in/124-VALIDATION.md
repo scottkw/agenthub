@@ -2,7 +2,7 @@
 phase: 124
 slug: files-write-capability-webserver-write-routes-web-share-opt-in
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-14
 ---
@@ -38,7 +38,20 @@ created: 2026-06-14
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (planner fills) | — | — | CAP-01..10 | CSRF/authz | 403 without files.write; 2xx with | unit/integration | `go test -race ./internal/webserver/...` | ❌ W0 | ⬜ pending |
+| 01-T0 | 124-01 | 1 | CAP-01, CAP-02, CAP-09 | T-124-SC | Wave-0 RED: requireFilesWrite/Origin/static-grep gate undefined before impl | unit (RED) | `cd internal/webserver && go test -run 'TestRequireFilesWrite\|TestHasPerm_NoStringsContains_Write' -count=1 . 2>&1 \| grep -qE 'undefined\|FAIL\|build failed' && echo RED-OK` | ✅ | ⬜ pending |
+| 01-T1 | 124-01 | 1 | CAP-01, CAP-03, CAP-07 | CSRF/authz | PermFilesWrite const + requireFilesWrite gate (403 without cap) + Origin-mismatch → 403 | unit | `cd internal/webserver && go build ./... && go test -run 'TestRequireFilesWrite\|TestHasPerm_NoStringsContains_Write' -count=1 . 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 01-T2 | 124-01 | 1 | CAP-01, CAP-02 | authz | Five write routes mounted behind requireFilesWrite (2xx with cap) | integration | `cd internal/webserver && go test -run 'TestRequireFilesWrite' -count=1 . 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 02-T0 | 124-02 | 1 | CAP-08 | — | Wave-0 RED: FilesWrite migration test fails before schema bump | unit (RED) | `cd internal/daemon && go test -run 'TestSettingsMigration_FilesWrite' -count=1 . 2>&1 \| grep -qE 'undefined\|FAIL\|build failed' && echo RED-OK` | ✅ | ⬜ pending |
+| 02-T1 | 124-02 | 1 | CAP-04, CAP-08 | — | schemaVersion 4 + FilesWrite default false + per-session write map + homeDir signal | unit | `cd internal/daemon && go build ./... && go test -run 'TestSettingsMigration_FilesWrite' -count=1 . 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 02-T2 | 124-02 | 1 | CAP-04, CAP-06 | authz | Cap mint appends files.write only when toggle ON; HomeDir on IssueCapabilitiesResponse | unit | `cd internal/daemon && go build ./... && go test -run 'IssueCapabilities\|TestSettingsMigration_FilesWrite' -count=1 . 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 03-T0 | 124-03 | 2 | CAP-10 | — | Wave-0 RED: remote write-proxy body-forward test fails before impl | unit (RED) | `cd internal/daemon && go test -run 'TestRemoteFilesWrite' -count=1 . 2>&1 \| grep -qE 'FAIL\|empty\|undefined\|build failed' && echo RED-OK` | ✅ | ⬜ pending |
+| 03-T1 | 124-03 | 2 | CAP-10 | I/T | Forward r.Body + Content-Type for write verbs; caller cap stripped | unit | `cd internal/daemon && go build ./... && go test -run 'TestRemoteFilesWrite\|TestRemoteFiles_CallerCapStripped\|TestRemoteFiles_ListRoundTrip' -count=1 . 2>&1 \| tail -4` | ✅ | ⬜ pending |
+| 03-T2 | 124-03 | 2 | CAP-10 | authz | Register five remote write proxy routes | integration | `cd internal/daemon && go build ./... && go test -race . -count=1 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 04-T1 | 124-04 | 3 | CAP-04 | T-124-15 | SetSessionFilesWrite binding chain (per-session, no global flag); Wails binding regenerated | integration | `go build ./... && go test -race ./internal/daemon/ -count=1 2>&1 \| tail -3` | ✅ | ⬜ pending |
+| 04-T2 | 124-04 | 3 | CAP-06 | T-124-16 | HomeDirWriteWarning renders ⚠ + literal "Warning:" (colorblind-safe) | unit | `cd frontend && pnpm test -- --run HomeDirWriteWarning 2>&1 \| tail -5` | ✅ | ⬜ pending |
+| 04-T3 | 124-04 | 3 | CAP-04, CAP-05 | T-124-14, T-124-15 | Owner toggle (default OFF) + viewer opt-in gated/confirmed before write cap minted | unit | `cd frontend && pnpm test -- --run SessionSharePanel DaemonManagerPanel 2>&1 \| tail -6` | ✅ | ⬜ pending |
+| 05-T0 | 124-05 | 2 | CAP-06 | — | Wave-0 RED: TUI warning render test fails before impl | unit (RED) | `cd internal/tui && go test -run 'HomeDirWarning\|FilesWarning\|renderFilesTab' -count=1 . 2>&1 \| grep -qE 'FAIL\|undefined\|build failed\|Warning' && echo RED-OK` | ✅ | ⬜ pending |
+| 05-T1 | 124-05 | 2 | CAP-06 | T-124-16 | TUI home-dir write warning line in renderFilesTab (⚠ + "Warning:") — parity with GUI | unit | `cd internal/tui && go test -run 'HomeDirWarning\|FilesWarning\|renderFilesTab' -count=1 . 2>&1 \| tail -4` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -50,6 +63,8 @@ created: 2026-06-14
 - [ ] CSRF Origin-check tests (mismatch → 403; absent Origin → vacuous pass)
 - [ ] `TestHasPerm_NoStringsContains_Write` static-grep gate
 - [ ] `TestSettingsMigration_FilesWriteDefaultsFalse` migration test
+- [ ] Remote write-proxy body-forwarding test (`TestRemoteFilesWrite`)
+- [ ] TUI home-dir warning render test (`HomeDirWarning`/`renderFilesTab`)
 - [ ] Frontend toggle test (toggle ON → cap includes "files.write")
 
 *Framework present (go test + vitest) — no install needed.*
@@ -75,6 +90,6 @@ created: 2026-06-14
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
 - [ ] Feedback latency < 90s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
