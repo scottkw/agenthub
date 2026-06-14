@@ -149,11 +149,20 @@ func (a *API) handleRemoteFilesMkdir(w http.ResponseWriter, r *http.Request) {
 	a.proxyRemoteFiles(w, r, "mkdir")
 }
 
-// proxyRemoteFiles is the shared body for the three /api/files/remote/...
+// proxyRemoteFiles is the shared body for all /api/files/remote/...
 // routes. It looks up the cap, builds the upstream URL with `?cap=<token>`
 // (mirroring the webserver's requireFilesRead pattern from Phase 119), issues
 // the upstream request with the same HTTP method (so HEAD → HEAD survives),
 // and copies upstream status + selected headers + body back to the caller.
+//
+// Concurrency contract (WR-02): multiple concurrent write proxies for the same
+// session race at the remote peer's files.Handler — last-writer-wins. There is
+// no cross-surface coordination or version/ETag lock on the proxy layer. The
+// proxy forwards conditional-write headers (If-Match, If-Unmodified-Since,
+// If-None-Match) when present so that a future optimistic-concurrency upgrade
+// on the remote peer does not require a proxy change, but the peer does not
+// currently enforce them. Callers that need conflict-safe writes must implement
+// their own read-modify-write loop using the ETag returned in the response.
 //
 // Per-status behavior:
 //
@@ -162,6 +171,7 @@ func (a *API) handleRemoteFilesMkdir(w http.ResponseWriter, r *http.Request) {
 //	upstream 403                 → 403 verbatim (frontend's PermissionDeniedTakeover already handles)
 //	upstream 2xx                 → 2xx verbatim
 //	upstream dial / TLS failure  → 502 + plain text (cap token redacted)
+//	malformed baseURL in store   → 500 (upstream request build failed; deposit-time validation in Put prevents this in steady state)
 func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string) {
 	sessionID := r.PathValue("sessionID")
 	if sessionID == "" {
@@ -194,7 +204,10 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 		if strings.EqualFold(k, "cap") {
 			continue
 		}
-		q[k] = v
+		// IN-03: copy the slice so q[k] has its own backing array. The original
+		// r.URL.Query() map shares backing arrays with the URL's raw form; a
+		// future caller that mutates q[k] in place would silently corrupt it.
+		q[k] = append([]string(nil), v...)
 	}
 	// Ensure the session param matches the path param. The remote webserver
 	// uses ?session=<id> for the sandbox lookup; force-set it from the URL
@@ -226,6 +239,15 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 	if body != nil {
 		if ct := r.Header.Get("Content-Type"); ct != "" {
 			req.Header.Set("Content-Type", ct)
+		}
+		// WR-02: Forward conditional-write headers when present so that a future
+		// optimistic-concurrency layer on the remote peer is reachable without a
+		// proxy change. The peer does not currently enforce these preconditions;
+		// the current contract is last-writer-wins (see proxyRemoteFiles comment).
+		for _, h := range []string{"If-Match", "If-Unmodified-Since", "If-None-Match"} {
+			if v := r.Header.Get(h); v != "" {
+				req.Header.Set(h, v)
+			}
 		}
 	}
 
