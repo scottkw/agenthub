@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: File Browser — Write Operations & Editor
-status: completed
+status: executing
 stopped_at: v3.5 roadmap created
-last_updated: "2026-06-14T21:24:20.109Z"
-last_activity: 2026-06-14 -- Phase 125 marked complete
+last_updated: "2026-06-14T22:04:50.372Z"
+last_activity: 2026-06-14 -- Phase 126 execution started
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 18
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 19
   completed_plans: 15
-  percent: 0
+  percent: 75
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 125 — React Editor (CodeMirror 6) — Desktop + Web
+**Current focus:** Phase 126 — TUI Write Parity ($EDITOR Shell-Out)
 
 ## Current Position
 
-Phase: 125 — COMPLETE
-Plan: 1 of 6
-Status: Phase 125 complete
-Last activity: 2026-06-14 -- Phase 125 marked complete
+Phase: 126 (TUI Write Parity ($EDITOR Shell-Out)) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 126
+Last activity: 2026-06-14 -- Phase 126 execution started
 
 ```
 v3.5 Progress: [                    ] 0% (0/6 phases)
