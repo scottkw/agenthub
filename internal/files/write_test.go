@@ -11,6 +11,9 @@ package files_test
 
 import (
 	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -599,4 +602,128 @@ func TestDenylist_NonHomeRootedUnaffected(t *testing.T) {
 // isProtected returns true if err is (or wraps) files.ErrProtectedSystemFile.
 func isProtected(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "protected system file")
+}
+
+// --------------------------------------------------------------------------
+// TestWrite_IfMatch* — EDIT-05/08 optimistic-concurrency precondition tests.
+// These exercise Handler.Write (the HTTP handler layer), not the Sandbox
+// primitive, so they drive the handler via httptest.NewRequest + NewRecorder,
+// reusing the newHandler helper defined in handler_test.go.
+// --------------------------------------------------------------------------
+
+// invokeWrite is a helper that calls Handler.Write with the supplied body and
+// optional If-Match header via httptest machinery.
+func invokeWrite(t *testing.T, h *files.Handler, path string, body []byte, ifMatch string) *httptest.ResponseRecorder {
+	t.Helper()
+	u := "/?session=good&path=" + path
+	req := httptest.NewRequest(http.MethodPut, u, bytes.NewReader(body))
+	if ifMatch != "" {
+		req.Header.Set("If-Match", ifMatch)
+	}
+	rr := httptest.NewRecorder()
+	h.Write(rr, req)
+	return rr
+}
+
+// validatorFor computes the expected ETag / If-Match validator for the file at
+// the given absolute path on disk, using the same format as Handler.Write:
+// "<UnixNano>-<size>" (quoted via fmt.Sprintf("%q")).
+func validatorFor(t *testing.T, absPath string) string {
+	t.Helper()
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		t.Fatalf("validatorFor os.Stat: %v", err)
+	}
+	return fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+}
+
+// TestWrite_IfMatch_Match verifies that a PUT with the correct on-disk
+// validator succeeds (200) and the new content is persisted.
+func TestWrite_IfMatch_Match(t *testing.T) {
+	h, root := newHandler(t)
+
+	// Seed an existing file.
+	initial := []byte("original content")
+	absPath := filepath.Join(root, "match.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	// Build the correct validator from on-disk state.
+	etag := validatorFor(t, absPath)
+
+	// PUT with the matching If-Match header → expect 200.
+	updated := []byte("updated content")
+	rr := invokeWrite(t, h, "match.txt", updated, etag)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Verify new content is on disk.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, updated) {
+		t.Errorf("disk content = %q; want %q", got, updated)
+	}
+}
+
+// TestWrite_IfMatch_Mismatch verifies that a PUT with a stale validator
+// returns 412 and leaves the original file content unchanged.
+func TestWrite_IfMatch_Mismatch(t *testing.T) {
+	h, root := newHandler(t)
+
+	// Seed an existing file.
+	initial := []byte("do not overwrite me")
+	absPath := filepath.Join(root, "mismatch.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed file: %v", err)
+	}
+
+	// Use a stale validator (fabricated, won't match the real on-disk value).
+	staleETag := `"0-0"`
+
+	// PUT with stale If-Match → expect 412.
+	rr := invokeWrite(t, h, "mismatch.txt", []byte("should not land"), staleETag)
+	if rr.Code != http.StatusPreconditionFailed {
+		t.Fatalf("status = %d; want 412; body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Verify original content is still on disk.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, initial) {
+		t.Errorf("disk content changed after 412: got %q; want %q", got, initial)
+	}
+}
+
+// TestWrite_IfMatch_NewFile verifies that a PUT with no If-Match header to a
+// non-existent path creates the file (200) without requiring a validator.
+func TestWrite_IfMatch_NewFile(t *testing.T) {
+	h, root := newHandler(t)
+
+	absPath := filepath.Join(root, "newfile.txt")
+	// Pre-condition: the file must not exist yet.
+	if _, err := os.Stat(absPath); !os.IsNotExist(err) {
+		t.Fatalf("expected newfile.txt to be absent before test; err=%v", err)
+	}
+
+	content := []byte("brand new content")
+	// PUT with no If-Match → new-file path, expect 200.
+	rr := invokeWrite(t, h, "newfile.txt", content, "" /* no If-Match */)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d; want 200; body=%s", rr.Code, rr.Body.String())
+	}
+
+	// Verify file was created on disk.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("disk content = %q; want %q", got, content)
+	}
 }
