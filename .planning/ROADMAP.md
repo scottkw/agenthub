@@ -411,12 +411,12 @@ Plans:
 4. Pressing `u` (upload) in the TUI Files view shows the on-screen message "Use desktop or web to upload files." — the one documented parity gap — and a follow-up GitHub issue is filed.
 5. The `FilesClient` interface has exactly 8 methods (4 read + 4 write); both `*daemon.DaemonClient` and `*tui.RemoteFilesClient` satisfy the full interface; `TestFiles_NoSyncFSCalls` static-grep gate passes with write commands included — all write filesystem I/O routes through `tea.Cmd`, never synchronous in `Update`.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [x] 126-01-PLAN.md — Extend FilesClient to 8 methods + RemoteFilesClient write methods (TUIW-01)
 - [x] 126-02-PLAN.md — $EDITOR shell-out: resolveEditor, edit fetch/write-back, ClearScreen + unconditional refresh (TUIW-02/03/04)
-- [ ] 126-03-PLAN.md — Delete-confirm / inline rename / inline mkdir affordances (TUIW-05)
+- [x] 126-03-PLAN.md — Delete-confirm / inline rename / inline mkdir affordances (TUIW-05)
 - [ ] 126-04-PLAN.md — Upload descope + GitHub issue + no-sync gate extension + requirements matrix (TUIW-06/07)
 
 **UI hint**: no
@@ -508,7 +508,7 @@ Plans:
 | 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
 | 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
 | 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
-| 126 | v3.5 | 2/4 | In Progress|  |
+| 126 | v3.5 | 3/4 | In Progress|  |
 | 127 | v3.5 | 0/TBD | Not started | - |
 | 128 | v3.5 | 0/TBD | Not started | - |
 
