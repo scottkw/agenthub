@@ -15,6 +15,10 @@ export interface SessionInfo {
   viewerCount: number
   exitCode?: number
   duration?: number
+  /** Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME). Server-side source of truth for the home-dir write warning on both GUI and TUI. */
+  homeDir: boolean
+  /** Phase 124 / CAP-04: true when the per-session owner write toggle is ON. Server-side source of truth for cross-surface parity. */
+  filesWrite: boolean
 }
 
 export interface DetectedCLI {

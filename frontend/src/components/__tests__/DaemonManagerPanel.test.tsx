@@ -6,7 +6,25 @@ import raw from '../../components/DaemonManagerPanel.tsx?raw'
 import type { DaemonManagerPanelProps } from '../../components/DaemonManagerPanel'
 import { DaemonManagerPanel } from '../../components/DaemonManagerPanel'
 
-// SessionInfo type matching wailsjs/go/main/App.d.ts
+// Mock Wails runtime modules used by DaemonManagerPanel / SessionSharePanel
+vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
+  ClipboardSetText: vi.fn().mockResolvedValue(undefined),
+  BrowserOpenURL: vi.fn(),
+}))
+vi.mock('../../wailsjs/go/main/App', () => ({
+  IssueCapabilities: vi.fn().mockResolvedValue({
+    readUrl: 'https://example.com/r',
+    writeUrl: 'https://example.com/w',
+    readCode: 'rc',
+    writeCode: 'wc',
+    homeDir: false,
+  }),
+  SetSessionFilesWrite: vi.fn().mockResolvedValue(undefined),
+  GetLocalNetworkPassword: vi.fn().mockResolvedValue(''),
+  GetCapabilityQRCode: vi.fn().mockResolvedValue(''),
+}))
+
+// SessionInfo type matching wailsjs/go/main/App.d.ts (Phase 124 / CAP-04 / CAP-06 fields included)
 interface SessionInfo {
   id: string
   cli: string
@@ -19,11 +37,13 @@ interface SessionInfo {
   viewerCount: number
   exitCode?: number
   duration?: number
+  homeDir: boolean
+  filesWrite: boolean
 }
 
 const mockSessions: SessionInfo[] = [
-  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', status: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false, viewerCount: 0 },
-  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', status: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false, viewerCount: 0 },
+  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', status: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
+  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', status: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
 ]
 
 function renderPanel(props: Partial<DaemonManagerPanelProps> = {}) {
@@ -143,11 +163,79 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
 
   it('renders em dash when hostname is empty', () => {
     const noHostSessions = [
-      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', status: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false, viewerCount: 0 },
+      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', status: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
     ]
     ;({ container, root } = renderPanel({ sessions: noHostSessions }))
     const badge = container.querySelector('.daemon-panel__hostname')
     expect(badge).not.toBeNull()
     expect(badge!.textContent).toBe('\u2014')
+  })
+})
+
+describe('DaemonManagerPanel WR-04 \u2014 homeDir banner sourced from SessionInfo.homeDir', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+    vi.clearAllMocks()
+  })
+
+  it('shows home-dir banner when s.homeDir=true and writes are enabled via sessionWrites state', async () => {
+    // A session whose server-reported homeDir=true and whose write toggle we enable.
+    // We must mock IssueCapabilities and SetSessionFilesWrite for the toggle interaction.
+    const { IssueCapabilities, SetSessionFilesWrite } = await import('../../wailsjs/go/main/App')
+    const mockIssue = vi.mocked(IssueCapabilities)
+    const mockSetWrite = vi.mocked(SetSessionFilesWrite)
+    mockSetWrite.mockResolvedValue(undefined)
+    mockIssue.mockResolvedValue({
+      readUrl: 'https://example.com/r',
+      writeUrl: 'https://example.com/w',
+      readCode: 'rc',
+      writeCode: 'wc',
+      homeDir: false, // IssueCapabilities response homeDir is irrelevant post-WR-04
+    })
+
+    const homeDirSession: SessionInfo[] = [
+      { id: 'sess-home', cli: 'claude', name: 'home session', state: 'running', status: 'running',
+        createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: true, viewerCount: 0,
+        homeDir: true, filesWrite: false },
+    ]
+
+    ;({ container, root } = renderPanel({
+      sessions: homeDirSession,
+      webServerRunning: true,
+      webEnabled: { 'sess-home': true },
+    }))
+
+    // The "Enable file writes" toggle is rendered; click it to enable writes
+    const toggle = Array.from(container.querySelectorAll('[role="switch"]')).find(el =>
+      el.getAttribute('aria-label') === 'Enable file writes'
+    ) as HTMLInputElement | null
+    expect(toggle).not.toBeNull()
+
+    await flushSync(async () => { toggle!.click() })
+    // Give async handlers time to run
+    await new Promise(r => setTimeout(r, 50))
+
+    // After enabling writes, the home-dir banner should appear because
+    // s.homeDir=true (from SessionInfo, server source of truth)
+    // The banner contains "Warning:" per HomeDirWriteWarning colorblind contract
+    expect(container.textContent).toContain('Warning:')
+    expect(container.textContent).toContain('home')
+  })
+
+  it('does NOT show home-dir banner when s.homeDir=false even if writes are enabled', () => {
+    // WR-04: banner must not appear for sessions where homeDir=false
+    const normalSession: SessionInfo[] = [
+      { id: 'sess-norm', cli: 'claude', name: 'normal session', state: 'running', status: 'running',
+        createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
+        homeDir: false, filesWrite: true },
+    ]
+    ;({ container, root } = renderPanel({ sessions: normalSession }))
+    // The component uses s.homeDir (SessionInfo) not share?.homeDir post-WR-04
+    // With homeDir=false on the session, no banner should render
+    expect(container.textContent).not.toContain('Warning: writes can affect your home directory')
   })
 })

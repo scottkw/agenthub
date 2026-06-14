@@ -331,10 +331,14 @@ export function DaemonManagerPanel({
                     {writeError[s.id]}
                   </p>
                 )}
-                {/* Phase 124 / CAP-06: home-dir write warning banner (Surface 3).
-                    Shows when writes enabled + session cwd is $HOME (homeDir signal).
-                    Per-session-per-enable dismissal; re-shows on re-enable. */}
-                {sessionWrites[s.id] && share?.homeDir && !homeDirDismissed[s.id] && (
+                {/* Phase 124 / CAP-06 / WR-04: home-dir write warning banner (Surface 3).
+                    Source homeDir from SessionInfo.homeDir (the ListSessions-derived
+                    field, same source of truth the TUI uses in internal/tui/files.go)
+                    rather than share?.homeDir (per-capability response, can be stale
+                    if IssueCapabilities fails or has not yet run). Both surfaces now
+                    collapse to the single server-side source of truth documented in
+                    engine.go:461-467 for cross-surface parity. */}
+                {sessionWrites[s.id] && s.homeDir && !homeDirDismissed[s.id] && (
                   <HomeDirWriteWarning
                     onDismiss={() => setHomeDirDismissed((prev) => ({ ...prev, [s.id]: true }))}
                   />
