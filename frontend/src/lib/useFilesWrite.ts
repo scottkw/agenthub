@@ -1,3 +1,178 @@
-// Phase 125-03 Task 1 — stub for TDD RED phase.
-// Real implementation follows in GREEN.
-export {}
+// Phase 125-03 Task 1 — useFilesWrite hook.
+//
+// Manages the write side of file operations for the editor and write affordances.
+// Shape: { write, del, rename, mkdir, upload, isSaving, saveError }
+//
+// `write` + three-state save (idle/saving/saved ~1.5s) are fully implemented here.
+// `del`, `rename`, `mkdir`, `upload` are stub signatures for Plan 04/05 — declared
+// so consumers compile with the full return type.
+//
+// Save state machine (EDIT-05/06/08):
+//   idle   → write() called → isSaving=true
+//   saving → 200           → isSaving=false, savedSnapshot updated, Saved ~1.5s
+//   saving → 412           → isConflict=true (buffer NOT cleared — T-125-08 locked)
+//   saving → other error   → saveError set (inline non-takeover — EDIT-06 copy)
+//
+// The `etag` passed to write() is the value returned by readFileText() verbatim
+// (PATTERNS §If-Match echo contract). The client NEVER derives it from mtime+size
+// directly — the server ETag header is the single source of truth (RESEARCH Open Q6).
+
+import { useCallback, useRef, useState } from 'react'
+import { FilesApiError, type FilesApiClient } from './filesApi'
+
+/** ~1.5s transient for the "Saved" state (EDIT-06, mirrors Settings save transient). */
+const SAVED_TIMEOUT = 1500
+
+/** Three-state save indicator state. Idle = no indicator shown. */
+export type SaveState = 'idle' | 'saving' | 'saved'
+
+export interface UseFilesWriteResult {
+  /** Trigger a PUT /api/files/write with If-Match. Sets isSaving during the request. */
+  write: (path: string, content: string, etag?: string) => Promise<void>
+  /** Delete a file or directory (stub — Plan 04). */
+  del: (path: string) => Promise<void>
+  /** Rename/move a file (stub — Plan 04). */
+  rename: (oldPath: string, newPath: string) => Promise<void>
+  /** Create a directory (stub — Plan 04). */
+  mkdir: (path: string) => Promise<void>
+  /** Upload a file via XHR with progress (stub — Plan 05). */
+  upload: (dir: string, file: File, onProgress?: (pct: number) => void) => Promise<void>
+  /** True while a save PUT is in flight. */
+  isSaving: boolean
+  /** Three-state save indicator: idle / saving / saved. */
+  saveState: SaveState
+  /**
+   * Non-null when the last save produced a non-412 error.
+   * Copy verbatim: "Couldn't save the file. Your changes are still here — try again."
+   * Cleared on next successful save.
+   */
+  saveError: string | null
+  /**
+   * True when the last save attempt hit a 412 Precondition Failed.
+   * The editor buffer is NEVER cleared in this state — T-125-08 locked decision.
+   * Cleared when the user resolves the conflict (force-overwrite / save-as / discard).
+   */
+  isConflict: boolean
+  /** Clear the conflict flag (called after the user resolves the ConflictModal). */
+  clearConflict: () => void
+  /** Clear the save error (called on retry). */
+  clearSaveError: () => void
+}
+
+export function useFilesWrite(
+  client: FilesApiClient | null,
+  sessionId: string,
+): UseFilesWriteResult {
+  const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [isConflict, setIsConflict] = useState<boolean>(false)
+
+  // Timer ref for the ~1.5s "Saved" transient — cancelled if a new save starts.
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearSavedTimer = useCallback(() => {
+    if (savedTimerRef.current !== null) {
+      clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = null
+    }
+  }, [])
+
+  const write = useCallback(
+    async (path: string, content: string, etag?: string): Promise<void> => {
+      if (client === null) return
+
+      // Clear prior transient and error state.
+      clearSavedTimer()
+      setSaveError(null)
+      setIsConflict(false)
+      setIsSaving(true)
+      setSaveState('saving')
+
+      try {
+        // Send the raw CM6 buffer as octet-stream; no CRLF→LF re-encode (T-125-09).
+        // If-Match echoes the ETag verbatim from readFileText (EDIT-05 echo contract).
+        await client.writeFile(sessionId, path, content, etag)
+
+        // Success — show "Saved" for ~1.5s then return to idle.
+        setIsSaving(false)
+        setSaveState('saved')
+        savedTimerRef.current = setTimeout(() => {
+          setSaveState('idle')
+          savedTimerRef.current = null
+        }, SAVED_TIMEOUT)
+      } catch (err) {
+        setIsSaving(false)
+
+        if (err instanceof FilesApiError && err.isConflict()) {
+          // 412 — another process modified the file. Buffer is NOT cleared (T-125-08).
+          // Signal the parent to open ConflictModal.
+          setIsConflict(true)
+          setSaveState('idle')
+          return
+        }
+
+        // Non-412 error — show inline save error (EDIT-06 verbatim copy).
+        setSaveError("Couldn't save the file. Your changes are still here — try again.")
+        setSaveState('idle')
+      }
+    },
+    [client, sessionId, clearSavedTimer],
+  )
+
+  // ─── Stub members for Plan 04/05 ─────────────────────────────────────────
+
+  const del = useCallback(
+    async (_path: string): Promise<void> => {
+      // Plan 04: delete file/dir — stub.
+      throw new Error('del not implemented (Plan 04)')
+    },
+    [],
+  )
+
+  const rename = useCallback(
+    async (_oldPath: string, _newPath: string): Promise<void> => {
+      // Plan 04: rename/move — stub.
+      throw new Error('rename not implemented (Plan 04)')
+    },
+    [],
+  )
+
+  const mkdir = useCallback(
+    async (_path: string): Promise<void> => {
+      // Plan 04: create directory — stub.
+      throw new Error('mkdir not implemented (Plan 04)')
+    },
+    [],
+  )
+
+  const upload = useCallback(
+    async (_dir: string, _file: File, _onProgress?: (pct: number) => void): Promise<void> => {
+      // Plan 05: XHR upload with progress — stub.
+      throw new Error('upload not implemented (Plan 05)')
+    },
+    [],
+  )
+
+  const clearConflict = useCallback(() => {
+    setIsConflict(false)
+  }, [])
+
+  const clearSaveError = useCallback(() => {
+    setSaveError(null)
+  }, [])
+
+  return {
+    write,
+    del,
+    rename,
+    mkdir,
+    upload,
+    isSaving,
+    saveState,
+    saveError,
+    isConflict,
+    clearConflict,
+    clearSaveError,
+  }
+}
