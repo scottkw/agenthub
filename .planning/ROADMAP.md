@@ -352,7 +352,14 @@ Plans:
 4. The web-share grant UI shows an explicit `files.write` opt-in toggle (default OFF), and toggling it on includes the string `"files.write"` in the issued viewer cap token; the home-directory write warning is visible in both GUI and TUI when `files.write` is active for a session whose cwd is `$HOME`.
 5. `TestSettingsMigration_FilesWriteDefaultsFalse` passes: a settings file at `schemaVersion: 3` migrates to `schemaVersion: 4` with `FilesWrite: false` default; web-share `files.write` opt-in state persists across daemon restarts.
 
-**Plans:** TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 124-01-PLAN.md — files.write cap const + requireFilesWrite middleware (HasPerm + CSRF Origin) + 5 webserver route mounts + integration/static-grep tests (CAP-01,02,03,07,09)
+- [ ] 124-02-PLAN.md — per-session write opt-in state + schemaVersion 4 migration + cap-mint wiring + EvalSymlinks home-dir signal on SessionInfo/IssueCapabilities (CAP-04,06,08)
+- [ ] 124-03-PLAN.md — proxyRemoteFiles body+Content-Type forwarding fix + 5 remote write proxy routes (CAP-10)
+- [ ] 124-04-PLAN.md — GUI owner write toggle + Wails binding chain + viewer "Allow file editing" opt-in + home-dir warning banner (CAP-04,05,06)
+- [ ] 124-05-PLAN.md — TUI home-dir write warning line, cross-surface parity (CAP-06)
 
 **UI hint**: yes
 
