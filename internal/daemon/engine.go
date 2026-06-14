@@ -41,6 +41,8 @@ type SessionEngine struct {
 	shellPath           string         // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
 	autoCloseSession    *bool          // nil = default (true); persisted pointer
 	filesRead           *bool          // v3.4 (Phase 118 / FS-14): nil for pre-v3.4 files (defaulted to *true via loadSettingsFromDisk); *true = enabled; *false = explicitly disabled
+	filesWriteDefault   bool           // Phase 124 / CAP-08: persisted default for per-session write toggle; false = opt-in for all (T-124-06)
+	sessionWrites       map[string]bool // Phase 124 / CAP-04: per-session write toggle (in-memory, seeded from filesWriteDefault at session creation; T-124-07)
 	pluginSettings      PluginSettings // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
@@ -90,6 +92,12 @@ func ensureOpenCodeTUIConfig(dir string) string {
 // BEFORE Unmarshal, so a v3.2 settings.json (no filesRead key) upgrading
 // to v3.3 lands on FilesRead=true (Pitfall 16 mitigation). An explicit
 // `"filesRead": false` user choice is preserved (TestSettingsMigration_FilesReadExplicitFalse).
+//
+// FilesWrite is additive (Phase 124 / CAP-08) and tagged `omitempty`:
+// it is a plain bool (NOT *bool) with zero-value false. This is a deliberate
+// inversion of FilesRead: files.write is opt-in for all sessions. Do NOT
+// pre-populate a true default in the defaults-merge literal; zero-value IS the
+// correct opt-in default (T-124-06 mitigation).
 type daemonSettings struct {
 	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized      bool              `json:"startMinimized,omitempty"`
@@ -97,6 +105,7 @@ type daemonSettings struct {
 	ShellPath           string            `json:"shellPath,omitempty"`
 	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
 	FilesRead           *bool             `json:"filesRead,omitempty"`
+	FilesWrite          bool              `json:"filesWrite,omitempty"` // Phase 124: per-session write default; plain bool, zero=false (opt-in for all)
 	Plugins             PluginSettings    `json:"plugins"`
 	SchemaVersion       int               `json:"schemaVersion"`
 }
@@ -179,7 +188,8 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
-	e.filesRead = s.FilesRead // Phase 118 / FS-14
+	e.filesRead = s.FilesRead           // Phase 118 / FS-14
+	e.filesWriteDefault = s.FilesWrite  // Phase 124 / CAP-08: zero-value false is the opt-in default
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
 	// CurrentSchemaVersion (e.g. v3.1 file with no key → 0). Re-save so
@@ -206,7 +216,8 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		ShellWebShareWarned: e.shellWebShareWarned,
 		ShellPath:           e.shellPath,
 		AutoCloseSession:    e.autoCloseSession,
-		FilesRead:           e.filesRead, // Phase 118 / FS-14
+		FilesRead:           e.filesRead,           // Phase 118 / FS-14
+		FilesWrite:          e.filesWriteDefault,   // Phase 124 / CAP-08
 		Plugins:             e.pluginSettings,
 		SchemaVersion:       CurrentSchemaVersion,
 	}
@@ -242,6 +253,7 @@ func NewSessionEngine() *SessionEngine {
 		tabNames:          make(map[string]string),
 		sessionCLIs:       make(map[string]string),
 		sessionWorkDirs:   make(map[string]string),
+		sessionWrites:     make(map[string]bool), // Phase 124 / CAP-04: per-session write toggle map
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
@@ -446,6 +458,13 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			ViewerCount: viewerCount,
 			ExitCode:    exitCodePtr,
 			Duration:    durationPtr,
+			// Phase 124 / CAP-06 + CAP-04: single server-side source of truth for
+			// both GUI and TUI home-dir warning + write-toggle parity.
+			// Note: sessionCwdIsHome + filesWriteEnabledFor both acquire e.mu.RLock
+			// internally, but ListSessions already holds e.mu.RLock via defer.
+			// Call the inner logic directly to avoid a deadlock.
+			HomeDir:    e.sessionCwdIsHomeUnlocked(s.ID),
+			FilesWrite: e.filesWriteEnabledForUnlocked(s.ID),
 		})
 	}
 	return result
@@ -515,6 +534,80 @@ func (e *SessionEngine) filesReadEnabled() bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.filesRead == nil || *e.filesRead
+}
+
+// filesWriteEnabledFor reports whether file-write capability issuance is
+// enabled for the given session's owner token. This is a PER-SESSION check
+// (T-124-07 mitigation — never a global flag like filesReadEnabled). If the
+// session has no explicit entry in sessionWrites, the persisted
+// filesWriteDefault is used (false = opt-in for all, CAP-08).
+// Phase 124.
+func (e *SessionEngine) filesWriteEnabledFor(sessionID string) bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.filesWriteEnabledForUnlocked(sessionID)
+}
+
+// filesWriteEnabledForUnlocked is the lock-free body of filesWriteEnabledFor.
+// Caller must hold e.mu.RLock (or e.mu.Lock).
+func (e *SessionEngine) filesWriteEnabledForUnlocked(sessionID string) bool {
+	if v, ok := e.sessionWrites[sessionID]; ok {
+		return v
+	}
+	return e.filesWriteDefault
+}
+
+// SetSessionFilesWrite sets the per-session write toggle for sessionID.
+// Called by the GUI binding when the owner flips the files-write toggle.
+// Phase 124 / CAP-04.
+func (e *SessionEngine) SetSessionFilesWrite(sessionID string, enabled bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.sessionWrites == nil {
+		e.sessionWrites = make(map[string]bool)
+	}
+	e.sessionWrites[sessionID] = enabled
+}
+
+// sessionCwdIsHome reports whether the session's working directory is the
+// user's home directory. Uses filepath.EvalSymlinks on os.UserHomeDir() to
+// handle the macOS /var→/private/var symlink trap (Pitfall 4 / T-124-08).
+// GetSessionWorkDir already returns an EvalSymlinks-resolved path (engine.go:502),
+// so comparing against the resolved home is the correct apples-to-apples check.
+// Phase 124 / CAP-06.
+func (e *SessionEngine) sessionCwdIsHome(sessionID string) bool {
+	cwd := e.GetSessionWorkDir(sessionID)
+	if cwd == "" {
+		return false
+	}
+	return cwdEqualsHome(cwd)
+}
+
+// sessionCwdIsHomeUnlocked is the lock-free body of sessionCwdIsHome.
+// Caller must hold at least e.mu.RLock.
+func (e *SessionEngine) sessionCwdIsHomeUnlocked(sessionID string) bool {
+	cwd := e.sessionWorkDirs[sessionID]
+	if cwd == "" {
+		return false
+	}
+	return cwdEqualsHome(cwd)
+}
+
+// cwdEqualsHome reports whether cwd (already EvalSymlinks-resolved) equals the
+// user's home directory after EvalSymlinks normalization.
+// Extracted to share between sessionCwdIsHome and sessionCwdIsHomeUnlocked
+// without duplicating the EvalSymlinks call.
+func cwdEqualsHome(cwd string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	// EvalSymlinks resolves /var/folders/... → /private/var/folders/... on macOS
+	// so that cwd (already resolved) and home compare correctly (T-124-08).
+	if resolved, err := filepath.EvalSymlinks(home); err == nil {
+		home = resolved
+	}
+	return cwd == home
 }
 
 // ResolveCLI returns the executable path for the named CLI.
