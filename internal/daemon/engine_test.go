@@ -922,7 +922,7 @@ func TestResolveShellSpawn_FreshInstallFallback(t *testing.T) {
 			"branch (4) fallback did not engage. v3.3.1 Phase 109 UAT regressed.")
 	}
 	if path == "" || path == "shell" {
-		t.Errorf("resolveShellSpawn(shell) returned bogus path %q; expected a " +
+		t.Errorf("resolveShellSpawn(shell) returned bogus path %q; expected a "+
 			"real binary path from DiscoverShells", path)
 	}
 	if len(args) == 0 {
@@ -1384,14 +1384,14 @@ func TestListSessions_OnExitCallback_ReceivesNormalized(t *testing.T) {
 // Phase 118 / FS-02: sessionWorkDirs map + GetSessionWorkDir.
 //
 // The five subtests below assert the WorkDir-gap closure:
-//   1. Populated: CreateSession with a real workDir → GetSessionWorkDir returns
-//      the EvalSymlinks-resolved absolute path.
-//   2. ResolvesSymlink: a symlink in the workDir argument resolves to its target.
-//   3. ClearedOnKill: after KillSession the entry is removed; GetSessionWorkDir
-//      returns "".
-//   4. EmptyForUnknown: GetSessionWorkDir("does-not-exist") returns "".
-//   5. FallbackOnEvalSymlinksError: bad workDir does not fail CreateSession;
-//      GetSessionWorkDir returns the raw (unresolved) workDir.
+//  1. Populated: CreateSession with a real workDir → GetSessionWorkDir returns
+//     the EvalSymlinks-resolved absolute path.
+//  2. ResolvesSymlink: a symlink in the workDir argument resolves to its target.
+//  3. ClearedOnKill: after KillSession the entry is removed; GetSessionWorkDir
+//     returns "".
+//  4. EmptyForUnknown: GetSessionWorkDir("does-not-exist") returns "".
+//  5. FallbackOnEvalSymlinksError: bad workDir does not fail CreateSession;
+//     GetSessionWorkDir returns the raw (unresolved) workDir.
 //
 // These tests use spyBackend (see TestCreateSession_OpenCodeEnv) to avoid
 // spawning a real PTY — only the engine-internal map plumbing is under test.

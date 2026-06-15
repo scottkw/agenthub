@@ -17,10 +17,10 @@ import (
 // peer's /api/files/{list,stat,read} endpoints. It validates the ?cap=<token>
 // query parameter and returns canned responses keyed on the cap:
 //
-//   cap="ok-cap"     → 200 with operation-specific body
-//   cap="viewer-cap" → 403 (mirrors Phase 119's requireFilesRead when the
-//                      cap is valid but lacks files.read perm)
-//   anything else    → 401 (cap rejected entirely)
+//	cap="ok-cap"     → 200 with operation-specific body
+//	cap="viewer-cap" → 403 (mirrors Phase 119's requireFilesRead when the
+//	                   cap is valid but lacks files.read perm)
+//	anything else    → 401 (cap rejected entirely)
 //
 // The returned cleanup closure must be deferred by the test.
 func mockRemoteWebserver(t *testing.T) (*httptest.Server, func()) {

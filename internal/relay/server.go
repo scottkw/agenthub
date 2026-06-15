@@ -297,10 +297,10 @@ func loopbackOriginPatterns(host string) []string {
 	// `wails` are reserved Wails-runtime hosts that an external browser
 	// cannot impersonate.
 	wails := []string{
-		"wails://wails",                // production macOS / Linux
-		"wails://wails.localhost:*",    // dev macOS / Linux
-		"http://wails.localhost",       // production Windows
-		"http://wails.localhost:*",     // dev Windows
+		"wails://wails",             // production macOS / Linux
+		"wails://wails.localhost:*", // dev macOS / Linux
+		"http://wails.localhost",    // production Windows
+		"http://wails.localhost:*",  // dev Windows
 	}
 	_, port, err := net.SplitHostPort(host)
 	if err != nil || port == "" {

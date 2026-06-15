@@ -213,4 +213,3 @@ func readEtcShells(path string) []string {
 	}
 	return out
 }
-

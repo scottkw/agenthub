@@ -20,9 +20,9 @@ func TestScrollbackAppendSnapshot(t *testing.T) {
 func TestScrollbackTruncatesOldestBytes(t *testing.T) {
 	// max capacity = 10 bytes
 	sb := NewScrollback(10)
-	sb.Append([]byte("12345"))  // 5 bytes
-	sb.Append([]byte("67890"))  // 5 bytes — now at max
-	sb.Append([]byte("ABCDE"))  // 5 more — should discard oldest 5
+	sb.Append([]byte("12345")) // 5 bytes
+	sb.Append([]byte("67890")) // 5 bytes — now at max
+	sb.Append([]byte("ABCDE")) // 5 more — should discard oldest 5
 
 	snap := sb.Snapshot()
 	if len(snap) > 10 {

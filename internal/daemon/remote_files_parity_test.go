@@ -334,6 +334,7 @@ func TestRemoteFiles_CrossSurface_CapAbsenceAsymmetry(t *testing.T) {
 // rejects the cap, both surfaces observe a 401-shaped error:
 //   - proxy: status 401 verbatim
 //   - direct: error containing "401"
+//
 // Cap-leakage source-grep is also asserted on the direct path.
 func TestRemoteFiles_CrossSurface_401Propagation(t *testing.T) {
 	upstream := newFixtureRemotePeer(t)

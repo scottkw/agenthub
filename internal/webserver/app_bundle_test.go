@@ -42,9 +42,9 @@ func TestAppBundle_503WithoutFS(t *testing.T) {
 func TestAppBundle_ServesIndex(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetStaticAppFS(fstest.MapFS{
-		"index.html":             {Data: []byte(fakeIndexHTML)},
-		"assets/index-abc.js":    {Data: []byte("// minified js")},
-		"assets/index-abc.css":   {Data: []byte("/* css */")},
+		"index.html":           {Data: []byte(fakeIndexHTML)},
+		"assets/index-abc.js":  {Data: []byte("// minified js")},
+		"assets/index-abc.css": {Data: []byte("/* css */")},
 	})
 
 	resp, err := client.Get(ws.BaseURL() + "/app/")

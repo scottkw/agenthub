@@ -9,14 +9,14 @@
 //
 // This detector polls syscall.Wait4(pid, &status, WNOHANG) at 100 ms cadence.
 // When the child has exited, it:
-//   1. Caches the real exit code via sess.SetExitCode (POSIX 128+signal convention).
-//   2. Calls sess.CancelContext() BEFORE closing the PTY — this fires
-//      cmd.Cancel (Process.Kill, a no-op on an already-exited child) while
-//      we still hold the PID, eliminating the PID-recycle race window
-//      described in RESEARCH §10 Pitfall 2.
-//   3. Closes the PTY master, which makes the blocked Hub.Run Read return,
-//      which closes hub.Done(), which unblocks the engine.go:328
-//      natural-exit goroutine that calls onExit.
+//  1. Caches the real exit code via sess.SetExitCode (POSIX 128+signal convention).
+//  2. Calls sess.CancelContext() BEFORE closing the PTY — this fires
+//     cmd.Cancel (Process.Kill, a no-op on an already-exited child) while
+//     we still hold the PID, eliminating the PID-recycle race window
+//     described in RESEARCH §10 Pitfall 2.
+//  3. Closes the PTY master, which makes the blocked Hub.Run Read return,
+//     which closes hub.Done(), which unblocks the engine.go:328
+//     natural-exit goroutine that calls onExit.
 //
 // The detector returns silently if IsKilled() is true at any tick — killSession
 // (cleanup.go) owns Wait() and PTY close on the kill path.

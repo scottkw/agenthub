@@ -33,7 +33,7 @@ import (
 // Returns:
 //   - out:       bytes that should be forwarded to the application
 //   - remainder: any incomplete ESC sequence at the end of data that must be
-//                prepended to the next chunk before parsing again
+//     prepended to the next chunk before parsing again
 func parseWin32Chunk(data []byte) (out []byte, remainder []byte) {
 	var buf bytes.Buffer
 

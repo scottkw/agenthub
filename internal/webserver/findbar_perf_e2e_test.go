@@ -185,4 +185,3 @@ func TestFindBar_10kPerf(t *testing.T) {
 			elapsedMs, budgetMs)
 	}
 }
-

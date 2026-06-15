@@ -93,10 +93,10 @@ func TestServer_CrossSiteOriginRejected(t *testing.T) {
 // extended for Wails GUI origin support).
 func TestLoopbackOriginPatterns_DerivesPortFromHost(t *testing.T) {
 	wailsBase := []string{
-		"wails://wails",                // production macOS / Linux
-		"wails://wails.localhost:*",    // dev macOS / Linux
-		"http://wails.localhost",       // production Windows
-		"http://wails.localhost:*",     // dev Windows
+		"wails://wails",             // production macOS / Linux
+		"wails://wails.localhost:*", // dev macOS / Linux
+		"http://wails.localhost",    // production Windows
+		"http://wails.localhost:*",  // dev Windows
 	}
 
 	got := loopbackOriginPatterns("127.0.0.1:54321")

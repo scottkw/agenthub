@@ -780,7 +780,7 @@ func TestModal_SubmitNoAIAgents(t *testing.T) {
 	// at least the Shell entry), so submit succeeds and toast announces
 	// session creation rather than "Agent is required".
 	if result.toast == "Agent is required" {
-		t.Errorf("regressed: empty AI-CLI list incorrectly blocked Shell " +
+		t.Errorf("regressed: empty AI-CLI list incorrectly blocked Shell "+
 			"session creation; toast = %q", result.toast)
 	}
 }

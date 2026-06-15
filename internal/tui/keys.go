@@ -4,18 +4,18 @@ import "charm.land/bubbles/v2/key"
 
 // KeyMap defines all keybindings for the TUI main view.
 type KeyMap struct {
-	Quit    key.Binding
-	Help    key.Binding
-	Up      key.Binding
-	Down    key.Binding
-	Refresh key.Binding
-	Top     key.Binding
-	Bottom  key.Binding
-	Attach  key.Binding
-	New     key.Binding
-	Kill    key.Binding // Phase 77
-	Rename  key.Binding // Phase 77
-	QR      key.Binding // Phase 78
+	Quit     key.Binding
+	Help     key.Binding
+	Up       key.Binding
+	Down     key.Binding
+	Refresh  key.Binding
+	Top      key.Binding
+	Bottom   key.Binding
+	Attach   key.Binding
+	New      key.Binding
+	Kill     key.Binding // Phase 77
+	Rename   key.Binding // Phase 77
+	QR       key.Binding // Phase 78
 	TabFocus key.Binding // Phase 86: toggle sidebar/content focus
 	PrevTab  key.Binding // Phase 86: previous tab
 	NextTab  key.Binding // Phase 86: next tab

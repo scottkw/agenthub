@@ -42,15 +42,15 @@ func TestGetLANIP_ExcludesTailscale(t *testing.T) {
 		ip       string
 		isTScale bool
 	}{
-		{"100.64.0.1", true},   // first address in range
+		{"100.64.0.1", true},      // first address in range
 		{"100.100.100.100", true}, // typical Tailscale IP
 		{"100.127.255.255", true}, // last address in range
-		{"100.63.0.1", false},  // just below the range
-		{"100.128.0.1", false}, // just above the range
-		{"192.168.1.1", false}, // private but not Tailscale
-		{"10.0.0.1", false},    // private but not Tailscale
-		{"172.16.0.1", false},  // private but not Tailscale
-		{"8.8.8.8", false},     // public IP
+		{"100.63.0.1", false},     // just below the range
+		{"100.128.0.1", false},    // just above the range
+		{"192.168.1.1", false},    // private but not Tailscale
+		{"10.0.0.1", false},       // private but not Tailscale
+		{"172.16.0.1", false},     // private but not Tailscale
+		{"8.8.8.8", false},        // public IP
 	}
 
 	for _, tt := range tests {
