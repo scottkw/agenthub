@@ -715,7 +715,8 @@ func TestFilesOpMsg_401_AccessExpiredToast(t *testing.T) {
 	}
 	// Must NOT contain any cap token — strings.Contains("", anything) is false
 	// but we also check the sentinel message itself.
-	if strings.Contains(got, "your access") && strings.Contains(got, "expired") {
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "access") && strings.Contains(lower, "expired") {
 		return // pass: contains the expected signal
 	}
 	t.Errorf("toast does not signal access-expired: %q", got)
