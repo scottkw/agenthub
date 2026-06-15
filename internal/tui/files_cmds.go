@@ -69,14 +69,6 @@ type filesHeadMsg struct {
 	err        error
 }
 
-// filesErrMsg is a generic error envelope reserved for Plan 02 (e.g. for
-// non-route errors like preview-render failures). Plan 01 does not emit it.
-type filesErrMsg struct {
-	sessionID string
-	relPath   string
-	err       error
-}
-
 // loadDirCmd returns a tea.Cmd that lists a directory inside the session
 // sandbox. 5-second timeout — a hung daemon must not freeze the Update loop
 // (T-121-01). The gen value (WR-03) is stamped on the result so the
