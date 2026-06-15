@@ -19,6 +19,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState, Compartment } from '@codemirror/state'
+import { indentWithTab } from '@codemirror/commands'
 import { basicSetup } from 'codemirror'
 import { languageFor } from '../lib/languageFor'
 
@@ -190,6 +191,11 @@ export function Editor({
                 return true
               },
             },
+            // 125-UI-SPEC:304 — Tab inserts indentation inside CM6 (not a focus
+            // change). basicSetup intentionally omits this (CM6 a11y default),
+            // so it must be added explicitly. Release-blocking parity item;
+            // confirmed missing during the Phase 125 Wails WebView UAT.
+            indentWithTab,
           ]),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && onDirty) {

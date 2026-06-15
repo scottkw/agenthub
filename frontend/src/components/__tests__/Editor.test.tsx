@@ -79,6 +79,15 @@ describe('Editor.tsx source inspection (EDIT-02, EDIT-11, T-125-04)', () => {
     expect(raw).toContain('basicSetup')
   })
 
+  it('EDIT-05: binds indentWithTab so Tab indents inside CM6 (not focus change) [125-UI-SPEC:304]', () => {
+    // basicSetup intentionally omits Tab-to-indent (CM6 accessibility default:
+    // Tab moves focus). The 125 UI-SPEC requires Tab to insert indentation in
+    // the Wails WebView (release-blocking parity). That requires explicitly
+    // adding indentWithTab from @codemirror/commands to a keymap.
+    expect(raw).toContain('indentWithTab')
+    expect(raw).toContain('@codemirror/commands')
+  })
+
   it('cleanup destroys the EditorView on unmount', () => {
     expect(raw).toContain('.destroy()')
   })
