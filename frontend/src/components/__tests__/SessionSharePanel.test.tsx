@@ -306,3 +306,36 @@ describe('SessionSharePanel — WR-01 two-gate model (files.write link gating)',
     expect(lockedRow).not.toBeNull()
   })
 })
+
+// v3.5 UAT relabel (#24): the share links must state their SCOPE so the owner
+// understands the read/write grants cover the SESSION (terminal input), and that
+// file access is bundled with full access — view-only grants NO file browsing.
+// Discovered during the v3.5 two-machine UAT: the prior copy framed the full grant
+// purely as "file editing", hiding that it also grants full terminal control, and
+// left ambiguous that view-only has no file access.
+describe('SessionSharePanel — link scope clarity (v3.5 relabel)', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
+
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.clearAllMocks()
+  })
+
+  it('states the View-Only scope: session view only, no file access', () => {
+    ;({ container, root } = renderPanel())
+    expect(container!.textContent).toContain('cannot send input or browse files')
+  })
+
+  it('states the Full Access scope: full session control plus file browsing', () => {
+    ;({ container, root } = renderPanel())
+    expect(container!.textContent).toContain('Full control of the live session')
+  })
+})

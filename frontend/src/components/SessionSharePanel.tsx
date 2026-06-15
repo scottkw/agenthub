@@ -178,6 +178,9 @@ export function SessionSharePanel({
           </button>
         </div>
       </div>
+      <p className="session-share-panel__scope" style={{ margin: '2px 0 10px', fontSize: 12, color: '#9aa5ce', lineHeight: 1.4 }}>
+        Watch the live session only — cannot send input or browse files.
+      </p>
       {showReadQR && readQRb64 && (
         <img
           className="session-share-panel__qr"
@@ -242,6 +245,9 @@ export function SessionSharePanel({
         )}
       </div>
 
+      <p className="session-share-panel__scope" style={{ margin: '2px 0 6px', fontSize: 12, color: '#9aa5ce', lineHeight: 1.4 }}>
+        Full control of the live session (send input) plus file browsing. Use the toggle above to also allow file editing.
+      </p>
       {/* Phase 124 / CAP-05 two-gate (WR-01): Full Access Link row.
           The files.write URL and token are ONLY surfaced when surfaceWriteLink
           is true (owner enabled writes AND viewer confirmed opt-in). When either
@@ -280,8 +286,8 @@ export function SessionSharePanel({
           <span className="session-share-panel__label">Full Access Link</span>
           <span className="session-share-panel__url session-share-panel__url--locked">
             {ownerWriteEnabled
-              ? 'Enable “Allow file editing” above to generate a write link'
-              : 'Enable file writes to generate a write link'}
+              ? 'Enable “Allow file editing” above to generate the Full Access link'
+              : 'Enable file writes to generate the Full Access link'}
           </span>
         </div>
       )}
