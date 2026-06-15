@@ -1135,3 +1135,187 @@ func TestUpload_IN05_MalformedMultipart_Returns400(t *testing.T) {
 		t.Errorf("body = %q; want 'malformed' in error message", rr.Body.String())
 	}
 }
+
+// ---------------------------------------------------------------------------
+// SEC-05: Data-integrity tests — two-writer If-Match race + interrupted write
+// ---------------------------------------------------------------------------
+
+// TestWrite_TwoWritersIfMatchRace verifies that when two goroutines race to
+// write the same file using the same If-Match validator, exactly one succeeds
+// (returns nil) and the other gets ErrPreconditionFailed.  The resulting file
+// content must equal exactly one writer's complete payload — never a
+// byte-interleaved mix — and no .agenthub-tmp-* sibling may remain.
+//
+// This exercises the CR-01 TOCTOU mitigation: WriteFileAtomic re-checks the
+// validator immediately before root.Rename, so the second writer whose
+// validator has become stale returns ErrPreconditionFailed and removes its
+// temp file without committing.
+func TestWrite_TwoWritersIfMatchRace(t *testing.T) {
+	root := t.TempDir()
+	sb, err := files.NewSandbox(root)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	// Seed the target file with known content.
+	initial := []byte("seed content for two-writer race test")
+	absPath := filepath.Join(root, "race-target.txt")
+	if err := os.WriteFile(absPath, initial, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Capture the current validator (mtime-UnixNano + size, quoted) — same
+	// format as validatorFor used by the existing IfMatch tests.
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		t.Fatalf("stat seed: %v", err)
+	}
+	sharedValidator := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+
+	contentA := bytes.Repeat([]byte("A"), 512)
+	contentB := bytes.Repeat([]byte("B"), 512)
+
+	type result struct{ err error }
+	results := make(chan result, 2)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Both goroutines use the SAME validator captured before either write
+	// commits.  One will win the rename; the other will find the validator
+	// stale in the re-check and return ErrPreconditionFailed.
+	go func() {
+		defer wg.Done()
+		results <- result{sb.WriteFileAtomic("race-target.txt", contentA, sharedValidator)}
+	}()
+	go func() {
+		defer wg.Done()
+		results <- result{sb.WriteFileAtomic("race-target.txt", contentB, sharedValidator)}
+	}()
+
+	wg.Wait()
+	close(results)
+
+	var nilCount, precondFailCount int
+	for r := range results {
+		if r.err == nil {
+			nilCount++
+		} else if errors.Is(r.err, files.ErrPreconditionFailed) {
+			precondFailCount++
+		} else {
+			t.Errorf("unexpected error: %v", r.err)
+		}
+	}
+
+	if nilCount != 1 {
+		t.Errorf("nilCount = %d; want exactly 1 successful writer", nilCount)
+	}
+	if precondFailCount != 1 {
+		t.Errorf("precondFailCount = %d; want exactly 1 ErrPreconditionFailed", precondFailCount)
+	}
+
+	// Final file content must be one writer's complete payload — never mixed.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile after race: %v", err)
+	}
+	isAllA := len(got) == len(contentA) && bytes.Count(got, []byte("A")) == len(contentA)
+	isAllB := len(got) == len(contentB) && bytes.Count(got, []byte("B")) == len(contentB)
+	if !isAllA && !isAllB {
+		t.Errorf("file content is neither all-A nor all-B (interleaved write?): len=%d first byte=%q",
+			len(got), got[:min(8, len(got))])
+	}
+
+	// No .agenthub-tmp-* sibling may remain after both writes complete.
+	tmpPattern := filepath.Join(root, "race-target.txt.agenthub-tmp-*")
+	leftover, err := filepath.Glob(tmpPattern)
+	if err != nil {
+		t.Fatalf("Glob: %v", err)
+	}
+	if len(leftover) != 0 {
+		t.Errorf("leftover temp files after race: %v", leftover)
+	}
+}
+
+// TestWrite_InterruptedWritePreservesOriginal verifies that a failed
+// WriteFileAtomic call leaves the original file content intact and no
+// .agenthub-tmp-* sibling behind.
+//
+// Implementation note: the most deterministic way to trigger the "temp
+// created, rename skipped, temp cleaned up, original preserved" path through
+// the public API is to pass a validator that will mismatch the on-disk value
+// at the point of the re-check inside WriteFileAtomic.  This is exactly the
+// same code path as the two-writer race failure branch: the temp file is
+// created and written, the validator re-check returns ErrPreconditionFailed,
+// the temp is removed via root.Remove(tmp), and the original is untouched.
+// We document this choice here so a future reader understands why the test
+// uses a stale validator rather than injecting a write-level fault.
+func TestWrite_InterruptedWritePreservesOriginal(t *testing.T) {
+	root := t.TempDir()
+	sb, err := files.NewSandbox(root)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	// Seed the target file with known original content.
+	original := []byte("original content — must survive the failed write")
+	absPath := filepath.Join(root, "preserve-me.txt")
+	if err := os.WriteFile(absPath, original, 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Modify the file after capturing the validator so it will be stale at
+	// the time WriteFileAtomic performs its re-check.
+	fi, err := os.Stat(absPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	staleValidator := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
+
+	// Simulate an interleaving write that changes the file before our call.
+	interleaved := []byte("interleaved update — should be what remains on disk")
+	if err := os.WriteFile(absPath, interleaved, 0o644); err != nil {
+		t.Fatalf("interleaved write: %v", err)
+	}
+
+	// Now call WriteFileAtomic with the stale validator.  It must fail and
+	// leave the interleaved content intact (the file as it was before our
+	// call, which now represents "the original" from our perspective).
+	writeErr := sb.WriteFileAtomic("preserve-me.txt", []byte("should not land"), staleValidator)
+	if writeErr == nil {
+		t.Fatal("WriteFileAtomic returned nil; want ErrPreconditionFailed")
+	}
+	if !errors.Is(writeErr, files.ErrPreconditionFailed) {
+		t.Errorf("WriteFileAtomic error = %v; want ErrPreconditionFailed", writeErr)
+	}
+
+	// Original (interleaved) content must be intact — our failed write did not
+	// clobber it.
+	got, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !bytes.Equal(got, interleaved) {
+		t.Errorf("disk content after failed write = %q; want %q", got, interleaved)
+	}
+
+	// No .agenthub-tmp-* sibling may remain — WriteFileAtomic must clean up.
+	tmpPattern := filepath.Join(root, "preserve-me.txt.agenthub-tmp-*")
+	leftover, err := filepath.Glob(tmpPattern)
+	if err != nil {
+		t.Fatalf("Glob: %v", err)
+	}
+	if len(leftover) != 0 {
+		t.Errorf("leftover temp file after failed write: %v", leftover)
+	}
+}
+
+// min is a small helper used by TestWrite_TwoWritersIfMatchRace to safely
+// slice a byte slice for error messages without panicking on short content.
+// (Redeclared here to avoid a dependency on the built-in min added in Go 1.21.)
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
