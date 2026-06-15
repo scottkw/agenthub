@@ -425,11 +425,26 @@ func mustMarshal(v any) []byte {
 // (a) it's already valid for 127.0.0.1 and (b) the e2e specs use
 // ignoreHTTPSErrors anyway. The shared config is fine — TLS handshake is
 // stateless per connection.
+//
+// Phase 128-03 (RMW-01/02/03): write verbs are backed by a real files.Sandbox
+// rooted at a temp directory so write-then-read round-trips actual bytes
+// (Pitfall 2 — NOT canned responses). The canned read handlers for list/stat
+// remain for backward-compat with scenarios 16+17.
 func startRemotePeerFixture(tlsCfg *tls.Config) (baseURL string, stop func()) {
 	const (
 		fixtureRemoteCap     = "FIXTURE_CAP"
 		fixtureRemoteSession = "peer-sid"
 	)
+
+	// Phase 128-03: real sandbox so writes genuinely persist (Pitfall 2).
+	sandboxDir, mkErr := os.MkdirTemp("", "remote-peer-fixture-*")
+	if mkErr != nil {
+		log.Fatalf("remote-peer sandbox dir: %v", mkErr)
+	}
+	sandbox, sbErr := files.NewSandbox(sandboxDir)
+	if sbErr != nil {
+		log.Fatalf("remote-peer sandbox: %v", sbErr)
+	}
 
 	canonicalList := map[string]any{
 		"entries": []map[string]any{
@@ -476,7 +491,29 @@ func startRemotePeerFixture(tlsCfg *tls.Config) (baseURL string, stop func()) {
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(canonicalStat)
 	}))
+
+	// GET /api/files/read: serves from the persisted sandbox first (for
+	// files written by the write verbs); falls back to canned "hello world"
+	// for backward-compat with scenarios 16+17 which read the canonical a.txt.
 	mux.HandleFunc("GET /api/files/read", guard(func(w http.ResponseWriter, r *http.Request) {
+		rel := r.URL.Query().Get("path")
+		if rel == "" {
+			rel = "a.txt"
+		}
+		f, openErr := sandbox.Open(rel)
+		if openErr == nil {
+			defer f.Close()
+			fi, statErr := f.Stat()
+			if statErr == nil && !fi.IsDir() {
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				w.WriteHeader(http.StatusOK)
+				if r.Method != http.MethodHead {
+					_, _ = io.Copy(w, f)
+				}
+				return
+			}
+		}
+		// Fallback: canned "hello world" (backward-compat with scenarios 16+17).
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "11")
 		w.WriteHeader(http.StatusOK)
@@ -489,6 +526,80 @@ func startRemotePeerFixture(tlsCfg *tls.Config) (baseURL string, stop func()) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "11")
 		w.WriteHeader(http.StatusOK)
+	}))
+
+	// PUT /api/files/write: persist body via WriteFileAtomic so read-back
+	// returns actual written bytes (Phase 128-03 RMW-01 persistence).
+	mux.HandleFunc("PUT /api/files/write", guard(func(w http.ResponseWriter, r *http.Request) {
+		rel := r.URL.Query().Get("path")
+		if rel == "" {
+			http.Error(w, "path is required", http.StatusBadRequest)
+			return
+		}
+		body, readErr := io.ReadAll(io.LimitReader(r.Body, 5<<20))
+		if readErr != nil {
+			http.Error(w, "read body: "+readErr.Error(), http.StatusBadRequest)
+			return
+		}
+		if writeErr := sandbox.WriteFileAtomic(rel, body); writeErr != nil {
+			http.Error(w, "write: "+writeErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"path": rel,
+			"size": len(body),
+		})
+	}))
+
+	// DELETE /api/files/delete: remove a file from the sandbox.
+	mux.HandleFunc("DELETE /api/files/delete", guard(func(w http.ResponseWriter, r *http.Request) {
+		rel := r.URL.Query().Get("path")
+		if rel == "" {
+			http.Error(w, "path is required", http.StatusBadRequest)
+			return
+		}
+		if delErr := sandbox.Delete(rel); delErr != nil {
+			http.Error(w, "delete: "+delErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	}))
+
+	// POST /api/files/rename: rename a file inside the sandbox.
+	mux.HandleFunc("POST /api/files/rename", guard(func(w http.ResponseWriter, r *http.Request) {
+		oldRel := r.URL.Query().Get("path")
+		newRel := r.URL.Query().Get("newPath")
+		if oldRel == "" || newRel == "" {
+			http.Error(w, "path and newPath are required", http.StatusBadRequest)
+			return
+		}
+		if renErr := sandbox.Rename(oldRel, newRel); renErr != nil {
+			http.Error(w, "rename: "+renErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+	}))
+
+	// POST /api/files/mkdir: create a directory inside the sandbox.
+	mux.HandleFunc("POST /api/files/mkdir", guard(func(w http.ResponseWriter, r *http.Request) {
+		rel := r.URL.Query().Get("path")
+		if rel == "" {
+			http.Error(w, "path is required", http.StatusBadRequest)
+			return
+		}
+		if mkdirErr := sandbox.Mkdir(rel); mkdirErr != nil {
+			http.Error(w, "mkdir: "+mkdirErr.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	}))
 
 	ln, err := tls.Listen("tcp", "127.0.0.1:0", tlsCfg)
@@ -510,6 +621,7 @@ func startRemotePeerFixture(tlsCfg *tls.Config) (baseURL string, stop func()) {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shutdownCtx)
+		_ = os.RemoveAll(sandboxDir)
 	}
 }
 
