@@ -14,6 +14,20 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 
 ## Latest Release
 
+**v3.5 — File Browser: Write Operations & Editor** (2026-06-15) — create, edit, delete, rename, and upload files from any session, plus an in-app code editor, across desktop, web-share, and TUI.
+
+- **Sandboxed write primitives** ([#63](https://github.com/scottkw/agenthub/issues/63)) — create / edit / delete / rename / upload scoped to each session's working directory on the same TOCTOU-safe `os.OpenRoot` sandbox as read, with atomic writes and fuzz-gated path-traversal coverage.
+- **Per-session file-write capability (off by default)** — an opt-in `files.write` bit gates the write routes (CSRF-protected); web-share viewers opt in through an explicit two-gate consent model, never silently.
+- **CodeMirror 6 editor** (desktop + web) — open, edit, and save with optimistic-concurrency conflict detection (`If-Match`/ETag), dirty markers, and Tab-to-indent.
+- **TUI write parity** — `$EDITOR` shell-out (suspend/resume) plus delete / rename / mkdir keybindings.
+- **Security hardening** — denylist, symlink / privilege-escalation / CSRF / concurrent-write coverage with a dedicated security audit.
+- **Remote tailnet write data path** — the daemon-proxy write path across surfaces is implemented and **proven end-to-end live on two machines** (read + write). Includes fixes so the desktop GUI's relay loopback mounts the remote file routes and tailnet discovery recognizes capability-protected peers.
+- **Clearer share-link scopes** — the Sessions-tab links now state that the View-Only link is session-only (no file access) and the Full Access link grants full session control *plus* file browsing.
+
+**Known limitation (deferred to v3.5.1):** the desktop GUI remote-*browse* on-ramp — discovering and listing a peer's sessions to pick one — is deferred ([#86](https://github.com/scottkw/agenthub/issues/86)) pending a session-enumeration-vs-capability design decision; remote file access currently requires a join code / capability URL. See also [#83](https://github.com/scottkw/agenthub/issues/83).
+
+Closes the write slice of [#63](https://github.com/scottkw/agenthub/issues/63); [#24](https://github.com/scottkw/agenthub/issues/24) (remote file browser) remains open pending the v3.5.1 on-ramp. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.5).
+
 **v3.4.2 — Dependency maintenance** (2026-06-14) — patch release rolling forward direct dependencies and the transitive bumps they pull in. Consolidates six Dependabot updates: `tailscale.com` 1.96.5 → 1.98.3, `golang.org/x/sys` 0.43.0 → 0.45.0, `golang.org/x/term` 0.42.0 → 0.43.0, `github.com/aymanbagabas/go-pty` 0.2.2 → 0.2.3, `github.com/Masterminds/semver/v3` 3.4.0 → 3.5.0, and the `actions/checkout` CI action 6.0.2 → 6.0.3. No user-visible behavior changes from v3.4.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.4.2).
 
 **v3.4.1 — Test reliability** (2026-06-14) — patch release. Deflakes a class of CI tests that asserted hub subscriber/viewer counts (and async goroutine state) after a fixed delay, racing the asynchronous subscription and intermittently failing the release gate. Adds a shared `WaitFor` poll-until-condition test helper. No user-visible behavior changes from v3.4. Closes [#80](https://github.com/scottkw/agenthub/issues/80). [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.4.1).
@@ -41,7 +55,7 @@ Closes [#62](https://github.com/scottkw/agenthub/issues/62) and the TUI-parity s
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.4.2: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.4.2) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v3.5: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.5) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
