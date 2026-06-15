@@ -99,14 +99,15 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 	// `cleaned` itself.
 	abs := filepath.Join(s.rootPath, cleaned)
 
-	home, _ := os.UserHomeDir()
-	if home == "" {
+	homeRaw, _ := os.UserHomeDir()
+	if homeRaw == "" {
 		return nil
 	}
 	// EvalSymlinks on home so the resolved rootPath (already EvalSymlinks-d
 	// in NewSandbox) and home are on the same canonical path prefix.
 	// On macOS /var/folders/... resolves to /private/var/folders/... and
 	// without this step filepath.Rel returns ".." paths for valid home targets.
+	home := homeRaw
 	if resolved, err := filepath.EvalSymlinks(home); err == nil {
 		home = resolved
 	}
@@ -152,6 +153,17 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 	// but avoids importing the daemon package (internal/files must stay cycle-free).
 	protectedDirs := []string{".ssh/", ".claude/", ".config/agenthub/"}
 	if cfgBase, cfgErr := os.UserConfigDir(); cfgErr == nil {
+		// os.UserConfigDir() derives its result from the HOME env var (macOS,
+		// Linux) so cfgBase may contain unresolved symlinks (e.g. /var/... on
+		// macOS while home was resolved to /private/var/...). Rebase cfgBase
+		// onto the symlink-resolved home so that filepath.Rel produces a clean
+		// relative path rather than a "../../.." escape.
+		if cfgRelToRaw, relErr := filepath.Rel(homeRaw, cfgBase); relErr == nil &&
+			!strings.HasPrefix(cfgRelToRaw, "..") {
+			// cfgBase is under the raw home; rebase onto the resolved home so
+			// its prefix matches the EvalSymlinks-resolved home used above.
+			cfgBase = filepath.Join(home, cfgRelToRaw)
+		}
 		cfgDir := filepath.Join(cfgBase, "agenthub")
 		cfgRel, relErr := filepath.Rel(home, cfgDir)
 		if relErr == nil && !strings.HasPrefix(cfgRel, "..") {
