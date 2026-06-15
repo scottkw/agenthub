@@ -5,7 +5,7 @@ go 1.26.3
 require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
-	charm.land/lipgloss/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.4
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/aymanbagabas/go-pty v0.2.3
 	github.com/charmbracelet/glamour v0.8.0
