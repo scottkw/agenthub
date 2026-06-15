@@ -300,7 +300,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12 (completed 2026-06-14)
 - [x] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10 (completed 2026-06-14)
 - [x] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13 (completed 2026-06-14)
-- [ ] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07
+- [x] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07 (completed 2026-06-15)
 - [ ] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07
 - [ ] **Phase 128: Remote Write Parity + Cross-Surface Integration** — RMW-01..RMW-06
 
@@ -411,13 +411,13 @@ Plans:
 4. Pressing `u` (upload) in the TUI Files view shows the on-screen message "Use desktop or web to upload files." — the one documented parity gap — and a follow-up GitHub issue is filed.
 5. The `FilesClient` interface has exactly 8 methods (4 read + 4 write); both `*daemon.DaemonClient` and `*tui.RemoteFilesClient` satisfy the full interface; `TestFiles_NoSyncFSCalls` static-grep gate passes with write commands included — all write filesystem I/O routes through `tea.Cmd`, never synchronous in `Update`.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 126-01-PLAN.md — Extend FilesClient to 8 methods + RemoteFilesClient write methods (TUIW-01)
 - [x] 126-02-PLAN.md — $EDITOR shell-out: resolveEditor, edit fetch/write-back, ClearScreen + unconditional refresh (TUIW-02/03/04)
 - [x] 126-03-PLAN.md — Delete-confirm / inline rename / inline mkdir affordances (TUIW-05)
-- [ ] 126-04-PLAN.md — Upload descope + GitHub issue + no-sync gate extension + requirements matrix (TUIW-06/07)
+- [x] 126-04-PLAN.md — Upload descope + GitHub issue + no-sync gate extension + requirements matrix (TUIW-06/07)
 
 **UI hint**: no
 
@@ -508,7 +508,7 @@ Plans:
 | 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
 | 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
 | 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
-| 126 | v3.5 | 3/4 | In Progress|  |
+| 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 0/TBD | Not started | - |
 | 128 | v3.5 | 0/TBD | Not started | - |
 
