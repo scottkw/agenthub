@@ -18,7 +18,12 @@
 // directly — the server ETag header is the single source of truth (RESEARCH Open Q6).
 
 import { useCallback, useRef, useState } from 'react'
-import { FilesApiError, REMOTE_PEER_OUTDATED_MESSAGE, type FilesApiClient } from './filesApi'
+import {
+  FilesApiError,
+  REMOTE_PEER_OUTDATED_MESSAGE,
+  ACCESS_EXPIRED_MESSAGE,
+  type FilesApiClient,
+} from './filesApi'
 
 /** ~1.5s transient for the "Saved" state (EDIT-06, mirrors Settings save transient). */
 const SAVED_TIMEOUT = 1500
@@ -32,7 +37,7 @@ export type SaveState = 'idle' | 'saving' | 'saved'
  * closure bug — React state updates are async; reading isConflict immediately
  * after await still sees the pre-write value).
  */
-export type WriteOutcome = 'saved' | 'conflict' | 'error' | 'peer-outdated'
+export type WriteOutcome = 'saved' | 'conflict' | 'error' | 'peer-outdated' | 'expired'
 
 export interface UseFilesWriteResult {
   /**
@@ -134,7 +139,16 @@ export function useFilesWrite(
           return 'peer-outdated'
         }
 
-        // Non-412 / non-405 error — show inline save error (EDIT-06 verbatim copy).
+        // RMW-05: upstream 401 = cap token expired/revoked mid-session.
+        // Buffer is NOT cleared (T-125-08 locked). Returns distinct 'expired'
+        // outcome so callers can surface the access-expired message.
+        if (err instanceof FilesApiError && err.isUnauthorized()) {
+          setSaveError(ACCESS_EXPIRED_MESSAGE)
+          setSaveState('idle')
+          return 'expired'
+        }
+
+        // Non-412 / non-405 / non-401 error — show inline save error (EDIT-06 verbatim copy).
         setSaveError("Couldn't save the file. Your changes are still here — try again.")
         setSaveState('idle')
         return 'error'
