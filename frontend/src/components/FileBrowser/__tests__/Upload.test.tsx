@@ -319,13 +319,14 @@ describe('FileBrowserTab.tsx — upload queue entry removed on 401/abort (RMW-05
   })
 
   it('removes queue entry on 401 (filter not map to failed)', () => {
-    // The 401 branch must call setUploadQueue with a filter (remove), not a
-    // map to 'failed' — no stuck progress bar.
-    // We verify that after the isUnauthorized() check there is a filter call.
-    const idx = fileBrowserTabRaw.indexOf('isUnauthorized()')
-    expect(idx).toBeGreaterThan(-1)
-    // The isUnauthorized block should contain 'filter' within 200 chars of the check
-    const context = fileBrowserTabRaw.slice(idx, idx + 300)
+    // The upload catch branch must call setUploadQueue with a filter (remove),
+    // not a map to 'failed' — no stuck progress bar on 401.
+    // Find the LAST isOverCap (upload loop) and verify isUnauthorized + filter follow.
+    const uploadIdx = fileBrowserTabRaw.lastIndexOf('isOverCap()')
+    expect(uploadIdx).toBeGreaterThan(-1)
+    // Look ahead from the upload isOverCap — the 401 branch follows it
+    const context = fileBrowserTabRaw.slice(uploadIdx, uploadIdx + 600)
+    expect(context).toContain('isUnauthorized()')
     expect(context).toContain('filter')
   })
 })

@@ -822,6 +822,11 @@ export function FileBrowserTab({
             setUploadQueue((prev) =>
               prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
             )
+          } else if (err instanceof FilesApiError && err.isUnauthorized()) {
+            // RMW-05: 401 mid-upload = cap expired/revoked. Remove the queue entry
+            // entirely — no stuck progress bar. The parent editor already shows
+            // ACCESS_EXPIRED_MESSAGE via saveError if a save was in flight.
+            setUploadQueue((prev) => prev.filter((item) => item.id !== itemId))
           } else {
             setUploadQueue((prev) =>
               prev.map((item) =>
