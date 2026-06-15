@@ -484,6 +484,115 @@ func TestRemoteFilesClient_Mkdir(t *testing.T) {
 	}
 }
 
+// TestRemoteFilesClient_405_ErrRemotePeerNoWriteSupport asserts that all 4 write
+// methods (WriteFile, DeleteFile, RenameFile, MkdirFile) return the sentinel
+// ErrRemotePeerNoWriteSupport (errors.Is match) on a 405 upstream response,
+// that the sentinel message is verbatim SC3, and that a non-405 error (500)
+// still returns the existing generic error. (RMW-04 RED gate)
+func TestRemoteFilesClient_405_ErrRemotePeerNoWriteSupport(t *testing.T) {
+	const verbatimMsg = "The remote session is running an older version of AgentHub that does not support file writes."
+
+	make405Srv := func(t *testing.T) *httptest.Server {
+		t.Helper()
+		return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}))
+	}
+	make500Srv := func(t *testing.T) *httptest.Server {
+		t.Helper()
+		return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}))
+	}
+
+	ctx := context.Background()
+
+	t.Run("WriteFile 405 returns ErrRemotePeerNoWriteSupport", func(t *testing.T) {
+		srv := make405Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemotePeerNoWriteSupport) {
+			t.Errorf("expected ErrRemotePeerNoWriteSupport, got %v", err)
+		}
+		if err.Error() != verbatimMsg {
+			t.Errorf("message mismatch:\n  got:  %q\n  want: %q", err.Error(), verbatimMsg)
+		}
+	})
+
+	t.Run("DeleteFile 405 returns ErrRemotePeerNoWriteSupport", func(t *testing.T) {
+		srv := make405Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.DeleteFile(ctx, "sid", "f.txt")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemotePeerNoWriteSupport) {
+			t.Errorf("expected ErrRemotePeerNoWriteSupport, got %v", err)
+		}
+	})
+
+	t.Run("RenameFile 405 returns ErrRemotePeerNoWriteSupport", func(t *testing.T) {
+		srv := make405Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.RenameFile(ctx, "sid", "old.txt", "new.txt")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemotePeerNoWriteSupport) {
+			t.Errorf("expected ErrRemotePeerNoWriteSupport, got %v", err)
+		}
+	})
+
+	t.Run("MkdirFile 405 returns ErrRemotePeerNoWriteSupport", func(t *testing.T) {
+		srv := make405Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.MkdirFile(ctx, "sid", "newdir")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemotePeerNoWriteSupport) {
+			t.Errorf("expected ErrRemotePeerNoWriteSupport, got %v", err)
+		}
+	})
+
+	t.Run("WriteFile 500 returns generic error (no regression)", func(t *testing.T) {
+		srv := make500Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, ErrRemotePeerNoWriteSupport) {
+			t.Error("500 should NOT return ErrRemotePeerNoWriteSupport")
+		}
+		if !strings.Contains(err.Error(), "500") {
+			t.Errorf("expected generic error to contain '500', got %q", err.Error())
+		}
+	})
+
+	t.Run("405 error string has no cap token", func(t *testing.T) {
+		const sensitiveCap = "SUPER-SECRET-WRITE-CAP-405"
+		srv := make405Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, sensitiveCap, srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if strings.Contains(err.Error(), sensitiveCap) {
+			t.Errorf("CAP-LEAK on 405 — error contains cap token: %q", err.Error())
+		}
+	})
+}
+
 // TestRemoteFilesClient_WriteCapLeak proves the CAP-LEAK invariant (T-126-01):
 // on a non-200 response from a write method, the returned error string must
 // contain the status code but NOT the cap token.

@@ -1318,6 +1318,7 @@ export function FileBrowserTab({
                 }
                 // 'conflict' → ConflictModal opens automatically via isConflict state.
                 // 'error' → inline saveError shows; no navigation.
+                // 'peer-outdated' (RMW-04) → saveError set to REMOTE_PEER_OUTDATED_MESSAGE; no navigation.
               })
             }}
             onDiscard={() => {
