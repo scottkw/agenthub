@@ -467,10 +467,10 @@ Plans:
 4. If a remote cap expires mid-edit, the editor buffer is preserved and an "access expired" message is shown; any orphaned partial upload on the remote machine is cleaned up — no silent buffer loss, no stranded temp files.
 5. The Phase 122 remote read test suite passes with zero regressions; a two-machine tailnet write UAT checklist is committed (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface write parity + cap-expiry failure mode), closing umbrella Issue #24 when executed successfully.
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 Plans:
-- [ ] 128-01-PLAN.md — v3.4-peer upstream-405 version-gate mapping (Go RemoteFilesClient + TS FilesApiError), verbatim message grep-gated cross-surface (RMW-04)
+- [x] 128-01-PLAN.md — v3.4-peer upstream-405 version-gate mapping (Go RemoteFilesClient + TS FilesApiError), verbatim message grep-gated cross-surface (RMW-04)
 - [ ] 128-02-PLAN.md — cap-expiry mid-edit "access expired" branch (Go + TS, buffer preserved) + upload-abort queue cleanup (RMW-05)
 - [ ] 128-03-PLAN.md — 3-observer write-parity harness: persisting fixture peer + package daemon_test write-then-read + Playwright HTTPS observer (RMW-01/02/03)
 - [ ] 128-04-PLAN.md — Phase 122 read-regression guard + committed two-machine UAT checklist (128-VERIFICATION.md), closes Issue #24 on execution (RMW-06)
@@ -522,7 +522,7 @@ Plans:
 | 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 128 | v3.5 | 0/TBD | Not started | - |
+| 128 | v3.5 | 1/4 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
