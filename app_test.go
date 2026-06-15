@@ -181,6 +181,82 @@ func TestCreateSession(t *testing.T) {
 	}
 }
 
+// TestListSessions_PropagatesHomeDirAndFilesWrite is the regression guard for the
+// Phase 124 home-dir write-warning banner, which never appeared in the desktop
+// GUI (UAT finding). The daemon's SessionInfo carries HomeDir + FilesWrite, but
+// the App.ListSessions binding dropped both fields, so the GUI's session list
+// always saw homeDir=false / filesWrite=false and the banner (gated on s.homeDir)
+// never fired. This asserts the binding propagates both from daemon.SessionInfo.
+func TestListSessions_PropagatesHomeDirAndFilesWrite(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skipf("no usable home dir: %v", err)
+	}
+
+	app := testApp(t)
+	// Create a session whose working directory IS the home directory so the
+	// daemon may compute HomeDir=true (sessionCwdIsHome). Whether it actually
+	// resolves to true is env-dependent (symlinked homes, temp HOME on CI), so
+	// the assertions below test PROPAGATION against the daemon's own value
+	// rather than hardcoding true for HomeDir.
+	id, err := app.CreateSession("cat", "home-session", home, nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Enable the per-session write toggle so FilesWrite=true on the daemon —
+	// this one we control, so we can assert true propagates end-to-end.
+	if err := app.SetSessionFilesWrite(id, true); err != nil {
+		t.Fatalf("SetSessionFilesWrite: %v", err)
+	}
+
+	// The daemon's own view (source of truth) for the same session.
+	rawSessions, err := app.client.ListSessions()
+	if err != nil {
+		t.Fatalf("daemon ListSessions: %v", err)
+	}
+	var raw *daemon.SessionInfo
+	for i := range rawSessions {
+		if rawSessions[i].ID == id {
+			raw = &rawSessions[i]
+			break
+		}
+	}
+	if raw == nil {
+		t.Fatalf("session %q not found in daemon ListSessions", id)
+	}
+
+	// The App binding's view (what the GUI consumes).
+	sessions := app.ListSessions()
+	var got *SessionInfo
+	for i := range sessions {
+		if sessions[i].ID == id {
+			got = &sessions[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("session %q not found in App.ListSessions", id)
+	}
+
+	// The bug: the binding dropped these fields to false. Assert it now mirrors
+	// the daemon's source of truth, env-independently.
+	if got.HomeDir != raw.HomeDir {
+		t.Errorf("ListSessions dropped HomeDir: binding=%v daemon=%v (home-dir banner would never show)", got.HomeDir, raw.HomeDir)
+	}
+	if got.FilesWrite != raw.FilesWrite {
+		t.Errorf("ListSessions dropped FilesWrite: binding=%v daemon=%v", got.FilesWrite, raw.FilesWrite)
+	}
+	// FilesWrite we forced ON, so it must be true on both sides — proves the
+	// true value survives the binding (not just a false==false coincidence).
+	if !raw.FilesWrite {
+		t.Error("daemon did not record FilesWrite=true after SetSessionFilesWrite(true)")
+	}
+	if !got.FilesWrite {
+		t.Error("App.ListSessions dropped FilesWrite=true (cross-surface write-state parity broken)")
+	}
+}
+
 func TestRenameSession(t *testing.T) {
 	app := testApp(t)
 	id, err := app.CreateSession("cat", "original", "", nil, 0, 0)

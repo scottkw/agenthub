@@ -35,6 +35,14 @@ type SessionInfo struct {
 	CreatedAt  string `json:"createdAt"`
 	Hostname   string `json:"hostname"`
 	WebEnabled bool   `json:"webEnabled"`
+	// Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME).
+	// Server-side source of truth for the home-dir write warning banner (GUI +
+	// TUI parity). Must be propagated from daemon.SessionInfo or the GUI banner
+	// never fires (UAT finding).
+	HomeDir bool `json:"homeDir"`
+	// Phase 124 / CAP-04: true when the per-session owner write toggle is ON.
+	// Single server-side source of truth for cross-surface write parity.
+	FilesWrite bool `json:"filesWrite"`
 }
 
 // RemoteSession is a session on a remote tailnet peer.
@@ -348,6 +356,12 @@ func (a *App) ListSessions() []SessionInfo {
 			CreatedAt:  s.CreatedAt,
 			Hostname:   s.Hostname,
 			WebEnabled: s.WebEnabled,
+			// Phase 124 / CAP-06 + CAP-04: propagate the home-dir and write-toggle
+			// flags so the GUI's home-dir warning banner and write affordances see
+			// the daemon's source of truth. Omitting these silently dropped them to
+			// false and the banner never fired (UAT finding).
+			HomeDir:    s.HomeDir,
+			FilesWrite: s.FilesWrite,
 		}
 	}
 	return result
