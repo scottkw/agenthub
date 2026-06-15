@@ -759,18 +759,34 @@ func (m Model) handleFileDeleteConfirmKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 }
 
 // executeFileDelete sends the deleteCmd and cleans up modal state.
+//
+// WR-03 (capture-at-keypress contract): The delete target (relPath, isDir,
+// name) is captured when the user presses 'd' and stored in m.fileDeleteTarget.
+// Between capture and confirm, an in-flight loadDirCmd may land and refresh
+// m.files.entries, moving the list cursor. The modal text shows the CAPTURED
+// name (not the current cursor entry), so the user always confirms the correct
+// target regardless of cursor drift.
+//
+// IMPORTANT for future maintainers: do NOT change this to re-read the current
+// selection at confirm time — that would reintroduce a TOCTOU race where a
+// background refresh moves the cursor between 'd' and 'y', causing the user to
+// delete a different file than they intended.
+//
+// The deleteCmd is dispatched with target.relPath — the stable captured path —
+// not any derived value from the refreshed entries list.
 func (m Model) executeFileDelete() (tea.Model, tea.Cmd) {
 	if m.fileDeleteTarget == nil {
 		m.modal = modalNone
 		return m, nil
 	}
+	// Use the captured target explicitly — never re-read from m.files.entries.
 	target := m.fileDeleteTarget
 	m.modal = modalNone
 	m.fileDeleteTarget = nil
 	m.toast = "Deleting..."
 	m.toastKind = toastInfo
 	m.toastExp = time.Now().Add(10 * time.Second)
-	m.files.generation++ // WR-03: supersede any in-flight request
+	m.files.generation++ // supersede any in-flight request
 	return m, deleteCmd(m.files.client, m.files.sessionID, target.relPath, m.files.generation)
 }
 

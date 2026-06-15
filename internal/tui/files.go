@@ -576,6 +576,13 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case s == "d":
 		// TUIW-05: delete a file or directory (with confirmation).
 		// Shows a confirm modal; actual dispatch happens in handleFileDeleteConfirmKey.
+		//
+		// WR-03 (capture-at-keypress contract): the target is captured HERE from
+		// the current selection and stored in m.fileDeleteTarget. The confirm
+		// modal and executeFileDelete both reference the CAPTURED target, not the
+		// live selection. This is intentional: a background loadDirCmd refresh
+		// between 'd' and 'y' may reset the cursor, but the user sees and
+		// confirms the name they pressed 'd' on. See executeFileDelete for details.
 		entries := m.files.filteredEntries()
 		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
 			return m, nil
