@@ -16,7 +16,9 @@ findings:
   warning: 3
   info: 3
   total: 7
-status: issues_found
+status: resolved
+resolution: fixed
+resolution_note: "CR-01 (write-back error now surfaces, never discarded as stale) + WR-01/02/03 + IN-02 fixed. Commits 07d520e,58ddbc2,b50cb41,9be23eb,a01bf23. go test -race green (tui+daemon); new regression tests pass. IN-01 (redactCapFromURL) retained — has live test, defense-in-depth. IN-03 timeout magic numbers deferred (low priority)."
 ---
 
 # Phase 126: Code Review Report
