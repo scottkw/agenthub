@@ -12,7 +12,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/chromedp/cdproto v0.0.0-20260405000525-47a8ff65b46a
 	github.com/chromedp/chromedp v0.15.1
-	github.com/coder/websocket v1.8.14
+	github.com/coder/websocket v1.8.15
 	github.com/creativeprojects/go-selfupdate v1.5.2
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/goreleaser/nfpm/v2 v2.46.3
