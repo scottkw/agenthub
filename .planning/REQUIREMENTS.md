@@ -61,30 +61,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RB-01 | TBD | Pending |
-| RB-02 | TBD | Pending |
-| RB-03 | TBD | Pending |
-| RB-04 | TBD | Pending |
-| RB-05 | TBD | Pending |
-| DNS-01 | TBD | Pending |
-| DNS-02 | TBD | Pending |
-| DNS-03 | TBD | Pending |
-| RACE-01 | TBD | Pending |
-| RACE-02 | TBD | Pending |
-| RACE-03 | TBD | Pending |
+| RB-01 | Phase 130 | Pending |
+| RB-02 | Phase 130 | Pending |
+| RB-03 | Phase 130 | Pending |
+| RB-04 | Phase 130 | Pending |
+| RB-05 | Phase 130 | Pending |
+| DNS-01 | Phase 129 | Pending |
+| DNS-02 | Phase 129 | Pending |
+| DNS-03 | Phase 129 | Pending |
+| RACE-01 | Phase 129 | Pending |
+| RACE-02 | Phase 129 | Pending |
+| RACE-03 | Phase 129 | Pending |
 
 **Coverage:**
 - v1 requirements: 11 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 11 ⚠️ (filled by roadmapper)
+- Mapped to phases: 11 (roadmap complete)
+- Unmapped: 0 ✓
 
 ## Open Design Decisions (resolved before/at implementation phase)
 
 | Decision | Options | Where resolved |
 |----------|---------|----------------|
-| #86 remote-browse architecture | (a) tailnet-trusted metadata-only discovery endpoint; (b) list peers + join-code/URL per session, stop dropping empty-list peers; (c) keep enumeration locked, reframe as paste-join-code-only | `/gsd:discuss-phase` for the #86 phase |
-| #87 If-Match concurrency contract | (a) per-path lock → true single-winner; (b) accept last-writer-wins + invariants-only test | `/gsd:discuss-phase` or `/gsd:plan-phase` for the #87 phase |
+| #86 remote-browse architecture | (a) tailnet-trusted metadata-only discovery endpoint; (b) list peers + join-code/URL per session, stop dropping empty-list peers; (c) keep enumeration locked, reframe as paste-join-code-only | `/gsd:discuss-phase` or `/gsd:plan-phase` for Phase 130 |
+| #87 If-Match concurrency contract | (a) per-path lock → true single-winner; (b) accept last-writer-wins + invariants-only test | `/gsd:discuss-phase` or `/gsd:plan-phase` for Phase 129 |
 
 ---
 *Requirements defined: 2026-06-15*
-*Last updated: 2026-06-15 after v3.5.1 milestone scoping*
+*Last updated: 2026-06-15 after v3.5.1 roadmap creation — traceability table filled, coverage 11/11*

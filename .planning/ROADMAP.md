@@ -26,6 +26,7 @@
 - ✅ **v3.3.1 Bug Sweep** — Phases 109-117 (shipped 2026-05-19, closes Issues #52, #54, #55, #56, #57, #58, #60)
 - ✅ **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-122 (shipped 2026-05-21, closes Issues #62 + v3.4 slice of #64)
 - ✅ **v3.5 File Browser — Write Operations & Editor** — Phases 123-128 (shipped 2026-06-15, closes Issues #63, #64; umbrella #24 pending two-machine UAT)
+- 🚧 **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (in progress, closes Issues #86, #83, #87; retires umbrella #24)
 
 ## Phases
 
@@ -308,6 +309,53 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v3.5 phase details archived to milestones/v3.5-ROADMAP.md -->
 
+<details>
+<summary>🚧 v3.5.1 Remote Browse Completion + Release-Gate Fix (Phases 129-130) — IN PROGRESS (closes Issues #86, #83, #87; retires umbrella #24)</summary>
+
+- [ ] **Phase 129: Write Concurrency Fix + DNS Error UX** — RACE-01..03, DNS-01..03
+- [ ] **Phase 130: Remote Browse GUI On-Ramp** — RB-01..05
+
+</details>
+
+## Phase Details
+
+### Phase 129: Write Concurrency Fix + DNS Error UX
+**Goal**: The release gate passes deterministically and users see actionable errors when Tailscale DNS prerequisites are missing
+**Depends on**: Nothing (independent of Phase 130; these are self-contained fixes)
+**Requirements**: RACE-01, RACE-02, RACE-03, DNS-01, DNS-02, DNS-03
+**Success Criteria** (what must be TRUE):
+  1. `TestWrite_TwoWritersIfMatchRace` passes 100/100 runs on the release `validate` gate — scheduling-dependent outcomes are eliminated
+  2. The `WriteFileAtomic` If-Match concurrency contract (whether single-winner serialization or documented last-writer-wins) is consistent: the code, its comments, and the remote-write proxy all agree on the same guarantee
+  3. After any concurrent-write scenario, the resulting file contains only coherent content (all-A or all-B, never interleaved) and no `.agenthub-tmp-*` temp files remain
+  4. When a remote browse fails because the client has `accept-dns=false`, the user sees a specific actionable message (e.g. "Enable Tailscale DNS (accept-dns) to browse remote sessions") rather than an opaque 502
+  5. The daemon distinguishes the `accept-dns=false` / unresolvable-MagicDNS case from other remote-unreachable failures — the actionable message surfaces only when correct
+  6. `accept-dns` state is probed at startup or before the first remote browse, so the user is warned before hitting the failure path
+
+**Design decision (resolve at plan time):** #87 If-Match concurrency contract — (a) per-path lock for true single-winner guarantee, or (b) accept last-writer-wins + invariants-only test. Not pre-decided here.
+
+**Plans**: TBD
+
+---
+
+### Phase 130: Remote Browse GUI On-Ramp
+**Goal**: The desktop GUI Remote Sessions panel can discover, list, and open a tailnet peer's file browser — completing the umbrella #24 on-ramp and retiring the epic
+**Depends on**: Phase 129 (release gate must be clean before shipping)
+**Requirements**: RB-01, RB-02, RB-03, RB-04, RB-05
+**Success Criteria** (what must be TRUE):
+  1. A user can open the Remote Sessions panel and see a reachable tailnet peer's shareable sessions — peers are no longer silently dropped because their `/api/sessions` list isn't enumerable without a cap
+  2. A user can select a session from the Remote Sessions panel and open it in the File Browser, completing the discover→list→pick flow end-to-end over the relay loopback the GUI uses
+  3. A non-tailnet caller or an unauthorized caller still cannot enumerate session content or obtain a capability without an intended grant — the Phase 87/88 no-enumeration security model is preserved
+  4. Remote panel states are honest: a reachable peer with shareable sessions is never shown as "No remote peers found"; genuinely empty or unreachable peers surface a correct empty/error state
+  5. A relay-surface regression test covers the discover→list→pick path via the relay loopback (`internal/relay/server_files_test.go` or `internal/daemon/relay_remote_files_test.go`), guarding against v3.5-class blind spots where only the webserver/fixture surface was tested
+
+**Design decision (resolve at discuss/plan time before implementation):** #86 remote-browse architecture — (a) tailnet-trusted metadata-only discovery endpoint; (b) list peers + join-code/URL per session, stop dropping empty-list peers; (c) keep enumeration locked, reframe as paste-join-code-only. Must be resolved in a design pass before implementation. Not pre-decided here.
+
+**UI hint**: yes
+
+**Plans**: TBD
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -352,6 +400,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
+| 129 | v3.5.1 | 0/TBD | Not started | - |
+| 130 | v3.5.1 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
