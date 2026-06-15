@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { FilesApiClient, FilesApiError } from '../filesApi'
+import { FilesApiClient, FilesApiError, REMOTE_PEER_OUTDATED_MESSAGE } from '../filesApi'
 
 // Phase 120-02 Task 3 — FilesApiClient unit tests.
 // Mock global fetch with vi.stubGlobal. Asserts URL construction, header parsing,
@@ -239,5 +239,21 @@ describe('FilesApiError', () => {
   it('isNotFound — 404 → true', () => {
     expect(new FilesApiError(404, '').isNotFound()).toBe(true)
     expect(new FilesApiError(403, '').isNotFound()).toBe(false)
+  })
+
+  // RMW-04 RED: isMethodNotAllowed + REMOTE_PEER_OUTDATED_MESSAGE
+  it('isMethodNotAllowed — 405 → true; 404/412/409 → false', () => {
+    expect(new FilesApiError(405, '').isMethodNotAllowed()).toBe(true)
+    expect(new FilesApiError(404, '').isMethodNotAllowed()).toBe(false)
+    expect(new FilesApiError(412, '').isMethodNotAllowed()).toBe(false)
+    expect(new FilesApiError(409, '').isMethodNotAllowed()).toBe(false)
+  })
+
+  it('REMOTE_PEER_OUTDATED_MESSAGE is the verbatim SC3 string (byte-match contract)', () => {
+    // Import tested at module level via: import { REMOTE_PEER_OUTDATED_MESSAGE } from '../filesApi'
+    // This test ensures the const is exported and byte-identical to the Go const.
+    expect(REMOTE_PEER_OUTDATED_MESSAGE).toBe(
+      'The remote session is running an older version of AgentHub that does not support file writes.',
+    )
   })
 })
