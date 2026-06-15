@@ -22,7 +22,7 @@ require (
 	github.com/wailsapp/mimetype v1.4.1
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.45.0
+	golang.org/x/sys v0.46.0
 	golang.org/x/term v0.43.0
 	tailscale.com v1.98.3
 )
