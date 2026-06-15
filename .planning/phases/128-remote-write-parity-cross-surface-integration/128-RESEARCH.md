@@ -276,7 +276,7 @@ isMethodNotAllowed(): boolean {
 | A3 | The 401 "access expired" copy wording is at Claude's discretion (CONTEXT.md grants discretion on cap-expiry handling); only the SC3 405 string is verbatim-locked | Pattern 3 | If a specific 401 string is required, copy must be confirmed — low risk, discretion granted |
 | A4 | Client-side upload abort already fires via the existing `xhr` abort handler on cap-expiry; only verification (not new code) is needed | Architectural Map | If the xhr abort doesn't propagate cap-expiry cleanly, a small abort-wiring task is needed — MEDIUM; verify during planning |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the in-flight upload `xhr` surface cap-expiry as an abortable error that cleans up the upload queue entry?**
    - What we know: `filesApi.ts` upload uses `XMLHttpRequest` with `onabort`/`onerror` handlers rejecting `FilesApiError(0, ...)` / `FilesApiError(status,...)`.
