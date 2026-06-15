@@ -302,7 +302,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13 (completed 2026-06-14)
 - [x] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07 (completed 2026-06-15)
 - [x] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07 (completed 2026-06-15)
-- [ ] **Phase 128: Remote Write Parity + Cross-Surface Integration** — RMW-01..RMW-06
+- [x] **Phase 128: Remote Write Parity + Cross-Surface Integration** — RMW-01..RMW-06 (completed 2026-06-15)
 
 </details>
 
@@ -467,13 +467,13 @@ Plans:
 4. If a remote cap expires mid-edit, the editor buffer is preserved and an "access expired" message is shown; any orphaned partial upload on the remote machine is cleaned up — no silent buffer loss, no stranded temp files.
 5. The Phase 122 remote read test suite passes with zero regressions; a two-machine tailnet write UAT checklist is committed (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface write parity + cap-expiry failure mode), closing umbrella Issue #24 when executed successfully.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 128-01-PLAN.md — v3.4-peer upstream-405 version-gate mapping (Go RemoteFilesClient + TS FilesApiError), verbatim message grep-gated cross-surface (RMW-04)
 - [x] 128-02-PLAN.md — cap-expiry mid-edit "access expired" branch (Go + TS, buffer preserved) + upload-abort queue cleanup (RMW-05)
 - [x] 128-03-PLAN.md — 3-observer write-parity harness: persisting fixture peer + package daemon_test write-then-read + Playwright HTTPS observer (RMW-01/02/03)
-- [ ] 128-04-PLAN.md — Phase 122 read-regression guard + committed two-machine UAT checklist (128-VERIFICATION.md), closes Issue #24 on execution (RMW-06)
+- [x] 128-04-PLAN.md — Phase 122 read-regression guard + committed two-machine UAT checklist (128-VERIFICATION.md), closes Issue #24 on execution (RMW-06)
 
 **UI hint**: no
 
@@ -522,7 +522,7 @@ Plans:
 | 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 128 | v3.5 | 3/4 | In Progress|  |
+| 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
