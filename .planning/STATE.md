@@ -79,8 +79,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 
 | Decision | Resolution |
 |----------|------------|
-| #87 If-Match concurrency contract | OPEN — (a) per-path lock for single-winner guarantee vs (b) last-writer-wins + invariants-only test; resolve at `/gsd:plan-phase 129` |
-| #86 remote-browse architecture | OPEN — (a) tailnet-trusted metadata-only discovery endpoint; (b) list peers + join-code/URL per session, stop dropping empty-list peers; (c) keep enumeration locked, reframe as paste-join-code-only; resolve via design pass before Phase 130 implementation |
+| #87 If-Match concurrency contract | RESOLVED 2026-06-15 → **(a) per-path lock for true single-winner guarantee**. Serialize writes per path; loser gets a clean 412/conflict. Matches standard If-Match optimistic-concurrency semantics. Code, comments, and remote-write proxy must all assert single-winner (RACE-02). |
+| #86 remote-browse architecture | RESOLVED 2026-06-15 → **(a) tailnet-trusted metadata-only discovery endpoint**. Returns shareable-session metadata to tailnet-trusted callers; content/caps stay locked (preserves Phase 87/88 no-enumeration model, RB-03). Satisfies RB-01 (see sessions) + RB-04 (honest states). |
 
 ## Already-Fixed Prerequisites (do not re-scope)
 
