@@ -27,6 +27,17 @@ const remotePeerOutdatedMessage = "The remote session is running an older versio
 // Callers use errors.Is to detect this sentinel and render the verbatim copy.
 var ErrRemotePeerNoWriteSupport = errors.New(remotePeerOutdatedMessage)
 
+// remoteCapExpiredMessage is the user-facing copy surfaced when a write verb
+// returns HTTP 401 (cap token expired or revoked mid-session).
+// CAP-LEAK invariant: this string must NOT interpolate the cap token or URL.
+const remoteCapExpiredMessage = "your access to this remote session has expired"
+
+// ErrRemoteCapExpired is returned by all 4 write methods when the remote peer
+// responds with HTTP 401 (capability token expired or revoked). Callers use
+// errors.Is to detect this sentinel and render a distinct "access expired"
+// message instead of the generic write-error copy. (RMW-05)
+var ErrRemoteCapExpired = errors.New(remoteCapExpiredMessage)
+
 // RemoteFilesClient satisfies FilesClient by talking to a remote AgentHub
 // peer's webserver over Tailscale HTTPS with a session-scoped capability
 // token in the query string. It mirrors *daemon.DaemonClient's files methods
@@ -244,6 +255,9 @@ func (c *RemoteFilesClient) WriteFile(ctx context.Context, sid, rel string, data
 	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
 		return files.FileWriteResponse{}, ErrRemotePeerNoWriteSupport
 	}
+	if resp.StatusCode == http.StatusUnauthorized { // RMW-05: cap expired/revoked mid-session
+		return files.FileWriteResponse{}, ErrRemoteCapExpired
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return files.FileWriteResponse{}, fmt.Errorf("remote files write: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -273,6 +287,9 @@ func (c *RemoteFilesClient) DeleteFile(ctx context.Context, sid, rel string) (fi
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
 		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
+	}
+	if resp.StatusCode == http.StatusUnauthorized { // RMW-05: cap expired/revoked mid-session
+		return files.FileOpResponse{}, ErrRemoteCapExpired
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -317,6 +334,9 @@ func (c *RemoteFilesClient) RenameFile(ctx context.Context, sid, oldRel, newRel 
 	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
 		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
 	}
+	if resp.StatusCode == http.StatusUnauthorized { // RMW-05: cap expired/revoked mid-session
+		return files.FileOpResponse{}, ErrRemoteCapExpired
+	}
 	if resp.StatusCode != http.StatusOK {
 		body2, _ := io.ReadAll(resp.Body)
 		return files.FileOpResponse{}, fmt.Errorf("remote files rename: %d %s", resp.StatusCode, strings.TrimSpace(string(body2)))
@@ -347,6 +367,9 @@ func (c *RemoteFilesClient) MkdirFile(ctx context.Context, sid, rel string) (fil
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
 		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
+	}
+	if resp.StatusCode == http.StatusUnauthorized { // RMW-05: cap expired/revoked mid-session
+		return files.FileOpResponse{}, ErrRemoteCapExpired
 	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)

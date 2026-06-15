@@ -593,6 +593,135 @@ func TestRemoteFilesClient_405_ErrRemotePeerNoWriteSupport(t *testing.T) {
 	})
 }
 
+// TestRemoteFilesClient_401_ErrRemoteCapExpired asserts that all 4 write
+// methods return the sentinel ErrRemoteCapExpired (errors.Is match) on a 401
+// upstream response; that the error string contains no cap token (CAP-LEAK
+// invariant); and that a non-401 error (500) still returns the generic
+// formatted error (no regression). (RMW-05 RED gate)
+func TestRemoteFilesClient_401_ErrRemoteCapExpired(t *testing.T) {
+	make401Srv := func(t *testing.T) *httptest.Server {
+		t.Helper()
+		return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}))
+	}
+
+	ctx := context.Background()
+
+	t.Run("WriteFile 401 returns ErrRemoteCapExpired", func(t *testing.T) {
+		srv := make401Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemoteCapExpired) {
+			t.Errorf("expected ErrRemoteCapExpired, got %v", err)
+		}
+	})
+
+	t.Run("DeleteFile 401 returns ErrRemoteCapExpired", func(t *testing.T) {
+		srv := make401Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.DeleteFile(ctx, "sid", "f.txt")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemoteCapExpired) {
+			t.Errorf("expected ErrRemoteCapExpired, got %v", err)
+		}
+	})
+
+	t.Run("RenameFile 401 returns ErrRemoteCapExpired", func(t *testing.T) {
+		srv := make401Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.RenameFile(ctx, "sid", "old.txt", "new.txt")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemoteCapExpired) {
+			t.Errorf("expected ErrRemoteCapExpired, got %v", err)
+		}
+	})
+
+	t.Run("MkdirFile 401 returns ErrRemoteCapExpired", func(t *testing.T) {
+		srv := make401Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.MkdirFile(ctx, "newdir", "newdir")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, ErrRemoteCapExpired) {
+			t.Errorf("expected ErrRemoteCapExpired, got %v", err)
+		}
+	})
+
+	t.Run("WriteFile 500 does NOT return ErrRemoteCapExpired (no regression)", func(t *testing.T) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, "tok", srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, ErrRemoteCapExpired) {
+			t.Error("500 should NOT return ErrRemoteCapExpired")
+		}
+		if !strings.Contains(err.Error(), "500") {
+			t.Errorf("expected generic error to contain '500', got %q", err.Error())
+		}
+	})
+
+	t.Run("401 error string has no cap token (CAP-LEAK invariant)", func(t *testing.T) {
+		const sensitiveCap = "SUPER-SECRET-WRITE-CAP-401"
+		srv := make401Srv(t)
+		defer srv.Close()
+		c := newRemoteFilesClientWithHTTP(srv.URL, sensitiveCap, srv.Client())
+		_, err := c.WriteFile(ctx, "sid", "f.txt", []byte("data"))
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if strings.Contains(err.Error(), sensitiveCap) {
+			t.Errorf("CAP-LEAK on 401 — error contains cap token: %q", err.Error())
+		}
+	})
+}
+
+// TestFilesOpMsg_401_AccessExpiredToast asserts that when applyFilesOpMsg
+// receives an error wrapping ErrRemoteCapExpired, the toast is set to a
+// distinct "access expired" message rather than the generic "<op> failed: ..."
+// copy. (RMW-05 RED gate — TUI surface copy)
+func TestFilesOpMsg_401_AccessExpiredToast(t *testing.T) {
+	m := Model{}
+	msg := filesOpMsg{
+		op:        "write",
+		sessionID: "sid",
+		err:       ErrRemoteCapExpired,
+	}
+	result, _ := m.applyFilesOpMsg(msg)
+	got := result.(Model).toast
+	if got == "" {
+		t.Fatal("expected toast to be set, got empty string")
+	}
+	// Must NOT be the generic "<op> failed: ..." copy.
+	if strings.Contains(got, "write failed:") {
+		t.Errorf("toast is the generic copy, expected distinct access-expired message: %q", got)
+	}
+	// Must NOT contain any cap token — strings.Contains("", anything) is false
+	// but we also check the sentinel message itself.
+	lower := strings.ToLower(got)
+	if strings.Contains(lower, "access") && strings.Contains(lower, "expired") {
+		return // pass: contains the expected signal
+	}
+	t.Errorf("toast does not signal access-expired: %q", got)
+}
+
 // TestRemoteFilesClient_WriteCapLeak proves the CAP-LEAK invariant (T-126-01):
 // on a non-200 response from a write method, the returned error string must
 // contain the status code but NOT the cap token.

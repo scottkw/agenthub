@@ -1089,8 +1089,11 @@ func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		// RMW-04: v3.4 peer has no write routes — surface the verbatim "older version"
 		// message instead of the generic "<op> failed: ..." copy.
+		// RMW-05: cap expired/revoked — surface a distinct "access expired" message.
 		if errors.Is(msg.err, ErrRemotePeerNoWriteSupport) {
 			m.toast = remotePeerOutdatedMessage
+		} else if errors.Is(msg.err, ErrRemoteCapExpired) {
+			m.toast = "Your access to this remote session has expired."
 		} else {
 			m.toast = fmt.Sprintf("%s failed: %s", msg.op, msg.err)
 		}

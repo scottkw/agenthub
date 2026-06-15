@@ -3,7 +3,12 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react'
 import { useFilesWrite, type WriteOutcome } from '../useFilesWrite'
-import { FilesApiClient, FilesApiError, REMOTE_PEER_OUTDATED_MESSAGE } from '../filesApi'
+import {
+  FilesApiClient,
+  FilesApiError,
+  REMOTE_PEER_OUTDATED_MESSAGE,
+  ACCESS_EXPIRED_MESSAGE,
+} from '../filesApi'
 
 // Phase 128-01 Task 2 — useFilesWrite 405 peer-outdated branch tests (RMW-04 RED gate).
 // Manual renderHook harness mirroring useFilesCapability.test.tsx (no @testing-library/react).
@@ -176,6 +181,24 @@ describe('useFilesWrite — 405 peer-outdated branch (RMW-04)', () => {
     )
   })
 
+  it('write() 401 does NOT produce peer-outdated (branch order regression)', async () => {
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+    let outcome: WriteOutcome | undefined
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      outcome = await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    // 401 must NOT reach the generic error branch nor the 405 branch
+    expect(outcome).not.toBe('peer-outdated')
+    expect(hook.current.value.saveError).not.toBe(REMOTE_PEER_OUTDATED_MESSAGE)
+  })
+
   it('write() saved outcome unchanged — no regression', async () => {
     const client = makeClientOk()
     let outcome: WriteOutcome | undefined
@@ -191,5 +214,141 @@ describe('useFilesWrite — 405 peer-outdated branch (RMW-04)', () => {
 
     expect(outcome).toBe('saved')
     expect(hook.current.value.saveError).toBeNull()
+  })
+})
+
+describe('useFilesWrite — 401 expired branch (RMW-05)', () => {
+  let container: HTMLDivElement
+  let root: Root
+
+  afterEach(() => {
+    act(() => {
+      root.unmount()
+    })
+    document.body.removeChild(container)
+    vi.restoreAllMocks()
+  })
+
+  it('write() returns expired on FilesApiError(401)', async () => {
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+    let outcome: WriteOutcome | undefined
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      outcome = await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(outcome).toBe('expired')
+  })
+
+  it('write() sets saveError to ACCESS_EXPIRED_MESSAGE on 401', async () => {
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(hook.current.value.saveError).toBe(ACCESS_EXPIRED_MESSAGE)
+  })
+
+  it('write() sets saveState to idle on 401 (not saving)', async () => {
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(hook.current.value.saveState).toBe('idle')
+    expect(hook.current.value.isSaving).toBe(false)
+  })
+
+  it('write() does NOT clear buffer on 401 (T-125-08 locked: buffer preserved)', async () => {
+    // Buffer preservation is verified by checking the 401 branch was taken
+    // (saveError is ACCESS_EXPIRED_MESSAGE, not the generic copy).
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(hook.current.value.saveError).toBe(ACCESS_EXPIRED_MESSAGE)
+    expect(hook.current.value.saveError).not.toBe(
+      "Couldn't save the file. Your changes are still here — try again.",
+    )
+  })
+
+  it('write() 401 fires BEFORE generic branch (branch-order assertion)', async () => {
+    // A 401 must never produce the generic "Couldn't save" copy.
+    const client = makeClientThrowing(new FilesApiError(401, 'Unauthorized'))
+    let outcome: WriteOutcome | undefined
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      outcome = await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(outcome).toBe('expired')
+    expect(hook.current.value.saveError).not.toBe(
+      "Couldn't save the file. Your changes are still here — try again.",
+    )
+  })
+
+  it('write() conflict (412) unchanged after adding 401 branch', async () => {
+    const client = makeClientThrowing(new FilesApiError(412, 'Precondition Failed'))
+    let outcome: WriteOutcome | undefined
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      outcome = await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(outcome).toBe('conflict')
+    expect(hook.current.value.isConflict).toBe(true)
+  })
+
+  it('write() generic error (500) unchanged after adding 401 branch', async () => {
+    const client = makeClientThrowing(new FilesApiError(500, 'Internal Server Error'))
+    let outcome: WriteOutcome | undefined
+
+    const hook = renderHook(() => useFilesWrite(client, 'sid1'))
+    container = hook.container
+    root = hook.root
+
+    await act(async () => {
+      outcome = await hook.current.value.write('/path/to/file.txt', 'content')
+    })
+    await hook.flush()
+
+    expect(outcome).toBe('error')
+    expect(hook.current.value.saveError).toBe(
+      "Couldn't save the file. Your changes are still here — try again.",
+    )
   })
 })

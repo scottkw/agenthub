@@ -822,6 +822,11 @@ export function FileBrowserTab({
             setUploadQueue((prev) =>
               prev.map((item) => (item.id === itemId ? { ...item, status: 'over-cap', progress: 0 } : item))
             )
+          } else if (err instanceof FilesApiError && err.isUnauthorized()) {
+            // RMW-05: 401 mid-upload = cap expired/revoked. Remove the queue entry
+            // entirely — no stuck progress bar. The parent editor already shows
+            // ACCESS_EXPIRED_MESSAGE via saveError if a save was in flight.
+            setUploadQueue((prev) => prev.filter((item) => item.id !== itemId))
           } else {
             setUploadQueue((prev) =>
               prev.map((item) =>
@@ -1319,6 +1324,7 @@ export function FileBrowserTab({
                 // 'conflict' → ConflictModal opens automatically via isConflict state.
                 // 'error' → inline saveError shows; no navigation.
                 // 'peer-outdated' (RMW-04) → saveError set to REMOTE_PEER_OUTDATED_MESSAGE; no navigation.
+                // 'expired' (RMW-05) → saveError set to ACCESS_EXPIRED_MESSAGE; buffer intact; no navigation.
               })
             }}
             onDiscard={() => {

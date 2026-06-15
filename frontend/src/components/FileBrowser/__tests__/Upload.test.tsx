@@ -15,6 +15,7 @@ import useFilesWriteRaw from '../../../lib/useFilesWrite.ts?raw'
 import uploadQueuePanelRaw from '../UploadQueuePanel.tsx?raw'
 import uploadDropOverlayRaw from '../UploadDropOverlay.tsx?raw'
 import breadcrumbBarRaw from '../BreadcrumbBar.tsx?raw'
+import fileBrowserTabRaw from '../../FileBrowserTab.tsx?raw'
 
 // ─── Task 1: filesApi.uploadFile() — source-level assertions ─────────────────
 
@@ -291,6 +292,44 @@ describe('UploadDropOverlay.tsx — source assertions', () => {
 })
 
 // ─── Task 2: BreadcrumbBar Upload button — source assertions ──────────────────
+
+// ─── Task 3 (128-02 RMW-05): upload-abort-on-401 queue cleanup ────────────────
+
+describe('filesApi.ts — XHR 401 rejects via load branch (RMW-05)', () => {
+  it('XHR load handler rejects with FilesApiError when status is not 2xx', () => {
+    // The load handler must produce a FilesApiError (not a plain Error or void)
+    // so the 401 path routes through isUnauthorized() in the caller.
+    expect(filesApiRaw).toContain('FilesApiError(xhr.status')
+  })
+
+  it('XHR abort handler rejects with FilesApiError', () => {
+    expect(filesApiRaw).toContain("FilesApiError(0, 'upload aborted')")
+  })
+
+  it('ACCESS_EXPIRED_MESSAGE is exported from filesApi.ts', () => {
+    expect(filesApiRaw).toContain('export const ACCESS_EXPIRED_MESSAGE')
+  })
+})
+
+describe('FileBrowserTab.tsx — upload queue entry removed on 401/abort (RMW-05)', () => {
+  it('handles isUnauthorized() in upload catch block (removes queue entry on 401)', () => {
+    // The upload catch block must call isUnauthorized() to detect 401 and
+    // remove (filter out) the queue entry rather than leaving it as 'failed'.
+    expect(fileBrowserTabRaw).toContain('isUnauthorized()')
+  })
+
+  it('removes queue entry on 401 (filter not map to failed)', () => {
+    // The upload catch branch must call setUploadQueue with a filter (remove),
+    // not a map to 'failed' — no stuck progress bar on 401.
+    // Find the LAST isOverCap (upload loop) and verify isUnauthorized + filter follow.
+    const uploadIdx = fileBrowserTabRaw.lastIndexOf('isOverCap()')
+    expect(uploadIdx).toBeGreaterThan(-1)
+    // Look ahead from the upload isOverCap — the 401 branch follows it
+    const context = fileBrowserTabRaw.slice(uploadIdx, uploadIdx + 600)
+    expect(context).toContain('isUnauthorized()')
+    expect(context).toContain('filter')
+  })
+})
 
 describe('BreadcrumbBar.tsx — Upload button (EDIT-10)', () => {
   it('accepts an onUpload prop', () => {

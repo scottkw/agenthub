@@ -118,6 +118,14 @@ export const REMOTE_PEER_OUTDATED_MESSAGE =
   'The remote session is running an older version of AgentHub that does not support file writes.'
 
 /**
+ * Access-expired message surfaced when the remote cap token is rejected with
+ * HTTP 401 mid-edit. Emphasises that the editor buffer is still intact so the
+ * user is not alarmed. (RMW-05 — cap-free; no token interpolation)
+ */
+export const ACCESS_EXPIRED_MESSAGE =
+  'Your access to this remote session has expired. Your changes are still here.'
+
+/**
  * Client-side upload cap — must match the server's maxUploadBytes (50 MiB).
  * Single source of truth: import this constant everywhere the limit is
  * referenced on the frontend (WR-06). The Go test TestMaxUploadBytesMatch
