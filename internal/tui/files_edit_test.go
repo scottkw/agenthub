@@ -394,6 +394,73 @@ func TestEditWriteBack_ErrorSurfaces(t *testing.T) {
 	}
 }
 
+// TestEditWriteBack_ReadFailPreservesTempFile verifies WR-01: when the temp
+// file cannot be read (e.g. replaced by editor via rename-swap), editWriteBackCmd
+// leaves the temp file in place and returns an error that includes the path so
+// the user can recover their edits.
+func TestEditWriteBack_ReadFailPreservesTempFile(t *testing.T) {
+	// Create a temp file, run the cmd, then remove it BEFORE the cmd executes
+	// to simulate a read failure (inode gone).
+	tmpFile, err := os.CreateTemp("", "wr01-test-*")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	// Remove it now to simulate a read failure when editWriteBackCmd runs.
+	os.Remove(tmpPath)
+
+	cmd := editWriteBackCmd(nil, "s1", "file.txt", tmpPath, 1)
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd")
+	}
+	msg := cmd()
+	op, ok := msg.(filesOpMsg)
+	if !ok {
+		t.Fatalf("expected filesOpMsg, got %T", msg)
+	}
+	if op.err == nil {
+		t.Fatal("expected error when temp file does not exist")
+	}
+	// WR-01: error message must include the path so user can locate their edits.
+	if !strings.Contains(op.err.Error(), tmpPath) {
+		t.Errorf("error should mention temp file path %q; got %q", tmpPath, op.err.Error())
+	}
+	// WR-01: temp file was already absent — confirm it is still absent (not re-created or altered).
+	if _, statErr := os.Stat(tmpPath); !os.IsNotExist(statErr) {
+		t.Errorf("expected temp file to remain absent on read failure; stat returned %v", statErr)
+	}
+}
+
+// TestEditWriteBack_RemovesOnSuccess verifies that when both the read and the
+// write-back succeed, the temp file IS cleaned up (T-126-05).
+func TestEditWriteBack_RemovesOnSuccess(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "wr01-success-*")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Write([]byte("content"))
+	tmpFile.Close()
+
+	// mockFilesClient with no write error — write-back succeeds.
+	mock := &mockFilesClient{}
+	cmd := editWriteBackCmd(mock, "s1", "file.txt", tmpPath, 1)
+	msg := cmd()
+	op, ok := msg.(filesOpMsg)
+	if !ok {
+		t.Fatalf("expected filesOpMsg, got %T", msg)
+	}
+	if op.err != nil {
+		t.Errorf("expected no error, got %v", op.err)
+	}
+	// T-126-05: temp file must be cleaned up after successful write-back.
+	if _, statErr := os.Stat(tmpPath); !os.IsNotExist(statErr) {
+		t.Errorf("expected temp file removed after successful write-back; stat returned %v", statErr)
+		os.Remove(tmpPath) // clean up if the test fails
+	}
+}
+
 // mockFilesClient is a minimal FilesClient implementation for testing write-back
 // error surfacing (CR-01). Only WriteFile is exercised; all other methods return
 // zero values so the interface is satisfied.

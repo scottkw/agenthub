@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,20 +110,33 @@ func editFetchCmd(client FilesClient, sid, relPath, editor string, gen uint64) t
 
 // editWriteBackCmd returns a tea.Cmd that reads the (potentially edited)
 // temp file and writes the bytes back to the daemon via client.WriteFile.
-// The temp file is always removed (defer os.Remove) regardless of outcome,
-// satisfying T-126-05 (no lingering sensitive bytes in /tmp).
+//
+// WR-01 FIX: The temp file is only removed AFTER a successful read. If the
+// read fails (e.g. the editor replaced the file via rename-and-swap and left a
+// different inode, or a transient I/O error), the function returns an error
+// that includes the temp file path so the user knows where their edits are
+// parked. Removing on read failure would destroy the user's edits with no
+// recovery path.
+//
+// On successful read the file is removed unconditionally after write-back
+// (success or failure), satisfying T-126-05 (no lingering sensitive bytes
+// in /tmp).
 //
 // The write-back is UNCONDITIONAL — it is dispatched regardless of the editor's
 // exit code (the caller, editorExitMsg handler, batches this cmd always).
 // Stale-guard via generation on the result msg.
 func editWriteBackCmd(client FilesClient, sid, relPath, tmpPath string, gen uint64) tea.Cmd {
 	return func() tea.Msg {
-		defer os.Remove(tmpPath) // T-126-05: always clean up the temp file
-
+		// WR-01: read FIRST — do NOT defer os.Remove before this succeeds.
 		data, rerr := os.ReadFile(tmpPath)
 		if rerr != nil {
-			return filesOpMsg{sessionID: sid, generation: gen, op: "edit", err: rerr}
+			// Leave the temp file in place so the user can recover their edits.
+			return filesOpMsg{sessionID: sid, generation: gen, op: "edit",
+				err: fmt.Errorf("could not read edited temp file (your edits are at %s): %w", tmpPath, rerr)}
 		}
+		// Read succeeded — now it is safe to remove the temp file after we finish.
+		defer os.Remove(tmpPath) // T-126-05: clean up after successful read
+
 		if isNilFilesClient(client) {
 			return filesOpMsg{sessionID: sid, generation: gen, op: "edit", err: errNilClient}
 		}
