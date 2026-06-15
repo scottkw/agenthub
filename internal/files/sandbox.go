@@ -99,14 +99,15 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 	// `cleaned` itself.
 	abs := filepath.Join(s.rootPath, cleaned)
 
-	home, _ := os.UserHomeDir()
-	if home == "" {
+	homeRaw, _ := os.UserHomeDir()
+	if homeRaw == "" {
 		return nil
 	}
 	// EvalSymlinks on home so the resolved rootPath (already EvalSymlinks-d
 	// in NewSandbox) and home are on the same canonical path prefix.
 	// On macOS /var/folders/... resolves to /private/var/folders/... and
 	// without this step filepath.Rel returns ".." paths for valid home targets.
+	home := homeRaw
 	if resolved, err := filepath.EvalSymlinks(home); err == nil {
 		home = resolved
 	}
@@ -129,8 +130,11 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 		// returning nil is the correct fail-open for the "not under $HOME" case.
 		return nil
 	}
-	// Shell RC files — exact base-name match.
-	base := filepath.Base(canonAbs)
+	// Shell RC files — exact base-name match (case-folded for macOS/Windows
+	// case-insensitive volumes: .BASHRC and .Bashrc must be caught too).
+	// All protected names are ASCII so strings.ToLower is safe and sufficient;
+	// NFC/NFD Unicode normalization is a LOW residual (all names are ASCII).
+	base := strings.ToLower(filepath.Base(canonAbs))
 	switch base {
 	case ".bashrc", ".zshrc", ".profile", ".bash_profile",
 		".zprofile", ".zshenv", ".bash_login":
@@ -138,8 +142,40 @@ func (s *Sandbox) denylistCheck(cleaned string) error {
 	}
 	// Directory-prefix protections (forward-slash normalised so the check
 	// is consistent across Windows, macOS, and Linux path formats).
-	relSlash := filepath.ToSlash(rel)
-	for _, dir := range []string{".ssh/", ".claude/", ".config/agenthub/"} {
+	// Case-folded for the same reason as the base-name switch above.
+	relSlash := strings.ToLower(filepath.ToSlash(rel))
+
+	// Build the protected-prefix set. Start with static prefixes that cover
+	// Linux/cross-platform copied trees (belt-and-suspenders). Then derive
+	// the OS-correct daemon config dir from os.UserConfigDir() — on macOS this
+	// is ~/Library/Application Support, not ~/.config — and add its
+	// $HOME-relative form. Two-line derivation mirrors engine.go:daemonConfigDir
+	// but avoids importing the daemon package (internal/files must stay cycle-free).
+	protectedDirs := []string{".ssh/", ".claude/", ".config/agenthub/"}
+	if cfgBase, cfgErr := os.UserConfigDir(); cfgErr == nil {
+		// os.UserConfigDir() derives its result from the HOME env var (macOS,
+		// Linux) so cfgBase may contain unresolved symlinks (e.g. /var/... on
+		// macOS while home was resolved to /private/var/...). Rebase cfgBase
+		// onto the symlink-resolved home so that filepath.Rel produces a clean
+		// relative path rather than a "../../.." escape.
+		if cfgRelToRaw, relErr := filepath.Rel(homeRaw, cfgBase); relErr == nil &&
+			!strings.HasPrefix(cfgRelToRaw, "..") {
+			// cfgBase is under the raw home; rebase onto the resolved home so
+			// its prefix matches the EvalSymlinks-resolved home used above.
+			cfgBase = filepath.Join(home, cfgRelToRaw)
+		}
+		cfgDir := filepath.Join(cfgBase, "agenthub")
+		cfgRel, relErr := filepath.Rel(home, cfgDir)
+		if relErr == nil && !strings.HasPrefix(cfgRel, "..") {
+			// cfgDir is under $HOME; add its forward-slash, lowercase relative
+			// form. We append rather than prepend so the static entries still
+			// fire for cross-platform copied trees.
+			cfgRelSlash := strings.ToLower(filepath.ToSlash(cfgRel)) + "/"
+			protectedDirs = append(protectedDirs, cfgRelSlash)
+		}
+	}
+
+	for _, dir := range protectedDirs {
 		if relSlash == strings.TrimSuffix(dir, "/") || strings.HasPrefix(relSlash, dir) {
 			return ErrProtectedSystemFile
 		}

@@ -439,6 +439,12 @@ func FuzzSandboxWrite(f *testing.F) {
 	f.Add("foo.txt.agenthub-tmp-deadbeef") // temp-name collision probe
 	f.Add("..%2f..%2f.bashrc")
 
+	// ---- Phase 127, SEC-06: case-variation + multipart-filename vectors ----
+	f.Add("../../.BASHRC")
+	f.Add("../../.Bashrc")
+	f.Add(".SSH/authorized_keys")
+	f.Add("../../../etc/passwd") // multipart-filename-style injection
+
 	// ---- Setup ----
 	root := f.TempDir()
 	// Populate a few real files so accepted paths can be stat'd to prove
