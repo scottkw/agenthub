@@ -600,6 +600,87 @@ func TestFilesNameInput_DispatchPriority(t *testing.T) {
 	})
 }
 
+// TestFilesNameInput_RejectPathSeparators verifies WR-02: rename/mkdir input
+// rejects names containing "/" or "\" and the special tokens "." and "..",
+// showing a toast and NOT dispatching the rename/mkdir command.
+func TestFilesNameInput_RejectPathSeparators(t *testing.T) {
+	// Helper: build a model in rename-mode with the given input value.
+	renameModel := func(inputValue string) Model {
+		m := filesKeyTestModel()
+		m.files.entries = []daemon.FileEntry{{Name: "file.txt", IsDir: false}}
+		m.files.selected = 0
+		m.files.cwd = "."
+		m.files.nameInputActive = true
+		m.files.nameInputMode = "rename"
+		m.files.nameInputOriginal = "file.txt"
+		m.files.nameInput.SetValue(inputValue)
+		return m
+	}
+
+	// Helper: build a model in mkdir-mode with the given input value.
+	mkdirModel := func(inputValue string) Model {
+		m := filesKeyTestModel()
+		m.files.cwd = "."
+		m.files.nameInputActive = true
+		m.files.nameInputMode = "mkdir"
+		m.files.nameInput.SetValue(inputValue)
+		return m
+	}
+
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{name: "forward slash", input: "sub/dir"},
+		{name: "relative escape", input: "../escape"},
+		{name: "backslash (Windows)", input: `sub\dir`},
+		{name: "dot only", input: "."},
+		{name: "dotdot only", input: ".."},
+	}
+
+	for _, tc := range cases {
+		t.Run("rename rejects "+tc.name, func(t *testing.T) {
+			m := renameModel(tc.input)
+			updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			r := updated.(Model)
+
+			if cmd != nil {
+				t.Errorf("expected nil cmd for input %q (should be rejected)", tc.input)
+			}
+			if r.toastKind != toastError {
+				t.Errorf("expected toastError for input %q, got %v (toast=%q)", tc.input, r.toastKind, r.toast)
+			}
+			if !strings.Contains(r.toast, "path separators") {
+				t.Errorf("expected toast mentioning 'path separators' for input %q, got %q", tc.input, r.toast)
+			}
+		})
+
+		t.Run("mkdir rejects "+tc.name, func(t *testing.T) {
+			m := mkdirModel(tc.input)
+			updated, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+			r := updated.(Model)
+
+			if cmd != nil {
+				t.Errorf("expected nil cmd for mkdir input %q (should be rejected)", tc.input)
+			}
+			if r.toastKind != toastError {
+				t.Errorf("expected toastError for mkdir input %q, got %v (toast=%q)", tc.input, r.toastKind, r.toast)
+			}
+			if !strings.Contains(r.toast, "path separators") {
+				t.Errorf("expected toast mentioning 'path separators' for mkdir input %q, got %q", tc.input, r.toast)
+			}
+		})
+	}
+
+	t.Run("valid plain filename is accepted", func(t *testing.T) {
+		m := renameModel("newname.txt")
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		if cmd == nil {
+			t.Error("expected non-nil cmd for valid plain filename")
+		}
+	})
+}
+
 // fmtTypes is a helper for test error messages.
 func fmtTypes(cmds []tea.Cmd) []string {
 	types := make([]string, 0, len(cmds))

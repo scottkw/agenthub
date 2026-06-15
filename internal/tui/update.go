@@ -791,6 +791,18 @@ func (m Model) handleFilesNameInputKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 			m.toastExp = time.Now().Add(2 * time.Second)
 			return m, nil
 		}
+		// WR-02: reject names containing path separators or the special
+		// relative-navigation tokens "." and "..". The server is the real
+		// security boundary, but accepting these at the input layer would
+		// silently target a different directory than displayed (path.Join
+		// collapses ".." segments) — a correctness/UX defect, not an escape.
+		// Only plain filenames within the current directory are accepted.
+		if strings.ContainsAny(name, "/\\") || name == "." || name == ".." {
+			m.toast = "Name cannot contain path separators"
+			m.toastKind = toastError
+			m.toastExp = time.Now().Add(2 * time.Second)
+			return m, nil
+		}
 		m.files.nameInputActive = false
 		m.files.nameInput.Blur()
 
