@@ -439,7 +439,13 @@ Plans:
 4. The capability escalation audit confirms: no token lacking `files.write` reaches any write endpoint on any surface (daemon socket, webserver, remote proxy); `files.write` does not leak across sessions; findings are documented in a SECURITY artifact committed under `.planning/`.
 5. Playwright web-share write e2e passes: a viewer granted `files.write` writes successfully; a viewer without it gets HTTP 403; a CSRF Origin-mismatch request (Origin header present, does not match FQDN) is rejected with HTTP 403 on POST/PUT/DELETE write routes.
 
-**Plans:** TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 127-01-PLAN.md — Denylist hardening (macOS daemon config dir + case-fold) + fuzz seeds (SEC-02, SEC-06)
+- [ ] 127-02-PLAN.md — Write-path symlink-escape test + fuzz/upload-abuse confirmation (SEC-01, SEC-03, SEC-06)
+- [ ] 127-03-PLAN.md — Capability-escalation SECURITY artifact + data-integrity tests (SEC-04, SEC-05)
+- [ ] 127-04-PLAN.md — Web-share CSRF Origin-mismatch e2e cell (SEC-07)
 
 **UI hint**: no
 
