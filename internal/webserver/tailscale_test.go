@@ -271,3 +271,73 @@ func TestDetectTailscaleBinary_Empty(t *testing.T) {
 	// Just verify no panic and result is a string.
 	_ = got
 }
+
+// TestCheckHealth_AcceptDNS covers DNS-03: the AcceptDNS field in TailscaleHealth
+// must reflect the node's current accept-dns setting (CorpDNS from Tailscale prefs).
+//
+// DNS-03: When the node is Connected and the Tailscale prefs report accept-dns
+// disabled (CorpDNS=false), TailscaleHealth.AcceptDNS must be false. When prefs
+// report CorpDNS=true, AcceptDNS must be true. When the prefs probe returns an
+// error, AcceptDNS must be false and must not panic.
+//
+// This test is written against the SHAPE that Plan 03 will deliver:
+//   - checkHealth accepts a prefsFunc injectable (mirroring the statusFunc injection idiom)
+//   - prefsFunc returns (CorpDNS bool, error)
+//   - TailscaleHealth gains an AcceptDNS bool field
+//
+// The test intentionally fails to compile until Plan 03 adds:
+//  1. type prefsFunc (or equivalent) to tailscale.go
+//  2. AcceptDNS bool to TailscaleHealth
+//  3. an updated checkHealth signature that accepts the prefs probe
+//
+// RED signal: this file will not compile until the above changes land.
+func TestCheckHealth_AcceptDNS(t *testing.T) {
+	stub := stubBinary(t)
+
+	tests := []struct {
+		name        string
+		corpDNS     bool
+		prefsErr    error
+		wantAcceptDNS bool
+	}{
+		{
+			name:          "connected and CorpDNS=false → AcceptDNS=false",
+			corpDNS:       false,
+			prefsErr:      nil,
+			wantAcceptDNS: false,
+		},
+		{
+			name:          "connected and CorpDNS=true → AcceptDNS=true",
+			corpDNS:       true,
+			prefsErr:      nil,
+			wantAcceptDNS: true,
+		},
+		{
+			name:          "prefs probe returns error → AcceptDNS=false, no panic",
+			corpDNS:       false,
+			prefsErr:      fmt.Errorf("localapi prefs unavailable"),
+			wantAcceptDNS: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			statusFn := func(ctx context.Context) (*ipnstate.Status, error) {
+				return &ipnstate.Status{BackendState: "Running"}, nil
+			}
+			// prefsFn mirrors the statusFunc injection idiom: an injectable function
+			// returning a CorpDNS bool and an error. Plan 03 will add this parameter
+			// to checkHealth. Until then, the compile error is the intended RED signal.
+			prefsFn := func(ctx context.Context) (bool, error) {
+				return tc.corpDNS, tc.prefsErr
+			}
+			// NOTE: checkHealth does not yet accept a prefsFunc — this will not compile
+			// until Plan 03 adds the parameter. That compile failure IS the RED signal.
+			h := checkHealth(context.Background(), statusFn, stub, prefsFn)
+			if h.AcceptDNS != tc.wantAcceptDNS {
+				t.Errorf("AcceptDNS = %v; want %v", h.AcceptDNS, tc.wantAcceptDNS)
+			}
+		})
+	}
+}
