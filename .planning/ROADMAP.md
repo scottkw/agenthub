@@ -25,7 +25,7 @@
 - ✅ **v3.3 Shell Sessions & Polish** — Phases 100-108 (shipped 2026-05-17, closes Issues #44 + #45)
 - ✅ **v3.3.1 Bug Sweep** — Phases 109-117 (shipped 2026-05-19, closes Issues #52, #54, #55, #56, #57, #58, #60)
 - ✅ **v3.4 File Browser (Read-Only) + TUI Parity** — Phases 118-122 (shipped 2026-05-21, closes Issues #62 + v3.4 slice of #64)
-- 🚧 **v3.5 File Browser — Write Operations & Editor** — Phases 123-128 (in progress, closes Issues #63, #64 + umbrella #24)
+- ✅ **v3.5 File Browser — Write Operations & Editor** — Phases 123-128 (shipped 2026-06-15, closes Issues #63, #64; umbrella #24 pending two-machine UAT)
 
 ## Phases
 
@@ -295,7 +295,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 <!-- v3.4 phase details archived to milestones/v3.4-ROADMAP.md -->
 
 <details>
-<summary>🚧 v3.5 File Browser — Write Operations & Editor (Phases 123-128) — IN PROGRESS</summary>
+<summary>✅ v3.5 File Browser — Write Operations & Editor (Phases 123-128) — SHIPPED 2026-06-15 (closes Issues #63, #64; umbrella #24 pending two-machine UAT)</summary>
 
 - [x] **Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes** — FSW-01..FSW-12 (completed 2026-06-14)
 - [x] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10 (completed 2026-06-14)
@@ -306,178 +306,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 </details>
 
-## Phase Details
-
-### Phase 123: TD Cleanup + Write Sandbox Primitives + Daemon Routes
-
-**Goal:** The `internal/files/` sandbox has all write primitives (atomic write, rename, delete, mkdir, upload), the shell-RC denylist is enforced on all write paths, the two carried tech-debts (TD-4 and TD-5) are closed, and the daemon local-socket write routes are live — so every subsequent phase has a correct, trusted, fuzz-proven write API to build against.
-
-**Depends on:** Phase 122 (v3.4 complete). No v3.5 prerequisites. Load-bearing security foundation — must land before any write endpoint is exposed on any surface.
-
-**Requirements:** FSW-01, FSW-02, FSW-03, FSW-04, FSW-05, FSW-06, FSW-07, FSW-08, FSW-09, FSW-10, FSW-11, FSW-12
-
-**Success Criteria** (what must be TRUE):
-
-1. `go test -fuzz=FuzzSandboxWrite -fuzztime=60s ./internal/files/...` reports zero crashes against a corpus that includes write-path traversal, rename-destination traversal (`oldRel=ok, newRel=../../.ssh/authorized_keys`), upload-filename injection (`../../../.bashrc`), and all v3.4 `FuzzSandboxPath` payloads extended to the write surface.
-2. `curl --unix-socket ~/.agenthub/daemon.sock -X PUT 'http://localhost/api/files/write?session=<id>&path=hello.txt' -d 'hello'` succeeds with HTTP 200 and the file is durably written; a subsequent `GET /api/files/read` returns the identical content — confirming atomic temp+sync+rename semantics with no partial-file window.
-3. A write attempt targeting `~/.bashrc`, `~/.ssh/authorized_keys`, or `~/.claude/CLAUDE.md` within a home-directory sandbox returns `403 Protected system file` — the shell-RC denylist is enforced on all five write methods (write, rename, delete, mkdir, upload).
-4. `DaemonClient.ExchangeJoinCodeAtURL` correctly parses a `303 Location: ...?cap=<token>` response (TD-5 fixed): a desktop GUI can now acquire a remote session cap without silent failure, unblocking all remote-write testing in Phase 128.
-5. `go test ./internal/files/... ./internal/daemon/...` is green with the race detector enabled; the five daemon write routes (`PUT /api/files/write`, `POST /api/files/upload`, `DELETE /api/files/delete`, `POST /api/files/rename`, `POST /api/files/mkdir`) are accessible on the local Unix socket with no authentication required (loopback trust, WEB-01 precedent).
-
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 123-01-PLAN.md — Sandbox write primitives (atomic write, rename, mkdir, delete) + shell-RC denylist + FuzzSandboxWrite (FSW-01..04, 06, 07)
-- [x] 123-02-PLAN.md — TD cleanup: TD-5 ExchangeJoinCodeAtURL 303 parse + TD-4 WR-03/04/05 hardening (FSW-10, 11)
-- [x] 123-03-PLAN.md — HTTP write handlers + 5 auth-less daemon routes + 50 MiB upload cap (FSW-05, 08, 12)
-- [x] 123-04-PLAN.md — DaemonClient write methods (FSW-09)
-
-**UI hint**: no
-
----
-
-### Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In
-
-**Goal:** The `files.write` capability bit exists, `requireFilesWrite` middleware (with CSRF Origin check) gates all five webserver write routes, `files.write` is opt-in for every token (a per-session "Enable file writes" toggle gates the owner cap; web-share viewers require a further explicit opt-in), and `schemaVersion: 4` migration is in place — so any surface that authenticates via the webserver can exercise write operations only after writes are explicitly enabled.
-
-**Depends on:** Phase 123 (write sandbox primitives and daemon routes frozen).
-
-**Requirements:** CAP-01, CAP-02, CAP-03, CAP-04, CAP-05, CAP-06, CAP-07, CAP-08, CAP-09, CAP-10
-
-**Success Criteria** (what must be TRUE):
-
-1. A cap token issued WITHOUT writes enabled (the default for both owner and viewer) returns HTTP 403 on all five webserver write routes — not 404, not 401; once writes are explicitly enabled for the session, the resulting `files.write`-bearing cap returns HTTP 2xx on all five routes.
-2. A POST/PUT/DELETE request to a write route with an `Origin` header that does not match the server FQDN is rejected with HTTP 403 (CSRF Origin check); a request with no `Origin` header (desktop Wails fetch) passes vacuously — confirming the Phase 88 pattern is correctly applied to the write surface.
-3. `TestHasPerm_NoStringsContains_Write` static-grep gate passes: no write-path code calls `strings.Contains(perms, "files.write")` — all permission checks use the `HasPerm` whole-token comma-split helper.
-4. The web-share grant UI shows an explicit `files.write` opt-in toggle (default OFF), and toggling it on includes the string `"files.write"` in the issued viewer cap token; the home-directory write warning is visible in both GUI and TUI when `files.write` is active for a session whose cwd is `$HOME`.
-5. `TestSettingsMigration_FilesWriteDefaultsFalse` passes: a settings file at `schemaVersion: 3` migrates to `schemaVersion: 4` with `FilesWrite: false` default; web-share `files.write` opt-in state persists across daemon restarts.
-
-**Plans:** 5/5 plans complete
-
-Plans:
-- [x] 124-01-PLAN.md — files.write cap const + requireFilesWrite middleware (HasPerm + CSRF Origin) + 5 webserver route mounts + integration/static-grep tests (CAP-01,02,03,07,09)
-- [x] 124-02-PLAN.md — per-session write opt-in state + schemaVersion 4 migration + cap-mint wiring + EvalSymlinks home-dir signal on SessionInfo/IssueCapabilities (CAP-04,06,08)
-- [x] 124-03-PLAN.md — proxyRemoteFiles body+Content-Type forwarding fix + 5 remote write proxy routes (CAP-10)
-- [x] 124-04-PLAN.md — GUI owner write toggle + Wails binding chain + viewer "Allow file editing" opt-in + home-dir warning banner (CAP-04,05,06)
-- [x] 124-05-PLAN.md — TUI home-dir write warning line, cross-surface parity (CAP-06)
-
-**UI hint**: yes
-
----
-
-### Phase 125: React Editor (CodeMirror 6) — Desktop + Web
-
-**Goal:** Users can open any text file in a CodeMirror 6 editor with syntax highlighting, save changes atomically via Cmd/Ctrl+S with conflict detection, and perform all write operations (create file, mkdir, delete, rename, cross-directory move, single and multi-file upload) from the `FileBrowserTab` — on both the desktop app and the web-share surface.
-
-**Depends on:** Phase 123 (write API frozen) and Phase 124 (capability model live and webserver write routes accessible). This is the milestone centrepiece.
-
-**Requirements:** EDIT-01, EDIT-02, EDIT-03, EDIT-04, EDIT-05, EDIT-06, EDIT-07, EDIT-08, EDIT-09, EDIT-10, EDIT-11, EDIT-12, EDIT-13
-
-**Success Criteria** (what must be TRUE):
-
-1. Opening a text file in the file browser and clicking the pencil (Edit) button mounts a CodeMirror 6 editor with syntax highlighting matching the file's extension (Go, TypeScript, Python, JSON, YAML, Markdown, Bash, HTML, CSS, and other common languages); the Edit button is absent for binary files and for callers without `files.write`; files > 500 KB show a large-file warning before entering edit mode; files approaching the 5 MB cap disable syntax highlighting with an in-editor notice.
-2. Pressing Cmd/Ctrl+S saves the file atomically (temp file + sync + rename) with an `If-Match: <etag>` header; the editor header shows a three-state save indicator (idle / saving... / saved, ~1.5s transient); a dirty-state bullet/asterisk appears when the buffer differs from the last-saved snapshot; navigating away with unsaved changes triggers a "You have unsaved changes. Save or discard?" guard — no `beforeunload` (Wails blocks it), React-level guard only.
-3. A concurrent-write collision (If-Match mismatch, HTTP 412) surfaces "This file was modified by another process" with three choices: [Force overwrite] / [Save as new file] / [Discard my changes] — the editor buffer is never silently discarded.
-4. All write affordances (create file, mkdir, delete, rename, cross-directory move via "Move to…" picker, single file upload, multi-file upload with per-file progress, drag-and-drop into the directory listing) are visible and operable only when `canWrite` is true; a 409 name-collision on rename or upload shows "A file named X already exists. Replace it?" with Cancel as the default action.
-5. Playwright cross-browser e2e (Chromium + Firefox + WebKit) passes all scenarios: local write-and-save, web-share write with a `files.write` cap, 403 without the cap, create file, mkdir, delete file, delete directory (recursive confirm with file count), rename, cross-directory move, single upload, multi-file upload, 412 conflict flow, binary-file no-edit, large-file guard — zero CSP violations in any browser; `vendor_drift_test.go` passes with CodeMirror packages version-matched.
-
-**Plans:** 6/6 plans complete
-
-Plans:
-- [x] 125-01-PLAN.md — Server If-Match/412 + ETag + CodeMirror vendor-drift gate + Playwright WRITE_CAP fixture (Wave 0)
-- [x] 125-02-PLAN.md — CodeMirror 6 install + Editor core (mount, Compartment toggle, language-by-extension, large-file/binary guards, Edit button, canWrite)
-- [x] 125-03-PLAN.md — Save flow: Cmd/Ctrl+S + If-Match, three-state indicator, dirty state, unsaved guard, 412 conflict modal
-- [x] 125-04-PLAN.md — Directory write affordances: create file, mkdir, rename, delete (recursive count), cross-directory move
-- [x] 125-05-PLAN.md — Upload (single + multi, XHR per-file progress) + drag-and-drop
-- [x] 125-06-PLAN.md — Playwright cross-browser e2e (14 scenarios) + CSP-violation gate + desktop parity checkpoint
-
-**UI hint**: yes
-
----
-
-### Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)
-
-**Goal:** TUI users can edit files via `$EDITOR` shell-out, delete, rename, and create directories using keyboard shortcuts within the Files view — with full cross-surface parity against the GUI write operations (minus upload, which is formally descoped with an on-screen message).
-
-**Depends on:** Phase 123 (`DaemonClient` write methods available, `FilesClient` interface extension ready). Can run in parallel with Phase 125 — the two phases share only the Phase 123 prerequisite and touch different files.
-
-**Requirements:** TUIW-01, TUIW-02, TUIW-03, TUIW-04, TUIW-05, TUIW-06, TUIW-07
-
-**Success Criteria** (what must be TRUE):
-
-1. Pressing `e` on a selected file in the TUI Files view suspends the TUI, spawns the resolved `$EDITOR` (fallback chain: `$EDITOR` → `$VISUAL` → `nano` → `vim` → `vi`) with the file's sandbox-absolute path, and resumes the TUI on editor exit — terminal state is cleanly restored via `tea.ClearScreen` and the directory listing refreshes unconditionally after every edit (no stale listing).
-2. When no editor is resolvable, the TUI shows a clear inline error: "`$EDITOR` is not set. Set it in your shell profile (e.g. `export EDITOR=nano`)." — not a crash or a silent no-op.
-3. Pressing `d` on a selected file or directory shows a confirmation dialog (reusing the kill-session pattern); confirming deletes the entry recursively for directories. Pressing `r` opens inline rename; pressing `m` opens inline mkdir name input — both operations refresh the listing on completion.
-4. Pressing `u` (upload) in the TUI Files view shows the on-screen message "Use desktop or web to upload files." — the one documented parity gap — and a follow-up GitHub issue is filed.
-5. The `FilesClient` interface has exactly 8 methods (4 read + 4 write); both `*daemon.DaemonClient` and `*tui.RemoteFilesClient` satisfy the full interface; `TestFiles_NoSyncFSCalls` static-grep gate passes with write commands included — all write filesystem I/O routes through `tea.Cmd`, never synchronous in `Update`.
-
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 126-01-PLAN.md — Extend FilesClient to 8 methods + RemoteFilesClient write methods (TUIW-01)
-- [x] 126-02-PLAN.md — $EDITOR shell-out: resolveEditor, edit fetch/write-back, ClearScreen + unconditional refresh (TUIW-02/03/04)
-- [x] 126-03-PLAN.md — Delete-confirm / inline rename / inline mkdir affordances (TUIW-05)
-- [x] 126-04-PLAN.md — Upload descope + GitHub issue + no-sync gate extension + requirements matrix (TUIW-06/07)
-
-**UI hint**: no
-
----
-
-### Phase 127: Web-Share Write Security Hardening
-
-**Goal:** The web-share write surface has been security-audited end-to-end: symlink escapes return 403, the shell-RC denylist blocks all known bypass vectors, upload abuse is covered, capability escalation is impossible, concurrent-write races leave no partial files, and a Playwright e2e confirms the full web-share write flow with and without the `files.write` cap.
-
-**Depends on:** Phase 124 (capability model and webserver write routes live) and Phase 125 (browser-facing write surface complete). This is the dedicated security audit phase for the most-exposed surface.
-
-**Requirements:** SEC-01, SEC-02, SEC-03, SEC-04, SEC-05, SEC-06, SEC-07
-
-**Success Criteria** (what must be TRUE):
-
-1. A write or rename whose resolved target escapes the sandbox via a symlink returns HTTP 403 — not HTTP 200 — confirming the `os.OpenRoot` TOCTOU boundary holds on the write path as well as the read path.
-2. Attempts to write, rename, or delete `~/.bashrc`, `~/.ssh/authorized_keys`, `~/.claude/CLAUDE.md`, and the daemon's own config directory within a home-directory sandbox all return `403 Protected system file` — the denylist cannot be bypassed by case variation, Unicode normalization, or path encoding.
-3. `FuzzSandboxWrite` with the finalized corpus (rename-destination traversal, denylist-bypass attempts, upload-filename injection via `../` in multipart `FileHeader.Filename`) reports zero crashes; an over-cap upload (> 50 MiB) is rejected by `MaxBytesReader` before `ParseMultipartForm` with a clear error, not a truncated file.
-4. The capability escalation audit confirms: no token lacking `files.write` reaches any write endpoint on any surface (daemon socket, webserver, remote proxy); `files.write` does not leak across sessions; findings are documented in a SECURITY artifact committed under `.planning/`.
-5. Playwright web-share write e2e passes: a viewer granted `files.write` writes successfully; a viewer without it gets HTTP 403; a CSRF Origin-mismatch request (Origin header present, does not match FQDN) is rejected with HTTP 403 on POST/PUT/DELETE write routes.
-
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 127-01-PLAN.md — Denylist hardening (macOS daemon config dir + case-fold) + fuzz seeds (SEC-02, SEC-06)
-- [x] 127-02-PLAN.md — Write-path symlink-escape test + fuzz/upload-abuse confirmation (SEC-01, SEC-03, SEC-06)
-- [x] 127-03-PLAN.md — Capability-escalation SECURITY artifact + data-integrity tests (SEC-04, SEC-05)
-- [x] 127-04-PLAN.md — Web-share CSRF Origin-mismatch e2e cell (SEC-07)
-
-**UI hint**: no
-
----
-
-### Phase 128: Remote Write Parity + Cross-Surface Integration
-
-**Goal:** Remote tailnet peer write operations (edit/save, upload, delete, rename, mkdir) work end-to-end from both the desktop GUI and the TUI, with write parity proven by 3 independent network-stack observers — mirroring the Phase 122 read-parity proof pattern. The milestone ships with a two-machine UAT checklist ready and no regression on Phase 122 remote read tests.
-
-**Depends on:** All previous phases (123 through 127) complete. FSW-10 (TD-5) fixed in Phase 123 is a direct prerequisite — without it, the desktop GUI cannot acquire a remote cap.
-
-**Requirements:** RMW-01, RMW-02, RMW-03, RMW-04, RMW-05, RMW-06
-
-**Success Criteria** (what must be TRUE):
-
-1. Remote write parity is proven by 3 independent observers — daemon-proxy Go, `tui.RemoteFilesClient` Go, and Playwright HTTPS browser — all producing byte-equivalent results for a write-then-read round trip against the same remote session, mirroring the Phase 122 read-parity proof.
-2. The desktop GUI can perform edit/save, upload, delete, rename, cross-directory move, and mkdir on a remote tailnet peer session via the daemon proxy; the TUI can perform the same write operations (minus upload) via `RemoteFilesClient` over HTTPS (TLS 1.2+ pinned, cap token redacted from error messages).
-3. A write attempt against a v3.4 remote peer (no write endpoints) returns HTTP 405 and the client surfaces the message "The remote session is running an older version of AgentHub that does not support file writes." — not a generic network error or an opaque 405.
-4. If a remote cap expires mid-edit, the editor buffer is preserved and an "access expired" message is shown; any orphaned partial upload on the remote machine is cleaned up — no silent buffer loss, no stranded temp files.
-5. The Phase 122 remote read test suite passes with zero regressions; a two-machine tailnet write UAT checklist is committed (Machine A web-share + Machine B GUI + Machine B TUI; cross-surface write parity + cap-expiry failure mode), closing umbrella Issue #24 when executed successfully.
-
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 128-01-PLAN.md — v3.4-peer upstream-405 version-gate mapping (Go RemoteFilesClient + TS FilesApiError), verbatim message grep-gated cross-surface (RMW-04)
-- [x] 128-02-PLAN.md — cap-expiry mid-edit "access expired" branch (Go + TS, buffer preserved) + upload-abort queue cleanup (RMW-05)
-- [x] 128-03-PLAN.md — 3-observer write-parity harness: persisting fixture peer + package daemon_test write-then-read + Playwright HTTPS observer (RMW-01/02/03)
-- [x] 128-04-PLAN.md — Phase 122 read-regression guard + committed two-machine UAT checklist (128-VERIFICATION.md), closes Issue #24 on execution (RMW-06)
-
-**UI hint**: no
-
----
+<!-- v3.5 phase details archived to milestones/v3.5-ROADMAP.md -->
 
 ## Progress
 
@@ -548,3 +377,4 @@ Plans:
 *Full v3.3 details: .planning/milestones/v3.3-ROADMAP.md*
 *Full v3.3.1 details: .planning/milestones/v3.3.1-ROADMAP.md*
 *Full v3.4 details: .planning/milestones/v3.4-ROADMAP.md*
+*Full v3.5 details: .planning/milestones/v3.5-ROADMAP.md*
