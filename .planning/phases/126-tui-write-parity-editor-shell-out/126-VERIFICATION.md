@@ -1,7 +1,8 @@
 ---
 phase: 126-tui-write-parity-editor-shell-out
 verified: 2026-06-14T00:00:00Z
-status: human_needed
+status: passed
+human_verification_disposition: "Automated 5/5; all unit/interface/gate tests green. Live \$EDITOR suspend-resume terminal restore DEFERRED to milestone-end batch UAT (not headless-automatable). Two-machine remote write DEFERRED to Phase 128 (its stated gate). GitHub issue #82 filed for the sanctioned TUI-upload parity gap."
 score: 5/5
 overrides_applied: 0
 human_verification:
