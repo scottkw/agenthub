@@ -71,6 +71,8 @@ export interface FileListPaneProps {
   onRowMove?: (entry: FileEntry) => void
   /** Called when Delete is clicked for a specific entry. */
   onRowDelete?: (entry: FileEntry) => void
+  /** Called when the user clicks empty list space to clear the selection. */
+  onDeselect?: () => void
 }
 
 // Page size for PgUp/PgDn keys. Static value — UI-SPEC says viewport÷row-height
@@ -154,7 +156,14 @@ export function FileListPane({
   onRowRename,
   onRowMove,
   onRowDelete,
+  onDeselect,
 }: FileListPaneProps): React.ReactElement {
+  // Clear selection when the click lands on empty list chrome (the list
+  // container or the <ul> itself) rather than a row. `target === currentTarget`
+  // guarantees we don't fire for clicks that bubbled up from a row or header.
+  const handleEmptyClick = (e: React.MouseEvent): void => {
+    if (onDeselect && e.target === e.currentTarget) onDeselect()
+  }
   // Compute the display list: filter, then sort.
   const displayEntries: FileEntry[] = useMemo(() => {
     const filtered = filter.length > 0
@@ -298,6 +307,7 @@ export function FileListPane({
       data-testid="file-browser-list"
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onClick={handleEmptyClick}
       style={gridStyle}
     >
       {truncated && (
@@ -357,6 +367,7 @@ export function FileListPane({
         className="file-browser__list-scroll"
         data-testid="file-browser-list-scroll"
         data-filter-count={filterActiveCount}
+        onClick={handleEmptyClick}
       >
         {isFilterEmpty ? (
           <li

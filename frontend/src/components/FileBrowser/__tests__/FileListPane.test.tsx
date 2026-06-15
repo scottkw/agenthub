@@ -62,6 +62,7 @@ interface RenderOpts {
   onNavigateUp?: () => void
   onSortChange?: (k: 'name' | 'size' | 'modified') => void
   onFilterActivate?: () => void
+  onDeselect?: () => void
 }
 
 function renderPane(opts: RenderOpts = {}): void {
@@ -79,6 +80,7 @@ function renderPane(opts: RenderOpts = {}): void {
       onNavigateUp={opts.onNavigateUp ?? vi.fn()}
       onSortChange={opts.onSortChange ?? vi.fn()}
       onFilterActivate={opts.onFilterActivate ?? vi.fn()}
+      onDeselect={opts.onDeselect ?? vi.fn()}
     />,
   )
 }
@@ -198,6 +200,33 @@ describe('FileListPane — pointer interactions', () => {
       sizeCol.click()
     })
     expect(onSortChange).toHaveBeenCalledWith('size')
+  })
+
+  it('clicking empty list space (the scroll <ul> itself) fires onDeselect', () => {
+    const onDeselect = vi.fn()
+    renderPane({ onDeselect })
+    const ul = container.querySelector(
+      '[data-testid="file-browser-list-scroll"]',
+    ) as HTMLElement
+    act(() => {
+      // A click whose target IS the <ul> (not a row) — empty space below rows.
+      ul.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    })
+    expect(onDeselect).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking a row does NOT fire onDeselect (only onSelect)', () => {
+    const onDeselect = vi.fn()
+    const onSelect = vi.fn()
+    renderPane({ onDeselect, onSelect })
+    const row = container.querySelector(
+      '[data-testid="file-browser-row-apple.txt"]',
+    ) as HTMLElement
+    act(() => {
+      row.click()
+    })
+    expect(onSelect).toHaveBeenCalledWith('apple.txt')
+    expect(onDeselect).not.toHaveBeenCalled()
   })
 })
 

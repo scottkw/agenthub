@@ -1177,6 +1177,9 @@ export function FileBrowserTab({
                   isActive={isActive}
                   // Phase 125-03: file-switch routes through guardThen (EDIT-07)
                   onSelect={(name) => guardThen(() => setSelected(name))}
+                  // Click empty list space to clear selection (UAT polish).
+                  // Routed through guardThen so unsaved edits still prompt.
+                  onDeselect={() => guardThen(() => setSelected(null))}
                   onNavigateInto={navigateInto}
                   onNavigateUp={navigateUp}
                   onSortChange={onSortChange}
