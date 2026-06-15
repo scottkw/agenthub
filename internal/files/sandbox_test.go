@@ -247,6 +247,88 @@ func TestSandbox_SymlinkEscapeBlocked(t *testing.T) {
 	}
 }
 
+// TestSandbox_WritePathSymlinkEscapeBlocked — SEC-01 / T-127-05: mirrors
+// TestSandbox_SymlinkEscapeBlocked for the WRITE path. A symlink inside the
+// sandbox root that points outside must not allow WriteFileAtomic, Rename, or
+// Mkdir to create or modify anything outside the root boundary.
+//
+// Protection mechanism: every write method calls os.OpenRoot(s.rootPath) then
+// root.OpenFile / root.Rename / root.Mkdir (sandbox.go). os.Root atomically
+// rejects symlinks that escape the root, so no TOCTOU window exists.
+//
+// WR-03 hardening: a positive control confirms outside/secret is genuinely
+// writable before the escape symlink is exercised, so the negative assertions
+// (nothing created outside) cannot pass merely because the outside target is
+// inaccessible (ENOENT masking a broken implementation).
+func TestSandbox_WritePathSymlinkEscapeBlocked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires admin on Windows")
+	}
+	sb, root := newTestSandbox(t)
+
+	// Create an outside directory that the symlink will point to.
+	outside := t.TempDir()
+	secretPath := filepath.Join(outside, "secret")
+	if err := os.WriteFile(secretPath, []byte("leaked"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Positive control (WR-03): confirm outside/secret is readable and has the
+	// expected content, so the negative assertions below cannot pass merely
+	// because the outside target doesn't exist or isn't writable.
+	if data, err := os.ReadFile(secretPath); err != nil {
+		t.Fatalf("positive control: outside/secret unreadable: %v", err)
+	} else if string(data) != "leaked" {
+		t.Fatalf("positive control: outside/secret content = %q; want %q", data, "leaked")
+	}
+	// Also confirm we can write to outside directly (proves target is writable).
+	if err := os.WriteFile(filepath.Join(outside, "probe"), []byte("ok"), 0o644); err != nil {
+		t.Skipf("outside dir not writable (env restriction): %v", err)
+	}
+	_ = os.Remove(filepath.Join(outside, "probe"))
+
+	// Plant the escaping symlink: root/escape → outside/
+	linkPath := filepath.Join(root, "escape")
+	if err := os.Symlink(outside, linkPath); err != nil {
+		t.Skipf("symlink unsupported: %v", err)
+	}
+
+	// --- WriteFileAtomic through escape symlink must fail ---
+	if err := sb.WriteFileAtomic("escape/pwned", []byte("x")); err == nil {
+		t.Errorf("WriteFileAtomic through escaping symlink succeeded; want error")
+	}
+	pwnedPath := filepath.Join(outside, "pwned")
+	if _, statErr := os.Stat(pwnedPath); statErr == nil {
+		t.Errorf("WriteFileAtomic created %q outside sandbox root; want nothing created", pwnedPath)
+	}
+
+	// --- Rename into escape symlink must fail (destination traversal) ---
+	// "a.txt" is seeded by newTestSandbox.
+	if err := sb.Rename("a.txt", "escape/pwned"); err == nil {
+		t.Errorf("Rename into escaping symlink succeeded; want error")
+	}
+	if _, statErr := os.Stat(pwnedPath); statErr == nil {
+		t.Errorf("Rename created %q outside sandbox root; want nothing created", pwnedPath)
+	}
+
+	// --- Mkdir through escape symlink must fail ---
+	subPath := filepath.Join(outside, "sub")
+	if err := sb.Mkdir("escape/sub"); err == nil {
+		t.Errorf("Mkdir through escaping symlink succeeded; want error")
+	}
+	if _, statErr := os.Stat(subPath); statErr == nil {
+		t.Errorf("Mkdir created %q outside sandbox root; want nothing created", subPath)
+	}
+
+	// Sentinel must be unmodified — proves the sandbox did not silently succeed
+	// and overwrite something in the outside dir.
+	if data, err := os.ReadFile(secretPath); err != nil {
+		t.Fatalf("post-check: outside/secret unreadable: %v", err)
+	} else if string(data) != "leaked" {
+		t.Errorf("post-check: outside/secret = %q; want %q (must be unmodified)", data, "leaked")
+	}
+}
+
 // FuzzSandboxPath — FS-09: 40+ seeded path-traversal payloads from
 // PITFALLS.md §Fuzz Corpus Skeleton. Merge gate: `go test -fuzz=FuzzSandboxPath
 // -fuzztime=60s ./internal/files/` must report zero crashes. The body asserts
