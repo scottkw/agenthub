@@ -1017,13 +1017,18 @@ func (m Model) applyFilesEditReadyMsg(msg filesEditReadyMsg) (tea.Model, tea.Cmd
 }
 
 // applyEditorExitMsg handles editorExitMsg: the editor process has exited.
-// Per TUIW-04, the write-back and listing refresh are UNCONDITIONAL — they
-// happen regardless of the editor's exit code. This matches the locked
-// design decision that prevents silent data loss when an editor exits non-zero
-// (e.g. the user force-quit vim). A toast is shown on non-zero exit, but the
-// write-back still runs.
+// Per TUIW-04, the write-back is UNCONDITIONAL — it happens regardless of the
+// editor's exit code. A toast is shown on non-zero exit, but the write-back
+// still runs.
 //
-// Batch order: tea.ClearScreen, editWriteBackCmd, loadDirCmd (TUIW-04).
+// CR-01 FIX: Do NOT bump generation here. The generation is left at its
+// current value so that the editWriteBackCmd result (stamped with msg.generation)
+// is NOT discarded as stale by applyFilesOpMsg's staleness guard. Only after
+// applyFilesOpMsg processes the write-back result (success or error) does it
+// bump generation and dispatch the listing refresh. This ensures a failed
+// write-back error is always surfaced to the user.
+//
+// Batch order: tea.ClearScreen, editWriteBackCmd (TUIW-04).
 func (m Model) applyEditorExitMsg(msg editorExitMsg) (tea.Model, tea.Cmd) {
 	cmds := []tea.Cmd{tea.ClearScreen}
 	if msg.exitErr != nil {
@@ -1032,18 +1037,22 @@ func (m Model) applyEditorExitMsg(msg editorExitMsg) (tea.Model, tea.Cmd) {
 		m.toastExp = time.Now().Add(3 * time.Second)
 	}
 	// UNCONDITIONAL write-back — NOT gated on exitErr==nil (TUIW-04).
+	// Generation is NOT bumped here — see CR-01 fix comment above.
 	cmds = append(cmds, editWriteBackCmd(m.files.client, msg.sessionID, msg.relPath, msg.tmpPath, msg.generation))
-	m.files.generation++
-	cmds = append(cmds, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation))
 	return m, tea.Batch(cmds...)
 }
 
 // applyFilesOpMsg handles the result of a write operation (edit write-back,
 // delete, rename, mkdir). Stale messages (generation behind current) are
-// silently discarded (WR-03). On error, a toast is shown and the listing is
-// refreshed to show current state. On success, delete/rename/mkdir refresh
-// the listing unconditionally (edit write-back is already refreshed by the
-// unconditional loadDirCmd in applyEditorExitMsg).
+// silently discarded. On error, a toast is shown and the listing is refreshed
+// to show current state. On success, all ops (including edit write-back)
+// refresh the listing unconditionally (TUIW-05).
+//
+// CR-01 FIX: The edit write-back (op=="edit") is no longer excluded from the
+// success-refresh path. applyEditorExitMsg no longer pre-bumps the generation
+// or pre-dispatches loadDirCmd, so this function is now solely responsible for
+// the post-write-back listing refresh. This also means the error path is never
+// skipped by the staleness guard for edit write-backs.
 func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 	if msg.generation < m.files.generation {
 		return m, nil // stale — discard
@@ -1056,12 +1065,7 @@ func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 		m.files.generation++
 		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
 	}
-	// Success: refresh listing for delete/rename/mkdir (TUIW-05). Edit
-	// write-back is excluded (op=="edit") — applyEditorExitMsg already
-	// batched the unconditional loadDirCmd ahead of this msg.
-	if msg.op != "edit" {
-		m.files.generation++
-		return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
-	}
-	return m, nil
+	// Success: refresh listing for all ops including edit write-back (TUIW-05).
+	m.files.generation++
+	return m, loadDirCmd(m.files.client, msg.sessionID, m.files.cwd, m.files.generation)
 }
