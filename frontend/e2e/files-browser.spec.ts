@@ -45,6 +45,7 @@ import {
   remoteFilesListURL,
   remoteFilesReadURL,
   remoteFilesStatURL,
+  remoteFilesWriteURL,
   remoteJoinExchangeURL,
   remotePeerURL,
 } from './fixtures/remote-peer-setup'
@@ -518,6 +519,56 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
       const wrongSessionURL = `${remotePeerURL()}/api/files/list?session=different-sid&path=.&cap=${fixtureRemoteCap}`
       const wrongSessionResp = await ctx.get(wrongSessionURL)
       expect(wrongSessionResp.status(), 'wrong-session must return 404').toBe(404)
+    } finally {
+      await ctx.dispose()
+    }
+  })
+
+  // ───────────────────────────────────────────────────────────────────
+  // Scenario 18 — Phase 128-03: Observer C (HTTPS browser) write-then-read
+  // against the persisting fixture peer (RMW-01 3-observer parity proof).
+  //
+  // Anti-pattern guard: do NOT drive the DOM modal flow here — the fixture
+  // serves /app/ in web mode where Wails RPCs don't exist; this scenario
+  // tests the UPSTREAM CONTRACT via APIRequestContext (same pattern as
+  // scenarios 16+17). The fixture peer now backs a real files.Sandbox so
+  // the read-back returns the actual written bytes, NOT canned "hello world"
+  // (Pitfall 2 — byte-equivalence must be real, matching the Go parity test).
+  //
+  // Byte-shape agrees with the Go parity test
+  // (internal/daemon/remote_files_write_parity_test.go::TestRemoteFilesWrite_CrossSurface)
+  // which also uses "content-C" as the canonical Observer C payload.
+  // ───────────────────────────────────────────────────────────────────
+  test('scenario 18: remote-session Observer C HTTPS write-then-read — upstream contract', async () => {
+    const ctx = await playwrightRequest.newContext({ ignoreHTTPSErrors: true })
+    try {
+      const contentC = 'content-C'
+      const path = 'observer-c.txt'
+
+      // PUT to the fixture peer's write route (persisting sandbox).
+      const writeURL = remoteFilesWriteURL({ path })
+      const writeResp = await ctx.put(writeURL, {
+        headers: { 'Content-Type': 'application/octet-stream' },
+        data: contentC,
+      })
+      expect(
+        writeResp.status(),
+        'remote peer PUT write with FIXTURE_CAP must return 200',
+      ).toBe(200)
+
+      // GET the same path back — must return the actual written bytes.
+      const readURL = remoteFilesReadURL({ path })
+      const readResp = await ctx.get(readURL)
+      expect(
+        readResp.status(),
+        'remote peer GET read after write must return 200',
+      ).toBe(200)
+      const readText = await readResp.text()
+      // Byte-equivalence: Observer C must read back exactly what it wrote.
+      // This is the RMW-01 write-parity assertion for the HTTPS browser surface.
+      expect(readText, 'read-back must equal written content (not canned "hello world")').toBe(
+        contentC,
+      )
     } finally {
       await ctx.dispose()
     }

@@ -7,16 +7,19 @@
 // global-setup.ts and persisted in fixture-env.json).
 //
 // This helper exposes:
-//   - remotePeerURL()           — the URL of the mock remote peer
-//   - fixtureRemoteSessionId    — the session ID the mock advertises ("peer-sid")
-//   - fixtureRemoteCap          — the cap token the mock validates ("FIXTURE_CAP")
-//   - remoteFilesListURL(...)   — URL builder for the canned /api/files/list response
-//   - remoteFilesStatURL(...)   — URL builder for /api/files/stat
-//   - remoteFilesReadURL(...)   — URL builder for /api/files/read
+//   - remotePeerURL()             — the URL of the mock remote peer
+//   - fixtureRemoteSessionId      — the session ID the mock advertises ("peer-sid")
+//   - fixtureRemoteCap            — the cap token the mock validates ("FIXTURE_CAP")
+//   - remoteFilesListURL(...)     — URL builder for the canned /api/files/list response
+//   - remoteFilesStatURL(...)     — URL builder for /api/files/stat
+//   - remoteFilesReadURL(...)     — URL builder for /api/files/read
+//   - remoteFilesWriteURL(...)    — URL builder for PUT /api/files/write (Phase 128-03)
 //
 // Scenarios 16 + 17 in files-browser.spec.ts use these to verify the
 // remote-session upstream contract (the byte-shape both the desktop GUI's
 // daemon-proxy path and the TUI's RemoteFilesClient depend on).
+// Scenario 18 (Phase 128-03) uses remoteFilesWriteURL for the HTTPS Observer C
+// write-then-read parity proof (RMW-01).
 
 import { loadFixtureEnv } from '../fixture-env'
 
@@ -75,6 +78,23 @@ export function remoteFilesReadURL(opts?: { path?: string; cap?: string }): stri
   })
   if (cap !== '') params.set('cap', cap)
   return `${remotePeerURL()}/api/files/read?${params.toString()}`
+}
+
+/**
+ * remoteFilesWriteURL builds the canonical PUT /api/files/write URL against
+ * the mock remote peer with the persisting sandbox (Phase 128-03 RMW-01).
+ * The write verbs on the fixture peer now back a real files.Sandbox so
+ * write-then-read returns actual bytes — NOT canned responses (Pitfall 2).
+ */
+export function remoteFilesWriteURL(opts?: { path?: string; cap?: string }): string {
+  const path = opts?.path ?? 'x.txt'
+  const cap = opts?.cap ?? fixtureRemoteCap
+  const params = new URLSearchParams({
+    session: fixtureRemoteSessionId,
+    path,
+  })
+  if (cap !== '') params.set('cap', cap)
+  return `${remotePeerURL()}/api/files/write?${params.toString()}`
 }
 
 /**
