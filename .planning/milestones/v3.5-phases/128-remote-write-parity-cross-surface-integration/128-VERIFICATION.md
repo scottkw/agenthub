@@ -159,6 +159,13 @@ Three independent observers confirm byte-identical write-then-read behavior acro
 
 **Production build note (project memory):** Use `wails build -tags wailsassets` for the Wails desktop build. The dev build omits the embed.FS and produces incorrect MIME types.
 
+**CLIENT relay fix prerequisite:** The desktop GUI client must run a build that includes commit `58af6d6` (mounts the `/api/files/remote/{sid}/...` proxy routes on the relay loopback server). Before that fix, every remote file op 404'd on the GUI — remote browse never worked. Verified end-to-end against a v3.4.2 peer on 2026-06-15 (browse + read `200`; write `405` → v3.4 version-gate copy).
+
+**Prerequisites & known issues discovered during this UAT (2026-06-15):**
+- **`accept-dns=true` is REQUIRED on the CLIENT** — without Tailscale DNS the daemon can't resolve the peer's MagicDNS name and remote browse fails with a confusing `502 ... no such host` (peer cert requires MagicDNS-name SNI, so dialing by IP also fails TLS). Verify with `tailscale dns status` before starting. Tracked: scottkw/agenthub **#83**.
+- **Peer discovery silently drops cap-protected peers** — `probePeer` (`internal/tailnet/tailnet.go`) accepts only HTTP `200`, but a shared peer's `/api/sessions` returns `401 capability required`, so the host may NOT appear in the client's Remote panel ("No remote peers found"). Workaround for testing: deposit the cap directly (the host's share URL contains `?cap=<token>`; `POST /api/remote-files/caps` with `{sessionId, baseUrl, capToken}` then drive `/api/files/remote/{sid}/...` on the relay port). Tracked: scottkw/agenthub **#84**.
+- **v3.4.2 hosts do not display a 5-character join code** — they show the full capability URL (Read-Only + Full Access links) with an embedded `?cap=` token instead. The 5-char join-code modal is a later addition. Steps below assume a host new enough to show the join code; for older hosts use the capability URL directly.
+
 ---
 
 ### Setup
