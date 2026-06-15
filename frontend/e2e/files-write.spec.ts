@@ -586,3 +586,36 @@ test('write-api smoke: standalone APIRequestContext can PUT with write cap', asy
     await ctx.dispose()
   }
 })
+
+// ──────────────────────────────────────────────────────────────────────
+// SEC-07: CSRF Origin-mismatch — a PUT with a VALID files.write cap but a
+// mismatched Origin header (https://evil.example.com) is rejected with
+// HTTP 403.
+//
+// Behavior anchor: originAllowedForWrite (capability_mw.go:187-198) returns
+// false when a present Origin != ws.BaseURL(). requireFilesWrite runs the
+// Origin check AFTER the cap check (capability_mw.go:160-167), so the 403
+// here proves CSRF rejection on a fully-capable token — NOT a cap failure.
+// ──────────────────────────────────────────────────────────────────────
+test('SEC-07: CSRF Origin-mismatch — valid write cap with evil.example.com Origin must 403', async () => {
+  const env = loadFixtureEnv()
+  const ctx = await playwrightRequest.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const params = new URLSearchParams({
+      session: 'playwright-test-session',
+      path: `origin-test-${Date.now()}.txt`,
+      cap: env.writeCap, // VALID files.write cap — 403 proves Origin check, not cap failure
+    })
+    const url = `${env.baseURL}/api/files/write?${params.toString()}`
+    const resp = await ctx.put(url, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        Origin: 'https://evil.example.com',
+      },
+      data: 'csrf attempt',
+    })
+    expect(resp.status(), 'mismatched Origin must 403 even with valid write cap').toBe(403)
+  } finally {
+    await ctx.dispose()
+  }
+})
