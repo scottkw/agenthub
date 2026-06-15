@@ -41,6 +41,9 @@ coverage.html
 *.ts.net.key
 
 # Third-party security review artifacts (not committed)
+# Dot-prefixed so `go build ./...` / `go vet ./...` skip it (it holds two
+# conflicting package decls in one dir, which otherwise breaks scoped builds).
+.security-review/
 security-review/
 
 # Phase 93 Plan 05 — Playwright e2e fixture runtime artifacts
