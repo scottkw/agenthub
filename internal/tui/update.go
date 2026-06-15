@@ -1093,7 +1093,9 @@ func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 		if errors.Is(msg.err, ErrRemotePeerNoWriteSupport) {
 			m.toast = remotePeerOutdatedMessage
 		} else if errors.Is(msg.err, ErrRemoteCapExpired) {
-			m.toast = "Your access to this remote session has expired."
+			// Cross-surface parity (v3.5 audit WARNING-1): match the GUI/web copy
+			// verbatim, including the "Your changes are still here." reassurance.
+			m.toast = "Your access to this remote session has expired. Your changes are still here."
 		} else {
 			m.toast = fmt.Sprintf("%s failed: %s", msg.op, msg.err)
 		}
