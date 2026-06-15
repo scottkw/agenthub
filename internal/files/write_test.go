@@ -606,6 +606,154 @@ func isProtected(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "protected system file")
 }
 
+// TestDenylist_CaseVariation verifies that case-varied denylist targets are
+// blocked in a home-rooted sandbox. This covers the macOS/Windows
+// case-insensitive volume bypass (e.g. .BASHRC resolves to the same inode as
+// .bashrc on those filesystems). SEC-02 / FSW-127-02.
+func TestDenylist_CaseVariation(t *testing.T) {
+	fakeHome := t.TempDir()
+	setHomeEnv(t, fakeHome)
+
+	// Seed prerequisite dirs/files so rename and delete reach the denylist.
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".SSH"), 0o700); err != nil {
+		t.Fatalf("mkdir .SSH: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeHome, ".BASHRC"), []byte("# rc"), 0o644); err != nil {
+		t.Fatalf("seed .BASHRC: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(fakeHome, ".SSH", "authorized_keys"), []byte("ssh-rsa"), 0o600); err != nil {
+		t.Fatalf("seed .SSH/authorized_keys: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(fakeHome, ".Claude"), 0o700); err != nil {
+		t.Fatalf("mkdir .Claude: %v", err)
+	}
+
+	sb, err := files.NewSandbox(fakeHome)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	caseDenyTargets := []string{
+		".BASHRC",
+		".Bashrc",
+		".SSH/authorized_keys",
+		".Claude/CLAUDE.md",
+	}
+
+	for _, target := range caseDenyTargets {
+		t.Run("WriteFileAtomic/"+target, func(t *testing.T) {
+			err := sb.WriteFileAtomic(target, []byte("pwned"))
+			if err == nil {
+				t.Errorf("WriteFileAtomic(%q) returned nil; want ErrProtectedSystemFile", target)
+				return
+			}
+			if !isProtected(err) {
+				t.Errorf("WriteFileAtomic(%q) error = %v; want ErrProtectedSystemFile", target, err)
+			}
+		})
+	}
+}
+
+// TestDenylist_DaemonConfigDir verifies that the daemon config dir (derived at
+// runtime from os.UserConfigDir()+"/agenthub") is protected in a home-rooted
+// sandbox. On macOS this is ~/Library/Application Support/agenthub, on Linux
+// ~/.config/agenthub. SEC-02 / FSW-127-01.
+func TestDenylist_DaemonConfigDir(t *testing.T) {
+	fakeHome := t.TempDir()
+	setHomeEnv(t, fakeHome)
+
+	// Set the platform-specific config-dir env so that os.UserConfigDir()
+	// returns a path under fakeHome.
+	switch runtime.GOOS {
+	case "linux":
+		// XDG_CONFIG_HOME overrides ~/.config on Linux.
+		t.Setenv("XDG_CONFIG_HOME", filepath.Join(fakeHome, ".config"))
+	default:
+		// On macOS and Windows os.UserConfigDir() is not controlled by a
+		// per-process env var. Derive what it actually returns and skip if it
+		// is not under fakeHome (i.e. the OS config dir cannot be faked here).
+		cfgBase, cfgErr := os.UserConfigDir()
+		if cfgErr != nil {
+			t.Skipf("os.UserConfigDir() error: %v", cfgErr)
+		}
+		cfgRel, relErr := filepath.Rel(fakeHome, cfgBase)
+		if relErr != nil || strings.HasPrefix(cfgRel, "..") {
+			t.Skipf("os.UserConfigDir() %q is not under fakeHome %q; skipping daemon-config-dir test on this OS", cfgBase, fakeHome)
+		}
+	}
+
+	// Derive the expected config dir the same way denylistCheck does.
+	cfgBase, cfgErr := os.UserConfigDir()
+	if cfgErr != nil {
+		t.Skipf("os.UserConfigDir() error after env setup: %v", cfgErr)
+	}
+	cfgDir := filepath.Join(cfgBase, "agenthub")
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		t.Skip("UserHomeDir empty after setHomeEnv")
+	}
+	cfgRel, relErr := filepath.Rel(home, cfgDir)
+	if relErr != nil || strings.HasPrefix(cfgRel, "..") {
+		t.Skipf("config dir %q is not under fakeHome %q after env setup; cannot exercise this guard", cfgDir, home)
+	}
+
+	// Seed the config dir so rename and delete can reach the denylist.
+	settingsPath := filepath.Join(cfgDir, "settings.json")
+	if err := os.MkdirAll(cfgDir, 0o700); err != nil {
+		t.Fatalf("mkdir cfgDir: %v", err)
+	}
+	if err := os.WriteFile(settingsPath, []byte(`{"key":"val"}`), 0o600); err != nil {
+		t.Fatalf("seed settings.json: %v", err)
+	}
+
+	// Root the sandbox at fakeHome (the dangerous case — full home access).
+	sb, err := files.NewSandbox(home)
+	if err != nil {
+		t.Fatalf("NewSandbox: %v", err)
+	}
+
+	// Relative path inside the sandbox that resolves to the config file.
+	relSettings := filepath.ToSlash(cfgRel) + "/settings.json"
+
+	t.Run("WriteFileAtomic", func(t *testing.T) {
+		err := sb.WriteFileAtomic(relSettings, []byte("pwned"))
+		if err == nil {
+			t.Errorf("WriteFileAtomic(%q) returned nil; want ErrProtectedSystemFile", relSettings)
+			return
+		}
+		if !isProtected(err) {
+			t.Errorf("WriteFileAtomic(%q) error = %v; want ErrProtectedSystemFile", relSettings, err)
+		}
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		err := sb.Delete(relSettings)
+		if err == nil {
+			t.Errorf("Delete(%q) returned nil; want ErrProtectedSystemFile", relSettings)
+			return
+		}
+		if !isProtected(err) {
+			t.Errorf("Delete(%q) error = %v; want ErrProtectedSystemFile", relSettings, err)
+		}
+	})
+
+	t.Run("Rename/into", func(t *testing.T) {
+		// Seed a safe source file to rename from.
+		srcPath := "safe-src-for-rename.txt"
+		if err := os.WriteFile(filepath.Join(home, srcPath), []byte("src"), 0o644); err != nil {
+			t.Fatalf("seed safe-src: %v", err)
+		}
+		err := sb.Rename(srcPath, relSettings)
+		if err == nil {
+			t.Errorf("Rename(safe, %q) returned nil; want ErrProtectedSystemFile", relSettings)
+			return
+		}
+		if !isProtected(err) {
+			t.Errorf("Rename(safe, %q) error = %v; want ErrProtectedSystemFile", relSettings, err)
+		}
+	})
+}
+
 // --------------------------------------------------------------------------
 // TestWrite_IfMatch* — EDIT-05/08 optimistic-concurrency precondition tests.
 // These exercise Handler.Write (the HTTP handler layer), not the Sandbox
