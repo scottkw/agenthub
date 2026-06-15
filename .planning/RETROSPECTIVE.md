@@ -949,6 +949,54 @@
 
 ---
 
+## Milestone: v3.5 — File Browser: Write Operations & Editor
+
+**Shipped:** 2026-06-15
+**Phases:** 6 (123-128) | **Plans:** 27/27 | **Commits:** 238 | **Closes:** GitHub Issues #63 + #64 (umbrella #24 pending GUI on-ramp)
+
+### What Was Built
+- TOCTOU-free write primitives on the v3.4 `os.OpenRoot` sandbox: atomic temp+sync+rename (no `O_TRUNC`), rename validates source AND destination, recursive delete, mkdir, multipart upload — shell-RC denylist on every write path + 60s `FuzzSandboxWrite` merge gate (0 crashes); auth-less daemon Unix-socket write routes; folds in TD-4 + TD-5 (Phase 123 FSW-01..12)
+- Opt-in `files.write` capability (never default-on; web-share viewers need a further explicit grant) behind `requireFilesWrite` + CSRF Origin check, `schemaVersion: 4` migration (Phase 124 CAP-01..10)
+- Vendored CodeMirror 6 editor (zero new CSP amendments; Monaco rejected for `worker-src blob:`) replacing v3.4 plain-text preview — syntax highlighting by extension, atomic Cmd/Ctrl+S with `If-Match`/412 conflict detection, dirty-state guard, full create/mkdir/delete/rename/cross-dir-move/single+multi-upload (drag-drop, XHR progress, 409/413) suite; 51/51 cross-browser write e2e zero CSP (Phase 125 EDIT-01..13)
+- TUI write parity via `$EDITOR` shell-out (`e` key, suspend/`tea.ClearScreen`/resume) + `d`/`r`/`m` ops; `FilesClient` interface grew 4 → 8 methods so one pipeline drives local AND remote; upload descoped (#82) (Phase 126 TUIW-01..07)
+- Dedicated web-share write security-hardening phase: denylist + symlink-escape / privilege-escalation / CSRF / concurrent-write audits; `SECURITY` artifact; fully automated (Phase 127 SEC-01..07)
+- Remote tailnet peer write parity proven byte-identical by 3 independent observers (daemon-proxy Go + `tui.RemoteFilesClient` Go + Playwright HTTPS), 405 peer-outdated / 401 cap-expired mappings, Phase 122 read-regression guard (Phase 128 RMW-01..06)
+
+### What Worked
+- The v3.4 unifying contracts extended verbatim: `FilesClient` grew 4 → 8 methods, `FilesApiClient` switches local vs remote by `pathPrefix` — one write pipeline across GUI/TUI/web with no per-surface forks. Interface-first design (established v1.3 `DaemonClient`, v2.0 `Hub`, v3.4 `FilesClient`) paid off again
+- Security-first phase ordering: write primitives + denylist + `FuzzSandboxWrite` (Phase 123) landed and fuzz-proven BEFORE any network-facing write surface was exposed (Phase 124+). Load-bearing foundation before exposure
+- `files.write` never default-on, with a second explicit grant for web-share viewers — the most-exposed surface is opt-in twice. CSRF Origin check + `requireFilesWrite` mirror the proven v3.4 `requireFilesRead` separation
+- CodeMirror 6 vendored with zero new CSP amendments — the research-ratified Monaco rejection (avoids `worker-src blob:`) kept the hard-won v3.1/v3.2 CSP posture intact
+- 3-observer parity test reused from v3.4 Phase 122 for the write matrix — strongest automated evidence available pre-tailnet
+
+### What Was Inefficient
+- **The 98/100 automated integration score was blind to a 4-layer desktop-GUI remote-browse breakage** — the RMW/integration suite exercised the webserver/fixture surface but NEVER the relay loopback the Wails GUI actually uses. The deferred two-machine UAT (run the day of tag) uncovered a non-functional GUI remote path: relay routes never mounted (`58af6d6`), discovery probe rejecting cap-protected peers (`3508bd7`/#84), accept-dns prerequisite (#83), session-enumeration-vs-cap conflict (#86). A relay-surface regression gate now exists, but the gap should have been caught before tag
+- The milestone tagged (v3.5, 2026-06-15) with the remote-browse GUI on-ramp NOT shippable — #86 + #83 deferred to v3.5.1. Data path proven live; the discover→list→pick UX is not. Umbrella #24 stays open
+- Live desktop/TUI visual UATs (Phase 125 editor render + Tab/Cmd-V, Phase 126 `$EDITOR` suspend-resume, Phase 124 warning banner) deferred to a manual batch — logic + colorblind tokens source-verified, but live render is unverified at tag
+- Nyquist `VALIDATION.md` frontmatter for Phases 123/125/126/127 reads `nyquist_compliant:false` despite green automated coverage — advisory bookkeeping debt
+
+### Patterns Established
+- **Relay-surface regression gate** (`internal/relay/server_files_test.go`, `internal/daemon/relay_remote_files_test.go`) — remote features MUST test the relay loopback the Wails GUI uses, not just the webserver/fixture surface. Direct response to the v3.5 blind spot
+- **Security foundation before exposure** — write primitives + fuzz gate land before any network-facing write route; denylist enforced on every write path, not at the route layer
+- **Double opt-in for the most-exposed surface** — `files.write` off by default for owner-grant, and a further explicit grant required for web-share viewers
+- **Atomic write = temp + fsync + rename, never `O_TRUNC`** — and rename validates both endpoints; the sandbox write contract for any future filesystem mutation
+- **`If-Match`/412 optimistic-concurrency for editor saves** — detects the AI-agent-edits-underneath-you race that auto-save would corrupt (auto-save ruled an explicit anti-feature)
+
+### Key Lessons
+- **Automated integration scores measure only the surfaces the tests drive.** A 98/100 PASS meant nothing for the relay loopback path because no test hit it. When a feature has multiple transport surfaces (webserver vs relay loopback vs daemon socket), each needs its own integration coverage — a high score on one is not evidence for another
+- Deferred manual UATs are not a formality — the two-machine UAT was the ONLY thing that caught the remote-browse breakage. Physical-machine UATs that can't be automated must still gate the *feature* even if they don't gate the *tag*
+- Extending a proven contract (v3.4 read stack → v3.5 write stack) is dramatically cheaper and safer than a parallel design — 4 → 8 methods, one pipeline, byte-identical parity reused wholesale
+- CSP discipline compounds: choosing CodeMirror over Monaco at plan time (research-ratified) preserved zero-amendment CSP that took v3.1/v3.2 multiple phases to establish
+- A milestone can ship its data path while a UX on-ramp stays deferred — but be explicit (umbrella #24 stays open, v3.5.1 scoped) rather than letting the tag imply the feature is usable
+
+### Cost Observations
+- Sessions: ~8 sessions across 2 days (2026-06-14 → 2026-06-15)
+- Commits: 238 (sustained high velocity; matches v3.4-class output)
+- LOC delta: ~14.9K source LOC across 86 files (excluding `.planning/`)
+- Notable: 2-day shipping cycle again (6 phases / 2 days = 3 phases/day), but a full extra UAT+fix day on tag day (relay fixes `58af6d6`/`3508bd7`/`e45ccba`) — the deferred UAT cost was paid in a post-"complete" scramble, not avoided
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -975,6 +1023,7 @@
 | v3.0 | ~40 | 4 | Session auto-close (hub.Done() exit signal), quit confirmation modal (event-based), TUI two-pane layout, circuit breaker poll pattern |
 | v3.1 | ~50 | 4 | Capability tokens, byte-for-byte WS Origin allowlist, vendored xterm + strict CSP (D-09 style-src carve-out), SHA-pinned release pipeline + SLSA L2 |
 | v3.2 | 269 | 8 | Foundation phase (zero feature loading), two-useEffect TerminalPanel hot-swap, `seededRef` one-shot pattern, generalized vendor_drift_test, cross-browser Playwright as release gate, sub-key RPCs for disclosure persistence |
+| v3.5 | 238 | 6 | Relay-surface regression gate (integration scores blind to untested transport surfaces), security foundation before exposure, double opt-in for web-share writes, atomic temp+fsync+rename write contract, `If-Match`/412 editor saves, CodeMirror-over-Monaco for zero-CSP-amendment *(v3.3/v3.3.1/v3.4 rows pending backfill)* |
 
 ### Cumulative Quality
 
@@ -1000,6 +1049,7 @@
 | v3.0 | 300+ (race-clean) | 524 | ~30,000 | 2 cosmetic (autoCloseRef refresh, TUI stopped-session glyph) |
 | v3.1 | 300+ (race-clean) | 524+ | ~30,000 | 3 (0 blockers; distribution 91-A/B/C deferred, D-09 CSP carve-out documented, Wails dev-mode origin pattern noted) |
 | v3.2 | 300+ (race-clean) | 600+ | ~52,700 | 15 (0 blockers; 6 polish items, 9 UAT scenarios deferred to v3.3 — all blocked on shell-session feature, plus 7 quick-task ghosts) |
+| v3.5 | 300+ (race-clean) + `FuzzSandboxWrite` | 600+ (51/51 cross-browser write e2e) | ~67,600 | 1 critical (remote-browse GUI — found by deferred UAT, partly fixed `58af6d6`/`3508bd7`, #86/#83 deferred v3.5.1) + operator UATs + Nyquist frontmatter (123/125/126/127) *(v3.3/v3.3.1/v3.4 rows pending backfill)* |
 
 ### Top Lessons (Verified Across Milestones)
 

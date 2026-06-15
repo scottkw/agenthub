@@ -1,5 +1,38 @@
 # Milestones
 
+## v3.5 File Browser — Write Operations & Editor (Shipped: 2026-06-15)
+
+**Phases completed:** 6 phases (123-128), 27/27 plans
+**Requirements:** 55/55 satisfied (FSW-01..12, CAP-01..10, EDIT-01..13, TUIW-01..07, SEC-01..07, RMW-01..06)
+**Commits:** 238 | **Timeline:** 2 days (2026-06-14 → 2026-06-15)
+**Source changes:** ~14.9K source LOC added across 86 files (excluding `.planning/`)
+**Closes:** GitHub Issues #63 (editing + upload) + #64 (TUI edit parity). Umbrella epic #24 retires on the operator two-machine tailnet write UAT (committed checklist, RMW-06).
+**Audit status:** `tech_debt` (accepted) — 55/55 reqs satisfied at code/test level, integration 98/100 PASS, no critical blockers at close.
+
+**Key accomplishments:**
+
+- TOCTOU-free write primitives on the v3.4 `os.OpenRoot` sandbox: atomic temp+sync+rename (no `O_TRUNC`), rename validates BOTH source AND destination, recursive delete, mkdir, and multipart upload — all guarded by a shell-RC denylist enforced on every write path and a 60s `FuzzSandboxWrite` merge gate (0 crashes); daemon Unix-socket write routes live (auth-less by design — local trust boundary); folds in carried tech-debt TD-4 (Phase 120 WR-01..05) and TD-5 (Phase 122 `ExchangeJoinCode` shim) — Phase 123 (FSW-01..12)
+- New opt-in `files.write` capability (never default-on — owner enables per session, web-share viewers require a further explicit grant) gating webserver write routes behind `requireFilesWrite` + a CSRF Origin check, with `schemaVersion: 4` migration via the established defaults-merge constructor — Phase 124 (CAP-01..10)
+- Milestone centrepiece: vendored CodeMirror 6 editor (zero new CSP amendments — Monaco rejected for requiring `worker-src blob:`) replacing the v3.4 plain-text preview — syntax highlighting by extension, atomic Cmd/Ctrl+S with `If-Match`/412 conflict detection, dirty-state + unsaved-changes guard, and the full create/mkdir/delete/rename/cross-directory-move/single+multi-file-upload (drag-and-drop, XHR progress, 409/413 handling) affordance suite; 51/51 cross-browser write e2e with zero CSP violations — Phase 125 (EDIT-01..13)
+- TUI write parity via `$EDITOR` shell-out (`e` key, suspend/`tea.ClearScreen`/resume + unconditional refresh) plus `d`/`r`/`m` keyboard ops; the `FilesClient` interface grew 4 → 8 methods so ONE pipeline drives local AND remote writes; TUI upload formally descoped with on-screen message + follow-up Issue #82 — Phase 126 (TUIW-01..07)
+- Dedicated web-share write security-hardening phase: denylist hardening + symlink-escape / privilege-escalation / CSRF / concurrent-write audits end-to-end on the most-exposed surface; `SECURITY` artifact produced; fully automated (audit/test/doc) — Phase 127 (SEC-01..07)
+- Remote tailnet peer write parity proven byte-identical by 3 independent observers (daemon-proxy Go + `tui.RemoteFilesClient` Go + Playwright HTTPS browser), with 405 peer-outdated / 401 cap-expired mappings and a Phase 122 read-regression guard — Phase 128 (RMW-01..06)
+- Live two-machine tailnet UAT (2026-06-15) executed: remote read+**write data path proven live** (v3.4.2 peer 405 version-gate; v3.5 peer write/mkdir/rename/delete all 200, read-back confirmed). Uncovered a 4-layer desktop-GUI remote-browse breakage invisible to the 98/100 automated suite (which never drove the relay loopback the Wails GUI uses): relay routes not mounted (**FIXED `58af6d6`** + relay-surface regression gate), discovery probe rejecting cap-protected peers (**FIXED `3508bd7`/#84`), accept-dns prerequisite (**#83**, deferred), session-enumeration-vs-cap-gating (**#86**, deferred). Share-link scope relabel (`e45ccba`/#24 UX).
+
+**Known deferred items (carried to v3.5.1):**
+
+- #86 — Remote Sessions panel can't enumerate a peer's sessions (`/api/sessions` is cap-gated by design D-18); blocks the desktop GUI remote-browse on-ramp. Remote read/write data path works; the discover→list→pick UX is not yet shippable. Target v3.5.1 / dedicated design pass.
+- #87 — Flaky CI `TestWrite_TwoWritersIfMatchRace` (`WriteFileAtomic` If-Match re-check TOCTOU window) blocks the release gate.
+- #83 — Remote file browse fails with opaque 502 when the client has Tailscale DNS disabled (`accept-dns=false`).
+- #82 — TUI Files upload parity gap (formally descoped in Phase 126).
+- Umbrella epic #24 remains open until the GUI remote-browse feature is usable (on-ramp lands in v3.5.1).
+- Operator one-time (carry-forward): `RELEASE_PUBLISH_TOKEN` PAT + `WINGET_FIRST_SUBMISSION=true` variable (first WinGet submission).
+- Live desktop/TUI visual UATs: Phase 125 editor on-screen render + CodeMirror Tab/Cmd-V; Phase 126 `$EDITOR` suspend-resume terminal restore; Phase 124 home-dir warning banner. Logic + colorblind tokens source-verified; live render is manual residue.
+- Nyquist frontmatter bookkeeping: Phases 123/125/126/127 `VALIDATION.md` `nyquist_compliant:false` despite green automated coverage (advisory).
+- Known deferred items at close: see STATE.md Deferred Items.
+
+---
+
 ## v3.4 File Browser (Read-Only) + TUI Parity (Shipped: 2026-05-21)
 
 **Phases completed:** 5 phases (118-122, including Phase 122 inserted mid-milestone), 20/21 plans
