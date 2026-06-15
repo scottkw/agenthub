@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,17 @@ import (
 
 	"github.com/scottkw/agenthub/internal/files"
 )
+
+// remotePeerOutdatedMessage is the verbatim SC3 user-facing copy surfaced when
+// a write verb returns HTTP 405 from a v3.4 peer that has no write routes.
+// MUST byte-match the TS const REMOTE_PEER_OUTDATED_MESSAGE in
+// frontend/src/lib/filesApi.ts (RMW-04 cross-surface parity contract).
+const remotePeerOutdatedMessage = "The remote session is running an older version of AgentHub that does not support file writes."
+
+// ErrRemotePeerNoWriteSupport is returned by all 4 write methods when the
+// remote peer responds with HTTP 405 (upstream v3.4 peer has no write routes).
+// Callers use errors.Is to detect this sentinel and render the verbatim copy.
+var ErrRemotePeerNoWriteSupport = errors.New(remotePeerOutdatedMessage)
 
 // RemoteFilesClient satisfies FilesClient by talking to a remote AgentHub
 // peer's webserver over Tailscale HTTPS with a session-scoped capability
@@ -229,6 +241,9 @@ func (c *RemoteFilesClient) WriteFile(ctx context.Context, sid, rel string, data
 		return files.FileWriteResponse{}, fmt.Errorf("remote files write: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
+		return files.FileWriteResponse{}, ErrRemotePeerNoWriteSupport
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return files.FileWriteResponse{}, fmt.Errorf("remote files write: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -256,6 +271,9 @@ func (c *RemoteFilesClient) DeleteFile(ctx context.Context, sid, rel string) (fi
 		return files.FileOpResponse{}, fmt.Errorf("remote files delete: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
+		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return files.FileOpResponse{}, fmt.Errorf("remote files delete: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
@@ -296,6 +314,9 @@ func (c *RemoteFilesClient) RenameFile(ctx context.Context, sid, oldRel, newRel 
 		return files.FileOpResponse{}, fmt.Errorf("remote files rename: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
+		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
+	}
 	if resp.StatusCode != http.StatusOK {
 		body2, _ := io.ReadAll(resp.Body)
 		return files.FileOpResponse{}, fmt.Errorf("remote files rename: %d %s", resp.StatusCode, strings.TrimSpace(string(body2)))
@@ -324,6 +345,9 @@ func (c *RemoteFilesClient) MkdirFile(ctx context.Context, sid, rel string) (fil
 		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusMethodNotAllowed { // RMW-04: v3.4 peer has no write routes
+		return files.FileOpResponse{}, ErrRemotePeerNoWriteSupport
+	}
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return files.FileOpResponse{}, fmt.Errorf("remote files mkdir: %d %s", resp.StatusCode, strings.TrimSpace(string(body)))

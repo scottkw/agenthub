@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -1086,7 +1087,13 @@ func (m Model) applyFilesOpMsg(msg filesOpMsg) (tea.Model, tea.Cmd) {
 		return m, nil // stale — discard
 	}
 	if msg.err != nil {
-		m.toast = fmt.Sprintf("%s failed: %s", msg.op, msg.err)
+		// RMW-04: v3.4 peer has no write routes — surface the verbatim "older version"
+		// message instead of the generic "<op> failed: ..." copy.
+		if errors.Is(msg.err, ErrRemotePeerNoWriteSupport) {
+			m.toast = remotePeerOutdatedMessage
+		} else {
+			m.toast = fmt.Sprintf("%s failed: %s", msg.op, msg.err)
+		}
 		m.toastKind = toastError
 		m.toastExp = time.Now().Add(3 * time.Second)
 		// Re-run a fresh listing so the UI shows the current state.
