@@ -331,9 +331,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   5. The daemon distinguishes the `accept-dns=false` / unresolvable-MagicDNS case from other remote-unreachable failures — the actionable message surfaces only when correct
   6. `accept-dns` state is probed at startup or before the first remote browse, so the user is warned before hitting the failure path
 
-**Design decision (resolve at plan time):** #87 If-Match concurrency contract — (a) per-path lock for true single-winner guarantee, or (b) accept last-writer-wins + invariants-only test. Not pre-decided here.
+**Design decision (RESOLVED at plan time, 2026-06-15):** #87 If-Match concurrency contract → **(a) per-path lock for true single-winner guarantee**. WriteFileAtomic serializes same-path writers via a package-level keyed mutex; the loser gets a clean ErrPreconditionFailed (412). Code, comments, and the remote-write proxy all assert single-winner (RACE-02).
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 129-01-PLAN.md — Wave 0 test gaps: AcceptDNS health, DNS actionable-message, and relay-surface two-writer race tests (all RED first)
+- [ ] 129-02-PLAN.md — Write concurrency fix: per-path keyed lock in WriteFileAtomic + single-winner proxy doc corrections (RACE-01/02/03)
+- [ ] 129-03-PLAN.md — DNS error UX: isUnresolvableMagicDNS classifier + actionable 502 + proactive accept-dns probe (DNS-01/02/03)
 
 ---
 
