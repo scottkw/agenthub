@@ -98,7 +98,24 @@ export class FilesApiError extends Error {
     if (this.status !== 403) return false
     return this.bodyText.toLowerCase().includes('files.write')
   }
+
+  /**
+   * 405 → remote peer has no write routes (old AgentHub version). RMW-04.
+   * Scoped to write verbs only — read 405s remain generic (Open Q2 resolved).
+   */
+  isMethodNotAllowed(): boolean {
+    return this.status === 405
+  }
 }
+
+/**
+ * Verbatim SC3 version-gate message surfaced when an upstream 405 indicates
+ * the remote peer is running v3.4 (no write routes). MUST byte-match the
+ * Go const `remotePeerOutdatedMessage` in
+ * internal/tui/remote_files_client.go (RMW-04 cross-surface parity contract).
+ */
+export const REMOTE_PEER_OUTDATED_MESSAGE =
+  'The remote session is running an older version of AgentHub that does not support file writes.'
 
 /**
  * Client-side upload cap — must match the server's maxUploadBytes (50 MiB).

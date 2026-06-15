@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react'
 import { useFilesWrite, type WriteOutcome } from '../useFilesWrite'

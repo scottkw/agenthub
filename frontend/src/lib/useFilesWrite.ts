@@ -18,7 +18,7 @@
 // directly — the server ETag header is the single source of truth (RESEARCH Open Q6).
 
 import { useCallback, useRef, useState } from 'react'
-import { FilesApiError, type FilesApiClient } from './filesApi'
+import { FilesApiError, REMOTE_PEER_OUTDATED_MESSAGE, type FilesApiClient } from './filesApi'
 
 /** ~1.5s transient for the "Saved" state (EDIT-06, mirrors Settings save transient). */
 const SAVED_TIMEOUT = 1500
@@ -32,7 +32,7 @@ export type SaveState = 'idle' | 'saving' | 'saved'
  * closure bug — React state updates are async; reading isConflict immediately
  * after await still sees the pre-write value).
  */
-export type WriteOutcome = 'saved' | 'conflict' | 'error'
+export type WriteOutcome = 'saved' | 'conflict' | 'error' | 'peer-outdated'
 
 export interface UseFilesWriteResult {
   /**
@@ -125,7 +125,16 @@ export function useFilesWrite(
           return 'conflict'
         }
 
-        // Non-412 error — show inline save error (EDIT-06 verbatim copy).
+        // RMW-04: upstream 405 = remote peer is running v3.4 (no write routes).
+        // Buffer is NOT cleared (T-125-08 locked). Returns distinct 'peer-outdated'
+        // outcome so callers can surface the verbatim version-gate message.
+        if (err instanceof FilesApiError && err.isMethodNotAllowed()) {
+          setSaveError(REMOTE_PEER_OUTDATED_MESSAGE)
+          setSaveState('idle')
+          return 'peer-outdated'
+        }
+
+        // Non-412 / non-405 error — show inline save error (EDIT-06 verbatim copy).
         setSaveError("Couldn't save the file. Your changes are still here — try again.")
         setSaveState('idle')
         return 'error'
