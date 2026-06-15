@@ -301,7 +301,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 124: `files.write` Capability + Webserver Write Routes + Web-Share Opt-In** — CAP-01..CAP-10 (completed 2026-06-14)
 - [x] **Phase 125: React Editor (CodeMirror 6) — Desktop + Web** — EDIT-01..EDIT-13 (completed 2026-06-14)
 - [x] **Phase 126: TUI Write Parity (`$EDITOR` Shell-Out)** — TUIW-01..TUIW-07 (completed 2026-06-15)
-- [ ] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07
+- [x] **Phase 127: Web-Share Write Security Hardening** — SEC-01..SEC-07 (completed 2026-06-15)
 - [ ] **Phase 128: Remote Write Parity + Cross-Surface Integration** — RMW-01..RMW-06
 
 </details>
@@ -439,12 +439,12 @@ Plans:
 4. The capability escalation audit confirms: no token lacking `files.write` reaches any write endpoint on any surface (daemon socket, webserver, remote proxy); `files.write` does not leak across sessions; findings are documented in a SECURITY artifact committed under `.planning/`.
 5. Playwright web-share write e2e passes: a viewer granted `files.write` writes successfully; a viewer without it gets HTTP 403; a CSRF Origin-mismatch request (Origin header present, does not match FQDN) is rejected with HTTP 403 on POST/PUT/DELETE write routes.
 
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 127-01-PLAN.md — Denylist hardening (macOS daemon config dir + case-fold) + fuzz seeds (SEC-02, SEC-06)
-- [ ] 127-02-PLAN.md — Write-path symlink-escape test + fuzz/upload-abuse confirmation (SEC-01, SEC-03, SEC-06)
-- [ ] 127-03-PLAN.md — Capability-escalation SECURITY artifact + data-integrity tests (SEC-04, SEC-05)
+- [x] 127-02-PLAN.md — Write-path symlink-escape test + fuzz/upload-abuse confirmation (SEC-01, SEC-03, SEC-06)
+- [x] 127-03-PLAN.md — Capability-escalation SECURITY artifact + data-integrity tests (SEC-04, SEC-05)
 - [x] 127-04-PLAN.md — Web-share CSRF Origin-mismatch e2e cell (SEC-07)
 
 **UI hint**: no
@@ -515,7 +515,7 @@ Plans:
 | 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
 | 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 127 | v3.5 | 2/4 | In Progress|  |
+| 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 0/TBD | Not started | - |
 
 ---
