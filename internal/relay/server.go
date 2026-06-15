@@ -55,6 +55,24 @@ func NewServer(manager *HubManager, backend pty.SessionBackend, filesHandler *fi
 		s.mux.HandleFunc("OPTIONS /api/files/list", handleFilesPreflight)
 		s.mux.HandleFunc("OPTIONS /api/files/stat", handleFilesPreflight)
 		s.mux.HandleFunc("OPTIONS /api/files/read", handleFilesPreflight)
+		// Write verbs (v3.5 Phases 123-125). These ride the same loopback-trusted
+		// surface as the read routes above — the desktop GUI owner has full local
+		// FS access, identical to the daemon unix socket (the opt-in files.write
+		// capability gate is a webserver-only concern for web-share viewers, not
+		// the local owner; internal/webserver/server.go). Omitting these is the
+		// bug that made every desktop-GUI local save/upload/delete/rename/mkdir
+		// 404 — see TestServer_FilesWriteAPI_MountedOnRelay.
+		s.mux.HandleFunc("PUT /api/files/write", withCORS(filesHandler.Write))
+		s.mux.HandleFunc("HEAD /api/files/write", withCORS(filesHandler.Write))
+		s.mux.HandleFunc("POST /api/files/upload", withCORS(filesHandler.Upload))
+		s.mux.HandleFunc("DELETE /api/files/delete", withCORS(filesHandler.Delete))
+		s.mux.HandleFunc("POST /api/files/rename", withCORS(filesHandler.Rename))
+		s.mux.HandleFunc("POST /api/files/mkdir", withCORS(filesHandler.Mkdir))
+		s.mux.HandleFunc("OPTIONS /api/files/write", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/upload", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/delete", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/rename", handleFilesPreflight)
+		s.mux.HandleFunc("OPTIONS /api/files/mkdir", handleFilesPreflight)
 	}
 	return s
 }
@@ -117,8 +135,11 @@ func handleFilesPreflight(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 	}
 	w.Header().Set("Vary", "Origin")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Range, If-Modified-Since")
+	// Read verbs (GET/HEAD) plus the v3.5 write verbs (PUT/POST/DELETE). If-Match
+	// is the optimistic-concurrency validator the editor sends on write (EDIT-05/08);
+	// it must be advertised here or the browser blocks the PUT after preflight.
+	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, PUT, POST, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Range, If-Modified-Since, If-Match")
 	w.Header().Set("Access-Control-Max-Age", "600")
 	w.WriteHeader(http.StatusNoContent)
 }
