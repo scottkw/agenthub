@@ -627,17 +627,15 @@ Relay-surface coverage (mandatory per REQUIREMENTS.md):
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **MagicDNS hostname suffix scope (A1 above)**
+1. **MagicDNS hostname suffix scope (A1 above)** — **RESOLVED**
    - What we know: AgentHub builds `baseURL` from `peer.DNSName` which ends in `.ts.net` (confirmed in `internal/tailnet/tailnet.go:117` `strings.TrimSuffix(peer.DNSName, ".")`)
-   - What's unclear: Whether custom Tailscale domain names (funnel, BYOD) could use other suffixes in practice
-   - Recommendation: Use `.ts.net` check as primary signal; fall back to "MagicDNS name pattern = no dots in first segment" as secondary. Can be tightened in a follow-up if needed.
+   - **Resolution:** Use `.ts.net` check as the primary signal for `isUnresolvableMagicDNS`; this matches how AgentHub itself constructs the baseURL. Custom/funnel suffixes can be tightened in a follow-up if a real case appears — graceful degradation to the generic 502 for unknown suffixes is acceptable.
 
-2. **Frontend warning placement for DNS-03**
-   - What we know: `startHealthPoller` emits `tailscale:health` every 10s with the full `TailscaleHealth` struct; `App.tsx` listens and updates `tailscaleHealth` state
-   - What's unclear: Whether the warning should appear in `RemoteJoinCodeModal`, the Remote Sessions panel, or as a banner — depends on Phase 130 scope
-   - Recommendation: For Phase 129, surface the warning as part of the 502 response body (handled in daemon), which the frontend can detect and display in whatever remote-browse error UI already exists. The proactive banner (when `acceptDns=false` before any browse attempt) can be added to `LocalNetworkBanner.tsx` or a new `RemoteBrowseWarning` component — planner's discretion.
+2. **Frontend warning placement for DNS-03** — **RESOLVED (user decision 2026-06-15)**
+   - What we know: `startHealthPoller` emits `tailscale:health` every 10s with the full `TailscaleHealth` struct; `App.tsx` listens and updates `tailscaleHealth` state.
+   - **Resolution:** Per explicit user decision, the proactive visible warning ships **in Phase 129** (not deferred to Phase 130). Add a minimal frontend warning component (e.g. `RemoteBrowseDNSWarning` or reuse the `LocalNetworkBanner.tsx` pattern) that reads `tailscaleHealth.acceptDns` and, when `acceptDns === false` while connected, displays the actionable message ("Enable Tailscale DNS (accept-dns) to browse remote sessions") proactively — before the user attempts a remote browse. DNS-03 is fully self-contained in Phase 129. On-screen render verification is manual UAT (live tailnet with `accept-dns=false`); component presence + conditional-render logic are statically verifiable.
 
 ---
 
