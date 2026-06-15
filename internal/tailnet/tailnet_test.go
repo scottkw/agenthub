@@ -165,6 +165,43 @@ func TestProbePeer_NotFound(t *testing.T) {
 	}
 }
 
+// TestProbePeer_CapProtected401_Found is the regression test for #84. A
+// cap-protected AgentHub peer answers the unauthenticated discovery probe
+// (GET /api/sessions, no cap) with 401 "capability required" (capability_mw.go).
+// Before the fix, probePeer accepted only HTTP 200, so every shared (cap-gated)
+// peer — i.e. every real tailnet share — was silently dropped and the Remote
+// panel stayed empty. Discovery must treat the AgentHub-shaped 401 as "present".
+func TestProbePeer_CapProtected401_Found(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/sessions" {
+			http.Error(w, "capability required", http.StatusUnauthorized)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	peer := Peer{DNSName: "testhost.ts.net."}
+	if !probePeer(context.Background(), peer, redirectingClient(srv)) {
+		t.Error("expected probePeer to return true for AgentHub 401 \"capability required\"")
+	}
+}
+
+// TestProbePeer_Generic401_NotFound guards the #84 fix against false positives:
+// a non-AgentHub server that happens to return a bare 401 on :7443 must NOT be
+// mistaken for an AgentHub peer. Only the "capability required" marker counts.
+func TestProbePeer_Generic401_NotFound(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	peer := Peer{DNSName: "testhost.ts.net."}
+	if probePeer(context.Background(), peer, redirectingClient(srv)) {
+		t.Error("expected probePeer to return false for a generic (non-AgentHub) 401")
+	}
+}
+
 func TestProbePeer_Timeout(t *testing.T) {
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(5 * time.Second)
