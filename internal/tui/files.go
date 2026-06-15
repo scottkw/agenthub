@@ -638,6 +638,14 @@ func (m Model) handleFilesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.files.generation++ // WR-03: supersede any in-flight request
 		return m, editFetchCmd(m.files.client, m.files.sessionID, rel, editor, m.files.generation)
 
+	case s == "u":
+		// TUIW-06: file upload is formally descoped from the TUI in v3.5 / Phase 126.
+		// Desktop and web surfaces cover upload. The on-screen message is locked
+		// verbatim per the success criterion; see uploadDescoped const below.
+		// The gap is tracked in https://github.com/scottkw/agenthub (Phase 126 issue).
+		m.files.err = errors.New(uploadDescoped)
+		return m, nil
+
 	case s == "enter":
 		entries := m.files.filteredEntries()
 		if len(entries) == 0 || m.files.selected < 0 || m.files.selected >= len(entries) {
@@ -689,6 +697,12 @@ const previewSizeCap int64 = 5 * 1024 * 1024
 // Externalised as a const so the grep gate in the plan can assert presence
 // without false-matching boilerplate strings elsewhere.
 const remoteUnsharedMsg = "Remote session must be web-shared to browse files. Ask the owner to enable sharing."
+
+// uploadDescoped is the verbatim on-screen message shown when the user presses
+// "u" (upload) in the Files view. File upload is formally descoped from the TUI
+// in v3.5 / Phase 126 (TUIW-06). Desktop and web surfaces cover upload; this
+// gap is tracked in a scottkw/agenthub GitHub issue filed in Phase 126.
+const uploadDescoped = "Use desktop or web to upload files."
 
 // applyRemote401IfNeeded inspects an error string for a 401 surface that
 // originated at a RemoteFilesClient and, if matched, wipes the cached cap
