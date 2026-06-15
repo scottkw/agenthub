@@ -560,3 +560,114 @@ func urlEncode(s string) string {
 func readFile(name string) ([]byte, error) {
 	return os.ReadFile(name)
 }
+
+// TestProxyRemoteFiles_AcceptDNSMessage covers DNS-01 and DNS-02.
+//
+// DNS-01: When proxyRemoteFiles fails because the baseURL is a MagicDNS hostname
+// (*.ts.net) and the error is a *net.DNSError (accept-dns=false / unresolvable),
+// the 502 response body must contain the actionable string:
+// "Enable Tailscale DNS (accept-dns) to browse remote sessions"
+//
+// DNS-02: The discrimination requirement — a non-MagicDNS / connection-refused
+// failure must NOT emit the actionable DNS string. It must get the generic
+// "remote unreachable" body instead.
+//
+// Sub-case A (MagicDNS DNS failure): cap registered against a *.ts.net baseURL
+// that will not resolve (NXDOMAIN) → *net.DNSError → actionable DNS message.
+//
+// Sub-case B (non-DNS / connection-refused): cap registered against
+// https://127.0.0.1:1 (connection refused, not a DNSError) → generic message.
+//
+// Both sub-cases also assert that the fixtureCap literal does not appear in the
+// response body (cap-redaction guarantee, T-129-02).
+//
+// RED: proxyRemoteFiles currently emits only the generic "remote unreachable"
+// message for all client.Do errors. This test FAILS until Plan 02 adds the
+// isUnresolvableMagicDNS detection path. Reference: DNS-01, DNS-02.
+func TestProxyRemoteFiles_AcceptDNSMessage(t *testing.T) {
+	const dnsActionableMsg = "Enable Tailscale DNS (accept-dns) to browse remote sessions"
+
+	// localCapToken is the cap used for cap-redaction assertions in this test.
+	// Must not appear in any asserted response body.
+	const localCapToken = "FIXTURE_CAP_DNS_TEST"
+
+	engine := NewSessionEngine()
+	engine.configDir = t.TempDir()
+	api := NewAPI(engine)
+	// Use the default (non-test) HTTP client so real DNS resolution is attempted
+	// for the MagicDNS hostname — which will fail with *net.DNSError.
+	srv := httptest.NewServer(api.mux)
+	t.Cleanup(srv.Close)
+
+	t.Run("sub-case A: MagicDNS hostname → DNS-01 actionable message", func(t *testing.T) {
+		// Use a *.ts.net hostname that will not resolve (NXDOMAIN guaranteed —
+		// MagicDNS names only resolve when accept-dns=true is active on this machine).
+		// The cap deposit is against this URL; proxyRemoteFiles will dial it and
+		// receive a *net.DNSError.
+		magicDNSBaseURL := "https://nonexistent-peer-for-phase129-test.tail99999.ts.net"
+		if err := api.remoteCaps.Put("sid-dns", magicDNSBaseURL, localCapToken); err != nil {
+			t.Fatalf("Put: %v", err)
+		}
+
+		req, _ := http.NewRequest(http.MethodGet,
+			srv.URL+"/api/files/remote/sid-dns/list?path=.",
+			nil,
+		)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("GET proxy: %v", err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		// Must be 502 Bad Gateway in both sub-cases.
+		if resp.StatusCode != http.StatusBadGateway {
+			t.Errorf("status = %d; want 502", resp.StatusCode)
+		}
+
+		// DNS-01: actionable message must be present.
+		if !strings.Contains(string(body), dnsActionableMsg) {
+			t.Errorf("DNS-01 FAIL: body does not contain actionable DNS message\n  body=%q", string(body))
+		}
+
+		// Cap-redaction: localCapToken must not appear in body (T-129-02).
+		if strings.Contains(string(body), localCapToken) {
+			t.Errorf("CAP-LEAK: cap token appeared in 502 body: %q", string(body))
+		}
+	})
+
+	t.Run("sub-case B: connection-refused (non-DNS) → DNS-02 no actionable message", func(t *testing.T) {
+		// 127.0.0.1:1 is always connection-refused; the error is NOT a *net.DNSError.
+		// proxyRemoteFiles must emit the generic "remote unreachable" message, NOT
+		// the DNS-specific one (DNS-02 discrimination).
+		connRefusedURL := "https://127.0.0.1:1"
+		if err := api.remoteCaps.Put("sid-connrefused", connRefusedURL, localCapToken); err != nil {
+			t.Fatalf("Put: %v", err)
+		}
+
+		req, _ := http.NewRequest(http.MethodGet,
+			srv.URL+"/api/files/remote/sid-connrefused/list?path=.",
+			nil,
+		)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("GET proxy: %v", err)
+		}
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusBadGateway {
+			t.Errorf("status = %d; want 502", resp.StatusCode)
+		}
+
+		// DNS-02: the actionable DNS message must NOT appear for a non-DNS failure.
+		if strings.Contains(string(body), dnsActionableMsg) {
+			t.Errorf("DNS-02 FAIL: actionable DNS message appeared for non-DNS failure\n  body=%q", string(body))
+		}
+
+		// Cap-redaction: localCapToken must not appear in body.
+		if strings.Contains(string(body), localCapToken) {
+			t.Errorf("CAP-LEAK: cap token appeared in 502 body: %q", string(body))
+		}
+	})
+}
