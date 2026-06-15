@@ -222,41 +222,49 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 - ✓ TUI Files view: lipgloss two-pane file list + viewport preview pane (`lipgloss.JoinHorizontal`, TokyoNight palette); ALL filesystem I/O via `tea.Cmd` returning `tea.Msg` (static-grep gate `TestFiles_NoSyncFSCalls` enforces); key-dispatch priority slot 5.5; `charmbracelet/glamour` promoted from indirect to direct dep for markdown; `truncateLeft` status line (`…/utils/helper.ts`) preserves leaf-end; `/` filter + Escape dismiss; `?` help overlay with Files keybindings; Backspace at cwd root is a no-op (never traverses above session root) — v3.4 Phase 121 (TUI-01..10 local half)
 - ✓ Cross-surface remote-session file browse parity (audit-driven Phase 122 insert): daemon proxy `/api/files/remote/{sid}/{op}` + in-memory `RemoteCapStore`; `ExchangeJoinCodeAtURL` Wails helper (303 redirect cap exchange); desktop GUI `RemoteJoinCodeModal` + `EnableWebSharingTakeover` (verbatim "Enable web sharing to browse this session's files") + App.tsx remote tab gate with `pathPrefix='/api/files/remote/<sid>'`; TUI `RemoteFilesClient` (HTTPS+cap; TLS 1.2+ pinned; cap redacted from errors) implements same `FilesClient` interface as `*daemon.DaemonClient` — same `handleFilesKey` + `applyFilesListMsg` pipeline drives local AND remote; v3.4 toast "File browser not available for remote sessions" removed (grep = 0); cross-surface byte-equivalence proven by 3 independent observers (daemon-proxy Go + tui.RemoteFilesClient Go + Playwright HTTPS browser) — v3.4 Phase 122 (REMOTE-01..05, TUI-08 remote half)
 
+- ✓ TOCTOU-free write primitives on the `os.OpenRoot` sandbox: atomic temp+sync+rename (no `O_TRUNC`), rename validates source AND destination, recursive delete, mkdir, multipart upload; shell-RC denylist on every write path + 60s `FuzzSandboxWrite` merge gate (0 crashes); auth-less daemon Unix-socket write routes; folds in TD-4 + TD-5 — v3.5 Phase 123 (FSW-01..12)
+- ✓ Opt-in `files.write` capability (never default-on; web-share viewers require a further explicit grant) behind `requireFilesWrite` + CSRF Origin check, `schemaVersion: 4` migration — v3.5 Phase 124 (CAP-01..10)
+- ✓ Vendored CodeMirror 6 editor (zero new CSP amendments; Monaco rejected for `worker-src blob:`) replacing v3.4 plain-text preview — syntax highlighting by extension, atomic Cmd/Ctrl+S with `If-Match`/412 conflict detection, dirty-state guard, full create/mkdir/delete/rename/cross-dir-move/single+multi-upload (drag-drop, XHR progress, 409/413) suite; 51/51 cross-browser write e2e zero CSP — v3.5 Phase 125 (EDIT-01..13)
+- ✓ TUI write parity via `$EDITOR` shell-out (`e` key, suspend/`tea.ClearScreen`/resume) + `d`/`r`/`m` ops; `FilesClient` interface grew 4 → 8 methods so one pipeline drives local AND remote; TUI upload formally descoped (Issue #82) — v3.5 Phase 126 (TUIW-01..07)
+- ✓ Web-share write security hardening: denylist + symlink-escape / privilege-escalation / CSRF / concurrent-write audits; `SECURITY` artifact; fully automated — v3.5 Phase 127 (SEC-01..07)
+- ✓ Remote tailnet peer write parity proven byte-identical by 3 independent observers (daemon-proxy Go + `tui.RemoteFilesClient` Go + Playwright HTTPS); 405 peer-outdated / 401 cap-expired mappings; Phase 122 read-regression guard — v3.5 Phase 128 (RMW-01..06)
+
 ### Active
 
-Requirements for v3.5 are scoped in `.planning/REQUIREMENTS.md` (write-side file browser + editor). Active items move to Validated as phases complete.
+Requirements for v3.5.1 are scoped in `.planning/REQUIREMENTS.md` (remote-browse GUI on-ramp + release-gate fixes). Active items move to Validated as phases complete.
 
-## Current Milestone: v3.5 File Browser — Write Operations & Editor
+## Current Milestone: v3.5.1 Remote Browse Completion + Release-Gate Fix
 
-**Goal:** Ship the write-side half of the file-browser epic with full cross-surface parity, closing umbrella Issue #24.
+**Goal:** Close the desktop-GUI remote-browse on-ramp and clear the release-gate blocker — retiring umbrella epic #24.
 
 **Target features:**
-- Write endpoints — create/edit-save, upload, delete, rename, mkdir on the sandboxed `os.OpenRoot` filesystem API (extends the v3.4 `/api/files/*` contract)
-- In-app code editor (CodeMirror 6 vs Monaco ratified at plan time) replacing v3.4 plain-text rendering, with syntax highlighting via editor language packs
-- TUI editing via shell-out to `$EDITOR` for the Files view (cross-surface parity)
-- New opt-in `files.write` capability bit gating the network-facing webserver surface (parallels v3.4's `files.read`) — full web-share write parity
-- Remote write parity — edit/upload/delete/rename/mkdir on remote tailnet peer sessions, matching v3.4's proven read parity
-- Carried tech-debt: TD-4 (Phase 120 WR-01..05 file-browser hardening) + TD-5 (Phase 122 `ExchangeJoinCode` shim cleanup)
+- **#86** — Remote Sessions panel can discover→list→pick a peer's sessions, resolving the *enumerate-then-pick vs. cap-gated no-enumeration* conflict (the umbrella-#24 closer). Approach undecided at scoping — resolved in a design pass over three options:
+  - (a) tailnet-trusted metadata-only discovery endpoint (accepts enumeration exposure on the already-trusted tailnet)
+  - (b) panel lists *peers* + drives a join-code/URL per session; stop dropping empty-list peers (closest to existing join-code flow)
+  - (c) keep enumeration locked; reframe as "paste a join code/URL" only
+- **#83** — Actionable error when the client has `accept-dns=false`: detect unresolvable MagicDNS, surface *"Enable Tailscale DNS to browse remote sessions"*; optionally probe `accept-dns` state proactively
+- **#87** — Deflake `TestWrite_TwoWritersIfMatchRace` / close the `WriteFileAtomic` If-Match TOCTOU window (release-gate blocker). Correctness decision in design pass: (a) per-path lock = true single-winner guarantee, vs (b) accept last-writer-wins + rewrite test to invariants-only
 
-**Closes:** GitHub Issues #63 (editing + upload), #64 (TUI edit parity); retires umbrella epic #24.
+**Closes:** GitHub Issues #86, #83, #87 — retires umbrella epic #24 (remote-browse GUI on-ramp becomes usable).
 
-**Scope decisions ratified at milestone scoping (2026-06-14):**
-- Web-share writes IN scope — `files.write` is an opt-in capability grantable to web-share viewers (most-exposed surface; requires a dedicated security-focused phase).
-- Remote tailnet peer write parity IN scope — honors the release-blocking cross-surface parity contract.
-- Editor library (CodeMirror 6 vs Monaco) decision deferred to plan time.
+**Scope decisions ratified at milestone scoping (2026-06-15):**
+- Scope is the remote-browse cluster (#86 + #83) plus the release-gate-blocking flaky test (#87). #82 (TUI Files upload parity) deferred to a later milestone.
+- #86 architecture (a/b/c) requires a design pass before its implementation phase — not pre-decided.
+- The remote read/write *data path* is already proven live; only the GUI on-ramp (discover→list→pick) is broken.
 
-**Phase numbering:** continues from v3.4 (last phase 122) — v3.5 starts at Phase 123.
+**Phase numbering:** continues from v3.5 (last phase 128) — v3.5.1 starts at Phase 129.
+
+**Process guard (from v3.5 audit):** the v3.5 98/100 automated integration score was blind to a 4-layer GUI remote-browse breakage because tests never drove the **relay loopback** the Wails GUI uses. A relay-surface regression gate now exists (`internal/relay/server_files_test.go`, `internal/daemon/relay_remote_files_test.go`) — all v3.5.1 remote work MUST exercise it, not just the webserver/fixture surface.
 
 **Carry-forward operator one-time tasks (still required before next release):**
 
 1. `RELEASE_PUBLISH_TOKEN` PAT (`Contents: read/write` on `scottkw/agenthub`) — `gh secret set RELEASE_PUBLISH_TOKEN`
 2. `WINGET_FIRST_SUBMISSION=true` (one-time, first submission only) — `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after winget-pkgs accepts first submission.
 
-**Carry-forward manual UATs from v3.4 (release-eligible after these execute):**
+**Carry-forward manual UATs (still pending from v3.5):**
 
-1. Phase 120 Wails desktop click-path UAT
-2. Phase 121 visual TokyoNight + lipgloss perceptual UAT (requires sighted helper)
-3. Phase 122 22-step two-machine tailnet UAT
+1. Two-machine tailnet write UAT (RMW-06) — data path proven live 2026-06-15; the remaining residue is the #86 GUI on-ramp, which v3.5.1 closes
+2. Live desktop/TUI visual UATs — Phase 125 editor render + Tab/Cmd-V; Phase 126 `$EDITOR` suspend-resume; Phase 124 home-dir warning banner
 
 ## Current State
 
@@ -510,4 +518,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-14 — v3.5 File Browser Write Operations & Editor milestone scoped. Write-side half of the file-browser epic (Issue #24): write/upload/delete/rename/mkdir/edit endpoints + in-app editor (CodeMirror 6 vs Monaco at plan time) + TUI `$EDITOR` shell-out + syntax highlighting via language packs. Full cross-surface parity including opt-in `files.write` web-share capability and remote tailnet peer writes. Folds in TD-4/TD-5 carried debt. Closes #63, #64; retires #24. Phase numbering continues from 122 (starts at 123). Defining requirements next.*
+*Last updated: 2026-06-15 — v3.5 milestone archived (MILESTONES.md + retrospective + Validated entries) and v3.5.1 Remote Browse Completion + Release-Gate Fix scoped. v3.5.1 closes the remote-browse GUI on-ramp cluster: #86 (enumerate-vs-cap conflict — a/b/c design pass), #83 (accept-dns=false actionable error), #87 (WriteFileAtomic If-Match TOCTOU release-gate flake — a/b correctness decision). #82 (TUI upload) deferred. Retires umbrella epic #24. Relay-surface regression gate mandatory for all remote work (v3.5 audit lesson). Phase numbering continues from 128 (starts at 129). Defining requirements next.*

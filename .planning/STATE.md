@@ -1,16 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.5
-milestone_name: File Browser — Write Operations & Editor
-status: completed
-stopped_at: v3.5 roadmap created
-last_updated: "2026-06-15T02:07:01.186Z"
-last_activity: 2026-06-15 -- Phase 128 marked complete
+milestone: v3.5.1
+milestone_name: Remote Browse Completion + Release-Gate Fix
+status: planning
+last_updated: "2026-06-15T22:01:45.772Z"
+last_activity: 2026-06-15
 progress:
-  total_phases: 6
+  total_phases: 0
   completed_phases: 0
-  total_plans: 33
-  completed_plans: 27
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -25,14 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-21 — after v3.4 milestone close)
 
 ## Current Position
 
-Phase: 128 — COMPLETE
-Plan: 1 of 4
-Status: Phase 128 complete
-Last activity: 2026-06-15 -- Phase 128 marked complete
-
-```
-v3.5 Progress: [                    ] 0% (0/6 phases)
-```
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-15 — Milestone v3.5.1 started
 
 ## Operator Next Steps (pre-release, carry-forward)
 
