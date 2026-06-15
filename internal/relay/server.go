@@ -144,6 +144,25 @@ func handleFilesPreflight(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// FilesCORS wraps a handler with the relay's loopback-origin CORS policy
+// (Access-Control-Allow-Origin for allow-listed Wails/loopback origins).
+// Exported so the daemon can apply identical CORS to the remote-files proxy
+// routes it mounts on the relay surface — those handlers are *daemon.API
+// methods and cannot live in this package without an import cycle, but they
+// ride the same cross-origin webview→127.0.0.1:<relayPort> boundary as the
+// local file routes and so need the same CORS treatment.
+func FilesCORS(next http.HandlerFunc) http.HandlerFunc {
+	return withCORS(next)
+}
+
+// FilesPreflight responds to a CORS preflight (OPTIONS) for /api/files/* on the
+// relay surface. Exported for the daemon's remote-files proxy routes; advertises
+// the same verb/header set as the local file routes (GET/HEAD/PUT/POST/DELETE,
+// If-Match), so the cross-origin webview can issue remote writes.
+func FilesPreflight(w http.ResponseWriter, r *http.Request) {
+	handleFilesPreflight(w, r)
+}
+
 // ServeHTTP implements http.Handler by delegating to the internal mux.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)

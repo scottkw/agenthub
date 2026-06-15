@@ -122,6 +122,18 @@ func newFixtureRemotePeer(t *testing.T) *httptest.Server {
 		_, _ = w.Write([]byte("hello world"))
 	}))
 
+	// Write verbs (Phase 128). Additive: the parity tests above only exercise
+	// the read verbs, so this does not affect them. The relay-mount regression
+	// test (relay_remote_files_test.go) needs a real upstream write endpoint so
+	// a successfully-routed PUT reaches a 200 rather than an upstream 404 that
+	// would be indistinguishable from a relay route-miss.
+	mux.HandleFunc("PUT /api/files/write", guard(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+
 	// /join/exchange follows the webserver's 303 + Location shape (Phase 87)
 	// — included so this fixture can be reused in cross-process scenarios.
 	// Not exercised by Task 1's body but documented for completeness.

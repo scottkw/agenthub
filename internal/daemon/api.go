@@ -236,15 +236,27 @@ func (a *API) JoinCodes() *capability.JoinCodeManager {
 	return a.joinCodes
 }
 
-// StartRelay creates the relay HTTP server and starts it on a random TCP port.
-// Returns the allocated port. Must be called after NewAPI.
-func (a *API) StartRelay() (int, error) {
+// RelayHandler returns the http.Handler served on the relay loopback TCP port
+// — the surface the Wails desktop GUI reaches over 127.0.0.1:<relayPort> (it
+// cannot reach the daemon Unix socket). This is the relay server (sessions WS +
+// local /api/files/*) wrapped with the remote-files proxy routes
+// (/api/files/remote/{sid}/...), which are *API methods and therefore cannot
+// live in the relay package without an import cycle. Exposed so external tests
+// can drive the relay surface exactly as the webview does (mirrors Handler()).
+func (a *API) RelayHandler() http.Handler {
 	// Phase 120 CR-01: mount /api/files/* on the relay HTTP server so the Wails
 	// desktop GUI can reach the read-only file API. The Wails webview hits
 	// 127.0.0.1:<relayPort> (TCP) — it cannot reach the daemon's Unix socket,
 	// where /api/files/* is also registered. Both surfaces share the same
 	// *files.Handler instance, so sandbox + 5 MiB cap behaviour is identical.
 	server := relay.NewServer(a.engine.Manager(), a.engine.Backend(), a.filesHandler)
+	return a.wrapRelayWithRemoteFiles(server)
+}
+
+// StartRelay creates the relay HTTP server and starts it on a random TCP port.
+// Returns the allocated port. Must be called after NewAPI.
+func (a *API) StartRelay() (int, error) {
+	server := a.RelayHandler()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, fmt.Errorf("relay listener: %w", err)
