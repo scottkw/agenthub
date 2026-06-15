@@ -3113,6 +3113,8 @@ body {
   color: #c0caf5;
   cursor: pointer;
   border-left: 3px solid transparent;
+  /* Positioning context for the absolutely-placed row-actions overlay (below). */
+  position: relative;
 }
 
 .file-browser__list-row:hover {
@@ -3812,9 +3814,13 @@ body {
 
 /* ── Inline name input (InlineNameInput.tsx) ──────────────────────────────── */
 
-/* Row that hosts the inline create/rename input — same grid as list-row but
-   shows an input instead of a name span. */
+/* Row that hosts the inline create/rename input. It reuses .file-browser__list-row
+   for height/padding/border, but MUST override the 6-column grid: the input is the
+   row's only child and under the grid it lands in the 22px icon column (~1 char
+   wide — UAT finding). Switch to flex so the input's `flex: 1 1 auto` fills the row. */
 .file-browser__list-row--inline-input {
+  display: flex;
+  align-items: center;
   background: #1e2030;
   border-left-color: #7aa2f7;
 }
@@ -3845,10 +3851,21 @@ body {
    Also stays visible when the row is selected (--selected covers both mouse
    and keyboard selection). SPEC §1 behavioral contract. */
 .file-browser__row-actions {
+  /* Absolutely positioned overlay anchored to the row's right edge. The row is a
+     6-column grid; rendering the action cluster as a 7th grid child pushed it onto
+     an implicit second line that overflowed onto the next row (UAT finding).
+     Overlaying it removes the cluster from grid flow so the row stays 32px tall. */
+  position: absolute;
+  right: 12px;
+  top: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 2px;
-  flex: 0 0 auto;
+  /* Cover the size/mtime cells beneath on hover/selected (both are #1e2030); the
+     left fade avoids an abrupt edge over the mtime text. */
+  padding-left: 28px;
+  background: linear-gradient(to right, rgba(30, 32, 48, 0) 0, #1e2030 28px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease;
