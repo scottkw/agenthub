@@ -147,8 +147,13 @@ export function SessionCard({
   const originText = isLocal ? 'Local' : hostname
 
   // Time display
+  // IN-03: remote sessions use createdAt = new Date().toISOString() (set at poll time),
+  // so formatUptime would show "0m" for ~29s then reset on the next 30s remote poll.
+  // Omit uptime for remote sessions entirely — there is no reliable createdAt from the wire.
   const timeText =
-    session.state === 'stopped' && duration !== undefined && duration !== null
+    hostname && hostname !== ''
+      ? '' // remote session — no reliable createdAt; omit rather than show misleading "0m"
+      : session.state === 'stopped' && duration !== undefined && duration !== null
       ? formatDuration(duration)
       : formatUptime(createdAt)
 

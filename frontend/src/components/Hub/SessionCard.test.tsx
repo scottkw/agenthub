@@ -20,7 +20,10 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     state: 'running',
     status: 'running',
     createdAt: new Date(Date.now() - 7454000).toISOString(), // ~2h 4m ago
-    hostname: 'local-machine.local',
+    // IN-03: local sessions have hostname: '' in production; remote sessions have a
+    // non-empty peer hostname. Default to '' (local) so time/uptime tests reflect
+    // the real local-session code path. Tests needing a remote session override explicitly.
+    hostname: '',
     webEnabled: false,
     viewerCount: 0,
     homeDir: false,
