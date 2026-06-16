@@ -4820,6 +4820,15 @@ body {
   border-color: var(--hub-accent);
 }
 
+/* WR-02: hub-card--dragging — referenced in SessionCard.tsx but was missing from style.css.
+   Colorblind-safe: opacity change (shape cue) + cursor change — NOT color-only.
+   UI-SPEC drag-state: card dims to opacity 0.5 while being dragged. */
+/* COLORBLIND-SAFE: drag-state uses opacity/cursor shape cues — not color alone */
+.hub-card--dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
 /* Drag handle and menu button — visible on card hover/focus-within */
 .hub-card__drag-handle,
 .hub-card__menu-btn {
@@ -4927,6 +4936,26 @@ body {
 
 .hub-card__menu-item--sub {
   padding-left: 24px;
+}
+
+/* WR-03: hub-card__menu-item--header and --group were referenced in SessionCard.tsx
+   but missing from style.css. Without these, the non-interactive "Move to group"
+   header is visually indistinguishable from the clickable group items below it. */
+
+/* Non-interactive section heading ("Move to group") — visually dimmed, not clickable */
+.hub-card__menu-item--header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hub-text-muted);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Clickable group sub-items indented under the header */
+.hub-card__menu-item--group {
+  padding-left: 20px; /* indent under "Move to group" header */
 }
 
 .hub-card__menu-divider {
