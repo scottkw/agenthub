@@ -48,4 +48,15 @@ blocked: 0
 
 ## Gaps
 
-- CARD-08 stopped/error-exit dimming not visually confirmed on a live exited session (PTY-input limitation of the external-browser bridge). Covered by automated tests + source; recommend a one-time operator visual confirmation on a built app (create a session, run `exit` for stopped-ok and `exit 1` for error-exit).
+- CARD-08 stopped/error-exit dimming not visually confirmed on a live exited session (PTY-input limitation of the external-browser bridge). Covered by automated tests + source; recommend a one-time operator visual confirmation on a built app (create a session, run `exit` for stopped-ok and `exit 1` for error-exit). NOTE: now easy to reach — use the new Open button (below) to attach the terminal, then type `exit`.
+
+## UAT-Driven Change — Re-attach to running sessions (commit 08fc2be)
+
+Operator finding during UAT: a running session with no terminal tab in the current window (created from another window, or its tab was closed) could not be reopened — neither the Sessions panel nor the Hub had an open/attach action; Hub card interaction is otherwise Phase 134.
+
+Resolution (pulled in at operator request): added `App.handleOpenSessionTab` and an explicit **"Open"** button on each Hub card (live sessions only) and each Sessions-panel row. Focuses an existing tab or creates a terminal tab keyed by sessionId (mirrors the SESS-02 restore path). Card-click remains reserved for the Phase 134 modal.
+
+- Live-verified: Open button renders on the Hub card ("Open shell 1"); clicking it switched the active tab Hub → shell 1 with the terminal showing.
+- Also live-confirmed during this pass: CARD-05 viewer count renders ("1 viewer") once a client is attached.
+- Tests: +12 (SessionCard Open render/click/stopped-hidden/absent; DaemonManagerPanel Open; App wiring; style.hub CSS contract). Full suite 1485 green, tsc clean.
+- **Phase 134 note:** Modal-interaction planning must account for this existing Open affordance (card-click → modal should coexist with / supersede the explicit Open button).
