@@ -4,13 +4,13 @@ milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
 status: executing
 stopped_at: v3.5.1 roadmap created
-last_updated: "2026-06-16T05:14:32.088Z"
+last_updated: "2026-06-16T05:24:56.273Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 ## Current Position
 
 Phase: 130 (remote-browse-gui-on-ramp) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -50,10 +50,10 @@ Last activity: 2026-06-16
 
 ## Session Continuity
 
-Last session: 2026-06-16T05:14:32.082Z
-Stopped at: v3.5.1 roadmap created
+Last session: 2026-06-16T05:22:52Z
+Stopped at: Completed 130-03-PLAN.md
 Resume file: None
-Next action: `/gsd:plan-phase 129`
+Next action: Execute plan 130-04 (frontend rewire)
 
 ## Deferred Items
 
@@ -70,6 +70,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | bookkeeping | Nyquist frontmatter `nyquist_compliant:false` on Phases 123/125/126/127 | advisory; tests green |
 | Phase 129-write-concurrency-fix-dns-error-ux P01 | 4m | 3 tasks | 3 files |
 | Phase 130-remote-browse-gui-on-ramp P01 | 20 | 3 tasks | 4 files |
+| Phase 130 P03 | 20 | 3 tasks | 4 files |
 
 ## v3.5.1 Phase Plan
 
@@ -84,6 +85,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 |----------|------------|
 | #87 If-Match concurrency contract | RESOLVED 2026-06-15 → **(a) per-path lock for true single-winner guarantee**. Serialize writes per path; loser gets a clean 412/conflict. Matches standard If-Match optimistic-concurrency semantics. Code, comments, and remote-write proxy must all assert single-winner (RACE-02). |
 | #86 remote-browse architecture | RESOLVED 2026-06-15 → **(a) tailnet-trusted metadata-only discovery endpoint**. Returns shareable-session metadata to tailnet-trusted callers; content/caps stay locked (preserves Phase 87/88 no-enumeration model, RB-03). Satisfies RB-01 (see sessions) + RB-04 (honest states). |
+| 130-03: FetchPeerSessionsMetaWithClient | Added alongside FetchPeerSessionsMeta for httptest TLS bypass — mirrors FetchPeerSessionsWithClient pattern; tests updated to use WithClient where httptest cert trust is required |
+| 130-03: GetRemoteSessions retained | Not deleted during plan-03; plan-04 frontend rewire will swap the App.tsx callsite to GetRemoteSessionsWithMeta |
 
 ## Already-Fixed Prerequisites (do not re-scope)
 
