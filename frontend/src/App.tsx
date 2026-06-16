@@ -1118,6 +1118,7 @@ function App(): React.ReactElement {
     <div className="app">
       {(pendingShellWebToggle ||
         (webServerMode === 'local' && !localBannerDismissed) ||
+        (tailscaleHealth?.connected === true && tailscaleHealth?.acceptDns === false) ||
         update ||
         ((webglContextLost || webglSoftwareDetected) && !webglBannerDismissed) ||
         saveBanner !== null ||
