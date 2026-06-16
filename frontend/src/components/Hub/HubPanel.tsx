@@ -61,8 +61,13 @@ function usePreviewPoller(
 ): Map<string, string[]> {
   const [tails, setTails] = useState<Map<string, string[]>>(new Map())
 
-  // Stable dep: join session IDs to avoid rebinding on every array reference change (Pitfall 3)
-  const sessionIdKey = sessions.map((s) => s.id).join(',')
+  // WR-04: build dep key from LOCAL sessions only — remote session IDs change on every
+  // 30s remote poll and would reset the 3s interval on every remote refresh cycle,
+  // causing mini-preview ticks to be skipped unnecessarily.
+  const sessionIdKey = sessions
+    .filter((s) => !s.hostname || s.hostname === '')
+    .map((s) => s.id)
+    .join(',')
 
   useEffect(() => {
     if (!isActive || sessions.length === 0) return
@@ -78,7 +83,22 @@ function usePreviewPoller(
         )
       )
       if (!cancelled) {
-        setTails(new Map(localSessions.map((s, i) => [s.id, results[i]])))
+        // CR-03: merge results into the previous map instead of replacing it wholesale.
+        // When a session is stopped/killed, GetSessionTailLines returns [] (the hub has
+        // been removed). Replacing the whole map would flip the preview back to "No output
+        // yet". Instead, only overwrite an entry when we received real lines OR when there
+        // is no prior value for that session (first fetch). This preserves the last-seen
+        // snapshot for sessions that return empty due to error or cleanup.
+        setTails((prev) => {
+          const next = new Map(prev)
+          localSessions.forEach((s, i) => {
+            const lines = results[i]
+            if (lines.length > 0 || !prev.has(s.id)) {
+              next.set(s.id, lines)
+            }
+          })
+          return next
+        })
       }
     }
 

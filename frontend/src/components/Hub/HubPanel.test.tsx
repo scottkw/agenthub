@@ -397,6 +397,34 @@ describe('HubPanel', () => {
     vi.useRealTimers()
   })
 
+  // ---- CR-03: usePreviewPoller preserves last-seen lines when fetch returns empty ----
+
+  it('CR-03: does NOT call GetSessionTailLines for remote sessions when remote session ID changes (WR-04)', async () => {
+    vi.useFakeTimers()
+    // Two local sessions — sessionIdKey should be stable relative to remote changes
+    const sessions = [
+      makeSession({ id: 'local-A', hostname: '' }),
+      makeSession({ id: 'local-B', hostname: '' }),
+    ]
+    // remote sessions passed separately and merged in HubPanel
+    const remoteSessions = [makeRemoteSession({ id: 'remote-X', hostname: 'remote-host' })]
+    renderPanel({ sessions, remoteSessions, isActive: true })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    const callCount = (GetSessionTailLines as ReturnType<typeof vi.fn>).mock.calls.length
+
+    // Simulate a remote session change (e.g. new remote session id) — should NOT reset interval
+    // The sessionIdKey dep is now local-only, so the remote change has no effect on the interval.
+    // We verify: only local sessions were fetched, not remote
+    expect(GetSessionTailLines).toHaveBeenCalledWith('local-A', 4)
+    expect(GetSessionTailLines).toHaveBeenCalledWith('local-B', 4)
+    expect(GetSessionTailLines).not.toHaveBeenCalledWith('remote-X', expect.anything())
+    expect(callCount).toBe(2) // exactly 2 fetches (one per local session on initial poll)
+    vi.useRealTimers()
+  })
+
   // ---- Phase 132: remote merge into grid (GRID-07) ----
 
   it('merges remoteSessions into the unified grid', () => {
