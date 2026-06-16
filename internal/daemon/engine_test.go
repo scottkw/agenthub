@@ -1662,6 +1662,47 @@ func TestGetSessionTailLines_StripsANSI(t *testing.T) {
 	}
 }
 
+// TestGetSessionTailLines_StripsOSC8Hyperlink: OSC 8 hyperlink with ST terminator
+// (ESC ] 8 ;; url ESC \) must be fully stripped — no trailing backslash artifact.
+// CR-01: the original regex left the 0x5c backslash of the ST terminator visible.
+func TestGetSessionTailLines_StripsOSC8Hyperlink(t *testing.T) {
+	e := NewSessionEngine()
+	// OSC 8 hyperlink with ST terminator: ESC ] 8 ;; https://foo.com ESC \
+	// The link text follows a second OSC 8 ;; ESC \ to close the hyperlink.
+	// Terminal emitters produce: ESC]8;;URL ESC\ LINKTEXT ESC]8;; ESC\
+	content := "before \x1b]8;;https://example.com\x1b\\click here\x1b]8;;\x1b\\ after\n"
+	makeTailHub(t, e, "osc8-test", content)
+
+	lines := e.GetSessionTailLines("osc8-test", 10)
+	if lines == nil {
+		t.Fatal("GetSessionTailLines returned nil")
+	}
+	joined := strings.Join(lines, "\n")
+	// Must contain the visible text (before/click here/after).
+	if !strings.Contains(joined, "before") {
+		t.Errorf("'before' missing after strip: %v", lines)
+	}
+	if !strings.Contains(joined, "click here") {
+		t.Errorf("'click here' missing after strip: %v", lines)
+	}
+	if !strings.Contains(joined, "after") {
+		t.Errorf("'after' missing after strip: %v", lines)
+	}
+	// Must NOT contain any ESC bytes (CR-01: ST terminator backslash was leaked).
+	if strings.ContainsAny(joined, "\x1b") {
+		t.Errorf("lines still contain ESC byte: %q", joined)
+	}
+	// Must NOT contain the URL.
+	if strings.Contains(joined, "https://") {
+		t.Errorf("URL not stripped from OSC 8 hyperlink: %q", joined)
+	}
+	// Must NOT contain a stray backslash from the ST terminator.
+	// CR-01: old regex left \x5c (0x5c = '\') as a literal char in the output.
+	if strings.Contains(joined, "\\") {
+		t.Errorf("stray backslash (ST terminator artifact) present after strip: %q", joined)
+	}
+}
+
 // TestGetSessionTailLines_ReturnsLastN: scrollback with 6 lines, n=4 →
 // returns last 4 lines in order.
 func TestGetSessionTailLines_ReturnsLastN(t *testing.T) {

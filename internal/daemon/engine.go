@@ -522,7 +522,22 @@ func (e *SessionEngine) GetSessionStatus(sessionID string) string {
 // (e.g. \x1b]0;title\x07 or \x1b]8;;url\x1b\).
 // Covers the full ANSI vocabulary emitted by Claude Code, opencode, Gemini CLI.
 // Pattern mirrors frontend/src/lib/stripAnsi.ts extended to include OSC.
-var ansiEscape = regexp.MustCompile(`\x1b(?:\[[0-9;?]*[a-zA-Z]|\][^\x07\x1b]*(?:\x07|\x1b\\))`)
+//
+// CR-01 fix: OSC sequences come in two forms:
+//   BEL-terminated:  ESC ] <body> BEL         — [^\x07\x1b]*\x07
+//   ST-terminated:   ESC ] <body> ESC \        — [^\x1b]*\x1b\\
+// The original [^\x07\x1b]* stopped at the first \x1b in both branches,
+// leaving the \x5c (backslash) of the ST terminator as a literal character.
+// The fix uses two separate OSC branches: the BEL branch excludes both BEL and
+// ESC from the body; the ST branch only excludes ESC (BEL in the body is
+// consumed by the BEL branch first via alternation, so no exclusion needed).
+var ansiEscape = regexp.MustCompile(
+	`\x1b(?:` +
+		`\[[0-9;?]*[a-zA-Z]` + // CSI sequences (e.g. \x1b[32m color codes)
+		`|\][^\x07\x1b]*\x07` + // OSC terminated by BEL  (e.g. \x1b]0;title\x07)
+		`|\][^\x1b]*\x1b\\` + // OSC terminated by ST   (e.g. \x1b]8;;url\x1b\)
+		`)`,
+)
 
 // GetSessionTailLines returns the last n plain-text lines from the session's
 // scrollback buffer. Relay framing bytes (0x01 / relay.MsgOutput) and ANSI/OSC
