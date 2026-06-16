@@ -665,7 +665,7 @@ func doFetchSessionsMeta(ctx context.Context, url string, client *http.Client, h
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Old `GetRemoteSessions` — replace or keep alongside?**
    - What we know: `App.tsx:26` imports and `App.tsx:895` calls `GetRemoteSessions`. `App.d.ts:112` declares it.
