@@ -162,8 +162,8 @@ describe('HubPanel', () => {
 
   it('case-insensitively filters sessions by name', () => {
     const sessions = [
-      makeSession({ id: 's1', name: 'My Claude Task', status: 'running', state: 'running' }),
-      makeSession({ id: 's2', name: 'Other Task', status: 'running', state: 'running' }),
+      makeSession({ id: 's1', name: 'My Unique Task', cli: 'opencode', status: 'running', state: 'running' }),
+      makeSession({ id: 's2', name: 'Other Work', cli: 'gemini', status: 'running', state: 'running' }),
     ]
     const { container } = renderPanel({ sessions })
     const searchInput = container.querySelector<HTMLInputElement>('.hub-filter__search')!
@@ -173,7 +173,8 @@ describe('HubPanel', () => {
         window.HTMLInputElement.prototype,
         'value',
       )!.set!
-      nativeInputValueSetter.call(searchInput, 'CLAUDE')
+      nativeInputValueSetter.call(searchInput, 'UNIQUE')
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }))
       searchInput.dispatchEvent(new Event('change', { bubbles: true }))
     })
 
