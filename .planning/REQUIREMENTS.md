@@ -115,19 +115,51 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HUB-01..04 | TBD | Pending |
-| CARD-01..08 | TBD | Pending |
-| GRID-01..07 | TBD | Pending |
-| ATTN-01..06 | TBD | Pending |
-| MODAL-01..06 | TBD | Pending |
-| GROUP-01..04 | TBD | Pending |
-| A11Y-01..04 | TBD | Pending |
+| HUB-01 | Phase 131 | Pending |
+| HUB-02 | Phase 131 | Pending |
+| HUB-03 | Phase 131 | Pending |
+| HUB-04 | Phase 131 | Pending |
+| CARD-01 | Phase 131 | Pending |
+| CARD-02 | Phase 131 | Pending |
+| CARD-03 | Phase 131 | Pending |
+| CARD-04 | Phase 131 | Pending |
+| CARD-05 | Phase 131 | Pending |
+| CARD-06 | Phase 131 | Pending |
+| CARD-07 | Phase 132 | Pending |
+| CARD-08 | Phase 131 | Pending |
+| GRID-01 | Phase 131 | Pending |
+| GRID-02 | Phase 131 | Pending |
+| GRID-03 | Phase 132 | Pending |
+| GRID-04 | Phase 131 | Pending |
+| GRID-05 | Phase 131 | Pending |
+| GRID-06 | Phase 131 | Pending |
+| GRID-07 | Phase 132 | Pending |
+| ATTN-01 | Phase 133 | Pending |
+| ATTN-02 | Phase 133 | Pending |
+| ATTN-03 | Phase 133 | Pending |
+| ATTN-04 | Phase 133 | Pending |
+| ATTN-05 | Phase 133 | Pending |
+| ATTN-06 | Phase 133 | Pending |
+| MODAL-01 | Phase 134 | Pending |
+| MODAL-02 | Phase 134 | Pending |
+| MODAL-03 | Phase 134 | Pending |
+| MODAL-04 | Phase 134 | Pending |
+| MODAL-05 | Phase 134 | Pending |
+| MODAL-06 | Phase 134 | Pending |
+| GROUP-01 | Phase 132 | Pending |
+| GROUP-02 | Phase 132 | Pending |
+| GROUP-03 | Phase 132 | Pending |
+| GROUP-04 | Phase 132 | Pending |
+| A11Y-01 | Phase 135 | Pending |
+| A11Y-02 | Phase 135 | Pending |
+| A11Y-03 | Phase 135 | Pending |
+| A11Y-04 | Phase 135 | Pending |
 
 **Coverage:**
 - v3.6 requirements: 39 total (HUB ×4, CARD ×8, GRID ×7, ATTN ×6, MODAL ×6, GROUP ×4, A11Y ×4)
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 39 ⚠️ (resolved by roadmapper)
+- Mapped to phases: 39/39 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-16*
-*Last updated: 2026-06-16 after initial v3.6 definition*
+*Last updated: 2026-06-16 — traceability table populated by roadmapper*

@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.6
-milestone_name: Hub (Session Grid)
+milestone_name: Hub (Session Grid / Control Room)
 status: planning
-last_updated: "2026-06-16T16:39:50.222Z"
+last_updated: "2026-06-16T00:00:00.000Z"
 last_activity: 2026-06-16
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Milestone complete
+**Current focus:** v3.6 Hub (Session Grid / Control Room) — Phase 131 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 131 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-16 — Milestone v3.6 started
+Status: Roadmap complete; ready for /gsd:plan-phase 131
+Last activity: 2026-06-16 — v3.6 roadmap created (Phases 131-135)
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -45,14 +45,17 @@ Last activity: 2026-06-16 — Milestone v3.6 started
 - v3.5 commits: 238
 - v3.5 timeline: 2026-06-14 → 2026-06-15 (2 days)
 - v3.5 source changes: ~14.9K source LOC added across 86 files (excluding `.planning/`)
-- Cumulative: 25 milestones shipped (v1.0–v3.5), 128 phases, ~260 plans
+- v3.5.1 phases: 2 (Phases 129-130)
+- v3.5.1 plans: 7/7
+- v3.5.1 timeline: 2026-06-16 (1 day)
+- Cumulative: 26 milestones shipped (v1.0–v3.5.1), 130 phases, ~267 plans
 
 ## Session Continuity
 
-Last session: 2026-06-16T06:03:19.577Z
-Stopped at: Completed 130-03-PLAN.md
+Last session: 2026-06-16 — roadmap creation
+Stopped at: Roadmap written; requirements traceability populated
 Resume file: None
-Next action: Execute plan 130-04 (frontend rewire)
+Next action: /gsd:plan-phase 131
 
 ## Deferred Items
 
@@ -66,27 +69,38 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | manual_uat | Phase 126 `$EDITOR` suspend-resume terminal restore | pending (live app required) |
 | manual_uat | Phase 124 home-dir warning banner on-screen | pending (live app required) |
 | deferred_issue | #82 TUI Files upload parity | deferred to a later milestone (formally descoped Phase 126) |
+| deferred_issue | #82 TUI Hub parity (attention + float-to-top + named groups) | signed-off deferral — not a silent gap |
 | bookkeeping | Nyquist frontmatter `nyquist_compliant:false` on Phases 123/125/126/127 | advisory; tests green |
-| Phase 129-write-concurrency-fix-dns-error-ux P01 | 4m | 3 tasks | 3 files |
-| Phase 130-remote-browse-gui-on-ramp P01 | 20 | 3 tasks | 4 files |
-| Phase 130 P03 | 20 | 3 tasks | 4 files |
-| Phase 130-remote-browse-gui-on-ramp P04 | 15 | 2 tasks | 5 files |
 
-## v3.5.1 Phase Plan
+## v3.6 Phase Plan
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 129 | Write Concurrency Fix + DNS Error UX | RACE-01..03, DNS-01..03 (6) | Not started |
-| 130 | Remote Browse GUI On-Ramp | RB-01..05 (5) | Not started |
+| 131 | Hub Foundation + Static Session Cards | HUB-01..04, CARD-01..06, CARD-08, GRID-01..02, GRID-04..06 (17) | Not started |
+| 132 | Unified Grid + Mini Preview + Named Groups | CARD-07, GRID-03, GRID-07, GROUP-01..04 (7) | Not started |
+| 133 | Attention + Pulse | ATTN-01..06 (6) | Not started |
+| 134 | Modal Interaction | MODAL-01..06 (6) | Not started |
+| 135 | Accessibility Hardening | A11Y-01..04 (4) | Not started |
 
-## Key Decisions (v3.5.1)
+**Total:** 40 requirements mapped across 5 phases (39 v3.6 reqs; 100% coverage)
+
+## Key Decisions (v3.6)
 
 | Decision | Resolution |
 |----------|------------|
-| #87 If-Match concurrency contract | RESOLVED 2026-06-15 → **(a) per-path lock for true single-winner guarantee**. Serialize writes per path; loser gets a clean 412/conflict. Matches standard If-Match optimistic-concurrency semantics. Code, comments, and remote-write proxy must all assert single-winner (RACE-02). |
-| #86 remote-browse architecture | RESOLVED 2026-06-15 → **(a) tailnet-trusted metadata-only discovery endpoint**. Returns shareable-session metadata to tailnet-trusted callers; content/caps stay locked (preserves Phase 87/88 no-enumeration model, RB-03). Satisfies RB-01 (see sessions) + RB-04 (honest states). |
-| 130-03: FetchPeerSessionsMetaWithClient | Added alongside FetchPeerSessionsMeta for httptest TLS bypass — mirrors FetchPeerSessionsWithClient pattern; tests updated to use WithClient where httptest cert trust is required |
-| 130-03: GetRemoteSessions retained | Not deleted during plan-03; plan-04 frontend rewire will swap the App.tsx callsite to GetRemoteSessionsWithMeta |
+| Mini preview implementation | Throttled snapshot of session's recent output tail — NEVER a live xterm per card. Performance constraint is known and non-negotiable (CARD-07). |
+| Briefing modal data source | Driven by real terminal tail (actual prompt the agent printed). Structured "agent suggests options" multi-select from #78 deferred to #93 — agents don't emit that data today. |
+| Remote modal interaction | Reuses locked Phase 122 design (daemon proxy + join-code exchange). No new remote-access architecture (MODAL-06). |
+| TUI Hub parity | Explicitly deferred to issue #82 with user sign-off. Cross-surface parity contract remains; this is a documented deferral. |
+| A11Y phase placement | Dedicated Phase 135 hardening phase validates the full surface end-to-end. Colorblind-safe constraint (user is colorblind) is release-blocking — verified at source level (hex constants), not by eye. |
+| Group membership key | Session name + working directory. Survives session-id churn across restarts; unmatched sessions fall to a default lane (GROUP-04). |
+
+## v3.5.1 Completed (for reference)
+
+| Phase | Plan | Status | Notes |
+|-------|------|--------|-------|
+| 129 | 01..03 | Complete 2026-06-16 | Write concurrency fix + DNS error UX (RACE-01..03, DNS-01..03) |
+| 130 | 01..04 | Complete 2026-06-16 | Remote browse GUI on-ramp (RB-01..05) |
 
 ## Already-Fixed Prerequisites (do not re-scope)
 
@@ -96,18 +110,6 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | Discovery probe rejected cap-protected peers (#84) | `3508bd7` | FIXED — proven live |
 | Share-link scope relabel (#24 UX) | `e45ccba` | FIXED |
 
-## v3.5 Plan Execution Log
-
-| Phase | Plan | Status | Notes |
-|-------|------|--------|-------|
-| 123 | 01..04 | Complete 2026-06-14 | Write primitives + denylist + daemon routes (FSW-01..12) |
-| 124 | 01..05 | Complete 2026-06-14 | files.write cap + requireFilesWrite + CSRF + schemaV4 (CAP-01..10) |
-| 125 | 01..06 | Complete 2026-06-14 | CodeMirror 6 editor + 51/51 cross-browser e2e (EDIT-01..13) |
-| 126 | 01..04 | Complete 2026-06-15 | $EDITOR shell-out + d/r/m + 8-method interface (TUIW-01..07) |
-| 127 | 01..04 | Complete 2026-06-15 | Security hardening audit (SEC-01..07) |
-| 128 | 01..04 | Complete 2026-06-15 | Remote write parity + 3-observer proof (RMW-01..06) |
-| UAT | Two-machine tailnet (RMW-06) | EXECUTED 2026-06-15 | Data path proven live; 4-layer GUI on-ramp breakage discovered; layers 1+3 fixed; layer 4 (#86) → Phase 130 |
-
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd:plan-phase 131` to begin Phase 131 planning
