@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1572,5 +1573,138 @@ func TestListSessions_WorkDir_EmptyForUnknown(t *testing.T) {
 	}
 	if si.WorkDir != "" {
 		t.Errorf("WorkDir = %q, want empty string for session with no sessionWorkDirs entry", si.WorkDir)
+	}
+}
+
+// ========================================================================
+// Phase 132 Plan 01 — GetSessionTailLines unit tests (CARD-07).
+//
+// These tests verify the engine method strips relay framing bytes (0x01)
+// and ANSI/OSC escape sequences, returns the last N lines, trims trailing
+// empty lines, and returns nil for unknown sessions.
+//
+// Hub setup: each test creates a hub via e.manager.Create with an io.Pipe.
+// The writer end receives raw text; hub.Run() frames it with MakeOutputFrame
+// (prepends 0x01), stores the result in the scrollback, then the pipe is
+// closed so Run() exits cleanly.
+// ========================================================================
+
+// makeTailHub creates a hub for the given session ID in the engine's manager,
+// writes rawContent as PTY output (hub.Run frames it as [0x01 | payload]),
+// closes the pipe, and waits for the Run goroutine to finish draining.
+func makeTailHub(t *testing.T, e *SessionEngine, sessionID, rawContent string) {
+	t.Helper()
+	pr, pw := io.Pipe()
+	hub := e.manager.Create(sessionID, pr, pw, nil)
+	// Write content and close so hub.Run returns after processing.
+	_, err := pw.Write([]byte(rawContent))
+	if err != nil {
+		t.Fatalf("makeTailHub write: %v", err)
+	}
+	pw.Close()
+	// Wait for hub.Run to finish draining the reader.
+	<-hub.Done()
+}
+
+// TestGetSessionTailLines_StripsFramingBytes: scrollback containing 0x01 framing
+// bytes → returned lines contain no 0x01 byte.
+func TestGetSessionTailLines_StripsFramingBytes(t *testing.T) {
+	e := NewSessionEngine()
+	makeTailHub(t, e, "framing-test", "hello world\n")
+
+	lines := e.GetSessionTailLines("framing-test", 10)
+	if lines == nil {
+		t.Fatal("GetSessionTailLines returned nil, expected lines")
+	}
+	for _, line := range lines {
+		for _, b := range []byte(line) {
+			if b == relay.MsgOutput {
+				t.Errorf("line %q contains 0x01 framing byte", line)
+			}
+		}
+	}
+	// Verify content is present.
+	found := false
+	for _, line := range lines {
+		if strings.Contains(line, "hello world") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected 'hello world' in lines, got: %v", lines)
+	}
+}
+
+// TestGetSessionTailLines_StripsANSI: scrollback containing CSI and OSC sequences
+// → returned lines contain no escape artifacts.
+func TestGetSessionTailLines_StripsANSI(t *testing.T) {
+	e := NewSessionEngine()
+	// CSI color sequence + OSC title-setting sequence.
+	content := "\x1b[32mgreen text\x1b[0m\n\x1b]0;title\x07\nplain line\n"
+	makeTailHub(t, e, "ansi-test", content)
+
+	lines := e.GetSessionTailLines("ansi-test", 10)
+	if lines == nil {
+		t.Fatal("GetSessionTailLines returned nil")
+	}
+	joined := strings.Join(lines, "\n")
+	// Must not contain CSI artifact.
+	if strings.Contains(joined, "[32m") || strings.Contains(joined, "\x1b") {
+		t.Errorf("lines still contain ANSI artifacts: %v", lines)
+	}
+	// Must not contain OSC artifact.
+	if strings.Contains(joined, "]0;") {
+		t.Errorf("lines still contain OSC artifacts: %v", lines)
+	}
+	// Readable text must survive.
+	if !strings.Contains(joined, "green text") {
+		t.Errorf("'green text' missing after strip: %v", lines)
+	}
+}
+
+// TestGetSessionTailLines_ReturnsLastN: scrollback with 6 lines, n=4 →
+// returns last 4 lines in order.
+func TestGetSessionTailLines_ReturnsLastN(t *testing.T) {
+	e := NewSessionEngine()
+	content := "line1\nline2\nline3\nline4\nline5\nline6\n"
+	makeTailHub(t, e, "lastn-test", content)
+
+	lines := e.GetSessionTailLines("lastn-test", 4)
+	if len(lines) != 4 {
+		t.Fatalf("expected 4 lines, got %d: %v", len(lines), lines)
+	}
+	want := []string{"line3", "line4", "line5", "line6"}
+	for i, w := range want {
+		if lines[i] != w {
+			t.Errorf("lines[%d] = %q, want %q", i, lines[i], w)
+		}
+	}
+}
+
+// TestGetSessionTailLines_TrimsTrailingEmptyLines: trailing blank lines are
+// removed before taking the last N.
+func TestGetSessionTailLines_TrimsTrailingEmptyLines(t *testing.T) {
+	e := NewSessionEngine()
+	// content ends with several blank lines.
+	content := "alpha\nbeta\n\n\n\n"
+	makeTailHub(t, e, "trim-test", content)
+
+	lines := e.GetSessionTailLines("trim-test", 10)
+	if len(lines) == 0 {
+		t.Fatal("expected non-empty lines after trim")
+	}
+	last := lines[len(lines)-1]
+	if strings.TrimSpace(last) == "" {
+		t.Errorf("trailing empty line not trimmed; last line = %q, all lines: %v", last, lines)
+	}
+}
+
+// TestGetSessionTailLines_UnknownSession: manager.Get returns false →
+// method returns nil.
+func TestGetSessionTailLines_UnknownSession(t *testing.T) {
+	e := NewSessionEngine()
+	result := e.GetSessionTailLines("nonexistent-session-id", 4)
+	if result != nil {
+		t.Errorf("expected nil for unknown session, got: %v", result)
 	}
 }
