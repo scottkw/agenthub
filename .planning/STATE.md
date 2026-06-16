@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
-status: milestone_complete
-stopped_at: Milestone complete (Phase 129 was final phase)
-last_updated: 2026-06-16T04:27:51.568Z
+status: executing
+stopped_at: v3.5.1 roadmap created
+last_updated: "2026-06-16T05:09:40.616Z"
 last_activity: 2026-06-16
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_plans: 7
+  completed_plans: 4
+  percent: 50
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Milestone complete
+**Current focus:** Phase 130 — remote-browse-gui-on-ramp
 
 ## Current Position
 
-Phase: 129
-Plan: Not started
-Status: Milestone complete
+Phase: 130 (remote-browse-gui-on-ramp) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-06-16
 
 ## Operator Next Steps (pre-release, carry-forward)
@@ -50,7 +50,7 @@ Last activity: 2026-06-16
 
 ## Session Continuity
 
-Last session: 2026-06-16T00:13:42.885Z
+Last session: 2026-06-16T05:09:40.612Z
 Stopped at: v3.5.1 roadmap created
 Resume file: None
 Next action: `/gsd:plan-phase 129`
@@ -69,6 +69,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | deferred_issue | #82 TUI Files upload parity | deferred to a later milestone (formally descoped Phase 126) |
 | bookkeeping | Nyquist frontmatter `nyquist_compliant:false` on Phases 123/125/126/127 | advisory; tests green |
 | Phase 129-write-concurrency-fix-dns-error-ux P01 | 4m | 3 tasks | 3 files |
+| Phase 130-remote-browse-gui-on-ramp P01 | 20 | 3 tasks | 4 files |
 
 ## v3.5.1 Phase Plan
 
