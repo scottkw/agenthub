@@ -1,7 +1,8 @@
 ---
 phase: 130
 slug: remote-browse-gui-on-ramp
-status: draft
+status: approved
+reviewed_at: 2026-06-15
 shadcn_initialized: false
 preset: none
 created: 2026-06-15
@@ -48,9 +49,10 @@ existing rule measurements in `style.css`.
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: none.
+Exceptions (justified — reuse of established design-system tokens, NOT new values):
+- **Badge padding `2px 8px`** and **`border-radius: 3px`** on `.remote-panel__peer-unreachable` deliberately reuse the app-wide badge/tag convention already defined in `style.css` (e.g. lines 1449–1451, 1458–1460, 1638–1640 all use `padding: 2px 8px`). The 2px vertical badge padding is the existing codebase standard for inline badges; using `4px` here would make the unreachable badge inconsistent with every other badge in the app. Design-system consistency takes precedence over the generic 4-point heuristic for this established token.
 
-> Source: existing `.remote-panel` rules in `style.css` lines 1515–1693.
+> Source: existing `.remote-panel` rules in `style.css` lines 1515–1693; existing badge padding `2px 8px` at lines 1449–1460, 1638–1640.
 
 ---
 
@@ -233,6 +235,13 @@ files are created unless required by scope.
 The Remote Sessions panel layout is unchanged from Phase 52. Phase 130 adds
 sub-states within the existing per-peer section, not new layout regions.
 
+**Primary focal point (populated state):** the session rows and their action
+buttons — specifically the **"Open Session" / "Browse Files"** CTAs on each
+discovered session row are the dominant interactive elements that draw the eye
+first. Peer headers and meta/state text are secondary; empty/unreachable/error
+sub-states are tertiary. The eye should land on actionable session rows when a
+reachable peer has shareable sessions.
+
 ```
 .remote-panel                          (padding: 24px, overflow-y: auto)
   └── .remote-panel__peer              (margin-bottom: 20px, per peer)
@@ -294,7 +303,7 @@ These new BEM classes extend `style.css`. All hex values reuse existing tokens.
 }
 
 .remote-panel__peer-empty-sessions-body {
-  font-size: 12px;
+  font-size: 13px;          /* existing body/session-name size — no new size */
   color: #9aa5ce;
   line-height: 1.5;
 }
