@@ -43,6 +43,13 @@ type SessionInfo struct {
 	// Phase 124 / CAP-04: true when the per-session owner write toggle is ON.
 	// Single server-side source of truth for cross-surface write parity.
 	FilesWrite bool `json:"filesWrite"`
+	// Phase 131 — Hub card fields (CARD-04, CARD-05, CARD-06, GRID-02).
+	// Omitting any of these silently drops them to zero in the Wails RPC
+	// response — same class of UAT bug documented on HomeDir above.
+	ViewerCount int    `json:"viewerCount"`
+	ExitCode    *int   `json:"exitCode,omitempty"`
+	Duration    *int   `json:"duration,omitempty"`
+	WorkDir     string `json:"workDir"`
 }
 
 // RemoteSession is a session on a remote tailnet peer.
@@ -366,6 +373,13 @@ func (a *App) ListSessions() []SessionInfo {
 			// false and the banner never fired (UAT finding).
 			HomeDir:    s.HomeDir,
 			FilesWrite: s.FilesWrite,
+			// Phase 131 / CARD-04..06, GRID-02: propagate Hub card fields from
+			// daemon source of truth. Omitting these silently drops them to zero
+			// — the same class of silent-corruption bug documented on HomeDir above.
+			ViewerCount: s.ViewerCount,
+			ExitCode:    s.ExitCode,
+			Duration:    s.Duration,
+			WorkDir:     s.WorkDir,
 		}
 	}
 	return result

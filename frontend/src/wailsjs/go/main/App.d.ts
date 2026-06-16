@@ -19,6 +19,8 @@ export interface SessionInfo {
   homeDir: boolean
   /** Phase 124 / CAP-04: true when the per-session owner write toggle is ON. Server-side source of truth for cross-surface parity. */
   filesWrite: boolean
+  /** Phase 131 / GRID-02: EvalSymlinks-resolved session working directory. Used by the Hub to group session cards by working directory. */
+  workDir: string
 }
 
 export interface DetectedCLI {
