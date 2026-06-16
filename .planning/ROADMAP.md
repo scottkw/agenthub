@@ -351,11 +351,15 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. Remote panel states are honest: a reachable peer with shareable sessions is never shown as "No remote peers found"; genuinely empty or unreachable peers surface a correct empty/error state
   5. A relay-surface regression test covers the discover→list→pick path via the relay loopback (`internal/relay/server_files_test.go` or `internal/daemon/relay_remote_files_test.go`), guarding against v3.5-class blind spots where only the webserver/fixture surface was tested
 
-**Design decision (resolve at discuss/plan time before implementation):** #86 remote-browse architecture — (a) tailnet-trusted metadata-only discovery endpoint; (b) list peers + join-code/URL per session, stop dropping empty-list peers; (c) keep enumeration locked, reframe as paste-join-code-only. Must be resolved in a design pass before implementation. Not pre-decided here.
+**Design decision (RESOLVED at plan time, 2026-06-15):** #86 remote-browse architecture → **(a) tailnet-trusted metadata-only discovery endpoint**. A new open `GET /api/sessions/meta` on the webserver (bound to the Tailscale `100.x` IP → tailnet-trusted by network layer) returns shareable-session metadata only (id, name, cli_type, status, url) — never caps, grants, or content (preserves the Phase 87/88 no-enumeration model, RB-03). The tailnet fetch path stops silently dropping reachable-but-empty peers (RB-01/RB-04). The pick flow reuses the existing Phase 122 join-code cap → FileBrowserTab handoff (no new cap flow).
 
 **UI hint**: yes
 
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 130-01-PLAN.md — Wave 0 backend failing tests: /api/sessions/meta contract (RB-01/RB-03), FetchAllPeerSessionsMeta no-drop (RB-01), GetRemoteSessionsWithMeta Reachable field, and the release-blocking RB-05 relay-surface discover→pick→browse test (all RED first)
+- [ ] 130-02-PLAN.md — Wave 0 frontend failing tests: RemoteSessionsPanel honest per-peer states (Unreachable / No shareable sessions / never false "No remote peers found") + "Shows shareable sessions" copy update (RB-04, RED first)
+- [ ] 130-03-PLAN.md — Backend impl: open /api/sessions/meta endpoint, FetchPeerSessionsMeta/FetchAllPeerSessionsMeta, GetRemoteSessionsWithMeta RPC + Reachable field (RB-01/RB-03/RB-05 green)
+- [ ] 130-04-PLAN.md — Frontend impl: per-peer honest-state rendering + CSS, wire GetRemoteSessionsWithMeta, preserve Phase 122 pick flow (RB-01/RB-02/RB-04 green)
 
 ---
 
@@ -404,7 +408,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
-| 130 | v3.5.1 | 0/TBD | Not started | - |
+| 130 | v3.5.1 | 0/4 | Planned | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
