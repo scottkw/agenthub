@@ -51,6 +51,7 @@ import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
 import { HubPanel } from './components/Hub/HubPanel'
 import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
+import { adaptAllRemoteSessions } from './lib/remoteAdapter'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
@@ -932,7 +933,7 @@ function App(): React.ReactElement {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
-    if (activeId !== REMOTE_SESSIONS_TAB.id) return
+    if (activeId !== REMOTE_SESSIONS_TAB.id && activeId !== HUB_TAB.id) return
     let cancelled = false
     async function refresh() {
       if (!remoteHasLoadedRef.current) setRemoteLoading(true)
@@ -1359,6 +1360,8 @@ function App(): React.ReactElement {
             onNewSession={() => setShowNewSessionModal(true)}
             onRename={handleRenameTab}
             onOpenSession={handleOpenSessionTab}
+            remoteSessions={adaptAllRemoteSessions(remotePeers)}
+            isActive={activeId === HUB_TAB.id}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
