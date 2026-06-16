@@ -1108,7 +1108,12 @@ func (a *App) GetRemoteSessions() []RemotePeerSessions {
 				URL:     s.URL,
 			})
 		}
-		results = append(results, RemotePeerSessions{Hostname: g.Hostname, Sessions: sessions})
+		// Every group returned by FetchAllPeerSessions answered the cap-gated
+		// probe, so it is reachable by definition. Set Reachable=true explicitly
+		// to match the RemotePeerSessions semantics of GetRemoteSessionsWithMeta
+		// (WR-04: leaving it defaulted to false mislabels reachable peers as
+		// "Unreachable" in RemoteSessionsPanel for any future caller).
+		results = append(results, RemotePeerSessions{Hostname: g.Hostname, Reachable: true, Sessions: sessions})
 	}
 	return results
 }
