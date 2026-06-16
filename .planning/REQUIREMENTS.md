@@ -43,7 +43,7 @@
 - [x] **GRID-04**: A status filter bar (All / Working / Needs input / Complete / Error / Idle) filters cards with live counts
 - [x] **GRID-05**: A functional search field filters cards by name/CLI/host, activated by the `/` shortcut
 - [x] **GRID-06**: A "New session" action on the Hub opens the existing create flow
-- [ ] **GRID-07**: The grid includes both local daemon sessions and remote tailnet/web-shared peer sessions in one unified view
+- [x] **GRID-07**: The grid includes both local daemon sessions and remote tailnet/web-shared peer sessions in one unified view
 
 ### Attention (ATTN)
 
@@ -65,10 +65,10 @@
 
 ### Named Groups (GROUP)
 
-- [ ] **GROUP-01**: User can create named groups
+- [x] **GROUP-01**: User can create named groups
 - [ ] **GROUP-02**: User can assign cards to a group via drag-and-drop or a per-card "move to group" affordance
-- [ ] **GROUP-03**: Group definitions and membership persist locally (localStorage, consistent with existing layout-state persistence)
-- [ ] **GROUP-04**: Group membership keys off session name (+ working directory) so it survives session-id churn across restarts; unmatched sessions fall to a default lane for manual reassignment
+- [x] **GROUP-03**: Group definitions and membership persist locally (localStorage, consistent with existing layout-state persistence)
+- [x] **GROUP-04**: Group membership keys off session name (+ working directory) so it survives session-id churn across restarts; unmatched sessions fall to a default lane for manual reassignment
 
 ### Accessibility (A11Y)
 
@@ -133,7 +133,7 @@ Populated during roadmap creation.
 | GRID-04 | Phase 131 | Complete |
 | GRID-05 | Phase 131 | Complete |
 | GRID-06 | Phase 131 | Complete |
-| GRID-07 | Phase 132 | Pending |
+| GRID-07 | Phase 132 | Complete |
 | ATTN-01 | Phase 133 | Pending |
 | ATTN-02 | Phase 133 | Pending |
 | ATTN-03 | Phase 133 | Pending |
@@ -146,10 +146,10 @@ Populated during roadmap creation.
 | MODAL-04 | Phase 134 | Pending |
 | MODAL-05 | Phase 134 | Pending |
 | MODAL-06 | Phase 134 | Pending |
-| GROUP-01 | Phase 132 | Pending |
+| GROUP-01 | Phase 132 | Complete |
 | GROUP-02 | Phase 132 | Pending |
-| GROUP-03 | Phase 132 | Pending |
-| GROUP-04 | Phase 132 | Pending |
+| GROUP-03 | Phase 132 | Complete |
+| GROUP-04 | Phase 132 | Complete |
 | A11Y-01 | Phase 135 | Pending |
 | A11Y-02 | Phase 135 | Pending |
 | A11Y-03 | Phase 135 | Pending |
