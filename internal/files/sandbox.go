@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -71,6 +72,32 @@ var ErrProtectedSystemFile = errors.New("files: protected system file")
 // no longer matches immediately before the rename. This narrows the TOCTOU
 // window to stat→rename (CR-01 fix). The HTTP handler maps this to 412.
 var ErrPreconditionFailed = errors.New("files: precondition failed: file modified by another process")
+
+// pathLocks serializes concurrent writers to the same absolute path.
+//
+// Key: absolute path string (filepath.Join(sandbox.rootPath, cleaned)).
+// Value: *sync.Mutex allocated on first use for that path.
+//
+// Design notes:
+//   - Package-level (not a Sandbox field) because Sandbox is per-request/
+//     stateless — a struct field would be reconstructed on every call and
+//     afford no cross-call serialization.
+//   - Entries are never pruned. Each entry is a single *sync.Mutex pointer
+//     (~8 bytes on 64-bit). Growth is bounded by the finite number of distinct
+//     absolute paths ever written in the process lifetime — negligible vs.
+//     process memory (T-129-04 accepted, RESEARCH §Pattern 1).
+//   - Lock key is the absolute path (not the relative cleaned path) so two
+//     Sandbox instances rooted at different directories writing a file with the
+//     same relative name do NOT contend with each other.
+var pathLocks sync.Map
+
+// perPathLock returns the canonical *sync.Mutex for absPath. If no mutex
+// exists yet it atomically stores a new one. Concurrent callers for the same
+// path always get the same mutex (LoadOrStore guarantees this).
+func perPathLock(absPath string) *sync.Mutex {
+	v, _ := pathLocks.LoadOrStore(absPath, &sync.Mutex{})
+	return v.(*sync.Mutex)
+}
 
 // denylistCheck returns ErrProtectedSystemFile if the write target
 // (identified by the cleaned relative path) resolves to a sensitive file
@@ -226,15 +253,17 @@ func (s *Sandbox) Stat(relPath string) (os.FileInfo, error) {
 // never observes an empty or partial file because the old inode is visible
 // until the rename completes (FSW-01, RESEARCH §Pattern 1).
 //
-// expectedValidator, when non-empty and not "*", enables CR-01 TOCTOU
-// mitigation: the validator (mtime-UnixNano + size, quoted) is re-checked
-// immediately before root.Rename. If the on-disk value no longer matches,
-// ErrPreconditionFailed is returned and the temp file is removed. This
-// narrows the optimistic-concurrency check window to stat→rename, the
-// minimum achievable without OS-level atomic-compare-and-swap. A residual
-// window (stat fires → another writer lands → rename executes) exists but
-// is microscopic on a local filesystem; it cannot be eliminated without
-// kernel support (e.g. renameat2 RENAME_NOREPLACE is not sufficient here).
+// expectedValidator, when non-empty and not "*", provides a single-winner
+// concurrency guarantee (RACE-01/RACE-03): the validator (mtime-UnixNano +
+// size, quoted) is re-checked immediately before root.Rename while a
+// package-level per-path mutex is held across the entire temp-create →
+// stat-check → rename window. Two goroutines racing to write the same path
+// with the same stale validator are serialized: the loser acquires the lock
+// only after the winner's rename completes, finds the on-disk validator
+// changed, and returns ErrPreconditionFailed. This gives a deterministic
+// TRUE single-winner guarantee — not last-writer-wins. The lock is
+// per-path (not global) so concurrent writers to DIFFERENT paths do not
+// serialize against each other (T-129-04).
 //
 // The temp file is a sibling of the target (same directory) so the rename
 // is intra-filesystem and atomic. The suffix uses crypto/rand to make name
@@ -255,6 +284,16 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte, expectedValida
 	if err := s.denylistCheck(cleaned); err != nil { // FSW-06
 		return err
 	}
+
+	// Acquire the per-path lock BEFORE os.OpenRoot so the entire temp-create →
+	// stat-check → rename window is inside the critical section (RACE-01).
+	// Lock key = absolute path so two Sandbox roots with the same relative path
+	// do not contend. defer Unlock() fires on every early-return error path too.
+	lockKey := filepath.Join(s.rootPath, cleaned)
+	mu := perPathLock(lockKey)
+	mu.Lock()
+	defer mu.Unlock()
+
 	root, err := os.OpenRoot(s.rootPath)
 	if err != nil {
 		return fmt.Errorf("files: open root: %w", err)
@@ -290,8 +329,10 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte, expectedValida
 	}
 
 	// CR-01 TOCTOU mitigation: re-check the validator immediately before the
-	// rename to narrow the optimistic-concurrency window to stat→rename.
-	// A residual (microscopic) window remains — see WriteFileAtomic doc comment.
+	// rename. The per-path mutex (acquired above) ensures this check and the
+	// rename are atomic with respect to other WriteFileAtomic callers on the
+	// same path — the second writer sees the updated validator and returns
+	// ErrPreconditionFailed (single-winner guarantee, RACE-01).
 	validator := ""
 	if len(expectedValidator) > 0 {
 		validator = expectedValidator[0]
