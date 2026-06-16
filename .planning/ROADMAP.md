@@ -375,14 +375,14 @@ Plans:
   4. User can create a named group and assign cards to it via drag-and-drop or a per-card "move to group" affordance; group definitions persist in localStorage across app restarts
   5. Group membership survives session-id churn: a session that restarts with the same name and working directory is re-matched to its group automatically; unmatched sessions appear in a default lane
 
-**Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
+**Plans**: 5 plans across 4 waves (Wave 1: backend tail RPC + frontend libs in parallel; Wave 2: new components; Wave 3: card extensions; Wave 4: integration + CSS)
 Plans:
 
-- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
-- [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
-- [x] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
-- [x] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+- [ ] 132-01-PLAN.md — Wave 1: GetSessionTailLines Go RPC (daemon route + client + app.go + App.d.ts; strip 0x01 framing + ANSI from scrollback) — CARD-07 backend
+- [ ] 132-02-PLAN.md — Wave 1: hubGroups.ts (CRUD + localStorage + memberKey) + remoteAdapter.ts (adaptRemoteSession) — GROUP-01/03/04, GRID-07
+- [ ] 132-03-PLAN.md — Wave 2: MiniPreview (plain-text snapshot, no xterm) + GroupSidebar (counts + needs-input badge + create + drop) — CARD-07, GRID-03, GROUP-01/02
+- [ ] 132-04-PLAN.md — Wave 3: SessionCard (ROW 6 preview + drag source + group menu) + SessionCardGrid (named grouping + Other fallback) — CARD-07, GROUP-02/04
+- [ ] 132-05-PLAN.md — Wave 4: HubPanel (usePreviewPoller + group state + remote merge) + App.tsx (remote poll gate) + CSS — CARD-07, GRID-03, GRID-07
 
 **UI hint**: yes
 
