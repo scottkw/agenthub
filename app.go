@@ -55,9 +55,13 @@ type RemoteSession struct {
 }
 
 // RemotePeerSessions groups sessions by peer hostname.
+// Reachable discriminates unreachable peers (Reachable=false) from reachable
+// peers with zero shareable sessions (Reachable=true, len(Sessions)==0), enabling
+// honest per-peer states in the Remote Sessions panel (RB-04).
 type RemotePeerSessions struct {
-	Hostname string          `json:"hostname"`
-	Sessions []RemoteSession `json:"sessions"`
+	Hostname  string          `json:"hostname"`
+	Reachable bool            `json:"reachable"`
+	Sessions  []RemoteSession `json:"sessions"`
 }
 
 // App holds all application state and exposes the Wails-bound methods.
@@ -1105,6 +1109,49 @@ func (a *App) GetRemoteSessions() []RemotePeerSessions {
 			})
 		}
 		results = append(results, RemotePeerSessions{Hostname: g.Hostname, Sessions: sessions})
+	}
+	return results
+}
+
+// GetRemoteSessionsWithMeta discovers tailnet peers and fetches their shareable-session
+// metadata via the open /api/sessions/meta endpoint (no cap required). Returns ALL
+// probed peers including unreachable ones (Reachable=false) and peers with zero
+// shareable sessions (Reachable=true, len(Sessions)==0) — enabling honest per-peer
+// states in the Remote Sessions panel (RB-01, RB-04).
+//
+// This RPC uses the new tailnet metadata path (FetchAllPeerSessionsMeta) that never
+// silently drops peers, unlike the cap-gated GetRemoteSessions path. GetRemoteSessions
+// is retained for backward compatibility during the plan-04 frontend rewire.
+func (a *App) GetRemoteSessionsWithMeta() []RemotePeerSessions {
+	if a.client == nil {
+		return []RemotePeerSessions{}
+	}
+	peers, err := a.client.ListTailnetPeers()
+	if err != nil || len(peers) == 0 {
+		return []RemotePeerSessions{}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	groups := tailnet.FetchAllPeerSessionsMeta(ctx, peers)
+
+	results := make([]RemotePeerSessions, 0, len(groups))
+	for _, g := range groups {
+		sessions := make([]RemoteSession, 0, len(g.Sessions))
+		for _, s := range g.Sessions {
+			sessions = append(sessions, RemoteSession{
+				ID:      s.ID,
+				Name:    s.Name,
+				CLIType: s.CLIType,
+				Status:  s.Status,
+				URL:     s.URL,
+			})
+		}
+		results = append(results, RemotePeerSessions{
+			Hostname:  g.Hostname,
+			Reachable: g.Reachable,
+			Sessions:  sessions,
+		})
 	}
 	return results
 }
