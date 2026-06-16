@@ -403,7 +403,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 129 | v3.5.1 | 3/3 | Complete   | 2026-06-16 |
+| 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 0/TBD | Not started | - |
 
 ---
