@@ -72,7 +72,7 @@ export interface HubFilterBarProps {
   /** The current search text (controlled by parent). */
   searchText: string
   /** Ref forwarded to the search input — parent uses this for the "/" shortcut. */
-  searchRef: React.RefObject<HTMLInputElement>
+  searchRef: React.RefObject<HTMLInputElement | null>
   /** Fired when the user clicks a filter pill. */
   onFilterChange: (filter: HubFilter) => void
   /** Fired when the search text changes (including Escape → ''). */

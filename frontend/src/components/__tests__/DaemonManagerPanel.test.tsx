@@ -25,7 +25,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   GetCapabilityQRCode: vi.fn().mockResolvedValue(''),
 }))
 
-// SessionInfo type matching wailsjs/go/main/App.d.ts (Phase 124 / CAP-04 / CAP-06 fields included)
+// SessionInfo type matching wailsjs/go/main/App.d.ts (Phase 131 / GRID-02 workDir added)
 interface SessionInfo {
   id: string
   cli: string
@@ -40,11 +40,12 @@ interface SessionInfo {
   duration?: number
   homeDir: boolean
   filesWrite: boolean
+  workDir: string  // Phase 131 / GRID-02: working directory path
 }
 
 const mockSessions: SessionInfo[] = [
-  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', status: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
-  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', status: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
+  { id: 'sess-1', cli: 'claude', name: 'claude 1', state: 'running', status: 'running', createdAt: '2026-04-01T10:00:00Z', hostname: 'macbook-pro.local', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false, workDir: '' },
+  { id: 'sess-2', cli: 'codex', name: 'codex 1', state: 'idle', status: 'idle', createdAt: '2026-04-01T11:00:00Z', hostname: 'dev-server.internal', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false, workDir: '' },
 ]
 
 function renderPanel(props: Partial<DaemonManagerPanelProps> = {}) {
@@ -164,7 +165,7 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
 
   it('renders em dash when hostname is empty', () => {
     const noHostSessions = [
-      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', status: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false },
+      { id: 'sess-3', cli: 'claude', name: 'test', state: 'running', status: 'running', createdAt: '2026-04-01T12:00:00Z', hostname: '', webEnabled: false, viewerCount: 0, homeDir: false, filesWrite: false, workDir: '' },
     ]
     ;({ container, root } = renderPanel({ sessions: noHostSessions }))
     const badge = container.querySelector('.daemon-panel__hostname')
@@ -191,7 +192,7 @@ describe('DaemonManagerPanel \u2014 write-toggle re-hydration from server truth'
     const writeSessions: SessionInfo[] = [
       { id: 'sess-fw', cli: 'claude', name: 'write-on session', state: 'running', status: 'running',
         createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
-        homeDir: false, filesWrite: true },
+        homeDir: false, filesWrite: true, workDir: '' },
     ]
     await act(async () => {
       ;({ container, root } = renderPanel({ sessions: writeSessions }))
@@ -208,7 +209,7 @@ describe('DaemonManagerPanel \u2014 write-toggle re-hydration from server truth'
     const noWriteSessions: SessionInfo[] = [
       { id: 'sess-nw', cli: 'claude', name: 'write-off session', state: 'running', status: 'running',
         createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
-        homeDir: false, filesWrite: false },
+        homeDir: false, filesWrite: false, workDir: '' },
     ]
     await act(async () => {
       ;({ container, root } = renderPanel({ sessions: noWriteSessions }))
@@ -250,7 +251,7 @@ describe('DaemonManagerPanel WR-04 \u2014 homeDir banner sourced from SessionInf
     const homeDirSession: SessionInfo[] = [
       { id: 'sess-home', cli: 'claude', name: 'home session', state: 'running', status: 'running',
         createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: true, viewerCount: 0,
-        homeDir: true, filesWrite: false },
+        homeDir: true, filesWrite: false, workDir: '' },
     ]
 
     ;({ container, root } = renderPanel({
@@ -281,7 +282,7 @@ describe('DaemonManagerPanel WR-04 \u2014 homeDir banner sourced from SessionInf
     const normalSession: SessionInfo[] = [
       { id: 'sess-norm', cli: 'claude', name: 'normal session', state: 'running', status: 'running',
         createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
-        homeDir: false, filesWrite: true },
+        homeDir: false, filesWrite: true, workDir: '' },
     ]
     ;({ container, root } = renderPanel({ sessions: normalSession }))
     // The component uses s.homeDir (SessionInfo) not share?.homeDir post-WR-04

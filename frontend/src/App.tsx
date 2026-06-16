@@ -48,6 +48,7 @@ import { DaemonManagerPanel } from './components/DaemonManagerPanel'
 import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
 import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
+import { HubPanel } from './components/Hub/HubPanel'
 import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
@@ -86,6 +87,8 @@ function App(): React.ReactElement {
   const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
   const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
   const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
+  // Phase 131 — Hub top-level surface tab.
+  const HUB_TAB: Tab = { id: '__hub__', name: 'Hub', sessionId: '', cli: '', type: 'hub' }
   // Phase 120-06 — single source of truth for "is this React shell running in
   // a regular browser under /app/ vs inside the Wails desktop runtime?" Used
   // to gate the Wails RPC suite (init, retryInit, sessions polls) so the SPA
@@ -180,6 +183,9 @@ function App(): React.ReactElement {
   const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
   const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
+  // Phase 131 — Hub sessions and error state (polled when the Hub tab is active)
+  const [hubSessions, setHubSessions] = useState<SessionInfo[]>([])
+  const [hubError, setHubError] = useState(false)
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
@@ -893,6 +899,25 @@ function App(): React.ReactElement {
     }
   }, [activeId])
 
+  // Phase 131 — Poll sessions when the Hub tab is active (mirrors daemon-manager poll pattern).
+  // T-131-10: early-return when not active prevents DoS from polling while Hub is inactive.
+  useEffect(() => {
+    if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
+    if (activeId !== HUB_TAB.id) return
+    let cancelled = false
+    async function refresh() {
+      try {
+        const sessions = await ListSessions()
+        if (!cancelled) { setHubSessions(sessions); setHubError(false) }
+      } catch {
+        if (!cancelled) setHubError(true)
+      }
+    }
+    void refresh()
+    const interval = setInterval(() => void refresh(), 3000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [activeId])
+
   // Poll remote sessions when the remote-sessions tab is active.
   // WR-01: the spinner gate uses remoteHasLoadedRef (a ref) rather than the
   // closed-over remotePeers snapshot, so setRemoteLoading(true) fires only
@@ -1078,6 +1103,18 @@ function App(): React.ReactElement {
     setActiveId(REMOTE_SESSIONS_TAB.id)
   }, [tabs])
 
+  // Phase 131 — open the Hub tab (mirrors handleOpenRemoteSessions pattern). HUB-02: coexists
+  // with the Sessions panel — adds its own tab rather than replacing any existing tab.
+  const handleOpenHub = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'hub')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, HUB_TAB])
+    setActiveId(HUB_TAB.id)
+  }, [tabs])
+
   const handleHome = useCallback(() => {
     const existing = tabs.find((t) => t.type === 'welcome')
     if (existing) {
@@ -1245,6 +1282,8 @@ function App(): React.ReactElement {
         onOpenDaemonManager={handleOpenDaemonManager}
         onAdd={handleAddTab}
         onSettings={handleOpenSettings}
+        onOpenHub={handleOpenHub}
+        activePanel={activeId ?? undefined}
       />
       <div className="app__content">
         <TabBar
@@ -1280,6 +1319,16 @@ function App(): React.ReactElement {
             onKill={(id) => void handleCloseTab(id)}
             onToggleWeb={(id) => void handleToggleWeb(id)}
             onOpenFileBrowser={handleOpenFileBrowser}
+          />
+        )}
+        {/* Phase 131 — Hub surface. HUB-02: coexists with Sessions/DaemonManager panel;
+            'hub' is added to terminal-exclusion sites below, not to the daemon-manager gate. */}
+        {activeId === HUB_TAB.id && (
+          <HubPanel
+            sessions={hubSessions}
+            error={hubError}
+            onNewSession={() => setShowNewSessionModal(true)}
+            onRename={handleRenameTab}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
@@ -1396,7 +1445,7 @@ function App(): React.ReactElement {
           />
         </div>
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings').length === 0 && (
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings' && t.type !== 'hub').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -1435,7 +1484,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings' || tab.type === 'file-browser') return null
+            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub') return null
             const isActive = tab.id === activeId
             return (
               <div

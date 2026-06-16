@@ -6,6 +6,7 @@ import {
   GlobeAltIcon,
   PlusIcon,
   Cog6ToothIcon,
+  Squares2X2Icon,   // Phase 131 / HUB-01
 } from '@heroicons/react/24/outline'
 
 const STORAGE_KEY = 'sidebar-collapsed'
@@ -16,6 +17,8 @@ interface SidebarProps {
   onOpenDaemonManager: () => void
   onAdd: () => void
   onSettings: () => void
+  onOpenHub: () => void           // Phase 131 / HUB-01
+  activePanel?: string            // Phase 131 / Pitfall-8: active state indicator
 }
 
 export function Sidebar({
@@ -24,6 +27,8 @@ export function Sidebar({
   onOpenDaemonManager,
   onAdd,
   onSettings,
+  onOpenHub,
+  activePanel,
 }: SidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(STORAGE_KEY) === 'true'
@@ -75,6 +80,15 @@ export function Sidebar({
       >
         <ServerStackIcon className="sidebar__icon" />
         {!collapsed && <span className="sidebar__label">Sessions</span>}
+      </button>
+
+      <button
+        className={`sidebar__item${activePanel === '__hub__' ? ' sidebar__item--active' : ''}`}
+        onClick={onOpenHub}
+        aria-label="Hub"
+      >
+        <Squares2X2Icon className="sidebar__icon" />
+        {!collapsed && <span className="sidebar__label">Hub</span>}
       </button>
 
       <button

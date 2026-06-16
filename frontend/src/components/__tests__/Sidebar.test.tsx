@@ -20,6 +20,7 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
     onAdd: vi.fn(),
     onSettings: vi.fn(),
     onHome: vi.fn(),
+    onOpenHub: vi.fn(),
   }
   act(() => {
     root.render(<Sidebar {...defaultProps} {...overrides} />)
@@ -192,12 +193,12 @@ describe('Sidebar icon centering precondition (SBR-01)', () => {
     })
   })
 
-  it('all 5 sidebar items remain in DOM when collapsed', () => {
+  it('all 6 sidebar items remain in DOM when collapsed', () => {
     ;({ container, root } = renderSidebar())
     const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
     act(() => { toggleBtn.click() })
     const items = container.querySelectorAll('.sidebar__item')
-    expect(items.length).toBe(5)
+    expect(items.length).toBe(6)
   })
 })
 
@@ -229,6 +230,53 @@ describe('Sidebar icons (ICON-01, ICON-02)', () => {
   })
 })
 
+describe('Sidebar Hub item (HUB-01, Phase 131)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('renders a Hub button with aria-label="Hub"', () => {
+    ;({ container, root } = renderSidebar())
+    const hubBtn = container.querySelector('button[aria-label="Hub"]')
+    expect(hubBtn).not.toBeNull()
+    expect(hubBtn!.classList.contains('sidebar__item')).toBe(true)
+  })
+
+  it('Hub button fires onOpenHub when clicked', () => {
+    const onOpenHub = vi.fn()
+    ;({ container, root } = renderSidebar({ onOpenHub }))
+    const hubBtn = container.querySelector('button[aria-label="Hub"]') as HTMLButtonElement
+    expect(hubBtn).not.toBeNull()
+    act(() => { hubBtn.click() })
+    expect(onOpenHub).toHaveBeenCalledTimes(1)
+  })
+
+  it('Hub button does NOT have sidebar__item--active when activePanel is not __hub__', () => {
+    ;({ container, root } = renderSidebar({ activePanel: '__daemon_manager__' }))
+    const hubBtn = container.querySelector('button[aria-label="Hub"]')
+    expect(hubBtn).not.toBeNull()
+    expect(hubBtn!.classList.contains('sidebar__item--active')).toBe(false)
+  })
+
+  it('Hub button has sidebar__item--active when activePanel === "__hub__"', () => {
+    ;({ container, root } = renderSidebar({ activePanel: '__hub__' }))
+    const hubBtn = container.querySelector('button[aria-label="Hub"]')
+    expect(hubBtn).not.toBeNull()
+    expect(hubBtn!.classList.contains('sidebar__item--active')).toBe(true)
+  })
+
+  it('Hub button has sidebar__item--active only when active (not when other panel is active)', () => {
+    // Sessions panel active — Hub button must NOT be active
+    ;({ container, root } = renderSidebar({ activePanel: '__daemon_manager__' }))
+    const hubBtn = container.querySelector('button[aria-label="Hub"]')
+    expect(hubBtn!.classList.contains('sidebar__item--active')).toBe(false)
+  })
+})
+
 describe('Sidebar icon position stability (SBR-02)', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
@@ -244,10 +292,10 @@ describe('Sidebar icon position stability (SBR-02)', () => {
   })
 
   it('all sidebar__icon elements exist in both expanded and collapsed states', () => {
-    // 1 toggle + 5 nav items = 6 sidebar__icon SVGs total
+    // 1 toggle + 6 nav items = 7 sidebar__icon SVGs total (Hub added in Phase 131)
     ;({ container, root } = renderSidebar())
     const expandedIcons = container.querySelectorAll('svg.sidebar__icon')
-    expect(expandedIcons.length).toBeGreaterThanOrEqual(6)
+    expect(expandedIcons.length).toBeGreaterThanOrEqual(7)
 
     const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
     act(() => { toggleBtn.click() })
