@@ -1505,3 +1505,72 @@ func TestEngine_SessionWorkDirsFallbackOnEvalSymlinksError(t *testing.T) {
 		t.Errorf("GetSessionWorkDir(%q) = %q, want %q (raw workDir fallback when EvalSymlinks errors)", id, got, badPath)
 	}
 }
+
+// =============================================================================
+// Phase 131 / GRID-02: WorkDir field in daemon.SessionInfo + ListSessions() population.
+//
+// Two subtests:
+//  1. ListSessions_WorkDir_Populated: a session created with a real workDir must
+//     return a non-empty SessionInfo.WorkDir equal to the EvalSymlinks-resolved path.
+//  2. ListSessions_WorkDir_EmptyForUnknown: a bare engine with a session injected
+//     directly (no sessionWorkDirs entry) returns WorkDir=="" without panic.
+// =============================================================================
+
+// TestListSessions_WorkDir_Populated (Phase 131 / GRID-02):
+// CreateSession with a resolved workDir → ListSessions returns SessionInfo.WorkDir
+// equal to e.sessionWorkDirs[sessionID].
+func TestListSessions_WorkDir_Populated(t *testing.T) {
+	spy := &spyBackend{}
+	e := NewSessionEngine()
+	e.backend = spy
+	e.configDir = t.TempDir()
+
+	tmpDir := t.TempDir()
+	wantResolved, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(%q): %v", tmpDir, err)
+	}
+
+	id, err := e.CreateSession(context.Background(), "cat", "wd-list-test", tmpDir, nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	sessions := e.ListSessions()
+	var found SessionInfo
+	for _, s := range sessions {
+		if s.ID == id {
+			found = s
+			break
+		}
+	}
+	if found.ID == "" {
+		t.Fatal("session not found in ListSessions output")
+	}
+	if found.WorkDir == "" {
+		t.Errorf("SessionInfo.WorkDir is empty; want %q", wantResolved)
+	}
+	if found.WorkDir != wantResolved {
+		t.Errorf("SessionInfo.WorkDir = %q, want %q", found.WorkDir, wantResolved)
+	}
+}
+
+// TestListSessions_WorkDir_EmptyForUnknown (Phase 131 / GRID-02):
+// A session with no sessionWorkDirs entry returns WorkDir=="" without panic.
+// Uses newBareEngine (direct registry injection — no real PTY spawn).
+func TestListSessions_WorkDir_EmptyForUnknown(t *testing.T) {
+	sess := newExitedShell12Session("no-workdir-sess", 0)
+	e := newBareEngine(t, sess)
+	// sessionWorkDirs is nil in newBareEngine — reading from a nil map in Go
+	// returns the zero value ("") without panic. This test locks that contract.
+
+	sessions := e.ListSessions()
+	si, ok := findShell12Session(sessions, "no-workdir-sess")
+	if !ok {
+		t.Fatal("session not found in ListSessions")
+	}
+	if si.WorkDir != "" {
+		t.Errorf("WorkDir = %q, want empty string for session with no sessionWorkDirs entry", si.WorkDir)
+	}
+}

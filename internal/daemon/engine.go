@@ -465,6 +465,9 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			// Call the inner logic directly to avoid a deadlock.
 			HomeDir:    e.sessionCwdIsHomeUnlocked(s.ID),
 			FilesWrite: e.filesWriteEnabledForUnlocked(s.ID),
+			// Phase 131 / GRID-02: e.mu.RLock is already held via defer at the top
+			// of this function — map read is safe without acquiring a new lock.
+			WorkDir: e.sessionWorkDirs[s.ID],
 		})
 	}
 	return result

@@ -31,6 +31,7 @@ type SessionInfo struct {
 	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
 	HomeDir     bool   `json:"homeDir"`            // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
 	FilesWrite  bool   `json:"filesWrite"`         // Phase 124 / CAP-04: true when per-session write toggle is ON; single server-side source of truth for cross-surface parity
+	WorkDir     string `json:"workDir"`            // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
 }
 
 // CreateRequest is the request body for POST /sessions.
