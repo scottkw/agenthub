@@ -32,7 +32,7 @@
 - [x] **CARD-04**: Each card shows an origin marker — local vs remote, with the peer hostname for remote sessions
 - [x] **CARD-05**: Each card shows the viewer count when the session is web-shared
 - [x] **CARD-06**: Each card shows uptime while running, or duration + exit code once stopped
-- [ ] **CARD-07**: Each card shows a mini terminal preview of the session's recent output tail
+- [x] **CARD-07**: Each card shows a mini terminal preview of the session's recent output tail
 - [x] **CARD-08**: Stopped/exited cards render dimmed with exit code and no pulse, unless the exit was an error (→ attention)
 
 ### Grid, Grouping, Filter & Search (GRID)
@@ -125,7 +125,7 @@ Populated during roadmap creation.
 | CARD-04 | Phase 131 | Complete |
 | CARD-05 | Phase 131 | Complete |
 | CARD-06 | Phase 131 | Complete |
-| CARD-07 | Phase 132 | Pending |
+| CARD-07 | Phase 132 | Complete |
 | CARD-08 | Phase 131 | Complete |
 | GRID-01 | Phase 131 | Complete |
 | GRID-02 | Phase 131 | Complete |
