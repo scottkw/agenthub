@@ -14,6 +14,16 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 
 ## Latest Release
 
+**v3.5.1 — Remote Browse Completion + Release-Gate Fix** (2026-06-16) — completes the desktop-GUI remote-browse on-ramp (discover → list → pick → browse a tailnet peer's files) and clears the flaky release gate, retiring the remote file-browser epic.
+
+- **Remote-browse GUI on-ramp** ([#86](https://github.com/scottkw/agenthub/issues/86), [#24](https://github.com/scottkw/agenthub/issues/24)) — the Remote Sessions panel now discovers a tailnet peer, lists its shareable sessions, and opens one in the File Browser end-to-end over the relay loopback. A new tailnet-trusted, **metadata-only** `GET /api/sessions/meta` endpoint returns shareable-session metadata only — never capabilities or content — preserving the Phase 87/88 no-enumeration security model. Proven live on two machines.
+- **Honest remote panel states** — a reachable peer with shareable sessions is never shown as "No remote peers found"; reachable-but-empty and unreachable peers surface correct, text-labeled states (colorblind-safe, color used only as reinforcement).
+- **Actionable Tailscale DNS error** ([#83](https://github.com/scottkw/agenthub/issues/83)) — when a remote browse fails because the client has `accept-dns=false`, you get a specific actionable message ("Enable Tailscale DNS (accept-dns) to browse remote sessions") and a proactive warning banner, instead of an opaque 502.
+- **Deterministic write release gate** ([#87](https://github.com/scottkw/agenthub/issues/87)) — `WriteFileAtomic` serializes same-path concurrent writers via a per-path lock for a true single-winner `If-Match` contract; the flaky `TestWrite_TwoWritersIfMatchRace` is now deterministic.
+- **Relay-surface regression coverage** — the discover → pick → browse path is tested through the relay loopback the GUI actually uses, guarding against the v3.5-class blind spot where only the webserver/fixture surface was tested.
+
+Closes [#86](https://github.com/scottkw/agenthub/issues/86), [#83](https://github.com/scottkw/agenthub/issues/83), [#87](https://github.com/scottkw/agenthub/issues/87), and retires umbrella epic [#24](https://github.com/scottkw/agenthub/issues/24). [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.5.1).
+
 **v3.5 — File Browser: Write Operations & Editor** (2026-06-15) — create, edit, delete, rename, and upload files from any session, plus an in-app code editor, across desktop, web-share, and TUI.
 
 - **Sandboxed write primitives** ([#63](https://github.com/scottkw/agenthub/issues/63)) — create / edit / delete / rename / upload scoped to each session's working directory on the same TOCTOU-safe `os.OpenRoot` sandbox as read, with atomic writes and fuzz-gated path-traversal coverage.
@@ -24,9 +34,9 @@ Sessions auto-close when the agent process exits — 5-second countdown, toast n
 - **Remote tailnet write data path** — the daemon-proxy write path across surfaces is implemented and **proven end-to-end live on two machines** (read + write). Includes fixes so the desktop GUI's relay loopback mounts the remote file routes and tailnet discovery recognizes capability-protected peers.
 - **Clearer share-link scopes** — the Sessions-tab links now state that the View-Only link is session-only (no file access) and the Full Access link grants full session control *plus* file browsing.
 
-**Known limitation (deferred to v3.5.1):** the desktop GUI remote-*browse* on-ramp — discovering and listing a peer's sessions to pick one — is deferred ([#86](https://github.com/scottkw/agenthub/issues/86)) pending a session-enumeration-vs-capability design decision; remote file access currently requires a join code / capability URL. See also [#83](https://github.com/scottkw/agenthub/issues/83).
+**Known limitation at v3.5 (resolved in v3.5.1):** the desktop GUI remote-*browse* on-ramp — discovering and listing a peer's sessions to pick one — was deferred ([#86](https://github.com/scottkw/agenthub/issues/86)); at v3.5 remote file access required a join code / capability URL. This was completed in **v3.5.1** (see above).
 
-Closes the write slice of [#63](https://github.com/scottkw/agenthub/issues/63); [#24](https://github.com/scottkw/agenthub/issues/24) (remote file browser) remains open pending the v3.5.1 on-ramp. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.5).
+Closes the write slice of [#63](https://github.com/scottkw/agenthub/issues/63). ([#24](https://github.com/scottkw/agenthub/issues/24) remote file browser was completed in v3.5.1.) [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.5).
 
 **v3.4.2 — Dependency maintenance** (2026-06-14) — patch release rolling forward direct dependencies and the transitive bumps they pull in. Consolidates six Dependabot updates: `tailscale.com` 1.96.5 → 1.98.3, `golang.org/x/sys` 0.43.0 → 0.45.0, `golang.org/x/term` 0.42.0 → 0.43.0, `github.com/aymanbagabas/go-pty` 0.2.2 → 0.2.3, `github.com/Masterminds/semver/v3` 3.4.0 → 3.5.0, and the `actions/checkout` CI action 6.0.2 → 6.0.3. No user-visible behavior changes from v3.4.1. [Release notes](https://github.com/scottkw/agenthub/releases/tag/v3.4.2).
 
@@ -55,7 +65,7 @@ Closes [#62](https://github.com/scottkw/agenthub/issues/62) and the TUI-parity s
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.5: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.5) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.5.1) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
