@@ -331,96 +331,128 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 ## Phase Details
 
 ### Phase 131: Hub Foundation + Static Session Cards
+
 **Goal**: Users can navigate to a Hub surface and see all their sessions rendered as live, data-accurate cards in a responsive grouped grid with filter and search
 **Depends on**: Backend data gap closed first (Wave 0): app.go SessionInfo + daemon.SessionInfo gain WorkDir, and app.go propagates ViewerCount/ExitCode/Duration/WorkDir — the ROADMAP "fields already exist" assumption was wrong (see 131-RESEARCH.md Critical Data Gap). Plus the existing sidebar navigation pattern.
 **Requirements**: HUB-01, HUB-02, HUB-03, HUB-04, CARD-01, CARD-02, CARD-03, CARD-04, CARD-05, CARD-06, CARD-08, GRID-01, GRID-02, GRID-04, GRID-05, GRID-06
 **Success Criteria** (what must be TRUE):
+
   1. User clicks "Hub" in the sidebar and sees a card grid showing all sessions, coexisting with the Sessions panel (not replacing it)
   2. Each card displays the session name (inline-editable), CLI badge, status indicator (shape + icon, not color alone), origin marker (local vs remote + peer host), viewer count, and uptime/duration+exit-code
   3. Stopped/exited cards render visually dimmed with their exit code shown; error-exit cards are not dimmed (they will get attention in Phase 133)
   4. Cards are auto-grouped by working directory; the status filter bar (All / Working / Needs input / Complete / Error / Idle) correctly filters the grid with live counts
   5. The `/` shortcut focuses the search field; typing filters cards by name, CLI, or host; "New session" on the Hub opens the existing create modal
   6. With no sessions, Hub shows an empty-state prompt to create one; the surface renders correctly in both light and dark themes
+
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
+**Wave 1**
+
 - [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+
 **UI hint**: yes
 
 ### Phase 132: Unified Grid + Mini Preview + Named Groups
+
 **Goal**: Users can see throttled terminal output snapshots on every card, remote sessions alongside local ones, and organize sessions into named groups via a group sidebar
 **Depends on**: Phase 131
 **Requirements**: CARD-07, GRID-03, GRID-07, GROUP-01, GROUP-02, GROUP-03, GROUP-04
 **Success Criteria** (what must be TRUE):
+
   1. Every card shows a mini terminal preview rendered from the session's recent output tail — a cheap snapshot, never a live xterm instance; the preview updates on a throttled interval and does not cause perf regression at scale
   2. Remote tailnet peer sessions appear in the same grid as local sessions; each remote card shows the peer hostname as its origin marker
   3. A collapsible group sidebar lists all working-directory groups with per-group running/total counts and a needs-input badge; selecting a group filters the grid to that group's cards
   4. User can create a named group and assign cards to it via drag-and-drop or a per-card "move to group" affordance; group definitions persist in localStorage across app restarts
   5. Group membership survives session-id churn: a session that restarts with the same name and working directory is re-matched to its group automatically; unmatched sessions appear in a default lane
+
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
+
 - [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+
 **UI hint**: yes
 
 ### Phase 133: Attention + Pulse
+
 **Goal**: Sessions needing attention float to the top and pulse visibly, with debounced non-jarring reordering, so users can identify blocked or errored sessions at a glance without relying on color
 **Depends on**: Phase 131 (cards), Phase 132 (grid + groups)
 **Requirements**: ATTN-01, ATTN-02, ATTN-03, ATTN-04, ATTN-05, ATTN-06
 **Success Criteria** (what must be TRUE):
+
   1. A `waiting` session card or an `errored`/non-zero-exit session card displays a pulsing animated highlighted border plus a distinct attention icon — status is distinguishable without relying on color alone
   2. When cards overflow the viewport, attention cards sort above non-attention cards; the reordering is debounced (does not fire on every tick) and position changes animate smoothly without jarring jumps
   3. After a user resolves a `waiting` session from inside the modal, that card's pulse and attention state clear without a page reload
   4. A collapsed group header containing any attention card shows an attention badge; expanding the group reveals which card(s) need attention
+
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
+
 - [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+
 **UI hint**: yes
 
 ### Phase 134: Modal Interaction
+
 **Goal**: Clicking any card opens a full interactive or briefing modal with a shared-element grow/shrink animation, and closing it returns focus cleanly to the originating card
 **Depends on**: Phase 131 (cards), Phase 133 (attention state drives modal type)
 **Requirements**: MODAL-01, MODAL-02, MODAL-03, MODAL-04, MODAL-05, MODAL-06
 **Success Criteria** (what must be TRUE):
+
   1. Clicking a non-blocked session card expands it into a modal via a grow animation from the card's position; the modal mounts a full interactive TerminalPanel with the same RelayClient used by normal tabs — resize, copy/paste, and scrollback search all work
   2. Clicking a `waiting`/needs-input session card opens a briefing modal showing the real terminal tail (the prompt the agent printed) with a respond affordance; typing a response and submitting sends it to the session
   3. Closing any modal (Escape, close button, or clicking outside) plays a shrink-back animation and returns keyboard focus to the originating card
   4. For a remote session that requires a capability token, the modal interaction uses the existing Phase 122 join-code exchange path — no new remote-access architecture
+
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
+
 - [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+
 **UI hint**: yes
 
 ### Phase 135: Accessibility Hardening
+
 **Goal**: Every Hub interaction is fully operable by keyboard and safe for colorblind users — attention, status, and motion all carry non-color cues, and animations respect prefers-reduced-motion
 **Depends on**: Phase 131, Phase 132, Phase 133, Phase 134 (validates the full surface)
 **Requirements**: A11Y-01, A11Y-02, A11Y-03, A11Y-04
 **Success Criteria** (what must be TRUE):
+
   1. All attention and status states are distinguishable without color: each state is uniquely identifiable by its icon shape and/or motion and/or position alone (verified at source level against hex constants — not by eye)
   2. A user can navigate the entire Hub by keyboard: Tab moves between cards, Enter/Space expands a card into its modal, Escape closes the modal and returns focus to the originating card, and the `/` search shortcut is reachable without a mouse
   3. With `prefers-reduced-motion: reduce` set in the OS, pulse and expand/collapse animations are replaced by a static highlighted border + icon — no motion occurs; all information previously conveyed by motion is conveyed by the static fallback
   4. While a modal is open, focus is trapped inside it — Tab cycles through modal controls only, and background cards are not reachable by keyboard
+
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
+
 - [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+
 **UI hint**: yes
 
 ## Progress
