@@ -1581,7 +1581,7 @@ func TestListSessions_WorkDir_EmptyForUnknown(t *testing.T) {
 //
 // These tests verify the engine method strips relay framing bytes (0x01)
 // and ANSI/OSC escape sequences, returns the last N lines, trims trailing
-// empty lines, and returns nil for unknown sessions.
+// empty lines, and returns []string{} (not nil) for unknown sessions (IN-01).
 //
 // Hub setup: each test creates a hub via e.manager.Create with an io.Pipe.
 // The writer end receives raw text; hub.Run() frames it with MakeOutputFrame
@@ -1741,11 +1741,17 @@ func TestGetSessionTailLines_TrimsTrailingEmptyLines(t *testing.T) {
 }
 
 // TestGetSessionTailLines_UnknownSession: manager.Get returns false →
-// method returns nil.
+// IN-01: method now returns []string{} (not nil) to avoid forcing callers to nil-guard.
+// The API handler and app.go bindings previously nil-guarded the result; with IN-01 fixed
+// both nil-guards remain correct (empty slice is falsy but not nil — callers may remove
+// their guards in a follow-up, but correctness is maintained either way).
 func TestGetSessionTailLines_UnknownSession(t *testing.T) {
 	e := NewSessionEngine()
 	result := e.GetSessionTailLines("nonexistent-session-id", 4)
-	if result != nil {
-		t.Errorf("expected nil for unknown session, got: %v", result)
+	if result == nil {
+		t.Errorf("IN-01: expected []string{} (not nil) for unknown session, got nil")
+	}
+	if len(result) != 0 {
+		t.Errorf("expected empty slice for unknown session, got: %v", result)
 	}
 }

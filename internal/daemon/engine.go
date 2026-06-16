@@ -542,12 +542,13 @@ var ansiEscape = regexp.MustCompile(
 // GetSessionTailLines returns the last n plain-text lines from the session's
 // scrollback buffer. Relay framing bytes (0x01 / relay.MsgOutput) and ANSI/OSC
 // escape sequences are stripped before splitting on newlines. Trailing empty
-// lines are trimmed. Returns nil if the session has no hub.
+// lines are trimmed. Returns []string{} (never nil) if the session has no hub.
+// IN-01: returns empty slice (not nil) to avoid forcing callers to nil-guard.
 // Phase 132 / CARD-07.
 func (e *SessionEngine) GetSessionTailLines(id string, n int) []string {
 	hub, ok := e.manager.Get(id)
 	if !ok {
-		return nil
+		return []string{} // IN-01: defensive — never nil; callers need not nil-guard
 	}
 	raw := hub.ScrollbackSnapshot()
 	// Strip relay.MsgOutput (0x01) framing bytes — pattern from engine_test.go lines 463-471.
