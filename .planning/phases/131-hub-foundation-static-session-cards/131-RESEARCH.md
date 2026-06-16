@@ -634,17 +634,19 @@ ASVS V5 input validation: inline session rename input must trim and reject empty
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Sidebar active-state indicator implementation**
    - What we know: No `sidebar__item--active` CSS class exists today; no active-state prop exists on Sidebar
    - What's unclear: Should the Hub planner add a general `activePanel` prop to Sidebar (cleanest), or a specific `hubActive` boolean?
    - Recommendation: Add `activePanel?: string` prop to Sidebar so it can mark any item active; matches how the Sessions/Remote panels need it in future phases too.
+   - **RESOLVED:** Plan 131-05 (Task 1) adds the general `activePanel?: string` prop to Sidebar and the `sidebar__item--active` CSS class (using `--hub-accent`), per the recommendation.
 
 2. **Hub polling vs. using existing `panelSessions` state**
    - What we know: App.tsx polls sessions when `activeId === DAEMON_MANAGER_TAB.id` and stores in `panelSessions`; Hub has different `activeId`
    - What's unclear: Should Hub reuse `panelSessions` (shared state, needs App.tsx to change poll condition) or have its own poll?
    - Recommendation: Hub owns its own poll (simpler, more isolated). App.tsx does NOT share `panelSessions` with Hub. This mirrors how RemoteSessionsPanel has its own poll.
+   - **RESOLVED:** Plan 131-05 (Task 1) gives the Hub its own `hubSessions`/`hubError` state and a dedicated 3s poll gated on `activeId === HUB_TAB.id`; `panelSessions` is left untouched, per the recommendation.
 
 ---
 
