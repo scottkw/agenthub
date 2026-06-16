@@ -385,7 +385,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 132-03-PLAN.md — Wave 2: MiniPreview (plain-text snapshot, no xterm) + GroupSidebar (counts + needs-input badge + create + drop) — CARD-07, GRID-03, GROUP-01/02
+- [x] 132-03-PLAN.md — Wave 2: MiniPreview (plain-text snapshot, no xterm) + GroupSidebar (counts + needs-input badge + create + drop) — CARD-07, GRID-03, GROUP-01/02
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -513,7 +513,7 @@ Plans:
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
-| 132 | v3.6 | 2/5 | In Progress|  |
+| 132 | v3.6 | 3/5 | In Progress|  |
 | 133 | v3.6 | 0/? | Not started | - |
 | 134 | v3.6 | 0/? | Not started | - |
 | 135 | v3.6 | 0/? | Not started | - |

@@ -39,7 +39,7 @@
 
 - [x] **GRID-01**: Cards render in a responsive grid that reflows by viewport width with sensible min/max card sizes
 - [x] **GRID-02**: Cards are auto-grouped by working directory (the real-data analog of #78 "projects")
-- [ ] **GRID-03**: A collapsible group sidebar shows per-group running/total counts and a needs-input badge; selecting a group filters the grid to it
+- [x] **GRID-03**: A collapsible group sidebar shows per-group running/total counts and a needs-input badge; selecting a group filters the grid to it
 - [x] **GRID-04**: A status filter bar (All / Working / Needs input / Complete / Error / Idle) filters cards with live counts
 - [x] **GRID-05**: A functional search field filters cards by name/CLI/host, activated by the `/` shortcut
 - [x] **GRID-06**: A "New session" action on the Hub opens the existing create flow
@@ -66,7 +66,7 @@
 ### Named Groups (GROUP)
 
 - [x] **GROUP-01**: User can create named groups
-- [ ] **GROUP-02**: User can assign cards to a group via drag-and-drop or a per-card "move to group" affordance
+- [x] **GROUP-02**: User can assign cards to a group via drag-and-drop or a per-card "move to group" affordance
 - [x] **GROUP-03**: Group definitions and membership persist locally (localStorage, consistent with existing layout-state persistence)
 - [x] **GROUP-04**: Group membership keys off session name (+ working directory) so it survives session-id churn across restarts; unmatched sessions fall to a default lane for manual reassignment
 
@@ -129,7 +129,7 @@ Populated during roadmap creation.
 | CARD-08 | Phase 131 | Complete |
 | GRID-01 | Phase 131 | Complete |
 | GRID-02 | Phase 131 | Complete |
-| GRID-03 | Phase 132 | Pending |
+| GRID-03 | Phase 132 | Complete |
 | GRID-04 | Phase 131 | Complete |
 | GRID-05 | Phase 131 | Complete |
 | GRID-06 | Phase 131 | Complete |
@@ -147,7 +147,7 @@ Populated during roadmap creation.
 | MODAL-05 | Phase 134 | Pending |
 | MODAL-06 | Phase 134 | Pending |
 | GROUP-01 | Phase 132 | Complete |
-| GROUP-02 | Phase 132 | Pending |
+| GROUP-02 | Phase 132 | Complete |
 | GROUP-03 | Phase 132 | Complete |
 | GROUP-04 | Phase 132 | Complete |
 | A11Y-01 | Phase 135 | Pending |
