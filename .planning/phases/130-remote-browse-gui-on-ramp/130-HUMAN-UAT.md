@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 130-remote-browse-gui-on-ramp
 source: [130-VERIFICATION.md, 130-UI-REVIEW.md]
 started: 2026-06-16
@@ -8,7 +8,16 @@ updated: 2026-06-16
 
 ## Current Test
 
-[awaiting human testing — requires a two-machine tailnet]
+[complete — two-machine tailnet discover→list→pick→join→browse PASSED 2026-06-16]
+
+## Result Summary
+
+Live two-machine tailnet UAT (Machine A = wails dev; Machine B = signed .app with a web-shared `claude 1` session):
+- RB-01/RB-04 PASS: Machine B ("Ken's MacBook Air") discovered and listed with its shareable session under "Shows shareable sessions" — not dropped, not falsely "No remote peers found".
+- RB-02 PASS: "Browse Files" → join-code modal → entered code → File Browser opened Machine B's files over the relay loopback ("worked perfectly").
+- "Browse Files" casing fix confirmed on-screen.
+
+Three pre-Phase-130 bugs surfaced during this UAT (see Gaps) — none block the RB-01..05 data path, all tracked for follow-up.
 
 ## Tests
 
@@ -39,10 +48,18 @@ result: [pending]
 ## Summary
 
 total: 6
-passed: 0
-issues: 0
-pending: 6
+passed: 4
+issues: 3
+pending: 2
 skipped: 0
 blocked: 0
 
+(Items 1+2 discover/list/pick/browse PASS live. Items 4 prefers-reduced-motion + 5 colorblind: source-verified, on-screen confirm pending — non-blocking. Item 3 network trust boundary: not separately tested but inherits the webserver bind-IP model.)
+
 ## Gaps
+
+Three bugs surfaced during the two-machine UAT — all PRE-Phase-130 (Phase 122/124), out of RB-01..05 scope, none break the proven data path:
+
+1. **Write-toggle does not re-hydrate (Phase 124 — `DaemonManagerPanel.tsx`)** — `sessionWrites` local state is only set on click, never seeded from the daemon's `sessions[].filesWrite`. Leaving and returning to the Sessions tab shows "Enable file writes"/"Allow file editing" as OFF even though the daemon still has `FilesWrite=true` (server-authoritative). Display/cross-surface-parity bug; writes remain enabled server-side, but the misleading OFF can cause accidental disable on re-toggle. Fix: seed `sessionWrites` from `s.filesWrite` (mirror the `webEnabled`-from-`s.webEnabled` restore in `App.tsx`).
+2. **Join code never shown as readable text (Phase 122 — `SessionSharePanel.tsx`)** — the owner's panel only embeds the code in the QR / `/join?code=` URL (`SessionSharePanel.tsx:80`), never as copyable text, yet the Remote join modal instructs the owner to read it from the panel. Workaround used in UAT: scan the read-only QR. Fix: display the `readCode`/`writeCode` as copyable text.
+3. **Join-code copy says "5-character" but real format is 8-char `XXXX-XXXX` (Phase 122 — `RemoteJoinCodeModal.tsx` + TUI `joincode_prompt.go`)** — `internal/capability/joincode.go:61` formats `encoded[:4] + "-" + encoded[4:8]` (8 base32 chars). Both GUI modal (copy + `placeholder="ABCDE"`) and TUI prompt say "5-character". Consistently-wrong cross-surface copy. Fix: update copy/placeholder to the real 4-dash-4 format on both surfaces.
