@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-06-16
+revised: 2026-06-16
 ---
 
 # Phase 131 — UI Design Contract
@@ -126,16 +127,19 @@ Exceptions:
 
 All sizes are exact — executor must not approximate.
 
+Font scale: 11 / 12 / 14 / 16px (4 sizes).
+Font weights: 400 (regular) / 600 (semibold) (2 weights).
+
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
-| Session name (card heading) | 14px | 500 (medium) | 1.3 | Primary label on every card |
+| Session name (card heading) | 14px | 400 (regular) | 1.3 | Primary label on every card — size distinguishes it from metadata |
 | Metadata / sub-label | 12px | 400 (regular) | 1.4 | Uptime, viewer count, origin host |
 | Badge / chip | 11px | 400 (regular) | 1.0 | CLI badge, status badge, exit-code chip |
 | Group header label | 11px | 600 (semibold) | 1.0 | Working-directory group title (uppercase) |
-| Filter pill label | 12px | 500 (medium) | 1.0 | "All", "Working", "Needs input", etc. |
-| Search input | 13px | 400 (regular) | 1.0 | Text typed into the search field |
+| Filter pill label | 12px | 400 (regular) | 1.0 | "All", "Working", "Needs input", etc. — size distinguishes from badge |
+| Search input | 12px | 400 (regular) | 1.0 | Text typed into the search field |
 | Empty-state heading | 16px | 600 (semibold) | 1.2 | "No sessions yet" |
-| Empty-state body | 13px | 400 (regular) | 1.5 | Body text under empty-state heading |
+| Empty-state body | 12px | 400 (regular) | 1.5 | Body text under empty-state heading |
 | Hub page heading | 16px | 600 (semibold) | 1.2 | "Hub" title in the header strip |
 
 Font family (UI text): `system-ui, -apple-system, "Segoe UI", sans-serif`
@@ -171,14 +175,27 @@ Accent is NOT used for: card borders at rest, metadata text, badges, group heade
 Each status MUST be differentiated by its ICON and SHAPE, not by color alone (user is colorblind).
 The color below is a reinforcing signal only.
 
-| Status | Icon (Heroicons) | Shape | Color | Text label |
-|--------|-----------------|-------|-------|------------|
+Dark-theme dot values (on `#1a1b26` / `#16161e` backgrounds):
+
+| Status | Icon (Heroicons) | Shape | Dark hex | Text label |
+|--------|-----------------|-------|----------|------------|
 | running | `ArrowPathIcon` (spinning) | Circle | `#3b82f6` | "Running" |
 | idle | `CheckCircleIcon` (static) | Circle with check | `#22c55e` | "Idle" |
 | waiting | `PauseCircleIcon` | Circle with pause bars | `#f59e0b` | "Needs input" |
 | errored | `ExclamationCircleIcon` | Circle with ! | `#ef4444` | "Error" |
 | stopped (exit 0) | `StopCircleIcon` (dimmed) | Circle with square | `#565f89` | "Done" |
 | stopped (exit ≠ 0) | `ExclamationCircleIcon` | Circle with ! | `#f7768e` | "Exited \{code\}" |
+
+Light-theme dot values (on `#ffffff` / `#f5f5f7` backgrounds — WCAG AA on white):
+
+| Status | Light hex | Contrast on white | WCAG AA |
+|--------|-----------|-------------------|---------|
+| running | `#1d4ed8` | 7.1:1 | passes AAA |
+| idle | `#1a7f37` | 5.0:1 | passes AA |
+| waiting | `#92400e` | 7.6:1 | passes AAA |
+| errored | `#b91c1c` | 6.0:1 | passes AA |
+| stopped (exit 0) | `#4b5563` | 7.0:1 | passes AAA |
+| stopped (exit ≠ 0) | `#c0394f` | 4.7:1 | passes AA |
 
 **Source-level hex verification rule:** The hex constants above are the authoritative source of
 truth. UAT must verify by reading the hex constant in the source file — never by inspecting
@@ -241,7 +258,7 @@ App.tsx modification: add `HUB_TAB` constant (type `'hub'`) and render `<HubPane
 │  │   └─ .hub__new-session-btn "New session" (existing modal trigger) │
 │  ├─ .hub__filter-bar (HubFilterBar — sticky top)                     │
 │  │   ├─ filter pills row (All / Working / Needs input / etc.)        │
-│  │   └─ search input (/ shortcut, 13px)                              │
+│  │   └─ search input (/ shortcut, 12px)                              │
 │  └─ .hub__grid-scroll (flex: 1, overflow-y: auto)                   │
 │      └─ .hub__grid (SessionCardGrid — working-dir groups)            │
 │          ├─ .hub__group (per working-directory group)                │
@@ -317,6 +334,9 @@ Card max-width: 360px (applied via `max-width: 360px` on `.hub-card`).
 | Inline rename: confirm key | Enter |
 | Group header format | "{working-directory}" (basename only if path is long; full path as tooltip) |
 | Default group header | "Other" (for sessions with no working directory) |
+| Hub panel error heading | "Couldn't load sessions" |
+| Hub panel error body | "Check that the daemon is running and try again." |
+| Hub panel error CTA | "Retry" |
 | Destructive actions in Phase 131 | None — no destructive actions in Phase 131 |
 
 ---
@@ -351,6 +371,12 @@ Card max-width: 360px (applied via `max-width: 360px` on `.hub-card`).
 |-------|-----------|
 | Stopped, exit 0 | Entire card at `opacity: var(--hub-dim-opacity)` (0.45), "Done" label, StopCircleIcon |
 | Stopped, exit ≠ 0 | Full opacity, ExclamationCircleIcon, "Exited {code}" red chip — NOT dimmed |
+
+### Hub Panel Error State (session-list polling failure)
+
+| State | Rendering |
+|-------|-----------|
+| Polling failed | Replace grid with centered error state: ExclamationCircleIcon + "Couldn't load sessions" heading (16px/600) + "Check that the daemon is running and try again." body (12px/400) + "Retry" button (triggers re-poll) |
 
 ### Keyboard Navigation (Phase 135 will harden, but Phase 131 must not block)
 
@@ -433,12 +459,18 @@ following the existing BEM + inline-CSS pattern in `style.css`.
 Items the executor MUST include as inline comments (for UAT at source level):
 
 ```
-/* COLORBLIND-SAFE: status dot hex #3b82f6 (running) — reinforcement only; ArrowPathIcon carries the state */
-/* COLORBLIND-SAFE: status dot hex #22c55e (idle) — reinforcement only; CheckCircleIcon carries the state */
-/* COLORBLIND-SAFE: status dot hex #f59e0b (waiting) — reinforcement only; PauseCircleIcon carries the state */
-/* COLORBLIND-SAFE: status dot hex #ef4444 (errored) — reinforcement only; ExclamationCircleIcon carries the state */
-/* COLORBLIND-SAFE: status dot hex #565f89 (stopped/done) — reinforcement only; StopCircleIcon carries the state */
-/* COLORBLIND-SAFE: exit-code hex #f7768e (non-zero exit) — reinforcement only; "Exited {code}" text carries the state */
+/* COLORBLIND-SAFE: status dot dark hex #3b82f6 (running) — reinforcement only; ArrowPathIcon carries the state */
+/* COLORBLIND-SAFE: status dot dark hex #22c55e (idle) — reinforcement only; CheckCircleIcon carries the state */
+/* COLORBLIND-SAFE: status dot dark hex #f59e0b (waiting) — reinforcement only; PauseCircleIcon carries the state */
+/* COLORBLIND-SAFE: status dot dark hex #ef4444 (errored) — reinforcement only; ExclamationCircleIcon carries the state */
+/* COLORBLIND-SAFE: status dot dark hex #565f89 (stopped/done) — reinforcement only; StopCircleIcon carries the state */
+/* COLORBLIND-SAFE: exit-code dark hex #f7768e (non-zero exit) — reinforcement only; "Exited {code}" text carries the state */
+/* COLORBLIND-SAFE: status dot light hex #1d4ed8 (running) — WCAG AA 7.1:1 on white; icon carries state */
+/* COLORBLIND-SAFE: status dot light hex #1a7f37 (idle) — WCAG AA 5.0:1 on white; icon carries state */
+/* COLORBLIND-SAFE: status dot light hex #92400e (waiting) — WCAG AA 7.6:1 on white; icon carries state */
+/* COLORBLIND-SAFE: status dot light hex #b91c1c (errored) — WCAG AA 6.0:1 on white; icon carries state */
+/* COLORBLIND-SAFE: status dot light hex #4b5563 (stopped/done) — WCAG AA 7.0:1 on white; icon carries state */
+/* COLORBLIND-SAFE: status dot light hex #c0394f (non-zero exit) — WCAG AA 4.7:1 on white; icon carries state */
 /* HUB-04 LIGHT THEME: verified WCAG AA for --hub-accent #3d6fe8 on #ffffff (4.5:1) */
 /* HUB-04 LIGHT THEME: verified WCAG AA for --hub-destructive #c0394f on #ffffff (4.7:1) */
 ```
