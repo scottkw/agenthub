@@ -10,6 +10,7 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 
 import { SessionCard } from './SessionCard'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { HubGroupDef } from '../../lib/hubGroups'
 
 function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
   return {
@@ -27,6 +28,13 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     workDir: '/home/user/project',
     ...overrides,
   }
+}
+
+function makeGroupDefs(): HubGroupDef[] {
+  return [
+    { id: 'group-a', name: 'Group A', memberKeys: ['Test Session:::/home/user/project'] },
+    { id: 'group-b', name: 'Group B', memberKeys: [] },
+  ]
 }
 
 function renderCard(session: SessionInfo, onRename?: (id: string, name: string) => void) {
@@ -277,6 +285,323 @@ describe('SessionCard', () => {
   it('does NOT render the Open button when onOpenSession is not provided', () => {
     const { container } = renderCard(makeSession({ state: 'running' }))
     expect(container.querySelector('.hub-card__open')).toBeNull()
+  })
+
+  // ---- PHASE 132 REGRESSION GUARD: Open button still fires onOpenSession ----
+
+  it('REGRESSION(Phase 131): Open button fires onOpenSession — guard against Phase 132 breakage', () => {
+    const onOpen = vi.fn()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard
+          session={makeSession({ id: 'r-sess', name: 'Regression', cli: 'claude', state: 'running' })}
+          onOpenSession={onOpen}
+          previewLines={['line1', 'line2']}
+          groupDefs={makeGroupDefs()}
+          onAssignGroup={vi.fn()}
+        />
+      )
+    })
+    const btn = container.querySelector('.hub-card__open') as HTMLButtonElement | null
+    expect(btn).not.toBeNull()
+    act(() => { btn!.click() })
+    expect(onOpen).toHaveBeenCalledWith('r-sess', 'Regression', 'claude')
+  })
+
+  // ---- ROW 6: MiniPreview (CARD-07) ----
+
+  it('renders .hub-card__preview pane (ROW 6) when previewLines is undefined (loading state)', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={makeSession()} previewLines={undefined} />)
+    })
+    const preview = container.querySelector('.hub-card__preview')
+    expect(preview).not.toBeNull()
+    // Loading state
+    const loadingEl = container.querySelector('.hub-card__preview--loading')
+    expect(loadingEl).not.toBeNull()
+    expect(loadingEl!.textContent).toContain('Loading')
+  })
+
+  it('renders .hub-card__preview pane with lines when previewLines has content', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={makeSession()} previewLines={['hello', 'world']} />)
+    })
+    const preview = container.querySelector('.hub-card__preview')
+    expect(preview).not.toBeNull()
+    expect(preview!.textContent).toContain('hello')
+    expect(preview!.textContent).toContain('world')
+  })
+
+  it('renders .hub-card__preview in empty state when previewLines is []', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={makeSession()} previewLines={[]} />)
+    })
+    const emptyEl = container.querySelector('.hub-card__preview--empty')
+    expect(emptyEl).not.toBeNull()
+    expect(emptyEl!.textContent).toContain('No output yet')
+  })
+
+  it('renders ROW 6 preview even when previewLines prop is omitted', () => {
+    // previewLines omitted → undefined → loading state
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={makeSession()} />)
+    })
+    // MiniPreview always renders; undefined = loading
+    const preview = container.querySelector('.hub-card__preview')
+    expect(preview).not.toBeNull()
+  })
+
+  // ---- Drag source (GROUP-02) ----
+
+  it('article has draggable="true" attribute', () => {
+    const { container } = renderCard(makeSession())
+    const article = container.querySelector('article.hub-card')
+    expect(article).not.toBeNull()
+    expect(article!.getAttribute('draggable')).toBe('true')
+  })
+
+  it('dragStart sets text/plain to memberKey(name, workDir)', () => {
+    const session = makeSession({ name: 'My Session', workDir: '/home/user/proj' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={session} />)
+    })
+    const article = container.querySelector('article.hub-card') as HTMLElement
+    expect(article).not.toBeNull()
+
+    // Simulate dragStart with a mock dataTransfer
+    const dataTransfer: Record<string, string> = {}
+    const dragEvent = new Event('dragstart', { bubbles: true }) as Event & { dataTransfer: DataTransfer }
+    Object.defineProperty(dragEvent, 'dataTransfer', {
+      value: {
+        setData: (key: string, val: string) => { dataTransfer[key] = val },
+        effectAllowed: 'none' as DataTransfer['effectAllowed'],
+      },
+      writable: true,
+    })
+
+    act(() => {
+      article.dispatchEvent(dragEvent)
+    })
+
+    // memberKey('My Session', '/home/user/proj') = 'My Session:::/home/user/proj'
+    expect(dataTransfer['text/plain']).toBe('My Session:::/home/user/proj')
+  })
+
+  it('renders .hub-card__drag-handle element', () => {
+    const { container } = renderCard(makeSession())
+    const handle = container.querySelector('.hub-card__drag-handle')
+    expect(handle).not.toBeNull()
+  })
+
+  // ---- Overflow group menu (GROUP-02) ----
+
+  it('renders .hub-card__menu-btn (overflow menu trigger) button', () => {
+    const { container } = renderCard(makeSession())
+    const menuBtn = container.querySelector('.hub-card__menu-btn')
+    expect(menuBtn).not.toBeNull()
+    expect(menuBtn!.tagName).toBe('BUTTON')
+  })
+
+  it('menu button has aria-haspopup="menu"', () => {
+    const { container } = renderCard(makeSession())
+    const menuBtn = container.querySelector('.hub-card__menu-btn')
+    expect(menuBtn).not.toBeNull()
+    expect(menuBtn!.getAttribute('aria-haspopup')).toBe('menu')
+  })
+
+  it('menu button has aria-expanded="false" initially', () => {
+    const { container } = renderCard(makeSession())
+    const menuBtn = container.querySelector('.hub-card__menu-btn')
+    expect(menuBtn).not.toBeNull()
+    expect(menuBtn!.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('clicking menu button opens .hub-card__menu (role="menu") and sets aria-expanded="true"', () => {
+    const session = makeSession()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={makeGroupDefs()} onAssignGroup={vi.fn()} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    expect(menuBtn).not.toBeNull()
+
+    // Menu is closed initially
+    expect(container.querySelector('[role="menu"]')).toBeNull()
+
+    act(() => { menuBtn.click() })
+
+    // Menu is now open
+    const menu = container.querySelector('[role="menu"]')
+    expect(menu).not.toBeNull()
+    expect(menuBtn.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('menu shows group defs as menu items when groupDefs provided', () => {
+    const session = makeSession()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={makeGroupDefs()} onAssignGroup={vi.fn()} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+
+    const menu = container.querySelector('[role="menu"]')
+    expect(menu).not.toBeNull()
+    expect(menu!.textContent).toContain('Group A')
+    expect(menu!.textContent).toContain('Group B')
+    expect(menu!.textContent).toContain('Other (default)')
+  })
+
+  it('selecting a group sub-item fires onAssignGroup(memberKey, groupId)', () => {
+    const onAssign = vi.fn()
+    const session = makeSession({ name: 'Test Session', workDir: '/home/user/project' })
+    const groupDefs = makeGroupDefs()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={groupDefs} onAssignGroup={onAssign} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+
+    // Find the "Group B" menu item (not in memberKeys)
+    const menuItems = container.querySelectorAll('[role="menuitem"]')
+    const groupBItem = Array.from(menuItems).find((el) => el.textContent?.trim() === 'Group B')
+    expect(groupBItem).not.toBeNull()
+
+    act(() => { (groupBItem as HTMLElement).click() })
+
+    expect(onAssign).toHaveBeenCalledWith(
+      'Test Session:::/home/user/project',
+      'group-b',
+    )
+  })
+
+  it('selecting "Other (default)" fires onAssignGroup(memberKey, "__other__")', () => {
+    const onAssign = vi.fn()
+    const session = makeSession({ name: 'Test Session', workDir: '/home/user/project' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={makeGroupDefs()} onAssignGroup={onAssign} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+
+    const menuItems = container.querySelectorAll('[role="menuitem"]')
+    const otherItem = Array.from(menuItems).find((el) =>
+      el.textContent?.includes('Other (default)')
+    )
+    expect(otherItem).not.toBeNull()
+
+    act(() => { (otherItem as HTMLElement).click() })
+
+    expect(onAssign).toHaveBeenCalledWith(
+      'Test Session:::/home/user/project',
+      '__other__',
+    )
+  })
+
+  it('shows "Remove from group" only when session is in a named group', () => {
+    // session is in 'Group A' (memberKeys includes its key)
+    const session = makeSession({ name: 'Test Session', workDir: '/home/user/project' })
+    const groupDefsWithMember: HubGroupDef[] = [
+      { id: 'group-a', name: 'Group A', memberKeys: ['Test Session:::/home/user/project'] },
+    ]
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={groupDefsWithMember} onAssignGroup={vi.fn()} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+
+    const menu = container.querySelector('[role="menu"]')
+    expect(menu).not.toBeNull()
+    expect(menu!.textContent).toContain('Remove from group')
+  })
+
+  it('does NOT show "Remove from group" when session is not in any named group', () => {
+    // session's memberKey is NOT in any groupDef.memberKeys
+    const session = makeSession({ name: 'Unmatched Session', workDir: '/other/path' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={makeGroupDefs()} onAssignGroup={vi.fn()} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+
+    const menu = container.querySelector('[role="menu"]')
+    expect(menu).not.toBeNull()
+    expect(menu!.textContent).not.toContain('Remove from group')
+  })
+
+  it('pressing Escape when menu is open closes the menu', () => {
+    const session = makeSession()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={session} groupDefs={makeGroupDefs()} onAssignGroup={vi.fn()} />
+      )
+    })
+
+    const menuBtn = container.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    act(() => { menuBtn.click() })
+    expect(container.querySelector('[role="menu"]')).not.toBeNull()
+
+    act(() => {
+      const escEvent = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      document.dispatchEvent(escEvent)
+    })
+
+    expect(container.querySelector('[role="menu"]')).toBeNull()
   })
 
   // ---- STATUS_CONFIG usage (source-level check via grep — verified in acceptance_criteria)
