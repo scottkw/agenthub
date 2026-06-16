@@ -34,8 +34,8 @@ The desktop GUI must complete discover→list→pick for a tailnet peer's sessio
 The `WriteFileAtomic` If-Match contract under same-process concurrency is **decided in the design pass** — option (a) per-path serialization for a true single-winner guarantee, or (b) documented last-writer-wins with an invariants-only test. These requirements hold either way.
 
 - [x] **RACE-01**: The release `validate` gate passes deterministically — `TestWrite_TwoWritersIfMatchRace` no longer flakes (outcome is not goroutine-scheduling-dependent)
-- [ ] **RACE-02**: The `WriteFileAtomic` If-Match concurrency contract is implemented and documented consistently across the code, comments, and the remote-write proxy — no mismatch between an asserted single-winner guarantee and "last-writer-wins (WR-02)" comments
-- [ ] **RACE-03**: After a concurrent-write conflict, the final file content is never interleaved (all-A or all-B) and no leftover `.agenthub-tmp-*` temp files remain — regardless of the chosen contract
+- [x] **RACE-02**: The `WriteFileAtomic` If-Match concurrency contract is implemented and documented consistently across the code, comments, and the remote-write proxy — no mismatch between an asserted single-winner guarantee and "last-writer-wins (WR-02)" comments
+- [x] **RACE-03**: After a concurrent-write conflict, the final file content is never interleaved (all-A or all-B) and no leftover `.agenthub-tmp-*` temp files remain — regardless of the chosen contract
 
 ## v2 Requirements
 
@@ -70,8 +70,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DNS-02 | Phase 129 | Complete |
 | DNS-03 | Phase 129 | Complete |
 | RACE-01 | Phase 129 | Complete |
-| RACE-02 | Phase 129 | Pending |
-| RACE-03 | Phase 129 | Pending |
+| RACE-02 | Phase 129 | Complete |
+| RACE-03 | Phase 129 | Complete |
 
 **Coverage:**
 - v1 requirements: 11 total

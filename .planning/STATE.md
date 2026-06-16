@@ -4,13 +4,13 @@ milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
 status: executing
 stopped_at: v3.5.1 roadmap created
-last_updated: "2026-06-15T23:59:48.083Z"
-last_activity: 2026-06-15
+last_updated: "2026-06-16T00:04:59.333Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 ## Current Position
 
 Phase: 129 (write-concurrency-fix-dns-error-ux) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
-Last activity: 2026-06-15
+Last activity: 2026-06-16
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -50,7 +50,7 @@ Last activity: 2026-06-15
 
 ## Session Continuity
 
-Last session: 2026-06-15T23:59:48.079Z
+Last session: 2026-06-16T00:04:59.327Z
 Stopped at: v3.5.1 roadmap created
 Resume file: None
 Next action: `/gsd:plan-phase 129`
