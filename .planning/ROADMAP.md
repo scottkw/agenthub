@@ -382,7 +382,7 @@ Plans:
 - [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [x] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
-- [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+- [x] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
 
 **UI hint**: yes
 
@@ -404,7 +404,7 @@ Plans:
 - [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
-- [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
+- [x] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
 
 **UI hint**: yes
@@ -426,7 +426,7 @@ Plans:
 
 - [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
-- [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
+- [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
 
@@ -448,7 +448,7 @@ Plans:
 Plans:
 
 - [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
+- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
 - [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
@@ -501,7 +501,7 @@ Plans:
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
-| 131 | v3.6 | 5/5 | Complete   | 2026-06-16 |
+| 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 0/? | Not started | - |
 | 133 | v3.6 | 0/? | Not started | - |
 | 134 | v3.6 | 0/? | Not started | - |
