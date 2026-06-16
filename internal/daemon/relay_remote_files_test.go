@@ -402,12 +402,3 @@ func TestRemoteFiles_TwoWriterRace_RelaySurface(t *testing.T) {
 		t.Errorf("leftover temp files after relay race: %v", leftover)
 	}
 }
-
-// min returns the smaller of a or b. Included for Go <1.21 compatibility;
-// in Go 1.21+ the builtin min() is available.
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
