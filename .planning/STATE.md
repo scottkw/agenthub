@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: executing
-stopped_at: Phase 131 UI-SPEC approved
-last_updated: "2026-06-16T18:59:38.700Z"
+stopped_at: Completed 131-03 (HubFilterBar + HubEmptyState)
+last_updated: "2026-06-16T19:04:34.956Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 ## Current Position
 
 Phase: 131 (Hub Foundation + Static Session Cards) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -53,7 +53,7 @@ Last activity: 2026-06-16
 
 ## Session Continuity
 
-Last session: 2026-06-16T18:59:38.677Z
+Last session: 2026-06-16T19:04:34.939Z
 Stopped at: Phase 131 UI-SPEC approved
 Resume file: None
 Next action: /gsd:plan-phase 131
@@ -89,6 +89,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 
 | Decision | Resolution |
 |----------|------------|
+| HubFilter type export location | Exported from HubFilterBar.tsx — single import location for HubPanel and all consumers |
+| Filter count derivation | Mirrors SessionCard.deriveStatus: stopped+exitCode!=0→stopped-err, stopped+exitCode=0→stopped-ok |
 | Mini preview implementation | Throttled snapshot of session's recent output tail — NEVER a live xterm per card. Performance constraint is known and non-negotiable (CARD-07). |
 | Briefing modal data source | Driven by real terminal tail (actual prompt the agent printed). Structured "agent suggests options" multi-select from #78 deferred to #93 — agents don't emit that data today. |
 | Remote modal interaction | Reuses locked Phase 122 design (daemon proxy + join-code exchange). No new remote-access architecture (MODAL-06). |
