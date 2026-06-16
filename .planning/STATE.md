@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: executing
-stopped_at: Completed 131-03 (HubFilterBar + HubEmptyState)
-last_updated: "2026-06-16T19:04:34.956Z"
+stopped_at: Completed 131-04 (SessionCardGrid + HubPanel)
+last_updated: "2026-06-16T19:12:13.144Z"
 last_activity: 2026-06-16
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 ## Current Position
 
 Phase: 131 (Hub Foundation + Static Session Cards) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-06-16
 
@@ -53,7 +53,7 @@ Last activity: 2026-06-16
 
 ## Session Continuity
 
-Last session: 2026-06-16T19:04:34.939Z
+Last session: 2026-06-16T19:12:13.139Z
 Stopped at: Phase 131 UI-SPEC approved
 Resume file: None
 Next action: /gsd:plan-phase 131
@@ -72,6 +72,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | deferred_issue | #82 TUI Files upload parity | deferred to a later milestone (formally descoped Phase 126) |
 | deferred_issue | #82 TUI Hub parity (attention + float-to-top + named groups) | signed-off deferral — not a silent gap |
 | bookkeeping | Nyquist frontmatter `nyquist_compliant:false` on Phases 123/125/126/127 | advisory; tests green |
+| Phase 131 P04 | 15 | 2 tasks | 4 files |
 
 ## v3.6 Phase Plan
 
@@ -97,6 +98,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | TUI Hub parity | Explicitly deferred to issue #82 with user sign-off. Cross-surface parity contract remains; this is a documented deferral. |
 | A11Y phase placement | Dedicated Phase 135 hardening phase validates the full surface end-to-end. Colorblind-safe constraint (user is colorblind) is release-blocking — verified at source level (hex constants), not by eye. |
 | Group membership key | Session name + working directory. Survives session-id churn across restarts; unmatched sessions fall to a default lane (GROUP-04). |
+| SessionCardGrid basename | Inlined helper (no node:path import) — splits on both / and \\ separators, takes last non-empty segment |
+| filterSessions export | Exported from HubPanel.tsx for testability; case-insensitive substring search on name, cli, and hostname |
 
 ## v3.5.1 Completed (for reference)
 
