@@ -426,6 +426,28 @@ func (a *App) GetSessionStatus(sessionID string) string {
 	return s
 }
 
+// GetSessionTailLines returns the last n plain-text lines from the session's
+// scrollback buffer, with ANSI escape sequences and relay framing bytes stripped.
+// Returns an empty slice if the session has no scrollback (e.g. remote sessions)
+// or if the daemon is unreachable. n is clamped to [1..20] to bound response size.
+// Used by the Hub mini-preview poller (CARD-07). Phase 132.
+func (a *App) GetSessionTailLines(id string, n int) []string {
+	if a.client == nil {
+		return []string{}
+	}
+	if n < 1 {
+		n = 1
+	}
+	if n > 20 {
+		n = 20
+	}
+	lines, err := a.client.GetSessionTailLines(id, n)
+	if err != nil || lines == nil {
+		return []string{}
+	}
+	return lines
+}
+
 // DetectCLIs returns the list of supported AI coding CLIs found on PATH.
 func (a *App) DetectCLIs() []pty.DetectedCLI {
 	return pty.DetectCLIs()

@@ -98,6 +98,17 @@ func (c *DaemonClient) GetSessionStatus(id string) (string, error) {
 	return resp.Status, nil
 }
 
+// GetSessionTailLines returns the last n plain-text lines from the session's
+// scrollback buffer, with ANSI escape sequences and framing bytes stripped.
+// Phase 132 / CARD-07.
+func (c *DaemonClient) GetSessionTailLines(id string, n int) ([]string, error) {
+	var resp TailLinesResponse
+	if err := c.doJSON(http.MethodGet, fmt.Sprintf("/sessions/%s/tail?n=%d", id, n), nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Lines, nil
+}
+
 // GetCLIPaths returns the current CLI path override map.
 func (c *DaemonClient) GetCLIPaths() (map[string]string, error) {
 	var paths map[string]string

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -101,6 +102,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("DELETE /sessions/{id}", a.handleDeleteSession)
 	a.mux.HandleFunc("PATCH /sessions/{id}/name", a.handleRenameSession)
 	a.mux.HandleFunc("GET /sessions/{id}/status", a.handleGetSessionStatus)
+	a.mux.HandleFunc("GET /sessions/{id}/tail", a.handleGetSessionTailLines)
 	a.mux.HandleFunc("GET /settings/cli-paths", a.handleGetCLIPaths)
 	a.mux.HandleFunc("GET /shells", a.handleListShells)
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
@@ -605,6 +607,23 @@ func (a *API) handleGetSessionStatus(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s := a.engine.GetSessionStatus(id)
 	writeJSON(w, http.StatusOK, StatusResponse{Status: s})
+}
+
+// handleGetSessionTailLines returns the last n plain-text lines from the
+// session's scrollback buffer. Phase 132 / CARD-07.
+func (a *API) handleGetSessionTailLines(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	n := 4 // default
+	if nStr := r.URL.Query().Get("n"); nStr != "" {
+		if parsed, err := strconv.Atoi(nStr); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	lines := a.engine.GetSessionTailLines(id, n)
+	if lines == nil {
+		lines = []string{}
+	}
+	writeJSON(w, http.StatusOK, TailLinesResponse{Lines: lines})
 }
 
 func (a *API) handleGetCLIPaths(w http.ResponseWriter, r *http.Request) {

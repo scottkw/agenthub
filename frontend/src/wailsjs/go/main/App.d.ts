@@ -59,6 +59,8 @@ export function AcknowledgeCTDisclosure(): Promise<void>
 export function GetSessionQRCode(sessionID: string): Promise<string>
 export function GetWebServerQRCode(): Promise<string>
 export function GetSessionStatus(sessionID: string): Promise<string>
+// Phase 132 / CARD-07 — throttled tail snapshot for Hub mini-preview. n clamped to [1..20].
+export function GetSessionTailLines(id: string, n: number): Promise<string[]>
 
 // Daemon error and retry bound methods
 export function GetDaemonError(): Promise<string>
