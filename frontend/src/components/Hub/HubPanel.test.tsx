@@ -355,9 +355,9 @@ describe('HubPanel', () => {
     const sessions = [makeSession({ id: 'local-1', hostname: '' })]
     renderPanel({ sessions, isActive: true })
 
-    // advance past the initial poll
+    // advance by 100ms to trigger the initial poll (not the interval)
     await act(async () => {
-      await vi.runAllTimersAsync()
+      await vi.advanceTimersByTimeAsync(100)
     })
 
     expect(GetSessionTailLines).toHaveBeenCalledWith('local-1', 4)
@@ -370,7 +370,7 @@ describe('HubPanel', () => {
     renderPanel({ sessions, isActive: false })
 
     await act(async () => {
-      await vi.runAllTimersAsync()
+      await vi.advanceTimersByTimeAsync(100)
     })
 
     expect(GetSessionTailLines).not.toHaveBeenCalled()
@@ -388,7 +388,7 @@ describe('HubPanel', () => {
     renderPanel({ sessions, isActive: true })
 
     await act(async () => {
-      await vi.runAllTimersAsync()
+      await vi.advanceTimersByTimeAsync(100)
     })
 
     // Only local-1 should be fetched; remote-99 skipped
