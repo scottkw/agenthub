@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
-status: planning
-last_updated: "2026-06-15T22:30:00.000Z"
+status: executing
+stopped_at: v3.5.1 roadmap created
+last_updated: "2026-06-15T23:59:48.083Z"
 last_activity: 2026-06-15
 progress:
-  total_phases: 2
+  total_phases: 1
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 129 — Write Concurrency Fix + DNS Error UX
+**Current focus:** Phase 129 — write-concurrency-fix-dns-error-ux
 
 ## Current Position
 
-Phase: 129 (not started)
-Plan: —
-Status: Roadmap created; ready for `/gsd:plan-phase 129`
-Last activity: 2026-06-15 — v3.5.1 roadmap created
+Phase: 129 (write-concurrency-fix-dns-error-ux) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-15
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -49,7 +50,7 @@ Last activity: 2026-06-15 — v3.5.1 roadmap created
 
 ## Session Continuity
 
-Last session: 2026-06-15
+Last session: 2026-06-15T23:59:48.079Z
 Stopped at: v3.5.1 roadmap created
 Resume file: None
 Next action: `/gsd:plan-phase 129`
@@ -67,6 +68,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | manual_uat | Phase 124 home-dir warning banner on-screen | pending (live app required) |
 | deferred_issue | #82 TUI Files upload parity | deferred to a later milestone (formally descoped Phase 126) |
 | bookkeeping | Nyquist frontmatter `nyquist_compliant:false` on Phases 123/125/126/127 | advisory; tests green |
+| Phase 129-write-concurrency-fix-dns-error-ux P01 | 4m | 3 tasks | 3 files |
 
 ## v3.5.1 Phase Plan
 

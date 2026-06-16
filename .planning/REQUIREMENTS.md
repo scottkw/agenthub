@@ -25,15 +25,15 @@ The desktop GUI must complete discover→list→pick for a tailnet peer's sessio
 
 ### Tailscale DNS Prerequisite (#83)
 
-- [ ] **DNS-01**: When a remote browse fails because the client has `accept-dns=false` (unresolvable MagicDNS), the user sees an actionable message naming the fix (e.g. *"Enable Tailscale DNS (accept-dns) to browse remote sessions"*) instead of an opaque `502 no such host`
-- [ ] **DNS-02**: The daemon distinguishes the unresolvable-MagicDNS / `accept-dns=false` condition from other remote-unreachable failures, so the actionable message is shown only when correct (not as a blanket catch-all)
-- [ ] **DNS-03**: `accept-dns` state is probed proactively (at startup or before the first remote browse) and the user is warned before hitting the failure
+- [x] **DNS-01**: When a remote browse fails because the client has `accept-dns=false` (unresolvable MagicDNS), the user sees an actionable message naming the fix (e.g. *"Enable Tailscale DNS (accept-dns) to browse remote sessions"*) instead of an opaque `502 no such host`
+- [x] **DNS-02**: The daemon distinguishes the unresolvable-MagicDNS / `accept-dns=false` condition from other remote-unreachable failures, so the actionable message is shown only when correct (not as a blanket catch-all)
+- [x] **DNS-03**: `accept-dns` state is probed proactively (at startup or before the first remote browse) and the user is warned before hitting the failure
 
 ### Write Concurrency / Release Gate (#87)
 
 The `WriteFileAtomic` If-Match contract under same-process concurrency is **decided in the design pass** — option (a) per-path serialization for a true single-winner guarantee, or (b) documented last-writer-wins with an invariants-only test. These requirements hold either way.
 
-- [ ] **RACE-01**: The release `validate` gate passes deterministically — `TestWrite_TwoWritersIfMatchRace` no longer flakes (outcome is not goroutine-scheduling-dependent)
+- [x] **RACE-01**: The release `validate` gate passes deterministically — `TestWrite_TwoWritersIfMatchRace` no longer flakes (outcome is not goroutine-scheduling-dependent)
 - [ ] **RACE-02**: The `WriteFileAtomic` If-Match concurrency contract is implemented and documented consistently across the code, comments, and the remote-write proxy — no mismatch between an asserted single-winner guarantee and "last-writer-wins (WR-02)" comments
 - [ ] **RACE-03**: After a concurrent-write conflict, the final file content is never interleaved (all-A or all-B) and no leftover `.agenthub-tmp-*` temp files remain — regardless of the chosen contract
 
@@ -66,10 +66,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RB-03 | Phase 130 | Pending |
 | RB-04 | Phase 130 | Pending |
 | RB-05 | Phase 130 | Pending |
-| DNS-01 | Phase 129 | Pending |
-| DNS-02 | Phase 129 | Pending |
-| DNS-03 | Phase 129 | Pending |
-| RACE-01 | Phase 129 | Pending |
+| DNS-01 | Phase 129 | Complete |
+| DNS-02 | Phase 129 | Complete |
+| DNS-03 | Phase 129 | Complete |
+| RACE-01 | Phase 129 | Complete |
 | RACE-02 | Phase 129 | Pending |
 | RACE-03 | Phase 129 | Pending |
 

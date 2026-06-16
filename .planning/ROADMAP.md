@@ -334,7 +334,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Design decision (RESOLVED at plan time, 2026-06-15):** #87 If-Match concurrency contract → **(a) per-path lock for true single-winner guarantee**. WriteFileAtomic serializes same-path writers via a package-level keyed mutex; the loser gets a clean ErrPreconditionFailed (412). Code, comments, and the remote-write proxy all assert single-winner (RACE-02).
 
 **Plans**: 3 plans
-- [ ] 129-01-PLAN.md — Wave 0 test gaps: AcceptDNS health, DNS actionable-message, and relay-surface two-writer race tests (all RED first)
+- [x] 129-01-PLAN.md — Wave 0 test gaps: AcceptDNS health, DNS actionable-message, and relay-surface two-writer race tests (all RED first)
 - [ ] 129-02-PLAN.md — Write concurrency fix: per-path keyed lock in WriteFileAtomic + single-winner proxy doc corrections (RACE-01/02/03)
 - [ ] 129-03-PLAN.md — DNS error UX: isUnresolvableMagicDNS classifier + actionable 502 + proactive accept-dns probe (DNS-01/02/03)
 
@@ -403,7 +403,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 129 | v3.5.1 | 0/TBD | Not started | - |
+| 129 | v3.5.1 | 1/3 | In Progress|  |
 | 130 | v3.5.1 | 0/TBD | Not started | - |
 
 ---
