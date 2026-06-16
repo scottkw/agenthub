@@ -8,7 +8,18 @@ updated: 2026-06-16
 
 ## Current Test
 
-[awaiting human/live testing — 3 runtime items not drivable by source inspection or unit tests]
+Live smoke test performed 2026-06-16 via `wails dev` + dev-browser (2 shell sessions). Drivable Phase 132 features all PASS live:
+- Group sidebar renders with per-group running/total counts (GROUP-01): "All 2/2", "Backend 1/1".
+- Collapsible sidebar (GROUP-03): toggle collapses to icon strip; `hub-group-sidebar-collapsed` localStorage null→true; grid reflows wider.
+- Create named group (GROUP-01): typed "Backend" → appears in sidebar; persists to `agenthub:hubGroups:v1`.
+- Move-to-group via per-card menu (GROUP-02): "Card options for shell 1" → "Backend" → localStorage memberKeys=["shell 1:::/Users/ken"] (name+workDir key).
+- Named grouping in grid + Other fallback (GROUP-04): grid headers became ["BACKEND","OTHER"] (shell 1→Backend, shell 2→Other).
+- Mini-preview pane (CARD-07) renders on every card (showed "Loading…" — PTY content does not stream over the external-browser bridge; structure/placement verified, content needs native window).
+- Phase 131 regression: Open button preserved on all cards; drag handles + menu buttons present.
+
+Minor cosmetic finding (non-blocking): in the EXPANDED group sidebar, the collapse-toggle chevron is oversized and overlaps the "GROUPS" heading. Collapsed state is clean. Shape-based (colorblind-safe). Candidate for a quick polish or Phase 135.
+
+The 3 items below still need a built app with real sessions/peers:
 
 ## Tests
 
