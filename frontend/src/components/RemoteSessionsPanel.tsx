@@ -10,6 +10,8 @@ export interface RemoteSession {
 
 export interface RemotePeerSessions {
   hostname: string
+  /** Phase 130 — true when the peer responded to the metadata probe; false when unreachable. */
+  reachable: boolean
   sessions: RemoteSession[]
 }
 
@@ -33,7 +35,7 @@ export function RemoteSessionsPanel({
   if (loading && peers.length === 0) {
     return (
       <div className="remote-panel">
-        <div className="remote-panel__loading">
+        <div className="remote-panel__loading" role="status" aria-label="Loading remote peers">
           <div className="remote-panel__spinner" />
           Probing peers...
         </div>
@@ -55,37 +57,57 @@ export function RemoteSessionsPanel({
       {peers.map((peer) => (
         <div key={peer.hostname} className="remote-panel__peer">
           <div className="remote-panel__peer-header">{peer.hostname}</div>
-          <div className="remote-panel__peer-meta">Shows web-enabled sessions only</div>
-          <div className="remote-panel__session-list">
-            {peer.sessions.map((s) => (
-              <div key={s.id} className="remote-panel__session-row">
-                <span
-                  className={`remote-panel__status remote-panel__status--${s.status}`}
-                  title={s.status}
-                />
-                <span className="remote-panel__name">{s.name}</span>
-                <span className="remote-panel__cli">{s.cliType}</span>
-                <div className="remote-panel__actions">
-                  <button
-                    className="remote-panel__btn remote-panel__btn--open"
-                    onClick={() => onOpen(s.url)}
-                    title="Open in browser"
-                    aria-label={`Open ${s.name} in browser`}
-                  >
-                    Open Session
-                  </button>
-                  <button
-                    className="remote-panel__btn remote-panel__btn--browse"
-                    onClick={() => onBrowseFiles(s.id, s.name)}
-                    title="Browse files"
-                    aria-label={`Browse files on ${s.name}`}
-                  >
-                    Browse files
-                  </button>
+          {!peer.reachable ? (
+            /* Phase 130 — RB-04: unreachable peer. Text "Unreachable" is the primary signal;
+               #f7768e color is reinforcement only (colorblind-safe). */
+            <div className="remote-panel__peer-unreachable">Unreachable</div>
+          ) : peer.sessions.length === 0 ? (
+            /* Phase 130 — RB-04: reachable peer with zero shareable sessions. */
+            <>
+              <div className="remote-panel__peer-meta">Shows shareable sessions</div>
+              <div className="remote-panel__peer-empty-sessions">
+                <div className="remote-panel__peer-empty-sessions-title">No shareable sessions</div>
+                <div className="remote-panel__peer-empty-sessions-body">
+                  This peer has no sessions with web-sharing enabled.
                 </div>
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            /* Reachable peer with shareable sessions — render session rows. */
+            <>
+              <div className="remote-panel__peer-meta">Shows shareable sessions</div>
+              <div className="remote-panel__session-list">
+                {peer.sessions.map((s) => (
+                  <div key={s.id} className="remote-panel__session-row">
+                    <span
+                      className={`remote-panel__status remote-panel__status--${s.status}`}
+                      title={s.status}
+                    />
+                    <span className="remote-panel__name">{s.name}</span>
+                    <span className="remote-panel__cli">{s.cliType}</span>
+                    <div className="remote-panel__actions">
+                      <button
+                        className="remote-panel__btn remote-panel__btn--open"
+                        onClick={() => onOpen(s.url)}
+                        title="Open in browser"
+                        aria-label={`Open ${s.name} in browser`}
+                      >
+                        Open Session
+                      </button>
+                      <button
+                        className="remote-panel__btn remote-panel__btn--browse"
+                        onClick={() => onBrowseFiles(s.id, s.name)}
+                        title="Browse files"
+                        aria-label={`Browse files on ${s.name}`}
+                      >
+                        Browse files
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       ))}
     </div>

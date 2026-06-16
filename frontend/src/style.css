@@ -1691,6 +1691,57 @@ body {
   background: #b6dd86;
 }
 
+/* Phase 130 — per-peer unreachable badge
+   Text "Unreachable" carries the meaning; color is reinforcement only (colorblind-safe). */
+.remote-panel__peer-unreachable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #f7768e;          /* existing destructive token */
+  background: #1e2030;     /* existing elevated surface */
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+/* Phase 130 — per-peer zero-sessions state
+   Rendered under .remote-panel__peer-header when peer is reachable but
+   has zero shareable sessions. Text labels carry the state. */
+.remote-panel__peer-empty-sessions {
+  padding: 8px 0;
+  font-size: 13px;
+  color: #9aa5ce;          /* existing muted text token */
+}
+
+.remote-panel__peer-empty-sessions-title {
+  font-weight: 600;
+  color: #c0caf5;          /* existing primary text */
+  margin-bottom: 4px;
+}
+
+.remote-panel__peer-empty-sessions-body {
+  font-size: 13px;          /* existing body/session-name size — no new size */
+  color: #9aa5ce;
+  line-height: 1.5;
+}
+
+/* Phase 130 — prefers-reduced-motion fallback for remote-panel spinner
+   Mirrors the file-browser__spinner pattern (style.css lines 3516-3527). */
+@media (prefers-reduced-motion: reduce) {
+  .remote-panel__spinner {
+    animation: none;
+    border: none;
+    width: auto;
+    height: auto;
+  }
+  .remote-panel__spinner::before {
+    content: '…';
+    color: #9aa5ce;
+  }
+}
+
 /* ─── Local Network Banner (Phase 60 — NET-04) ───────────────────── */
 .local-network-banner {
   display: flex;
