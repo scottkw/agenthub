@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: ready_to_plan
-stopped_at: Phase 131 complete (5/5) — ready to discuss Phase 132
-last_updated: 2026-06-16T21:18:14.063Z
-last_activity: 2026-06-16
+status: executing
+stopped_at: Phase 132 UI-SPEC approved
+last_updated: "2026-06-16T21:52:38.936Z"
+last_activity: 2026-06-16 -- Phase 132 planning complete
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 5
+  total_plans: 10
   completed_plans: 5
   percent: 20
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 Phase: 132
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-16
+Status: Ready to execute
+Last activity: 2026-06-16 -- Phase 132 planning complete
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -53,9 +53,9 @@ Last activity: 2026-06-16
 
 ## Session Continuity
 
-Last session: 2026-06-16T19:25:14.771Z
-Stopped at: Phase 131 UI-SPEC approved
-Resume file: None
+Last session: 2026-06-16T21:26:42.513Z
+Stopped at: Phase 132 UI-SPEC approved
+Resume file: .planning/phases/132-unified-grid-mini-preview-named-groups/132-UI-SPEC.md
 Next action: /gsd:plan-phase 131
 
 ## Deferred Items

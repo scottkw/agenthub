@@ -378,10 +378,21 @@ Plans:
 **Plans**: 5 plans across 4 waves (Wave 1: backend tail RPC + frontend libs in parallel; Wave 2: new components; Wave 3: card extensions; Wave 4: integration + CSS)
 Plans:
 
+**Wave 1**
+
 - [ ] 132-01-PLAN.md — Wave 1: GetSessionTailLines Go RPC (daemon route + client + app.go + App.d.ts; strip 0x01 framing + ANSI from scrollback) — CARD-07 backend
 - [ ] 132-02-PLAN.md — Wave 1: hubGroups.ts (CRUD + localStorage + memberKey) + remoteAdapter.ts (adaptRemoteSession) — GROUP-01/03/04, GRID-07
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 132-03-PLAN.md — Wave 2: MiniPreview (plain-text snapshot, no xterm) + GroupSidebar (counts + needs-input badge + create + drop) — CARD-07, GRID-03, GROUP-01/02
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 132-04-PLAN.md — Wave 3: SessionCard (ROW 6 preview + drag source + group menu) + SessionCardGrid (named grouping + Other fallback) — CARD-07, GROUP-02/04
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 132-05-PLAN.md — Wave 4: HubPanel (usePreviewPoller + group state + remote merge) + App.tsx (remote poll gate) + CSS — CARD-07, GRID-03, GRID-07
 
 **UI hint**: yes
