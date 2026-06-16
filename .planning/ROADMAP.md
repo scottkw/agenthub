@@ -389,7 +389,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 132-04-PLAN.md — Wave 3: SessionCard (ROW 6 preview + drag source + group menu) + SessionCardGrid (named grouping + Other fallback) — CARD-07, GROUP-02/04
+- [x] 132-04-PLAN.md — Wave 3: SessionCard (ROW 6 preview + drag source + group menu) + SessionCardGrid (named grouping + Other fallback) — CARD-07, GROUP-02/04
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -513,7 +513,7 @@ Plans:
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
-| 132 | v3.6 | 3/5 | In Progress|  |
+| 132 | v3.6 | 4/5 | In Progress|  |
 | 133 | v3.6 | 0/? | Not started | - |
 | 134 | v3.6 | 0/? | Not started | - |
 | 135 | v3.6 | 0/? | Not started | - |
