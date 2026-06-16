@@ -6,9 +6,12 @@ import raw from '../../components/RemoteSessionsPanel.tsx?raw'
 import type { RemoteSessionsPanelProps, RemotePeerSessions } from '../../components/RemoteSessionsPanel'
 import { RemoteSessionsPanel } from '../../components/RemoteSessionsPanel'
 
-const mockPeers: RemotePeerSessions[] = [
+// mockPeers includes `reachable` (added to the type in plan 04); cast via `as` to allow
+// the field on fixtures before the type definition is extended.
+const mockPeers = [
   {
     hostname: 'macbook-pro',
+    reachable: true,
     sessions: [
       { id: 'sess-1', name: 'claude 1', cliType: 'claude', status: 'running', url: 'https://macbook-pro.ts.net:7443/sessions/sess-1' },
       { id: 'sess-2', name: 'codex 1', cliType: 'codex', status: 'idle', url: 'https://macbook-pro.ts.net:7443/sessions/sess-2' },
@@ -16,11 +19,12 @@ const mockPeers: RemotePeerSessions[] = [
   },
   {
     hostname: 'dev-server',
+    reachable: true,
     sessions: [
       { id: 'sess-3', name: 'claude 2', cliType: 'claude', status: 'waiting', url: 'https://dev-server.ts.net:7443/sessions/sess-3' },
     ],
   },
-]
+] as RemotePeerSessions[]
 
 function renderPanel(props: Partial<RemoteSessionsPanelProps> = {}) {
   const defaults: RemoteSessionsPanelProps = {
@@ -86,8 +90,8 @@ describe('RemoteSessionsPanel source inspection', () => {
     expect(raw).toContain('onOpen(s.url)')
   })
 
-  it('contains web-enabled sessions constraint copy', () => {
-    expect(raw).toContain('Shows web-enabled sessions only')
+  it('contains shareable sessions constraint copy', () => {
+    expect(raw).toContain('Shows shareable sessions')
   })
 
   it('uses BEM class remote-panel__peer-meta for constraint sub-label', () => {
@@ -131,8 +135,8 @@ describe('RemoteSessionsPanel DOM', () => {
     const { container } = renderPanel({ peers: mockPeers })
     const metas = container.querySelectorAll('.remote-panel__peer-meta')
     expect(metas.length).toBe(2)
-    expect(metas[0].textContent).toBe('Shows web-enabled sessions only')
-    expect(metas[1].textContent).toBe('Shows web-enabled sessions only')
+    expect(metas[0].textContent).toBe('Shows shareable sessions')
+    expect(metas[1].textContent).toBe('Shows shareable sessions')
   })
 
   it('renders session rows with name, cli, and status', () => {
@@ -212,5 +216,156 @@ describe('RemoteSessionsPanel — Phase 122-03 Browse files', () => {
 
     buttons[2].click()
     expect(onBrowseFiles).toHaveBeenCalledWith('sess-3', 'claude 2')
+  })
+})
+
+// --- RB-04: Per-peer honest states (Wave 0 RED — these tests FAIL until plan 04 implementation) ---
+
+describe('RemoteSessionsPanel — RB-04 unreachable peer state', () => {
+  it('renders "Unreachable" text when peer has reachable=false', () => {
+    const unreachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'offline-host',
+        reachable: false,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: unreachablePeer })
+    // The word "Unreachable" must appear in the DOM as text (colorblind-safe, text-first)
+    expect(container.textContent).toContain('Unreachable')
+  })
+
+  it('renders the peer hostname alongside the "Unreachable" badge', () => {
+    const unreachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'offline-host',
+        reachable: false,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: unreachablePeer })
+    const header = container.querySelector('.remote-panel__peer-header')
+    expect(header).toBeTruthy()
+    expect(header!.textContent).toBe('offline-host')
+    expect(container.textContent).toContain('Unreachable')
+  })
+
+  it('does not render session rows for an unreachable peer', () => {
+    const unreachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'offline-host',
+        reachable: false,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: unreachablePeer })
+    const rows = container.querySelectorAll('.remote-panel__session-row')
+    expect(rows.length).toBe(0)
+  })
+})
+
+describe('RemoteSessionsPanel — RB-04 reachable peer with zero sessions', () => {
+  it('renders "No shareable sessions" title for a reachable peer with sessions=[]', () => {
+    const emptyReachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: emptyReachablePeer })
+    expect(container.textContent).toContain('No shareable sessions')
+  })
+
+  it('renders body text "This peer has no sessions with web-sharing enabled."', () => {
+    const emptyReachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: emptyReachablePeer })
+    expect(container.textContent).toContain('This peer has no sessions with web-sharing enabled.')
+  })
+
+  it('does not render session rows for a reachable peer with empty sessions', () => {
+    const emptyReachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: emptyReachablePeer })
+    const rows = container.querySelectorAll('.remote-panel__session-row')
+    expect(rows.length).toBe(0)
+  })
+
+  it('does not render "Unreachable" badge for a reachable peer with empty sessions', () => {
+    const emptyReachablePeer: RemotePeerSessions[] = [
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: emptyReachablePeer })
+    expect(container.textContent).not.toContain('Unreachable')
+  })
+})
+
+describe('RemoteSessionsPanel — RB-04 no false "No remote peers found" when ≥1 peer probed', () => {
+  it('does not render "No remote peers found" when an unreachable peer is present', () => {
+    const probedPeers: RemotePeerSessions[] = [
+      {
+        hostname: 'offline-host',
+        reachable: false,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: probedPeers })
+    expect(container.textContent).not.toContain('No remote peers found')
+  })
+
+  it('does not render "No remote peers found" when a reachable-but-empty peer is present', () => {
+    const probedPeers: RemotePeerSessions[] = [
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+    ]
+    const { container } = renderPanel({ peers: probedPeers })
+    expect(container.textContent).not.toContain('No remote peers found')
+  })
+
+  it('does not render "No remote peers found" when mixed peers (reachable + unreachable) are present', () => {
+    const mixedPeers: RemotePeerSessions[] = [
+      {
+        hostname: 'offline-host',
+        reachable: false,
+        sessions: [],
+      },
+      {
+        hostname: 'empty-host',
+        reachable: true,
+        sessions: [],
+      },
+      {
+        hostname: 'live-host',
+        reachable: true,
+        sessions: [
+          { id: 'sess-x', name: 'claude x', cliType: 'claude', status: 'running', url: 'https://live-host.ts.net:7443/sessions/sess-x' },
+        ],
+      },
+    ]
+    const { container } = renderPanel({ peers: mixedPeers })
+    expect(container.textContent).not.toContain('No remote peers found')
+  })
+
+  it('still renders "No remote peers found" only when peers array is truly empty', () => {
+    const { container } = renderPanel({ peers: [] })
+    expect(container.textContent).toContain('No remote peers found')
   })
 })
