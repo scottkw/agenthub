@@ -27,7 +27,7 @@ func TestCheckHealth_NotRunning(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("dial unix: connection refused")
-	}, stub)
+	}, stub, nil)
 
 	// Binary found but daemon unreachable
 	if !h.BinaryFound {
@@ -73,7 +73,7 @@ func TestCheckHealth_BackendState(t *testing.T) {
 		t.Run(tc.state, func(t *testing.T) {
 			h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 				return &ipnstate.Status{BackendState: tc.state}, nil
-			}, stub)
+			}, stub, nil)
 
 			if !h.BinaryFound {
 				t.Errorf("state=%s: expected BinaryFound=true", tc.state)
@@ -121,7 +121,7 @@ func TestCheckHealth_CertDomains(t *testing.T) {
 					BackendState: "Running",
 					CertDomains:  tc.domains,
 				}, nil
-			}, stub)
+			}, stub, nil)
 
 			if h.HasCerts != tc.wantHasCerts {
 				t.Errorf("expected HasCerts=%v, got %v", tc.wantHasCerts, h.HasCerts)
@@ -141,7 +141,7 @@ func TestCheckHealth_FullyHealthy(t *testing.T) {
 			TailscaleIPs: []netip.Addr{netip.MustParseAddr("100.64.0.1")},
 			CertDomains:  []string{"myhost.tail46d69a.ts.net"},
 		}, nil
-	}, stub)
+	}, stub, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -181,7 +181,7 @@ func TestCheckHealth_BinaryNotFound(t *testing.T) {
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		fnCalled = true
 		return nil, nil
-	}, "/nonexistent/path/tailscale")
+	}, "/nonexistent/path/tailscale", nil)
 
 	if fnCalled {
 		t.Error("statusFunc should not be called when binary is not found")
@@ -207,7 +207,7 @@ func TestCheckHealth_DaemonStopped(t *testing.T) {
 	stub := stubBinary(t)
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return nil, fmt.Errorf("connect: connection refused")
-	}, stub)
+	}, stub, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true")
@@ -235,7 +235,7 @@ func TestCheckHealth_CustomPathPrecedence(t *testing.T) {
 	// Pass customPath — health check should succeed because binary exists at custom path
 	h := checkHealth(context.Background(), func(ctx context.Context) (*ipnstate.Status, error) {
 		return &ipnstate.Status{BackendState: "Running"}, nil
-	}, customPath)
+	}, customPath, nil)
 
 	if !h.BinaryFound {
 		t.Error("expected BinaryFound=true with custom path")
