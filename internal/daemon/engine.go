@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -515,6 +516,43 @@ func (e *SessionEngine) GetSessionStatus(sessionID string) string {
 		return string(status.StatusRunning)
 	}
 	return string(s)
+}
+
+// ansiEscape matches CSI sequences (e.g. \x1b[32m) and OSC sequences
+// (e.g. \x1b]0;title\x07 or \x1b]8;;url\x1b\).
+// Covers the full ANSI vocabulary emitted by Claude Code, opencode, Gemini CLI.
+// Pattern mirrors frontend/src/lib/stripAnsi.ts extended to include OSC.
+var ansiEscape = regexp.MustCompile(`\x1b(?:\[[0-9;?]*[a-zA-Z]|\][^\x07\x1b]*(?:\x07|\x1b\\))`)
+
+// GetSessionTailLines returns the last n plain-text lines from the session's
+// scrollback buffer. Relay framing bytes (0x01 / relay.MsgOutput) and ANSI/OSC
+// escape sequences are stripped before splitting on newlines. Trailing empty
+// lines are trimmed. Returns nil if the session has no hub.
+// Phase 132 / CARD-07.
+func (e *SessionEngine) GetSessionTailLines(id string, n int) []string {
+	hub, ok := e.manager.Get(id)
+	if !ok {
+		return nil
+	}
+	raw := hub.ScrollbackSnapshot()
+	// Strip relay.MsgOutput (0x01) framing bytes — pattern from engine_test.go lines 463-471.
+	stripped := make([]byte, 0, len(raw))
+	for _, b := range raw {
+		if b != relay.MsgOutput {
+			stripped = append(stripped, b)
+		}
+	}
+	// Strip ANSI escape sequences.
+	text := ansiEscape.ReplaceAllString(string(stripped), "")
+	lines := strings.Split(text, "\n")
+	// Remove empty trailing lines.
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines
 }
 
 // GetSessionWorkDir returns the EvalSymlinks-resolved absolute WorkDir for

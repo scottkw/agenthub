@@ -59,6 +59,12 @@ type StatusResponse struct {
 	Status string `json:"status"`
 }
 
+// TailLinesResponse is the response body for GET /sessions/{id}/tail.
+// Phase 132 / CARD-07.
+type TailLinesResponse struct {
+	Lines []string `json:"lines"`
+}
+
 // HealthResponse is the response body for GET /health.
 type HealthResponse struct {
 	Status  string `json:"status"`
