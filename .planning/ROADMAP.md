@@ -408,7 +408,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
-| 130 | v3.5.1 | 4/4 | Complete   | 2026-06-16 |
+| 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

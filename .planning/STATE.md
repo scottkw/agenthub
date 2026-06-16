@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
-status: verifying
-stopped_at: Completed 130-03-PLAN.md
-last_updated: "2026-06-16T06:03:19.581Z"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 130 was final phase)
+last_updated: 2026-06-16T14:40:22.239Z
 last_activity: 2026-06-16
 progress:
   total_phases: 2
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 130 — remote-browse-gui-on-ramp
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 130 (remote-browse-gui-on-ramp) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 130
+Plan: Not started
+Status: Milestone complete
 Last activity: 2026-06-16
 
 ## Operator Next Steps (pre-release, carry-forward)
