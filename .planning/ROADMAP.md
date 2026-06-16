@@ -349,7 +349,7 @@ Plans:
 **Wave 1**
 
 - [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
+- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -378,7 +378,7 @@ Plans:
 **Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
 Plans:
 
-- [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
+- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 - [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
@@ -501,7 +501,7 @@ Plans:
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
-| 131 | v3.6 | 1/5 | In Progress|  |
+| 131 | v3.6 | 2/5 | In Progress|  |
 | 132 | v3.6 | 0/? | Not started | - |
 | 133 | v3.6 | 0/? | Not started | - |
 | 134 | v3.6 | 0/? | Not started | - |
