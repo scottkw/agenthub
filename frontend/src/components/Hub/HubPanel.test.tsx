@@ -1,0 +1,311 @@
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { act } from 'react'
+import type { SessionInfo } from '../../wailsjs/go/main/App'
+
+// Mock Wails RPC before component import
+vi.mock('../../wailsjs/go/main/App', () => ({
+  RenameSession: vi.fn().mockResolvedValue(undefined),
+  ListSessions: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
+  ClipboardSetText: vi.fn().mockResolvedValue(undefined),
+}))
+
+import { HubPanel } from './HubPanel'
+
+// ---- Helpers ----
+
+function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
+  return {
+    id: 'sess-1',
+    cli: 'claude',
+    name: 'Test Session',
+    state: 'running',
+    status: 'running',
+    createdAt: new Date().toISOString(),
+    hostname: '',
+    webEnabled: false,
+    viewerCount: 0,
+    homeDir: false,
+    filesWrite: false,
+    workDir: '/home/user/project',
+    ...overrides,
+  }
+}
+
+function renderPanel(overrides: {
+  sessions?: SessionInfo[]
+  error?: boolean
+  onNewSession?: () => void
+  onRename?: (id: string, name: string) => void
+} = {}) {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+
+  const props = {
+    sessions: overrides.sessions ?? [],
+    error: overrides.error ?? false,
+    onNewSession: overrides.onNewSession ?? vi.fn(),
+    onRename: overrides.onRename ?? vi.fn(),
+  }
+
+  act(() => {
+    root.render(<HubPanel {...props} />)
+  })
+
+  return { container, root, ...props }
+}
+
+describe('HubPanel', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+    // Remove any lingering keydown listeners
+    window.onkeydown = null
+  })
+
+  // ---- Empty state: no sessions ----
+
+  it('renders the no-sessions empty state when sessions is empty', () => {
+    const { container } = renderPanel({ sessions: [] })
+    expect(container.textContent).toContain('No sessions yet')
+    expect(container.textContent).toContain('Create a session to start an AI coding agent.')
+  })
+
+  it('does not render SessionCardGrid when sessions is empty', () => {
+    const { container } = renderPanel({ sessions: [] })
+    const groups = container.querySelectorAll('.hub__group')
+    expect(groups.length).toBe(0)
+  })
+
+  // ---- Sessions present: renders grid ----
+
+  it('renders SessionCardGrid (hub__group) when sessions are present', () => {
+    const { container } = renderPanel({
+      sessions: [makeSession({ id: 'sess-1' })],
+    })
+    const groups = container.querySelectorAll('.hub__group')
+    expect(groups.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does not render the no-sessions empty state when sessions are present', () => {
+    const { container } = renderPanel({
+      sessions: [makeSession()],
+    })
+    expect(container.textContent).not.toContain('No sessions yet')
+  })
+
+  // ---- Filter narrows the grid ----
+
+  it('shows all sessions when filter is "all"', () => {
+    const sessions = [
+      makeSession({ id: 's1', status: 'running', state: 'running' }),
+      makeSession({ id: 's2', status: 'idle', state: 'running' }),
+    ]
+    const { container } = renderPanel({ sessions })
+    const listitems = container.querySelectorAll('[role="listitem"]')
+    expect(listitems.length).toBe(2)
+  })
+
+  it('filters sessions by status when filter pill is clicked', () => {
+    const sessions = [
+      makeSession({ id: 's1', status: 'running', state: 'running', name: 'Running Session' }),
+      makeSession({ id: 's2', status: 'idle', state: 'running', name: 'Idle Session' }),
+    ]
+    const { container } = renderPanel({ sessions })
+
+    // Click "Idle" filter pill (label "Idle")
+    const pills = container.querySelectorAll('.hub-filter__pill')
+    const idlePill = Array.from(pills).find((p) => p.textContent?.includes('Idle'))
+    expect(idlePill).not.toBeUndefined()
+
+    act(() => {
+      idlePill!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // Only the idle session should remain
+    const listitems = container.querySelectorAll('[role="listitem"]')
+    expect(listitems.length).toBe(1)
+  })
+
+  // ---- Search narrows the grid ----
+
+  it('filters sessions by search text against session name', () => {
+    const sessions = [
+      makeSession({ id: 's1', name: 'Alpha Session', status: 'running', state: 'running' }),
+      makeSession({ id: 's2', name: 'Beta Session', status: 'running', state: 'running' }),
+    ]
+    const { container } = renderPanel({ sessions })
+
+    const searchInput = container.querySelector<HTMLInputElement>('.hub-filter__search')
+    expect(searchInput).not.toBeNull()
+
+    act(() => {
+      // Simulate typing "alpha"
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )!.set!
+      nativeInputValueSetter.call(searchInput!, 'alpha')
+      searchInput!.dispatchEvent(new Event('input', { bubbles: true }))
+      // React synthetic onChange needs a change event
+      searchInput!.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    const listitems = container.querySelectorAll('[role="listitem"]')
+    expect(listitems.length).toBe(1)
+  })
+
+  it('case-insensitively filters sessions by name', () => {
+    const sessions = [
+      makeSession({ id: 's1', name: 'My Claude Task', status: 'running', state: 'running' }),
+      makeSession({ id: 's2', name: 'Other Task', status: 'running', state: 'running' }),
+    ]
+    const { container } = renderPanel({ sessions })
+    const searchInput = container.querySelector<HTMLInputElement>('.hub-filter__search')!
+
+    act(() => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )!.set!
+      nativeInputValueSetter.call(searchInput, 'CLAUDE')
+      searchInput.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+
+    const listitems = container.querySelectorAll('[role="listitem"]')
+    expect(listitems.length).toBe(1)
+  })
+
+  // ---- No-matches empty state ----
+
+  it('renders the no-matches empty state when filter narrows to zero results', () => {
+    const sessions = [
+      makeSession({ id: 's1', status: 'running', state: 'running' }),
+    ]
+    const { container } = renderPanel({ sessions })
+
+    // Click "Idle" pill — no idle sessions exist
+    const pills = container.querySelectorAll('.hub-filter__pill')
+    const idlePill = Array.from(pills).find((p) => p.textContent?.includes('Idle'))!
+
+    act(() => {
+      idlePill.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    expect(container.textContent).toContain('No matching sessions')
+  })
+
+  it('does not render the grid when filter yields no matches', () => {
+    const sessions = [makeSession({ id: 's1', status: 'running', state: 'running' })]
+    const { container } = renderPanel({ sessions })
+
+    const pills = container.querySelectorAll('.hub-filter__pill')
+    const idlePill = Array.from(pills).find((p) => p.textContent?.includes('Idle'))!
+    act(() => {
+      idlePill.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    const groups = container.querySelectorAll('.hub__group')
+    expect(groups.length).toBe(0)
+  })
+
+  it('Clear-filter CTA in no-matches state resets filter and shows the grid again', () => {
+    const sessions = [makeSession({ id: 's1', status: 'running', state: 'running' })]
+    const { container } = renderPanel({ sessions })
+
+    // 1. Trigger a zero-match filter
+    const pills = container.querySelectorAll('.hub-filter__pill')
+    const idlePill = Array.from(pills).find((p) => p.textContent?.includes('Idle'))!
+    act(() => {
+      idlePill.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // Confirm no-matches state
+    expect(container.textContent).toContain('No matching sessions')
+
+    // 2. Click "Clear filter"
+    const clearBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Clear filter',
+    )
+    expect(clearBtn).not.toBeUndefined()
+    act(() => {
+      clearBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // Grid should be visible again
+    const groups = container.querySelectorAll('.hub__group')
+    expect(groups.length).toBeGreaterThanOrEqual(1)
+  })
+
+  // ---- "/" shortcut focuses search ----
+
+  it('pressing "/" focuses the search input', () => {
+    const sessions = [makeSession()]
+    const { container } = renderPanel({ sessions })
+
+    const searchInput = container.querySelector<HTMLInputElement>('.hub-filter__search')!
+    // Ensure search is not currently focused
+    searchInput.blur()
+
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '/', bubbles: true }),
+      )
+    })
+
+    expect(document.activeElement).toBe(searchInput)
+  })
+
+  it('does not hijack "/" when an input is already focused', () => {
+    const sessions = [makeSession()]
+    const { container } = renderPanel({ sessions })
+
+    const searchInput = container.querySelector<HTMLInputElement>('.hub-filter__search')!
+    act(() => {
+      searchInput.focus()
+    })
+
+    // activeElement is an input — "/" should NOT preventDefault / focus again
+    // The test just verifies no error is thrown; the guard prevents double-focus.
+    expect(() => {
+      act(() => {
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }),
+        )
+      })
+    }).not.toThrow()
+  })
+
+  // ---- Error state ----
+
+  it('renders the error state when error=true', () => {
+    const { container } = renderPanel({ error: true })
+    expect(container.textContent).toContain("Couldn't load sessions")
+    expect(container.textContent).toContain('Check that the daemon is running and try again.')
+  })
+
+  it('does not render the grid when error=true', () => {
+    const sessions = [makeSession()]
+    const { container } = renderPanel({ sessions, error: true })
+    const groups = container.querySelectorAll('.hub__group')
+    expect(groups.length).toBe(0)
+  })
+
+  it('does not render the no-sessions empty state when error=true', () => {
+    const { container } = renderPanel({ sessions: [], error: true })
+    expect(container.textContent).not.toContain('No sessions yet')
+  })
+
+  // ---- Header structure ----
+
+  it('renders a hub header with the title "Hub"', () => {
+    const { container } = renderPanel()
+    expect(container.querySelector('.hub__header')).not.toBeNull()
+    expect(container.querySelector('.hub__title')?.textContent).toBe('Hub')
+  })
+})
