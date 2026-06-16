@@ -4399,7 +4399,23 @@ body {
   border: 1px solid var(--hub-border);
 }
 
+/* --- Status indicator wrapper (icon + label, row 1) --- */
+/* CR-01: these rules were missing — added to pair with TSX hub-card__status-indicator usage */
+.hub-card__status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.hub-card__status-label {
+  font-size: 11px;
+  color: var(--hub-text-secondary);
+  white-space: nowrap;
+}
+
 /* --- Filter bar --- */
+/* CR-01: .hub__filter-bar is the canonical wrapper (TSX was using hub-filter, now corrected) */
 .hub__filter-bar {
   display: flex;
   align-items: center;
@@ -4408,6 +4424,34 @@ body {
   border-bottom: 1px solid var(--hub-border);
   flex-shrink: 0;
   flex-wrap: wrap;
+}
+
+/* CR-01: hub-filter__pills — grouping container for filter pill buttons */
+.hub-filter__pills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* CR-01: hub-filter__new-session — "New session" button in the filter bar */
+.hub-filter__new-session {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--hub-border);
+  background: var(--hub-surface-elevated);
+  color: var(--hub-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: auto;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+
+.hub-filter__new-session:hover {
+  border-color: var(--hub-border-hover);
+  background: var(--hub-surface);
 }
 
 .hub-filter__pill {

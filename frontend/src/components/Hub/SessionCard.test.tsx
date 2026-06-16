@@ -191,7 +191,8 @@ describe('SessionCard', () => {
 
   it('renders CLI badge with cli name as text', () => {
     const { container } = renderCard(makeSession({ cli: 'claude' }))
-    const badge = container.querySelector('.tab__agent-badge--claude')
+    // WR-03/CR-01: badge now uses hub-card__badge (Hub text-chip) not tab__agent-badge dot
+    const badge = container.querySelector('.hub-card__badge')
     expect(badge).not.toBeNull()
     // CLI name should be visible text
     expect(badge!.textContent).toContain('claude')
@@ -201,7 +202,8 @@ describe('SessionCard', () => {
 
   it('running session shows uptime string (not "Ran")', () => {
     const { container } = renderCard(makeSession({ state: 'running', status: 'running' }))
-    const timeRow = container.querySelector('.hub-card__time')
+    // CR-01: class name corrected from hub-card__time to hub-card__uptime (matches CSS)
+    const timeRow = container.querySelector('.hub-card__uptime')
     expect(timeRow).not.toBeNull()
     expect(timeRow!.textContent).not.toContain('Ran')
   })
@@ -210,7 +212,8 @@ describe('SessionCard', () => {
     const { container } = renderCard(
       makeSession({ state: 'stopped', exitCode: 0, duration: 3600 })
     )
-    const timeRow = container.querySelector('.hub-card__time')
+    // CR-01: class name corrected from hub-card__time to hub-card__uptime (matches CSS)
+    const timeRow = container.querySelector('.hub-card__uptime')
     expect(timeRow).not.toBeNull()
     expect(timeRow!.textContent).toContain('Ran')
   })

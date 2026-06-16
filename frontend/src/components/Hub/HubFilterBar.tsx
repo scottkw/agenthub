@@ -1,5 +1,7 @@
 import React from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+// WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
+import { deriveHubStatus } from '../../lib/hubStatus'
 
 // ---- Types ----
 
@@ -28,19 +30,6 @@ const FILTER_PILLS: FilterPillDef[] = [
 // ---- Helpers ----
 
 /**
- * Derive the Hub display status from a SessionInfo — mirrors SessionCard.tsx deriveStatus.
- * - state === 'stopped' + exitCode non-zero → 'stopped-err'
- * - state === 'stopped' + exitCode 0 (or undefined) → 'stopped-ok'
- * - otherwise: use session.status as HubFilter key
- */
-function deriveFilterStatus(s: SessionInfo): HubFilter {
-  if (s.state === 'stopped') {
-    return (s.exitCode ?? 0) !== 0 ? 'stopped-err' : 'stopped-ok'
-  }
-  return s.status as HubFilter
-}
-
-/**
  * Compute per-bucket counts from a sessions array.
  * "All" pill omits its count; all other pills show " (N)".
  */
@@ -54,9 +43,11 @@ function computeCounts(sessions: SessionInfo[]): Record<HubFilter, number> {
     idle: 0,
   }
   for (const s of sessions) {
-    const bucket = deriveFilterStatus(s)
+    const bucket = deriveHubStatus(s)
+    // The `in` check ensures bucket is a valid HubFilter key at runtime;
+    // cast is safe since HubStatus ⊇ HubFilter (minus 'all', plus 'errored').
     if (bucket in counts) {
-      counts[bucket]++
+      counts[bucket as HubFilter]++
     }
   }
   return counts
@@ -106,8 +97,9 @@ export function HubFilterBar({
   const counts = computeCounts(sessions)
 
   return (
-    <div className="hub-filter">
+    <div className="hub__filter-bar">
       {/* Filter pills */}
+      {/* CR-01: hub-filter__pills child elements still match the CSS pill rules */}
       <div className="hub-filter__pills" role="group" aria-label="Session status filter">
         {FILTER_PILLS.map(({ key, label }) => (
           <button

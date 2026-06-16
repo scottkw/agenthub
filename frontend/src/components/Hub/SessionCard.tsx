@@ -11,10 +11,9 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
-
-// ---- Types ----
-
-type HubStatus = 'running' | 'idle' | 'waiting' | 'errored' | 'stopped-ok' | 'stopped-err'
+// WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
+import { deriveHubStatus } from '../../lib/hubStatus'
+import type { HubStatus } from '../../lib/hubStatus'
 
 // ---- STATUS_CONFIG ----
 // COLORBLIND-SAFE: every status has unique icon shape + text label; color is reinforcement only.
@@ -47,42 +46,6 @@ const STATUS_CONFIG: Record<
 }
 
 // ---- Helpers ----
-
-/**
- * Derive the Hub display status from a SessionInfo.
- * - If state === 'stopped': 'stopped-err' when exitCode is non-zero, else 'stopped-ok'
- * - Otherwise: return status as HubStatus (running/idle/waiting/errored)
- */
-function deriveStatus(s: SessionInfo): HubStatus {
-  if (s.state === 'stopped') {
-    return (s.exitCode ?? 0) !== 0 ? 'stopped-err' : 'stopped-ok'
-  }
-  return s.status as HubStatus
-}
-
-/**
- * Agent badge modifier — mirrors TabBar.tsx agentBadgeModifier (line 18).
- * Returns the BEM modifier suffix for known CLIs, or null for unknown.
- */
-function agentBadgeModifier(cli: string): string | null {
-  switch (cli) {
-    case 'claude':
-    case 'opencode':
-    case 'codex':
-    case 'gemini':
-    case 'cursor':
-    case 'aider':
-      return cli
-    case 'shell':
-    case 'bash':
-    case 'zsh':
-    case 'pwsh':
-    case 'powershell':
-      return 'shell'
-    default:
-      return null
-  }
-}
 
 /**
  * Format seconds into "Xh Ym" uptime string (for running sessions).
@@ -144,10 +107,9 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
     exitCode,
     duration,
     createdAt,
-    workDir: _workDir,
   } = session
 
-  const hubStatus = deriveStatus(session)
+  const hubStatus = deriveHubStatus(session)
   const { Icon, label, spin } = STATUS_CONFIG[hubStatus]
 
   // Stopped-err label shows "Exited {code}" — override the generic label
@@ -157,12 +119,6 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
   // Origin marker: empty or same-machine hostname → Local
   const isLocal = !hostname || hostname === ''
   const originText = isLocal ? 'Local' : hostname
-
-  // CLI badge
-  const modifier = agentBadgeModifier(cli)
-  const badgeClass = modifier
-    ? `tab__agent-badge tab__agent-badge--${modifier}`
-    : 'tab__agent-badge'
 
   // Time display
   const timeText =
@@ -180,7 +136,8 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
       tabIndex={0}
     >
       {/* ROW 1: status indicator | name | CLI badge */}
-      <div className="hub-card__row hub-card__row--primary">
+      {/* CR-01: hub-card__row1 matches CSS definition (was hub-card__row hub-card__row--primary) */}
+      <div className="hub-card__row1">
         <span className="hub-card__status-indicator">
           <Icon
             className={`hub-card__status-icon${spin ? ' hub-card__status-icon--spin' : ''}`}
@@ -195,14 +152,15 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
           onRenamed={(newName) => onRename?.(id, newName)}
         />
 
-        {/* CLI badge — reuses tab__agent-badge--{cli} hex constants from style.css */}
-        <span className={badgeClass} aria-hidden="true">
+        {/* CLI badge — hub-card__badge text-chip pattern (WR-03: replaces tab__agent-badge dot) */}
+        <span className="hub-card__badge">
           {cli}
         </span>
       </div>
 
       {/* ROW 2: origin marker */}
-      <div className="hub-card__row hub-card__row--origin">
+      {/* CR-01: hub-card__row2 matches CSS definition (was hub-card__row hub-card__row--origin) */}
+      <div className="hub-card__row2">
         <span className="hub-card__origin">
           {isLocal ? (
             <>
@@ -219,8 +177,10 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
       </div>
 
       {/* ROW 3: uptime/duration + viewer count */}
-      <div className="hub-card__row hub-card__row--meta">
-        <span className="hub-card__time">{timeText}</span>
+      {/* CR-01: hub-card__row3 matches CSS definition (was hub-card__row hub-card__row--meta) */}
+      <div className="hub-card__row3">
+        {/* CR-01: hub-card__uptime matches CSS definition (was hub-card__time) */}
+        <span className="hub-card__uptime">{timeText}</span>
 
         {viewerCount > 0 && (
           <span className="hub-card__viewers">
@@ -233,9 +193,11 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
       </div>
 
       {/* ROW 4: exit-code chip (only for non-zero exit) */}
+      {/* CR-01: hub-card__row4 matches CSS definition (was hub-card__row hub-card__row--exit) */}
       {hubStatus === 'stopped-err' && (
-        <div className="hub-card__row hub-card__row--exit">
-          <span className="hub-card__exit-chip">Exited {exitCode}</span>
+        <div className="hub-card__row4">
+          {/* IN-02: aria-hidden since exit code is already in card aria-label */}
+          <span className="hub-card__exit-chip" aria-hidden="true">Exited {exitCode}</span>
         </div>
       )}
     </article>
