@@ -5,19 +5,8 @@ import { HubFilterBar } from './HubFilterBar'
 import type { HubFilter } from './HubFilterBar'
 import { SessionCardGrid } from './SessionCardGrid'
 import { HubEmptyState } from './HubEmptyState'
-
-// ---- Helpers ----
-
-/**
- * Derive the Hub display status from a SessionInfo.
- * Mirrors SessionCard.tsx deriveStatus and HubFilterBar.tsx deriveFilterStatus.
- */
-function deriveStatus(s: SessionInfo): HubFilter {
-  if (s.state === 'stopped') {
-    return (s.exitCode ?? 0) !== 0 ? 'stopped-err' : 'stopped-ok'
-  }
-  return s.status as HubFilter
-}
+// WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
+import { deriveHubStatus } from '../../lib/hubStatus'
 
 /**
  * filterSessions — apply status filter + case-insensitive substring search.
@@ -36,7 +25,7 @@ export function filterSessions(
   return sessions.filter((s) => {
     // Status filter
     if (filter !== 'all') {
-      const status = deriveStatus(s)
+      const status = deriveHubStatus(s)
       if (status !== filter) return false
     }
 
