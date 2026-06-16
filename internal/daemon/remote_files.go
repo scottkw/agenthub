@@ -21,7 +21,9 @@ package daemon
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -253,6 +255,12 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 	client := a.remoteFilesClient()
 	resp, err := client.Do(req)
 	if err != nil {
+		if isUnresolvableMagicDNS(err, baseURL) {
+			// DNS-01: emit ONLY the fixed actionable string — no hostname, no raw
+			// error, no cap token (Information Disclosure mitigation T-129-06/07).
+			http.Error(w, "Enable Tailscale DNS (accept-dns) to browse remote sessions", http.StatusBadGateway)
+			return
+		}
 		http.Error(w, "remote unreachable: "+redactCapTokenFromError(err, capToken), http.StatusBadGateway)
 		return
 	}
@@ -279,6 +287,22 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 	// HEAD has no body to copy by definition (net/http strips it), but we
 	// still call io.Copy so the standard mechanism handles it uniformly.
 	_, _ = io.Copy(w, resp.Body)
+}
+
+// isUnresolvableMagicDNS reports whether err is a DNS resolution failure for a
+// MagicDNS hostname (*.ts.net or *.tailscale.net), indicating the client likely
+// has accept-dns=false in Tailscale prefs. Only returns true when BOTH the
+// hostname is MagicDNS AND the error is a DNS resolution failure — connection-
+// refused, TLS, and other network errors must not trigger the actionable DNS
+// message (DNS-02 discrimination, RESEARCH Pitfall 3, T-129-09).
+func isUnresolvableMagicDNS(err error, baseURL string) bool {
+	var dnsErr *net.DNSError
+	if !errors.As(err, &dnsErr) {
+		return false
+	}
+	// Tailscale MagicDNS names end in .ts.net or .tailscale.net.
+	return strings.Contains(baseURL, ".ts.net") ||
+		strings.Contains(baseURL, ".tailscale.net")
 }
 
 // redactCapTokenFromError removes the cap-token substring from an error's
