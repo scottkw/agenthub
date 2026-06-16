@@ -997,6 +997,33 @@
 
 ---
 
+## Milestone: v3.5.1 — Remote Browse Completion + Release-Gate Fix
+
+**Shipped:** 2026-06-16
+**Phases:** 2 (129-130) | **Plans:** 7 | **Requirements:** 11/11
+
+### What Was Built
+- #87 per-path single-winner `WriteFileAtomic` lock (package-level keyed `sync.Map` mutex) — deterministic If-Match release gate (RACE-01..03).
+- #83 `accept-dns=false` actionable error + proactive `RemoteBrowseDNSWarning` banner (DNS-01..03).
+- #86 tailnet-trusted metadata-only `GET /api/sessions/meta` discovery + honest per-peer panel states + relay-surface regression test (RB-01..05). Retired umbrella epic #24 — discover→list→pick→browse proven live on a two-machine tailnet.
+
+### What Worked
+- Resolving #87/#86 design decisions up front (before planning) kept both phases unambiguous.
+- Wave-0 RED-first + mandatory relay-surface coverage (RB-05) — the v3.5 audit lesson — held: tests hit the GUI's actual loopback path, not just the webserver fixture.
+- Two-machine live UAT was decisive: it caught 5 bugs that all green unit tests + a passing audit missed (DNS-banner mount gating, App.js runtime RPC binding absent, write-toggle non-rehydration, join-code not shown as text, "5-char" copy wrong). Mocked tests + tsc gave false confidence on the binding/render layer.
+
+### What Was Inefficient
+- The hand-maintained wailsjs bindings (`App.js` vs `App.d.ts`) drifted — plan added the type but not the runtime export; only a production build (not tests) surfaced it. Consider a check that `App.js` and `App.d.ts` exports match.
+- wails CLI v2.10.2 vs repo-pinned v2.12.0: every `wails dev`/`build` rewrote go.mod down; required repeated reverts. Reconcile the CLI/pin.
+- `wails build` produced a malformed ad-hoc signature ("damaged" on the 2nd Mac) — needed manual Developer ID re-sign for the UAT.
+
+### Patterns Established
+- Stale LSP "undefined symbol" diagnostics after multi-file edits / from removed agent worktrees are env artifacts — verify with real `go build`, not the editor.
+- For colorblind UAT: state distinctions verified text-first at source (UI audit Color 4/4) + confirmed by the operator reading labels in live use.
+
+### Key Lessons
+- Live multi-surface UAT remains the only reliable catch for binding/render/gating gaps that unit tests mock away. Keep it in the loop before declaring a GUI on-ramp done.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
