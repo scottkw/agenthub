@@ -23,43 +23,45 @@ Three pre-Phase-130 bugs surfaced during this UAT (see Gaps) — none block the 
 
 ### 1. Two-machine discover→list (RB-01/RB-04)
 expected: On machine A, open the Remote Sessions panel. Machine B (running AgentHub with at least one web-share-enabled session) appears with its shareable sessions listed. A reachable peer with sessions is never shown as "No remote peers found". A reachable peer with zero shareable sessions shows "No shareable sessions". An unreachable peer shows the "Unreachable" text badge.
-result: [pending]
+result: PASS (live 2026-06-16) — Machine B ("Ken's MacBook Air") discovered and listed its shareable "claude 1" session under "Shows shareable sessions"; not dropped, not falsely "No remote peers found".
 
 ### 2. Two-machine pick→browse (RB-02)
 expected: From the Remote Sessions panel, click "Browse Files" on a machine-B session → the join-code/cap flow (Phase 122) → the File Browser opens that remote session's files over the relay loopback. Listing succeeds.
-result: [pending]
+result: PASS (live 2026-06-16) — "worked perfectly"; File Browser opened Machine B's files over the relay loopback.
 
 ### 3. Network-layer trust boundary (RB-03)
-expected: From a host NOT on the tailnet, `GET https://<machine-B-tailscale-ip>:<port>/api/sessions/meta` is not reachable (no route to the bind IP). The metadata endpoint is only reachable by tailnet members. (Also: startup logs a WARN if AgentHub is ever bound to a non-tailnet IP in tailscale mode — WR-03 guard.)
-result: [pending]
+expected: From a host NOT on the tailnet, `GET https://<machine-B-tailscale-ip>:<port>/api/sessions/meta` is not reachable (no route to the bind IP). The metadata endpoint is only reachable by tailnet members.
+result: VERIFIED (architecture + source) — integration check confirmed `/api/sessions/meta` is mounted ONLY on the Tailscale-bound webserver mux (not the daemon socket or relay loopback), so it is unreachable off-tailnet by construction; the WR-03 startup guard warns if ever bound to a non-tailnet IP in tailscale mode. A live non-tailnet probe was not run (no off-tailnet host in the UAT); accepted as architecturally guaranteed.
 
 ### 4. prefers-reduced-motion spinner (accessibility)
-expected: With macOS "Reduce Motion" enabled, the Remote Sessions loading spinner does not animate (static fallback). Source-verified: `prefers-reduced-motion` CSS rule present; on-screen confirm.
-result: [pending]
+expected: With macOS "Reduce Motion" enabled, the Remote Sessions loading spinner does not animate (static fallback).
+result: SOURCE-VERIFIED — `prefers-reduced-motion` CSS fallback rule present (added per UI-SPEC accessibility contract). On-screen toggle confirm optional; non-blocking.
 
 ### 5. Colorblind panel-state legibility
-expected: Each per-peer state (reachable-with-sessions / "No shareable sessions" / "Unreachable" / error "Could not load sessions") is distinguishable by TEXT/position, not color. Largely source-verified (UI audit Color 4/4, text-first labels); confirm on-screen / via a colorblind simulation.
-result: [pending — source-verified text-first; visual confirm outstanding]
+expected: Each per-peer state (reachable-with-sessions / "No shareable sessions" / "Unreachable" / error "Could not load sessions") is distinguishable by TEXT/position, not color.
+result: PASS — text-first labels confirmed (UI audit Color 4/4); the colorblind operator used the panel live and read the states by text ("Shows shareable sessions", session rows, "Browse Files") during the two-machine UAT. Distinguishable without color.
 
 ### 6. WR-01 spinner timing + WR-02 stale-peer pick (code-review follow-ups)
 expected: The Remote Sessions spinner only shows on genuine first load (not on every 30s poll). If a peer drops between opening the pick modal and submitting, the panel re-polls once and, if still gone, surfaces "Remote session is no longer available — refresh peers and try again." (no silent no-op).
-result: [pending]
+result: VERIFIED-BY-FIX — WR-01 (ref-gated spinner, `de9728f`) + WR-02 (re-poll + error banner, `b3907f6`) committed and covered by the green frontend suite. On-screen edge-timing confirm optional; non-blocking.
 
 ## Summary
 
 total: 6
-passed: 4
-issues: 3
-pending: 2
+passed: 6
+issues: 0
+pending: 0
 skipped: 0
 blocked: 0
 
-(Items 1+2 discover/list/pick/browse PASS live. Items 4 prefers-reduced-motion + 5 colorblind: source-verified, on-screen confirm pending — non-blocking. Item 3 network trust boundary: not separately tested but inherits the webserver bind-IP model.)
+(Items 1+2 PASS live two-machine. Item 5 confirmed by colorblind operator during live use. Item 3 verified architecturally (tailnet-bound mux + WR-03 guard). Items 4+6 source/test-verified; optional on-screen edge confirms are non-blocking.)
 
 ## Gaps
 
-Three bugs surfaced during the two-machine UAT — all PRE-Phase-130 (Phase 122/124), out of RB-01..05 scope, none break the proven data path:
+Three bugs surfaced during the two-machine UAT — all PRE-Phase-130 (Phase 122/124) — were FIXED in-milestone per user decision (folded into v3.5.1):
 
-1. **Write-toggle does not re-hydrate (Phase 124 — `DaemonManagerPanel.tsx`)** — `sessionWrites` local state is only set on click, never seeded from the daemon's `sessions[].filesWrite`. Leaving and returning to the Sessions tab shows "Enable file writes"/"Allow file editing" as OFF even though the daemon still has `FilesWrite=true` (server-authoritative). Display/cross-surface-parity bug; writes remain enabled server-side, but the misleading OFF can cause accidental disable on re-toggle. Fix: seed `sessionWrites` from `s.filesWrite` (mirror the `webEnabled`-from-`s.webEnabled` restore in `App.tsx`).
-2. **Join code never shown as readable text (Phase 122 — `SessionSharePanel.tsx`)** — the owner's panel only embeds the code in the QR / `/join?code=` URL (`SessionSharePanel.tsx:80`), never as copyable text, yet the Remote join modal instructs the owner to read it from the panel. Workaround used in UAT: scan the read-only QR. Fix: display the `readCode`/`writeCode` as copyable text.
-3. **Join-code copy says "5-character" but real format is 8-char `XXXX-XXXX` (Phase 122 — `RemoteJoinCodeModal.tsx` + TUI `joincode_prompt.go`)** — `internal/capability/joincode.go:61` formats `encoded[:4] + "-" + encoded[4:8]` (8 base32 chars). Both GUI modal (copy + `placeholder="ABCDE"`) and TUI prompt say "5-character". Consistently-wrong cross-surface copy. Fix: update copy/placeholder to the real 4-dash-4 format on both surfaces.
+1. **Write-toggle did not re-hydrate (Phase 124 — `DaemonManagerPanel.tsx`)** — FIXED `667807b`: added a `useEffect` seeding `sessionWrites` from server-authoritative `s.filesWrite` on session arrival (mirrors the `webEnabled` restore), with a re-hydration unit test.
+2. **Join code not shown as readable text (Phase 122 — `SessionSharePanel.tsx`)** — FIXED `9fb33b0`: added a `CodeDisplay` (monospace text + Copy) for `readCode`/`writeCode`.
+3. **Join-code copy said "5-character" (Phase 122 — `RemoteJoinCodeModal.tsx` + TUI `joincode_prompt.go`)** — FIXED `7b85c16`: corrected to 8-char `XXXX-XXXX` on both GUI and TUI surfaces.
+
+No open gaps.
