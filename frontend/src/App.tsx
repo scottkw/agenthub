@@ -1116,6 +1116,10 @@ function App(): React.ReactElement {
 
   return (
     <div className="app">
+      {/* INVARIANT: this gating expression must include the trigger of EVERY banner
+          rendered inside .banner-stack below. A banner whose own render condition is
+          true but whose trigger is missing here will never mount (the whole stack is
+          conditionally rendered). Phase 129 DNS-03 regressed exactly this way. */}
       {(pendingShellWebToggle ||
         (webServerMode === 'local' && !localBannerDismissed) ||
         (tailscaleHealth?.connected === true && tailscaleHealth?.acceptDns === false) ||
