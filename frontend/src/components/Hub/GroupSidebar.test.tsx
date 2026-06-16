@@ -270,8 +270,9 @@ describe('GroupSidebar', () => {
     const newBtn = container.querySelector('.hub__group-sidebar-new') as HTMLButtonElement
     act(() => { newBtn.click() })
     const input = container.querySelector('input') as HTMLInputElement
+    // Simulate controlled input value change: set native value + fire input event
     act(() => {
-      input.value = 'My Group'
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, 'My Group')
       input.dispatchEvent(new Event('input', { bubbles: true }))
     })
     act(() => {
@@ -320,7 +321,8 @@ describe('GroupSidebar', () => {
 
     const dropData = 'MySession:::/home/user'
     act(() => {
-      const dropEvent = new DragEvent('drop', { bubbles: true, cancelable: true })
+      // jsdom doesn't support DragEvent natively — use a plain Event and attach dataTransfer
+      const dropEvent = new Event('drop', { bubbles: true, cancelable: true })
       Object.defineProperty(dropEvent, 'dataTransfer', {
         value: {
           getData: (type: string) => type === 'text/plain' ? dropData : '',
@@ -339,7 +341,8 @@ describe('GroupSidebar', () => {
     const alphaItem = items[1] as HTMLElement
 
     act(() => {
-      const dragOverEvent = new DragEvent('dragover', { bubbles: true, cancelable: true })
+      // jsdom doesn't support DragEvent natively — use a plain Event
+      const dragOverEvent = new Event('dragover', { bubbles: true, cancelable: true })
       alphaItem.dispatchEvent(dragOverEvent)
     })
 
