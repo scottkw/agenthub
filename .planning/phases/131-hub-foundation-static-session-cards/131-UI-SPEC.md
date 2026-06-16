@@ -1,11 +1,12 @@
 ---
 phase: 131
 slug: hub-foundation-static-session-cards
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-16
 revised: 2026-06-16
+reviewed_at: 2026-06-16
 ---
 
 # Phase 131 — UI Design Contract
