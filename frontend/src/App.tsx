@@ -52,6 +52,7 @@ import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebShar
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
+import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
 import { WebGLRecoveryBanner } from './components/WebGLRecoveryBanner'
@@ -144,6 +145,7 @@ function App(): React.ReactElement {
     binaryFound: boolean
     daemonUp: boolean
     platformHint: string
+    acceptDns?: boolean
   } | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
   // Plugin settings state (PLUG-03): updated by GetPluginSettings on mount
@@ -513,6 +515,7 @@ function App(): React.ReactElement {
       binaryFound: boolean
       daemonUp: boolean
       platformHint: string
+      acceptDns?: boolean
     }) => {
       setTailscaleHealth(h)
       // If Tailscale just became fully healthy, poll for the backend to upgrade
@@ -1143,6 +1146,10 @@ function App(): React.ReactElement {
               className={localBannerExiting ? 'banner-exit' : undefined}
             />
           )}
+          <RemoteBrowseDNSWarning
+            connected={!!(tailscaleHealth?.connected)}
+            acceptDns={tailscaleHealth?.acceptDns}
+          />
           {update && (
             <UpdateBanner
               update={update}
