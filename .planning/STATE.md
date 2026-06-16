@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: verifying
-stopped_at: Phase 132 UI-SPEC approved
-last_updated: "2026-06-16T22:59:27.013Z"
+status: ready_to_plan
+stopped_at: Phase 132 complete (5/5) — ready to discuss Phase 133
+last_updated: 2026-06-16T23:42:07.066Z
 last_activity: 2026-06-16
 progress:
   total_phases: 5
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 132 — Unified Grid + Mini Preview + Named Groups
+**Current focus:** Phase 133 — attention + pulse
 
 ## Current Position
 
-Phase: 132 (Unified Grid + Mini Preview + Named Groups) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
+Phase: 133
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-16
 
 ## Operator Next Steps (pre-release, carry-forward)
