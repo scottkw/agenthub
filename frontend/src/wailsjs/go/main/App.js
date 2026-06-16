@@ -35,6 +35,8 @@ export const AcknowledgeCTDisclosure = ()                   => Call('main.App.Ac
 export const GetSessionQRCode     = (sessionID)             => Call('main.App.GetSessionQRCode', [sessionID])
 export const GetWebServerQRCode   = ()                      => Call('main.App.GetWebServerQRCode', [])
 export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])
+// Phase 132 / CARD-07 — throttled tail snapshot for Hub mini-preview. n clamped to [1..20].
+export const GetSessionTailLines  = (id, n)                 => Call('main.App.GetSessionTailLines', [id, n])
 
 // Daemon error and retry bound methods
 export const GetDaemonError       = ()                      => Call('main.App.GetDaemonError', [])

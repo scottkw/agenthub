@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
