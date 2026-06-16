@@ -172,9 +172,16 @@ export function HubPanel({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
 
   // Phase 132 — sidebar collapsed state (localStorage-persisted, mirrors Sidebar.tsx pattern)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-  )
+  // WR-05: wrap in try/catch — localStorage.getItem throws SecurityError in private browsing
+  // with "block all cookies" or when WebView storage quota is exhausted. loadGroups() already
+  // guards its own localStorage access (hubGroups.ts line 17-21); this matches that pattern.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
 
   const handleSidebarToggle = useCallback(() => {
     setSidebarCollapsed((prev) => {
