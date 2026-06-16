@@ -183,6 +183,11 @@ function App(): React.ReactElement {
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
+  // WR-01: tracks whether the remote-sessions poll has completed at least
+  // once. A ref (not a closed-over remotePeers snapshot) so the spinner gate
+  // reflects the current fetch rather than a stale render-time value frozen
+  // across the 30s interval's lifetime.
+  const remoteHasLoadedRef = useRef(false)
 
   // Phase 122-03 — remote-session file-browse state.
   //   remoteCapsCached: sessionIds whose caps are already deposited in the
@@ -885,16 +890,24 @@ function App(): React.ReactElement {
   }, [activeId])
 
   // Poll remote sessions when the remote-sessions tab is active.
+  // WR-01: the spinner gate uses remoteHasLoadedRef (a ref) rather than the
+  // closed-over remotePeers snapshot, so setRemoteLoading(true) fires only
+  // on the genuine first load and not on every 30s poll. mode and remotePeers
+  // are intentionally omitted from deps (mode is mount-stable; the loaded
+  // gate is now ref-based), matching the eslint-disable on the sibling
+  // mount-effect below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
     if (activeId !== REMOTE_SESSIONS_TAB.id) return
     let cancelled = false
     async function refresh() {
-      if (remotePeers.length === 0) setRemoteLoading(true)
+      if (!remoteHasLoadedRef.current) setRemoteLoading(true)
       try {
         const peers = await GetRemoteSessionsWithMeta()
         if (!cancelled) {
           setRemotePeers(peers ?? [])
+          remoteHasLoadedRef.current = true
           setRemoteLoading(false)
         }
       } catch {
