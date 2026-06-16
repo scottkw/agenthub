@@ -24,6 +24,23 @@ describe('Hub card Open button CSS contract (re-attach)', () => {
   })
 })
 
+// Phase 132 UAT fix — no Tailwind in this project, so Heroicon w-N/h-N classes are
+// no-ops; Hub SVG icons must be sized explicitly or they render oversized.
+describe('Hub icon sizing CSS contract (no Tailwind)', () => {
+  it('sizes the group-sidebar collapse-toggle chevron svg', () => {
+    expect(cssRaw).toContain('.hub__group-sidebar-toggle svg')
+  })
+
+  it('sizes the needs-input badge svg', () => {
+    expect(cssRaw).toContain('.hub__group-sidebar-item__needs-input-badge svg')
+  })
+
+  it('sizes the card drag-handle / menu-btn svg', () => {
+    expect(cssRaw).toContain('.hub-card__drag-handle svg')
+    expect(cssRaw).toContain('.hub-card__menu-btn svg')
+  })
+})
+
 describe('Hub CSS tokens — dark theme (default :root)', () => {
   it('declares --hub-bg custom property', () => {
     expect(cssRaw).toContain('--hub-bg')

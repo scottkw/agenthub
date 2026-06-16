@@ -4704,6 +4704,28 @@ body {
   color: var(--hub-text-primary);
 }
 
+/* Phase 132 UAT fix: this project has NO Tailwind — the `w-3 h-3`/`w-4 h-4` utility
+   classes on Heroicons are no-ops, leaving the SVGs unconstrained (the collapse-toggle
+   chevron rendered oversized and overlapped the "Groups" heading). Size them explicitly. */
+.hub__group-sidebar-toggle svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.hub__group-sidebar-item__needs-input-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.hub-card__drag-handle svg,
+.hub-card__menu-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 /* Group sidebar section heading */
 .hub__group-sidebar-heading {
   font-size: 11px;
