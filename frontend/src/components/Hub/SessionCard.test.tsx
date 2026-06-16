@@ -538,8 +538,8 @@ describe('SessionCard', () => {
     )
   })
 
-  it('shows "Remove from group" only when session is in a named group', () => {
-    // session is in 'Group A' (memberKeys includes its key)
+  it('WR-01: shows "Other (default)" only when session IS in a named group (acts as remove)', () => {
+    // session is in 'Group A' (memberKeys includes its key) — Other (default) is visible
     const session = makeSession({ name: 'Test Session', workDir: '/home/user/project' })
     const groupDefsWithMember: HubGroupDef[] = [
       { id: 'group-a', name: 'Group A', memberKeys: ['Test Session:::/home/user/project'] },
@@ -558,11 +558,14 @@ describe('SessionCard', () => {
 
     const menu = container.querySelector('[role="menu"]')
     expect(menu).not.toBeNull()
-    expect(menu!.textContent).toContain('Remove from group')
+    // "Other (default)" is shown (moves session back to Other — combined with old "Remove from group")
+    expect(menu!.textContent).toContain('Other (default)')
+    // Old "Remove from group" section is gone — replaced by "Other (default)" above
+    expect(menu!.textContent).not.toContain('Remove from group')
   })
 
-  it('does NOT show "Remove from group" when session is not in any named group', () => {
-    // session's memberKey is NOT in any groupDef.memberKeys
+  it('WR-01: does NOT show "Other (default)" when session is already ungrouped', () => {
+    // session's memberKey is NOT in any groupDef.memberKeys → isInNamedGroup = false
     const session = makeSession({ name: 'Unmatched Session', workDir: '/other/path' })
     const container = document.createElement('div')
     document.body.appendChild(container)
@@ -578,6 +581,8 @@ describe('SessionCard', () => {
 
     const menu = container.querySelector('[role="menu"]')
     expect(menu).not.toBeNull()
+    // Session is already in "Other" — showing this is a no-op; hidden per WR-01
+    expect(menu!.textContent).not.toContain('Other (default)')
     expect(menu!.textContent).not.toContain('Remove from group')
   })
 

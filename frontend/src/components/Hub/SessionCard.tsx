@@ -258,26 +258,19 @@ export function SessionCard({
               {g.name}
             </button>
           ))}
-          <button
-            type="button"
-            className="hub-card__menu-item hub-card__menu-item--group"
-            role="menuitem"
-            onClick={() => handleAssign('__other__')}
-          >
-            Other (default)
-          </button>
+          {/* WR-01: hide "Other (default)" when the session is already ungrouped.
+              Showing it to an ungrouped session is a no-op and a wasted saveGroups write.
+              When the session IS in a named group this item moves it back to "Other",
+              making the separate "Remove from group" section redundant — removed. */}
           {isInNamedGroup && (
-            <>
-              <div className="hub-card__menu-divider" role="separator" />
-              <button
-                type="button"
-                className="hub-card__menu-item"
-                role="menuitem"
-                onClick={() => handleAssign('__other__')}
-              >
-                Remove from group
-              </button>
-            </>
+            <button
+              type="button"
+              className="hub-card__menu-item hub-card__menu-item--group"
+              role="menuitem"
+              onClick={() => handleAssign('__other__')}
+            >
+              Other (default)
+            </button>
           )}
         </div>
       )}
