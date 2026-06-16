@@ -348,7 +348,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 Plans:
 **Wave 1**
 
-- [ ] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
+- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
 - [ ] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
 - [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
 
@@ -501,7 +501,7 @@ Plans:
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
-| 131 | v3.6 | 0/? | Not started | - |
+| 131 | v3.6 | 1/5 | In Progress|  |
 | 132 | v3.6 | 0/? | Not started | - |
 | 133 | v3.6 | 0/? | Not started | - |
 | 134 | v3.6 | 0/? | Not started | - |

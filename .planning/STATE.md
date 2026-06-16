@@ -4,13 +4,13 @@ milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: executing
 stopped_at: Phase 131 UI-SPEC approved
-last_updated: "2026-06-16T18:43:43.766Z"
-last_activity: 2026-06-16 -- Phase 131 planning complete
+last_updated: "2026-06-16T18:51:55.099Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v3.6 Hub (Session Grid / Control Room) — Phase 131 ready to plan
+**Current focus:** Phase 131 — Hub Foundation + Static Session Cards
 
 ## Current Position
 
-Phase: 131 (not started)
-Plan: —
+Phase: 131 (Hub Foundation + Static Session Cards) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 131 planning complete
+Last activity: 2026-06-16
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -53,9 +53,9 @@ Last activity: 2026-06-16 -- Phase 131 planning complete
 
 ## Session Continuity
 
-Last session: 2026-06-16T18:16:33.857Z
+Last session: 2026-06-16T18:51:55.059Z
 Stopped at: Phase 131 UI-SPEC approved
-Resume file: .planning/phases/131-hub-foundation-static-session-cards/131-UI-SPEC.md
+Resume file: None
 Next action: /gsd:plan-phase 131
 
 ## Deferred Items

@@ -29,16 +29,16 @@
 - [ ] **CARD-01**: Each card shows the session name, inline-editable consistent with TabBar rename behavior
 - [ ] **CARD-02**: Each card shows the CLI/agent badge using the existing per-CLI color/badge mapping
 - [ ] **CARD-03**: Each card shows a status indicator conveyed by shape + icon + motion (not color alone)
-- [ ] **CARD-04**: Each card shows an origin marker — local vs remote, with the peer hostname for remote sessions
-- [ ] **CARD-05**: Each card shows the viewer count when the session is web-shared
-- [ ] **CARD-06**: Each card shows uptime while running, or duration + exit code once stopped
+- [x] **CARD-04**: Each card shows an origin marker — local vs remote, with the peer hostname for remote sessions
+- [x] **CARD-05**: Each card shows the viewer count when the session is web-shared
+- [x] **CARD-06**: Each card shows uptime while running, or duration + exit code once stopped
 - [ ] **CARD-07**: Each card shows a mini terminal preview of the session's recent output tail
 - [ ] **CARD-08**: Stopped/exited cards render dimmed with exit code and no pulse, unless the exit was an error (→ attention)
 
 ### Grid, Grouping, Filter & Search (GRID)
 
 - [ ] **GRID-01**: Cards render in a responsive grid that reflows by viewport width with sensible min/max card sizes
-- [ ] **GRID-02**: Cards are auto-grouped by working directory (the real-data analog of #78 "projects")
+- [x] **GRID-02**: Cards are auto-grouped by working directory (the real-data analog of #78 "projects")
 - [ ] **GRID-03**: A collapsible group sidebar shows per-group running/total counts and a needs-input badge; selecting a group filters the grid to it
 - [ ] **GRID-04**: A status filter bar (All / Working / Needs input / Complete / Error / Idle) filters cards with live counts
 - [ ] **GRID-05**: A functional search field filters cards by name/CLI/host, activated by the `/` shortcut
@@ -122,13 +122,13 @@ Populated during roadmap creation.
 | CARD-01 | Phase 131 | Pending |
 | CARD-02 | Phase 131 | Pending |
 | CARD-03 | Phase 131 | Pending |
-| CARD-04 | Phase 131 | Pending |
-| CARD-05 | Phase 131 | Pending |
-| CARD-06 | Phase 131 | Pending |
+| CARD-04 | Phase 131 | Complete |
+| CARD-05 | Phase 131 | Complete |
+| CARD-06 | Phase 131 | Complete |
 | CARD-07 | Phase 132 | Pending |
 | CARD-08 | Phase 131 | Pending |
 | GRID-01 | Phase 131 | Pending |
-| GRID-02 | Phase 131 | Pending |
+| GRID-02 | Phase 131 | Complete |
 | GRID-03 | Phase 132 | Pending |
 | GRID-04 | Phase 131 | Pending |
 | GRID-05 | Phase 131 | Pending |
