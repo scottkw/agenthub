@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -89,6 +90,20 @@ var ErrPreconditionFailed = errors.New("files: precondition failed: file modifie
 //   - Lock key is the absolute path (not the relative cleaned path) so two
 //     Sandbox instances rooted at different directories writing a file with the
 //     same relative name do NOT contend with each other.
+//   - WR-03: the lock key is the LEXICAL filepath.Join(rootPath, cleaned), not
+//     the EvalSymlinks-canonicalized on-disk path that denylistCheck computes.
+//     The single-winner guarantee therefore holds only for lexically-identical
+//     absolute paths. This is safe for the common path because NewSandbox
+//     resolves rootPath once via EvalSymlinks, so all writers through a given
+//     Sandbox share an identical rootPath prefix and contend correctly. The one
+//     unguarded case is two writers reaching the SAME physical file via
+//     different lexical keys (e.g. distinct Sandbox roots that resolve to the
+//     same physical dir, or a write target whose `cleaned` traverses a
+//     symlinked subdirectory under different names). That is an accepted
+//     limitation: write targets are expected to live under a single resolved
+//     root with no in-tree symlinked directory components. Canonicalizing the
+//     key (as denylistCheck does for its security comparison) was deliberately
+//     not done here to avoid changing lock behavior for the common path.
 var pathLocks sync.Map
 
 // perPathLock returns the canonical *sync.Mutex for absPath. If no mutex
@@ -287,8 +302,11 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte, expectedValida
 
 	// Acquire the per-path lock BEFORE os.OpenRoot so the entire temp-create →
 	// stat-check → rename window is inside the critical section (RACE-01).
-	// Lock key = absolute path so two Sandbox roots with the same relative path
-	// do not contend. defer Unlock() fires on every early-return error path too.
+	// Lock key = LEXICAL absolute path so two Sandbox roots with the same relative
+	// path do not contend. defer Unlock() fires on every early-return error path
+	// too. See pathLocks (WR-03): the guarantee holds for lexically-identical
+	// absolute paths; the same physical file reached via different lexical keys
+	// (symlinked dir components) is an accepted, documented limitation.
 	lockKey := filepath.Join(s.rootPath, cleaned)
 	mu := perPathLock(lockKey)
 	mu.Lock()
@@ -338,18 +356,28 @@ func (s *Sandbox) WriteFileAtomic(relPath string, content []byte, expectedValida
 		validator = expectedValidator[0]
 	}
 	if validator != "" && validator != "*" {
-		if fi, err := root.Stat(cleaned); err == nil {
+		if fi, statErr := root.Stat(cleaned); statErr == nil {
 			cur := fmt.Sprintf("%q", fmt.Sprintf("%d-%d", fi.ModTime().UnixNano(), fi.Size()))
 			if cur != validator {
 				_ = root.Remove(tmp)
 				return ErrPreconditionFailed
 			}
+		} else if !errors.Is(statErr, fs.ErrNotExist) {
+			// WR-02: only the not-exist case may legitimately skip the check —
+			// another writer deleted the target, which is fine for a new-file
+			// write and benign for an existing-file write (the rename creates it
+			// atomically). ANY OTHER Stat error (permission change, I/O error, a
+			// path component that became a non-directory) must NOT silently
+			// proceed: doing so would apply the write as if the precondition
+			// passed — a silent last-writer-wins that defeats the single-winner
+			// guarantee (CLAUDE.md §Silent Fallbacks). Fail closed instead.
+			_ = root.Remove(tmp)
+			return fmt.Errorf("files: stat for precondition: %w", statErr)
 		}
-		// If Stat returns an error (file does not exist), allow the rename —
-		// the caller's pre-write Stat in Handler.Write already verified existence;
-		// a missing file here means another writer deleted it, which is fine for
-		// a new-file write and benign for an existing-file write (the rename will
-		// create it atomically).
+		// If Stat returns fs.ErrNotExist, allow the rename — the caller's
+		// pre-write Stat in Handler.Write already verified existence; a missing
+		// file here means another writer deleted it, which is fine for a new-file
+		// write and benign for an existing-file write.
 	}
 
 	// Rename temp → target atomically. On Windows a bounded retry loop
