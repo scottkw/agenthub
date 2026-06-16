@@ -307,6 +307,59 @@ describe('SessionSharePanel — WR-01 two-gate model (files.write link gating)',
   })
 })
 
+/**
+ * Fix 2 — Join code visible as readable text (Phase 122 UX bug).
+ * The read code must be rendered as plain text in the panel without any
+ * user interaction. The write code is shown only after both gates open.
+ */
+describe('SessionSharePanel — join code text display', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
+
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.clearAllMocks()
+  })
+
+  it('renders the read code as plain text immediately (no user click required)', () => {
+    ;({ container, root } = renderPanel({ ownerWriteEnabled: false }))
+    // The readCode prop is 'read-code'; it must appear as text in the DOM.
+    expect(container!.textContent).toContain('read-code')
+    // Should also show a "Join code:" label near it
+    expect(container!.textContent).toContain('Join code:')
+  })
+
+  it('does NOT render the write code before the two-gate is satisfied', () => {
+    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
+    // write-code must not appear until both owner + viewer confirm
+    // (readCode is 'read-code', writeCode is 'write-code' in renderPanel defaults)
+    expect(container!.textContent).not.toContain('write-code')
+  })
+
+  it('renders the write code as plain text after both gates are confirmed', () => {
+    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
+    // Confirm the opt-in
+    const writeOptinSection = Array.from(container!.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
+      el => el.textContent?.includes('Allow file editing')
+    ) as HTMLElement | null
+    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
+    flushSync(() => { toggle!.click() })
+    const confirmBtn = Array.from(container!.querySelectorAll('button')).find(
+      btn => btn.textContent?.trim() === 'Confirm'
+    ) as HTMLButtonElement | null
+    flushSync(() => { confirmBtn!.click() })
+    // Now the write code should be visible
+    expect(container!.textContent).toContain('write-code')
+  })
+})
+
 // v3.5 UAT relabel (#24): the share links must state their SCOPE so the owner
 // understands the read/write grants cover the SESSION (terminal input), and that
 // file access is bundled with full access — view-only grants NO file browsing.

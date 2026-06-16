@@ -2,6 +2,60 @@ import React, { useState } from 'react'
 import { GetCapabilityQRCode } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
 
+// CodeDisplay renders a join code with a small Copy affordance. Used for both
+// the read code and the write code in the share panel. The code is displayed
+// as plain text so the owner can read it aloud or transcribe it to the joiner.
+function CodeDisplay({
+  label,
+  code,
+}: {
+  label: string
+  code: string
+}): React.ReactElement {
+  const [copied, setCopied] = useState(false)
+  async function handleCopyCode(): Promise<void> {
+    try {
+      await ClipboardSetText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard failure — code remains visible for manual copy
+    }
+  }
+  return (
+    <div
+      className="session-share-panel__code-display"
+      style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0 8px', fontSize: 13 }}
+    >
+      <span style={{ color: '#9aa5ce' }}>{label}</span>
+      <code
+        style={{
+          fontFamily: 'monospace',
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          background: '#16161e',
+          padding: '2px 8px',
+          borderRadius: 3,
+          userSelect: 'all',
+          color: '#c0caf5',
+        }}
+        data-testid="join-code-text"
+      >
+        {code}
+      </code>
+      <button
+        type="button"
+        className="daemon-panel__btn"
+        onClick={() => void handleCopyCode()}
+        aria-label={`Copy ${label.toLowerCase()} to clipboard`}
+        style={{ fontSize: 11, padding: '2px 8px' }}
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
 interface SessionSharePanelProps {
   sessionId: string
   readURL: string
@@ -178,6 +232,7 @@ export function SessionSharePanel({
           </button>
         </div>
       </div>
+      <CodeDisplay label="Join code:" code={readCode} />
       <p className="session-share-panel__scope" style={{ margin: '2px 0 10px', fontSize: 12, color: '#9aa5ce', lineHeight: 1.4 }}>
         Watch the live session only — cannot send input or browse files.
       </p>
@@ -254,6 +309,7 @@ export function SessionSharePanel({
           gate is off a locked placeholder is shown so the UI still communicates
           that a full-access link exists without disclosing the token. */}
       {surfaceWriteLink ? (
+        <>
         <div className="session-share-panel__link-row" data-testid="full-access-link-row">
           <span className="session-share-panel__label">Full Access Link</span>
           <span className="session-share-panel__url" title={writeURL}>{writeURL}</span>
@@ -281,6 +337,8 @@ export function SessionSharePanel({
             </button>
           </div>
         </div>
+        <CodeDisplay label="Join code:" code={writeCode} />
+        </>
       ) : (
         <div className="session-share-panel__link-row session-share-panel__link-row--locked" data-testid="full-access-link-locked">
           <span className="session-share-panel__label">Full Access Link</span>
