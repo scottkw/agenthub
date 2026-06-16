@@ -20,7 +20,7 @@ The desktop GUI must complete discover→list→pick for a tailnet peer's sessio
 - [x] **RB-01**: User can see a discovered, reachable tailnet peer's shareable sessions in the Remote Sessions panel — a peer is no longer silently dropped because its `/api/sessions` list isn't enumerable without a session-scoped cap
 - [ ] **RB-02**: User can select a remote peer session from the panel and open it in the File Browser, completing discover→list→pick end-to-end over the relay loopback the GUI uses
 - [x] **RB-03**: The chosen approach preserves the Phase 87 no-enumeration security guarantee — an unauthorized / non-tailnet caller still cannot enumerate session content or obtain a cap without the intended grant
-- [ ] **RB-04**: Remote panel states are honest — a reachable peer with shareable sessions is never shown as "No remote peers found"; genuinely empty/unreachable peers still surface a correct empty/error state
+- [x] **RB-04**: Remote panel states are honest — a reachable peer with shareable sessions is never shown as "No remote peers found"; genuinely empty/unreachable peers still surface a correct empty/error state
 - [x] **RB-05**: A relay-surface regression test covers the discover→list→pick path (not just the webserver/fixture surface), guarding against the v3.5-class blind spot
 
 ### Tailscale DNS Prerequisite (#83)
@@ -64,7 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RB-01 | Phase 130 | Complete |
 | RB-02 | Phase 130 | Pending |
 | RB-03 | Phase 130 | Complete |
-| RB-04 | Phase 130 | Pending |
+| RB-04 | Phase 130 | Complete |
 | RB-05 | Phase 130 | Complete |
 | DNS-01 | Phase 129 | Complete |
 | DNS-02 | Phase 129 | Complete |
