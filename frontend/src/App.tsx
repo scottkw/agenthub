@@ -995,20 +995,40 @@ function App(): React.ReactElement {
   // already cached (D-03), open the file-browser tab immediately. Otherwise
   // open the join-code modal for the chosen session.
   const handleBrowseFilesRemote = useCallback(
-    (sessionId: string, sessionName: string) => {
+    async (sessionId: string, sessionName: string) => {
       if (remoteCapsCached.has(sessionId)) {
         handleOpenFileBrowser(sessionId, sessionName)
         return
       }
-      const remote = findRemoteSession(sessionId, remotePeers)
-      if (!remote) return
+      let remote = findRemoteSession(sessionId, remotePeers)
+      // WR-02: a peer can drop out of remotePeers between the 30s poll that
+      // populated the panel and the user clicking "Browse files". Rather than
+      // silently no-op'ing (a reachable-looking button that does nothing),
+      // re-poll once to self-heal a transient drop, then surface a banner if
+      // the session is genuinely gone.
+      if (!remote) {
+        try {
+          const peers = (await GetRemoteSessionsWithMeta()) ?? []
+          setRemotePeers(peers)
+          remote = findRemoteSession(sessionId, peers)
+        } catch {
+          /* fall through to the not-available banner below */
+        }
+      }
+      if (!remote) {
+        setSaveBanner({
+          kind: 'error',
+          text: 'Remote session is no longer available — refresh peers and try again.',
+        })
+        return
+      }
       setJoinModalForSession({
         id: sessionId,
         name: sessionName,
         hostname: remote.hostname,
       })
     },
-    [remoteCapsCached, remotePeers, handleOpenFileBrowser],
+    [remoteCapsCached, remotePeers, handleOpenFileBrowser, setRemotePeers, setSaveBanner],
   )
 
   // Phase 122-03 — modal-exchange handler. Two-step: exchange join code for a
