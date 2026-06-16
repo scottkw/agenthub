@@ -724,3 +724,57 @@ func TestNilClientNotifyThemeChange(t *testing.T) {
 		t.Errorf("NotifyThemeChange with nil client: want nil (no-op), got %v", err)
 	}
 }
+
+// -----------------------------------------------------------------------
+// Wave 0 RED test for Phase 130 RB-01 — GetRemoteSessionsWithMeta Wails RPC.
+//
+// GetRemoteSessionsWithMeta does not exist yet. This test will fail to compile
+// until plan 130-03 adds it to app.go (alongside adding Reachable bool to
+// RemotePeerSessions). It encodes the contract:
+//   - Returns []RemotePeerSessions with a Reachable field per peer
+//   - An unreachable peer maps to Reachable=false with empty Sessions
+//   - With nil client, returns empty slice (no panic)
+// -----------------------------------------------------------------------
+
+// TestGetRemoteSessionsWithMeta_ReachableField verifies that
+// GetRemoteSessionsWithMeta returns []RemotePeerSessions where each element
+// carries a Reachable bool. With a nil client (no daemon), it must return an
+// empty non-nil slice — the same nil-guard contract as GetRemoteSessions.
+//
+// With a live daemon and no tailnet peers, the result is empty — but the
+// function must exist and compile. The Reachable field assertion is exercised
+// here by constructing a nil-client App and verifying the type carries the
+// field (compile-time proof). The runtime contract (unreachable peer →
+// Reachable=false) is validated by the tailnet-level tests in
+// internal/tailnet/tailnet_test.go.
+func TestGetRemoteSessionsWithMeta_ReachableField(t *testing.T) {
+	// Case 1: nil client — must return empty non-nil slice, no panic.
+	app := testAppNoDaemon(t)
+	peers := app.GetRemoteSessionsWithMeta()
+	if peers == nil {
+		t.Fatal("GetRemoteSessionsWithMeta with nil client returned nil, want empty slice")
+	}
+	if len(peers) != 0 {
+		t.Errorf("expected 0 peers with nil client, got %d", len(peers))
+	}
+
+	// Case 2: verify RemotePeerSessions carries a Reachable bool field.
+	// This is a compile-time assertion: if RemotePeerSessions does not have a
+	// Reachable field, this assignment fails to compile.
+	var r RemotePeerSessions
+	r.Reachable = true
+	r.Reachable = false
+	_ = r.Reachable
+
+	// Case 3: live daemon, no tailnet peers — result is empty but non-nil.
+	appLive := testApp(t)
+	livePeers := appLive.GetRemoteSessionsWithMeta()
+	if livePeers == nil {
+		t.Fatal("GetRemoteSessionsWithMeta with live daemon returned nil, want empty slice")
+	}
+	// Each peer in the result must have a Reachable field (struct-level assertion).
+	for _, p := range livePeers {
+		// Accessing p.Reachable compiles only if the field exists.
+		_ = p.Reachable
+	}
+}

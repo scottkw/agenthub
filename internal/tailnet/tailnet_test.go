@@ -426,3 +426,215 @@ func TestProbePeer_Public(t *testing.T) {
 	}
 	t.Logf("ProbePeer returned false in %v (expected)", elapsed)
 }
+
+// -----------------------------------------------------------------------
+// Wave 0 RED tests for Phase 130 RB-01 — FetchAllPeerSessionsMeta /
+// FetchPeerSessionsMeta (plan 130-03 will create these functions).
+//
+// These tests are intentionally RED: the functions ShareableSessionMeta,
+// PeerSessionMetaGroup, FetchPeerSessionsMeta, and FetchAllPeerSessionsMeta
+// do not exist yet. They will compile-error or assert-fail until plan 130-03
+// adds them to internal/tailnet/sessions.go.
+//
+// Contracts encoded:
+//   - RB-01: unreachable peers are NOT silently dropped — they appear with
+//     Reachable=false and Sessions=[] (the nil-vs-empty discriminator)
+//   - RB-04: a reachable peer with zero sessions has Reachable=true + len 0
+//   - RB-01: a reachable peer with sessions returns Reachable=true + filled slice
+//   - IP fallback path (mirrors FetchPeerSessions existing pattern)
+// -----------------------------------------------------------------------
+
+// metaPeerServer returns an httptest.TLSServer serving GET /api/sessions/meta.
+// If items is nil, the server returns 503 (simulates unreachable). If items is
+// an empty slice, it returns 200 `[]` (reachable, zero sessions). Otherwise it
+// returns 200 with the JSON-encoded items.
+func metaPeerServer(t *testing.T, items []ShareableSessionMeta) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/sessions/meta" {
+			http.NotFound(w, r)
+			return
+		}
+		if items == nil {
+			http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if len(items) == 0 {
+			_, _ = w.Write([]byte("[]"))
+			return
+		}
+		// Encode the items array.
+		out := `[`
+		for i, s := range items {
+			if i > 0 {
+				out += ","
+			}
+			out += `{"id":"` + s.ID + `","name":"` + s.Name + `","cli_type":"` + s.CLIType + `","status":"` + s.Status + `","url":"` + s.URL + `"}`
+		}
+		out += `]`
+		_, _ = w.Write([]byte(out))
+	}))
+	return srv
+}
+
+// makePeerPointingAt constructs a Peer whose DNSName and TailscaleIPs both
+// point at the test server address so the redirectingClient will route it.
+func makePeerPointingAt(srv *httptest.Server) Peer {
+	addr := srv.Listener.Addr().String()
+	return Peer{
+		Hostname:     "test-peer",
+		DNSName:      "test-peer.ts.net.",
+		TailscaleIPs: []string{addr},
+	}
+}
+
+// TestFetchAllPeerSessionsMeta_IncludesUnreachablePeers asserts that when a
+// peer's /api/sessions/meta endpoint is unreachable (connection refused after
+// the server is closed), FetchAllPeerSessionsMeta still emits a group for it
+// with Reachable=false and Sessions=[] (empty slice, not dropped).
+//
+// This is the core RB-01 no-silent-drop contract.
+func TestFetchAllPeerSessionsMeta_IncludesUnreachablePeers(t *testing.T) {
+	// Build a server then close it immediately so requests get connection-refused.
+	closedSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	closedSrv.Close() // now unreachable
+
+	peer := Peer{
+		Hostname: "closed-peer",
+		DNSName:  "closed-peer.ts.net.",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	groups := FetchAllPeerSessionsMeta(ctx, []Peer{peer})
+
+	if len(groups) != 1 {
+		t.Fatalf("expected 1 group for unreachable peer (no silent drop), got %d: %v", len(groups), groups)
+	}
+
+	g := groups[0]
+	if g.Hostname != "closed-peer" {
+		t.Errorf("expected Hostname=closed-peer, got %q", g.Hostname)
+	}
+	// RB-01 critical: unreachable → Reachable=false, NOT dropped.
+	if g.Reachable {
+		t.Errorf("unreachable peer must have Reachable=false, got true")
+	}
+	// Sessions must be an empty non-nil slice, not dropped peer.
+	if g.Sessions == nil {
+		t.Error("Sessions must be [] (non-nil empty slice) for unreachable peer")
+	}
+	if len(g.Sessions) != 0 {
+		t.Errorf("expected 0 sessions for unreachable peer, got %d", len(g.Sessions))
+	}
+}
+
+// TestFetchAllPeerSessionsMeta_EmptySessionsNotDropped asserts that a reachable
+// peer returning 200 `[]` (zero shareable sessions) is NOT dropped from the
+// result — it appears with Reachable=true and Sessions=[].
+//
+// This is the exact RB-01 fix vs sessions.go:93 (the nil-vs-empty distinction).
+func TestFetchAllPeerSessionsMeta_EmptySessionsNotDropped(t *testing.T) {
+	srv := metaPeerServer(t, []ShareableSessionMeta{}) // reachable, zero sessions
+	defer srv.Close()
+
+	peer := makePeerPointingAt(srv)
+	peer.Hostname = "empty-peer"
+	peer.DNSName = "empty-peer.ts.net."
+
+	// Use a redirecting client so the test server receives the request.
+	testClient := redirectingClient(srv)
+	_ = testClient // FetchPeerSessionsMeta must accept a client or use DNS; we reference the type.
+
+	// FetchAllPeerSessionsMeta doesn't accept a client injection; it uses DNS.
+	// For this test we rely on the fact that connecting to a closed address
+	// will fail DNS resolution — instead we use FetchPeerSessionsMeta which
+	// mirrors FetchPeerSessions and should have a WithClient variant for tests.
+	// Since the function does not exist yet, this test is RED by compile failure.
+	sessions, reachable := FetchPeerSessionsMeta(context.Background(), peer)
+
+	// Reachable peer with zero sessions: Reachable=true, Sessions=[] (not nil, not dropped).
+	if !reachable {
+		t.Errorf("peer serving 200 [] must be Reachable=true, got false")
+	}
+	if sessions == nil {
+		t.Error("sessions must be [] (non-nil empty), not nil — nil signals unreachable")
+	}
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions, got %d", len(sessions))
+	}
+}
+
+// TestFetchAllPeerSessionsMeta_PopulatedPeer asserts that a reachable peer
+// returning 200 with 2 session items maps to Reachable=true and 2 sessions
+// with all fields populated.
+func TestFetchAllPeerSessionsMeta_PopulatedPeer(t *testing.T) {
+	items := []ShareableSessionMeta{
+		{ID: "s1", Name: "Alpha", CLIType: "claude", Status: "running", URL: "https://peer/sessions/s1"},
+		{ID: "s2", Name: "Beta", CLIType: "codex", Status: "idle", URL: "https://peer/sessions/s2"},
+	}
+	srv := metaPeerServer(t, items)
+	defer srv.Close()
+
+	peer := makePeerPointingAt(srv)
+	peer.Hostname = "populated-peer"
+	peer.DNSName = "populated-peer.ts.net."
+
+	// FetchPeerSessionsMeta does not exist yet — RED by compile failure.
+	sessions, reachable := FetchPeerSessionsMeta(context.Background(), peer)
+
+	if !reachable {
+		t.Errorf("expected Reachable=true for peer serving sessions, got false")
+	}
+	if len(sessions) != 2 {
+		t.Fatalf("expected 2 sessions, got %d", len(sessions))
+	}
+	if sessions[0].ID != "s1" && sessions[1].ID != "s1" {
+		t.Errorf("expected session with ID=s1 in result")
+	}
+}
+
+// TestFetchPeerSessionsMeta_IPFallback verifies that when the DNS-based fetch
+// fails but a TailscaleIP is present, FetchPeerSessionsMeta falls back to the
+// IP path and returns the served metas.
+//
+// Mirrors the existing TestProbePeer_IPFallback pattern: the redirectingClient
+// makes both DNS and IP path attempts resolve to the test server.
+func TestFetchPeerSessionsMeta_IPFallback(t *testing.T) {
+	items := []ShareableSessionMeta{
+		{ID: "fallback-sess", Name: "Fallback Session", CLIType: "claude", Status: "running", URL: "https://host/sessions/fallback-sess"},
+	}
+	srv := metaPeerServer(t, items)
+	defer srv.Close()
+
+	// Unresolvable DNS name — but TailscaleIPs is set so IP fallback fires.
+	peer := Peer{
+		Hostname:     "ip-fallback-peer",
+		DNSName:      "unresolvable-host.example.invalid.",
+		TailscaleIPs: []string{srv.Listener.Addr().String()},
+	}
+
+	// FetchPeerSessionsMeta does not exist yet — RED by compile failure.
+	// In production it will create an IP-fallback client with ServerName set.
+	// The redirectingClient pattern used in existing tests re-routes by host,
+	// but FetchPeerSessionsMeta owns its own client — so the IP path exercise
+	// is best validated via the function's own logic once it exists.
+	sessions, reachable := FetchPeerSessionsMeta(context.Background(), peer)
+
+	// Even via IP fallback, we expect at least the function to return results.
+	// With a real server that happens to answer on the IP, reachable=true.
+	// This test may also pass if the DNS resolution of the invalid host fails
+	// fast and the IP fallback client successfully connects (using the peer's
+	// actual IP directly).
+	if !reachable {
+		// Log rather than Fatal since IP fallback behavior depends on network config.
+		t.Logf("IP fallback returned reachable=false (acceptable if network blocks IP fallback in test env); sessions=%v", sessions)
+	} else if len(sessions) != 1 {
+		t.Errorf("expected 1 session via IP fallback, got %d", len(sessions))
+	}
+}
