@@ -17,7 +17,7 @@ Live smoke test performed 2026-06-16 via `wails dev` + dev-browser (2 shell sess
 - Mini-preview pane (CARD-07) renders on every card (showed "Loading…" — PTY content does not stream over the external-browser bridge; structure/placement verified, content needs native window).
 - Phase 131 regression: Open button preserved on all cards; drag handles + menu buttons present.
 
-Minor cosmetic finding (non-blocking): in the EXPANDED group sidebar, the collapse-toggle chevron is oversized and overlaps the "GROUPS" heading. Collapsed state is clean. Shape-based (colorblind-safe). Candidate for a quick polish or Phase 135.
+Cosmetic finding — FIXED (commit ff797fab): the expanded sidebar collapse-toggle chevron rendered oversized and overlapped the "GROUPS" heading. Root cause: Heroicons used Tailwind `w-N h-N` classes but the project has no Tailwind (no-ops → unconstrained SVGs). Added explicit CSS sizing for the chevron (16px), needs-input badge (12px), and card drag-handle/menu-btn (16px). Live-verified: chevron now 16px in its own row, no overlap. +3 CSS-contract assertions.
 
 The 3 items below still need a built app with real sessions/peers:
 
