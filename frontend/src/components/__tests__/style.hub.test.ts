@@ -8,6 +8,22 @@ import { resolve } from 'path'
 // The user is colorblind: hex constants are verified in source, never by eye.
 const cssRaw = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
 
+// Phase 131 UAT follow-up — Open button (re-attach) must be styled, not bare.
+// Guards against the CR-01 class of bug (TSX emits a class CSS never defines).
+describe('Hub card Open button CSS contract (re-attach)', () => {
+  it('defines .hub-card__row5 (actions row)', () => {
+    expect(cssRaw).toContain('.hub-card__row5')
+  })
+
+  it('defines .hub-card__open button rule', () => {
+    expect(cssRaw).toContain('.hub-card__open')
+  })
+
+  it('defines .hub-card__open:hover state', () => {
+    expect(cssRaw).toContain('.hub-card__open:hover')
+  })
+})
+
 describe('Hub CSS tokens — dark theme (default :root)', () => {
   it('declares --hub-bg custom property', () => {
     expect(cssRaw).toContain('--hub-bg')

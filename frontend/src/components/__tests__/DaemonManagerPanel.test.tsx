@@ -126,6 +126,25 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
     expect(onKill).toHaveBeenCalledWith('sess-1')
   })
 
+  it('Open button calls onOpenSession with id/name/cli (Phase 131 UAT re-attach)', () => {
+    const onOpenSession = vi.fn()
+    ;({ container, root } = renderPanel({ sessions: mockSessions, onOpenSession }))
+    const openButtons = Array.from(container.querySelectorAll('button')).filter(
+      (b) => b.textContent === 'Open',
+    )
+    expect(openButtons.length).toBe(mockSessions.length)
+    openButtons[0].click()
+    expect(onOpenSession).toHaveBeenCalledWith('sess-1', 'claude 1', 'claude')
+  })
+
+  it('Open button is absent when onOpenSession is not provided', () => {
+    ;({ container, root } = renderPanel({ sessions: mockSessions }))
+    const openButtons = Array.from(container.querySelectorAll('button')).filter(
+      (b) => b.textContent === 'Open',
+    )
+    expect(openButtons.length).toBe(0)
+  })
+
   it('Web toggle button calls onToggleWeb with correct session id', () => {
     const onToggleWeb = vi.fn()
     ;({ container, root } = renderPanel({

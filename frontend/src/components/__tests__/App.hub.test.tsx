@@ -133,3 +133,35 @@ describe('HUB-02: Hub coexists with Sessions panel (terminal-exclusion sites)', 
     expect(matches2!.length).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('HUB-REATTACH: open/focus a running session terminal tab (Phase 131 UAT follow-up)', () => {
+  it('defines handleOpenSessionTab callback', () => {
+    expect(raw).toContain('handleOpenSessionTab')
+  })
+
+  it('handleOpenSessionTab focuses an existing tab by sessionId (find-or-create)', () => {
+    const idx = raw.indexOf('const handleOpenSessionTab')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 500)
+    // focuses existing tab when one already exists for this session id
+    expect(block).toContain('tabs.find((t) => t.id === sessionId)')
+    expect(block).toContain('setActiveId(existing.id)')
+    // otherwise creates a terminal tab (no `type` → terminal) keyed by sessionId
+    expect(block).toContain('sessionId,')
+    expect(block).toContain('setActiveId(newTab.id)')
+  })
+
+  it('wires onOpenSession={handleOpenSessionTab} to HubPanel', () => {
+    const idx = raw.indexOf('<HubPanel')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 300)
+    expect(block).toContain('onOpenSession={handleOpenSessionTab}')
+  })
+
+  it('wires onOpenSession={handleOpenSessionTab} to DaemonManagerPanel (cross-surface parity)', () => {
+    const idx = raw.indexOf('<DaemonManagerPanel')
+    expect(idx).toBeGreaterThan(-1)
+    const block = raw.slice(idx, idx + 700)
+    expect(block).toContain('onOpenSession={handleOpenSessionTab}')
+  })
+})

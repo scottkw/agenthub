@@ -52,6 +52,8 @@ export interface HubPanelProps {
   onNewSession: () => void
   /** Fired when the user commits an inline rename. */
   onRename: (id: string, name: string) => void
+  /** Opens (or focuses) the session's terminal tab. Phase 131 UAT follow-up. */
+  onOpenSession?: (sessionId: string, name: string, cli: string) => void
 }
 
 // ---- Component ----
@@ -79,6 +81,7 @@ export function HubPanel({
   error,
   onNewSession,
   onRename,
+  onOpenSession,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -122,7 +125,7 @@ export function HubPanel({
   } else if (filtered.length === 0) {
     body = <HubEmptyState variant="no-matches" onClearFilter={handleClearFilter} />
   } else {
-    body = <SessionCardGrid sessions={filtered} onRename={onRename} />
+    body = <SessionCardGrid sessions={filtered} onRename={onRename} onOpenSession={onOpenSession} />
   }
 
   return (

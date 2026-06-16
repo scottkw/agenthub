@@ -79,6 +79,13 @@ function formatHM(totalSeconds: number): string {
 export interface SessionCardProps {
   session: SessionInfo
   onRename?: (id: string, name: string) => void
+  /**
+   * Opens (or focuses) this session's terminal tab. Phase 131 UAT follow-up —
+   * re-attach to a running session whose terminal tab is not open in this window.
+   * Surfaced as an explicit "Open" button (not whole-card click — card-click is
+   * reserved for the Phase 134 modal gesture). Only shown for live sessions.
+   */
+  onOpenSession?: (sessionId: string, name: string, cli: string) => void
 }
 
 // ---- Component ----
@@ -97,7 +104,7 @@ export interface SessionCardProps {
  *
  * Dimming (CARD-08): stopped-ok cards get hub-card--dim; stopped-err cards do NOT.
  */
-export function SessionCard({ session, onRename }: SessionCardProps): React.ReactElement {
+export function SessionCard({ session, onRename, onOpenSession }: SessionCardProps): React.ReactElement {
   const {
     id,
     cli,
@@ -198,6 +205,22 @@ export function SessionCard({ session, onRename }: SessionCardProps): React.Reac
         <div className="hub-card__row4">
           {/* IN-02: aria-hidden since exit code is already in card aria-label */}
           <span className="hub-card__exit-chip" aria-hidden="true">Exited {exitCode}</span>
+        </div>
+      )}
+
+      {/* ROW 5: actions — Open re-attaches the session's terminal tab.
+          Phase 131 UAT follow-up. Only for live sessions (a stopped session has
+          no PTY to attach to). Text label (not color) keeps it colorblind-safe. */}
+      {onOpenSession && session.state !== 'stopped' && (
+        <div className="hub-card__row5">
+          <button
+            type="button"
+            className="hub-card__open"
+            onClick={() => onOpenSession(id, name, cli)}
+            aria-label={`Open ${name}`}
+          >
+            Open
+          </button>
         </div>
       )}
     </article>

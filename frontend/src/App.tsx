@@ -1011,6 +1011,30 @@ function App(): React.ReactElement {
     setActiveId(newTab.id)
   }, [tabs])
 
+  // Phase 131 UAT follow-up — re-attach to an already-running session.
+  // Opens (or focuses) a terminal tab for an existing session id. Mirrors the
+  // startup-restore path (SESS-02): a terminal tab is { id: sessionId, name,
+  // sessionId, cli } with no `type`, and the Terminal component attaches to the
+  // live PTY by sessionId. Wired to both the Hub cards and the Sessions panel so
+  // a session created in another window (or whose tab was closed) can be reopened.
+  // NOTE: the Hub surfaces this via an explicit "Open" button rather than a
+  // whole-card click — card-click is reserved for the Phase 134 modal gesture.
+  const handleOpenSessionTab = useCallback((sessionId: string, name: string, cli: string) => {
+    const existing = tabs.find((t) => t.id === sessionId)
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    const newTab: Tab = {
+      id: sessionId,
+      name: name || cli,
+      sessionId,
+      cli,
+    }
+    setTabs((prev) => [...prev, newTab])
+    setActiveId(newTab.id)
+  }, [tabs])
+
   // Phase 120-06 — web-mode bootstrap: when the SPA loads under /app/ with a
   // ?session=<id> param, auto-open the file-browser tab for that session on
   // first mount. The cap token is consumed inside the FileBrowserTab gate at
@@ -1323,6 +1347,7 @@ function App(): React.ReactElement {
             onKill={(id) => void handleCloseTab(id)}
             onToggleWeb={(id) => void handleToggleWeb(id)}
             onOpenFileBrowser={handleOpenFileBrowser}
+            onOpenSession={handleOpenSessionTab}
           />
         )}
         {/* Phase 131 — Hub surface. HUB-02: coexists with Sessions/DaemonManager panel;
@@ -1333,6 +1358,7 @@ function App(): React.ReactElement {
             error={hubError}
             onNewSession={() => setShowNewSessionModal(true)}
             onRename={handleRenameTab}
+            onOpenSession={handleOpenSessionTab}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId

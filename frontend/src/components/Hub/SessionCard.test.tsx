@@ -237,6 +237,48 @@ describe('SessionCard', () => {
     expect((card as HTMLElement).tabIndex).toBe(0)
   })
 
+  // ---- Open button (Phase 131 UAT follow-up: re-attach to a running session) ----
+
+  function renderCardWithOpen(
+    session: SessionInfo,
+    onOpenSession?: (id: string, name: string, cli: string) => void,
+  ) {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(<SessionCard session={session} onOpenSession={onOpenSession} />)
+    })
+    return { container, root }
+  }
+
+  it('renders an Open button for a live (running) session and calls onOpenSession with id/name/cli', () => {
+    const onOpen = vi.fn()
+    const { container } = renderCardWithOpen(
+      makeSession({ id: 'sess-9', name: 'My Shell', cli: '/bin/zsh', state: 'running' }),
+      onOpen,
+    )
+    const btn = container.querySelector('.hub-card__open') as HTMLButtonElement | null
+    expect(btn).not.toBeNull()
+    expect(btn!.textContent).toContain('Open')
+    act(() => { btn!.click() })
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    expect(onOpen).toHaveBeenCalledWith('sess-9', 'My Shell', '/bin/zsh')
+  })
+
+  it('does NOT render the Open button for a stopped session (no live PTY to attach)', () => {
+    const { container } = renderCardWithOpen(
+      makeSession({ state: 'stopped', status: 'stopped', exitCode: 0 }),
+      vi.fn(),
+    )
+    expect(container.querySelector('.hub-card__open')).toBeNull()
+  })
+
+  it('does NOT render the Open button when onOpenSession is not provided', () => {
+    const { container } = renderCard(makeSession({ state: 'running' }))
+    expect(container.querySelector('.hub-card__open')).toBeNull()
+  })
+
   // ---- STATUS_CONFIG usage (source-level check via grep — verified in acceptance_criteria)
   // ---- COLORBLIND-SAFE comments (source-level check via grep — verified in acceptance_criteria)
 })

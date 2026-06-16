@@ -18,6 +18,13 @@ export interface DaemonManagerPanelProps {
    * Provided by App.tsx's handleOpenFileBrowser callback.
    */
   onOpenFileBrowser: (sessionId: string, sessionName: string) => void
+  /**
+   * Phase 131 UAT follow-up — open (or focus) the session's terminal tab.
+   * Lets the user re-attach to a running session whose terminal tab is not open
+   * in this window (e.g. created from another window, or its tab was closed).
+   * Provided by App.tsx's handleOpenSessionTab.
+   */
+  onOpenSession?: (sessionId: string, name: string, cli: string) => void
 }
 
 interface SessionShare {
@@ -38,6 +45,7 @@ export function DaemonManagerPanel({
   onKill,
   onToggleWeb,
   onOpenFileBrowser,
+  onOpenSession,
 }: DaemonManagerPanelProps): React.ReactElement {
   // Per-session capability URLs + join codes issued by the daemon on toggle-on.
   // Populated reactively as webEnabled transitions true; cleared when false.
@@ -305,6 +313,16 @@ export function DaemonManagerPanel({
                 {s.hostname || '\u2014'}
               </span>
               <div className="daemon-panel__actions">
+                {onOpenSession && (
+                  <button
+                    className="daemon-panel__btn daemon-panel__btn--open"
+                    onClick={() => onOpenSession(s.id, s.name || s.cli, s.cli)}
+                    title="Open this session's terminal"
+                    data-testid={`daemon-panel-open-${s.id}`}
+                  >
+                    Open
+                  </button>
+                )}
                 <button
                   className="daemon-panel__btn daemon-panel__btn--web"
                   onClick={() => onToggleWeb(s.id)}

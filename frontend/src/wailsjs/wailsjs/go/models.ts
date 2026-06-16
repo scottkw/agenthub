@@ -162,6 +162,7 @@ export namespace main {
 	}
 	export class RemotePeerSessions {
 	    hostname: string;
+	    reachable: boolean;
 	    sessions: RemoteSession[];
 	
 	    static createFrom(source: any = {}) {
@@ -171,6 +172,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hostname = source["hostname"];
+	        this.reachable = source["reachable"];
 	        this.sessions = this.convertValues(source["sessions"], RemoteSession);
 	    }
 	
@@ -204,6 +206,10 @@ export namespace main {
 	    webEnabled: boolean;
 	    homeDir: boolean;
 	    filesWrite: boolean;
+	    viewerCount: number;
+	    exitCode?: number;
+	    duration?: number;
+	    workDir: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionInfo(source);
@@ -221,6 +227,10 @@ export namespace main {
 	        this.webEnabled = source["webEnabled"];
 	        this.homeDir = source["homeDir"];
 	        this.filesWrite = source["filesWrite"];
+	        this.viewerCount = source["viewerCount"];
+	        this.exitCode = source["exitCode"];
+	        this.duration = source["duration"];
+	        this.workDir = source["workDir"];
 	    }
 	}
 

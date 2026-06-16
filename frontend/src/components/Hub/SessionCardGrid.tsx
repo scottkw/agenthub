@@ -43,6 +43,8 @@ export interface SessionCardGridProps {
   sessions: SessionInfo[]
   /** Passed through to each SessionCard for inline rename. */
   onRename: (id: string, name: string) => void
+  /** Passed through to each SessionCard's Open button. Phase 131 UAT follow-up. */
+  onOpenSession?: (sessionId: string, name: string, cli: string) => void
 }
 
 // ---- Component ----
@@ -68,6 +70,7 @@ export interface SessionCardGridProps {
 export function SessionCardGrid({
   sessions,
   onRename,
+  onOpenSession,
 }: SessionCardGridProps): React.ReactElement {
   const groups = groupByWorkDir(sessions)
 
@@ -88,7 +91,7 @@ export function SessionCardGrid({
             <div role="list" className="hub__card-row">
               {groupSessions.map((s) => (
                 <div role="listitem" key={s.id}>
-                  <SessionCard session={s} onRename={onRename} />
+                  <SessionCard session={s} onRename={onRename} onOpenSession={onOpenSession} />
                 </div>
               ))}
             </div>

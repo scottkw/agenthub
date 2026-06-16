@@ -4292,6 +4292,30 @@ body {
   margin-bottom: 4px;
 }
 
+/* ROW 5: actions (Open) — Phase 131 UAT follow-up. Mirrors .hub__new-session-btn. */
+.hub-card__row5 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.hub-card__open {
+  background: transparent;
+  border: 1px solid var(--hub-border);
+  border-radius: 4px;
+  color: var(--hub-text-primary);
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.hub-card__open:hover {
+  border-color: var(--hub-border-hover);
+  background: var(--hub-surface-elevated);
+}
+
 /* --- Status icon --- */
 .hub-card__status-icon {
   width: 20px;
