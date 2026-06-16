@@ -156,13 +156,12 @@ func (a *API) handleRemoteFilesMkdir(w http.ResponseWriter, r *http.Request) {
 // and copies upstream status + selected headers + body back to the caller.
 //
 // Concurrency contract (WR-02): multiple concurrent write proxies for the same
-// session race at the remote peer's files.Handler — last-writer-wins. There is
-// no cross-surface coordination or version/ETag lock on the proxy layer. The
-// proxy forwards conditional-write headers (If-Match, If-Unmodified-Since,
-// If-None-Match) when present so that a future optimistic-concurrency upgrade
-// on the remote peer does not require a proxy change, but the peer does not
-// currently enforce them. Callers that need conflict-safe writes must implement
-// their own read-modify-write loop using the ETag returned in the response.
+// path are serialized at the remote peer's WriteFileAtomic per-path lock —
+// exactly one writer wins and the loser receives a clean HTTP 412 /
+// ErrPreconditionFailed response. The proxy forwards If-Match,
+// If-Unmodified-Since, and If-None-Match so the peer's optimistic-concurrency
+// check is reachable end-to-end. The remote peer DOES enforce these
+// preconditions via WriteFileAtomic's single-winner per-path lock (RACE-01).
 //
 // Per-status behavior:
 //
@@ -240,10 +239,10 @@ func (a *API) proxyRemoteFiles(w http.ResponseWriter, r *http.Request, op string
 		if ct := r.Header.Get("Content-Type"); ct != "" {
 			req.Header.Set("Content-Type", ct)
 		}
-		// WR-02: Forward conditional-write headers when present so that a future
-		// optimistic-concurrency layer on the remote peer is reachable without a
-		// proxy change. The peer does not currently enforce these preconditions;
-		// the current contract is last-writer-wins (see proxyRemoteFiles comment).
+		// WR-02: Forward conditional-write headers. The remote peer enforces
+		// these preconditions via WriteFileAtomic's single-winner per-path lock,
+		// so forwarding If-Match/If-Unmodified-Since/If-None-Match is required
+		// for conflict-safe writes (not future-proofing — it is live behavior).
 		for _, h := range []string{"If-Match", "If-Unmodified-Since", "If-None-Match"} {
 			if v := r.Header.Get(h); v != "" {
 				req.Header.Set(h, v)
