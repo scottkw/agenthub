@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 
 	"github.com/coder/websocket"
@@ -311,7 +313,50 @@ func (ws *WebServer) BindIP() string { return ws.config.BindIP }
 
 // startTailscale opens a TLS listener using Tailscale's lc.GetCertificate hook
 // (or the TLSConfig test override). Falls back to a random port on EADDRINUSE.
+// tailscaleCGNAT is the Tailscale 100.64.0.0/10 carrier-grade NAT range that
+// MagicDNS / tailnet IPs are drawn from. The /api/sessions/meta endpoint is
+// open (no cap) and relies on the listener being bound to an address in this
+// range for its "tailnet-trusted = bind IP" access model (resolved #86).
+var tailscaleCGNAT = netip.MustParsePrefix("100.64.0.0/10")
+
+// assertTailnetBindIP is a defense-in-depth, non-fatal startup check (WR-03).
+// In tailscale mode the open /api/sessions/meta route trusts the network layer
+// (it is served only on the Tailscale bind IP). There is no per-request
+// RemoteAddr check, by design, because adding one would break loopback-bound
+// test/dev servers and the local-mode basic-auth path. Instead we WARN — not
+// refuse — when BindIP is neither loopback (allowed for tests/dev) nor within
+// the Tailscale CGNAT range, so a future misconfiguration that binds the open
+// metadata endpoint to a LAN/0.0.0.0 interface surfaces a loud log line rather
+// than silently becoming an unauthenticated enumeration surface. Refusing to
+// start was rejected: it would break the many loopback-bound tests and is more
+// invasive than the hardening this finding calls for.
+func (ws *WebServer) assertTailnetBindIP() {
+	bind := ws.config.BindIP
+	addr, err := netip.ParseAddr(bind)
+	if err != nil {
+		// Empty or non-IP bind (e.g. "" → all interfaces). This is the most
+		// dangerous case for an open endpoint; warn explicitly.
+		slog.Warn("webserver: tailscale-mode bind IP is not a parseable address; "+
+			"the open /api/sessions/meta endpoint trusts the bind IP for access control",
+			"bind_ip", bind)
+		return
+	}
+	if addr.IsLoopback() {
+		return // loopback is the standard test/dev bind; not a tailnet exposure
+	}
+	if tailscaleCGNAT.Contains(addr) {
+		return // expected: bound to the Tailscale 100.x address
+	}
+	slog.Warn("webserver: tailscale-mode bind IP is outside the Tailscale CGNAT range "+
+		"(100.64.0.0/10); the open /api/sessions/meta endpoint assumes a tailnet-only "+
+		"bind IP for access control and would be reachable on this interface without a cap",
+		"bind_ip", bind)
+}
+
 func (ws *WebServer) startTailscale() error {
+	// WR-03: belt-and-suspenders trust-boundary check for the open meta route.
+	ws.assertTailnetBindIP()
+
 	tlsCfg := ws.config.TLSConfig
 	if tlsCfg == nil {
 		var lc local.Client
@@ -469,8 +514,18 @@ func (ws *WebServer) setupRoutes() {
 
 	// GET /api/sessions/meta — open (no capability required). Returns shareable-session
 	// metadata (id, name, cli_type, status, url) for all web-enabled sessions to
-	// tailnet-trusted callers. Trust boundary: bound to Tailscale IP (network-layer per
-	// resolved #86 decision). Never returns cap tokens, grants, or session content (RB-03).
+	// tailnet-trusted callers. Never returns cap tokens, grants, or session content (RB-03).
+	//
+	// Trust model (WR-03 invariant):
+	//   - tailscale mode: access control is network-layer ONLY — the listener is
+	//     bound to the Tailscale 100.64.0.0/10 IP (resolved #86), so this open
+	//     route is reachable only from the tailnet. There is intentionally no
+	//     per-request RemoteAddr check (it would break loopback test/dev binds).
+	//     startTailscale() calls assertTailnetBindIP() to WARN (defense in depth)
+	//     if the bind IP is ever outside the tailnet range.
+	//   - local mode: startLocal() wraps the ENTIRE mux with basicAuthMiddleware,
+	//     so this same route is password-gated there (D-20). No mode-aware branch
+	//     is needed here because the local-mode wrapper sits in front of the mux.
 	mux.HandleFunc("GET /api/sessions/meta", ws.handleSessionsMeta)
 
 	// GET /api/sessions — capability-gated; handleListSessions returns ONLY
