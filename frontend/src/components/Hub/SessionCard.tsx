@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 import {
   ArrowPathIcon,
@@ -9,11 +9,15 @@ import {
   ComputerDesktopIcon,
   GlobeAltIcon,
   EyeIcon,
+  Bars3Icon,
+  EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 import { deriveHubStatus } from '../../lib/hubStatus'
 import type { HubStatus } from '../../lib/hubStatus'
+import { memberKey, type HubGroupDef } from '../../lib/hubGroups'
+import { MiniPreview } from './MiniPreview'
 
 // ---- STATUS_CONFIG ----
 // COLORBLIND-SAFE: every status has unique icon shape + text label; color is reinforcement only.
@@ -86,6 +90,12 @@ export interface SessionCardProps {
    * reserved for the Phase 134 modal gesture). Only shown for live sessions.
    */
   onOpenSession?: (sessionId: string, name: string, cli: string) => void
+  /** CARD-07: tail lines from usePreviewPoller; undefined = loading */
+  previewLines?: string[]
+  /** GROUP-02: group definitions for the "Move to group" overflow menu */
+  groupDefs?: HubGroupDef[]
+  /** GROUP-02: fires when user assigns this card to a group via menu */
+  onAssignGroup?: (memberKey: string, groupId: string) => void
 }
 
 // ---- Component ----
@@ -101,10 +111,19 @@ export interface SessionCardProps {
  *   ROW 2: origin marker (Local / peer hostname)
  *   ROW 3: uptime/duration + viewer count (only when >0)
  *   ROW 4: exit-code chip (only when stopped with non-zero exit)
+ *   ROW 5: Open button (when live, Phase 131)
+ *   ROW 6: MiniPreview (CARD-07 plain-text snapshot; NO xterm)
  *
  * Dimming (CARD-08): stopped-ok cards get hub-card--dim; stopped-err cards do NOT.
  */
-export function SessionCard({ session, onRename, onOpenSession }: SessionCardProps): React.ReactElement {
+export function SessionCard({
+  session,
+  onRename,
+  onOpenSession,
+  previewLines,
+  groupDefs,
+  onAssignGroup,
+}: SessionCardProps): React.ReactElement {
   const {
     id,
     cli,
@@ -136,12 +155,133 @@ export function SessionCard({ session, onRename, onOpenSession }: SessionCardPro
   // Card aria-label per Accessibility Contract
   const cardAriaLabel = `${name}, ${displayLabel}, ${cli}, ${originText}`
 
+  /* GROUP-04: membership key = "${session.name}:::${session.workDir}" — survives session-id churn */
+  const memberKeyForSession = memberKey(name, session.workDir)
+
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false)
+
+  // Menu state
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+
+  // Determine if session is currently in any named group
+  const isInNamedGroup = (groupDefs ?? []).some((g) =>
+    g.memberKeys.includes(memberKeyForSession)
+  )
+
+  // Close menu on Escape key (global listener)
+  useEffect(() => {
+    if (!menuOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setMenuOpen(false)
+        menuBtnRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen])
+
+  // Close menu on click-outside
+  const menuRef = useRef<HTMLDivElement>(null)
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (
+      menuRef.current &&
+      !menuRef.current.contains(e.target as Node) &&
+      !menuBtnRef.current?.contains(e.target as Node)
+    ) {
+      setMenuOpen(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpen, handleClickOutside])
+
+  function handleAssign(groupId: string) {
+    onAssignGroup?.(memberKeyForSession, groupId)
+    setMenuOpen(false)
+  }
+
   return (
     <article
-      className={`hub-card${hubStatus === 'stopped-ok' ? ' hub-card--dim' : ''}`}
+      className={`hub-card${hubStatus === 'stopped-ok' ? ' hub-card--dim' : ''}${isDragging ? ' hub-card--dragging' : ''}`}
+      draggable="true"
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', memberKeyForSession)
+        e.dataTransfer.effectAllowed = 'move'
+        setIsDragging(true)
+      }}
+      onDragEnd={() => setIsDragging(false)}
       aria-label={cardAriaLabel}
       tabIndex={0}
     >
+      {/* Drag handle — visible on hover (CSS opacity transition); aria-hidden for screen readers */}
+      <span
+        className="hub-card__drag-handle"
+        aria-label="Drag to reorder"
+        aria-hidden="true"
+      >
+        <Bars3Icon className="w-4 h-4" />
+      </span>
+
+      {/* Overflow menu button — visible on hover; keyboard-reachable via focus-within */}
+      <button
+        ref={menuBtnRef}
+        type="button"
+        className="hub-card__menu-btn"
+        aria-label={`Card options for ${name}`}
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        onClick={() => setMenuOpen((p) => !p)}
+      >
+        <EllipsisHorizontalIcon className="w-4 h-4" />
+      </button>
+
+      {/* Group overflow menu */}
+      {menuOpen && (
+        <div ref={menuRef} className="hub-card__menu" role="menu">
+          <div className="hub-card__menu-item hub-card__menu-item--header" role="presentation">
+            Move to group
+          </div>
+          {(groupDefs ?? []).map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              className="hub-card__menu-item hub-card__menu-item--group"
+              role="menuitem"
+              onClick={() => handleAssign(g.id)}
+            >
+              {g.name}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="hub-card__menu-item hub-card__menu-item--group"
+            role="menuitem"
+            onClick={() => handleAssign('__other__')}
+          >
+            Other (default)
+          </button>
+          {isInNamedGroup && (
+            <>
+              <div className="hub-card__menu-divider" role="separator" />
+              <button
+                type="button"
+                className="hub-card__menu-item"
+                role="menuitem"
+                onClick={() => handleAssign('__other__')}
+              >
+                Remove from group
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ROW 1: status indicator | name | CLI badge */}
       {/* CR-01: hub-card__row1 matches CSS definition (was hub-card__row hub-card__row--primary) */}
       <div className="hub-card__row1">
@@ -223,6 +363,9 @@ export function SessionCard({ session, onRename, onOpenSession }: SessionCardPro
           </button>
         </div>
       )}
+
+      {/* ROW 6: MiniPreview — CARD-07: plain text snapshot; NO xterm instance; polling interval 3s shared across all cards */}
+      <MiniPreview lines={previewLines} />
     </article>
   )
 }
