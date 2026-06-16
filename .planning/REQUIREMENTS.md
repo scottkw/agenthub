@@ -19,10 +19,10 @@
 
 ### Hub Surface & Navigation (HUB)
 
-- [ ] **HUB-01**: User can open the Hub from a "Hub" item in the left sidebar
-- [ ] **HUB-02**: Hub is a top-level surface alongside Home / Remote / Sessions / Settings, coexisting with (not replacing) the existing Sessions panel
+- [x] **HUB-01**: User can open the Hub from a "Hub" item in the left sidebar
+- [x] **HUB-02**: Hub is a top-level surface alongside Home / Remote / Sessions / Settings, coexisting with (not replacing) the existing Sessions panel
 - [x] **HUB-03**: When no sessions exist, Hub shows an empty state prompting the user to create one
-- [ ] **HUB-04**: Hub renders correctly in both light and dark themes
+- [x] **HUB-04**: Hub renders correctly in both light and dark themes
 
 ### Session Card (CARD)
 
@@ -37,7 +37,7 @@
 
 ### Grid, Grouping, Filter & Search (GRID)
 
-- [ ] **GRID-01**: Cards render in a responsive grid that reflows by viewport width with sensible min/max card sizes
+- [x] **GRID-01**: Cards render in a responsive grid that reflows by viewport width with sensible min/max card sizes
 - [x] **GRID-02**: Cards are auto-grouped by working directory (the real-data analog of #78 "projects")
 - [ ] **GRID-03**: A collapsible group sidebar shows per-group running/total counts and a needs-input badge; selecting a group filters the grid to it
 - [x] **GRID-04**: A status filter bar (All / Working / Needs input / Complete / Error / Idle) filters cards with live counts
@@ -115,10 +115,10 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HUB-01 | Phase 131 | Pending |
-| HUB-02 | Phase 131 | Pending |
+| HUB-01 | Phase 131 | Complete |
+| HUB-02 | Phase 131 | Complete |
 | HUB-03 | Phase 131 | Complete |
-| HUB-04 | Phase 131 | Pending |
+| HUB-04 | Phase 131 | Complete |
 | CARD-01 | Phase 131 | Complete |
 | CARD-02 | Phase 131 | Complete |
 | CARD-03 | Phase 131 | Complete |
@@ -127,7 +127,7 @@ Populated during roadmap creation.
 | CARD-06 | Phase 131 | Complete |
 | CARD-07 | Phase 132 | Pending |
 | CARD-08 | Phase 131 | Complete |
-| GRID-01 | Phase 131 | Pending |
+| GRID-01 | Phase 131 | Complete |
 | GRID-02 | Phase 131 | Complete |
 | GRID-03 | Phase 132 | Pending |
 | GRID-04 | Phase 131 | Complete |
