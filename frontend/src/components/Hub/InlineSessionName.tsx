@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { RenameSession } from '../../wailsjs/go/main/App'
 
 export interface InlineSessionNameProps {
   id: string
@@ -10,15 +9,23 @@ export interface InlineSessionNameProps {
 /**
  * InlineSessionName — inline-editable session name for Hub cards.
  *
+ * CR-02 fix: this component does NOT call RenameSession directly.
+ * The RPC is owned by App.handleRenameTab, which is wired as the onRename
+ * callback on HubPanel → SessionCardGrid → SessionCard → InlineSessionName.
+ * This component fires onRenamed(trimmed) and lets the parent chain handle
+ * the actual RPC + state update. This prevents the double-RPC that occurred
+ * when InlineSessionName called RenameSession AND the parent's onRenamed
+ * callback also propagated up to App.handleRenameTab which called it again.
+ *
  * Mirrors the TabBar rename pattern (TabBar.tsx lines 140-172 and 203-225):
  * - Click the name span to enter edit mode
- * - Enter commits the rename via RenameSession RPC
+ * - Enter commits the rename — fires onRenamed, exits edit mode
  * - Escape cancels and restores the original name
- * - Blur with unchanged or empty-trimmed value does NOT call RenameSession
+ * - Blur with unchanged or empty-trimmed value does NOT fire onRenamed
  *
  * CSS reuse: tab__rename-input (style.css ~line 142) — no new rename-input CSS authored.
  */
-export function InlineSessionName({ id, name, onRenamed }: InlineSessionNameProps): React.ReactElement {
+export function InlineSessionName({ id: _id, name, onRenamed }: InlineSessionNameProps): React.ReactElement {
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState(name)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -37,12 +44,10 @@ export function InlineSessionName({ id, name, onRenamed }: InlineSessionNameProp
     }
   }, [name, editing])
 
-  async function commitEdit(): Promise<void> {
+  function commitEdit(): void {
     const trimmed = editValue.trim()
     if (trimmed.length > 0 && trimmed !== name) {
-      await RenameSession(id, trimmed).catch(() => {
-        setEditValue(name)
-      })
+      // CR-02: fire callback only — App.handleRenameTab owns the RenameSession RPC
       onRenamed?.(trimmed)
     } else {
       setEditValue(name)
@@ -52,7 +57,7 @@ export function InlineSessionName({ id, name, onRenamed }: InlineSessionNameProp
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
     if (e.key === 'Enter') {
-      void commitEdit()
+      commitEdit()
     }
     if (e.key === 'Escape') {
       setEditValue(name)
@@ -68,7 +73,7 @@ export function InlineSessionName({ id, name, onRenamed }: InlineSessionNameProp
         value={editValue}
         placeholder="Session name"
         onChange={(e) => setEditValue(e.target.value)}
-        onBlur={() => void commitEdit()}
+        onBlur={commitEdit}
         onKeyDown={handleKeyDown}
         onClick={(e) => e.stopPropagation()}
       />

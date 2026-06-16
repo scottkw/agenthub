@@ -2,7 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 
-// Mock Wails RPC — RenameSession must be mockable before component import
+// CR-02 fix: InlineSessionName no longer calls RenameSession directly.
+// The RPC is owned by App.handleRenameTab via the onRenamed callback chain.
+// This mock is kept so that importing from wailsjs/go/main/App does not throw,
+// but we assert RenameSession is NOT called from within this component.
 vi.mock('../../wailsjs/go/main/App', () => ({
   RenameSession: vi.fn().mockResolvedValue(undefined),
 }))
@@ -44,7 +47,7 @@ describe('InlineSessionName', () => {
     expect(input.value).toBe('My Session')
   })
 
-  it('pressing Enter with changed value calls RenameSession and exits edit mode', async () => {
+  it('pressing Enter with changed value fires onRenamed and exits edit mode (CR-02: does NOT call RenameSession directly)', async () => {
     const onRenamed = vi.fn()
     const { container } = renderName({ id: 'sess-1', name: 'My Session', onRenamed })
     // Enter edit mode
@@ -74,18 +77,21 @@ describe('InlineSessionName', () => {
       Object.defineProperty(event, 'target', { value: { value: 'New Name' } })
       input.dispatchEvent(event)
     })
-    await act(async () => {
+    act(() => {
       const keyEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
       input.dispatchEvent(keyEvent)
     })
-    expect(RenameSession).toHaveBeenCalledWith('sess-1', 'New Name')
+    // CR-02: InlineSessionName fires onRenamed — NOT RenameSession directly.
+    // RenameSession is owned by App.handleRenameTab via the callback chain.
+    expect(RenameSession).not.toHaveBeenCalled()
+    expect(onRenamed).toHaveBeenCalledWith('New Name')
     // Should exit edit mode
     expect(container.querySelector('.tab__rename-input')).toBeNull()
-    expect(onRenamed).toHaveBeenCalledWith('New Name')
   })
 
-  it('pressing Escape restores original name and exits edit mode without calling RenameSession', () => {
-    const { container } = renderName({ id: 'sess-1', name: 'My Session' })
+  it('pressing Escape restores original name and exits edit mode without calling onRenamed', () => {
+    const onRenamed = vi.fn()
+    const { container } = renderName({ id: 'sess-1', name: 'My Session', onRenamed })
     const span = container.querySelector('.hub-card__name')!
     act(() => {
       span.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -96,23 +102,26 @@ describe('InlineSessionName', () => {
       input.dispatchEvent(keyEvent)
     })
     expect(RenameSession).not.toHaveBeenCalled()
+    expect(onRenamed).not.toHaveBeenCalled()
     // Should exit edit mode and show original name
     const nameSpan = container.querySelector('.hub-card__name')
     expect(nameSpan).not.toBeNull()
     expect(nameSpan!.textContent).toBe('My Session')
   })
 
-  it('blur with unchanged value does NOT call RenameSession', async () => {
-    const { container } = renderName({ id: 'sess-1', name: 'My Session' })
+  it('blur with unchanged value does NOT call onRenamed', async () => {
+    const onRenamed = vi.fn()
+    const { container } = renderName({ id: 'sess-1', name: 'My Session', onRenamed })
     const span = container.querySelector('.hub-card__name')!
     act(() => {
       span.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
     const input = container.querySelector('.tab__rename-input') as HTMLInputElement
     // Blur without changing value
-    await act(async () => {
+    act(() => {
       input.dispatchEvent(new FocusEvent('blur', { bubbles: true }))
     })
     expect(RenameSession).not.toHaveBeenCalled()
+    expect(onRenamed).not.toHaveBeenCalled()
   })
 })
