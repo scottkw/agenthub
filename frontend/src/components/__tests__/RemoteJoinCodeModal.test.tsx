@@ -198,23 +198,24 @@ describe('RemoteJoinCodeModal — error mapping', () => {
     expect(container.textContent).toContain('Ask the owner to generate a new code.')
   })
 
-  it("'invalid' substring → 'Code invalid. Double-check the 5-character code.'", async () => {
+  it("'invalid' substring → 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'", async () => {
     const onExchange = vi.fn(async () => {
       throw new Error('join code is invalid (status 401)')
     })
     const { container } = renderModal({ onExchange })
-    await submitCode(container, 'XXXXX')
+    await submitCode(container, 'ABCD-EFGH')
     expect(container.textContent).toContain('Code invalid')
-    expect(container.textContent).toContain('Double-check the 5-character code.')
+    expect(container.textContent).toContain('Double-check the 8-character code (XXXX-XXXX).')
   })
 
-  it("'not-found' substring → 'Code invalid. Double-check the 5-character code.'", async () => {
+  it("'not-found' substring → 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'", async () => {
     const onExchange = vi.fn(async () => {
       throw new Error('join code not-found (status 404)')
     })
     const { container } = renderModal({ onExchange })
-    await submitCode(container, 'ZZZZZ')
+    await submitCode(container, 'ZZZZ-ZZZZ')
     expect(container.textContent).toContain('Code invalid')
+    expect(container.textContent).toContain('XXXX-XXXX')
   })
 
   it("'session-gone' substring → 'Remote session is no longer web-shared.'", async () => {

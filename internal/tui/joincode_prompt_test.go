@@ -216,7 +216,7 @@ func TestFriendlyJoinCodeError(t *testing.T) {
 		raw, want string
 	}{
 		{"join exchange: expired", "Code expired. Ask the owner to generate a new code."},
-		{"join exchange: invalid", "Code invalid. Double-check the 5-character code."},
+		{"join exchange: invalid", "Code invalid. Double-check the 8-character code (XXXX-XXXX)."},
 		{"join exchange: session-gone", "Remote session is no longer web-shared."},
 		{"something else", "Join failed: something else"},
 	}

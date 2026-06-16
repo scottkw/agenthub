@@ -25,10 +25,10 @@ const (
 	joinCodePromptError
 )
 
-// joinCodePromptModel is the Bubble Tea sub-model that captures a 5-char
-// join code from the user and converts it (via exchangeJoinCodeCmd) into a
-// session-scoped cap token. Mirrors the desktop GUI's paste-join-code modal
-// (D-01).
+// joinCodePromptModel is the Bubble Tea sub-model that captures an 8-char
+// join code (format XXXX-XXXX) from the user and converts it (via
+// exchangeJoinCodeCmd) into a session-scoped cap token. Mirrors the desktop
+// GUI's paste-join-code modal (D-01).
 type joinCodePromptModel struct {
 	sessionID     string
 	sessionName   string
@@ -54,9 +54,9 @@ type joinCodeResultMsg struct {
 type cancelJoinCodeMsg struct{}
 
 // newJoinCodePromptModel constructs an idle prompt focused on the textinput.
-// CharLimit is 32 — JoinCodeManager codes are 5 characters but we accept up
-// to 32 so a user pasting something extra (with surrounding whitespace) does
-// not get silently truncated before they hit Enter.
+// CharLimit is 32 — JoinCodeManager codes are 9 characters (XXXX-XXXX) but
+// we accept up to 32 so a user pasting something extra (with surrounding
+// whitespace) does not get silently truncated before they hit Enter.
 func newJoinCodePromptModel(sessionID, sessionName, hostname, remoteBaseURL string) joinCodePromptModel {
 	ti := textinput.New()
 	ti.Prompt = "> "
@@ -111,7 +111,7 @@ func (m joinCodePromptModel) Update(msg tea.Msg) (joinCodePromptModel, tea.Cmd) 
 // modals (modal.go).
 func (m joinCodePromptModel) View(w, h int) string {
 	titleStyle := lipgloss.NewStyle().Bold(true)
-	body := fmt.Sprintf("Ask the owner of %q on %q for the 5-character join code.\n"+
+	body := fmt.Sprintf("Ask the owner of %q on %q for the 8-character join code (format XXXX-XXXX).\n"+
 		"(Owner generates it via Daemon Manager.) Paste it below.",
 		m.sessionName, m.hostname)
 
@@ -220,7 +220,7 @@ func friendlyJoinCodeError(err error) string {
 	case strings.Contains(s, "expired"):
 		return "Code expired. Ask the owner to generate a new code."
 	case strings.Contains(s, "invalid"), strings.Contains(s, "not-found"):
-		return "Code invalid. Double-check the 5-character code."
+		return "Code invalid. Double-check the 8-character code (XXXX-XXXX)."
 	case strings.Contains(s, "session-gone"):
 		return "Remote session is no longer web-shared."
 	default:

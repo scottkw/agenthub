@@ -1,10 +1,10 @@
 // Phase 122-03 Task 2 — RemoteJoinCodeModal.
 //
-// Paste-join-code modal that exchanges a 5-character code against a remote
-// tailnet peer's /join/exchange endpoint (via the Wails RPC bridge) and
-// caches the resulting cap in the local daemon's RemoteCapStore. Surfaces
-// per-error-substring user copy locked by 122-03-PLAN.md Task 2 behaviour
-// table.
+// Paste-join-code modal that exchanges an 8-character code (format XXXX-XXXX)
+// against a remote tailnet peer's /join/exchange endpoint (via the Wails RPC
+// bridge) and caches the resulting cap in the local daemon's RemoteCapStore.
+// Surfaces per-error-substring user copy locked by 122-03-PLAN.md Task 2
+// behaviour table.
 //
 // Security notes (122-03 threat-model):
 //   - T-122-03-03: the join code is held in React state only; never written
@@ -38,7 +38,7 @@ function mapErrorMessage(raw: string): string {
     return 'Code expired. Ask the owner to generate a new code.'
   }
   if (lower.includes('invalid') || lower.includes('not-found')) {
-    return 'Code invalid. Double-check the 5-character code.'
+    return 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'
   }
   return raw
 }
@@ -116,15 +116,15 @@ export function RemoteJoinCodeModal({
         <div className="remote-join-modal__body">
           <p className="remote-join-modal__body-text">
             Ask the owner of <strong>{remoteSession.name}</strong> on{' '}
-            <strong>{remoteSession.hostname}</strong> for the 5-character join
-            code. (Owner generates it from the Daemon Manager panel.) Paste it
-            below.
+            <strong>{remoteSession.hostname}</strong> for the 8-character join
+            code (format XXXX-XXXX). (Owner generates it from the Daemon Manager
+            panel.) Paste it below.
           </p>
           <input
             ref={inputRef}
             type="text"
             className="remote-join-modal__input"
-            placeholder="ABCDE"
+            placeholder="XXXX-XXXX"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             onKeyDown={(e) => {
