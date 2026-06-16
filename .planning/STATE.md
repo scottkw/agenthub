@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.5.1
-milestone_name: Remote Browse Completion + Release-Gate Fix
-status: Awaiting next milestone
-stopped_at: Completed 130-03-PLAN.md
-last_updated: "2026-06-16T15:06:46.639Z"
-last_activity: 2026-06-16 — Milestone v3.5.1 completed and archived
+milestone: v3.6
+milestone_name: Hub (Session Grid)
+status: planning
+last_updated: "2026-06-16T16:39:50.222Z"
+last_activity: 2026-06-16
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 ## Current Position
 
-Phase: Milestone v3.5.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-16 — Milestone v3.5.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-16 — Milestone v3.6 started
 
 ## Operator Next Steps (pre-release, carry-forward)
 

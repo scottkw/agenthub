@@ -231,30 +231,32 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 ### Active
 
-Requirements for v3.5.1 are scoped in `.planning/REQUIREMENTS.md` (remote-browse GUI on-ramp + release-gate fixes). Active items move to Validated as phases complete.
+Requirements for v3.6 are scoped in `.planning/REQUIREMENTS.md` (the Hub session-grid surface). Active items move to Validated as phases complete.
 
-## Current Milestone: v3.5.1 Remote Browse Completion + Release-Gate Fix
+## Current Milestone: v3.6 Hub (Session Grid / Control Room)
 
-**Goal:** Close the desktop-GUI remote-browse on-ramp and clear the release-gate blocker — retiring umbrella epic #24.
+**Goal:** Add a top-level **"Hub"** surface — a working-directory-grouped grid of live session cards that pulse for attention and expand into interactive modals — porting #78's design language onto AgentHub's *real* session data, folding in #76's grounded live-session behaviors.
 
-**Target features:**
-- **#86** — Remote Sessions panel can discover→list→pick a peer's sessions, resolving the *enumerate-then-pick vs. cap-gated no-enumeration* conflict (the umbrella-#24 closer). Approach undecided at scoping — resolved in a design pass over three options:
-  - (a) tailnet-trusted metadata-only discovery endpoint (accepts enumeration exposure on the already-trusted tailnet)
-  - (b) panel lists *peers* + drives a join-code/URL per session; stop dropping empty-list peers (closest to existing join-code flow)
-  - (c) keep enumeration locked; reframe as "paste a join code/URL" only
-- **#83** — Actionable error when the client has `accept-dns=false`: detect unresolvable MagicDNS, surface *"Enable Tailscale DNS to browse remote sessions"*; optionally probe `accept-dns` state proactively
-- **#87** — Deflake `TestWrite_TwoWritersIfMatchRace` / close the `WriteFileAtomic` If-Match TOCTOU window (release-gate blocker). Correctness decision in design pass: (a) per-path lock = true single-winner guarantee, vs (b) accept last-writer-wins + rewrite test to invariants-only
+**Target features (GUI):**
+- **"Hub" sidebar item** + new top-level surface (alongside Home / Remote / Sessions / Settings)
+- **Card grid grouped by working directory** (the real-data analog of #78's "projects") + collapsible group sidebar with running/total + needs-input counts
+- **Session card** — name, CLI/agent badge, status, origin (local/remote + peer host), viewer count, uptime; **mini throttled terminal preview** (cheap snapshot/tail, NOT a heavyweight live xterm per card)
+- **Status filter bar** (All / Working / Needs input / Complete / Error / Idle) with live counts; functional **search**; **New session** wired to the existing create flow
+- **Click → modal, by state:**
+  - `waiting`/needs-input → **briefing modal** driven by the *real terminal tail* (the actual prompt the agent printed) + a respond affordance. The structured "agent suggests these options" multi-select from #78 is **deferred** (#93) — agents don't emit that data
+  - all other states → **interactive terminal modal** (#76 expand→interact→shrink, shared-element animation), mounting the same `TerminalPanel` + `RelayClient` as a normal tab
+- **#76 add-ons (all four):** pulse + float-to-top for `waiting`/`errored`; mini preview; **unified local + remote** grid (reuses the locked Phase 122 remote-browse path); **named user groups** (drag-to-assign, localStorage persist), layered over working-directory auto-grouping
+- **Accessibility (colorblind-safe — release norm):** attention conveyed via motion + icon + position, **never color alone**; keyboard focus/expand/Esc-to-close/focus-restore; pulse honors `prefers-reduced-motion`; light + dark themes
 
-**Closes:** GitHub Issues #86, #83, #87 — retires umbrella epic #24 (remote-browse GUI on-ramp becomes usable).
+**Closes:** GitHub Issue **#78** (Session Grid) — primary. Companion **#76** (closed) folded in for live-session behaviors not covered by #78.
 
-**Scope decisions ratified at milestone scoping (2026-06-15):**
-- Scope is the remote-browse cluster (#86 + #83) plus the release-gate-blocking flaky test (#87). #82 (TUI Files upload parity) deferred to a later milestone.
-- #86 architecture (a/b/c) requires a design pass before its implementation phase — not pre-decided.
-- The remote read/write *data path* is already proven live; only the GUI on-ramp (discover→list→pick) is broken.
+**Scope decisions ratified at milestone scoping (2026-06-16):**
+- **Bind to real data, adapt the look** (not a faithful-but-mock port). Cards render only fields the backend actually supplies (name, CLI, status, host, viewers, uptime); working-directory grouping stands in for #78's "projects."
+- **Both modals, by state** + real-data-only ⇒ the briefing modal is driven by the live terminal tail, not structured options. Keeps it honest and buildable today.
+- **TUI Hub parity deferred** to a later milestone with explicit user sign-off — tracked on existing TUI-parity issue **#82** (attention indicator + float-to-top + grouping). Cross-surface parity remains a release-blocking contract; this is a signed-off deferral, not a silent gap.
+- **Deferred #78 fidelity** (per-session token/cost/context usage [overlaps #67], formal projects model, member avatars, structured agent-suggested briefings, session-detail/chat-thread page, Tweaks panel, pixel-faithful port) captured in new follow-up issue **#93** so the next milestone starts with a known feature set.
 
-**Phase numbering:** continues from v3.5 (last phase 128) — v3.5.1 starts at Phase 129.
-
-**Process guard (from v3.5 audit):** the v3.5 98/100 automated integration score was blind to a 4-layer GUI remote-browse breakage because tests never drove the **relay loopback** the Wails GUI uses. A relay-surface regression gate now exists (`internal/relay/server_files_test.go`, `internal/daemon/relay_remote_files_test.go`) — all v3.5.1 remote work MUST exercise it, not just the webserver/fixture surface.
+**Phase numbering:** continues from v3.5.1 (last phase 130) — v3.6 starts at Phase 131.
 
 **Carry-forward operator one-time tasks (still required before next release):**
 
@@ -263,8 +265,7 @@ Requirements for v3.5.1 are scoped in `.planning/REQUIREMENTS.md` (remote-browse
 
 **Carry-forward manual UATs (still pending from v3.5):**
 
-1. Two-machine tailnet write UAT (RMW-06) — data path proven live 2026-06-15; the remaining residue is the #86 GUI on-ramp, which v3.5.1 closes
-2. Live desktop/TUI visual UATs — Phase 125 editor render + Tab/Cmd-V; Phase 126 `$EDITOR` suspend-resume; Phase 124 home-dir warning banner
+1. Live desktop/TUI visual UATs — Phase 125 editor render + Tab/Cmd-V; Phase 126 `$EDITOR` suspend-resume; Phase 124 home-dir warning banner
 
 ## Current State
 
@@ -518,4 +519,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-16 — v3.5.1 Remote Browse Completion + Release-Gate Fix SHIPPED + archived (tag v3.5.1). 2 phases (129-130), 11/11 requirements (RACE-01..03, DNS-01..03, RB-01..05), 7 plans. Audit PASSED; cross-phase integration 11/11 wired. Closed #86 (tailnet-trusted metadata-only `/api/sessions/meta` discovery), #83 (accept-dns actionable error + proactive banner), #87 (per-path single-winner `WriteFileAtomic` lock). Retired umbrella epic #24 — desktop GUI remote-browse on-ramp (discover→list→pick→browse) proven live on a two-machine tailnet. 5 UAT-surfaced bugs fixed in-milestone (DNS-banner gating, App.js RPC binding, write-toggle re-hydration, join-code-as-text, "5-char"→8-char copy). Operator follow-ups before next tagged release: RELEASE_PUBLISH_TOKEN PAT + WINGET_FIRST_SUBMISSION (see STATE.md); wails CLI v2.10.2 vs repo-pin v2.12.0 mismatch + unsigned-build re-sign (audit tech_debt). Next: `/gsd:new-milestone`.*
+*Last updated: 2026-06-16 — v3.6 Hub (Session Grid / Control Room) milestone STARTED. Primary GitHub Issue #78 (companion #76 folded in). New top-level "Hub" surface: working-directory-grouped grid of live session cards (status, CLI badge, origin, viewers, uptime, mini terminal preview), pulse + float-to-top for attention (`waiting`/`errored`), unified local+remote sessions, named user groups, click→modal-by-state (briefing modal for blocked sessions driven by real terminal tail; interactive terminal modal otherwise). Scope: bind to real data + adapt #78's look (not a mock port). Deferred #78 fidelity (usage metrics/projects/members/structured briefings/session-detail page/Tweaks) → new issue #93; TUI Hub parity → existing issue #82 (signed-off deferral). Phase numbering continues from 130 → v3.6 starts at Phase 131. Next: requirements + roadmap.*
