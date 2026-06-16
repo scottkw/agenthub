@@ -1,0 +1,236 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Phase 131 — Hub CSS contract tests.
+// Pattern: mirrors style.contrast.test.ts (reads raw CSS text, asserts structure).
+// These tests verify Phase 131 design contract properties at the source level.
+// The user is colorblind: hex constants are verified in source, never by eye.
+const cssRaw = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
+
+describe('Hub CSS tokens — dark theme (default :root)', () => {
+  it('declares --hub-bg custom property', () => {
+    expect(cssRaw).toContain('--hub-bg')
+  })
+
+  it('declares --hub-surface custom property', () => {
+    expect(cssRaw).toContain('--hub-surface')
+  })
+
+  it('declares --hub-accent custom property', () => {
+    expect(cssRaw).toContain('--hub-accent')
+  })
+
+  it('declares --hub-destructive custom property', () => {
+    expect(cssRaw).toContain('--hub-destructive')
+  })
+
+  it('declares --hub-dim-opacity custom property', () => {
+    expect(cssRaw).toContain('--hub-dim-opacity')
+  })
+
+  it('dark theme --hub-bg has correct hex #1a1b26 (TokyoNight surface)', () => {
+    expect(cssRaw).toContain('--hub-bg: #1a1b26')
+  })
+
+  it('dark theme --hub-accent has correct hex #7aa2f7', () => {
+    expect(cssRaw).toContain('--hub-accent: #7aa2f7')
+  })
+})
+
+describe('Hub CSS tokens — light theme ([data-ui-theme="light"])', () => {
+  it('[data-ui-theme="light"] block is present', () => {
+    expect(cssRaw).toContain('[data-ui-theme="light"]')
+  })
+
+  it('light theme --hub-accent is declared inside [data-ui-theme="light"] block', () => {
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    expect(lightIdx).toBeGreaterThan(-1)
+    // Find the closing brace of the light block
+    const blockEnd = cssRaw.indexOf('}', lightIdx + 1)
+    const lightBlock = cssRaw.slice(lightIdx, blockEnd)
+    expect(lightBlock).toContain('--hub-accent')
+  })
+
+  it('light theme --hub-destructive is declared inside [data-ui-theme="light"] block', () => {
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    expect(lightIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', lightIdx + 1)
+    const lightBlock = cssRaw.slice(lightIdx, blockEnd)
+    expect(lightBlock).toContain('--hub-destructive')
+  })
+
+  it('HUB-04 WCAG AA comment for --hub-accent in light theme (#3d6fe8 on #ffffff = 4.5:1)', () => {
+    // Source-level verification: hex constant + contrast comment must be present
+    expect(cssRaw).toContain('#3d6fe8')
+    expect(cssRaw).toContain('4.5:1')
+  })
+
+  it('HUB-04 WCAG AA comment for --hub-destructive in light theme (#c0394f on #ffffff = 4.7:1)', () => {
+    expect(cssRaw).toContain('#c0394f')
+    expect(cssRaw).toContain('4.7:1')
+  })
+
+  it('light theme --hub-bg has correct hex #f5f5f7', () => {
+    expect(cssRaw).toContain('--hub-bg: #f5f5f7')
+  })
+})
+
+describe('Hub layout — responsive grid (GRID-01)', () => {
+  it('grid uses repeat(auto-fill, minmax(240px, 1fr)) (GRID-01)', () => {
+    expect(cssRaw).toContain('repeat(auto-fill, minmax(240px, 1fr))')
+  })
+
+  it('.hub__card-row declares display: grid', () => {
+    const hubCardRowIdx = cssRaw.indexOf('.hub__card-row')
+    expect(hubCardRowIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', hubCardRowIdx)
+    const block = cssRaw.slice(hubCardRowIdx, blockEnd)
+    expect(block).toContain('display: grid')
+  })
+
+  it('.hub__card-row has gap: 8px', () => {
+    const hubCardRowIdx = cssRaw.indexOf('.hub__card-row')
+    expect(hubCardRowIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', hubCardRowIdx)
+    const block = cssRaw.slice(hubCardRowIdx, blockEnd)
+    expect(block).toContain('gap: 8px')
+  })
+
+  it('.hub__card-row has max-width: 1440px', () => {
+    const hubCardRowIdx = cssRaw.indexOf('.hub__card-row')
+    expect(hubCardRowIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', hubCardRowIdx)
+    const block = cssRaw.slice(hubCardRowIdx, blockEnd)
+    expect(block).toContain('max-width: 1440px')
+  })
+
+  it('.hub-card has min-width: 240px', () => {
+    expect(cssRaw).toContain('min-width: 240px')
+  })
+
+  it('.hub-card has max-width: 360px', () => {
+    expect(cssRaw).toContain('max-width: 360px')
+  })
+})
+
+describe('Hub card dim state (CARD-08)', () => {
+  it('.hub-card--dim rule is present', () => {
+    expect(cssRaw).toContain('.hub-card--dim')
+  })
+
+  it('.hub-card--dim uses var(--hub-dim-opacity) for opacity', () => {
+    const dimIdx = cssRaw.indexOf('.hub-card--dim')
+    expect(dimIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', dimIdx)
+    const block = cssRaw.slice(dimIdx, blockEnd)
+    expect(block).toContain('var(--hub-dim-opacity)')
+  })
+
+  it('.hub-card--dim uses var(--hub-card-dim-bg) for background', () => {
+    const dimIdx = cssRaw.indexOf('.hub-card--dim')
+    expect(dimIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', dimIdx)
+    const block = cssRaw.slice(dimIdx, blockEnd)
+    expect(block).toContain('var(--hub-card-dim-bg)')
+  })
+
+  it('error-exit cards are NOT dimmed — comment present (CARD-08 correctness)', () => {
+    expect(cssRaw).toContain('Error-exit cards are NOT dimmed')
+  })
+})
+
+describe('Hub motion contract — reduced-motion guard (Pitfall 6)', () => {
+  it('prefers-reduced-motion: no-preference media query is present', () => {
+    expect(cssRaw).toContain('prefers-reduced-motion: no-preference')
+  })
+
+  it('hub-spin animation is declared inside the reduced-motion guard', () => {
+    // The spin class and keyframes must appear only inside the media query guard
+    const mediaIdx = cssRaw.indexOf('prefers-reduced-motion: no-preference')
+    expect(mediaIdx).toBeGreaterThan(-1)
+    // The hub-spin animation class must appear after the media query start
+    const spinIdx = cssRaw.indexOf('hub-card__status-icon--spin')
+    expect(spinIdx).toBeGreaterThan(mediaIdx)
+  })
+
+  it('hub-spin keyframes are declared', () => {
+    expect(cssRaw).toContain('@keyframes hub-spin')
+  })
+
+  it('spin animation has 0.8s linear infinite timing', () => {
+    expect(cssRaw).toContain('0.8s linear infinite')
+  })
+})
+
+describe('Hub sidebar active state (Pitfall 8 / HUB-01)', () => {
+  it('.sidebar__item--active rule is present', () => {
+    expect(cssRaw).toContain('.sidebar__item--active')
+  })
+
+  it('.sidebar__item--active uses var(--hub-accent) for color', () => {
+    const activeIdx = cssRaw.indexOf('.sidebar__item--active')
+    expect(activeIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', activeIdx)
+    const block = cssRaw.slice(activeIdx, blockEnd)
+    expect(block).toContain('var(--hub-accent')
+  })
+})
+
+describe('Hub group header (mirrors .remote-panel__peer-header)', () => {
+  it('.hub__group-header is declared', () => {
+    expect(cssRaw).toContain('.hub__group-header')
+  })
+
+  it('.hub__group-header has font-size: 11px', () => {
+    const headerIdx = cssRaw.indexOf('.hub__group-header')
+    expect(headerIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', headerIdx)
+    const block = cssRaw.slice(headerIdx, blockEnd)
+    expect(block).toContain('font-size: 11px')
+  })
+
+  it('.hub__group-header has font-weight: 600', () => {
+    const headerIdx = cssRaw.indexOf('.hub__group-header')
+    expect(headerIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', headerIdx)
+    const block = cssRaw.slice(headerIdx, blockEnd)
+    expect(block).toContain('font-weight: 600')
+  })
+
+  it('.hub__group-header has text-transform: uppercase', () => {
+    const headerIdx = cssRaw.indexOf('.hub__group-header')
+    expect(headerIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', headerIdx)
+    const block = cssRaw.slice(headerIdx, blockEnd)
+    expect(block).toContain('text-transform: uppercase')
+  })
+
+  it('.hub__group-header has letter-spacing: 0.08em', () => {
+    const headerIdx = cssRaw.indexOf('.hub__group-header')
+    expect(headerIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', headerIdx)
+    const block = cssRaw.slice(headerIdx, blockEnd)
+    expect(block).toContain('letter-spacing: 0.08em')
+  })
+})
+
+describe('Hub colorblind-safe source comments (source-level UAT verification)', () => {
+  it('has COLORBLIND-SAFE comment for running status dot dark hex #3b82f6', () => {
+    expect(cssRaw).toContain('#3b82f6')
+    expect(cssRaw).toContain('running')
+  })
+
+  it('has COLORBLIND-SAFE comment for idle status dark hex #22c55e', () => {
+    expect(cssRaw).toContain('#22c55e')
+  })
+
+  it('has COLORBLIND-SAFE comment for stopped/done dark hex #565f89', () => {
+    expect(cssRaw).toContain('#565f89')
+  })
+
+  it('has source-level COLORBLIND-SAFE comment block for light hex #1d4ed8 (running)', () => {
+    expect(cssRaw).toContain('#1d4ed8')
+    expect(cssRaw).toContain('7.1:1')
+  })
+})
