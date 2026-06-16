@@ -300,9 +300,19 @@ func isUnresolvableMagicDNS(err error, baseURL string) bool {
 	if !errors.As(err, &dnsErr) {
 		return false
 	}
-	// Tailscale MagicDNS names end in .ts.net or .tailscale.net.
-	return strings.Contains(baseURL, ".ts.net") ||
-		strings.Contains(baseURL, ".tailscale.net")
+	// WR-01: check the hostname suffix, not a whole-URL substring. A substring
+	// test against baseURL over-matches paths, query strings, userinfo, and
+	// hosts that merely contain ".ts.net" (e.g. foo.ts.network or
+	// notreally.ts.net.evil.com). Parse the URL and match only the hostname
+	// suffix so the actionable accept-dns message fires solely for genuine
+	// MagicDNS hosts (DNS-02 discrimination preserved — still gated on DNSError).
+	u, perr := url.Parse(baseURL)
+	if perr != nil {
+		return false
+	}
+	host := u.Hostname() // strips port + userinfo
+	return strings.HasSuffix(host, ".ts.net") ||
+		strings.HasSuffix(host, ".tailscale.net")
 }
 
 // redactCapTokenFromError removes the cap-token substring from an error's
