@@ -37,6 +37,20 @@ type Config struct {
 	Password string
 }
 
+// sessionMetaItem is the JSON shape returned by GET /api/sessions/meta.
+// This endpoint is open (no capability required) and returns metadata-only fields
+// for all web-enabled sessions. Trust boundary: the endpoint is mounted on the
+// webserver which is bound to the Tailscale IP — only tailnet members can reach it
+// (network-layer trust per the resolved #86 decision and RB-03). It must NEVER
+// include cap tokens, grants, content, or signing keys.
+type sessionMetaItem struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	CLIType string `json:"cli_type"`
+	Status  string `json:"status"`
+	URL     string `json:"url"`
+}
+
 // sessionListItem is the JSON shape returned by GET /api/sessions and GET /api/sessions/{id}/info.
 // Perms is populated only on the /info endpoint (from the verified capability
 // claims, D-19/D-23 — terminal.html uses this to suppress the input caret on
@@ -453,6 +467,12 @@ func (ws *WebServer) setupRoutes() {
 	// (D-09/D-11).
 	mux.HandleFunc("POST /join/exchange", ws.handleJoinExchange)
 
+	// GET /api/sessions/meta — open (no capability required). Returns shareable-session
+	// metadata (id, name, cli_type, status, url) for all web-enabled sessions to
+	// tailnet-trusted callers. Trust boundary: bound to Tailscale IP (network-layer per
+	// resolved #86 decision). Never returns cap tokens, grants, or session content (RB-03).
+	mux.HandleFunc("GET /api/sessions/meta", ws.handleSessionsMeta)
+
 	// GET /api/sessions — capability-gated; handleListSessions returns ONLY
 	// the single session bound to the cap (D-18).
 	mux.HandleFunc("GET /api/sessions", ws.requireCapability(ws.handleListSessions))
@@ -747,6 +767,36 @@ func (ws *WebServer) handleListSessions(w http.ResponseWriter, r *http.Request) 
 		}
 		items = append(items, sessionListItem{
 			ID: claims.SID, Name: name, CLIType: cliType, Status: st, Hostname: hostname,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items) //nolint:errcheck
+}
+
+// handleSessionsMeta handles GET /api/sessions/meta.
+// Returns metadata for all web-enabled sessions to tailnet-trusted callers.
+// Open — no capability required. Trust boundary: the webserver is bound to the
+// Tailscale IP (network-layer trust per resolved #86 decision). This endpoint
+// returns ONLY metadata (id, name, cli_type, status, url) — never cap tokens,
+// grants, session content, or signing keys (RB-03 no-enumeration contract).
+func (ws *WebServer) handleSessionsMeta(w http.ResponseWriter, r *http.Request) {
+	ids := ws.webEnabledSessions()
+	items := make([]sessionMetaItem, 0, len(ids))
+	for _, id := range ids {
+		name, cliType, st := "", "", ""
+		if ws.sessionResolver != nil {
+			name, cliType, st, _ = ws.sessionResolver(id)
+		}
+		if name == "" {
+			name = id
+		}
+		sessionURL := fmt.Sprintf("%s/sessions/%s", ws.BaseURL(), id)
+		items = append(items, sessionMetaItem{
+			ID:      id,
+			Name:    name,
+			CLIType: cliType,
+			Status:  st,
+			URL:     sessionURL,
 		})
 	}
 	w.Header().Set("Content-Type", "application/json")
