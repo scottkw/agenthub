@@ -59,6 +59,9 @@ export const CheckForUpdates      = ()                      => Call('main.App.Ch
 // Remote sessions bound method
 export const GetRemoteSessions    = ()                      => Call('main.App.GetRemoteSessions', [])
 
+// Phase 130 — metadata-aware remote discovery (replaces GetRemoteSessions at the peers-poll site).
+export const GetRemoteSessionsWithMeta = ()                 => Call('main.App.GetRemoteSessionsWithMeta', [])
+
 // Phase 122-03 — remote-session file-browse join-code exchange + cap deposit.
 export const ExchangeJoinCodeAtURL = (remoteBaseURL, code)  => Call('main.App.ExchangeJoinCodeAtURL', [remoteBaseURL, code])
 export const RegisterRemoteCap     = (sessionID, baseURL, capToken) => Call('main.App.RegisterRemoteCap', [sessionID, baseURL, capToken])
