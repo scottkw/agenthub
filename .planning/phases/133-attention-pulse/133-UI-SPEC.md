@@ -1,10 +1,11 @@
 ---
 phase: 133
 slug: attention-pulse
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-16
+reviewed_at: 2026-06-16
 ---
 
 # Phase 133 — UI Design Contract
@@ -420,7 +421,7 @@ When the group is expanded, no badge is needed — the pulsing cards themselves 
 └─────────────────────────────────────────┘
 ```
 
-Badge dimensions: 16px height, padding 2px 4px, border-radius 8px (pill shape).
+Badge dimensions: 16px height, padding 0 4px, gap 4px, border-radius 8px (pill shape) — matches the Phase 132 needs-input badge slot (mutually exclusive); all spacing multiples of 4.
 Badge position: right-aligned within the collapsed sidebar strip (same position as needs-input
 badge in Phase 132).
 
@@ -431,8 +432,8 @@ badge in Phase 132).
 .hub__group-sidebar-item__attn-badge {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px 4px;
+  gap: 4px;
+  padding: 0 4px;
   height: 16px;
   border-radius: 8px;
   background: var(--hub-attn-badge-bg);
