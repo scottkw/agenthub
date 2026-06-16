@@ -183,6 +183,10 @@ function App(): React.ReactElement {
   // Remote peers for RemoteSessionsPanel (polled when the tab is active)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
   const [remoteLoading, setRemoteLoading] = useState(false)
+  // RB-04: tracks whether the last remote-sessions fetch threw, so the panel
+  // can show an honest error state rather than the misleading "No remote peers
+  // found" empty state when the query itself failed.
+  const [remoteError, setRemoteError] = useState(false)
   // WR-01: tracks whether the remote-sessions poll has completed at least
   // once. A ref (not a closed-over remotePeers snapshot) so the spinner gate
   // reflects the current fetch rather than a stale render-time value frozen
@@ -907,11 +911,15 @@ function App(): React.ReactElement {
         const peers = await GetRemoteSessionsWithMeta()
         if (!cancelled) {
           setRemotePeers(peers ?? [])
+          setRemoteError(false)
           remoteHasLoadedRef.current = true
           setRemoteLoading(false)
         }
       } catch {
-        if (!cancelled) setRemoteLoading(false)
+        if (!cancelled) {
+          setRemoteLoading(false)
+          setRemoteError(true)
+        }
       }
     }
     void refresh()
@@ -1353,6 +1361,7 @@ function App(): React.ReactElement {
           <RemoteSessionsPanel
             peers={remotePeers}
             loading={remoteLoading}
+            error={remoteError}
             onOpen={handleOpenRemoteSession}
             onBrowseFiles={handleBrowseFilesRemote}
           />

@@ -191,10 +191,10 @@ describe('RemoteSessionsPanel — Phase 122-03 Browse files', () => {
     expect(buttons.length).toBe(3)
   })
 
-  it('Browse files button has visible "Browse files" label', () => {
+  it('Browse files button has visible "Browse Files" label', () => {
     const { container } = renderPanel({ peers: mockPeers })
     const button = container.querySelector('.remote-panel__btn--browse') as HTMLButtonElement
-    expect(button.textContent).toContain('Browse files')
+    expect(button.textContent).toContain('Browse Files')
   })
 
   it('Browse files button has aria-label including the session name', () => {
@@ -367,5 +367,45 @@ describe('RemoteSessionsPanel — RB-04 no false "No remote peers found" when �
   it('still renders "No remote peers found" only when peers array is truly empty', () => {
     const { container } = renderPanel({ peers: [] })
     expect(container.textContent).toContain('No remote peers found')
+  })
+})
+
+// --- RB-04: Error state — honest failure vs. zero-peers ---
+
+describe('RemoteSessionsPanel — RB-04 error state', () => {
+  it('renders "Could not load sessions" heading when error=true and peers is empty', () => {
+    const { container } = renderPanel({ error: true, peers: [] })
+    const title = container.querySelector('.remote-panel__empty-title')
+    expect(title).toBeTruthy()
+    expect(title!.textContent).toBe('Could not load sessions')
+  })
+
+  it('renders error body copy when error=true and peers is empty', () => {
+    const { container } = renderPanel({ error: true, peers: [] })
+    const body = container.querySelector('.remote-panel__empty-body')
+    expect(body).toBeTruthy()
+    expect(body!.textContent).toBe(
+      'An error occurred loading remote sessions. Check your tailnet connection.',
+    )
+  })
+
+  it('does NOT render "No remote peers found" when error=true and peers is empty', () => {
+    const { container } = renderPanel({ error: true, peers: [] })
+    expect(container.textContent).not.toContain('No remote peers found')
+  })
+
+  it('renders "No remote peers found" (not error state) when error=false and peers is empty', () => {
+    const { container } = renderPanel({ error: false, peers: [] })
+    expect(container.textContent).toContain('No remote peers found')
+    expect(container.textContent).not.toContain('Could not load sessions')
+  })
+
+  it('renders peers normally when error=true but peers are present (error clears on next poll success)', () => {
+    // Defensive: if a stale error flag survives while peers are populated, show peers.
+    // The component only activates the error branch when peers.length === 0.
+    const { container } = renderPanel({ error: true, peers: mockPeers })
+    const headers = container.querySelectorAll('.remote-panel__peer-header')
+    expect(headers.length).toBe(2)
+    expect(container.textContent).not.toContain('Could not load sessions')
   })
 })

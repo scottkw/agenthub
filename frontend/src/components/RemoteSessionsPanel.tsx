@@ -18,6 +18,12 @@ export interface RemotePeerSessions {
 export interface RemoteSessionsPanelProps {
   peers: RemotePeerSessions[]
   loading: boolean
+  /**
+   * RB-04 — set when GetRemoteSessionsWithMeta() throws. When true and peers
+   * is empty, renders the honest error state ("Could not load sessions") rather
+   * than the misleading "No remote peers found" empty state.
+   */
+  error?: boolean
   onOpen: (url: string) => void
   /**
    * Phase 122-03 — opens the file-browser tab for a remote session via the
@@ -29,6 +35,7 @@ export interface RemoteSessionsPanelProps {
 export function RemoteSessionsPanel({
   peers,
   loading,
+  error,
   onOpen,
   onBrowseFiles,
 }: RemoteSessionsPanelProps): React.ReactElement {
@@ -38,6 +45,16 @@ export function RemoteSessionsPanel({
         <div className="remote-panel__loading" role="status" aria-label="Loading remote peers">
           <div className="remote-panel__spinner" />
           Probing peers...
+        </div>
+      </div>
+    )
+  }
+  if (error && peers.length === 0) {
+    return (
+      <div className="remote-panel">
+        <div className="remote-panel__empty">
+          <div className="remote-panel__empty-title">Could not load sessions</div>
+          <div className="remote-panel__empty-body">An error occurred loading remote sessions. Check your tailnet connection.</div>
         </div>
       </div>
     )
@@ -97,10 +114,10 @@ export function RemoteSessionsPanel({
                       <button
                         className="remote-panel__btn remote-panel__btn--browse"
                         onClick={() => onBrowseFiles(s.id, s.name)}
-                        title="Browse files"
+                        title="Browse Files"
                         aria-label={`Browse files on ${s.name}`}
                       >
-                        Browse files
+                        Browse Files
                       </button>
                     </div>
                   </div>
