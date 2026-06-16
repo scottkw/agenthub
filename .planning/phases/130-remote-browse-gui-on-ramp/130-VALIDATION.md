@@ -2,8 +2,8 @@
 phase: 130
 slug: remote-browse-gui-on-ramp
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-15
 ---
 

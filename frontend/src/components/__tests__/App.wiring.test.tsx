@@ -14,8 +14,8 @@ describe('App.tsx remote-sessions wiring (52-03-02)', () => {
     expect(raw).toContain("'__remote_sessions__'")
   })
 
-  it('imports GetRemoteSessions from wailsjs binding', () => {
-    expect(raw).toContain('GetRemoteSessions')
+  it('imports GetRemoteSessionsWithMeta from wailsjs binding', () => {
+    expect(raw).toContain('GetRemoteSessionsWithMeta')
   })
 
   it('imports RemoteSessionsPanel component', () => {
