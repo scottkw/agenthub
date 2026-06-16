@@ -313,7 +313,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 <summary>🚧 v3.5.1 Remote Browse Completion + Release-Gate Fix (Phases 129-130) — IN PROGRESS (closes Issues #86, #83, #87; retires umbrella #24)</summary>
 
 - [x] **Phase 129: Write Concurrency Fix + DNS Error UX** — RACE-01..03, DNS-01..03 (completed 2026-06-16)
-- [ ] **Phase 130: Remote Browse GUI On-Ramp** — RB-01..05
+- [x] **Phase 130: Remote Browse GUI On-Ramp** — RB-01..05 (completed 2026-06-16)
 
 </details>
 
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 130-01-PLAN.md — Wave 0 backend failing tests: /api/sessions/meta contract (RB-01/RB-03), FetchAllPeerSessionsMeta no-drop (RB-01), GetRemoteSessionsWithMeta Reachable field, and the release-blocking RB-05 relay-surface discover→pick→browse test (all RED first)
 - [x] 130-02-PLAN.md — Wave 0 frontend failing tests: RemoteSessionsPanel honest per-peer states (Unreachable / No shareable sessions / never false "No remote peers found") + "Shows shareable sessions" copy update (RB-04, RED first)
 - [x] 130-03-PLAN.md — Backend impl: open /api/sessions/meta endpoint, FetchPeerSessionsMeta/FetchAllPeerSessionsMeta, GetRemoteSessionsWithMeta RPC + Reachable field (RB-01/RB-03/RB-05 green)
-- [ ] 130-04-PLAN.md — Frontend impl: per-peer honest-state rendering + CSS, wire GetRemoteSessionsWithMeta, preserve Phase 122 pick flow (RB-01/RB-02/RB-04 green)
+- [x] 130-04-PLAN.md — Frontend impl: per-peer honest-state rendering + CSS, wire GetRemoteSessionsWithMeta, preserve Phase 122 pick flow (RB-01/RB-02/RB-04 green)
 
 ---
 
@@ -408,7 +408,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
 | 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
-| 130 | v3.5.1 | 3/4 | In Progress|  |
+| 130 | v3.5.1 | 4/4 | Complete   | 2026-06-16 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
