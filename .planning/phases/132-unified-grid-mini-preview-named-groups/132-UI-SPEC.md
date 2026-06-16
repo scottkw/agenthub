@@ -1,10 +1,11 @@
 ---
 phase: 132
 slug: unified-grid-mini-preview-named-groups
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-16
+reviewed_at: 2026-06-16
 ---
 
 # Phase 132 — UI Design Contract
@@ -82,7 +83,7 @@ New Phase 132 exceptions:
 | Mini preview pane height | 56px | Fits 4 lines at 11px/1.3 line-height; compact but useful |
 | Group sidebar item height | 32px | Matches Phase 131 group header strip height |
 | Group sidebar item padding | 8px 12px | sm vertical + lg-adjacent horizontal |
-| Needs-input badge height | 18px | Compact inline chip |
+| Needs-input badge height | 16px | Compact inline chip |
 | Drag handle icon size | 16px (w-4 h-4) | Consistent with other Heroicons usage at small size |
 
 ---
@@ -99,7 +100,7 @@ New Phase 132 roles:
 | Group sidebar item label | 12px | 400 | 1.0 | system-ui | Named group name in sidebar |
 | Group sidebar item count | 11px | 400 | 1.0 | `ui-monospace, SFMono-Regular, Menlo, monospace` | "3/5" running/total count |
 | Group sidebar section heading | 11px | 600 | 1.0 | system-ui | "Groups" section title (uppercase) |
-| Needs-input badge text | 10px | 400 | 1.0 | system-ui | "!" or needs-input count in badge |
+| Needs-input badge text | 11px | 400 | 1.0 | system-ui | "!" or needs-input count in badge |
 | Preview loading text | 11px | 400 | 1.3 | system-ui | "Loading…" placeholder |
 
 ---
@@ -284,7 +285,7 @@ The Hub content area becomes a two-column flex layout when the sidebar is expand
   - Group name text (12px/400, truncated with ellipsis at 120px max-width)
   - Running/total count badge on the right: `"2/5"` (11px mono, `--hub-text-muted`)
   - Needs-input badge (if any card in the group has status `waiting`):
-    a 18px tall amber chip with `PauseCircleIcon` (12px) + count or "!" text
+    a 16px tall amber chip with `PauseCircleIcon` (12px) + count or "!" text
   - Active group: `--hub-sidebar-item-active-bg` background, left border 2px `--hub-accent`
   - Hover: `--hub-sidebar-item-hover-bg` background
 - A "New group" button at the bottom of the group list (same style as `.hub__new-session-btn`).
@@ -390,9 +391,9 @@ popover menu (`.hub-card__menu`) positioned below the button:
 Menu styles: `background: var(--hub-surface-elevated)`, `border: 1px solid var(--hub-border)`,
 `border-radius: 6px`, `box-shadow: 0 4px 12px rgba(0,0,0,0.3)`, `z-index: 20`, `min-width: 160px`.
 
-Each menu item: 12px/400, `padding: 6px 12px`, hover background `var(--hub-surface)`.
+Each menu item: 12px/400, `padding: 8px 12px`, hover background `var(--hub-surface)`.
 
-Group sub-items (under "Move to group"): 12px/400, `padding: 6px 12px 6px 24px` (indented).
+Group sub-items (under "Move to group"): 12px/400, `padding: 8px 12px 8px 24px` (indented).
 
 "Remove from group" only appears when the session is in a named group (not in "Other").
 
