@@ -42,12 +42,16 @@ existing rule measurements in `style.css`.
 | Token | Value | Usage in this phase |
 |-------|-------|---------------------|
 | xs | 4px | Gap between icon and text inside session row |
-| sm | 8px | Gap between session rows (`.remote-panel__session-list gap`), button padding, peer section bottom margin subunit |
-| md | 16px | Panel horizontal padding unit, peer-header padding-bottom |
+| sm | 8px | Button padding, peer section bottom margin subunit |
+| md | 16px | Panel horizontal padding unit |
 | lg | 24px | Panel padding (`.remote-panel { padding: 24px }`) |
 | xl | 32px | Not used in this phase |
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
+
+Documented-value corrections (UI Review 2026-06-16):
+- `.remote-panel__session-list { gap }` is `2px` in the implementation (not `sm=8px`). The 2px value pre-dates Phase 130 and was preserved correctly; the spec table was wrong.
+- `.remote-panel__peer-header { padding-bottom }` is `8px` in the implementation (not `md=16px`). Same: pre-existing value preserved; spec table was wrong.
 
 Exceptions (justified — reuse of established design-system tokens, NOT new values):
 - **Badge padding `2px 8px`** and **`border-radius: 3px`** on `.remote-panel__peer-unreachable` deliberately reuse the app-wide badge/tag convention already defined in `style.css` (e.g. lines 1449–1451, 1458–1460, 1638–1640 all use `padding: 2px 8px`). The 2px vertical badge padding is the existing codebase standard for inline badges; using `4px` here would make the unreachable badge inconsistent with every other badge in the app. Design-system consistency takes precedence over the generic 4-point heuristic for this established token.
