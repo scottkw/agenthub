@@ -36,6 +36,7 @@ import (
 	"testing"
 
 	"github.com/scottkw/agenthub/internal/files"
+	"github.com/scottkw/agenthub/internal/tailnet"
 )
 
 // depositCapOnSocket deposits the (sessionID, baseURL, capToken) tuple via the
@@ -401,4 +402,183 @@ func TestRemoteFiles_TwoWriterRace_RelaySurface(t *testing.T) {
 	if len(leftover) != 0 {
 		t.Errorf("leftover temp files after relay race: %v", leftover)
 	}
+}
+
+// ─── Phase 130 Wave 0: RB-05 relay-surface discover→pick→browse test ──────────
+//
+// TestRemoteFiles_DiscoverAndBrowse_RelaySurface is the release-blocking
+// relay-surface regression test for RB-05. It guards the v3.5 blind spot where
+// only the webserver/fixture surface was tested while the relay loopback path
+// (used by the Wails GUI webview) was broken across 4 layers.
+//
+// This test ties together the full discover→pick→browse flow:
+//  1. DISCOVER: the fixture peer exposes GET /api/sessions/meta returning one
+//     shareable session's metadata. The test fetches it and decodes the result
+//     as []tailnet.ShareableSessionMeta (which does not exist yet — RED).
+//  2. PICK: a cap for the discovered session is deposited via depositCapOnSocket
+//     (the same path App.RegisterRemoteCap takes).
+//  3. BROWSE: GET /api/files/remote/{sessionID}/list is driven through
+//     httptest.NewServer(api.RelayHandler()) — the exact loopback the Wails
+//     webview uses — and asserts a 200 with the fixture's file listing.
+//
+// RED reason: tailnet.ShareableSessionMeta is undefined until plan 130-03 adds
+// it to internal/tailnet/sessions.go. The relay-browse step itself already works
+// (proven by TestRemoteFiles_MountedOnRelay); the compile failure locks the
+// discover step as a required part of this test.
+//
+// newFixtureRemotePeerWithMeta is a local variant of newFixtureRemotePeer that
+// adds GET /api/sessions/meta to the fixture mux. All existing file routes are
+// preserved; this test does not modify newFixtureRemotePeer.
+
+// fixtureSessionMeta is the session metadata the fixture peer serves at
+// GET /api/sessions/meta. It describes the same "sid1" session used by
+// the existing relay tests.
+const fixtureSessionMetaJSON = `[{"id":"sid1","name":"Fixture Session","cli_type":"claude","status":"running","url":"https://fixture-peer:7443/sessions/sid1"}]`
+
+// newFixtureRemotePeerWithMeta builds a fixture peer identical to
+// newFixtureRemotePeer but also mounts GET /api/sessions/meta, returning a
+// single-element array for "sid1". The cap guard is NOT applied to the meta
+// endpoint (it is intentionally open, tailnet-trusted via network binding).
+func newFixtureRemotePeerWithMeta(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	mux := http.NewServeMux()
+
+	guard := func(handler http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("cap") != fixtureCap {
+				http.Error(w, "cap rejected", http.StatusUnauthorized)
+				return
+			}
+			handler(w, r)
+		}
+	}
+
+	listBody, _ := canonicalListResponse()
+	statBody, _ := canonicalStatResponse()
+
+	// Read routes — same as newFixtureRemotePeer.
+	mux.HandleFunc("GET /api/files/list", guard(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(listBody)
+	}))
+	mux.HandleFunc("GET /api/files/stat", guard(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(statBody)
+	}))
+	mux.HandleFunc("GET /api/files/read", guard(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		if r.Method == http.MethodHead {
+			return
+		}
+		_, _ = w.Write([]byte("hello world"))
+	}))
+	mux.HandleFunc("PUT /api/files/write", guard(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	mux.HandleFunc("POST /join/exchange", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", "/sessions/sid1?cap="+fixtureCap)
+		w.WriteHeader(http.StatusSeeOther)
+	})
+
+	// NEW: GET /api/sessions/meta — open, no cap required (tailnet-trusted).
+	// Returns metadata for the single fixture session "sid1".
+	mux.HandleFunc("GET /api/sessions/meta", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fixtureSessionMetaJSON))
+	})
+
+	return httptest.NewTLSServer(mux)
+}
+
+// TestRemoteFiles_DiscoverAndBrowse_RelaySurface is the RB-05 release-blocking
+// relay-surface test. See the package comment above for the full rationale.
+//
+// The test drives three sequential steps:
+//  1. DISCOVER — fetch /api/sessions/meta from the fixture peer and decode into
+//     []tailnet.ShareableSessionMeta (compile error until plan 130-03 exists).
+//  2. PICK — deposit the cap for the discovered session via the socket surface
+//     (mirrors App.RegisterRemoteCap).
+//  3. BROWSE — fetch /api/files/remote/{sid}/list through api.RelayHandler()
+//     and assert 200 with the canonical file listing.
+func TestRemoteFiles_DiscoverAndBrowse_RelaySurface(t *testing.T) {
+	upstream := newFixtureRemotePeerWithMeta(t)
+	defer upstream.Close()
+
+	api := newDaemonAPIWithUpstreamCert(t, upstream)
+
+	// Socket surface — used only to deposit the cap (App.RegisterRemoteCap path).
+	socketSrv := httptest.NewServer(api.Handler())
+	defer socketSrv.Close()
+
+	// Relay surface — the loopback TCP server the Wails webview actually fetches from.
+	relaySrv := httptest.NewServer(api.RelayHandler())
+	defer relaySrv.Close()
+
+	// ─── STEP 1: DISCOVER ────────────────────────────────────────────────────
+	// Fetch /api/sessions/meta from the fixture peer using the upstream's own
+	// TLS client (trusts the self-signed cert). Decode into []tailnet.ShareableSessionMeta.
+	// tailnet.ShareableSessionMeta is undefined on current main → RED compile error.
+	metaResp, err := upstream.Client().Get(upstream.URL + "/api/sessions/meta")
+	if err != nil {
+		t.Fatalf("discover: GET /api/sessions/meta: %v", err)
+	}
+	defer metaResp.Body.Close()
+	if metaResp.StatusCode != http.StatusOK {
+		t.Fatalf("discover: expected 200, got %d", metaResp.StatusCode)
+	}
+
+	// Decoding into tailnet.ShareableSessionMeta makes this test RED until plan 130-03.
+	var metaItems []tailnet.ShareableSessionMeta
+	if decErr := json.NewDecoder(metaResp.Body).Decode(&metaItems); decErr != nil {
+		t.Fatalf("discover: decode metadata: %v", decErr)
+	}
+	if len(metaItems) != 1 {
+		t.Fatalf("discover: expected 1 session metadata item, got %d", len(metaItems))
+	}
+	discoveredSID := metaItems[0].ID
+	if discoveredSID != "sid1" {
+		t.Errorf("discover: expected session id=sid1, got %q", discoveredSID)
+	}
+
+	// ─── STEP 2: PICK (cap deposit) ──────────────────────────────────────────
+	// Deposit the cap for the discovered session. This mirrors App.RegisterRemoteCap
+	// which the GUI calls after the user pastes the join code.
+	depositCapOnSocket(t, socketSrv, discoveredSID, upstream.URL, fixtureCap)
+
+	// ─── STEP 3: BROWSE through relay ────────────────────────────────────────
+	// Issue GET /api/files/remote/{sid}/list through api.RelayHandler() — the
+	// exact loopback the Wails webview uses. Assert 200 + canonical file listing.
+	listURL := relaySrv.URL + "/api/files/remote/" + discoveredSID + "/list?path=."
+	browseResp, browseErr := http.Get(listURL)
+	if browseErr != nil {
+		t.Fatalf("browse relay: GET %s: %v", listURL, browseErr)
+	}
+	defer browseResp.Body.Close()
+	body, _ := io.ReadAll(browseResp.Body)
+
+	if browseResp.StatusCode == http.StatusNotFound {
+		t.Fatalf("browse relay: returned 404 — remote route not mounted on relay; body=%s", body)
+	}
+	if browseResp.StatusCode != http.StatusOK {
+		t.Fatalf("browse relay: status = %d; want 200; body=%s", browseResp.StatusCode, body)
+	}
+
+	var parsed files.FileListResponse
+	if parseErr := json.Unmarshal(body, &parsed); parseErr != nil {
+		t.Fatalf("browse relay: unmarshal list response: %v; body=%s", parseErr, body)
+	}
+	canonical, _ := canonicalListResponse()
+	if !bytes.Equal(bytes.TrimSpace(body), bytes.TrimSpace(canonical)) {
+		t.Errorf("browse relay: list body != canonical upstream body\nrelay=%s\ncanonical=%s", body, canonical)
+	}
+
+	t.Logf("RB-05 relay surface: discover=%q browse=200 entries=%d", discoveredSID, len(parsed.Entries))
 }
