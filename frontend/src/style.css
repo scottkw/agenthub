@@ -1665,6 +1665,19 @@ body {
   color: #c0caf5;
 }
 
+/* UI-SPEC §7 Accessibility Contract — focus ring consistent with all other
+   interactive buttons in the app (.file-browser__btn, .find-bar__btn, etc.) */
+.remote-panel__btn:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+/* UI-SPEC Interaction Contract — disabled state for Browse Files / Open Session */
+.remote-panel__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .remote-panel__btn--open {
   background: #7aa2f7;
   color: #1a1b26;
