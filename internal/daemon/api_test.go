@@ -2262,3 +2262,52 @@ func TestFilesWriteRoutes_WriteRoundTrip(t *testing.T) {
 		t.Errorf("read body = %q; want %q", string(readBody), string(payload))
 	}
 }
+
+// TestHandleGetSessionTailLines_ClampN: CR-02 — the HTTP handler must clamp n to [1..20]
+// regardless of what the caller sends. Without the clamp any local Unix socket caller
+// could bypass the spec's documented limit.
+func TestHandleGetSessionTailLines_ClampN(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket test")
+	}
+	_, _, sock := testDaemon(t)
+
+	// Create a session with enough content to observe clamping.
+	// We don't need a real session here — an unknown session returns [].
+	// To verify clamping we create a session with content > 20 lines.
+	engine := NewSessionEngine()
+	pr, pw := io.Pipe()
+	hub := engine.manager.Create("clamp-sess", pr, pw, nil)
+	// Write 30 lines of content into the hub.
+	for i := 0; i < 30; i++ {
+		fmt.Fprintf(pw, "line%02d\n", i)
+	}
+	pw.Close()
+	<-hub.Done()
+
+	// Use a second API server wired to our engine (testDaemon creates its own engine).
+	engine.configDir = t.TempDir()
+	engine.cliPaths = make(map[string]string)
+	engine.pluginSettings = defaultPluginSettings()
+	api2 := NewAPI(engine)
+	sock2 := shortSocketPath(t, "clamp.sock")
+	if err := api2.Start(sock2); err != nil {
+		t.Fatalf("api2.Start: %v", err)
+	}
+	t.Cleanup(func() { api2.Stop() })
+	time.Sleep(10 * time.Millisecond)
+	_ = sock // first daemon unused here
+
+	// Request n=1000 — should be clamped to 20.
+	status, body := rawGet(t, sock2, "/sessions/clamp-sess/tail?n=1000")
+	if status != http.StatusOK {
+		t.Fatalf("GET tail: status %d, body %s", status, string(body))
+	}
+	var resp TailLinesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode tail response: %v; raw=%s", err, string(body))
+	}
+	if len(resp.Lines) > 20 {
+		t.Errorf("clamp failed: got %d lines with n=1000, want at most 20", len(resp.Lines))
+	}
+}

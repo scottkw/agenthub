@@ -611,6 +611,9 @@ func (a *API) handleGetSessionStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleGetSessionTailLines returns the last n plain-text lines from the
 // session's scrollback buffer. Phase 132 / CARD-07.
+// CR-02: clamp n to [1..20] at the HTTP layer, mirroring the app.go Wails binding.
+// The spec documents a [1..20] contract; without this clamp any caller on the
+// Unix socket could request n=1000000 and bypass the intent of the spec.
 func (a *API) handleGetSessionTailLines(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	n := 4 // default
@@ -618,6 +621,9 @@ func (a *API) handleGetSessionTailLines(w http.ResponseWriter, r *http.Request) 
 		if parsed, err := strconv.Atoi(nStr); err == nil && parsed > 0 {
 			n = parsed
 		}
+	}
+	if n > 20 {
+		n = 20 // mirror app.go clamp — enforce [1..20] at the daemon HTTP boundary
 	}
 	lines := a.engine.GetSessionTailLines(id, n)
 	if lines == nil {
