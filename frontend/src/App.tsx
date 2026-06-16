@@ -901,9 +901,13 @@ function App(): React.ReactElement {
 
   // Phase 131 — Poll sessions when the Hub tab is active (mirrors daemon-manager poll pattern).
   // T-131-10: early-return when not active prevents DoS from polling while Hub is inactive.
+  // WR-02: reset hubError immediately on Hub activation so a stale error banner from a
+  // prior visit does not persist when the user returns to a healthy Hub. hubSessions is NOT
+  // reset here to avoid a flash-to-empty — the first refresh() call populates it promptly.
   useEffect(() => {
     if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
     if (activeId !== HUB_TAB.id) return
+    setHubError(false) // WR-02: clear any stale error state from the previous visit
     let cancelled = false
     async function refresh() {
       try {
