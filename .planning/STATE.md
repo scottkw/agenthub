@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.5.1
 milestone_name: Remote Browse Completion + Release-Gate Fix
-status: milestone_complete
-stopped_at: Milestone complete (Phase 130 was final phase)
-last_updated: 2026-06-16T14:40:22.239Z
-last_activity: 2026-06-16
+status: Awaiting next milestone
+stopped_at: Completed 130-03-PLAN.md
+last_updated: "2026-06-16T15:06:46.639Z"
+last_activity: 2026-06-16 — Milestone v3.5.1 completed and archived
 progress:
   total_phases: 2
   completed_phases: 2
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 ## Current Position
 
-Phase: 130
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-06-16
+Phase: Milestone v3.5.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-16 — Milestone v3.5.1 completed and archived
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -108,3 +108,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | 127 | 01..04 | Complete 2026-06-15 | Security hardening audit (SEC-01..07) |
 | 128 | 01..04 | Complete 2026-06-15 | Remote write parity + 3-observer proof (RMW-01..06) |
 | UAT | Two-machine tailnet (RMW-06) | EXECUTED 2026-06-15 | Data path proven live; 4-layer GUI on-ramp breakage discovered; layers 1+3 fixed; layer 4 (#86) → Phase 130 |
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

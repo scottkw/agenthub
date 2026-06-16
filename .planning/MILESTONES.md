@@ -1,5 +1,21 @@
 # Milestones
 
+## v3.5.1 Remote Browse Completion + Release-Gate Fix (Shipped: 2026-06-16)
+
+**Phases completed:** 2 phases, 7 plans, 11 tasks
+
+**Key accomplishments:**
+
+- Confirmed RED with `-race` flag.
+- Package-level per-path sync.Map mutex in WriteFileAtomic closes the stat→rename TOCTOU window — deterministic single-winner guarantee (RACE-01/RACE-03) — and zero "last-writer-wins" language remains in the remote-write proxy (RACE-02).
+- 1. [Rule 1 - Bug] Updated existing checkHealth call sites in tailscale_test.go
+- Wave 0 RED tests locking the discover→list→pick behavioral contract: four test files encode RB-01 no-silent-drop, RB-03 metadata-only security whitelist, and RB-05 relay-surface discover→browse path through api.RelayHandler()
+- Vitest assertions locking per-peer honest states (Unreachable badge, No shareable sessions text, never false 'No remote peers found') for the colorblind-safe contract; copy updated to UI-SPEC 'Shows shareable sessions'; suite intentionally RED pending plan 04 implementation
+- Open GET /api/sessions/meta webserver endpoint (tailnet-trusted, metadata-only), FetchAllPeerSessionsMeta no-silent-drop path, and GetRemoteSessionsWithMeta Wails RPC with Reachable field — all plan-01 RED tests GREEN including the RB-05 relay-surface release gate
+- RemoteSessionsPanel renders honest per-peer states (unreachable badge, zero-sessions block, populated rows) per UI-SPEC colorblind contract; GetRemoteSessionsWithMeta wired in App.tsx + App.d.ts; all 87 vitest files green
+
+---
+
 ## v3.5 File Browser — Write Operations & Editor (Shipped: 2026-06-15)
 
 **Phases completed:** 6 phases (123-128), 27/27 plans
