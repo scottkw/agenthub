@@ -547,16 +547,11 @@ func TestFetchAllPeerSessionsMeta_EmptySessionsNotDropped(t *testing.T) {
 	peer.Hostname = "empty-peer"
 	peer.DNSName = "empty-peer.ts.net."
 
-	// Use a redirecting client so the test server receives the request.
+	// Use FetchPeerSessionsMetaWithClient (the WithClient variant for tests) so the
+	// redirectingClient trusts the httptest server's self-signed certificate.
+	// This is the pattern mirroring FetchPeerSessionsWithClient for the cap-gated path.
 	testClient := redirectingClient(srv)
-	_ = testClient // FetchPeerSessionsMeta must accept a client or use DNS; we reference the type.
-
-	// FetchAllPeerSessionsMeta doesn't accept a client injection; it uses DNS.
-	// For this test we rely on the fact that connecting to a closed address
-	// will fail DNS resolution — instead we use FetchPeerSessionsMeta which
-	// mirrors FetchPeerSessions and should have a WithClient variant for tests.
-	// Since the function does not exist yet, this test is RED by compile failure.
-	sessions, reachable := FetchPeerSessionsMeta(context.Background(), peer)
+	sessions, reachable := FetchPeerSessionsMetaWithClient(context.Background(), srv.URL, testClient)
 
 	// Reachable peer with zero sessions: Reachable=true, Sessions=[] (not nil, not dropped).
 	if !reachable {
@@ -585,8 +580,10 @@ func TestFetchAllPeerSessionsMeta_PopulatedPeer(t *testing.T) {
 	peer.Hostname = "populated-peer"
 	peer.DNSName = "populated-peer.ts.net."
 
-	// FetchPeerSessionsMeta does not exist yet — RED by compile failure.
-	sessions, reachable := FetchPeerSessionsMeta(context.Background(), peer)
+	// Use FetchPeerSessionsMetaWithClient so the redirectingClient trusts the
+	// httptest server's self-signed cert (mirrors FetchPeerSessionsWithClient pattern).
+	testClient := redirectingClient(srv)
+	sessions, reachable := FetchPeerSessionsMetaWithClient(context.Background(), srv.URL, testClient)
 
 	if !reachable {
 		t.Errorf("expected Reachable=true for peer serving sessions, got false")
