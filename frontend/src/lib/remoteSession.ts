@@ -18,9 +18,19 @@ export interface RemoteSessionWithHost extends RemoteSession {
  * Derive the remote base URL from a session URL of the shape
  * `https://{fqdn}:{port}/sessions/{id}`. Uses URL.origin so trailing paths,
  * query strings, and fragments are dropped. Phase 122 / RESEARCH §Pattern 3.
+ *
+ * The `url` originates from an untrusted remote peer's /api/sessions/meta
+ * response, so a malformed/empty/relative value can make `new URL()` throw.
+ * Guard the parse and return '' on failure so callers can treat a bad peer
+ * URL as a recoverable "session unavailable" case instead of an unhandled
+ * exception that aborts the join-code exchange (WR-05).
  */
 export function remoteBaseURLFor(session: { url: string }): string {
-  return new URL(session.url).origin
+  try {
+    return new URL(session.url).origin
+  } catch {
+    return ''
+  }
 }
 
 /**

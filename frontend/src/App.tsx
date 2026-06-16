@@ -1010,6 +1010,11 @@ function App(): React.ReactElement {
       const remote = findRemoteSession(pending.id, remotePeers)
       if (!remote) throw new Error('session-gone')
       const baseURL = remoteBaseURLFor(remote)
+      // WR-05: remoteBaseURLFor returns '' when the peer-supplied url is
+      // malformed/empty. Treat that as a recoverable session-gone error so
+      // the modal renders user-facing copy instead of attempting an exchange
+      // against an empty base URL.
+      if (!baseURL) throw new Error('session-gone')
       const cap = await ExchangeJoinCodeAtURL(baseURL, code)
       await RegisterRemoteCap(pending.id, baseURL, cap)
       setRemoteCapsCached((prev) => {
