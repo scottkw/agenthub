@@ -134,6 +134,27 @@ export function DaemonManagerPanel({
     }
   }
 
+  // Phase 124 / CAP-04 re-hydration: when the sessions prop changes (poll
+  // refresh or initial mount), seed sessionWrites from each session's
+  // server-authoritative filesWrite field for sessions not already present
+  // in the local toggle state. This matches the webEnabled seeding pattern
+  // in App.tsx (enabledMap / SERVE-02 restore): server truth is the baseline;
+  // handleToggleFilesWrite overrides on explicit user action.
+  useEffect(() => {
+    setSessionWrites((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const s of sessions) {
+        if (!(s.id in next)) {
+          // Only seed sessions not yet tracked — never clobber an in-flight toggle.
+          next[s.id] = !!s.filesWrite
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [sessions])
+
   // P-2: When the web server restarts (off → on transition), the daemon's
   // in-memory JoinCodeManager is wiped. Any join codes we cached in
   // sessionShares are now invalid; the displayed QR encodes a code the

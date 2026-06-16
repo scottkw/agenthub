@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { act } from 'react'
 import { flushSync } from 'react-dom'
 import raw from '../../components/DaemonManagerPanel.tsx?raw'
 import type { DaemonManagerPanelProps } from '../../components/DaemonManagerPanel'
@@ -169,6 +170,55 @@ describe('DaemonManagerPanel (DMGR-03) - DOM tests', () => {
     const badge = container.querySelector('.daemon-panel__hostname')
     expect(badge).not.toBeNull()
     expect(badge!.textContent).toBe('\u2014')
+  })
+})
+
+describe('DaemonManagerPanel \u2014 write-toggle re-hydration from server truth', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+    vi.clearAllMocks()
+  })
+
+  it('renders "Enable file writes" toggle checked when session arrives with filesWrite=true', async () => {
+    // Phase 124 / CAP-04: when a session has filesWrite=true (server-authoritative),
+    // the toggle must render as aria-checked="true" WITHOUT any user click \u2014 pure
+    // re-hydration from the sessions prop. We wrap in act() so the seeding useEffect
+    // flushes before the assertion.
+    const writeSessions: SessionInfo[] = [
+      { id: 'sess-fw', cli: 'claude', name: 'write-on session', state: 'running', status: 'running',
+        createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
+        homeDir: false, filesWrite: true },
+    ]
+    await act(async () => {
+      ;({ container, root } = renderPanel({ sessions: writeSessions }))
+    })
+
+    const toggle = Array.from(container.querySelectorAll('[role="switch"]')).find(el =>
+      el.getAttribute('aria-label') === 'Enable file writes'
+    )
+    expect(toggle).not.toBeNull()
+    expect(toggle!.getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('renders "Enable file writes" toggle unchecked when session has filesWrite=false', async () => {
+    const noWriteSessions: SessionInfo[] = [
+      { id: 'sess-nw', cli: 'claude', name: 'write-off session', state: 'running', status: 'running',
+        createdAt: '2026-04-01T10:00:00Z', hostname: 'host', webEnabled: false, viewerCount: 0,
+        homeDir: false, filesWrite: false },
+    ]
+    await act(async () => {
+      ;({ container, root } = renderPanel({ sessions: noWriteSessions }))
+    })
+
+    const toggle = Array.from(container.querySelectorAll('[role="switch"]')).find(el =>
+      el.getAttribute('aria-label') === 'Enable file writes'
+    )
+    expect(toggle).not.toBeNull()
+    expect(toggle!.getAttribute('aria-checked')).toBe('false')
   })
 })
 
