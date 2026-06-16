@@ -23,7 +23,7 @@ import {
   GetTailscaleStatus,
   RetryDaemon,
   GetDaemonError,
-  GetRemoteSessions,
+  GetRemoteSessionsWithMeta,
   GetWebServerMode,
   NotifyThemeChange,
   GetLastUpdateInfo,
@@ -892,7 +892,7 @@ function App(): React.ReactElement {
     async function refresh() {
       if (remotePeers.length === 0) setRemoteLoading(true)
       try {
-        const peers = await GetRemoteSessions()
+        const peers = await GetRemoteSessionsWithMeta()
         if (!cancelled) {
           setRemotePeers(peers ?? [])
           setRemoteLoading(false)

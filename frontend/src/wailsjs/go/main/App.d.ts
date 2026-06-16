@@ -106,10 +106,16 @@ export interface RemoteSession {
 
 export interface RemotePeerSessions {
   hostname: string
+  /** Phase 130 — true when the peer responded to the /api/sessions/meta probe; false when unreachable. */
+  reachable: boolean
   sessions: RemoteSession[]
 }
 
 export function GetRemoteSessions(): Promise<RemotePeerSessions[]>
+// Phase 130 — replaces GetRemoteSessions at the peers-poll site in App.tsx.
+// Returns ALL probed peers (including unreachable + zero-session ones) so the
+// Remote Sessions panel can render honest per-peer states (RB-01, RB-04).
+export function GetRemoteSessionsWithMeta(): Promise<RemotePeerSessions[]>
 
 // Phase 122-03 — remote-session file-browse join-code exchange + cap deposit.
 export function ExchangeJoinCodeAtURL(remoteBaseURL: string, code: string): Promise<string>

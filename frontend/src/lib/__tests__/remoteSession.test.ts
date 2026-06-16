@@ -15,6 +15,7 @@ import type { RemotePeerSessions } from '../../components/RemoteSessionsPanel'
 const peers: RemotePeerSessions[] = [
   {
     hostname: 'hub-a',
+    reachable: true,
     sessions: [
       {
         id: 'sess-A1',
@@ -34,6 +35,7 @@ const peers: RemotePeerSessions[] = [
   },
   {
     hostname: 'hub-b',
+    reachable: true,
     sessions: [
       {
         id: 'sess-B1',
