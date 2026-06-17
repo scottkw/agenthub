@@ -62,21 +62,19 @@ function usePreviewPoller(
 ): Map<string, string[]> {
   const [tails, setTails] = useState<Map<string, string[]>>(new Map())
 
-  // WR-04: build dep key from LOCAL sessions only — remote session IDs change on every
-  // 30s remote poll and would reset the 3s interval on every remote refresh cycle,
-  // causing mini-preview ticks to be skipped unnecessarily.
-  const sessionIdKey = sessions
-    .filter((s) => !s.hostname || s.hostname === '')
-    .map((s) => s.id)
-    .join(',')
+  // Caller passes LOCAL sessions only (see call site). Local sessions carry the
+  // machine's own hostname (os.Hostname()), so a hostname check is NOT a valid
+  // local/remote discriminator — provenance (which prop) is. Dep key = all ids passed.
+  const sessionIdKey = sessions.map((s) => s.id).join(',')
 
   useEffect(() => {
     if (!isActive || sessions.length === 0) return
     let cancelled = false
 
     async function poll() {
-      // Only fetch for local sessions — remote sessions have no tail API (Pitfall 4 avoidance)
-      const localSessions = sessions.filter((s) => !s.hostname || s.hostname === '')
+      // All passed sessions are local (caller filters by provenance). Remote sessions
+      // have no tail API and are excluded by the caller, not by hostname.
+      const localSessions = sessions
       if (localSessions.length === 0) return
       const results = await Promise.all(
         localSessions.map((s) =>
@@ -234,8 +232,19 @@ export function HubPanel({
   // Phase 132 / GRID-07: merge local + remote sessions into one unified grid
   const allSessions = [...sessions, ...(remoteSessions ?? [])]
 
-  // Phase 132 / CARD-07: single shared 3s poller — local sessions only
-  const previewTails = usePreviewPoller(allSessions, isActive ?? false)
+  // Phase 132 / CARD-07: single shared 3s poller — LOCAL sessions only (the `sessions`
+  // prop). Local sessions carry the machine hostname, so we must NOT use hostname to
+  // decide local-vs-remote — provenance (this prop vs remoteSessions) is the discriminator.
+  const localPreviewTails = usePreviewPoller(sessions, isActive ?? false)
+  // Remote sessions have no tail API: seed them as empty ([] → "No output yet", not a
+  // perpetual "Loading…" placeholder).
+  const previewTails = React.useMemo(() => {
+    const m = new Map(localPreviewTails)
+    for (const r of remoteSessions ?? []) {
+      if (!m.has(r.id)) m.set(r.id, [])
+    }
+    return m
+  }, [localPreviewTails, remoteSessions])
 
   /* ATTN-02: float-to-top reorder is within-group; debounce window 1000ms */
   /* Only POSITION is debounced — card content (isAttention) uses the LIVE set above */

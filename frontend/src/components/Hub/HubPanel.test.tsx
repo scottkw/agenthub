@@ -379,19 +379,24 @@ describe('HubPanel', () => {
 
   // ---- Phase 132: usePreviewPoller — remote sessions excluded from fetch ----
 
-  it('does NOT call GetSessionTailLines for remote sessions (hostname set)', async () => {
+  it('fetches tails for LOCAL sessions (even with a machine hostname) but NOT remote-prop sessions', async () => {
+    // Regression: local sessions carry the machine hostname (os.Hostname()), so the
+    // old `hostname === ''` filter wrongly excluded them → perpetual "Loading…".
+    // Local vs remote is decided by provenance: `sessions` (local) vs `remoteSessions`.
     vi.useFakeTimers()
     const sessions = [
-      makeSession({ id: 'local-1', hostname: '' }),
+      makeSession({ id: 'local-1', hostname: 'Kens-Personal-MacBook-Air.local' }),
+    ]
+    const remoteSessions = [
       makeSession({ id: 'remote-99', hostname: 'peer-host' }),
     ]
-    renderPanel({ sessions, isActive: true })
+    renderPanel({ sessions, remoteSessions, isActive: true })
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
-    // Only local-1 should be fetched; remote-99 skipped
+    // local-1 IS fetched despite its non-empty (machine) hostname; remote-99 is not.
     expect(GetSessionTailLines).toHaveBeenCalledWith('local-1', 4)
     expect(GetSessionTailLines).not.toHaveBeenCalledWith('remote-99', expect.anything())
     vi.useRealTimers()
