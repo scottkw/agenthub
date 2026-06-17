@@ -54,5 +54,5 @@ blocked: 5
 ## Gaps
 
 ### GAP-134-A: Local session card click opens remote join-code modal (MODAL-01 broken for local sessions)
-status: in_progress
-detail: HubPanel uses `session.hostname` to decide local-vs-remote in handleCardClick and the modal render. Local sessions carry os.Hostname(), so they are misrouted to the remote-cap join flow and the interactive/briefing modal never opens. Fix: discriminate by provenance (membership in the `remoteSessions` prop), matching the established usePreviewPoller rule. Add a behavioral test with a local session that has a non-empty machine hostname.
+status: fixed_pending_reuat
+fix: commit f84b10fe — HubPanel now discriminates local-vs-remote by provenance (`remoteIdSet` from the remoteSessions prop) in both handleCardClick and the modal render, not by hostname. Added FE-ROUTE-01c (local session with a non-empty machine hostname → modal opens, no cap flow). Full suite 1700/1700, tsc clean. Awaiting re-UAT in the app (reload the Wails dev window, click the local card again).
