@@ -5147,6 +5147,27 @@ body {
   color: var(--hub-text-secondary);
 }
 
+/* GAP-134-B: header icons MUST be sized with explicit CSS — Heroicons ship with no
+   intrinsic width/height and this project has no Tailwind (w-N/h-N are no-ops, see the
+   hub-card__attn-icon note). Without these rules the icons balloon to fill the header. */
+.hub-modal__status-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.hub-modal__origin-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.hub-modal__attn-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .hub-modal__close {
   display: flex;
   align-items: center;
@@ -5159,6 +5180,12 @@ body {
   cursor: pointer;
   color: var(--hub-text-muted);
   padding: 4px;
+}
+
+.hub-modal__close svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .hub-modal__close:hover {

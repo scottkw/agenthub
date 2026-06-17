@@ -114,3 +114,24 @@ describe('Hub modal tail section (MODAL-04: preview background token)', () => {
     expect(block).toContain('var(--hub-preview-bg)')
   })
 })
+
+describe('Hub modal header icons (GAP-134-B: explicit icon sizing — Heroicons have no intrinsic size)', () => {
+  // Without explicit width/height the header icons balloon to fill the strip (no Tailwind
+  // in this project; w-N/h-N are no-ops). Each header icon class must declare a size.
+  const sizedSelectors = [
+    '.hub-modal__status-icon',
+    '.hub-modal__origin-icon',
+    '.hub-modal__attn-icon',
+    '.hub-modal__close svg',
+  ]
+  for (const sel of sizedSelectors) {
+    it(`${sel} declares explicit width and height`, () => {
+      const idx = cssRaw.indexOf(sel)
+      expect(idx).toBeGreaterThan(-1)
+      const blockEnd = cssRaw.indexOf('}', idx)
+      const block = cssRaw.slice(idx, blockEnd)
+      expect(block).toMatch(/width:\s*\d+px/)
+      expect(block).toMatch(/height:\s*\d+px/)
+    })
+  }
+})
