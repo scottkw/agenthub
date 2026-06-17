@@ -412,10 +412,18 @@ Plans:
 **Plans**: 5 plans (2 wave-1 foundation: predicate + CSS; 2 wave-2 components: SessionCard + GroupSidebar; 1 wave-3 integration: HubPanel + SessionCardGrid)
 Plans:
 
+**Wave 1**
+
 - [x] 133-01-PLAN.md — Wave 1: isAttentionStatus() canonical attention predicate in hubStatus.ts (ATTN-01)
 - [x] 133-02-PLAN.md — Wave 1: all --hub-attn-* tokens, .hub-card--attention modifier + pulse keyframe, reduced-motion guards, icon/badge CSS (ATTN-01/02/03/06)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 133-03-PLAN.md — Wave 2: SessionCard attention treatment (isAttention prop, BellAlertIcon in ROW 1, modifier class, aria suffix) (ATTN-01)
 - [ ] 133-04-PLAN.md — Wave 2: GroupSidebar collapsed-group attention badge + counts.attention + collapsed-condition fix (ATTN-06)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 133-05-PLAN.md — Wave 3: HubPanel debounce + live attentionIds + SessionCardGrid per-group float-to-top sort + FLIP (ATTN-02/03/04/05)
 
 **UI hint**: yes
