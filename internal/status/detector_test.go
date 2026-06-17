@@ -162,15 +162,30 @@ func TestDetector_WaitingSelectMenu(t *testing.T) {
 	// Modern Claude Code prompts for input with an interactive SELECT MENU (numbered
 	// options + a footer), not a "[y/n]" string. The detector must classify this as
 	// Waiting so the Hub flags the card "Needs input" and the briefing modal is reachable.
+	//
+	// CRITICAL: this is the REAL byte shape captured from a live `claude` session's tail
+	// (#95). The TUI positions text with ANSI cursor-movement escapes, not spaces, so after
+	// StripANSI the footer words are COLLAPSED, and trailing kitty-keyboard/mouse private
+	// CSI sequences (\x1b[<u, \x1b[>1u, \x1b[>4;2m) that reANSI does not strip sit AFTER the
+	// footer in the suffix. The pattern must still match through that trailing junk.
 	var got status.SessionStatus
 	d := newClaudeDetector("s1", func(_ string, s status.SessionStatus) { got = s })
-	d.Feed([]byte("Which cleanup approach would you like me to take?\n" +
-		" 1. Dry run report only\n" +
-		" 2. Remove duplicates\n" +
-		" 6. Chat about this\n" +
-		"Enter to select · ↑/↓ to navigate · Esc to cancel"))
+	d.Feed([]byte("What would you like to work on in this session?\r\r" +
+		"6.Chataboutthis\r\r\r" +
+		"Entertoselect·↑/↓tonavigate·Esctocancel\r\r" +
+		"\x1b(B\x0f\x1b[<u\x1b[>1u\x1b[>4;2m\x1b(B\x0f\x1b[<u\x1b[>1u\x1b[>4;2m"))
 	if got != status.StatusWaiting {
-		t.Errorf("expected StatusWaiting for a select-menu prompt, got %q", got)
+		t.Errorf("expected StatusWaiting for a collapsed select-menu prompt, got %q", got)
+	}
+}
+
+func TestDetector_WaitingSelectMenuSpacedForm(t *testing.T) {
+	// The spaced form (should the TUI ever emit literal spaces) must also classify Waiting.
+	var got status.SessionStatus
+	d := newClaudeDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+	d.Feed([]byte("Enter to select · ↑/↓ to navigate · Esc to cancel"))
+	if got != status.StatusWaiting {
+		t.Errorf("expected StatusWaiting for a spaced select-menu prompt, got %q", got)
 	}
 }
 

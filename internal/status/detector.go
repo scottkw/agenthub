@@ -71,12 +71,16 @@ func DefaultClaudePatterns() PatternSet {
 		Waiting: []*regexp.Regexp{
 			regexp.MustCompile(`\[y/n\]|\[Y/n\]|\[y/N\]`),
 			// Modern Claude Code prompts via an interactive select menu rather than a
-			// "[y/n]" string. Its footer is the reliable, recency-safe marker — it is
-			// only present while the menu is actively displayed (matched against the
-			// 256-byte suffix), and clears once the user answers. (#95: Hub status
-			// detector missed select-menu prompts → briefing modal unreachable.)
-			regexp.MustCompile(`(?i)enter to select`),
-			regexp.MustCompile(`(?i)↑/↓ to navigate`),
+			// "[y/n]" string. Its footer ("Enter to select · ↑/↓ to navigate · Esc to
+			// cancel") is the reliable, recency-safe marker — present only while the menu
+			// is displayed (matched against the 256-byte suffix), clearing once answered.
+			//
+			// IMPORTANT: the TUI lays text out with ANSI cursor-movement escapes, NOT
+			// literal spaces; StripANSI removes those, so the detector sees the words
+			// COLLAPSED ("Entertoselect·↑/↓tonavigate·Esctocancel"). Patterns therefore use
+			// \s* between words to match both the collapsed and spaced forms. (#95)
+			regexp.MustCompile(`(?i)enter\s*to\s*select`),
+			regexp.MustCompile(`(?i)esc\s*to\s*cancel`),
 		},
 	}
 }
