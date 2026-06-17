@@ -26,3 +26,8 @@ export function deriveHubStatus(s: SessionInfo): HubStatus {
   }
   return s.status as HubStatus
 }
+
+/* ATTN-01: canonical attention predicate — waiting, errored, or non-zero-exit sessions need attention */
+export function isAttentionStatus(status: HubStatus): boolean {
+  return status === 'waiting' || status === 'errored' || status === 'stopped-err'
+}
