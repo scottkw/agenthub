@@ -460,6 +460,18 @@ Plans:
 
 - [x] 134-05-PLAN.md — HubPanel modal state + MODAL-06 cap gate + App.tsx wiring + style.css modal rules/keyframes (MODAL-01/03/06)
 
+**Wave 5** *(expansion — remote WS proxy; existing 134-01..05 already shipped)*
+
+- [ ] 134-06-PLAN.md — Go: cap-gated remote terminal WS reverse proxy on the relay surface (GET /api/relay/remote/{sid}/ws), Origin injection, request-context copy loop, Go tests; export relay.LoopbackOriginPatterns (CR-01/CR-02 backend, MODAL-06)
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 134-07-PLAN.md — Frontend: RelayClient remote seam + remote-routed TerminalPanel/HubInteractiveModal; HubBriefingModal remote tail via WS snapshot + CR-03 leak/race/unmount fix (MODAL-03/04/05/06)
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 134-08-PLAN.md — Frontend fixes + behavioral tests: thread isRemote to the proxy seam, WR-01/02/03/04 + IN-01, WR-07 behavioral coverage (remote gate, briefing send/timeout, remote tail); WR-05/06 deferred to Phase 135 (MODAL-06)
+
 **UI hint**: yes
 
 ### Phase 135: Accessibility Hardening
