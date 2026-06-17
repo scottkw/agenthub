@@ -2,6 +2,7 @@ import React from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 import { SessionCard } from './SessionCard'
 import { memberKey, type HubGroupDef } from '../../lib/hubGroups'
+import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
 
 // ---- Helpers ----
 
@@ -18,6 +19,10 @@ export function groupByWorkDir(sessions: SessionInfo[]): Map<string, SessionInfo
     const group = groups.get(key) ?? []
     group.push(s)
     groups.set(key, group)
+  }
+  // ATTN-02: sort attention cards to top within each workDir group (stable, per-group only)
+  for (const [key, groupSessions] of groups) {
+    groups.set(key, sortSessionsForDisplay(groupSessions))
   }
   return groups
 }
@@ -49,6 +54,10 @@ export function groupByNamedGroups(
       result.get('__other__')!.sessions.push(s)
     }
   }
+  // ATTN-02: sort attention cards to top within each named group (stable, per-group only)
+  for (const entry of result.values()) {
+    entry.sessions = sortSessionsForDisplay(entry.sessions)
+  }
   return result
 }
 
@@ -67,6 +76,58 @@ function basename(path: string): string {
   return path
 }
 
+/* ATTN-02: float-to-top sort within each group — stable; attention before non-attention */
+export function sortSessionsForDisplay(sessions: SessionInfo[]): SessionInfo[] {
+  return [...sessions].sort((a, b) => {
+    const aAttn = isAttentionStatus(deriveHubStatus(a)) ? 0 : 1
+    const bAttn = isAttentionStatus(deriveHubStatus(b)) ? 0 : 1
+    return aAttn - bAttn
+  })
+}
+
+/* ATTN-02: FLIP animation hook — measures positions before/after sort, animates with transform */
+/* ATTN-02: reorder animation: FLIP pattern, 300ms ease; suppressed under prefers-reduced-motion */
+function useFLIPAnimation(enabled: boolean) {
+  const nodeMap = React.useRef<Map<string, HTMLElement>>(new Map())
+  const prevPositions = React.useRef<Map<string, DOMRect>>(new Map())
+
+  const registerNode = React.useCallback((id: string, el: HTMLElement | null) => {
+    if (el) nodeMap.current.set(id, el)
+    else nodeMap.current.delete(id)
+  }, [])
+
+  const capturePositions = React.useCallback(() => {
+    if (!enabled) return
+    /* ATTN-02: reorder animation: FLIP pattern, 300ms ease; suppressed under prefers-reduced-motion */
+    if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const snap = new Map<string, DOMRect>()
+    for (const [id, el] of nodeMap.current) snap.set(id, el.getBoundingClientRect())
+    prevPositions.current = snap
+  }, [enabled])
+
+  const playFLIP = React.useCallback(() => {
+    if (!enabled) return
+    /* ATTN-02: reorder animation: FLIP pattern, 300ms ease; suppressed under prefers-reduced-motion */
+    if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    for (const [id, el] of nodeMap.current) {
+      const prev = prevPositions.current.get(id)
+      if (!prev) continue
+      const next = el.getBoundingClientRect()
+      const deltaY = prev.top - next.top
+      if (Math.abs(deltaY) < 1) continue
+      el.style.transform = `translateY(${deltaY}px)`
+      el.style.transition = 'none'
+      requestAnimationFrame(() => {
+        el.style.transform = ''
+        el.style.transition = 'transform 300ms ease'
+        el.addEventListener('transitionend', () => { el.style.transition = '' }, { once: true })
+      })
+    }
+  }, [enabled])
+
+  return { registerNode, capturePositions, playFLIP }
+}
+
 // ---- Props ----
 
 export interface SessionCardGridProps {
@@ -82,6 +143,10 @@ export interface SessionCardGridProps {
   previewTails?: Map<string, string[]>
   /** Phase 132 — fires when user assigns via card overflow menu or DnD */
   onAssignGroup?: (memberKey: string, groupId: string) => void
+  /** ATTN-02: live attention set — NOT debounced; used for per-card isAttention prop */
+  attentionIds?: Set<string>
+  /** ATTN-04: debounced sort key — triggers reorder-position updates after 1s debounce */
+  debouncedSortKey?: string
 }
 
 // ---- Component ----
@@ -112,7 +177,23 @@ export function SessionCardGrid({
   groupDefs,
   previewTails,
   onAssignGroup,
+  attentionIds,
+  debouncedSortKey,
 }: SessionCardGridProps): React.ReactElement {
+  /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
+  const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
+
+  // Capture positions BEFORE any sort-driven re-render (useLayoutEffect runs synchronously)
+  React.useLayoutEffect(() => {
+    capturePositions()
+  })
+
+  // Play FLIP animation AFTER DOM update when debouncedSortKey changes
+  React.useLayoutEffect(() => {
+    playFLIP()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSortKey])
+
   // Phase 132: when groupDefs is non-empty, use named-group grouping; else fall back to workDir
   if (groupDefs && groupDefs.length > 0) {
     // Named-group render path (Phase 132)
@@ -130,7 +211,11 @@ export function SessionCardGrid({
             {/* Card grid — role=list per UI-SPEC §Accessibility rule 6 */}
             <div role="list" className="hub__card-row">
               {groupSessions.map((s) => (
-                <div role="listitem" key={s.id}>
+                <div
+                  role="listitem"
+                  key={s.id}
+                  ref={(el) => registerNode(s.id, el)}
+                >
                   <SessionCard
                     session={s}
                     onRename={onRename}
@@ -138,6 +223,7 @@ export function SessionCardGrid({
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
+                    isAttention={attentionIds?.has(s.id)}
                   />
                 </div>
               ))}
@@ -167,7 +253,11 @@ export function SessionCardGrid({
             {/* Card grid — role=list per UI-SPEC §Accessibility rule 6 */}
             <div role="list" className="hub__card-row">
               {groupSessions.map((s) => (
-                <div role="listitem" key={s.id}>
+                <div
+                  role="listitem"
+                  key={s.id}
+                  ref={(el) => registerNode(s.id, el)}
+                >
                   <SessionCard
                     session={s}
                     onRename={onRename}
@@ -175,6 +265,7 @@ export function SessionCardGrid({
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
+                    isAttention={attentionIds?.has(s.id)}
                   />
                 </div>
               ))}
