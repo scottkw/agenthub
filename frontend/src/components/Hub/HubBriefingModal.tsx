@@ -90,11 +90,15 @@ export function HubBriefingModal({
       const chunks: Uint8Array[] = []
       let tailClient: RelayClient | null = null
       let resolved = false
+      // WR-04: idle timer handle — reset on every onOutput frame so finish()
+      // fires when output goes quiet rather than after a fixed 500ms window.
+      let idleTimerId: ReturnType<typeof setTimeout> | null = null
 
       const finish = () => {
         if (resolved) return
         resolved = true
         clearTimeout(timeoutId) // IN-01: clear 3s guard uniformly on all exit paths
+        if (idleTimerId !== null) clearTimeout(idleTimerId)
         tailClient?.close()
         tailClient = null
         setTailLines(extractTailLines(chunks, 20))
@@ -107,17 +111,21 @@ export function HubBriefingModal({
         session.id,
         {
           onOutput: (data) => {
-            // Accumulate all MsgOutput bytes; snapshot frames come first,
-            // then live PTY — finish() called on open-open (after first
-            // frame) ensures we capture the snapshot before live output.
+            // Accumulate all MsgOutput bytes from the scrollback snapshot.
+            // WR-04: reset the idle timer on every frame — finish() fires
+            // when output goes quiet for ~150ms, collecting the full snapshot
+            // regardless of size (fixes the fixed 500ms truncation race).
             chunks.push(data)
+            if (idleTimerId !== null) clearTimeout(idleTimerId)
+            idleTimerId = setTimeout(finish, 150)
           },
           onOpen: () => {
-            // Give the peer time to replay the full scrollback snapshot
-            // (the peer sends it synchronously on subscribe, but there may
-            // be multiple frames). Finish after 500ms once connected so we
-            // collect the snapshot without staying connected for live PTY.
-            setTimeout(finish, 500)
+            // WR-04: on connect, arm the idle timer immediately (in case the
+            // scrollback is empty and no onOutput frames arrive at all).
+            // The idle timer will fire after 150ms of quiet; if output arrives
+            // first the onOutput handler will reset it.
+            if (idleTimerId !== null) clearTimeout(idleTimerId)
+            idleTimerId = setTimeout(finish, 150)
           },
           onClose: () => {
             finish()
@@ -130,6 +138,7 @@ export function HubBriefingModal({
       // if the modal is dismissed during the tail collection window.
       return () => {
         clearTimeout(timeoutId)
+        if (idleTimerId !== null) clearTimeout(idleTimerId)
         tailClient?.close()
       }
     } else {
