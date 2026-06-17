@@ -1,10 +1,11 @@
 ---
 phase: 134
 slug: modal-interaction
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-17
+reviewed_at: 2026-06-17
 ---
 
 # Phase 134 — UI Design Contract: Modal Interaction
@@ -88,6 +89,7 @@ Declared values (multiples of 4) — inherits the Hub spacing rhythm from Phases
 |-------|-------|-------|
 | xs | 4px | Icon gaps (`hub-card__status-indicator gap`), row inline gaps |
 | sm | 8px | Card row gaps (`hub-card__row*`), card grid gap, close-button padding |
+| sm+ | 12px | Briefing tail padding, briefing body gap, tail border-radius (3×4 multiple) |
 | md | 16px | Card horizontal padding, modal body padding sides |
 | lg | 24px | Modal header/footer padding, grid scroll area padding |
 | xl | 32px | Modal max-content breathing room |
@@ -249,6 +251,8 @@ New components required in `frontend/src/components/Hub/`:
 
 ## Modal Layout Anatomy
 
+**Focal point:** On the interactive modal, the primary visual anchor is the `TerminalPanel` canvas (`flex: 1`, fills the body) — everything else (header, close button) is chrome. On the briefing modal, the primary anchor is the terminal-tail text block; the accent-filled "Send Response" CTA is the secondary anchor that draws the eye to the action. The dimmed grid scrim behind the panel keeps focus on the modal.
+
 ### Hub Modal Overlay (`.hub-modal-overlay`)
 
 ```
@@ -334,7 +338,7 @@ Sub-sections:
    border-radius: 6px;
    padding: 12px;
    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-   font-size: 13px;
+   font-size: 12px;    /* code/monospace role — matches mini-preview tail */
    line-height: 1.5;
    color: var(--hub-text-secondary);
    white-space: pre-wrap;
@@ -369,8 +373,8 @@ Sub-sections:
      ```
      Focus: `border-color: var(--hub-accent)` (matches all other inputs in the app — `.settings-search__input:focus`, `.new-session-modal__args-input:focus`, etc.)
    - Send button row (`.hub-modal__respond-footer`): `display: flex; justify-content: flex-end; gap: 8px;`
-     - Cancel link-style button: transparent bg, `var(--hub-text-muted)`, 13px — "Cancel" (closes modal)
-     - Send button (`.hub-modal__send-btn`): filled `var(--hub-accent)` bg, `var(--hub-bg)` text, weight 600, 13px, 6px 16px padding, border-radius 4px — "Send"
+     - Close link-style button: transparent bg, `var(--hub-text-muted)`, 14px — "Close" (closes modal without sending)
+     - Send button (`.hub-modal__send-btn`): filled `var(--hub-accent)` bg, `var(--hub-bg)` text, weight 600, 14px, 8px 16px padding, border-radius 4px — "Send Response"
      - Send disabled state: `opacity: 0.5; cursor: not-allowed` when textarea is empty
 
 ---
@@ -389,7 +393,7 @@ Sub-sections:
 | Briefing respond section label margin | 0 (gap: 12px handles it) |
 | Briefing tail + respond gap | 12px |
 | Briefing respond-input padding | 8px 12px |
-| Send button padding | 6px 16px |
+| Send button padding | 8px 16px |
 
 ---
 
@@ -400,13 +404,13 @@ Sub-sections:
 | Interactive modal close button aria-label | "Close modal" | Screen-reader only |
 | Briefing respond section label | "RESPOND" | Uppercase, 11px, matches group-header pattern |
 | Briefing respond placeholder | "Type a response…" | Matches `.new-session-modal__args-input` placeholder pattern |
-| Send CTA button | "Send" | Primary verb + implied noun (response). Weight 600. |
-| Cancel button | "Cancel" | Closes without sending |
-| Briefing tail empty state | "No recent output available." | 13px `var(--hub-text-muted)`, centered in tail area |
-| Briefing tail loading state | "Loading…" | 13px `var(--hub-text-muted)`, centered in tail area |
+| Send CTA button | "Send Response" | Primary verb + explicit noun. Weight 600. |
+| Close button | "Close" | Secondary; closes briefing without sending |
+| Briefing tail empty state | "No recent output available." | 14px `var(--hub-text-muted)`, centered in tail area |
+| Briefing tail loading state | "Loading…" | 14px `var(--hub-text-muted)`, centered in tail area |
 | Remote cap gate heading (in RemoteJoinCodeModal) | (existing copy — unchanged) | Reused without modification |
 | Error: cap exchange failed | (existing RemoteJoinCodeModal error strings) | Reused without modification |
-| Error: terminal failed to connect | "Terminal connection failed. Close and reopen to retry." | 13px `var(--hub-destructive)`, shown below terminal area |
+| Error: terminal failed to connect | "Terminal connection failed. Close and reopen to retry." | 14px `var(--hub-destructive)`, shown below terminal area |
 | Attention badge in modal header | "Needs attention" | 11px `var(--hub-attn-badge-text)`, accompanied by BellAlertIcon — non-color cue required |
 | Modal aria-label (interactive) | "Session terminal: {sessionName}" | Applied to `.hub-modal` role="dialog" |
 | Modal aria-label (briefing) | "Briefing: {sessionName} needs input" | Applied to `.hub-modal` role="dialog" |
@@ -455,9 +459,9 @@ All new classes use the `hub-modal` prefix. All consume `var(--hub-*)` tokens ex
 | `.hub-modal__respond` | Respond section container |
 | `.hub-modal__respond-label` | Section label "RESPOND" |
 | `.hub-modal__respond-input` | Textarea for user response |
-| `.hub-modal__respond-footer` | Footer row with Send/Cancel buttons |
-| `.hub-modal__send-btn` | Primary CTA: accent-filled Send button |
-| `.hub-modal__cancel-btn` | Secondary: transparent Cancel button |
+| `.hub-modal__respond-footer` | Footer row with Send/Close buttons |
+| `.hub-modal__send-btn` | Primary CTA: accent-filled "Send Response" button |
+| `.hub-modal__close-btn` | Secondary: transparent "Close" button (closes without sending) |
 | `.hub-modal__attn-badge` | Amber attention badge in header (reuses `--hub-attn-*` tokens) |
 | `.hub-modal__error-banner` | Terminal connection error strip below body |
 
