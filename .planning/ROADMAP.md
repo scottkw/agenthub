@@ -325,7 +325,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 131: Hub Foundation + Static Session Cards** — HUB-01..04, CARD-01..06, CARD-08, GRID-01..02, GRID-04..06 (completed 2026-06-16)
 - [x] **Phase 132: Unified Grid + Mini Preview + Named Groups** — CARD-07, GRID-03, GRID-07, GROUP-01..04 (completed 2026-06-16)
 - [x] **Phase 133: Attention + Pulse** — ATTN-01..06 (completed 2026-06-17)
-- [ ] **Phase 134: Modal Interaction** — MODAL-01..06
+- [x] **Phase 134: Modal Interaction** — MODAL-01..06 (completed 2026-06-17)
 - [ ] **Phase 135: Accessibility Hardening** — A11Y-01..04
 
 ## Phase Details
@@ -458,7 +458,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 134-05-PLAN.md — HubPanel modal state + MODAL-06 cap gate + App.tsx wiring + style.css modal rules/keyframes (MODAL-01/03/06)
+- [x] 134-05-PLAN.md — HubPanel modal state + MODAL-06 cap gate + App.tsx wiring + style.css modal rules/keyframes (MODAL-01/03/06)
 
 **UI hint**: yes
 
@@ -534,7 +534,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 4/5 | In Progress|  |
+| 134 | v3.6 | 5/5 | Complete   | 2026-06-17 |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---
