@@ -82,8 +82,12 @@ export class RelayClient {
     port: number,
     sessionId: string,
     callbacks: RelayClientCallbacks,
+    opts?: { remote?: boolean },
   ) {
-    const url = `ws://127.0.0.1:${port}/sessions/${sessionId}/ws`
+    const path = opts?.remote
+      ? `/api/relay/remote/${sessionId}/ws`  // daemon proxy → peer (cap looked up server-side; T-134-07-01)
+      : `/sessions/${sessionId}/ws`          // local relay direct
+    const url = `ws://127.0.0.1:${port}${path}`
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
 
