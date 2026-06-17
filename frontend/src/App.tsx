@@ -213,7 +213,12 @@ function App(): React.ReactElement {
     id: string
     name: string
     hostname: string
+    intent?: 'files' | 'hub-modal'
   } | null>(null)
+
+  // Phase 134 — holds the HubPanel's cap-acquired callback (registered via onRegisterCapAcquired).
+  // Using a ref avoids stale closure issues in handleModalExchange (which has handleOpenFileBrowser dep).
+  const capAcquiredRef = useRef<((sessionId: string) => void) | null>(null)
 
   // Update notification state (lifted from WelcomeTab — Phase 81 D-06)
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
@@ -1117,7 +1122,13 @@ function App(): React.ReactElement {
         next.add(pending.id)
         return next
       })
-      handleOpenFileBrowser(pending.id, pending.name)
+      // Phase 134 — MODAL-06 intent discriminator: route to hub-modal callback or file browser
+      if (pending.intent === 'hub-modal') {
+        // Signal HubPanel to open the modal for the pending session
+        capAcquiredRef.current?.(pending.id)
+      } else {
+        handleOpenFileBrowser(pending.id, pending.name)
+      }
     },
     [joinModalForSession, remotePeers, handleOpenFileBrowser],
   )
@@ -1362,6 +1373,12 @@ function App(): React.ReactElement {
             onOpenSession={handleOpenSessionTab}
             remoteSessions={adaptAllRemoteSessions(remotePeers)}
             isActive={activeId === HUB_TAB.id}
+            relayPort={relayPort ?? undefined}
+            terminalTheme={terminalTheme}
+            pluginConfig={pluginConfig}
+            remoteCapsCached={remoteCapsCached}
+            onRequestRemoteCap={(s) => setJoinModalForSession({ id: s.id, name: s.name, hostname: s.hostname, intent: 'hub-modal' })}
+            onRegisterCapAcquired={(fn) => { capAcquiredRef.current = fn }}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
