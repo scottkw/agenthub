@@ -857,4 +857,49 @@ describe('HubPanel FE-ROUTE-01: remote routing gate (behavioral)', () => {
     const overlay = modalContainer.querySelector('.hub-modal-overlay')
     expect(overlay).not.toBeNull()
   })
+
+  it('FE-ROUTE-01c: local card with a non-empty MACHINE hostname opens the modal (provenance, not hostname)', () => {
+    // GAP-134-A regression: local sessions carry os.Hostname(), so a hostname-based
+    // remote check misroutes EVERY local session to the remote-cap join flow. Local vs
+    // remote must be decided by provenance (the `sessions` prop vs `remoteSessions`).
+    const onRequestRemoteCap = vi.fn()
+    const localSession = makeSession({ id: 'loc-hn', hostname: 'Kens-Personal-MacBook-Air.local' })
+
+    const modalContainer = document.createElement('div')
+    document.body.appendChild(modalContainer)
+    const modalRoot = createRoot(modalContainer)
+
+    act(() => {
+      modalRoot.render(
+        React.createElement(HubPanel, {
+          sessions: [localSession],
+          remoteSessions: [],
+          error: false,
+          onNewSession: vi.fn(),
+          onRename: vi.fn(),
+          isActive: false,
+          terminalTheme: STUB_THEME,
+          relayPort: 51234,
+          remoteCapsCached: new Set<string>(),
+          onRequestRemoteCap,
+        }),
+      )
+    })
+
+    const card = modalContainer.querySelector('article.hub-card')
+    expect(card).not.toBeNull()
+
+    act(() => {
+      card!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // A local session — even with a machine hostname — must NOT trigger the remote cap flow…
+    expect(onRequestRemoteCap).not.toHaveBeenCalled()
+    // …and the modal MUST open.
+    const overlay = modalContainer.querySelector('.hub-modal-overlay')
+    expect(overlay).not.toBeNull()
+
+    act(() => { modalRoot.unmount() })
+    modalContainer.remove()
+  })
 })

@@ -280,6 +280,16 @@ export function HubPanel({
   // Phase 132 / GRID-07: merge local + remote sessions into one unified grid
   const allSessions = [...sessions, ...(remoteSessions ?? [])]
 
+  // GAP-134-A: local vs remote is decided by PROVENANCE (which prop the session came
+  // from), NOT by hostname — local sessions carry the machine's os.Hostname(), so a
+  // hostname check misclassifies every local session as remote (same rule the
+  // usePreviewPoller comment above documents). This set drives the card-click cap gate
+  // and the modal's remote-proxy seam.
+  const remoteIdSet = React.useMemo(
+    () => new Set((remoteSessions ?? []).map((s) => s.id)),
+    [remoteSessions],
+  )
+
   // Phase 132 / CARD-07: single shared 3s poller — LOCAL sessions only (the `sessions`
   // prop). Local sessions carry the machine hostname, so we must NOT use hostname to
   // decide local-vs-remote — provenance (this prop vs remoteSessions) is the discriminator.
@@ -351,7 +361,7 @@ export function HubPanel({
 
   // Phase 134 — MODAL-06: card click handler with remote cap gate
   const handleCardClick = useCallback((session: SessionInfo, rect: DOMRect) => {
-    const isRemote = !!session.hostname && session.hostname !== ''
+    const isRemote = remoteIdSet.has(session.id) // GAP-134-A: provenance, not hostname
     if (isRemote && !remoteCapsCached?.has(session.id)) {
       // Store rect for later use when cap is acquired
       pendingSourceRectRef.current = rect
@@ -360,7 +370,7 @@ export function HubPanel({
       return
     }
     setModalState({ session, sourceRect: rect })
-  }, [remoteCapsCached, onRequestRemoteCap])
+  }, [remoteIdSet, remoteCapsCached, onRequestRemoteCap])
 
   // Phase 134 — MODAL-06: cap-acquired handler — called by App.tsx after successful join-code exchange
   const handleCapAcquired = useCallback((sessionId: string) => {
@@ -479,9 +489,10 @@ export function HubPanel({
           WR-04: real per-session fontSize + onFontSizeChange instead of hardcoded 14. */}
       {modalState && relayPort !== undefined && relayPort > 0 && (() => {
         // Compute isRemote at render time (same rule as handleCardClick).
-        // This discriminator routes remote sessions through the daemon WS proxy seam
-        // added in Plan 07 (RelayClient opts.remote → /api/relay/remote/{id}/ws).
-        const isRemote = !!modalState.session.hostname && modalState.session.hostname !== ''
+        // GAP-134-A: provenance (remoteIdSet), NOT hostname — local sessions carry the
+        // machine hostname. This discriminator routes remote sessions through the daemon
+        // WS proxy seam added in Plan 07 (RelayClient opts.remote → /api/relay/remote/{id}/ws).
+        const isRemote = remoteIdSet.has(modalState.session.id)
         return (
           <HubModal
             session={modalState.session}
