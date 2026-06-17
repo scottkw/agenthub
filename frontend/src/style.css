@@ -4132,6 +4132,14 @@ body {
   /* COLORBLIND-SAFE: drag-over border dark hex #7aa2f7 — border change (shape) is primary non-color cue */
   --hub-drag-over-border: #7aa2f7;
   --hub-drag-over-bg: rgba(122,162,247,0.08);
+  /* === Phase 133: Attention + Pulse tokens === */
+  /* COLORBLIND-SAFE: attn border dark hex #e0af68 — reinforcement only; BellAlertIcon + pulse shape carries state */
+  --hub-attn-border: #e0af68;
+  --hub-attn-border-glow: rgba(224,175,104,0.35);
+  --hub-attn-icon-color: #e0af68;
+  --hub-attn-badge-bg: rgba(224,175,104,0.18);
+  --hub-attn-badge-text: #e0af68;
+  --hub-attn-static-border: #e0af68;
 }
 
 /* --- Light theme (HUB-04 — applied via [data-ui-theme="light"] on <html>) --- */
@@ -4176,6 +4184,14 @@ body {
   /* COLORBLIND-SAFE: drag-over border light hex #3d6fe8 — border change (shape) is primary non-color cue */
   --hub-drag-over-border: #3d6fe8;
   --hub-drag-over-bg: rgba(61,111,232,0.06);
+  /* === Phase 133: Attention + Pulse tokens (light) === */
+  /* COLORBLIND-SAFE: attn border light hex #b45309 — WCAG AA 7.6:1 on white; icon carries state */
+  --hub-attn-border: #b45309;
+  --hub-attn-border-glow: rgba(180,83,9,0.25);
+  --hub-attn-icon-color: #b45309;
+  --hub-attn-badge-bg: rgba(180,83,9,0.14);
+  --hub-attn-badge-text: #b45309;
+  --hub-attn-static-border: #b45309;
 }
 
 /* --- Hub surface --- */
