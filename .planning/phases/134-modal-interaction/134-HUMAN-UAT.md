@@ -14,7 +14,7 @@ Test 1 FAILED — blocked by a Phase 134 routing gap (see Gaps). Tests 2–6 blo
 
 ### 1. Grow animation visual (MODAL-01)
 expected: Modal grows from the clicked card's center position with a smooth ~220ms scale animation; the card is the visual origin (not screen center).
-result: FAIL — clicking a LOCAL session card ("claude 1" on this host) opened the "Join Remote Session — Files" join-code modal instead of the interactive/briefing modal. Root cause: HubPanel uses `session.hostname` as the local/remote discriminator (handleCardClick L354, modal render L484), but local sessions carry the machine hostname (os.Hostname()), so every local session is misclassified as remote. The code's own usePreviewPoller comments forbid the hostname check; provenance (sessions vs remoteSessions prop) is the correct discriminator. Introduced in 134-05/134-08. Behavioral tests missed it because they build local sessions with hostname:''. → GAP-134-A.
+result: FIXED (re-UAT) — after GAP-134-A fix (commit f84b10fe), clicking the local "claude 1" card opens the interactive modal and the terminal mounts live (Claude Code prompt visible). Original failure: clicking a LOCAL card opened the "Join Remote Session — Files" join-code modal because HubPanel used `session.hostname` as the local/remote discriminator (handleCardClick L354, modal render L484); local sessions carry os.Hostname() so every local session was misclassified as remote. Fix = provenance (remoteSessions prop). A second visual defect surfaced on open → GAP-134-B (header icons unsized). Grow-animation visual confirmation still pending a clean re-check after GAP-134-B.
 
 ### 2. Shrink animation + focus return (MODAL-02)
 expected: Closing via Escape, X button, and click-outside all shrink the modal back toward the originating card (~180ms); keyboard focus returns to the card that was clicked.
@@ -54,5 +54,10 @@ blocked: 5
 ## Gaps
 
 ### GAP-134-A: Local session card click opens remote join-code modal (MODAL-01 broken for local sessions)
+status: fixed (re-UAT passed — modal opens, terminal mounts)
+fix: commit f84b10fe — HubPanel now discriminates local-vs-remote by provenance (`remoteIdSet` from the remoteSessions prop) in both handleCardClick and the modal render, not by hostname. Added FE-ROUTE-01c (local session with a non-empty machine hostname → modal opens, no cap flow). Full suite 1700/1700, tsc clean. Confirmed in-app: clicking the local card opens the interactive modal with a live terminal.
+
+### GAP-134-B: Modal header icons render unsized (balloon to fill the header strip)
 status: fixed_pending_reuat
-fix: commit f84b10fe — HubPanel now discriminates local-vs-remote by provenance (`remoteIdSet` from the remoteSessions prop) in both handleCardClick and the modal render, not by hostname. Added FE-ROUTE-01c (local session with a non-empty machine hostname → modal opens, no cap flow). Full suite 1700/1700, tsc clean. Awaiting re-UAT in the app (reload the Wails dev window, click the local card again).
+detail: The hub-modal header Heroicons (status, origin computer/globe, attn bell, close X) had no CSS sizing. Heroicons have no intrinsic width/height and this project has no Tailwind (w-N/h-N are no-ops — documented at .hub-card__attn-icon), so the icons ballooned to giant pale shapes overlapping the header.
+fix: commit c19f538d — added explicit px sizes for `.hub-modal__status-icon` (20), `.hub-modal__origin-icon` (16), `.hub-modal__attn-icon` (16), `.hub-modal__close svg` (18), matching the hub-card convention; +4 CSS-contract tests. Suite green, tsc clean. Awaiting in-app re-check (HMR reload; reopen the modal).
