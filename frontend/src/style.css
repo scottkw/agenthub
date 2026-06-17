@@ -5089,3 +5089,271 @@ body {
   background: var(--hub-border);
   margin: 4px 0;
 }
+
+/* =====================================================================
+   Phase 134 — Hub Modal CSS
+   All colors via var(--hub-*) tokens only (rgba() for scrim/shadow OK).
+   Template: Phase 133 hub-attn-pulse block (lines 4926–4956).
+   ===================================================================== */
+
+/* Hub Modal Overlay — full-viewport scrim + centering flex container */
+/* z-index 200: above Hub (0) and card menus (100); below app modals (1000) */
+.hub-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* Hub Modal Panel */
+.hub-modal {
+  position: relative;
+  width: min(1100px, calc(100vw - 48px));
+  height: min(750px, calc(100vh - 64px));
+  background: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-border);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Modal Header Strip — present in both interactive and briefing modals */
+.hub-modal__header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--hub-border);
+  flex-shrink: 0;
+}
+
+.hub-modal__session-name {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--hub-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-modal__origin-text {
+  font-size: 12px;
+  color: var(--hub-text-secondary);
+}
+
+.hub-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--hub-text-muted);
+  padding: 4px;
+}
+
+.hub-modal__close:hover {
+  color: var(--hub-accent);
+}
+
+.hub-modal__attn-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--hub-attn-badge-bg);
+  color: var(--hub-attn-badge-text);
+  font-size: 11px;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* Modal Body — flex-grow container for interactive and briefing */
+.hub-modal__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hub-modal__body--interactive {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hub-modal__body--briefing {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* Tail display — monospace scrollable output block */
+.hub-modal__tail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--hub-preview-bg);
+  border: 1px solid var(--hub-border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--hub-text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.hub-modal__tail--empty,
+.hub-modal__tail--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hub-text-muted);
+  font-size: 14px;
+}
+
+/* Respond section — brief input + send controls */
+.hub-modal__respond {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hub-modal__respond-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hub-text-muted);
+}
+
+.hub-modal__respond-input {
+  width: 100%;
+  min-height: 64px;
+  max-height: 160px;
+  background: var(--hub-surface);
+  border: 1px solid var(--hub-border);
+  border-radius: 6px;
+  color: var(--hub-text-primary);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.hub-modal__respond-input:focus {
+  border-color: var(--hub-accent);
+  outline: none;
+}
+
+.hub-modal__respond-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.hub-modal__send-btn {
+  background: var(--hub-accent);
+  color: var(--hub-bg);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.hub-modal__send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hub-modal__close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--hub-text-muted);
+  font-size: 14px;
+}
+
+.hub-modal__error-banner {
+  color: var(--hub-destructive);
+  font-size: 14px;
+  padding: 8px;
+}
+
+/* hub-modal-grow / hub-modal-shrink / hub-modal-overlay-in / hub-modal-overlay-out
+   keyframes declared at ROOT scope — they only animate when the class is applied
+   inside the prefers-reduced-motion media query below.
+   Template: hub-attn-pulse keyframes (lines 4941-4947). */
+@keyframes hub-modal-grow {
+  from { opacity: 0; transform: scale(0.05); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes hub-modal-shrink {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.05); }
+}
+
+@keyframes hub-modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes hub-modal-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* Animation class assignments — inside no-preference guard (template: lines 4927-4939) */
+@media (prefers-reduced-motion: no-preference) {
+  .hub-modal--entering {
+    animation: hub-modal-grow 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  }
+  .hub-modal--exiting {
+    animation: hub-modal-shrink 180ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  }
+  .hub-modal-overlay--entering {
+    animation: hub-modal-overlay-in 220ms ease forwards;
+  }
+  .hub-modal-overlay--exiting {
+    animation: hub-modal-overlay-out 180ms ease forwards;
+  }
+}
+
+/* Reduced-motion: modal appears/disappears instantly — no animation */
+/* Template: lines 4950-4956 hub-card--attention reduced-motion guard */
+@media (prefers-reduced-motion: reduce) {
+  .hub-modal {
+    animation: none;
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+  .hub-modal-overlay {
+    animation: none;
+    transition: none;
+    opacity: 1;
+  }
+}
