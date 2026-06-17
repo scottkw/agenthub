@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   MSG_INPUT,
   MSG_OUTPUT,
@@ -6,6 +6,7 @@ import {
   encodeInputFrame,
   encodeResizeFrame,
   parseServerFrame,
+  RelayClient,
 } from './relayClient'
 
 describe('encodeInputFrame', () => {
@@ -93,5 +94,64 @@ describe('parseServerFrame', () => {
     if (result.type === 'output') {
       expect(result.payload.length).toBe(0)
     }
+  })
+})
+
+// FE-URL-01: RelayClient URL construction — local-direct vs daemon-proxy paths
+describe('RelayClient URL construction', () => {
+  let capturedUrl: string | null = null
+
+  // Stub global WebSocket so constructing RelayClient does not open a real socket
+  // and we can capture the URL passed to the constructor.
+  beforeEach(() => {
+    capturedUrl = null
+    // Minimal WebSocket stub: record the constructed URL, expose a no-op API
+    const MockWebSocket = vi.fn(function (this: WebSocket, url: string) {
+      capturedUrl = url
+      // Satisfy the RelayClient constructor's property access
+      this.binaryType = 'arraybuffer'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(this as any).readyState = 0 // CONNECTING
+    }) as unknown as typeof WebSocket
+    // Assign prototype properties so the shape looks like a real WebSocket
+    Object.assign(MockWebSocket.prototype, {
+      close: vi.fn(),
+      send: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
+    vi.stubGlobal('WebSocket', MockWebSocket)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // FE-URL-01a: local-direct path (no opts — preserves every existing caller)
+  it('FE-URL-01a: builds the local-direct path when no opts are passed', () => {
+    const port = 51234
+    const sid = 'test-session-abc'
+    new RelayClient(port, sid, { onOutput: () => {} })
+    expect(capturedUrl).toBe(`ws://127.0.0.1:${port}/sessions/${sid}/ws`)
+    // The cap token is absent from the URL (T-134-07-01)
+    expect(capturedUrl).not.toContain('cap')
+  })
+
+  // FE-URL-01b: remote path (remote: true) — daemon-proxy URL
+  it('FE-URL-01b: builds the daemon-proxy path when opts.remote is true', () => {
+    const port = 51234
+    const sid = 'remote-session-xyz'
+    new RelayClient(port, sid, { onOutput: () => {} }, { remote: true })
+    expect(capturedUrl).toBe(`ws://127.0.0.1:${port}/api/relay/remote/${sid}/ws`)
+    // The cap token is absent from the URL (T-134-07-01)
+    expect(capturedUrl).not.toContain('cap')
+  })
+
+  // FE-URL-01a variant: explicit remote: false is treated as local-direct
+  it('FE-URL-01a variant: explicit remote: false builds the local-direct path', () => {
+    const port = 51234
+    const sid = 'local-session-def'
+    new RelayClient(port, sid, { onOutput: () => {} }, { remote: false })
+    expect(capturedUrl).toBe(`ws://127.0.0.1:${port}/sessions/${sid}/ws`)
   })
 })
