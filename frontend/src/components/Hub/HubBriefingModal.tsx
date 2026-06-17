@@ -79,6 +79,10 @@ export function HubBriefingModal({
   // CR-02: remote sessions read the scrollback snapshot replayed on the proxied WS
   // instead of calling GetSessionTailLines (which is local-only and returns [] for
   // remote ids — engine.go:550). A 3s timeout guards against stalled connections.
+  //
+  // WR-01: return a cleanup function so React tears down the tailClient (and its
+  // 30s ping interval) if the modal unmounts during the tail collection window —
+  // mirrors the CR-03 send-path fix.
   useEffect(() => {
     if (remote) {
       // Remote path: open a short-lived proxied RelayClient, accumulate MsgOutput
@@ -121,6 +125,13 @@ export function HubBriefingModal({
         },
         { remote: true },
       )
+
+      // WR-01: unmount cleanup — closes tailClient (and its 30s ping interval)
+      // if the modal is dismissed during the tail collection window.
+      return () => {
+        clearTimeout(timeoutId)
+        tailClient?.close()
+      }
     } else {
       // Local path: unchanged — GetSessionTailLines is fast, synchronous on Go side.
       GetSessionTailLines(session.id, 20)
