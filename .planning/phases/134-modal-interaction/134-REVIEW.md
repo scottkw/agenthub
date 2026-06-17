@@ -2,27 +2,26 @@
 phase: 134-modal-interaction
 reviewed: 2026-06-17T00:00:00Z
 depth: standard
-files_reviewed: 14
+files_reviewed: 13
 files_reviewed_list:
-  - frontend/src/components/Hub/HubModal.tsx
-  - frontend/src/components/Hub/HubInteractiveModal.tsx
+  - frontend/src/App.tsx
   - frontend/src/components/Hub/HubBriefingModal.tsx
+  - frontend/src/components/Hub/HubInteractiveModal.tsx
+  - frontend/src/components/Hub/HubModal.tsx
+  - frontend/src/components/Hub/HubPanel.tsx
   - frontend/src/components/Hub/SessionCard.tsx
   - frontend/src/components/Hub/SessionCardGrid.tsx
-  - frontend/src/components/Hub/HubPanel.tsx
-  - frontend/src/App.tsx
+  - frontend/src/components/TerminalPanel.tsx
+  - frontend/src/lib/relayClient.ts
   - frontend/src/style.css
-  - frontend/src/components/Hub/HubModal.test.tsx
-  - frontend/src/components/Hub/HubInteractiveModal.test.tsx
-  - frontend/src/components/Hub/HubBriefingModal.test.tsx
-  - frontend/src/components/Hub/SessionCard.test.tsx
-  - frontend/src/components/Hub/HubPanel.test.tsx
-  - frontend/src/components/__tests__/style.hub.modal.test.ts
+  - internal/daemon/relay_remote_files.go
+  - internal/daemon/remote_ws_proxy.go
+  - internal/relay/server.go
 findings:
-  critical: 3
-  warning: 7
-  info: 4
-  total: 14
+  critical: 0
+  warning: 4
+  info: 3
+  total: 7
 status: issues_found
 ---
 
@@ -30,283 +29,214 @@ status: issues_found
 
 **Reviewed:** 2026-06-17
 **Depth:** standard
-**Files Reviewed:** 14
+**Files Reviewed:** 13
 **Status:** issues_found
 
 ## Summary
 
-Phase 134 wires a card-click → modal gesture for the Hub, routing attention sessions
-to a briefing modal (terminal tail + respond-to-PTY) and non-attention sessions to an
-interactive modal (live `TerminalPanel`). The animation, focus-return, Escape handling,
-and card-click/Open/menu `stopPropagation` coexistence are largely correct and well
-documented.
+This is a re-review of Phase 134 after Plans 134-06/07/08 were written to fix the
+three blockers (CR-01/CR-02/CR-03) and seven warnings from the prior review.
 
-The serious problems are concentrated on the **remote-session path**. The MODAL-06 cap
-gate runs the Phase 122 join-code exchange, but that exchange only deposits a cap into
-the local daemon's `RemoteCapStore` for the *file-browse proxy* (`/api/files/remote/{sid}`).
-Neither the interactive `TerminalPanel`'s WebSocket nor the briefing modal's
-`RelayClient` / `GetSessionTailLines` has any remote-proxy equivalent — both connect to
-the **local** relay (`ws://127.0.0.1:{port}/sessions/{id}/ws`) and the **local** daemon
-(`e.manager.Get(id)`) using a session id that only exists on the *remote* peer. The
-result: after the user completes a join-code exchange (cost: a real round-trip + token
-deposit), the modal opens onto a session the local relay does not know about. That is a
-broken feature shipping behind a security-looking gate, and it is the headline blocker.
+**The three prior blockers are FIXED and verified correct/complete:**
 
-Secondary concerns: `RelayClient`/WebSocket leaks in the briefing send path on timeout
-and on unmount; an untrusted-text-after-abandon delivery window; a stuck
-`pendingModalSessionId` when the join-code modal is dismissed; and a test suite that for
-the modal components is almost entirely `?raw` source-string `toContain` assertions with
-no behavioral coverage of the new interaction.
+- **CR-01 (interactive modal attached the local relay with a remote id):** Resolved.
+  `internal/daemon/remote_ws_proxy.go` adds a cap-gated reverse proxy at
+  `GET /api/relay/remote/{sessionID}/ws`, mounted on the relay loopback surface
+  (`relay_remote_files.go:74`). `RelayClient` (relayClient.ts:87-90) builds the
+  proxy path when `opts.remote` is set; `TerminalPanel` threads the `remote` prop
+  into its `RelayClient` (TerminalPanel.tsx:282-288); `HubInteractiveModal` →
+  `HubModal` → `HubPanel` all compute and thread `isRemote`
+  (HubPanel.tsx:484-493). The proxy dials the peer's already-cap-gated
+  `wss://<baseURL>/sessions/{sid}/ws?cap=T` and copies opaque frames. Origin
+  injection (Pitfall 1) and the request-context copy loop (Pitfall 4) are both
+  handled, with passing integration tests (`remote_ws_proxy_test.go`
+  WS-PROXY-01..06).
 
-## Critical Issues
+- **CR-02 (briefing tail/send used the local daemon for remote):** Resolved.
+  `HubBriefingModal` (lines 82-130) reads the remote tail from a short-lived
+  proxied `RelayClient` scrollback snapshot instead of `GetSessionTailLines`
+  (which is local-only), and the send path passes `{ remote: true }`. Behavioral
+  tests (`HubBriefingModal.test.tsx` TAIL-01a/b/c) confirm remote renders tail
+  lines from the WS snapshot and never calls `GetSessionTailLines`.
 
-### CR-01: Interactive modal attaches the local relay using a remote session id — terminal never connects
+- **CR-03 (briefing send WS leak + late-onOpen delivery + unmount leak):**
+  Resolved for the **send** path. `clientRef` + `settled` flag + `clearTimeout`
+  on the happy path + a `useEffect(() => () => clientRef.current?.close(), [])`
+  unmount cleanup are all present (HubBriefingModal.tsx:139, 148-191). Behavioral
+  tests CR-03-01a/b/c assert open→sendInput→close ordering, zero-sendInput on
+  timeout, and the settled-guard suppression of a late onOpen. (But see WR-01
+  below: the *tail* path reintroduces the same leak class CR-03 fixed.)
 
-**File:** `frontend/src/components/Hub/HubInteractiveModal.tsx:41-49`, `frontend/src/components/Hub/HubPanel.tsx:340-368,450-460`, `frontend/src/lib/relayClient.ts:86`
+**Cap-gating verification (requested):** The cap token never enters any
+client-visible URL. The webview opens `ws://127.0.0.1:{port}/api/relay/remote/{id}/ws`
+with no cap (relayClient.ts:88). The handler looks the cap up server-side via
+`a.remoteCaps.Get(sid)` (remote_ws_proxy.go:54) and places it only on the
+**upstream** dial URL (`u.RawQuery = "cap=" + url.QueryEscape(capToken)`,
+line 82). The scheme swap to `wss` is safe because `RemoteCapStore.Put` enforces
+an `https://` baseURL with a non-empty host (remote_caps.go:76-81). Inbound Origin
+is enforced at `websocket.Accept` via the shared loopback allowlist
+(`relay.LoopbackOriginPatterns`), and the cross-site-Origin rejection test passes
+(WS-PROXY-05). Dial-error close reasons are fixed literals; the cap is never
+surfaced in a reason or log. This is correctly gated.
 
-**Issue:** `HubInteractiveModal` mounts `TerminalPanel` with `relayPort` (the **local**
-daemon relay port from `GetRelayPort()`) and `session.id`. `RelayClient` builds
-`ws://127.0.0.1:${port}/sessions/${sessionId}/ws` and the local relay resolves sessions
-via `e.manager.Get(id)` (internal/relay/server.go:48, engine.go:549). For a remote
-(tailnet-peer) session — `adaptAllRemoteSessions` sets `hostname = peer.hostname` and a
-peer-local `id` — that id does not exist on the local relay, so the WebSocket attaches to
-nothing. The MODAL-06 gate (`handleCardClick`) deliberately lets remote sessions reach
-this modal *after* a join-code exchange, but the join-code cap is only consumed by the
-file-browse proxy (`/api/files/remote/{sid}`), not by the relay WS path. There is no
-remote-relay-proxy route. Net effect: completing the cap exchange opens an interactive
-terminal modal that can never connect for any remote session.
+**WR fixes verified:** WR-01 (cancel callback resets `pendingModalSessionId`),
+WR-02 (App guards `onRequestRemoteCap` against an in-flight modal), WR-03
+(`terminalTheme` now required, unsafe `{} as ITheme` cast removed), WR-04 (real
+`fontSize`/`onFontSizeChange` threaded), and WR-07 (real behavioral tests added)
+are all in the current code. WR-05/WR-06 are intentionally deferred to Phase 135
+(a11y) and documented in-code; not flagged here per scope.
 
-**Fix:** Either (a) restrict the interactive modal to local sessions and route remote
-attention/interactive intents to the existing remote-open flow (`BrowserOpenURL` /
-`handleOpenRemoteSession`), or (b) thread a remote base URL + the deposited cap into
-`TerminalPanel`/`RelayClient` and add a relay proxy equivalent to
-`/api/files/remote/{sid}`. Until a remote WS path exists, gate the interactive branch:
-```tsx
-// HubPanel.handleCardClick — do not open the interactive modal for remote sessions
-const isRemote = !!session.hostname && session.hostname !== ''
-if (isRemote) {
-  // remote interactive terminal has no relay-proxy route yet (CR-01)
-  handleOpenRemoteSession(remoteBaseURLFor(...))   // or block with a toast
-  return
-}
-```
-
-### CR-02: Briefing modal tail + send use the local daemon/relay for remote sessions — always empty, never delivered
-
-**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:34-38,52-62`, `internal/daemon/engine.go:548-551`
-
-**Issue:** A remote session in attention state (`waiting`/`errored`) routes to
-`HubBriefingModal`. The tail fetch calls `GetSessionTailLines(session.id, 20)`, which on
-the Go side does `hub, ok := e.manager.Get(id)` and returns `[]string{}` when the id is
-unknown (engine.go:550-551) — every remote session shows "No recent output available."
-The Send flow constructs `new RelayClient(relayPort, session.id, …)` against the **local**
-relay; the WS for an unknown id will not deliver input to the remote PTY (and, per the
-relay's behavior for unknown ids, the send is silently dropped). So the briefing modal's
-two core functions — show context, send a response — are both inert for remote sessions,
-yet the modal presents a fully-enabled Send button implying success. Combined with CR-01,
-no remote session is actually serviceable by either modal branch.
-
-**Fix:** Gate the briefing modal to local sessions, or implement a remote tail/send proxy.
-Minimal interim: detect `session.hostname !== ''` and render an explicit "Open on
-{hostname}" affordance instead of the tail/respond UI, so the user is not given a
-non-functional Send button.
-
-### CR-03: Briefing send leaks the WebSocket on timeout and delivers untrusted input after the user abandons
-
-**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:47-73`
-
-**Issue:** `handleSend` constructs a `RelayClient` inside the Promise executor and only
-calls `client.close()` inside `onOpen`. Two defects:
-1. **Leak on timeout:** if the socket never reaches `onOpen` within 5s, the Promise
-   rejects but `client.close()` is never called — the underlying `WebSocket` (and its
-   connection attempt) is never torn down. There is no `reject`-path cleanup.
-2. **Late delivery of untrusted text:** if `onOpen` fires *after* the 5s reject (slow
-   relay), `client.sendInput(responseText + '\n')` still runs and writes the user's text
-   to the PTY even though the UI already showed "Failed to send" and the user may have
-   moved on. There is no flag suppressing the post-timeout send.
-3. **Unmount leak:** the component has no cleanup; if the modal unmounts while a send is
-   in flight (Escape/close), the `RelayClient` and its 30s ping interval keep running.
-
-This is the "untrusted-text-to-PTY" path called out for special attention — the bound
-(`maxLength={4096}`) limits payload size but does nothing about *when* / *whether* the
-text is delivered relative to the user's intent.
-
-**Fix:** Track the client in a ref and a `settled` flag; clean up on every exit path.
-```tsx
-const clientRef = useRef<RelayClient | null>(null)
-// in executor:
-let settled = false
-const timer = setTimeout(() => { if (!settled) { settled = true; clientRef.current?.close(); reject(new Error('timeout')) } }, 5000)
-const client = new RelayClient(relayPort, session.id, {
-  onOutput: () => {},
-  onOpen: () => {
-    if (settled) { client.close(); return }   // do not send after abandon
-    client.sendInput(responseText + '\n')
-    setTimeout(() => { settled = true; clearTimeout(timer); client.close(); resolve() }, 100)
-  },
-  onClose: () => {},
-})
-clientRef.current = client
-// useEffect(() => () => clientRef.current?.close(), [])  // unmount cleanup
-```
+**Remaining issues are NEW defects introduced by the fixes (all WARNING/INFO)** —
+the most important is that the CR-03 unmount-leak fix was applied to the send path
+but NOT the new remote-tail path, which opens a `RelayClient` (with a 30s ping
+interval) that leaks if the modal unmounts during the tail window.
 
 ## Warnings
 
-### WR-01: Dismissing the join-code modal strands `pendingModalSessionId` (no reset on cancel)
+### WR-01: Remote tail `RelayClient` leaks on unmount — CR-03's own fix not applied to the tail path
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:340-368`, `frontend/src/App.tsx:1600-1607`
+**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:82-130, 139`
 
-**Issue:** `handleCardClick` sets `pendingModalSessionId` and asks App to open
-`RemoteJoinCodeModal`. `handleCapAcquired` clears it only on a *successful* exchange. If
-the user closes the modal (`onClose` → `setJoinModalForSession(null)`), HubPanel is never
-notified, so `pendingModalSessionId` and `pendingSourceRectRef` stay set indefinitely.
-There is no functional deadlock (a later click re-requests), but the stale pending id is
-dead state and a latent bug if any future code keys off "is a modal pending."
+**Issue:** CR-03 added `clientRef` + an unmount cleanup
+(`useEffect(() => () => { clientRef.current?.close() }, [])`, line 139) to tear
+down the **send** client. The new CR-02 remote-tail path opens a *separate*
+`RelayClient` stored only in the local `tailClient` variable (line 87/100), which
+`clientRef` never references. If the user dismisses the modal (Escape / Close /
+click-outside) during the tail window — the 3s timeout or the 500ms
+post-onOpen collection — the component unmounts but `tailClient` is never closed.
+The underlying `WebSocket` and, once `onOpen` has fired, its 30s ping interval
+(relayClient.ts:97-101) keep running detached. This is the exact leak class CR-03
+was written to eliminate, reintroduced on the tail path. It is reachable on every
+remote briefing the user opens-then-closes quickly.
 
-**Fix:** Thread an `onRequestRemoteCap` cancel/teardown back to HubPanel, or have
-`handleCapAcquired` be paired with a `handleCapCancelled` that App calls from the join
-modal's `onClose`, resetting `pendingModalSessionId`/`pendingSourceRectRef`.
+**Fix:** Track the tail client in a ref and close it on unmount, or return the
+close from the effect so React tears it down:
+```tsx
+useEffect(() => {
+  if (!remote) {
+    GetSessionTailLines(session.id, 20).then(setTailLines).catch(() => setTailLines([]))
+    return
+  }
+  const chunks: Uint8Array[] = []
+  let resolved = false
+  const tailClient = new RelayClient(relayPort, session.id, { /* ... */ }, { remote: true })
+  const finish = () => { if (resolved) return; resolved = true; tailClient.close(); setTailLines(extractTailLines(chunks, 20)) }
+  const timeoutId = setTimeout(finish, 3000)
+  // ...
+  return () => { clearTimeout(timeoutId); tailClient.close() }  // unmount cleanup (mirrors CR-03 send fix)
+}, [session.id, relayPort, remote])
+```
 
-### WR-02: `onRequestRemoteCap` overwrites any in-flight `joinModalForSession` (incl. file-browse intent)
+### WR-02: `onRequestRemoteCap` WR-02 guard silently strands `pendingModalSessionId` with no user feedback
 
-**File:** `frontend/src/App.tsx:1380,1600-1607`, `frontend/src/App.tsx:1106-1134`
+**File:** `frontend/src/App.tsx:1385-1391`, `frontend/src/components/Hub/HubPanel.tsx:353-363, 391-394`
 
-**Issue:** The Hub's `onRequestRemoteCap` does
-`setJoinModalForSession({ …, intent: 'hub-modal' })` unconditionally. If a file-browse
-join modal (`intent` undefined) is already open for a different session, this silently
-replaces it; `handleModalExchange` then routes by the *new* intent and the original
-file-browse request is lost. The two entry points share one `joinModalForSession` slot
-with no guard.
+**Issue:** The prior-review WR-02 fix added `if (joinModalForSession) return` to
+App's `onRequestRemoteCap` so an in-flight file-browse modal is not overwritten.
+But `HubPanel.handleCardClick` has *already* set `pendingModalSessionId` and
+`pendingSourceRectRef` (HubPanel.tsx:357-359) before calling
+`onRequestRemoteCap`. When App early-returns, no join modal opens, so the
+`onClose` path that fires `capCancelledRef.current?.()` (App.tsx:1622-1626) never
+runs. Result: `pendingModalSessionId` stays set indefinitely with zero user-visible
+feedback — the card click appears to do nothing, and the stale pending id is dead
+state. The WR-01 cancel callback only resets on a modal *close*, which cannot
+happen here because no modal was ever opened.
 
-**Fix:** Guard the setter when a modal is already open (`if (joinModalForSession) return`
-or queue), or include the originating session id in a uniqueness check before replacing.
+**Fix:** Return a boolean (or accept a rejection) from `onRequestRemoteCap` so
+HubPanel can reset its pending state when App declines, and surface a transient
+toast ("Finish the current join-code first"). Minimal:
+```tsx
+// App: signal decline
+onRequestRemoteCap={(s) => {
+  if (joinModalForSession) { capCancelledRef.current?.(); return }  // reset HubPanel + no-op
+  setJoinModalForSession({ ...s, intent: 'hub-modal' })
+}}
+```
+(Calling the cancel ref on decline at least clears the stranded pending id.)
 
-### WR-03: `theme={terminalTheme ?? ({} as ITheme)}` defeats type safety and can render an unthemed terminal
+### WR-03: Remote-send read-only cap drops input silently behind an enabled Send button
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:456`
+**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:255-266, 143-197`
 
-**Issue:** `({} as ITheme)` is an unsafe assertion that fabricates an empty object as a
-valid `ITheme`. `terminalTheme` in App is already guaranteed non-null (App.tsx:271-272
-falls back to a real theme), so this fallback is dead — but if `terminalTheme` is ever
-genuinely undefined, the interactive terminal mounts with an empty theme object rather
-than failing loudly. The cast hides that contract.
+**Issue:** For a remote session whose deposited cap grants read-only access, the
+proxied send WS still connects (the cap is valid), `onOpen` fires, `sendInput`
+runs, and the modal calls `onClose()` reporting success — but the peer silently
+discards the input because the cap does not grant PTY write (relay
+`handleSession` discards `MsgInput` for read-only subscribers, server.go:269).
+The user sees "Sending…" → modal closes → no error, but nothing was delivered.
+The in-code NOTE (lines 255-258) acknowledges this and defers a read-only
+indicator to Phase 135. Per the project's cross-surface-parity and colorblind
+constraints this is a real correctness/feedback gap, but it is explicitly
+deferred and is not a security/data-loss issue — WARNING, not BLOCKER.
 
-**Fix:** Make `terminalTheme` required on `HubPanelProps` (App always supplies it) and
-drop the cast, or pass through `undefined` and let `TerminalPanel` apply its own default.
+**Fix (Phase 135 or sooner):** Detect write-denied on the remote send path (e.g.
+peer-side close code or a no-ack timeout) and render the existing
+`hub-modal__error-banner` ("This session is read-only — response not sent")
+instead of closing on success. A non-color affordance satisfies the colorblind
+constraint.
 
-### WR-04: `fontSize={14}` hardcoded in the modal ignores per-session font size and `onFontSizeChange`
+### WR-04: Remote tail collection window can truncate a large scrollback snapshot
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:455`, `frontend/src/components/Hub/HubInteractiveModal.tsx:46`
+**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:98-123`
 
-**Issue:** The interactive modal mounts `TerminalPanel` with a literal `fontSize={14}` and
-`HubInteractiveModal` defaults `onFontSizeChange` to a no-op (`?? (() => {})`). The main
-terminal tabs honor `fontSizes[sessionId]` and a working zoom handler (App.tsx:1549-1550).
-In the modal, ⌘+/⌘- zoom is silently swallowed and the user's existing per-session font
-preference is ignored. Magic number duplicates `DEFAULT_FONT_SIZE`.
+**Issue:** The remote tail finishes 500ms after `onOpen` (line 115) or 3s after
+mount (line 98), whichever comes first, then closes. The peer replays its
+scrollback snapshot as one or more binary frames on subscribe (relay
+`handleSession` writes the snapshot synchronously, server.go:238-242, then live
+frames flow). For a large scrollback the snapshot may be chunked by the WS
+transport; if not all chunks land within the 500ms window, `extractTailLines`
+operates on a partial byte stream. Because the last partial chunk can split a
+UTF-8 sequence or a line mid-stream, the rendered "last 20 lines" may be wrong or
+show a mojibake first line. Unlike the local `GetSessionTailLines` (which returns
+exact server-computed lines), this is a best-effort heuristic with a timing race.
 
-**Fix:** Thread the real `fontSize`/`onFontSizeChange` down from App (the modal already
-has `relayPort`/`theme`/`pluginConfig` plumbed the same way), or document the intentional
-read-only-zoom decision. At minimum use `DEFAULT_FONT_SIZE` instead of a bare `14`.
-
-### WR-05: Escape `stopImmediatePropagation` on `document` can swallow Escape for other global handlers
-
-**File:** `frontend/src/components/Hub/HubModal.tsx:100-109`, `frontend/src/components/Hub/SessionCard.tsx:190-200`, `frontend/src/components/Hub/HubPanel.tsx:249-259`
-
-**Issue:** The modal registers a `document` `keydown` listener that calls
-`e.stopImmediatePropagation()` on Escape to prevent the originating card's menu from
-double-firing. Because both the modal's and the card's listeners are on `document`,
-listener-registration order decides which runs first. The card's menu listener only
-mounts when `menuOpen` is true, so the documented case is covered, but
-`stopImmediatePropagation` also blocks *any* other `document`-level Escape handler
-registered after the modal (current or future — e.g. a global command palette). This is
-broad collateral suppression for a narrow goal.
-
-**Fix:** Scope the guard. Attach the modal's Escape handler to the dialog element (with
-the dialog focused via the focus-trap), or use a shared "topmost overlay" coordinator
-rather than `stopImmediatePropagation` on `document`. At minimum, document that the modal
-intentionally suppresses all subsequent global Escape handlers while open.
-
-### WR-06: No focus trap inside the modal — Tab escapes to the Hub behind the overlay
-
-**File:** `frontend/src/components/Hub/HubModal.tsx:123-186`
-
-**Issue:** The dialog sets `role="dialog"` + `aria-modal="true"` and returns focus to the
-card on unmount (MODAL-02), but there is no focus *trap*: Tab/Shift-Tab can move focus out
-of the dialog to the still-rendered Hub cards underneath (they are `tabIndex={0}`). For an
-`aria-modal` dialog this is an accessibility defect — keyboard and screen-reader users can
-interact with obscured background controls.
-
-**Fix:** Add a focus trap (cycle Tab within the dialog's focusable elements) or mark
-background content `inert`/`aria-hidden` while the modal is open.
-
-### WR-07: Modal component tests are source-string assertions with zero behavioral coverage
-
-**File:** `frontend/src/components/Hub/HubModal.test.tsx:1-49`, `frontend/src/components/Hub/HubInteractiveModal.test.tsx:1-40`, `frontend/src/components/Hub/HubBriefingModal.test.tsx:1-37`, `frontend/src/components/Hub/HubPanel.test.tsx:734-761`
-
-**Issue:** Every test for `HubModal`, `HubInteractiveModal`, and `HubBriefingModal`, plus
-the MODAL-06 HubPanel block, is a `?raw` import with `expect(raw).toContain('…')` /
-`indexOf` ordering checks. These assert that *source text* contains a string — they pass
-even if the logic is inverted, the handler is never wired, or (as in CR-01/CR-02) the
-feature is fundamentally broken for remote sessions. e.g. HubBriefingModal.test.tsx:14
-only checks the literal `'RelayClient'` appears; it never sends, never asserts delivery,
-never exercises the timeout/leak path. The MODAL-06 test (HubPanel.test.tsx:742) asserts
-`onRequestRemoteCap?.({` precedes `setModalState` in the *string*, not that an uncapped
-remote session is actually blocked at runtime. This is a false sense of safety for the
-exact paths that carry the blockers above.
-
-**Fix:** Add behavioral tests: mock `RelayClient` and assert the briefing send opens →
-`sendInput` → `close` ordering and the timeout cleanup; mock `GetSessionTailLines` and
-assert tail rendering/empty/loading; render `HubPanel` and assert a remote-without-cap
-card click does NOT call `setModalState` (spy `onRequestRemoteCap`) while a local click
-does. xterm can be mocked to allow mounting `HubModal` in jsdom.
+**Fix:** Finish on a frame-quiescence signal rather than a fixed 500ms — e.g.
+reset a short (150ms) idle timer on each `onOutput` and finish when output goes
+quiet, capped by the 3s hard timeout. This collects the full snapshot regardless
+of size while still bounding the wait.
 
 ## Info
 
-### IN-01: `relayPort === 0` is treated as a valid port for the modal
+### IN-01: Remote tail 3s timeout handle is not cleared on the happy path
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:450`
+**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:98, 115-120`
 
-**Issue:** The modal renders when `relayPort !== undefined`, but App passes
-`relayPort ?? undefined` from `relayPort: number | null` where the un-initialized value
-can be `0` in some code paths (the terminal tab grid guards with `relayPort > 0` at
-App.tsx:1535). The modal omits the `> 0` guard, so a transient `0` would build
-`ws://127.0.0.1:0/...`.
+**Issue:** `clearTimeout(timeoutId)` is only called in the tail `onClose` callback
+(line 118). On the happy path (`onOpen` → 500ms → `finish()` → `tailClient.close()`
+→ `onClose` fires → clearTimeout) it is eventually cleared, but `finish()` itself
+does not clear it. The `resolved` guard makes a late 3s fire a harmless no-op, so
+this is cosmetic, but the cleanup is asymmetric with the send path (which clears
+its timer inside the success branch).
 
-**Fix:** Mirror the tab grid guard: `relayPort !== undefined && relayPort > 0`.
+**Fix:** Call `clearTimeout(timeoutId)` inside `finish()` so all exit paths clear
+the timer uniformly.
 
-### IN-02: `HubInteractiveModalProps.onFontSizeChange` is declared but never supplied by the shell
+### IN-02: `extractTailLines` allocates a full merged buffer of all accumulated chunks
 
-**File:** `frontend/src/components/Hub/HubInteractiveModal.tsx:20,46`, `frontend/src/components/Hub/HubModal.tsx:176-183`
+**File:** `frontend/src/components/Hub/HubBriefingModal.tsx:33-45`
 
-**Issue:** `HubModal` renders `HubInteractiveModal` without passing `onFontSizeChange`, so
-the prop is always its no-op default. Dead surface that suggests zoom is supported when it
-is not (see WR-04).
+**Issue:** `extractTailLines` concatenates every accumulated chunk into one
+`Uint8Array` before decoding, then keeps only the last 20 lines. For a session
+with a large scrollback snapshot this briefly holds the entire snapshot in memory
+twice (chunks array + merged buffer). Not a correctness issue and out of the v1
+performance scope, but worth noting since only the tail is needed — the chunk
+accumulation could be bounded.
 
-**Fix:** Remove the optional prop or wire it through from App.
+**Fix (optional):** Cap accumulated bytes (e.g. keep only the trailing ~64KB,
+enough for 20 lines) to bound memory on very large snapshots.
 
-### IN-03: `handleCapAcquired` deps omit `pendingSourceRectRef` reads but include `sessions`/`remoteSessions` — re-registers callback each poll
+### IN-03: `aria-label` for the briefing modal omits local/remote origin
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:353-373`
+**File:** `frontend/src/components/Hub/HubModal.tsx:130-132`
 
-**Issue:** `handleCapAcquired` depends on `[pendingModalSessionId, sessions, remoteSessions]`;
-`sessions`/`remoteSessions` change references on every 3s/30s poll, so the callback identity
-churns and the `useEffect` at line 371 re-invokes `onRegisterCapAcquired` every poll. App
-stores it in a ref (`capAcquiredRef.current = fn`), so this is harmless today, but it is
-needless churn and fragile if the registration ever does real work.
+**Issue:** Carried forward from the prior review (IN-04). The dialog `aria-label`
+is `Briefing: ${session.name} needs input` with no origin marker, while sighted
+users see the Local/hostname header (lines 161-166). Given remote sessions now
+behave differently (proxied tail, possible read-only send drop per WR-03), the
+origin distinction is more relevant for screen-reader users, not less.
 
-**Fix:** Read sessions from a ref inside the callback, or accept the id and let App resolve
-the session, keeping the callback stable.
-
-### IN-04: `ariaLabel` for briefing uses session name without indicating remote origin
-
-**File:** `frontend/src/components/Hub/HubModal.tsx:119-121`
-
-**Issue:** Minor copywriting/accessibility gap: the dialog `aria-label` is
-`Briefing: ${session.name} needs input` with no origin (Local/hostname), while the visible
-header shows the origin marker. Screen-reader users lose the local/remote distinction that
-sighted users get — relevant given remote sessions behave differently (CR-01/CR-02).
-
-**Fix:** Include origin in the aria-label, e.g. `Briefing: ${session.name} on ${originText} needs input`.
+**Fix:** Include origin, e.g. `Briefing: ${session.name} on ${originText} needs input`.
+Reasonable to fold into the Phase 135 a11y pass.
 
 ---
 
