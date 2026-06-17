@@ -454,7 +454,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 134-04-PLAN.md — HubModal shell: overlay, grow/shrink animation, Escape/click-outside, focus return, attention routing (MODAL-01/02/03)
+- [x] 134-04-PLAN.md — HubModal shell: overlay, grow/shrink animation, Escape/click-outside, focus return, attention routing (MODAL-01/02/03)
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -534,7 +534,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 3/5 | In Progress|  |
+| 134 | v3.6 | 4/5 | In Progress|  |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---
