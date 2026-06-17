@@ -34,6 +34,19 @@ describe('HubModal (MODAL-02: keyboard + focus management)', () => {
   })
 })
 
+describe('HubModal (GAP-134-C: origin marker uses provenance, not hostname)', () => {
+  // Local sessions carry the machine os.Hostname(); a hostname-based isLocal check
+  // mislabels them with the globe icon + machine name. The colorblind-safe origin cue
+  // (computer vs globe icon) must be driven by the provenance `remote` prop.
+  it('isLocal is derived from the remote prop', () => {
+    expect(raw).toContain('const isLocal = !remote')
+  })
+
+  it('isLocal is NOT derived from session.hostname', () => {
+    expect(raw).not.toContain("const isLocal = !session.hostname")
+  })
+})
+
 describe('HubModal (MODAL-03: attention-based routing)', () => {
   it('MODAL-03: renders HubBriefingModal branch (attention=true path)', () => {
     expect(raw).toContain('HubBriefingModal')

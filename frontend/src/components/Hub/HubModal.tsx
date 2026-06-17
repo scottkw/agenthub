@@ -123,7 +123,10 @@ export function HubModal({
   const transformOrigin = `${sourceRect.left + sourceRect.width / 2}px ${sourceRect.top + sourceRect.height / 2}px`
 
   // ---- Header strip data ----
-  const isLocal = !session.hostname || session.hostname === ''
+  // GAP-134-C: local vs remote is provenance (the `remote` prop, derived in HubPanel from
+  // the remoteSessions list), NOT hostname — local sessions carry the machine os.Hostname(),
+  // so a hostname check mislabels every local session with the globe icon + machine name.
+  const isLocal = !remote
   const originText = isLocal ? 'Local' : session.hostname
 
   // ---- ARIA label — copywriting contract ----
