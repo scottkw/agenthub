@@ -9,6 +9,8 @@ import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
 /**
  * Group sessions by their working directory.
  * Sessions with an empty workDir are keyed under ''.
+ * NOTE: Does NOT sort — caller applies sortSessionsForDisplay after grouping,
+ * gated on debouncedSortKey so position changes happen only after debounce settles.
  *
  * @returns A Map preserving insertion order — one entry per distinct workDir.
  */
@@ -20,10 +22,6 @@ export function groupByWorkDir(sessions: SessionInfo[]): Map<string, SessionInfo
     group.push(s)
     groups.set(key, group)
   }
-  // ATTN-02: sort attention cards to top within each workDir group (stable, per-group only)
-  for (const [key, groupSessions] of groups) {
-    groups.set(key, sortSessionsForDisplay(groupSessions))
-  }
   return groups
 }
 
@@ -33,6 +31,8 @@ export function groupByWorkDir(sessions: SessionInfo[]): Map<string, SessionInfo
  * Unmatched sessions fall into the '__other__' bucket labelled "Other".
  * Named groups appear in definition order, Other last.
  * GROUP-04: membership key = "${session.name}:::${session.workDir}" — survives session-id churn.
+ * NOTE: Does NOT sort — caller applies sortSessionsForDisplay after grouping,
+ * gated on debouncedSortKey so position changes happen only after debounce settles.
  */
 export function groupByNamedGroups(
   sessions: SessionInfo[],
@@ -53,10 +53,6 @@ export function groupByNamedGroups(
     } else {
       result.get('__other__')!.sessions.push(s)
     }
-  }
-  // ATTN-02: sort attention cards to top within each named group (stable, per-group only)
-  for (const entry of result.values()) {
-    entry.sessions = sortSessionsForDisplay(entry.sessions)
   }
   return result
 }
@@ -96,10 +92,11 @@ function useFLIPAnimation(enabled: boolean) {
     else nodeMap.current.delete(id)
   }, [])
 
+  // WR-02: capture ALWAYS updates prevPositions regardless of prefers-reduced-motion,
+  // so a mid-session preference change from reduce→no-preference doesn't animate
+  // to stale/wrong positions. The animation guard stays in playFLIP only.
   const capturePositions = React.useCallback(() => {
     if (!enabled) return
-    /* ATTN-02: reorder animation: FLIP pattern, 300ms ease; suppressed under prefers-reduced-motion */
-    if (typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const snap = new Map<string, DOMRect>()
     for (const [id, el] of nodeMap.current) snap.set(id, el.getBoundingClientRect())
     prevPositions.current = snap
@@ -183,21 +180,32 @@ export function SessionCardGrid({
   /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
   const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
 
-  // Capture positions BEFORE any sort-driven re-render (useLayoutEffect runs synchronously)
-  React.useLayoutEffect(() => {
-    capturePositions()
-  })
-
-  // Play FLIP animation AFTER DOM update when debouncedSortKey changes
+  // CR-01 + WR-03: capture + play are driven by the SAME debouncedSortKey dependency.
+  // Capture runs in the cleanup (before the next debouncedSortKey-triggered DOM mutation),
+  // play runs after the DOM update. The standalone always-running capture effect is removed
+  // so prevPositions is never overwritten by unrelated renders (preview polls, filter changes).
   React.useLayoutEffect(() => {
     playFLIP()
+    return () => {
+      capturePositions()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSortKey])
 
+  // WR-03: sort order is derived ONLY when debouncedSortKey changes — NOT on every render.
+  // This ensures the DOM reorder and the FLIP capture/play share the same debounced trigger:
+  //   - card border/icon uses live attentionIds (immediate)
+  //   - card position within group uses sortedSessions (debounced, 1s)
+  const sortedSessions = React.useMemo(
+    () => sortSessionsForDisplay(sessions),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [debouncedSortKey], // re-sort only when debounced key changes; ignore live sessions churn
+  )
+
   // Phase 132: when groupDefs is non-empty, use named-group grouping; else fall back to workDir
   if (groupDefs && groupDefs.length > 0) {
-    // Named-group render path (Phase 132)
-    const namedGroups = groupByNamedGroups(sessions, groupDefs)
+    // Named-group render path (Phase 132) — sort THEN group (sort is debounce-gated above)
+    const namedGroups = groupByNamedGroups(sortedSessions, groupDefs)
 
     return (
       <>
@@ -234,8 +242,8 @@ export function SessionCardGrid({
     )
   }
 
-  // Phase 131 fallback: workDir-based grouping
-  const groups = groupByWorkDir(sessions)
+  // Phase 131 fallback: workDir-based grouping — sort THEN group (sort is debounce-gated above)
+  const groups = groupByWorkDir(sortedSessions)
 
   return (
     <>

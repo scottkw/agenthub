@@ -464,7 +464,7 @@ describe('SessionCardGrid', () => {
   // ---- Phase 133: attention-first ordering (ATTN-02) ----
 
   describe('SessionCardGrid attention (ATTN-02)', () => {
-    it('renders attention cards before non-attention cards within a workDir group', () => {
+    it('renders attention cards before non-attention cards within a workDir group when debouncedSortKey is set', () => {
       // Sessions: non-attention, attention (waiting), non-attention
       const sessions = [
         makeSession({ id: 'non-attn-1', name: 'NonAttn1', workDir: '/proj', state: 'running', status: 'running' }),
@@ -472,7 +472,9 @@ describe('SessionCardGrid', () => {
         makeSession({ id: 'non-attn-2', name: 'NonAttn2', workDir: '/proj', state: 'running', status: 'idle' }),
       ]
       const attentionIds = new Set(['attn-1'])
-      const { container } = renderGrid(sessions, vi.fn(), { attentionIds })
+      // debouncedSortKey triggers the sort; pass a non-empty key so sortedSessions is computed
+      const debouncedSortKey = 'non-attn-1:0,attn-1:1,non-attn-2:0'
+      const { container } = renderGrid(sessions, vi.fn(), { attentionIds, debouncedSortKey })
 
       // Get the aria-labels on all hub-card articles to identify order
       const cards = Array.from(container.querySelectorAll('article.hub-card'))
@@ -480,6 +482,80 @@ describe('SessionCardGrid', () => {
       // The attention card (attn-1) should come first in its group
       const firstCardLabel = cards[0].getAttribute('aria-label') ?? ''
       expect(firstCardLabel).toContain('Attn1')
+    })
+
+    it('sort order does NOT change when sessions change but debouncedSortKey stays the same', () => {
+      // WR-03: debounce gate — the sort is tied to debouncedSortKey, not to live sessions.
+      // If sessions prop updates (e.g., preview poll) but debouncedSortKey stays the same,
+      // the rendered order must remain unchanged (sortedSessions memo does not re-run).
+      const sessionsV1 = [
+        makeSession({ id: 'non-attn-1', name: 'NonAttn1', workDir: '/proj', state: 'running', status: 'running' }),
+        makeSession({ id: 'attn-1', name: 'Attn1', workDir: '/proj', state: 'running', status: 'waiting' }),
+      ]
+      const stableKey = 'key-v1'
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessionsV1}
+            onRename={vi.fn()}
+            attentionIds={new Set(['attn-1'])}
+            debouncedSortKey={stableKey}
+          />
+        )
+      })
+
+      // Snapshot of order after first render (attn-1 should be first)
+      const cardsAfterV1 = Array.from(container.querySelectorAll('article.hub-card'))
+      expect(cardsAfterV1.length).toBe(2)
+      expect(cardsAfterV1[0].getAttribute('aria-label') ?? '').toContain('Attn1')
+
+      // Now simulate a sessions prop update (e.g., preview poll changes status labels but
+      // doesn't change the attention membership) while debouncedSortKey stays the SAME.
+      // The sort must NOT re-run — the rendered cards must preserve their V1 order.
+      const sessionsV1Updated = [
+        makeSession({ id: 'non-attn-1', name: 'NonAttn1', workDir: '/proj', state: 'running', status: 'running' }),
+        makeSession({ id: 'attn-1', name: 'Attn1', workDir: '/proj', state: 'running', status: 'waiting' }),
+      ]
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessionsV1Updated}
+            onRename={vi.fn()}
+            attentionIds={new Set(['attn-1'])}
+            debouncedSortKey={stableKey} // KEY IS STILL THE SAME — sort must not re-run
+          />
+        )
+      })
+
+      // Order must be preserved from V1 sort; same card count; Attn1 still first
+      const cardsAfterV2 = Array.from(container.querySelectorAll('article.hub-card'))
+      expect(cardsAfterV2.length).toBe(2)
+      expect(cardsAfterV2[0].getAttribute('aria-label') ?? '').toContain('Attn1')
+
+      // Now update debouncedSortKey — sort SHOULD re-run and new order applied
+      const sessionsV2 = [
+        makeSession({ id: 'non-attn-1', name: 'NonAttn1', workDir: '/proj', state: 'running', status: 'running' }),
+        makeSession({ id: 'attn-1', name: 'Attn1', workDir: '/proj', state: 'running', status: 'waiting' }),
+      ]
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessionsV2}
+            onRename={vi.fn()}
+            attentionIds={new Set(['attn-1'])}
+            debouncedSortKey='key-v2' // KEY CHANGED — sort re-runs
+          />
+        )
+      })
+
+      // After key change, sort ran again — Attn1 should still be first (attention wins)
+      const cardsAfterV3 = Array.from(container.querySelectorAll('article.hub-card'))
+      expect(cardsAfterV3.length).toBe(2)
+      expect(cardsAfterV3[0].getAttribute('aria-label') ?? '').toContain('Attn1')
     })
 
     it('preserves original order for equal-attention sessions (stable sort)', () => {
