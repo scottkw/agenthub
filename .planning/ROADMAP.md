@@ -419,7 +419,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 133-03-PLAN.md — Wave 2: SessionCard attention treatment (isAttention prop, BellAlertIcon in ROW 1, modifier class, aria suffix) (ATTN-01)
+- [x] 133-03-PLAN.md — Wave 2: SessionCard attention treatment (isAttention prop, BellAlertIcon in ROW 1, modifier class, aria suffix) (ATTN-01)
 - [ ] 133-04-PLAN.md — Wave 2: GroupSidebar collapsed-group attention badge + counts.attention + collapsed-condition fix (ATTN-06)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -522,7 +522,7 @@ Plans:
 | 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
-| 133 | v3.6 | 2/5 | In Progress|  |
+| 133 | v3.6 | 3/5 | In Progress|  |
 | 134 | v3.6 | 0/? | Not started | - |
 | 135 | v3.6 | 0/? | Not started | - |
 
