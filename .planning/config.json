@@ -4,7 +4,8 @@
   "workflow": {
     "research": true,
     "_auto_chain_active": false,
-    "skip_discuss": true
+    "skip_discuss": true,
+    "use_worktrees": false
   },
   "models": {
     "executor": "sonnet",
