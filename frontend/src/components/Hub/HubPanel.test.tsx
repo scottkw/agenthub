@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import React from 'react'
 import hubPanelRaw from './HubPanel.tsx?raw'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
@@ -17,6 +18,12 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 
 vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
   ClipboardSetText: vi.fn().mockResolvedValue(undefined),
+}))
+
+// FE-ROUTE-01: Mock TerminalPanel so HubInteractiveModal can mount in jsdom without
+// triggering xterm canvas API calls (canvas is absent in jsdom).
+vi.mock('../TerminalPanel', () => ({
+  TerminalPanel: () => React.createElement('div', { 'data-testid': 'mock-terminal-panel' }),
 }))
 
 import { HubPanel } from './HubPanel'
@@ -768,5 +775,86 @@ describe('HubPanel MODAL-06 source-inspection (Phase 134)', () => {
 
   it('threads onCardClick={handleCardClick} to SessionCardGrid', () => {
     expect(hubPanelRaw).toContain('onCardClick={handleCardClick}')
+  })
+})
+
+// ---- FE-ROUTE-01: Behavioral tests — remote gate routing (WR-07) ----
+// These tests exercise runtime behavior, not source strings.
+// TerminalPanel is mocked (see top of file) so HubInteractiveModal can mount in jsdom.
+describe('HubPanel FE-ROUTE-01: remote routing gate (behavioral)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+  })
+
+  it('FE-ROUTE-01a: remote-without-cap card click calls onRequestRemoteCap and does NOT open the modal', () => {
+    const onRequestRemoteCap = vi.fn()
+    const remoteSession = makeRemoteSession({ id: 'r1', hostname: 'remote-host' })
+    const { container } = renderPanel({
+      sessions: [],
+      remoteSessions: [remoteSession],
+      remoteCapsCached: new Set<string>(), // no cap for r1
+      onRequestRemoteCap,
+      isActive: false,
+    })
+
+    // Find and click the remote session card
+    const card = container.querySelector('article.hub-card')
+    expect(card).not.toBeNull()
+
+    act(() => {
+      card!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // onRequestRemoteCap MUST be called (the cap-request flow fires)
+    expect(onRequestRemoteCap).toHaveBeenCalledOnce()
+    expect(onRequestRemoteCap).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'r1', hostname: 'remote-host' }),
+    )
+
+    // The hub-modal-overlay must NOT appear (setModalState was NOT called)
+    const overlay = container.querySelector('.hub-modal-overlay')
+    expect(overlay).toBeNull()
+  })
+
+  it('FE-ROUTE-01b: local card click does NOT call onRequestRemoteCap and DOES open the modal', () => {
+    const onRequestRemoteCap = vi.fn()
+    const localSession = makeSession({ id: 'loc1', hostname: '' })
+
+    // Render with relayPort > 0 so the HubModal guard passes and the modal mounts.
+    const modalContainer = document.createElement('div')
+    document.body.appendChild(modalContainer)
+    const modalRoot = createRoot(modalContainer)
+
+    act(() => {
+      modalRoot.render(
+        React.createElement(HubPanel, {
+          sessions: [localSession],
+          remoteSessions: [],
+          error: false,
+          onNewSession: vi.fn(),
+          onRename: vi.fn(),
+          isActive: false,
+          terminalTheme: STUB_THEME,
+          relayPort: 51234,
+          remoteCapsCached: new Set<string>(),
+          onRequestRemoteCap,
+        }),
+      )
+    })
+
+    const card = modalContainer.querySelector('article.hub-card')
+    expect(card).not.toBeNull()
+
+    act(() => {
+      card!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    })
+
+    // onRequestRemoteCap must NOT be called for local sessions
+    expect(onRequestRemoteCap).not.toHaveBeenCalled()
+
+    // The hub-modal-overlay MUST appear (setModalState was called → HubModal rendered)
+    const overlay = modalContainer.querySelector('.hub-modal-overlay')
+    expect(overlay).not.toBeNull()
   })
 })
