@@ -50,8 +50,8 @@
 - [x] **ATTN-01**: A session with status `waiting`, or `errored`/non-zero exit, is flagged as needing attention
 - [x] **ATTN-02**: An attention card shows a pulsing animated highlighted border plus an attention icon
 - [x] **ATTN-03**: When cards overflow the viewport, attention cards sort to the top
-- [ ] **ATTN-04**: Reordering on status change is debounced and position changes are animated (non-jarring)
-- [ ] **ATTN-05**: Resolving a `waiting` session inside its modal clears that card's attention state
+- [x] **ATTN-04**: Reordering on status change is debounced and position changes are animated (non-jarring)
+- [x] **ATTN-05**: Resolving a `waiting` session inside its modal clears that card's attention state
 - [x] **ATTN-06**: A collapsed group containing an attention card shows an attention badge on its header
 
 ### Card → Modal Interaction (MODAL)
@@ -137,8 +137,8 @@ Populated during roadmap creation.
 | ATTN-01 | Phase 133 | Complete |
 | ATTN-02 | Phase 133 | Complete |
 | ATTN-03 | Phase 133 | Complete |
-| ATTN-04 | Phase 133 | Pending |
-| ATTN-05 | Phase 133 | Pending |
+| ATTN-04 | Phase 133 | Complete |
+| ATTN-05 | Phase 133 | Complete |
 | ATTN-06 | Phase 133 | Complete |
 | MODAL-01 | Phase 134 | Pending |
 | MODAL-02 | Phase 134 | Pending |

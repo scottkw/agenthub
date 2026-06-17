@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: executing
-stopped_at: Phase 133 UI-SPEC approved
-last_updated: "2026-06-17T02:08:21.194Z"
+status: verifying
+stopped_at: Phase 133 Plan 05 complete — all 5 plans done, phase ready for verification
+last_updated: "2026-06-17T21:18:00.000Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 15
-  completed_plans: 14
-  percent: 40
+  completed_plans: 15
+  percent: 60
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 ## Current Position
 
-Phase: 133 (Attention + Pulse) — EXECUTING
-Plan: 5 of 5
-Status: Ready to execute
+Phase: 133 (Attention + Pulse) — COMPLETE
+Plan: 5 of 5 (all plans complete)
+Status: Phase complete — ready for verification
 Last activity: 2026-06-17
 
 ## Operator Next Steps (pre-release, carry-forward)
@@ -53,10 +53,10 @@ Last activity: 2026-06-17
 
 ## Session Continuity
 
-Last session: 2026-06-17T02:08:21.190Z
-Stopped at: Phase 133 UI-SPEC approved
+Last session: 2026-06-17T21:18:00.000Z
+Stopped at: Phase 133 Plan 05 complete — attention wire-up (ATTN-02/03/04/05)
 Resume file: None
-Next action: /gsd:plan-phase 131
+Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
 
 ## Deferred Items
 
@@ -83,7 +83,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 |-------|------|--------------|--------|
 | 131 | Hub Foundation + Static Session Cards | HUB-01..04, CARD-01..06, CARD-08, GRID-01..02, GRID-04..06 (17) | Not started |
 | 132 | Unified Grid + Mini Preview + Named Groups | CARD-07, GRID-03, GRID-07, GROUP-01..04 (7) | Not started |
-| 133 | Attention + Pulse | ATTN-01..06 (6) | Not started |
+| 133 | Attention + Pulse | ATTN-01..06 (6) | Complete 2026-06-17 |
 | 134 | Modal Interaction | MODAL-01..06 (6) | Not started |
 | 135 | Accessibility Hardening | A11Y-01..04 (4) | Not started |
 
@@ -103,6 +103,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | Group membership key | Session name + working directory. Survives session-id churn across restarts; unmatched sessions fall to a default lane (GROUP-04). |
 | SessionCardGrid basename | Inlined helper (no node:path import) — splits on both / and \\ separators, takes last non-empty segment |
 | filterSessions export | Exported from HubPanel.tsx for testability; case-insensitive substring search on name, cli, and hostname |
+| attentionIds live vs debouncedSortKey | Live Set<string> for immediate per-card border/icon; 1000ms debounced sort key for position reorder only (RESEARCH Pitfall 5) |
+| sortSessionsForDisplay placement | Applied per group INSIDE groupByWorkDir/groupByNamedGroups — flat sessions list never sorted (RESEARCH Pitfall 7) |
 
 ## v3.5.1 Completed (for reference)
 
