@@ -626,6 +626,58 @@ describe('SessionCard', () => {
   // ---- COLORBLIND-SAFE comments (source-level check via grep — verified in acceptance_criteria)
 })
 
+// ---- Phase 134 Plan 02: source-inspection assertions (TDD RED) ----
+// These tests import SessionCard.tsx as raw text and assert the click contract
+// is present at source level — no DOM mounting required.
+
+import rawSessionCard from './SessionCard.tsx?raw'
+
+describe('SessionCard Phase 134 source-inspection (onCardClick + stopPropagation)', () => {
+  it('declares onCardClick prop in SessionCardProps', () => {
+    expect(rawSessionCard).toContain('onCardClick')
+  })
+
+  it('article onClick body calls getBoundingClientRect', () => {
+    expect(rawSessionCard).toContain('getBoundingClientRect')
+  })
+
+  it('article onClick body guards against .hub-card__open clicks', () => {
+    expect(rawSessionCard).toContain("closest('.hub-card__open')")
+  })
+
+  it('article onClick body guards against .hub-card__menu-btn clicks', () => {
+    expect(rawSessionCard).toContain("closest('.hub-card__menu-btn')")
+  })
+
+  it('Open button onClick calls e.stopPropagation()', () => {
+    // The Open button handler must include stopPropagation BEFORE the onOpenSession call
+    const openBtnIdx = rawSessionCard.indexOf('hub-card__open')
+    expect(openBtnIdx).toBeGreaterThan(-1)
+    // The next onClick after the hub-card__open class declaration should include stopPropagation
+    const afterOpenClass = rawSessionCard.slice(openBtnIdx)
+    const firstOnClickIdx = afterOpenClass.indexOf('onClick')
+    expect(firstOnClickIdx).toBeGreaterThan(-1)
+    const onClickHandler = afterOpenClass.slice(firstOnClickIdx, firstOnClickIdx + 200)
+    expect(onClickHandler).toContain('e.stopPropagation()')
+  })
+
+  it('menu button onClick calls e.stopPropagation()', () => {
+    // The menu button handler must include stopPropagation
+    const menuBtnIdx = rawSessionCard.indexOf('hub-card__menu-btn')
+    expect(menuBtnIdx).toBeGreaterThan(-1)
+    const afterMenuClass = rawSessionCard.slice(menuBtnIdx)
+    const firstOnClickIdx = afterMenuClass.indexOf('onClick')
+    expect(firstOnClickIdx).toBeGreaterThan(-1)
+    const onClickHandler = afterMenuClass.slice(firstOnClickIdx, firstOnClickIdx + 100)
+    expect(onClickHandler).toContain('e.stopPropagation()')
+  })
+
+  it('article onKeyDown fires onCardClick on Enter', () => {
+    expect(rawSessionCard).toContain('onKeyDown')
+    expect(rawSessionCard).toContain("'Enter'")
+  })
+})
+
 describe('SessionCard attention (ATTN-01)', () => {
   afterEach(() => {
     document.body.innerHTML = ''
