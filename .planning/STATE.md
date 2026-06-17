@@ -4,14 +4,14 @@ milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: verifying
 stopped_at: Phase 134 UI-SPEC approved
-last_updated: "2026-06-17T14:28:17.788Z"
+last_updated: "2026-06-17T15:15:05.330Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 20
-  completed_plans: 20
-  percent: 80
+  completed_phases: 3
+  total_plans: 23
+  completed_plans: 21
+  percent: 60
 ---
 
 # Project State
@@ -53,7 +53,7 @@ Last activity: 2026-06-17
 
 ## Session Continuity
 
-Last session: 2026-06-17T14:28:17.779Z
+Last session: 2026-06-17T15:14:47.211Z
 Stopped at: Phase 134 UI-SPEC approved
 Resume file: None
 Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
@@ -78,6 +78,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | Phase 133 P03 | 2 | 2 tasks | 2 files |
 | Phase 134-modal-interaction P02 | 4m | 2 tasks | 3 files |
 | Phase 134-modal-interaction P03 | 3m | 2 tasks | 4 files |
+| Phase 134 P06 | ~25 minutes | 2 tasks | 4 files |
 
 ## v3.6 Phase Plan
 
@@ -107,6 +108,8 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | filterSessions export | Exported from HubPanel.tsx for testability; case-insensitive substring search on name, cli, and hostname |
 | attentionIds live vs debouncedSortKey | Live Set<string> for immediate per-card border/icon; 1000ms debounced sort key for position reorder only (RESEARCH Pitfall 5) |
 | sortSessionsForDisplay placement | Applied per group INSIDE groupByWorkDir/groupByNamedGroups — flat sessions list never sorted (RESEARCH Pitfall 7) |
+| Remote terminal WS proxy (134-06) | `GET /api/relay/remote/{sid}/ws` on the relay surface; cap-gated via RemoteCapStore; injects `Origin: <baseURL>` on the upstream dial; copies frames on `r.Context()`. No new perm scope / cap cache / HTTP client. |
+| relay.LoopbackOriginPatterns export | Exported so the daemon WS proxy reuses the relay's inbound-Origin allowlist verbatim (T-134-06-01); no pattern slice duplicated. |
 
 ## v3.5.1 Completed (for reference)
 

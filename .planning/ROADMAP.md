@@ -462,7 +462,7 @@ Plans:
 
 **Wave 5** *(expansion — remote WS proxy; existing 134-01..05 already shipped)*
 
-- [ ] 134-06-PLAN.md — Go: cap-gated remote terminal WS reverse proxy on the relay surface (GET /api/relay/remote/{sid}/ws), Origin injection, request-context copy loop, Go tests; export relay.LoopbackOriginPatterns (CR-01/CR-02 backend, MODAL-06)
+- [x] 134-06-PLAN.md — Go: cap-gated remote terminal WS reverse proxy on the relay surface (GET /api/relay/remote/{sid}/ws), Origin injection, request-context copy loop, Go tests; export relay.LoopbackOriginPatterns (CR-01/CR-02 backend, MODAL-06)
 
 **Wave 6** *(blocked on Wave 5)*
 
@@ -546,7 +546,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 5/5 | Complete   | 2026-06-17 |
+| 134 | v3.6 | 6/8 | In Progress|  |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---
