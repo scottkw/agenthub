@@ -11,6 +11,7 @@ import {
   EyeIcon,
   Bars3Icon,
   EllipsisHorizontalIcon,
+  BellAlertIcon,          // ATTN-01: attention icon — colorblind-safe shape carrier
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
@@ -96,6 +97,8 @@ export interface SessionCardProps {
   groupDefs?: HubGroupDef[]
   /** GROUP-02: fires when user assigns this card to a group via menu */
   onAssignGroup?: (memberKey: string, groupId: string) => void
+  /** ATTN-01: true when isAttentionStatus(deriveHubStatus(session)) is true */
+  isAttention?: boolean
 }
 
 // ---- Component ----
@@ -123,6 +126,7 @@ export function SessionCard({
   previewLines,
   groupDefs,
   onAssignGroup,
+  isAttention,
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -158,7 +162,8 @@ export function SessionCard({
       : formatUptime(createdAt)
 
   // Card aria-label per Accessibility Contract
-  const cardAriaLabel = `${name}, ${displayLabel}, ${cli}, ${originText}`
+  // ATTN-01: append ", needs attention" suffix when attention is active (Accessibility Contract item 3)
+  const cardAriaLabel = `${name}, ${displayLabel}, ${cli}, ${originText}${isAttention ? ', needs attention' : ''}`
 
   /* GROUP-04: membership key = "${session.name}:::${session.workDir}" — survives session-id churn */
   const memberKeyForSession = memberKey(name, session.workDir)
@@ -213,7 +218,12 @@ export function SessionCard({
 
   return (
     <article
-      className={`hub-card${hubStatus === 'stopped-ok' ? ' hub-card--dim' : ''}${isDragging ? ' hub-card--dragging' : ''}`}
+      className={[
+        'hub-card',
+        hubStatus === 'stopped-ok' ? 'hub-card--dim' : '',
+        isDragging ? 'hub-card--dragging' : '',
+        isAttention ? 'hub-card--attention' : '',
+      ].filter(Boolean).join(' ')}
       draggable="true"
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', memberKeyForSession)
@@ -283,6 +293,13 @@ export function SessionCard({
       {/* ROW 1: status indicator | name | CLI badge */}
       {/* CR-01: hub-card__row1 matches CSS definition (was hub-card__row hub-card__row--primary) */}
       <div className="hub-card__row1">
+        {/* ATTN-01: attention icon — inline left of status icon; COLORBLIND-SAFE: BellAlertIcon carries state */}
+        {isAttention && (
+          <span className="hub-card__attn-icon" aria-label="Needs attention">
+            {/* CRITICAL: NO Tailwind w-4 h-4 — size via .hub-card__attn-icon svg in style.css (Plan 02) */}
+            <BellAlertIcon aria-hidden="true" />
+          </span>
+        )}
         <span className="hub-card__status-indicator">
           <Icon
             className={`hub-card__status-icon${spin ? ' hub-card__status-icon--spin' : ''}`}
