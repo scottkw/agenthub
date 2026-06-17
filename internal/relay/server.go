@@ -354,6 +354,14 @@ func loopbackOriginPatterns(host string) []string {
 	)
 }
 
+// LoopbackOriginPatterns is the exported wrapper around loopbackOriginPatterns,
+// letting the daemon's remote-WS proxy (internal/daemon/remote_ws_proxy.go) reuse
+// the exact same inbound-Origin allowlist that handleSession uses for the local
+// relay WebSocket. It delegates to the unexported helper so the pattern slice is
+// defined in exactly one place (T-134-06-01 spoofing mitigation: the proxy's
+// inbound websocket.Accept must apply the same loopback/Wails allowlist).
+func LoopbackOriginPatterns(host string) []string { return loopbackOriginPatterns(host) }
+
 // NotifyViewerCount pushes a MsgMeta frame with the current viewer count
 // to all subscribers. Must be called AFTER Subscribe/Unsubscribe returns
 // (outside hub.mu) to avoid deadlock.
