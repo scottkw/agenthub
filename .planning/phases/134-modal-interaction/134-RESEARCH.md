@@ -643,17 +643,19 @@ export function HubModal({ session, sourceRect, isAttention, relayPort, theme, p
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Auto-open modal after cap exchange success (MODAL-06)**
    - What we know: After `remoteCapsCached` gains the session id, HubPanel needs to open the interactive modal for that session.
    - What's unclear: Does App.tsx pass a "cap just acquired" signal, or does HubPanel re-attempt the modal open on `remoteCapsCached` changes?
    - Recommendation: After `handleModalExchange` succeeds in App.tsx, call a new `onCapAcquired(sessionId)` callback on HubPanel, which then calls `setModalState`. Alternatively, HubPanel can track a `pendingModalSessionId` and open it when `remoteCapsCached` contains it.
+   - **RESOLVED (Plan 134-05):** HubPanel tracks `pendingModalSessionId` and registers `onRegisterCapAcquired`; App.tsx signals via `capAcquiredRef` + an intent discriminator after `handleModalExchange` succeeds. Remote-without-cap calls `onRequestRemoteCap` (never opens the modal directly).
 
 2. **Font size source for the modal TerminalPanel**
    - What we know: App.tsx maintains `fontSizes[sessionId]` per-session font size state with `DEFAULT_FONT_SIZE` fallback.
    - What's unclear: Should the modal TerminalPanel use the session's tab font size (if a tab exists) or always use `DEFAULT_FONT_SIZE`?
    - Recommendation: Use `fontSizes[session.id] ?? DEFAULT_FONT_SIZE`. This requires `fontSizes` to be passed down to HubPanel (or use a default). For Phase 134, using `DEFAULT_FONT_SIZE` is acceptable and simpler.
+   - **RESOLVED (Plan 134-05 T1):** Use `DEFAULT_FONT_SIZE` (value 14) for the modal TerminalPanel — simpler and sufficient for Phase 134; per-session font-size threading is out of scope.
 
 ---
 
