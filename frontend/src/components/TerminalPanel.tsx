@@ -59,6 +59,11 @@ interface TerminalPanelProps {
   fontSize: number
   onFontSizeChange: (delta: number) => void
   theme: ITheme
+  /** When true, RelayClient builds the daemon-proxy URL
+   *  (ws://127.0.0.1:{port}/api/relay/remote/{id}/ws) instead of the
+   *  local-direct path. The cap is looked up server-side by sessionID —
+   *  it is never passed through React state (T-134-07-01 invariant). */
+  remote?: boolean
   // Phase 93 PLUG-03/WGL-01/CLIP-01: pluginConfig is consumed in the hot-swap
   // useEffect to live-attach/dispose WebGL and Clipboard addons. Unicode 11
   // is honored at session init only (next-session semantics — UI-SPEC).
@@ -96,6 +101,7 @@ export function TerminalPanel({
   fontSize,
   onFontSizeChange,
   theme,
+  remote,
   pluginConfig,
   onWebGLContextLost,
   onRegisterSaver,
@@ -279,7 +285,7 @@ export function TerminalPanel({
         client.sendResize(term.cols, term.rows)
       },
       onClose: () => console.debug(`[RelayClient] disconnected session=${sessionId}`),
-    })
+    }, { remote })
     clientRef.current = client
 
     // Wire terminal input to relay (TERM-05: paste support via terminal.onData).

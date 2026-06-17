@@ -18,6 +18,10 @@ export interface HubInteractiveModalProps {
   theme: ITheme
   pluginConfig?: PluginSettings | null
   onFontSizeChange?: (delta: number) => void
+  /** When true, TerminalPanel routes through the daemon WS proxy at
+   *  /api/relay/remote/{id}/ws (fixes CR-01 for remote sessions).
+   *  The cap token is NOT passed here — the daemon looks it up by sessionID. */
+  remote?: boolean
 }
 
 /**
@@ -35,6 +39,7 @@ export function HubInteractiveModal({
   theme,
   pluginConfig,
   onFontSizeChange,
+  remote,
 }: HubInteractiveModalProps): React.ReactElement {
   return (
     <div className="hub-modal__body hub-modal__body--interactive">
@@ -46,6 +51,7 @@ export function HubInteractiveModal({
         onFontSizeChange={onFontSizeChange ?? (() => {})}
         theme={theme}
         pluginConfig={pluginConfig}
+        remote={remote}
       />
     </div>
   )
