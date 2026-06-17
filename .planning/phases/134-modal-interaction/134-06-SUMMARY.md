@@ -124,3 +124,7 @@ None — the proxy is fully wired to the existing `RemoteCapStore` and tailnet t
 
 - **Live two-peer UAT** (deferred to the phase gate): real round-trip — type in the modal on machine A, see it execute on machine B's session, verify resize/scrollback. No automated substitute (requires two live tailnet peers); the httptest TLS fixture peer covers everything except a second physical machine.
 - **Frontend URL seam** (FE-URL-01 / FE-ROUTE-01 / CR-03 / TAIL-01): the `RelayClient`/`TerminalPanel` `remote` flag and briefing-tail-from-snapshot work are separate plans (134-07/134-08) in this phase — out of scope for this backend-only plan.
+
+## Self-Check: PASSED
+
+All created files exist (remote_ws_proxy.go, remote_ws_proxy_test.go, 134-06-SUMMARY.md) and all four commits (722d45e0, 1c699eaf, fbba0595, cc62382c) are present in git history.
