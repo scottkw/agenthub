@@ -64,6 +64,15 @@ func (a *API) wrapRelayWithRemoteFiles(relayServer http.Handler) http.Handler {
 	mux.HandleFunc("OPTIONS /api/files/remote/{sessionID}/rename", relay.FilesPreflight)
 	mux.HandleFunc("OPTIONS /api/files/remote/{sessionID}/mkdir", relay.FilesPreflight)
 
+	// Phase 134-06: cap-gated remote terminal WS reverse proxy. Mounted here
+	// (not in relay.NewServer) for the same import-cycle reason as the file
+	// routes — handleRemoteSessionWS is an *API method needing the RemoteCapStore
+	// + outbound transport. NO relay.FilesCORS wrapper and NO OPTIONS preflight:
+	// a WebSocket upgrade is not a CORS-preflighted request; the inbound Origin
+	// is enforced at websocket.Accept (relay.LoopbackOriginPatterns), and the
+	// outbound Origin is injected on the upstream dial (134-RESEARCH Pattern 3).
+	mux.HandleFunc("GET /api/relay/remote/{sessionID}/ws", a.handleRemoteSessionWS)
+
 	// Everything else (sessions WS, local /api/files/*) falls through to the
 	// relay server. Go 1.22+ mux: the "/" pattern is the least-specific match,
 	// so the explicit remote routes above always win for their paths.

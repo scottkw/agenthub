@@ -146,6 +146,16 @@ func TestRemoteSessionWS_MountedOnRelay(t *testing.T) {
 	}
 	defer conn.CloseNow()
 
+	// Round-trip one frame to guarantee the proxy completed the upstream upgrade
+	// before we inspect what the peer observed (the upstream Accept runs in a
+	// separate goroutine on the peer side).
+	if err := conn.Write(ctx, websocket.MessageBinary, []byte("ping")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, _, err := conn.Read(ctx); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
 	if _, _, saw := peer.observed(); !saw {
 		t.Fatalf("upstream peer never saw the upgrade — proxy handler did not dial through")
 	}
