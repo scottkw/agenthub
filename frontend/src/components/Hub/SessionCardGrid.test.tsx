@@ -13,7 +13,7 @@ vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
   ClipboardSetText: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { SessionCardGrid, groupByNamedGroups, groupByWorkDir } from './SessionCardGrid'
+import { SessionCardGrid, groupByNamedGroups, groupByWorkDir, sortSessionsForDisplay } from './SessionCardGrid'
 import type { HubGroupDef } from '../../lib/hubGroups'
 
 // ---- Helpers ----
@@ -54,7 +54,7 @@ function makeGroupDefs(): HubGroupDef[] {
 function renderGrid(
   sessions: SessionInfo[],
   onRename: (id: string, name: string) => void = vi.fn(),
-  extra: { groupDefs?: HubGroupDef[]; previewTails?: Map<string, string[]>; onAssignGroup?: (mk: string, gid: string) => void } = {},
+  extra: { groupDefs?: HubGroupDef[]; previewTails?: Map<string, string[]>; onAssignGroup?: (mk: string, gid: string) => void; attentionIds?: Set<string>; debouncedSortKey?: string } = {},
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -67,6 +67,8 @@ function renderGrid(
         groupDefs={extra.groupDefs}
         previewTails={extra.previewTails}
         onAssignGroup={extra.onAssignGroup}
+        attentionIds={extra.attentionIds}
+        debouncedSortKey={extra.debouncedSortKey}
       />
     )
   })
@@ -456,6 +458,134 @@ describe('SessionCardGrid', () => {
       const result = groupByWorkDir(sessions)
       expect(result.get('/alpha')).toHaveLength(2)
       expect(result.get('/beta')).toHaveLength(1)
+    })
+  })
+
+  // ---- Phase 133: attention-first ordering (ATTN-02) ----
+
+  describe('SessionCardGrid attention (ATTN-02)', () => {
+    it('renders attention cards before non-attention cards within a workDir group', () => {
+      // Sessions: non-attention, attention (waiting), non-attention
+      const sessions = [
+        makeSession({ id: 'non-attn-1', name: 'NonAttn1', workDir: '/proj', state: 'running', status: 'running' }),
+        makeSession({ id: 'attn-1', name: 'Attn1', workDir: '/proj', state: 'running', status: 'waiting' }),
+        makeSession({ id: 'non-attn-2', name: 'NonAttn2', workDir: '/proj', state: 'running', status: 'idle' }),
+      ]
+      const attentionIds = new Set(['attn-1'])
+      const { container } = renderGrid(sessions, vi.fn(), { attentionIds })
+
+      // Get the aria-labels on all hub-card articles to identify order
+      const cards = Array.from(container.querySelectorAll('article.hub-card'))
+      expect(cards.length).toBe(3)
+      // The attention card (attn-1) should come first in its group
+      const firstCardLabel = cards[0].getAttribute('aria-label') ?? ''
+      expect(firstCardLabel).toContain('Attn1')
+    })
+
+    it('preserves original order for equal-attention sessions (stable sort)', () => {
+      // Two attention sessions — should maintain original input order
+      const sessions = [
+        makeSession({ id: 'attn-a', name: 'AttnA', workDir: '/proj', state: 'running', status: 'waiting' }),
+        makeSession({ id: 'attn-b', name: 'AttnB', workDir: '/proj', state: 'running', status: 'errored' }),
+      ]
+      const attentionIds = new Set(['attn-a', 'attn-b'])
+      const { container } = renderGrid(sessions, vi.fn(), { attentionIds })
+
+      const cards = Array.from(container.querySelectorAll('article.hub-card'))
+      expect(cards.length).toBe(2)
+      // AttnA was first in input → should still be first (stable sort)
+      expect(cards[0].getAttribute('aria-label') ?? '').toContain('AttnA')
+      expect(cards[1].getAttribute('aria-label') ?? '').toContain('AttnB')
+    })
+
+    it('attention cards from group A do NOT appear inside group B (per-group boundary preserved)', () => {
+      // Group A (workDir /alpha): non-attention + attention
+      // Group B (workDir /beta): non-attention only
+      const sessions = [
+        makeSession({ id: 'a-nonattn', name: 'AlphaNonAttn', workDir: '/alpha', state: 'running', status: 'running' }),
+        makeSession({ id: 'a-attn', name: 'AlphaAttn', workDir: '/alpha', state: 'running', status: 'waiting' }),
+        makeSession({ id: 'b-nonattn', name: 'BetaNonAttn', workDir: '/beta', state: 'running', status: 'running' }),
+      ]
+      const attentionIds = new Set(['a-attn'])
+      const { container } = renderGrid(sessions, vi.fn(), { attentionIds })
+
+      const groups = Array.from(container.querySelectorAll('.hub__group'))
+      expect(groups.length).toBe(2)
+
+      // Group B (/beta) should contain exactly 1 card (BetaNonAttn only)
+      const betaGroup = groups.find((g) => {
+        const header = g.querySelector('.hub__group-header')
+        return header?.textContent?.includes('beta')
+      })
+      expect(betaGroup).not.toBeUndefined()
+      const betaCards = betaGroup!.querySelectorAll('article.hub-card')
+      expect(betaCards.length).toBe(1)
+      expect((betaCards[0].getAttribute('aria-label') ?? '')).toContain('BetaNonAttn')
+    })
+
+    it('each rendered SessionCard for an attention session has .hub-card--attention class', () => {
+      const sessions = [
+        makeSession({ id: 'attn-1', name: 'AttnSession', workDir: '/proj', state: 'running', status: 'waiting' }),
+        makeSession({ id: 'non-1', name: 'NonAttnSession', workDir: '/proj', state: 'running', status: 'running' }),
+      ]
+      const attentionIds = new Set(['attn-1'])
+      const { container } = renderGrid(sessions, vi.fn(), { attentionIds })
+
+      const cards = Array.from(container.querySelectorAll('article.hub-card'))
+      const attnCard = cards.find((c) => (c.getAttribute('aria-label') ?? '').includes('AttnSession'))
+      const nonAttnCard = cards.find((c) => (c.getAttribute('aria-label') ?? '').includes('NonAttnSession'))
+
+      expect(attnCard).not.toBeUndefined()
+      expect(nonAttnCard).not.toBeUndefined()
+      expect(attnCard!.classList.contains('hub-card--attention')).toBe(true)
+      expect(nonAttnCard!.classList.contains('hub-card--attention')).toBe(false)
+    })
+  })
+
+  // ---- Phase 133: sortSessionsForDisplay unit tests ----
+
+  describe('sortSessionsForDisplay', () => {
+    it('sorts attention sessions before non-attention sessions', () => {
+      const sessions = [
+        makeSession({ id: 's1', state: 'running', status: 'running' }),
+        makeSession({ id: 's2', state: 'running', status: 'waiting' }),
+        makeSession({ id: 's3', state: 'running', status: 'idle' }),
+      ]
+      const result = sortSessionsForDisplay(sessions)
+      // s2 (waiting = attention) should come first
+      expect(result[0].id).toBe('s2')
+    })
+
+    it('is stable: equal-attention sessions preserve input order', () => {
+      const sessions = [
+        makeSession({ id: 's1', state: 'running', status: 'waiting' }),
+        makeSession({ id: 's2', state: 'running', status: 'errored' }),
+        makeSession({ id: 's3', state: 'running', status: 'running' }),
+      ]
+      const result = sortSessionsForDisplay(sessions)
+      // Both attention sessions should come first; s1 before s2 (stable)
+      expect(result[0].id).toBe('s1')
+      expect(result[1].id).toBe('s2')
+      expect(result[2].id).toBe('s3')
+    })
+
+    it('does not mutate the original array', () => {
+      const sessions = [
+        makeSession({ id: 's1', state: 'running', status: 'running' }),
+        makeSession({ id: 's2', state: 'running', status: 'waiting' }),
+      ]
+      const originalFirst = sessions[0].id
+      sortSessionsForDisplay(sessions)
+      expect(sessions[0].id).toBe(originalFirst)
+    })
+
+    it('handles stopped-err as attention status', () => {
+      const sessions = [
+        makeSession({ id: 's1', state: 'running', status: 'running' }),
+        makeSession({ id: 's2', state: 'stopped', status: 'stopped', exitCode: 1 }),
+      ]
+      const result = sortSessionsForDisplay(sessions)
+      expect(result[0].id).toBe('s2') // stopped-err is attention
     })
   })
 })

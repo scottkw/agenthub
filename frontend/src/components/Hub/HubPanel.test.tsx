@@ -563,6 +563,125 @@ describe('HubPanel', () => {
   })
 })
 
+// ---- Phase 133: attention live vs debounced behavior (ATTN-02/03/04/05) ----
+
+describe('HubPanel attention (ATTN-02/03/04/05)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+    localStorage.clear()
+    vi.useRealTimers()
+  })
+
+  it('attention card shows .hub-card--attention immediately (live, not debounced)', async () => {
+    vi.useFakeTimers()
+    // Session starts as waiting (attention)
+    const sessions = [
+      makeSession({ id: 'attn-sess', name: 'Attn Session', status: 'waiting', state: 'running', workDir: '/proj' }),
+    ]
+    const { container } = renderPanel({ sessions, isActive: false })
+
+    // Even without advancing timers, the live isAttention prop should be applied immediately
+    const cards = container.querySelectorAll('article.hub-card')
+    expect(cards.length).toBe(1)
+    expect(cards[0].classList.contains('hub-card--attention')).toBe(true)
+  })
+
+  it('ATTN-03/05: session transitioning from waiting to running loses .hub-card--attention with no remount', async () => {
+    vi.useFakeTimers()
+    const sessions = [
+      makeSession({ id: 'sess-clear', name: 'ClearSession', status: 'waiting', state: 'running', workDir: '/proj' }),
+    ]
+    const { container, root } = renderPanel({ sessions, isActive: false })
+
+    // Verify attention is shown initially
+    let card = container.querySelector('article.hub-card')
+    expect(card).not.toBeNull()
+    expect(card!.classList.contains('hub-card--attention')).toBe(true)
+
+    // Re-render with the session now in 'running' state (attention clears)
+    const updatedSessions = [
+      makeSession({ id: 'sess-clear', name: 'ClearSession', status: 'running', state: 'running', workDir: '/proj' }),
+    ]
+    act(() => {
+      root.render(
+        <HubPanel
+          sessions={updatedSessions}
+          error={false}
+          onNewSession={vi.fn()}
+          onRename={vi.fn()}
+          isActive={false}
+        />
+      )
+    })
+
+    // The card should still be present (no remount) but WITHOUT the attention class
+    card = container.querySelector('article.hub-card')
+    expect(card).not.toBeNull()
+    expect(card!.classList.contains('hub-card--attention')).toBe(false)
+  })
+
+  it('debounced sort key settles after ~1000ms (reorder only after debounce)', async () => {
+    vi.useFakeTimers()
+    // Two sessions: first is non-attention, second is attention
+    // After render, attention card should float to top after 1s debounce
+    const sessions = [
+      makeSession({ id: 'non-attn', name: 'NonAttnFirst', status: 'running', state: 'running', workDir: '/proj' }),
+      makeSession({ id: 'attn', name: 'AttnSecond', status: 'waiting', state: 'running', workDir: '/proj' }),
+    ]
+    const { container } = renderPanel({ sessions, isActive: false })
+
+    // Before debounce settles: we should still see both cards (grid is rendered)
+    let cards = container.querySelectorAll('article.hub-card')
+    expect(cards.length).toBe(2)
+
+    // After advancing 1100ms (debounce settles), attention card should be first
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1100)
+    })
+
+    cards = container.querySelectorAll('article.hub-card')
+    expect(cards.length).toBe(2)
+    // The attention card should now be first in DOM order within its group
+    const firstLabel = cards[0].getAttribute('aria-label') ?? ''
+    expect(firstLabel).toContain('AttnSecond')
+  })
+
+  it('single setInterval invariant: only one interval created (CARD-07 preserved)', async () => {
+    vi.useFakeTimers()
+    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+
+    const sessions = [
+      makeSession({ id: 'local-1', hostname: '' }),
+    ]
+    renderPanel({ sessions, isActive: true })
+
+    // Let async effects settle
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    // Count setInterval calls — must be exactly 1 (the preview poller)
+    // useDebouncedValue uses setTimeout, not setInterval
+    const intervalCalls = setIntervalSpy.mock.calls.length
+    expect(intervalCalls).toBe(1)
+
+    setIntervalSpy.mockRestore()
+  })
+
+  it('needs attention: multiple attention sessions all show hub-card--attention', () => {
+    const sessions = [
+      makeSession({ id: 's1', name: 'Session1', status: 'waiting', state: 'running', workDir: '/proj' }),
+      makeSession({ id: 's2', name: 'Session2', status: 'errored', state: 'running', workDir: '/proj' }),
+      makeSession({ id: 's3', name: 'Session3', status: 'running', state: 'running', workDir: '/proj' }),
+    ]
+    const { container } = renderPanel({ sessions, isActive: false })
+
+    const attentionCards = container.querySelectorAll('article.hub-card--attention')
+    expect(attentionCards.length).toBe(2)
+  })
+})
+
 // ---- filterSessions export tests (preserved from Phase 131) ----
 import { filterSessions } from './HubPanel'
 
