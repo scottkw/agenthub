@@ -144,6 +144,8 @@ export interface SessionCardGridProps {
   attentionIds?: Set<string>
   /** ATTN-04: debounced sort key — triggers reorder-position updates after 1s debounce */
   debouncedSortKey?: string
+  /** Phase 134 — threaded to each SessionCard for modal open trigger */
+  onCardClick?: (session: SessionInfo, rect: DOMRect) => void
 }
 
 // ---- Component ----
@@ -176,6 +178,7 @@ export function SessionCardGrid({
   onAssignGroup,
   attentionIds,
   debouncedSortKey,
+  onCardClick,
 }: SessionCardGridProps): React.ReactElement {
   /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
   const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
@@ -240,6 +243,7 @@ export function SessionCardGrid({
                     session={s}
                     onRename={onRename}
                     onOpenSession={onOpenSession}
+                    onCardClick={onCardClick}
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
@@ -282,6 +286,7 @@ export function SessionCardGrid({
                     session={s}
                     onRename={onRename}
                     onOpenSession={onOpenSession}
+                    onCardClick={onCardClick}
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
