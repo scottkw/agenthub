@@ -1386,7 +1386,10 @@ function App(): React.ReactElement {
               // WR-02: do NOT overwrite an in-flight joinModalForSession (e.g. a file-browse
               // intent already open for a different session). Preserves the in-flight request
               // rather than silently redirecting the cap exchange to a different consumer.
-              if (joinModalForSession) return
+              // Fire the cancel ref so HubPanel resets pendingModalSessionId immediately —
+              // without this, the card click appears to do nothing and the pending id is
+              // stranded until the next modal close.
+              if (joinModalForSession) { capCancelledRef.current?.(); return }
               setJoinModalForSession({ id: s.id, name: s.name, hostname: s.hostname, intent: 'hub-modal' })
             }}
             onRegisterCapAcquired={(fn) => { capAcquiredRef.current = fn }}
