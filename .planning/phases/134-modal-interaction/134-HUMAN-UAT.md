@@ -8,13 +8,13 @@ updated: 2026-06-17T11:10:00Z
 
 ## Current Test
 
-Test 1 FAILED — blocked by a Phase 134 routing gap (see Gaps). Tests 2–6 blocked until the gap is fixed.
+Test 1 PASS after GAP-134-A/B/C fixes. Tests 2–6 unblocked; running Test 2 next.
 
 ## Tests
 
 ### 1. Grow animation visual (MODAL-01)
 expected: Modal grows from the clicked card's center position with a smooth ~220ms scale animation; the card is the visual origin (not screen center).
-result: FIXED (re-UAT) — after GAP-134-A fix (commit f84b10fe), clicking the local "claude 1" card opens the interactive modal and the terminal mounts live (Claude Code prompt visible). Original failure: clicking a LOCAL card opened the "Join Remote Session — Files" join-code modal because HubPanel used `session.hostname` as the local/remote discriminator (handleCardClick L354, modal render L484); local sessions carry os.Hostname() so every local session was misclassified as remote. Fix = provenance (remoteSessions prop). A second visual defect surfaced on open → GAP-134-B (header icons unsized). Grow-animation visual confirmation still pending a clean re-check after GAP-134-B.
+result: PASS (re-UAT after GAP-134-A/B/C fixes) — clicking the local "claude 1" card opens the interactive modal; the modal grows from the card's position (~220ms, user confirmed); terminal mounts live (Claude Code prompt visible); header renders cleanly (normal-size status/origin/close icons, user confirmed). Three defects were found and fixed along the way: GAP-134-A (local card misrouted to remote join modal — provenance fix f84b10fe), GAP-134-B (header icons unsized/ballooned — CSS fix c19f538d), GAP-134-C (header showed globe+hostname for a local session — provenance fix 9e591846).
 
 ### 2. Shrink animation + focus return (MODAL-02)
 expected: Closing via Escape, X button, and click-outside all shrink the modal back toward the originating card (~180ms); keyboard focus returns to the card that was clicked.
@@ -45,11 +45,11 @@ result: BLOCKED by GAP-134-A (cannot open modal to observe motion).
 ## Summary
 
 total: 6
-passed: 0
-issues: 1
-pending: 0
+passed: 1
+issues: 0
+pending: 5
 skipped: 0
-blocked: 5
+blocked: 0
 
 ## Gaps
 
@@ -60,4 +60,9 @@ fix: commit f84b10fe — HubPanel now discriminates local-vs-remote by provenanc
 ### GAP-134-B: Modal header icons render unsized (balloon to fill the header strip)
 status: fixed_pending_reuat
 detail: The hub-modal header Heroicons (status, origin computer/globe, attn bell, close X) had no CSS sizing. Heroicons have no intrinsic width/height and this project has no Tailwind (w-N/h-N are no-ops — documented at .hub-card__attn-icon), so the icons ballooned to giant pale shapes overlapping the header.
-fix: commit c19f538d — added explicit px sizes for `.hub-modal__status-icon` (20), `.hub-modal__origin-icon` (16), `.hub-modal__attn-icon` (16), `.hub-modal__close svg` (18), matching the hub-card convention; +4 CSS-contract tests. Suite green, tsc clean. Awaiting in-app re-check (HMR reload; reopen the modal).
+fix: commit c19f538d — added explicit px sizes for `.hub-modal__status-icon` (20), `.hub-modal__origin-icon` (16), `.hub-modal__attn-icon` (16), `.hub-modal__close svg` (18), matching the hub-card convention; +4 CSS-contract tests. Suite green, tsc clean. Confirmed in-app: header renders with normal-size icons.
+
+### GAP-134-C: Modal header origin marker mislabels local sessions as remote (globe icon + machine hostname)
+status: fixed (re-UAT passed)
+detail: HubModal computed `isLocal` from `session.hostname`; local sessions carry os.Hostname(), so the header showed the GlobeAltIcon + machine name instead of the ComputerDesktopIcon + "Local". Same hostname-vs-provenance bug class as GAP-134-A. The computer-vs-globe icon is a colorblind-safe non-color cue, so the wrong icon is a real defect.
+fix: commit 9e591846 — `isLocal = !remote` (provenance prop already passed to HubModal). Added source-inspection tests. Suite green, tsc clean.
