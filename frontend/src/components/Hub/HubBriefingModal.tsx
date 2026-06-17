@@ -252,6 +252,10 @@ export function HubBriefingModal({
           >
             Close
           </button>
+          {/* NOTE (carry-forward): For a remote session with a read-only cap, the Send button
+              appears enabled but the input is silently dropped at the peer (the cap does not
+              grant write access to the PTY). A non-color read-only indicator (colorblind-safe
+              per user constraint) is deferred to Phase 135 (a11y). */}
           <button
             type="button"
             className="hub-modal__send-btn"
