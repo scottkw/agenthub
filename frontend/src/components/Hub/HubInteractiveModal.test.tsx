@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 // Pure ?raw import — NO render(), NO @xterm/xterm.
 // These tests are intentionally RED until HubInteractiveModal.tsx is implemented in a later plan.
 
-import raw from '../HubInteractiveModal.tsx?raw'
+import raw from './HubInteractiveModal.tsx?raw'
 
 describe('HubInteractiveModal (MODAL-03: TerminalPanel mounting)', () => {
   it('MODAL-03: mounts TerminalPanel inside the modal body', () => {
