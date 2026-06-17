@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 // Pure ?raw import — NO render(), NO @xterm/xterm.
 // These tests are intentionally RED until HubModal.tsx is implemented in a later plan.
 
-import raw from '../HubModal.tsx?raw'
+import raw from './HubModal.tsx?raw'
 
 describe('HubModal (MODAL-01: dialog accessibility contract)', () => {
   it('MODAL-01: uses role="dialog"', () => {
