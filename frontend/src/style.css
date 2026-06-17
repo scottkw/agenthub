@@ -4867,6 +4867,45 @@ body {
   cursor: grabbing;
 }
 
+/* ATTN-01: attention card — pulsing border + glow (colorblind-safe: BellAlertIcon carries state) */
+/* COLORBLIND-SAFE: attn border dark hex #e0af68 — reinforcement only; BellAlertIcon + pulse shape carries state */
+/* COLORBLIND-SAFE: attn border light hex #b45309 — WCAG AA 7.6:1 on white; icon carries state */
+.hub-card--attention {
+  border-color: var(--hub-attn-border);
+}
+
+/* A11Y-03: pulse wrapped in @media (prefers-reduced-motion: no-preference); static border fallback */
+@media (prefers-reduced-motion: no-preference) {
+  .hub-card--attention {
+    animation: hub-attn-pulse 2s ease-in-out infinite;
+  }
+  /* ATTN-03: attention clear — override 100ms base transition for motion-enabled users only */
+  .hub-card {
+    transition: border-color 400ms ease, box-shadow 400ms ease, background 100ms ease;
+  }
+  /* Keep amber border on hover — prevents .hub-card:hover from overriding attention border */
+  .hub-card--attention:hover {
+    border-color: var(--hub-attn-border);
+  }
+}
+
+/* hub-attn-pulse keyframes declared at root scope — animation only fires when the
+   class is applied inside the prefers-reduced-motion media query above */
+@keyframes hub-attn-pulse {
+  0%   { border-color: var(--hub-attn-border); box-shadow: 0 0 0 0 var(--hub-attn-border-glow); }
+  50%  { border-color: var(--hub-attn-border); box-shadow: 0 0 0 4px var(--hub-attn-border-glow); }
+  100% { border-color: var(--hub-attn-border); box-shadow: 0 0 0 0 var(--hub-attn-border-glow); }
+}
+
+/* Reduced-motion: static attention border only — no animation, no glow */
+@media (prefers-reduced-motion: reduce) {
+  .hub-card--attention {
+    border-color: var(--hub-attn-static-border);
+    box-shadow: none;
+    animation: none;
+  }
+}
+
 /* Drag handle and menu button — visible on card hover/focus-within */
 .hub-card__drag-handle,
 .hub-card__menu-btn {
