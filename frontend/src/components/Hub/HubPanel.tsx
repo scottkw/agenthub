@@ -132,6 +132,10 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 
 // ---- Props ----
 
+// WR-04: DEFAULT_FONT_SIZE used in the modal render to avoid magic number 14.
+// Kept module-local (not re-exported from App) to preserve App.tsx's constant.
+const DEFAULT_FONT_SIZE = 14
+
 export interface HubPanelProps {
   /** Session list polled by App.tsx (Plan 05 wires the polling). */
   sessions: SessionInfo[]
@@ -149,8 +153,8 @@ export interface HubPanelProps {
   isActive?: boolean
   /** Phase 134 — relay port for mounting TerminalPanel inside the interactive modal */
   relayPort?: number
-  /** Phase 134 — xterm.js theme passed to HubInteractiveModal */
-  terminalTheme?: ITheme
+  /** Phase 134 — xterm.js theme passed to HubInteractiveModal (WR-03: required — App always supplies a non-null theme). */
+  terminalTheme: ITheme
   /** Phase 134 — plugin config passed to HubInteractiveModal */
   pluginConfig?: PluginSettings | null
   /** Phase 134 — MODAL-06: cap set for remote sessions; checked before opening modal */
@@ -159,6 +163,12 @@ export interface HubPanelProps {
   onRequestRemoteCap?: (session: { id: string; name: string; hostname: string }) => void
   /** Phase 134 — registers a callback that HubPanel will call when a cap is acquired for a pending session */
   onRegisterCapAcquired?: (fn: (sessionId: string) => void) => void
+  /** Phase 134 — registers a callback that HubPanel will call when a cap request is cancelled (WR-01) */
+  onRegisterCapCancelled?: (fn: () => void) => void
+  /** Phase 134 — WR-04: per-session font sizes (keyed by session id). Falls back to DEFAULT_FONT_SIZE. */
+  fontSizes?: Record<string, number>
+  /** Phase 134 — WR-04: font size change callback; receives (delta) for the active modal session */
+  onFontSizeChange?: (sessionId: string, delta: number) => void
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
@@ -199,6 +209,9 @@ export function HubPanel({
   remoteCapsCached,
   onRequestRemoteCap,
   onRegisterCapAcquired,
+  onRegisterCapCancelled,
+  fontSizes,
+  onFontSizeChange,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -372,6 +385,19 @@ export function HubPanel({
     onRegisterCapAcquired?.(handleCapAcquired)
   }, [onRegisterCapAcquired, handleCapAcquired])
 
+  // Phase 134 — WR-01: cancel callback — resets pending state when the join-code modal
+  // is dismissed without completing the exchange (no cap acquired). App calls this from
+  // RemoteJoinCodeModal onClose so a dismissed modal does not strand pendingModalSessionId.
+  const handleCapCancelled = useCallback(() => {
+    setPendingModalSessionId(null)
+    pendingSourceRectRef.current = null
+  }, [])
+
+  // Phase 134 — register cap-cancelled callback with App.tsx
+  useEffect(() => {
+    onRegisterCapCancelled?.(handleCapCancelled)
+  }, [onRegisterCapCancelled, handleCapCancelled])
+
   // ---- Determine which body to render ----
   let body: React.ReactNode
 
@@ -446,18 +472,30 @@ export function HubPanel({
         </div>
       </div>
 
-      {/* Phase 134 — Hub modal: rendered outside .hub so overlay covers the full Hub surface */}
-      {modalState && relayPort !== undefined && (
-        <HubModal
-          session={modalState.session}
-          sourceRect={modalState.sourceRect}
-          relayPort={relayPort}
-          fontSize={14}
-          theme={terminalTheme ?? ({} as ITheme)}
-          pluginConfig={pluginConfig}
-          onClose={() => setModalState(null)}
-        />
-      )}
+      {/* Phase 134 — Hub modal: rendered outside .hub so overlay covers the full Hub surface.
+          IN-01: guard relayPort > 0 mirrors the tab grid guard (App.tsx:1535) — avoids
+          building ws://127.0.0.1:0/... on a transient 0 value.
+          WR-03: terminalTheme is now required on HubPanelProps — the unsafe empty-object cast is removed.
+          WR-04: real per-session fontSize + onFontSizeChange instead of hardcoded 14. */}
+      {modalState && relayPort !== undefined && relayPort > 0 && (() => {
+        // Compute isRemote at render time (same rule as handleCardClick).
+        // This discriminator routes remote sessions through the daemon WS proxy seam
+        // added in Plan 07 (RelayClient opts.remote → /api/relay/remote/{id}/ws).
+        const isRemote = !!modalState.session.hostname && modalState.session.hostname !== ''
+        return (
+          <HubModal
+            session={modalState.session}
+            sourceRect={modalState.sourceRect}
+            relayPort={relayPort}
+            fontSize={fontSizes?.[modalState.session.id] ?? DEFAULT_FONT_SIZE}
+            theme={terminalTheme}
+            pluginConfig={pluginConfig}
+            remote={isRemote}
+            onFontSizeChange={onFontSizeChange ? (delta) => onFontSizeChange(modalState.session.id, delta) : undefined}
+            onClose={() => setModalState(null)}
+          />
+        )
+      })()}
     </>
   )
 }

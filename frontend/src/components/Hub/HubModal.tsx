@@ -42,6 +42,10 @@ export interface HubModalProps {
   fontSize: number
   theme: ITheme
   pluginConfig?: PluginSettings | null
+  /** WR-04: font size change callback; forwarded to HubInteractiveModal → TerminalPanel */
+  onFontSizeChange?: (delta: number) => void
+  /** Plan 07 seam: when true, routes through the daemon WS proxy for remote sessions (CR-01 fix). */
+  remote?: boolean
   onClose: () => void
 }
 
@@ -67,6 +71,8 @@ export function HubModal({
   fontSize,
   theme,
   pluginConfig,
+  onFontSizeChange,
+  remote,
   onClose,
 }: HubModalProps): React.ReactElement {
   const hubStatus = deriveHubStatus(session)
@@ -165,11 +171,15 @@ export function HubModal({
           </button>
         </div>
 
-        {/* ---- Body: route to leaf component by attention status ---- */}
+        {/* ---- Body: route to leaf component by attention status ----
+            remote prop threads the Plan 07 isRemote discriminator to both branches:
+            - HubBriefingModal: remote tail via proxied WS scrollback (CR-02) + remote send (CR-01)
+            - HubInteractiveModal: routes TerminalPanel through /api/relay/remote/{id}/ws (CR-01) */}
         {isBriefing ? (
           <HubBriefingModal
             session={session}
             relayPort={relayPort}
+            remote={remote}
             onClose={handleClose}
           />
         ) : (
@@ -180,6 +190,8 @@ export function HubModal({
             fontSize={fontSize}
             theme={theme}
             pluginConfig={pluginConfig}
+            remote={remote}
+            onFontSizeChange={onFontSizeChange}
           />
         )}
       </div>

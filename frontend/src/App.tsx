@@ -220,6 +220,11 @@ function App(): React.ReactElement {
   // Using a ref avoids stale closure issues in handleModalExchange (which has handleOpenFileBrowser dep).
   const capAcquiredRef = useRef<((sessionId: string) => void) | null>(null)
 
+  // Phase 134 — WR-01: holds HubPanel's cap-cancelled callback (registered via onRegisterCapCancelled).
+  // Invoked from RemoteJoinCodeModal onClose (hub-modal intent path only) so a dismissed modal
+  // resets HubPanel's pendingModalSessionId / pendingSourceRectRef and does not strand pending state.
+  const capCancelledRef = useRef<(() => void) | null>(null)
+
   // Update notification state (lifted from WelcomeTab — Phase 81 D-06)
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   // Local network banner dismiss state (session-only, D-04)
@@ -1377,8 +1382,17 @@ function App(): React.ReactElement {
             terminalTheme={terminalTheme}
             pluginConfig={pluginConfig}
             remoteCapsCached={remoteCapsCached}
-            onRequestRemoteCap={(s) => setJoinModalForSession({ id: s.id, name: s.name, hostname: s.hostname, intent: 'hub-modal' })}
+            onRequestRemoteCap={(s) => {
+              // WR-02: do NOT overwrite an in-flight joinModalForSession (e.g. a file-browse
+              // intent already open for a different session). Preserves the in-flight request
+              // rather than silently redirecting the cap exchange to a different consumer.
+              if (joinModalForSession) return
+              setJoinModalForSession({ id: s.id, name: s.name, hostname: s.hostname, intent: 'hub-modal' })
+            }}
             onRegisterCapAcquired={(fn) => { capAcquiredRef.current = fn }}
+            onRegisterCapCancelled={(fn) => { capCancelledRef.current = fn }}
+            fontSizes={fontSizes}
+            onFontSizeChange={handleFontSizeChange}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
@@ -1597,12 +1611,20 @@ function App(): React.ReactElement {
         />
       )}
 
-      {/* Phase 122-03 — paste-join-code modal for remote-session file browse. */}
+      {/* Phase 122-03 — paste-join-code modal for remote-session file browse.
+          WR-01: when the intent is 'hub-modal', also invoke capCancelledRef to reset
+          HubPanel's pending state (pendingModalSessionId / pendingSourceRectRef).
+          File-browse intent does not need a reset (no HubPanel pending state). */}
       {joinModalForSession && (
         <RemoteJoinCodeModal
           remoteSession={joinModalForSession}
           onExchange={handleModalExchange}
-          onClose={() => setJoinModalForSession(null)}
+          onClose={() => {
+            if (joinModalForSession?.intent === 'hub-modal') {
+              capCancelledRef.current?.()
+            }
+            setJoinModalForSession(null)
+          }}
         />
       )}
       <ExitToast

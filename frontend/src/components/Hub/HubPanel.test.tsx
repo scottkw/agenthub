@@ -3,6 +3,10 @@ import hubPanelRaw from './HubPanel.tsx?raw'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+
+// Minimal ITheme stub — WR-03 made terminalTheme required on HubPanelProps.
+const STUB_THEME: ITheme = { background: '#000000', foreground: '#ffffff' }
 
 // Mock Wails RPC before component import — GetSessionTailLines required for usePreviewPoller
 vi.mock('../../wailsjs/go/main/App', () => ({
@@ -63,6 +67,8 @@ function renderPanel(overrides: {
   onRename?: (id: string, name: string) => void
   remoteSessions?: SessionInfo[]
   isActive?: boolean
+  remoteCapsCached?: Set<string>
+  onRequestRemoteCap?: (s: { id: string; name: string; hostname: string }) => void
 } = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -75,6 +81,10 @@ function renderPanel(overrides: {
     onRename: overrides.onRename ?? vi.fn(),
     remoteSessions: overrides.remoteSessions,
     isActive: overrides.isActive,
+    // WR-03: terminalTheme is now required on HubPanelProps
+    terminalTheme: STUB_THEME,
+    remoteCapsCached: overrides.remoteCapsCached,
+    onRequestRemoteCap: overrides.onRequestRemoteCap,
   }
 
   act(() => {
@@ -617,6 +627,7 @@ describe('HubPanel attention (ATTN-02/03/04/05)', () => {
           onNewSession={vi.fn()}
           onRename={vi.fn()}
           isActive={false}
+          terminalTheme={STUB_THEME}
         />
       )
     })
