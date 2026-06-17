@@ -267,3 +267,35 @@ describe('Hub colorblind-safe source comments (source-level UAT verification)', 
     expect(cssRaw).toContain('7.1:1')
   })
 })
+
+// Phase 133 CSS contract — attention pulse + badge (CR-02, CR-03, IN-01)
+describe('Hub Phase 133 CSS contract', () => {
+  it('CR-02: .hub-card--attention has opacity:1 (dim override invariant)', () => {
+    // Find the .hub-card--attention rule and confirm opacity:1 is set
+    const attnIdx = cssRaw.indexOf('.hub-card--attention {')
+    expect(attnIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', attnIdx)
+    const block = cssRaw.slice(attnIdx, blockEnd)
+    expect(block).toContain('opacity: 1')
+  })
+
+  it('CR-03: .hub__group-sidebar-item__attn-badge--count rule is present', () => {
+    expect(cssRaw).toContain('.hub__group-sidebar-item__attn-badge--count')
+  })
+
+  it('CR-03: attn-badge--count rule uses var(--hub-attn-badge-text) for color', () => {
+    const countIdx = cssRaw.indexOf('.hub__group-sidebar-item__attn-badge--count')
+    expect(countIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', countIdx)
+    const block = cssRaw.slice(countIdx, blockEnd)
+    expect(block).toContain('var(--hub-attn-badge-text)')
+  })
+
+  it('IN-01: .hub-card has position: relative (anchor for drag-handle/menu-btn)', () => {
+    const cardIdx = cssRaw.indexOf('.hub-card {')
+    expect(cardIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', cardIdx)
+    const block = cssRaw.slice(cardIdx, blockEnd)
+    expect(block).toContain('position: relative')
+  })
+})
