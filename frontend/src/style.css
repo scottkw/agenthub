@@ -4301,6 +4301,7 @@ body {
   padding: 12px 16px;
   background: var(--hub-surface);
   cursor: default;
+  position: relative; /* IN-01: anchor for absolutely-positioned drag-handle and menu-btn */
   transition: border-color 100ms ease, background 100ms ease;
 }
 
@@ -4774,6 +4775,14 @@ body {
   flex-shrink: 0;
 }
 
+/* ATTN-06: count digit inside the collapsed-group attention badge */
+.hub__group-sidebar-item__attn-badge--count {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--hub-attn-badge-text);
+}
+
 .hub-card__drag-handle svg,
 .hub-card__menu-btn svg {
   width: 16px;
@@ -4911,6 +4920,7 @@ body {
 /* COLORBLIND-SAFE: attn border light hex #b45309 — WCAG AA 7.6:1 on white; icon carries state */
 .hub-card--attention {
   border-color: var(--hub-attn-border);
+  opacity: 1; /* attention always wins — dim modifier is suppressed for cards needing action */
 }
 
 /* A11Y-03: pulse wrapped in @media (prefers-reduced-motion: no-preference); static border fallback */
