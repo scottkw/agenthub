@@ -470,7 +470,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6)*
 
-- [ ] 134-08-PLAN.md — Frontend fixes + behavioral tests: thread isRemote to the proxy seam, WR-01/02/03/04 + IN-01, WR-07 behavioral coverage (remote gate, briefing send/timeout, remote tail); WR-05/06 deferred to Phase 135 (MODAL-06)
+- [x] 134-08-PLAN.md — Frontend fixes + behavioral tests: thread isRemote to the proxy seam, WR-01/02/03/04 + IN-01, WR-07 behavioral coverage (remote gate, briefing send/timeout, remote tail); WR-05/06 deferred to Phase 135 (MODAL-06)
 
 **UI hint**: yes
 
@@ -546,7 +546,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 7/8 | In Progress|  |
+| 134 | v3.6 | 8/8 | Complete   | 2026-06-17 |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---
