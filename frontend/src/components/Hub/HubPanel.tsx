@@ -8,7 +8,8 @@ import { SessionCardGrid } from './SessionCardGrid'
 import { HubEmptyState } from './HubEmptyState'
 import { GroupSidebar } from './GroupSidebar'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
-import { deriveHubStatus } from '../../lib/hubStatus'
+// ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
+import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
 import {
   loadGroups,
   createGroup,
@@ -109,6 +110,21 @@ function usePreviewPoller(
   }, [sessionIdKey, isActive])
 
   return tails
+}
+
+/* ATTN-04: debounce hook — controls reorder ORDER only, never card content */
+/* Uses useRef + setTimeout — does NOT add a second periodic timer; the single interval is in usePreviewPoller */
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (timerRef.current !== null) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setDebouncedValue(value), delay)
+    return () => { if (timerRef.current !== null) clearTimeout(timerRef.current) }
+  }, [value, delay])
+
+  return debouncedValue
 }
 
 // ---- Props ----
@@ -216,6 +232,18 @@ export function HubPanel({
   // Phase 132 / CARD-07: single shared 3s poller — local sessions only
   const previewTails = usePreviewPoller(allSessions, isActive ?? false)
 
+  /* ATTN-01: live attention set — NOT debounced; card border/icon update immediately */
+  const attentionIds = new Set(
+    allSessions.filter((s) => isAttentionStatus(deriveHubStatus(s))).map((s) => s.id)
+  )
+
+  /* ATTN-02: float-to-top reorder is within-group; debounce window 1000ms */
+  /* Only POSITION is debounced — card content (isAttention) uses the LIVE set above */
+  const attentionSortKey = allSessions
+    .map((s) => `${s.id}:${isAttentionStatus(deriveHubStatus(s)) ? '1' : '0'}`)
+    .join(',')
+  const debouncedSortKey = useDebouncedValue(attentionSortKey, 1000)
+
   // Apply status filter + search to allSessions
   const filtered = filterSessions(allSessions, activeFilter, searchText)
 
@@ -279,6 +307,8 @@ export function HubPanel({
         groupDefs={groupDefs.length > 0 ? groupDefs : undefined}
         previewTails={previewTails}
         onAssignGroup={handleAssignGroup}
+        attentionIds={attentionIds}
+        debouncedSortKey={debouncedSortKey}
       />
     )
   }
