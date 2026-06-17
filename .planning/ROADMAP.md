@@ -440,14 +440,25 @@ Plans:
   3. Closing any modal (Escape, close button, or clicking outside) plays a shrink-back animation and returns keyboard focus to the originating card
   4. For a remote session that requires a capability token, the modal interaction uses the existing Phase 122 join-code exchange path — no new remote-access architecture
 
-**Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
+**Plans**: 5 plans across 4 waves (Wave 1: test scaffolding; Wave 2: card click plumbing + leaf modal bodies in parallel; Wave 3: modal shell; Wave 4: HubPanel/App.tsx integration + CSS)
 Plans:
 
-- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
-- [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
-- [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
-- [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+**Wave 1**
+
+- [ ] 134-01-PLAN.md — Wave 0: source-inspection test scaffolding for HubModal/HubInteractiveModal/HubBriefingModal + modal CSS contract (Nyquist)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 134-02-PLAN.md — SessionCard/SessionCardGrid onCardClick plumbing + stopPropagation on Open + menu buttons (MODAL-01, coexistence guarantee)
+- [ ] 134-03-PLAN.md — HubInteractiveModal (TerminalPanel host, fit-safe) + HubBriefingModal (real tail + race-safe Send) (MODAL-03/04/05)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 134-04-PLAN.md — HubModal shell: overlay, grow/shrink animation, Escape/click-outside, focus return, attention routing (MODAL-01/02/03)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 134-05-PLAN.md — HubPanel modal state + MODAL-06 cap gate + App.tsx wiring + style.css modal rules/keyframes (MODAL-01/03/06)
 
 **UI hint**: yes
 
