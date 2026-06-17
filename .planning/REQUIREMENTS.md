@@ -47,7 +47,7 @@
 
 ### Attention (ATTN)
 
-- [ ] **ATTN-01**: A session with status `waiting`, or `errored`/non-zero exit, is flagged as needing attention
+- [x] **ATTN-01**: A session with status `waiting`, or `errored`/non-zero exit, is flagged as needing attention
 - [ ] **ATTN-02**: An attention card shows a pulsing animated highlighted border plus an attention icon
 - [ ] **ATTN-03**: When cards overflow the viewport, attention cards sort to the top
 - [ ] **ATTN-04**: Reordering on status change is debounced and position changes are animated (non-jarring)
@@ -134,7 +134,7 @@ Populated during roadmap creation.
 | GRID-05 | Phase 131 | Complete |
 | GRID-06 | Phase 131 | Complete |
 | GRID-07 | Phase 132 | Complete |
-| ATTN-01 | Phase 133 | Pending |
+| ATTN-01 | Phase 133 | Complete |
 | ATTN-02 | Phase 133 | Pending |
 | ATTN-03 | Phase 133 | Pending |
 | ATTN-04 | Phase 133 | Pending |

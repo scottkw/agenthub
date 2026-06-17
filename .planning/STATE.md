@@ -4,13 +4,13 @@ milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: executing
 stopped_at: Phase 133 UI-SPEC approved
-last_updated: "2026-06-17T01:51:43.881Z"
-last_activity: 2026-06-17 -- Phase 133 planning complete
+last_updated: "2026-06-17T01:53:49.908Z"
+last_activity: 2026-06-17
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
   percent: 40
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 133 — attention + pulse
+**Current focus:** Phase 133 — Attention + Pulse
 
 ## Current Position
 
-Phase: 133
-Plan: Not started
+Phase: 133 (Attention + Pulse) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-17 -- Phase 133 planning complete
+Last activity: 2026-06-17
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -53,9 +53,9 @@ Last activity: 2026-06-17 -- Phase 133 planning complete
 
 ## Session Continuity
 
-Last session: 2026-06-16T23:49:46.938Z
+Last session: 2026-06-17T01:53:49.903Z
 Stopped at: Phase 133 UI-SPEC approved
-Resume file: .planning/phases/133-attention-pulse/133-UI-SPEC.md
+Resume file: None
 Next action: /gsd:plan-phase 131
 
 ## Deferred Items
