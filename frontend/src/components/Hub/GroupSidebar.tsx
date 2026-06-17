@@ -6,10 +6,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   PauseCircleIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline'
 import type { HubGroupDef } from '../../lib/hubGroups'
 import { memberKey } from '../../lib/hubGroups'
-import { deriveHubStatus } from '../../lib/hubStatus'
+import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 
 // ---- Counts ----
@@ -18,12 +19,14 @@ interface GroupCounts {
   running: number
   total: number
   waiting: number
+  attention: number  // ATTN-06: superset of waiting (waiting | errored | stopped-err)
 }
 
 function computeCounts(sessions: SessionInfo[], memberKeys: Set<string>): GroupCounts {
   let running = 0
   let total = 0
   let waiting = 0
+  let attention = 0
   for (const s of sessions) {
     const key = memberKey(s.name, s.workDir)
     if (!memberKeys.has(key)) continue
@@ -31,19 +34,22 @@ function computeCounts(sessions: SessionInfo[], memberKeys: Set<string>): GroupC
     const st = deriveHubStatus(s)
     if (st === 'running' || st === 'idle' || st === 'waiting') running++
     if (st === 'waiting') waiting++
+    if (isAttentionStatus(st)) attention++
   }
-  return { running, total, waiting }
+  return { running, total, waiting, attention }
 }
 
 function computeGlobalCounts(sessions: SessionInfo[]): GroupCounts {
   let running = 0
   let waiting = 0
+  let attention = 0
   for (const s of sessions) {
     const st = deriveHubStatus(s)
     if (st === 'running' || st === 'idle' || st === 'waiting') running++
     if (st === 'waiting') waiting++
+    if (isAttentionStatus(st)) attention++
   }
-  return { running, total: sessions.length, waiting }
+  return { running, total: sessions.length, waiting, attention }
 }
 
 // ---- NeedsInputBadge ----
@@ -134,7 +140,20 @@ export function GroupSidebarItem({
           {counts.running}/{counts.total}
         </span>
       )}
-      {!collapsed && counts.waiting > 0 && (
+      {/* ATTN-06: collapsed-group attention badge — replaces needs-input when attnCount>0 */}
+      {/* COLORBLIND-SAFE: attn badge — reinforcement only; BellAlertIcon carries state */}
+      {collapsed && counts.attention > 0 && (
+        <span
+          className="hub__group-sidebar-item__attn-badge"
+          aria-label={counts.attention === 1 ? '1 session needs attention' : `${counts.attention} sessions need attention`}
+        >
+          {/* COLORBLIND-SAFE: attn badge dark hex #e0af68 — reinforcement only; BellAlertIcon carries state */}
+          {/* CRITICAL: NO Tailwind — size via CSS rule .hub__group-sidebar-item__attn-badge svg */}
+          <BellAlertIcon aria-hidden="true" />
+          <span className="hub__group-sidebar-item__attn-badge--count">{counts.attention}</span>
+        </span>
+      )}
+      {collapsed && counts.attention === 0 && counts.waiting > 0 && (
         <NeedsInputBadge count={counts.waiting} />
       )}
     </li>
