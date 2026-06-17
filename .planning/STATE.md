@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: verifying
-stopped_at: Phase 134 UI-SPEC approved
-last_updated: "2026-06-17T15:15:05.330Z"
+stopped_at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
+last_updated: "2026-06-17T15:19:25.875Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
@@ -53,9 +53,9 @@ Last activity: 2026-06-17
 
 ## Session Continuity
 
-Last session: 2026-06-17T15:14:47.211Z
-Stopped at: Phase 134 UI-SPEC approved
-Resume file: None
+Last session: 2026-06-17T15:19:25.867Z
+Stopped at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
+Resume file: .planning/RESUME-v3.6.md
 Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
 
 ## Deferred Items
