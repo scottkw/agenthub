@@ -4735,6 +4735,45 @@ body {
   flex-shrink: 0;
 }
 
+/* === Phase 133: Attention icon wrapper + badge sizing === */
+.hub-card__attn-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--hub-attn-icon-color);
+}
+/* CRITICAL: size the icon with explicit CSS — no Tailwind in this project */
+/* Phase 132 UAT confirmed: w-N h-N utility classes are no-ops in this project */
+.hub-card__attn-icon svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ATTN-06: collapsed-group attention badge */
+/* COLORBLIND-SAFE: attn badge dark hex #e0af68 — reinforcement only; BellAlertIcon carries state */
+/* COLORBLIND-SAFE: attn badge light hex #b45309 — WCAG AA 7.6:1 on white; icon carries state */
+.hub__group-sidebar-item__attn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--hub-attn-badge-bg);
+  color: var(--hub-attn-badge-text);
+  font-size: 11px;
+  line-height: 1.0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  flex-shrink: 0;
+}
+/* CRITICAL: explicit CSS sizing — no Tailwind in this project */
+.hub__group-sidebar-item__attn-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
 .hub-card__drag-handle svg,
 .hub-card__menu-btn svg {
   width: 16px;
