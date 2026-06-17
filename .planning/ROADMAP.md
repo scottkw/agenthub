@@ -445,7 +445,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 134-01-PLAN.md — Wave 0: source-inspection test scaffolding for HubModal/HubInteractiveModal/HubBriefingModal + modal CSS contract (Nyquist)
+- [x] 134-01-PLAN.md — Wave 0: source-inspection test scaffolding for HubModal/HubInteractiveModal/HubBriefingModal + modal CSS contract (Nyquist)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -534,7 +534,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 0/? | Not started | - |
+| 134 | v3.6 | 1/5 | In Progress|  |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---

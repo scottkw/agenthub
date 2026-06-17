@@ -56,12 +56,12 @@
 
 ### Card → Modal Interaction (MODAL)
 
-- [ ] **MODAL-01**: Clicking a card expands it into a modal via a shared-element-style grow animation
-- [ ] **MODAL-02**: Closing the modal shrinks it back into the originating card's position and restores focus
-- [ ] **MODAL-03**: For non-blocked sessions, the modal mounts a full interactive terminal (the same `TerminalPanel` + input-wired `RelayClient` used by normal tabs)
-- [ ] **MODAL-04**: For `waiting`/needs-input sessions, the modal opens a briefing view driven by the real terminal tail (the prompt the agent printed) with a respond affordance
-- [ ] **MODAL-05**: The modal session is fully functional — resize, copy/paste, and scrollback search all work
-- [ ] **MODAL-06**: For a remote session requiring a capability, the modal interaction uses the existing remote-open / join-code exchange path (locked Phase 122 design)
+- [x] **MODAL-01**: Clicking a card expands it into a modal via a shared-element-style grow animation
+- [x] **MODAL-02**: Closing the modal shrinks it back into the originating card's position and restores focus
+- [x] **MODAL-03**: For non-blocked sessions, the modal mounts a full interactive terminal (the same `TerminalPanel` + input-wired `RelayClient` used by normal tabs)
+- [x] **MODAL-04**: For `waiting`/needs-input sessions, the modal opens a briefing view driven by the real terminal tail (the prompt the agent printed) with a respond affordance
+- [x] **MODAL-05**: The modal session is fully functional — resize, copy/paste, and scrollback search all work
+- [x] **MODAL-06**: For a remote session requiring a capability, the modal interaction uses the existing remote-open / join-code exchange path (locked Phase 122 design)
 
 ### Named Groups (GROUP)
 
@@ -140,12 +140,12 @@ Populated during roadmap creation.
 | ATTN-04 | Phase 133 | Complete |
 | ATTN-05 | Phase 133 | Complete |
 | ATTN-06 | Phase 133 | Complete |
-| MODAL-01 | Phase 134 | Pending |
-| MODAL-02 | Phase 134 | Pending |
-| MODAL-03 | Phase 134 | Pending |
-| MODAL-04 | Phase 134 | Pending |
-| MODAL-05 | Phase 134 | Pending |
-| MODAL-06 | Phase 134 | Pending |
+| MODAL-01 | Phase 134 | Complete |
+| MODAL-02 | Phase 134 | Complete |
+| MODAL-03 | Phase 134 | Complete |
+| MODAL-04 | Phase 134 | Complete |
+| MODAL-05 | Phase 134 | Complete |
+| MODAL-06 | Phase 134 | Complete |
 | GROUP-01 | Phase 132 | Complete |
 | GROUP-02 | Phase 132 | Complete |
 | GROUP-03 | Phase 132 | Complete |
