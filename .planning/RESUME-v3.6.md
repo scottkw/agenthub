@@ -1,10 +1,21 @@
-# v3.6 Hub — Resume Handoff (paused 2026-06-17, weekly quota limit)
+# v3.6 Hub — Resume Handoff (paused 2026-06-17, Phase 134 live-UAT gate)
 
-Autonomous run (`/gsd-autonomous`) **paused mid-Phase-134** — hit the weekly Claude usage limit. **Resets Jun 20, 8am (America/Chicago).** Resume in a fresh session after that.
+Autonomous run (`/gsd-autonomous`) **paused at the Phase-134 human-UAT gate** by user choice ("Pause for live UAT now"). Phase 134 code + automated verification are COMPLETE; phase is NOT yet marked complete in ROADMAP — it stays `human_needed` until the 6 live-UAT items pass (see `134-HUMAN-UAT.md`).
 
-## Status
+## Resume after UAT
+Once the live UAT passes: rerun `/gsd-autonomous`. It will mark 134 complete and proceed to **Phase 135 (Accessibility Hardening)** → milestone audit/complete/cleanup. If UAT finds issues, run `/gsd:plan-phase 134 --gaps` for closure first.
+
+## Phase 134 — what landed this session (2026-06-17)
+- **134-07 DONE** (commits 9ba5ee7f→baeecbcb): RelayClient `{remote}` seam (daemon-proxy URL, cap stays server-side — CR-01); TerminalPanel/HubInteractiveModal thread `remote`; HubBriefingModal remote tail via WS snapshot (CR-02) + CR-03 lifecycle fix (close-on-timeout, `settled` guard, unmount cleanup).
+- **134-08 DONE** (commits 135175ea→ade06c32): `isRemote` threaded HubPanel→HubModal→both leaves; WR-01..04 fixes; WR-07 behavioral tests; WR-05/06 in-code deferred to 135.
+- **Re-review (134-REVIEW.md)**: 0 blockers (CR-01/02/03 confirmed fixed; cap-gating verified secure), 4 warn, 3 info.
+- **Fixes applied** (commits 8f3e16d2→93b8c208): WR-01 (tail RelayClient unmount leak — the CR-03 leak class reintroduced on the tail path), WR-02 (stranded pendingModalSessionId), WR-04 (fixed-500ms tail window → frame-quiescence idle timer), IN-01 (uniform timeout clear).
+- **Verification (134-VERIFICATION.md)**: status `human_needed`, 18/18 automated must-haves verified. 1699/1699 frontend tests, Go daemon+relay `-race` pass, tsc clean.
+- **Still DEFERRED to Phase 135** (signed off, NOT gaps): WR-03 read-only-cap silent-drop indicator (needs colorblind-safe non-color cue — release-blocking), WR-05/WR-06, IN-03 aria origin, focus-trap/A11Y-04. IN-02 (memory bound) optional.
+
+## Status (historical)
 - **Phases 131, 132, 133** — ✅ complete & shipped (see git history). Attention live-UAT for 133 still pending (HUMAN-UAT).
-- **Phase 134 (Modal Interaction)** — ⏳ IN PROGRESS.
+- **Phase 134 (Modal Interaction)** — ⏳ code done, awaiting live UAT (see above).
   - Plans **134-01..05 DONE** (modal works for LOCAL sessions): card-click→modal, grow/shrink animation, Escape/focus-return, interactive (TerminalPanel) + briefing (tail+Send) bodies, HubPanel/App wiring, CSS. Full suite was 1686 green + tsc clean at 134-05.
   - **Code review (134-REVIEW.md)** found 3 blockers + 7 warnings. CR-01/CR-02: the remote-session modal could never connect (mounts LOCAL relay with a REMOTE id; Phase 122 cap only proxies file-browse, no relay-WS proxy). CR-03: RelayClient/WS leak + untrusted-text race + no unmount cleanup.
   - **User decision: "Build remote relay-WS proxy now"** — expands MODAL-06 past its "no new remote-access architecture" constraint. See memory `project_modal06_remote_ws_proxy`.
