@@ -202,7 +202,12 @@ export function HubPanel({
   const handleSidebarToggle = useCallback(() => {
     setSidebarCollapsed((prev) => {
       const next = !prev
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
+      } catch {
+        // SecurityError (private browsing / "block all cookies") or QuotaExceededError
+        // — collapse state lives only in memory for this session; not fatal.
+      }
       return next
     })
   }, [])
@@ -232,17 +237,22 @@ export function HubPanel({
   // Phase 132 / CARD-07: single shared 3s poller — local sessions only
   const previewTails = usePreviewPoller(allSessions, isActive ?? false)
 
-  /* ATTN-01: live attention set — NOT debounced; card border/icon update immediately */
-  const attentionIds = new Set(
-    allSessions.filter((s) => isAttentionStatus(deriveHubStatus(s))).map((s) => s.id)
-  )
-
   /* ATTN-02: float-to-top reorder is within-group; debounce window 1000ms */
   /* Only POSITION is debounced — card content (isAttention) uses the LIVE set above */
   const attentionSortKey = allSessions
     .map((s) => `${s.id}:${isAttentionStatus(deriveHubStatus(s)) ? '1' : '0'}`)
     .join(',')
   const debouncedSortKey = useDebouncedValue(attentionSortKey, 1000)
+
+  /* ATTN-01: live attention set — NOT debounced; card border/icon update immediately */
+  /* IN-02: memoized on attentionSortKey (encodes all id:bit changes) so the Set keeps
+     referential identity across preview-poll renders where attention membership is stable.
+     This avoids unnecessary SessionCardGrid re-renders from always-new Set references. */
+  const attentionIds = React.useMemo(
+    () => new Set(allSessions.filter((s) => isAttentionStatus(deriveHubStatus(s))).map((s) => s.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [attentionSortKey], // attentionSortKey encodes all id:bit changes
+  )
 
   // Apply status filter + search to allSessions
   const filtered = filterSessions(allSessions, activeFilter, searchText)
