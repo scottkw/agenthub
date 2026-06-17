@@ -449,7 +449,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 134-02-PLAN.md — SessionCard/SessionCardGrid onCardClick plumbing + stopPropagation on Open + menu buttons (MODAL-01, coexistence guarantee)
+- [x] 134-02-PLAN.md — SessionCard/SessionCardGrid onCardClick plumbing + stopPropagation on Open + menu buttons (MODAL-01, coexistence guarantee)
 - [ ] 134-03-PLAN.md — HubInteractiveModal (TerminalPanel host, fit-safe) + HubBriefingModal (real tail + race-safe Send) (MODAL-03/04/05)
 
 **Wave 3** *(blocked on Wave 2)*
@@ -534,7 +534,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 1/5 | In Progress|  |
+| 134 | v3.6 | 2/5 | In Progress|  |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---
