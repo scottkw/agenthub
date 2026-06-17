@@ -90,6 +90,7 @@ export function HubBriefingModal({
       const finish = () => {
         if (resolved) return
         resolved = true
+        clearTimeout(timeoutId) // IN-01: clear 3s guard uniformly on all exit paths
         tailClient?.close()
         tailClient = null
         setTailLines(extractTailLines(chunks, 20))
@@ -115,7 +116,6 @@ export function HubBriefingModal({
             setTimeout(finish, 500)
           },
           onClose: () => {
-            clearTimeout(timeoutId)
             finish()
           },
         },
