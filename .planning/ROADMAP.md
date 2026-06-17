@@ -466,7 +466,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5)*
 
-- [ ] 134-07-PLAN.md — Frontend: RelayClient remote seam + remote-routed TerminalPanel/HubInteractiveModal; HubBriefingModal remote tail via WS snapshot + CR-03 leak/race/unmount fix (MODAL-03/04/05/06)
+- [x] 134-07-PLAN.md — Frontend: RelayClient remote seam + remote-routed TerminalPanel/HubInteractiveModal; HubBriefingModal remote tail via WS snapshot + CR-03 leak/race/unmount fix (MODAL-03/04/05/06)
 
 **Wave 7** *(blocked on Wave 6)*
 
@@ -546,7 +546,7 @@ Plans:
 | 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 6/8 | In Progress|  |
+| 134 | v3.6 | 7/8 | In Progress|  |
 | 135 | v3.6 | 0/? | Not started | - |
 
 ---

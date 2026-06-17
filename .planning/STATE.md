@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: verifying
-stopped_at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
-last_updated: "2026-06-17T15:19:25.875Z"
+status: executing
+stopped_at: Completed 134-07 (frontend remote wiring + CR-03 fix). Resume at 134-08 (HubPanel discriminator + behavioral tests), then verify, Phase 135.
+last_updated: "2026-06-17T15:29:54.962Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 23
-  completed_plans: 21
+  completed_plans: 22
   percent: 60
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 134 — Modal Interaction
+**Current focus:** Phase 134 — modal-interaction
 
 ## Current Position
 
-Phase: 134 (Modal Interaction) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
+Phase: 134 (modal-interaction) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
 Last activity: 2026-06-17
 
 ## Operator Next Steps (pre-release, carry-forward)
@@ -53,9 +53,9 @@ Last activity: 2026-06-17
 
 ## Session Continuity
 
-Last session: 2026-06-17T15:19:25.867Z
+Last session: 2026-06-17T15:29:54.950Z
 Stopped at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
-Resume file: .planning/RESUME-v3.6.md
+Resume file: None
 Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
 
 ## Deferred Items
@@ -79,6 +79,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | Phase 134-modal-interaction P02 | 4m | 2 tasks | 3 files |
 | Phase 134-modal-interaction P03 | 3m | 2 tasks | 4 files |
 | Phase 134 P06 | ~25 minutes | 2 tasks | 4 files |
+| Phase 134-modal-interaction P07 | 5m | 3 tasks | 5 files |
 
 ## v3.6 Phase Plan
 
