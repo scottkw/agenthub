@@ -192,15 +192,27 @@ export function SessionCardGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSortKey])
 
-  // WR-03: sort order is derived ONLY when debouncedSortKey changes — NOT on every render.
-  // This ensures the DOM reorder and the FLIP capture/play share the same debounced trigger:
-  //   - card border/icon uses live attentionIds (immediate)
-  //   - card position within group uses sortedSessions (debounced, 1s)
-  const sortedSessions = React.useMemo(
-    () => sortSessionsForDisplay(sessions),
+  // WR-03: the RELATIVE sort order is derived only when debouncedSortKey changes, but the
+  // SET of displayed sessions follows the live sessions prop (filter/search changes apply
+  // immediately). Strategy: memoize a stable ID-order array on debouncedSortKey, then apply
+  // that order to the live sessions. New/removed sessions (filter changes) take effect live;
+  // only the attention-float reordering waits for the 1s debounce to settle.
+  //   - card border/icon uses live attentionIds (immediate, from HubPanel)
+  //   - card position within group uses the debounced sort order
+  const sortedOrder = React.useMemo(
+    () => sortSessionsForDisplay(sessions).map((s) => s.id),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [debouncedSortKey], // re-sort only when debounced key changes; ignore live sessions churn
+    [debouncedSortKey], // re-compute order only when debounced key changes
   )
+  // Apply the stable order to the live sessions (handles filter/add/remove immediately)
+  const sortedSessions = React.useMemo(() => {
+    const idIndex = new Map(sortedOrder.map((id, i) => [id, i]))
+    return [...sessions].sort((a, b) => {
+      const ai = idIndex.get(a.id) ?? Infinity
+      const bi = idIndex.get(b.id) ?? Infinity
+      return ai - bi
+    })
+  }, [sessions, sortedOrder])
 
   // Phase 132: when groupDefs is non-empty, use named-group grouping; else fall back to workDir
   if (groupDefs && groupDefs.length > 0) {
