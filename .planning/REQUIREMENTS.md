@@ -48,11 +48,11 @@
 ### Attention (ATTN)
 
 - [x] **ATTN-01**: A session with status `waiting`, or `errored`/non-zero exit, is flagged as needing attention
-- [ ] **ATTN-02**: An attention card shows a pulsing animated highlighted border plus an attention icon
-- [ ] **ATTN-03**: When cards overflow the viewport, attention cards sort to the top
+- [x] **ATTN-02**: An attention card shows a pulsing animated highlighted border plus an attention icon
+- [x] **ATTN-03**: When cards overflow the viewport, attention cards sort to the top
 - [ ] **ATTN-04**: Reordering on status change is debounced and position changes are animated (non-jarring)
 - [ ] **ATTN-05**: Resolving a `waiting` session inside its modal clears that card's attention state
-- [ ] **ATTN-06**: A collapsed group containing an attention card shows an attention badge on its header
+- [x] **ATTN-06**: A collapsed group containing an attention card shows an attention badge on its header
 
 ### Card → Modal Interaction (MODAL)
 
@@ -72,9 +72,9 @@
 
 ### Accessibility (A11Y)
 
-- [ ] **A11Y-01**: Attention and status are conveyed by motion + icon + position, never by color alone (colorblind-safe)
+- [x] **A11Y-01**: Attention and status are conveyed by motion + icon + position, never by color alone (colorblind-safe)
 - [ ] **A11Y-02**: Cards are keyboard-focusable; Enter/Space expands; Escape closes the modal and returns focus to the originating card
-- [ ] **A11Y-03**: Pulse and expand/collapse animations honor `prefers-reduced-motion`, falling back to a static highlighted border + icon
+- [x] **A11Y-03**: Pulse and expand/collapse animations honor `prefers-reduced-motion`, falling back to a static highlighted border + icon
 - [ ] **A11Y-04**: The modal traps focus while open
 
 ## Future Requirements (deferred)
@@ -135,11 +135,11 @@ Populated during roadmap creation.
 | GRID-06 | Phase 131 | Complete |
 | GRID-07 | Phase 132 | Complete |
 | ATTN-01 | Phase 133 | Complete |
-| ATTN-02 | Phase 133 | Pending |
-| ATTN-03 | Phase 133 | Pending |
+| ATTN-02 | Phase 133 | Complete |
+| ATTN-03 | Phase 133 | Complete |
 | ATTN-04 | Phase 133 | Pending |
 | ATTN-05 | Phase 133 | Pending |
-| ATTN-06 | Phase 133 | Pending |
+| ATTN-06 | Phase 133 | Complete |
 | MODAL-01 | Phase 134 | Pending |
 | MODAL-02 | Phase 134 | Pending |
 | MODAL-03 | Phase 134 | Pending |
@@ -150,9 +150,9 @@ Populated during roadmap creation.
 | GROUP-02 | Phase 132 | Complete |
 | GROUP-03 | Phase 132 | Complete |
 | GROUP-04 | Phase 132 | Complete |
-| A11Y-01 | Phase 135 | Pending |
+| A11Y-01 | Phase 135 | Complete |
 | A11Y-02 | Phase 135 | Pending |
-| A11Y-03 | Phase 135 | Pending |
+| A11Y-03 | Phase 135 | Complete |
 | A11Y-04 | Phase 135 | Pending |
 
 **Coverage:**
