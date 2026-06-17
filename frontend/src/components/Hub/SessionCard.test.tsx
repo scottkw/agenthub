@@ -50,6 +50,16 @@ function renderCard(session: SessionInfo, onRename?: (id: string, name: string) 
   return { container, root }
 }
 
+function renderCardWithAttention(session: SessionInfo, isAttention: boolean) {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  act(() => {
+    root.render(<SessionCard session={session} isAttention={isAttention} />)
+  })
+  return { container, root }
+}
+
 describe('SessionCard', () => {
   afterEach(() => {
     document.body.innerHTML = ''
@@ -614,4 +624,73 @@ describe('SessionCard', () => {
 
   // ---- STATUS_CONFIG usage (source-level check via grep — verified in acceptance_criteria)
   // ---- COLORBLIND-SAFE comments (source-level check via grep — verified in acceptance_criteria)
+})
+
+describe('SessionCard attention (ATTN-01)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+  })
+
+  it('isAttention=true: card article has .hub-card--attention class', () => {
+    const { container } = renderCardWithAttention(
+      makeSession({ state: 'waiting', status: 'waiting' }),
+      true,
+    )
+    const card = container.querySelector('.hub-card--attention')
+    expect(card).not.toBeNull()
+  })
+
+  it('isAttention=true: renders .hub-card__attn-icon element with aria-label "Needs attention"', () => {
+    const { container } = renderCardWithAttention(
+      makeSession({ state: 'waiting', status: 'waiting' }),
+      true,
+    )
+    const attnIcon = container.querySelector('.hub-card__attn-icon')
+    expect(attnIcon).not.toBeNull()
+    expect(attnIcon!.getAttribute('aria-label')).toBe('Needs attention')
+  })
+
+  it('isAttention=true: card article aria-label ends with ", needs attention"', () => {
+    const { container } = renderCardWithAttention(
+      makeSession({ state: 'waiting', status: 'waiting' }),
+      true,
+    )
+    const card = container.querySelector('.hub-card')
+    expect(card).not.toBeNull()
+    const label = card!.getAttribute('aria-label') ?? ''
+    expect(label).toMatch(/, needs attention$/)
+  })
+
+  it('isAttention=false: no .hub-card--attention, no .hub-card__attn-icon, aria-label does NOT contain "needs attention"', () => {
+    const { container } = renderCardWithAttention(
+      makeSession({ state: 'running', status: 'running' }),
+      false,
+    )
+    expect(container.querySelector('.hub-card--attention')).toBeNull()
+    expect(container.querySelector('.hub-card__attn-icon')).toBeNull()
+    const card = container.querySelector('.hub-card')
+    const label = card!.getAttribute('aria-label') ?? ''
+    expect(label).not.toContain('needs attention')
+  })
+
+  it('REGRESSION(Phase 131/132): isAttention=true still renders .hub-card__status-indicator and Open button for a live session', () => {
+    const onOpen = vi.fn()
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard
+          session={makeSession({ state: 'waiting', status: 'waiting' })}
+          isAttention={true}
+          onOpenSession={onOpen}
+        />,
+      )
+    })
+    // Status indicator preserved
+    expect(container.querySelector('.hub-card__status-indicator')).not.toBeNull()
+    // Open button preserved for live session
+    expect(container.querySelector('.hub-card__open')).not.toBeNull()
+  })
 })
