@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 // Pure ?raw import — NO render(), NO @xterm/xterm.
 // These tests are intentionally RED until HubBriefingModal.tsx is implemented in a later plan.
 
-import raw from '../HubBriefingModal.tsx?raw'
+import raw from './HubBriefingModal.tsx?raw'
 
 describe('HubBriefingModal (MODAL-04: tail fetch + send flow)', () => {
   it('MODAL-04: calls GetSessionTailLines (fetches terminal tail for context display)', () => {
