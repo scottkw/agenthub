@@ -99,6 +99,11 @@ export interface SessionCardProps {
   onAssignGroup?: (memberKey: string, groupId: string) => void
   /** ATTN-01: true when isAttentionStatus(deriveHubStatus(session)) is true */
   isAttention?: boolean
+  /**
+   * Phase 134 — fires when card body is clicked (not Open/menu/drag-handle/rename input).
+   * Receives the session and the card's bounding rect (used for grow animation origin).
+   */
+  onCardClick?: (session: SessionInfo, rect: DOMRect) => void
 }
 
 // ---- Component ----
@@ -127,6 +132,7 @@ export function SessionCard({
   groupDefs,
   onAssignGroup,
   isAttention,
+  onCardClick,
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -231,6 +237,22 @@ export function SessionCard({
         setIsDragging(true)
       }}
       onDragEnd={() => setIsDragging(false)}
+      onClick={(e) => {
+        // Defense-in-depth: verify click did not originate from controlled children
+        const target = e.target as HTMLElement
+        if (target.closest('.hub-card__open')) return
+        if (target.closest('.hub-card__menu-btn')) return
+        if (target.closest('.hub-card__menu')) return
+        if (target.closest('.InlineSessionName input')) return
+        if (isDragging) return
+        onCardClick?.(session, (e.currentTarget as HTMLElement).getBoundingClientRect())
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onCardClick?.(session, (e.currentTarget as HTMLElement).getBoundingClientRect())
+        }
+      }}
       aria-label={cardAriaLabel}
       tabIndex={0}
     >
@@ -251,7 +273,7 @@ export function SessionCard({
         aria-label={`Card options for ${name}`}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
-        onClick={() => setMenuOpen((p) => !p)}
+        onClick={(e) => { e.stopPropagation(); setMenuOpen((p) => !p) }}
       >
         <EllipsisHorizontalIcon className="w-4 h-4" />
       </button>
@@ -371,7 +393,7 @@ export function SessionCard({
           <button
             type="button"
             className="hub-card__open"
-            onClick={() => onOpenSession(id, name, cli)}
+            onClick={(e) => { e.stopPropagation(); onOpenSession(id, name, cli) }}
             aria-label={`Open ${name}`}
           >
             Open
