@@ -409,14 +409,14 @@ Plans:
   3. After a user resolves a `waiting` session from inside the modal, that card's pulse and attention state clear without a page reload
   4. A collapsed group header containing any attention card shows an attention badge; expanding the group reveals which card(s) need attention
 
-**Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
+**Plans**: 5 plans (2 wave-1 foundation: predicate + CSS; 2 wave-2 components: SessionCard + GroupSidebar; 1 wave-3 integration: HubPanel + SessionCardGrid)
 Plans:
 
-- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
-- [x] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
-- [x] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
-- [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+- [x] 133-01-PLAN.md — Wave 1: isAttentionStatus() canonical attention predicate in hubStatus.ts (ATTN-01)
+- [x] 133-02-PLAN.md — Wave 1: all --hub-attn-* tokens, .hub-card--attention modifier + pulse keyframe, reduced-motion guards, icon/badge CSS (ATTN-01/02/03/06)
+- [ ] 133-03-PLAN.md — Wave 2: SessionCard attention treatment (isAttention prop, BellAlertIcon in ROW 1, modifier class, aria suffix) (ATTN-01)
+- [ ] 133-04-PLAN.md — Wave 2: GroupSidebar collapsed-group attention badge + counts.attention + collapsed-condition fix (ATTN-06)
+- [ ] 133-05-PLAN.md — Wave 3: HubPanel debounce + live attentionIds + SessionCardGrid per-group float-to-top sort + FLIP (ATTN-02/03/04/05)
 
 **UI hint**: yes
 
