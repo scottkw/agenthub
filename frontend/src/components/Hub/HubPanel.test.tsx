@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import hubPanelRaw from './HubPanel.tsx?raw'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
@@ -727,5 +728,34 @@ describe('filterSessions', () => {
   it('filters by search (hostname)', () => {
     const sessions = [makeS({ id: 's1', hostname: 'server-a' }), makeS({ id: 's2', hostname: '' })]
     expect(filterSessions(sessions, 'all', 'server-a')).toHaveLength(1)
+  })
+})
+
+// ---- Phase 134: MODAL-06 source-inspection assertions ----
+// These tests use ?raw import to assert structural contract without mounting HubModal
+// (xterm requires canvas APIs absent in jsdom — no DOM mounting of HubModal in tests).
+describe('HubPanel MODAL-06 source-inspection (Phase 134)', () => {
+  it('HubPanelProps declares onRequestRemoteCap', () => {
+    expect(hubPanelRaw).toContain('onRequestRemoteCap')
+  })
+
+  it('handleCardClick gates remote-without-cap via remoteCapsCached before setModalState', () => {
+    // The remote gate references remoteCapsCached and onRequestRemoteCap
+    expect(hubPanelRaw).toContain('remoteCapsCached')
+    expect(hubPanelRaw).toContain('onRequestRemoteCap')
+    // The early return must appear before setModalState in the source
+    const returnIdx = hubPanelRaw.indexOf('onRequestRemoteCap?.({')
+    const setModalIdx = hubPanelRaw.indexOf('setModalState({ session, sourceRect: rect })')
+    expect(returnIdx).toBeGreaterThan(-1)
+    expect(setModalIdx).toBeGreaterThan(-1)
+    expect(returnIdx).toBeLessThan(setModalIdx)
+  })
+
+  it('renders <HubModal in source', () => {
+    expect(hubPanelRaw).toContain('<HubModal')
+  })
+
+  it('threads onCardClick={handleCardClick} to SessionCardGrid', () => {
+    expect(hubPanelRaw).toContain('onCardClick={handleCardClick}')
   })
 })

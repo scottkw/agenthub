@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 import { GetSessionTailLines } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+import { daemon } from '../../wailsjs/go/models'
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import { HubFilterBar } from './HubFilterBar'
 import type { HubFilter } from './HubFilterBar'
 import { SessionCardGrid } from './SessionCardGrid'
 import { HubEmptyState } from './HubEmptyState'
 import { GroupSidebar } from './GroupSidebar'
+import { HubModal } from './HubModal'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 // ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
 import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
@@ -18,6 +21,8 @@ import {
   memberKey,
   type HubGroupDef,
 } from '../../lib/hubGroups'
+
+type PluginSettings = daemon.PluginSettings
 
 /**
  * filterSessions — apply status filter + case-insensitive substring search.
@@ -142,6 +147,18 @@ export interface HubPanelProps {
   remoteSessions?: SessionInfo[]
   /** Phase 132 / CARD-07 — true when Hub tab is active (gates usePreviewPoller interval) */
   isActive?: boolean
+  /** Phase 134 — relay port for mounting TerminalPanel inside the interactive modal */
+  relayPort?: number
+  /** Phase 134 — xterm.js theme passed to HubInteractiveModal */
+  terminalTheme?: ITheme
+  /** Phase 134 — plugin config passed to HubInteractiveModal */
+  pluginConfig?: PluginSettings | null
+  /** Phase 134 — MODAL-06: cap set for remote sessions; checked before opening modal */
+  remoteCapsCached?: Set<string>
+  /** Phase 134 — MODAL-06: triggers RemoteJoinCodeModal flow for uncapped remote sessions */
+  onRequestRemoteCap?: (session: { id: string; name: string; hostname: string }) => void
+  /** Phase 134 — registers a callback that HubPanel will call when a cap is acquired for a pending session */
+  onRegisterCapAcquired?: (fn: (sessionId: string) => void) => void
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
@@ -176,10 +193,28 @@ export function HubPanel({
   onOpenSession,
   remoteSessions,
   isActive,
+  relayPort,
+  terminalTheme,
+  pluginConfig,
+  remoteCapsCached,
+  onRequestRemoteCap,
+  onRegisterCapAcquired,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Phase 134 — modal state: null = closed; non-null = modal open for this session+rect
+  interface HubModalState {
+    session: SessionInfo
+    sourceRect: DOMRect
+  }
+  const [modalState, setModalState] = useState<HubModalState | null>(null)
+
+  // Phase 134 — MODAL-06: pending remote session awaiting cap acquisition
+  const [pendingModalSessionId, setPendingModalSessionId] = useState<string | null>(null)
+  // Capture the sourceRect at the time of card click so it's available for auto-open
+  const pendingSourceRectRef = useRef<DOMRect | null>(null)
 
   // Phase 132 — named group state (localStorage-persisted)
   const [groupDefs, setGroupDefs] = useState<HubGroupDef[]>(() => loadGroups())
@@ -301,6 +336,42 @@ export function HubPanel({
     )
   }, [])
 
+  // Phase 134 — MODAL-06: card click handler with remote cap gate
+  const handleCardClick = useCallback((session: SessionInfo, rect: DOMRect) => {
+    const isRemote = !!session.hostname && session.hostname !== ''
+    if (isRemote && !remoteCapsCached?.has(session.id)) {
+      // Store rect for later use when cap is acquired
+      pendingSourceRectRef.current = rect
+      setPendingModalSessionId(session.id)
+      onRequestRemoteCap?.({ id: session.id, name: session.name, hostname: session.hostname })
+      return
+    }
+    setModalState({ session, sourceRect: rect })
+  }, [remoteCapsCached, onRequestRemoteCap])
+
+  // Phase 134 — MODAL-06: cap-acquired handler — called by App.tsx after successful join-code exchange
+  const handleCapAcquired = useCallback((sessionId: string) => {
+    if (sessionId !== pendingModalSessionId) return
+    // Find the session object from all sessions
+    const session = [...sessions, ...(remoteSessions ?? [])].find((s) => s.id === sessionId)
+    if (!session) {
+      setPendingModalSessionId(null)
+      pendingSourceRectRef.current = null
+      return
+    }
+    // Use stored rect or fall back to centered rect
+    const sourceRect = pendingSourceRectRef.current ??
+      new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0)
+    setModalState({ session, sourceRect })
+    setPendingModalSessionId(null)
+    pendingSourceRectRef.current = null
+  }, [pendingModalSessionId, sessions, remoteSessions])
+
+  // Phase 134 — register cap-acquired callback with App.tsx
+  useEffect(() => {
+    onRegisterCapAcquired?.(handleCapAcquired)
+  }, [onRegisterCapAcquired, handleCapAcquired])
+
   // ---- Determine which body to render ----
   let body: React.ReactNode
 
@@ -323,6 +394,7 @@ export function HubPanel({
         sessions={visibleSessions}
         onRename={onRename}
         onOpenSession={onOpenSession}
+        onCardClick={handleCardClick}
         groupDefs={groupDefs.length > 0 ? groupDefs : undefined}
         previewTails={previewTails}
         onAssignGroup={handleAssignGroup}
@@ -333,44 +405,59 @@ export function HubPanel({
   }
 
   return (
-    <div className="hub">
-      {/* Header strip — UI-SPEC Layout Contract */}
-      <div className="hub__header">
-        <span className="hub__title">Hub</span>
-        <button className="hub__new-session-btn" type="button" onClick={onNewSession}>
-          New session
-        </button>
-      </div>
+    <>
+      <div className="hub">
+        {/* Header strip — UI-SPEC Layout Contract */}
+        <div className="hub__header">
+          <span className="hub__title">Hub</span>
+          <button className="hub__new-session-btn" type="button" onClick={onNewSession}>
+            New session
+          </button>
+        </div>
 
-      {/* Filter bar — sticky; owns searchRef; passes live session list for counts */}
-      <HubFilterBar
-        sessions={allSessions}
-        activeFilter={activeFilter}
-        searchText={searchText}
-        searchRef={searchRef}
-        onFilterChange={setActiveFilter}
-        onSearchChange={setSearchText}
-        onNewSession={onNewSession}
-      />
-
-      {/* Phase 132: hub__body is a flex row wrapping GroupSidebar + hub__grid-scroll */}
-      <div className="hub__body">
-        <GroupSidebar
-          groupDefs={groupDefs}
+        {/* Filter bar — sticky; owns searchRef; passes live session list for counts */}
+        <HubFilterBar
           sessions={allSessions}
-          activeGroupId={activeGroupId}
-          collapsed={sidebarCollapsed}
-          onToggle={handleSidebarToggle}
-          onGroupSelect={setActiveGroupId}
-          onCreateGroup={handleCreateGroup}
-          onDropOnGroup={handleDropOnGroup}
+          activeFilter={activeFilter}
+          searchText={searchText}
+          searchRef={searchRef}
+          onFilterChange={setActiveFilter}
+          onSearchChange={setSearchText}
+          onNewSession={onNewSession}
         />
 
-        {/* Scrollable grid area */}
-        <div className="hub__grid-scroll">
-          {body}
+        {/* Phase 132: hub__body is a flex row wrapping GroupSidebar + hub__grid-scroll */}
+        <div className="hub__body">
+          <GroupSidebar
+            groupDefs={groupDefs}
+            sessions={allSessions}
+            activeGroupId={activeGroupId}
+            collapsed={sidebarCollapsed}
+            onToggle={handleSidebarToggle}
+            onGroupSelect={setActiveGroupId}
+            onCreateGroup={handleCreateGroup}
+            onDropOnGroup={handleDropOnGroup}
+          />
+
+          {/* Scrollable grid area */}
+          <div className="hub__grid-scroll">
+            {body}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Phase 134 — Hub modal: rendered outside .hub so overlay covers the full Hub surface */}
+      {modalState && relayPort !== undefined && (
+        <HubModal
+          session={modalState.session}
+          sourceRect={modalState.sourceRect}
+          relayPort={relayPort}
+          fontSize={14}
+          theme={terminalTheme ?? ({} as ITheme)}
+          pluginConfig={pluginConfig}
+          onClose={() => setModalState(null)}
+        />
+      )}
+    </>
   )
 }
