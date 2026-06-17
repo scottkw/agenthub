@@ -67,7 +67,8 @@ function NeedsInputBadge({ count }: NeedsInputBadgeProps): React.ReactElement | 
       aria-label={label}
     >
       {/* COLORBLIND-SAFE: needs-input badge dark hex #f59e0b — reinforcement only; PauseCircleIcon carries the state */}
-      <PauseCircleIcon className="w-3 h-3" aria-hidden="true" />
+      {/* CRITICAL: NO Tailwind — size via .hub__group-sidebar-item__needs-input-badge svg in style.css */}
+      <PauseCircleIcon aria-hidden="true" />
       <span>{count}</span>
     </span>
   )
@@ -235,9 +236,10 @@ export function GroupSidebar({
         aria-controls={SIDEBAR_LIST_ID}
       >
         {collapsed ? (
-          <ChevronRightIcon className="w-4 h-4" aria-hidden="true" />
+          // CRITICAL: NO Tailwind — size via .hub__group-sidebar-toggle svg in style.css
+          <ChevronRightIcon aria-hidden="true" />
         ) : (
-          <ChevronLeftIcon className="w-4 h-4" aria-hidden="true" />
+          <ChevronLeftIcon aria-hidden="true" />
         )}
       </button>
 
