@@ -158,6 +158,22 @@ func TestDetector_Waiting(t *testing.T) {
 	}
 }
 
+func TestDetector_WaitingSelectMenu(t *testing.T) {
+	// Modern Claude Code prompts for input with an interactive SELECT MENU (numbered
+	// options + a footer), not a "[y/n]" string. The detector must classify this as
+	// Waiting so the Hub flags the card "Needs input" and the briefing modal is reachable.
+	var got status.SessionStatus
+	d := newClaudeDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+	d.Feed([]byte("Which cleanup approach would you like me to take?\n" +
+		" 1. Dry run report only\n" +
+		" 2. Remove duplicates\n" +
+		" 6. Chat about this\n" +
+		"Enter to select · ↑/↓ to navigate · Esc to cancel"))
+	if got != status.StatusWaiting {
+		t.Errorf("expected StatusWaiting for a select-menu prompt, got %q", got)
+	}
+}
+
 func TestDetector_WaitingTakesPriority(t *testing.T) {
 	// Waiting has higher priority than Running
 	var got status.SessionStatus

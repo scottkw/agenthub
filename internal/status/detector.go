@@ -70,6 +70,13 @@ func DefaultClaudePatterns() PatternSet {
 		},
 		Waiting: []*regexp.Regexp{
 			regexp.MustCompile(`\[y/n\]|\[Y/n\]|\[y/N\]`),
+			// Modern Claude Code prompts via an interactive select menu rather than a
+			// "[y/n]" string. Its footer is the reliable, recency-safe marker — it is
+			// only present while the menu is actively displayed (matched against the
+			// 256-byte suffix), and clears once the user answers. (#95: Hub status
+			// detector missed select-menu prompts → briefing modal unreachable.)
+			regexp.MustCompile(`(?i)enter to select`),
+			regexp.MustCompile(`(?i)↑/↓ to navigate`),
 		},
 	}
 }
