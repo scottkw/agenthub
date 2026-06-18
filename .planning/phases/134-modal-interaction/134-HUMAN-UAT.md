@@ -1,14 +1,14 @@
 ---
-status: partial
+status: passed
 phase: 134-modal-interaction
 source: [134-VERIFICATION.md]
 started: 2026-06-17T11:10:00Z
-updated: 2026-06-17T11:10:00Z
+updated: 2026-06-18T00:00:00Z
 ---
 
 ## Current Test
 
-Tests 1–4 PASS (after GAP-134-A/B/C fixes + detector #95). Test 6 (reduced motion) and Test 5 (remote two-machine) remaining.
+All 6 UAT items PASS live (Test 5 remote: interactive proven end-to-end incl. r/w input; the remote briefing sub-path was not separately exercised — low residual risk, same proxy + proven local briefing). Five in-scope gaps found and fixed (GAP-134-A..E), all TDD'd; daemon detector fixed (#95). Filed #96 (tail/preview garble); #93 (briefing free-text) and WR-03 (read-only indicator) deferred to Phase 135.
 
 ## Tests
 
@@ -49,13 +49,13 @@ result: PASS (after GAP-134-D fix). Initially FAILED: with Reduce Motion on, the
 ## Summary
 
 total: 6
-passed: 5
+passed: 6
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
-(Pending: Test 5 — remote two-machine tailnet, MODAL-06 — needs a second tailnet peer.)
+(Test 5 remote-briefing sub-path is a documented low-risk residual — see Test 5 notes.)
 
 ## Gaps
 
