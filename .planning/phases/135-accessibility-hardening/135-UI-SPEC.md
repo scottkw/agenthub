@@ -1,10 +1,11 @@
 ---
 phase: 135
 slug: accessibility-hardening
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-18
+reviewed_at: 2026-06-18
 ---
 
 # Phase 135 — UI Design Contract: Accessibility Hardening
