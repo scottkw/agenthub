@@ -34,7 +34,7 @@ result: BLOCKED by GAP-134-A (needs second tailnet machine regardless).
 
 ### 6. Reduced-motion behavior (A11Y-03)
 expected: With macOS "Reduce Motion" enabled, the modal appears/disappears instantly — no scale or fade, no flash of invisible content.
-result: BLOCKED by GAP-134-A (cannot open modal to observe motion).
+result: PASS (after GAP-134-D fix). Initially FAILED: with Reduce Motion on, the modal opened instantly but could NOT be closed by any path (X / Esc / click-outside) — the phase machine drove both transitions off onAnimationEnd, which never fires when CSS disables animations. Fixed (commit 12baee61): detect reduced motion via matchMedia, init phase to 'open' and close synchronously. Re-UAT: opens instantly and closes via all three paths; interactive terminal still mounts. → GAP-134-D.
 
 ## Out-of-scope observations (pre-existing, NOT Phase 134 regressions)
 
@@ -46,11 +46,13 @@ result: BLOCKED by GAP-134-A (cannot open modal to observe motion).
 ## Summary
 
 total: 6
-passed: 4
+passed: 5
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
+
+(Pending: Test 5 — remote two-machine tailnet, MODAL-06 — needs a second tailnet peer.)
 
 ## Gaps
 
@@ -67,3 +69,8 @@ fix: commit c19f538d — added explicit px sizes for `.hub-modal__status-icon` (
 status: fixed (re-UAT passed)
 detail: HubModal computed `isLocal` from `session.hostname`; local sessions carry os.Hostname(), so the header showed the GlobeAltIcon + machine name instead of the ComputerDesktopIcon + "Local". Same hostname-vs-provenance bug class as GAP-134-A. The computer-vs-globe icon is a colorblind-safe non-color cue, so the wrong icon is a real defect.
 fix: commit 9e591846 — `isLocal = !remote` (provenance prop already passed to HubModal). Added source-inspection tests. Suite green, tsc clean.
+
+### GAP-134-D: Modal cannot be closed under prefers-reduced-motion
+status: fixed (re-UAT passed)
+detail: The phase machine drove both transitions (entering→open, exiting→onClose) off onAnimationEnd, which never fires when CSS sets `animation: none` under prefers-reduced-motion. With Reduce Motion on, the modal opened but X/Esc/click-outside all failed to close it (and the interactive terminal's activation was also stuck). A11Y correctness break.
+fix: commit 12baee61 — detect reduced motion via guarded `window.matchMedia`; initialize phase to 'open' and close synchronously, skipping the animated phases. Behavioral test (reduced-motion matchMedia stub → close works without onAnimationEnd) + source-inspection contract test. Suite 1709/1709, tsc clean.
