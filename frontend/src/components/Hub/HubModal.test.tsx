@@ -34,6 +34,20 @@ describe('HubModal (MODAL-02: keyboard + focus management)', () => {
   })
 })
 
+describe('HubModal (GAP-134-D: reduced-motion close does not depend on onAnimationEnd)', () => {
+  // Under prefers-reduced-motion the CSS disables animations, so onAnimationEnd never
+  // fires. The phase machine must detect reduced motion and skip the animated phases,
+  // otherwise the modal can never close.
+  it('detects prefers-reduced-motion via matchMedia', () => {
+    expect(raw).toContain('prefers-reduced-motion: reduce')
+    expect(raw).toContain('matchMedia')
+  })
+
+  it('handleClose closes synchronously when reduced motion is preferred', () => {
+    expect(raw).toMatch(/prefersReducedMotion[\s\S]{0,80}onClose\(\)/)
+  })
+})
+
 describe('HubModal (GAP-134-C: origin marker uses provenance, not hostname)', () => {
   // Local sessions carry the machine os.Hostname(); a hostname-based isLocal check
   // mislabels them with the globe icon + machine name. The colorblind-safe origin cue

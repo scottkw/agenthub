@@ -81,11 +81,30 @@ export function HubModal({
 
   // ---- Animation phase machine ----
   // entering → (animationEnd) → open; exiting → (animationEnd) → onClose()
-  const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>('entering')
+  //
+  // GAP-134-D: under prefers-reduced-motion the grow/shrink animations are disabled
+  // (CSS `animation: none`), so onAnimationEnd NEVER fires. Driving the phase machine
+  // purely off onAnimationEnd then breaks both transitions: the modal stays stuck in
+  // 'entering' (interactive terminal never activates) and — worse — can never close
+  // (exiting → onClose never runs). When reduced motion is requested we therefore skip
+  // the animated phases entirely: open immediately and close synchronously.
+  // Guarded for jsdom/SSR where window.matchMedia is undefined (→ animated path).
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const [phase, setPhase] = useState<'entering' | 'open' | 'exiting'>(
+    prefersReducedMotion ? 'open' : 'entering',
+  )
 
   const handleClose = useCallback(() => {
+    if (prefersReducedMotion) {
+      onClose() // no exit animation → onAnimationEnd won't fire; close synchronously
+      return
+    }
     setPhase('exiting')
-  }, [])
+  }, [prefersReducedMotion, onClose])
 
   // ---- Focus return on unmount (MODAL-02) ----
   // Store the originating card (document.activeElement at mount) and return focus on unmount.

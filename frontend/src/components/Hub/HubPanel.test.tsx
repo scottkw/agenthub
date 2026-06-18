@@ -902,4 +902,63 @@ describe('HubPanel FE-ROUTE-01: remote routing gate (behavioral)', () => {
     act(() => { modalRoot.unmount() })
     modalContainer.remove()
   })
+
+  it('GAP-134-D: under prefers-reduced-motion the modal closes without onAnimationEnd', () => {
+    // With reduced motion the CSS disables animations, so onAnimationEnd never fires.
+    // The close path must not depend on it, or the modal becomes impossible to close.
+    const originalMatchMedia = window.matchMedia
+    // jsdom has no matchMedia; install a reduced-motion stub
+    window.matchMedia = (query: string) => ({
+      matches: query.includes('prefers-reduced-motion: reduce'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })
+
+    try {
+      const localSession = makeSession({ id: 'rm1', hostname: '' })
+      const modalContainer = document.createElement('div')
+      document.body.appendChild(modalContainer)
+      const modalRoot = createRoot(modalContainer)
+
+      act(() => {
+        modalRoot.render(
+          React.createElement(HubPanel, {
+            sessions: [localSession],
+            remoteSessions: [],
+            error: false,
+            onNewSession: vi.fn(),
+            onRename: vi.fn(),
+            isActive: false,
+            terminalTheme: STUB_THEME,
+            relayPort: 51234,
+            remoteCapsCached: new Set<string>(),
+            onRequestRemoteCap: vi.fn(),
+          }),
+        )
+      })
+
+      // Open the modal.
+      const card = modalContainer.querySelector('article.hub-card')
+      act(() => { card!.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+      expect(modalContainer.querySelector('.hub-modal-overlay')).not.toBeNull()
+
+      // Click the close button — NO onAnimationEnd is dispatched (animations are off).
+      const closeBtn = modalContainer.querySelector('.hub-modal__close') as HTMLElement
+      expect(closeBtn).not.toBeNull()
+      act(() => { closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+
+      // The modal must be gone (onClose ran synchronously).
+      expect(modalContainer.querySelector('.hub-modal-overlay')).toBeNull()
+
+      act(() => { modalRoot.unmount() })
+      modalContainer.remove()
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
+  })
 })
