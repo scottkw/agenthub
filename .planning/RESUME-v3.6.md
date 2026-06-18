@@ -1,9 +1,22 @@
-# v3.6 Hub — Resume Handoff (paused 2026-06-17, Phase 134 live-UAT gate)
+# v3.6 Hub — Resume Handoff (paused 2026-06-18, before Phase 135)
 
-Autonomous run (`/gsd-autonomous`) **paused at the Phase-134 human-UAT gate** by user choice ("Pause for live UAT now"). Phase 134 code + automated verification are COMPLETE; phase is NOT yet marked complete in ROADMAP — it stays `human_needed` until the 6 live-UAT items pass (see `134-HUMAN-UAT.md`).
+Autonomous run (`/gsd-autonomous`) **paused after completing Phase 134** by user choice ("Complete 134, then pause"). **Phase 134 is COMPLETE** (marked in ROADMAP/STATE/REQUIREMENTS; VERIFICATION status `passed`; HUMAN-UAT 6/6 passed). Only **Phase 135 (Accessibility Hardening)** remains, then milestone audit/complete/cleanup.
 
-## Resume after UAT
-Once the live UAT passes: rerun `/gsd-autonomous`. It will mark 134 complete and proceed to **Phase 135 (Accessibility Hardening)** → milestone audit/complete/cleanup. If UAT finds issues, run `/gsd:plan-phase 134 --gaps` for closure first.
+## Resume
+Run `/gsd-autonomous` (it will start at Phase 135) — OR review Phase 135 scope first (recommended; it absorbs the deferred a11y items below). After 135: milestone audit → complete → cleanup.
+
+## Phase 134 live-UAT outcome (2026-06-18) — 6/6 PASS
+All six items passed in the native Wails app + a real two-machine tailnet. **Five in-scope GUI gaps found and fixed during UAT** (all TDD'd, committed): GAP-134-A (local card misrouted to remote join modal → provenance not hostname, f84b10fe), GAP-134-B (modal header icons unsized/ballooned → explicit CSS, c19f538d), GAP-134-C (origin marker mislabeled local as remote → use `remote` prop, 9e591846), GAP-134-D (modal uncloseable under prefers-reduced-motion → matchMedia phase machine, 12baee61), GAP-134-E (join-code modal title hardcoded "— Files" → intent-aware title, 2b6bf5a3). **Daemon status detector fixed (#95)**: now flags Claude Code select-menu prompts as `waiting` so the briefing modal is reachable (148314d6). Remote MODAL-06 proven end-to-end (auto-open + r/w input via cap-gated WS proxy). Suite: 1712 FE + Go status/daemon/relay race green, tsc clean.
+
+## Carry into Phase 135 (a11y) / backlog
+- **WR-03 (release-blocking, colorblind):** read-only remote cap silently drops input with NO indication — confirmed live on BOTH the briefing send AND the interactive modal. Needs a non-color read-only affordance. (Phase 135)
+- **WR-05/WR-06:** scoped Escape guard + focus trap (aria-modal background not inert). (Phase 135, in-code notes present)
+- **#96 (filed):** tail/preview rendering garble — regex ANSI-strip collapses spacing + leaves kitty/mouse escapes; hits mini-preview (Phase 132) AND briefing tail (Phase 134). Needs a headless VT render, not regex strip.
+- **#93 (deferred design):** briefing modal offers free-text only, not a selectable rendering of the agent's menu options.
+- **OBS-1:** minor xterm repaint flash on window resize (interactive modal). Low priority.
+- **Pre-existing, file when convenient:** two "New session" buttons in the Hub header (Phase 131 — `hub__header` + `HubFilterBar`).
+
+## (historical) Phase 134 implementation — what landed 2026-06-17
 
 ## Phase 134 — what landed this session (2026-06-17)
 - **134-07 DONE** (commits 9ba5ee7f→baeecbcb): RelayClient `{remote}` seam (daemon-proxy URL, cap stays server-side — CR-01); TerminalPanel/HubInteractiveModal thread `remote`; HubBriefingModal remote tail via WS snapshot (CR-02) + CR-03 lifecycle fix (close-on-timeout, `settled` guard, unmount cleanup).
