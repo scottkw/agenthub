@@ -17,6 +17,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 export interface RemoteJoinCodeModalProps {
   remoteSession: { id: string; name: string; hostname: string }
   /**
+   * GAP-134-E: what the cap is being acquired for. Drives the title so a Phase 134
+   * hub-modal cap request is not mislabelled "Files". Defaults to the generic title.
+   */
+  intent?: 'files' | 'hub-modal'
+  /**
    * Exchange the entered code for a cap (typically: ExchangeJoinCodeAtURL →
    * RegisterRemoteCap two-step in App.tsx). Resolves on success; rejects with
    * an Error whose message contains one of:
@@ -45,9 +50,13 @@ function mapErrorMessage(raw: string): string {
 
 export function RemoteJoinCodeModal({
   remoteSession,
+  intent,
   onExchange,
   onClose,
 }: RemoteJoinCodeModalProps): React.ReactElement {
+  // GAP-134-E: only the file-browse flow is about "Files"; the Phase 134 hub-modal
+  // flow opens the interactive/briefing terminal, so don't mislabel it.
+  const title = intent === 'files' ? 'Join Remote Session — Files' : 'Join Remote Session'
   const [code, setCode] = useState<string>('')
   const [pending, setPending] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -101,7 +110,7 @@ export function RemoteJoinCodeModal({
       >
         <div className="remote-join-modal__header">
           <h2 className="remote-join-modal__title" id={titleId}>
-            Join Remote Session — Files
+            {title}
           </h2>
           <button
             type="button"

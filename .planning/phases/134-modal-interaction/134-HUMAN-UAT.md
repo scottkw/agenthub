@@ -30,7 +30,10 @@ result: PASS (core mechanic) — required fixing the status detector first (#95)
 
 ### 5. Remote two-machine tailnet test (MODAL-06)
 expected: On Machine A, clicking a remote (Machine B) card with no cap cached shows the join-code modal; after the exchange the Hub modal auto-opens; interactive terminal executes commands on Machine B; remote briefing tail shows real Machine B output; Send Response delivers to Machine B's PTY; font-size zoom works in the remote interactive modal.
-result: BLOCKED by GAP-134-A (needs second tailnet machine regardless).
+result: PASS (remote interactive) — Machine B (Ken's MacBook Air) session discovered on Machine A's Hub as a remote card (globe + peer hostname, "No output yet" until cap). Clicking it opened the join-code modal (intent hub-modal); after the join-code exchange the Hub modal AUTO-OPENED for the remote session and the terminal mounted via the cap-gated daemon WS proxy, rendering Machine B's live output (Claude Code v2.1.181). With a READ-WRITE join code, typed input reached Machine B's PTY (bidirectional WS proxy confirmed). The headline MODAL-06 deliverable works end-to-end live.
+  - LIVE CONFIRMATION of WR-03 (deferred to #135): a READ-ONLY join code connects and shows output, but typed input is silently dropped at the peer with NO indication — the user had to switch to a r/w code to discover why. Applies to the interactive modal too, not just briefing. Reinforces that the non-color read-only indicator (colorblind-safe, release-blocking) belongs in Phase 135.
+  - Remote BRIEFING round-trip (tail via WS snapshot + Send) not separately exercised this session; uses the same proxy as remote interactive (proven) + the local briefing round-trip (proven). Low residual risk; can be spot-checked in 135 a11y UAT.
+  - Found GAP-134-E: the join-code modal title is hardcoded "Join Remote Session — Files" regardless of intent (cosmetic; routing is correctly hub-modal).
 
 ### 6. Reduced-motion behavior (A11Y-03)
 expected: With macOS "Reduce Motion" enabled, the modal appears/disappears instantly — no scale or fade, no flash of invisible content.

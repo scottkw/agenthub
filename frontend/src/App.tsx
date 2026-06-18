@@ -1621,6 +1621,7 @@ function App(): React.ReactElement {
       {joinModalForSession && (
         <RemoteJoinCodeModal
           remoteSession={joinModalForSession}
+          intent={joinModalForSession.intent}
           onExchange={handleModalExchange}
           onClose={() => {
             if (joinModalForSession?.intent === 'hub-modal') {
