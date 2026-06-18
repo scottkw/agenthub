@@ -8,7 +8,7 @@ updated: 2026-06-17T11:10:00Z
 
 ## Current Test
 
-Test 1 PASS after GAP-134-A/B/C fixes. Tests 2–6 unblocked; running Test 2 next.
+Tests 1–4 PASS (after GAP-134-A/B/C fixes + detector #95). Test 6 (reduced motion) and Test 5 (remote two-machine) remaining.
 
 ## Tests
 
@@ -18,15 +18,15 @@ result: PASS (re-UAT after GAP-134-A/B/C fixes) — clicking the local "claude 1
 
 ### 2. Shrink animation + focus return (MODAL-02)
 expected: Closing via Escape, X button, and click-outside all shrink the modal back toward the originating card (~180ms); keyboard focus returns to the card that was clicked.
-result: BLOCKED by GAP-134-A (cannot open the modal for a local session).
+result: PASS — all three close paths (Escape, × button, click-outside) shrink + close cleanly; focus returns to the originating card (Enter/Space reopens it). User confirmed.
 
 ### 3. Interactive terminal functional check (MODAL-03/05)
 expected: Full interactive terminal renders and accepts input; window resize reflows without jank or 0-column dims; copy/paste and scrollback search work.
-result: BLOCKED by GAP-134-A.
+result: PASS — command input/output, copy/paste, and scrollback all work. Minor: window resize causes a brief flash while the terminal repaints (xterm reflow repaint; cosmetic, non-blocking). → OBS-1 (polish candidate).
 
 ### 4. Briefing modal round-trip (MODAL-04)
 expected: For a waiting session, briefing view shows the real terminal tail; respond textarea auto-focuses; typing + Send Response delivers input to the PTY and closes the modal; session leaves waiting state.
-result: BLOCKED by GAP-134-A.
+result: PASS (core mechanic) — required fixing the status detector first (#95) so the card flips to "Needs input"; once it did, the card showed the attention border + bell (Phase 133 ATTN also validated), clicking opened the briefing modal, header read "Local" + computer icon (GAP-134-C confirmed), and typing a menu-selection number + Send Response fed back to the agent (round-trip works). Two findings: (1) the tail text is garbled (collapsed spacing + raw kitty/mouse escapes) — pre-existing rendering tech debt, same root as the mini-preview → filed #96; (2) the briefing offers free-text response only, not a selectable rendering of the agent's menu options — this is the locked v3.6 design, deferred to #93 (agents don't emit parseable choice data). Neither is a 134 regression; core MODAL-04 round-trip verified.
 
 ### 5. Remote two-machine tailnet test (MODAL-06)
 expected: On Machine A, clicking a remote (Machine B) card with no cap cached shows the join-code modal; after the exchange the Hub modal auto-opens; interactive terminal executes commands on Machine B; remote briefing tail shows real Machine B output; Send Response delivers to Machine B's PTY; font-size zoom works in the remote interactive modal.
@@ -38,16 +38,17 @@ result: BLOCKED by GAP-134-A (cannot open modal to observe motion).
 
 ## Out-of-scope observations (pre-existing, NOT Phase 134 regressions)
 
-- **Two "New session" buttons** stacked top-right: `hub__header` button (added 131-04) + `HubFilterBar` button (added 131-03). Pre-existing since Phase 131. Candidate for a GitHub issue.
-- **Garbled mini-preview text** (raw ANSI/mouse-tracking escapes like `(B[<u[>1u`): MiniPreview renders `GetSessionTailLines` output without stripping control sequences. Phase 132 (CARD-07). Candidate for a GitHub issue.
-- **Status shows "Running" not "Waiting"** for a session at a prompt: daemon status-detector heuristic (`internal/daemon/engine.go`), known pre-existing tuning gap. Already a known candidate for a separate issue.
+- **Two "New session" buttons** stacked top-right: `hub__header` button (added 131-04) + `HubFilterBar` button (added 131-03). Pre-existing since Phase 131. TODO: file a GitHub issue.
+- **Garbled mini-preview text / briefing tail** (collapsed spacing + raw kitty/mouse escapes like `(B[<u[>1u`): regex ANSI-strip can't reconstruct cursor-positioned spacing and misses private CSI sequences. Phase 132 (CARD-07) + Phase 134 (MODAL-04). → **filed #96**.
+- **Status shows "Running" not "Waiting"** for a session at a select-menu prompt: detector only matched `[y/n]`, not Claude Code select-menus. → **fixed this session (#95)**; confirmed live (card flips to "Needs input").
+- **Briefing free-text response only** (no rendered menu selection): locked v3.6 design, deferred to **#93**.
 
 ## Summary
 
 total: 6
-passed: 1
+passed: 4
 issues: 0
-pending: 5
+pending: 2
 skipped: 0
 blocked: 0
 
