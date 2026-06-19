@@ -371,6 +371,58 @@ describe('GroupSidebar', () => {
   })
 })
 
+describe('GroupSidebar — keyboard operability (A11Y-02)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+  })
+
+  it('group sidebar items have tabIndex 0 (keyboard-focusable)', () => {
+    const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
+    const { container } = renderSidebar({ groupDefs: groups })
+    const items = container.querySelectorAll('.hub__group-sidebar-item')
+    items.forEach((item) => {
+      expect((item as HTMLElement).tabIndex).toBe(0)
+    })
+  })
+
+  it('Enter on a group item calls onGroupSelect with that item id', () => {
+    const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
+    const { container, onGroupSelect } = renderSidebar({ groupDefs: groups })
+    const items = container.querySelectorAll('.hub__group-sidebar-item')
+    const alphaItem = items[1] as HTMLElement
+    act(() => {
+      alphaItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(onGroupSelect).toHaveBeenCalledWith('g1')
+  })
+
+  it('Space on a group item calls onGroupSelect with that item id', () => {
+    const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
+    const { container, onGroupSelect } = renderSidebar({ groupDefs: groups })
+    const items = container.querySelectorAll('.hub__group-sidebar-item')
+    const alphaItem = items[1] as HTMLElement
+    const spyPreventDefault = vi.fn()
+    act(() => {
+      const ev = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+      Object.defineProperty(ev, 'preventDefault', { value: spyPreventDefault })
+      alphaItem.dispatchEvent(ev)
+    })
+    expect(onGroupSelect).toHaveBeenCalledWith('g1')
+    expect(spyPreventDefault).toHaveBeenCalled()
+  })
+
+  it('Enter on the "All" item calls onGroupSelect(null)', () => {
+    const { container, onGroupSelect } = renderSidebar()
+    const items = container.querySelectorAll('.hub__group-sidebar-item')
+    const allItem = items[0] as HTMLElement
+    act(() => {
+      allItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(onGroupSelect).toHaveBeenCalledWith(null)
+  })
+})
+
 describe('GroupSidebar attention badge (ATTN-06)', () => {
   afterEach(() => {
     document.body.innerHTML = ''
