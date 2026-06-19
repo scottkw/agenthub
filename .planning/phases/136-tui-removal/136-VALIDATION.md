@@ -1,10 +1,11 @@
 ---
 phase: 136
 slug: tui-removal
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-19
+validated: 2026-06-19
 ---
 
 # Phase 136 — Validation Strategy
@@ -47,16 +48,22 @@ proving commands. Every requirement has an automated build/test gate.
 
 | Req | Behavior | Test Type | Automated Command | File Exists | Status |
 |-----|----------|-----------|-------------------|-------------|--------|
-| NAV-01 | `agenthub tui` exits non-zero / unrecognized | smoke | `./agenthub tui; echo $?` (non-zero) | ✅ post-build | ⬜ pending |
-| NAV-01 | No `internal/tui` import paths remain | build gate | `! grep -rn "internal/tui" --include=*.go . --exclude-dir=.claude` | ✅ | ⬜ pending |
-| NAV-01 | No charm.land/charmbracelet TUI deps in go.mod | build gate | `go mod tidy && ! grep -E "charm.land/(bubbletea|bubbles|lipgloss)|charmbracelet/glamour" go.mod` | ✅ | ⬜ pending |
-| NAV-01 | Build compiles without TUI package | build gate | `go build ./...` | ✅ | ⬜ pending |
-| TEST-06 | All TUI test files deleted | build gate | `! ls internal/tui 2>/dev/null` (dir gone) | ✅ | ⬜ pending |
-| TEST-06 | Daemon parity tests referencing TUI removed | build gate | `go vet ./internal/daemon/...` (compiles, no tui import) | ✅ | ⬜ pending |
-| TEST-06 | Surviving Go suite passes | automated | `go test -race -short ./...` | ✅ | ⬜ pending |
-| TEST-06 | Frontend tests pass (no regression) | automated | `cd frontend && pnpm test` | ✅ | ⬜ pending |
+| NAV-01 | `agenthub tui` exits non-zero / unrecognized | smoke | `./agenthub tui; echo $?` (non-zero) | ✅ post-build | ✅ green |
+| NAV-01 | No `internal/tui` import paths remain | build gate | `! grep -rn "scottkw/agenthub/internal/tui" --include="*.go" . --exclude-dir=.claude` | ✅ | ✅ green |
+| NAV-01 | No charm.land/charmbracelet TUI deps in go.mod | build gate | `go mod tidy && ! grep -E "charm.land/(bubbletea|bubbles|lipgloss)|charmbracelet/glamour" go.mod` | ✅ | ✅ green |
+| NAV-01 | Build compiles without TUI package | build gate | `go build ./...` | ✅ | ✅ green |
+| TEST-06 | All TUI test files deleted | build gate | `! ls internal/tui 2>/dev/null` (dir gone) | ✅ | ✅ green |
+| TEST-06 | Daemon parity tests referencing TUI removed | build gate | `go vet ./internal/daemon/...` (compiles, no tui import) | ✅ | ✅ green |
+| TEST-06 | Surviving Go suite passes | automated | `go test -race -short ./...` | ✅ | ✅ green |
+| TEST-06 | Frontend tests pass (no regression) | automated | `cd frontend && pnpm test` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+> **Audit note (NAV-01-b):** The original grep gate `grep -rn "internal/tui"` was too
+> coarse — it matches the substring inside the explanatory comment `// Nothing in this
+> file imports internal/tui.` in `remote_files_test_helpers_test.go`. The command above
+> was narrowed to the full package import path `scottkw/agenthub/internal/tui`, which
+> correctly returns zero matches (no real import statements remain).
 
 ---
 
@@ -80,11 +87,35 @@ exist and run in CI.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (none — deletion phase)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (none — deletion phase)
+- [x] No watch-mode flags
+- [x] Feedback latency < 120s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-06-19
+
+---
+
+## Validation Audit 2026-06-19
+
+State A audit — existing VALIDATION.md re-run against the executed codebase.
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 8 |
+| COVERED | 8 |
+| PARTIAL | 0 |
+| MISSING | 0 |
+| Gaps found | 0 |
+| Tests generated | 0 (deletion phase — existing Go/frontend suites cover all reqs) |
+| Escalated | 0 |
+
+**Live re-run evidence:** All 6 quick build gates executed live and passed
+(`agenthub tui` → exit 1; no `scottkw/agenthub/internal/tui` imports; no charm deps
+in `go.mod`; `go build ./...` green; `internal/tui/` dir absent; `go vet ./internal/daemon/...`
+clean). `internal/daemon` race suite green. Full `go test -race -short ./...` and frontend
+`pnpm test` (1749 tests) confirmed green during execution + phase verification with only a
+documentation edit since. One gate command (NAV-01-b) was refined to eliminate a
+comment-substring false positive. Phase is **Nyquist-compliant**.
