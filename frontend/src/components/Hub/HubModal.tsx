@@ -62,7 +62,11 @@ export interface HubModalProps {
  * - transformOrigin set from sourceRect center (MODAL-01 grow-animation origin)
  *
  * Security: session.name / hostname rendered as React text content — no dangerouslySetInnerHTML (T-134-04-01).
- * Escape: stopPropagation on dialog onKeyDown prevents Hub card menu Escape from also firing (WR-05).
+ * Escape: the dialog onKeyDown calls preventDefault + stopPropagation. Isolation from the
+ * originating Hub card's own Escape handler (SessionCard onKeyDown) is provided by the inert
+ * background trap (the card is `inert` while the modal is open, so it cannot receive key
+ * events) — NOT by stopPropagation, which only stops bubbling within the dialog's own React
+ * subtree and has no effect on the card's sibling subtree under .hub (WR-02 / WR-05).
  */
 export function HubModal({
   session,
@@ -175,6 +179,7 @@ export function HubModal({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
+            e.preventDefault()
             e.stopPropagation()
             handleClose()
           }
