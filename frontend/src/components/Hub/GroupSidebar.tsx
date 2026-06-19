@@ -131,6 +131,11 @@ export function GroupSidebarItem({
       tabIndex={0}
       onClick={() => onGroupSelect(id)}
       onKeyDown={(e) => {
+        // WR-03: only act on key events originating on the row itself, not on a bubbled
+        // descendant. Guards against a future focusable child (e.g. an inline rename/delete
+        // button) having its Space activation swallowed by preventDefault and mis-firing
+        // group selection.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onGroupSelect(id)
