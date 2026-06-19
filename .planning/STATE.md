@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: verifying
-stopped_at: Completed 135-02-PLAN.md
+status: milestone_complete_deferred
+stopped_at: v3.6 all phases done + verified; audit=tech_debt; user held milestone completion to address tech debt first
 last_updated: "2026-06-19T01:18:39.732Z"
 last_activity: 2026-06-19
 progress:
@@ -53,10 +53,20 @@ Last activity: 2026-06-19
 
 ## Session Continuity
 
-Last session: 2026-06-19T01:18:39.727Z
-Stopped at: Completed 135-02-PLAN.md
+Last session: 2026-06-19
+Stopped at: v3.6 Phase 135 fully complete (planned→executed→reviewed+fixed→live-UAT validated→secured→UI-audited+fixed). Milestone audit ran: status=tech_debt (39/39 reqs, 0 blockers, 7/7 flows). User chose to STOP before /gsd:complete-milestone to address tech debt first.
 Resume file: None
-Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
+Next action: address tech debt (below) then `/gsd:complete-milestone v3.6` (+ /gsd:cleanup). To resume autonomously after: /gsd-autonomous (lifecycle only — all phases done).
+
+## v3.6 Close — Outstanding Tech Debt (before completing milestone)
+
+See `.planning/v3.6-MILESTONE-AUDIT.md` (tech_debt). Not blocking; release-eligible like v3.4/v3.5.
+
+- **Live visual UATs (Phases 131/132/133):** grid reflow, pulse animation, DnD assign, light/dark themes — must-haves verified at source; need the running Wails app. (135's live Tab-trap UAT validated this run via WebKit+Chromium.)
+- **Nyquist partial (131/132/133):** `nyquist_compliant:false` (suite 1750/1750 green). Optional: `/gsd:validate-phase 131|132|133` to close retroactively.
+- **errored-filter gap (GRID-04 edge):** HubFilter lacks `errored`; non-All pills hide errored sessions (still pulse/float via attention). Audit-tracked only (user declined filing an issue 2026-06-19).
+- **Minor warnings:** `deleteGroup` orphaned export; `adaptAllRemoteSessions` inline (memoization); HubModal `prefersReducedMotion` no change-listener. WR-04 (GroupSidebar roving-tabindex) → issue #97.
+- **Carry-forward (v3.5):** live UATs for Phases 124/125/126; operator pre-release tasks (RELEASE_PUBLISH_TOKEN PAT, WINGET_FIRST_SUBMISSION).
 
 ## Deferred Items
 
