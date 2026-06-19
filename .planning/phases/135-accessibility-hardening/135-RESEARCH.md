@@ -559,7 +559,7 @@ The UI-SPEC and REQUIREMENTS.md both state A11Y-01 is "Already Complete" from Ph
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **GroupSidebar `<li>` items have no `tabIndex`**
    - What we know: `GroupSidebarItem` renders an `<li>` with `role="option"` and `onClick` but no `tabIndex`. `<li>` elements are not natively focusable.
