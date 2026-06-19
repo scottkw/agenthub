@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: ready_to_plan
-stopped_at: Phase 134 complete (8/8) — ready to discuss Phase 135
-last_updated: 2026-06-18T18:45:30.640Z
-last_activity: 2026-06-17
+status: executing
+stopped_at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
+last_updated: "2026-06-19T01:01:21.875Z"
+last_activity: 2026-06-19 -- Phase 135 planning complete
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 23
+  total_plans: 26
   completed_plans: 23
   percent: 80
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 Phase: 135
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-18
+Status: Ready to execute
+Last activity: 2026-06-19 -- Phase 135 planning complete
 
 ## Operator Next Steps (pre-release, carry-forward)
 
