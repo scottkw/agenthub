@@ -8,6 +8,43 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
+## Current Milestone: v4.0 Hub-First Consolidation & UI/UX Overhaul
+
+**Goal:** Collapse AgentHub onto a single Hub-centric surface — retire the TUI and the Sessions/Remote sidebar pages, fold their controls into per-card Share modals and indicators, ship the Claude redesign, fix the tab strip, and stand up a formal regression-test program.
+
+**Target features:**
+
+*Navigation restructure (Hub-first):*
+- Remove the TUI surface entirely (`agenthub tui`, Bubble Tea, shared TUI code/tests) — cross-surface parity contract narrows to **GUI/CLI/web** (Issue #82 closed not-planned)
+- Remove the "+ New Session" sidebar item — session creation lives solely on the Hub's `HubFilterBar` button
+- Remove the "Sessions" sidebar page (`DaemonManagerPanel`) — migrate web-share controls into a per-card **Share** modal on the Hub
+- Remove the "Remote" sidebar page (Hub already unifies local + remote) — add card indicators for **local vs remote** and, for remote, **available vs currently-connected**
+- Resulting sidebar: **Home / Hub / Settings**
+
+*Hub card & Share modal:*
+- Remove the Hub `.hub__header` (the "Hub" title bar + its duplicate "New session" button)
+- Share modal simplified to **two toggles**: ① Share the session → reveals read-only + read/write share links/codes; ② Enable remote file browsing → browse permission inherits from the share code used (RO code → RO browse; RW code → RW browse). *Couples the capability model — security-sensitive.*
+- Resize/redesign the Hub session card to accommodate the new Share button + indicators (re-tune grid density/reflow; preserve attention pulse/float, mini-preview, colorblind-safe semantics)
+- Fix Hub tail/preview rendering (Issue #96) — mini-preview cards + briefing-modal tail garble agent (Claude Code) output; proper fix renders scrollback through a headless VT emulator vs. regex ANSI strip
+
+*Cross-cutting:*
+- Implement the v4.0 UI/UX redesign (`./agenthub-v4.0-redesign`) — three Claude directions (Refined Native / Command Workspace / Share-first); **direction chosen at UI-spec time** after browser review; visual language adapts onto the Hub-first structure (structural decisions above win conflicts)
+- Fix tab-strip overflow — browser-style shrink-then-scroll with a visible side-scroll affordance (`.tab` `flex-shrink:0` + hidden scrollbar today)
+- Establish a formal regression-test program for all current state + future dev, split into **(A) automated** (Go + vitest + Playwright consolidated into a labeled suite with requirement→test traceability, CI merge gate) and **(B) human-intervention** (a single maintained manual-regression checklist replacing scattered per-phase UAT logs)
+- Roll in v3.6 carry-over GitHub Issues: **#93** (deferred #78 Hub fidelity — scope to be trimmed at planning; overlaps #67), **#97** (Hub GroupSidebar ARIA listbox roving-tabindex)
+
+**Scope decisions ratified at milestone scoping (2026-06-19):**
+- **Hub-first wins over the redesign comps.** The redesign mockups still show Sessions/Remote sidebar pages; the structural removals above are the current intent and override the older comps. The redesign's visual language is adapted onto the Hub-first structure, reconciled surface-by-surface at UI-spec time.
+- **TUI dropped** — reverses the long-standing GUI/TUI/CLI parity contract to **GUI/CLI/web**. TUI tests are deleted (not migrated) under the regression-program item.
+- **Colorblind-safe + `prefers-reduced-motion` remain release norms** (owner is colorblind); cross-surface parity remains release-blocking.
+- **Redesign direction deferred** to the UI-spec phase (browser review of the standalone HTML required before committing a lane).
+
+**Unfiled v3.6 tech-debt tracked as scope-only (no GitHub issues filed):** GRID-04 errored-filter edge, `deleteGroup` orphaned CRUD, mini-preview per-session-RPC scale, `adaptAllRemoteSessions` memoization, A11Y-04 Tab-trap live UAT — most absorbed by the redesign/regression items.
+
+**Phase numbering:** continues from v3.6 (last phase 135) — v4.0 starts at **Phase 136**.
+
+**Admin completed at scoping (2026-06-19):** #78 (Session Grid) closed-completed + #76 commented (covered by v3.6, rolling into v4.0); #82 (TUI Files upload) closed not-planned (TUI dropped). #93/#96/#97 remain open as v4.0 work.
+
 ## Last Shipped Milestone: v3.4 File Browser (Read-Only) + TUI Parity (2026-05-21)
 
 **Closes:** GitHub Issues #62 (read-only file browser) + v3.4 slice of #64 (TUI browse+preview parity). Umbrella epic #24 stays open across v3.4 + v3.5. 5 phases (118-122, including audit-driven Phase 122 insert), 48 REQ-IDs (FS-01..14, WEB-01..05, UI-01..14, TUI-01..10, REMOTE-01..05), 176 commits across 2 days (2026-05-20 → 2026-05-21). Audit status `tech_debt` — release-eligible after 3 user-acknowledged manual UATs (Phase 120 Wails click-path, Phase 121 visual TokyoNight, Phase 122 22-step two-machine tailnet). Tagged v3.4.
@@ -231,7 +268,7 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 ### Active
 
-Requirements for v3.6 are scoped in `.planning/REQUIREMENTS.md` (the Hub session-grid surface). Active items move to Validated as phases complete.
+Requirements for v4.0 (Hub-First Consolidation & UI/UX Overhaul) are scoped in `.planning/REQUIREMENTS.md`. Active items move to Validated as phases complete. (v3.6 requirements archived to `.planning/milestones/v3.6-REQUIREMENTS.md`.)
 
 ## Shipped Milestone: v3.6 Hub (Session Grid / Control Room) — SHIPPED 2026-06-19
 
@@ -528,7 +565,14 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-19 — v3.6 Hub (Session Grid / Control Room) milestone SHIPPED (tag v3.6, closes #78; 5 phases 131-135, 39/39 reqs, 26 plans). Delivered the top-level Hub control-room: unified local+remote live session grid, working-directory + named groups (drag-to-assign), throttled mini-previews, colorblind-safe attention (pulse/float/badge), card→modal (interactive + briefing, remote WS proxy), full A11Y hardening. Close-time daemon fix (245414c2) for macOS exit-code capture; all 131/132/133 live UATs verified this session incl. remote tailnet peer across two machines, owner sign-off. Audit tech_debt (release-eligible). No active milestone — next via /gsd:new-milestone. Carry-forward operator tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION) still required before next tagged release.*
+*Last updated: 2026-06-19 — v4.0 Hub-First Consolidation & UI/UX Overhaul milestone STARTED. Major restructure onto a Hub-centric UI: remove the TUI surface (parity → GUI/CLI/web), remove the "+ New Session" sidebar item + the "Sessions" page (→ per-card Share modal) + the "Remote" page (→ card local/remote + available/connected indicators), leaving sidebar Home/Hub/Settings. Hub work: remove `.hub__header`, simplify Share to two toggles (share→RO+RW codes; remote file-browse inherits code permission — couples the cap model), resize/redesign the session card, fix tail/preview rendering (#96, headless VT render). Cross-cutting: implement the Claude v4.0 redesign (`./agenthub-v4.0-redesign`, direction chosen at UI-spec time, Hub-first wins conflicts), fix tab-strip overflow (browser-style shrink-then-scroll), and stand up a formal regression-test program (automated CI suite w/ req→test traceability + maintained manual checklist). Roll in v3.6 carry-overs #93/#97. Admin done: #78 closed-completed + #76 commented; #82 closed not-planned (TUI dropped). v3.6 phases archived to `milestones/v3.6-phases/`. Phase numbering continues from 135 → v4.0 starts at Phase 136. Carry-forward operator tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION) still required before next tagged release. Next: requirements + roadmap.*
+
+<details>
+<summary>Prior footer — v3.6 milestone SHIPPED (2026-06-19)</summary>
+
+*Last updated: 2026-06-19 — v3.6 Hub (Session Grid / Control Room) milestone SHIPPED (tag v3.6, closes #78; 5 phases 131-135, 39/39 reqs, 26 plans). Delivered the top-level Hub control-room: unified local+remote live session grid, working-directory + named groups (drag-to-assign), throttled mini-previews, colorblind-safe attention (pulse/float/badge), card→modal (interactive + briefing, remote WS proxy), full A11Y hardening. Close-time daemon fix (245414c2) for macOS exit-code capture; all 131/132/133 live UATs verified this session incl. remote tailnet peer across two machines, owner sign-off. Audit tech_debt (release-eligible). Carry-forward operator tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION) still required before next tagged release.*
+
+</details>
 
 <details>
 <summary>Prior footer — v3.6 milestone STARTED (2026-06-16)</summary>

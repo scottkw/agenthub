@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Hub (Session Grid / Control Room)
-status: Awaiting next milestone
-stopped_at: "v3.6 Phase 135 fully complete (planned→executed→reviewed+fixed→live-UAT validated→secured→UI-audited+fixed). Milestone audit ran: status=tech_debt (39/39 reqs, 0 blockers, 7/7 flows). User chose to STOP before /gsd:complete-milestone to address tech debt first."
-last_updated: "2026-06-19T18:18:50.558Z"
-last_activity: 2026-06-19 — Milestone v3.6 completed and archived
+milestone: v4.0
+milestone_name: Hub-First Consolidation & UI/UX Overhaul
+status: planning
+last_updated: "2026-06-19T19:06:31.662Z"
+last_activity: 2026-06-19
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 ## Current Position
 
-Phase: Milestone v3.6 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-19 — Milestone v3.6 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-19 — Milestone v4.0 started
 
 ## Operator Next Steps (pre-release, carry-forward)
 
