@@ -17,7 +17,13 @@ findings:
   warning: 4
   info: 4
   total: 8
-status: issues_found
+status: resolved
+resolution:
+  fixed: [WR-01, WR-02, WR-03, IN-04]
+  deferred: [WR-04]
+  deferred_note: "WR-04 (GroupSidebar listbox roving-tabindex / arrow-key model) deferred to a follow-up issue — rewrites the ARIA interaction model of a pre-Phase-135 component (built in 131/132); out of accessibility-hardening scope, filed for next milestone."
+  accepted_advisory: [IN-01, IN-02, IN-03]
+  resolved_commits: ["47f1bff2", "b0aa98ca", "7096c799", "7f512804"]
 ---
 
 # Phase 135: Code Review Report
