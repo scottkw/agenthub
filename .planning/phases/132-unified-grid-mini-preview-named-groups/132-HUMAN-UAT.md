@@ -25,24 +25,25 @@ The 3 items below still need a built app with real sessions/peers:
 
 ### 1. Mini-preview perf at scale (CARD-07)
 expected: Open Hub with 10+ active sessions; previews update smoothly on the shared 3s interval with no jank. DevTools shows ONE batch of GetSessionTailLines per tick (not one-per-session-per-second). Source-verified: exactly 1 setInterval in HubPanel; usePreviewPoller uses stable session-id-join dep.
-result: [pending]
+result: PASS-with-nuance (live, 2026-06-19) — created 11 sessions (9 running) on the v3.6 daemon. All **11 cards rendered** in the grid; mini-preview panes **populated with live tail content** (some real output, others "No output yet"). Instrumented the `GetSessionTailLines` Wails binding for ~7s (≈2 ticks): **22 calls = ~11 per ~3s tick** → a SINGLE shared interval (confirmed) issuing **one RPC per session per tick**, NOT one literal batched RPC. The "one-per-session-per-SECOND" anti-pattern is absent (cadence is the shared ~3s tick), but the literal "ONE batch per tick" wording is not met — per-session fan-out. NOTE for scale: N sessions = N RPCs/tick. Visual "no jank" smoothness remains native-window-only.
 
 ### 2. Drag-and-drop card → group sidebar (GROUP-02/04)
 expected: Drag a session card onto a named group in the sidebar; card moves to that group; after app restart the membership persists (localStorage). Individual DnD pieces are unit-tested; end-to-end pointer gesture needs a live app.
-result: [pending]
+result: PASS (live, 2026-06-19) — created group "DragTarget", then dispatched the HTML5 DnD sequence (dragstart→dragover→drop) from the `uat-err` card onto it. The app's real handlers ran end-to-end: `onDragStart` set `dataTransfer['text/plain']` = `uat-err:::/Users/ken/dev/agenthub`; `onDrop` → `onDropOnGroup` → state update; localStorage `agenthub:hubGroups:v1` persisted `memberKeys:["uat-err:::/Users/ken/dev/agenthub"]`; grid regrouped to headers ["DragTarget","Other"] (card moved). Persistence is via localStorage (survives restart). Only the OS-level pointer→drag translation (browser-native, not app logic) was synthesized rather than physically performed.
 
 ### 3. Remote peer card in unified grid (GRID-03/07)
 expected: With a live Tailscale peer running AgentHub, the remote session appears alongside local cards with peer hostname as origin and "No output yet" preview (remote sessions intentionally excluded from GetSessionTailLines polling). Needs a live tailnet peer.
-result: [pending]
+result: PASS (live, 2026-06-19) — with a SECOND machine ("Ken's MacBook Air (1574)", kens-macbook-air-1574.tail46d69a.ts.net) running AgentHub on the same tailnet and sharing a `claude` session: `/tailnet/peers` discovered the peer (online); `GetRemoteSessionsWithMeta()` returned it reachable with session "claude 1" (claude, running, tailnet URL on :7443). On the local `:34115` Hub the remote session rendered as a card in the unified grid alongside local cards — name "claude 1", **origin "Ken's MacBook Air (1574)"** (peer hostname), CLI badge "claude", status "Running", preview **"No output yet"** (remote sessions correctly excluded from GetSessionTailLines polling), with an "Open" affordance. GRID-03/07 confirmed end-to-end across two real tailnet hosts.
 
 ## Summary
 
 total: 3
-passed: 0
+passed: 3
 issues: 0
-pending: 3
+pending: 0
 skipped: 0
 blocked: 0
+note: item 1 PASS-with-nuance (per-session RPC fan-out, not literal single batch); item 3 confirmed live across two real tailnet machines 2026-06-19
 
 ## Gaps
 

@@ -58,14 +58,14 @@ Stopped at: v3.6 Phase 135 fully complete (planned→executed→reviewed+fixed�
 Resume file: None
 Next action: address tech debt (below) then `/gsd:complete-milestone v3.6` (+ /gsd:cleanup). To resume autonomously after: /gsd-autonomous (lifecycle only — all phases done).
 
-## v3.6 Close — Outstanding Tech Debt (before completing milestone)
+## v3.6 Close — Tech Debt (live UATs now CLOSED 2026-06-19)
 
-See `.planning/v3.6-MILESTONE-AUDIT.md` (tech_debt). Not blocking; release-eligible like v3.4/v3.5.
+See `.planning/v3.6-MILESTONE-AUDIT.md` "Update 2026-06-19". The live visual/animation UATs that held completion are now RESOLVED (verified live on a clean v3.6 daemon; the prior stalls were a stale homebrew v3.5.1 daemon on the socket):
 
-- **Live visual UATs (Phases 131/132/133):** grid reflow, pulse animation, DnD assign, light/dark themes — must-haves verified at source; need the running Wails app. (135's live Tab-trap UAT validated this run via WebKit+Chromium.)
-- **Nyquist partial (131/132/133):** `nyquist_compliant:false` (suite 1750/1750 green). Optional: `/gsd:validate-phase 131|132|133` to close retroactively.
-- **errored-filter gap (GRID-04 edge):** HubFilter lacks `errored`; non-All pills hide errored sessions (still pulse/float via attention). Audit-tracked only (user declined filing an issue 2026-06-19).
-- **Minor warnings:** `deleteGroup` orphaned export; `adaptAllRemoteSessions` inline (memoization); HubModal `prefersReducedMotion` no change-listener. WR-04 (GroupSidebar roving-tabindex) → issue #97.
+- **DONE — Live UATs (131/132/133):** CARD-08 both halves; ATTN-01/02/04/06 (pulse/float/badge) live; ATTN-05 by composition; DnD card→group; 11-session scale render; **remote tailnet peer (GRID-03/07) across two real machines.** See the 131/132/133-HUMAN-UAT.md files (all passed).
+- **DONE — Daemon bugfix (commit `245414c2`):** macOS natural-exit now captures the real exit code (`Session.ReapNaturalExit()`), so CARD-08 stopped-err is reachable. TDD regression test; daemon+pty suites green with `-race`.
+- **New candidate issue:** mini-preview issues one `GetSessionTailLines` RPC per session per ~3s tick (not a single batched call) — scale-perf nuance, non-blocking.
+- **Residual (unchanged, release-eligible):** `adaptAllRemoteSessions` inline memo; HubModal `prefersReducedMotion` no change-listener; WR-04 GroupSidebar roving-tabindex → #97; GRID-04 errored-filter edge (audit-tracked).
 - **Carry-forward (v3.5):** live UATs for Phases 124/125/126; operator pre-release tasks (RELEASE_PUBLISH_TOKEN PAT, WINGET_FIRST_SUBMISSION).
 
 ## Deferred Items

@@ -26,7 +26,10 @@ result: PASS (mechanism verified) — `.hub__card-row` computes `grid-template-c
 
 ### 4. Stopped dimming vs error-exit
 expected: Stopped/exit-0 cards render dimmed with exit code; error-exit (non-zero) cards are NOT dimmed and show the exit code (CARD-08).
-result: PARTIAL — could NOT be driven live: terminal PTY input does not flow through the external-browser dev bridge (it is bound to the native webview), so the shell could not be made to exit to produce a stopped/exited card. Covered by SessionCard.test.tsx (22 tests incl. dimming + exit-code), style.hub.test.ts CSS-contract (dim opacity rule), and source review. NOT yet visually confirmed on a real exited session — operator should confirm on a built app.
+result: PASS (both halves, live 2026-06-19 — after a daemon bugfix). On the v3.6 Hub:
+  - **stopped-ok** (`/usr/bin/true`, exit 0): `.hub-card--dim` @ opacity 0.45, label "Done", non-attention. ✓
+  - **stopped-err** (`/usr/bin/false`, exit 1): NOT dimmed, label **"Exited 1"**, `--attention` (stopped-err is an attention status). ✓
+  BUGFIX (this run): the error-exit half was initially unreachable on macOS — `/usr/bin/false` reported `exitCode 0`. Root cause: on unix go-pty installs NO `waitOnContext` goroutine (Windows-only), and macOS/BSD run no exit detector, so the natural-exit path never called `cmd.Wait()` → `ProcessState` stayed nil → cached `-1` → normalized to 0. The engine comment claiming "cancel context so go-pty's waitOnContext reaps" was wrong for unix. Fix: added platform-split `Session.ReapNaturalExit()` (`internal/pty/reap_other.go` active on darwin/BSD; no-op on linux/windows where the detector already caches the code) and called it from the engine natural-exit goroutine before reading `ExitCode()`. The `-1 → 0` D-10 fallback is preserved for genuinely signal-terminated/unknown exits. Regression test: `engine_natural_exit_test.go` (TDD; `/usr/bin/false` → exitCode 1). Full `internal/daemon` + `internal/pty` suites pass with `-race`. This also unblocks the Phase 133 **errored** attention variant.
 
 ### 5. Running spin animation + reduced-motion
 expected: Running-card status icon spins; with prefers-reduced-motion the animation is suppressed while icon+label still convey status.
@@ -40,11 +43,12 @@ result: PASS (live, partial) — running card rendered the rotating status icon 
 ## Summary
 
 total: 5
-passed: 4
+passed: 5
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
+note: item 4 error-exit half required a daemon bugfix (macOS exit-code capture); now PASS live + regression-tested.
 
 ## Gaps
 
