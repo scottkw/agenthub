@@ -117,18 +117,24 @@ export function HubModal({
   }, [])
 
   // ---- A11Y-04: Focus trap via inert + initial focus ----
-  // When phase === 'open', mark the .hub background inert so Tab cannot reach background cards.
-  // Move initial focus to the close button for correct WCAG 2.4.3 focus order.
-  // Cleanup removes inert on every close/unmount (Pitfall 1: missing cleanup causes Hub keyboard-lock).
+  // Mark the .hub background inert so Tab cannot reach background cards while the modal
+  // is mounted. The trap must persist through BOTH 'open' AND 'exiting' — dropping it
+  // during the exit animation (WR-01) re-exposes background cards while the modal is
+  // still mounted with aria-modal="true". Only the 'entering' grow animation is excluded
+  // (Pitfall 3). Cleanup removes inert on every phase change AND on unmount — because the
+  // effect re-runs and re-applies inert on each non-entering phase, there is never a gap
+  // where the background is left interactive while the modal is open (keyboard-lock guard:
+  // cleanup ALWAYS runs `inert = false`, so no path leaves .hub permanently inert).
+  // Move initial focus to the close button only once the modal is fully 'open' (WCAG 2.4.3).
   // The cardFocusRef cleanup (above) handles focus-return to the originating card — do NOT duplicate it here.
   const closeBtnRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
-    if (phase !== 'open') return // Pitfall 3: do not trap during 'entering' animation
+    if (phase === 'entering') return // Pitfall 3: do not trap during 'entering' grow animation
 
     const hubEl = document.querySelector('.hub') as HTMLElement | null
-    if (hubEl) hubEl.inert = true
+    if (hubEl) hubEl.inert = true // trap stays applied through 'open' AND 'exiting'
 
-    closeBtnRef.current?.focus()
+    if (phase === 'open') closeBtnRef.current?.focus()
 
     return () => {
       if (hubEl) hubEl.inert = false // Pitfall 1: MUST remove inert or Hub keyboard-locks

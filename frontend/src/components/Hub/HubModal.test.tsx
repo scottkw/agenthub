@@ -135,8 +135,8 @@ describe('HubModal (A11Y-04: focus trap via inert)', () => {
     expect(raw).toContain('closeBtnRef.current?.focus()')
   })
 
-  it('gates inert trap on phase === "open" (not during entering animation — Pitfall 3)', () => {
-    expect(raw).toContain("phase !== 'open'")
+  it('excludes the entering grow animation from the inert trap (Pitfall 3), keeping it through open AND exiting (WR-01)', () => {
+    expect(raw).toContain("phase === 'entering'")
   })
 
   it('queries the .hub background element (Assumption A1 verified selector)', () => {
