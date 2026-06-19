@@ -338,7 +338,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Milestone Goal:** Collapse AgentHub onto a single Hub-centric surface — retire the TUI and the Sessions/Remote sidebar pages, fold their controls into per-card Share modals and indicators, ship the Claude redesign, fix the tab strip, and stand up a formal regression-test program.
 
-- [ ] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web
+- [x] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web (completed 2026-06-19)
 - [ ] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review
 - [ ] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings
 - [ ] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. `go build ./...` and the full CI test matrix are green with no TUI import paths remaining
 **Plans**: 2 plans
 - [x] 136-01-PLAN.md — Delete internal/tui package + cmd_tui.go + dispatch/usage + daemon parity tests; go mod tidy (NAV-01, TEST-06)
-- [ ] 136-02-PLAN.md — README/comment cleanup + full Go race/frontend suite gate + `agenthub tui` non-zero smoke (NAV-01, TEST-06)
+- [x] 136-02-PLAN.md — README/comment cleanup + full Go race/frontend suite gate + `agenthub tui` non-zero smoke (NAV-01, TEST-06)
 
 ### Phase 137: Share Modal & Cap Model
 **Goal**: Each Hub session card has a Share button opening a per-session Share modal; the cap model issues one "share" action minting separate read-only and read/write tokens; file-browse permission inherits from the presented token
@@ -484,7 +484,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 133 | v3.6 | 5/5 | Complete | 2026-06-17 |
 | 134 | v3.6 | 8/8 | Complete | 2026-06-18 |
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
-| 136. TUI Removal | v4.0 | 1/2 | In Progress|  |
+| 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
 | 137. Share Modal & Cap Model | v4.0 | 0/TBD | Not started | - |
 | 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
