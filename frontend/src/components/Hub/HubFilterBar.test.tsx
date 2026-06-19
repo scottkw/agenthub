@@ -143,6 +143,21 @@ describe('HubFilterBar — filter pills', () => {
     })
     expect(onFilterChange).toHaveBeenCalledWith('all')
   })
+
+  it('active pill has aria-pressed="true"', () => {
+    ;({ container, root } = renderFilterBar({ activeFilter: 'running' }))
+    const activePill = container.querySelector('.hub-filter__pill--active') as HTMLButtonElement
+    expect(activePill.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('inactive pills have aria-pressed="false"', () => {
+    ;({ container, root } = renderFilterBar({ activeFilter: 'running' }))
+    const allPills = Array.from(container.querySelectorAll('.hub-filter__pill'))
+    const inactivePills = allPills.filter((p) => !p.classList.contains('hub-filter__pill--active'))
+    for (const pill of inactivePills) {
+      expect(pill.getAttribute('aria-pressed')).toBe('false')
+    }
+  })
 })
 
 describe('HubFilterBar — search input', () => {
