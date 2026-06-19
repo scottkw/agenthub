@@ -21,7 +21,7 @@ require (
 	github.com/tailscale/go-winio v0.0.0-20231025203758-c4f33415bf55
 	github.com/wailsapp/mimetype v1.4.1
 	github.com/wailsapp/wails/v2 v2.10.2
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 	tailscale.com v1.98.3
