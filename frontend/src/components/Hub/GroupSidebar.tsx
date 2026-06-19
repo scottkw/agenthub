@@ -128,7 +128,14 @@ export function GroupSidebarItem({
       className={itemClass}
       role="option"
       aria-selected={isActive ? 'true' : 'false'}
+      tabIndex={0}
       onClick={() => onGroupSelect(id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onGroupSelect(id)
+        }
+      }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
