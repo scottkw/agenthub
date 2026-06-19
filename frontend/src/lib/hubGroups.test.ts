@@ -6,7 +6,6 @@ import {
   createGroup,
   assignToGroup,
   removeFromGroup,
-  deleteGroup,
   type HubGroupDef,
 } from './hubGroups'
 
@@ -100,16 +99,6 @@ describe('removeFromGroup', () => {
     groups = assignToGroup(groups, a.id, 'rem:::__nodir__')
     groups = removeFromGroup(groups, 'rem:::__nodir__')
     expect(groups.find((g) => g.id === a.id)!.memberKeys).not.toContain('rem:::__nodir__')
-  })
-})
-
-describe('deleteGroup', () => {
-  it('removes a group by id and persists', () => {
-    let groups = createGroup([], 'ToDelete')
-    const [g] = groups
-    groups = deleteGroup(groups, g.id)
-    expect(groups.find((gr) => gr.id === g.id)).toBeUndefined()
-    expect(loadGroups().find((gr) => gr.id === g.id)).toBeUndefined()
   })
 })
 

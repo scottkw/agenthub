@@ -57,9 +57,3 @@ export function removeFromGroup(groups: HubGroupDef[], key: string): HubGroupDef
   saveGroups(updated)
   return updated
 }
-
-export function deleteGroup(groups: HubGroupDef[], groupId: string): HubGroupDef[] {
-  const updated = groups.filter((g) => g.id !== groupId)
-  saveGroups(updated)
-  return updated
-}
