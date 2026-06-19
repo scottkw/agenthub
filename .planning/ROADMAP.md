@@ -492,7 +492,7 @@ Plans:
 **Wave 1** *(all parallel — no file overlap)*
 
 - [x] 135-01-PLAN.md — Wave 1: style.css `:focus-visible` rings for all Hub interactive elements (GAP-135-A) + `prefers-reduced-motion: reduce` blocks for spin (GAP-135-E) and card hover (GAP-135-F) — A11Y-02, A11Y-03
-- [ ] 135-02-PLAN.md — Wave 1: HubFilterBar `aria-pressed` on pills (GAP-135-B) + GroupSidebar keyboard-operable items (tabIndex + Enter/Space) — A11Y-02
+- [x] 135-02-PLAN.md — Wave 1: HubFilterBar `aria-pressed` on pills (GAP-135-B) + GroupSidebar keyboard-operable items (tabIndex + Enter/Space) — A11Y-02
 - [ ] 135-03-PLAN.md — Wave 1: HubModal focus trap via `inert` + initial focus (GAP-135-D / A11Y-04), WR-05 dialog-scoped Escape (GAP-135-C), STATUS_CONFIG mirror verification (A11Y-01)
 
 **UI hint**: yes
@@ -547,7 +547,7 @@ Plans:
 | 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
 | 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
 | 134 | v3.6 | 8/8 | Complete    | 2026-06-18 |
-| 135 | v3.6 | 1/3 | In Progress|  |
+| 135 | v3.6 | 2/3 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
