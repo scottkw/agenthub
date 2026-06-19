@@ -73,7 +73,7 @@
 ### Accessibility (A11Y)
 
 - [x] **A11Y-01**: Attention and status are conveyed by motion + icon + position, never by color alone (colorblind-safe)
-- [ ] **A11Y-02**: Cards are keyboard-focusable; Enter/Space expands; Escape closes the modal and returns focus to the originating card
+- [x] **A11Y-02**: Cards are keyboard-focusable; Enter/Space expands; Escape closes the modal and returns focus to the originating card
 - [x] **A11Y-03**: Pulse and expand/collapse animations honor `prefers-reduced-motion`, falling back to a static highlighted border + icon
 - [ ] **A11Y-04**: The modal traps focus while open
 
@@ -151,7 +151,7 @@ Populated during roadmap creation.
 | GROUP-03 | Phase 132 | Complete |
 | GROUP-04 | Phase 132 | Complete |
 | A11Y-01 | Phase 135 | Complete |
-| A11Y-02 | Phase 135 | Pending |
+| A11Y-02 | Phase 135 | Complete |
 | A11Y-03 | Phase 135 | Complete |
 | A11Y-04 | Phase 135 | Pending |
 

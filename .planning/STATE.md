@@ -4,13 +4,13 @@ milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
 status: executing
 stopped_at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
-last_updated: "2026-06-19T01:01:21.875Z"
-last_activity: 2026-06-19 -- Phase 135 planning complete
+last_updated: "2026-06-19T01:06:43.365Z"
+last_activity: 2026-06-19
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 26
-  completed_plans: 23
+  completed_plans: 24
   percent: 80
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 135 — accessibility hardening
+**Current focus:** Phase 135 — accessibility-hardening
 
 ## Current Position
 
-Phase: 135
-Plan: Not started
+Phase: 135 (accessibility-hardening) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 135 planning complete
+Last activity: 2026-06-19
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -53,7 +53,7 @@ Last activity: 2026-06-19 -- Phase 135 planning complete
 
 ## Session Continuity
 
-Last session: 2026-06-17T15:43:25.090Z
+Last session: 2026-06-19T01:06:40.036Z
 Stopped at: Paused mid-Phase-134 (weekly quota limit, resets Jun 20 8am CT). 134-01..06 done; resume at 134-07 (frontend remote wiring + CR-03), then 134-08, verify, Phase 135.
 Resume file: None
 Next action: /gsd:verify-work 133 or /gsd:plan-phase 134
@@ -81,6 +81,7 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 | Phase 134 P06 | ~25 minutes | 2 tasks | 4 files |
 | Phase 134-modal-interaction P07 | 5m | 3 tasks | 5 files |
 | Phase 134-modal-interaction P08 | 8m | 3 tasks | 7 files |
+| Phase 135 P01 | 8m | 2 tasks | 2 files |
 
 ## v3.6 Phase Plan
 
