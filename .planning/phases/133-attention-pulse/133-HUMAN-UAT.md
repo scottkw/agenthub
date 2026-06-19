@@ -3,7 +3,7 @@ status: partial
 phase: 133-attention-pulse
 source: [133-VERIFICATION.md]
 started: 2026-06-16
-updated: 2026-06-16
+updated: 2026-06-19
 ---
 
 ## Current Test
@@ -40,3 +40,7 @@ blocked: 1
 ## Gaps
 
 - Items 1-3 need a real attention session (waiting / errored / non-zero exit). The external `wails dev` browser bridge cannot drive the terminal PTY to produce one, so these are operator checks on a built/native app (e.g., run a command that exits non-zero in a session → stopped-err → attention). Item 4's modal trigger is deferred to Phase 134; the underlying status-driven clear is unit-proven now.
+
+## Live Re-test 2026-06-19 (post-milestone tech-debt review)
+
+Re-attempted via `wails dev` + dev-browser. No new live confirmation possible: all 4 items require a session in a waiting/errored/non-zero-exit (attention) state, and the external bridge cannot drive the PTY to produce one. Confirmed empirically this run that killing or exiting a session in this env *removes* it from the daemon rather than leaving an attention/stopped card (daemon was in a version-mismatch state — treated as an env artifact, not a finding). Item 4's modal now EXISTS (Phase 134 shipped), so the end-to-end ATTN-05 path is testable on a clean native build, but still needs a real waiting session. Underlying status-driven behavior remains unit-proven (HubPanel.test.tsx ATTN-03/05, SessionCardGrid FLIP/sort, GroupSidebar collapsed-badge). Operator confirmation on a clean native build still required for items 1-4.

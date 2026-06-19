@@ -3,7 +3,7 @@ status: partial
 phase: 131-hub-foundation-static-session-cards
 source: [131-VERIFICATION.md]
 started: 2026-06-16
-updated: 2026-06-16
+updated: 2026-06-19
 ---
 
 ## Current Test
@@ -60,3 +60,13 @@ Resolution (pulled in at operator request): added `App.handleOpenSessionTab` and
 - Also live-confirmed during this pass: CARD-05 viewer count renders ("1 viewer") once a client is attached.
 - Tests: +12 (SessionCard Open render/click/stopped-hidden/absent; DaemonManagerPanel Open; App wiring; style.hub CSS contract). Full suite 1485 green, tsc clean.
 - **Phase 134 note:** Modal-interaction planning must account for this existing Open affordance (card-click → modal should coexist with / supersede the explicit Open button).
+
+## Live Re-test 2026-06-19 (post-milestone tech-debt review)
+
+Re-run via `wails dev` + dev-browser (external bridge :34115). Re-confirmed live and clean:
+- HUB-01 open Hub from sidebar; HUB-02 coexists with Welcome + Sessions tabs; HUB-03 empty state ("No sessions yet" + New session).
+- HUB-04 themes at computed-value level (colorblind-safe, not by eye): dark `.hub` bg `#1a1b26`; light `.hub` bg `#f5f5f7`, text `#1a1b26`, `--hub-accent` `#3d6fe8` (WCAG AA).
+- CARD-01 name ("shell 2"), CARD-02 `/bin/zsh` badge, CARD-03 Running + spin status icon, CARD-04 origin globe + hostname, CARD-07 mini-preview "No output yet" placeholder.
+- GRID-01 grid, GRID-02 group-by-cwd ("OTHER" lane), GRID-04 filter bar live counts (Working(1) with one shell running), GRID-05 search (positive match "shell"→1 card, "zzz-no-match"→0 + empty state, clear→1), GRID-06 New session → create flow.
+
+Still operator-only (unchanged): **CARD-08 stopped/exited dimming vs error-exit**. Empirically this run, a session that exits OR is killed is *removed* from the daemon (Hub returns to empty) rather than surfacing as a retained stopped card. The daemon was in a known version-mismatch state (homebrew v3.5.1 vs dev app), so this is treated as an env artifact, not a v3.6 finding — producing a retained stopped-ok/stopped-err card needs a clean native build. Covered by SessionCard.test.tsx (dimming + exit-code) + style.hub CSS contract.

@@ -3,7 +3,7 @@ status: partial
 phase: 132-unified-grid-mini-preview-named-groups
 source: [132-VERIFICATION.md]
 started: 2026-06-16
-updated: 2026-06-16
+updated: 2026-06-19
 ---
 
 ## Current Test
@@ -47,3 +47,14 @@ blocked: 0
 ## Gaps
 
 - All 3 items are inherently live-runtime (scale, native pointer gesture, live peer). Code-level behavior is verified (7/7 must-haves, all critical review fixes tested). Drivable parts (group sidebar render, create named group, mini-preview empty/loading state, per-card "move to group" menu) can be smoke-tested via `wails dev` + dev-browser; the 3 above need operator confirmation on a built app with real sessions/peers. NOTE: terminal-tail PTY output for a live mini-preview won't render via the external-browser bridge — confirm preview content in the native window.
+
+## Live Re-test 2026-06-19 (post-milestone tech-debt review)
+
+Re-run via `wails dev` + dev-browser. Additional live confirmations beyond the 2026-06-16 smoke test:
+- GRID-03 group sidebar renders with per-group running/total counts ("All 1/1", "Backend 1/1") + collapse chevron + "New group".
+- GROUP-01 create named group "Backend" live → appears "Backend 0/0".
+- GROUP-02 move-to-group via per-card menu ("MOVE TO GROUP" → "Backend") → card moves under the BACKEND group header; sidebar updates to "Backend 1/1".
+- GROUP-03/04 persistence: localStorage `agenthub:hubGroups:v1` = `[{"name":"Backend","memberKeys":["shell 2:::__nodir__"]}]` (name:::workDir key, `__nodir__` sentinel for the home dir).
+- GRID-02 group-by-cwd headers ("BACKEND", "OTHER").
+
+The 3 formal pending items (mini-preview perf at SCALE 10+, native pointer DnD gesture, live remote tailnet peer / GRID-07) remain operator-only — they need scale, a real pointer drag, or live tailnet infra the external bridge cannot drive. Unchanged.
