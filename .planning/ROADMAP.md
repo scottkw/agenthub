@@ -28,6 +28,7 @@
 - ✅ **v3.5 File Browser — Write Operations & Editor** — Phases 123-128 (shipped 2026-06-15, closes Issues #63, #64; umbrella #24 pending two-machine UAT)
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
+- 🚧 **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-142 (in progress)
 
 ## Phases
 
@@ -333,6 +334,103 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v3.6 phase details archived to milestones/v3.6-ROADMAP.md -->
 
+### v4.0 Hub-First Consolidation & UI/UX Overhaul (In Progress)
+
+**Milestone Goal:** Collapse AgentHub onto a single Hub-centric surface — retire the TUI and the Sessions/Remote sidebar pages, fold their controls into per-card Share modals and indicators, ship the Claude redesign, fix the tab strip, and stand up a formal regression-test program.
+
+- [ ] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web
+- [ ] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review
+- [ ] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings
+- [ ] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip
+- [ ] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged
+- [ ] **Phase 141: Redesign Implementation** — Chosen visual language applied across all surviving surfaces; Hub GroupSidebar ARIA corrected
+- [ ] **Phase 142: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
+
+## Phase Details
+
+### Phase 136: TUI Removal
+**Goal**: The `agenthub tui` command and all Bubble Tea infrastructure is deleted; the codebase is cleaner and all cross-surface parity obligations now apply only to GUI/CLI/web
+**Depends on**: Phase 135 (v3.6 complete)
+**Requirements**: NAV-01, TEST-06
+**Success Criteria** (what must be TRUE):
+  1. `agenthub tui` exits with an error or is not recognized — the TUI surface no longer launches
+  2. `internal/tui` package, Bubble Tea views, TUI key handlers, TUI file-client wiring, and TUI-specific subcommand dispatch are deleted from the codebase
+  3. All TUI tests are deleted (not migrated); the Go and frontend test suites pass with no TUI references
+  4. `go build ./...` and the full CI test matrix are green with no TUI import paths remaining
+**Plans**: TBD
+
+### Phase 137: Share Modal & Cap Model
+**Goal**: Each Hub session card has a Share button opening a per-session Share modal; the cap model issues one "share" action minting separate read-only and read/write tokens; file-browse permission inherits from the presented token
+**Depends on**: Phase 136
+**Requirements**: SHARE-01, SHARE-02, SHARE-03, SHARE-04, SHARE-05, SHARE-06
+**Success Criteria** (what must be TRUE):
+  1. Clicking Share on a local session card opens a modal with a "Share the session" toggle; toggling it on reveals two distinct share links/codes (one read-only, one read/write), each copyable with a QR code
+  2. Toggling "Enable remote file browsing" in the Share modal grants file-browse access that inherits the permission level of the code the visitor presents (RO code → read-only browse, RW code → read/write browse)
+  3. When the web server is in local-network mode, the LAN Basic Auth password is visible in the Share modal
+  4. Every per-session web-share capability previously available in the Sessions page (on/off, URL, QR, password) is available in the Share modal with no regression in behavior
+  5. Share controls are absent (hidden or disabled) on remote peer cards — a user cannot re-share a session they do not own
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 138: Hub-First Navigation
+**Goal**: The sidebar contains exactly Home, Hub, and Settings; Sessions and Remote pages are removed; all session-creation entry points resolve to the Hub's filter-bar button; cards indicate local vs remote origin and, for remote cards, connection state
+**Depends on**: Phase 137
+**Requirements**: NAV-02, NAV-03, NAV-04, NAV-05, CARD-01, CARD-02, CARD-03, CARD-04
+**Success Criteria** (what must be TRUE):
+  1. The sidebar renders exactly three items — Home, Hub, Settings — with no Sessions, Remote, or New Session entries
+  2. The Hub `.hub__header` title bar and its duplicate New Session button are gone; the HubFilterBar button is the only way to start a new session from the GUI
+  3. Every session card clearly indicates whether it is local or remote (via icon, label, or badge — never color alone)
+  4. Remote cards additionally indicate whether the user is currently connected to that session vs it being merely available — the distinction is conveyed without relying on color alone
+  5. Cards accommodate the new Share button and local/remote/connected indicators without losing attention pulse, mini-preview, or responsive grid reflow
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 139: Card Rendering & Tab Strip
+**Goal**: Mini-preview cards and briefing-modal tails render agent output legibly via a headless VT emulator; the tab strip shrinks and scrolls browser-style so all tabs remain reachable regardless of count
+**Depends on**: Phase 136
+**Requirements**: CARD-05, TAB-01, TAB-02, TAB-03
+**Success Criteria** (what must be TRUE):
+  1. Mini-preview cards display Claude Code (and other agent) output with correct column spacing and no leaked escape sequences — a headless VT emulator is used for scrollback rendering, not a regex ANSI strip
+  2. The briefing-modal tail shows the same legible output under the same rendering path
+  3. When more tabs are open than fit the window width, tabs shrink proportionally down to a sensible minimum width (browser-style flex-shrink behavior)
+  4. When tabs overflow the available width, visible scroll affordances (chevrons and/or a visible scrollbar) let the user reach every tab
+  5. Tab close, rename, and progress-underline affordances remain functional and accessible at minimum tab width
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 140: UI-Spec Gate
+**Goal**: A redesign direction is formally chosen from `./agenthub-v4.0-redesign` after browser review and documented; the #93 backlog is triaged and the in-scope subset identified
+**Depends on**: Phase 138
+**Requirements**: RDS-01, CARRY-02
+**Success Criteria** (what must be TRUE):
+  1. A specific redesign direction (or documented explicit mix) is recorded in a UI spec artifact after the standalone HTML comps are reviewed in a browser
+  2. The chosen direction is reconciled against Hub-first structure decisions (structural decisions win conflicts); any comp elements that conflict with the already-shipped navigation structure are called out and resolved in the spec
+  3. Issue #93 is reviewed; items pulled into v4.0 scope are listed and their delivery assigned to Phase 141; the remainder are re-deferred with #93 updated accordingly
+**Plans**: TBD
+
+### Phase 141: Redesign Implementation
+**Goal**: The chosen redesign visual language is applied across all surviving surfaces with correct colorblind-safe semantics, prefers-reduced-motion support, and internally consistent Hub GroupSidebar ARIA
+**Depends on**: Phase 140
+**Requirements**: RDS-02, RDS-03, RDS-04, CARRY-01
+**Success Criteria** (what must be TRUE):
+  1. All surviving surfaces (Welcome, Hub, terminal/session, File Browser, Editor, Settings) render the chosen redesign visual language
+  2. The redesign does not re-introduce the removed Sessions or Remote sidebar pages or a standalone New Session sidebar item — Hub-first structure is preserved throughout
+  3. Colorblind-safe semantics and prefers-reduced-motion compliance are maintained across all restyled surfaces in both light and dark themes (verified at hex-constant level, not by eye)
+  4. The Hub GroupSidebar ARIA model is internally consistent — either the `listbox`/`option` roles with roving-tabindex are implemented correctly, or both are replaced with a plain focusable control list; no mismatched role/interaction pattern remains (#97)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 142: Regression Test Program
+**Goal**: A formal, labeled automated regression suite runs in CI as a merge gate; a single maintained manual checklist replaces scattered per-phase UAT logs; a standing convention is documented for all future phases
+**Depends on**: Phase 141
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05
+**Success Criteria** (what must be TRUE):
+  1. The automated regression suite (Go + vitest + Playwright) is consolidated under a labeled structure with a requirement-to-test traceability map, and runs in CI as a merge gate
+  2. Automated coverage gaps for the Hub and for cross-surface GUI/CLI/web flows are closed — the suite tests the v4.0 surface, not just pre-v4.0 code paths
+  3. A single maintained manual regression checklist document exists covering all current release-critical behaviors, replacing the scattered per-phase UAT logs
+  4. A standing convention is documented requiring every future phase to add its regression tests to the appropriate group (automated vs manual-intervention)
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -354,36 +452,43 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 70-73 | v1.14 | 9/9 | Complete | 2026-04-14 |
 | 74-78 | v2.0 | 16/16 | Complete | 2026-04-16 |
 | 79-82 | v2.1 | 8/8 | Complete | 2026-04-17 |
-| 83 | v3.0 | 1/1 | Complete    | 2026-04-19 |
-| 84 | v3.0 | 3/3 | Complete    | 2026-04-19 |
-| 85 | v3.0 | 2/2 | Complete    | 2026-04-19 |
-| 86 | v3.0 | 3/3 | Complete    | 2026-04-19 |
+| 83 | v3.0 | 1/1 | Complete | 2026-04-19 |
+| 84 | v3.0 | 3/3 | Complete | 2026-04-19 |
+| 85 | v3.0 | 2/2 | Complete | 2026-04-19 |
+| 86 | v3.0 | 3/3 | Complete | 2026-04-19 |
 | 87-90 | v3.1 | 18/18 | Complete | 2026-05-03 |
 | 92-99 | v3.2 | 44/44 | Complete | 2026-05-12 |
 | 100-108 | v3.3 | 18/18 | Complete | 2026-05-17 |
-| 109 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 110 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 111 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 112 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 113 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 114 | v3.3.1 | 1/1 | Complete   | 2026-05-18 |
-| 115 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-| 116 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
-| 117 | v3.3.1 | 1/1 | Complete   | 2026-05-19 |
+| 109 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 110 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 111 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 112 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 113 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 114 | v3.3.1 | 1/1 | Complete | 2026-05-18 |
+| 115 | v3.3.1 | 1/1 | Complete | 2026-05-19 |
+| 116 | v3.3.1 | 1/1 | Complete | 2026-05-19 |
+| 117 | v3.3.1 | 1/1 | Complete | 2026-05-19 |
 | 118-122 | v3.4 | 20/21 | Complete | 2026-05-21 |
-| 123 | v3.5 | 4/4 | Complete   | 2026-06-14 |
-| 124 | v3.5 | 5/5 | Complete   | 2026-06-14 |
-| 125 | v3.5 | 6/6 | Complete   | 2026-06-14 |
-| 126 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 127 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 128 | v3.5 | 4/4 | Complete   | 2026-06-15 |
-| 129 | v3.5.1 | 3/3 | Complete    | 2026-06-16 |
-| 130 | v3.5.1 | 4/4 | Complete    | 2026-06-16 |
-| 131 | v3.6 | 5/5 | Complete    | 2026-06-16 |
-| 132 | v3.6 | 5/5 | Complete    | 2026-06-16 |
-| 133 | v3.6 | 5/5 | Complete    | 2026-06-17 |
-| 134 | v3.6 | 8/8 | Complete    | 2026-06-18 |
-| 135 | v3.6 | 3/3 | Complete   | 2026-06-19 |
+| 123 | v3.5 | 4/4 | Complete | 2026-06-14 |
+| 124 | v3.5 | 5/5 | Complete | 2026-06-14 |
+| 125 | v3.5 | 6/6 | Complete | 2026-06-14 |
+| 126 | v3.5 | 4/4 | Complete | 2026-06-15 |
+| 127 | v3.5 | 4/4 | Complete | 2026-06-15 |
+| 128 | v3.5 | 4/4 | Complete | 2026-06-15 |
+| 129 | v3.5.1 | 3/3 | Complete | 2026-06-16 |
+| 130 | v3.5.1 | 4/4 | Complete | 2026-06-16 |
+| 131 | v3.6 | 5/5 | Complete | 2026-06-16 |
+| 132 | v3.6 | 5/5 | Complete | 2026-06-16 |
+| 133 | v3.6 | 5/5 | Complete | 2026-06-17 |
+| 134 | v3.6 | 8/8 | Complete | 2026-06-18 |
+| 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
+| 136. TUI Removal | v4.0 | 0/TBD | Not started | - |
+| 137. Share Modal & Cap Model | v4.0 | 0/TBD | Not started | - |
+| 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
+| 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
+| 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
+| 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
+| 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

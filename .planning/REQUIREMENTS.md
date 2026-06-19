@@ -91,19 +91,43 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NAV-01..05 | TBD | Pending |
-| SHARE-01..06 | TBD | Pending |
-| CARD-01..05 | TBD | Pending |
-| RDS-01..04 | TBD | Pending |
-| TAB-01..03 | TBD | Pending |
-| TEST-01..06 | TBD | Pending |
-| CARRY-01..02 | TBD | Pending |
+| NAV-01 | Phase 136 | Pending |
+| TEST-06 | Phase 136 | Pending |
+| SHARE-01 | Phase 137 | Pending |
+| SHARE-02 | Phase 137 | Pending |
+| SHARE-03 | Phase 137 | Pending |
+| SHARE-04 | Phase 137 | Pending |
+| SHARE-05 | Phase 137 | Pending |
+| SHARE-06 | Phase 137 | Pending |
+| NAV-02 | Phase 138 | Pending |
+| NAV-03 | Phase 138 | Pending |
+| NAV-04 | Phase 138 | Pending |
+| NAV-05 | Phase 138 | Pending |
+| CARD-01 | Phase 138 | Pending |
+| CARD-02 | Phase 138 | Pending |
+| CARD-03 | Phase 138 | Pending |
+| CARD-04 | Phase 138 | Pending |
+| CARD-05 | Phase 139 | Pending |
+| TAB-01 | Phase 139 | Pending |
+| TAB-02 | Phase 139 | Pending |
+| TAB-03 | Phase 139 | Pending |
+| RDS-01 | Phase 140 | Pending |
+| CARRY-02 | Phase 140 | Pending |
+| RDS-02 | Phase 141 | Pending |
+| RDS-03 | Phase 141 | Pending |
+| RDS-04 | Phase 141 | Pending |
+| CARRY-01 | Phase 141 | Pending |
+| TEST-01 | Phase 142 | Pending |
+| TEST-02 | Phase 142 | Pending |
+| TEST-03 | Phase 142 | Pending |
+| TEST-04 | Phase 142 | Pending |
+| TEST-05 | Phase 142 | Pending |
 
 **Coverage:**
 - v4.0 requirements: 31 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 3, TEST 6, CARRY 2)
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 31 ⚠️ (filled by roadmapper)
+- Mapped to phases: 31 (100% coverage)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-19 — v4.0 Hub-First Consolidation & UI/UX Overhaul*
-*Last updated: 2026-06-19 (initial definition)*
+*Last updated: 2026-06-19 (traceability filled by roadmapper)*
