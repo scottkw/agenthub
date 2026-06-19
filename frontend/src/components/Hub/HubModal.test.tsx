@@ -117,3 +117,33 @@ describe('HubModal (A11Y-01: STATUS_CONFIG mirrors SessionCard — colorblind-sa
     expect(raw).toContain("'Exited'")
   })
 })
+
+describe('HubModal (A11Y-04: focus trap via inert)', () => {
+  // jsdom 29 does NOT implement inert focus suppression (element.inert returns undefined).
+  // ALL assertions here are ?raw source-inspection only — no DOM focus-behavior tests.
+
+  it('sets hubEl.inert = true when phase is open', () => {
+    expect(raw).toContain('.inert = true')
+  })
+
+  it('removes hubEl.inert on cleanup (Pitfall 1 guard — prevents Hub keyboard-lock)', () => {
+    expect(raw).toContain('.inert = false')
+  })
+
+  it('moves focus to closeBtnRef on open (WCAG 2.4.3: focus order)', () => {
+    expect(raw).toContain('closeBtnRef')
+    expect(raw).toContain('closeBtnRef.current?.focus()')
+  })
+
+  it('gates inert trap on phase === "open" (not during entering animation — Pitfall 3)', () => {
+    expect(raw).toContain("phase !== 'open'")
+  })
+
+  it('queries the .hub background element (Assumption A1 verified selector)', () => {
+    expect(raw).toContain("querySelector('.hub')")
+  })
+
+  it('close button carries ref={closeBtnRef} for initial focus placement', () => {
+    expect(raw).toContain('ref={closeBtnRef}')
+  })
+})
