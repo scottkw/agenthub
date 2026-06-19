@@ -43,7 +43,6 @@ Commands:
     daemon start                              Start the system service
     daemon stop                               Stop the system service
     daemon status [--json]                    Show daemon status
-  tui                                         Launch interactive terminal UI
 
 Remote Sessions:
   list                                        Shows local + remote sessions grouped by host
