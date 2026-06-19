@@ -513,8 +513,8 @@ func (c *DaemonClient) HeadFile(ctx context.Context, sessionID, relPath string) 
 //   - doJSON for JSON-bodied ops (RenameFile, MkdirFile)
 //
 // Auth-less by design — the daemon Unix socket is the trust boundary (WEB-01).
-// The FilesClient interface in internal/tui/files_client.go is NOT extended
-// here — that is Phase 126 (TUIW-01) scope (RESEARCH Assumption A2).
+// DaemonClient implements the files write surface for all surviving surfaces
+// (GUI, CLI, web); the TUI surface was removed in Phase 136.
 // -------------------------------------------------------------------------
 
 // WriteFile writes data to relPath inside the session sandbox via PUT

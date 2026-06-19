@@ -4,7 +4,7 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-AgentHub runs AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — and raw shell sessions (bash, zsh, PowerShell) in persistent terminal sessions managed by a background daemon. Three surfaces share one set of sessions: a Wails desktop GUI, the `agenthub` CLI, and a full-screen Bubble Tea TUI (`agenthub tui`). Sessions survive GUI restarts and are controllable from any surface. Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, and native installers).
+AgentHub runs AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode — and raw shell sessions (bash, zsh, PowerShell) in persistent terminal sessions managed by a background daemon. Two surfaces share one set of sessions: a Wails desktop GUI and the `agenthub` CLI. Sessions survive GUI restarts and are controllable from either surface. Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, and native installers).
 
 Sessions can be shared over the web on a per-session basis: browser-trusted TLS over Tailscale when available, with a self-signed TLS + password-auth fallback for the local network. Multiple clients can connect to the same session simultaneously with independent scrollback, optional read-only mode, and stable PTY resize arbitration. CLI `attach` displays a tmux-style status bar with session context and a live viewer count. Remote sessions on other tailnet machines are discoverable from all three surfaces.
 
@@ -107,28 +107,11 @@ Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/ta
 - **Client identity** — Clients can provide a name at connection (e.g., `agenthub attach --client=macbook <id>`)
 - **Resize arbitration** — Max-wins strategy: PTY dimensions stabilize to the largest active client, preventing resize thrashing
 
-### TUI Mode
-- **Full-screen terminal UI** — `agenthub tui` launches an interactive Bubble Tea v2 interface as an alternative to the desktop GUI
-- **Two-pane layout** — Left sidebar (Home, Sessions, Remote, Settings) mirrors GUI navigation; right content pane shows the active tab with bordered frames and section headers
-- **Focus-aware navigation** — Tab key toggles between sidebar and content panes; Up/Down navigates sidebar items; Enter opens a tab; [ and ] cycle through open tabs
-- **Session list** — Sessions displayed inside bordered lipgloss frames with labeled titles; each row shows a colored per-agent badge (6 CLIs with distinct TokyoNight-derived colors), status glyph, hostname, and viewer count
-- **TokyoNight color palette** — 22+ adaptive color tokens using lipgloss LightDark for consistent styling across light and dark terminals; matches GUI theme
-- **Attach** — Press Enter on a session to suspend TUI and enter raw PTY attach with status bar; Ctrl-\ detaches and resumes TUI
-- **Create session** — Press `n` to open a modal with agent picker (Left/Right cycling), directory input, and argument field
-- **Kill session** — Press `d` for a confirmation dialog with danger-styled overlay; default-No for safety
-- **Rename session** — Press `r` for inline edit; Enter commits, Esc cancels
-- **Remote sessions** — Unified local+remote session list with tailnet peer grouping and hostname divider rows
-- **QR code overlay** — Press `q` to display an ASCII QR code for the selected session's web URL
-- **Web server status** — Footer shows whether the web server is running and its URL
-- **Help overlay** — Press `?` to see all keybindings for the current view (includes Tab, [/] navigation)
-- **Auto-refresh** — Session list refreshes every 2 seconds with selection preserved by identity
-
 ### Remote Sessions
 - **Tailscale peer discovery** — Automatically discovers AgentHub instances running on other machines in your tailnet
 - **Remote Sessions panel** — GUI tab showing sessions grouped by peer hostname with loading states and 30-second auto-refresh
 - **CLI remote list** — `agenthub list` shows local and remote sessions grouped by HOST column
 - **CLI remote attach** — `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS
-- **TUI remote list** — `agenthub tui` shows remote sessions in a unified list with local sessions, grouped by peer hostname
 - **One-click open** — Click any remote session to open it in your browser
 
 ### Auto-Update
@@ -161,15 +144,14 @@ Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/ta
 - **Daemon management** — `agenthub daemon install/uninstall/start/stop` registers with platform service managers (launchd, systemd, Windows SCM)
 
 ### Shell sessions
-AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code, Codex, Gemini CLI, OpenCode). All three surfaces — GUI new-session modal, TUI new-session picker, and the CLI `new shell` subcommand — expose this as exactly one entry labelled "Shell". There is no per-surface picker for the spawned binary; the daemon resolves it from a single Settings value.
+AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code, Codex, Gemini CLI, OpenCode). Both surfaces — the GUI new-session modal and the CLI `new shell` subcommand — expose this as exactly one entry labelled "Shell". There is no per-surface picker for the spawned binary; the daemon resolves it from a single Settings value.
 
 - **GUI** — The New Session modal shows one static "Shell" row beneath the detected AI CLIs. Pressing Create launches a raw PTY using the binary configured in Settings → Paths.
-- **TUI** — Launch `agenthub tui`, press `n` to open the new-session modal, and cycle the agent picker to "Shell". Confirm to launch a session using the same binary as the GUI.
-- **CLI** — `agenthub new shell [<path>]`. No selection flag — the spawned binary is whatever Settings → Paths resolves to (the same value used by the GUI and TUI). The optional positional path sets the working directory; omit it to launch in `$HOME`. Extra tokens after `--` are NOT forwarded to shell sessions (a stderr warning is emitted if present, matching the GUI's no-args behavior).
+- **CLI** — `agenthub new shell [<path>]`. No selection flag — the spawned binary is whatever Settings → Paths resolves to (the same value used by the GUI). The optional positional path sets the working directory; omit it to launch in `$HOME`. Extra tokens after `--` are NOT forwarded to shell sessions (a stderr warning is emitted if present, matching the GUI's no-args behavior).
 
 **Binary selection.** Open the desktop app, go to Settings → Paths, and set the shell binary path. If no shellPath is configured, the daemon falls back to `$SHELL` (or the platform default — `zsh` on macOS, `bash` on Linux, `powershell.exe` on Windows).
 
-**Cross-surface parity.** All three surfaces use the same shellPath value. Change it once in Settings → Paths and the new choice applies to every shell session you start, regardless of which surface launched it.
+**Cross-surface parity.** Both surfaces use the same shellPath value. Change it once in Settings → Paths and the new choice applies to every shell session you start, regardless of which surface launched it.
 
 ### Web Serving
 - **Auto-serve** — Web server starts automatically on daemon launch; new sessions are web-served by default
@@ -214,14 +196,13 @@ AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code,
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                         Clients                               │
-│  ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐ │
-│  │  GUI (Wails)  │  │ CLI (agenthub    │  │ TUI (agenthub  │ │
-│  │  React+xterm  │  │ <cmd>)           │  │ tui)           │ │
-│  │               │  │ attach/list/new  │  │ Bubble Tea v2  │ │
-│  └──────┬───────┘  └────────┬─────────┘  └──────┬─────────┘ │
-│         │       DaemonClient │                    │           │
-│         └────────────┬───────┴────────────────────┘           │
-├──────────────────────┼────────────────────────────────────────┤
+│  ┌──────────────────┐  ┌────────────────────────────────┐   │
+│  │  GUI (Wails)      │  │ CLI (agenthub <cmd>)           │   │
+│  │  React+xterm      │  │ attach/list/new                │   │
+│  └────────┬──────────┘  └──────────────┬─────────────────┘   │
+│           │          DaemonClient       │                      │
+│           └────────────┬───────────────┘                      │
+├────────────────────────┼─────────────────────────────────────┤
 │              Unix Socket / Named Pipe                         │
 ├──────────────────────┼────────────────────────────────────────┤
 │  ┌───────────────────┴────────────────────────────────────┐  │
@@ -255,8 +236,7 @@ AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code,
 | `internal/relay` | Binary framing protocol, scrollback buffer, WebSocket fan-out hub with multi-client support, per-subscriber metadata, read-only enforcement, max-wins resize arbitration |
 | `internal/status` | Heuristic status detection (running/waiting/idle/errored) |
 | `internal/statusbar` | DECSTBM scroll-region status bar for CLI attach with rune-safe formatting, viewer count, connection state, terminal injection prevention |
-| `internal/attach` | Shared attach logic for CLI and TUI — ANSI-safe border-title injection, allowlist attach-status guard, error-propagating AttachSession |
-| `internal/tui` | Bubble Tea v2 terminal UI — session list, modals (create/kill/rename), QR overlay, remote sessions, help overlay, adaptive colors |
+| `internal/attach` | Shared attach logic for CLI — ANSI-safe border-title injection, allowlist attach-status guard, error-propagating AttachSession |
 | `internal/tailnet` | Tailscale peer discovery, concurrent probe pool, cached peer list |
 | `internal/updater` | GitHub release polling, semantic version comparison, update notifications |
 | `internal/webserver` | HTTPS server (Tailscale or local self-signed TLS), dashboard, health checks, Basic Auth |
@@ -465,9 +445,6 @@ agenthub rename <id> "my session"            # Rename a session
 agenthub attach --readonly <id>              # Read-only attach (observe without input)
 agenthub attach --client=macbook <id>        # Attach with client identity name
 
-# TUI mode
-agenthub tui                                 # Launch full-screen terminal UI
-
 # Web serving
 agenthub web start                    # Start the Tailscale web server
 agenthub web stop                     # Stop the web server
@@ -512,7 +489,6 @@ Status detection uses heuristic output patterns for **Claude Code**. Other CLIs 
 | Terminal themes | [xterm-theme](https://www.npmjs.com/package/xterm-theme) — 138 curated schemes (WCAG-audited from 157 candidates) |
 | PTY | [go-pty](https://github.com/aymanbagabas/go-pty) (cross-platform) |
 | WebSocket | [nhooyr/websocket](https://github.com/coder/websocket) |
-| TUI framework | [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) + [Lip Gloss v2](https://github.com/charmbracelet/lipgloss) + [Bubbles v2](https://github.com/charmbracelet/bubbles) |
 | QR codes | [go-qrcode](https://github.com/skip2/go-qrcode) |
 | TLS | Tailscale Let's Encrypt via `GetCertificate`; self-signed P256 for local network mode |
 | Peer discovery | [tailscale.com/client/local](https://pkg.go.dev/tailscale.com/client/local) |

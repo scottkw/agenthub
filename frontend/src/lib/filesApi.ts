@@ -111,8 +111,8 @@ export class FilesApiError extends Error {
 /**
  * Verbatim SC3 version-gate message surfaced when an upstream 405 indicates
  * the remote peer is running v3.4 (no write routes). MUST byte-match the
- * Go const `remotePeerOutdatedMessage` in
- * internal/tui/remote_files_client.go (RMW-04 cross-surface parity contract).
+ * Go const `remotePeerOutdatedMessage` in the daemon proxy parity contract
+ * (RMW-04 cross-surface parity contract; TUI surface removed in Phase 136).
  */
 export const REMOTE_PEER_OUTDATED_MESSAGE =
   'The remote session is running an older version of AgentHub that does not support file writes.'

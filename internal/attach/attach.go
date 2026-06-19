@@ -1,6 +1,6 @@
 // Package attach provides shared attach logic for connecting to a relay
-// WebSocket session. Both the CLI (cmd_attach.go) and TUI (internal/tui/attach.go)
-// import this package to avoid duplicating I/O pump and resize logic.
+// WebSocket session. The CLI (cmd_attach.go) imports this package for I/O pump
+// and resize logic.
 package attach
 
 import (
