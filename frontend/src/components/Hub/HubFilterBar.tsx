@@ -107,6 +107,7 @@ export function HubFilterBar({
             className={`hub-filter__pill${activeFilter === key ? ' hub-filter__pill--active' : ''}`}
             onClick={() => onFilterChange(key)}
             type="button"
+            aria-pressed={activeFilter === key ? 'true' : 'false'}
           >
             {key === 'all' ? label : `${label} (${counts[key] ?? 0})`}
           </button>
