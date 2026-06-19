@@ -384,14 +384,20 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 		if sess.IsKilled() {
 			return // killSession handles state transition
 		}
-		// Natural exit: cancel context so go-pty's waitOnContext reaps the
-		// process and populates ProcessState.
+		// Natural exit: reap the child and cache its real exit code. On
+		// macOS/BSD this is the ONLY thing that populates ProcessState —
+		// go-pty has no unix waitOnContext goroutine and these platforms run
+		// no exit detector, so without this the code is lost as a cached -1
+		// and normalized to 0 below (making CARD-08 stopped-err unreachable).
+		// On Linux/Windows ReapNaturalExit is a no-op: the platform exit
+		// detector already cached the code before Hub.Done fired.
+		sess.ReapNaturalExit()
+		// Cancel the context to release exec.Cmd's context goroutine (the
+		// child is already reaped, so its Kill is a harmless no-op).
 		sess.CancelContext()
-		// Brief wait for go-pty to populate ProcessState.
-		time.Sleep(100 * time.Millisecond)
 		exitCode := sess.ExitCode()
 		if exitCode == -1 {
-			exitCode = 0 // conservative default per D-10
+			exitCode = 0 // conservative default per D-10 (signal-terminated / unknown)
 		}
 		sess.SetState(pty.StateStopped)
 		if onExit != nil {
