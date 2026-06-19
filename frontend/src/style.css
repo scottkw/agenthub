@@ -4973,6 +4973,23 @@ body {
   }
 }
 
+/* GAP-135-E: stop running-status spinner under reduced-motion.
+   Running state is still distinguishable: ArrowPathIcon shape is unique among status icons.
+   Text label "Running" is also present. No additional motion cue required. */
+@media (prefers-reduced-motion: reduce) {
+  .hub-card__status-icon--spin {
+    animation: none;
+  }
+}
+
+/* GAP-135-F: suppress card hover border/background transition under reduced-motion.
+   Must come AFTER the no-preference block (line 4944) so cascade resolves correctly. */
+@media (prefers-reduced-motion: reduce) {
+  .hub-card {
+    transition: none;
+  }
+}
+
 /* Drag handle and menu button — visible on card hover/focus-within */
 .hub-card__drag-handle,
 .hub-card__menu-btn {

@@ -268,6 +268,82 @@ describe('Hub colorblind-safe source comments (source-level UAT verification)', 
   })
 })
 
+// Phase 135 CSS contract — GAP-135-A focus-visible rings + GAP-135-E/F reduced-motion
+describe('Phase 135 — GAP-135-A: focus-visible rings for Hub interactive elements', () => {
+  it('A11Y-02: .hub-card:focus-visible rule is present (upgraded from :focus)', () => {
+    expect(cssRaw).toContain('.hub-card:focus-visible')
+  })
+
+  it('A11Y-02: .hub-card:focus (bare, without -visible) outline rule is NOT present (Pitfall 2 guard)', () => {
+    // The only :focus without -visible on hub-card must be :focus-within (structural, not outline)
+    // Assert no standalone .hub-card:focus { outline rule exists
+    expect(cssRaw).not.toMatch(/\.hub-card:focus\s*\{[^}]*outline/)
+  })
+
+  it('A11Y-02: .hub-filter__pill:focus-visible rule is present', () => {
+    expect(cssRaw).toContain('.hub-filter__pill:focus-visible')
+  })
+
+  it('A11Y-02: .hub-card__open:focus-visible rule is present', () => {
+    expect(cssRaw).toContain('.hub-card__open:focus-visible')
+  })
+
+  it('A11Y-02: .hub-modal__close:focus-visible rule is present', () => {
+    expect(cssRaw).toContain('.hub-modal__close:focus-visible')
+  })
+
+  it('A11Y-02: .hub__group-sidebar-item:focus-visible rule is present', () => {
+    expect(cssRaw).toContain('.hub__group-sidebar-item:focus-visible')
+  })
+
+  it('A11Y-02: all new :focus-visible rules use var(--hub-accent) token (colorblind constraint)', () => {
+    // Extract the GAP-135-A grouped rule block — find it by locating .hub-filter__pill:focus-visible
+    const pillIdx = cssRaw.indexOf('.hub-filter__pill:focus-visible')
+    expect(pillIdx).toBeGreaterThan(-1)
+    // Find the closing brace of the group rule
+    const blockEnd = cssRaw.indexOf('}', pillIdx)
+    const block = cssRaw.slice(pillIdx, blockEnd)
+    expect(block).toContain('var(--hub-accent)')
+  })
+
+  it('A11Y-02: .hub-filter__search:focus is still present and unchanged (inputs keep :focus per WCAG 2.4.7)', () => {
+    expect(cssRaw).toContain('.hub-filter__search:focus')
+  })
+
+  it('A11Y-02: .hub-modal__respond-input:focus is still present and unchanged (inputs keep :focus per WCAG 2.4.7)', () => {
+    expect(cssRaw).toContain('.hub-modal__respond-input:focus')
+  })
+})
+
+describe('Phase 135 — GAP-135-E/F: prefers-reduced-motion reduce blocks', () => {
+  it('GAP-135-E: prefers-reduced-motion: reduce block targets .hub-card__status-icon--spin with animation: none', () => {
+    expect(cssRaw).toMatch(/\.hub-card__status-icon--spin\s*\{\s*animation:\s*none/)
+  })
+
+  it('GAP-135-F: prefers-reduced-motion: reduce block targets .hub-card with transition: none', () => {
+    // Must be inside a reduce block — find a reduce block containing .hub-card { transition: none
+    expect(cssRaw).toMatch(/prefers-reduced-motion:\s*reduce[^@]*\.hub-card\s*\{\s*transition:\s*none/)
+  })
+
+  it('GAP-135-E/F: spin and card-hover reduce blocks appear AFTER the no-preference .hub-card 400ms transition override', () => {
+    // The no-preference block sets .hub-card transition to 400ms ease (ATTN-03)
+    const noPrefIdx = cssRaw.indexOf('border-color 400ms ease, box-shadow 400ms ease, background 100ms ease')
+    expect(noPrefIdx).toBeGreaterThan(-1)
+
+    // GAP-135-E spin reduce block must come after no-preference
+    const spinReduceIdx = cssRaw.indexOf('.hub-card__status-icon--spin {\n    animation: none')
+    expect(spinReduceIdx).toBeGreaterThan(noPrefIdx)
+
+    // GAP-135-F card hover reduce block must also come after no-preference
+    const cardTransitionNoneIdx = cssRaw.indexOf('.hub-card {\n    transition: none')
+    expect(cardTransitionNoneIdx).toBeGreaterThan(noPrefIdx)
+  })
+
+  it('GAP-135-E/F: existing no-preference 400ms hub-card transition override is still present (not overwritten)', () => {
+    expect(cssRaw).toContain('border-color 400ms ease, box-shadow 400ms ease, background 100ms ease')
+  })
+})
+
 // Phase 133 CSS contract — attention pulse + badge (CR-02, CR-03, IN-01)
 describe('Hub Phase 133 CSS contract', () => {
   it('CR-02: .hub-card--attention has opacity:1 (dim override invariant)', () => {
