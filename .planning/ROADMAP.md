@@ -357,7 +357,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. `internal/tui` package, Bubble Tea views, TUI key handlers, TUI file-client wiring, and TUI-specific subcommand dispatch are deleted from the codebase
   3. All TUI tests are deleted (not migrated); the Go and frontend test suites pass with no TUI references
   4. `go build ./...` and the full CI test matrix are green with no TUI import paths remaining
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 136-01-PLAN.md — Delete internal/tui package + cmd_tui.go + dispatch/usage + daemon parity tests; go mod tidy (NAV-01, TEST-06)
+- [ ] 136-02-PLAN.md — README/comment cleanup + full Go race/frontend suite gate + `agenthub tui` non-zero smoke (NAV-01, TEST-06)
 
 ### Phase 137: Share Modal & Cap Model
 **Goal**: Each Hub session card has a Share button opening a per-session Share modal; the cap model issues one "share" action minting separate read-only and read/write tokens; file-browse permission inherits from the presented token
