@@ -25,8 +25,16 @@ describe('HubModal (MODAL-02: keyboard + focus management)', () => {
     expect(raw).toContain('Escape')
   })
 
-  it('MODAL-02: calls stopImmediatePropagation (Pitfall 6 guard — prevents Hub card Escape double-fire)', () => {
-    expect(raw).toContain('stopImmediatePropagation')
+  it('MODAL-02: uses stopPropagation (scoped, not global) for Escape on dialog element', () => {
+    expect(raw).toContain('stopPropagation')
+  })
+
+  it('MODAL-02: does NOT use stopImmediatePropagation (WR-05 fix — scoped handler replaces global guard)', () => {
+    expect(raw).not.toContain('stopImmediatePropagation')
+  })
+
+  it('MODAL-02: Escape handled via onKeyDown on dialog element, not document.addEventListener', () => {
+    expect(raw).not.toMatch(/document\.addEventListener\s*\(\s*['"]keydown/)
   })
 
   it('MODAL-02: uses cardFocusRef for focus-return on unmount', () => {
@@ -72,5 +80,40 @@ describe('HubModal (MODAL-03: attention-based routing)', () => {
 
   it('MODAL-03: routing predicate uses isAttentionStatus', () => {
     expect(raw).toContain('isAttentionStatus')
+  })
+})
+
+describe('HubModal (A11Y-01: STATUS_CONFIG mirrors SessionCard — colorblind-safe at source)', () => {
+  // Verify at source that STATUS_CONFIG contains each of the 6 status keys with
+  // unique icon + text label. Color is reinforcement only (colorblind-safe).
+  // Verified at source level (hex constants in code), NEVER by eye.
+  it('A11Y-01: STATUS_CONFIG contains running status with "Running" label', () => {
+    expect(raw).toContain("running:")
+    expect(raw).toContain("'Running'")
+  })
+
+  it('A11Y-01: STATUS_CONFIG contains idle status with "Idle" label', () => {
+    expect(raw).toContain("idle:")
+    expect(raw).toContain("'Idle'")
+  })
+
+  it('A11Y-01: STATUS_CONFIG contains waiting status with "Needs input" label', () => {
+    expect(raw).toContain("waiting:")
+    expect(raw).toContain("'Needs input'")
+  })
+
+  it('A11Y-01: STATUS_CONFIG contains errored status with "Error" label', () => {
+    expect(raw).toContain("errored:")
+    expect(raw).toContain("'Error'")
+  })
+
+  it('A11Y-01: STATUS_CONFIG contains stopped-ok status with "Done" label', () => {
+    expect(raw).toContain("'stopped-ok':")
+    expect(raw).toContain("'Done'")
+  })
+
+  it('A11Y-01: STATUS_CONFIG contains stopped-err status with "Exited" label (text-differentiator from errored)', () => {
+    expect(raw).toContain("'stopped-err':")
+    expect(raw).toContain("'Exited'")
   })
 })
