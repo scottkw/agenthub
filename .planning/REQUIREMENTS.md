@@ -75,7 +75,7 @@
 - [x] **A11Y-01**: Attention and status are conveyed by motion + icon + position, never by color alone (colorblind-safe)
 - [x] **A11Y-02**: Cards are keyboard-focusable; Enter/Space expands; Escape closes the modal and returns focus to the originating card
 - [x] **A11Y-03**: Pulse and expand/collapse animations honor `prefers-reduced-motion`, falling back to a static highlighted border + icon
-- [ ] **A11Y-04**: The modal traps focus while open
+- [x] **A11Y-04**: The modal traps focus while open
 
 ## Future Requirements (deferred)
 
@@ -153,7 +153,7 @@ Populated during roadmap creation.
 | A11Y-01 | Phase 135 | Complete |
 | A11Y-02 | Phase 135 | Complete |
 | A11Y-03 | Phase 135 | Complete |
-| A11Y-04 | Phase 135 | Pending |
+| A11Y-04 | Phase 135 | Complete |
 
 **Coverage:**
 - v3.6 requirements: 39 total (HUB ×4, CARD ×8, GRID ×7, ATTN ×6, MODAL ×6, GROUP ×4, A11Y ×4)
