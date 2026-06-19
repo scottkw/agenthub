@@ -1,8 +1,8 @@
 ---
 phase: 135
 slug: accessibility-hardening
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-18
 ---
@@ -17,8 +17,8 @@ created: 2026-06-18
 
 | Property | Value |
 |----------|-------|
-| **Framework** | vitest |
-| **Config file** | frontend/vitest.config.ts (existing) |
+| **Framework** | vitest 4.1.0 |
+| **Config file** | frontend/vite.config.ts (test key) |
 | **Quick run command** | `cd frontend && npx vitest run <file>` |
 | **Full suite command** | `cd frontend && npx vitest run` |
 | **Estimated runtime** | ~30 seconds |
@@ -38,15 +38,31 @@ created: 2026-06-18
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (planner fills) | | | A11Y-01..04 | | | unit (source-inspection via `?raw` where jsdom lacks `inert`/focus support) | | | ⬜ pending |
+| 135-01-T1 | 01 | 1 | A11Y-02 | T-135-01-01 | focus rings reveal only on-screen state | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ⬜ pending |
+| 135-01-T2 | 01 | 1 | A11Y-03 | T-135-01-01 | static motion fallbacks | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ⬜ pending |
+| 135-02-T1 | 02 | 1 | A11Y-02 | T-135-02-01 | aria-pressed same path as onClick | DOM-render (createRoot+getAttribute) | `cd frontend && npx vitest run src/components/Hub/HubFilterBar.test.tsx` | Yes | ⬜ pending |
+| 135-02-T2 | 02 | 1 | A11Y-02 | T-135-02-02 | keyboard reaches same client state as click | DOM-render (createRoot+keydown) | `cd frontend && npx vitest run src/components/Hub/GroupSidebar.test.tsx` | Yes | ⬜ pending |
+| 135-03-T1 | 03 | 1 | A11Y-01, A11Y-02 | T-135-03-02 | scoped Escape, no global suppression | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ⬜ pending |
+| 135-03-T2 | 03 | 1 | A11Y-04 | T-135-03-01 | inert paired with mandatory cleanup | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+**Nyquist Dimension 8:** every task has an `<automated>` verify command. No 3 consecutive tasks lack automated verification. jsdom 29 does NOT implement `inert` focus suppression and cannot exercise CSS media queries — A11Y-03 and A11Y-04 are therefore validated by source-inspection (`readFileSync`/`?raw`), the established pattern in `style.hub.test.ts` and `HubModal.test.tsx`. This is a deliberate, documented test-strategy choice, not a coverage gap.
 
 ---
 
 ## Wave 0 Requirements
 
-*Planner fills. Note: jsdom 29 does not implement `inert` focus suppression — A11Y-04 assertions use the `?raw` source-inspection pattern already established in HubModal.test.tsx.*
+No separate Wave 0 scaffolding plan is needed: every test target file already exists.
+
+| Test file | Status | Used by |
+|-----------|--------|---------|
+| `frontend/src/components/__tests__/style.hub.test.ts` | EXISTS (Phase 131-132 hub CSS contract) — extended in 135-01 | 135-01 (A11Y-02 focus-visible, A11Y-03 reduce blocks) |
+| `frontend/src/components/Hub/HubFilterBar.test.tsx` | EXISTS (has `renderFilterBar` helper) — extended in 135-02 | 135-02 T1 (aria-pressed) |
+| `frontend/src/components/Hub/GroupSidebar.test.tsx` | EXISTS (DOM-render harness) — extended in 135-02 | 135-02 T2 (keyboard items) |
+| `frontend/src/components/Hub/HubModal.test.tsx` | EXISTS (`?raw` pattern, stopImmediatePropagation test replaced) — extended in 135-03 | 135-03 (WR-05, A11Y-01 mirror, A11Y-04 inert) |
+
+No `<automated>MISSING — Wave 0 must create…</automated>` references exist in any plan. All verify commands target existing files.
 
 ---
 
@@ -54,17 +70,18 @@ created: 2026-06-18
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| (planner fills) | | | |
+| Live keyboard Tab-trap (inert focus barrier actually blocks Tab to background cards) | A11Y-04 | jsdom 29 does not implement `inert` focus suppression; only a real WebView2/WKWebView enforces it | In `wails dev`: open the Hub, click a card to open its modal, press Tab repeatedly — focus must cycle only within the modal and never reach a background card; press Escape — focus returns to the originating card. (Source-level inert set/unset is auto-verified in 135-03; this confirms the runtime barrier.) |
+| Visual focus-ring + reduced-motion by eye | A11Y-02, A11Y-03 | NOT REQUIRED — user is colorblind; verify ring color and motion gating at SOURCE against `var(--hub-accent)` and `prefers-reduced-motion: reduce`, never by eye | Covered by 135-01 source assertions. No by-eye check. |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (none — all test files exist)
+- [x] No watch-mode flags (`vitest run`, not `vitest`)
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved (planner)

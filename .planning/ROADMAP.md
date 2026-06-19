@@ -486,14 +486,14 @@ Plans:
   3. With `prefers-reduced-motion: reduce` set in the OS, pulse and expand/collapse animations are replaced by a static highlighted border + icon — no motion occurs; all information previously conveyed by motion is conveyed by the static fallback
   4. While a modal is open, focus is trapped inside it — Tab cycles through modal controls only, and background cards are not reachable by keyboard
 
-**Plans**: 5 plans (1 wave-0 backend data gap, 2 wave-1 card/control components, 1 wave-2 surface composition, 1 wave-3 integration + CSS)
+**Plans**: 3 plans, all Wave 1 (disjoint files — fully parallel). Hardening pass over existing Phase 131-134 components; closes GAP-135-A..F + GroupSidebar keyboard.
 Plans:
 
-- [x] 131-01-PLAN.md — Wave 0: close the Go data gap (WorkDir on daemon+app SessionInfo; propagate ViewerCount/ExitCode/Duration/WorkDir; App.d.ts)
-- [x] 131-02-PLAN.md — Wave 1: InlineSessionName + SessionCard (colorblind-safe status, badge, origin, viewer, uptime, dim)
-- [ ] 131-03-PLAN.md — Wave 1: HubFilterBar (live-count pills + search + New session) + HubEmptyState (two variants)
-- [ ] 131-04-PLAN.md — Wave 2: SessionCardGrid (group-by-workDir) + HubPanel (filter/search/shortcut/error composition)
-- [ ] 131-05-PLAN.md — Wave 3: TabBar/Sidebar/App.tsx wiring (coexisting Hub tab + poll) + Hub CSS (dark/light tokens, grid, dim, reduced-motion)
+**Wave 1** *(all parallel — no file overlap)*
+
+- [ ] 135-01-PLAN.md — Wave 1: style.css `:focus-visible` rings for all Hub interactive elements (GAP-135-A) + `prefers-reduced-motion: reduce` blocks for spin (GAP-135-E) and card hover (GAP-135-F) — A11Y-02, A11Y-03
+- [ ] 135-02-PLAN.md — Wave 1: HubFilterBar `aria-pressed` on pills (GAP-135-B) + GroupSidebar keyboard-operable items (tabIndex + Enter/Space) — A11Y-02
+- [ ] 135-03-PLAN.md — Wave 1: HubModal focus trap via `inert` + initial focus (GAP-135-D / A11Y-04), WR-05 dialog-scoped Escape (GAP-135-C), STATUS_CONFIG mirror verification (A11Y-01)
 
 **UI hint**: yes
 
