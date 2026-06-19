@@ -9,7 +9,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### Navigation Restructure (NAV)
 
-- [ ] **NAV-01**: The TUI surface is removed entirely — `agenthub tui` no longer exists; Bubble Tea views, TUI-only shared code, and their tests are deleted. Cross-surface parity contract narrows to GUI/CLI/web.
+- [x] **NAV-01**: The TUI surface is removed entirely — `agenthub tui` no longer exists; Bubble Tea views, TUI-only shared code, and their tests are deleted. Cross-surface parity contract narrows to GUI/CLI/web.
 - [ ] **NAV-02**: The "+ New Session" sidebar item is removed; users create sessions from the Hub.
 - [ ] **NAV-03**: The "Sessions" sidebar page (`DaemonManagerPanel`) is removed.
 - [ ] **NAV-04**: The "Remote" sidebar page is removed (the Hub already unifies local + remote sessions).
@@ -52,7 +52,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 - [ ] **TEST-03**: Automated coverage gaps are closed for the Hub and for cross-surface GUI/CLI/web flows.
 - [ ] **TEST-04**: A single maintained manual (human-intervention) regression checklist exists, replacing the scattered per-phase UAT logs.
 - [ ] **TEST-05**: A standing convention requires every future phase to add its regression tests to the appropriate group (automated vs. human-intervention).
-- [ ] **TEST-06**: TUI tests are removed (not migrated) as part of the TUI removal.
+- [x] **TEST-06**: TUI tests are removed (not migrated) as part of the TUI removal.
 
 ### v3.6 Carry-Overs (CARRY)
 
@@ -91,8 +91,8 @@ Which phases cover which requirements. Filled during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NAV-01 | Phase 136 | Pending |
-| TEST-06 | Phase 136 | Pending |
+| NAV-01 | Phase 136 | Complete |
+| TEST-06 | Phase 136 | Complete |
 | SHARE-01 | Phase 137 | Pending |
 | SHARE-02 | Phase 137 | Pending |
 | SHARE-03 | Phase 137 | Pending |

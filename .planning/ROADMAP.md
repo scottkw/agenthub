@@ -358,7 +358,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. All TUI tests are deleted (not migrated); the Go and frontend test suites pass with no TUI references
   4. `go build ./...` and the full CI test matrix are green with no TUI import paths remaining
 **Plans**: 2 plans
-- [ ] 136-01-PLAN.md — Delete internal/tui package + cmd_tui.go + dispatch/usage + daemon parity tests; go mod tidy (NAV-01, TEST-06)
+- [x] 136-01-PLAN.md — Delete internal/tui package + cmd_tui.go + dispatch/usage + daemon parity tests; go mod tidy (NAV-01, TEST-06)
 - [ ] 136-02-PLAN.md — README/comment cleanup + full Go race/frontend suite gate + `agenthub tui` non-zero smoke (NAV-01, TEST-06)
 
 ### Phase 137: Share Modal & Cap Model
@@ -484,7 +484,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 133 | v3.6 | 5/5 | Complete | 2026-06-17 |
 | 134 | v3.6 | 8/8 | Complete | 2026-06-18 |
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
-| 136. TUI Removal | v4.0 | 0/TBD | Not started | - |
+| 136. TUI Removal | v4.0 | 1/2 | In Progress|  |
 | 137. Share Modal & Cap Model | v4.0 | 0/TBD | Not started | - |
 | 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |

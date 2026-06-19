@@ -4,13 +4,13 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
 stopped_at: v4.0 roadmap created — 7 phases (136-142), 31/31 requirements mapped
-last_updated: "2026-06-19T20:19:23.993Z"
-last_activity: 2026-06-19 -- Phase 136 planning complete
+last_updated: "2026-06-19T21:40:12.405Z"
+last_activity: 2026-06-19
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 136 — TUI Removal (not yet started)
+**Current focus:** Phase 136 — tui-removal
 
 ## Current Position
 
-Phase: 0 of 7 (roadmap created, ready to plan Phase 136)
-Plan: —
+Phase: 136 (tui-removal) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 136 planning complete
+Last activity: 2026-06-19
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -84,7 +84,7 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-19
+Last session: 2026-06-19T21:40:12.400Z
 Stopped at: v4.0 roadmap created — 7 phases (136-142), 31/31 requirements mapped
 Resume file: None
 Next action: `/gsd:plan-phase 136`
