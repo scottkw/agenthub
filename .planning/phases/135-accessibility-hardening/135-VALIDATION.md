@@ -1,10 +1,11 @@
 ---
 phase: 135
 slug: accessibility-hardening
-status: planned
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-18
+validated: 2026-06-19
 ---
 
 # Phase 135 — Validation Strategy
@@ -38,12 +39,12 @@ created: 2026-06-18
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 135-01-T1 | 01 | 1 | A11Y-02 | T-135-01-01 | focus rings reveal only on-screen state | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ⬜ pending |
-| 135-01-T2 | 01 | 1 | A11Y-03 | T-135-01-01 | static motion fallbacks | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ⬜ pending |
-| 135-02-T1 | 02 | 1 | A11Y-02 | T-135-02-01 | aria-pressed same path as onClick | DOM-render (createRoot+getAttribute) | `cd frontend && npx vitest run src/components/Hub/HubFilterBar.test.tsx` | Yes | ⬜ pending |
-| 135-02-T2 | 02 | 1 | A11Y-02 | T-135-02-02 | keyboard reaches same client state as click | DOM-render (createRoot+keydown) | `cd frontend && npx vitest run src/components/Hub/GroupSidebar.test.tsx` | Yes | ⬜ pending |
-| 135-03-T1 | 03 | 1 | A11Y-01, A11Y-02 | T-135-03-02 | scoped Escape, no global suppression | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ⬜ pending |
-| 135-03-T2 | 03 | 1 | A11Y-04 | T-135-03-01 | inert paired with mandatory cleanup | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ⬜ pending |
+| 135-01-T1 | 01 | 1 | A11Y-02 | T-135-01-01 | focus rings reveal only on-screen state | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ✅ green |
+| 135-01-T2 | 01 | 1 | A11Y-03 | T-135-01-01 | static motion fallbacks | source-inspection (readFileSync) | `cd frontend && npx vitest run src/components/__tests__/style.hub.test.ts` | Yes (style.hub.test.ts) | ✅ green |
+| 135-02-T1 | 02 | 1 | A11Y-02 | T-135-02-01 | aria-pressed same path as onClick | DOM-render (createRoot+getAttribute) | `cd frontend && npx vitest run src/components/Hub/HubFilterBar.test.tsx` | Yes | ✅ green |
+| 135-02-T2 | 02 | 1 | A11Y-02 | T-135-02-02 | keyboard reaches same client state as click | DOM-render (createRoot+keydown) | `cd frontend && npx vitest run src/components/Hub/GroupSidebar.test.tsx` | Yes | ✅ green |
+| 135-03-T1 | 03 | 1 | A11Y-01, A11Y-02 | T-135-03-02 | scoped Escape, no global suppression | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ✅ green |
+| 135-03-T2 | 03 | 1 | A11Y-04 | T-135-03-01 | inert paired with mandatory cleanup | source-inspection (`?raw`) | `cd frontend && npx vitest run src/components/Hub/HubModal.test.tsx` | Yes | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -85,3 +86,29 @@ No `<automated>MISSING — Wave 0 must create…</automated>` references exist i
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved (planner)
+
+---
+
+## Validation Audit 2026-06-19
+
+Retroactive audit of the executed phase (State A). All 6 task entries cross-referenced
+against implementation summaries and live test runs. The four mapped test files were
+executed: **150/150 tests passed** in 1.55s (style.hub.test.ts, HubFilterBar.test.tsx,
+GroupSidebar.test.tsx, HubModal.test.tsx). Each requirement is covered by
+behavior-targeting assertions (focus-visible ×15, prefers-reduced-motion ×7,
+aria-pressed ×4, keydown Enter/Space ×6, inert/Escape/STATUS_CONFIG ×21). Statuses
+flipped from plan-time `⬜ pending` to `✅ green`.
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 6 |
+| COVERED | 6 |
+| PARTIAL | 0 |
+| MISSING | 0 |
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+No automated-coverage gaps. One pre-existing manual-only item remains by design
+(live keyboard Tab-trap under real WebView — jsdom 29 cannot exercise `inert` focus
+suppression).
