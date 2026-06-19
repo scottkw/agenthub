@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 132-unified-grid-mini-preview-named-groups
 source: [132-VERIFICATION.md]
 started: 2026-06-16

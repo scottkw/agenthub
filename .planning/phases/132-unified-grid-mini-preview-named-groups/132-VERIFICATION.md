@@ -1,7 +1,11 @@
 ---
 phase: 132-unified-grid-mini-preview-named-groups
 verified: 2026-06-16T18:30:00Z
-status: human_needed
+status: passed
+human_signoff:
+  by: "Ken (project owner)"
+  date: "2026-06-19"
+  basis: "Owner confirmed during /gsd-complete-milestone; ran the second tailnet machine for the remote-peer test (GRID-03/07 verified across two real hosts). DnD, 11-session scale render, and the per-session-RPC-fan-out nuance are recorded in 132-HUMAN-UAT.md; mini-preview visual jank remains automation/structural-only (single shared interval confirmed)."
 score: 7/7
 overrides_applied: 0
 human_verification:

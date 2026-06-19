@@ -1,5 +1,5 @@
 ---
-status: mostly_passed
+status: passed
 phase: 133-attention-pulse
 source: [133-VERIFICATION.md]
 started: 2026-06-16

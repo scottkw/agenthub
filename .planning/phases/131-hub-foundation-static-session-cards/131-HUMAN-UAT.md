@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 131-hub-foundation-static-session-cards
 source: [131-VERIFICATION.md]
 started: 2026-06-16

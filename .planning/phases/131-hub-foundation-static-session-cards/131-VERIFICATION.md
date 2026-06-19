@@ -1,7 +1,11 @@
 ---
 phase: 131-hub-foundation-static-session-cards
 verified: 2026-06-16T15:00:00Z
-status: human_needed
+status: passed
+human_signoff:
+  by: "Ken (project owner)"
+  date: "2026-06-19"
+  basis: "Owner confirmed during /gsd-complete-milestone after driving the live native v3.6 app this session (waiting/attention states via /model, second-machine remote peer). Item-level evidence — computed-style/DOM live checks, the macOS exit-code bugfix 245414c2, and composition — is recorded in 131-HUMAN-UAT.md."
 score: 6/6
 overrides_applied: 0
 human_verification:
