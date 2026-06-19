@@ -81,7 +81,7 @@ export function HubModal({
 }: HubModalProps): React.ReactElement {
   const hubStatus = deriveHubStatus(session)
   const isBriefing = isAttentionStatus(hubStatus)
-  const { Icon: StatusIcon } = STATUS_CONFIG[hubStatus]
+  const { Icon: StatusIcon, label: statusLabel } = STATUS_CONFIG[hubStatus]
 
   // ---- Animation phase machine ----
   // entering → (animationEnd) → open; exiting → (animationEnd) → onClose()
@@ -191,7 +191,11 @@ export function HubModal({
       >
         {/* ---- Header strip ---- */}
         <div className="hub-modal__header">
+          {/* A11Y-01: the heroicon is decorative (Heroicons hard-code aria-hidden),
+              so status is conveyed to AT by a visually-hidden text label — mirrors
+              SessionCard's visible status-label span. Colorblind-safe: text, not color. */}
           <StatusIcon className="hub-modal__status-icon" aria-hidden="true" />
+          <span className="sr-only">{statusLabel}</span>
           <span className="hub-modal__session-name">{session.name}</span>
           <span className="hub-card__badge">{session.cli}</span>
           {isLocal ? (

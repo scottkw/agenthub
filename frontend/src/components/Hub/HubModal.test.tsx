@@ -312,4 +312,18 @@ describe('HubModal (A11Y-04 behavioral: inert focus-trap lifecycle — WR-01 reg
     // Cleanup ran inert = false — no path leaves .hub permanently inert.
     expect(hubEl.inert).toBe(false)
   })
+
+  it('A11Y-01: modal header exposes the session status to AT via a visually-hidden label', () => {
+    // UI-REVIEW finding: a screen-reader user inside the dialog could not determine the
+    // session status — the header icon is decorative (Heroicons hard-code aria-hidden).
+    // Status must be conveyed by a text label (not color — colorblind-safe). The icon stays
+    // decorative; an sr-only span carries the STATUS_CONFIG label. Default status 'idle' → 'Idle'.
+    renderModal(true) // reduced-motion → 'open'
+    const statusIcon = container.querySelector('.hub-modal__status-icon') as HTMLElement
+    expect(statusIcon).not.toBeNull()
+    expect(statusIcon.getAttribute('aria-hidden')).toBe('true') // icon stays decorative
+    const srLabel = container.querySelector('.hub-modal__header .sr-only') as HTMLElement
+    expect(srLabel, 'modal header missing AT-readable status label').not.toBeNull()
+    expect(srLabel.textContent).toBe('Idle')
+  })
 })
