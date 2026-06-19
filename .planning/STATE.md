@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: verifying
+status: completed
 stopped_at: v4.0 roadmap created — 7 phases (136-142), 31/31 requirements mapped
-last_updated: "2026-06-19T21:46:48.842Z"
-last_activity: 2026-06-19
+last_updated: "2026-06-19T21:56:39.968Z"
+last_activity: 2026-06-19 -- Phase 136 marked complete
 progress:
   total_phases: 7
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 136 (tui-removal) — EXECUTING
+Phase: 136 — COMPLETE
 Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-06-19
+Status: Phase 136 complete
+Last activity: 2026-06-19 -- Phase 136 marked complete
 
 Progress: [██████████] 100%
 
