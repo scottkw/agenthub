@@ -55,14 +55,14 @@ export interface HubModalProps {
  * Owns:
  * - Overlay (z-index 200) + click-outside dismissal
  * - Grow/shrink animation phase machine: entering → open → exiting
- * - Escape key handler (stopImmediatePropagation — prevents Hub card's Escape from double-firing)
+ * - Escape key handler (dialog-scoped onKeyDown with stopPropagation — WR-05)
  * - Focus return to originating card on unmount (cardFocusRef)
  * - Header strip with status icon, session name, CLI badge, origin marker, attention badge
  * - Routing to HubInteractiveModal (non-attention) or HubBriefingModal (attention)
  * - transformOrigin set from sourceRect center (MODAL-01 grow-animation origin)
  *
  * Security: session.name / hostname rendered as React text content — no dangerouslySetInnerHTML (T-134-04-01).
- * Escape: stopImmediatePropagation guards against Hub card menu double-fire (T-134-04-02, Pitfall 6).
+ * Escape: stopPropagation on dialog onKeyDown prevents Hub card menu Escape from also firing (WR-05).
  */
 export function HubModal({
   session,
@@ -116,27 +116,10 @@ export function HubModal({
     }
   }, [])
 
-  // ---- Escape key handler (MODAL-02, T-134-04-02) ----
-  // Use a ref to handleClose so the listener stays stable without re-adding on each render.
-  // WR-05 DEFERRED to Phase 135 (a11y): stopImmediatePropagation on document is broader than
-  // the narrow guard goal (prevents Hub card menu double-fire). A scoped guard (dialog-level
-  // handler or topmost-overlay coordinator) should replace this in the a11y pass.
-  const handleCloseRef = useRef(handleClose)
-  useEffect(() => {
-    handleCloseRef.current = handleClose
-  })
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.stopImmediatePropagation() // Prevent Hub card menu Escape from also firing (Pitfall 6)
-        // WR-05 NOTE: stopImmediatePropagation here suppresses all subsequent document-level
-        // Escape handlers while the modal is open. Scoped fix deferred to Phase 135 a11y pass.
-        handleCloseRef.current()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  // WR-05: Escape is handled via onKeyDown on the role="dialog" element (see JSX below).
+  // This replaces the previous document-level Escape listener (Phase 134, now removed).
+  // The dialog-scoped handler uses stopPropagation which stops bubbling within the component
+  // tree without globally suppressing other document Escape handlers.
 
   // ---- transform-origin — grow animation originates from card center (MODAL-01) ----
   const transformOrigin = `${sourceRect.left + sourceRect.width / 2}px ${sourceRect.top + sourceRect.height / 2}px`
@@ -153,11 +136,6 @@ export function HubModal({
     ? `Briefing: ${session.name} needs input`
     : `Session terminal: ${session.name}`
 
-  // WR-06 DEFERRED to Phase 135 (a11y): no focus trap is implemented here.
-  // Tab/Shift-Tab can leave the dialog onto the Hub cards underneath (they are tabIndex=0).
-  // For aria-modal="true" this is an a11y defect; the Phase 135 pass will add a focus trap
-  // (cycle Tab within focusable descendants) or mark background content inert/aria-hidden.
-
   return (
     <div
       className={`hub-modal-overlay hub-modal-overlay--${phase}`}
@@ -170,6 +148,12 @@ export function HubModal({
         className={`hub-modal hub-modal--${isBriefing ? 'briefing' : 'interactive'} hub-modal--${phase}`}
         style={{ transformOrigin }}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            handleClose()
+          }
+        }}
         onAnimationEnd={() => {
           if (phase === 'entering') setPhase('open')
           if (phase === 'exiting') onClose()
