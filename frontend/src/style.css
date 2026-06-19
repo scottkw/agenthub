@@ -4310,7 +4310,23 @@ body {
   background: var(--hub-surface-elevated);
 }
 
-.hub-card:focus {
+.hub-card:focus-visible {
+  outline: 2px solid var(--hub-accent);
+  outline-offset: 2px;
+}
+
+/* A11Y-02 GAP-135-A: keyboard-only focus rings for all Hub interactive elements */
+/* Colorblind constraint: ring color is var(--hub-accent) token, verified at source */
+.hub-filter__pill:focus-visible,
+.hub-filter__new-session:focus-visible,
+.hub-card__open:focus-visible,
+.hub-card__menu-btn:focus-visible,
+.hub-card__menu-item:focus-visible,
+.hub-modal__close:focus-visible,
+.hub-modal__send-btn:focus-visible,
+.hub-modal__close-btn:focus-visible,
+.hub__group-sidebar-toggle:focus-visible,
+.hub__group-sidebar-item:focus-visible {
   outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
@@ -4904,6 +4920,8 @@ body {
 
 .hub__group-sidebar-new-input:focus {
   border-color: var(--hub-accent);
+  outline: 2px solid var(--hub-accent);
+  outline-offset: 2px;
 }
 
 /* WR-02: hub-card--dragging — referenced in SessionCard.tsx but was missing from style.css.
