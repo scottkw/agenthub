@@ -233,7 +233,9 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 Requirements for v3.6 are scoped in `.planning/REQUIREMENTS.md` (the Hub session-grid surface). Active items move to Validated as phases complete.
 
-## Current Milestone: v3.6 Hub (Session Grid / Control Room)
+## Shipped Milestone: v3.6 Hub (Session Grid / Control Room) — SHIPPED 2026-06-19
+
+> ✅ Shipped 2026-06-19 (tag `v3.6`, closes Issue #78). 5 phases (131-135), 26 plans, 39/39 requirements. No active milestone — next is set via `/gsd:new-milestone`. The scope below is retained as the milestone's design record.
 
 **Goal:** Add a top-level **"Hub"** surface — a working-directory-grouped grid of live session cards that pulse for attention and expand into interactive modals — porting #78's design language onto AgentHub's *real* session data, folding in #76's grounded live-session behaviors.
 
@@ -269,7 +271,14 @@ Requirements for v3.6 are scoped in `.planning/REQUIREMENTS.md` (the Hub session
 
 ## Current State
 
+v3.6 Hub (Session Grid / Control Room) shipped 2026-06-19 (tag `v3.6`, closes Issue #78). 5 phases (131-135), 39/39 requirements (HUB/CARD/GRID/GROUP/ATTN/MODAL/A11Y), 26 plans. AgentHub now has a top-level **Hub** "control room": a unified grid of live session cards — local and remote tailnet-peer sessions side by side — auto-grouped by working directory with user-defined named groups (drag-to-assign, localStorage-persisted), a live-count status filter bar + `/` search, throttled per-card output previews (single shared poll interval, never a live xterm), an attention system that floats waiting/errored sessions to the top and pulses them (colorblind-safe: motion + icon + position, amber `#e0af68`, never color alone; respects prefers-reduced-motion), and a card→modal interaction (shared-element animation; interactive terminal modal for normal sessions, briefing modal driven by the real terminal tail for attention sessions, incl. a cap-gated relay WebSocket proxy for remote-session terminals). Wave-0 required a Go data-gap fix propagating WorkDir/ViewerCount/ExitCode/Duration through daemon+app `SessionInfo`. A close-time daemon bugfix (commit `245414c2`, `Session.ReapNaturalExit()`) fixed macOS natural-exit exit-code capture so stopped-err cards render correctly. All Phase 131/132/133 live UATs were verified this session — including the remote tailnet peer across **two real machines** — with owner sign-off; CARD-08 (both halves), ATTN-01/02/04/06 (pulse/float/badge), DnD card→group, and 11-session scale render all confirmed live. Audit status `tech_debt` (accepted, release-eligible — mirrors v3.4/v3.5): residual is TUI Hub parity (#82, signed-off deferral), a mini-preview per-session-RPC scale nuance (candidate issue), minor advisory A11Y items (#97), and carry-forward v3.5 live UATs + operator pre-release tokens. Cross-surface (GUI/TUI/CLI/web) parity remains a release-blocking contract.
+
+<details>
+<summary>Prior Current State — v3.5 File Browser — Write Operations & Editor (2026-06-15)</summary>
+
 v3.5 File Browser — Write Operations & Editor shipped 2026-06-15, retiring the write-side half of the file-browser epic with full cross-surface parity. 6 phases (123-128), 55 requirements satisfied (FSW-01..12, CAP-01..10, EDIT-01..13, TUIW-01..07, SEC-01..07, RMW-01..06), 27 plans, 238 commits across 2 days (2026-06-14 → 2026-06-15; ~14.9K source LOC added across 86 files, excluding `.planning/`). Audit status `tech_debt` (accepted) — 55/55 reqs satisfied at code/test level, integration 98/100 PASS, no critical blockers; release-eligible after the operator-deferred manual UATs (two-machine tailnet write UAT + live desktop/TUI visual UATs). Closes GitHub Issues #63 + #64; umbrella epic #24 retires on the committed two-machine tailnet write UAT (RMW-06). The v3.4 `os.OpenRoot` sandbox gained TOCTOU-free write primitives (atomic temp+sync+rename, no `O_TRUNC`; rename validates both source AND destination; recursive delete; mkdir; multipart upload) with a shell-RC denylist enforced on every write path and a 60s `FuzzSandboxWrite` merge gate. A new opt-in `files.write` capability (never default-on — owner enables per session, web-share viewers require a further explicit grant) gates the webserver write routes behind `requireFilesWrite` + a CSRF Origin check, with `schemaVersion: 4` migration; the daemon Unix-socket surface stays auth-less by design. The milestone centrepiece is a vendored CodeMirror 6 editor (zero new CSP amendments) replacing the v3.4 plain-text preview — syntax highlighting by extension, atomic Cmd/Ctrl+S with `If-Match`/412 conflict detection, dirty-state + unsaved guard, and the full create/mkdir/delete/rename/move/upload affordance suite. TUI write parity via `$EDITOR` shell-out + `d`/`r`/`m` keys (upload formally descoped, Issue #82). The `FilesClient` interface grew 4 → 8 methods; one pipeline drives local AND remote writes, with remote tailnet peer parity proven byte-identical by 3 independent observers (daemon-proxy Go + `tui.RemoteFilesClient` Go + Playwright HTTPS browser). Cross-surface (GUI/TUI/CLI/web) parity remains a release-blocking contract.
+
+</details>
 
 <details>
 <summary>Prior Current State — v3.4 File Browser (Read-Only) + TUI Parity (2026-05-21)</summary>
@@ -519,4 +528,11 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
+*Last updated: 2026-06-19 — v3.6 Hub (Session Grid / Control Room) milestone SHIPPED (tag v3.6, closes #78; 5 phases 131-135, 39/39 reqs, 26 plans). Delivered the top-level Hub control-room: unified local+remote live session grid, working-directory + named groups (drag-to-assign), throttled mini-previews, colorblind-safe attention (pulse/float/badge), card→modal (interactive + briefing, remote WS proxy), full A11Y hardening. Close-time daemon fix (245414c2) for macOS exit-code capture; all 131/132/133 live UATs verified this session incl. remote tailnet peer across two machines, owner sign-off. Audit tech_debt (release-eligible). No active milestone — next via /gsd:new-milestone. Carry-forward operator tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION) still required before next tagged release.*
+
+<details>
+<summary>Prior footer — v3.6 milestone STARTED (2026-06-16)</summary>
+
 *Last updated: 2026-06-16 — v3.6 Hub (Session Grid / Control Room) milestone STARTED. Primary GitHub Issue #78 (companion #76 folded in). New top-level "Hub" surface: working-directory-grouped grid of live session cards (status, CLI badge, origin, viewers, uptime, mini terminal preview), pulse + float-to-top for attention (`waiting`/`errored`), unified local+remote sessions, named user groups, click→modal-by-state (briefing modal for blocked sessions driven by real terminal tail; interactive terminal modal otherwise). Scope: bind to real data + adapt #78's look (not a mock port). Deferred #78 fidelity (usage metrics/projects/members/structured briefings/session-detail page/Tweaks) → new issue #93; TUI Hub parity → existing issue #82 (signed-off deferral). Phase numbering continues from 130 → v3.6 starts at Phase 131. Next: requirements + roadmap.*
+
+</details>

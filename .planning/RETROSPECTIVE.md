@@ -1024,6 +1024,37 @@
 ### Key Lessons
 - Live multi-surface UAT remains the only reliable catch for binding/render/gating gaps that unit tests mock away. Keep it in the loop before declaring a GUI on-ramp done.
 
+## Milestone: v3.6 — Hub (Session Grid / Control Room)
+
+**Shipped:** 2026-06-19 (tag v3.6, closes #78)
+**Phases:** 5 (131-135) | **Plans:** 26 | **Requirements:** 39/39
+
+### What Was Built
+- Top-level **Hub** control-room surface: unified grid of live local + remote session cards, auto-grouped by working directory plus user-defined named groups (drag-to-assign, localStorage-persisted), live-count status filter bar + `/` search (Phase 131-132).
+- Throttled per-card mini-previews (single shared poll interval, never a live xterm) and remote tailnet-peer sessions merged into the same grid (Phase 132).
+- Colorblind-safe attention system: waiting/errored sessions float-to-top + pulse (amber `#e0af68`, BellAlertIcon + aria, never color alone), 1s-debounced FLIP reorder, collapsed-group badge, reduced-motion aware (Phase 133).
+- Card→modal interaction with shared-element animation — interactive terminal modal + briefing modal (real terminal tail), plus a cap-gated relay WebSocket proxy for remote-session terminals (Phase 134).
+- Accessibility hardening across the surface — keyboard operability, reduced-motion, colorblind-safe cues (Phase 135).
+
+### What Worked
+- The Wave-0 "close the Go data gap first" pattern (carried from prior milestones) caught the WorkDir/ExitCode/Duration/ViewerCount propagation gap before the frontend depended on it.
+- Source-level / computed-style verification (the correct method for a colorblind owner) gave objective evidence for animation/color UATs (`hub-attn-pulse` active, exact hex, badge presence) that eyeballing could not.
+
+### What Was Inefficient
+- The live UATs stalled across **two prior passes** on a misdiagnosed symptom: a stale homebrew **v3.5.1 daemon** was holding the socket, so v3.6 fields (exit codes) never surfaced and exited sessions appeared to "vanish." Cost real time before the env was the actual fault. Lesson: when a daemon-backed UAT behaves impossibly, verify the **daemon binary identity** first.
+- Driving terminal *input* for live UATs is genuinely hard: the wails-dev bridge has no PTY, and local-mode web-share blocks programmatic WS input (Basic-auth + CSRF-Origin). Owner-in-the-loop keystrokes (one `/model`) + automated Hub observation was the workable split.
+
+### Patterns Established
+- **Decouple "produce the state" from "observe the surface":** produce session states via the daemon socket (or one owner keystroke), observe the Hub on the `:34115` bridge via dev-browser. Sidesteps the no-PTY-on-bridge limitation for everything except literal terminal input.
+- **Verify-by-composition for end-to-end UATs** whose atoms are each independently proven (ATTN-05 = live attention pipeline + unit-tested status-clear + Phase-134 modal pass) — a continuous manual click-through adds no coverage.
+- **Don't fabricate sign-off to clear a gate.** A guardrail correctly blocked auto-stamping `human_verified`; the honest path was the owner's actual sign-off, recorded with accurate scope (automation/computation vs eyeballed).
+
+### Key Lessons
+- A milestone-close audit can surface a *real product bug*, not just doc gaps: CARD-08 error-exit was non-functional on macOS because the natural-exit path never called `cmd.Wait()` (go-pty has no unix `waitOnContext`). Fixed with `Session.ReapNaturalExit()` (TDD, `-race` clean) — finding it required actually trying to produce the state live.
+
+### Cost Observations
+- The bulk of the close-out cost was live-UAT environment archaeology (daemon identity, web-share auth layers), not the code. A 5-file daemon fix + 3 doc commits was the durable output.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

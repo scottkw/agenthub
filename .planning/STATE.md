@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Hub (Session Grid / Control Room)
-status: milestone_complete_deferred
-stopped_at: v3.6 all phases done + verified; audit=tech_debt; user held milestone completion to address tech debt first
-last_updated: "2026-06-19T01:18:39.732Z"
-last_activity: 2026-06-19
+status: Awaiting next milestone
+stopped_at: "v3.6 Phase 135 fully complete (planned→executed→reviewed+fixed→live-UAT validated→secured→UI-audited+fixed). Milestone audit ran: status=tech_debt (39/39 reqs, 0 blockers, 7/7 flows). User chose to STOP before /gsd:complete-milestone to address tech debt first."
+last_updated: "2026-06-19T18:18:50.558Z"
+last_activity: 2026-06-19 — Milestone v3.6 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-15 — after v3.5 milestone close)
 
 ## Current Position
 
-Phase: 135 (accessibility-hardening) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-19
+Phase: Milestone v3.6 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-19 — Milestone v3.6 completed and archived
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -143,4 +143,4 @@ Items carried forward from v3.5 close (2026-06-15) and pre-release operator task
 
 ## Operator Next Steps
 
-- Run `/gsd:plan-phase 131` to begin Phase 131 planning
+- Start the next milestone with /gsd-new-milestone

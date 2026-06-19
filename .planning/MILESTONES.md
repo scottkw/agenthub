@@ -1,5 +1,25 @@
 # Milestones
 
+## v3.6 Hub (Session Grid / Control Room) (Shipped: 2026-06-19)
+
+**Phases completed:** 5 phases, 26 plans, 29 tasks
+**Git tag:** v3.6 · **Closes:** Issue #78
+
+**Delivered:** A "control room" Hub — a unified, live session grid that shows every local and remote AI-coding session as a data-accurate card, with filter/search, named groups, attention surfacing, and a card→modal interaction, all colorblind-safe and keyboard-operable.
+
+**Key accomplishments:**
+
+- **Hub surface + live cards (Phase 131):** new top-level Hub tab (coexists with Sessions) rendering all sessions as cards (name, CLI badge, colorblind-safe status icon, origin, viewer count, uptime/exit-code), auto-grouped by working directory, with a status filter bar (live counts) and `/`-focused search. Required a Wave-0 Go data-gap fix (WorkDir/ViewerCount/ExitCode/Duration propagated through daemon + app SessionInfo).
+- **Unified grid + mini-preview + named groups (Phase 132):** throttled output-snapshot mini-previews on every card (never a live xterm — single shared poll interval), remote tailnet-peer sessions merged into the same grid, and user-defined named groups with drag-and-drop assignment (membership keyed by name+workDir, localStorage-persisted).
+- **Attention system (Phase 133):** waiting/errored/non-zero-exit sessions float to the top of their group and pulse (amber `#e0af68`, BellAlertIcon + aria — color is never the sole cue), with a 1s-debounced FLIP reorder and a collapsed-group attention badge; all motion respects prefers-reduced-motion.
+- **Card → modal interaction (Phase 134):** clicking a card opens a shared-element grow/shrink modal — an interactive terminal modal for normal sessions and a briefing modal for attention sessions — including a cap-gated relay WebSocket proxy for remote-session terminals (MODAL-06), with clean focus return on close.
+- **Accessibility hardening (Phase 135):** full keyboard operability, prefers-reduced-motion compliance, and colorblind-safe status/attention cues verified across the surface (colorblind-safe is a release-blocking constraint, verified at the hex-constant level, not by eye).
+- **Close-time daemon bugfix (commit 245414c2):** fixed macOS natural-exit exit-code capture (`Session.ReapNaturalExit()`) so stopped-err cards are reachable; TDD regression test, daemon+pty suites green with `-race`. All Phase 131/132/133 live UATs verified this session (incl. remote tailnet peer across two real machines).
+
+**Known deferred (release-eligible, see milestones/v3.6-MILESTONE-AUDIT.md):** TUI Hub parity (#82, signed-off deferral); mini-preview issues one tail RPC per session per tick (scale-perf nuance, candidate issue); minor advisory A11Y items (WR-04 → #97); carry-forward v3.5 live UATs + operator pre-release tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION).
+
+---
+
 ## v3.5.1 Remote Browse Completion + Release-Gate Fix (Shipped: 2026-06-16)
 
 **Phases completed:** 2 phases, 7 plans, 11 tasks
