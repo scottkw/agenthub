@@ -116,6 +116,25 @@ export function HubModal({
     }
   }, [])
 
+  // ---- A11Y-04: Focus trap via inert + initial focus ----
+  // When phase === 'open', mark the .hub background inert so Tab cannot reach background cards.
+  // Move initial focus to the close button for correct WCAG 2.4.3 focus order.
+  // Cleanup removes inert on every close/unmount (Pitfall 1: missing cleanup causes Hub keyboard-lock).
+  // The cardFocusRef cleanup (above) handles focus-return to the originating card — do NOT duplicate it here.
+  const closeBtnRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (phase !== 'open') return // Pitfall 3: do not trap during 'entering' animation
+
+    const hubEl = document.querySelector('.hub') as HTMLElement | null
+    if (hubEl) hubEl.inert = true
+
+    closeBtnRef.current?.focus()
+
+    return () => {
+      if (hubEl) hubEl.inert = false // Pitfall 1: MUST remove inert or Hub keyboard-locks
+    }
+  }, [phase])
+
   // WR-05: Escape is handled via onKeyDown on the role="dialog" element (see JSX below).
   // This replaces the previous document-level Escape listener (Phase 134, now removed).
   // The dialog-scoped handler uses stopPropagation which stops bubbling within the component
@@ -178,6 +197,7 @@ export function HubModal({
           )}
           <span style={{ flex: 1 }} />
           <button
+            ref={closeBtnRef}
             type="button"
             className="hub-modal__close"
             aria-label="Close modal"
