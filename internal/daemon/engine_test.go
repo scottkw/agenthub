@@ -1755,3 +1755,124 @@ func TestGetSessionTailLines_UnknownSession(t *testing.T) {
 		t.Errorf("expected empty slice for unknown session, got: %v", result)
 	}
 }
+
+// ========================================================================
+// Phase 139 Plan 01 — GetSessionStyledTailLines unit tests (CARD-05).
+//
+// These tests are RED until Plan 03 adds GetSessionStyledTailLines to
+// engine.go and StyledSpan / StyledTailLinesResponse to types.go.
+// They define the contract that Plan 03 must satisfy:
+//   - CSI color sequences produce spans with FG:"ansi:N" and correct Bold flag
+//   - Carriage-return (TUI overwrite) collapses to a single logical line (#96)
+//   - Unknown session returns [][]StyledSpan{} (non-nil, len 0)
+// ========================================================================
+
+// TestGetSessionStyledTailLines_ColorBold: scrollback with CSI bold+green sequence
+// → result contains spans with FG "ansi:2" and Bold true.
+// RED until Plan 03 implements GetSessionStyledTailLines in engine.go.
+func TestGetSessionStyledTailLines_ColorBold(t *testing.T) {
+	e := NewSessionEngine()
+	// \x1b[1;32m = bold + green (CSI 1;32m). \x1b[0m = reset.
+	content := "\x1b[1;32mgreen\x1b[0m\n"
+	makeTailHub(t, e, "styled-color-test", content)
+
+	result := e.GetSessionStyledTailLines("styled-color-test", 5)
+	if result == nil {
+		t.Fatal("GetSessionStyledTailLines returned nil, expected [][]StyledSpan")
+	}
+
+	// Find the row that contains the "green" text.
+	var greenRow []StyledSpan
+	for _, row := range result {
+		for _, span := range row {
+			if span.Char == "g" {
+				greenRow = row
+				break
+			}
+		}
+		if greenRow != nil {
+			break
+		}
+	}
+	if greenRow == nil {
+		t.Fatalf("no row containing 'g' (first char of 'green') found; result: %v", result)
+	}
+
+	// Reconstruct text from the row.
+	var chars string
+	for _, span := range greenRow {
+		chars += span.Char
+	}
+	if !strings.Contains(chars, "green") {
+		t.Errorf("expected row chars to contain 'green', got: %q", chars)
+	}
+
+	// The first span of the "green" word must have FG == "ansi:2" (green in ANSI 16).
+	firstSpan := greenRow[0]
+	if firstSpan.FG != "ansi:2" {
+		t.Errorf("expected first span FG 'ansi:2', got: %q", firstSpan.FG)
+	}
+	// Bold must be set on at least the first span.
+	if !firstSpan.Bold {
+		t.Errorf("expected first span Bold=true, got false")
+	}
+}
+
+// TestGetSessionStyledTailLines_TUI: scrollback with carriage-return overwrite
+// → result contains exactly one logical line with text "bbbb" (not "aaaabbbb").
+// Regression guard for #96: the VT emulator must collapse the overwrite.
+// RED until Plan 03 implements GetSessionStyledTailLines.
+func TestGetSessionStyledTailLines_TUI(t *testing.T) {
+	e := NewSessionEngine()
+	// "aaaa\rbbbb\n" — carriage return moves cursor to column 0; "bbbb" overwrites "aaaa".
+	// A correct VT emulator produces one line "bbbb"; a naive line-split produces "aaaabbbb".
+	content := "aaaa\rbbbb\n"
+	makeTailHub(t, e, "styled-tui-test", content)
+
+	result := e.GetSessionStyledTailLines("styled-tui-test", 5)
+	if result == nil {
+		t.Fatal("GetSessionStyledTailLines returned nil")
+	}
+
+	// Collect non-empty rows.
+	var nonEmptyRows [][]StyledSpan
+	for _, row := range result {
+		var text string
+		for _, span := range row {
+			text += span.Char
+		}
+		if strings.TrimSpace(text) != "" {
+			nonEmptyRows = append(nonEmptyRows, row)
+		}
+	}
+
+	if len(nonEmptyRows) != 1 {
+		t.Errorf("expected exactly 1 non-empty row after TUI overwrite, got %d; result: %v", len(nonEmptyRows), result)
+	} else {
+		// The single non-empty row must contain "bbbb" and must NOT contain "aaaa".
+		var rowText string
+		for _, span := range nonEmptyRows[0] {
+			rowText += span.Char
+		}
+		if !strings.Contains(rowText, "bbbb") {
+			t.Errorf("expected row text to contain 'bbbb', got: %q", rowText)
+		}
+		if strings.Contains(rowText, "aaaa") {
+			t.Errorf("row text must not contain 'aaaa' after overwrite, got: %q", rowText)
+		}
+	}
+}
+
+// TestGetSessionStyledTailLines_Unknown: unknown session ID → non-nil empty
+// [][]StyledSpan (len 0, not nil, no panic).
+// RED until Plan 03 implements GetSessionStyledTailLines.
+func TestGetSessionStyledTailLines_Unknown(t *testing.T) {
+	e := NewSessionEngine()
+	result := e.GetSessionStyledTailLines("does-not-exist", 5)
+	if result == nil {
+		t.Errorf("expected [][]StyledSpan{} (not nil) for unknown session, got nil")
+	}
+	if len(result) != 0 {
+		t.Errorf("expected empty slice for unknown session, got len %d: %v", len(result), result)
+	}
+}

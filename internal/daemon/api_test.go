@@ -2339,3 +2339,50 @@ func TestHandleGetSessionTailLines_ClampN(t *testing.T) {
 		t.Errorf("clamp failed: got %d lines with n=1000, want at most 20", len(resp.Lines))
 	}
 }
+
+// ========================================================================
+// Phase 139 Plan 01 — TestHandleGetSessionStyledTailLines (CARD-05).
+//
+// RED until Plan 03 adds:
+//   - GET /sessions/{id}/styled-tail handler in api.go
+//   - StyledTailLinesResponse type in types.go
+//
+// Verifies: 200 status, JSON decodable into StyledTailLinesResponse with
+// non-nil Lines field, and that n=999 (clamped) also returns 200.
+// ========================================================================
+
+// TestHandleGetSessionStyledTailLines: GET /sessions/{id}/styled-tail returns
+// 200 + valid JSON { "lines": [...] } with non-nil Lines field.
+// Also asserts that n=999 (over the 20-line clamp) returns 200 (no error).
+// RED until Plan 03 adds handleGetSessionStyledTailLines to api.go.
+func TestHandleGetSessionStyledTailLines(t *testing.T) {
+	_, _, socketPath := testDaemon(t)
+
+	// Create a session to use as the target.
+	_, createBody := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"styled-tail-tab","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(createBody, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	t.Cleanup(func() { rawDelete(t, socketPath, fmt.Sprintf("/sessions/%s", cr.ID)) })
+
+	// GET /sessions/{id}/styled-tail?n=5 → 200 + valid StyledTailLinesResponse.
+	status, body := rawGet(t, socketPath, fmt.Sprintf("/sessions/%s/styled-tail?n=5", cr.ID))
+	if status != 200 {
+		t.Errorf("GET /sessions/%s/styled-tail: want 200, got %d; body: %s", cr.ID, status, string(body))
+	}
+	var stResp StyledTailLinesResponse
+	if err := json.Unmarshal(body, &stResp); err != nil {
+		t.Fatalf("decode StyledTailLinesResponse: %v; raw=%s", err, string(body))
+	}
+	// Lines must be non-nil (may be empty for a fresh session with no scrollback).
+	if stResp.Lines == nil {
+		t.Errorf("StyledTailLinesResponse.Lines must be non-nil (got nil)")
+	}
+
+	// Defense-in-depth: n=999 (above the 20-line clamp) must still return 200.
+	status2, _ := rawGet(t, socketPath, fmt.Sprintf("/sessions/%s/styled-tail?n=999", cr.ID))
+	if status2 != 200 {
+		t.Errorf("GET /sessions/%s/styled-tail?n=999: want 200, got %d", cr.ID, status2)
+	}
+}
