@@ -41,9 +41,8 @@ type SessionEngine struct {
 	shellWebShareWarned bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
 	shellPath           string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
 	autoCloseSession    *bool           // nil = default (true); persisted pointer
-	filesRead           *bool           // v3.4 (Phase 118 / FS-14): nil for pre-v3.4 files (defaulted to *true via loadSettingsFromDisk); *true = enabled; *false = explicitly disabled
-	filesWriteDefault   bool            // Phase 124 / CAP-08: persisted default for per-session write toggle; false = opt-in for all (T-124-06)
-	sessionWrites       map[string]bool // Phase 124 / CAP-04: per-session write toggle (in-memory, seeded from filesWriteDefault at session creation; T-124-07)
+	filesWriteDefault   bool            // Phase 124 / CAP-08: persisted default for per-session write default; retained for settings migration tests (TestSettingsMigration_FilesWriteDefaultsFalse); NOT wired to perm injection (D-07: global filesRead kill-switch removed in Phase 137)
+	sessionBrowse       map[string]bool // Phase 137 / SHARE-03: per-session browse toggle (ephemeral in-memory, default OFF per D-06/D-08); sole driver of file-perm injection (D-02)
 	pluginSettings      PluginSettings  // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
@@ -88,25 +87,26 @@ func ensureOpenCodeTUIConfig(dir string) string {
 // block + schemaVersion to always serialize so future loads observe them
 // even when every plugin is at its zero value (all-false).
 //
-// FilesRead is additive (v3.4 / Phase 118 / FS-14) and tagged `omitempty`:
-// the defaults-merge in loadSettingsFromDisk pre-populates it to *true
-// BEFORE Unmarshal, so a v3.2 settings.json (no filesRead key) upgrading
-// to v3.3 lands on FilesRead=true (Pitfall 16 mitigation). An explicit
-// `"filesRead": false` user choice is preserved (TestSettingsMigration_FilesReadExplicitFalse).
+// Phase 137 / D-07: The global FilesRead kill-switch (*bool, Phase 118 / FS-14)
+// has been deliberately removed from both this struct and the engine fields.
+// The per-session browse toggle (sessionBrowse map, browseEnabledFor) replaces it
+// as the sole driver of file-perm injection. This is Reversal 3 in 137-RESEARCH.md
+// — the global flag is gone; per-session default OFF (D-06) replaces it.
+// Audit: secure-phase reviews Reversal 1 and Reversal 3 in 137-RESEARCH.md.
 //
 // FilesWrite is additive (Phase 124 / CAP-08) and tagged `omitempty`:
-// it is a plain bool (NOT *bool) with zero-value false. This is a deliberate
-// inversion of FilesRead: files.write is opt-in for all sessions. Do NOT
-// pre-populate a true default in the defaults-merge literal; zero-value IS the
-// correct opt-in default (T-124-06 mitigation).
+// it is a plain bool (NOT *bool) with zero-value false. Retained for settings
+// migration test parity (TestSettingsMigration_FilesWriteDefaultsFalse); NOT
+// wired to perm injection (perm injection is driven by sessionBrowse only).
+// Do NOT pre-populate a true default in the defaults-merge literal; zero-value
+// IS the correct opt-in default (T-124-06 mitigation).
 type daemonSettings struct {
 	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized      bool              `json:"startMinimized,omitempty"`
 	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath           string            `json:"shellPath,omitempty"`
 	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
-	FilesRead           *bool             `json:"filesRead,omitempty"`
-	FilesWrite          bool              `json:"filesWrite,omitempty"` // Phase 124: per-session write default; plain bool, zero=false (opt-in for all)
+	FilesWrite          bool              `json:"filesWrite,omitempty"` // Phase 124: write default; retained for migration test; NOT wired to perm injection (D-07)
 	Plugins             PluginSettings    `json:"plugins"`
 	SchemaVersion       int               `json:"schemaVersion"`
 }
@@ -163,10 +163,12 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	// SchemaVersion intentionally NOT pre-populated: it must remain 0 for a
 	// v3.1 file (no schemaVersion key) so the needsUpgradeWrite check below
 	// correctly detects that an upgrade re-write is required.
-	tr := true
+	//
+	// Phase 137 / D-07: FilesRead (*bool) pre-populate removed — the global
+	// filesRead kill-switch is gone. Per-session browse default is always OFF
+	// (absent from sessionBrowse map = OFF per D-06). No defaults-merge needed.
 	s := daemonSettings{
-		FilesRead: &tr, // Phase 118 / FS-14: default ON for v3.2 files lacking the key (Pitfall 16 mitigation)
-		Plugins:   defaultPluginSettings(),
+		Plugins: defaultPluginSettings(),
 	}
 	if json.Unmarshal(data, &s) != nil {
 		return
@@ -189,8 +191,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
-	e.filesRead = s.FilesRead          // Phase 118 / FS-14
-	e.filesWriteDefault = s.FilesWrite // Phase 124 / CAP-08: zero-value false is the opt-in default
+	e.filesWriteDefault = s.FilesWrite // Phase 124 / CAP-08: zero-value false is the opt-in default; retained for migration tests
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
 	// CurrentSchemaVersion (e.g. v3.1 file with no key → 0). Re-save so
@@ -217,8 +218,7 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		ShellWebShareWarned: e.shellWebShareWarned,
 		ShellPath:           e.shellPath,
 		AutoCloseSession:    e.autoCloseSession,
-		FilesRead:           e.filesRead,         // Phase 118 / FS-14
-		FilesWrite:          e.filesWriteDefault, // Phase 124 / CAP-08
+		FilesWrite:          e.filesWriteDefault, // Phase 124 / CAP-08: retained for migration tests (NOT wired to perm injection per D-07)
 		Plugins:             e.pluginSettings,
 		SchemaVersion:       CurrentSchemaVersion,
 	}
@@ -254,7 +254,7 @@ func NewSessionEngine() *SessionEngine {
 		tabNames:          make(map[string]string),
 		sessionCLIs:       make(map[string]string),
 		sessionWorkDirs:   make(map[string]string),
-		sessionWrites:     make(map[string]bool), // Phase 124 / CAP-04: per-session write toggle map
+		sessionBrowse:     make(map[string]bool), // Phase 137 / SHARE-03: per-session browse toggle (default OFF, D-06/D-08)
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
 	}
@@ -465,13 +465,13 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 			ViewerCount: viewerCount,
 			ExitCode:    exitCodePtr,
 			Duration:    durationPtr,
-			// Phase 124 / CAP-06 + CAP-04: single server-side source of truth for
-			// both GUI and TUI home-dir warning + write-toggle parity.
-			// Note: sessionCwdIsHome + filesWriteEnabledFor both acquire e.mu.RLock
-			// internally, but ListSessions already holds e.mu.RLock via defer.
-			// Call the inner logic directly to avoid a deadlock.
-			HomeDir:    e.sessionCwdIsHomeUnlocked(s.ID),
-			FilesWrite: e.filesWriteEnabledForUnlocked(s.ID),
+			// Phase 137 / SHARE-03 + CAP-06: single server-side source of truth for
+			// GUI browse-enabled seeding (SHARE-05) and home-dir warning.
+			// Note: sessionCwdIsHomeUnlocked + browseEnabledForUnlocked both
+			// read e.mu-guarded maps; ListSessions already holds e.mu.RLock via defer.
+			// Call the lock-free variants directly to avoid a deadlock.
+			HomeDir:       e.sessionCwdIsHomeUnlocked(s.ID),
+			BrowseEnabled: e.browseEnabledForUnlocked(s.ID),
 			// Phase 131 / GRID-02: e.mu.RLock is already held via defer at the top
 			// of this function — map read is safe without acquiring a new lock.
 			WorkDir: e.sessionWorkDirs[s.ID],
@@ -587,49 +587,38 @@ func (e *SessionEngine) GetSessionWorkDir(id string) string {
 	return e.sessionWorkDirs[id]
 }
 
-// filesReadEnabled reports whether file-browser capability issuance is
-// enabled for owner tokens. nil filesRead (pre-v3.4 / pre-defaults-merge)
-// defaults to true; explicit *true is true; explicit *false is false.
-// Consumed by issueCapabilitiesForSession to decide whether to inject
-// the files.read perm into newly-minted write tokens (FS-12 + FS-14).
-// Phase 118.
-func (e *SessionEngine) filesReadEnabled() bool {
+// browseEnabledFor reports whether file-browse capability issuance is enabled
+// for the given session. Absent from the map = OFF (D-06: default OFF).
+//
+// Phase 137 / D-07: This is the SOLE driver of file-perm injection. The old
+// global filesReadEnabled() kill-switch (Phase 118 / FS-14) has been
+// deliberately removed (Reversal 3 in 137-RESEARCH.md). Per-session default
+// OFF replaces the global flag. Audit: secure-phase reviews Reversal 1 and
+// Reversal 3 in 137-RESEARCH.md.
+func (e *SessionEngine) browseEnabledFor(sessionID string) bool {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.filesRead == nil || *e.filesRead
+	return e.browseEnabledForUnlocked(sessionID)
 }
 
-// filesWriteEnabledFor reports whether file-write capability issuance is
-// enabled for the given session's owner token. This is a PER-SESSION check
-// (T-124-07 mitigation — never a global flag like filesReadEnabled). If the
-// session has no explicit entry in sessionWrites, the persisted
-// filesWriteDefault is used (false = opt-in for all, CAP-08).
-// Phase 124.
-func (e *SessionEngine) filesWriteEnabledFor(sessionID string) bool {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.filesWriteEnabledForUnlocked(sessionID)
+// browseEnabledForUnlocked is the lock-free body of browseEnabledFor.
+// Caller must hold at least e.mu.RLock.
+// Used by ListSessions which already holds e.mu.RLock via defer.
+func (e *SessionEngine) browseEnabledForUnlocked(sessionID string) bool {
+	return e.sessionBrowse[sessionID] // false for absent keys (D-06: default OFF)
 }
 
-// filesWriteEnabledForUnlocked is the lock-free body of filesWriteEnabledFor.
-// Caller must hold e.mu.RLock (or e.mu.Lock).
-func (e *SessionEngine) filesWriteEnabledForUnlocked(sessionID string) bool {
-	if v, ok := e.sessionWrites[sessionID]; ok {
-		return v
-	}
-	return e.filesWriteDefault
-}
-
-// SetSessionFilesWrite sets the per-session write toggle for sessionID.
-// Called by the GUI binding when the owner flips the files-write toggle.
-// Phase 124 / CAP-04.
-func (e *SessionEngine) SetSessionFilesWrite(sessionID string, enabled bool) {
+// SetSessionBrowse sets the per-session browse toggle for sessionID.
+// Called by the GUI binding when the owner flips the file-browse toggle.
+// Phase 137 / SHARE-03 / D-02. Toggle-off: the API handler clears grants
+// (ClearGrants) so stale caps are invalidated (stale-cap threat mitigation).
+func (e *SessionEngine) SetSessionBrowse(sessionID string, enabled bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.sessionWrites == nil {
-		e.sessionWrites = make(map[string]bool)
+	if e.sessionBrowse == nil {
+		e.sessionBrowse = make(map[string]bool)
 	}
-	e.sessionWrites[sessionID] = enabled
+	e.sessionBrowse[sessionID] = enabled
 }
 
 // sessionCwdIsHome reports whether the session's working directory is the

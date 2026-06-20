@@ -134,9 +134,10 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("GET /webserver/local-password", a.handleGetLocalPassword)
 	// Phase 87 capability-based authorization endpoints (D-06, D-09, D-16).
 	a.mux.HandleFunc("POST /sessions/{id}/capabilities", a.handleIssueCapabilities)
-	// Phase 124 / CAP-04: per-session file-write toggle.
+	// Phase 137 / SHARE-03: per-session browse toggle.
 	// Loopback-trust (daemon socket): no auth gate — the owner's GUI is the only caller.
-	a.mux.HandleFunc("POST /sessions/{id}/files-write", a.handleSetSessionFilesWrite)
+	// Toggle-off clears grants (ClearGrants) — stale-cap threat mitigation (SHARE-05).
+	a.mux.HandleFunc("POST /sessions/{id}/browse", a.handleSetSessionBrowse)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -1094,26 +1095,32 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	}
 
 	now := time.Now().Unix()
-	// Phase 118 / FS-12: owner token includes files.read unless the operator
-	// has explicitly disabled it via daemonSettings.FilesRead. nil filesRead
-	// (legacy pre-v3.4 file) is treated as enabled — the engine's
-	// loadSettingsFromDisk defaults-merge writes *true at load time (see
-	// Plan 04), so in steady-state nil only occurs in tests. The viewer
-	// (read) token Perms is unchanged — viewers default-off per FS-12.
-	ownerPerms := "read,write"
-	if a.engine.filesReadEnabled() {
-		ownerPerms = "read,write," + capability.PermFilesRead
+	// Phase 137 / SHARE-03: perm injection driven solely by the per-session browse
+	// toggle (browseEnabledFor). No global kill-switch (D-07 deliberate removal of
+	// the Phase 118 filesReadEnabled / FilesRead global flag — Reversal 3 in
+	// 137-RESEARCH.md).
+	//
+	// D-03: Browse OFF (default): RO="read", RW="read,write"
+	// D-04: Browse ON:            RO="read,files.read", RW="read,write,files.read,files.write"
+	//
+	// Security invariants (T-137-02 / Pitfall 2): files.write NEVER appears in
+	// rPerms (the RO token). The RO code holder gains read-only filesystem access
+	// when browse is ON — this is intentional (D-05).
+	//
+	// Deliberate reversals vs Phase 118/124:
+	//   Reversal 1: The dual RO/RW issuance replaces the single owner-only token
+	//               (T-124-07: write is no longer separately gated per-session).
+	//   Reversal 3: Global filesReadEnabled kill-switch removed; per-session default
+	//               OFF (D-06) is the new gate.
+	// Audit: secure-phase to review Reversal 1 and Reversal 3 in 137-RESEARCH.md.
+	rPerms := "read"
+	wPerms := "read,write"
+	if a.engine.browseEnabledFor(sessionID) {
+		rPerms = "read," + capability.PermFilesRead
+		wPerms = "read,write," + capability.PermFilesRead + "," + capability.PermFilesWrite
 	}
-	// Phase 124 / CAP-04: append files.write to the owner token ONLY when the
-	// per-session write toggle is ON. This is a per-session check (Inversion 2 —
-	// NOT a global flag). Uses capability.HasPerm semantics via
-	// filesWriteEnabledFor, never strings.Contains (T-124-09 + static-grep gate).
-	// The read-only (rClaims) token Perms is "read" — NEVER affected.
-	if a.engine.filesWriteEnabledFor(sessionID) {
-		ownerPerms += "," + capability.PermFilesWrite
-	}
-	rClaims := capability.Claims{SID: sessionID, Perms: "read", IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
-	wClaims := capability.Claims{SID: sessionID, Perms: ownerPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
+	rClaims := capability.Claims{SID: sessionID, Perms: rPerms, IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
+	wClaims := capability.Claims{SID: sessionID, Perms: wPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
 
 	rTok, err := capability.Sign(rClaims, key)
 	if err != nil {
@@ -1270,16 +1277,30 @@ func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, peers)
 }
 
-// handleSetSessionFilesWrite handles POST /sessions/{id}/files-write.
-// It toggles the per-session write capability flag for the given session.
-// Phase 124 / CAP-04. Loopback-trust (daemon socket): no auth gate needed.
-func (a *API) handleSetSessionFilesWrite(w http.ResponseWriter, r *http.Request) {
+// handleSetSessionBrowse handles POST /sessions/{id}/browse.
+// It toggles the per-session browse flag for the given session.
+// Phase 137 / SHARE-03. Loopback-trust (daemon socket): no auth gate needed.
+//
+// Browse toggle-off clears outstanding grants for the session (parity with
+// handleWebServe ClearGrants on toggle-off, SHARE-05 stale-cap threat):
+// a browse-off cannot leave a stale files.read cap live. The next call to
+// IssueCapabilities re-mints tokens with the updated (browse-OFF) perm set.
+func (a *API) handleSetSessionBrowse(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	var req SessionFilesWriteRequest
+	var req SessionBrowseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
-	a.engine.SetSessionFilesWrite(id, req.Enabled)
+	a.engine.SetSessionBrowse(id, req.Enabled)
+	// Stale-cap mitigation (SHARE-05 / stale-cap threat): clear outstanding grants
+	// on any browse toggle so a toggle-off cannot leave a live files.read cap.
+	// Mirrors the handleWebServe ClearGrants pattern (api.go:1056).
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws != nil {
+		ws.ClearGrants(id)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
