@@ -194,6 +194,7 @@ export function TabBar({
             key={tab.id}
             className={`tab${tab.id === activeId ? ' tab--active' : ''}${exitCountdowns?.[tab.sessionId] ? ' tab--exiting' : ''}`}
             onClick={() => onSelect(tab.id)}
+            title={tab.name}
           >
             <span
               className={`tab__status tab__status--${sessionStatuses?.[tab.sessionId] || 'running'}`}
