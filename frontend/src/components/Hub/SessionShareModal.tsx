@@ -101,11 +101,8 @@ export function SessionShareModal({
   const [cachedShare, setCachedShare] = useState<CachedShare | null>(null)
   // Whether the home-dir warning has been dismissed by the user this session.
   const [homeDirDismissed, setHomeDirDismissed] = useState(false)
-  // Seed-version counter: incrementing this triggers the seeding effect to re-run
-  // even when cachedShare is null-to-null (avoids circular dep + flushSync batching
-  // issues in tests — see SHARE-05 restart-clear).
-  const [seedVersion, setSeedVersion] = useState(0)
-  // Ref mirror of cachedShare for the seeding effect to read without depending on it.
+  // Ref mirror of cachedShare for the seeding effect to read without depending on it
+  // (avoids adding cachedShare to seeding effect deps, which interacts poorly with flushSync).
   const cachedShareRef = useRef<CachedShare | null>(null)
   cachedShareRef.current = cachedShare
 
@@ -157,9 +154,10 @@ export function SessionShareModal({
   }, [webServerRunning])
 
   // ---- Server-truth seeding on open (SHARE-05) ----
-  // Runs when shareEnabled, session.id, or seedVersion changes.
+  // Runs when shareEnabled or session.id changes.
   // Uses cachedShareRef (not state) to avoid adding cachedShare as a dep,
   // which would create a problematic dep that interacts poorly with flushSync.
+  // Restart re-seeding is handled directly in the restart-clear effect above.
   useEffect(() => {
     if (!shareEnabled) return
     if (cachedShareRef.current !== null) return
@@ -180,7 +178,7 @@ export function SessionShareModal({
     })()
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shareEnabled, session.id, seedVersion])
+  }, [shareEnabled, session.id])
 
   // ---- Toggle handlers ----
 
