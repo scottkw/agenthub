@@ -340,7 +340,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web (completed 2026-06-19)
 - [x] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review (completed 2026-06-20)
-- [ ] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings
+- [x] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings (completed 2026-06-20)
 - [ ] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip
 - [ ] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged
 - [ ] **Phase 141: Redesign Implementation** — Chosen visual language applied across all surviving surfaces; Hub GroupSidebar ARIA corrected
@@ -391,7 +391,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 138-01-PLAN.md — Wave 0 test scaffolding: rewrite Sidebar/App.nav/App.hub/style.hub tests to the 3-item sidebar + header-less Hub + panel removal; extend SessionCard.share tests with CARD-02/03/04 RED cases (NAV-02..05, CARD-01..04)
 - [x] 138-02-PLAN.md — Relocate RemoteSession/RemotePeerSessions types to lib/remoteSession.ts; thread isRemote/isConnected props HubPanel→Grid→Card; provenance-based origin (CARD-02) + colorblind-safe Connected/Available chip + CSS (CARD-03) (CARD-02, CARD-03, CARD-04)
 - [x] 138-03-PLAN.md — Card overflow affordances: Kill (two-step confirm), Open-in-browser, Browse-files (CONTEXT D1/D2/D3) guarded against card-click modal; remove .hub__header duplicate New Session button (CARD-01); per-peer unreachable/empty hint (CONTEXT D4) (CARD-01, CARD-04)
-- [ ] 138-04-PLAN.md — Collapse sidebar to Home/Hub/Settings; clean App.tsx routing (consts/handlers/polls/branches) keeping the Hub remote poll; wire parity handlers into HubPanel; trim TabBar Tab.type; delete both panels + orphan test (NAV-02..05)
+- [x] 138-04-PLAN.md — Collapse sidebar to Home/Hub/Settings; clean App.tsx routing (consts/handlers/polls/branches) keeping the Hub remote poll; wire parity handlers into HubPanel; trim TabBar Tab.type; delete both panels + orphan test (NAV-02..05)
 **UI hint**: yes
 
 ### Phase 139: Card Rendering & Tab Strip
@@ -493,7 +493,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
-| 138. Hub-First Navigation | v4.0 | 3/4 | In Progress|  |
+| 138. Hub-First Navigation | v4.0 | 4/4 | Complete   | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
