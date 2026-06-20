@@ -10,6 +10,7 @@ import { SessionCardGrid } from './SessionCardGrid'
 import { HubEmptyState } from './HubEmptyState'
 import { GroupSidebar } from './GroupSidebar'
 import { HubModal } from './HubModal'
+import { SessionShareModal } from './SessionShareModal'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 // ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
 import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
@@ -169,6 +170,10 @@ export interface HubPanelProps {
   fontSizes?: Record<string, number>
   /** Phase 134 — WR-04: font size change callback; receives (delta) for the active modal session */
   onFontSizeChange?: (sessionId: string, delta: number) => void
+  /** Phase 137 / SHARE-04: web server mode ('local' | 'tailscale' | null) for LAN-password display */
+  webServerMode?: 'tailscale' | 'local' | null
+  /** Phase 137 / SHARE-05: true when the web server is running; triggers restart-clear in SessionShareModal */
+  webServerRunning?: boolean
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
@@ -212,6 +217,8 @@ export function HubPanel({
   onRegisterCapCancelled,
   fontSizes,
   onFontSizeChange,
+  webServerMode,
+  webServerRunning,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -223,6 +230,13 @@ export function HubPanel({
     sourceRect: DOMRect
   }
   const [modalState, setModalState] = useState<HubModalState | null>(null)
+
+  // Phase 137 — share modal state: null = closed; non-null = share modal open for this session
+  const [shareModalSession, setShareModalSession] = useState<SessionInfo | null>(null)
+
+  const handleShare = useCallback((session: SessionInfo) => {
+    setShareModalSession(session)
+  }, [])
 
   // Phase 134 — MODAL-06: pending remote session awaiting cap acquisition
   const [pendingModalSessionId, setPendingModalSessionId] = useState<string | null>(null)
@@ -431,6 +445,7 @@ export function HubPanel({
         onRename={onRename}
         onOpenSession={onOpenSession}
         onCardClick={handleCardClick}
+        onShare={handleShare}
         groupDefs={groupDefs.length > 0 ? groupDefs : undefined}
         previewTails={previewTails}
         onAssignGroup={handleAssignGroup}
@@ -487,6 +502,16 @@ export function HubPanel({
           building ws://127.0.0.1:0/... on a transient 0 value.
           WR-03: terminalTheme is now required on HubPanelProps — the unsafe empty-object cast is removed.
           WR-04: real per-session fontSize + onFontSizeChange instead of hardcoded 14. */}
+      {/* Phase 137 — SessionShareModal: rendered outside .hub so overlay covers the full Hub surface */}
+      {shareModalSession && (
+        <SessionShareModal
+          session={shareModalSession}
+          webServerMode={webServerMode}
+          webServerRunning={webServerRunning}
+          onClose={() => setShareModalSession(null)}
+        />
+      )}
+
       {modalState && relayPort !== undefined && relayPort > 0 && (() => {
         // Compute isRemote at render time (same rule as handleCardClick).
         // GAP-134-A: provenance (remoteIdSet), NOT hostname — local sessions carry the

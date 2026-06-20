@@ -68,7 +68,7 @@ function renderCard(opts: RenderOpts = {}) {
       React.createElement(SessionCard, {
         session,
         onShare: opts.onShare,
-        onCardClick: opts.onCardClick ? (s: SessionInfo, _rect: DOMRect) => opts.onCardClick!() : undefined,
+        onCardClick: opts.onCardClick ? (_s: SessionInfo, _rect: DOMRect) => opts.onCardClick!() : undefined,
       })
     )
   })

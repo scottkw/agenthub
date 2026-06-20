@@ -51,7 +51,7 @@ interface ModalOpts {
   webEnabled?: boolean
   homeDir?: boolean
   browseEnabled?: boolean
-  webServerMode?: 'local' | 'tunnel'
+  webServerMode?: 'local' | 'tailscale'
   webServerRunning?: boolean
 }
 
@@ -77,7 +77,7 @@ function renderModal(opts: ModalOpts = {}) {
     root!.render(
       React.createElement(SessionShareModal, {
         session,
-        webServerMode: opts.webServerMode ?? 'tunnel',
+        webServerMode: opts.webServerMode ?? null,
         webServerRunning: opts.webServerRunning ?? true,
         onClose: vi.fn(),
       })
@@ -212,7 +212,7 @@ describe('SessionShareModal — SHARE-05: server-truth seeding', () => {
       r.render(
         React.createElement(SessionShareModal, {
           session,
-          webServerMode: 'tunnel',
+          webServerMode: null,
           webServerRunning: false, // server stopped — stale URLs should clear
           onClose: vi.fn(),
         })
@@ -222,7 +222,7 @@ describe('SessionShareModal — SHARE-05: server-truth seeding', () => {
       r.render(
         React.createElement(SessionShareModal, {
           session,
-          webServerMode: 'tunnel',
+          webServerMode: null,
           webServerRunning: true, // server restarted — must re-issue
           onClose: vi.fn(),
         })

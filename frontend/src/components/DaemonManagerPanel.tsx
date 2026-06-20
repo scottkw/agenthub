@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { SessionInfo } from '../wailsjs/go/main/App'
-import { IssueCapabilities, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
+import { IssueCapabilities, GetLocalNetworkPassword, SetSessionBrowse } from '../wailsjs/go/main/App'
 import { ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
 import { SessionSharePanel } from './SessionSharePanel'
 import { HomeDirWriteWarning } from './HomeDirWriteWarning'
@@ -87,14 +87,15 @@ export function DaemonManagerPanel({
     }
   }
 
-  // Phase 124 / CAP-04: Toggle the per-session owner write capability.
-  // Calls SetSessionFilesWrite, then re-issues capabilities to refresh URLs.
-  // Dismiss banner on re-enable so it re-shows when writes are turned back on.
+  // Phase 124 / CAP-04 (updated Phase 137 / D-07): Toggle the per-session browse capability.
+  // Calls SetSessionBrowse (replaces SetSessionFilesWrite per D-02/D-07), then re-issues
+  // capabilities to refresh URLs. Dismiss banner on re-enable so it re-shows when writes are
+  // turned back on.
   async function handleToggleFilesWrite(sessionId: string, enabled: boolean): Promise<void> {
     setWriteSaving((prev) => ({ ...prev, [sessionId]: true }))
     setWriteError((prev) => ({ ...prev, [sessionId]: '' }))
     try {
-      await SetSessionFilesWrite(sessionId, enabled)
+      await SetSessionBrowse(sessionId, enabled)
       setSessionWrites((prev) => ({ ...prev, [sessionId]: enabled }))
       // Re-dismiss banner state so it shows again when writes are re-enabled.
       if (enabled) {
@@ -155,7 +156,7 @@ export function DaemonManagerPanel({
       for (const s of sessions) {
         if (!(s.id in next)) {
           // Only seed sessions not yet tracked — never clobber an in-flight toggle.
-          next[s.id] = !!s.filesWrite
+          next[s.id] = !!s.browseEnabled
           changed = true
         }
       }

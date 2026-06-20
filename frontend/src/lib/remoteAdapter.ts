@@ -18,7 +18,7 @@ export function adaptRemoteSession(
     viewerCount: 0,
     workDir: '',               // remote sessions have no local workDir → fall into "Other"
     homeDir: false,
-    filesWrite: false,
+    browseEnabled: false,
   }
 }
 

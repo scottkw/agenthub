@@ -1396,6 +1396,8 @@ function App(): React.ReactElement {
             onRegisterCapCancelled={(fn) => { capCancelledRef.current = fn }}
             fontSizes={fontSizes}
             onFontSizeChange={handleFontSizeChange}
+            webServerMode={webServerMode}
+            webServerRunning={webServerRunning}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId

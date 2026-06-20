@@ -43,7 +43,7 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     webEnabled: false,
     viewerCount: 0,
     homeDir: false,
-    filesWrite: false,
+    browseEnabled: false,
     workDir: '/home/user/project',
     ...overrides,
   }
@@ -61,7 +61,7 @@ function makeRemoteSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     webEnabled: true,
     viewerCount: 0,
     homeDir: false,
-    filesWrite: false,
+    browseEnabled: false,
     workDir: '',
     ...overrides,
   }
@@ -721,7 +721,7 @@ describe('filterSessions', () => {
     webEnabled: false,
     viewerCount: 0,
     homeDir: false,
-    filesWrite: false,
+    browseEnabled: false,
     workDir: '',
     ...overrides,
   })

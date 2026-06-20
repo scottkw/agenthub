@@ -65,9 +65,9 @@ describe('adaptRemoteSession', () => {
     expect(adapted.homeDir).toBe(false)
   })
 
-  it('sets filesWrite to false', () => {
+  it('sets browseEnabled to false', () => {
     const adapted = adaptRemoteSession(makePeer(), makeSession())
-    expect(adapted.filesWrite).toBe(false)
+    expect(adapted.browseEnabled).toBe(false)
   })
 
   it('defaults status to "running" when session.status is empty', () => {

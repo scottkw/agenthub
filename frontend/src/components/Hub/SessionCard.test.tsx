@@ -27,7 +27,7 @@ function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
     webEnabled: false,
     viewerCount: 0,
     homeDir: false,
-    filesWrite: false,
+    browseEnabled: false,
     workDir: '/home/user/project',
     ...overrides,
   }

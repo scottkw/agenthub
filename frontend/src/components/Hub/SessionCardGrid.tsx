@@ -146,6 +146,8 @@ export interface SessionCardGridProps {
   debouncedSortKey?: string
   /** Phase 134 — threaded to each SessionCard for modal open trigger */
   onCardClick?: (session: SessionInfo, rect: DOMRect) => void
+  /** Phase 137 / D-12 — threaded to each SessionCard Share button */
+  onShare?: (session: SessionInfo) => void
 }
 
 // ---- Component ----
@@ -179,6 +181,7 @@ export function SessionCardGrid({
   attentionIds,
   debouncedSortKey,
   onCardClick,
+  onShare,
 }: SessionCardGridProps): React.ReactElement {
   /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
   const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
@@ -244,6 +247,7 @@ export function SessionCardGrid({
                     onRename={onRename}
                     onOpenSession={onOpenSession}
                     onCardClick={onCardClick}
+                    onShare={onShare}
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
@@ -287,6 +291,7 @@ export function SessionCardGrid({
                     onRename={onRename}
                     onOpenSession={onOpenSession}
                     onCardClick={onCardClick}
+                    onShare={onShare}
                     previewLines={previewTails?.get(s.id)}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
