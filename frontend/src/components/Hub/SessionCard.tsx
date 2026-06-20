@@ -13,6 +13,8 @@ import {
   EllipsisHorizontalIcon,
   BellAlertIcon,          // ATTN-01: attention icon — colorblind-safe shape carrier
   LockClosedIcon,         // D-13: shape signal for disabled Share button on remote peer cards
+  LinkIcon,               // CARD-03: "Connected" state shape signal (colorblind-safe)
+  ArrowTopRightOnSquareIcon, // CARD-04: "Open in browser" menu item icon
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
@@ -78,6 +80,37 @@ function formatHM(totalSeconds: number): string {
     return `${hours}h ${minutes}m`
   }
   return `${minutes}m`
+}
+
+// ---- KillConfirmItem ----
+
+/**
+ * Two-step destructive confirm — label flips on first click, second click confirms.
+ * No modal — inline within the overflow menu (UI-SPEC Claude's Discretion choice).
+ * CARD-04 / UI-SPEC §Kill: inline two-step, no dialog.
+ * COLORBLIND-SAFE: "Kill session" text is the primary signal; color is reinforcement only.
+ */
+function KillConfirmItem({ onKill }: { onKill: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <button
+      type="button"
+      className="hub-card__menu-item hub-card__menu-item--destructive"
+      role="menuitem"
+      onClick={(e) => {
+        e.stopPropagation()
+        if (!confirming) { setConfirming(true); return }
+        onKill()
+      }}
+    >
+      {confirming ? (
+        <span>
+          <span>Confirm kill</span>
+          <span className="hub-card__menu-item-sub">This will stop the session</span>
+        </span>
+      ) : 'Kill session'}
+    </button>
+  )
 }
 
 // ---- Props ----
@@ -160,7 +193,9 @@ export function SessionCard({
   onShare,
   isRemote,
   isConnected,
-  // onKill, onOpenInBrowser, onBrowseFiles are consumed in Task 3 (chip + menu markup)
+  onKill,
+  onOpenInBrowser,
+  onBrowseFiles,
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -343,6 +378,38 @@ export function SessionCard({
               Other (default)
             </button>
           )}
+
+          {/* Remote-only actions — CARD-04 */}
+          {isRemote && (
+            <>
+              <hr className="hub-card__menu-divider" />
+              <button
+                type="button"
+                className="hub-card__menu-item"
+                role="menuitem"
+                onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.((session as SessionInfo & { url?: string }).url ?? ''); setMenuOpen(false) }}
+              >
+                <ArrowTopRightOnSquareIcon className="hub-card__conn-icon" aria-hidden="true" />
+                Open in browser
+              </button>
+              <button
+                type="button"
+                className="hub-card__menu-item"
+                role="menuitem"
+                onClick={(e) => { e.stopPropagation(); onBrowseFiles?.(id, name); setMenuOpen(false) }}
+              >
+                Browse files
+              </button>
+            </>
+          )}
+
+          {/* Kill session — all live sessions (CARD-04) */}
+          {session.state !== 'stopped' && (
+            <>
+              <hr className="hub-card__menu-divider" />
+              <KillConfirmItem onKill={() => { onKill?.(id); setMenuOpen(false) }} />
+            </>
+          )}
         </div>
       )}
 
@@ -393,6 +460,21 @@ export function SessionCard({
           )}
         </span>
       </div>
+
+      {/* ROW 2b: connection indicator — remote cards only (CARD-03)
+          COLORBLIND-SAFE: LinkIcon (connected) + GlobeAltIcon (available) carry the state;
+          color is reinforcement only. Hex source: --hub-accent, --hub-text-muted. */}
+      {isRemote && (
+        <div className="hub-card__row2b">
+          <span className={`hub-card__conn${isConnected ? ' hub-card__conn--connected' : ''}`}>
+            {isConnected ? (
+              <><LinkIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Connected</span></>
+            ) : (
+              <><GlobeAltIcon className="hub-card__conn-icon" aria-hidden="true" /><span>Available</span></>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* ROW 3: uptime/duration + viewer count */}
       {/* CR-01: hub-card__row3 matches CSS definition (was hub-card__row hub-card__row--meta) */}

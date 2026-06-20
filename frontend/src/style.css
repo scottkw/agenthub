@@ -4456,6 +4456,39 @@ body {
   flex-shrink: 0;
 }
 
+/* --- Connection indicator chip (CARD-03) --- */
+/* Phase 138: remote card connection state — Connected (join code exchanged) vs Available.
+   COLORBLIND-SAFE: icon shape (LinkIcon vs GlobeAltIcon) + text label carry the state;
+   color (--hub-accent / --hub-text-muted) is reinforcement only.
+   Hex source: --hub-accent #7aa2f7 (dark) / #3d6fe8 (light); --hub-text-muted see :root block.
+   Verify at source — do not verify by eye (user is colorblind, MEMORY.md user_colorblind). */
+.hub-card__conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid currentColor;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--hub-text-muted);       /* default: available state */
+}
+.hub-card__conn--connected {
+  color: var(--hub-accent);           /* reinforcement only: connected tint */
+}
+.hub-card__conn-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* --- Kill menu item (CARD-04) --- */
+/* COLORBLIND-SAFE: "Kill session" text is the primary signal; color is reinforcement only. */
+.hub-card__menu-item--destructive {
+  color: var(--hub-destructive);      /* reinforcement only */
+}
+
 /* --- Viewer count --- */
 .hub-card__viewers {
   display: flex;
