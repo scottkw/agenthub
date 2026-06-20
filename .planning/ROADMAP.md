@@ -387,7 +387,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Every session card clearly indicates whether it is local or remote (via icon, label, or badge — never color alone)
   4. Remote cards additionally indicate whether the user is currently connected to that session vs it being merely available — the distinction is conveyed without relying on color alone
   5. Cards accommodate the new Share button and local/remote/connected indicators without losing attention pulse, mini-preview, or responsive grid reflow
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 138-01-PLAN.md — Wave 0 test scaffolding: rewrite Sidebar/App.nav/App.hub/style.hub tests to the 3-item sidebar + header-less Hub + panel removal; extend SessionCard.share tests with CARD-02/03/04 RED cases (NAV-02..05, CARD-01..04)
+- [ ] 138-02-PLAN.md — Relocate RemoteSession/RemotePeerSessions types to lib/remoteSession.ts; thread isRemote/isConnected props HubPanel→Grid→Card; provenance-based origin (CARD-02) + colorblind-safe Connected/Available chip + CSS (CARD-03) (CARD-02, CARD-03, CARD-04)
+- [ ] 138-03-PLAN.md — Card overflow affordances: Kill (two-step confirm), Open-in-browser, Browse-files (CONTEXT D1/D2/D3) guarded against card-click modal; remove .hub__header duplicate New Session button (CARD-01); per-peer unreachable/empty hint (CONTEXT D4) (CARD-01, CARD-04)
+- [ ] 138-04-PLAN.md — Collapse sidebar to Home/Hub/Settings; clean App.tsx routing (consts/handlers/polls/branches) keeping the Hub remote poll; wire parity handlers into HubPanel; trim TabBar Tab.type; delete both panels + orphan test (NAV-02..05)
 **UI hint**: yes
 
 ### Phase 139: Card Rendering & Tab Strip
@@ -489,7 +493,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
-| 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
+| 138. Hub-First Navigation | v4.0 | 0/4 | Planned     | - |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |

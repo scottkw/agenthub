@@ -1,8 +1,8 @@
 ---
 phase: 138
 slug: hub-first-navigation
-status: draft
-nyquist_compliant: false
+status: planned
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-20
 ---
@@ -17,20 +17,21 @@ created: 2026-06-20
 
 | Property | Value |
 |----------|-------|
-| **Framework** | vitest 4.1 (React Testing Library) + Playwright e2e |
-| **Config file** | `frontend/vitest.config.*` (existing) |
+| **Framework** | vitest 4.1 (React Testing Library, JSDOM) + Playwright e2e (not required this phase) |
+| **Config file** | `frontend/vite.config.ts` (vitest defaults; no standalone vitest.config) |
 | **Quick run command** | `cd frontend && npx vitest run <changed-spec>` |
 | **Full suite command** | `cd frontend && npx vitest run` |
-| **Estimated runtime** | ~{N} seconds (planner to confirm) |
+| **Type gate** | `cd frontend && npx tsc --noEmit` |
+| **Estimated runtime** | single-file ~2-5s; full suite ~60-120s (107+ files, ~1750 tests as of Phase 137) |
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd frontend && npx vitest run <changed-spec>`
-- **After every plan wave:** Run `cd frontend && npx vitest run`
-- **Before `/gsd:verify-work`:** Full suite must be green
-- **Max feedback latency:** {N} seconds (planner to confirm)
+- **After every task commit:** `cd frontend && npx vitest run <changed-spec>` + `npx tsc --noEmit`
+- **After every plan wave:** `cd frontend && npx vitest run` (full suite)
+- **Before `/gsd:verify-work`:** full suite green + tsc clean
+- **Max feedback latency:** < 10s per task (single-file vitest + tsc)
 
 ---
 
@@ -38,19 +39,29 @@ created: 2026-06-20
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| {N}-01-01 | 01 | 0 | NAV-05 | — | N/A | unit | `cd frontend && npx vitest run Sidebar.test` | ✅ | ⬜ pending |
+| 138-01-01 | 01 | 0 | NAV-02..05 | T-138-SC | N/A | unit | `cd frontend && npx vitest run src/components/__tests__/Sidebar.test.tsx src/components/__tests__/App.nav.test.tsx` | ✅ (rewrite) | ⬜ pending |
+| 138-01-02 | 01 | 0 | CARD-01, CARD-03, CARD-04 | T-138-SC | N/A | unit/style | `cd frontend && npx vitest run src/components/__tests__/App.hub.test.tsx src/components/__tests__/style.hub.test.ts` | ✅ (edit) | ⬜ pending |
+| 138-01-03 | 01 | 0 | CARD-02, CARD-03, CARD-04 | T-138-01 | isConnected boolean only, no token | unit | `cd frontend && npx vitest run src/components/__tests__/SessionCard.share.test.tsx` | ✅ (extend) | ⬜ pending |
+| 138-02-01 | 02 | 1 | CARD-02, CARD-03 | T-138-SC | N/A | unit | `cd frontend && npx tsc --noEmit && npx vitest run src/lib/remoteAdapter.test.ts src/lib/__tests__/remoteSession.test.ts` | ✅ | ⬜ pending |
+| 138-02-02 | 02 | 1 | CARD-02, CARD-03 | T-138-02, T-138-03 | provenance origin, no token in props | unit | `cd frontend && npx vitest run src/components/__tests__/SessionCard.share.test.tsx` | ✅ | ⬜ pending |
+| 138-02-03 | 02 | 1 | CARD-03 | T-138-02 | colorblind-safe chip, custom-prop color | unit/style | `cd frontend && npx vitest run src/components/__tests__/SessionCard.share.test.tsx src/components/__tests__/style.hub.test.ts` | ✅ | ⬜ pending |
+| 138-03-01 | 03 | 2 | CARD-04 | T-138-05, T-138-07 | two-step kill confirm, stopPropagation guard | unit/style | `cd frontend && npx vitest run src/components/__tests__/SessionCard.share.test.tsx src/components/__tests__/style.hub.test.ts` | ✅ | ⬜ pending |
+| 138-03-02 | 03 | 2 | CARD-01 | T-138-06 | escaped peer hint text | unit/style | `cd frontend && npx vitest run src/components/__tests__/App.hub.test.tsx src/components/__tests__/style.hub.test.ts` | ✅ | ⬜ pending |
+| 138-04-01 | 04 | 3 | NAV-02..05 | T-138-SC | narrowed UI surface | unit | `cd frontend && npx vitest run src/components/__tests__/Sidebar.test.tsx` | ✅ | ⬜ pending |
+| 138-04-02 | 04 | 3 | NAV-02..05 | T-138-08, T-138-09 | Hub poll retained; no dead code | unit | `cd frontend && npx vitest run src/components/__tests__/App.nav.test.tsx src/components/__tests__/App.hub.test.tsx` | ✅ | ⬜ pending |
+| 138-04-03 | 04 | 3 | NAV-03, NAV-04 | T-138-09 | no dangling imports | unit | `cd frontend && npx tsc --noEmit && npx vitest run` | ✅ | ⬜ pending |
 
-*Planner fills the full map. Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 
-## Wave 0 Requirements
+## Wave 0 Requirements (Plan 01)
 
-- [ ] `frontend/src/components/__tests__/Sidebar.test.tsx` — update to assert exactly 3 items (Home/Hub/Settings), no Sessions/New Session (currently asserts `items.length === 6`)
-- [ ] `frontend/src/components/__tests__/App.hub.test.tsx` / `style.hub.test.ts` — drop `.hub__header` expectations
-- [ ] New specs for: card local/remote indicator (CARD-02), connected-vs-available indicator (CARD-03), overflow-menu Kill (decision 1), remote open-in-browser + browse buttons (decisions 2/3), peer status hint (decision 4)
-
-*Existing vitest + Playwright infrastructure covers the framework; Wave 0 is test updates + new specs.*
+- [ ] `Sidebar.test.tsx` — assert exactly 3 items (Home/Hub/Settings), no Sessions/Remote/New Session (currently asserts `items.length === 6`)
+- [ ] `App.nav.test.tsx` — NAV-02/03/04 blocks rewritten to assert absence of onOpenRemoteSessions/onOpenDaemonManager/onAdd wiring + removed Tab-type strings (Wave 0 gap surfaced during planning — not in original RESEARCH list)
+- [ ] `App.hub.test.tsx` — drop DAEMON_MANAGER_TAB/REMOTE_SESSIONS_TAB/panel expectations; assert no `.hub__header`; assert new HubPanel props wired
+- [ ] `style.hub.test.ts` — drop `.hub__header` assertions; add CARD-03 chip + CARD-04 destructive CSS + CARD-04 anti-regression assertions
+- [ ] `SessionCard.share.test.tsx` — extend with CARD-02 origin, CARD-03 connection chip, CARD-04 Kill/remote-affordance tests (provenance-driven; stopPropagation guard)
 
 ---
 
@@ -58,18 +69,19 @@ created: 2026-06-20
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Colorblind-safe indicator legibility | CARD-02, CARD-03 | Visual semantics | Verify at SOURCE level — icon/shape/text constants in code, never color alone (user is colorblind; do not verify by eye) |
-| Responsive grid reflow + attention pulse preserved with new card affordances | CARD-04 | Visual/layout | dev-browser UAT: confirm pulse/float-to-top, mini-preview, grid density, reflow intact after redesign |
+| Colorblind-safe indicator legibility | CARD-02, CARD-03 | Visual semantics | Verify at SOURCE level — icon/shape/text constants + `var(--hub-*)` custom properties in code, never color alone (user is colorblind; do NOT verify by eye) |
+| Responsive grid reflow + attention pulse + mini-preview preserved with new affordances | CARD-04 | Visual/layout | dev-browser UAT: confirm pulse/float-to-top, mini-preview, grid density (240–360px), reflow intact after card additions |
+| 3-item sidebar + sole New-Session entry + overflow affordances on live app | NAV-02..05, CARD-04 | Live interaction | dev-browser UAT: sidebar = Home/Hub/Settings; HubFilterBar is only creation entry; Kill two-step confirm; remote Open-in-browser + Browse-files |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < {N}s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (incl. App.nav.test.tsx gap found in planning)
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s (single-file vitest + tsc)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** planner-confirmed 2026-06-20
