@@ -119,14 +119,8 @@ describe('App.tsx — Phase 122-03 modal handler wiring', () => {
     expect(raw).toMatch(/\{\s*joinModalForSession\s*&&\s*\(\s*\n?\s*<RemoteJoinCodeModal/)
   })
 
-  it('passes onBrowseFiles={handleBrowseFilesRemote} (or equivalent remote handler) to RemoteSessionsPanel', () => {
-    // The remote panel's onBrowseFiles must NOT be the bare handleOpenFileBrowser
-    // anymore — it must be a remote-aware handler that consults remoteCapsCached.
-    const idx = raw.indexOf('<RemoteSessionsPanel')
-    expect(idx).toBeGreaterThan(-1)
-    const slice = raw.slice(idx, idx + 800)
-    expect(slice).toMatch(/onBrowseFiles=\{handleBrowseFilesRemote/)
-  })
+  // Phase 138 / NAV-04: RemoteSessionsPanel deleted — handleBrowseFilesRemote is now
+  // wired directly to HubPanel's onBrowseFiles prop (App.hub.test.tsx covers this).
 })
 
 describe('App.tsx — Phase 122-03 EnableWebSharingTakeover fallback', () => {

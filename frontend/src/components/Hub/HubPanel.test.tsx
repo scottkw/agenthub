@@ -344,15 +344,9 @@ describe('HubPanel', () => {
     expect(container.textContent).not.toContain('No sessions yet')
   })
 
-  // ---- Header structure ----
-
-  it('renders a hub header with the title "Hub"', () => {
-    const { container } = renderPanel()
-    expect(container.querySelector('.hub__header')).not.toBeNull()
-    expect(container.querySelector('.hub__title')?.textContent).toBe('Hub')
-  })
-
   // ---- Phase 132: hub__body wrapper ----
+  // Note: .hub__header removed in Phase 138 Plan 03 (CARD-01) — HubFilterBar is sole
+  // New Session entry. See App.hub.test.tsx for the header-removal regression guard.
 
   it('renders a .hub__body wrapper containing GroupSidebar and hub__grid-scroll', () => {
     const { container } = renderPanel({ sessions: [makeSession()] })
