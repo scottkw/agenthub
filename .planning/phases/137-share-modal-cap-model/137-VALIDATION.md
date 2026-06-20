@@ -121,3 +121,23 @@ State A audit of the pre-execution draft against delivered tests. All commands b
 - `go test ./internal/daemon/... -run 'TestIssueCapabilities|TestKillSession_ClearsStaleBrowseEntry'` → ok
 - `go test ./internal/webserver/... -run 'TestFilesRoutes_R|TestRequireFiles|TestHasPerm_NoStringsContains_Browse'` → ok
 - `pnpm exec vitest run SessionShareModal SessionCard.share SessionSharePanel` → 3 files / 22 tests passed
+
+## Validation Audit 2026-06-20 (re-validation)
+
+Second State A pass (`/gsd:validate-phase 137`). Independently re-ran every named command in the Per-Task map — confirms the prior audit's green state still holds. No drift, no regressions, no new gaps.
+
+| Metric | Count |
+|--------|-------|
+| Per-Task rows audited | 19 |
+| COVERED (re-run live, green) | 19 |
+| PARTIAL | 0 |
+| MISSING (gaps found) | 0 |
+| Gaps filled by auditor | 0 (none needed) |
+| Manual-only (retained) | 2 |
+
+**Live re-run evidence (named tests, this re-validation):**
+- `go test ./internal/daemon/... -run 'TestIssueCapabilities_BrowseOff_NoFilesPerms|TestIssueCapabilities_BrowseOn_ROPermsExact|TestIssueCapabilities_BrowseOn_RWPermsExact'` → 3/3 PASS (ok)
+- `go test ./internal/webserver/... -run 'TestFilesRoutes_RO_BrowseOn_FilesReadRoute200|TestFilesRoutes_RO_BrowseOn_WriteRoute403|TestFilesRoutes_RW_BrowseOn_WriteRoute200|TestRequireFilesRead|TestRequireFilesWrite|TestHasPerm_NoStringsContains_Browse'` → 6/6 PASS (ok)
+- `pnpm exec vitest run SessionShareModal SessionCard.share SessionSharePanel` → 3 files / 22 tests passed
+
+No `gsd-nyquist-auditor` spawn required; no test files generated. `nyquist_compliant: true` re-confirmed.
