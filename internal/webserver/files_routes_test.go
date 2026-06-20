@@ -363,6 +363,53 @@ func TestFilesRoutes_NoHTMLContentType(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 137 / SHARE-03: Browse-aware perm matrix route tests (D-03/D-04)
+//
+// These tests pin the T-137-02/T-137-03 security delta using literal perm
+// strings via issueCapFor. They pass immediately (the routes already exist);
+// their value is pinning the RO-no-write invariant against future regressions.
+// ---------------------------------------------------------------------------
+
+// TestFilesRoutes_RO_BrowseOn_FilesReadRoute200 asserts that a browse-ON RO
+// cap ("read,files.read") reaches the /api/files/list route with 200.
+// D-04: files.read is present so requireFilesRead passes.
+func TestFilesRoutes_RO_BrowseOn_FilesReadRoute200(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,files.read") // browse ON, RO code
+
+	resp, body := doRequest(t, client, http.MethodGet, fileURL(ws, "/api/files/list", sid, ".", token))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 for RO-browse-on cap on /list, got %d (body=%s)", resp.StatusCode, string(body))
+	}
+}
+
+// TestFilesRoutes_RO_BrowseOn_WriteRoute403 asserts that a browse-ON RO cap
+// ("read,files.read") is rejected (403) on the write route because files.write
+// is absent. Pins T-137-03: RO code never writes even with browse ON.
+func TestFilesRoutes_RO_BrowseOn_WriteRoute403(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,files.read") // browse ON, RO code — no files.write
+
+	resp, _ := doRequest(t, client, http.MethodHead, fileURL(ws, "/api/files/write", sid, ".", token))
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("expected 403 for RO-browse-on cap on HEAD /write, got %d (T-137-03)", resp.StatusCode)
+	}
+}
+
+// TestFilesRoutes_RW_BrowseOn_WriteRoute200 asserts that a browse-ON RW cap
+// ("read,write,files.read,files.write") reaches the write route with 200.
+// D-04: files.write present, requireFilesWrite passes.
+func TestFilesRoutes_RW_BrowseOn_WriteRoute200(t *testing.T) {
+	ws, client, sid, _ := newFilesTestServer(t)
+	token := issueCapFor(t, ws, sid, "read,write,files.read,files.write") // browse ON, RW code
+
+	resp, _ := doRequest(t, client, http.MethodHead, fileURL(ws, "/api/files/write", sid, ".", token))
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 for RW-browse-on cap on HEAD /write, got %d (D-04)", resp.StatusCode)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Sandbox traversal still rejected (Phase 118 invariant unchanged) — T-119-03
 // ---------------------------------------------------------------------------
 

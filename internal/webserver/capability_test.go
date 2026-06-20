@@ -771,6 +771,42 @@ func TestRequireFilesWrite(t *testing.T) {
 	})
 }
 
+// TestHasPerm_NoStringsContains_Browse is a static-grep gate that enforces
+// T-137-06: no source file in the browse perm injection path may use
+// strings.Contains for a perm-literal check (files.read or files.write).
+// It reads api.go and engine.go, strips comment lines (lines whose trimmed
+// prefix is //), and asserts zero occurrences of strings.Contains applied to
+// either perm literal. Pins the whole-token-only invariant.
+func TestHasPerm_NoStringsContains_Browse(t *testing.T) {
+	browsePaths := []string{
+		"../../internal/daemon/api.go",
+		"../../internal/daemon/engine.go",
+	}
+	permLiterals := []string{`"files.read"`, `"files.write"`}
+	for _, f := range browsePaths {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			// File not existing is acceptable during RED phase.
+			continue
+		}
+		// Filter out comment lines before scanning so that doc comments
+		// referencing perm literals don't trigger a false positive.
+		var nonCommentLines []string
+		for _, line := range strings.Split(string(data), "\n") {
+			if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "//") {
+				continue
+			}
+			nonCommentLines = append(nonCommentLines, line)
+		}
+		src := strings.Join(nonCommentLines, "\n")
+		for _, perm := range permLiterals {
+			if strings.Contains(src, "strings.Contains(") && strings.Contains(src, perm) {
+				t.Errorf("%s: use capability.HasPerm, not strings.Contains, for %s permission check (T-137-06)", f, perm)
+			}
+		}
+	}
+}
+
 // TestHasPerm_NoStringsContains_Write is a static-grep gate that enforces
 // CAP-01/SC#3: no write-path source file may use strings.Contains together
 // with the "files.write" literal for a permission check. Any such combination
