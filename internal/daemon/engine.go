@@ -503,6 +503,7 @@ func (e *SessionEngine) KillSession(id string) error {
 	delete(e.tabNames, id)
 	delete(e.sessionCLIs, id)
 	delete(e.sessionWorkDirs, id) // Phase 118 / FS-02
+	delete(e.sessionBrowse, id)   // Phase 137 / CR-01: clear stale browse entry so a recycled session ID defaults OFF (D-06 stale-cap mitigation)
 	e.mu.Unlock()
 
 	e.statusMu.Lock()

@@ -2113,6 +2113,35 @@ func TestIssueCapabilities_BrowseOn_RWPermsExact(t *testing.T) {
 	}
 }
 
+// TestKillSession_ClearsStaleBrowseEntry pins the SHARE-05 stale-cap invariant
+// (CR-01): KillSession MUST delete the per-session sessionBrowse entry. The
+// D-06 default ("absent from map = OFF") is the foundation of stale-cap
+// mitigation — if a killed browse-ON session leaves sessionBrowse[id]=true,
+// a recycled session ID silently inherits browseEnabled=true and issuance
+// mints files.read/files.write perms the new owner never granted.
+func TestKillSession_ClearsStaleBrowseEntry(t *testing.T) {
+	api, _, _ := issueCapsTestSetup(t)
+
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "browse-kill", "", nil, 80, 24, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	api.engine.SetSessionBrowse(sid, true)
+	if !api.engine.browseEnabledFor(sid) {
+		t.Fatalf("precondition: browse should be ON after SetSessionBrowse(sid, true)")
+	}
+
+	if err := api.engine.KillSession(sid); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+
+	// After kill, the entry must be gone so a recycled ID defaults to OFF (D-06).
+	if api.engine.browseEnabledFor(sid) {
+		t.Errorf("KillSession left stale sessionBrowse[%s]=true; recycled ID would inherit browse-ON (CR-01)", sid)
+	}
+}
+
 func TestAPI_FilesStat_ReturnsFileEntry(t *testing.T) {
 	tmp := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tmp, "hello.txt"), []byte("world"), 0600); err != nil {
