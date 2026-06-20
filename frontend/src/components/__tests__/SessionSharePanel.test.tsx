@@ -1,14 +1,16 @@
 /**
- * Phase 124 CAP-05 — SessionSharePanel write opt-in tests.
+ * Phase 137 / SHARE-06 — SessionSharePanel simplified contract (post-CAP-05).
  *
- * Verifies Surface 2 "Allow file editing" viewer opt-in row:
- *   - Default OFF (aria-checked="false")
- *   - Disabled (aria-disabled) when ownerWriteEnabled is false
- *   - Enabled when ownerWriteEnabled is true
- *   - Toggling ON opens inline confirmation with verbatim CAP-05 body
- *   - Confirm closes confirmation and issues write-capable URL
- *   - Cancel closes confirmation and reverts to OFF
- *   - Both the opt-in toggle and owner toggle expose role="switch" + aria-checked
+ * The CAP-05 two-gate tests (owner-write prop, viewer opt-in state, confirm dialog)
+ * are retired in Phase 137 — the write link is now always shown when writeURL/writeCode
+ * are provided (no viewer opt-in gate). The browseEnabled prop controls scope text only.
+ *
+ * Surviving behaviors:
+ *   - Write link row always rendered when writeURL/writeCode provided (no gate)
+ *   - Scope text reflects browseEnabled prop: "Watch only" vs "Watch + browse files"
+ *   - QR/clipboard actions work (SHARE-04 — unchanged)
+ *   - Read code renders as plain text (unchanged)
+ *   - "Join code:" label present (unchanged)
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
@@ -26,30 +28,31 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 }))
 
 interface RenderOpts {
-  ownerWriteEnabled?: boolean
+  browseEnabled?: boolean
   writeURL?: string
+  writeCode?: string
 }
 
 function renderPanel(opts: RenderOpts = {}) {
-  const container = document.createElement('div')
-  document.body.appendChild(container)
-  const root = createRoot(container)
+  const c = document.createElement('div')
+  document.body.appendChild(c)
+  const r = createRoot(c)
   flushSync(() => {
-    root.render(
+    r.render(
       React.createElement(SessionSharePanel, {
         sessionId: 'sess-1',
         readURL: 'https://example.com/r',
         writeURL: opts.writeURL ?? 'https://example.com/w',
         readCode: 'read-code',
-        writeCode: 'write-code',
-        ownerWriteEnabled: opts.ownerWriteEnabled ?? false,
+        writeCode: opts.writeCode ?? 'write-code',
+        browseEnabled: opts.browseEnabled ?? false,
       })
     )
   })
-  return { container, root }
+  return { container: c, root: r }
 }
 
-describe('SessionSharePanel — Allow file editing opt-in (CAP-05)', () => {
+describe('SessionSharePanel — simplified write link (post-CAP-05)', () => {
   let container: HTMLElement | undefined
   let root: Root | undefined
 
@@ -65,254 +68,60 @@ describe('SessionSharePanel — Allow file editing opt-in (CAP-05)', () => {
     vi.clearAllMocks()
   })
 
-  it('renders "Allow file editing" label', () => {
+  it('write link row always rendered when writeURL/writeCode are provided (no gate)', () => {
+    ;({ container, root } = renderPanel({
+      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_ALWAYS_VISIBLE',
+    }))
+    // The write URL must be in the DOM immediately — no opt-in required
+    expect(container!.innerHTML).toContain('WRITE_TOKEN_ALWAYS_VISIBLE')
+  })
+
+  it('write code always rendered when writeCode is provided (no gate)', () => {
+    ;({ container, root } = renderPanel({ writeCode: 'explicit-write-code' }))
+    expect(container!.textContent).toContain('explicit-write-code')
+  })
+
+  it('no locked placeholder row present (CAP-05 two-gate removed)', () => {
     ;({ container, root } = renderPanel())
-    expect(container.textContent).toContain('Allow file editing')
-  })
-
-  it('opt-in toggle defaults OFF (aria-checked="false")', () => {
-    ;({ container, root } = renderPanel())
-    const toggle = container.querySelector('[role="switch"][aria-label*="Allow file editing"], [role="switch"][data-testid="allow-file-editing-toggle"]') ??
-      Array.from(container.querySelectorAll('[role="switch"]')).find(el =>
-        el.closest('label')?.textContent?.includes('Allow file editing') ||
-        el.getAttribute('aria-label')?.includes('Allow file editing') ||
-        (el.nextElementSibling?.textContent ?? el.previousElementSibling?.textContent ?? '').includes('Allow file editing')
-      )
-    expect(toggle).not.toBeNull()
-    expect(toggle!.getAttribute('aria-checked')).toBe('false')
-  })
-
-  it('opt-in toggle is aria-disabled when ownerWriteEnabled=false', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: false }))
-    // Find the toggle row containing "Allow file editing"
-    const writeOptinRow = Array.from(container.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    )
-    expect(writeOptinRow).not.toBeNull()
-    // The row or its input should have aria-disabled or disabled
-    const hasDisabled =
-      writeOptinRow!.getAttribute('aria-disabled') === 'true' ||
-      writeOptinRow!.querySelector('[aria-disabled="true"]') !== null ||
-      ((writeOptinRow as HTMLElement).style.opacity === '0.6') ||
-      writeOptinRow!.classList.contains('settings-panel__toggle-row--disabled')
-    expect(hasDisabled).toBe(true)
-  })
-
-  it('opt-in toggle is enabled when ownerWriteEnabled=true', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    const writeOptinRow = Array.from(container.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    )
-    expect(writeOptinRow).not.toBeNull()
-    const isDisabled =
-      writeOptinRow!.getAttribute('aria-disabled') === 'true' ||
-      writeOptinRow!.querySelector('[aria-disabled="true"]') !== null
-    expect(isDisabled).toBe(false)
-  })
-
-  it('toggling ON when ownerWriteEnabled=true shows confirmation with CAP-05 body', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    // Find the toggle input/button for "Allow file editing"
-    const writeOptinSection = Array.from(container.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    )
-    expect(writeOptinSection).not.toBeNull()
-    // Click the toggle to open confirmation
-    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    expect(toggle).not.toBeNull()
-    flushSync(() => { toggle!.click() })
-    // Confirmation should show the verbatim CAP-05 body
-    expect(container.textContent).toContain(
-      'This will allow the recipient to create, edit, delete, rename, and upload files in this session\'s working directory.'
-    )
-  })
-
-  it('cancelling confirmation reverts toggle to OFF', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    const writeOptinSection = Array.from(container.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    )
-    expect(writeOptinSection).not.toBeNull()
-    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    flushSync(() => { toggle!.click() })
-    // Click Cancel
-    const cancelBtn = Array.from(container.querySelectorAll('button')).find(
-      btn => btn.textContent?.trim() === 'Cancel'
-    ) as HTMLButtonElement | null
-    expect(cancelBtn).not.toBeNull()
-    flushSync(() => { cancelBtn!.click() })
-    // Confirmation should be gone
-    expect(container.textContent).not.toContain(
-      'This will allow the recipient to create, edit, delete, rename'
-    )
-    // Toggle should be back to OFF
-    const allSwitches = container.querySelectorAll('[role="switch"]')
-    const optInSwitch = Array.from(allSwitches).find(el => {
-      const row = el.closest('.session-share-panel__write-optin, .settings-panel__toggle-row')
-      return row?.textContent?.includes('Allow file editing')
-    })
-    if (optInSwitch) {
-      expect(optInSwitch.getAttribute('aria-checked')).toBe('false')
-    }
-  })
-
-  it('confirming opt-in marks toggle ON (aria-checked="true")', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    const writeOptinSection = Array.from(container.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    )
-    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    flushSync(() => { toggle!.click() })
-    // Click Confirm
-    const confirmBtn = Array.from(container.querySelectorAll('button')).find(
-      btn => btn.textContent?.trim() === 'Confirm' || btn.textContent?.trim() === 'Enable' || btn.textContent?.trim() === 'Allow'
-    ) as HTMLButtonElement | null
-    expect(confirmBtn).not.toBeNull()
-    flushSync(() => { confirmBtn!.click() })
-    // Confirmation gone
-    expect(container.textContent).not.toContain(
-      'This will allow the recipient to create, edit, delete, rename'
-    )
-    // Toggle should now be ON
-    const allSwitches = container.querySelectorAll('[role="switch"]')
-    const optInSwitch = Array.from(allSwitches).find(el => {
-      const row = el.closest('.session-share-panel__write-optin, .settings-panel__toggle-row')
-      return row?.textContent?.includes('Allow file editing')
-    })
-    if (optInSwitch) {
-      expect(optInSwitch.getAttribute('aria-checked')).toBe('true')
-    }
-  })
-
-  it('the write-optin row renders above the Full Access Link row', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: false }))
-    const rows = Array.from(container.querySelectorAll('.session-share-panel__link-row, .session-share-panel__write-optin'))
-    const writeOptinIdx = rows.findIndex(el => el.textContent?.includes('Allow file editing'))
-    const fullAccessIdx = rows.findIndex(el => el.textContent?.includes('Full Access Link'))
-    expect(writeOptinIdx).toBeGreaterThanOrEqual(0)
-    expect(fullAccessIdx).toBeGreaterThanOrEqual(0)
-    expect(writeOptinIdx).toBeLessThan(fullAccessIdx)
-  })
-})
-
-/**
- * Phase 124 WR-01 — Two-gate model: Full Access Link (files.write) is only
- * surfaced when BOTH owner write is enabled AND viewer has confirmed opt-in.
- */
-describe('SessionSharePanel — WR-01 two-gate model (files.write link gating)', () => {
-  let container: HTMLElement | undefined
-  let root: Root | undefined
-
-  afterEach(() => {
-    if (root) {
-      flushSync(() => root!.unmount())
-      root = undefined
-    }
-    if (container) {
-      container.remove()
-      container = undefined
-    }
-    vi.clearAllMocks()
-  })
-
-  // Helper: confirm the "Allow file editing" opt-in toggle
-  function confirmOptIn(c: HTMLElement): void {
-    const writeOptinSection = Array.from(c.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    ) as HTMLElement | null
-    if (!writeOptinSection) throw new Error('opt-in section not found')
-    const toggle = writeOptinSection.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    if (!toggle) throw new Error('opt-in toggle not found')
-    flushSync(() => { toggle.click() })
-    const confirmBtn = Array.from(c.querySelectorAll('button')).find(
-      btn => btn.textContent?.trim() === 'Confirm'
-    ) as HTMLButtonElement | null
-    if (!confirmBtn) throw new Error('confirm button not found')
-    flushSync(() => { confirmBtn.click() })
-  }
-
-  it('opt-in OFF, owner OFF → Full Access Link is NOT surfaced (no write URL shown)', () => {
-    ;({ container, root } = renderPanel({
-      ownerWriteEnabled: false,
-      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_WITH_FILES_WRITE',
-    }))
-    // The write URL/token must not be in the DOM when both gates are off
-    expect(container.innerHTML).not.toContain('WRITE_TOKEN_WITH_FILES_WRITE')
-    // The locked placeholder should be visible instead
-    const lockedRow = container.querySelector('[data-testid="full-access-link-locked"]')
-    expect(lockedRow).not.toBeNull()
-  })
-
-  it('opt-in OFF, owner ON → Full Access Link is NOT surfaced (write URL hidden)', () => {
-    ;({ container, root } = renderPanel({
-      ownerWriteEnabled: true,
-      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_WITH_FILES_WRITE',
-    }))
-    // Even though owner has enabled writes, viewer has not confirmed opt-in yet
-    expect(container.innerHTML).not.toContain('WRITE_TOKEN_WITH_FILES_WRITE')
-    const lockedRow = container.querySelector('[data-testid="full-access-link-locked"]')
-    expect(lockedRow).not.toBeNull()
-  })
-
-  it('opt-in ON, owner OFF → Full Access Link is NOT surfaced (write URL hidden)', () => {
-    // owner OFF means the toggle is disabled — opt-in cannot be confirmed
-    // Even if we somehow had a stale allowFileEditing=true state, owner OFF
-    // means surfaceWriteLink = false. We verify via the locked placeholder.
-    ;({ container, root } = renderPanel({
-      ownerWriteEnabled: false,
-      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_WITH_FILES_WRITE',
-    }))
-    expect(container.innerHTML).not.toContain('WRITE_TOKEN_WITH_FILES_WRITE')
-    const lockedRow = container.querySelector('[data-testid="full-access-link-locked"]')
-    expect(lockedRow).not.toBeNull()
-    const liveRow = container.querySelector('[data-testid="full-access-link-row"]')
-    expect(liveRow).toBeNull()
-  })
-
-  it('opt-in ON + confirmed, owner ON → Full Access Link IS surfaced with write URL', () => {
-    ;({ container, root } = renderPanel({
-      ownerWriteEnabled: true,
-      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_WITH_FILES_WRITE',
-    }))
-    // Confirm the opt-in
-    confirmOptIn(container!)
-    // Now the write URL must be in the DOM
-    expect(container!.innerHTML).toContain('WRITE_TOKEN_WITH_FILES_WRITE')
-    const liveRow = container!.querySelector('[data-testid="full-access-link-row"]')
-    expect(liveRow).not.toBeNull()
+    // The old two-gate surfaced a locked placeholder when gates were closed.
+    // Post-CAP-05 there should be no locked/hidden placeholder.
     const lockedRow = container!.querySelector('[data-testid="full-access-link-locked"]')
     expect(lockedRow).toBeNull()
   })
+})
 
-  it('after opt-in confirmed, toggling opt-in OFF hides the write URL again', () => {
-    ;({ container, root } = renderPanel({
-      ownerWriteEnabled: true,
-      writeURL: 'https://example.com/w?cap=WRITE_TOKEN_WITH_FILES_WRITE',
-    }))
-    // Confirm opt-in
-    confirmOptIn(container!)
-    expect(container!.innerHTML).toContain('WRITE_TOKEN_WITH_FILES_WRITE')
+describe('SessionSharePanel — scope text (browseEnabled prop)', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
 
-    // Now toggle opt-in OFF
-    const writeOptinSection = Array.from(container!.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    ) as HTMLElement | null
-    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    flushSync(() => { toggle!.click() })
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.clearAllMocks()
+  })
 
-    // Write URL must be gone
-    expect(container!.innerHTML).not.toContain('WRITE_TOKEN_WITH_FILES_WRITE')
-    const lockedRow = container!.querySelector('[data-testid="full-access-link-locked"]')
-    expect(lockedRow).not.toBeNull()
+  it('browseEnabled=false shows "watch only" scope text (no file access)', () => {
+    ;({ container, root } = renderPanel({ browseEnabled: false }))
+    const text = container!.textContent ?? ''
+    // Should state that view-only has no file access
+    expect(text).toMatch(/cannot send input or browse files|watch only|no file access/i)
+  })
+
+  it('browseEnabled=true reflects file browsing in scope text', () => {
+    ;({ container, root } = renderPanel({ browseEnabled: true }))
+    const text = container!.textContent ?? ''
+    // Should reference browsing or file access in scope
+    expect(text).toMatch(/browse|file access|full control/i)
   })
 })
 
-/**
- * Fix 2 — Join code visible as readable text (Phase 122 UX bug).
- * The read code must be rendered as plain text in the panel without any
- * user interaction. The write code is shown only after both gates open.
- */
-describe('SessionSharePanel — join code text display', () => {
+describe('SessionSharePanel — join code text display (unchanged)', () => {
   let container: HTMLElement | undefined
   let root: Root | undefined
 
@@ -329,43 +138,18 @@ describe('SessionSharePanel — join code text display', () => {
   })
 
   it('renders the read code as plain text immediately (no user click required)', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: false }))
-    // The readCode prop is 'read-code'; it must appear as text in the DOM.
+    ;({ container, root } = renderPanel())
     expect(container!.textContent).toContain('read-code')
-    // Should also show a "Join code:" label near it
     expect(container!.textContent).toContain('Join code:')
   })
 
-  it('does NOT render the write code before the two-gate is satisfied', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    // write-code must not appear until both owner + viewer confirm
-    // (readCode is 'read-code', writeCode is 'write-code' in renderPanel defaults)
-    expect(container!.textContent).not.toContain('write-code')
-  })
-
-  it('renders the write code as plain text after both gates are confirmed', () => {
-    ;({ container, root } = renderPanel({ ownerWriteEnabled: true }))
-    // Confirm the opt-in
-    const writeOptinSection = Array.from(container!.querySelectorAll('.session-share-panel__write-optin, .settings-panel__toggle-row')).find(
-      el => el.textContent?.includes('Allow file editing')
-    ) as HTMLElement | null
-    const toggle = writeOptinSection!.querySelector('input[type="checkbox"], [role="switch"], label') as HTMLElement | null
-    flushSync(() => { toggle!.click() })
-    const confirmBtn = Array.from(container!.querySelectorAll('button')).find(
-      btn => btn.textContent?.trim() === 'Confirm'
-    ) as HTMLButtonElement | null
-    flushSync(() => { confirmBtn!.click() })
-    // Now the write code should be visible
+  it('renders the write code as plain text (no gate in post-CAP-05 panel)', () => {
+    ;({ container, root } = renderPanel({ writeCode: 'write-code' }))
     expect(container!.textContent).toContain('write-code')
   })
 })
 
-// v3.5 UAT relabel (#24): the share links must state their SCOPE so the owner
-// understands the read/write grants cover the SESSION (terminal input), and that
-// file access is bundled with full access — view-only grants NO file browsing.
-// Discovered during the v3.5 two-machine UAT: the prior copy framed the full grant
-// purely as "file editing", hiding that it also grants full terminal control, and
-// left ambiguous that view-only has no file access.
+// v3.5 UAT relabel (#24): scope clarity assertions (unchanged from prior version).
 describe('SessionSharePanel — link scope clarity (v3.5 relabel)', () => {
   let container: HTMLElement | undefined
   let root: Root | undefined
