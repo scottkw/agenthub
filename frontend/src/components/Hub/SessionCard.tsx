@@ -223,6 +223,11 @@ export function SessionCard({
   const isLocal = isRemote !== undefined ? !isRemote : (!hostname || hostname === '')
   const originText = isLocal ? 'Local' : hostname
 
+  // Remote-adapted sessions carry an extra `url` (see adaptRemoteSession / AdaptedRemoteSessionInfo)
+  // that the base SessionInfo type has no slot for. Read it once here for the "Open in browser"
+  // affordance; '' for local sessions (which never expose this menu item). (CR-01 / WR-03)
+  const remoteUrl = (session as { url?: string }).url ?? ''
+
   // Time display
   // IN-03: remote sessions use createdAt = new Date().toISOString() (set at poll time),
   // so formatUptime would show "0m" for ~29s then reset on the next 30s remote poll.
@@ -387,7 +392,7 @@ export function SessionCard({
                 type="button"
                 className="hub-card__menu-item"
                 role="menuitem"
-                onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.((session as SessionInfo & { url?: string }).url ?? ''); setMenuOpen(false) }}
+                onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.(remoteUrl); setMenuOpen(false) }}
               >
                 <ArrowTopRightOnSquareIcon className="hub-card__conn-icon" aria-hidden="true" />
                 Open in browser
@@ -403,8 +408,11 @@ export function SessionCard({
             </>
           )}
 
-          {/* Kill session — all live sessions (CARD-04) */}
-          {session.state !== 'stopped' && (
+          {/* Kill session — LOCAL live sessions only (CARD-04 / CR-02). onKill →
+              handleCloseTab kills locally-owned daemon tabs; a remote id has no local
+              tab, so showing Kill on remote cards is a dead two-step destructive action.
+              The old Remote page offered no Kill either, so hiding it preserves parity. */}
+          {isLocal && session.state !== 'stopped' && (
             <>
               <hr className="hub-card__menu-divider" />
               <KillConfirmItem onKill={() => { onKill?.(id); setMenuOpen(false) }} />
@@ -502,9 +510,11 @@ export function SessionCard({
       )}
 
       {/* ROW 5: actions — Open re-attaches the session's terminal tab.
-          Phase 131 UAT follow-up. Only for live sessions (a stopped session has
-          no PTY to attach to). Text label (not color) keeps it colorblind-safe. */}
-      {onOpenSession && session.state !== 'stopped' && (
+          Phase 131 UAT follow-up. LOCAL live sessions only (WR-01): a remote id has no
+          local PTY to attach to, so the re-attach Open button mis-routes on remote cards.
+          Only for live sessions (a stopped session has no PTY to attach to). Text label
+          (not color) keeps it colorblind-safe. */}
+      {isLocal && onOpenSession && session.state !== 'stopped' && (
         <div className="hub-card__row5">
           <button
             type="button"

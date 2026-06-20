@@ -2,10 +2,15 @@
 import type { RemotePeerSessions, RemoteSession } from './remoteSession'
 import type { SessionInfo } from '../wailsjs/go/main/App'
 
+// A remote session adapted to the SessionInfo shape carries one extra field the
+// Wails-generated SessionInfo type has no slot for: the peer-supplied `url`, needed
+// by the Hub card's "Open in browser" affordance (CR-01). Base local SessionInfo has none.
+export type AdaptedRemoteSessionInfo = SessionInfo & { url: string }
+
 export function adaptRemoteSession(
   peer: RemotePeerSessions,
   session: RemoteSession,
-): SessionInfo {
+): AdaptedRemoteSessionInfo {
   return {
     id: session.id,
     name: session.name,
@@ -19,10 +24,11 @@ export function adaptRemoteSession(
     workDir: '',               // remote sessions have no local workDir → fall into "Other"
     homeDir: false,
     browseEnabled: false,
+    url: session.url,          // CR-01: carry the peer URL so "Open in browser" can resolve it
   }
 }
 
-export function adaptAllRemoteSessions(peers: RemotePeerSessions[]): SessionInfo[] {
+export function adaptAllRemoteSessions(peers: RemotePeerSessions[]): AdaptedRemoteSessionInfo[] {
   return peers
     .filter((p) => p.reachable)
     .flatMap((p) => p.sessions.map((s) => adaptRemoteSession(p, s)))

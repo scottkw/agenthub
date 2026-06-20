@@ -70,6 +70,12 @@ describe('adaptRemoteSession', () => {
     expect(adapted.browseEnabled).toBe(false)
   })
 
+  it('carries session.url through so "Open in browser" can resolve it (CR-01)', () => {
+    const session = makeSession({ url: 'https://dev-box.local/session/sess-001' })
+    const adapted = adaptRemoteSession(makePeer(), session)
+    expect((adapted as { url?: string }).url).toBe('https://dev-box.local/session/sess-001')
+  })
+
   it('defaults status to "running" when session.status is empty', () => {
     const session = makeSession({ status: '' })
     const adapted = adaptRemoteSession(makePeer(), session)

@@ -75,6 +75,8 @@ interface RenderOpts {
   onKill?: (sessionId: string) => void
   onOpenInBrowser?: (url: string) => void
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
+  // Phase 131/134 re-attach affordance — local-only after CARD-04 gating (WR-01)
+  onOpenSession?: (id: string, name: string, cli: string) => void
 }
 
 let container: HTMLElement | undefined
@@ -97,6 +99,7 @@ function renderCard(opts: RenderOpts = {}) {
         onKill: opts.onKill,
         onOpenInBrowser: opts.onOpenInBrowser,
         onBrowseFiles: opts.onBrowseFiles,
+        onOpenSession: opts.onOpenSession,
       } as Parameters<typeof SessionCard>[0])
     )
   })
@@ -228,6 +231,16 @@ describe('CARD-04: Kill menu item guard (stopPropagation)', () => {
     flushSync(() => { killBtn?.click() })
     expect(onCardClick).not.toHaveBeenCalled()
   })
+  // CR-02: Kill kills only locally-owned daemon tabs; on a remote card it is a silent
+  // no-op (the old Remote page offered no Kill). Hide it on remote rather than show a
+  // dead two-step destructive action.
+  it('Kill option is HIDDEN on remote cards (CR-02 — no dead destructive affordance)', () => {
+    const onKill = vi.fn()
+    const { container: c } = renderCard({ session: remoteSession, isRemote: true, onKill })
+    const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    flushSync(() => { menuBtn.click() })
+    expect(c.textContent).not.toContain('Kill session')
+  })
 })
 
 // Phase 138 / CARD-04: Remote-only affordances (Open in browser, Browse files).
@@ -258,5 +271,35 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
     expect(c.textContent).not.toContain('Browse files')
+  })
+  // CR-01: the adapted remote session carries `url`; "Open in browser" must forward the
+  // real URL, not '' (which would call BrowserOpenURL('')).
+  it('"Open in browser" forwards the session url, not an empty string (CR-01)', () => {
+    const onOpenInBrowser = vi.fn()
+    const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2' } as SessionInfo
+    const { container: c } = renderCard({ session: remoteWithUrl, isRemote: true, onOpenInBrowser })
+    const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
+    flushSync(() => { menuBtn.click() })
+    const openBtn = Array.from(c.querySelectorAll('.hub-card__menu-item')).find(
+      (el) => el.textContent?.includes('Open in browser')
+    ) as HTMLButtonElement
+    flushSync(() => { openBtn?.click() })
+    expect(onOpenInBrowser).toHaveBeenCalledWith('https://remote.host/session/sess-2')
+  })
+})
+
+// Phase 138 / WR-01: the row-5 re-attach "Open" button attaches a LOCAL PTY; it must not
+// render on remote cards (the old Remote page offered no local re-attach). Preserve it on
+// local cards (Phase 131/134 re-attach affordance).
+describe('CARD-04: re-attach Open button is local-only', () => {
+  it('does NOT render the re-attach Open button on remote cards (WR-01)', () => {
+    const onOpenSession = vi.fn()
+    const { container: c } = renderCard({ session: remoteSession, isRemote: true, onOpenSession })
+    expect(c.querySelector('button[aria-label="Open Remote Session"]')).toBeNull()
+  })
+  it('still renders the re-attach Open button on live local cards (regression guard)', () => {
+    const onOpenSession = vi.fn()
+    const { container: c } = renderCard({ session: localSession, isRemote: false, onOpenSession })
+    expect(c.querySelector('button[aria-label="Open My Session"]')).not.toBeNull()
   })
 })
