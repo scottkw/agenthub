@@ -32,7 +32,7 @@ result: [pending] — requires a live reachable remote peer (not available in th
 
 ### 4. Kill two-step confirm on a live local session
 expected: Overflow menu on a live local session shows "Kill session"; first click shows "Confirm kill" / "This will stop the session"; second click terminates the session via the daemon.
-result: [pending] — "Kill session" item IS present on the live local card (confirmed). Two-step confirm flow + actual termination left for the user to click on the "shell 1" session. Two-step UI logic is unit-tested.
+result: PASS — live (human, 2026-06-20): created a local Shell session; overflow menu showed "Kill session" (no Open-in-browser/Browse-files). First click flipped to "Confirm kill" / "This will stop the session" with the session still Running; second click terminated it (card removed). Two-step guard works end to end.
 
 ### 5. Remote card does NOT show Kill (CR-02) and does NOT show re-attach "Open" (WR-01)
 expected: A remote card's overflow menu shows only "Open in browser" and "Browse files" — no "Kill session"; and no row-5 re-attach "Open" button renders on remote cards. (isLocal guard confirmed at source.)
@@ -49,10 +49,10 @@ result: PASS (grid + mini-preview) — `.hub__card-row` is display:grid, columns
 ## Summary
 
 total: 7
-passed: 3
+passed: 4
 partial: 2
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
