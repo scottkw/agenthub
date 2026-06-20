@@ -5,10 +5,24 @@
 // path. All functions are stateless and side-effect-free; tests live in
 // frontend/src/lib/__tests__/remoteSession.test.ts.
 
-import type {
-  RemotePeerSessions,
-  RemoteSession,
-} from '../components/RemoteSessionsPanel'
+// Phase 138 Task 1 — type relocation: RemoteSession and RemotePeerSessions
+// previously lived in RemoteSessionsPanel.tsx. They are defined here so all
+// lib importers are decoupled from the panel file (which is deleted in Plan 04).
+
+export interface RemoteSession {
+  id: string
+  name: string
+  cliType: string
+  status: string
+  url: string
+}
+
+export interface RemotePeerSessions {
+  hostname: string
+  /** Phase 130 — true when the peer responded to the metadata probe; false when unreachable. */
+  reachable: boolean
+  sessions: RemoteSession[]
+}
 
 export interface RemoteSessionWithHost extends RemoteSession {
   hostname: string

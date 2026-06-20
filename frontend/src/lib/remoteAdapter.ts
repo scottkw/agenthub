@@ -1,5 +1,5 @@
 /* GRID-07: remote sessions adapted via adaptRemoteSession(); hostname != '' routes to GlobeAltIcon + hostname */
-import type { RemotePeerSessions, RemoteSession } from '../components/RemoteSessionsPanel'
+import type { RemotePeerSessions, RemoteSession } from './remoteSession'
 import type { SessionInfo } from '../wailsjs/go/main/App'
 
 export function adaptRemoteSession(

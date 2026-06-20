@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { adaptRemoteSession, adaptAllRemoteSessions } from './remoteAdapter'
-import type { RemotePeerSessions, RemoteSession } from '../components/RemoteSessionsPanel'
+import type { RemotePeerSessions, RemoteSession } from './remoteSession'
 
 // Fixture builders
 function makePeer(overrides?: Partial<RemotePeerSessions>): RemotePeerSessions {

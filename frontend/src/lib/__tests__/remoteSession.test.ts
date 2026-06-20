@@ -10,7 +10,7 @@ import {
   findRemoteSession,
   isRemoteSessionId,
 } from '../remoteSession'
-import type { RemotePeerSessions } from '../../components/RemoteSessionsPanel'
+import type { RemotePeerSessions } from '../remoteSession'
 
 const peers: RemotePeerSessions[] = [
   {
