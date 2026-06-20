@@ -4,13 +4,13 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
 stopped_at: Phase 138 UI-SPEC approved
-last_updated: "2026-06-20T19:23:04.548Z"
-last_activity: 2026-06-20 -- Phase 138 planning complete
+last_updated: "2026-06-20T20:17:06.715Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
   percent: 29
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 138 — hub first navigation
+**Current focus:** Phase 138 — hub-first-navigation
 
 ## Current Position
 
-Phase: 138
-Plan: Not started
+Phase: 138 (hub-first-navigation) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 138 planning complete
+Last activity: 2026-06-20
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -84,7 +84,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-20T19:01:59.421Z
+Last session: 2026-06-20T20:16:45.642Z
 Stopped at: Phase 138 UI-SPEC approved
-Resume file: .planning/phases/138-hub-first-navigation/138-UI-SPEC.md
+Resume file: None
 Next action: `/gsd:plan-phase 136`

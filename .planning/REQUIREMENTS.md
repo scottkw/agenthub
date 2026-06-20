@@ -10,10 +10,10 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 ### Navigation Restructure (NAV)
 
 - [x] **NAV-01**: The TUI surface is removed entirely — `agenthub tui` no longer exists; Bubble Tea views, TUI-only shared code, and their tests are deleted. Cross-surface parity contract narrows to GUI/CLI/web.
-- [ ] **NAV-02**: The "+ New Session" sidebar item is removed; users create sessions from the Hub.
-- [ ] **NAV-03**: The "Sessions" sidebar page (`DaemonManagerPanel`) is removed.
-- [ ] **NAV-04**: The "Remote" sidebar page is removed (the Hub already unifies local + remote sessions).
-- [ ] **NAV-05**: The sidebar contains exactly Home / Hub / Settings.
+- [x] **NAV-02**: The "+ New Session" sidebar item is removed; users create sessions from the Hub.
+- [x] **NAV-03**: The "Sessions" sidebar page (`DaemonManagerPanel`) is removed.
+- [x] **NAV-04**: The "Remote" sidebar page is removed (the Hub already unifies local + remote sessions).
+- [x] **NAV-05**: The sidebar contains exactly Home / Hub / Settings.
 
 ### Share Modal (SHARE)
 
@@ -26,10 +26,10 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### Hub Card (CARD)
 
-- [ ] **CARD-01**: The Hub `.hub__header` (the "Hub" title bar and its duplicate "New session" button) is removed; the `HubFilterBar` "New Session" button is the sole top-of-page creation entry point.
-- [ ] **CARD-02**: Each card indicates whether its session is local or remote.
-- [ ] **CARD-03**: Remote cards indicate whether the session is merely available or one the user is currently connected to — conveyed colorblind-safe (icon/text/shape, never color alone).
-- [ ] **CARD-04**: The session card is resized/redesigned to accommodate the Share button and indicators while preserving attention pulse/float-to-top, mini-preview, grid density, and responsive reflow.
+- [x] **CARD-01**: The Hub `.hub__header` (the "Hub" title bar and its duplicate "New session" button) is removed; the `HubFilterBar` "New Session" button is the sole top-of-page creation entry point.
+- [x] **CARD-02**: Each card indicates whether its session is local or remote.
+- [x] **CARD-03**: Remote cards indicate whether the session is merely available or one the user is currently connected to — conveyed colorblind-safe (icon/text/shape, never color alone).
+- [x] **CARD-04**: The session card is resized/redesigned to accommodate the Share button and indicators while preserving attention pulse/float-to-top, mini-preview, grid density, and responsive reflow.
 - [ ] **CARD-05**: Mini-preview cards and the briefing-modal tail render agent (TUI-style) output legibly (#96) — correct column spacing and no leaked escape sequences (headless VT render of scrollback, not regex ANSI strip).
 
 ### UI/UX Redesign (RDS)
@@ -99,14 +99,14 @@ Which phases cover which requirements. Filled during roadmap creation.
 | SHARE-04 | Phase 137 | Complete |
 | SHARE-05 | Phase 137 | Complete |
 | SHARE-06 | Phase 137 | Complete |
-| NAV-02 | Phase 138 | Pending |
-| NAV-03 | Phase 138 | Pending |
-| NAV-04 | Phase 138 | Pending |
-| NAV-05 | Phase 138 | Pending |
-| CARD-01 | Phase 138 | Pending |
-| CARD-02 | Phase 138 | Pending |
-| CARD-03 | Phase 138 | Pending |
-| CARD-04 | Phase 138 | Pending |
+| NAV-02 | Phase 138 | Complete |
+| NAV-03 | Phase 138 | Complete |
+| NAV-04 | Phase 138 | Complete |
+| NAV-05 | Phase 138 | Complete |
+| CARD-01 | Phase 138 | Complete |
+| CARD-02 | Phase 138 | Complete |
+| CARD-03 | Phase 138 | Complete |
+| CARD-04 | Phase 138 | Complete |
 | CARD-05 | Phase 139 | Pending |
 | TAB-01 | Phase 139 | Pending |
 | TAB-02 | Phase 139 | Pending |
