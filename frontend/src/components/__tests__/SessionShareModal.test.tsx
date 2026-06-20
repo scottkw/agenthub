@@ -1,7 +1,7 @@
 /**
  * Phase 137 / SHARE-01/02/04/05/06 + D-09 — SessionShareModal contract.
  *
- * RED tests until Plan 03 builds the SessionShareModal component.
+ * GREEN tests — Plan 03 has built the SessionShareModal component.
  *
  * Verifies:
  *   SHARE-01: "Share the session" toggle present; toggling ON reveals share content
@@ -18,7 +18,7 @@ import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 
-// Mock Wails runtime + bindings
+// Mock Wails runtime + bindings (must be before component import)
 vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
   ClipboardSetText: vi.fn().mockResolvedValue(undefined),
   BrowserOpenURL: vi.fn(),
@@ -40,28 +40,12 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 
 // Import mocked bindings for assertion
 import { IssueCapabilities, SetSessionBrowse, GetLocalNetworkPassword } from '../../wailsjs/go/main/App'
+// Import the component under test
+import { SessionShareModal } from '../Hub/SessionShareModal'
 
 const mockedIssueCapabilities = IssueCapabilities as ReturnType<typeof vi.fn>
 const mockedSetSessionBrowse = SetSessionBrowse as ReturnType<typeof vi.fn>
 const mockedGetLocalNetworkPassword = GetLocalNetworkPassword as ReturnType<typeof vi.fn>
-
-// Import the component under test. Will fail until Plan 03 creates SessionShareModal.
-// That is the intended RED state.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SessionShareModal } = require('../Hub/SessionShareModal') as {
-  SessionShareModal: React.ComponentType<{
-    session: {
-      id: string
-      name: string
-      webEnabled: boolean
-      homeDir: boolean
-      browseEnabled: boolean
-    }
-    webServerMode: 'local' | 'tunnel'
-    webServerRunning: boolean
-    onClose: () => void
-  }>
-}
 
 interface ModalOpts {
   webEnabled?: boolean
@@ -192,6 +176,7 @@ describe('SessionShareModal — SHARE-04: LAN password', () => {
     flushSync(() => {/* re-render trigger */})
     // GetLocalNetworkPassword should have been called
     expect(mockedGetLocalNetworkPassword).toHaveBeenCalled()
+    void c
   })
 })
 
