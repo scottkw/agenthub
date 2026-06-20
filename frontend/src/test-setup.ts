@@ -9,6 +9,18 @@
 // Added by Phase 101-02 (SHELL-01 GUI half) — first plan to need DOM-render
 // tests against components that use localStorage.
 
+// Phase 139-02: ResizeObserver is not implemented in jsdom; provide a no-op
+// polyfill so components that wire ResizeObserver (e.g. TabBar chevrons) mount
+// without throwing. The polyfill is intentionally inert — behavioural tests
+// use source-level checks (raw import) rather than DOM simulation.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+}
+
 if (typeof globalThis.localStorage === 'undefined' && typeof window !== 'undefined') {
   const store = new Map<string, string>()
   const fallback: Storage = {

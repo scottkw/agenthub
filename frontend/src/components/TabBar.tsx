@@ -111,6 +111,9 @@ export function TabBar({
   const [editValue, setEditValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const [contextMenu, setContextMenu] = useState<{ tabId: string; x: number; y: number } | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
 
   // Focus the rename input as soon as it appears.
   useEffect(() => {
@@ -136,6 +139,27 @@ export function TabBar({
       document.removeEventListener('keydown', handleEscape)
     }
   }, [contextMenu])
+
+  // D-09: scroll-position-aware chevron state — ResizeObserver + scroll listener
+  function checkScroll() {
+    const el = listRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 0)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }
+
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    el.addEventListener('scroll', checkScroll, { passive: true })
+    const ro = new ResizeObserver(checkScroll)
+    ro.observe(el)
+    checkScroll()
+    return () => {
+      el.removeEventListener('scroll', checkScroll)
+      ro.disconnect()
+    }
+  }, [])
 
   function startEdit(tab: Tab, e: React.MouseEvent) {
     e.stopPropagation()
@@ -172,7 +196,15 @@ export function TabBar({
 
   return (
     <div className="tab-bar">
-      <div className="tab-list">
+      {canScrollLeft && (
+        <button
+          className="tab-bar__chevron tab-bar__chevron--left"
+          onClick={() => { listRef.current?.scrollBy({ left: -160, behavior: 'smooth' }) }}
+          aria-label="Scroll tabs left"
+          tabIndex={0}
+        >&#8249;</button>
+      )}
+      <div className="tab-list" ref={listRef}>
         {tabs.map((tab) => {
           // Phase 101-02 (SHELL-06 GUI half) — agent badge between status dot
           // and tab name. Decorative (aria-hidden); the same info is exposed
@@ -253,6 +285,14 @@ export function TabBar({
           )
         })}
       </div>
+      {canScrollRight && (
+        <button
+          className="tab-bar__chevron tab-bar__chevron--right"
+          onClick={() => { listRef.current?.scrollBy({ left: 160, behavior: 'smooth' }) }}
+          aria-label="Scroll tabs right"
+          tabIndex={0}
+        >&#8250;</button>
+      )}
 
       {contextMenu && tabs.some(t => t.id === contextMenu.tabId) && (
         <div

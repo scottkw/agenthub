@@ -300,8 +300,10 @@ describe('Phase 139 TAB-02: TabBar chevron overflow — RED until Plan 02', () =
   let root: ReturnType<typeof createRoot>
 
   afterEach(() => {
-    root.unmount()
-    container.remove()
+    // Guard: source-level tests in this describe do not render, so root/container
+    // may be undefined. Only clean up if a render was done. (Rule 1 fix — Plan 02.)
+    if (root) root.unmount()
+    if (container) container.remove()
   })
 
   it('right chevron appears when tab list overflows scrollWidth > clientWidth', () => {
