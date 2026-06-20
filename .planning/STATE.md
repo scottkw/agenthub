@@ -43,9 +43,9 @@ Progress: [██████████] 100%
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 136 | TUI Removal | NAV-01, TEST-06 | Not started |
-| 137 | Share Modal & Cap Model | SHARE-01..06 | Not started |
-| 138 | Hub-First Navigation | NAV-02..05, CARD-01..04 | Not started |
+| 136 | TUI Removal | NAV-01, TEST-06 | Complete |
+| 137 | Share Modal & Cap Model | SHARE-01..06 | Complete |
+| 138 | Hub-First Navigation | NAV-02..05, CARD-01..04 | Planned |
 | 139 | Card Rendering & Tab Strip | CARD-05, TAB-01..03 | Not started |
 | 140 | UI-Spec Gate | RDS-01, CARRY-02 | Not started |
 | 141 | Redesign Implementation | RDS-02..04, CARRY-01 | Not started |
