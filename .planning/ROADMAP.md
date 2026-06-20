@@ -371,7 +371,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. When the web server is in local-network mode, the LAN Basic Auth password is visible in the Share modal
   4. Every per-session web-share capability previously available in the Sessions page (on/off, URL, QR, password) is available in the Share modal with no regression in behavior
   5. Share controls are absent (hidden or disabled) on remote peer cards — a user cannot re-share a session they do not own
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 137-01-PLAN.md — Wave 0 test scaffolding: retire global-flag + FilesRead-migration Go tests; add D-03/D-04 browse-matrix + browse-aware route tests + whole-token grep gate; new SessionCard.share + SessionShareModal frontend tests; update SessionSharePanel tests (SHARE-01..06)
+- [ ] 137-02-PLAN.md — Backend cap-model (security core): engine.go field collapse to sessionBrowse; api.go D-03/D-04 perm injection; POST /sessions/{id}/browse + client + Wails binding; SessionInfo.BrowseEnabled; toggle-off ClearGrants (SHARE-03, SHARE-05)
+- [ ] 137-03-PLAN.md — Frontend: simplify SessionSharePanel (strip CAP-05); new SessionShareModal (two toggles, LAN password, homeDir warning, server-truth lifecycle); SessionCard Share button + colorblind-safe remote-disabled state; wire into Hub (SHARE-01, SHARE-02, SHARE-04, SHARE-05, SHARE-06)
 **UI hint**: yes
 
 ### Phase 138: Hub-First Navigation
