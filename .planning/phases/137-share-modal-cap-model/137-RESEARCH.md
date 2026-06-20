@@ -571,22 +571,25 @@ The following are intentional changes to the security model. The `secure-phase` 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **SetSessionBrowse endpoint design**
    - What we know: `SetSessionFilesWrite` uses `POST /sessions/{id}/files-write` with `SessionFilesWriteRequest{Enabled bool}` (types.go:130-134; client.go:326-328).
    - What's unclear: Should `SetSessionBrowse` be a new endpoint (`POST /sessions/{id}/browse`) or should `SetSessionFilesWrite` be renamed/repurposed? The CONTEXT says "subsume" — repurposing is cleaner but the client.go method rename breaks the CLI if it calls `SetSessionFilesWrite` directly.
    - Recommendation: Add new `POST /sessions/{id}/browse` endpoint + new client method `SetSessionBrowse`. Deprecate `POST /sessions/{id}/files-write` by removing the handler (it's not needed any more) OR leave a redirect stub. Planner decides based on CLI surface audit.
+   - **RESOLVED:** New `POST /sessions/{id}/browse` endpoint + `SetSessionBrowse` client method — see Plan 137-02 (`internal/daemon/api.go`, `client.go`, `types.go`).
 
 2. **browseEnabled in SessionInfo wire type**
    - What we know: Browse state is ephemeral (D-08). `FilesWrite bool` was added to `SessionInfo` so the frontend could seed local toggle state (DaemonManagerPanel.tsx:158). Browse needs the same seeding for the Share modal.
    - What's unclear: Add `BrowseEnabled bool` to `SessionInfo` (server truth on ListSessions poll), or have the modal call a separate API on open?
    - Recommendation: Add `BrowseEnabled bool json:"browseEnabled"` to `SessionInfo` (types.go). The modal seeds from `session.browseEnabled` on open, matching the existing `filesWrite` seeding pattern. Mark `json:",omitempty"` is NOT appropriate here (false would be omitted); use plain `bool`.
+   - **RESOLVED:** `BrowseEnabled bool` added to `SessionInfo` (server truth on ListSessions poll) — see Plan 137-02 (`internal/daemon/types.go`); the Share modal seeds `browseEnabled` from it in Plan 137-03.
 
 3. **SessionSharePanel prop cleanup scope**
    - What we know: The panel currently takes `ownerWriteEnabled bool` which drives the CAP-05 gate. This prop and all downstream state must be removed (D-11).
    - What's unclear: Should `SessionSharePanel` gain a `browseEnabled` prop to display different link scope text (e.g., "Watch only — no file access" vs "Watch + browse files"), or should that logic live in the modal wrapper?
    - Recommendation: Add a `browseEnabled bool` prop to `SessionSharePanel` for scope text only. The panel itself doesn't call any APIs; it just renders URLs and codes it receives. The modal drives the browse toggle and passes `browseEnabled` as a display hint.
+   - **RESOLVED:** `browseEnabled?` prop added to `SessionSharePanel` (scope text only) — see Plan 137-03 Task 1; the SessionShareModal owns the toggle and passes it as a display hint.
 
 ---
 
