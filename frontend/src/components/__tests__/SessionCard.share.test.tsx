@@ -1,7 +1,7 @@
 /**
  * Phase 137 / D-12/D-13 — SessionCard Share button contract.
  *
- * RED tests until Plan 03 adds the Share button + onShare prop to SessionCard.
+ * GREEN tests — Plan 03 has added the Share button + onShare prop to SessionCard.
  *
  * Verifies:
  *   - Share button renders on a local card with accessible label "Share <name>"
@@ -16,8 +16,18 @@ import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 
+// Mock Wails bindings needed transitively by SessionCard imports
+vi.mock('../../wailsjs/go/main/App', () => ({
+  RenameSession: vi.fn().mockResolvedValue(undefined),
+  GetSessionTailLines: vi.fn().mockResolvedValue([]),
+}))
+
+// Import the component under test.
+import { SessionCard } from '../Hub/SessionCard'
+import type { SessionInfo } from '../../wailsjs/go/main/App'
+
 // Minimal SessionInfo-shaped fixture used by the card tests.
-const localSession = {
+const localSession: SessionInfo = {
   id: 'sess-1',
   name: 'My Session',
   cli: 'claude',
@@ -28,33 +38,20 @@ const localSession = {
   webEnabled: false,
   viewerCount: 0,
   homeDir: false,
-  filesWrite: false,
   browseEnabled: false,
   workDir: '/home/user',
 }
 
-const remoteSession = {
+const remoteSession: SessionInfo = {
   ...localSession,
   id: 'sess-2',
   name: 'Remote Session',
   hostname: 'remote.host', // non-local: D-13 gate
 }
 
-// Import the component under test. This will fail to compile until Plan 03
-// adds the Share button — that is the intended RED state.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { SessionCard } = require('../Hub/SessionCard') as {
-  SessionCard: React.ComponentType<{
-    session: typeof localSession
-    onShare?: (session: typeof localSession) => void
-    onCardClick?: () => void
-    onClick?: () => void
-  }>
-}
-
 interface RenderOpts {
-  session?: typeof localSession
-  onShare?: () => void
+  session?: SessionInfo
+  onShare?: (session: SessionInfo) => void
   onCardClick?: () => void
 }
 
@@ -71,8 +68,7 @@ function renderCard(opts: RenderOpts = {}) {
       React.createElement(SessionCard, {
         session,
         onShare: opts.onShare,
-        onCardClick: opts.onCardClick,
-        onClick: opts.onCardClick,
+        onCardClick: opts.onCardClick ? (s: SessionInfo, _rect: DOMRect) => opts.onCardClick!() : undefined,
       })
     )
   })

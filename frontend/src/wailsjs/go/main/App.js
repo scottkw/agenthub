@@ -121,5 +121,5 @@ export const ExchangeJoinCode        = (code)               => Call('main.App.Ex
 export const RegenerateSigningKey    = ()                   => Call('main.App.RegenerateSigningKey', [])
 export const GetCapabilityQRCode     = (joinURL)            => Call('main.App.GetCapabilityQRCode', [joinURL])
 
-// Phase 124 / CAP-04: per-session file-write toggle (owner binding).
-export const SetSessionFilesWrite    = (sessionID, enabled) => Call('main.App.SetSessionFilesWrite', [sessionID, enabled])
+// Phase 137 / SHARE-03: per-session browse toggle (owner binding). Replaces SetSessionFilesWrite (D-02/D-07).
+export const SetSessionBrowse        = (sessionID, enabled) => Call('main.App.SetSessionBrowse', [sessionID, enabled])

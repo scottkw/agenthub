@@ -12,6 +12,7 @@ import {
   Bars3Icon,
   EllipsisHorizontalIcon,
   BellAlertIcon,          // ATTN-01: attention icon — colorblind-safe shape carrier
+  LockClosedIcon,         // D-13: shape signal for disabled Share button on remote peer cards
 } from '@heroicons/react/24/outline'
 import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
@@ -104,6 +105,12 @@ export interface SessionCardProps {
    * Receives the session and the card's bounding rect (used for grow animation origin).
    */
   onCardClick?: (session: SessionInfo, rect: DOMRect) => void
+  /**
+   * Phase 137 / D-12: fires when the Share button is clicked on a local card.
+   * Disabled (no-op) on remote peer cards — only the session owner can share.
+   * D-13: colorblind-safe disabled state uses LockClosedIcon + tooltip, not color alone.
+   */
+  onShare?: (session: SessionInfo) => void
 }
 
 // ---- Component ----
@@ -133,6 +140,7 @@ export function SessionCard({
   onAssignGroup,
   isAttention,
   onCardClick,
+  onShare,
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -241,6 +249,7 @@ export function SessionCard({
         // Defense-in-depth: verify click did not originate from controlled children
         const target = e.target as HTMLElement
         if (target.closest('.hub-card__open')) return
+        if (target.closest('.hub-card__share')) return  // D-12/Pitfall 6: Share button guard
         if (target.closest('.hub-card__menu-btn')) return
         if (target.closest('.hub-card__menu')) return
         if (target.closest('.InlineSessionName input')) return
@@ -400,6 +409,23 @@ export function SessionCard({
           </button>
         </div>
       )}
+
+      {/* Share button — D-12: dedicated Share button opens per-card Share modal.
+          D-13: disabled on remote peer cards. COLORBLIND-SAFE: LockClosedIcon (shape)
+          + text label + tooltip carry disabled state; color is reinforcement only.
+          Pitfall 6: e.stopPropagation() prevents card-click modal from opening on share click.
+          Also guarded in article onClick with .hub-card__share class check above. */}
+      <button
+        type="button"
+        className="hub-card__share"
+        onClick={(e) => { e.stopPropagation(); onShare?.(session) }}
+        disabled={!isLocal}
+        aria-label={isLocal ? `Share ${name}` : 'Only the session owner can share'}
+        title={isLocal ? 'Share session' : 'Only the session owner can share'}
+      >
+        {!isLocal && <LockClosedIcon aria-hidden="true" className="hub-card__share-lock" />}
+        Share
+      </button>
 
       {/* ROW 6: MiniPreview — CARD-07: plain text snapshot; NO xterm instance; polling interval 3s shared across all cards */}
       <MiniPreview lines={previewLines} />

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { SessionInfo } from '../wailsjs/go/main/App'
-import { IssueCapabilities, SetSessionFilesWrite, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
+import { IssueCapabilities, GetLocalNetworkPassword } from '../wailsjs/go/main/App'
 import { ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
 import { SessionSharePanel } from './SessionSharePanel'
 import { HomeDirWriteWarning } from './HomeDirWriteWarning'
@@ -404,7 +404,6 @@ export function DaemonManagerPanel({
                   writeURL={share.writeURL}
                   readCode={share.readCode}
                   writeCode={share.writeCode}
-                  ownerWriteEnabled={!!sessionWrites[s.id]}
                 />
               )}
             </div>
