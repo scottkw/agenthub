@@ -17,12 +17,12 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### Share Modal (SHARE)
 
-- [ ] **SHARE-01**: Each Hub session card has a "Share" button that opens a per-session Share modal.
-- [ ] **SHARE-02**: The Share modal has a "Share the session" toggle (replacing "Web On"); when on, it reveals two share links/codes — one read-only and one read/write.
-- [ ] **SHARE-03**: The Share modal has an "Enable remote file browsing" toggle; file-browse permission inherits from the share code the visitor presents (read-only code → read-only browse; read/write code → read/write browse).
-- [ ] **SHARE-04**: Share links/codes are copyable, each has a QR code, and the LAN Basic Auth password surfaces in the modal when the web server runs in local mode.
-- [ ] **SHARE-05**: The Share modal carries forward every per-session web-share capability the removed Sessions page provided (web-serve on/off, URLs, QR, password) with no regression, including the existing cap/URL/QR lifecycle behavior (off→on cache-clear, stale-URL cleanup, server-truth seeding).
-- [ ] **SHARE-06**: Sharing controls are unavailable (hidden or disabled) on remote peer cards — a user cannot re-share a session they do not own.
+- [x] **SHARE-01**: Each Hub session card has a "Share" button that opens a per-session Share modal.
+- [x] **SHARE-02**: The Share modal has a "Share the session" toggle (replacing "Web On"); when on, it reveals two share links/codes — one read-only and one read/write.
+- [x] **SHARE-03**: The Share modal has an "Enable remote file browsing" toggle; file-browse permission inherits from the share code the visitor presents (read-only code → read-only browse; read/write code → read/write browse).
+- [x] **SHARE-04**: Share links/codes are copyable, each has a QR code, and the LAN Basic Auth password surfaces in the modal when the web server runs in local mode.
+- [x] **SHARE-05**: The Share modal carries forward every per-session web-share capability the removed Sessions page provided (web-serve on/off, URLs, QR, password) with no regression, including the existing cap/URL/QR lifecycle behavior (off→on cache-clear, stale-URL cleanup, server-truth seeding).
+- [x] **SHARE-06**: Sharing controls are unavailable (hidden or disabled) on remote peer cards — a user cannot re-share a session they do not own.
 
 ### Hub Card (CARD)
 
@@ -93,12 +93,12 @@ Which phases cover which requirements. Filled during roadmap creation.
 |-------------|-------|--------|
 | NAV-01 | Phase 136 | Complete |
 | TEST-06 | Phase 136 | Complete |
-| SHARE-01 | Phase 137 | Pending |
-| SHARE-02 | Phase 137 | Pending |
-| SHARE-03 | Phase 137 | Pending |
-| SHARE-04 | Phase 137 | Pending |
-| SHARE-05 | Phase 137 | Pending |
-| SHARE-06 | Phase 137 | Pending |
+| SHARE-01 | Phase 137 | Complete |
+| SHARE-02 | Phase 137 | Complete |
+| SHARE-03 | Phase 137 | Complete |
+| SHARE-04 | Phase 137 | Complete |
+| SHARE-05 | Phase 137 | Complete |
+| SHARE-06 | Phase 137 | Complete |
 | NAV-02 | Phase 138 | Pending |
 | NAV-03 | Phase 138 | Pending |
 | NAV-04 | Phase 138 | Pending |

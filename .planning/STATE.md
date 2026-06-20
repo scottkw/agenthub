@@ -4,13 +4,13 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
 stopped_at: Phase 137 context gathered
-last_updated: "2026-06-20T14:47:53.260Z"
-last_activity: 2026-06-20 -- Phase 137 planning complete
+last_updated: "2026-06-20T15:03:06.482Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 5
-  completed_plans: 2
+  completed_plans: 3
   percent: 14
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 136 — tui-removal
+**Current focus:** Phase 137 — share-modal-cap-model
 
 ## Current Position
 
-Phase: 136 — COMPLETE
-Plan: 2 of 2
+Phase: 137 (share-modal-cap-model) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-20 -- Phase 137 planning complete
+Last activity: 2026-06-20
 
-Progress: [██████████] 100%
+Progress: [██████░░░░] 60%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -84,7 +84,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-20T13:55:37.046Z
+Last session: 2026-06-20T15:03:06.475Z
 Stopped at: Phase 137 context gathered
-Resume file: .planning/phases/137-share-modal-cap-model/137-CONTEXT.md
+Resume file: None
 Next action: `/gsd:plan-phase 136`
