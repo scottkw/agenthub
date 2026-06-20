@@ -406,7 +406,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   5. Tab close, rename, and progress-underline affordances remain functional and accessible at minimum tab width
 **Plans**: 4 plans
 - [x] 139-01-PLAN.md — Wave 0 scaffolding: failing Go styled-tail tests + frontend vtColor/MiniPreview/TabBar tests + A2 headless-xterm verification (CARD-05, TAB-01..03)
-- [ ] 139-02-PLAN.md — Browser-style tab strip: flex-shrink to icon-only floor + scroll-position-aware chevrons; rename/close/progress survive the floor (TAB-01, TAB-02, TAB-03)
+- [x] 139-02-PLAN.md — Browser-style tab strip: flex-shrink to icon-only floor + scroll-position-aware chevrons; rename/close/progress survive the floor (TAB-01, TAB-02, TAB-03)
 - [ ] 139-03-PLAN.md — CARD-05 backend: charmbracelet/x/vt headless VT grid; GetSessionStyledTailLines engine+route+client+Wails binding (n-clamp both layers) (CARD-05)
 - [ ] 139-04-PLAN.md — CARD-05 frontend: vtColor ITheme mapper + MiniPreview StyledSpan render (xterm-free) + briefing-modal local styled-span/remote headless-xterm tail (CARD-05)
 **UI hint**: yes
@@ -498,7 +498,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
-| 139. Card Rendering & Tab Strip | v4.0 | 1/4 | In Progress|  |
+| 139. Card Rendering & Tab Strip | v4.0 | 2/4 | In Progress|  |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
