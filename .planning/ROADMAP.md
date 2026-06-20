@@ -339,7 +339,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Milestone Goal:** Collapse AgentHub onto a single Hub-centric surface — retire the TUI and the Sessions/Remote sidebar pages, fold their controls into per-card Share modals and indicators, ship the Claude redesign, fix the tab strip, and stand up a formal regression-test program.
 
 - [x] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web (completed 2026-06-19)
-- [ ] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review
+- [x] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review (completed 2026-06-20)
 - [ ] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings
 - [ ] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip
 - [ ] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged
@@ -374,7 +374,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 3 plans
 - [x] 137-01-PLAN.md — Wave 0 test scaffolding: retire global-flag + FilesRead-migration Go tests; add D-03/D-04 browse-matrix + browse-aware route tests + whole-token grep gate; new SessionCard.share + SessionShareModal frontend tests; update SessionSharePanel tests (SHARE-01..06)
 - [x] 137-02-PLAN.md — Backend cap-model (security core): engine.go field collapse to sessionBrowse; api.go D-03/D-04 perm injection; POST /sessions/{id}/browse + client + Wails binding; SessionInfo.BrowseEnabled; toggle-off ClearGrants (SHARE-03, SHARE-05)
-- [ ] 137-03-PLAN.md — Frontend: simplify SessionSharePanel (strip CAP-05); new SessionShareModal (two toggles, LAN password, homeDir warning, server-truth lifecycle); SessionCard Share button + colorblind-safe remote-disabled state; wire into Hub (SHARE-01, SHARE-02, SHARE-04, SHARE-05, SHARE-06)
+- [x] 137-03-PLAN.md — Frontend: simplify SessionSharePanel (strip CAP-05); new SessionShareModal (two toggles, LAN password, homeDir warning, server-truth lifecycle); SessionCard Share button + colorblind-safe remote-disabled state; wire into Hub (SHARE-01, SHARE-02, SHARE-04, SHARE-05, SHARE-06)
 **UI hint**: yes
 
 ### Phase 138: Hub-First Navigation
@@ -488,7 +488,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 134 | v3.6 | 8/8 | Complete | 2026-06-18 |
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
-| 137. Share Modal & Cap Model | v4.0 | 2/3 | In Progress|  |
+| 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete   | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
