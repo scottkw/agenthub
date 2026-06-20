@@ -192,8 +192,7 @@ const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
  * HubPanel — top-level Hub surface.
  *
  * Owns filter + search state; applies filtering; composes:
- *   - .hub__header  (title + New session button)
- *   - HubFilterBar  (sticky; owns searchRef; passes state + callbacks)
+ *   - HubFilterBar  (sticky; owns searchRef; passes state + callbacks; sole New session entry)
  *   - .hub__body (flex row)
  *       → GroupSidebar  (named groups, collapsed/expanded, localStorage)
  *       → .hub__grid-scroll
@@ -230,6 +229,7 @@ export function HubPanel({
   onKill,
   onOpenInBrowser,
   onBrowseFiles,
+  remotePeers,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -481,15 +481,7 @@ export function HubPanel({
   return (
     <>
       <div className="hub">
-        {/* Header strip — UI-SPEC Layout Contract */}
-        <div className="hub__header">
-          <span className="hub__title">Hub</span>
-          <button className="hub__new-session-btn" type="button" onClick={onNewSession}>
-            New session
-          </button>
-        </div>
-
-        {/* Filter bar — sticky; owns searchRef; passes live session list for counts */}
+        {/* CARD-01: Header strip removed — HubFilterBar's New Session button is the sole entry point */}
         <HubFilterBar
           sessions={allSessions}
           activeFilter={activeFilter}
@@ -499,6 +491,17 @@ export function HubPanel({
           onSearchChange={setSearchText}
           onNewSession={onNewSession}
         />
+
+        {/* Per-peer unreachable/empty hint — renders only when relevant peers exist */}
+        {(remotePeers ?? [])
+          .filter((p) => !p.reachable || p.sessions.length === 0)
+          .map((p) => (
+            <p key={p.hostname} className="hub__peer-hint">
+              {!p.reachable
+                ? `${p.hostname} is unreachable`
+                : `${p.hostname} has no shared sessions`}
+            </p>
+          ))}
 
         {/* Phase 132: hub__body is a flex row wrapping GroupSidebar + hub__grid-scroll */}
         <div className="hub__body">

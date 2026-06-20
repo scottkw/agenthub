@@ -4205,6 +4205,8 @@ body {
   overflow: hidden;
 }
 
+/* CARD-01: .hub__header, .hub__title, .hub__new-session-btn removed from HubPanel.tsx (Plan 138-03).
+   CSS rules preserved below as dead code — safe to delete in a future cleanup pass.
 .hub__header {
   display: flex;
   align-items: center;
@@ -4236,6 +4238,15 @@ body {
 .hub__new-session-btn:hover {
   border-color: var(--hub-border-hover);
   background: var(--hub-surface-elevated);
+}
+*/
+
+/* CARD-01: per-peer unreachable / empty-sessions hint (rendered below HubFilterBar) */
+.hub__peer-hint {
+  font-size: 12px;
+  color: var(--hub-text-muted);
+  margin: 4px 24px;
+  padding: 0;
 }
 
 /* --- Scrollable grid area --- */
@@ -4487,6 +4498,14 @@ body {
 /* COLORBLIND-SAFE: "Kill session" text is the primary signal; color is reinforcement only. */
 .hub-card__menu-item--destructive {
   color: var(--hub-destructive);      /* reinforcement only */
+}
+
+/* Secondary subtext line inside KillConfirmItem "Confirm kill" state */
+.hub-card__menu-item-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--hub-text-muted);
+  margin-top: 2px;
 }
 
 /* --- Viewer count --- */
