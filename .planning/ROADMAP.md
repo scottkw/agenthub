@@ -488,7 +488,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 134 | v3.6 | 8/8 | Complete | 2026-06-18 |
 | 135 | v3.6 | 3/3 | Complete | 2026-06-19 |
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
-| 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete   | 2026-06-20 |
+| 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 0/TBD | Not started | - |
 | 139. Card Rendering & Tab Strip | v4.0 | 0/TBD | Not started | - |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
