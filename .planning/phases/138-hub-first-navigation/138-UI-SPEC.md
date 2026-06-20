@@ -35,7 +35,7 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline chip padding, menu divider margin |
-| sm | 8px | Row gap within card rows, badge padding |
+| sm | 8px | Row gap within card rows, badge padding, connection chip horizontal padding |
 | md | 16px | Card internal padding, section spacing |
 | lg | 24px | Hub layout padding |
 | xl | 32px | Major layout gaps |
@@ -65,6 +65,8 @@ All values sourced from the existing `style.css` — this phase uses no new font
 **Source:** Verified in style.css — `.hub-card__name` vicinity is 14px; `.hub-card__origin`, `.hub-card__status-label` are 12px; `.hub-card__menu-item` uses 13px per `.hub-card__menu-item` block.
 
 **Weight constraint:** Exactly 2 weights in use for this phase: 400 (regular) for all body/label copy; 600 (semibold) reserved for destructive confirmation headings only (existing `.hub-card__menu-item--header` pattern).
+
+**Primary visual anchor:** The session card name (ROW 1) is rendered at 14px — the largest text element on the card and the first element in vertical scan order; it is the primary identity signal for each card.
 
 ---
 
@@ -183,7 +185,7 @@ All color via existing `--hub-*` CSS custom properties. Two themes: dark (defaul
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0 6px;
+  padding: 0 8px;
   height: 20px;
   border-radius: 10px;
   border: 1px solid currentColor;
@@ -314,8 +316,16 @@ For local cards, the divider and Kill item only appear; no Open in browser / Bro
 | Remote card Share button tooltip (disabled) | "Only the session owner can share" (unchanged — existing) |
 | Peer unreachable hint | "[peer name] is unreachable" |
 | Peer no-sessions hint | "[peer name] has no shared sessions" |
-| Empty Hub state (no sessions) | Unchanged — existing empty state copy |
-| Error state | Unchanged — existing error handling |
+| Empty Hub state — no sessions heading | "No sessions yet" |
+| Empty Hub state — no sessions body | "Create a session to start an AI coding agent." |
+| Empty Hub state — no sessions CTA | "New session" |
+| Empty Hub state — no matches heading | "No matching sessions" |
+| Empty Hub state — no matches body | "Clear the filter or search to see all sessions." |
+| Empty Hub state — no matches CTA | "Clear filter" |
+| Error state heading | "Couldn't load sessions" |
+| Error state body | "Check that the daemon is running and try again." |
+
+**Source for empty/error state strings:** Verified directly in `frontend/src/components/Hub/HubEmptyState.tsx` (lines 41-45, 53-57) and `frontend/src/components/Hub/HubPanel.tsx` (lines 433-434).
 
 **Copywriting notes:**
 - "Kill session" uses the word "Kill" (not "Stop", "Close", or "End") to match the existing codebase terminology (`handleCloseTab`, `onKill`) and the language used in the Sessions page (DaemonManagerPanel) that is being removed.
