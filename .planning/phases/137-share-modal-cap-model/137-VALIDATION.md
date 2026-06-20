@@ -1,10 +1,11 @@
 ---
 phase: 137
 slug: share-modal-cap-model
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-20
+validated: 2026-06-20
 ---
 
 # Phase 137 — Validation Strategy
@@ -41,39 +42,41 @@ created: 2026-06-20
 > Task IDs are assigned by the planner; this map is requirement-keyed and the planner
 > must attach each row to the task that delivers it. Security-delta rows (★) are mandatory.
 
-| Requirement | Wave | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
+| Requirement | Wave | Threat Ref | Secure Behavior | Test Type | Automated Command (as delivered) | File Exists | Status |
 |-------------|------|------------|-----------------|-----------|-------------------|-------------|--------|
-| SHARE-01 | 1 | — | Share button on Hub card opens modal | unit (frontend) | `pnpm test SessionCard` | ❌ W0 | ⬜ pending |
-| SHARE-02 | 1 | — | "Share the session" toggle reveals RO + RW links/codes + QR | unit (frontend) | `pnpm test SessionShareModal` | ❌ W0 | ⬜ pending |
-| ★ SHARE-03 / D-03 | 0 | T-137-01 | Browse OFF: RO=`read`, RW=`read,write` (no file perms) | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOff_NoFilesPerms` | ❌ W0 | ⬜ pending |
-| ★ SHARE-03 / D-04 RO | 0 | T-137-02 | Browse ON: RO=`read,files.read` exactly (never files.write) | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOn_ROPermsExact` | ❌ W0 | ⬜ pending |
-| ★ SHARE-03 / D-04 RW | 0 | T-137-02 | Browse ON: RW=`read,write,files.read,files.write` exactly | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOn_RWPermsExact` | ❌ W0 | ⬜ pending |
-| ★ SHARE-03 cross-surface | 0 | T-137-03 | RO cap + files.read → web file browse 200 (read-only) | unit (Go webserver) | `go test ./internal/webserver/... -run TestFilesRoutes_RO_BrowseOn` | ❌ W0 | ⬜ pending |
-| ★ SHARE-03 cross-surface | 0 | T-137-03 | RO cap (browse ON) → web file WRITE 403 (no files.write) | unit (Go webserver) | `go test ./internal/webserver/... -run TestFilesRoutes_RO_NoWrite` | ❌ W0 | ⬜ pending |
-| SHARE-03 cross-surface | 1 | T-137-03 | Browse OFF RO cap → web file browse 403 | unit (Go webserver) | `go test ./internal/webserver/... -run TestRequireFilesRead` | ✅ | ⬜ pending |
-| SHARE-04 | 1 | — | LAN Basic Auth password visible in modal in local mode | unit (frontend) | `pnpm test SessionShareModal` (local-mode fixture) | ❌ W0 | ⬜ pending |
-| SHARE-04 | 1 | — | QR codes copyable per link row | unit (frontend) | `pnpm test SessionSharePanel` | ✅ | ⬜ pending |
-| SHARE-05 regression | 1 | — | Server-truth seeding on modal open (webEnabled + caps) | unit (frontend) | `pnpm test SessionShareModal` (webEnabled fixture) | ❌ W0 | ⬜ pending |
-| SHARE-05 regression | 1 | — | Stale URL cleared on web-server restart | unit (frontend) | `pnpm test SessionShareModal` (server-restart fixture) | ❌ W0 | ⬜ pending |
-| SHARE-06 / D-13 | 1 | — | Remote peer card Share button disabled (lock icon + tooltip, colorblind-safe) | unit + source (frontend) | `pnpm test SessionCard` (remote fixture) | ❌ W0 | ⬜ pending |
-| ★ D-02 removal | 0 | T-137-04 | `ownerWriteEnabled` prop + CAP-05 opt-in stripped (no AllowFileEditing toggle) | unit (frontend) | `pnpm test SessionSharePanel` | ⚠️ retire-old | ⬜ pending |
-| ★ D-07 removal | 0 | T-137-05 | `filesReadEnabled()` no longer called in perm injection | unit (Go) + grep | `go test ./internal/daemon/... -run TestIssueCapabilities` | ⚠️ retire-old | ⬜ pending |
-| D-09 | 1 | — | Home-dir warning shown when cwd=$HOME before enabling browse | unit (frontend) | `pnpm test SessionShareModal` (homeDir fixture) | ❌ W0 | ⬜ pending |
-| ★ no-substring | 0 | T-137-06 | New code uses whole-token `HasPerm`, never `strings.Contains` on perms | static grep | `go test ./internal/webserver/... -run TestHasPerm` | ✅ (extend) | ⬜ pending |
-| CSRF invariant | 1 | T-137-07 | `requireFilesWrite` still calls `originAllowedForWrite` (unchanged) | unit (Go webserver) | `go test ./internal/webserver/... -run TestRequireFilesWrite` | ✅ | ⬜ pending |
+| SHARE-01 | 1 | — | Share button on Hub card opens modal | unit (frontend) | `pnpm test SessionCard.share` | ✅ | ✅ green |
+| SHARE-02 | 1 | — | "Share the session" toggle reveals RO + RW links/codes + QR | unit (frontend) | `pnpm test SessionShareModal` | ✅ | ✅ green |
+| ★ SHARE-03 / D-03 | 0 | T-137-01 | Browse OFF: RO=`read`, RW=`read,write` (no file perms) | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOff_NoFilesPerms` | ✅ | ✅ green |
+| ★ SHARE-03 / D-04 RO | 0 | T-137-02 | Browse ON: RO=`read,files.read` exactly (never files.write) | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOn_ROPermsExact` | ✅ | ✅ green |
+| ★ SHARE-03 / D-04 RW | 0 | T-137-02 | Browse ON: RW=`read,write,files.read,files.write` exactly | unit (Go) | `go test ./internal/daemon/... -run TestIssueCapabilities_BrowseOn_RWPermsExact` | ✅ | ✅ green |
+| ★ SHARE-03 cross-surface | 0 | T-137-03 | RO cap + files.read → web file browse 200 (read-only) | unit (Go webserver) | `go test ./internal/webserver/... -run TestFilesRoutes_RO_BrowseOn_FilesReadRoute200` | ✅ | ✅ green |
+| ★ SHARE-03 cross-surface | 0 | T-137-03 | RO cap (browse ON) → web file WRITE 403 (no files.write) | unit (Go webserver) | `go test ./internal/webserver/... -run TestFilesRoutes_RO_BrowseOn_WriteRoute403` | ✅ | ✅ green |
+| ★ SHARE-03 cross-surface | 0 | T-137-03 | RW cap (browse ON) → web file WRITE 200 | unit (Go webserver) | `go test ./internal/webserver/... -run TestFilesRoutes_RW_BrowseOn_WriteRoute200` | ✅ | ✅ green |
+| SHARE-03 cross-surface | 1 | T-137-03 | Browse OFF RO cap → web file browse 403 | unit (Go webserver) | `go test ./internal/webserver/... -run TestRequireFilesRead` | ✅ | ✅ green |
+| SHARE-04 | 1 | — | LAN Basic Auth password visible in modal in local mode | unit (frontend) | `pnpm test SessionShareModal` (local-mode fixture) | ✅ | ✅ green |
+| SHARE-04 | 1 | — | QR codes copyable per link row | unit (frontend) | `pnpm test SessionSharePanel` | ✅ | ✅ green |
+| SHARE-05 regression | 1 | — | Server-truth seeding on modal open (webEnabled + caps) | unit (frontend) | `pnpm test SessionShareModal` (webEnabled fixture) | ✅ | ✅ green |
+| SHARE-05 regression | 1 | — | Stale URL cleared on web-server restart | unit (frontend) | `pnpm test SessionShareModal` (server-restart fixture) | ✅ | ✅ green |
+| SHARE-06 / D-13 | 1 | — | Remote peer card Share button disabled (lock icon + tooltip, colorblind-safe) | unit + source (frontend) | `pnpm test SessionCard.share` (remote fixture) | ✅ | ✅ green |
+| ★ D-02 removal | 0 | T-137-04 | `ownerWriteEnabled` prop + CAP-05 opt-in stripped (no AllowFileEditing toggle) | unit (frontend) | `pnpm test SessionSharePanel` | ✅ | ✅ green |
+| ★ D-07 removal | 0 | T-137-05 | `filesReadEnabled()` no longer called in perm injection | unit (Go) + grep | `go test ./internal/daemon/... -run TestIssueCapabilities` | ✅ | ✅ green |
+| D-09 | 1 | — | Home-dir warning shown when cwd=$HOME before enabling browse | unit (frontend) | `pnpm test SessionShareModal` (homeDir fixture) | ✅ | ✅ green |
+| ★ no-substring | 0 | T-137-06 | New code uses whole-token `HasPerm`, never `strings.Contains` on perms | static grep | `go test ./internal/webserver/... -run TestHasPerm_NoStringsContains_Browse` | ✅ | ✅ green |
+| CSRF invariant | 1 | T-137-07 | `requireFilesWrite` still calls `originAllowedForWrite` (unchanged) | unit (Go webserver) | `go test ./internal/webserver/... -run TestRequireFilesWrite` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 *★ = security-delta row, primary audit target for `/gsd:secure-phase`.*
+*Name drift reconciled at validation: planned `TestFilesRoutes_RO_BrowseOn`→`…_FilesReadRoute200`; `TestFilesRoutes_RO_NoWrite`→`…_WriteRoute403`; `TestHasPerm`→`TestHasPerm_NoStringsContains_Browse`. RW-write-200 row added (delivered beyond plan).*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `internal/daemon/api_test.go` — retire 4 old `TestIssueCapabilities_*` global-flag tests (lines ~1982-2115); add `TestIssueCapabilities_BrowseOff_NoFilesPerms`, `TestIssueCapabilities_BrowseOn_ROPermsExact`, `TestIssueCapabilities_BrowseOn_RWPermsExact`
-- [ ] `internal/webserver/files_routes_test.go` — add `TestFilesRoutes_RO_BrowseOn` (RO cap + files.read → 200) and `TestFilesRoutes_RO_NoWrite` (RO cap + files.read, no files.write → 403 on write route)
-- [ ] `frontend/src/components/__tests__/SessionCard.share.test.tsx` — Share button renders; click fires onShare without bubbling to onCardClick; disabled on remote peer
-- [ ] `frontend/src/components/__tests__/SessionShareModal.test.tsx` — share toggle; browse toggle; LAN password (local-mode); homeDir warning; server-truth seeding on open; stale-URL cleared on server restart
-- [ ] `frontend/src/components/__tests__/SessionSharePanel.test.tsx` — update existing: remove CAP-05 opt-in tests; add simplified-panel tests (write link shown whenever sharing ON)
+- [x] `internal/daemon/api_test.go` — retired 4 old `TestIssueCapabilities_*` global-flag tests; added `TestIssueCapabilities_BrowseOff_NoFilesPerms`, `TestIssueCapabilities_BrowseOn_ROPermsExact`, `TestIssueCapabilities_BrowseOn_RWPermsExact` (commit 657dbb1e RED → fad0275f GREEN)
+- [x] `internal/webserver/files_routes_test.go` — added `TestFilesRoutes_RO_BrowseOn_FilesReadRoute200` (RO cap + files.read → 200), `TestFilesRoutes_RO_BrowseOn_WriteRoute403` (RO cap → 403 on write), `TestFilesRoutes_RW_BrowseOn_WriteRoute200` (RW cap → 200); `TestHasPerm_NoStringsContains_Browse` grep gate in `capability_test.go` (commit af89d4cb)
+- [x] `frontend/src/components/__tests__/SessionCard.share.test.tsx` — Share button renders; click fires onShare without bubbling to onCardClick; disabled on remote peer (4/4 green, commit becb06cc RED → 74de9798 GREEN)
+- [x] `frontend/src/components/__tests__/SessionShareModal.test.tsx` — share toggle; browse toggle; LAN password (local-mode); homeDir warning; server-truth seeding on open; stale-URL cleared on server restart (9/9 green, commit becb06cc RED → 68b10a71 GREEN)
+- [x] `frontend/src/components/__tests__/SessionSharePanel.test.tsx` — removed CAP-05 opt-in tests; added simplified-panel tests (write link shown whenever sharing ON) (9/9 green, commit becb06cc → 74de9798)
 
 ---
 
@@ -88,11 +91,33 @@ created: 2026-06-20
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-06-20 — all 19 automated rows green; 2 manual-only rows exercised live in UAT (137-HUMAN-UAT.md, 6/6 pass)
+
+---
+
+## Validation Audit 2026-06-20
+
+State A audit of the pre-execution draft against delivered tests. All commands below were re-run live during this audit and confirmed green.
+
+| Metric | Count |
+|--------|-------|
+| Per-Task rows audited | 19 |
+| COVERED (green, verified live) | 19 |
+| PARTIAL | 0 |
+| MISSING (gaps found) | 0 |
+| Gaps filled by auditor | 0 (none needed) |
+| Manual-only (retained) | 2 — both exercised live in UAT |
+
+**Reconciliation notes:** The draft was authored pre-execution (all rows `⬜ pending`, `nyquist_compliant: false`). No coverage gaps existed — every planned test was delivered and passes. The audit corrected three planned→delivered test-name drifts and added the `TestFilesRoutes_RW_BrowseOn_WriteRoute200` row (delivered beyond the original plan). No `gsd-nyquist-auditor` spawn was required (zero gaps to fill). No new test files generated.
+
+**Live re-run evidence (this audit):**
+- `go test ./internal/daemon/... -run 'TestIssueCapabilities|TestKillSession_ClearsStaleBrowseEntry'` → ok
+- `go test ./internal/webserver/... -run 'TestFilesRoutes_R|TestRequireFiles|TestHasPerm_NoStringsContains_Browse'` → ok
+- `pnpm exec vitest run SessionShareModal SessionCard.share SessionSharePanel` → 3 files / 22 tests passed
