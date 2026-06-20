@@ -40,9 +40,10 @@ type SessionInfo struct {
 	// TUI parity). Must be propagated from daemon.SessionInfo or the GUI banner
 	// never fires (UAT finding).
 	HomeDir bool `json:"homeDir"`
-	// Phase 124 / CAP-04: true when the per-session owner write toggle is ON.
-	// Single server-side source of truth for cross-surface write parity.
-	FilesWrite bool `json:"filesWrite"`
+	// Phase 137 / SHARE-05: true when the per-session browse toggle is ON.
+	// Single server-side source of truth for GUI modal seeding (NOT omitempty:
+	// false must serialize so the modal can seed on open per RESEARCH open question 2).
+	BrowseEnabled bool `json:"browseEnabled"`
 	// Phase 131 — Hub card fields (CARD-04, CARD-05, CARD-06, GRID-02).
 	// Omitting any of these silently drops them to zero in the Wails RPC
 	// response — same class of UAT bug documented on HomeDir above.
@@ -367,12 +368,11 @@ func (a *App) ListSessions() []SessionInfo {
 			CreatedAt:  s.CreatedAt,
 			Hostname:   s.Hostname,
 			WebEnabled: s.WebEnabled,
-			// Phase 124 / CAP-06 + CAP-04: propagate the home-dir and write-toggle
-			// flags so the GUI's home-dir warning banner and write affordances see
-			// the daemon's source of truth. Omitting these silently dropped them to
-			// false and the banner never fired (UAT finding).
-			HomeDir:    s.HomeDir,
-			FilesWrite: s.FilesWrite,
+			// Phase 137 / SHARE-05 + CAP-06: propagate browse-enabled and home-dir
+			// flags so the GUI's Share modal seeds from daemon source of truth.
+			// Omitting these silently drops them to false (same UAT class as FilesWrite bug).
+			HomeDir:       s.HomeDir,
+			BrowseEnabled: s.BrowseEnabled,
 			// Phase 131 / CARD-04..06, GRID-02: propagate Hub card fields from
 			// daemon source of truth. Omitting these silently drops them to zero
 			// — the same class of silent-corruption bug documented on HomeDir above.
@@ -824,14 +824,16 @@ func (a *App) ToggleWebServing(sessionID string, enabled bool) error {
 	return a.client.ToggleWebServing(sessionID, enabled)
 }
 
-// SetSessionFilesWrite enables or disables the per-session file-write capability
-// for a specific session. Phase 124 / CAP-04. Mirrors ToggleWebServing but
-// targets the engine's per-session write map (not a global flag).
-func (a *App) SetSessionFilesWrite(sessionID string, enabled bool) error {
+// SetSessionBrowse enables or disables the per-session file-browse capability
+// for a specific session. Phase 137 / SHARE-03. Mirrors ToggleWebServing but
+// targets the engine's per-session browse map (sole driver of file-perm
+// injection per D-02/D-03/D-04). Toggle-off clears outstanding grants on the
+// daemon (stale-cap threat mitigation per SHARE-05).
+func (a *App) SetSessionBrowse(sessionID string, enabled bool) error {
 	if a.client == nil {
 		return fmt.Errorf("daemon not connected")
 	}
-	return a.client.SetSessionFilesWrite(sessionID, enabled)
+	return a.client.SetSessionBrowse(sessionID, enabled)
 }
 
 // NotifyThemeChange signals active OpenCode terminal sessions to re-query

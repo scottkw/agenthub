@@ -182,12 +182,11 @@ func TestCreateSession(t *testing.T) {
 }
 
 // TestListSessions_PropagatesHomeDirAndFilesWrite is the regression guard for the
-// Phase 124 home-dir write-warning banner, which never appeared in the desktop
-// GUI (UAT finding). The daemon's SessionInfo carries HomeDir + FilesWrite, but
-// the App.ListSessions binding dropped both fields, so the GUI's session list
-// always saw homeDir=false / filesWrite=false and the banner (gated on s.homeDir)
-// never fired. This asserts the binding propagates both from daemon.SessionInfo.
-func TestListSessions_PropagatesHomeDirAndFilesWrite(t *testing.T) {
+// Phase 137 (updated from Phase 124): propagation test for HomeDir + BrowseEnabled.
+// The daemon's SessionInfo carries HomeDir + BrowseEnabled, and the App.ListSessions
+// binding must propagate both. Phase 124 originally tested FilesWrite; Phase 137
+// replaces the per-session write gate with the per-session browse toggle (D-02/D-07).
+func TestListSessions_PropagatesHomeDirAndBrowseEnabled(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		t.Skipf("no usable home dir: %v", err)
@@ -204,10 +203,10 @@ func TestListSessions_PropagatesHomeDirAndFilesWrite(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	// Enable the per-session write toggle so FilesWrite=true on the daemon —
+	// Enable the per-session browse toggle so BrowseEnabled=true on the daemon —
 	// this one we control, so we can assert true propagates end-to-end.
-	if err := app.SetSessionFilesWrite(id, true); err != nil {
-		t.Fatalf("SetSessionFilesWrite: %v", err)
+	if err := app.SetSessionBrowse(id, true); err != nil {
+		t.Fatalf("SetSessionBrowse: %v", err)
 	}
 
 	// The daemon's own view (source of truth) for the same session.
@@ -244,16 +243,16 @@ func TestListSessions_PropagatesHomeDirAndFilesWrite(t *testing.T) {
 	if got.HomeDir != raw.HomeDir {
 		t.Errorf("ListSessions dropped HomeDir: binding=%v daemon=%v (home-dir banner would never show)", got.HomeDir, raw.HomeDir)
 	}
-	if got.FilesWrite != raw.FilesWrite {
-		t.Errorf("ListSessions dropped FilesWrite: binding=%v daemon=%v", got.FilesWrite, raw.FilesWrite)
+	if got.BrowseEnabled != raw.BrowseEnabled {
+		t.Errorf("ListSessions dropped BrowseEnabled: binding=%v daemon=%v", got.BrowseEnabled, raw.BrowseEnabled)
 	}
-	// FilesWrite we forced ON, so it must be true on both sides — proves the
+	// BrowseEnabled we forced ON, so it must be true on both sides — proves the
 	// true value survives the binding (not just a false==false coincidence).
-	if !raw.FilesWrite {
-		t.Error("daemon did not record FilesWrite=true after SetSessionFilesWrite(true)")
+	if !raw.BrowseEnabled {
+		t.Error("daemon did not record BrowseEnabled=true after SetSessionBrowse(true)")
 	}
-	if !got.FilesWrite {
-		t.Error("App.ListSessions dropped FilesWrite=true (cross-surface write-state parity broken)")
+	if !got.BrowseEnabled {
+		t.Error("App.ListSessions dropped BrowseEnabled=true (cross-surface browse-state parity broken)")
 	}
 }
 

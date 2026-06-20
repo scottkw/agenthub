@@ -29,9 +29,9 @@ type SessionInfo struct {
 	ViewerCount int    `json:"viewerCount"`        // MC-04: number of active WebSocket subscribers
 	ExitCode    *int   `json:"exitCode,omitempty"` // nil while running; set when State is "stopped"
 	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
-	HomeDir     bool   `json:"homeDir"`            // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
-	FilesWrite  bool   `json:"filesWrite"`         // Phase 124 / CAP-04: true when per-session write toggle is ON; single server-side source of truth for cross-surface parity
-	WorkDir     string `json:"workDir"`            // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
+	HomeDir       bool   `json:"homeDir"`         // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
+	BrowseEnabled bool   `json:"browseEnabled"`   // Phase 137 / SHARE-05: true when per-session browse toggle is ON; NOT omitempty (false must serialize so modal can seed on open)
+	WorkDir       string `json:"workDir"`         // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
 }
 
 // CreateRequest is the request body for POST /sessions.
@@ -127,9 +127,9 @@ type WebServeRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
-// SessionFilesWriteRequest is the request body for
-// POST /sessions/{id}/files-write (Phase 124 / CAP-04).
-type SessionFilesWriteRequest struct {
+// SessionBrowseRequest is the request body for
+// POST /sessions/{id}/browse (Phase 137 / SHARE-03).
+type SessionBrowseRequest struct {
 	Enabled bool `json:"enabled"`
 }
 

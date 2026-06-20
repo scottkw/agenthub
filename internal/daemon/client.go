@@ -320,12 +320,13 @@ func (c *DaemonClient) ToggleWebServing(sessionID string, enabled bool) error {
 	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/web-serve", WebServeRequest{Enabled: enabled}, nil)
 }
 
-// SetSessionFilesWrite sets the per-session file-write toggle for a session.
-// Phase 124 / CAP-04. Mirrors ToggleWebServing but routes to the engine's
-// per-session write map (not a global write flag).
-func (c *DaemonClient) SetSessionFilesWrite(sessionID string, enabled bool) error {
-	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/files-write",
-		SessionFilesWriteRequest{Enabled: enabled}, nil)
+// SetSessionBrowse sets the per-session browse toggle for a session.
+// Phase 137 / SHARE-03. Mirrors ToggleWebServing but routes to the engine's
+// per-session browse map (not a global flag). Toggle-off clears grants on the
+// daemon side (stale-cap threat mitigation per SHARE-05).
+func (c *DaemonClient) SetSessionBrowse(sessionID string, enabled bool) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/browse",
+		SessionBrowseRequest{Enabled: enabled}, nil)
 }
 
 // IssueCapabilities mints the read + read,write capability pair for a
