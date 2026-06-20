@@ -670,22 +670,24 @@ ro.observe(listRef.current)
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All three questions were resolved during planning (Phase 139 plans 139-01..04) and the resolutions are implemented by the plans cited below.
 
 1. **Emulator column width for scrollback extraction**
    - What we know: PTY column width varies per session and viewer; `relay.Hub` tracks `ptyCols` via the max-wins resize arbiter.
    - What's unclear: Whether `Hub.ptyCols` (an unexported field) should be exposed as a new accessor, or whether a fixed wide value (e.g., 220) is adequate for tail extraction.
-   - Recommendation: Add `func (h *Hub) Cols() int` that returns `h.ptyCols` (or 80 if zero). Pass to `vt.NewEmulator(cols, rows)`. The cost is minimal; the correctness benefit is high for wide-terminal agents.
+   - **RESOLVED:** Add `func (h *Hub) Cols() int` that returns `h.ptyCols` (or 80 if zero). Pass to `vt.NewEmulator(cols, rows)`; fall back to a fixed 220 only if exposing `ptyCols` proves non-trivial, recording the choice in the SUMMARY. (Implemented in Plan 139-03 Task 1.)
 
 2. **MiniPreview StyledSpan prop type change**
    - What we know: `MiniPreview.tsx` currently accepts `lines: string[] | undefined`. Changing to `lines: StyledSpan[][] | undefined` is a breaking prop change.
    - What's unclear: Whether `usePreviewPoller` in `HubPanel.tsx` calls the old or new endpoint, and whether the transition is atomic or wave-gated.
-   - Recommendation: Change `usePreviewPoller` and `MiniPreview` together in one task wave. The old `GetSessionTailLines` binding remains intact; `GetSessionStyledTailLines` is additive.
+   - **RESOLVED:** Change `usePreviewPoller` and `MiniPreview` together in one atomic task (HubPanel → Grid → SessionCard → MiniPreview). The old `GetSessionTailLines` binding remains intact; `GetSessionStyledTailLines` is additive. (Implemented in Plan 139-04 Task 1.)
 
 3. **Remote MiniPreview cards — current behavior preserved?**
    - What we know: `usePreviewPoller` already excludes remote sessions (`HubPanel.tsx:80-88`). Remote cards show no preview.
    - What's unclear: Whether CARD-05 explicitly requires preview content for remote cards.
-   - Recommendation: CARD-05 does not require remote card preview — the existing "no preview for remote" behavior is acceptable. The briefing modal (not the card) is the one remote display surface to fix.
+   - **RESOLVED:** CARD-05 does not require remote card preview — the existing "no preview for remote" behavior is acceptable. The briefing modal (not the card) is the one remote display surface to fix. (Honored across Plans 139-03/04: remote IDs return empty styled-tail; remote briefing tail rendered JS-side.)
 
 ---
 
