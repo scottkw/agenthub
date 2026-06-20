@@ -30,7 +30,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 - [x] **CARD-02**: Each card indicates whether its session is local or remote.
 - [x] **CARD-03**: Remote cards indicate whether the session is merely available or one the user is currently connected to — conveyed colorblind-safe (icon/text/shape, never color alone).
 - [x] **CARD-04**: The session card is resized/redesigned to accommodate the Share button and indicators while preserving attention pulse/float-to-top, mini-preview, grid density, and responsive reflow.
-- [ ] **CARD-05**: Mini-preview cards and the briefing-modal tail render agent (TUI-style) output legibly (#96) — correct column spacing and no leaked escape sequences (headless VT render of scrollback, not regex ANSI strip).
+- [x] **CARD-05**: Mini-preview cards and the briefing-modal tail render agent (TUI-style) output legibly (#96) — correct column spacing and no leaked escape sequences (headless VT render of scrollback, not regex ANSI strip).
 
 ### UI/UX Redesign (RDS)
 
@@ -41,9 +41,9 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### Tab Strip (TAB)
 
-- [ ] **TAB-01**: Open tabs shrink as their count grows (browser-style), down to a sensible minimum width.
-- [ ] **TAB-02**: When tabs overflow the window width, a visible side-scroll affordance (scroll chevrons and/or a visible scrollbar) lets the user reach every tab.
-- [ ] **TAB-03**: Tab close, rename, and progress-underline affordances remain functional at the minimum tab width.
+- [x] **TAB-01**: Open tabs shrink as their count grows (browser-style), down to a sensible minimum width.
+- [x] **TAB-02**: When tabs overflow the window width, a visible side-scroll affordance (scroll chevrons and/or a visible scrollbar) lets the user reach every tab.
+- [x] **TAB-03**: Tab close, rename, and progress-underline affordances remain functional at the minimum tab width.
 
 ### Regression Testing (TEST)
 
@@ -107,10 +107,10 @@ Which phases cover which requirements. Filled during roadmap creation.
 | CARD-02 | Phase 138 | Complete |
 | CARD-03 | Phase 138 | Complete |
 | CARD-04 | Phase 138 | Complete |
-| CARD-05 | Phase 139 | Pending |
-| TAB-01 | Phase 139 | Pending |
-| TAB-02 | Phase 139 | Pending |
-| TAB-03 | Phase 139 | Pending |
+| CARD-05 | Phase 139 | Complete |
+| TAB-01 | Phase 139 | Complete |
+| TAB-02 | Phase 139 | Complete |
+| TAB-03 | Phase 139 | Complete |
 | RDS-01 | Phase 140 | Pending |
 | CARRY-02 | Phase 140 | Pending |
 | RDS-02 | Phase 141 | Pending |
