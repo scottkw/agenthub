@@ -1,7 +1,7 @@
 ---
 phase: 137-share-modal-cap-model
 verified: 2026-06-20T00:00:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -29,7 +29,7 @@ human_verification:
 
 **Phase Goal:** Each Hub session card has a Share button opening a per-session Share modal; the cap model issues one "share" action minting separate read-only and read/write tokens; file-browse permission inherits from the presented token.
 **Verified:** 2026-06-20
-**Status:** human_needed (all automated checks pass; 6 live-daemon UAT items require human testing)
+**Status:** passed (all automated checks pass; 6 UAT items completed — see 137-HUMAN-UAT.md: 4 live E2E, 2 component-level)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
