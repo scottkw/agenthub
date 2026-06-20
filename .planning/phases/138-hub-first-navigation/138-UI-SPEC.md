@@ -1,10 +1,11 @@
 ---
 phase: 138
 slug: hub-first-navigation
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-20
+reviewed_at: 2026-06-20
 ---
 
 # Phase 138 — UI Design Contract: Hub-First Navigation
