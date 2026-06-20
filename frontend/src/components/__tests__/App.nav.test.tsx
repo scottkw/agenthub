@@ -23,33 +23,39 @@ describe('NAV-01: Home sidebar button opens Welcome tab', () => {
   })
 })
 
-describe('NAV-02: Remote sidebar button opens Remote Sessions panel', () => {
-  it('wires onOpenRemoteSessions={handleOpenRemoteSessions} to Sidebar', () => {
-    expect(raw).toContain('onOpenRemoteSessions={handleOpenRemoteSessions}')
+// Phase 138 / NAV-02: Remote sidebar item removed.
+// App.tsx must NOT contain Remote Sessions wiring anymore.
+describe('NAV-02: Remote sidebar item is removed (Phase 138)', () => {
+  it('does NOT wire onOpenRemoteSessions to Sidebar', () => {
+    expect(raw).not.toContain('onOpenRemoteSessions=')
   })
 
-  it('find-or-create pattern checks t.type === remote-sessions', () => {
-    expect(raw).toContain("t.type === 'remote-sessions'")
-  })
-})
-
-describe('NAV-03: Sessions sidebar button opens Daemon Manager panel', () => {
-  it('wires onOpenDaemonManager={handleOpenDaemonManager} to Sidebar', () => {
-    expect(raw).toContain('onOpenDaemonManager={handleOpenDaemonManager}')
-  })
-
-  it('find-or-create pattern checks t.type === daemon-manager', () => {
-    expect(raw).toContain("t.type === 'daemon-manager'")
+  it('does NOT contain t.type === remote-sessions routing', () => {
+    expect(raw).not.toContain("t.type === 'remote-sessions'")
   })
 })
 
-describe('NAV-04: New Session sidebar button opens new-session modal', () => {
-  it('wires onAdd={handleAddTab} to Sidebar', () => {
-    expect(raw).toContain('onAdd={handleAddTab}')
+// Phase 138 / NAV-03: Sessions sidebar item removed (DaemonManagerPanel retired).
+// App.tsx must NOT contain Sessions/Daemon Manager wiring anymore.
+describe('NAV-03: Sessions sidebar item is removed (Phase 138)', () => {
+  it('does NOT wire onOpenDaemonManager to Sidebar', () => {
+    expect(raw).not.toContain('onOpenDaemonManager=')
   })
 
-  it('handleAddTab triggers setShowNewSessionModal(true)', () => {
-    expect(raw).toContain('setShowNewSessionModal(true)')
+  it('does NOT contain t.type === daemon-manager routing', () => {
+    expect(raw).not.toContain("t.type === 'daemon-manager'")
+  })
+})
+
+// Phase 138 / NAV-04: New Session sidebar item removed — creation lives solely on Hub's HubFilterBar.
+// App.tsx must NOT pass onAdd={handleAddTab} to Sidebar, and handleAddTab must be gone.
+describe('NAV-04: New Session sidebar item is removed (Phase 138)', () => {
+  it('does NOT wire onAdd={handleAddTab} to Sidebar', () => {
+    expect(raw).not.toContain('onAdd={handleAddTab}')
+  })
+
+  it('does NOT define handleAddTab callback', () => {
+    expect(raw).not.toContain('const handleAddTab')
   })
 })
 

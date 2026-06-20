@@ -10,14 +10,13 @@ import { resolve } from 'path'
 const cssRaw = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
 
 // Helper to render Sidebar with default no-op props
+// Phase 138 / NAV-02..05: reduced to 3-item sidebar (Home, Hub, Settings only).
+// onOpenDaemonManager, onOpenRemoteSessions, onAdd removed — those panels are deleted.
 function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   const defaultProps = {
-    onOpenDaemonManager: vi.fn(),
-    onOpenRemoteSessions: vi.fn(),
-    onAdd: vi.fn(),
     onSettings: vi.fn(),
     onHome: vi.fn(),
     onOpenHub: vi.fn(),
@@ -56,20 +55,29 @@ describe('Sidebar component (SIDE-01)', () => {
     expect(items.length).toBeGreaterThan(0)
   })
 
-  it('renders a Sessions sidebar__item button', () => {
+  // Phase 138 / NAV-02..05: exactly 3 items (Home, Hub, Settings)
+  it('renders exactly 3 sidebar__item buttons (Home, Hub, Settings)', () => {
     ;({ container, root } = renderSidebar())
-    const sessionsBtn = container.querySelector('button[aria-label="Sessions"]')
-    expect(sessionsBtn).not.toBeNull()
-    expect(sessionsBtn!.classList.contains('sidebar__item')).toBe(true)
+    const items = container.querySelectorAll('button.sidebar__item')
+    expect(items.length).toBe(3)
   })
 
-  it('renders "New Session" label and aria-label for the add button (UI-01)', () => {
+  // Phase 138 / NAV-03: Sessions panel removed — button must be absent
+  it('does NOT render a Sessions button', () => {
     ;({ container, root } = renderSidebar())
-    const addBtn = container.querySelector('button[aria-label="New Session"]')
-    expect(addBtn).not.toBeNull()
-    const label = addBtn!.querySelector('.sidebar__label')
-    expect(label).not.toBeNull()
-    expect(label!.textContent).toBe('New Session')
+    expect(container.querySelector('button[aria-label="Sessions"]')).toBeNull()
+  })
+
+  // Phase 138 / NAV-02: Remote panel removed — button must be absent
+  it('does NOT render a Remote button', () => {
+    ;({ container, root } = renderSidebar())
+    expect(container.querySelector('button[aria-label="Remote"]')).toBeNull()
+  })
+
+  // Phase 138 / NAV-05: New Session sidebar item removed — creation lives in HubFilterBar
+  it('does NOT render a New Session button', () => {
+    ;({ container, root } = renderSidebar())
+    expect(container.querySelector('button[aria-label="New Session"]')).toBeNull()
   })
 })
 
@@ -193,12 +201,13 @@ describe('Sidebar icon centering precondition (SBR-01)', () => {
     })
   })
 
-  it('all 6 sidebar items remain in DOM when collapsed', () => {
+  // Phase 138 / NAV-02..05: 3 items remain in DOM when collapsed (was 6)
+  it('all 3 sidebar items remain in DOM when collapsed', () => {
     ;({ container, root } = renderSidebar())
     const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
     act(() => { toggleBtn.click() })
     const items = container.querySelectorAll('.sidebar__item')
-    expect(items.length).toBe(6)
+    expect(items.length).toBe(3)
   })
 })
 
@@ -215,18 +224,6 @@ describe('Sidebar icons (ICON-01, ICON-02)', () => {
     ;({ container, root } = renderSidebar())
     const svgs = container.querySelectorAll('svg')
     expect(svgs.length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('Sessions button (aria-label="Sessions") contains an SVG element (ServerStackIcon, not Unicode text)', () => {
-    ;({ container, root } = renderSidebar())
-    const sessionsBtn = container.querySelector('button[aria-label="Sessions"]')
-    expect(sessionsBtn).not.toBeNull()
-    const svg = sessionsBtn!.querySelector('svg')
-    expect(svg).not.toBeNull()
-    // Verify it uses SVG (Heroicon), not Unicode text characters
-    const textContent = sessionsBtn!.textContent || ''
-    // The button should not rely on Unicode symbols/emoji for the icon
-    expect(textContent.trim()).not.toMatch(/^[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF]/)
   })
 })
 
@@ -256,7 +253,7 @@ describe('Sidebar Hub item (HUB-01, Phase 131)', () => {
   })
 
   it('Hub button does NOT have sidebar__item--active when activePanel is not __hub__', () => {
-    ;({ container, root } = renderSidebar({ activePanel: '__daemon_manager__' }))
+    ;({ container, root } = renderSidebar({ activePanel: '__settings__' }))
     const hubBtn = container.querySelector('button[aria-label="Hub"]')
     expect(hubBtn).not.toBeNull()
     expect(hubBtn!.classList.contains('sidebar__item--active')).toBe(false)
@@ -270,8 +267,8 @@ describe('Sidebar Hub item (HUB-01, Phase 131)', () => {
   })
 
   it('Hub button has sidebar__item--active only when active (not when other panel is active)', () => {
-    // Sessions panel active — Hub button must NOT be active
-    ;({ container, root } = renderSidebar({ activePanel: '__daemon_manager__' }))
+    // Settings panel active — Hub button must NOT be active
+    ;({ container, root } = renderSidebar({ activePanel: '__settings__' }))
     const hubBtn = container.querySelector('button[aria-label="Hub"]')
     expect(hubBtn!.classList.contains('sidebar__item--active')).toBe(false)
   })
@@ -292,10 +289,10 @@ describe('Sidebar icon position stability (SBR-02)', () => {
   })
 
   it('all sidebar__icon elements exist in both expanded and collapsed states', () => {
-    // 1 toggle + 6 nav items = 7 sidebar__icon SVGs total (Hub added in Phase 131)
+    // Phase 138: 1 toggle + 3 nav items = 4 sidebar__icon SVGs total
     ;({ container, root } = renderSidebar())
     const expandedIcons = container.querySelectorAll('svg.sidebar__icon')
-    expect(expandedIcons.length).toBeGreaterThanOrEqual(7)
+    expect(expandedIcons.length).toBeGreaterThanOrEqual(4)
 
     const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
     act(() => { toggleBtn.click() })
