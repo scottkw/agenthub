@@ -205,7 +205,7 @@ export function SessionSharePanel({
       {/* Phase 137 / D-11: scope text reflects browseEnabled prop only — no gating */}
       <p className="session-share-panel__scope" style={{ margin: '2px 0 10px', fontSize: 12, color: '#9aa5ce', lineHeight: 1.4 }}>
         {browseEnabled
-          ? 'Watch the live session — cannot send input or browse files.'
+          ? 'Watch the live session and browse files read-only — cannot send input.'
           : 'Watch the live session only — cannot send input or browse files.'}
       </p>
       {showReadQR && readQRb64 && (
