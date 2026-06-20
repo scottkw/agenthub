@@ -44,8 +44,6 @@ import { EventsOn, BrowserOpenURL } from './wailsjs/wailsjs/runtime/runtime'
 import { StatusBar } from './components/StatusBar'
 import { NewSessionModal } from './components/NewSessionModal'
 import { WelcomeTab } from './components/WelcomeTab'
-import { DaemonManagerPanel } from './components/DaemonManagerPanel'
-import { RemoteSessionsPanel } from './components/RemoteSessionsPanel'
 import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
 import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
 import { HubPanel } from './components/Hub/HubPanel'
@@ -85,9 +83,7 @@ const SHELL_CLIS = new Set(['shell', 'bash', 'zsh', 'pwsh', 'powershell'])
  */
 function App(): React.ReactElement {
   const WELCOME_TAB: Tab = { id: '__welcome__', name: 'Welcome', sessionId: '', cli: '', type: 'welcome' }
-  const DAEMON_MANAGER_TAB: Tab = { id: '__daemon_manager__', name: 'Sessions', sessionId: '', cli: '', type: 'daemon-manager' }
-  const REMOTE_SESSIONS_TAB: Tab = { id: '__remote_sessions__', name: 'Remote', sessionId: '', cli: '', type: 'remote-sessions' }
-  const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
+const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
   // Phase 131 — Hub top-level surface tab.
   const HUB_TAB: Tab = { id: '__hub__', name: 'Hub', sessionId: '', cli: '', type: 'hub' }
   // Phase 120-06 — single source of truth for "is this React shell running in
@@ -182,18 +178,11 @@ function App(): React.ReactElement {
 
   // Ref for the background upgrade poller (local -> tailscale mode transition)
   const upgradePollerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // Sessions list for the DaemonManagerPanel (polled when the panel tab is active)
-  const [panelSessions, setPanelSessions] = useState<SessionInfo[]>([])
   // Phase 131 — Hub sessions and error state (polled when the Hub tab is active)
   const [hubSessions, setHubSessions] = useState<SessionInfo[]>([])
   const [hubError, setHubError] = useState(false)
-  // Remote peers for RemoteSessionsPanel (polled when the tab is active)
+  // Remote peers for Hub remote cards (polled when the Hub tab is active — Phase 138 T-138-08)
   const [remotePeers, setRemotePeers] = useState<RemotePeerSessions[]>([])
-  const [remoteLoading, setRemoteLoading] = useState(false)
-  // RB-04: tracks whether the last remote-sessions fetch threw, so the panel
-  // can show an honest error state rather than the misleading "No remote peers
-  // found" empty state when the query itself failed.
-  const [remoteError, setRemoteError] = useState(false)
   // WR-01: tracks whether the remote-sessions poll has completed at least
   // once. A ref (not a closed-over remotePeers snapshot) so the spinner gate
   // reflects the current fetch rather than a stale render-time value frozen
@@ -734,18 +723,6 @@ function App(): React.ReactElement {
     setActiveId(SETTINGS_TAB.id)
   }, [tabs])
 
-  const handleAddTab = useCallback(() => {
-    // v3.3.1 Phase 109 UAT finding: the prior early-out routed to Settings
-    // when detectedCLIs was empty, which made fresh installs (especially
-    // Windows boxes without any AI CLI installed) unable to create a Shell
-    // session via the `+` button. Since Phase 107 SHELL-10, the modal
-    // always shows a Shell row regardless of AI-CLI detection, so the
-    // early-out is now stale. Open the modal in all cases; the modal's
-    // empty-AI-CLI state is the right surface to teach users how to
-    // install AI CLIs, not the Settings tab silently.
-    setShowNewSessionModal(true)
-  }, [])
-
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
     // For naturally-exited sessions (in sessionExits), skip immediate disable —
@@ -887,29 +864,6 @@ function App(): React.ReactElement {
     })
   }, [])
 
-  // Poll sessions when the daemon-manager panel tab is active.
-  useEffect(() => {
-    if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
-    const isDaemonManagerActive = activeId === DAEMON_MANAGER_TAB.id
-    if (!isDaemonManagerActive) return
-
-    let cancelled = false
-    async function refresh() {
-      try {
-        const sessions = await ListSessions()
-        if (!cancelled) setPanelSessions(sessions)
-      } catch (err) {
-        console.warn('[App] ListSessions poll failed:', err)
-      }
-    }
-    void refresh()
-    const interval = setInterval(() => void refresh(), 3000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [activeId])
-
   // Phase 131 — Poll sessions when the Hub tab is active (mirrors daemon-manager poll pattern).
   // T-131-10: early-return when not active prevents DoS from polling while Hub is inactive.
   // WR-02: reset hubError immediately on Hub activation so a stale error banner from a
@@ -933,7 +887,8 @@ function App(): React.ReactElement {
     return () => { cancelled = true; clearInterval(interval) }
   }, [activeId])
 
-  // Poll remote sessions when the remote-sessions tab is active.
+  // Poll remote sessions when the Hub tab is active (Phase 138 — only the
+  // HUB_TAB guard is retained; Hub still needs remote data — T-138-08).
   // WR-01: the spinner gate uses remoteHasLoadedRef (a ref) rather than the
   // closed-over remotePeers snapshot, so setRemoteLoading(true) fires only
   // on the genuine first load and not on every 30s poll. mode and remotePeers
@@ -943,23 +898,19 @@ function App(): React.ReactElement {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode === 'web') return // Phase 120-06: no Wails RPC in browser mode.
-    if (activeId !== REMOTE_SESSIONS_TAB.id && activeId !== HUB_TAB.id) return
+    if (activeId !== HUB_TAB.id) return
     let cancelled = false
     async function refresh() {
-      if (!remoteHasLoadedRef.current) setRemoteLoading(true)
       try {
         const peers = await GetRemoteSessionsWithMeta()
         if (!cancelled) {
           setRemotePeers(peers ?? [])
-          setRemoteError(false)
           remoteHasLoadedRef.current = true
-          setRemoteLoading(false)
         }
       } catch {
-        if (!cancelled) {
-          setRemoteLoading(false)
-          setRemoteError(true)
-        }
+        // Remote poll errors are silently absorbed — Hub cards simply remain
+        // stale until the next 30s poll succeeds. Error display is handled by
+        // the Hub's existing empty-state messaging.
       }
     }
     void refresh()
@@ -988,18 +939,6 @@ function App(): React.ReactElement {
       setLocalBannerDismissed(false)
     }
   }, [webServerMode])
-
-  const handleOpenDaemonManager = useCallback(() => {
-    // If daemon-manager tab already exists, just focus it.
-    const existing = tabs.find((t) => t.type === 'daemon-manager')
-    if (existing) {
-      setActiveId(existing.id)
-      return
-    }
-    // Otherwise, add it and focus.
-    setTabs((prev) => [...prev, DAEMON_MANAGER_TAB])
-    setActiveId(DAEMON_MANAGER_TAB.id)
-  }, [tabs])
 
   // Phase 120-04 UI-01 — per-session FileBrowserTab find-or-add. Opens the
   // file browser for a session, either focusing the existing tab if one is
@@ -1138,17 +1077,7 @@ function App(): React.ReactElement {
     [joinModalForSession, remotePeers, handleOpenFileBrowser],
   )
 
-  const handleOpenRemoteSessions = useCallback(() => {
-    const existing = tabs.find((t) => t.type === 'remote-sessions')
-    if (existing) {
-      setActiveId(existing.id)
-      return
-    }
-    setTabs((prev) => [...prev, REMOTE_SESSIONS_TAB])
-    setActiveId(REMOTE_SESSIONS_TAB.id)
-  }, [tabs])
-
-  // Phase 131 — open the Hub tab (mirrors handleOpenRemoteSessions pattern). HUB-02: coexists
+  // Phase 131 — open the Hub tab. HUB-02: coexists
   // with the Sessions panel — adds its own tab rather than replacing any existing tab.
   const handleOpenHub = useCallback(() => {
     const existing = tabs.find((t) => t.type === 'hub')
@@ -1323,9 +1252,6 @@ function App(): React.ReactElement {
       <div className="app__row">
       <Sidebar
         onHome={handleHome}
-        onOpenRemoteSessions={handleOpenRemoteSessions}
-        onOpenDaemonManager={handleOpenDaemonManager}
-        onAdd={handleAddTab}
         onSettings={handleOpenSettings}
         onOpenHub={handleOpenHub}
         activePanel={activeId ?? undefined}
@@ -1354,21 +1280,7 @@ function App(): React.ReactElement {
         {activeId === WELCOME_TAB.id && (
           <WelcomeTab />
         )}
-        {activeId === DAEMON_MANAGER_TAB.id && (
-          <DaemonManagerPanel
-            sessions={panelSessions}
-            sessionStatuses={sessionStatuses}
-            webServerRunning={webServerRunning}
-            webServerMode={webServerMode}
-            webEnabled={webEnabled}
-            onKill={(id) => void handleCloseTab(id)}
-            onToggleWeb={(id) => void handleToggleWeb(id)}
-            onOpenFileBrowser={handleOpenFileBrowser}
-            onOpenSession={handleOpenSessionTab}
-          />
-        )}
-        {/* Phase 131 — Hub surface. HUB-02: coexists with Sessions/DaemonManager panel;
-            'hub' is added to terminal-exclusion sites below, not to the daemon-manager gate. */}
+        {/* Phase 131 — Hub surface. Phase 138 — wired with onKill/onOpenInBrowser/onBrowseFiles/remotePeers. */}
         {activeId === HUB_TAB.id && (
           <HubPanel
             sessions={hubSessions}
@@ -1398,6 +1310,10 @@ function App(): React.ReactElement {
             onFontSizeChange={handleFontSizeChange}
             webServerMode={webServerMode}
             webServerRunning={webServerRunning}
+            onKill={(id) => void handleCloseTab(id)}
+            onOpenInBrowser={handleOpenRemoteSession}
+            onBrowseFiles={handleBrowseFilesRemote}
+            remotePeers={remotePeers}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
@@ -1451,7 +1367,8 @@ function App(): React.ReactElement {
           }
 
           // Local-session path: UNCHANGED from Phase 120-06.
-          const fbSession = panelSessions.find((s) => s.id === fbSessionId)
+          // Phase 138: use hubSessions (was panelSessions for the deleted Sessions panel).
+          const fbSession = hubSessions.find((s) => s.id === fbSessionId)
           const fbName =
             fbSession?.name ||
             tabs.find((t) => t.id === activeId)?.name?.replace(/ — Files$/, '') ||
@@ -1475,15 +1392,6 @@ function App(): React.ReactElement {
             />
           )
         })()}
-        {activeId === REMOTE_SESSIONS_TAB.id && (
-          <RemoteSessionsPanel
-            peers={remotePeers}
-            loading={remoteLoading}
-            error={remoteError}
-            onOpen={handleOpenRemoteSession}
-            onBrowseFiles={handleBrowseFilesRemote}
-          />
-        )}
         {/* Phase 120-06 — SettingsTab is Wails-bound (calls IsWebServerRunning,
             HasCTDisclosure, GetCLIPaths, etc. unconditionally on mount). In
             web mode none of those RPCs are reachable; rather than gate each
@@ -1514,7 +1422,7 @@ function App(): React.ReactElement {
           />
         </div>
         )}
-        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'daemon-manager' && t.type !== 'remote-sessions' && t.type !== 'settings' && t.type !== 'hub').length === 0 && (
+        {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'settings' && t.type !== 'hub').length === 0 && (
           <div style={{
             background: '#16161e',
             borderLeft: '3px solid #f7768e',
@@ -1553,7 +1461,7 @@ function App(): React.ReactElement {
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'daemon-manager' || tab.type === 'remote-sessions' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub') return null
+            if (tab.type === 'welcome' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub') return null
             const isActive = tab.id === activeId
             return (
               <div

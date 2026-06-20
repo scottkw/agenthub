@@ -5,7 +5,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
-  type?: 'terminal' | 'welcome' | 'daemon-manager' | 'remote-sessions' | 'settings' | 'file-browser' | 'hub'
+  type?: 'terminal' | 'welcome' | 'settings' | 'file-browser' | 'hub'
 }
 
 // Phase 101-02 (SHELL-06 GUI half) — agent badge color resolution.
