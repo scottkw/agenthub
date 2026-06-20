@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: completed
-stopped_at: v4.0 roadmap created — 7 phases (136-142), 31/31 requirements mapped
-last_updated: "2026-06-19T21:56:39.968Z"
+stopped_at: Phase 137 context gathered
+last_updated: "2026-06-20T13:55:37.062Z"
 last_activity: 2026-06-19 -- Phase 136 marked complete
 progress:
   total_phases: 7
@@ -84,7 +84,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-19T21:46:48.838Z
-Stopped at: v4.0 roadmap created — 7 phases (136-142), 31/31 requirements mapped
-Resume file: None
+Last session: 2026-06-20T13:55:37.046Z
+Stopped at: Phase 137 context gathered
+Resume file: .planning/phases/137-share-modal-cap-model/137-CONTEXT.md
 Next action: `/gsd:plan-phase 136`
