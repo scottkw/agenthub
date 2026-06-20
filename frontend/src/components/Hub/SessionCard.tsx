@@ -111,6 +111,23 @@ export interface SessionCardProps {
    * D-13: colorblind-safe disabled state uses LockClosedIcon + tooltip, not color alone.
    */
   onShare?: (session: SessionInfo) => void
+  /**
+   * Phase 138 / CARD-02: explicit provenance flag — true when session came from
+   * remoteSessions prop (not local sessions). Replaces hostname-based isLocal heuristic.
+   * Derived in HubPanel from remoteIdSet.has(session.id).
+   */
+  isRemote?: boolean
+  /**
+   * Phase 138 / CARD-03: true when remoteCapsCached.has(session.id) — user has
+   * exchanged a join code. Never exposes the token itself (T-122-03-01).
+   */
+  isConnected?: boolean
+  /** Phase 138 / CARD-04: Kill session — wired to handleCloseTab in App. */
+  onKill?: (sessionId: string) => void
+  /** Phase 138 / CARD-04: Open remote session in system browser. */
+  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 / CARD-04: Browse remote files (join-code cap flow). */
+  onBrowseFiles?: (sessionId: string, sessionName: string) => void
 }
 
 // ---- Component ----
@@ -141,6 +158,9 @@ export function SessionCard({
   isAttention,
   onCardClick,
   onShare,
+  isRemote,
+  isConnected,
+  // onKill, onOpenInBrowser, onBrowseFiles are consumed in Task 3 (chip + menu markup)
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -160,8 +180,12 @@ export function SessionCard({
   const displayLabel =
     hubStatus === 'stopped-err' ? `Exited ${exitCode ?? ''}`.trim() : label
 
-  // Origin marker: empty or same-machine hostname → Local
-  const isLocal = !hostname || hostname === ''
+  // Origin marker: provenance-based when isRemote prop is supplied (CARD-02 fix),
+  // falls back to hostname-based for callers that do not yet supply the prop.
+  // isRemote is derived in HubPanel from remoteIdSet.has(session.id); local sessions
+  // carry the machine's os.Hostname(), so hostname-check alone misclassifies them
+  // as remote (GAP-134-A / RESEARCH Pattern 1 / anti-pattern).
+  const isLocal = isRemote !== undefined ? !isRemote : (!hostname || hostname === '')
   const originText = isLocal ? 'Local' : hostname
 
   // Time display
@@ -177,7 +201,8 @@ export function SessionCard({
 
   // Card aria-label per Accessibility Contract
   // ATTN-01: append ", needs attention" suffix when attention is active (Accessibility Contract item 3)
-  const cardAriaLabel = `${name}, ${displayLabel}, ${cli}, ${originText}${isAttention ? ', needs attention' : ''}`
+  // CARD-03: append ", connected" or ", available" for remote cards
+  const cardAriaLabel = `${name}, ${displayLabel}, ${cli}, ${originText}${isAttention ? ', needs attention' : ''}${isRemote ? (isConnected ? ', connected' : ', available') : ''}`
 
   /* GROUP-04: membership key = "${session.name}:::${session.workDir}" — survives session-id churn */
   const memberKeyForSession = memberKey(name, session.workDir)

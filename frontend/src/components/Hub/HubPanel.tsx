@@ -174,6 +174,14 @@ export interface HubPanelProps {
   webServerMode?: 'tailscale' | 'local' | null
   /** Phase 137 / SHARE-05: true when the web server is running; triggers restart-clear in SessionShareModal */
   webServerRunning?: boolean
+  /** Phase 138 — Kill handler threaded to card overflow menu */
+  onKill?: (sessionId: string) => void
+  /** Phase 138 — Open remote session in system browser */
+  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 — Browse remote session files (join-code flow) */
+  onBrowseFiles?: (sessionId: string, sessionName: string) => void
+  /** Phase 138 — remotePeers raw data for unreachable-peer hints */
+  remotePeers?: import('../../lib/remoteSession').RemotePeerSessions[]
 }
 
 const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
@@ -219,6 +227,9 @@ export function HubPanel({
   onFontSizeChange,
   webServerMode,
   webServerRunning,
+  onKill,
+  onOpenInBrowser,
+  onBrowseFiles,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -302,6 +313,13 @@ export function HubPanel({
   const remoteIdSet = React.useMemo(
     () => new Set((remoteSessions ?? []).map((s) => s.id)),
     [remoteSessions],
+  )
+
+  // Phase 138 / CARD-03: derive connected set from remoteCapsCached.
+  // Mirror attentionIds threading — boolean Set threaded to SessionCardGrid as connectedRemoteIds.
+  const connectedRemoteIds = React.useMemo(
+    () => remoteCapsCached ?? new Set<string>(),
+    [remoteCapsCached],
   )
 
   // Phase 132 / CARD-07: single shared 3s poller — LOCAL sessions only (the `sessions`
@@ -451,6 +469,11 @@ export function HubPanel({
         onAssignGroup={handleAssignGroup}
         attentionIds={attentionIds}
         debouncedSortKey={debouncedSortKey}
+        connectedRemoteIds={connectedRemoteIds}
+        remoteIdSet={remoteIdSet}
+        onKill={onKill}
+        onOpenInBrowser={onOpenInBrowser}
+        onBrowseFiles={onBrowseFiles}
       />
     )
   }

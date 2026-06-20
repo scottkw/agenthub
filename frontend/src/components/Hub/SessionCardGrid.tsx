@@ -148,6 +148,16 @@ export interface SessionCardGridProps {
   onCardClick?: (session: SessionInfo, rect: DOMRect) => void
   /** Phase 137 / D-12 — threaded to each SessionCard Share button */
   onShare?: (session: SessionInfo) => void
+  /** Phase 138 — Set of session IDs with a cached cap (isConnected signal) */
+  connectedRemoteIds?: Set<string>
+  /** Phase 138 — Set of remote session IDs (provenance-based isRemote signal) */
+  remoteIdSet?: Set<string>
+  /** Phase 138 — Kill handler (threaded from HubPanel → App.handleCloseTab) */
+  onKill?: (sessionId: string) => void
+  /** Phase 138 — Open remote session in browser (threaded from HubPanel) */
+  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 — Browse remote files (threaded from HubPanel) */
+  onBrowseFiles?: (sessionId: string, sessionName: string) => void
 }
 
 // ---- Component ----
@@ -182,6 +192,11 @@ export function SessionCardGrid({
   debouncedSortKey,
   onCardClick,
   onShare,
+  connectedRemoteIds,
+  remoteIdSet,
+  onKill,
+  onOpenInBrowser,
+  onBrowseFiles,
 }: SessionCardGridProps): React.ReactElement {
   /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
   const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
@@ -252,6 +267,11 @@ export function SessionCardGrid({
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
                     isAttention={attentionIds?.has(s.id)}
+                    isRemote={remoteIdSet?.has(s.id)}
+                    isConnected={connectedRemoteIds?.has(s.id)}
+                    onKill={onKill}
+                    onOpenInBrowser={onOpenInBrowser}
+                    onBrowseFiles={onBrowseFiles}
                   />
                 </div>
               ))}
@@ -296,6 +316,11 @@ export function SessionCardGrid({
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
                     isAttention={attentionIds?.has(s.id)}
+                    isRemote={remoteIdSet?.has(s.id)}
+                    isConnected={connectedRemoteIds?.has(s.id)}
+                    onKill={onKill}
+                    onOpenInBrowser={onOpenInBrowser}
+                    onBrowseFiles={onBrowseFiles}
                   />
                 </div>
               ))}
