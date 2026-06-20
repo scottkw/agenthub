@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import raw from '../../App.tsx?raw'
+import hubRaw from '../Hub/HubPanel.tsx?raw'
 
 // Source-inspection tests for App.tsx Hub integration (Phase 131 Plan 05).
 // These verify the wiring contract without mounting the full Wails component tree.
@@ -94,7 +95,42 @@ describe('HUB-RENDER: HubPanel is rendered with correct props (HUB-01)', () => {
   })
 })
 
-describe('HUB-02: Hub coexists with Sessions panel (terminal-exclusion sites)', () => {
+// Phase 138 / NAV-03/04: DaemonManagerPanel and RemoteSessionsPanel are deleted.
+// App.tsx must NOT reference them or their constants after Plan 02.
+describe('NAV-03/04: DaemonManagerPanel and RemoteSessionsPanel are removed (Phase 138)', () => {
+  it('does not define DAEMON_MANAGER_TAB constant', () => {
+    expect(raw).not.toContain('DAEMON_MANAGER_TAB')
+  })
+  it('does not define REMOTE_SESSIONS_TAB constant', () => {
+    expect(raw).not.toContain('REMOTE_SESSIONS_TAB')
+  })
+  it('does not render DaemonManagerPanel', () => {
+    expect(raw).not.toContain('DaemonManagerPanel')
+  })
+  it('does not render RemoteSessionsPanel', () => {
+    expect(raw).not.toContain('RemoteSessionsPanel')
+  })
+})
+
+// Phase 138 / CARD-01: HubPanel receives new affordance props; header-less.
+// These assertions are RED until Plan 02 wires onKill/onOpenInBrowser/onBrowseFiles in App.tsx
+// and Plan 03 removes the .hub__header block from HubPanel.tsx.
+describe('CARD-01: HubPanel receives onKill, onOpenInBrowser, onBrowseFiles (Phase 138)', () => {
+  it('wires onKill to handleCloseTab', () => {
+    expect(raw).toContain('onKill=')
+  })
+  it('wires onOpenInBrowser to handleOpenRemoteSession', () => {
+    expect(raw).toContain('onOpenInBrowser=')
+  })
+  it('wires onBrowseFiles to handleBrowseFilesRemote', () => {
+    expect(raw).toContain('onBrowseFiles=')
+  })
+  it('HubPanel source does NOT contain hub__header (header removed)', () => {
+    expect(hubRaw).not.toContain('hub__header')
+  })
+})
+
+describe('HUB-02: Hub coexists with other tabs (terminal-exclusion sites)', () => {
   it("'hub' is excluded from the daemonError empty-filter (first terminal-exclusion site)", () => {
     // The daemonError check filters out non-terminal tabs to decide whether to show the error.
     // 'hub' must be excluded so the Hub tab doesn't trigger daemon-error display.
@@ -107,16 +143,10 @@ describe('HUB-02: Hub coexists with Sessions panel (terminal-exclusion sites)', 
   it("'hub' is excluded from the terminal map (second terminal-exclusion site)", () => {
     // The terminal map skips non-terminal tabs via early-return.
     // 'hub' must be in that exclusion list so it doesn't try to render a TerminalPanel.
-    const terminalMapIdx = raw.indexOf("tab.type === 'welcome' || tab.type === 'daemon-manager'")
+    const terminalMapIdx = raw.indexOf("tab.type === 'welcome'")
     expect(terminalMapIdx).toBeGreaterThan(-1)
     const surroundingBlock = raw.slice(terminalMapIdx, terminalMapIdx + 300)
     expect(surroundingBlock).toContain("tab.type === 'hub'")
-  })
-
-  it('daemon-manager gate is untouched (uses DAEMON_MANAGER_TAB.id, not hub id)', () => {
-    // HUB-02 coexistence: the daemon-manager panel gate must NOT reference __hub__
-    const dmGateIdx = raw.indexOf('activeId === DAEMON_MANAGER_TAB.id')
-    expect(dmGateIdx).toBeGreaterThan(-1)
   })
 
   it("'hub' appears in the daemonError terminal-exclusion filter (t.type !== 'hub')", () => {
@@ -155,13 +185,6 @@ describe('HUB-REATTACH: open/focus a running session terminal tab (Phase 131 UAT
     const idx = raw.indexOf('<HubPanel')
     expect(idx).toBeGreaterThan(-1)
     const block = raw.slice(idx, idx + 300)
-    expect(block).toContain('onOpenSession={handleOpenSessionTab}')
-  })
-
-  it('wires onOpenSession={handleOpenSessionTab} to DaemonManagerPanel (cross-surface parity)', () => {
-    const idx = raw.indexOf('<DaemonManagerPanel')
-    expect(idx).toBeGreaterThan(-1)
-    const block = raw.slice(idx, idx + 700)
     expect(block).toContain('onOpenSession={handleOpenSessionTab}')
   })
 })

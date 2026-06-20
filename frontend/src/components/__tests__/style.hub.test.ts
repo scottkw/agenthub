@@ -375,3 +375,43 @@ describe('Hub Phase 133 CSS contract', () => {
     expect(block).toContain('position: relative')
   })
 })
+
+// Phase 138 / CARD-03: Connection indicator CSS — remote card connected/available states.
+// These assertions are RED until Plan 03 adds the CSS classes to style.css.
+// COLORBLIND-SAFE: icon shape + text carry the state; color is reinforcement only.
+describe('CARD-03: Connection indicator CSS (hub-card__conn)', () => {
+  it('defines .hub-card__conn class', () => {
+    expect(cssRaw).toContain('.hub-card__conn')
+  })
+  it('defines .hub-card__conn--connected modifier', () => {
+    expect(cssRaw).toContain('.hub-card__conn--connected')
+  })
+  it('defines .hub-card__conn-icon class', () => {
+    expect(cssRaw).toContain('.hub-card__conn-icon')
+  })
+})
+
+// Phase 138 / CARD-04: Preserved grid CSS — anti-regression against accidental deletion.
+// These must PASS against current style.css (they already exist).
+describe('CARD-04: Preserved grid CSS (anti-regression)', () => {
+  it('preserves .hub__card-row grid definition', () => {
+    expect(cssRaw).toContain('.hub__card-row')
+  })
+  it('preserves .hub-card--attention class', () => {
+    expect(cssRaw).toContain('.hub-card--attention')
+  })
+  it('preserves hub-card min-width 240px constraint', () => {
+    expect(cssRaw).toContain('240px')
+  })
+})
+
+// Phase 138 / CARD-04: Kill menu item CSS — destructive action styling.
+// These assertions are RED until Plan 03 adds the CSS classes to style.css.
+describe('CARD-04: Kill menu item CSS', () => {
+  it('defines .hub-card__menu-item--destructive modifier', () => {
+    expect(cssRaw).toContain('.hub-card__menu-item--destructive')
+  })
+  it('destructive color uses --hub-destructive custom property', () => {
+    expect(cssRaw).toContain('--hub-destructive')
+  })
+})
