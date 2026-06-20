@@ -197,68 +197,11 @@ func copyV32FixtureToTempDir(t *testing.T, dir string) string {
 	return dst
 }
 
-// TestSettingsMigration_FilesReadDefaultsTrue verifies that a v3.2 settings.json
-// (schemaVersion=2, plugins block, no filesRead key) loads with FilesRead = *true
-// via the defaults-merge constructor pattern. Pitfall 16 mitigation: Go's
-// encoding/json leaves missing keys at zero value, so without the pre-populated
-// default, upgrading users would silently land with filesRead=false and lose
-// access to their own session-cwd file lists.
-func TestSettingsMigration_FilesReadDefaultsTrue(t *testing.T) {
-	dir := t.TempDir()
-	copyV32FixtureToTempDir(t, dir)
-
-	e := &SessionEngine{
-		configDir: dir,
-		cliPaths:  make(map[string]string),
-	}
-	e.loadSettingsFromDisk(dir)
-
-	if e.filesRead == nil {
-		t.Fatalf("e.filesRead = nil after load; want *true (defaults-merge should populate)")
-	}
-	if !*e.filesRead {
-		t.Errorf("e.filesRead = false after load; want true (v3.2 fixture has no filesRead key, default must be true)")
-	}
-}
-
-// TestSettingsMigration_FilesReadExplicitFalse verifies that an explicit
-// `"filesRead": false` in settings.json is NOT clobbered by the defaults-merge
-// pre-population. This guards against the defaults-merge silently overriding
-// explicit user choice (which would re-introduce Pitfall 16 in reverse).
-func TestSettingsMigration_FilesReadExplicitFalse(t *testing.T) {
-	dir := t.TempDir()
-	// Synthetic settings.json with explicit filesRead: false.
-	settings := `{
-		"schemaVersion": 2,
-		"filesRead": false,
-		"plugins": {
-			"webgl": true,
-			"unicode11": true,
-			"search": true,
-			"webLinks": true,
-			"image": true,
-			"serialize": true,
-			"clipboard": true,
-			"progress": false
-		}
-	}`
-	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(settings), 0600); err != nil {
-		t.Fatalf("write synthetic settings: %v", err)
-	}
-
-	e := &SessionEngine{
-		configDir: dir,
-		cliPaths:  make(map[string]string),
-	}
-	e.loadSettingsFromDisk(dir)
-
-	if e.filesRead == nil {
-		t.Fatalf("e.filesRead = nil after load with explicit false; want *false")
-	}
-	if *e.filesRead {
-		t.Errorf("e.filesRead = true after load with explicit \"filesRead\": false; defaults-merge must NOT clobber explicit user values")
-	}
-}
+// NOTE: Two FilesRead migration tests (the DefaultsTrue and ExplicitFalse variants)
+// were retired in Phase 137 / D-07. They pinned the e.filesRead field and the
+// FilesRead settings.json key, both of which are removed in Plan 02 as part of
+// the global-kill-switch removal (D-07).
+// The browse toggle is now per-session (sessionBrowse map) with no global flag.
 
 // TestSettingsMigration_FilesReadSchemaVersionRewrite verifies that loading a
 // v3.2 settings.json (schemaVersion=2) triggers the needsUpgradeWrite path so
@@ -289,7 +232,7 @@ func TestSettingsMigration_FilesReadSchemaVersionRewrite(t *testing.T) {
 
 // TestSettingsMigration_FilesWriteDefaultsFalse verifies that a v3.2
 // settings.json (no filesWrite key) loads with FilesWrite = false (opt-in for
-// all). This is the INVERSION of TestSettingsMigration_FilesReadDefaultsTrue:
+// all). This is the INVERSION of the (retired) FilesRead defaults-true behavior:
 // files.write is an explicit opt-in, so the absence of the key must yield false,
 // not true. T-124-06 mitigation.
 func TestSettingsMigration_FilesWriteDefaultsFalse(t *testing.T) {

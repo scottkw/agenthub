@@ -1979,23 +1979,26 @@ func TestAPI_FilesHeadRead_ReturnsContentLengthNoBody(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// Phase 118 / Plan 05 Task 3: issueCapabilitiesForSession FilesRead gating.
+// Phase 137 / SHARE-03: issueCapabilitiesForSession browse-matrix tests.
 //
-// Owner (write) tokens get Perms = "read,write,files.read" when the daemon
-// setting FilesRead is nil or *true (the default-on case). Viewer (read)
-// tokens ALWAYS get Perms = "read" — FS-12 says viewers must NOT receive
-// files.read by default. Explicit *false suppresses files.read on the owner.
+// The D-03/D-04 perm matrix is driven solely by the per-session browse
+// toggle (SetSessionBrowse). No global kill-switch (D-07 deliberate removal).
+//   D-03: Browse OFF: RO="read", RW="read,write"
+//   D-04: Browse ON:  RO="read,files.read", RW="read,write,files.read,files.write"
 //
 // We verify the post-issuance tokens by decoding them with capability.Verify
 // against the synthetic test signing key. The webserver dependency is real
 // but the listener is not started — issueCapabilitiesForSession only needs
 // ws.AddGrant + ws.BaseURL which work without a live listener.
+//
+// NOTE: Four global-flag tests (the OwnerHasFilesRead/ViewerNoFilesRead/OwnerNoFilesReadWhenDisabled
+// /OwnerHasFilesReadWhenExplicitTrue variants) were retired in Phase 137 / D-07.
+// They pinned the old global filesRead field removed in Plan 02.
 // -------------------------------------------------------------------------
 
-func issueCapsTestSetup(t *testing.T, filesRead *bool) (*API, *webserver.WebServer, []byte) {
+func issueCapsTestSetup(t *testing.T) (*API, *webserver.WebServer, []byte) {
 	t.Helper()
 	api, _, _ := testDaemon(t)
-	api.engine.filesRead = filesRead
 	ws, err := webserver.NewWebServer(webserver.Config{
 		BindIP: "127.0.0.1",
 		Port:   0,
@@ -2009,8 +2012,8 @@ func issueCapsTestSetup(t *testing.T, filesRead *bool) (*API, *webserver.WebServ
 	return api, ws, key
 }
 
-// extractCapTokenForTest pulls the cap= value from a URL string (mirrors the
-// existing extractCapToken in api_test.go for capability-roundtrip tests).
+// extractClaimsFromURL pulls the cap= value from a URL string and verifies
+// it against key, returning the decoded Claims.
 func extractClaimsFromURL(t *testing.T, urlStr string, key []byte) capability.Claims {
 	t.Helper()
 	tok := extractCapToken(urlStr)
@@ -2024,93 +2027,89 @@ func extractClaimsFromURL(t *testing.T, urlStr string, key []byte) capability.Cl
 	return claims
 }
 
-func TestIssueCapabilities_OwnerHasFilesRead_WhenSettingNil(t *testing.T) {
-	// Default (legacy) case: e.filesRead == nil → defaults-merge would have
-	// flipped it to *true on load; passing nil here proves the in-memory
-	// nil-means-default path of filesReadEnabled().
-	api, _, key := issueCapsTestSetup(t, nil)
+// TestIssueCapabilities_BrowseOff_NoFilesPerms asserts the D-03 matrix:
+// with browse OFF (default), RO token Perms == "read" exactly, and
+// RW token Perms == "read,write" exactly. No files.read or files.write.
+// RED until Plan 02 removes filesReadEnabled() and wires browseEnabledFor().
+func TestIssueCapabilities_BrowseOff_NoFilesPerms(t *testing.T) {
+	api, _, key := issueCapsTestSetup(t)
 
-	// Need a session ID so the URL the function builds doesn't include "".
-	// Web-enable it so AddGrant/IsSessionEnabled don't trip an invariant.
-	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-files-read", "", nil, 80, 24, nil, nil)
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "browse-off", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
 
-	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
+	// browse is OFF by default (D-06: absent from map = OFF)
+	readURL, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}
-	claims := extractClaimsFromURL(t, writeURL, key)
-	if !capability.HasPerm(claims.Perms, capability.PermFilesRead) {
-		t.Errorf("owner Perms = %q; want HasPerm(files.read) = true", claims.Perms)
+
+	roClaims := extractClaimsFromURL(t, readURL, key)
+	if roClaims.Perms != "read" {
+		t.Errorf("browse OFF: RO Perms = %q; want exact \"read\" (D-03)", roClaims.Perms)
 	}
-	if claims.Perms != "read,write,"+capability.PermFilesRead {
-		t.Errorf("owner Perms = %q; want exact 'read,write,files.read'", claims.Perms)
+
+	rwClaims := extractClaimsFromURL(t, writeURL, key)
+	if rwClaims.Perms != "read,write" {
+		t.Errorf("browse OFF: RW Perms = %q; want exact \"read,write\" (D-03)", rwClaims.Perms)
 	}
 }
 
-func TestIssueCapabilities_ViewerNoFilesRead(t *testing.T) {
-	api, _, key := issueCapsTestSetup(t, nil)
+// TestIssueCapabilities_BrowseOn_ROPermsExact asserts the D-04 RO half:
+// with browse ON, RO token Perms == "read,files.read" exactly (files.write absent).
+// RED until Plan 02 adds SetSessionBrowse + browseEnabledFor().
+func TestIssueCapabilities_BrowseOn_ROPermsExact(t *testing.T) {
+	api, _, key := issueCapsTestSetup(t)
 
-	sid, err := api.engine.CreateSession(context.Background(), "cat", "viewer-no-files-read", "", nil, 80, 24, nil, nil)
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "browse-on-ro", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+
+	api.engine.SetSessionBrowse(sid, true)
 
 	readURL, _, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}
-	claims := extractClaimsFromURL(t, readURL, key)
-	if claims.Perms != "read" {
-		t.Errorf("viewer Perms = %q; want exact 'read' (FS-12: viewers default-off)", claims.Perms)
+
+	roClaims := extractClaimsFromURL(t, readURL, key)
+	wantRO := "read," + capability.PermFilesRead
+	if roClaims.Perms != wantRO {
+		t.Errorf("browse ON: RO Perms = %q; want exact %q (D-04)", roClaims.Perms, wantRO)
 	}
-	if capability.HasPerm(claims.Perms, capability.PermFilesRead) {
-		t.Errorf("viewer HasPerm(files.read) = true; want false (FS-12)")
+	// Security delta T-137-02: files.write must NEVER appear in the RO token.
+	if capability.HasPerm(roClaims.Perms, capability.PermFilesWrite) {
+		t.Errorf("browse ON: RO Perms = %q; must NOT contain files.write (T-137-02 Pitfall 2)", roClaims.Perms)
 	}
 }
 
-func TestIssueCapabilities_OwnerNoFilesReadWhenDisabled(t *testing.T) {
-	// Operator explicitly disabled file-read for new tokens.
-	disabled := false
-	api, _, key := issueCapsTestSetup(t, &disabled)
+// TestIssueCapabilities_BrowseOn_RWPermsExact asserts the D-04 RW half:
+// with browse ON, RW token Perms == "read,write,files.read,files.write" exactly.
+// RED until Plan 02 adds SetSessionBrowse + browseEnabledFor().
+func TestIssueCapabilities_BrowseOn_RWPermsExact(t *testing.T) {
+	api, _, key := issueCapsTestSetup(t)
 
-	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-disabled", "", nil, 80, 24, nil, nil)
+	sid, err := api.engine.CreateSession(context.Background(), "cat", "browse-on-rw", "", nil, 80, 24, nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
 	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
 
-	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
-	if err != nil {
-		t.Fatalf("issueCapabilitiesForSession: %v", err)
-	}
-	claims := extractClaimsFromURL(t, writeURL, key)
-	if claims.Perms != "read,write" {
-		t.Errorf("owner Perms with FilesRead=false = %q; want exact 'read,write' (no files.read)", claims.Perms)
-	}
-}
-
-func TestIssueCapabilities_OwnerHasFilesReadWhenExplicitTrue(t *testing.T) {
-	enabled := true
-	api, _, key := issueCapsTestSetup(t, &enabled)
-
-	sid, err := api.engine.CreateSession(context.Background(), "cat", "owner-explicit-true", "", nil, 80, 24, nil, nil)
-	if err != nil {
-		t.Fatalf("CreateSession: %v", err)
-	}
-	t.Cleanup(func() { _ = api.engine.KillSession(sid) })
+	api.engine.SetSessionBrowse(sid, true)
 
 	_, writeURL, _, _, err := api.issueCapabilitiesForSession(sid)
 	if err != nil {
 		t.Fatalf("issueCapabilitiesForSession: %v", err)
 	}
-	claims := extractClaimsFromURL(t, writeURL, key)
-	if claims.Perms != "read,write,"+capability.PermFilesRead {
-		t.Errorf("owner Perms with FilesRead=*true = %q; want 'read,write,files.read'", claims.Perms)
+
+	rwClaims := extractClaimsFromURL(t, writeURL, key)
+	wantRW := "read,write," + capability.PermFilesRead + "," + capability.PermFilesWrite
+	if rwClaims.Perms != wantRW {
+		t.Errorf("browse ON: RW Perms = %q; want exact %q (D-04)", rwClaims.Perms, wantRW)
 	}
 }
 
