@@ -85,8 +85,8 @@ body {
   align-items: center;
   flex-shrink: 0;
   height: 42px;
-  background-color: #16161e;
-  border-bottom: 1px solid #292e42;
+  background-color: var(--hub-surface);
+  border-bottom: 1px solid var(--hub-border);
   overflow: hidden;
   user-select: none;
 }
@@ -114,11 +114,10 @@ body {
   max-width: 180px;
   cursor: pointer;
   background-color: transparent;
-  border-right: 1px solid #292e42;
-  color: #9aa5ce;
+  border-right: 1px solid var(--hub-border);
+  color: var(--hub-text-muted);
   font-size: 13px;
   gap: 6px;
-  transition: background-color 0.1s;
   flex-grow: 0;
   flex-shrink: 1;
   /* Explicit flex-basis is REQUIRED: container-type:inline-size establishes
@@ -132,13 +131,13 @@ body {
   container-type: inline-size;
 }
 .tab:hover {
-  background-color: #1e2030;
-  color: #a9b1d6;
+  background-color: var(--hub-surface-elevated);
+  color: var(--hub-text-secondary);
 }
 .tab--active {
-  background-color: #1a1b26;
-  color: #c0caf5;
-  border-bottom: 2px solid #7aa2f7;
+  background-color: var(--hub-bg);
+  color: var(--hub-text-primary);
+  border-bottom: 2px solid var(--hub-accent);
 }
 
 .tab__name {
@@ -150,10 +149,10 @@ body {
 
 .tab__rename-input {
   flex: 1;
-  background: #1e2030;
-  border: 1px solid #7aa2f7;
+  background: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-accent);
   border-radius: 2px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   font-size: 13px;
   padding: 1px 4px;
   outline: none;
@@ -168,7 +167,7 @@ body {
   height: 16px;
   border: none;
   background: transparent;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -177,8 +176,8 @@ body {
   padding: 0;
 }
 .tab__close:hover {
-  background-color: #3b4261;
-  color: #f7768e;
+  background-color: var(--hub-border-hover);
+  color: var(--hub-destructive);
 }
 
 /* D-05/D-06: hide name text at icon-only floor (32px min-width; threshold 59px total) — CSS container query */
@@ -196,23 +195,38 @@ body {
   flex-shrink: 0;
   width: 24px;
   height: 100%;
-  background: #16161e;
+  background: var(--hub-surface);
   border: none;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid #292e42;
+  border-right: 1px solid var(--hub-border);
 }
 .tab-bar__chevron--right {
   border-right: none;
-  border-left: 1px solid #292e42;
+  border-left: 1px solid var(--hub-border);
 }
 .tab-bar__chevron:hover {
-  color: #c0caf5;
+  color: var(--hub-text-primary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab,
+  .tab__close,
+  .tab-status-bar__btn {
+    transition: background-color 0.1s, color 0.1s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab,
+  .tab__close,
+  .tab-status-bar__btn {
+    transition: none;
+  }
 }
 
 /* --- Sidebar (Phase 55) ------------------------------------------------- */
@@ -312,7 +326,7 @@ body {
   min-height: 0;
   overflow: hidden;
   position: relative;
-  background-color: #1a1b26;
+  background-color: var(--hub-bg);
 }
 
 .terminal-wrapper {
@@ -330,11 +344,11 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 8px;
-  background-color: #16161e;
-  border-top: 1px solid #292e42;
+  background-color: var(--hub-surface);
+  border-top: 1px solid var(--hub-border);
   overflow: hidden;
   font-size: 12px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-family: inherit;
 }
 
@@ -354,7 +368,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #545c7e;
+  color: var(--hub-text-dim);
   font-size: 12px;
   font-style: italic;
   min-width: 0;
@@ -364,21 +378,21 @@ body {
   flex-shrink: 0;
   padding: 4px 8px;
   border-radius: 4px;
-  border: 1px solid #292e42;
+  border: 1px solid var(--hub-border);
   background: transparent;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   cursor: pointer;
   font-size: 11px;
   font-family: inherit;
   white-space: nowrap;
 }
 .tab-status-bar__btn:hover {
-  background-color: #1e2030;
-  color: #c0caf5;
+  background-color: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
 }
 .tab-status-bar__btn--active {
-  border-color: #7aa2f7;
-  color: #7aa2f7;
+  border-color: var(--hub-accent);
+  color: var(--hub-accent);
 }
 
 .settings-panel {
