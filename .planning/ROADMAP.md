@@ -530,7 +530,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
-| 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete   | 2026-06-21 |
+| 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
