@@ -1,14 +1,19 @@
 /**
- * Phase 141-08 appearance theme tests.
- * Verifies the Light/Dark segmented control in Settings → Appearance:
- *   - Active state reflection (aria-pressed) for current uiTheme
- *   - Click callbacks invoke onUiThemeChange with correct value
+ * Phase 142-01 / POL-02 appearance theme tests — updated for single role=switch toggle.
+ * Wave 0 RED tests: assertions expect the new single-toggle contract. They WILL FAIL
+ * against the current two-button implementation — that is correct for Wave 0.
+ *
+ * Verifies the Light/Dark toggle in Settings → Appearance:
+ *   - Toggle is a single [role="switch"] element (not two button[aria-pressed])
+ *   - aria-checked reflects current uiTheme ('true' for light, 'false' for dark)
+ *   - Click calls onUiThemeChange with the OPPOSITE of the current theme
+ *   - Source contains role="switch", aria-checked, SunIcon/MoonIcon, Light/Dark text
  *
  * Uses the createRoot + flushSync DOM render pattern (consistent with
  * SettingsTab.shellPath.test.tsx and StatusBar.test.tsx in this project).
  *
  * Note: App.tsx documentElement effect requires Wails bindings to mount the
- * full App component; attribute assertion is deferred to 141-09 live UAT.
+ * full App component; attribute assertion is deferred to live UAT.
  * The SettingsTab + App prop wiring is covered by tsc (strict type-checking)
  * and the source-inspection checks below.
  */
@@ -106,16 +111,32 @@ describe('141-08: SettingsTab appearance-theme source contract', () => {
     expect(block).toContain('onUiThemeChange')
   })
 
-  it('Appearance section contains aria-pressed attribute', () => {
-    expect(raw).toContain('aria-pressed')
+  // POL-02 RED: replaces old aria-pressed assertion
+  it('Appearance section contains role="switch" toggle (POL-02 RED)', () => {
+    expect(raw).toContain('role="switch"')
   })
 
-  it('SettingsTab calls onUiThemeChange with light', () => {
-    expect(raw).toContain("onUiThemeChange('light')")
+  // POL-02 RED: replaces old aria-pressed assertion
+  it('Appearance section contains aria-checked attribute (POL-02 RED)', () => {
+    expect(raw).toContain('aria-checked')
   })
 
-  it('SettingsTab calls onUiThemeChange with dark', () => {
-    expect(raw).toContain("onUiThemeChange('dark')")
+  it('SettingsTab calls onUiThemeChange with opposite theme on click (toggle idiom)', () => {
+    // The new toggle-call source: onUiThemeChange(uiTheme === 'light' ? 'dark' : 'light')
+    // This expression contains both 'dark' and 'light' — assert the toggle pattern
+    expect(raw).toContain("uiTheme === 'light' ? 'dark' : 'light'")
+  })
+
+  // POL-02 / D-06 RED: colorblind-safe — icon+text knob must be present in source
+  it('Appearance section uses SunIcon or MoonIcon (colorblind-safe D-06, POL-02 RED)', () => {
+    expect(raw).toMatch(/SunIcon|MoonIcon/)
+  })
+
+  // POL-02 / D-06 RED: Light and Dark text labels on the knob
+  it('Appearance section uses Light and Dark text labels (colorblind-safe D-06, POL-02 RED)', () => {
+    // These are the text labels on the knob — both must be present in source
+    expect(raw).toMatch(/['"]Light['"]/)
+    expect(raw).toMatch(/['"]Dark['"]/)
   })
 })
 
@@ -153,7 +174,7 @@ describe('141-08: App.tsx uiTheme wiring source contract', () => {
   })
 })
 
-describe('141-08: SettingsTab Light/Dark control DOM behavior', () => {
+describe('142-01 / POL-02: SettingsTab Light/Dark toggle DOM behavior (RED — fails until POL-02 lands)', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
 
@@ -162,59 +183,51 @@ describe('141-08: SettingsTab Light/Dark control DOM behavior', () => {
     container.remove()
   })
 
-  it('Dark button has aria-pressed=true when uiTheme is dark', () => {
+  // POL-02 RED: replaces two-button assertion
+  it('the Interface theme control is a role=switch element (POL-02 RED)', () => {
     const props = makeProps({ uiTheme: 'dark' })
     ;({ container, root } = renderSettingsTab(props))
-    const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
-    const darkBtn = Array.from(buttons).find(b => b.textContent?.trim() === 'Dark')
-    expect(darkBtn).toBeDefined()
-    expect(darkBtn!.getAttribute('aria-pressed')).toBe('true')
+    const toggle = container.querySelector('[role="switch"]')
+    expect(toggle).not.toBeNull()
   })
 
-  it('Light button has aria-pressed=false when uiTheme is dark', () => {
+  // POL-02 RED: aria-checked=false for dark mode (switch is "off" for dark = light not selected)
+  it('toggle has aria-checked=false when uiTheme is dark (POL-02 RED)', () => {
     const props = makeProps({ uiTheme: 'dark' })
     ;({ container, root } = renderSettingsTab(props))
-    const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
-    const lightBtn = Array.from(buttons).find(b => b.textContent?.trim() === 'Light')
-    expect(lightBtn).toBeDefined()
-    expect(lightBtn!.getAttribute('aria-pressed')).toBe('false')
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')
+    expect(toggle).not.toBeNull()
+    expect(toggle!.getAttribute('aria-checked')).toBe('false')
   })
 
-  it('clicking Light button calls onUiThemeChange with "light"', () => {
+  // POL-02 RED: aria-checked=true for light mode
+  it('toggle has aria-checked=true when uiTheme is light (POL-02 RED)', () => {
+    const props = makeProps({ uiTheme: 'light' })
+    ;({ container, root } = renderSettingsTab(props))
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')
+    expect(toggle).not.toBeNull()
+    expect(toggle!.getAttribute('aria-checked')).toBe('true')
+  })
+
+  // POL-02 RED: clicking when dark calls onUiThemeChange('light') — opposite of current
+  it('clicking toggle when dark calls onUiThemeChange("light") (POL-02 RED)', () => {
     const onUiThemeChange = vi.fn()
     const props = makeProps({ uiTheme: 'dark', onUiThemeChange })
     ;({ container, root } = renderSettingsTab(props))
-    const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
-    const lightBtn = Array.from(buttons).find(b => b.textContent?.trim() === 'Light')
-    expect(lightBtn).toBeDefined()
-    lightBtn!.click()
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')
+    expect(toggle).not.toBeNull()
+    toggle!.click()
     expect(onUiThemeChange).toHaveBeenCalledWith('light')
   })
 
-  it('clicking Dark button calls onUiThemeChange with "dark" when uiTheme is light', () => {
+  // POL-02 RED: clicking when light calls onUiThemeChange('dark') — opposite of current
+  it('clicking toggle when light calls onUiThemeChange("dark") (POL-02 RED)', () => {
     const onUiThemeChange = vi.fn()
     const props = makeProps({ uiTheme: 'light', onUiThemeChange })
     ;({ container, root } = renderSettingsTab(props))
-    const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
-    const darkBtn = Array.from(buttons).find(b => b.textContent?.trim() === 'Dark')
-    expect(darkBtn).toBeDefined()
-    darkBtn!.click()
+    const toggle = container.querySelector<HTMLElement>('[role="switch"]')
+    expect(toggle).not.toBeNull()
+    toggle!.click()
     expect(onUiThemeChange).toHaveBeenCalledWith('dark')
-  })
-
-  it('Light button has aria-pressed=true when uiTheme is light', () => {
-    const props = makeProps({ uiTheme: 'light' })
-    ;({ container, root } = renderSettingsTab(props))
-    const buttons = container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]')
-    const lightBtn = Array.from(buttons).find(b => b.textContent?.trim() === 'Light')
-    expect(lightBtn).toBeDefined()
-    expect(lightBtn!.getAttribute('aria-pressed')).toBe('true')
-  })
-
-  it('the Interface theme control has role=group aria-label', () => {
-    const props = makeProps({ uiTheme: 'dark' })
-    ;({ container, root } = renderSettingsTab(props))
-    const group = container.querySelector('[role="group"][aria-label="Interface theme"]')
-    expect(group).not.toBeNull()
   })
 })
