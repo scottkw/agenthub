@@ -1,10 +1,11 @@
 ---
 phase: 139
 slug: card-rendering-tab-strip
-status: ready
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-20
+validated: 2026-06-20
 ---
 
 # Phase 139 — Validation Strategy
@@ -41,15 +42,15 @@ created: 2026-06-20
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 139-01-01 | 01 | 1 | CARD-05 | — | N/A (RED scaffold) | unit (Go, RED) | `go vet ./internal/daemon/ \| grep GetSessionStyledTailLines` | ❌ W0 | ⬜ pending |
-| 139-01-02 | 01 | 1 | CARD-05, TAB-01..03 | — | N/A (RED scaffold) | unit (FE, RED) | `pnpm test -- --run vtColor.test MiniPreview.test TabBar.test` | ❌ W0 | ⬜ pending |
-| 139-01-03 | 01 | 1 | CARD-05 | T-139-01 | A2 headless-xterm path proven before remote render | spike/verify | `node scripts/verify-xterm-headless.mjs` | ❌ W0 | ⬜ pending |
-| 139-02-01 | 02 | 2 | TAB-01 | — | N/A | unit (FE) | `grep flex-shrink/container-type style.css && pnpm test -- --run TabBar.test` | ❌ W0 | ⬜ pending |
-| 139-02-02 | 02 | 2 | TAB-02, TAB-03 | T-139-02 / T-139-03 | chevron keyboard a11y; floor affordances survive | unit (FE) | `grep ResizeObserver TabBar.tsx && pnpm test -- --run TabBar.test` | ❌ W0 | ⬜ pending |
-| 139-03-01 | 03 | 2 | CARD-05 | T-139-04 / T-139-06 | VT grid bounded (cols×50, last-n) | unit (Go) | `go test ./internal/daemon/... -run TestGetSessionStyledTailLines -count=1` | ❌ W0 | ⬜ pending |
-| 139-03-02 | 03 | 2 | CARD-05 | T-139-05 / T-139-07 | n-clamp [1..20] ×2; local-only (empty for remote ids) | unit (Go) | `go test ./internal/daemon/... -run TestHandleGetSessionStyledTailLines -count=1` | ❌ W0 | ⬜ pending |
-| 139-04-01 | 04 | 3 | CARD-05 | T-139-07 | local path renders via React children (no innerHTML) | unit (FE) | `pnpm test -- --run vtColor.test MiniPreview.test` | ❌ W0 | ⬜ pending |
-| 139-04-02 | 04 | 3 | CARD-05 | T-139-08 / T-139-09 | remote innerHTML = terminal-controlled agent output (risk accepted) | unit (FE) | `grep serializeAsHTML HubBriefingModal.tsx && pnpm test -- --run` | ❌ W0 | ⬜ pending |
+| 139-01-01 | 01 | 1 | CARD-05 | — | N/A (RED scaffold) | unit (Go, RED) | `go vet ./internal/daemon/ \| grep GetSessionStyledTailLines` | ✅ | ✅ green |
+| 139-01-02 | 01 | 1 | CARD-05, TAB-01..03 | — | N/A (RED scaffold) | unit (FE, RED) | `pnpm test -- --run vtColor.test MiniPreview.test TabBar.test` | ✅ | ✅ green |
+| 139-01-03 | 01 | 1 | CARD-05 | T-139-01 | A2 headless-xterm path proven before remote render | spike/verify | `pnpm test -- --run xtermHeadless.verify.test` (also `node scripts/verify-xterm-headless.mjs`) | ✅ | ✅ green |
+| 139-02-01 | 02 | 2 | TAB-01 | — | N/A | unit (FE) | `grep flex-shrink/container-type style.css && pnpm test -- --run TabBar.test` | ✅ | ✅ green |
+| 139-02-02 | 02 | 2 | TAB-02, TAB-03 | T-139-02 / T-139-03 | chevron keyboard a11y; floor affordances survive | unit (FE) | `grep ResizeObserver TabBar.tsx && pnpm test -- --run TabBar.test` | ✅ | ✅ green |
+| 139-03-01 | 03 | 2 | CARD-05 | T-139-04 / T-139-06 | VT grid bounded (cols×50, last-n) | unit (Go) | `go test ./internal/daemon/... -run TestGetSessionStyledTailLines -count=1` | ✅ | ✅ green |
+| 139-03-02 | 03 | 2 | CARD-05 | T-139-05 / T-139-07 | n-clamp [1..20] ×2; local-only (empty for remote ids) | unit (Go) | `go test ./internal/daemon/... -run TestHandleGetSessionStyledTailLines -count=1` | ✅ | ✅ green |
+| 139-04-01 | 04 | 3 | CARD-05 | T-139-07 | local path renders via React children (no innerHTML) | unit (FE) | `pnpm test -- --run vtColor.test MiniPreview.test` | ✅ | ✅ green |
+| 139-04-02 | 04 | 3 | CARD-05 | T-139-08 / T-139-09 | remote innerHTML = terminal-controlled agent output (risk accepted) | unit (FE) | `grep serializeAsHTML HubBriefingModal.tsx && pnpm test -- --run HubBriefingModal.test` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · File Exists ❌ W0 = test file authored in Wave 0 (Plan 01).*
 
@@ -59,14 +60,14 @@ created: 2026-06-20
 
 ## Wave 0 Requirements
 
-Authored RED by Plan 139-01 before any implementation:
+Authored RED by Plan 139-01 before any implementation — all now GREEN post-execution:
 
-- [ ] `internal/daemon/engine_test.go` — `TestGetSessionStyledTailLines_{ColorBold,TUI,Unknown}` stubs (CARD-05)
-- [ ] `internal/daemon/api_test.go` — `TestHandleGetSessionStyledTailLines` stub (CARD-05)
-- [ ] `frontend/src/lib/vtColor.test.ts` — `resolveColor` ansi:N/#rrggbb→ITheme stubs (CARD-05)
-- [ ] `frontend/src/components/Hub/MiniPreview.test.tsx` — StyledSpan render + no-xterm guard (CARD-05 / CARD-07)
-- [ ] `frontend/src/components/__tests__/TabBar.test.tsx` — flex-shrink/floor/chevron/title stubs (TAB-01..03)
-- [ ] `frontend/scripts/verify-xterm-headless.mjs` (or `xtermHeadless.verify.test.ts`) — A2 assumption check (headless `@xterm` write + `serializeAsHTML` without `open()`)
+- [x] `internal/daemon/engine_test.go` — `TestGetSessionStyledTailLines_{ColorBold,TUI,Unknown,QueryNoHang}` (CARD-05)
+- [x] `internal/daemon/api_test.go` — `TestHandleGetSessionStyledTailLines` (CARD-05)
+- [x] `frontend/src/lib/vtColor.test.ts` — `resolveColor` ansi:N/#rrggbb→ITheme (CARD-05)
+- [x] `frontend/src/components/Hub/MiniPreview.test.tsx` — StyledSpan render + no-xterm guard (CARD-05 / CARD-07)
+- [x] `frontend/src/components/__tests__/TabBar.test.tsx` — flex-shrink/floor/chevron/title (TAB-01..03)
+- [x] `frontend/scripts/verify-xterm-headless.mjs` **and** `frontend/src/lib/xtermHeadless.verify.test.ts` — A2 assumption check (headless `@xterm` write + `serializeAsHTML` without `open()`)
 
 *go test + vitest infrastructure already exists; no framework install needed.*
 
@@ -95,3 +96,25 @@ Authored RED by Plan 139-01 before any implementation:
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved 2026-06-20 (plan-phase; per-task map filled from plans 139-01..04). `wave_0_complete` flips true once Plan 139-01 executes RED.
+
+---
+
+## Validation Audit 2026-06-20
+
+Post-execution audit (State A). Ground-truthed every per-task entry by re-running the
+declared commands; all Wave 0 test files exist and pass GREEN. Frontmatter flipped
+`wave_0_complete: true`, `status: validated`.
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Evidence:**
+- `go test ./internal/daemon/... -run 'TestGetSessionStyledTailLines|TestHandleGetSessionStyledTailLines' -count=1` → `ok` (exit 0)
+- `pnpm test -- --run vtColor.test.ts MiniPreview.test.tsx TabBar.test.tsx HubBriefingModal.test.tsx xtermHeadless.verify.test.ts` → 5 files / 69 tests passed
+
+All 9 auto tasks COVERED; no MISSING or PARTIAL gaps. No new test files generated.
+Manual-Only verifications (visual layout, VT render fidelity, pkg-legitimacy gate, final
+human-verify) confirmed satisfied per 139-VERIFICATION.md (5/5, live UAT approved 2026-06-20).
