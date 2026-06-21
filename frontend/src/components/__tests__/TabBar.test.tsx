@@ -296,15 +296,8 @@ describe('Phase 98 PRG-03: TabBar per-tab progress underline — Wave 0 RED scaf
 // ============================================================================
 
 describe('Phase 139 TAB-02: TabBar chevron overflow — RED until Plan 02', () => {
-  let container: HTMLElement
-  let root: ReturnType<typeof createRoot>
-
-  afterEach(() => {
-    // Guard: source-level tests in this describe do not render, so root/container
-    // may be undefined. Only clean up if a render was done. (Rule 1 fix — Plan 02.)
-    if (root) root.unmount()
-    if (container) container.remove()
-  })
+  // All tests in this describe are source-level `raw` string assertions and do not
+  // render, so no container/root/afterEach teardown is needed.
 
   it('right chevron appears when tab list overflows scrollWidth > clientWidth', () => {
     // TabBar source must declare canScrollRight state driven by scrollWidth comparison.
@@ -355,11 +348,9 @@ describe('Phase 139 TAB-03: TabBar rename-at-floor via context menu — RED unti
     // click Rename in the context menu, confirm onRename is called.
     // At icon-only floor, .tab__name may be hidden by CSS; the context menu must still work.
     let renamedId: string | null = null
-    let renamedName: string | null = null
     ;({ container, root } = renderTabBarWithTabs({
-      onRename: (id, name) => {
+      onRename: (id) => {
         renamedId = id
-        renamedName = name
       },
     }))
 
