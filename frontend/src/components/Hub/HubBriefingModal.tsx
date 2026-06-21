@@ -1,47 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
-import { GetSessionTailLines } from '../../wailsjs/go/main/App'
+import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+import { Terminal } from '@xterm/xterm'
+import { SerializeAddon } from '@xterm/addon-serialize'
 import { RelayClient } from '../../lib/relayClient'
+import { daemon } from '../../wailsjs/go/models'
+import { resolveColor } from '../../lib/vtColor'
+
+type StyledSpan = daemon.StyledSpan
 
 export interface HubBriefingModalProps {
   session: SessionInfo
   relayPort: number
   onClose: () => void
+  /** Phase 139 / CARD-05: active xterm ITheme for color resolution in the local tail. */
+  theme: ITheme
   /** When true, the tail is derived from the WS scrollback snapshot replayed
-   *  by the remote peer on connect (CR-02 fix — GetSessionTailLines is local-
+   *  by the remote peer on connect (CR-02 fix — GetSessionStyledTailLines is local-
    *  only and returns [] for remote session ids). The Send path routes through
    *  the daemon WS proxy. The cap is NOT passed here — the daemon looks it up
    *  by sessionID (T-134-07-01). */
   remote?: boolean
-}
-
-// Strip ANSI escape sequences to match engine.go GetSessionTailLines stripping.
-// Covers CSI sequences (\x1b[...m etc.), OSC sequences (\x1b]...ST), and bare
-// ESC sequences. This is client-side for the remote tail path only.
-function stripAnsi(text: string): string {
-  return text
-    // OSC sequences: ESC ] ... (BEL or ST)
-    .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-    // CSI sequences: ESC [ ... final byte (0x40-0x7e)
-    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')
-    // Bare ESC + single char
-    .replace(/\x1b./g, '')
-}
-
-// Decode accumulated PTY output bytes to UTF-8 text, strip ANSI, and take the
-// last N lines. Mirrors engine.go GetSessionTailLines without the Go side.
-function extractTailLines(chunks: Uint8Array[], n: number): string[] {
-  const total = chunks.reduce((sum, c) => sum + c.length, 0)
-  const merged = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    merged.set(chunk, offset)
-    offset += chunk.length
-  }
-  const text = new TextDecoder().decode(merged)
-  const stripped = stripAnsi(text)
-  const lines = stripped.split('\n').filter((l) => l.trim() !== '')
-  return lines.slice(-n)
 }
 
 /**
@@ -51,10 +31,13 @@ function extractTailLines(chunks: Uint8Array[], n: number): string[] {
  * to guarantee the WebSocket is OPEN before sendInput fires (Pitfall 5 — race-safe).
  *
  * Security: maxLength={4096} bounds the single-send payload (ASVS V5).
- * Local tail lines are ANSI-stripped by GetSessionTailLines on the Go side and
- * rendered as React text content (auto-escaped — no dangerouslySetInnerHTML).
+ * Local tail: StyledSpan[][] rendered as React span children (auto-escaped — T-139-07).
+ *   Colors resolved through ITheme via resolveColor.
+ *   NO dangerouslySetInnerHTML on the local path.
  * Remote tail (CR-02): sourced from the WS scrollback snapshot the peer replays
- * on connect; ANSI-stripped client-side; rendered as React text content.
+ *   on connect; processed by headless @xterm/xterm + serializeAsHTML (no term.open());
+ *   rendered via dangerouslySetInnerHTML (T-139-08: trust level same as xterm rendering
+ *   the session; scope limited to the briefing modal only).
  *
  * CR-03 fix: clientRef + settled flag + clearTimeout + useEffect unmount cleanup
  * ensure the WS and its ping interval are always torn down, and that abandoned
@@ -64,9 +47,13 @@ export function HubBriefingModal({
   session,
   relayPort,
   onClose,
+  theme,
   remote,
 }: HubBriefingModalProps): React.ReactElement {
-  const [tailLines, setTailLines] = useState<string[] | null>(null) // null = loading
+  // Local path: StyledSpan[][] or null (loading)
+  const [tailLines, setTailLines] = useState<StyledSpan[][] | null>(null)
+  // Remote path: serialized HTML string or null (loading)
+  const [remoteHtml, setRemoteHtml] = useState<string | null>(null)
   const [responseText, setResponseText] = useState('')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
@@ -77,8 +64,8 @@ export function HubBriefingModal({
 
   // Fetch the last 20 lines of terminal output on mount (one-shot).
   // CR-02: remote sessions read the scrollback snapshot replayed on the proxied WS
-  // instead of calling GetSessionTailLines (which is local-only and returns [] for
-  // remote ids — engine.go:550). A 3s timeout guards against stalled connections.
+  // instead of calling GetSessionStyledTailLines (which is local-only and returns []
+  // for remote ids — engine.go:550). A 3s timeout guards against stalled connections.
   //
   // WR-01: return a cleanup function so React tears down the tailClient (and its
   // 30s ping interval) if the modal unmounts during the tail collection window —
@@ -87,6 +74,9 @@ export function HubBriefingModal({
     if (remote) {
       // Remote path: open a short-lived proxied RelayClient, accumulate MsgOutput
       // payload bytes from the scrollback snapshot, then close.
+      // Phase 139 / CARD-05: replace extractTailLines regex with headless Terminal
+      // + serializeAsHTML (no term.open() — Pitfall 5). A2 PASS verdict from Plan 01
+      // confirms this pattern works in jsdom and production Chromium WebView.
       const chunks: Uint8Array[] = []
       let tailClient: RelayClient | null = null
       let resolved = false
@@ -101,7 +91,28 @@ export function HubBriefingModal({
         if (idleTimerId !== null) clearTimeout(idleTimerId)
         tailClient?.close()
         tailClient = null
-        setTailLines(extractTailLines(chunks, 20))
+
+        // Headless xterm render: merge chunks → Terminal.write → serializeAsHTML → dispose.
+        // MUST NOT call term.open() (Pitfall 5 — headless use skips DOM attachment).
+        // T-139-08: XSS risk accepted — output is agent-owned PTY session; scope limited to briefing modal.
+        // NOTE: term.write() is asynchronous — use the callback form and await via Promise
+        // (see A2 verification test: xtermHeadless.verify.test.ts).
+        const total = chunks.reduce((sum, c) => sum + c.length, 0)
+        const merged = new Uint8Array(total)
+        let offset = 0
+        for (const chunk of chunks) {
+          merged.set(chunk, offset)
+          offset += chunk.length
+        }
+        const term = new Terminal({ cols: 80, rows: 50, allowProposedApi: true, theme })
+        const serAddon = new SerializeAddon()
+        term.loadAddon(serAddon)
+        // Use callback form — term.write() is asynchronous and flushes after the callback fires.
+        term.write(merged, () => {
+          const html = serAddon.serializeAsHTML({ scrollback: 20, includeGlobalBackground: false })
+          term.dispose()
+          setRemoteHtml(html)
+        })
       }
 
       const timeoutId = setTimeout(finish, 3000)
@@ -142,12 +153,13 @@ export function HubBriefingModal({
         tailClient?.close()
       }
     } else {
-      // Local path: unchanged — GetSessionTailLines is fast, synchronous on Go side.
-      GetSessionTailLines(session.id, 20)
+      // Local path: Phase 139 / CARD-05 — use GetSessionStyledTailLines instead of
+      // GetSessionTailLines. Renders via React children (auto-escaped, T-139-07).
+      GetSessionStyledTailLines(session.id, 20)
         .then((lines) => setTailLines(lines))
         .catch(() => setTailLines([]))
     }
-  }, [session.id, relayPort, remote])
+  }, [session.id, relayPort, remote, theme])
 
   // Focus the respond textarea on mount so the user can type immediately
   useEffect(() => {
@@ -216,26 +228,64 @@ export function HubBriefingModal({
     }
   }, [relayPort, session.id, responseText, sending, onClose, remote])
 
+  // ---- Tail display ----
+  // Local path: tailLines is StyledSpan[][] | null; render as styled React spans (T-139-07).
+  // Remote path: remoteHtml is string | null; render via dangerouslySetInnerHTML (T-139-08).
+
+  // Determine loading/empty/data state for the local path
+  const localLoading = !remote && tailLines === null
+  const localEmpty = !remote && Array.isArray(tailLines) && tailLines.length === 0
+  const remoteLoading = remote && remoteHtml === null
+  const isLoading = localLoading || remoteLoading
+  const isEmpty = localEmpty || (remote && remoteHtml === '')
+
   return (
     <div className="hub-modal__body hub-modal__body--briefing">
       {/* Terminal tail display */}
       <div
         className={[
           'hub-modal__tail',
-          tailLines === null ? 'hub-modal__tail--loading' : '',
-          Array.isArray(tailLines) && tailLines.length === 0
-            ? 'hub-modal__tail--empty'
-            : '',
+          isLoading ? 'hub-modal__tail--loading' : '',
+          isEmpty ? 'hub-modal__tail--empty' : '',
         ]
           .filter(Boolean)
           .join(' ')}
       >
-        {tailLines === null ? (
+        {isLoading ? (
           <span>Loading…</span>
-        ) : tailLines.length === 0 ? (
+        ) : isEmpty ? (
           <span>No recent output available.</span>
+        ) : remote ? (
+          // Remote path: headless xterm serialized HTML (T-139-08 — ONLY dangerouslySetInnerHTML)
+          <div
+            className="hub-modal__tail-remote"
+            // eslint-disable-next-line react/no-danger
+            dangerouslySetInnerHTML={{ __html: remoteHtml ?? '' }}
+          />
         ) : (
-          <pre>{tailLines.join('\n')}</pre>
+          // Local path: styled React children (auto-escaped, T-139-07 — no dangerouslySetInnerHTML)
+          <div className="hub-modal__tail-local">
+            {(tailLines ?? []).map((row, i) => (
+              <div key={i} className="hub-modal__tail-line">
+                {row.length === 0 ? (
+                  <span>{' '}</span>
+                ) : (
+                  row.map((span, j) => (
+                    <span
+                      key={j}
+                      style={{
+                        color: resolveColor(span.fg, theme, true),
+                        background: resolveColor(span.bg, theme, false),
+                        fontWeight: span.b ? 'bold' : undefined,
+                      }}
+                    >
+                      {span.c || ' '}
+                    </span>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

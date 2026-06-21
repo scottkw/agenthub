@@ -231,6 +231,7 @@ export function HubModal({
             session={session}
             relayPort={relayPort}
             remote={remote}
+            theme={theme}
             onClose={handleClose}
           />
         ) : (

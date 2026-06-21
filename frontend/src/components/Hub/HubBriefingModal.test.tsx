@@ -10,9 +10,9 @@ import raw from './HubBriefingModal.tsx?raw'
 
 // ---- Mocks ----
 
-// Mock Wails RPC — GetSessionTailLines is the local-path tail fetch.
+// Mock Wails RPC — GetSessionStyledTailLines is the local-path tail fetch (Phase 139 / CARD-05).
 vi.mock('../../wailsjs/go/main/App', () => ({
-  GetSessionTailLines: vi.fn().mockResolvedValue(['line-a', 'line-b']),
+  GetSessionStyledTailLines: vi.fn().mockResolvedValue([[{ c: 'line-a' }], [{ c: 'line-b' }]]),
 }))
 
 // WR-07 / CR-03-01 / TAIL-01: mock RelayClient so behavioral tests can control
@@ -69,7 +69,11 @@ vi.mock('../../lib/relayClient', () => {
 })
 
 import { HubBriefingModal } from './HubBriefingModal'
-import { GetSessionTailLines } from '../../wailsjs/go/main/App'
+import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+
+// Minimal ITheme stub for HubBriefingModal's required theme prop (Phase 139 / CARD-05).
+const STUB_THEME: ITheme = { foreground: '#c0caf5', background: '#1a1b26' }
 
 // ---- Helpers ----
 
@@ -96,6 +100,7 @@ function renderBriefing(props: {
   relayPort?: number
   onClose?: () => void
   remote?: boolean
+  theme?: ITheme
 }) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -108,6 +113,7 @@ function renderBriefing(props: {
         relayPort: props.relayPort ?? 51234,
         onClose: props.onClose ?? vi.fn(),
         remote: props.remote,
+        theme: props.theme ?? STUB_THEME,
       }),
     )
   })
@@ -118,8 +124,8 @@ function renderBriefing(props: {
 // ---- Source-inspection tests (MODAL-04) — kept for contract coverage ----
 
 describe('HubBriefingModal (MODAL-04: tail fetch + send flow)', () => {
-  it('MODAL-04: calls GetSessionTailLines (fetches terminal tail for context display)', () => {
-    expect(raw).toContain('GetSessionTailLines')
+  it('MODAL-04: calls GetSessionStyledTailLines (fetches styled terminal tail for context display; Phase 139 CARD-05)', () => {
+    expect(raw).toContain('GetSessionStyledTailLines')
   })
 
   it('MODAL-04: uses RelayClient to send input', () => {
@@ -316,7 +322,7 @@ describe('HubBriefingModal TAIL-01: remote tail from WS snapshot (behavioral)', 
   beforeEach(() => {
     mockRelayInstances.length = 0
     vi.useFakeTimers()
-    vi.mocked(GetSessionTailLines).mockClear()
+    vi.mocked(GetSessionStyledTailLines).mockClear()
   })
 
   afterEach(() => {
@@ -326,6 +332,9 @@ describe('HubBriefingModal TAIL-01: remote tail from WS snapshot (behavioral)', 
   })
 
   it('TAIL-01a: remote=true renders tail lines from onOutput snapshot (not "No recent output available")', async () => {
+    // Phase 139 / CARD-05: remote path now uses headless xterm + serializeAsHTML (no <pre>).
+    // serializeAsHTML renders to a div.hub-modal__tail-remote via dangerouslySetInnerHTML.
+    // The HTML output contains the text — check via innerHTML or container textContent.
     const remoteSession = makeSession({ id: 'r1', hostname: 'remote-host' })
     const { container } = renderBriefing({ session: remoteSession, remote: true })
 
@@ -342,22 +351,23 @@ describe('HubBriefingModal TAIL-01: remote tail from WS snapshot (behavioral)', 
       tailClient.triggerOutput(encoder.encode('line-one\nline-two\n'))
     })
 
-    // Advance 500ms (the post-onOpen timer in the remote tail path)
+    // Advance 500ms (past the 150ms idle timer in the remote tail path)
     await act(async () => {
       vi.advanceTimersByTime(500)
       await Promise.resolve()
     })
 
-    // The tail lines should be rendered in the pre block
-    const pre = container.querySelector('pre')
-    expect(pre).not.toBeNull()
-    expect(pre!.textContent).toContain('line-one')
-    expect(pre!.textContent).toContain('line-two')
+    // The remote tail should be rendered in the .hub-modal__tail-remote div
+    // (serializeAsHTML output contains the text in spans or as text nodes)
+    const tailDiv = container.querySelector('.hub-modal__tail-remote')
+    expect(tailDiv).not.toBeNull()
+    // serializeAsHTML output should include "line-one" text
+    expect(tailDiv!.innerHTML).toContain('line-one')
     // Must NOT show the "No recent output available" placeholder
     expect(container.textContent).not.toContain('No recent output available')
   })
 
-  it('TAIL-01b: remote=true does NOT call GetSessionTailLines (local-only API)', async () => {
+  it('TAIL-01b: remote=true does NOT call GetSessionStyledTailLines (local-only API)', async () => {
     const remoteSession = makeSession({ id: 'r2', hostname: 'peer-host' })
     renderBriefing({ session: remoteSession, remote: true })
 
@@ -366,11 +376,12 @@ describe('HubBriefingModal TAIL-01: remote tail from WS snapshot (behavioral)', 
       await Promise.resolve()
     })
 
-    // GetSessionTailLines must NOT be called — the remote path uses the WS snapshot
-    expect(GetSessionTailLines).not.toHaveBeenCalled()
+    // GetSessionStyledTailLines must NOT be called — the remote path uses the WS snapshot
+    expect(GetSessionStyledTailLines).not.toHaveBeenCalled()
   })
 
-  it('TAIL-01c: remote=false (local) DOES call GetSessionTailLines and NOT RelayClient for tail', async () => {
+  it('TAIL-01c: remote=false (local) DOES call GetSessionStyledTailLines and NOT RelayClient for tail', async () => {
+    // Phase 139 / CARD-05: local path now calls GetSessionStyledTailLines instead of GetSessionTailLines
     // Clear instances — the local path should not open a RelayClient for the tail
     mockRelayInstances.length = 0
     const localSession = makeSession({ id: 'loc1', hostname: '' })
@@ -380,7 +391,7 @@ describe('HubBriefingModal TAIL-01: remote tail from WS snapshot (behavioral)', 
       await Promise.resolve()
     })
 
-    expect(GetSessionTailLines).toHaveBeenCalledWith('loc1', 20)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('loc1', 20)
     // No RelayClient should have been created (local path skips WS)
     expect(mockRelayInstances.length).toBe(0)
   })
