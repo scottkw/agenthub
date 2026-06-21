@@ -189,6 +189,26 @@ describe('SessionShareModal — D-09: homeDir warning', () => {
   })
 })
 
+describe('SessionShareModal — S-07 render smoke (hub-share-modal structure)', () => {
+  it('renders .hub-share-modal__header element', () => {
+    const { container: c } = renderModal({ webEnabled: true })
+    const header = c.querySelector('.hub-share-modal__header')
+    expect(header).not.toBeNull()
+  })
+
+  it('renders .hub-share-modal__body element', () => {
+    const { container: c } = renderModal({ webEnabled: true })
+    const body = c.querySelector('.hub-share-modal__body')
+    expect(body).not.toBeNull()
+  })
+
+  it('renders .hub-share-modal panel container', () => {
+    const { container: c } = renderModal()
+    const panel = c.querySelector('.hub-share-modal')
+    expect(panel).not.toBeNull()
+  })
+})
+
 describe('SessionShareModal — SHARE-05: server-truth seeding', () => {
   beforeEach(() => {
     vi.clearAllMocks()

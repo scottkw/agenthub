@@ -63,11 +63,11 @@ describe('StatusBar', () => {
     expect(badge?.textContent).toBe('WEB ON')
   })
 
-  it('shows hint pointing to Sessions tab when web enabled (Phase 87 cleanup)', () => {
+  it('shows hint pointing to Hub card when web enabled (Phase 87 cleanup)', () => {
     ;({ container, root } = renderStatusBar({ webServerRunning: true, webEnabled: true }))
     const hint = container.querySelector('.tab-status-bar__hint')
     expect(hint).not.toBeNull()
-    expect(hint?.textContent).toBe('Share links are on the Sessions tab')
+    expect(hint?.textContent).toBe('Share — open the Hub card')
   })
 
   it('does NOT render a raw session URL or QR button when web enabled (Phase 87 cleanup)', () => {
