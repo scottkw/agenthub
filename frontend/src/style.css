@@ -2644,7 +2644,7 @@ body {
 }
 
 .link-confirm-popover__btn:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
@@ -2668,19 +2668,17 @@ body {
 /* ─── File Browser Tab (Phase 120) ─── */
 
 /* Breadcrumb bar — top chrome of the file browser tab.
-   Reuses TokyoNight surface tokens already in use elsewhere in this file:
-   #16161e (chrome surface), #292e42 (border), #1a1b26 (dominant), #c0caf5
-   (primary text), #9aa5ce (muted), #7aa2f7 (accent), #1e2030 (elevated). */
+   Reuses --hub-* tokens declared in the Hub token block. */
 .file-browser__breadcrumb {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 40px;
   padding: 0 16px;
-  background: #16161e;
-  border-bottom: 1px solid #292e42;
+  background: var(--hub-surface);
+  border-bottom: 1px solid var(--hub-border);
   font-size: 13px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .file-browser__breadcrumb-list {
@@ -2700,11 +2698,11 @@ body {
 .file-browser__breadcrumb-item + .file-browser__breadcrumb-item::before {
   content: '/';
   margin: 0 6px;
-  color: #565f89;
+  color: var(--hub-text-dim);
 }
 
 .file-browser__breadcrumb-root {
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
 }
 
 /* Clickable root (rendered when user is in a subdirectory — navigates back
@@ -2720,12 +2718,12 @@ body {
 }
 
 .file-browser__breadcrumb-root--clickable:hover {
-  color: #7aa2f7;
-  background: #1e2030;
+  color: var(--hub-accent);
+  background: var(--hub-surface-elevated);
 }
 
 .file-browser__breadcrumb-root--clickable:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
@@ -2733,24 +2731,24 @@ body {
   background: transparent;
   border: 0;
   padding: 2px 4px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   cursor: pointer;
   font: inherit;
   border-radius: 3px;
 }
 
 .file-browser__breadcrumb-segment:hover {
-  color: #7aa2f7;
-  background: #1e2030;
+  color: var(--hub-accent);
+  background: var(--hub-surface-elevated);
 }
 
 .file-browser__breadcrumb-segment:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
 .file-browser__breadcrumb-current {
-  color: #7aa2f7;
+  color: var(--hub-accent);
   font-weight: 600;
   padding: 2px 4px;
 }
@@ -2762,7 +2760,7 @@ body {
 }
 
 .file-browser__breadcrumb-refreshed {
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -2772,7 +2770,7 @@ body {
   background: transparent;
   border: 0;
   padding: 4px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -2781,12 +2779,12 @@ body {
 }
 
 .file-browser__breadcrumb-refresh:hover {
-  color: #7aa2f7;
-  background: #1e2030;
+  color: var(--hub-accent);
+  background: var(--hub-surface-elevated);
 }
 
 .file-browser__breadcrumb-refresh:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
@@ -2802,9 +2800,9 @@ body {
   gap: 12px;
   height: 28px;
   padding: 0 16px;
-  background: #16161e;
-  border-top: 1px solid #292e42;
-  color: #9aa5ce;
+  background: var(--hub-surface);
+  border-top: 1px solid var(--hub-border);
+  color: var(--hub-text-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -2818,23 +2816,23 @@ body {
   flex: 0 1 240px;
   height: 20px;
   padding: 0 6px;
-  background: #1a1b26;
-  border: 1px solid #292e42;
+  background: var(--hub-bg);
+  border: 1px solid var(--hub-border);
   border-radius: 3px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   font: inherit;
   font-size: 12px;
   letter-spacing: normal;
 }
 
 .file-browser__status-filter:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 1px;
   border-color: transparent;
 }
 
 .file-browser__status-filter-info {
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   white-space: nowrap;
 }
 
@@ -2843,7 +2841,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #1a1b26;
+  background: var(--hub-bg);
 }
 
 .file-browser__body {
@@ -2858,7 +2856,7 @@ body {
    FileListPane fills it. */
 .file-browser__list-container {
   min-width: 0;
-  background: #1a1b26;
+  background: var(--hub-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2867,7 +2865,7 @@ body {
 
 .file-browser__list {
   min-width: 0;
-  background: #1a1b26;
+  background: var(--hub-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2879,32 +2877,31 @@ body {
    Cursor change tells the user it's draggable. */
 .file-browser__divider {
   flex: 0 0 4px;
-  background: #292e42;
+  background: var(--hub-border);
   cursor: col-resize;
   position: relative;
-  transition: background 120ms ease;
 }
 
 .file-browser__divider:hover,
 .file-browser__divider:active {
-  background: #7aa2f7;
+  background: var(--hub-accent);
 }
 
 .file-browser__divider:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: -2px;
 }
 
 .file-browser__list:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: -2px;
 }
 
 .file-browser__truncated-banner {
   padding: 8px 12px;
-  border-left: 3px solid #f59e0b;
-  background: #1e2030;
-  color: #c0caf5;
+  border-left: 3px solid var(--hub-warning);
+  background: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -2926,8 +2923,8 @@ body {
   height: 28px;
   align-items: stretch;
   padding: 0 12px;
-  background: #16161e;
-  border-bottom: 1px solid #292e42;
+  background: var(--hub-surface);
+  border-bottom: 1px solid var(--hub-border);
   position: sticky;
   top: 0;
 }
@@ -2936,15 +2933,14 @@ body {
    separator centered. Hover/active turn it accent blue. */
 .file-browser__col-divider {
   width: 4px;
-  background: #292e42;
+  background: var(--hub-border);
   cursor: col-resize;
   align-self: stretch;
-  transition: background 120ms ease;
 }
 
 .file-browser__col-divider:hover,
 .file-browser__col-divider:active {
-  background: #7aa2f7;
+  background: var(--hub-accent);
 }
 
 .file-browser__col {
@@ -2955,7 +2951,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -2970,16 +2966,16 @@ body {
 }
 
 .file-browser__col--active {
-  color: #7aa2f7;
+  color: var(--hub-accent);
 }
 
 .file-browser__col:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
 .file-browser__col-chevron {
-  color: #7aa2f7;
+  color: var(--hub-accent);
 }
 
 .file-browser__list-scroll {
@@ -3002,7 +2998,7 @@ body {
   height: 32px;
   padding: 0 12px;
   font-size: 13px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   cursor: pointer;
   border-left: 3px solid transparent;
   /* Positioning context for the absolutely-placed row-actions overlay (below). */
@@ -3010,12 +3006,12 @@ body {
 }
 
 .file-browser__list-row:hover {
-  background: #1e2030;
+  background: var(--hub-surface-elevated);
 }
 
 .file-browser__list-row--selected {
-  background: #1e2030;
-  border-left-color: #7aa2f7;
+  background: var(--hub-surface-elevated);
+  border-left-color: var(--hub-accent);
 }
 
 .file-browser__list-row--selected .file-browser__row-name {
@@ -3027,7 +3023,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   width: 14px;
   height: 14px;
 }
@@ -3036,7 +3032,7 @@ body {
   position: absolute;
   right: -2px;
   bottom: -2px;
-  color: #f7768e;
+  color: var(--hub-destructive);
 }
 
 .file-browser__row-name {
@@ -3046,13 +3042,13 @@ body {
 }
 
 .file-browser__row-size {
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   font-size: 12px;
   text-align: right;
 }
 
 .file-browser__row-mtime {
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -3060,7 +3056,7 @@ body {
 .file-browser__list-empty {
   list-style: none;
   padding: 24px 16px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   text-align: center;
   font-size: 12px;
 }
@@ -3070,10 +3066,10 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   @keyframes file-browser-shimmer {
     from {
-      background-color: #1e2030;
+      background-color: var(--hub-surface-elevated);
     }
     to {
-      background-color: #292e42;
+      background-color: var(--hub-border);
     }
   }
   .file-browser__list-row--skeleton {
@@ -3086,8 +3082,8 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  background: #16161e;
-  border-left: 1px solid #292e42;
+  background: var(--hub-surface);
+  border-left: 1px solid var(--hub-border);
   min-width: 0;
   min-height: 0;
 }
@@ -3097,10 +3093,10 @@ body {
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  background: #16161e;
-  border-bottom: 1px solid #292e42;
+  background: var(--hub-surface);
+  border-bottom: 1px solid var(--hub-border);
   font-size: 13px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   flex: 0 0 auto;
 }
 
@@ -3114,7 +3110,7 @@ body {
 }
 
 .file-browser__preview-size {
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 11px;
   flex: 0 0 auto;
 }
@@ -3129,12 +3125,12 @@ body {
 }
 
 .file-browser__preview-body-muted {
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
 }
 
 .file-browser__preview-heading {
   margin: 0 0 8px 0;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   font-size: 14px;
   font-weight: 600;
 }
@@ -3144,7 +3140,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-style: italic;
   font-size: 13px;
 }
@@ -3156,7 +3152,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 13px;
 }
 
@@ -3165,7 +3161,7 @@ body {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 12px;
   line-height: 1.5;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   white-space: pre;
   word-break: normal;
   overflow: auto;
@@ -3177,7 +3173,7 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   overflow: auto;
 }
 
@@ -3208,12 +3204,12 @@ body {
 }
 
 .file-browser__preview--markdown a {
-  color: #7aa2f7;
+  color: var(--hub-accent);
   text-decoration: underline;
 }
 
 .file-browser__preview--markdown code {
-  background: #1e2030;
+  background: var(--hub-surface-elevated);
   padding: 1px 4px;
   border-radius: 3px;
   font-family: 'Cascadia Code', 'Fira Code', monospace;
@@ -3221,7 +3217,7 @@ body {
 }
 
 .file-browser__preview--markdown pre {
-  background: #1e2030;
+  background: var(--hub-surface-elevated);
   padding: 12px;
   border-radius: 4px;
   overflow: auto;
@@ -3239,7 +3235,7 @@ body {
 
 .file-browser__preview--markdown th,
 .file-browser__preview--markdown td {
-  border: 1px solid #292e42;
+  border: 1px solid var(--hub-border);
   padding: 4px 8px;
 }
 
@@ -3262,16 +3258,16 @@ body {
   justify-content: center;
   text-align: center;
   gap: 8px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .file-browser__btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #292e42;
+  border: 1px solid var(--hub-border);
   background: transparent;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   font-size: 12px;
   padding: 6px 12px;
   border-radius: 4px;
@@ -3281,22 +3277,22 @@ body {
 }
 
 .file-browser__btn:hover {
-  background: #1e2030;
+  background: var(--hub-surface-elevated);
 }
 
 .file-browser__btn--primary {
-  background: #7aa2f7;
-  color: #1a1b26;
-  border-color: #7aa2f7;
+  background: var(--hub-accent);
+  color: var(--hub-bg);
+  border-color: var(--hub-accent);
 }
 
 .file-browser__btn--primary:hover {
-  background: #7aa2f7;
+  background: var(--hub-accent);
   filter: brightness(1.1);
 }
 
 .file-browser__btn--secondary {
-  border-color: #292e42;
+  border-color: var(--hub-border);
 }
 
 .file-browser__btn--icon {
@@ -3307,7 +3303,7 @@ body {
 .file-browser__btn:focus-visible,
 .file-browser__btn--primary:focus-visible,
 .file-browser__btn--icon:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
 
@@ -3326,20 +3322,20 @@ body {
 }
 
 .file-browser__takeover--permission-denied {
-  border-left: 3px solid #f7768e;
+  border-left: 3px solid var(--hub-destructive);
 }
 
 .file-browser__takeover-heading {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .file-browser__takeover-body {
   margin: 0;
   font-size: 13px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   max-width: 480px;
 }
 
@@ -3353,7 +3349,7 @@ body {
   justify-content: center;
   padding: 32px 16px;
   gap: 4px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .file-browser__empty-heading {
@@ -3364,7 +3360,7 @@ body {
 
 .file-browser__empty-path {
   margin: 0;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-size: 12px;
 }
 
@@ -3378,20 +3374,20 @@ body {
   text-align: center;
   padding: 24px;
   gap: 8px;
-  border-left: 3px solid #f7768e;
+  border-left: 3px solid var(--hub-destructive);
 }
 
 .file-browser__error-heading {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .file-browser__error-body {
   margin: 0;
   font-size: 13px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
 }
 
 /* Loading spinner used inside preview loading body. Static dots under
@@ -3399,8 +3395,8 @@ body {
 .file-browser__spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #292e42;
-  border-top-color: #7aa2f7;
+  border: 2px solid var(--hub-border);
+  border-top-color: var(--hub-accent);
   border-radius: 50%;
   animation: file-browser-spin 0.75s linear infinite;
 }
@@ -3414,13 +3410,39 @@ body {
   }
   .file-browser__spinner::before {
     content: '…';
-    color: #9aa5ce;
+    color: var(--hub-text-muted);
   }
 }
 
 @keyframes file-browser-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Motion guard for file browser hover/focus transitions (Phase 141 token migration).
+   No-preference: enable smooth background/color transitions on interactive rows and
+   divider handles. Reduce: no transitions (instant repaint). */
+@media (prefers-reduced-motion: no-preference) {
+  .file-browser__list-row,
+  .file-browser__btn,
+  .file-browser__breadcrumb-root--clickable,
+  .file-browser__breadcrumb-segment,
+  .file-browser__breadcrumb-refresh,
+  .file-browser__divider,
+  .file-browser__col-divider {
+    transition: background-color 0.1s, color 0.1s, background 0.1s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .file-browser__list-row,
+  .file-browser__btn,
+  .file-browser__breadcrumb-root--clickable,
+  .file-browser__breadcrumb-segment,
+  .file-browser__breadcrumb-refresh,
+  .file-browser__divider,
+  .file-browser__col-divider {
+    transition: none;
   }
 }
 
