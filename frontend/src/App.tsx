@@ -707,7 +707,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       // explicitly toggle web on to share. The daemon enforces this at the
       // handleCreateSession layer (TestHandleCreateSession_NoAutoEnable); the
       // previous auto-seed here created a UI-daemon state mismatch that made
-      // the Sessions tab show bogus "WEB ON" state with broken URLs.
+      // the removed Sessions page show bogus "WEB ON" state with broken URLs.
     } catch (err) {
       console.error('[App] CreateSession failed:', err)
     }

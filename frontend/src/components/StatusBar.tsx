@@ -12,7 +12,7 @@ export interface StatusBarProps {
  * Always rendered at 32px height regardless of state — no layout reflow on toggle.
  *
  * Phase 87 cleanup: the raw session URL and QR button were removed. Sharing
- * is the Sessions tab's job (SessionSharePanel renders cap-bearing Read-Only
+ * is the Hub card's job (SessionShareModal renders cap-bearing Read-Only
  * and Full Access links with Copy/Open/QR actions per link). The status bar
  * owns state display + toggle control only.
  */
@@ -46,7 +46,7 @@ export function StatusBar({
         <>
           <span className="tab-status-bar__state tab-status-bar__state--on">WEB ON</span>
           <span className="tab-status-bar__hint">
-            Share links are on the Sessions tab
+            Share — open the Hub card
           </span>
           <button
             className="tab-status-bar__btn"
