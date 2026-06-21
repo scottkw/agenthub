@@ -27,6 +27,8 @@ import {
   ArrowTopRightOnSquareIcon,
   ClipboardDocumentIcon,
   QrCodeIcon,
+  SunIcon,
+  MoonIcon,
 } from '@heroicons/react/24/outline'
 import { RegenerateKeyModal } from './RegenerateKeyModal'
 import { PluginsSection, type PluginToggleKind } from './PluginsSection'
@@ -435,28 +437,27 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           {autoCloseError && <p className="settings-panel__error">{autoCloseError}</p>}
         </div>
 
-        {/* Appearance section (SETT-02) */}
+        {/* Appearance section (SETT-02) — POL-02: single role=switch toggle (D-06 colorblind-safe) */}
         <h3 id="settings-appearance">Appearance</h3>
         <div className="settings-panel__field-group">
           <label className="settings-panel__label">Interface Theme</label>
-          <div role="group" aria-label="Interface theme" style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              type="button"
-              className={`settings-panel__btn${uiTheme === 'light' ? ' settings-panel__btn--active' : ''}`}
-              aria-pressed={uiTheme === 'light'}
-              onClick={() => onUiThemeChange('light')}
-            >
-              Light
-            </button>
-            <button
-              type="button"
-              className={`settings-panel__btn${uiTheme === 'dark' ? ' settings-panel__btn--active' : ''}`}
-              aria-pressed={uiTheme === 'dark'}
-              onClick={() => onUiThemeChange('dark')}
-            >
-              Dark
-            </button>
-          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={uiTheme === 'light'}
+            aria-label={uiTheme === 'light' ? 'Light mode — click to switch to dark' : 'Dark mode — click to switch to light'}
+            className={`settings-panel__theme-toggle${uiTheme === 'light' ? ' settings-panel__theme-toggle--light' : ''}`}
+            onClick={() => onUiThemeChange(uiTheme === 'light' ? 'dark' : 'light')}
+          >
+            <span className="settings-panel__theme-toggle-track">
+              <span className="settings-panel__theme-toggle-knob" aria-hidden="true">
+                {uiTheme === 'light'
+                  ? <><SunIcon className="settings-panel__theme-toggle-icon" /><span>{'Light'}</span></>
+                  : <><MoonIcon className="settings-panel__theme-toggle-icon" /><span>{'Dark'}</span></>
+                }
+              </span>
+            </span>
+          </button>
           <p className="settings-panel__description" style={{ marginTop: '0.5rem' }}>Switches the whole app between light and dark appearance. Default is dark.</p>
         </div>
         <div className="settings-panel__field-group">
