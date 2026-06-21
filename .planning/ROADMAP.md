@@ -455,7 +455,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Both Hub "New session" buttons (top-right and empty-state) are styled to match the comp's sidebar "New Session" affordance (POL-03)
   4. A terminal session repaints correctly with no garbling after a theme switch or tab switch (root cause identified; regression source confirmed/fixed) (POL-04)
   5. Hub group navigation is restructured out of the secondary side-by-side panel — groups surface in the main sidebar under Hub (per the comp) or an agreed better pattern; no two collapsible side panels sit side by side (POL-05)
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 142-01-PLAN.md — Wave 0 test scaffolding: POL-02 settings toggle test → role=switch; POL-05 Sidebar group sub-list tests (render/select/drag) + HubPanel GroupSidebar-absent + counts-callback; POL-03/POL-04 source gates (POL-02, POL-03, POL-04, POL-05)
+- [ ] 142-02-PLAN.md — POL-04 terminal repaint hardening: isActive-guarded theme effect + pendingThemeRef deferral + fitTerminal-after-atlas-clear; native wails dev human verify (autonomous: false) (POL-04)
+- [ ] 142-03-PLAN.md — POL-05 group nav restructure: extract count helpers, lift groupDefs/activeGroupId to App, remove GroupSidebar side-panel, nested Sidebar group sub-list with CARRY-01 ARIA + drag-to-assign + inline create; delete GroupSidebar (POL-05)
+- [ ] 142-04-PLAN.md — POL-01 card gutter + 88px preview; POL-02 single role=switch icon+text toggle; POL-03 comp-styled + New Session buttons; all tokenized with light overrides + motion contract (POL-01, POL-02, POL-03)
 **UI hint**: yes
 
 ### Phase 143: Regression Test Program
