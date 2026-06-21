@@ -1,12 +1,24 @@
 ---
 phase: 141-redesign-implementation
 verified: 2026-06-21T18:00:00Z
-status: passed
+status: gaps_found
 score: 4/4
 overrides_applied: 0
+reopened: 2026-06-21
+reopened_reason: "False pass — verified token migration/ARIA/reduced-motion but never compared the running app to the canonical design comp. The redesign's visual language (Plus Jakarta Sans + JetBrains Mono fonts, comp color palette, radii, type scale) was never adopted; dark mode is pixel-identical to pre-141. See 141-DESIGN-GAP.md."
 ---
 
 # Phase 141: Redesign Implementation Verification Report
+
+> **REOPENED 2026-06-21 (status flipped passed → gaps_found):** This report's 4/4 was a FALSE PASS.
+> The success criteria were checked at the token/hex/ARIA level only; the canonical design comp
+> (`agenthub-v4.0-redesign/.../AgentHub Redesign (standalone).html` + `c-*.png`) was never rendered and
+> compared. The actual redesign — typography (Plus Jakarta Sans / JetBrains Mono), comp color palette,
+> radii, type scale — was never implemented (every plan tokenized hex to the SAME TokyoNight values).
+> Corrective scope + targets: see **141-DESIGN-GAP.md**. Re-verification MUST be a rendered app-vs-comp
+> comparison per surface.
+
+# Phase 141: Redesign Implementation Verification Report (original)
 
 **Phase Goal:** The chosen redesign visual language is applied across all surviving surfaces with correct colorblind-safe semantics, prefers-reduced-motion support, and internally consistent Hub GroupSidebar ARIA.
 **Verified:** 2026-06-21T18:00:00Z
