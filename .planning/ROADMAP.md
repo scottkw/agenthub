@@ -419,7 +419,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. A specific redesign direction (or documented explicit mix) is recorded in a UI spec artifact after the standalone HTML comps are reviewed in a browser
   2. The chosen direction is reconciled against Hub-first structure decisions (structural decisions win conflicts); any comp elements that conflict with the already-shipped navigation structure are called out and resolved in the spec
   3. Issue #93 is reviewed; items pulled into v4.0 scope are listed and their delivery assigned to Phase 141; the remainder are re-deferred with #93 updated accordingly
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 140-01-PLAN.md — Author the UI-spec artifact (Direction 01 Refined Native, accent lock, conflict reconciliation, recolor-only)
+  - [ ] 140-02-PLAN.md — Post #93 v4.0 triage comment (all 7 #78 items re-deferred; in-scope subset for Phase 141: none); keep #93 open
 
 ### Phase 141: Redesign Implementation
 **Goal**: The chosen redesign visual language is applied across all surviving surfaces with correct colorblind-safe semantics, prefers-reduced-motion support, and internally consistent Hub GroupSidebar ARIA
