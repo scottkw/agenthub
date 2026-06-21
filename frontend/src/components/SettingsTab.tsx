@@ -51,6 +51,9 @@ interface SettingsTabProps {
   onWebServerStateChange: () => Promise<void>
   selectedTheme: string
   onThemeChange: (name: string) => void
+  // Phase 141-08: whole-app UI theme (light/dark), distinct from terminal color theme.
+  uiTheme: 'dark' | 'light'
+  onUiThemeChange: (t: 'dark' | 'light') => void
   // Phase 99 PUI-02: forwarded to PluginsSection for post-save banner triggers.
   onPluginToggleSideEffect?: (kinds: PluginToggleKind[]) => void
 }
@@ -61,7 +64,7 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell. Single scrollable page with section headers.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, onPluginToggleSideEffect }: SettingsTabProps): React.ReactElement {
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, uiTheme, onUiThemeChange, onPluginToggleSideEffect }: SettingsTabProps): React.ReactElement {
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -434,6 +437,28 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
 
         {/* Appearance section (SETT-02) */}
         <h3 id="settings-appearance">Appearance</h3>
+        <div className="settings-panel__field-group">
+          <label className="settings-panel__label">Interface Theme</label>
+          <div role="group" aria-label="Interface theme" style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className={`settings-panel__btn${uiTheme === 'light' ? ' settings-panel__btn--active' : ''}`}
+              aria-pressed={uiTheme === 'light'}
+              onClick={() => onUiThemeChange('light')}
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              className={`settings-panel__btn${uiTheme === 'dark' ? ' settings-panel__btn--active' : ''}`}
+              aria-pressed={uiTheme === 'dark'}
+              onClick={() => onUiThemeChange('dark')}
+            >
+              Dark
+            </button>
+          </div>
+          <p className="settings-panel__description" style={{ marginTop: '0.5rem' }}>Switches the whole app between light and dark appearance. Default is dark.</p>
+        </div>
         <div className="settings-panel__field-group">
           <label className="settings-panel__label">Terminal Theme</label>
           <select
