@@ -63,7 +63,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 Post-redesign UAT findings raised during the Phase 141 render-compare checkpoint (2026-06-21).
 
-- [ ] **POL-01**: Hub card header icons (⋮ menu, ☰ handle) do not overlap other card elements at any card width, and the in-card preview is sized to be legible/useful.
+- [x] **POL-01**: Hub card header icons (⋮ menu, ☰ handle) do not overlap other card elements at any card width, and the in-card preview is sized to be legible/useful.
 - [x] **POL-02**: The Settings → Appearance Light/Dark control is a single slider/toggle switch (not two separate buttons), retaining persistence and colorblind-safe state indication.
 - [x] **POL-03**: Both Hub "New session" buttons (top-right and empty-state) are styled to match the comp's sidebar "New Session" affordance.
 - [x] **POL-04**: A terminal session repaints correctly with no garbling after a theme switch or a tab switch (root cause identified; any 141-08 theme-toggle regression confirmed/fixed).
@@ -127,7 +127,7 @@ Which phases cover which requirements. Filled during roadmap creation.
 | RDS-03 | Phase 141 | Complete |
 | RDS-04 | Phase 141 | Complete |
 | CARRY-01 | Phase 141 | Complete |
-| POL-01 | Phase 142 | Pending |
+| POL-01 | Phase 142 | Complete |
 | POL-02 | Phase 142 | Complete |
 | POL-03 | Phase 142 | Complete |
 | POL-04 | Phase 142 | Complete |

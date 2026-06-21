@@ -344,7 +344,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip (completed 2026-06-21)
 - [x] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged (completed 2026-06-21)
 - [x] **Phase 141: Redesign Implementation** — gap-closure plans 141-06..09 restyled to the comp (fonts, palette, radii, light/dark toggle); render-compare human-approved 2026-06-21 (false pass closed)
-- [ ] **Phase 142: Hub & Settings Redesign Polish** — Hub card icon overlap + preview sizing; Settings theme slider; comp-styled New-session buttons; terminal garble on theme/tab switch; Hub groups IA (move out of secondary side panel)
+- [x] **Phase 142: Hub & Settings Redesign Polish** — Hub card icon overlap + preview sizing; Settings theme slider; comp-styled New-session buttons; terminal garble on theme/tab switch; Hub groups IA (move out of secondary side panel) (completed 2026-06-21)
 - [ ] **Phase 143: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
 
 ## Phase Details
@@ -459,7 +459,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 142-01-PLAN.md — Wave 0 test scaffolding: POL-02 settings toggle test → role=switch; POL-05 Sidebar group sub-list tests (render/select/drag) + HubPanel GroupSidebar-absent + counts-callback; POL-03/POL-04 source gates (POL-02, POL-03, POL-04, POL-05)
 - [x] 142-02-PLAN.md — POL-04 terminal repaint hardening: isActive-guarded theme effect + pendingThemeRef deferral + fitTerminal-after-atlas-clear; native wails dev human verify (autonomous: false) (POL-04)
 - [x] 142-03-PLAN.md — POL-05 group nav restructure: extract count helpers, lift groupDefs/activeGroupId to App, remove GroupSidebar side-panel, nested Sidebar group sub-list with CARRY-01 ARIA + drag-to-assign + inline create; delete GroupSidebar (POL-05)
-- [ ] 142-04-PLAN.md — POL-01 card gutter + 88px preview; POL-02 single role=switch icon+text toggle; POL-03 comp-styled + New Session buttons; all tokenized with light overrides + motion contract (POL-01, POL-02, POL-03)
+- [x] 142-04-PLAN.md — POL-01 card gutter + 88px preview; POL-02 single role=switch icon+text toggle; POL-03 comp-styled + New Session buttons; all tokenized with light overrides + motion contract (POL-01, POL-02, POL-03)
 **UI hint**: yes
 
 ### Phase 143: Regression Test Program
@@ -530,7 +530,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
-| 142. Hub & Settings Redesign Polish | v4.0 | 3/4 | In Progress|  |
+| 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete   | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
