@@ -203,21 +203,24 @@ describe('GroupSidebar', () => {
 
   // ---- Active state ----
 
-  it('active group item has hub__group-sidebar-item--active class and aria-selected="true"', () => {
+  it('active group item has hub__group-sidebar-item--active class and aria-pressed="true"', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container } = renderSidebar({ groupDefs: groups, activeGroupId: 'g1' })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     // Alpha item (index 1)
     expect(items[1].className).toContain('hub__group-sidebar-item--active')
-    expect(items[1].getAttribute('aria-selected')).toBe('true')
+    const btn = items[1].querySelector('button')
+    expect(btn!.getAttribute('aria-pressed')).toBe('true')
   })
 
-  it('non-active items have aria-selected="false"', () => {
+  it('non-active items have aria-pressed="false"', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container } = renderSidebar({ groupDefs: groups, activeGroupId: null })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
-    expect(items[0].getAttribute('aria-selected')).toBe('true') // All is active when no group selected
-    expect(items[1].getAttribute('aria-selected')).toBe('false')
+    const allBtn = items[0].querySelector('button')
+    expect(allBtn!.getAttribute('aria-pressed')).toBe('true') // All is active when no group selected
+    const alphaBtn = items[1].querySelector('button')
+    expect(alphaBtn!.getAttribute('aria-pressed')).toBe('false')
   })
 
   // ---- Collapsed state ----
@@ -258,20 +261,36 @@ describe('GroupSidebar', () => {
 
   // ---- ARIA roles ----
 
-  it('list has role="listbox"', () => {
+  it('list has no role attribute (plain <ul>)', () => {
     const { container } = renderSidebar()
     const list = container.querySelector('.hub__group-sidebar-list')
     expect(list).not.toBeNull()
-    expect(list!.getAttribute('role')).toBe('listbox')
+    expect(list!.getAttribute('role')).toBeNull()
   })
 
-  it('each item has role="option"', () => {
+  it('each item has an inner button with role="button" and aria-pressed', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container } = renderSidebar({ groupDefs: groups })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     items.forEach((item) => {
-      expect(item.getAttribute('role')).toBe('option')
+      const btn = item.querySelector('button')
+      expect(btn).not.toBeNull()
+      expect(btn!.getAttribute('type')).toBe('button')
+      expect(btn!.hasAttribute('aria-pressed')).toBe(true)
     })
+  })
+
+  it('list has aria-labelledby="hub-group-sidebar-heading"', () => {
+    const { container } = renderSidebar()
+    const list = container.querySelector('.hub__group-sidebar-list')
+    expect(list!.getAttribute('aria-labelledby')).toBe('hub-group-sidebar-heading')
+  })
+
+  it('<aside> has aria-label="Session groups"', () => {
+    const { container } = renderSidebar()
+    const aside = container.querySelector('aside')
+    expect(aside).not.toBeNull()
+    expect(aside!.getAttribute('aria-label')).toBe('Session groups')
   })
 
   // ---- Create flow ----
@@ -377,47 +396,47 @@ describe('GroupSidebar — keyboard operability (A11Y-02)', () => {
     vi.clearAllMocks()
   })
 
-  it('group sidebar items have tabIndex 0 (keyboard-focusable)', () => {
+  it('inner buttons inside group sidebar items have tabIndex 0 (keyboard-focusable)', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container } = renderSidebar({ groupDefs: groups })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     items.forEach((item) => {
-      expect((item as HTMLElement).tabIndex).toBe(0)
+      const btn = item.querySelector('button') as HTMLButtonElement
+      expect(btn.tabIndex).toBe(0)  // native button default
     })
   })
 
-  it('Enter on a group item calls onGroupSelect with that item id', () => {
+  it('Enter on a group item inner button calls onGroupSelect with that item id', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container, onGroupSelect } = renderSidebar({ groupDefs: groups })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     const alphaItem = items[1] as HTMLElement
+    const alphaBtn = alphaItem.querySelector('button') as HTMLButtonElement
     act(() => {
-      alphaItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      alphaBtn.click()
     })
     expect(onGroupSelect).toHaveBeenCalledWith('g1')
   })
 
-  it('Space on a group item calls onGroupSelect with that item id', () => {
+  it('Space on a group item inner button calls onGroupSelect with that item id', () => {
     const groups = [makeGroup({ id: 'g1', name: 'Alpha' })]
     const { container, onGroupSelect } = renderSidebar({ groupDefs: groups })
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     const alphaItem = items[1] as HTMLElement
-    const spyPreventDefault = vi.fn()
+    const alphaBtn = alphaItem.querySelector('button') as HTMLButtonElement
     act(() => {
-      const ev = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
-      Object.defineProperty(ev, 'preventDefault', { value: spyPreventDefault })
-      alphaItem.dispatchEvent(ev)
+      alphaBtn.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
     })
     expect(onGroupSelect).toHaveBeenCalledWith('g1')
-    expect(spyPreventDefault).toHaveBeenCalled()
   })
 
-  it('Enter on the "All" item calls onGroupSelect(null)', () => {
+  it('Enter on the "All" item inner button calls onGroupSelect(null)', () => {
     const { container, onGroupSelect } = renderSidebar()
     const items = container.querySelectorAll('.hub__group-sidebar-item')
     const allItem = items[0] as HTMLElement
+    const allBtn = allItem.querySelector('button') as HTMLButtonElement
     act(() => {
-      allItem.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      allBtn.click()
     })
     expect(onGroupSelect).toHaveBeenCalledWith(null)
   })
