@@ -35,9 +35,9 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 ### UI/UX Redesign (RDS)
 
 - [x] **RDS-01**: A redesign direction (or an explicit mix) from `./agenthub-v4.0-redesign` is chosen and documented at UI-spec time, after browser review of the standalone HTML.
-- [ ] **RDS-02**: The chosen redesign is implemented across all surviving surfaces (Welcome, Hub, terminal/session, File Browser, Editor, Settings).
-- [ ] **RDS-03**: The redesign is reconciled with the Hub-first structure (no Sessions/Remote sidebar pages; creation on the Hub); structural decisions (NAV/SHARE/CARD) win conflicts with the older comps.
-- [ ] **RDS-04**: The redesign honors colorblind-safe semantics and `prefers-reduced-motion` throughout (light + dark).
+- [x] **RDS-02**: The chosen redesign is implemented across all surviving surfaces (Welcome, Hub, terminal/session, File Browser, Editor, Settings).
+- [x] **RDS-03**: The redesign is reconciled with the Hub-first structure (no Sessions/Remote sidebar pages; creation on the Hub); structural decisions (NAV/SHARE/CARD) win conflicts with the older comps.
+- [x] **RDS-04**: The redesign honors colorblind-safe semantics and `prefers-reduced-motion` throughout (light + dark).
 
 ### Tab Strip (TAB)
 
@@ -56,7 +56,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### v3.6 Carry-Overs (CARRY)
 
-- [ ] **CARRY-01**: The Hub GroupSidebar ARIA model is made internally consistent (#97) — either the listbox roving-tabindex / `aria-activedescendant` pattern is implemented, or the `listbox`/`option` roles are dropped in favor of a plain focusable control list.
+- [x] **CARRY-01**: The Hub GroupSidebar ARIA model is made internally consistent (#97) — either the listbox roving-tabindex / `aria-activedescendant` pattern is implemented, or the `listbox`/`option` roles are dropped in favor of a plain focusable control list.
 - [x] **CARRY-02**: The deferred #78 Hub-fidelity backlog (#93) is triaged at planning; the in-scope subset is delivered and the remainder is explicitly re-deferred (with #93 updated).
 
 ## Future Requirements
@@ -113,10 +113,10 @@ Which phases cover which requirements. Filled during roadmap creation.
 | TAB-03 | Phase 139 | Complete |
 | RDS-01 | Phase 140 | Complete |
 | CARRY-02 | Phase 140 | Complete |
-| RDS-02 | Phase 141 | Pending |
-| RDS-03 | Phase 141 | Pending |
-| RDS-04 | Phase 141 | Pending |
-| CARRY-01 | Phase 141 | Pending |
+| RDS-02 | Phase 141 | Complete |
+| RDS-03 | Phase 141 | Complete |
+| RDS-04 | Phase 141 | Complete |
+| CARRY-01 | Phase 141 | Complete |
 | TEST-01 | Phase 142 | Pending |
 | TEST-02 | Phase 142 | Pending |
 | TEST-03 | Phase 142 | Pending |
