@@ -435,7 +435,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 5 plans
 - [x] 141-01-PLAN.md — New --hub-text-dim token (both themes) + Wave 0 RED test updates (GroupSidebar ARIA, StatusBar D-11, SessionShareModal S-07 smoke) (RDS-02, RDS-04, CARRY-01, RDS-03)
 - [x] 141-02-PLAN.md — Tokenize sidebar (S-01 Welcome) + tab bar/status bar/terminal (S-03); D-03 fences kept; motion guards (RDS-02, RDS-04)
-- [ ] 141-03-PLAN.md — Tokenize File Browser + Editor chrome (S-04/S-05) + Settings (S-06); motion guards (RDS-02, RDS-04)
+- [x] 141-03-PLAN.md — Tokenize File Browser + Editor chrome (S-04/S-05) + Settings (S-06); motion guards (RDS-02, RDS-04)
 - [ ] 141-04-PLAN.md — Add .hub-share-modal* CSS (S-07 gap) + lift inline hex from SessionShareModal.tsx (RDS-02, RDS-04)
 - [x] 141-05-PLAN.md — CARRY-01 GroupSidebar ARIA fix + D-11 "Sessions tab" copy reword (CARRY-01, RDS-03)
 **UI hint**: yes
@@ -507,7 +507,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
-| 141. Redesign Implementation | v4.0 | 3/5 | In Progress|  |
+| 141. Redesign Implementation | v4.0 | 4/5 | In Progress|  |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
