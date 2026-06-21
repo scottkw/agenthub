@@ -205,6 +205,19 @@ func (h *Hub) ScrollbackSnapshot() []byte {
 	return h.scrollback.Snapshot()
 }
 
+// Cols returns the current PTY column width as set by the max-wins resize
+// arbiter. Returns 220 when no resize has been applied (fallback for
+// scrollback VT extraction — wide enough to avoid spurious line wrapping).
+// Phase 139 / CARD-05.
+func (h *Hub) Cols() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.ptyCols <= 0 {
+		return 220
+	}
+	return h.ptyCols
+}
+
 // Done returns a channel that is closed when the hub shuts down.
 func (h *Hub) Done() <-chan struct{} {
 	return h.done

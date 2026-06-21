@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+	uv "github.com/charmbracelet/ultraviolet"
+	xvt "github.com/charmbracelet/x/vt"
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/status"
@@ -576,6 +580,106 @@ func (e *SessionEngine) GetSessionTailLines(id string, n int) []string {
 		lines = lines[len(lines)-n:]
 	}
 	return lines
+}
+
+// colorToHex converts an image/color.Color to a string suitable for the
+// StyledSpan wire type:
+//   - nil → "" (terminal default)
+//   - ansi.BasicColor (ANSI 0-15) → "ansi:N"
+//   - ansi.IndexedColor (ANSI 16-255) → "ansi:N"
+//   - all others → "#rrggbb" (true-color hex)
+//
+// Phase 139 / CARD-05.
+func colorToHex(c color.Color) string {
+	if c == nil {
+		return ""
+	}
+	switch v := c.(type) {
+	case ansi.BasicColor:
+		return fmt.Sprintf("ansi:%d", int(v))
+	case ansi.IndexedColor:
+		return fmt.Sprintf("ansi:%d", int(v))
+	default:
+		r, g, b, _ := c.RGBA()
+		return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+	}
+}
+
+// GetSessionStyledTailLines returns the last n styled-cell lines from the
+// session's scrollback buffer. Relay framing bytes (0x01 / relay.MsgOutput)
+// are stripped, then the raw bytes are fed into a headless charmbracelet/x/vt
+// emulator that produces a per-cell styled grid. Returns [][]StyledSpan{}
+// (never nil) if the session has no hub.
+//
+// The emulator column width is taken from Hub.Cols() (the PTY's actual
+// terminal width, or 220 if no resize has been applied) to avoid spurious
+// line-wrapping artifacts from Pitfall 1.
+//
+// Phase 139 / CARD-05.
+func (e *SessionEngine) GetSessionStyledTailLines(id string, n int) [][]StyledSpan {
+	hub, ok := e.manager.Get(id)
+	if !ok {
+		return [][]StyledSpan{} // IN-01: defensive — never nil
+	}
+	raw := hub.ScrollbackSnapshot()
+
+	// Strip relay.MsgOutput (0x01) framing bytes — same as GetSessionTailLines.
+	stripped := make([]byte, 0, len(raw))
+	for _, b := range raw {
+		if b != relay.MsgOutput {
+			stripped = append(stripped, b)
+		}
+	}
+
+	// Feed into headless VT emulator using the real PTY column width.
+	// 50 rows is enough to hold the tail we need; only the last n rows
+	// from the active screen are returned after blank-row trimming.
+	const emuRows = 50
+	cols := hub.Cols()
+	emu := xvt.NewEmulator(cols, emuRows)
+	emu.Write(stripped) //nolint:errcheck // emulator Write never returns a meaningful error
+
+	// Extract the active screen rows as StyledSpan slices.
+	var rows [][]StyledSpan
+	for y := 0; y < emuRows; y++ {
+		var row []StyledSpan
+		for x := 0; x < cols; x++ {
+			cell := emu.CellAt(x, y)
+			if cell == nil {
+				break
+			}
+			row = append(row, StyledSpan{
+				Char: cell.Content,
+				Bold: cell.Style.Attrs&uv.AttrBold != 0,
+				FG:   colorToHex(cell.Style.Fg),
+				BG:   colorToHex(cell.Style.Bg),
+			})
+		}
+		rows = append(rows, row)
+	}
+
+	// Trim trailing blank rows (rows where all cells are whitespace or empty).
+	for len(rows) > 0 {
+		last := rows[len(rows)-1]
+		var text string
+		for _, span := range last {
+			text += span.Char
+		}
+		if strings.TrimSpace(text) == "" {
+			rows = rows[:len(rows)-1]
+		} else {
+			break
+		}
+	}
+
+	// Return last n rows.
+	if len(rows) > n {
+		rows = rows[len(rows)-n:]
+	}
+	if rows == nil {
+		return [][]StyledSpan{} // IN-01: ensure non-nil
+	}
+	return rows
 }
 
 // GetSessionWorkDir returns the EvalSymlinks-resolved absolute WorkDir for

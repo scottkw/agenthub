@@ -65,6 +65,23 @@ type TailLinesResponse struct {
 	Lines []string `json:"lines"`
 }
 
+// StyledSpan is one styled cell in the VT grid — the wire type for
+// GET /sessions/{id}/styled-tail. All color values are hex strings
+// ("#rrggbb") or ANSI index markers ("ansi:N") or "" for terminal default.
+// Phase 139 / CARD-05.
+type StyledSpan struct {
+	Char string `json:"c"`            // Unicode grapheme cluster
+	FG   string `json:"fg,omitempty"` // "#rrggbb", "ansi:N", or "" (default fg)
+	BG   string `json:"bg,omitempty"` // "#rrggbb", "ansi:N", or "" (default bg)
+	Bold bool   `json:"b,omitempty"`  // true when bold attribute set
+}
+
+// StyledTailLinesResponse is the response body for GET /sessions/{id}/styled-tail.
+// Phase 139 / CARD-05.
+type StyledTailLinesResponse struct {
+	Lines [][]StyledSpan `json:"lines"`
+}
+
 // HealthResponse is the response body for GET /health.
 type HealthResponse struct {
 	Status  string `json:"status"`
