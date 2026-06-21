@@ -39,14 +39,17 @@ describe('Phase 141-07: font tokens declared in :root (dark theme)', () => {
   it('--hub-font-ui is declared in :root', () => {
     // The :root block comes before the light block
     const rootIdx = cssRaw.indexOf(':root')
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    // Target the token-defining block opener (selector + ` {`), not a later
+    // light-theme override rule like `[data-ui-theme="light"] .foo { ... }`
+    // (Phase 142 POL-02 added such an override earlier in the file).
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     const rootBlock = cssRaw.slice(rootIdx, lightIdx)
     expect(rootBlock).toContain('--hub-font-ui')
   })
 
   it('--hub-font-mono is declared in :root', () => {
     const rootIdx = cssRaw.indexOf(':root')
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     const rootBlock = cssRaw.slice(rootIdx, lightIdx)
     expect(rootBlock).toContain('--hub-font-mono')
   })
@@ -58,7 +61,7 @@ describe('Phase 141-07: font tokens declared in [data-ui-theme="light"]', () => 
   })
 
   it('--hub-font-ui is declared inside [data-ui-theme="light"] block', () => {
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     expect(lightIdx).toBeGreaterThan(-1)
     // Find the closing brace — the light block is long so look for the next top-level block
     const blockEnd = cssRaw.indexOf('\n}', lightIdx + 1)
@@ -67,7 +70,7 @@ describe('Phase 141-07: font tokens declared in [data-ui-theme="light"]', () => 
   })
 
   it('--hub-font-mono is declared inside [data-ui-theme="light"] block', () => {
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     expect(lightIdx).toBeGreaterThan(-1)
     const blockEnd = cssRaw.indexOf('\n}', lightIdx + 1)
     const lightBlock = cssRaw.slice(lightIdx, blockEnd)

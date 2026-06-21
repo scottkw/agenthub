@@ -196,9 +196,11 @@ describe('THM-03: live theme application', () => {
     expect(raw).toContain('options.theme = theme')
   })
 
-  it('dedicated theme effect has [theme] dependency array', () => {
-    // The standalone theme effect (THM-03) must exist with [theme] dep
-    expect(raw).toContain('}, [theme])')
+  it('dedicated theme effect has theme in its dependency array', () => {
+    // The standalone theme effect (THM-03) must exist with theme in its deps.
+    // Phase 142 POL-04 (142-02) added `isActive` to guard repaints on hidden
+    // panels, so the array is now `[theme, isActive]` — theme must still be present.
+    expect(raw).toMatch(/\},\s*\[theme(,\s*isActive)?\]\)/)
   })
 
   it('sets backgroundColor from theme.background in inline style', () => {

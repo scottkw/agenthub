@@ -77,7 +77,9 @@ describe('Hub CSS tokens — light theme ([data-ui-theme="light"])', () => {
   })
 
   it('light theme --hub-accent is declared inside [data-ui-theme="light"] block', () => {
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    // Target the token-defining block opener (selector + ` {`), not a later
+    // light-theme override rule (Phase 142 POL-02 added one earlier in the file).
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     expect(lightIdx).toBeGreaterThan(-1)
     // Find the closing brace of the light block
     const blockEnd = cssRaw.indexOf('}', lightIdx + 1)
@@ -86,7 +88,7 @@ describe('Hub CSS tokens — light theme ([data-ui-theme="light"])', () => {
   })
 
   it('light theme --hub-destructive is declared inside [data-ui-theme="light"] block', () => {
-    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"]')
+    const lightIdx = cssRaw.indexOf('[data-ui-theme="light"] {')
     expect(lightIdx).toBeGreaterThan(-1)
     const blockEnd = cssRaw.indexOf('}', lightIdx + 1)
     const lightBlock = cssRaw.slice(lightIdx, blockEnd)
