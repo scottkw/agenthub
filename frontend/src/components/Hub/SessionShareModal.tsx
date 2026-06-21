@@ -289,9 +289,9 @@ export function SessionShareModal({
 
           {/* LAN password (SHARE-04): shown in local mode */}
           {webServerMode === 'local' && webServerRunning && lanPassword && (
-            <div className="hub-share-modal__lan-creds" style={{ margin: '8px 0', fontSize: 12, color: '#a9b1d6' }}>
+            <div className="hub-share-modal__lan-creds" style={{ margin: '8px 0', fontSize: 12 }}>
               <span style={{ fontWeight: 600 }}>LAN password:</span>{' '}
-              <code style={{ background: '#16161e', padding: '2px 6px', borderRadius: 3, fontFamily: 'monospace' }}>
+              <code>
                 {lanPassword}
               </code>
             </div>
