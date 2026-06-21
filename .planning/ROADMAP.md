@@ -507,7 +507,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
-| 141. Redesign Implementation | v4.0 | 5/5 | Complete   | 2026-06-21 |
+| 141. Redesign Implementation | v4.0 | 5/5 | Complete    | 2026-06-21 |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
