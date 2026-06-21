@@ -4212,7 +4212,8 @@ body {
 .hub-modal__send-btn:focus-visible,
 .hub-modal__close-btn:focus-visible,
 .hub__group-sidebar-toggle:focus-visible,
-.hub__group-sidebar-item:focus-visible {
+.hub__group-sidebar-item:focus-visible,
+.hub__group-sidebar-item__btn:focus-visible {
   outline: 2px solid var(--hub-accent);
   outline-offset: 2px;
 }
