@@ -4765,6 +4765,23 @@ body {
   white-space: nowrap;
 }
 
+/* CARRY-01: inner interactive element — reset browser defaults, fill li interior */
+.hub__group-sidebar-item__btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
 .hub__group-sidebar-item:hover {
   background: var(--hub-sidebar-item-hover-bg);
 }
