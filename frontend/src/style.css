@@ -221,9 +221,8 @@ body {
   flex-direction: column;
   flex-shrink: 0;
   width: 200px;
-  background-color: #16161e;
-  border-right: 1px solid #292e42;
-  transition: width 0.15s ease;
+  background-color: var(--hub-surface);
+  border-right: 1px solid var(--hub-border);
   overflow: hidden;
 }
 
@@ -240,14 +239,13 @@ body {
   margin: 4px 0;
   border: none;
   background: transparent;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   cursor: pointer;
   border-radius: 4px;
-  transition: background-color 0.1s, color 0.1s;
 }
 .sidebar__toggle:hover {
-  background-color: #1e2030;
-  color: #c0caf5;
+  background-color: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
 }
 
 .sidebar__item {
@@ -258,20 +256,36 @@ body {
   width: 100%;
   border: none;
   background: transparent;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
   text-align: left;
   border-radius: 0;
-  transition: background-color 0.1s, color 0.1s;
 }
 .sidebar__item:hover {
-  background-color: #1e2030;
-  color: #c0caf5;
+  background-color: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
 }
 /* Phase 63 collapsed override removed in Phase 70 — the fixed icon slot
    (margin: 0 14px on .sidebar__icon) makes it unnecessary. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar {
+    transition: width 150ms ease;
+  }
+  .sidebar__toggle,
+  .sidebar__item {
+    transition: background-color 0.1s, color 0.1s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar__toggle,
+  .sidebar__item {
+    transition: none;
+  }
+}
 
 .sidebar__icon {
   width: 20px;
@@ -1306,7 +1320,7 @@ body {
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  background-color: #1a1b26;
+  background-color: var(--hub-bg);
 }
 
 .welcome-tab__content {
@@ -1325,13 +1339,13 @@ body {
 
 .welcome-tab__tagline {
   font-size: 15px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   margin-bottom: 4px;
 }
 
 .welcome-tab__version {
   font-size: 12px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   margin-bottom: 40px;
 }
 
@@ -1347,18 +1361,18 @@ body {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   margin-bottom: 10px;
   font-weight: 600;
 }
 
 .welcome-tab__text {
   font-size: 13px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   line-height: 1.6;
 }
 .welcome-tab__text strong {
-  color: #c0caf5;
+  color: var(--hub-text-primary);
 }
 
 .welcome-tab__install-grid {
@@ -1375,7 +1389,7 @@ body {
 
 .welcome-tab__install-label {
   font-size: 12px;
-  color: #7aa2f7;
+  color: var(--hub-accent);
   font-weight: 600;
   min-width: 64px;
   text-align: right;
@@ -1385,11 +1399,11 @@ body {
   flex: 1;
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 12px;
-  color: #a9b1d6;
-  background: #16161e;
+  color: var(--hub-text-secondary);
+  background: var(--hub-surface);
   padding: 6px 10px;
   border-radius: 4px;
-  border: 1px solid #292e42;
+  border: 1px solid var(--hub-border);
 }
 
 .welcome-tab__links {
@@ -1400,7 +1414,7 @@ body {
 
 .welcome-tab__link {
   font-size: 13px;
-  color: #7aa2f7;
+  color: var(--hub-accent);
 }
 
 /* ─── Daemon Management Panel (Phase 40) ─────────────────────────── */
@@ -4537,8 +4551,8 @@ body {
 
 /* --- Sidebar active item indicator (Pitfall-8 / HUB-01) --- */
 .sidebar__item--active {
-  background: rgba(122, 162, 247, 0.12);
-  color: var(--hub-accent, #7aa2f7);
+  background: var(--hub-sidebar-item-active-bg);
+  color: var(--hub-accent);
 }
 
 /* ─── Phase 132: hub__body two-column layout + group sidebar + preview + menu ──── */
