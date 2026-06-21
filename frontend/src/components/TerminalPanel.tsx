@@ -110,6 +110,9 @@ export function TerminalPanel({
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  // POL-04: deferred theme ref — stashes the theme when the panel is hidden (isActive=false)
+  // so clearTextureAtlas() never runs on a display:none panel with zero cell dims.
+  const pendingThemeRef = useRef<ITheme | null>(null)
   const clientRef = useRef<RelayClient | null>(null)
   // Phase 93 WGL-01 / CLIP-01: addon refs for hot-swap useEffect.
   const webglAddonRef = useRef<WebglAddon | null>(null)
@@ -647,6 +650,16 @@ export function TerminalPanel({
   useEffect(() => {
     if (!isActive || !containerRef.current) return
 
+    // POL-04: drain any theme that arrived while this panel was hidden.
+    // Must happen synchronously before the rAF loop so the first fit uses the
+    // correct theme. No extra fitTerminal call needed here — the rAF loop below
+    // calls it.
+    if (pendingThemeRef.current && termRef.current) {
+      termRef.current.options.theme = pendingThemeRef.current
+      termRef.current.clearTextureAtlas()
+      pendingThemeRef.current = null
+    }
+
     const container = containerRef.current
     let cancelled = false
     let rafId: number | undefined
@@ -694,14 +707,24 @@ export function TerminalPanel({
   }, [fontSize])
 
   // Apply theme changes from the controlled prop (THM-03).
-  // clearTextureAtlas() forces the WebGL renderer to rebuild its glyph cache
-  // with the new colors — without this, WebGL panels keep the old palette.
+  // POL-04: isActive-guarded — a display:none panel has rows=0; running
+  // clearTextureAtlas() + refresh on zero cell dims corrupts the WebGL atlas
+  // for when the panel next becomes visible.  Instead, stash the theme in
+  // pendingThemeRef and apply it synchronously at the top of the isActive
+  // effect when the panel next becomes active (before the rAF fit loop runs).
+  // On the active path: clearTextureAtlas() then fitTerminal() — NOT
+  // refresh() — so cell dims are recalculated after the atlas rebuild.
   useEffect(() => {
     if (!termRef.current) return
+    if (!isActive) {
+      // Stash for application when this panel next becomes active.
+      pendingThemeRef.current = theme
+      return
+    }
     termRef.current.options.theme = theme
     termRef.current.clearTextureAtlas()
-    termRef.current.refresh(0, termRef.current.rows - 1)
-  }, [theme])
+    fitTerminal(termRef.current)   // NOT refresh() — recalculates cell dims after atlas clear
+  }, [theme, isActive])
 
   // Phase 94 SRC-01: focus-conditioned Cmd-F (Mac) / Ctrl-F (Win/Linux)
   // window keydown listener. The isXtermFocused() guard mitigates T-94-03
