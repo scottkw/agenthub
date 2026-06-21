@@ -266,10 +266,14 @@ export function GroupSidebar({
         )}
       </button>
 
-      {/* Heading — only when expanded; id required for aria-labelledby on the list */}
-      {!collapsed && (
-        <span id="hub-group-sidebar-heading" className="hub__group-sidebar-heading">Groups</span>
-      )}
+      {/* Heading — always rendered so aria-labelledby on the list is always valid;
+          sr-only hides it visually when collapsed (CARRY-01: aria-labelledby contract) */}
+      <span
+        id="hub-group-sidebar-heading"
+        className={`hub__group-sidebar-heading${collapsed ? ' sr-only' : ''}`}
+      >
+        Groups
+      </span>
 
       {/* Group list — CARRY-01: plain <ul> (no role="listbox"), labelled by heading */}
       <ul
