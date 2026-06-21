@@ -97,6 +97,7 @@ export function GroupSidebarItem({
 }: GroupSidebarItemProps): React.ReactElement {
   const [isDragOver, setIsDragOver] = useState(false)
 
+  // CARRY-01: drag handlers remain on <li> so the full item area is a drop target
   const handleDragOver = useCallback((e: React.DragEvent<HTMLLIElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -117,6 +118,7 @@ export function GroupSidebarItem({
     }
   }, [id, onDropOnGroup])
 
+  // CARRY-01: visual classes remain on <li> to keep existing CSS targeting and drag-over feedback
   const itemClass = [
     'hub__group-sidebar-item',
     isActive ? 'hub__group-sidebar-item--active' : '',
@@ -124,51 +126,59 @@ export function GroupSidebarItem({
   ].filter(Boolean).join(' ')
 
   return (
+    // CARRY-01: <li> retains visual classes + drag handlers; no role/aria-selected/tabIndex
+    // onClick guard: only fires when clicking the <li> border/padding directly (not when the
+    // inner button is clicked and the event bubbles up — in that case target ≠ currentTarget)
     <li
       className={itemClass}
-      role="option"
-      aria-selected={isActive ? 'true' : 'false'}
-      tabIndex={0}
-      onClick={() => onGroupSelect(id)}
-      onKeyDown={(e) => {
-        // WR-03: only act on key events originating on the row itself, not on a bubbled
-        // descendant. Guards against a future focusable child (e.g. an inline rename/delete
-        // button) having its Space activation swallowed by preventDefault and mis-firing
-        // group selection.
-        if (e.target !== e.currentTarget) return
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onGroupSelect(id)
-        }
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onGroupSelect(id)
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {!collapsed && (
-        <span className="hub__group-sidebar-item__name">{label}</span>
-      )}
-      {!collapsed && (
-        <span className="hub__group-sidebar-item__count">
-          {counts.running}/{counts.total}
-        </span>
-      )}
-      {/* ATTN-06: collapsed-group attention badge — replaces needs-input when attnCount>0 */}
-      {/* COLORBLIND-SAFE: attn badge — reinforcement only; BellAlertIcon carries state */}
-      {collapsed && counts.attention > 0 && (
-        <span
-          className="hub__group-sidebar-item__attn-badge"
-          aria-label={counts.attention === 1 ? '1 session needs attention' : `${counts.attention} sessions need attention`}
-        >
-          {/* COLORBLIND-SAFE: attn badge dark hex #e0af68 — reinforcement only; BellAlertIcon carries state */}
-          {/* CRITICAL: NO Tailwind — size via CSS rule .hub__group-sidebar-item__attn-badge svg */}
-          <BellAlertIcon aria-hidden="true" />
-          <span className="hub__group-sidebar-item__attn-badge--count">{counts.attention}</span>
-        </span>
-      )}
-      {collapsed && counts.attention === 0 && counts.waiting > 0 && (
-        <NeedsInputBadge count={counts.waiting} />
-      )}
+      {/* CARRY-01: the interactive element — native button handles Enter/Space; aria-pressed conveys toggle state */}
+      <button
+        type="button"
+        className="hub__group-sidebar-item__btn"
+        aria-pressed={isActive}
+        aria-label={`${label} group, ${counts.running}/${counts.total} sessions`}
+        onClick={() => onGroupSelect(id)}
+        onKeyDown={(e) => {
+          // Space keydown: activate selection (jsdom doesn't auto-fire click on Space keydown)
+          if (e.key === ' ') {
+            e.preventDefault()
+            onGroupSelect(id)
+          }
+          // Enter is handled natively by the browser/jsdom as a click
+        }}
+      >
+        {!collapsed && (
+          <span className="hub__group-sidebar-item__name">{label}</span>
+        )}
+        {!collapsed && (
+          <span className="hub__group-sidebar-item__count">
+            {counts.running}/{counts.total}
+          </span>
+        )}
+        {/* ATTN-06: collapsed-group attention badge — replaces needs-input when attnCount>0 */}
+        {/* COLORBLIND-SAFE: attn badge — reinforcement only; BellAlertIcon carries state */}
+        {collapsed && counts.attention > 0 && (
+          <span
+            className="hub__group-sidebar-item__attn-badge"
+            aria-label={counts.attention === 1 ? '1 session needs attention' : `${counts.attention} sessions need attention`}
+          >
+            {/* COLORBLIND-SAFE: attn badge dark hex #e0af68 — reinforcement only; BellAlertIcon carries state */}
+            {/* CRITICAL: NO Tailwind — size via CSS rule .hub__group-sidebar-item__attn-badge svg */}
+            <BellAlertIcon aria-hidden="true" />
+            <span className="hub__group-sidebar-item__attn-badge--count">{counts.attention}</span>
+          </span>
+        )}
+        {collapsed && counts.attention === 0 && counts.waiting > 0 && (
+          <NeedsInputBadge count={counts.waiting} />
+        )}
+      </button>
     </li>
   )
 }
@@ -236,6 +246,7 @@ export function GroupSidebar({
 
   return (
     <aside
+      aria-label="Session groups"
       className={`hub__group-sidebar${collapsed ? ' hub__group-sidebar--collapsed' : ''}`}
     >
       {/* Toggle button */}
@@ -255,16 +266,16 @@ export function GroupSidebar({
         )}
       </button>
 
-      {/* Heading — only when expanded */}
+      {/* Heading — only when expanded; id required for aria-labelledby on the list */}
       {!collapsed && (
-        <span className="hub__group-sidebar-heading">Groups</span>
+        <span id="hub-group-sidebar-heading" className="hub__group-sidebar-heading">Groups</span>
       )}
 
-      {/* Group list */}
+      {/* Group list — CARRY-01: plain <ul> (no role="listbox"), labelled by heading */}
       <ul
         id={SIDEBAR_LIST_ID}
         className="hub__group-sidebar-list"
-        role="listbox"
+        aria-labelledby="hub-group-sidebar-heading"
       >
         {/* "All" item */}
         <GroupSidebarItem
