@@ -64,10 +64,10 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 Post-redesign UAT findings raised during the Phase 141 render-compare checkpoint (2026-06-21).
 
 - [ ] **POL-01**: Hub card header icons (⋮ menu, ☰ handle) do not overlap other card elements at any card width, and the in-card preview is sized to be legible/useful.
-- [ ] **POL-02**: The Settings → Appearance Light/Dark control is a single slider/toggle switch (not two separate buttons), retaining persistence and colorblind-safe state indication.
-- [ ] **POL-03**: Both Hub "New session" buttons (top-right and empty-state) are styled to match the comp's sidebar "New Session" affordance.
-- [ ] **POL-04**: A terminal session repaints correctly with no garbling after a theme switch or a tab switch (root cause identified; any 141-08 theme-toggle regression confirmed/fixed).
-- [ ] **POL-05**: Hub group navigation is restructured out of the secondary side-by-side panel — groups surface in the main sidebar under Hub (per the comp) or an agreed better pattern; no two collapsible side panels sit side by side.
+- [x] **POL-02**: The Settings → Appearance Light/Dark control is a single slider/toggle switch (not two separate buttons), retaining persistence and colorblind-safe state indication.
+- [x] **POL-03**: Both Hub "New session" buttons (top-right and empty-state) are styled to match the comp's sidebar "New Session" affordance.
+- [x] **POL-04**: A terminal session repaints correctly with no garbling after a theme switch or a tab switch (root cause identified; any 141-08 theme-toggle regression confirmed/fixed).
+- [x] **POL-05**: Hub group navigation is restructured out of the secondary side-by-side panel — groups surface in the main sidebar under Hub (per the comp) or an agreed better pattern; no two collapsible side panels sit side by side.
 
 ## Future Requirements
 
@@ -128,10 +128,10 @@ Which phases cover which requirements. Filled during roadmap creation.
 | RDS-04 | Phase 141 | Complete |
 | CARRY-01 | Phase 141 | Complete |
 | POL-01 | Phase 142 | Pending |
-| POL-02 | Phase 142 | Pending |
-| POL-03 | Phase 142 | Pending |
-| POL-04 | Phase 142 | Pending |
-| POL-05 | Phase 142 | Pending |
+| POL-02 | Phase 142 | Complete |
+| POL-03 | Phase 142 | Complete |
+| POL-04 | Phase 142 | Complete |
+| POL-05 | Phase 142 | Complete |
 | TEST-01 | Phase 143 | Pending |
 | TEST-02 | Phase 143 | Pending |
 | TEST-03 | Phase 143 | Pending |
