@@ -341,7 +341,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 136: TUI Removal** — Delete `agenthub tui`, Bubble Tea views, TUI-only shared code, and TUI tests; cross-surface parity contract narrows to GUI/CLI/web (completed 2026-06-19)
 - [x] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review (completed 2026-06-20)
 - [x] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings (completed 2026-06-20)
-- [ ] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip
+- [x] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip (completed 2026-06-21)
 - [ ] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged
 - [ ] **Phase 141: Redesign Implementation** — Chosen visual language applied across all surviving surfaces; Hub GroupSidebar ARIA corrected
 - [ ] **Phase 142: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
@@ -408,7 +408,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 139-01-PLAN.md — Wave 0 scaffolding: failing Go styled-tail tests + frontend vtColor/MiniPreview/TabBar tests + A2 headless-xterm verification (CARD-05, TAB-01..03)
 - [x] 139-02-PLAN.md — Browser-style tab strip: flex-shrink to icon-only floor + scroll-position-aware chevrons; rename/close/progress survive the floor (TAB-01, TAB-02, TAB-03)
 - [x] 139-03-PLAN.md — CARD-05 backend: charmbracelet/x/vt headless VT grid; GetSessionStyledTailLines engine+route+client+Wails binding (n-clamp both layers) (CARD-05)
-- [ ] 139-04-PLAN.md — CARD-05 frontend: vtColor ITheme mapper + MiniPreview StyledSpan render (xterm-free) + briefing-modal local styled-span/remote headless-xterm tail (CARD-05)
+- [x] 139-04-PLAN.md — CARD-05 frontend: vtColor ITheme mapper + MiniPreview StyledSpan render (xterm-free) + briefing-modal local styled-span/remote headless-xterm tail (CARD-05)
 **UI hint**: yes
 
 ### Phase 140: UI-Spec Gate
@@ -498,7 +498,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 136. TUI Removal | v4.0 | 2/2 | Complete   | 2026-06-19 |
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
-| 139. Card Rendering & Tab Strip | v4.0 | 3/4 | In Progress|  |
+| 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete   | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
