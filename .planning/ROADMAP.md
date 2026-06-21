@@ -343,8 +343,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings (completed 2026-06-20)
 - [x] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip (completed 2026-06-21)
 - [x] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged (completed 2026-06-21)
-- [~] **Phase 141: Redesign Implementation** — REOPENED 2026-06-21: false pass (visual language never adopted); gap-closure plans 141-06..09 restyle to the comp (fonts, palette, radii, light/dark toggle)
-- [ ] **Phase 142: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
+- [x] **Phase 141: Redesign Implementation** — gap-closure plans 141-06..09 restyled to the comp (fonts, palette, radii, light/dark toggle); render-compare human-approved 2026-06-21 (false pass closed)
+- [ ] **Phase 142: Hub & Settings Redesign Polish** — Hub card icon overlap + preview sizing; Settings theme slider; comp-styled New-session buttons; terminal garble on theme/tab switch; Hub groups IA (move out of secondary side panel)
+- [ ] **Phase 143: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
 
 ## Phase Details
 
@@ -444,9 +445,22 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 141-09-PLAN.md — [gap] Rendered app-vs-comp comparison per surface + vendor/hex gates + human visual checkpoint (RDS-02, RDS-03, RDS-04, CARRY-01)
 **UI hint**: yes
 
-### Phase 142: Regression Test Program
-**Goal**: A formal, labeled automated regression suite runs in CI as a merge gate; a single maintained manual checklist replaces scattered per-phase UAT logs; a standing convention is documented for all future phases
+### Phase 142: Hub & Settings Redesign Polish
+**Goal**: The post-redesign UAT findings are resolved — Hub cards and Settings/theme controls match the comp's interaction quality, the terminal repaints cleanly across theme/tab switches, and Hub group navigation no longer relies on a secondary side-by-side panel
 **Depends on**: Phase 141
+**Requirements**: POL-01, POL-02, POL-03, POL-04, POL-05
+**Success Criteria** (what must be TRUE):
+  1. Hub card header icons (⋮ menu, ☰ handle) no longer overlap other card elements at any card width, and the in-card preview is sized to be legible/useful (POL-01)
+  2. The Settings → Appearance Light/Dark control is a single slider/toggle switch (not two separate buttons), keeping persistence + the colorblind-safe state indication (POL-02)
+  3. Both Hub "New session" buttons (top-right and empty-state) are styled to match the comp's sidebar "New Session" affordance (POL-03)
+  4. A terminal session repaints correctly with no garbling after a theme switch or tab switch (root cause identified; regression source confirmed/fixed) (POL-04)
+  5. Hub group navigation is restructured out of the secondary side-by-side panel — groups surface in the main sidebar under Hub (per the comp) or an agreed better pattern; no two collapsible side panels sit side by side (POL-05)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 143: Regression Test Program
+**Goal**: A formal, labeled automated regression suite runs in CI as a merge gate; a single maintained manual checklist replaces scattered per-phase UAT logs; a standing convention is documented for all future phases
+**Depends on**: Phase 142
 **Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, TEST-05
 **Success Criteria** (what must be TRUE):
   1. The automated regression suite (Go + vitest + Playwright) is consolidated under a labeled structure with a requirement-to-test traceability map, and runs in CI as a merge gate
@@ -512,7 +526,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
-| 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
+| 142. Hub & Settings Redesign Polish | v4.0 | 0/TBD | Not started | - |
+| 143. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
