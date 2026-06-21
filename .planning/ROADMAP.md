@@ -342,7 +342,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 137: Share Modal & Cap Model** — Per-card Share modal with session/file-browse toggles, dual RO/RW cap issuance; security-sensitive backend change isolated for review (completed 2026-06-20)
 - [x] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings (completed 2026-06-20)
 - [x] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip (completed 2026-06-21)
-- [ ] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged
+- [x] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged (completed 2026-06-21)
 - [ ] **Phase 141: Redesign Implementation** — Chosen visual language applied across all surviving surfaces; Hub GroupSidebar ARIA corrected
 - [ ] **Phase 142: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
 
@@ -421,7 +421,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Issue #93 is reviewed; items pulled into v4.0 scope are listed and their delivery assigned to Phase 141; the remainder are re-deferred with #93 updated accordingly
 **Plans**: 2 plans
   - [x] 140-01-PLAN.md — Author the UI-spec artifact (Direction 01 Refined Native, accent lock, conflict reconciliation, recolor-only)
-  - [ ] 140-02-PLAN.md — Post #93 v4.0 triage comment (all 7 #78 items re-deferred; in-scope subset for Phase 141: none); keep #93 open
+  - [x] 140-02-PLAN.md — Post #93 v4.0 triage comment (all 7 #78 items re-deferred; in-scope subset for Phase 141: none); keep #93 open
 
 ### Phase 141: Redesign Implementation
 **Goal**: The chosen redesign visual language is applied across all surviving surfaces with correct colorblind-safe semantics, prefers-reduced-motion support, and internally consistent Hub GroupSidebar ARIA
@@ -501,7 +501,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
-| 140. UI-Spec Gate | v4.0 | 1/2 | In Progress|  |
+| 140. UI-Spec Gate | v4.0 | 2/2 | Complete   | 2026-06-21 |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 

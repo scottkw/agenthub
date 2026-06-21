@@ -57,7 +57,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 ### v3.6 Carry-Overs (CARRY)
 
 - [ ] **CARRY-01**: The Hub GroupSidebar ARIA model is made internally consistent (#97) — either the listbox roving-tabindex / `aria-activedescendant` pattern is implemented, or the `listbox`/`option` roles are dropped in favor of a plain focusable control list.
-- [ ] **CARRY-02**: The deferred #78 Hub-fidelity backlog (#93) is triaged at planning; the in-scope subset is delivered and the remainder is explicitly re-deferred (with #93 updated).
+- [x] **CARRY-02**: The deferred #78 Hub-fidelity backlog (#93) is triaged at planning; the in-scope subset is delivered and the remainder is explicitly re-deferred (with #93 updated).
 
 ## Future Requirements
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Filled during roadmap creation.
 | TAB-02 | Phase 139 | Complete |
 | TAB-03 | Phase 139 | Complete |
 | RDS-01 | Phase 140 | Complete |
-| CARRY-02 | Phase 140 | Pending |
+| CARRY-02 | Phase 140 | Complete |
 | RDS-02 | Phase 141 | Pending |
 | RDS-03 | Phase 141 | Pending |
 | RDS-04 | Phase 141 | Pending |
