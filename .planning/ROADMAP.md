@@ -420,7 +420,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The chosen direction is reconciled against Hub-first structure decisions (structural decisions win conflicts); any comp elements that conflict with the already-shipped navigation structure are called out and resolved in the spec
   3. Issue #93 is reviewed; items pulled into v4.0 scope are listed and their delivery assigned to Phase 141; the remainder are re-deferred with #93 updated accordingly
 **Plans**: 2 plans
-  - [ ] 140-01-PLAN.md — Author the UI-spec artifact (Direction 01 Refined Native, accent lock, conflict reconciliation, recolor-only)
+  - [x] 140-01-PLAN.md — Author the UI-spec artifact (Direction 01 Refined Native, accent lock, conflict reconciliation, recolor-only)
   - [ ] 140-02-PLAN.md — Post #93 v4.0 triage comment (all 7 #78 items re-deferred; in-scope subset for Phase 141: none); keep #93 open
 
 ### Phase 141: Redesign Implementation
@@ -501,7 +501,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 137. Share Modal & Cap Model | v4.0 | 3/3 | Complete    | 2026-06-20 |
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
-| 140. UI-Spec Gate | v4.0 | 0/TBD | Not started | - |
+| 140. UI-Spec Gate | v4.0 | 1/2 | In Progress|  |
 | 141. Redesign Implementation | v4.0 | 0/TBD | Not started | - |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 

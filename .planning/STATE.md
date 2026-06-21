@@ -4,13 +4,13 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
 stopped_at: Phase 140 context gathered
-last_updated: "2026-06-21T03:18:23.832Z"
-last_activity: 2026-06-21 -- Phase 140 planning complete
+last_updated: "2026-06-21T03:24:44.000Z"
+last_activity: 2026-06-21
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 57
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 140 — ui spec gate
+**Current focus:** Phase 140 — ui-spec-gate
 
 ## Current Position
 
-Phase: 140
-Plan: Not started
+Phase: 140 (ui-spec-gate) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-21 -- Phase 140 planning complete
+Last activity: 2026-06-21
 
-Progress: [██████████] 100%
+Progress: [█████████░] 93%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -84,7 +84,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-21T03:03:21.542Z
+Last session: 2026-06-21T03:24:43.992Z
 Stopped at: Phase 140 context gathered
-Resume file: .planning/phases/140-ui-spec-gate/140-CONTEXT.md
+Resume file: None
 Next action: `/gsd:plan-phase 136`

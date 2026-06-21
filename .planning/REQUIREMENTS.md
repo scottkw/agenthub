@@ -34,7 +34,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 ### UI/UX Redesign (RDS)
 
-- [ ] **RDS-01**: A redesign direction (or an explicit mix) from `./agenthub-v4.0-redesign` is chosen and documented at UI-spec time, after browser review of the standalone HTML.
+- [x] **RDS-01**: A redesign direction (or an explicit mix) from `./agenthub-v4.0-redesign` is chosen and documented at UI-spec time, after browser review of the standalone HTML.
 - [ ] **RDS-02**: The chosen redesign is implemented across all surviving surfaces (Welcome, Hub, terminal/session, File Browser, Editor, Settings).
 - [ ] **RDS-03**: The redesign is reconciled with the Hub-first structure (no Sessions/Remote sidebar pages; creation on the Hub); structural decisions (NAV/SHARE/CARD) win conflicts with the older comps.
 - [ ] **RDS-04**: The redesign honors colorblind-safe semantics and `prefers-reduced-motion` throughout (light + dark).
@@ -111,7 +111,7 @@ Which phases cover which requirements. Filled during roadmap creation.
 | TAB-01 | Phase 139 | Complete |
 | TAB-02 | Phase 139 | Complete |
 | TAB-03 | Phase 139 | Complete |
-| RDS-01 | Phase 140 | Pending |
+| RDS-01 | Phase 140 | Complete |
 | CARRY-02 | Phase 140 | Pending |
 | RDS-02 | Phase 141 | Pending |
 | RDS-03 | Phase 141 | Pending |
