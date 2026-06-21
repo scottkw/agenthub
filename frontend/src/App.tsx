@@ -67,6 +67,7 @@ import { ALLOWED_THEMES } from './themes'
 const DEFAULT_FONT_SIZE = 14
 const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
 const DEFAULT_THEME_NAME = 'Tomorrow_Night'
+const UI_THEME_STORAGE_KEY = 'agenthub:uiTheme'
 
 // Phase 101-03 (SHELL-07/SHELL-08) — the set of cli identifiers that route
 // through the one-time security-warning banner when the user toggles web
@@ -271,6 +272,25 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     // Signal active OpenCode sessions to re-query terminal palette (SIGUSR2).
     // Fire-and-forget: errors logged to console, never block UI.
     NotifyThemeChange().catch(err => console.warn('NotifyThemeChange failed:', err))
+  }, [])
+
+  // UI theme (light/dark whole-app appearance) — distinct from terminal color theme.
+  // Default is dark (attribute absent). Light is opt-in via localStorage.
+  const [uiTheme, setUiTheme] = useState<'dark' | 'light'>(() =>
+    localStorage.getItem(UI_THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark'
+  )
+  useEffect(() => {
+    if (uiTheme === 'light') {
+      document.documentElement.setAttribute('data-ui-theme', 'light')
+      document.documentElement.style.colorScheme = 'light'
+    } else {
+      document.documentElement.removeAttribute('data-ui-theme')
+      document.documentElement.style.colorScheme = 'dark'
+    }
+  }, [uiTheme])
+  const handleUiThemeChange = useCallback((t: 'dark' | 'light') => {
+    localStorage.setItem(UI_THEME_STORAGE_KEY, t)
+    setUiTheme(t)
   }, [])
 
   // Phase 97 SER-01: TerminalPanel calls this on attach/detach to
@@ -1406,6 +1426,8 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             webServerMode={webServerMode}
             selectedTheme={terminalThemeName}
             onThemeChange={handleThemeChange}
+            uiTheme={uiTheme}
+            onUiThemeChange={handleUiThemeChange}
             onPluginToggleSideEffect={handlePluginToggleSideEffect}
             onWebServerStateChange={async () => {
               try {

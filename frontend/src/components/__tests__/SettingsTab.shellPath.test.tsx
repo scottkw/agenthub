@@ -76,6 +76,8 @@ const defaultProps = {
   onWebServerStateChange: vi.fn().mockResolvedValue(undefined),
   selectedTheme: 'tokyonight',
   onThemeChange: vi.fn(),
+  uiTheme: 'dark' as const,
+  onUiThemeChange: vi.fn(),
 }
 
 function renderSettings(props = defaultProps) {
