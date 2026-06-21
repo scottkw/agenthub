@@ -4421,7 +4421,7 @@ body {
   max-width: 360px;
   border: 1px solid var(--hub-border);
   border-radius: 16px; /* comp parity: pronounced rounded corners (was --hub-radius-md 10px) */
-  padding: 36px 16px 12px; /* POL-01: 36px top = 8px icon-top + 20px icon-height + 8px gap — reserves gutter for absolute drag-handle and menu-btn */
+  padding: 10px 16px 12px; /* top line now holds the centered name flanked by the absolute drag-handle/menu icons (was a 36px empty gutter) */
   background: var(--hub-surface);
   cursor: default;
   position: relative; /* IN-01: anchor for absolutely-positioned drag-handle and menu-btn */
@@ -4458,6 +4458,7 @@ body {
 .hub-filter__pill:focus-visible,
 .hub-filter__new-session:focus-visible,
 .hub-card__open:focus-visible,
+.hub-card__share:focus-visible,
 .hub-card__menu-btn:focus-visible,
 .hub-card__menu-item:focus-visible,
 .hub-modal__close:focus-visible,
@@ -4478,6 +4479,18 @@ body {
 }
 
 /* --- Card row layouts --- */
+/* HEADER: session name centered on the top line, between the absolute
+   drag-handle (left) and overflow menu (right). Horizontal padding keeps the
+   centered name clear of the ~16px corner icons regardless of hover state. */
+.hub-card__header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 22px;
+  margin-bottom: 10px;
+}
+
 .hub-card__row1 {
   display: flex;
   align-items: center;
@@ -4495,6 +4508,25 @@ body {
   color: var(--hub-text-secondary);
   margin-bottom: 4px;
 }
+
+/* Origin on the left, uptime+viewers right-aligned on the same line (#4). */
+.hub-card__row2 {
+  justify-content: space-between;
+}
+
+.hub-card__row2-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  color: var(--hub-text-muted);
+  font-size: 12px;
+}
+
+/* Color-coded origin (#5) — icon already carries Local/Remote, color reinforces.
+   COLORBLIND-SAFE: hex values authoritative; verify at source, not by eye. */
+.hub-card__origin--local  { color: #9ece6a; } /* local  — green */
+.hub-card__origin--remote { color: #7aa2f7; } /* remote — accent blue */
 
 /* ROW 5: actions (Open) — Phase 131 UAT follow-up. Mirrors .hub__new-session-btn. */
 .hub-card__row5 {
@@ -4518,6 +4550,39 @@ body {
 .hub-card__open:hover {
   border-color: var(--hub-border-hover);
   background: var(--hub-surface-elevated);
+}
+
+/* Share button (#1): was unstyled (rendered as a bare default button). Mirror the
+   Open button so the two actions read as a matched pair on the actions row. */
+.hub-card__share {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  color: var(--hub-text-primary);
+  font-size: var(--hub-font-size-sm);
+  padding: 4px 12px;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.hub-card__share:hover:not(:disabled) {
+  border-color: var(--hub-border-hover);
+  background: var(--hub-surface-elevated);
+}
+
+.hub-card__share:disabled {
+  color: var(--hub-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hub-card__share-lock {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 /* --- Status icon --- */
@@ -4558,10 +4623,12 @@ body {
 /* --- Card session name --- */
 .hub-card__name {
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 600; /* the name is the card's primary identity on the top line */
   line-height: 1.3;
   color: var(--hub-text-primary);
-  flex: 1;
+  flex: 0 1 auto;
+  max-width: 100%;
+  text-align: center;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -4572,13 +4639,25 @@ body {
 .hub-card__badge {
   font-size: 11px;
   font-family: var(--hub-font-mono);
-  padding: 1px 5px;
-  border-radius: var(--hub-radius-sm);
+  padding: 1px 7px;
+  border-radius: var(--hub-radius-pill);
   background: var(--hub-surface-elevated);
   color: var(--hub-text-muted);
   border: 1px solid var(--hub-border);
   flex-shrink: 0;
+  margin-left: auto; /* push the session-type chip to the right edge of row1 */
 }
+
+/* Session-type colored chip (#3): the card's data-agent tints the chip text +
+   border so the type reads as a colored chip, matching the left spine + tab dot.
+   COLORBLIND-SAFE: the chip text is the cli name; color is reinforcement only. */
+.hub-card[data-agent="claude"]   .hub-card__badge { color: #7aa2f7; border-color: rgba(122, 162, 247, 0.45); }
+.hub-card[data-agent="opencode"] .hub-card__badge { color: #9ece6a; border-color: rgba(158, 206, 106, 0.45); }
+.hub-card[data-agent="codex"]    .hub-card__badge { color: #bb9af7; border-color: rgba(187, 154, 247, 0.45); }
+.hub-card[data-agent="gemini"]   .hub-card__badge { color: #2ac3de; border-color: rgba(42, 195, 222, 0.45); }
+.hub-card[data-agent="cursor"]   .hub-card__badge { color: #e0af68; border-color: rgba(224, 175, 104, 0.45); }
+.hub-card[data-agent="aider"]    .hub-card__badge { color: #f7768e; border-color: rgba(247, 118, 142, 0.45); }
+.hub-card[data-agent="shell"]    .hub-card__badge { color: #89ddff; border-color: rgba(137, 221, 255, 0.45); }
 
 /* --- Origin marker (local / remote) --- */
 .hub-card__origin {

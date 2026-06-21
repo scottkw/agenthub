@@ -432,7 +432,17 @@ export function SessionCard({
         </div>
       )}
 
-      {/* ROW 1: status indicator | name | CLI badge */}
+      {/* HEADER: session name centered on the top line, flanked by the absolute
+          drag-handle (left) and overflow menu (right). */}
+      <div className="hub-card__header">
+        <InlineSessionName
+          id={id}
+          name={name}
+          onRenamed={(newName) => onRename?.(id, newName)}
+        />
+      </div>
+
+      {/* ROW 1: status indicator (left) · colored session-type chip (right) */}
       {/* CR-01: hub-card__row1 matches CSS definition (was hub-card__row hub-card__row--primary) */}
       <div className="hub-card__row1">
         {/* ATTN-01: attention icon — inline left of status icon; COLORBLIND-SAFE: BellAlertIcon carries state */}
@@ -450,22 +460,18 @@ export function SessionCard({
           <span className="hub-card__status-label">{displayLabel}</span>
         </span>
 
-        <InlineSessionName
-          id={id}
-          name={name}
-          onRenamed={(newName) => onRename?.(id, newName)}
-        />
-
-        {/* CLI badge — hub-card__badge text-chip pattern (WR-03: replaces tab__agent-badge dot) */}
+        {/* CLI badge — colored by session type; the card's data-agent drives the chip tint
+            so it matches the left spine + tab dot. COLORBLIND-SAFE: chip text is the cli name. */}
         <span className="hub-card__badge">
           {cli}
         </span>
       </div>
 
-      {/* ROW 2: origin marker */}
+      {/* ROW 2: origin (color-coded Local/Remote, #5) · uptime + viewers right-aligned (#4) */}
       {/* CR-01: hub-card__row2 matches CSS definition (was hub-card__row hub-card__row--origin) */}
       <div className="hub-card__row2">
-        <span className="hub-card__origin">
+        {/* COLORBLIND-SAFE: the Local/Remote icon carries the meaning; color is reinforcement. */}
+        <span className={`hub-card__origin hub-card__origin--${isLocal ? 'local' : 'remote'}`}>
           {isLocal ? (
             <>
               <ComputerDesktopIcon className="hub-card__origin-icon" aria-hidden="true" />
@@ -476,6 +482,20 @@ export function SessionCard({
               <GlobeAltIcon className="hub-card__origin-icon" aria-hidden="true" />
               <span>{hostname}</span>
             </>
+          )}
+        </span>
+
+        {/* Meta group: uptime + viewer count, right-aligned on the origin line
+            (was a separate indented row3 — IN-04 fix). */}
+        <span className="hub-card__row2-meta">
+          {timeText && <span className="hub-card__uptime">{timeText}</span>}
+          {viewerCount > 0 && (
+            <span className="hub-card__viewers">
+              <EyeIcon className="hub-card__viewers-icon" aria-hidden="true" />
+              <span>
+                {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+              </span>
+            </span>
           )}
         </span>
       </div>
@@ -495,22 +515,6 @@ export function SessionCard({
         </div>
       )}
 
-      {/* ROW 3: uptime/duration + viewer count */}
-      {/* CR-01: hub-card__row3 matches CSS definition (was hub-card__row hub-card__row--meta) */}
-      <div className="hub-card__row3">
-        {/* CR-01: hub-card__uptime matches CSS definition (was hub-card__time) */}
-        <span className="hub-card__uptime">{timeText}</span>
-
-        {viewerCount > 0 && (
-          <span className="hub-card__viewers">
-            <EyeIcon className="hub-card__viewers-icon" aria-hidden="true" />
-            <span>
-              {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
-            </span>
-          </span>
-        )}
-      </div>
-
       {/* ROW 4: exit-code chip (only for non-zero exit) */}
       {/* CR-01: hub-card__row4 matches CSS definition (was hub-card__row hub-card__row--exit) */}
       {hubStatus === 'stopped-err' && (
@@ -520,13 +524,14 @@ export function SessionCard({
         </div>
       )}
 
-      {/* ROW 5: actions — Open re-attaches the session's terminal tab.
-          Phase 131 UAT follow-up. LOCAL live sessions only (WR-01): a remote id has no
-          local PTY to attach to, so the re-attach Open button mis-routes on remote cards.
-          Only for live sessions (a stopped session has no PTY to attach to). Text label
-          (not color) keeps it colorblind-safe. */}
-      {isLocal && onOpenSession && session.state !== 'stopped' && (
-        <div className="hub-card__row5">
+      {/* ROW 5: actions — Open (re-attach terminal tab; LOCAL live sessions only, WR-01,
+          Phase 131 UAT follow-up) and Share, side by side as real bordered buttons.
+          D-12: Share opens the per-card Share modal; D-13 disables it on remote peer cards.
+          COLORBLIND-SAFE: text labels + LockClosedIcon (shape) carry state, not color.
+          Pitfall 6: e.stopPropagation() prevents the card-click modal opening on button click;
+          also guarded in the article onClick via the .hub-card__open / .hub-card__share checks. */}
+      <div className="hub-card__row5">
+        {isLocal && onOpenSession && session.state !== 'stopped' && (
           <button
             type="button"
             className="hub-card__open"
@@ -535,25 +540,19 @@ export function SessionCard({
           >
             Open
           </button>
-        </div>
-      )}
-
-      {/* Share button — D-12: dedicated Share button opens per-card Share modal.
-          D-13: disabled on remote peer cards. COLORBLIND-SAFE: LockClosedIcon (shape)
-          + text label + tooltip carry disabled state; color is reinforcement only.
-          Pitfall 6: e.stopPropagation() prevents card-click modal from opening on share click.
-          Also guarded in article onClick with .hub-card__share class check above. */}
-      <button
-        type="button"
-        className="hub-card__share"
-        onClick={(e) => { e.stopPropagation(); onShare?.(session) }}
-        disabled={!isLocal}
-        aria-label={isLocal ? `Share ${name}` : 'Only the session owner can share'}
-        title={isLocal ? 'Share session' : 'Only the session owner can share'}
-      >
-        {!isLocal && <LockClosedIcon aria-hidden="true" className="hub-card__share-lock" />}
-        Share
-      </button>
+        )}
+        <button
+          type="button"
+          className="hub-card__share"
+          onClick={(e) => { e.stopPropagation(); onShare?.(session) }}
+          disabled={!isLocal}
+          aria-label={isLocal ? `Share ${name}` : 'Only the session owner can share'}
+          title={isLocal ? 'Share session' : 'Only the session owner can share'}
+        >
+          {!isLocal && <LockClosedIcon aria-hidden="true" className="hub-card__share-lock" />}
+          Share
+        </button>
+      </div>
 
       {/* ROW 6: MiniPreview — CARD-07/CARD-05: styled cell grid snapshot; NO xterm instance; polling interval 3s shared */}
       <MiniPreview lines={previewLines} theme={previewTheme ?? {} as ITheme} />
