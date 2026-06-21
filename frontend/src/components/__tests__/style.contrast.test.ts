@@ -22,16 +22,16 @@ function contrastRatio(fg: string, bg: string): number {
 }
 
 describe('UI-01: replacement color passes WCAG AA on all backgrounds', () => {
-  it('#9aa5ce achieves >= 4.5 contrast on #16161e (sidebar/tab-bar bg)', () => {
-    expect(contrastRatio('#9aa5ce', '#16161e')).toBeGreaterThanOrEqual(4.5)
+  it('#9398a8 achieves >= 4.5 contrast on #16181f (comp sidebar/tab-bar bg)', () => {
+    expect(contrastRatio('#9398a8', '#16181f')).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('#9aa5ce achieves >= 4.5 contrast on #1a1b26 (main area bg)', () => {
-    expect(contrastRatio('#9aa5ce', '#1a1b26')).toBeGreaterThanOrEqual(4.5)
+  it('#9398a8 achieves >= 4.5 contrast on #14151b (comp main area bg)', () => {
+    expect(contrastRatio('#9398a8', '#14151b')).toBeGreaterThanOrEqual(4.5)
   })
 
-  it('#9aa5ce achieves >= 4.5 contrast on #1e2030 (settings panel bg)', () => {
-    expect(contrastRatio('#9aa5ce', '#1e2030')).toBeGreaterThanOrEqual(4.5)
+  it('#9398a8 achieves >= 4.5 contrast on #1c1e28 (comp settings panel bg)', () => {
+    expect(contrastRatio('#9398a8', '#1c1e28')).toBeGreaterThanOrEqual(4.5)
   })
 })
 

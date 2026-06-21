@@ -62,8 +62,8 @@ describe('Hub CSS tokens — dark theme (default :root)', () => {
     expect(cssRaw).toContain('--hub-dim-opacity')
   })
 
-  it('dark theme --hub-bg has correct hex #1a1b26 (TokyoNight surface)', () => {
-    expect(cssRaw).toContain('--hub-bg: #1a1b26')
+  it('dark theme --hub-bg has correct hex #14151b (comp dark surface)', () => {
+    expect(cssRaw).toContain('--hub-bg: #14151b')
   })
 
   it('dark theme --hub-accent has correct hex #7aa2f7', () => {

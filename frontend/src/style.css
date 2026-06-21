@@ -1,5 +1,44 @@
 @import '@xterm/xterm/css/xterm.css';
 
+/* ─── Vendored fonts (Phase 141-06) ─────────────────────────────── */
+/* Plus Jakarta Sans + JetBrains Mono — committed as woff2 binaries,  */
+/* served same-origin via Vite. No CDN / Google Fonts URL.             */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/PlusJakartaSans-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/PlusJakartaSans-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/PlusJakartaSans-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/JetBrainsMono-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/JetBrainsMono-Medium.woff2") format("woff2");
+}
+
 /* ─── xterm overrides ───────────────────────────────────────────── */
 /* Hide native scrollbar so FitAddon uses full container width.
    xterm.js handles scroll internally via mouse wheel / touchpad. */
@@ -3965,22 +4004,39 @@ body {
    hex color is a reinforcement signal only.
    ============================================================ */
 
-/* --- Dark theme defaults (current app palette) --- */
+/* --- Dark theme defaults (comp palette, Phase 141-06) --- */
 :root {
-  --hub-bg: #1a1b26;
-  --hub-surface: #16161e;
-  --hub-surface-elevated: #1e2030;
-  --hub-border: #292e42;
-  --hub-border-hover: #3b4261;
-  --hub-text-primary: #c0caf5;
-  --hub-text-secondary: #a9b1d6;
-  --hub-text-muted: #9aa5ce;
-  --hub-text-placeholder: #414868;
+  --hub-bg: #14151b;
+  --hub-surface: #16181f;
+  --hub-surface-elevated: #1c1e28;
+  --hub-border: #41454f;
+  --hub-border-hover: #54586a;
+  --hub-text-primary: #f4f5f8;
+  --hub-text-secondary: #c7cad6;
+  --hub-text-muted: #9398a8;
+  --hub-text-placeholder: #54586a;
+  /* KEEP LOCKED — D-05: blue accent, colorblind-verified WCAG AA */
   --hub-accent: #7aa2f7;
   --hub-accent-hover: #89b4fa;
   --hub-destructive: #f7768e;
-  --hub-success: #9ece6a;
-  --hub-warning: #f59e0b;
+  --hub-success: #4ade80;
+  --hub-warning: #fbbf24;
+  /* Comp semantic colors */
+  --hub-teal: #43ddb2;
+  --hub-orange: #e08a66;
+  /* Font families — resolved to vendored woff2 via @font-face above */
+  --hub-font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --hub-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Radii tokens (panels/cards/inputs 8–11px; pills 999px) */
+  --hub-radius-sm: 8px;
+  --hub-radius-md: 10px;
+  --hub-radius-lg: 11px;
+  --hub-radius-pill: 999px;
+  /* Type scale — 14px base / 12.5px small / 19px heading; weight 600 emphasis */
+  --hub-font-size-base: 14px;
+  --hub-font-size-sm: 12.5px;
+  --hub-font-size-heading: 19px;
+  --hub-font-weight-emphasis: 600;
   --hub-dim-opacity: 0.45;
   --hub-card-dim-bg: #13141f;
   --hub-group-header-bg: #16161e;
@@ -3989,7 +4045,7 @@ body {
   --hub-empty-icon-color: #3b4261;
   --hub-scrollbar: #3b4261;
   --hub-scrollbar-hover: #565f89;
-  --hub-text-dim: #565f89;   /* very faint hint/separator text, dimmer than --hub-text-muted */
+  --hub-text-dim: #6e7180;   /* comp dim tier — very faint hint/separator text, dimmer than --hub-text-muted */
   /* Phase 132 / CARD-07: mini preview is plain text snapshot — NO xterm instance; polling interval 3s shared across all cards */
   /* Phase 132 new --hub-* tokens */
   --hub-preview-bg: #0d0e17;
@@ -4067,6 +4123,22 @@ body {
   --hub-attn-badge-bg: rgba(180,83,9,0.14);
   --hub-attn-badge-text: #b45309;
   --hub-attn-static-border: #b45309;
+  /* Comp semantic colors (light — light-theme values preserved this pass) */
+  --hub-teal: #0d9488;
+  --hub-orange: #c2410c;
+  /* Font families — resolved to vendored woff2 via @font-face; same values as dark */
+  --hub-font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --hub-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Radii tokens — theme-independent, identical to dark block */
+  --hub-radius-sm: 8px;
+  --hub-radius-md: 10px;
+  --hub-radius-lg: 11px;
+  --hub-radius-pill: 999px;
+  /* Type scale — theme-independent, identical to dark block */
+  --hub-font-size-base: 14px;
+  --hub-font-size-sm: 12.5px;
+  --hub-font-size-heading: 19px;
+  --hub-font-weight-emphasis: 600;
 }
 
 /* --- Hub surface --- */
