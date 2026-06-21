@@ -460,6 +460,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 142-02-PLAN.md — POL-04 terminal repaint hardening: isActive-guarded theme effect + pendingThemeRef deferral + fitTerminal-after-atlas-clear; native wails dev human verify (autonomous: false) (POL-04)
 - [x] 142-03-PLAN.md — POL-05 group nav restructure: extract count helpers, lift groupDefs/activeGroupId to App, remove GroupSidebar side-panel, nested Sidebar group sub-list with CARRY-01 ARIA + drag-to-assign + inline create; delete GroupSidebar (POL-05)
 - [x] 142-04-PLAN.md — POL-01 card gutter + 88px preview; POL-02 single role=switch icon+text toggle; POL-03 comp-styled + New Session buttons; all tokenized with light overrides + motion contract (POL-01, POL-02, POL-03)
+- [x] 142-05-SUMMARY.md — post-UAT comp-fidelity gap closure (unplanned): New Session accent pill, session-type colored spine+chip (lib/agentBadge.ts), 16px corners, taller/denser preview (tail 4→12, 150px, 10px), card IA restructure (centered name, color-coded origin, Open+Share pair, styled Share). Commits 25e2e7b9, 5930ec2f
 **UI hint**: yes
 
 ### Phase 143: Regression Test Program
