@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: ready_to_plan
-stopped_at: Phase 141 complete (5/5) — ready to discuss Phase 142
-last_updated: 2026-06-21T17:25:57.888Z
+status: ready_to_execute
+stopped_at: Phase 141 REOPENED (false pass — redesign visual language never adopted); gap-closure plans 141-06..09 created + checker-verified; ready to execute --gaps-only
+last_updated: 2026-06-21T19:00:00.000Z
 last_activity: 2026-06-21
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 20
+  completed_phases: 5
+  total_plans: 24
   completed_plans: 20
-  percent: 86
+  percent: 71
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 142 — regression test program
+**Current focus:** Phase 141 gap-closure — restyle the app to actually match the Claude Design comp (fonts, palette, radii, light/dark toggle)
 
 ## Current Position
 
-Phase: 142
-Plan: Not started
-Status: Ready to plan
+Phase: 141 (reopened for gap-closure)
+Plan: 141-06..09 planned + verified; ready to execute --gaps-only
+Status: Ready to execute
 Last activity: 2026-06-21
 
 Progress: [██████████] 100%
