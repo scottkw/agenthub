@@ -8,17 +8,14 @@ import { HubFilterBar } from './HubFilterBar'
 import type { HubFilter } from './HubFilterBar'
 import { SessionCardGrid } from './SessionCardGrid'
 import { HubEmptyState } from './HubEmptyState'
-import { GroupSidebar } from './GroupSidebar'
+import { computeCounts, computeGlobalCounts } from '../../lib/hubGroupCounts'
+import type { GroupCounts } from '../../lib/hubGroupCounts'
 import { HubModal } from './HubModal'
 import { SessionShareModal } from './SessionShareModal'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 // ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
 import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
 import {
-  loadGroups,
-  createGroup,
-  assignToGroup,
-  removeFromGroup,
   memberKey,
   type HubGroupDef,
 } from '../../lib/hubGroups'
@@ -183,9 +180,20 @@ export interface HubPanelProps {
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
   /** Phase 138 — remotePeers raw data for unreachable-peer hints */
   remotePeers?: import('../../lib/remoteSession').RemotePeerSessions[]
+  /** POL-05 — active group filter driven by Sidebar selection (state lifted to App.tsx) */
+  activeGroupId?: string | null
+  /** POL-05 — group definitions for per-card Move-to-group menu (state lifted to App.tsx) */
+  groupDefs?: HubGroupDef[]
+  /** POL-05 — drag-drop / per-card assign callback (routed through App.tsx) */
+  onDropOnGroup?: (groupId: string, mKey: string) => void
+  /** POL-05 — counts emitted upward so Sidebar can display live running/total per group */
+  onGroupCountsChange?: (
+    counts: Record<string, GroupCounts>,
+    global: GroupCounts
+  ) => void
 }
 
-const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
+// POL-05: SIDEBAR_COLLAPSED_KEY removed — hub-group-sidebar-collapsed localStorage key no longer used.
 
 // ---- Component ----
 
@@ -194,9 +202,8 @@ const SIDEBAR_COLLAPSED_KEY = 'hub-group-sidebar-collapsed'
  *
  * Owns filter + search state; applies filtering; composes:
  *   - HubFilterBar  (sticky; owns searchRef; passes state + callbacks; sole New session entry)
- *   - .hub__body (flex row)
- *       → GroupSidebar  (named groups, collapsed/expanded, localStorage)
- *       → .hub__grid-scroll
+ *   - .hub__body
+ *       → .hub__grid-scroll (full width — POL-05: GroupSidebar removed; group nav in main Sidebar)
  *           → error state     when error=true
  *           → no-sessions     when sessions.length === 0
  *           → no-matches      when filtered.length === 0 but sessions.length > 0
@@ -231,6 +238,10 @@ export function HubPanel({
   onOpenInBrowser,
   onBrowseFiles,
   remotePeers,
+  activeGroupId: activeGroupIdProp = null,
+  groupDefs: groupDefsProp = [],
+  onDropOnGroup: onDropOnGroupProp,
+  onGroupCountsChange,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -255,34 +266,10 @@ export function HubPanel({
   // Capture the sourceRect at the time of card click so it's available for auto-open
   const pendingSourceRectRef = useRef<DOMRect | null>(null)
 
-  // Phase 132 — named group state (localStorage-persisted)
-  const [groupDefs, setGroupDefs] = useState<HubGroupDef[]>(() => loadGroups())
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
-
-  // Phase 132 — sidebar collapsed state (localStorage-persisted, mirrors Sidebar.tsx pattern)
-  // WR-05: wrap in try/catch — localStorage.getItem throws SecurityError in private browsing
-  // with "block all cookies" or when WebView storage quota is exhausted. loadGroups() already
-  // guards its own localStorage access (hubGroups.ts line 17-21); this matches that pattern.
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true'
-    } catch {
-      return false
-    }
-  })
-
-  const handleSidebarToggle = useCallback(() => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next))
-      } catch {
-        // SecurityError (private browsing / "block all cookies") or QuotaExceededError
-        // — collapse state lives only in memory for this session; not fatal.
-      }
-      return next
-    })
-  }, [])
+  // POL-05: groupDefs + activeGroupId are now props (state lifted to App.tsx).
+  // Use prop aliases to keep the filtering logic below unchanged.
+  const groupDefs = groupDefsProp
+  const activeGroupId = activeGroupIdProp
 
   // '/' shortcut — focus search input when no input is focused (GRID-05)
   useEffect(() => {
@@ -375,22 +362,24 @@ export function HubPanel({
     }
   }
 
-  // Group CRUD callbacks
-  const handleCreateGroup = useCallback((name: string) => {
-    setGroupDefs((prev) => createGroup(prev, name))
-  }, [])
-
-  const handleDropOnGroup = useCallback((groupId: string, key: string) => {
-    setGroupDefs((prev) =>
-      groupId === '__other__' ? removeFromGroup(prev, key) : assignToGroup(prev, groupId, key)
-    )
-  }, [])
-
+  // POL-05: Group CRUD callbacks now delegate to the prop callbacks (state lifted to App.tsx).
+  // onDropOnGroupProp is the per-card drag path; handleAssignGroup wraps it for the card menu.
   const handleAssignGroup = useCallback((mKey: string, groupId: string) => {
-    setGroupDefs((prev) =>
-      groupId === '__other__' ? removeFromGroup(prev, mKey) : assignToGroup(prev, groupId, mKey)
-    )
-  }, [])
+    onDropOnGroupProp?.(groupId, mKey)
+  }, [onDropOnGroupProp])
+
+  // POL-05: Emit per-group + global counts upward via onGroupCountsChange whenever
+  // allSessions or groupDefs changes. This avoids lifting allSessions to App.tsx.
+  useEffect(() => {
+    if (!onGroupCountsChange) return
+    const counts: Record<string, { running: number; total: number; attention: number; waiting: number }> = {}
+    for (const g of groupDefs) {
+      counts[g.id] = computeCounts(allSessions, new Set(g.memberKeys))
+    }
+    const global = computeGlobalCounts(allSessions)
+    onGroupCountsChange(counts, global)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSessions.map(s => s.id + ':' + s.status).join(','), groupDefs.map(g => g.id + ':' + g.memberKeys.join(';')).join(','), onGroupCountsChange])
 
   // Phase 134 — MODAL-06: card click handler with remote cap gate
   const handleCardClick = useCallback((session: SessionInfo, rect: DOMRect) => {
@@ -505,20 +494,8 @@ export function HubPanel({
             </p>
           ))}
 
-        {/* Phase 132: hub__body is a flex row wrapping GroupSidebar + hub__grid-scroll */}
+        {/* POL-05: GroupSidebar removed — grid spans full width; group nav lives in main Sidebar */}
         <div className="hub__body">
-          <GroupSidebar
-            groupDefs={groupDefs}
-            sessions={allSessions}
-            activeGroupId={activeGroupId}
-            collapsed={sidebarCollapsed}
-            onToggle={handleSidebarToggle}
-            onGroupSelect={setActiveGroupId}
-            onCreateGroup={handleCreateGroup}
-            onDropOnGroup={handleDropOnGroup}
-          />
-
-          {/* Scrollable grid area */}
           <div className="hub__grid-scroll">
             {body}
           </div>

@@ -63,6 +63,14 @@ import type { ExitState } from './components/ExitToast'
 import { ExitCountdownBanner } from './components/ExitCountdownBanner'
 import { QuitConfirmModal } from './components/QuitConfirmModal'
 import { ALLOWED_THEMES } from './themes'
+import {
+  loadGroups,
+  createGroup,
+  assignToGroup,
+  removeFromGroup,
+  type HubGroupDef,
+} from './lib/hubGroups'
+import type { GroupCounts } from './lib/hubGroupCounts'
 
 const DEFAULT_FONT_SIZE = 14
 const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
@@ -292,6 +300,39 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     localStorage.setItem(UI_THEME_STORAGE_KEY, t)
     setUiTheme(t)
   }, [])
+
+  // POL-05: Group state lifted from HubPanel to App.tsx
+  // groupDefs + activeGroupId drive both Sidebar (render+select+create+drag-drop)
+  // and HubPanel (filtering). Counts flow UP from HubPanel via onGroupCountsChange callback
+  // (allSessions is NOT lifted — HubPanel keeps its own polling).
+  const [groupDefs, setGroupDefs] = useState<HubGroupDef[]>(() => loadGroups())
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [groupCounts, setGroupCounts] = useState<Record<string, GroupCounts>>({})
+  const [globalGroupCounts, setGlobalGroupCounts] = useState<GroupCounts>(
+    { running: 0, total: 0, attention: 0, waiting: 0 }
+  )
+
+  const handleGroupSelect = useCallback((id: string | null) => {
+    setActiveGroupId(id)
+  }, [])
+
+  const handleCreateGroup = useCallback((name: string) => {
+    setGroupDefs((prev) => createGroup(prev, name))
+  }, [])
+
+  const handleDropOnGroup = useCallback((groupId: string, key: string) => {
+    setGroupDefs((prev) =>
+      groupId === '__other__' ? removeFromGroup(prev, key) : assignToGroup(prev, groupId, key)
+    )
+  }, [])
+
+  const handleGroupCountsChange = useCallback(
+    (counts: Record<string, GroupCounts>, global: GroupCounts) => {
+      setGroupCounts(counts)
+      setGlobalGroupCounts(global)
+    },
+    []
+  )
 
   // Phase 97 SER-01: TerminalPanel calls this on attach/detach to
   // register/unregister its serialize() closure. Empty deps because
@@ -1275,6 +1316,13 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         onSettings={handleOpenSettings}
         onOpenHub={handleOpenHub}
         activePanel={activeId ?? undefined}
+        groupDefs={groupDefs}
+        activeGroupId={activeGroupId}
+        onGroupSelect={handleGroupSelect}
+        onCreateGroup={handleCreateGroup}
+        onDropOnGroup={handleDropOnGroup}
+        groupCounts={groupCounts}
+        globalGroupCounts={globalGroupCounts}
       />
       <div className="app__content">
         <TabBar
@@ -1334,6 +1382,10 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             onOpenInBrowser={handleOpenRemoteSession}
             onBrowseFiles={handleBrowseFilesRemote}
             remotePeers={remotePeers}
+            activeGroupId={activeGroupId}
+            groupDefs={groupDefs}
+            onDropOnGroup={handleDropOnGroup}
+            onGroupCountsChange={handleGroupCountsChange}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
