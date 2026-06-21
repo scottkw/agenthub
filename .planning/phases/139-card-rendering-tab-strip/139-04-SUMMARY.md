@@ -60,7 +60,7 @@ CARD-05 consumer half: vtColor resolveColor lib, MiniPreview StyledSpan[][] xter
 |------|------|--------|-----------|
 | 1 | vtColor lib + MiniPreview StyledSpan render + atomic poller/prop-type migration | a948673c | vtColor.ts, MiniPreview.tsx, HubPanel.tsx, SessionCardGrid.tsx, SessionCard.tsx + test files |
 | 2 | HubBriefingModal — local styled-span tail + remote headless-xterm tail | af8ad656 | HubBriefingModal.tsx, HubModal.tsx, HubBriefingModal.test.tsx |
-| 3 (checkpoint) | Human verify: live legibility on local card, local briefing, remote briefing | PENDING | — |
+| 3 (checkpoint) | Human verify: live legibility on local card, local briefing, remote briefing | PASSED (2026-06-20) | — |
 
 ## What Was Built
 
@@ -149,19 +149,23 @@ CARD-05 consumer half: vtColor resolveColor lib, MiniPreview StyledSpan[][] xter
 | `frontend/src/components/Hub/SessionCardGrid.test.tsx` | pass | GREEN |
 | Full suite | 1732 | GREEN |
 
-## Human-Verify Checkpoint (PENDING)
+## Human-Verify Checkpoint (PASSED 2026-06-20)
 
-**Status:** AWAITING HUMAN VERIFICATION
+**Status:** APPROVED via live `wails dev` UAT.
 
-The final task is a `checkpoint:human-verify` gate that requires live app testing. The human verifier must:
+Verified live: Hub mini-preview card renders the real claude TUI (prompt, model line, styled "auto mode on") with legible columns and no leaked escapes/doubled lines; tab strip shows full named tabs.
 
-1. Run `wails dev` (or `-tags wailsassets` build + web-share to Chrome for DevTools)
-2. Start a local Claude Code (or other TUI-style) session with colored output
-3. Confirm Hub mini-preview card shows legible output (no leaked escape sequences like `[32m`, no doubled lines)
-4. Open briefing modal for a local attention session — confirm styled tail renders correctly
-5. Share a session remotely and open the remote briefing modal — confirm legible output via headless xterm path
+### UAT-discovered gap fixes (two release-blocking bugs found during this checkpoint)
 
-Note: User is colorblind — verify legibility and absence of leaked escapes at source level, not by eye color judgment.
+Live UAT surfaced two regressions that the source-level/jsdom tests could not catch. Both were root-caused (systematic-debugging) and fixed before approval:
+
+1. **Mini-preview stuck on "Loading…" (backend hang).** `charmbracelet/x/vt` writes terminal-query responses (Device Attributes `ESC[c`/`ESC[>c`, DSR cursor-position `ESC[6n`, DECRQM, OSC color queries) into an unbuffered `io.Pipe`. With no reader draining `emu.Read`, the first such query in the replayed scrollback blocked `emu.Write` forever — `GetSessionStyledTailLines` / `/sessions/{id}/styled-tail` / the Wails binding all hung, so `usePreviewPoller`'s `Promise.all` never resolved and `lines` stayed `undefined`. Claude Code's TUI emits these queries at startup and they are captured in the PTY scrollback. **Fix (`5f221a39`):** drain+discard the emulator response pipe in a goroutine for the lifetime of `Write`, then `Close()`. Timeout-guarded regression test `TestGetSessionStyledTailLines_QueryNoHang` added (RED→GREEN).
+
+2. **Tab strip collapsed to bare status dots (CSS).** `container-type: inline-size` on `.tab` establishes inline-size containment, removing the tab's own content from its intrinsic-size calc; with `flex-basis: auto` every tab collapsed to `min-width` (32px) regardless of available space, firing the icon-only `@container (max-width: 59px)` query on all tabs at once. **Fix (`214690a1`):** explicit `flex-basis: 180px` gives a concrete starting width that `flex-shrink` reduces toward the 32px floor only under real space pressure (TAB-01..03 affordances intact).
+
+3. **`tsc` production-build break (`0c36c07a`).** Dead test vars in `TabBar.test.tsx` (used-before-assigned `container`/`root`; unread `renamedName`) passed `vitest` but failed `tsc && vite build`, blocking `wails dev`. Removed.
+
+Note: User is colorblind — color fidelity verified at source level (`resolveColor` ANSI→ITheme tests); live check confirmed legibility, column spacing, and absence of leaked escapes.
 
 ## Threat Surface Scan
 
