@@ -343,7 +343,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 138: Hub-First Navigation** — Remove Sessions page, Remote page, sidebar New Session item; add local/remote and connected/available indicators on cards; sidebar collapses to Home/Hub/Settings (completed 2026-06-20)
 - [x] **Phase 139: Card Rendering & Tab Strip** — Headless VT render for mini-preview/briefing-modal tail (#96); browser-style shrink-then-scroll tab strip (completed 2026-06-21)
 - [x] **Phase 140: UI-Spec Gate** — Redesign direction chosen after browser review; #93 backlog triaged (completed 2026-06-21)
-- [x] **Phase 141: Redesign Implementation** — Chosen visual language applied across all surviving surfaces; Hub GroupSidebar ARIA corrected (completed 2026-06-21)
+- [~] **Phase 141: Redesign Implementation** — REOPENED 2026-06-21: false pass (visual language never adopted); gap-closure plans 141-06..09 restyle to the comp (fonts, palette, radii, light/dark toggle)
 - [ ] **Phase 142: Regression Test Program** — Automated suite consolidated with CI gate; manual checklist established; standing convention documented
 
 ## Phase Details
@@ -432,12 +432,16 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The redesign does not re-introduce the removed Sessions or Remote sidebar pages or a standalone New Session sidebar item — Hub-first structure is preserved throughout
   3. Colorblind-safe semantics and prefers-reduced-motion compliance are maintained across all restyled surfaces in both light and dark themes (verified at hex-constant level, not by eye)
   4. The Hub GroupSidebar ARIA model is internally consistent — either the `listbox`/`option` roles with roving-tabindex are implemented correctly, or both are replaced with a plain focusable control list; no mismatched role/interaction pattern remains (#97)
-**Plans**: 5 plans
+**Plans**: 9 plans (5 original + 4 gap-closure)
 - [x] 141-01-PLAN.md — New --hub-text-dim token (both themes) + Wave 0 RED test updates (GroupSidebar ARIA, StatusBar D-11, SessionShareModal S-07 smoke) (RDS-02, RDS-04, CARRY-01, RDS-03)
 - [x] 141-02-PLAN.md — Tokenize sidebar (S-01 Welcome) + tab bar/status bar/terminal (S-03); D-03 fences kept; motion guards (RDS-02, RDS-04)
 - [x] 141-03-PLAN.md — Tokenize File Browser + Editor chrome (S-04/S-05) + Settings (S-06); motion guards (RDS-02, RDS-04)
 - [x] 141-04-PLAN.md — Add .hub-share-modal* CSS (S-07 gap) + lift inline hex from SessionShareModal.tsx (RDS-02, RDS-04)
 - [x] 141-05-PLAN.md — CARRY-01 GroupSidebar ARIA fix + D-11 "Sessions tab" copy reword (CARRY-01, RDS-03)
+- [ ] 141-06-PLAN.md — [gap] Vendor Plus Jakarta Sans + JetBrains Mono woff2 (no CDN); re-value --hub-* tokens to comp palette + font/radii/type tokens; keep blue accent (RDS-02, RDS-04)
+- [ ] 141-07-PLAN.md — [gap] Apply font/radii/type tokens across all surviving surfaces; add style.redesign source gate (RDS-02, RDS-03, RDS-04)
+- [ ] 141-08-PLAN.md — [gap] Wire persisted Light/Dark toggle in Settings → Appearance (sets data-ui-theme on <html>) (RDS-04, CARRY-01)
+- [ ] 141-09-PLAN.md — [gap] Rendered app-vs-comp comparison per surface + vendor/hex gates + human visual checkpoint (RDS-02, RDS-03, RDS-04, CARRY-01)
 **UI hint**: yes
 
 ### Phase 142: Regression Test Program
