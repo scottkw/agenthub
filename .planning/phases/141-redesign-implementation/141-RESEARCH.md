@@ -1089,14 +1089,16 @@ be in the same commit or the test suite will fail.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **S-07 Share Modal animation style**
+   - RESOLVED: Plan 04 uses fade-only (no grow): `@keyframes hub-share-modal-in`/`-out` opacity fade, assigned `--entering` 150ms in / `--exiting` 120ms out inside `@media (prefers-reduced-motion: no-preference)`, with a `reduce` static fallback (`animation: none; opacity: 1`). Fade is consistent with hub-modal-overlay behavior; grow is intentionally omitted for this smaller modal.
    - What we know: HubModal uses a grow+fade animation; SessionShareModal uses no grow (comment in TSX says "without grow animation").
    - What's unclear: Whether a plain fade-in/out is the right choice or if no animation (always `open` phase) is preferable for a smaller modal.
    - Recommendation: Planner can choose — fade is safer and consistent with hub-modal-overlay behavior.
 
 2. **Sidebar light-theme transition timing**
+   - RESOLVED: Plans 02/03 add the `prefers-reduced-motion` motion guard for migrated transitions (no-preference guard + `reduce: transition: none` fallback), including the sidebar width/hover transitions. No `--hub-toggle-thumb-off` token is introduced — the settings toggle-thumb off-state reuses the existing `--hub-scrollbar-hover` token (Plan 03 Task 2).
    - What we know: `.sidebar` has `transition: width 0.15s ease` for collapse. This is a layout transition, not a color transition, so it does not need a motion guard by the letter of the spec.
    - What's unclear: Whether the planner wants to add a `prefers-reduced-motion: reduce` guard for the width transition anyway (defensive quality).
    - Recommendation: Add the guard for defensive correctness — it is low-cost.
