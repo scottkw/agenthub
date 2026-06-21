@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 import type { ITheme } from '@xterm/xterm'
+import type { HubGroupDef } from '../../lib/hubGroups'
 
 // Minimal ITheme stub — WR-03 made terminalTheme required on HubPanelProps.
 const STUB_THEME: ITheme = { background: '#000000', foreground: '#ffffff' }
@@ -77,6 +78,14 @@ function renderPanel(overrides: {
   isActive?: boolean
   remoteCapsCached?: Set<string>
   onRequestRemoteCap?: (s: { id: string; name: string; hostname: string }) => void
+  // POL-05 new props — required after state-lift to App.tsx
+  activeGroupId?: string | null
+  groupDefs?: HubGroupDef[]
+  onDropOnGroup?: (groupId: string, mKey: string) => void
+  onGroupCountsChange?: (
+    counts: Record<string, { running: number; total: number; attention: number; waiting: number }>,
+    global: { running: number; total: number; attention: number; waiting: number }
+  ) => void
 } = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -93,6 +102,11 @@ function renderPanel(overrides: {
     terminalTheme: STUB_THEME,
     remoteCapsCached: overrides.remoteCapsCached,
     onRequestRemoteCap: overrides.onRequestRemoteCap,
+    // POL-05: new props for state-lifted group management
+    activeGroupId: overrides.activeGroupId ?? null,
+    groupDefs: overrides.groupDefs ?? [],
+    onDropOnGroup: overrides.onDropOnGroup ?? vi.fn(),
+    onGroupCountsChange: overrides.onGroupCountsChange ?? vi.fn(),
   }
 
   act(() => {
@@ -349,16 +363,18 @@ describe('HubPanel', () => {
   // Note: .hub__header removed in Phase 138 Plan 03 (CARD-01) — HubFilterBar is sole
   // New Session entry. See App.hub.test.tsx for the header-removal regression guard.
 
-  it('renders a .hub__body wrapper containing GroupSidebar and hub__grid-scroll', () => {
+  // POL-05 RED: GroupSidebar side-panel is removed; hub__grid-scroll spans full width.
+  // This test replaces the old "GroupSidebar must be inside hub__body" assertion.
+  it('POL-05 RED: hub__body has hub__grid-scroll and NO .hub__group-sidebar element', () => {
     const { container } = renderPanel({ sessions: [makeSession()] })
     const body = container.querySelector('.hub__body')
     expect(body).not.toBeNull()
-    // hub__grid-scroll must be inside hub__body
+    // hub__grid-scroll must still render (full-width grid)
     const scroll = body!.querySelector('.hub__grid-scroll')
     expect(scroll).not.toBeNull()
-    // GroupSidebar must be inside hub__body
-    const sidebar = body!.querySelector('.hub__group-sidebar')
-    expect(sidebar).not.toBeNull()
+    // GroupSidebar side-panel must be ABSENT after POL-05 (RED until POL-05 lands)
+    const sidebar = container.querySelector('.hub__group-sidebar')
+    expect(sidebar).toBeNull()
   })
 
   // ---- Phase 132: usePreviewPoller — active ----
@@ -460,124 +476,96 @@ describe('HubPanel', () => {
     expect(container.textContent).toContain('my-remote-host')
   })
 
-  // ---- Phase 132: named group state ----
+  // ---- Phase 132 / POL-05: named group state (retargeted to prop API) ----
 
-  it('renders GroupSidebar with an "All" item', () => {
-    const { container } = renderPanel({ sessions: [makeSession()] })
-    const sidebar = container.querySelector('.hub__group-sidebar')
-    expect(sidebar).not.toBeNull()
-    expect(sidebar!.textContent).toContain('All')
-  })
+  // POL-05: group filtering now comes from the activeGroupId PROP (state lifted to App.tsx).
+  // These tests drive group filtering via the prop, not via GroupSidebar internal clicks.
 
-  it('creating a group via sidebar callback persists to localStorage', () => {
-    const { container } = renderPanel({ sessions: [makeSession()] })
-
-    // Find the "New group" button in the sidebar
-    const newGroupBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent?.trim() === 'New group',
-    )
-    expect(newGroupBtn).not.toBeUndefined()
-
-    act(() => {
-      newGroupBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
-
-    // Type a group name and confirm
-    const input = container.querySelector<HTMLInputElement>('.hub__group-sidebar-new-input')
-    expect(input).not.toBeNull()
-
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype,
-        'value',
-      )!.set!
-      setter.call(input!, 'My Group')
-      input!.dispatchEvent(new Event('input', { bubbles: true }))
-      input!.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-
-    act(() => {
-      input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-    })
-
-    // Group should be visible in the sidebar
-    expect(container.textContent).toContain('My Group')
-
-    // And persisted — loadGroups() should return it
-    const raw = localStorage.getItem('agenthub:hubGroups:v1')
-    expect(raw).not.toBeNull()
-    const groups = JSON.parse(raw!)
-    expect(groups.some((g: { name: string }) => g.name === 'My Group')).toBe(true)
-  })
-
-  it('selecting a group narrows the grid to that group sessions', () => {
-    // Seed localStorage with a group that matches sess-1
-    const groupDef = {
+  it('POL-05: filtering sessions by activeGroupId prop narrows the grid (prop-based)', () => {
+    // Pass groupDef directly as a prop (state-lifted from HubPanel to App.tsx)
+    const groupDef: HubGroupDef = {
       id: 'grp-1',
       name: 'My Group',
       memberKeys: ['Test Session:::/home/user/project'],
     }
-    localStorage.setItem('agenthub:hubGroups:v1', JSON.stringify([groupDef]))
 
     const sessions = [
       makeSession({ id: 'sess-1', name: 'Test Session', workDir: '/home/user/project' }),
       makeSession({ id: 'sess-2', name: 'Other Session', workDir: '/home/user/other' }),
     ]
-    const { container } = renderPanel({ sessions })
-
-    // Find and click the "My Group" item in the sidebar
-    const sidebarItems = container.querySelectorAll('.hub__group-sidebar-item')
-    const myGroupItem = Array.from(sidebarItems).find(
-      (el) => el.textContent?.includes('My Group'),
-    )
-    expect(myGroupItem).not.toBeUndefined()
-
-    act(() => {
-      myGroupItem!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    // Pass activeGroupId prop — after POL-05 this is the primary way to filter
+    const { container } = renderPanel({
+      sessions,
+      groupDefs: [groupDef],
+      activeGroupId: 'grp-1',
     })
 
-    // Only sessions in "My Group" should appear
+    // Only the session in 'My Group' should appear
     const listitems = container.querySelectorAll('[role="listitem"]')
-    // My Group has no memberKeys matching since key format is "name:::workDir"
-    // The test checks the filter narrows — result count is less than before
-    // Note: all sessions end up in Other if key doesn't match (GROUP-04)
-    expect(listitems.length).toBeLessThanOrEqual(2)
+    expect(listitems.length).toBe(1)
   })
 
-  it('selecting "All" clears the group filter and shows all sessions', () => {
-    const groupDef = {
+  it('POL-05: activeGroupId=null shows all sessions (no filter)', () => {
+    const groupDef: HubGroupDef = {
       id: 'grp-1',
       name: 'My Group',
-      memberKeys: [],
+      memberKeys: ['Test Session:::/home/user/project'],
     }
-    localStorage.setItem('agenthub:hubGroups:v1', JSON.stringify([groupDef]))
 
     const sessions = [
-      makeSession({ id: 'sess-1' }),
+      makeSession({ id: 'sess-1', name: 'Test Session', workDir: '/home/user/project' }),
       makeSession({ id: 'sess-2', name: 'Session Two', workDir: '/other' }),
     ]
-    const { container } = renderPanel({ sessions })
-
-    // Click a named group to activate group filter
-    const sidebarItems = container.querySelectorAll('.hub__group-sidebar-item')
-    const myGroupItem = Array.from(sidebarItems).find(
-      (el) => el.textContent?.includes('My Group'),
-    )
-    act(() => {
-      myGroupItem!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    })
-
-    // Click "All" to clear
-    const allItem = Array.from(container.querySelectorAll('.hub__group-sidebar-item')).find(
-      (el) => el.textContent?.trim().startsWith('All'),
-    )
-    expect(allItem).not.toBeUndefined()
-    act(() => {
-      allItem!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    const { container } = renderPanel({
+      sessions,
+      groupDefs: [groupDef],
+      activeGroupId: null,
     })
 
     const listitems = container.querySelectorAll('[role="listitem"]')
     expect(listitems.length).toBe(2)
+  })
+
+  // POL-05 RED: onGroupCountsChange callback is called after mount with per-group+global counts shape
+  it('POL-05 RED: HubPanel calls onGroupCountsChange at least once after mount with {running,total,attention,waiting} shape', async () => {
+    vi.useFakeTimers()
+    const onGroupCountsChange = vi.fn()
+    const groupDef: HubGroupDef = {
+      id: 'grp-1',
+      name: 'Alpha',
+      memberKeys: ['Test Session:::/home/user/project'],
+    }
+    const sessions = [
+      makeSession({ id: 'sess-1', name: 'Test Session', workDir: '/home/user/project', status: 'running' }),
+    ]
+    renderPanel({
+      sessions,
+      groupDefs: [groupDef],
+      activeGroupId: null,
+      onGroupCountsChange,
+    })
+
+    // Advance timers to allow effects to settle
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+    })
+
+    // onGroupCountsChange must have been called at least once
+    expect(onGroupCountsChange).toHaveBeenCalled()
+
+    // The first call should receive (counts, globalCounts) where globalCounts has the expected shape
+    const [countsArg, globalArg] = onGroupCountsChange.mock.calls[0]
+    // counts is a Record<string, {running, total, attention, waiting}>
+    expect(typeof countsArg).toBe('object')
+    // globalCounts must have running, total, attention, waiting keys
+    expect(globalArg).toMatchObject({
+      running: expect.any(Number),
+      total: expect.any(Number),
+      attention: expect.any(Number),
+      waiting: expect.any(Number),
+    })
+
+    vi.useRealTimers()
   })
 })
 
