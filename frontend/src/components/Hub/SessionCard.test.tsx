@@ -11,6 +11,12 @@ vi.mock('../../wailsjs/go/main/App', () => ({
 import { SessionCard } from './SessionCard'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 import type { HubGroupDef } from '../../lib/hubGroups'
+import { daemon } from '../../wailsjs/go/models'
+
+// Helper to convert plain strings to StyledSpan[][] for previewLines tests.
+function makePreviewLines(lines: string[]): daemon.StyledSpan[][] {
+  return lines.map((line) => [{ c: line }])
+}
 
 function makeSession(overrides: Partial<SessionInfo> = {}): SessionInfo {
   return {
@@ -312,7 +318,7 @@ describe('SessionCard', () => {
         <SessionCard
           session={makeSession({ id: 'r-sess', name: 'Regression', cli: 'claude', state: 'running' })}
           onOpenSession={onOpen}
-          previewLines={['line1', 'line2']}
+          previewLines={makePreviewLines(['line1', 'line2'])}
           groupDefs={makeGroupDefs()}
           onAssignGroup={vi.fn()}
         />
@@ -346,7 +352,7 @@ describe('SessionCard', () => {
     document.body.appendChild(container)
     const root = createRoot(container)
     act(() => {
-      root.render(<SessionCard session={makeSession()} previewLines={['hello', 'world']} />)
+      root.render(<SessionCard session={makeSession()} previewLines={makePreviewLines(['hello', 'world'])} />)
     })
     const preview = container.querySelector('.hub-card__preview')
     expect(preview).not.toBeNull()

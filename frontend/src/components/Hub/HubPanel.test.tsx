@@ -9,11 +9,12 @@ import type { ITheme } from '@xterm/xterm'
 // Minimal ITheme stub — WR-03 made terminalTheme required on HubPanelProps.
 const STUB_THEME: ITheme = { background: '#000000', foreground: '#ffffff' }
 
-// Mock Wails RPC before component import — GetSessionTailLines required for usePreviewPoller
+// Mock Wails RPC before component import — GetSessionStyledTailLines required for usePreviewPoller
+// Phase 139 / CARD-05: poller switched from GetSessionTailLines to GetSessionStyledTailLines
 vi.mock('../../wailsjs/go/main/App', () => ({
   RenameSession: vi.fn().mockResolvedValue(undefined),
   ListSessions: vi.fn().mockResolvedValue([]),
-  GetSessionTailLines: vi.fn().mockResolvedValue(['line1', 'line2']),
+  GetSessionStyledTailLines: vi.fn().mockResolvedValue([[{ c: 'line1' }], [{ c: 'line2' }]]),
 }))
 
 vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
@@ -27,7 +28,7 @@ vi.mock('../TerminalPanel', () => ({
 }))
 
 import { HubPanel } from './HubPanel'
-import { GetSessionTailLines } from '../../wailsjs/go/main/App'
+import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
 
 // ---- Helpers ----
 
@@ -362,7 +363,7 @@ describe('HubPanel', () => {
 
   // ---- Phase 132: usePreviewPoller — active ----
 
-  it('calls GetSessionTailLines when isActive=true and sessions present', async () => {
+  it('calls GetSessionStyledTailLines when isActive=true and sessions present', async () => {
     vi.useFakeTimers()
     const sessions = [makeSession({ id: 'local-1', hostname: '' })]
     renderPanel({ sessions, isActive: true })
@@ -372,11 +373,11 @@ describe('HubPanel', () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
-    expect(GetSessionTailLines).toHaveBeenCalledWith('local-1', 4)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 4)
     vi.useRealTimers()
   })
 
-  it('does NOT call GetSessionTailLines when isActive=false', async () => {
+  it('does NOT call GetSessionStyledTailLines when isActive=false', async () => {
     vi.useFakeTimers()
     const sessions = [makeSession({ id: 'local-1', hostname: '' })]
     renderPanel({ sessions, isActive: false })
@@ -385,7 +386,7 @@ describe('HubPanel', () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
-    expect(GetSessionTailLines).not.toHaveBeenCalled()
+    expect(GetSessionStyledTailLines).not.toHaveBeenCalled()
     vi.useRealTimers()
   })
 
@@ -409,14 +410,14 @@ describe('HubPanel', () => {
     })
 
     // local-1 IS fetched despite its non-empty (machine) hostname; remote-99 is not.
-    expect(GetSessionTailLines).toHaveBeenCalledWith('local-1', 4)
-    expect(GetSessionTailLines).not.toHaveBeenCalledWith('remote-99', expect.anything())
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 4)
+    expect(GetSessionStyledTailLines).not.toHaveBeenCalledWith('remote-99', expect.anything())
     vi.useRealTimers()
   })
 
   // ---- CR-03: usePreviewPoller preserves last-seen lines when fetch returns empty ----
 
-  it('CR-03: does NOT call GetSessionTailLines for remote sessions when remote session ID changes (WR-04)', async () => {
+  it('CR-03: does NOT call GetSessionStyledTailLines for remote sessions when remote session ID changes (WR-04)', async () => {
     vi.useFakeTimers()
     // Two local sessions — sessionIdKey should be stable relative to remote changes
     const sessions = [
@@ -430,14 +431,14 @@ describe('HubPanel', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100)
     })
-    const callCount = (GetSessionTailLines as ReturnType<typeof vi.fn>).mock.calls.length
+    const callCount = (GetSessionStyledTailLines as ReturnType<typeof vi.fn>).mock.calls.length
 
     // Simulate a remote session change (e.g. new remote session id) — should NOT reset interval
     // The sessionIdKey dep is now local-only, so the remote change has no effect on the interval.
     // We verify: only local sessions were fetched, not remote
-    expect(GetSessionTailLines).toHaveBeenCalledWith('local-A', 4)
-    expect(GetSessionTailLines).toHaveBeenCalledWith('local-B', 4)
-    expect(GetSessionTailLines).not.toHaveBeenCalledWith('remote-X', expect.anything())
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-A', 4)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-B', 4)
+    expect(GetSessionStyledTailLines).not.toHaveBeenCalledWith('remote-X', expect.anything())
     expect(callCount).toBe(2) // exactly 2 fetches (one per local session on initial poll)
     vi.useRealTimers()
   })

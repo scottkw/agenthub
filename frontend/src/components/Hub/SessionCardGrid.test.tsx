@@ -15,6 +15,7 @@ vi.mock('../../wailsjs/wailsjs/runtime/runtime', () => ({
 
 import { SessionCardGrid, groupByNamedGroups, groupByWorkDir, sortSessionsForDisplay } from './SessionCardGrid'
 import type { HubGroupDef } from '../../lib/hubGroups'
+import { daemon } from '../../wailsjs/go/models'
 
 // ---- Helpers ----
 
@@ -54,7 +55,7 @@ function makeGroupDefs(): HubGroupDef[] {
 function renderGrid(
   sessions: SessionInfo[],
   onRename: (id: string, name: string) => void = vi.fn(),
-  extra: { groupDefs?: HubGroupDef[]; previewTails?: Map<string, string[]>; onAssignGroup?: (mk: string, gid: string) => void; attentionIds?: Set<string>; debouncedSortKey?: string } = {},
+  extra: { groupDefs?: HubGroupDef[]; previewTails?: Map<string, daemon.StyledSpan[][]>; onAssignGroup?: (mk: string, gid: string) => void; attentionIds?: Set<string>; debouncedSortKey?: string } = {},
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -334,8 +335,8 @@ describe('SessionCardGrid', () => {
     const sessions = [
       makeSession({ id: 'sess-preview', name: 'Preview Session', workDir: '/home/user/proj' }),
     ]
-    const previewTails = new Map([
-      ['sess-preview', ['output line 1', 'output line 2']],
+    const previewTails = new Map<string, daemon.StyledSpan[][]>([
+      ['sess-preview', [[{ c: 'output line 1' }], [{ c: 'output line 2' }]]],
     ])
     const { container } = renderGrid(sessions, vi.fn(), { previewTails })
     // MiniPreview renders lines as text in .hub-card__preview
@@ -350,7 +351,7 @@ describe('SessionCardGrid', () => {
       makeSession({ id: 'sess-no-preview', name: 'No Preview', workDir: '/home/user/proj' }),
     ]
     // previewTails doesn't contain this session → undefined → loading
-    const previewTails = new Map<string, string[]>()
+    const previewTails = new Map<string, daemon.StyledSpan[][]>()
     const { container } = renderGrid(sessions, vi.fn(), { previewTails })
     // previewTails.get('sess-no-preview') === undefined → loading state in MiniPreview
     const loadingEl = container.querySelector('.hub-card__preview--loading')

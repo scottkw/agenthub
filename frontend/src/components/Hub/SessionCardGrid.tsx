@@ -1,5 +1,7 @@
 import React from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+import { daemon } from '../../wailsjs/go/models'
 import { SessionCard } from './SessionCard'
 import { memberKey, type HubGroupDef } from '../../lib/hubGroups'
 import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
@@ -136,8 +138,10 @@ export interface SessionCardGridProps {
   onOpenSession?: (sessionId: string, name: string, cli: string) => void
   /** Phase 132 — named group definitions; when non-empty overrides workDir grouping */
   groupDefs?: HubGroupDef[]
-  /** Phase 132 — tail lines map from usePreviewPoller, keyed by session ID */
-  previewTails?: Map<string, string[]>
+  /** Phase 132/139 — styled tail lines map from usePreviewPoller, keyed by session ID (CARD-05: StyledSpan[][] since Plan 04) */
+  previewTails?: Map<string, daemon.StyledSpan[][]>
+  /** Phase 139 / CARD-05 — active xterm ITheme for color resolution in MiniPreview */
+  previewTheme?: ITheme
   /** Phase 132 — fires when user assigns via card overflow menu or DnD */
   onAssignGroup?: (memberKey: string, groupId: string) => void
   /** ATTN-02: live attention set — NOT debounced; used for per-card isAttention prop */
@@ -187,6 +191,7 @@ export function SessionCardGrid({
   onOpenSession,
   groupDefs,
   previewTails,
+  previewTheme,
   onAssignGroup,
   attentionIds,
   debouncedSortKey,
@@ -264,6 +269,7 @@ export function SessionCardGrid({
                     onCardClick={onCardClick}
                     onShare={onShare}
                     previewLines={previewTails?.get(s.id)}
+                    previewTheme={previewTheme}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
                     isAttention={attentionIds?.has(s.id)}
@@ -313,6 +319,7 @@ export function SessionCardGrid({
                     onCardClick={onCardClick}
                     onShare={onShare}
                     previewLines={previewTails?.get(s.id)}
+                    previewTheme={previewTheme}
                     groupDefs={groupDefs}
                     onAssignGroup={onAssignGroup}
                     isAttention={attentionIds?.has(s.id)}

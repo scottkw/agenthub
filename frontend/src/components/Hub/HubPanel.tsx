@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
-import { GetSessionTailLines } from '../../wailsjs/go/main/App'
+import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
 import type { ITheme } from '@xterm/xterm'
 import { daemon } from '../../wailsjs/go/models'
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline'
@@ -62,11 +62,12 @@ export function filterSessions(
 
 // CARD-07: single shared 3s poller drives all card previews — NOT per-card intervals
 // T-132-12: stable `sessionIdKey` dep prevents polling storm on array reference churn
+// Phase 139 / CARD-05: tails are now StyledSpan[][] instead of string[] (VT cell grid with color+bold)
 function usePreviewPoller(
   sessions: SessionInfo[],
   isActive: boolean,
-): Map<string, string[]> {
-  const [tails, setTails] = useState<Map<string, string[]>>(new Map())
+): Map<string, daemon.StyledSpan[][]> {
+  const [tails, setTails] = useState<Map<string, daemon.StyledSpan[][]>>(new Map())
 
   // Caller passes LOCAL sessions only (see call site). Local sessions carry the
   // machine's own hostname (os.Hostname()), so a hostname check is NOT a valid
@@ -84,12 +85,12 @@ function usePreviewPoller(
       if (localSessions.length === 0) return
       const results = await Promise.all(
         localSessions.map((s) =>
-          GetSessionTailLines(s.id, 4).catch(() => [] as string[])
+          GetSessionStyledTailLines(s.id, 4).catch(() => [] as daemon.StyledSpan[][])
         )
       )
       if (!cancelled) {
         // CR-03: merge results into the previous map instead of replacing it wholesale.
-        // When a session is stopped/killed, GetSessionTailLines returns [] (the hub has
+        // When a session is stopped/killed, GetSessionStyledTailLines returns [] (the hub has
         // been removed). Replacing the whole map would flip the preview back to "No output
         // yet". Instead, only overwrite an entry when we received real lines OR when there
         // is no prior value for that session (first fetch). This preserves the last-seen
@@ -329,9 +330,9 @@ export function HubPanel({
   // Remote sessions have no tail API: seed them as empty ([] → "No output yet", not a
   // perpetual "Loading…" placeholder).
   const previewTails = React.useMemo(() => {
-    const m = new Map(localPreviewTails)
+    const m = new Map<string, daemon.StyledSpan[][]>(localPreviewTails)
     for (const r of remoteSessions ?? []) {
-      if (!m.has(r.id)) m.set(r.id, [])
+      if (!m.has(r.id)) m.set(r.id, [] as daemon.StyledSpan[][])
     }
     return m
   }, [localPreviewTails, remoteSessions])
@@ -466,6 +467,7 @@ export function HubPanel({
         onShare={handleShare}
         groupDefs={groupDefs.length > 0 ? groupDefs : undefined}
         previewTails={previewTails}
+        previewTheme={terminalTheme}
         onAssignGroup={handleAssignGroup}
         attentionIds={attentionIds}
         debouncedSortKey={debouncedSortKey}

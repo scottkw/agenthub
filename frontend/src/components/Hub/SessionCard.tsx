@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { ITheme } from '@xterm/xterm'
+import { daemon } from '../../wailsjs/go/models'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -125,8 +127,10 @@ export interface SessionCardProps {
    * reserved for the Phase 134 modal gesture). Only shown for live sessions.
    */
   onOpenSession?: (sessionId: string, name: string, cli: string) => void
-  /** CARD-07: tail lines from usePreviewPoller; undefined = loading */
-  previewLines?: string[]
+  /** CARD-07/CARD-05: styled tail lines from usePreviewPoller; undefined = loading. Phase 139: StyledSpan[][] */
+  previewLines?: daemon.StyledSpan[][]
+  /** Phase 139 / CARD-05: active xterm ITheme for color resolution in MiniPreview */
+  previewTheme?: ITheme
   /** GROUP-02: group definitions for the "Move to group" overflow menu */
   groupDefs?: HubGroupDef[]
   /** GROUP-02: fires when user assigns this card to a group via menu */
@@ -186,6 +190,7 @@ export function SessionCard({
   onRename,
   onOpenSession,
   previewLines,
+  previewTheme,
   groupDefs,
   onAssignGroup,
   isAttention,
@@ -544,8 +549,8 @@ export function SessionCard({
         Share
       </button>
 
-      {/* ROW 6: MiniPreview — CARD-07: plain text snapshot; NO xterm instance; polling interval 3s shared across all cards */}
-      <MiniPreview lines={previewLines} />
+      {/* ROW 6: MiniPreview — CARD-07/CARD-05: styled cell grid snapshot; NO xterm instance; polling interval 3s shared */}
+      <MiniPreview lines={previewLines} theme={previewTheme ?? {} as ITheme} />
     </article>
   )
 }
