@@ -82,7 +82,10 @@ function usePreviewPoller(
       if (localSessions.length === 0) return
       const results = await Promise.all(
         localSessions.map((s) =>
-          GetSessionStyledTailLines(s.id, 4).catch(() => [] as daemon.StyledSpan[][])
+          // Fetch 12 tail lines (clamped [1..20]) so the card mini-preview shows real
+          // session content above the fixed footer/input region of TUI agents like Claude,
+          // not just the bottom 4 footer lines.
+          GetSessionStyledTailLines(s.id, 12).catch(() => [] as daemon.StyledSpan[][])
         )
       )
       if (!cancelled) {

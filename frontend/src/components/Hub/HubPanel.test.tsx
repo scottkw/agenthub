@@ -389,7 +389,7 @@ describe('HubPanel', () => {
       await vi.advanceTimersByTimeAsync(100)
     })
 
-    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 4)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 12)
     vi.useRealTimers()
   })
 
@@ -426,7 +426,7 @@ describe('HubPanel', () => {
     })
 
     // local-1 IS fetched despite its non-empty (machine) hostname; remote-99 is not.
-    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 4)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-1', 12)
     expect(GetSessionStyledTailLines).not.toHaveBeenCalledWith('remote-99', expect.anything())
     vi.useRealTimers()
   })
@@ -452,8 +452,8 @@ describe('HubPanel', () => {
     // Simulate a remote session change (e.g. new remote session id) — should NOT reset interval
     // The sessionIdKey dep is now local-only, so the remote change has no effect on the interval.
     // We verify: only local sessions were fetched, not remote
-    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-A', 4)
-    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-B', 4)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-A', 12)
+    expect(GetSessionStyledTailLines).toHaveBeenCalledWith('local-B', 12)
     expect(GetSessionStyledTailLines).not.toHaveBeenCalledWith('remote-X', expect.anything())
     expect(callCount).toBe(2) // exactly 2 fetches (one per local session on initial poll)
     vi.useRealTimers()

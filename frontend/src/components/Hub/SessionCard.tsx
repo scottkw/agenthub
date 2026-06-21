@@ -22,6 +22,9 @@ import { InlineSessionName } from './InlineSessionName'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 import { deriveHubStatus } from '../../lib/hubStatus'
 import type { HubStatus } from '../../lib/hubStatus'
+// Session-type (agent/CLI) color identity — same source the tab agent-badge dot uses,
+// so the card's left spine matches the dot on the tab. data-agent drives the CSS border-left.
+import { agentBadgeModifier } from '../../lib/agentBadge'
 import { memberKey, type HubGroupDef } from '../../lib/hubGroups'
 import { MiniPreview } from './MiniPreview'
 
@@ -308,6 +311,9 @@ export function SessionCard({
         isDragging ? 'hub-card--dragging' : '',
         isAttention ? 'hub-card--attention' : '',
       ].filter(Boolean).join(' ')}
+      /* Left spine colored by session type (agent/CLI), matching the tab agent-badge dot.
+         Colorblind-safe: reinforcement only — the agent is also shown as the `{cli}` text chip. */
+      data-agent={agentBadgeModifier(cli) ?? 'unknown'}
       draggable="true"
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', memberKeyForSession)

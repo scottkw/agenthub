@@ -4420,13 +4420,28 @@ body {
   min-width: 240px;
   max-width: 360px;
   border: 1px solid var(--hub-border);
-  border-radius: var(--hub-radius-md);
+  border-radius: 16px; /* comp parity: pronounced rounded corners (was --hub-radius-md 10px) */
   padding: 36px 16px 12px; /* POL-01: 36px top = 8px icon-top + 20px icon-height + 8px gap — reserves gutter for absolute drag-handle and menu-btn */
   background: var(--hub-surface);
   cursor: default;
   position: relative; /* IN-01: anchor for absolutely-positioned drag-handle and menu-btn */
   transition: border-color 100ms ease, background 100ms ease;
 }
+
+/* --- Session-type (agent/CLI) left spine ---------------------------------
+   Colors the card's left border by the agent type, matching the per-CLI
+   .tab__agent-badge--* dot on the tab (single source: lib/agentBadge.ts).
+   COLORBLIND-SAFE: reinforcement only — the agent is also shown as the
+   `{cli}` text chip in the card header; the spine is a secondary identity cue.
+   Hex values are authoritative — verify at source, not by eye (user is colorblind). */
+.hub-card[data-agent="claude"]   { border-left: 3px solid #7aa2f7; } /* claude   — periwinkle */
+.hub-card[data-agent="opencode"] { border-left: 3px solid #9ece6a; } /* opencode — green */
+.hub-card[data-agent="codex"]    { border-left: 3px solid #bb9af7; } /* codex    — purple */
+.hub-card[data-agent="gemini"]   { border-left: 3px solid #2ac3de; } /* gemini   — cyan */
+.hub-card[data-agent="cursor"]   { border-left: 3px solid #e0af68; } /* cursor   — gold */
+.hub-card[data-agent="aider"]    { border-left: 3px solid #f7768e; } /* aider    — red/pink */
+.hub-card[data-agent="shell"]    { border-left: 3px solid #89ddff; } /* shell    — light blue */
+.hub-card[data-agent="unknown"]  { border-left: 3px solid #9aa5ce; } /* unknown  — muted (matches tab fallback) */
 
 .hub-card:hover {
   border-color: var(--hub-border-hover);
@@ -4690,24 +4705,30 @@ body {
 
 /* CR-01 / POL-03: hub-filter__new-session — "New session" button in the filter bar */
 /* Restyled to comp's minimal text-link affordance (D-07) — transparent, no border, accent PlusIcon */
+/* Comp parity: prominent filled, glowing accent pill (was a quiet borderless
+   text affordance). Mirrors the primary-CTA treatment (.hub-modal__send-btn:
+   accent fill + --hub-bg text), with a soft accent glow. */
 .hub-filter__new-session {
-  background: transparent;
+  background: var(--hub-accent);
   border: none;
-  color: var(--hub-text-secondary);
-  font-size: 12px;
-  padding: 0 8px;
+  color: var(--hub-bg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
+  gap: 6px;
+  height: 32px;
   margin-left: auto;
   white-space: nowrap;
+  border-radius: var(--hub-radius-pill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 16px -2px var(--hub-accent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .hub-filter__new-session {
-    transition: color 100ms ease;
+    transition: background 100ms ease, box-shadow 100ms ease;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4717,13 +4738,14 @@ body {
 }
 
 .hub-filter__new-session:hover {
-  color: var(--hub-text-primary);
+  background: var(--hub-accent-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 22px -1px var(--hub-accent);
 }
 
 .hub-filter__new-session-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--hub-accent);
+  width: 16px;
+  height: 16px;
+  color: var(--hub-bg); /* on accent fill */
   flex-shrink: 0;
 }
 
@@ -4801,23 +4823,27 @@ body {
   margin-bottom: 24px;
 }
 
-/* POL-03: hub__empty-cta — same minimal comp affordance, centered (D-07) */
+/* Comp parity: prominent filled, glowing accent pill (D-07), centered.
+   Matches the filter-bar New Session button treatment. */
 .hub__empty-cta {
-  background: transparent;
+  background: var(--hub-accent);
   border: none;
-  color: var(--hub-text-secondary);
-  font-size: 12px;
-  padding: 0 8px;
+  color: var(--hub-bg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
+  gap: 6px;
+  height: 36px;
+  border-radius: var(--hub-radius-pill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), 0 0 16px -2px var(--hub-accent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .hub__empty-cta {
-    transition: color 100ms ease;
+    transition: background 100ms ease, box-shadow 100ms ease;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -4827,13 +4853,14 @@ body {
 }
 
 .hub__empty-cta:hover {
-  color: var(--hub-text-primary);
+  background: var(--hub-accent-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 22px -1px var(--hub-accent);
 }
 
 .hub__empty-cta-icon {
-  width: 14px;
-  height: 14px;
-  color: var(--hub-accent);
+  width: 16px;
+  height: 16px;
+  color: var(--hub-bg); /* on accent fill */
   flex-shrink: 0;
 }
 
@@ -5258,7 +5285,7 @@ body {
 
 /* CARD-07: mini preview pane — plain text snapshot, NO xterm instance */
 .hub-card__preview {
-  height: 88px; /* POL-01: raised from 56px → 88px (≈6 lines at 11px/1.3lh) */
+  height: 150px; /* taller window so real session content shows above the TUI footer; ≈11 lines at 10px/1.3lh (was 88px) */
   overflow: hidden;
   border-top: 1px solid var(--hub-preview-border);
   background: var(--hub-preview-bg);
@@ -5267,7 +5294,7 @@ body {
 
 .hub-card__preview-line {
   font-family: var(--hub-font-mono);
-  font-size: 11px;
+  font-size: 10px; /* smaller so more session lines fit in the preview window (was 11px) */
   line-height: 1.3;
   color: var(--hub-preview-text);
   white-space: nowrap;
