@@ -2,6 +2,7 @@ import React from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 import { deriveHubStatus } from '../../lib/hubStatus'
+import { PlusIcon } from '@heroicons/react/24/outline'
 
 // ---- Types ----
 
@@ -131,12 +132,13 @@ export function HubFilterBar({
         }}
       />
 
-      {/* New session button */}
+      {/* New session button — POL-03: minimal comp affordance with accent PlusIcon */}
       <button
         className="hub-filter__new-session"
         onClick={onNewSession}
         type="button"
       >
+        <PlusIcon className="hub-filter__new-session-icon" aria-hidden="true" />
         New session
       </button>
     </div>

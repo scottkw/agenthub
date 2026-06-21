@@ -4688,24 +4688,43 @@ body {
   flex-wrap: wrap;
 }
 
-/* CR-01: hub-filter__new-session — "New session" button in the filter bar */
+/* CR-01 / POL-03: hub-filter__new-session — "New session" button in the filter bar */
+/* Restyled to comp's minimal text-link affordance (D-07) — transparent, no border, accent PlusIcon */
 .hub-filter__new-session {
-  height: 28px;
-  padding: 0 12px;
-  font-size: 12px;
-  border-radius: 4px;
-  border: 1px solid var(--hub-border);
-  background: var(--hub-surface-elevated);
+  background: transparent;
+  border: none;
   color: var(--hub-text-secondary);
+  font-size: 12px;
+  padding: 0 8px;
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
   margin-left: auto;
-  transition: background 100ms ease, border-color 100ms ease;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hub-filter__new-session {
+    transition: color 100ms ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-filter__new-session {
+    transition: none;
+  }
 }
 
 .hub-filter__new-session:hover {
-  border-color: var(--hub-border-hover);
-  background: var(--hub-surface);
+  color: var(--hub-text-primary);
+}
+
+.hub-filter__new-session-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hub-accent);
+  flex-shrink: 0;
 }
 
 .hub-filter__pill {
@@ -4782,20 +4801,40 @@ body {
   margin-bottom: 24px;
 }
 
+/* POL-03: hub__empty-cta — same minimal comp affordance, centered (D-07) */
 .hub__empty-cta {
   background: transparent;
-  border: 1px solid var(--hub-border);
-  border-radius: 4px;
-  color: var(--hub-text-primary);
+  border: none;
+  color: var(--hub-text-secondary);
   font-size: 12px;
-  padding: 6px 16px;
+  padding: 0 8px;
   cursor: pointer;
-  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hub__empty-cta {
+    transition: color 100ms ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub__empty-cta {
+    transition: none;
+  }
 }
 
 .hub__empty-cta:hover {
-  border-color: var(--hub-border-hover);
-  background: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
+}
+
+.hub__empty-cta-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hub-accent);
+  flex-shrink: 0;
 }
 
 /* --- Error state --- */

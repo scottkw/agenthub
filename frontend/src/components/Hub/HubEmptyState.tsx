@@ -1,4 +1,5 @@
 import React from 'react'
+import { PlusIcon } from '@heroicons/react/24/outline'
 
 // ---- Props ----
 
@@ -41,6 +42,7 @@ export function HubEmptyState({
         <h2 className="hub__empty-heading">No sessions yet</h2>
         <p className="hub__empty-body">Create a session to start an AI coding agent.</p>
         <button className="hub__empty-cta" onClick={onNewSession} type="button">
+          <PlusIcon className="hub__empty-cta-icon" aria-hidden="true" />
           New session
         </button>
       </div>
