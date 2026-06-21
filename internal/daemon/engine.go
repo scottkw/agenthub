@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -637,7 +638,23 @@ func (e *SessionEngine) GetSessionStyledTailLines(id string, n int) [][]StyledSp
 	const emuRows = 50
 	cols := hub.Cols()
 	emu := xvt.NewEmulator(cols, emuRows)
+
+	// The emulator writes query responses (Device Attributes ESC[c / ESC[>c,
+	// DSR cursor-position ESC[6n, DECRQM, OSC color queries) into an unbuffered
+	// io.Pipe. A pipe write blocks until the response is read, so without a
+	// reader draining emu.Read, the FIRST such query in the replayed scrollback
+	// blocks emu.Write forever. Claude Code's TUI emits these queries at startup
+	// and they are captured in the PTY scrollback. Drain (and discard) the
+	// response stream in a goroutine for the lifetime of the Write, then Close
+	// the emulator to unblock the drain and stop the goroutine.
+	drainDone := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(io.Discard, emu)
+		close(drainDone)
+	}()
 	emu.Write(stripped) //nolint:errcheck // emulator Write never returns a meaningful error
+	_ = emu.Close()     // unblocks emu.Read in the drain goroutine (CloseWithError(io.EOF))
+	<-drainDone
 
 	// Extract the active screen rows as StyledSpan slices.
 	var rows [][]StyledSpan

@@ -1876,3 +1876,41 @@ func TestGetSessionStyledTailLines_Unknown(t *testing.T) {
 		t.Errorf("expected empty slice for unknown session, got len %d: %v", len(result), result)
 	}
 }
+
+// TestGetSessionStyledTailLines_QueryNoHang: scrollback containing terminal query
+// escape sequences (Primary Device Attributes ESC[c, DSR cursor-position ESC[6n)
+// must NOT hang. Regression for the headless-emulator deadlock: charmbracelet/x/vt
+// writes query responses to an unbuffered io.Pipe (Emulator.pw); with no reader
+// draining Emulator.Read, emu.Write blocks forever on the first query. Claude Code's
+// TUI emits these queries at startup, so they land in the captured PTY scrollback.
+func TestGetSessionStyledTailLines_QueryNoHang(t *testing.T) {
+	e := NewSessionEngine()
+	// DA1 query, then text, then DSR cursor-position query, then more text.
+	// Each query triggers a response write to the emulator's response pipe.
+	content := "\x1b[c\x1b[32mhello\x1b[0m\x1b[6n\nworld\n"
+	makeTailHub(t, e, "styled-query-hang", content)
+
+	done := make(chan [][]StyledSpan, 1)
+	go func() {
+		done <- e.GetSessionStyledTailLines("styled-query-hang", 5)
+	}()
+	select {
+	case result := <-done:
+		if result == nil {
+			t.Fatal("GetSessionStyledTailLines returned nil")
+		}
+		// Sanity: the visible text must survive the query stripping.
+		var joined string
+		for _, row := range result {
+			for _, span := range row {
+				joined += span.Char
+			}
+			joined += "\n"
+		}
+		if !strings.Contains(joined, "hello") || !strings.Contains(joined, "world") {
+			t.Errorf("expected visible text 'hello' and 'world' in result, got: %q", joined)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetSessionStyledTailLines hung on terminal query escape sequences — emulator response pipe is not being drained")
+	}
+}
