@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
-stopped_at: Phase 141 context gathered
-last_updated: "2026-06-21T19:20:12.569Z"
+stopped_at: Phase 142 context gathered
+last_updated: "2026-06-21T20:39:07.373Z"
 last_activity: 2026-06-21
 progress:
-  total_phases: 7
-  completed_phases: 5
+  total_phases: 8
+  completed_phases: 6
   total_plans: 24
-  completed_plans: 23
-  percent: 71
+  completed_plans: 24
+  percent: 75
 ---
 
 # Project State
@@ -84,7 +84,7 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-06-21T19:20:12.561Z
-Stopped at: Phase 141 context gathered
-Resume file: None
+Last session: 2026-06-21T20:39:07.364Z
+Stopped at: Phase 142 context gathered
+Resume file: .planning/phases/142-hub-settings-redesign-polish/142-CONTEXT.md
 Next action: `/gsd:plan-phase 136`
