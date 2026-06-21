@@ -739,7 +739,11 @@ import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved during Phase 142 planning — see plans 142-03 (count callback
+> `onGroupCountsChange`, collapsed-sidebar handling) and 142-01/142-03
+> (GroupSidebar.test.tsx → Sidebar.test.tsx migration + deletion).
 
 1. **Group count data path**
    - What we know: `allSessions` (local + remote) is computed inside `HubPanel.tsx`; Sidebar needs counts to display running/total per group
