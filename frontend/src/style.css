@@ -361,6 +361,107 @@ body {
   margin-top: auto;
 }
 
+/* ─── POL-05: Sidebar group sub-list ─────────────────────────────── */
+/* COLORBLIND-SAFE: active state uses aria-pressed + visual highlight (not color alone) */
+/* TOKEN RULE: no hardcoded hex — only var(--hub-*) tokens */
+
+.sidebar__group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar__group-item {
+  /* mirrors .hub__group-sidebar-item visual weight */
+}
+
+.sidebar__group-item__btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 5px 8px 5px 48px;  /* 48px left = icon slot width, aligns under Hub label */
+  border: none;
+  background: transparent;
+  color: var(--hub-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar__group-item__btn:hover {
+  background: var(--hub-sidebar-item-hover-bg);
+  color: var(--hub-text-primary);
+}
+
+.sidebar__group-item--active .sidebar__group-item__btn {
+  background: var(--hub-sidebar-item-active-bg);
+  color: var(--hub-accent);
+}
+
+.sidebar__group-item--drag-over .sidebar__group-item__btn {
+  border: 1px solid var(--hub-drag-over-border);
+  background: var(--hub-drag-over-bg);
+}
+
+.sidebar__group-item__name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__group-item__count {
+  flex-shrink: 0;
+  margin-left: 4px;
+  color: var(--hub-text-muted);
+  font-size: 11px;
+}
+
+.sidebar__group-new {
+  display: block;
+  width: 100%;
+  padding: 5px 8px 5px 48px;
+  border: none;
+  background: transparent;
+  color: var(--hub-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar__group-new:hover {
+  color: var(--hub-text-primary);
+}
+
+.sidebar__group-new-input {
+  display: block;
+  width: 100%;
+  padding: 4px 8px 4px 48px;
+  border: none;
+  border-bottom: 1px solid var(--hub-border);
+  background: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.sidebar__group-new-input:focus {
+  border-bottom-color: var(--hub-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar__group-item__btn {
+    transition: background-color 0.1s, color 0.1s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__group-item__btn {
+    transition: none;
+  }
+}
+
 /* ─── Terminal container ─────────────────────────────────────────── */
 .terminal-container {
   flex: 1;
