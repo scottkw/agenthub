@@ -439,7 +439,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 141-04-PLAN.md — Add .hub-share-modal* CSS (S-07 gap) + lift inline hex from SessionShareModal.tsx (RDS-02, RDS-04)
 - [x] 141-05-PLAN.md — CARRY-01 GroupSidebar ARIA fix + D-11 "Sessions tab" copy reword (CARRY-01, RDS-03)
 - [x] 141-06-PLAN.md — [gap] Vendor Plus Jakarta Sans + JetBrains Mono woff2 (no CDN); re-value --hub-* tokens to comp palette + font/radii/type tokens; keep blue accent (RDS-02, RDS-04)
-- [ ] 141-07-PLAN.md — [gap] Apply font/radii/type tokens across all surviving surfaces; add style.redesign source gate (RDS-02, RDS-03, RDS-04)
+- [x] 141-07-PLAN.md — [gap] Apply font/radii/type tokens across all surviving surfaces; add style.redesign source gate (RDS-02, RDS-03, RDS-04)
 - [x] 141-08-PLAN.md — [gap] Wire persisted Light/Dark toggle in Settings → Appearance (sets data-ui-theme on <html>) (RDS-04, CARRY-01)
 - [ ] 141-09-PLAN.md — [gap] Rendered app-vs-comp comparison per surface + vendor/hex gates + human visual checkpoint (RDS-02, RDS-03, RDS-04, CARRY-01)
 **UI hint**: yes
@@ -511,7 +511,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 138. Hub-First Navigation | v4.0 | 4/4 | Complete    | 2026-06-20 |
 | 139. Card Rendering & Tab Strip | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
-| 141. Redesign Implementation | v4.0 | 7/9 | In Progress|  |
+| 141. Redesign Implementation | v4.0 | 8/9 | In Progress|  |
 | 142. Regression Test Program | v4.0 | 0/TBD | Not started | - |
 
 ---
