@@ -103,6 +103,7 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /sessions/{id}/name", a.handleRenameSession)
 	a.mux.HandleFunc("GET /sessions/{id}/status", a.handleGetSessionStatus)
 	a.mux.HandleFunc("GET /sessions/{id}/tail", a.handleGetSessionTailLines)
+	a.mux.HandleFunc("GET /sessions/{id}/styled-tail", a.handleGetSessionStyledTailLines)
 	a.mux.HandleFunc("GET /settings/cli-paths", a.handleGetCLIPaths)
 	a.mux.HandleFunc("GET /shells", a.handleListShells)
 	a.mux.HandleFunc("PATCH /settings/cli-paths/{name}", a.handleUpdateCLIPath)
@@ -631,6 +632,27 @@ func (a *API) handleGetSessionTailLines(w http.ResponseWriter, r *http.Request) 
 		lines = []string{}
 	}
 	writeJSON(w, http.StatusOK, TailLinesResponse{Lines: lines})
+}
+
+// handleGetSessionStyledTailLines returns the last n styled-cell lines from
+// the session's scrollback buffer. Phase 139 / CARD-05.
+// Mirrors handleGetSessionTailLines exactly — same n-clamp [1..20] defense.
+func (a *API) handleGetSessionStyledTailLines(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	n := 4 // default
+	if nStr := r.URL.Query().Get("n"); nStr != "" {
+		if parsed, err := strconv.Atoi(nStr); err == nil && parsed > 0 {
+			n = parsed
+		}
+	}
+	if n > 20 {
+		n = 20 // mirror app.go clamp — enforce [1..20] at the daemon HTTP boundary
+	}
+	spans := a.engine.GetSessionStyledTailLines(id, n)
+	if spans == nil {
+		spans = [][]StyledSpan{}
+	}
+	writeJSON(w, http.StatusOK, StyledTailLinesResponse{Lines: spans})
 }
 
 func (a *API) handleGetCLIPaths(w http.ResponseWriter, r *http.Request) {

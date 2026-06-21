@@ -37,6 +37,8 @@ export const GetWebServerQRCode   = ()                      => Call('main.App.Ge
 export const GetSessionStatus     = (sessionID)             => Call('main.App.GetSessionStatus', [sessionID])
 // Phase 132 / CARD-07 — throttled tail snapshot for Hub mini-preview. n clamped to [1..20].
 export const GetSessionTailLines  = (id, n)                 => Call('main.App.GetSessionTailLines', [id, n])
+// Phase 139 / CARD-05 — VT-emulator styled tail: per-cell color+bold grid. n clamped to [1..20].
+export const GetSessionStyledTailLines = (id, n)            => Call('main.App.GetSessionStyledTailLines', [id, n])
 
 // Daemon error and retry bound methods
 export const GetDaemonError       = ()                      => Call('main.App.GetDaemonError', [])

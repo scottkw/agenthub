@@ -61,6 +61,8 @@ export function GetWebServerQRCode(): Promise<string>
 export function GetSessionStatus(sessionID: string): Promise<string>
 // Phase 132 / CARD-07 — throttled tail snapshot for Hub mini-preview. n clamped to [1..20].
 export function GetSessionTailLines(id: string, n: number): Promise<string[]>
+// Phase 139 / CARD-05 — VT-emulator styled tail: per-cell color+bold grid. n clamped to [1..20].
+export function GetSessionStyledTailLines(id: string, n: number): Promise<daemon.StyledSpan[][]>
 
 // Daemon error and retry bound methods
 export function GetDaemonError(): Promise<string>

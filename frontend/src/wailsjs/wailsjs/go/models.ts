@@ -205,7 +205,7 @@ export namespace main {
 	    hostname: string;
 	    webEnabled: boolean;
 	    homeDir: boolean;
-	    filesWrite: boolean;
+	    browseEnabled: boolean;
 	    viewerCount: number;
 	    exitCode?: number;
 	    duration?: number;
@@ -226,7 +226,7 @@ export namespace main {
 	        this.hostname = source["hostname"];
 	        this.webEnabled = source["webEnabled"];
 	        this.homeDir = source["homeDir"];
-	        this.filesWrite = source["filesWrite"];
+	        this.browseEnabled = source["browseEnabled"];
 	        this.viewerCount = source["viewerCount"];
 	        this.exitCode = source["exitCode"];
 	        this.duration = source["duration"];

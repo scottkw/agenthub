@@ -134,4 +134,13 @@ export namespace daemon {
 	    }
 	}
 
+	// Phase 139 / CARD-05: one styled cell in the VT grid returned by
+	// GetSessionStyledTailLines. Color values are "#rrggbb", "ansi:N", or "".
+	export interface StyledSpan {
+		c: string;         // Unicode grapheme cluster
+		fg?: string;       // "#rrggbb", "ansi:N", or "" (default fg)
+		bg?: string;       // "#rrggbb", "ansi:N", or "" (default bg)
+		b?: boolean;       // true when bold attribute set
+	}
+
 }

@@ -109,6 +109,17 @@ func (c *DaemonClient) GetSessionTailLines(id string, n int) ([]string, error) {
 	return resp.Lines, nil
 }
 
+// GetSessionStyledTailLines returns the last n styled-cell lines from the
+// session's scrollback buffer via GET /sessions/{id}/styled-tail.
+// Phase 139 / CARD-05.
+func (c *DaemonClient) GetSessionStyledTailLines(id string, n int) ([][]StyledSpan, error) {
+	var resp StyledTailLinesResponse
+	if err := c.doJSON(http.MethodGet, fmt.Sprintf("/sessions/%s/styled-tail?n=%d", id, n), nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Lines, nil
+}
+
 // GetCLIPaths returns the current CLI path override map.
 func (c *DaemonClient) GetCLIPaths() (map[string]string, error) {
 	var paths map[string]string

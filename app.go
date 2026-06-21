@@ -448,6 +448,30 @@ func (a *App) GetSessionTailLines(id string, n int) []string {
 	return lines
 }
 
+// GetSessionStyledTailLines returns the last n styled-cell lines from the
+// session's scrollback buffer, rendered through a headless VT emulator with
+// per-cell color and bold attributes. Returns an empty slice for remote
+// sessions, unreachable daemon, or unknown session IDs.
+// n is clamped to [1..20] (defense in depth — second enforcement layer
+// mirroring the HTTP handler clamp in daemon/api.go).
+// Phase 139 / CARD-05.
+func (a *App) GetSessionStyledTailLines(id string, n int) [][]daemon.StyledSpan {
+	if a.client == nil {
+		return [][]daemon.StyledSpan{}
+	}
+	if n < 1 {
+		n = 1
+	}
+	if n > 20 {
+		n = 20
+	}
+	lines, err := a.client.GetSessionStyledTailLines(id, n)
+	if err != nil || lines == nil {
+		return [][]daemon.StyledSpan{}
+	}
+	return lines
+}
+
 // DetectCLIs returns the list of supported AI coding CLIs found on PATH.
 func (a *App) DetectCLIs() []pty.DetectedCLI {
 	return pty.DetectCLIs()
