@@ -3916,6 +3916,7 @@ body {
   --hub-empty-icon-color: #3b4261;
   --hub-scrollbar: #3b4261;
   --hub-scrollbar-hover: #565f89;
+  --hub-text-dim: #565f89;   /* very faint hint/separator text, dimmer than --hub-text-muted */
   /* Phase 132 / CARD-07: mini preview is plain text snapshot — NO xterm instance; polling interval 3s shared across all cards */
   /* Phase 132 new --hub-* tokens */
   --hub-preview-bg: #0d0e17;
@@ -3968,6 +3969,7 @@ body {
   --hub-empty-icon-color: #c5c5d0;
   --hub-scrollbar: #c5c5d0;
   --hub-scrollbar-hover: #9999b0;
+  --hub-text-dim: #9999b0;   /* matches --hub-text-placeholder light value — same tier */
   /* Phase 132 / CARD-07: mini preview is plain text snapshot — NO xterm instance; polling interval 3s shared across all cards */
   /* Phase 132 new --hub-* tokens (light) */
   --hub-preview-bg: #e8e8f0;
