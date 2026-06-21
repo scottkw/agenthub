@@ -4364,7 +4364,7 @@ body {
   max-width: 360px;
   border: 1px solid var(--hub-border);
   border-radius: var(--hub-radius-md);
-  padding: 12px 16px;
+  padding: 36px 16px 12px; /* POL-01: 36px top = 8px icon-top + 20px icon-height + 8px gap — reserves gutter for absolute drag-handle and menu-btn */
   background: var(--hub-surface);
   cursor: default;
   position: relative; /* IN-01: anchor for absolutely-positioned drag-handle and menu-btn */
@@ -5162,7 +5162,7 @@ body {
 
 /* CARD-07: mini preview pane — plain text snapshot, NO xterm instance */
 .hub-card__preview {
-  height: 56px;
+  height: 88px; /* POL-01: raised from 56px → 88px (≈6 lines at 11px/1.3lh) */
   overflow: hidden;
   border-top: 1px solid var(--hub-preview-border);
   background: var(--hub-preview-bg);
