@@ -119,7 +119,15 @@ body {
   font-size: 13px;
   gap: 6px;
   transition: background-color 0.1s;
+  flex-grow: 0;
   flex-shrink: 1;
+  /* Explicit flex-basis is REQUIRED: container-type:inline-size establishes
+     inline-size containment, which removes the tab's own content from its
+     intrinsic-size calculation. With flex-basis:auto that collapses every tab
+     to min-width (32px) regardless of available space, firing the icon-only
+     @container query on all tabs at once (#139 regression). An explicit basis
+     gives a concrete starting width that flex-shrink reduces toward the floor. */
+  flex-basis: 180px;
   position: relative; /* Phase 98 PRG-02 — anchor for .tab__progress absolute positioning */
   container-type: inline-size;
 }
