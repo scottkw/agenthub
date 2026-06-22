@@ -5,24 +5,23 @@ depth: standard
 files_reviewed: 14
 files_reviewed_list:
   - frontend/src/App.tsx
-  - frontend/src/components/Hub/HubPanel.tsx
-  - frontend/src/components/Hub/SessionCard.tsx
-  - frontend/src/components/Hub/SessionCardGrid.tsx
   - frontend/src/components/__tests__/App.open-remote.test.tsx
+  - frontend/src/components/__tests__/SessionCard.share.test.tsx
+  - frontend/src/components/Hub/SessionCard.tsx
+  - frontend/src/components/RemoteJoinCodeModal.tsx
   - frontend/src/lib/__tests__/remoteAdapter.test.ts
   - frontend/src/lib/remoteAdapter.ts
   - frontend/src/lib/remoteSession.ts
   - frontend/src/wailsjs/go/main/App.d.ts
   - internal/daemon/api.go
-  - internal/daemon/mint_join_codes_test.go
   - internal/tailnet/sessions.go
   - internal/webserver/server.go
   - internal/webserver/sessions_meta_embed_test.go
   - internal/webserver/sessions_meta_test.go
 findings:
-  critical: 2
+  critical: 0
   warning: 3
-  info: 2
+  info: 4
   total: 7
 status: issues_found
 ---
@@ -34,214 +33,173 @@ status: issues_found
 **Files Reviewed:** 14
 **Status:** issues_found
 
+> NOTE: This file overwrites a stale REVIEW.md that reviewed the **superseded
+> broadcast design** (`mintSessionJoinCodes`, `roJoinCode`/`rwJoinCode`,
+> `isPeerSelf`, `SessionCardGrid.tsx`, `mint_join_codes_test.go`). That design was
+> reversed to the out-of-band model (CONTEXT.md D-02/D-10). A repo-wide grep for
+> `isPeerSelf|rwJoinCode|roJoinCode|ro_join_code|rw_join_code` returns zero hits in
+> current production code, so the two prior BLOCKERs no longer apply. The findings
+> below review the actually-submitted out-of-band implementation.
+
 ## Summary
 
-FIX-03 (#98) adds a per-session join-code minting path on the owner side
-(`mintSessionJoinCodes` + `/api/sessions/meta` embed) and a viewer-side
-exchange-then-open flow (`handleOpenRemoteSession`). Each individual layer is
-clean and the unit tests pass — but the layers are **not connected end-to-end**,
-and the security model that justifies handing out a read-write code is not
-enforced where the threat model claims it is.
+FIX-03 (#98) removes the credential-broadcast mechanism (RO/RW join codes embedded
+in the unauthenticated `/api/sessions/meta` payload) and replaces it with an
+out-of-band open flow: the owner delivers a join code/link out of band, the viewer
+pastes it into `RemoteJoinCodeModal`, and the browser opens at
+`baseURL/sessions/{id}?cap=<token>`.
 
-Two BLOCKERs:
+The four review priorities were checked:
 
-1. **The feature is non-functional.** The join codes are produced by the owner
-   webserver, fetched into `tailnet.ShareableSessionMeta`, then **dropped** at the
-   `app.go::GetRemoteSessionsWithMeta` Go→frontend conversion (the Wails
-   `RemoteSession` struct has no join-code fields and `app.go` was never modified
-   this phase). `session.roJoinCode` is therefore always `undefined` in the
-   frontend, so `handleOpenRemoteSession` always takes the D-03 "not shared"
-   branch. "Open in browser" stays broken — the exact bug #98 set out to fix.
-   Every unit test passes because no test crosses the `app.go` boundary.
+1. **No credential leakage in discovery payload — PASS.** `sessionMetaItem`
+   (server.go:50-56), `ShareableSessionMeta` (sessions.go:119-125), `RemoteSession`
+   (remoteSession.ts:12-19, App.d.ts:105-112), and the adapter
+   (`AdaptedRemoteSessionInfo`, remoteAdapter.ts:9-11) carry only
+   `{id, name, cli_type, status, url}`. `handleSessionsMeta` (server.go:843-865) emits
+   no token/grant/code. The inverted RB-03 test (sessions_meta_embed_test.go) and the
+   exact-allowed-key-set test (sessions_meta_test.go:157-217) lock this down.
 
-2. **RW capability is broadcast to all tailnet peers.** `mintSessionJoinCodes`
-   unconditionally mints BOTH a read-only and a read-write join code for every
-   web-enabled session and embeds both in the open, no-cap `/api/sessions/meta`
-   response. The `isPeerSelf` "only the owner gets RW" mitigation is purely
-   client-side and advisory; the server's `/join/exchange` performs no identity
-   check. Any tailnet peer that reads the raw discovery JSON obtains a working
-   write/input token. The RESEARCH threat-model row claiming RW is gated by
-   `isPeerSelf` does not match the implementation.
+2. **Capability-URL construction — mostly correct, one correctness gap (WR-01).** The
+   cap token is base64url (`A-Za-z0-9-_` + `.`), so the unencoded `?cap=` concatenation
+   is injection-safe and matches the daemon's own construction (api.go:1163,
+   server.go:797). The cap never enters React state — it lives in a local `const`.
+   However, the open-session URL is built from `pending.id` rather than the exchanged
+   cap's verified SID (WR-01).
 
-Plus a dead D-06 owner-RW path, a non-load-bearing `omitempty` inconsistency,
-and minor doc/contract drift.
+3. **No dead broadcast code remains — PASS.** Grep confirms zero production hits for the
+   broadcast identifiers. Type comments explicitly mark the removed fields.
 
-Note: `app.go` is not in the review file set but is the load-bearing integration
-point; finding CR-01 is provable entirely from in-scope files (the frontend
-consumes `roJoinCode`, the tailnet layer emits `ROJoinCode`, and the wiring
-between them is verifiably absent).
+4. **Local same-machine re-attach is untouched — PASS.** `handleOpenSessionTab`
+   (App.tsx:1036-1050) is unchanged and remains wired to the local-only "Open" button
+   (SessionCard.tsx:532-541, gated on `isLocal && session.state !== 'stopped'`). The
+   regression-guard test (SessionCard.share.test.tsx:306-310) covers it.
 
-## Critical Issues
-
-### CR-01: Join codes never reach the frontend — "Open in browser" is dead on arrival
-
-**File:** `frontend/src/App.tsx:1085` (consumer); root cause in `app.go:1207-1215` + struct `app.go:57-63` (out-of-scope but verified)
-**Issue:**
-The owner mints codes (`internal/daemon/api.go:1202` `mintSessionJoinCodes`),
-the webserver embeds them (`internal/webserver/server.go:883-889`), and the
-viewer's daemon decodes them into `tailnet.ShareableSessionMeta`
-(`internal/tailnet/sessions.go:128-129`). But `GetRemoteSessionsWithMeta`
-(`app.go:1207-1215`) constructs the Wails-exposed `RemoteSession` with only
-`ID/Name/CLIType/Status/URL` — it never copies `s.ROJoinCode` / `s.RWJoinCode`,
-and the Go `RemoteSession` struct (`app.go:57-63`) has no slot for them. `app.go`
-was not touched in this phase (`git diff --name-only … | grep app.go` is empty).
-
-Consequence: `adaptRemoteSession` reads `session.roJoinCode` / `session.rwJoinCode`
-(`frontend/src/lib/remoteAdapter.ts:37-38`) from a value that is always
-`undefined`. In `handleOpenRemoteSession` (`App.tsx:1085`):
-```ts
-if (!session.roJoinCode) {
-  setSaveBanner({ kind: 'error', text: 'This session is not shared …' })
-  return
-}
-```
-This branch is taken for every remote session. The feature is 100% broken
-end-to-end despite green unit tests (no test spans the `app.go` conversion).
-
-**Fix:** Add the fields to the Wails struct and copy them in the conversion:
-```go
-// app.go
-type RemoteSession struct {
-    ID         string `json:"id"`
-    Name       string `json:"name"`
-    CLIType    string `json:"cliType"`
-    Status     string `json:"status"`
-    URL        string `json:"url"`
-    ROJoinCode string `json:"roJoinCode,omitempty"`
-    RWJoinCode string `json:"rwJoinCode,omitempty"`
-}
-
-// in GetRemoteSessionsWithMeta:
-sessions = append(sessions, RemoteSession{
-    ID: s.ID, Name: s.Name, CLIType: s.CLIType, Status: s.Status, URL: s.URL,
-    ROJoinCode: s.ROJoinCode,
-    RWJoinCode: s.RWJoinCode,
-})
-```
-Add an integration test that drives `GetRemoteSessionsWithMeta` against a stub
-peer serving `/api/sessions/meta` with codes and asserts the codes survive to the
-returned `RemoteSession` — this boundary currently has zero coverage.
-
-### CR-02: Read-write join code is handed to every tailnet peer; `isPeerSelf` gate is client-side only
-
-**File:** `internal/daemon/api.go:1202-1262` (`mintSessionJoinCodes`), `internal/webserver/server.go:883-890` (embed), `frontend/src/App.tsx:1095-1097` (advisory gate)
-**Issue:**
-`mintSessionJoinCodes` always mints both an RO (`read`) and an RW
-(`read,write`) code and registers both grants. `handleSessionsMeta`
-(`server.go:883-889`) embeds **both** in the open, no-capability
-`/api/sessions/meta` response, which is served to any caller that can reach the
-tailnet bind IP. The only thing standing between a non-owner and a write-capable
-token is this client-side line:
-```ts
-const code = session.rwJoinCode && isPeerSelf(session.hostname, tailscaleHealth)
-  ? session.rwJoinCode
-  : session.roJoinCode
-```
-`/join/exchange` (`internal/webserver/server.go:767`) and
-`handleExchangeJoinCode` (`api.go:1303`) perform no identity check — they consume
-whatever code is presented and return the corresponding token. A peer that simply
-`curl`s `/api/sessions/meta` reads `rw_join_code` directly and exchanges it for a
-write/input token, fully bypassing `isPeerSelf`. The RESEARCH threat-model row
-("RO-to-RW escalation … D-05: rwJoinCode is used ONLY when isPeerSelf confirms
-viewer is owner") describes a guarantee the code does not provide. Pre-146,
-`/api/sessions/meta` contained no codes at all, so RW required an explicit
-out-of-band share gesture; FIX-03 now auto-broadcasts RW to the whole tailnet.
-
-**Fix:** Do not embed the RW code in the broadcast discovery payload. Options:
-- Embed only `ro_join_code` in `/api/sessions/meta`; obtain RW through a path that
-  actually authenticates the owner (e.g. the local Unix-socket
-  `issueCapabilitiesForSession`, which the owner already reaches for re-attach),
-  or
-- Keep both fields only if the owner-identity check moves server-side into the
-  exchange/mint path (verify the caller's tailnet identity matches the session
-  owner before issuing an RW token).
-
-At minimum, gate `mintSessionJoinCodes` so `rwCode` is empty unless the request
-is provably from the session owner, and stop relying on `isPeerSelf` (a UI hint)
-as the security boundary.
+No BLOCKER-class defects were found. Three WARNINGs and four INFO items follow.
 
 ## Warnings
 
-### WR-01: D-06 owner-RW selection is effectively dead code
+### WR-01: open-session URL uses the clicked session id, not the exchanged cap's SID
 
-**File:** `frontend/src/App.tsx:1068-1076` (`isPeerSelf`), `1095-1097` (selection)
-**Issue:**
-Sessions in `handleOpenRemoteSession` come exclusively from `remotePeers`
-(adapted via `adaptAllRemoteSessions`), so `session.hostname` is always a
-*remote* peer's hostname. `isPeerSelf` compares it to the viewer's OWN short
-hostname (`tailscaleHealth.domain.split('.')[0]`). For the #98 scenario (one user,
-two distinct Macs), the remote hostname never equals the local hostname, so
-`isPeerSelf` always returns `false` and the RW branch is unreachable — owner
-re-attach always gets RO, violating D-06's intent. (The RESEARCH §Open Questions
-A2/UQ1 flagged exactly this format-mismatch risk; it was not resolved.) Combined
-with CR-02 this is a wash for security, but it means the stated D-06 behavior is
-not delivered and the `rwJoinCode`/`isPeerSelf` machinery is inert.
-**Fix:** Either remove the dead RW selection path (and the `rwJoinCode` plumbing
-that exists only to feed it) or derive ownership from a real signal — e.g. an
-explicit `is_owner` field computed server-side, since hostname comparison cannot
-distinguish "my other Mac" from "someone else's Mac" on a shared tailnet.
+**File:** `frontend/src/App.tsx:1142-1148`
+**Issue:** The open-session branch builds the browser URL from `pending.id` (the session
+the viewer clicked) but ignores the SID actually bound to the returned capability:
 
-### WR-02: `omitempty` mismatch between the two meta structs masks degraded mode
+```js
+const cap = await ExchangeJoinCodeAtURL(baseURL, code)
+BrowserOpenURL(baseURL + '/sessions/' + pending.id + '?cap=' + cap)
+```
 
-**File:** `internal/webserver/server.go:59-60` vs `internal/tailnet/sessions.go:128-129`
-**Issue:**
-The producer (`sessionMetaItem`) serializes `ro_join_code`/`rw_join_code` with
-NO `omitempty` (always present, empty string in degraded/nil-issuer mode), while
-the consumer mirror (`ShareableSessionMeta`) uses `omitempty`. The comment at
-`server.go:51-52` says fields are "Always serialized (no omitempty) so downstream
-tests can assert their presence" — but `TestSessionsMeta_NilIssuer`
-(`sessions_meta_test.go:117-122`) explicitly tolerates the field being absent OR
-empty, so the no-`omitempty` choice buys nothing and the two structs disagree on
-the wire contract. Not currently a runtime bug (empty string decodes fine), but
-it is a latent inconsistency: a reader that distinguishes "field absent" from
-"field empty" would behave differently against the two structs.
-**Fix:** Make both consistent — use `omitempty` on both, or neither, and update
-the `server.go:51-52` comment to match the actual test expectation.
+Join codes are not session-scoped on the viewer side — the owner pastes whatever code
+they were handed. If the owner shares a code minted for session B while the viewer
+clicked "Open in browser" on session A, the URL becomes `/sessions/A?cap=<capForB>`. The
+remote `requireCapability` cross-checks `claims.SID` against the path `{id}`
+(server.go:603-604), so this is NOT an authorization bypass — it produces a 401/403
+dead-end. But it is a silent correctness/UX failure: the user pasted a valid code and
+gets a broken link with no explanation. Contrast the daemon's own exchange handler
+(api.go:1260) and the webserver redirect (server.go:797), both of which build the URL
+from the verified `claims.SID`, never from a caller-supplied id.
+**Fix:** Derive the path id from the exchanged token's claims. `ExchangeJoinCodeAtURL`
+already parses `/sessions/<id>?cap=<token>` from the Location header
+(client_remote_files.go:161-171) and discards the id — return it (or the full path) and
+open that, so the opened URL always matches the cap's bound session:
 
-### WR-03: No coverage for the exchange-failure → banner classification against real error strings
+```js
+const { sid, cap } = await ExchangeJoinCodeAtURL(baseURL, code)
+BrowserOpenURL(baseURL + '/sessions/' + sid + '?cap=' + cap)
+```
 
-**File:** `frontend/src/App.tsx:1102-1107`; error source `internal/daemon/client_remote_files.go:145-147`
-**Issue:**
-`handleOpenRemoteSession` classifies failures via
-`msg.includes('expired') || msg.includes('session-gone')`. This happens to match
-the real strings the daemon produces (`"join exchange: expired"` /
-`"join exchange: session-gone"` from the `/join?error=<kind>` 303 path), but the
-match is by coincidence of substrings across a Go↔TS boundary with no contract
-test. `App.open-remote.test.tsx` is source-inspection only (greps the file text);
-it asserts the *literal* `'expired'`/`'session-gone'` appear in the source, not
-that they line up with the daemon's emitted strings. A future reword on either
-side (e.g. Go switching to the dead 410/404 status branch that emits
-`"…not-found (status 404)"`) silently degrades every non-expiry failure to the
-generic "Failed to open session" banner.
-**Fix:** Centralize the error-kind tokens in one shared constant/contract, or add
-a behavioral test that exercises `ExchangeJoinCodeAtURL`'s actual error output
-through `handleOpenRemoteSession`'s classifier.
+### WR-02: `App.open-remote.test.tsx` proves the open-session contract only by source-text inspection
+
+**File:** `frontend/src/components/__tests__/App.open-remote.test.tsx:117-137`
+**Issue:** The file's own header (lines 13-15, 139-148) correctly criticizes source-only
+tests, yet the `handleModalExchange` open-session assertions are themselves pure
+`raw.indexOf(...)` / `toContain('open-session')` / `toMatch(/\/sessions\/.*\?cap=/)`
+string checks against `App.tsx?raw`. They pass as long as the substrings exist anywhere
+in the sliced text — they would still pass with the WR-01 bug present (`pending.id`
+produces a matching `/sessions/...?cap=` substring) and cannot detect a transposed
+argument, a missing `await`, or the wrong base URL. The behavior-level assertions in this
+file (lines 149-185) only exercise `SessionCard`'s button → handler wiring, never
+`handleModalExchange` itself. So the actual open flow (exchange → correct URL →
+BrowserOpenURL) has no behavioral coverage.
+**Fix:** Add a behavior test that mocks `ExchangeJoinCodeAtURL` to resolve a known token
+and `BrowserOpenURL` to a spy, drives the open-session intent through `handleModalExchange`
+(extract it to a testable unit if needed), and asserts `BrowserOpenURL` was called with the
+exact expected `baseURL + '/sessions/' + <expected-sid> + '?cap=' + <token>`. This covers
+the path and would catch WR-01 as a regression.
+
+### WR-03: `mapErrorMessage` collapses "not-found" into the wrong-code bucket, mis-directing recovery
+
+**File:** `frontend/src/components/RemoteJoinCodeModal.tsx:38-50`; `internal/daemon/client_remote_files.go:118-121`
+**Issue:** `ExchangeJoinCodeAtURL` maps an upstream 404 to the string
+`"join code not-found (status 404)"` (client_remote_files.go:119-121). `mapErrorMessage`
+checks `lower.includes('not-found')` in the same branch as `'invalid'` and returns
+"Code invalid. Double-check the 8-character code (XXXX-XXXX)." But a 404 from the exchange
+path corresponds to `ErrCodeNotFound` — a code that was never issued, already exchanged, or
+GC'd (api.go:1234-1236). For a single-use code the common real cause is "already used /
+stale," not "you typed it wrong." Telling the user to re-check the digits sends them down
+the wrong recovery path (re-typing the same dead code) instead of "ask the owner for a fresh
+code." The modal's JSDoc (lines 28-32) listing `'not-found'` as a wrong-code synonym is the
+source of the conflation.
+**Fix:** Fold not-found into the expired-style "ask the owner to generate a new code" copy,
+which matches single-use semantics:
+
+```js
+if (lower.includes('expired') || lower.includes('not-found')) {
+  return 'Code expired or already used. Ask the owner to generate a new code.'
+}
+if (lower.includes('invalid')) {
+  return 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'
+}
+```
 
 ## Info
 
-### IN-01: Cap token now transits the React layer, contradicting the documented contract
+### IN-01: code-length copy says "8-character" but the exchanger expects a 5-character code
 
-**File:** `frontend/src/App.tsx:1099-1100`; contract at `app.go:1232-1233`
-**Issue:**
-`ExchangeJoinCodeAtURL`'s docstring states the returned cap "must NEVER be passed
-to the React frontend (it lives in the daemon's RemoteCapStore)." The new
-`handleOpenRemoteSession` receives the token in JS (`const token = await
-ExchangeJoinCodeAtURL(...)`) and interpolates it into a `BrowserOpenURL` URL. It
-is not persisted in React state and a cap-in-URL is inherent to the open-in-
-browser design, but the contract comment is now stale and the token does transit
-the JS heap + the system browser address bar/history.
-**Fix:** Update the `app.go:1232-1233` docstring to carve out the open-in-browser
-case, and note the address-bar exposure is accepted (matches the QR/share flow).
+**File:** `frontend/src/components/RemoteJoinCodeModal.tsx:48,133-143,150`
+**Issue:** The modal body, placeholder, and error copy all say "8-character join code
+(format XXXX-XXXX)". The Go binding's doc and tests describe and exercise a **5-character**
+code (`ExchangeJoinCodeAtURL` doc, client_remote_files.go:43, and
+`c.ExchangeJoinCodeAtURL(srv.URL, "ABCDE")` throughout client_test.go). "XXXX-XXXX" is 8
+glyphs plus a hyphen. The mismatch is pre-existing (Phase 122 copy), but FIX-03 re-uses the
+same component for the new open-session intent, so the inconsistent instruction now appears
+on a second flow.
+**Fix:** Reconcile the user-facing length/format string with the real join-code format
+(check `capability/joincode.go` `JoinCodeManager.Issue`), then update both the open-session
+and files body text.
 
-### IN-02: Stale source-line reference in comment
+### IN-02: duplicate doc comment block on `handleSessionsMeta`
 
-**File:** `frontend/src/components/Hub/HubPanel.tsx:510`
-**Issue:**
-Comment cites "the tab grid guard (App.tsx:1535)" but the relevant App.tsx region
-referenced by this phase ends around line 1429; line numbers drift and bare
-line-number cross-references rot quickly.
-**Fix:** Reference the symbol (e.g. "mirrors the HubModal relayPort>0 guard")
-rather than an absolute line number.
+**File:** `internal/webserver/server.go:833-842`
+**Issue:** `handleSessionsMeta` carries two stacked doc headers — lines 833-838 and again
+839-842 both begin "handleSessionsMeta handles GET /api/sessions/meta." The second block was
+added during the RB-03 restore without removing the first; Go doc tooling attaches the whole
+run, producing a redundant docstring. Cosmetic.
+**Fix:** Collapse to a single comment block describing the cap-free contract.
+
+### IN-03: stale "Daemon Manager panel" instruction in the files-intent modal copy
+
+**File:** `frontend/src/components/RemoteJoinCodeModal.tsx:142-143`
+**Issue:** The non-open-session body text tells the viewer the owner "generates it from the
+Daemon Manager panel." Per the v4.0 redesign the Sessions/Remote pages were dropped and the
+owner share gesture now lives on the Hub card Share button (SessionCard.tsx:542-552). If
+"Daemon Manager panel" is no longer a current surface name, this instruction points the user
+at a surface that may not exist.
+**Fix:** Confirm the current owner-side share location and update the copy to name it.
+
+### IN-04: `RemotePeerSessions`/`RemoteSession` defined in three places, drift-prone
+
+**File:** `frontend/src/lib/remoteSession.ts:12-26`; `frontend/src/wailsjs/go/main/App.d.ts:105-119`; `frontend/src/wailsjs/wailsjs/go/main/App.d.ts:41`
+**Issue:** `RemoteSession` and `RemotePeerSessions` are declared independently in
+`lib/remoteSession.ts` and in the Wails stub `App.d.ts`. App.tsx imports
+`RemotePeerSessions` from the Wails stub (line 40) but the lib helpers (`findRemoteSession`,
+`remoteBaseURLFor`) are typed against the lib copy (line 51). Structural typing keeps this
+compiling, but the declarations can drift — adding a field to one and not the other would
+silently break the helper call sites. The `App.d.ts` header claims AUTO-GENERATED "DO NOT
+edit manually," yet it carries hand-written "broadcast join-code fields REMOVED" comments,
+indicating it is hand-maintained and thus prone to drift.
+**Fix:** Have the Wails stub re-export the lib types (or vice versa) so there is a single
+source of truth for the remote-session shape.
 
 ---
 
