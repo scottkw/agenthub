@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/x/ansi"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	xvt "github.com/charmbracelet/x/vt"
 	"github.com/scottkw/agenthub/internal/pty"
 	"github.com/scottkw/agenthub/internal/relay"
@@ -536,8 +535,10 @@ func (e *SessionEngine) GetSessionStatus(sessionID string) string {
 // Pattern mirrors frontend/src/lib/stripAnsi.ts extended to include OSC.
 //
 // CR-01 fix: OSC sequences come in two forms:
-//   BEL-terminated:  ESC ] <body> BEL         — [^\x07\x1b]*\x07
-//   ST-terminated:   ESC ] <body> ESC \        — [^\x1b]*\x1b\\
+//
+//	BEL-terminated:  ESC ] <body> BEL         — [^\x07\x1b]*\x07
+//	ST-terminated:   ESC ] <body> ESC \        — [^\x1b]*\x1b\\
+//
 // The original [^\x07\x1b]* stopped at the first \x1b in both branches,
 // leaving the \x5c (backslash) of the ST terminator as a literal character.
 // The fix uses two separate OSC branches: the BEL branch excludes both BEL and
@@ -549,6 +550,36 @@ var ansiEscape = regexp.MustCompile(
 		`|\][^\x07\x1b]*\x07` + // OSC terminated by BEL  (e.g. \x1b]0;title\x07)
 		`|\][^\x1b]*\x1b\\` + // OSC terminated by ST   (e.g. \x1b]8;;url\x1b\)
 		`)`,
+)
+
+// queryStripPattern matches terminal-query and in-band-resize escape sequences
+// that elicit a blocking response write into charmbracelet/x/vt's unbuffered
+// response pipe (Emulator.pw). Stripping these BEFORE emu.Write lets Write run
+// synchronously with no drain goroutine — which also removes the concurrent
+// Read/Close data race (#100). SGR/color sequences are deliberately preserved
+// so the styled grid keeps its colors and bold attributes.
+//
+// Covered sequences:
+//   - DA1  (ESC[c / ESC[0c)       — Primary Device Attributes
+//   - DA2  (ESC[>c)               — Secondary Device Attributes
+//   - DSR  (ESC[5n / ESC[6n)      — Device Status Report / Cursor Position
+//   - DECXCPR (ESC[?6n)           — Extended Cursor Position Report
+//   - DECRQM ANSI (ESC[...$p)     — Request ANSI Mode
+//   - DECRQM DEC  (ESC[?...$p)    — Request DEC Mode
+//   - OSC color queries (ESC]10|11|12;?) — Foreground/Background/Cursor color query
+//   - DEC mode 2048 set/reset (ESC[?2048h/l) — In-band resize (fires a pw write on set)
+//
+// NOT stripped: SGR (color/bold/etc.), cursor movement, erase, scroll — these are
+// rendering sequences and must reach the emulator to produce correct styled output.
+var queryStripPattern = regexp.MustCompile(
+	`\x1b\[[0-9;]*c` + // DA1 (and any params before c)
+		`|\x1b\[>[0-9;]*c` + // DA2
+		`|\x1b\[[0-9;]*n` + // DSR (5n/6n and any CSI n)
+		`|\x1b\[\?[0-9;]*n` + // DECXCPR (ESC[?...n)
+		`|\x1b\[[0-9;]*\$p` + // DECRQM ANSI
+		`|\x1b\[\?[0-9;]*\$p` + // DECRQM DEC
+		`|\x1b\[\?2048[hl]` + // in-band resize set/reset (set triggers a pw write)
+		`|\x1b\]1[012];\?(?:\x07|\x1b\\)`, // OSC 10/11/12 color query, BEL- or ST-terminated
 )
 
 // GetSessionTailLines returns the last n plain-text lines from the session's
@@ -639,22 +670,14 @@ func (e *SessionEngine) GetSessionStyledTailLines(id string, n int) [][]StyledSp
 	cols := hub.Cols()
 	emu := xvt.NewEmulator(cols, emuRows)
 
-	// The emulator writes query responses (Device Attributes ESC[c / ESC[>c,
-	// DSR cursor-position ESC[6n, DECRQM, OSC color queries) into an unbuffered
-	// io.Pipe. A pipe write blocks until the response is read, so without a
-	// reader draining emu.Read, the FIRST such query in the replayed scrollback
-	// blocks emu.Write forever. Claude Code's TUI emits these queries at startup
-	// and they are captured in the PTY scrollback. Drain (and discard) the
-	// response stream in a goroutine for the lifetime of the Write, then Close
-	// the emulator to unblock the drain and stop the goroutine.
-	drainDone := make(chan struct{})
-	go func() {
-		_, _ = io.Copy(io.Discard, emu)
-		close(drainDone)
-	}()
-	emu.Write(stripped) //nolint:errcheck // emulator Write never returns a meaningful error
-	_ = emu.Close()     // unblocks emu.Read in the drain goroutine (CloseWithError(io.EOF))
-	<-drainDone
+	// Strip terminal-query and in-band-resize sequences that would block
+	// emu.Write on the emulator's unbuffered response pipe (#96). With these
+	// removed, Write returns synchronously and no drain goroutine is needed —
+	// which also removes the concurrent Read/Close data race (#100).
+	// SGR/color sequences are preserved so the styled grid renders correctly.
+	clean := queryStripPattern.ReplaceAll(stripped, nil)
+	emu.Write(clean) //nolint:errcheck // emulator Write never returns a meaningful error
+	_ = emu.Close()
 
 	// Extract the active screen rows as StyledSpan slices.
 	var rows [][]StyledSpan
