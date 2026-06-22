@@ -1,10 +1,11 @@
 ---
 phase: 142
 slug: hub-settings-redesign-polish
-status: planned
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-21
+validated: 2026-06-21
 ---
 
 # Phase 142 — Validation Strategy
@@ -40,27 +41,27 @@ created: 2026-06-21
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-T1 | 142-01 | 1 | POL-02 | T-142-01 | N/A (test) | unit (RED) | `pnpm --dir frontend test run src/components/__tests__/SettingsTab.appearance-theme.test.tsx` | ✅ (update) | ⬜ pending |
-| 01-T2 | 142-01 | 1 | POL-05/03/04 | T-142-01 | N/A (test) | unit + source-gate (RED) | `pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ (extend) | ⬜ pending |
-| 01-T3 | 142-01 | 1 | POL-05 | T-142-01 | N/A (test) | unit (RED) | `pnpm --dir frontend test run src/components/Hub/HubPanel.test.tsx` | ✅ (update) | ⬜ pending |
-| 02-T1 | 142-02 | 2 | POL-04 | T-142-02/03 | Repaint timing only; no byte-handling change | source-gate + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ (Plan 01) | ⬜ pending |
-| 02-T2 | 142-02 | 2 | POL-04 | T-142-02 | N/A | manual (wails dev, PTY) | n/a — native human check | n/a | ⬜ pending |
-| 03-T1 | 142-03 | 2 | POL-05 | T-142-04/05/06 | Group input trim; client-only localStorage | unit + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/Hub/HubPanel.test.tsx` | ✅ (Plan 01) | ⬜ pending |
-| 03-T2 | 142-03 | 2 | POL-05 | T-142-04/06 | React text-escaped group names; trim guard | unit + tsc + source-gate | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ (Plan 01) | ⬜ pending |
-| 04-T1 | 142-04 | 3 | POL-01 | T-142-08 | More of same already-rendered tail | source-gate + tsc + manual (narrow-width visual) | `pnpm --dir frontend exec tsc --noEmit` + grep `hub-card__preview` | ✅ style.css | ⬜ pending |
-| 04-T2 | 142-04 | 3 | POL-02 | T-142-07 | Colorblind-safe icon+text; persistence untouched | unit + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/SettingsTab.appearance-theme.test.tsx` | ✅ (Plan 01) | ⬜ pending |
-| 04-T3 | 142-04 | 3 | POL-03 | T-142-SC | N/A | source-gate + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ (Plan 01) | ⬜ pending |
+| 01-T1 | 142-01 | 1 | POL-02 | T-142-01 | N/A (test) | unit | `pnpm --dir frontend test run src/components/__tests__/SettingsTab.appearance-theme.test.tsx` | ✅ | ✅ green |
+| 01-T2 | 142-01 | 1 | POL-05/03/04 | T-142-01 | N/A (test) | unit + source-gate | `pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ | ✅ green |
+| 01-T3 | 142-01 | 1 | POL-05 | T-142-01 | N/A (test) | unit | `pnpm --dir frontend test run src/components/Hub/HubPanel.test.tsx` | ✅ | ✅ green |
+| 02-T1 | 142-02 | 2 | POL-04 | T-142-02/03 | Repaint timing only; no byte-handling change | source-gate + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ | ✅ green |
+| 02-T2 | 142-02 | 2 | POL-04 | T-142-02 | N/A | manual (wails dev, PTY) | n/a — native human check | n/a | 🔲 manual-pending |
+| 03-T1 | 142-03 | 2 | POL-05 | T-142-04/05/06 | Group input trim; client-only localStorage | unit + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/Hub/HubPanel.test.tsx` | ✅ | ✅ green |
+| 03-T2 | 142-03 | 2 | POL-05 | T-142-04/06 | React text-escaped group names; trim guard | unit + tsc + source-gate | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ | ✅ green |
+| 04-T1 | 142-04 | 3 | POL-01 | T-142-08 | More of same already-rendered tail | source-gate + tsc + manual (narrow-width visual) | `pnpm --dir frontend exec tsc --noEmit` + grep `hub-card__preview` (style.css:5366) | ✅ | ✅ green (auto) · 🔲 visual manual-pending |
+| 04-T2 | 142-04 | 3 | POL-02 | T-142-07 | Colorblind-safe icon+text; persistence untouched | unit + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/SettingsTab.appearance-theme.test.tsx` | ✅ | ✅ green |
+| 04-T3 | 142-04 | 3 | POL-03 | T-142-SC | N/A | source-gate + tsc | `pnpm --dir frontend exec tsc --noEmit && pnpm --dir frontend test run src/components/__tests__/Sidebar.test.tsx` | ✅ | ✅ green |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · Planner fills this map per task.*
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · 🔲 manual-pending*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] Existing vitest infrastructure covers most phase requirements (e.g. `SettingsTab.appearance-theme.test.tsx`).
-- [ ] Update/migrate tests when source moves: `GroupSidebar.test.tsx` → `Sidebar.test.tsx` (POL-05, done in Plan 01 Task 2; old file deleted in Plan 03 Task 2), `SettingsTab.appearance-theme.test.tsx` → `[role="switch"][aria-checked]` (POL-02, Plan 01 Task 1).
-- [ ] HubPanel.test.tsx updated to assert GroupSidebar side-panel absent + onGroupCountsChange (Plan 01 Task 3).
-- [ ] Source-gate tests for POL-03 (PlusIcon) and POL-04 (pendingThemeRef) added to Sidebar.test.tsx (Plan 01 Task 2).
+- [x] Existing vitest infrastructure covers most phase requirements (e.g. `SettingsTab.appearance-theme.test.tsx`).
+- [x] Tests migrated as source moved: `GroupSidebar.test.tsx` → `Sidebar.test.tsx` (POL-05; old file confirmed removed), `SettingsTab.appearance-theme.test.tsx` asserts `role="switch"` + `aria-checked` (POL-02).
+- [x] HubPanel.test.tsx asserts GroupSidebar side-panel absent (`hub__body` has `hub__grid-scroll`, no `.hub__group-sidebar`) + group-count prop API (Plan 01 Task 3).
+- [x] Source-gate tests present in Sidebar.test.tsx: POL-03 `PlusIcon` in HubFilterBar/HubEmptyState; POL-04 `pendingThemeRef` + `fitTerminal` after `clearTextureAtlas` in TerminalPanel.tsx; POL-05 `.sidebar__group-list`/`.sidebar__group-item` CSS rules.
 
 ---
 
@@ -84,4 +85,21 @@ created: 2026-06-21
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** planned 2026-06-21
+**Approval:** validated 2026-06-21
+
+---
+
+## Validation Audit 2026-06-21
+
+| Metric | Count |
+|--------|-------|
+| Automated rows verified green | 8/8 (POL-01 auto, POL-02 ×2, POL-03, POL-04 source-gate, POL-05 ×3) |
+| Manual-pending rows | 2 (POL-04 native terminal-repaint check; POL-01 narrow-width visual reflow) |
+| Gaps found | 0 — strategy was already nyquist-compliant; this audit confirmed every automated command exists and passes |
+
+**Verification basis:** Full frontend suite green (108 files / 1771 tests) + `tsc --noEmit` exit 0.
+142-referenced files re-run in isolation: SettingsTab.appearance-theme + Sidebar + HubPanel = 3 files / 107 tests green. GroupSidebar.test.tsx confirmed removed; `.hub-card__preview` present at style.css:5366; POL-03/04/05 source gates present.
+
+**Remaining manual checks** (documented manual-only, not blockers — require native `wails dev` PTY + visual reflow, neither assertable in jsdom; owner is colorblind so color is source-verified):
+1. POL-04 — terminal repaints cleanly after theme + tab switch (run output, switch theme, switch tabs/back, cross-tab theme switch → no garble).
+2. POL-01 — card menu/handle never overlap name/status/preview at narrow Hub grid widths.

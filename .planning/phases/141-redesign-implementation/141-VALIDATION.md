@@ -1,10 +1,11 @@
 ---
 phase: 141
 slug: redesign-implementation
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-20
+validated: 2026-06-21
 ---
 
 # Phase 141 — Validation Strategy
@@ -47,15 +48,21 @@ vitest"). The per-wave and phase gate MUST run `tsc --noEmit`, not just vitest.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (planner-assigned) | — | 1 | RDS-02 | — / — | N/A | grep | `sed -n '<surface-range>p' frontend/src/style.css \| grep -E '#[0-9a-fA-F]{3,6}'` returns only D-03-fenced selectors | ✅ | ⬜ pending |
-| (planner-assigned) | — | 1 | RDS-02 (S-07) | — / — | N/A | unit | `cd frontend && pnpm test -- SessionShareModal` | ✅ | ⬜ pending |
-| (planner-assigned) | — | 1 | RDS-03 (D-11) | — / — | N/A | unit | `cd frontend && pnpm test -- StatusBar` | ✅ | ⬜ pending |
-| (planner-assigned) | — | 1 | RDS-04 | — / — | N/A | grep | `grep -n 'transition\|animation' frontend/src/style.css` cross-checked vs `@media (prefers-reduced-motion: no-preference)` blocks | ✅ | ⬜ pending |
-| (planner-assigned) | — | 1 | RDS-04 (theme parity) | — / — | N/A | grep | every migrated selector's token resolved in both `:root` and `[data-ui-theme="light"]` | ✅ | ⬜ pending |
-| (planner-assigned) | — | 1 | CARRY-01 | — / — | N/A | unit | `cd frontend && pnpm test -- GroupSidebar` (asserts no `role="listbox"`/`role="option"`; roving-tabindex OR plain control list consistent) | ✅ | ⬜ pending |
+| — | — | 1 | RDS-02 (no raw hex) | — / — | N/A | unit | `pnpm exec vitest run src/__tests__/themeTokens.test.ts` — asserts no raw hex outside D-03 fence (replaces brittle line-anchored greps) | ✅ | ✅ green |
+| — | — | 1 | RDS-02 (S-07) | — / — | N/A | unit | `cd frontend && pnpm test -- SessionShareModal` | ✅ | ✅ green |
+| — | — | 1 | RDS-03 (D-11) | — / — | N/A | unit | `cd frontend && pnpm test -- StatusBar` | ✅ | ✅ green |
+| — | — | 1 | RDS-04 (reduced-motion) | — / — | N/A | unit | `themeTokens.test.ts` — asserts `@media (prefers-reduced-motion)` guards + share-modal motion gating | ✅ | ✅ green |
+| — | — | 1 | RDS-04 (theme parity) | — / — | N/A | unit | `themeTokens.test.ts` — asserts every `--hub-*` token defined in BOTH `:root` and `[data-ui-theme="light"]` (53↔53) | ✅ | ✅ green |
+| — | — | 1 | CARRY-01 (#97) | — / — | N/A | unit | `cd frontend && pnpm test -- Sidebar` — asserts `aria-pressed` on group buttons (GroupSidebar refactored into Sidebar.tsx in Phase 142) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*Task IDs assigned by planner; rows map requirements → verification commands.*
+
+> **2026-06-21 audit note:** The three RDS-02/RDS-04 grep rows were converted from
+> brittle `sed -n 'A,Bp' | grep` commands (line ranges broke after Phase 142 edited
+> style.css) into a single stable selector-based vitest file:
+> `frontend/src/__tests__/themeTokens.test.ts`. CARRY-01 moved from a planned
+> `GroupSidebar.test.tsx` to `Sidebar.test.tsx` because Phase 142 (POL-05) lifted the
+> group controls out of the standalone GroupSidebar component into the Sidebar.
 
 ---
 
@@ -83,15 +90,14 @@ grep -rn '#3d6fe8' frontend/src/style.css   # light accent
 
 ## Wave 0 Requirements
 
-No new test files needed — only assertion updates to existing files:
+All assertion updates landed; CARRY-01 relocated per Phase 142 refactor:
 
-- [ ] `GroupSidebar.test.tsx` — assert items expose the chosen consistent pattern
-      (e.g. `role="button"` + `aria-pressed`), `<ul>` has no `role="listbox"`, no
-      `role="option"` items (CARRY-01 / #97)
-- [ ] `StatusBar.test.tsx:70` — update expected string to new D-11 copy (no "Sessions tab")
-- [ ] `StatusBar.test.tsx:66` — update test description string
-- [ ] `SessionShareModal.test.tsx` — add smoke test asserting `.hub-share-modal__header`
+- [x] `Sidebar.test.tsx` — asserts group item buttons expose `aria-pressed` true/false
+      (CARRY-01 / #97; GroupSidebar component was folded into Sidebar.tsx in Phase 142 POL-05)
+- [x] `StatusBar.test.tsx` — asserts new D-11 copy ("WEB ON/OFF/SERVER NOT RUNNING", no "Sessions tab")
+- [x] `SessionShareModal.test.tsx` — smoke test asserts `.hub-share-modal__header`
       and `.hub-share-modal__body` render (S-07)
+- [x] `themeTokens.test.ts` (NEW) — selector-based RDS-02/RDS-04 color guardrails
 
 ---
 
@@ -106,11 +112,36 @@ No new test files needed — only assertion updates to existing files:
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify (grep or unit) or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all assertion updates above
-- [ ] No watch-mode flags (`pnpm test` runs once, not `--watch`)
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify (unit) — grep checks converted to vitest
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all assertion updates above
+- [x] No watch-mode flags (`pnpm test` runs once, not `--watch`)
+- [x] Feedback latency < 30s (themeTokens ~0.9s; full suite ~36s)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-06-21
+
+---
+
+## Validation Audit 2026-06-21
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 3 (RDS-02 hex-scan, RDS-04 reduced-motion, RDS-04 theme-parity — all grep-only, line ranges broken by Phase 142) |
+| Resolved (automated) | 3 → consolidated into `frontend/src/__tests__/themeTokens.test.ts` |
+| Impl bugs surfaced | 1 (RDS-02) |
+| Impl bugs fixed | 1 |
+
+**Bug found & fixed (RDS-02 — light-theme orphan):** The new colorblind guard
+caught ~40 raw-hex values across migrated File-Browser/Editor sub-surfaces and
+`.settings-panel__btn--destructive` that Phase 141 commit `3efffd5e` never migrated
+— they hardcoded the **old Tokyo Night palette** (`#1e2030`/`#292e42`/`#c0caf5`/
+`#9aa5ce`/`#a9b1d6`/`#1a1b26`/`#7aa2f7`/`#f7768e`) with no `[data-ui-theme="light"]`
+override, so those surfaces rendered stuck-dark in light mode (and stale vs. the
+redesign in dark mode). Source-verified per the colorblind contract: the redesign
+token *values* differ from the old hex, so this was a real un-migrated surface, not
+a cosmetic nit. Fixed by tokenizing each by role to `var(--hub-*)`; status icons
+(`save-indicator-icon--saving/saved/error`) mapped to semantic `--hub-warning/
+--hub-success/--hub-destructive` (icon shape carries the non-color cue).
+
+**Gate after fix:** `tsc --noEmit` exit 0 · full vitest 1771/1771 green · themeTokens 5/5 green.
