@@ -43,15 +43,10 @@ describe('HelpContent source gate: react-markdown import (Phase 147)', () => {
 // Render helper
 // ============================================================
 
-let HelpContent: React.ComponentType<{ markdown: string }>
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  HelpContent = require('../HelpContent').HelpContent
-} catch {
-  // Component doesn't exist yet (RED state)
-  HelpContent = () => null as unknown as React.ReactElement
-}
+// Phase 147-02: Component now exists — use static import (GREEN state).
+// The try/catch require() pattern used in RED state is incompatible with
+// Vitest vmForks pool's CJS resolver (which does not try .tsx extensions).
+import { HelpContent } from '../HelpContent'
 
 function renderHelpContent(markdown: string) {
   const container = document.createElement('div')
