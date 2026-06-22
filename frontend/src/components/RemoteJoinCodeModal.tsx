@@ -19,8 +19,9 @@ export interface RemoteJoinCodeModalProps {
   /**
    * GAP-134-E: what the cap is being acquired for. Drives the title so a Phase 134
    * hub-modal cap request is not mislabelled "Files". Defaults to the generic title.
+   * Phase 146 FIX-03: 'open-session' intent is for opening a remote session in the browser.
    */
-  intent?: 'files' | 'hub-modal'
+  intent?: 'files' | 'hub-modal' | 'open-session'
   /**
    * Exchange the entered code for a cap (typically: ExchangeJoinCodeAtURL →
    * RegisterRemoteCap two-step in App.tsx). Resolves on success; rejects with
@@ -56,7 +57,11 @@ export function RemoteJoinCodeModal({
 }: RemoteJoinCodeModalProps): React.ReactElement {
   // GAP-134-E: only the file-browse flow is about "Files"; the Phase 134 hub-modal
   // flow opens the interactive/briefing terminal, so don't mislabel it.
-  const title = intent === 'files' ? 'Join Remote Session — Files' : 'Join Remote Session'
+  // Phase 146 FIX-03: 'open-session' has its own title.
+  const title =
+    intent === 'files' ? 'Join Remote Session — Files' :
+    intent === 'open-session' ? 'Open Remote Session' :
+    'Join Remote Session'
   const [code, setCode] = useState<string>('')
   const [pending, setPending] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -123,12 +128,21 @@ export function RemoteJoinCodeModal({
           </button>
         </div>
         <div className="remote-join-modal__body">
-          <p className="remote-join-modal__body-text">
-            Ask the owner of <strong>{remoteSession.name}</strong> on{' '}
-            <strong>{remoteSession.hostname}</strong> for the 8-character join
-            code (format XXXX-XXXX). (Owner generates it from the Daemon Manager
-            panel.) Paste it below.
-          </p>
+          {intent === 'open-session' ? (
+            <p className="remote-join-modal__body-text">
+              To open <strong>{remoteSession.name}</strong> on{' '}
+              <strong>{remoteSession.hostname}</strong> in your browser, ask
+              the owner to share the session and send you the join code or share
+              link. Paste the join code (format XXXX-XXXX) below.
+            </p>
+          ) : (
+            <p className="remote-join-modal__body-text">
+              Ask the owner of <strong>{remoteSession.name}</strong> on{' '}
+              <strong>{remoteSession.hostname}</strong> for the 8-character join
+              code (format XXXX-XXXX). (Owner generates it from the Daemon Manager
+              panel.) Paste it below.
+            </p>
+          )}
           <input
             ref={inputRef}
             type="text"

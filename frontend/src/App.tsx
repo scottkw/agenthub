@@ -212,11 +212,13 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     id: string
     name: string
     hostname: string
-    intent?: 'files' | 'hub-modal'
+    intent?: 'files' | 'hub-modal' | 'open-session'
+    /** Pre-computed for open-session intent; avoids re-deriving in the modal exchange handler. */
+    baseURL?: string
   } | null>(null)
 
   // Phase 134 — holds the HubPanel's cap-acquired callback (registered via onRegisterCapAcquired).
-  // Using a ref avoids stale closure issues in handleModalExchange (which has handleOpenFileBrowser dep).
+  // Using a ref avoids stale closure issues in the modal exchange callback (which has handleOpenFileBrowser dep).
   const capAcquiredRef = useRef<((sessionId: string) => void) | null>(null)
 
   // Phase 134 — WR-01: holds HubPanel's cap-cancelled callback (registered via onRegisterCapCancelled).
@@ -1060,54 +1062,26 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     }
   }, [])
 
-  // Phase 146 FIX-03 — D-06 ownership check.
-  // Returns true when peerHostname (from the adapted remote session) matches
-  // the viewer's own tailnet node. Derived from tailscaleHealth.domain:
-  // e.g. "mynode.tailnet.ts.net" → short hostname "mynode".
-  // Falls back to false on any missing/ambiguous data (safe RO default, D-05).
-  function isPeerSelf(
-    peerHostname: string | undefined,
-    tsStatus: typeof tailscaleHealth,
-  ): boolean {
-    if (!peerHostname || !tsStatus?.domain) return false
-    const localShort = tsStatus.domain.split('.')[0]
-    if (!localShort) return false
-    return peerHostname.toLowerCase() === localShort.toLowerCase()
-  }
-
-  // Phase 146 FIX-03 — auto-exchange join code then open cap-bearing URL (#98).
-  // D-03: roJoinCode absent → not shared → error banner, no 401 dead-end.
-  // D-05/D-06: use rwJoinCode when isPeerSelf, else roJoinCode.
-  // Pitfall 4: catch expired/session-gone and surface informative banner.
+  // Phase 146 FIX-03 (out-of-band redesign) — open remote session in browser (#98).
+  // D-03: replaces the 401 dead-end with the paste-a-code modal (RemoteJoinCodeModal).
+  // D-04/D-11: reuses the Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL flow.
+  // D-09: local session re-attach is untouched (handleOpenSessionTab, see below).
   const handleOpenRemoteSession = useCallback(
-    async (session: AdaptedRemoteSessionInfo): Promise<void> => {
-      // D-03: no join code → session is not shared yet.
-      if (!session.roJoinCode) {
-        setSaveBanner({ kind: 'error', text: 'This session is not shared — enable sharing from the owner\'s Share menu first.' })
-        return
-      }
+    (session: AdaptedRemoteSessionInfo): void => {
       const baseURL = remoteBaseURLFor(session)
       if (!baseURL) {
         setSaveBanner({ kind: 'error', text: 'Cannot open session — the remote peer URL is unavailable.' })
         return
       }
-      // D-06: prefer rw code for owner re-attach; D-05: ro for all other viewers.
-      const code = session.rwJoinCode && isPeerSelf(session.hostname, tailscaleHealth)
-        ? session.rwJoinCode
-        : session.roJoinCode
-      try {
-        const token = await ExchangeJoinCodeAtURL(baseURL, code)
-        BrowserOpenURL(baseURL + '/sessions/' + session.id + '?cap=' + token)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg.includes('expired') || msg.includes('session-gone')) {
-          setSaveBanner({ kind: 'error', text: 'Session join code expired — wait for the next peer refresh and try again.' })
-        } else {
-          setSaveBanner({ kind: 'error', text: 'Failed to open session in browser — ' + msg })
-        }
-      }
+      setJoinModalForSession({
+        id: session.id,
+        name: session.name,
+        hostname: session.hostname,
+        intent: 'open-session',
+        baseURL,
+      })
     },
-    [tailscaleHealth, setSaveBanner],
+    [setSaveBanner],
   )
 
   // Phase 122-03 — remote-session file-browse entry point. If the cap is
@@ -1155,10 +1129,24 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // cap into the local daemon's RemoteCapStore. On success, mark the session
   // as cap-cached and open the file-browser tab. The cap token never enters
   // React state (T-122-03-01).
+  //
+  // Phase 146 FIX-03 (out-of-band): adds 'open-session' branch BEFORE hub-modal/files.
+  // For open-session: call BrowserOpenURL with baseURL + /sessions/{id}?cap=TOKEN;
+  // skip RegisterRemoteCap and the file-browser (T-146-04: cap goes straight into URL).
   const handleModalExchange = useCallback(
     async (code: string): Promise<void> => {
       const pending = joinModalForSession
       if (!pending) throw new Error('no session pending')
+
+      // Phase 146: open-session intent — use pre-computed baseURL, open cap-bearing URL.
+      if (pending.intent === 'open-session') {
+        const baseURL = pending.baseURL ?? ''
+        if (!baseURL) throw new Error('session-gone')
+        const cap = await ExchangeJoinCodeAtURL(baseURL, code)
+        BrowserOpenURL(baseURL + '/sessions/' + pending.id + '?cap=' + cap)
+        return
+      }
+
       const remote = findRemoteSession(pending.id, remotePeers)
       if (!remote) throw new Error('session-gone')
       const baseURL = remoteBaseURLFor(remote)

@@ -232,12 +232,6 @@ export function SessionCard({
   const isLocal = isRemote !== undefined ? !isRemote : (!hostname || hostname === '')
   const originText = isLocal ? 'Local' : hostname
 
-  // Remote-adapted sessions carry extra fields (see adaptRemoteSession / AdaptedRemoteSessionInfo)
-  // that the base SessionInfo type has no slot for. Read them once here for the "Open in browser"
-  // affordance; defaults for local sessions (which never expose this menu item). (CR-01 / WR-03)
-  // Phase 146 FIX-03: roJoinCode absent → session is not shared yet (D-03); used to gate the button.
-  const roJoinCode = (session as { roJoinCode?: string }).roJoinCode
-
   // Time display
   // IN-03: remote sessions use createdAt = new Date().toISOString() (set at poll time),
   // so formatUptime would show "0m" for ~29s then reset on the next 30s remote poll.
@@ -401,14 +395,12 @@ export function SessionCard({
           {isRemote && (
             <>
               <hr className="hub-card__menu-divider" />
-              {/* Phase 146 FIX-03: pass session object so handler can auto-exchange the join code.
-                  D-03: when roJoinCode is absent (not shared), show tooltip hint — no dead-end 401. */}
+              {/* Phase 146 FIX-03 (out-of-band redesign): open unconditionally — modal replaces dead-end 401 (D-03).
+                  No broadcast code gate; the modal guides the viewer to obtain a code from the owner. */}
               <button
                 type="button"
                 className="hub-card__menu-item"
                 role="menuitem"
-                disabled={!roJoinCode}
-                title={roJoinCode ? undefined : 'Session is not shared — share it from the owner\'s device first'}
                 onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.(session as AdaptedRemoteSessionInfo); setMenuOpen(false) }}
               >
                 <ArrowTopRightOnSquareIcon className="hub-card__conn-icon" aria-hidden="true" />

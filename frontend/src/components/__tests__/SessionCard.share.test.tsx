@@ -274,22 +274,23 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     flushSync(() => { menuBtn.click() })
     expect(c.textContent).not.toContain('Browse files')
   })
-  // CR-01 / Phase 146: "Open in browser" now passes the session object (not the bare URL)
-  // so handleOpenRemoteSession can auto-exchange the join code for a cap-bearing URL.
-  // The session must carry roJoinCode for the button to be enabled (D-03 gate).
-  it('"Open in browser" passes the session object (CR-01 / Phase 146 FIX-03)', () => {
+  // CR-01 / Phase 146 FIX-03 (out-of-band): "Open in browser" is NOT gated on roJoinCode.
+  // The button opens for any remote session — the modal guides the viewer to obtain a code.
+  it('"Open in browser" is enabled without roJoinCode (D-03: modal replaces dead-end)', () => {
     const onOpenInBrowser = vi.fn()
-    // roJoinCode is required for the button to be enabled (D-03)
-    const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2', roJoinCode: 'ro-test-code' } as SessionInfo
+    // No roJoinCode — out-of-band design: modal guides the viewer
+    const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2' } as SessionInfo
     const { container: c } = renderCard({ session: remoteWithUrl, isRemote: true, onOpenInBrowser })
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
     const openBtn = Array.from(c.querySelectorAll('.hub-card__menu-item')).find(
       (el) => el.textContent?.includes('Open in browser')
     ) as HTMLButtonElement
+    // D-03: button must NOT be disabled — modal provides the path to obtain a code
+    expect(openBtn?.disabled, '"Open in browser" must not be disabled (D-03 out-of-band)').toBe(false)
     flushSync(() => { openBtn?.click() })
-    // Phase 146: called with the session object so the handler can exchange the join code
-    expect(onOpenInBrowser).toHaveBeenCalledWith(expect.objectContaining({ id: 'sess-2', url: 'https://remote.host/session/sess-2' }))
+    // Called with the session object so the handler can route to the modal
+    expect(onOpenInBrowser).toHaveBeenCalledWith(expect.objectContaining({ id: 'sess-2' }))
   })
 })
 
