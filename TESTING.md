@@ -29,7 +29,7 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | vitest (frontend) | **109** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **463** | — | — | — |
+| **Total** | **465** | — | — | — |
 
 > Note: CONTEXT.md references "459 test files" and "115 vitest files". The authoritative counts above come from a live filesystem scan on 2026-06-21 (updated Phase 146: +1 vitest). The correct vitest count is 109 (7 vitest files were removed during Phase 136 TUI deletion; 1 added in Phase 146 — App.open-remote.test.tsx).
 
