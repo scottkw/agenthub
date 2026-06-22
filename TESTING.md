@@ -25,13 +25,13 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
-| Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **109** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| Go unit/integration | **347** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
+| vitest (frontend) | **112** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **465** | — | — | — |
+| **Total** | **467** | — | — | — |
 
-> Note: CONTEXT.md references "459 test files" and "115 vitest files". The authoritative counts above come from a live filesystem scan on 2026-06-21 (updated Phase 146: +1 vitest). The correct vitest count is 109 (7 vitest files were removed during Phase 136 TUI deletion; 1 added in Phase 146 — App.open-remote.test.tsx).
+> Note: Counts updated Phase 146: Go -1 (`mint_join_codes_test.go` deleted in Plan 02 — broadcast wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest).
 
 ### CI Workflow Mapping
 
@@ -147,9 +147,8 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FIX-02 | internal/files/write_test.go | Go | Windows concurrent-read fix (#101): `TestWriteFileAtomic_ConcurrentReadNeverPartial` — reader uses `readFilePlatformSafe` (FILE_SHARE_DELETE on Windows) so POSIX-semantics rename succeeds |
 | FIX-02 | internal/files/concurrent_read_windows_test.go | Go | Windows build-tagged `readFilePlatformSafe` via `syscall.CreateFile` with FILE_SHARE_DELETE |
 | FIX-02 | internal/files/concurrent_read_unix_test.go | Go | Non-Windows build-tagged `readFilePlatformSafe` delegating to `os.ReadFile` |
-| FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_EmbedJoinCodes` — ro_join_code/rw_join_code embed in /api/sessions/meta when issuer is wired; `TestSessionsMeta_NilIssuer` — degraded mode (no issuer) returns 200 with empty codes |
-| FIX-03 | internal/daemon/mint_join_codes_test.go | Go | `TestMintSessionJoinCodes` — mintSessionJoinCodes returns non-empty distinct codes; grants registered before return; tokens verify with correct RO/RW perms |
-| FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | `handleOpenRemoteSession` exchange-then-open (D-03/D-05/D-06 selection: RW only when peer=self, else RO); no-code informative UI; expired-banner on exchange failure |
+| FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_NoJoinCodesInResponse` — RB-03 restored: ro_join_code/rw_join_code must NOT appear in /api/sessions/meta (cap-free discovery; broadcast wiring removed in Plan 02) |
+| FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | Out-of-band open contract: `handleOpenRemoteSession` opens modal (not direct URL); `handleModalExchange` open-session branch builds `/sessions/{id}?cap=` URL + calls `BrowserOpenURL`; dead code (broadcast symbols) gone; behavior-level: "Open in browser" not disabled on remote card with no code (D-03) |
 
 ---
 
@@ -169,9 +168,9 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 ### Category B — Hub Navigation / Remote Peer (NAV, CARD)
 
-- **M-03** Remote card "Open in browser" shows a real peer URL (not a blank page); `BrowserOpenURL` forwards the URL correctly to the system browser.
-  - _Why not automatable:_ Requires a live reachable Tailscale remote peer on a separate machine.
-  - _Source:_ 138-HUMAN-UAT.md item 3 (postponed 2026-06-22 — needs office second machine)
+- **M-03** Remote card "Open in browser" opens the `RemoteJoinCodeModal` (not a raw 401 page); after the owner shares and the viewer pastes the join code, the session opens in the browser at `baseURL/sessions/{id}?cap=TOKEN` (FIX-03 out-of-band flow, Phase 146).
+  - _Why not automatable:_ Requires a live reachable Tailscale remote peer on a separate machine; cross-machine join-code exchange cannot be simulated in headless vitest.
+  - _Source:_ 138-HUMAN-UAT.md item 3 (updated Phase 146 — out-of-band flow; needs office second machine)
 
 - **M-04** Remote card overflow menu shows only "Open in browser" and "Browse files" — no Kill option on remote sessions.
   - _Why not automatable:_ Requires live reachable Tailscale peer.

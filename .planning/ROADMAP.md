@@ -539,7 +539,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
 | 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 3/3 | Complete    | 2026-06-22 |
-| 146. Open Session Capability Bug | v4.0 | 2/4 | In Progress|  |
+| 146. Open Session Capability Bug | v4.0 | 3/4 | In Progress|  |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
 | 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
 | 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |
@@ -583,7 +583,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 4 plans (out-of-band redesign 2026-06-22)
 - [x] 146-01-PLAN.md — Wave 0 TDD RED: inverted RB-03 cap-free meta test + out-of-band open behavior test
 - [x] 146-02-PLAN.md — Go backend: remove broadcast (mint/issuer/fields), restore RB-03, reconcile Go tests
-- [ ] 146-03-PLAN.md — Frontend: remove broadcast threading + wire out-of-band open (modal intent, handler, card)
+- [x] 146-03-PLAN.md — Frontend: remove broadcast threading + wire out-of-band open (modal intent, handler, card)
 - [ ] 146-04-PLAN.md — TESTING.md regression-convention compliance + full-suite/build-gate verification
 > First execution (broadcast "Mechanism B", plans 146-00..03) was superseded after the
 > code-review/verify gates found it dead-on-arrival + broadcasting RW to the tailnet. Design
