@@ -38,7 +38,7 @@ Progress: [██████████] 100%
 
 1. **`RELEASE_PUBLISH_TOKEN`** (one-time): create fine-grained PAT scoped to `Contents: read/write` on `scottkw/agenthub`, then `gh secret set RELEASE_PUBLISH_TOKEN`. Without this, `release.published` will not auto-trigger `distribute.yml`.
 2. **`WINGET_FIRST_SUBMISSION=true`** (one-time, first WinGet submission only): `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after microsoft/winget-pkgs accepts the first submission.
-3. **Apply branch protection on `main` (TEST-02, Phase 143-04 deferred)**: deferred until v4.0 CI is green. v4.0 CI is currently red from #100 (daemon styled-tail data race) and #101 (internal/files Windows tests). Once both are fixed and CI passes, apply the verbatim `gh api ... --method PUT` command in TESTING.md §3, then smoke-test the gate (failing PR blocked, admin doc-push still lands).
+3. ~~**Apply branch protection on `main` (TEST-02, Phase 143-04 deferred)**~~ **DONE 2026-06-22**: #100 (Phase 144) and #101 (Phase 145) fixed → all 4 CI Build jobs green (run 27954448933) → branch protection applied via the TESTING.md §3 `gh api … PUT` (5 required checks: 4 build matrix + `playwright`; `strict:false`, `enforce_admins:false`, no PR-review). Remaining optional smoke-test: open a throwaway failing PR to confirm the gate blocks merge while admin doc-push to `main` still lands.
 
 ## v4.0 Phase Plan
 
@@ -51,7 +51,7 @@ Progress: [██████████] 100%
 | 140 | UI-Spec Gate | RDS-01, CARRY-02 | Complete |
 | 141 | Redesign Implementation | RDS-02..04, CARRY-01 | Complete |
 | 142 | Hub & Settings Redesign Polish | POL-01..05 | Complete |
-| 143 | Regression Test Program | TEST-01..05 (TEST-02 deferred) | Complete |
+| 143 | Regression Test Program | TEST-01..05 (TEST-02 applied 2026-06-22) | Complete |
 | 144 | Daemon Styled-Tail Race Fix | FIX-01 (#100) | Not planned |
 | 145 | Windows Files Test Fixes | FIX-02 (#101) | Not planned |
 | 146 | Open Session Capability Bug | FIX-03 (#98) | Not planned |
