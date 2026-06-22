@@ -283,17 +283,17 @@ ReplaceAll call.
 If both assumptions are wrong, the fix is still correct for the race; only the breadth of the strip
 set would be debated. The race elimination does not depend on A1/A2.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should mode-2048 stripping be in scope?**
+1. **Should mode-2048 stripping be in scope?** — RESOLVED (planned: Task 1 strips `ESC[?2048h`).
    - What we know: `ESC[?2048h` provably hangs `emu.Write` without a drain (experiment).
    - What's unclear: whether current production scrollback actually contains it.
-   - Recommendation: Include it. It is a real blocking write, costs one regex alternative, and is
+   - Recommendation (adopted): Include it. It is a real blocking write, costs one regex alternative, and is
      verified harmless to rendering. Excluding it would re-open #96 for any session that enables
      in-band resize.
 
-2. **Add a focused regression fixture?**
-   - Recommendation: Yes — extend/keep `TestGetSessionStyledTailLines_QueryNoHang` and add a
+2. **Add a focused regression fixture?** — RESOLVED (planned: Task 2 adds `TestGetSessionStyledTailLines_AllQueriesNoHang`).
+   - Recommendation (adopted): Yes — keep `TestGetSessionStyledTailLines_QueryNoHang` and add a
      query-heavy "kitchen-sink" fixture (all verbs + `?2048h`) so the strip set can't silently
      regress. See Validation Architecture.
 
