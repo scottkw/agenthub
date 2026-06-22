@@ -4,8 +4,7 @@ package webserver_test
 //
 // This file encodes the RESTORED RB-03 cap-free contract for GET /api/sessions/meta.
 //
-// The superseded broadcast tests (TestSessionsMeta_EmbedJoinCodes and
-// TestSessionsMeta_NilIssuer) asserted that ro_join_code / rw_join_code were
+// The superseded broadcast tests asserted that ro_join_code / rw_join_code were
 // embedded in the response. That design was REJECTED (see CONTEXT.md
 // D-02/D-10/D-12 and superseded-broadcast/README.md).
 //
