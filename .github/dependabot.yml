@@ -24,3 +24,9 @@ updates:
     labels:
       - "dependencies"
       - "go"
+    ignore:
+      # Indirect dep pinned to the version wails v2.10.2 requires. Newer
+      # versions (>=1.0.20) change Chromium.MessageCallback's signature and
+      # break wails' own desktop/windows/frontend.go on the Windows build.
+      # Bump only together with a compatible wails/v2 upgrade. (Phase 145)
+      - dependency-name: "github.com/wailsapp/go-webview2"
