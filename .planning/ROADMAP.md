@@ -580,8 +580,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Clicking "Open Session" (Hub card / re-attach) opens the live session, not a "capability required" error page
   2. The capability is issued or reused correctly for the open-in-browser flow
   3. Behaves correctly across GUI + web per cross-surface parity
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 146 to break down)
+**Plans**: 4 plans (4 waves)
+- [ ] 146-00-PLAN.md — Wave 0: write failing/scaffold tests (meta-embed, mint, open-remote) + update RB-03 allowed-keys
+- [ ] 146-01-PLAN.md — Wave 1: Go owner-side — enrich /api/sessions/meta with ro/rw join codes + mintSessionJoinCodes + daemon wiring
+- [ ] 146-02-PLAN.md — Wave 2: frontend viewer-side — thread join codes, rewrite handleOpenRemoteSession (exchange→cap URL), D-03/D-05/D-06, prop cascade
+- [ ] 146-03-PLAN.md — Wave 3: TESTING.md regression-convention update (Suite Manifest, Traceability, Manual UAT) + path-check
 
 ### Phase 147: In-App Help Page
 **Goal**: An in-app Help page provides documentation, an FAQ, search, and external links, reachable from the app navigation
