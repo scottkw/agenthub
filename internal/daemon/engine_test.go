@@ -1914,3 +1914,87 @@ func TestGetSessionStyledTailLines_QueryNoHang(t *testing.T) {
 		t.Fatal("GetSessionStyledTailLines hung on terminal query escape sequences — emulator response pipe is not being drained")
 	}
 }
+
+// TestGetSessionStyledTailLines_AllQueriesNoHang: kitchen-sink fixture containing
+// every query verb that causes charmbracelet/x/vt to write a response into its
+// unbuffered response pipe (Emulator.pw), interleaved with visible text.
+//
+// Verifies two things:
+//  1. The call completes well within a 5-second timeout (no hang — queryStripPattern
+//     strips every blocking sequence before emu.Write; FIX-01 / #100).
+//  2. The visible text surrounding the control sequences survives in the rendered
+//     grid (the strip is narrow: only query verbs, not SGR/color; Pitfall 3).
+//
+// Query verbs covered (all enumerated in RESEARCH.md "complete set"):
+//   - DA1    ESC[c          — Primary Device Attributes
+//   - DA2    ESC[>c         — Secondary Device Attributes
+//   - DSR5   ESC[5n         — Device Status Report (operating status)
+//   - DSR6   ESC[6n         — Device Status Report (cursor position / CPR)
+//   - DECXCPR ESC[?6n       — Extended Cursor Position Report
+//   - DECRQM ANSI ESC[4$p   — Request Mode (ANSI mode 4)
+//   - DECRQM DEC  ESC[?2026$p — Request Mode (DEC mode 2026 synchronous update)
+//   - OSC color query ESC]11;?BEL — Background color query
+//   - mode-2048 ESC[?2048h  — In-band resize enable (fires pw write on set; Pitfall 1)
+func TestGetSessionStyledTailLines_AllQueriesNoHang(t *testing.T) {
+	e := NewSessionEngine()
+
+	// Interleave every query verb with visible text anchors so we can assert
+	// that the visible content survives the strip operation.
+	//
+	// Structure: visible-text QUERY visible-text ... so the assertions below
+	// can search for each anchor word in the joined rendered output.
+	content := "" +
+		"alpha\n" +
+		"\x1b[c" + // DA1
+		"beta\n" +
+		"\x1b[>c" + // DA2
+		"gamma\n" +
+		"\x1b[5n" + // DSR operating status
+		"delta\n" +
+		"\x1b[6n" + // DSR cursor position (CPR)
+		"epsilon\n" +
+		"\x1b[?6n" + // DECXCPR extended cursor position
+		"zeta\n" +
+		"\x1b[4$p" + // DECRQM ANSI mode 4
+		"eta\n" +
+		"\x1b[?2026$p" + // DECRQM DEC mode 2026 (synchronous update)
+		"theta\n" +
+		"\x1b]11;?\x07" + // OSC 11 background color query, BEL-terminated
+		"iota\n" +
+		"\x1b[?2048h" + // DEC mode 2048 in-band resize SET (Pitfall 1: triggers pw write)
+		"kappa\n"
+
+	makeTailHub(t, e, "styled-all-queries-hang", content)
+
+	done := make(chan [][]StyledSpan, 1)
+	go func() {
+		done <- e.GetSessionStyledTailLines("styled-all-queries-hang", 20)
+	}()
+	select {
+	case result := <-done:
+		if result == nil {
+			t.Fatal("GetSessionStyledTailLines returned nil")
+		}
+
+		// Join all rendered cell content to check visible text survived.
+		var joined string
+		for _, row := range result {
+			for _, span := range row {
+				joined += span.Char
+			}
+			joined += "\n"
+		}
+
+		// Every visible anchor word must appear in the rendered output.
+		// This proves the strip removed only the control sequences, not content.
+		anchors := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa"}
+		for _, word := range anchors {
+			if !strings.Contains(joined, word) {
+				t.Errorf("visible anchor %q missing from rendered output after query strip; full output: %q", word, joined)
+			}
+		}
+
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetSessionStyledTailLines hung on terminal query escape sequences — queryStripPattern did not cover all blocking sequences (FIX-01 regression)")
+	}
+}
