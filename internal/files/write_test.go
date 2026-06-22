@@ -171,7 +171,7 @@ func TestWriteFileAtomic_ConcurrentReadNeverPartial(t *testing.T) {
 				return
 			default:
 			}
-			data, err := os.ReadFile(targetPath)
+			data, err := readFilePlatformSafe(targetPath)
 			if err != nil {
 				// File may be transiently absent during rename on some OSes;
 				// that is acceptable — we assert non-empty, not "must exist".
