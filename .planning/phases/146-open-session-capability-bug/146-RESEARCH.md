@@ -94,3 +94,33 @@ The two cross-machine cases are identical mechanically.
 - Removal scope: HIGH (broadcast was added entirely within the superseded Phase 146 commits; bounded).
 - Owner copy affordance: MEDIUM — verify at plan time whether the Share modal already renders a
   copyable code/link or needs one added.
+
+## Validation Architecture
+
+**Why this section matters here:** the prior execution shipped a dead-on-arrival feature with a
+fully green suite because every test validated a layer *in isolation* and none exercised the actual
+open path across the Go↔Wails boundary. Validation for this re-plan MUST include at least one test
+that crosses that boundary (or an explicit manual UAT where automation is impossible), so a green
+suite cannot again certify a non-working feature.
+
+### Test infrastructure
+| Property | Value |
+|----------|-------|
+| Go | `go test ./internal/... ./...` (package tests; webserver/daemon/tailnet + root `app` package) |
+| Frontend | `cd frontend && pnpm test -- <file> --run` (vitest); `pnpm tsc --noEmit` for the build gate |
+| Build gate | `cd frontend && pnpm tsc --noEmit` (vitest alone is NOT proof the app builds — standing rule) |
+
+### Per-requirement validation
+| Requirement | Validation |
+|-------------|------------|
+| FIX-03 — RB-03 restored | Go test: `/api/sessions/meta` response contains NO `ro_join_code`/`rw_join_code` (cap-free discovery) — inverse of the superseded embed test. |
+| FIX-03 — broadcast removed | Go: `mintSessionJoinCodes`/`SetJoinCodeIssuer` and the meta join-code fields no longer exist (compile + grep absence); `app.go` not carrying codes. |
+| FIX-03 — out-of-band open | Frontend: remote "Open in browser" with no held cap opens `RemoteJoinCodeModal`; on successful `ExchangeJoinCodeAtURL` it constructs a `/sessions/{id}?cap=` URL via `BrowserOpenURL`; not-shared / exchange-failure surface informative UI (no raw 401). |
+| FIX-03 — same-machine re-attach (D-09) | Regression: local "Open" still routes through `handleOpenSessionTab` (no cap), untouched. |
+| FIX-03 — owner copy affordance (D-12) | Share modal exposes a copyable code/link control. |
+| FIX-03 — cross-machine live open | **Manual UAT** (live two-Mac tailnet): owner shares, sends code out of band, viewer pastes → session opens. Cannot be fully automated (live tailnet + native webview). |
+
+### Wave 0
+A Wave-0 test plan should write the new (inverted/out-of-band) test contract RED first, then later
+waves make it green — but Wave 0 MUST NOT repeat the prior mistake of only source-inspecting; include
+at least one behavior-level assertion of the open path.
