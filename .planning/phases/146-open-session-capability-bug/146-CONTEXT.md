@@ -1,7 +1,8 @@
 # Phase 146: Open Session Capability Bug - Context
 
 **Gathered:** 2026-06-22
-**Status:** Ready for planning
+**Revised:** 2026-06-22 — design reversed to out-of-band (broadcast approach superseded after first execution; see decisions D-02/D-04/D-09..D-12)
+**Status:** Ready for re-planning
 
 <domain>
 ## Phase Boundary
@@ -19,19 +20,36 @@ The complication that drove this discussion: the opened session lives on a **dif
 <decisions>
 ## Implementation Decisions
 
-### Cap source — shared-gated, auto-delivered
-- **D-01:** "Open" works **only when the session is shared** (the owner's Share toggle is on). The Share toggle remains the single owner-controlled gate for remote reachability — no new trust surface is introduced.
-- **D-02:** When the session IS shared, the viewing node obtains the cap **automatically over the authenticated tailnet connection** — the user must NOT have to paste/enter a join code to open their own (or a shared) session. This reuses the proven Phase 122/137 cap model rather than inventing a new "mint-on-request for any peer" endpoint.
-- **D-03:** When the session is NOT shared, "Open" must not dead-end on the raw `capability required` 401. Instead, surface a clear path to enable sharing (e.g., point the user at the Share action / disable+hint the Open control). Replacing the confusing dead-end is part of the fix.
-- **D-04 (intent, mechanism deferred to research):** The DECISION is "Open just works for shared sessions, no manual code, inheriting the share's permission." The exact mechanism — auto-fetching the cap over an authenticated tailnet channel vs. having an authenticated discovery response carry a cap to trusted peers — is a **feasibility question for the research step**. Do not lock the mechanism here; research picks it.
+> **DESIGN REVERSAL (2026-06-22, user decision).** The original D-02/D-04 ("Open just
+> works, no manual code; cap auto-delivered over discovery") and the RESEARCH "Mechanism B"
+> (broadcast RO+RW join codes in `/api/sessions/meta`) were **rejected** after execution.
+> Broadcasting places credentials on an unauthenticated payload every tailnet peer can poll,
+> and `/join/exchange` does no identity check. The new model is **out-of-band**: codes/links
+> are never broadcast; the owner deliberately hands one out. See `superseded-broadcast/README.md`,
+> `146-REVIEW.md`, `146-VERIFICATION.md`. D-02, D-04, D-06 below are rewritten; D-09..D-12 are new.
 
-### Permission level — match the source
-- **D-05:** The opened session inherits the **share's** permission level: a read-only share opens read-only; a read-write share opens read-write. **No silent escalation** — opening a RO share must never grant write.
-- **D-06:** For an owner re-attaching to their own session where both RO and RW are available, prefer **read-write** (the user expects to interact, per the #98 report: "Nothing ever opens inside the app itself").
+### Cap source — shared-gated, owner-delivered out of band
+- **D-01:** "Open" works **only when the session is shared** (the owner's Share toggle is on). The Share toggle remains the single owner-controlled gate for remote reachability — no new trust surface is introduced.
+- **D-02 (REWRITTEN):** Codes/links are **NOT broadcast**. To open a remote (cross-machine) session, the viewer must hold a credential the **owner deliberately delivered out of band** — a join code (pasted into the existing `RemoteJoinCodeModal`) or a share link (already cap-bearing). No code is auto-placed in the discovery payload. Access is an explicit grant, never access-by-default for tailnet peers.
+- **D-03:** When the viewer has no credential for a session, "Open" must not dead-end on the raw `capability required` 401. Instead it surfaces the paste-a-code path (open `RemoteJoinCodeModal` with an "open session" intent) and/or a clear "ask the owner to share" hint. Replacing the confusing dead-end is part of the fix.
+- **D-04 (REWRITTEN — mechanism LOCKED):** The mechanism is **reuse of the Phase 122 out-of-band flow**: owner generates a code/link in the Share modal → delivers it out of band → viewer pastes the code into `RemoteJoinCodeModal` → `ExchangeJoinCodeAtURL` → open `baseURL + /sessions/{id}?cap=TOKEN` via `BrowserOpenURL`. No new endpoint, no broadcast. The `/api/sessions/meta` payload stays cap-free (RB-03 fully restored).
+
+### Permission level — owner-chosen, match the credential
+- **D-05:** The opened session inherits the permission of **the code/link the owner handed out**: a read-only code opens read-only; a read-write code opens read-write. **No silent escalation.**
+- **D-06 (REWRITTEN):** RO-vs-RW is the **owner's explicit choice at share time** (which code/link they generate and send), NOT a client-side guess. The rejected `isPeerSelf` hostname-matching selection (dead code per REVIEW WR-01) is removed.
 
 ### Scope & parity
 - **D-07:** Scope the fix to the **remote open-in-browser** affordance — the literal #98 bug.
 - **D-08:** Research/verification must **confirm** the local-session "Open" button and the GUI-vs-web paths are not separately broken (they share the same handler per the scout), so cross-surface parity is covered without expanding the build. See [[cross_surface_parity_release_blocker]].
+
+### Out-of-band model — new decisions (2026-06-22)
+- **D-09 (same-machine owner re-attach untouched):** Reopening your own session on the **same machine** already works one-click via the local loopback path (`handleOpenSessionTab` → relay WS, no cap). The fix MUST NOT regress or reroute this. Out-of-band applies only to **cross-machine** opens (your own session from another machine, or someone else's session).
+- **D-10 (remove the broadcast):** The re-planned phase MUST remove the superseded broadcast: `mintSessionJoinCodes` wiring into `/api/sessions/meta` (`SetJoinCodeIssuer`), the `ROJoinCode`/`RWJoinCode` fields on `sessionMetaItem` (server.go) and `ShareableSessionMeta` (tailnet/sessions.go), the frontend code-threading, and the `ro_join_code`/`rw_join_code` allow-list entries — restoring RB-03 to cap-free discovery. `app.go` is NOT to be wired to carry codes (there are none).
+- **D-11 (reuse, don't rebuild):** Reuse the existing Phase 122 `RemoteJoinCodeModal` + `ExchangeJoinCodeAtURL` + `RegisterRemoteCap`. The modal today serves a file-browse intent; extend it (or its caller) with an "open session in browser" intent that, after exchange, opens `baseURL + /sessions/{id}?cap=TOKEN` via `BrowserOpenURL` instead of (or in addition to) depositing the cap for file proxying.
+- **D-12 (owner copy affordance):** The Share modal must surface a clear **copy-the-code / copy-the-link** affordance so the owner has something concrete to hand out of band. If `IssueCapabilities` already returns codes/links but the UI doesn't expose a copy control, adding it is in scope.
+
+### Deferred (not this phase)
+- **Identity-authenticated one-click cross-machine open:** making your *own* session open cross-machine with zero paste would require real tailnet-identity auth on `/join/exchange` (none today). Larger effort; out of scope. The code/link flow is acceptable for this fix.
 
 ### Claude's Discretion
 - Exact UI treatment of the "not shared yet → share first" affordance (disabled control + tooltip vs. redirect to Share modal) is left to planning, as long as it replaces the raw 401 dead-end.

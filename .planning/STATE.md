@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: gaps_found
-stopped_at: Phase 146 verification — gaps found (FIX-03 dead on arrival)
+status: planning
+stopped_at: Phase 146 redesigned to out-of-band — ready to re-plan
 last_updated: "2026-06-22T15:04:08.108Z"
 last_activity: 2026-06-22
 progress:
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 146 (open-session-capability-bug) — GAPS FOUND
-Plan: 4 of 4 executed; goal NOT achieved (0/3 must-haves)
-Status: Verification gaps_found — FIX-03 dead on arrival (app.go Wails boundary unwired) + RW-broadcast security decision open. See 146-VERIFICATION.md / 146-REVIEW.md
+Phase: 146 (open-session-capability-bug) — RE-PLANNING
+Plan: redesigned to out-of-band (broadcast approach superseded after gates failed it)
+Status: Ready to re-plan. Decision locked: no broadcast; reuse Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL for out-of-band code/link open; same-machine re-attach untouched. See 146-CONTEXT.md (D-02/D-04/D-09..D-12), 146-RESEARCH.md.
 Last activity: 2026-06-22
 
-Progress: [█████████░] 95% (plans ran; integration gap blocks goal)
+Progress: [░░░░░░░░░░] re-planning
 
 ## Operator Next Steps (pre-release, carry-forward)
 

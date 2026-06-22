@@ -539,7 +539,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
 | 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 3/3 | Complete    | 2026-06-22 |
-| 146. Open Session Capability Bug | v4.0 | 4/4 | Gaps found | 2026-06-22 |
+| 146. Open Session Capability Bug | v4.0 | —/— | Re-planning | 2026-06-22 |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
 | 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
 | 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |
@@ -580,11 +580,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Clicking "Open Session" (Hub card / re-attach) opens the live session, not a "capability required" error page
   2. The capability is issued or reused correctly for the open-in-browser flow
   3. Behaves correctly across GUI + web per cross-surface parity
-**Plans**: 4 plans (4 waves)
-- [x] 146-00-PLAN.md — Wave 0: write failing/scaffold tests (meta-embed, mint, open-remote) + update RB-03 allowed-keys
-- [x] 146-01-PLAN.md — Wave 1: Go owner-side — enrich /api/sessions/meta with ro/rw join codes + mintSessionJoinCodes + daemon wiring
-- [x] 146-02-PLAN.md — Wave 2: frontend viewer-side — thread join codes, rewrite handleOpenRemoteSession (exchange→cap URL), D-03/D-05/D-06, prop cascade
-- [x] 146-03-PLAN.md — Wave 3: TESTING.md regression-convention update (Suite Manifest, Traceability, Manual UAT) + path-check
+**Plans**: re-planning (out-of-band redesign 2026-06-22)
+> First execution (broadcast "Mechanism B", plans 146-00..03) was superseded after the
+> code-review/verify gates found it dead-on-arrival + broadcasting RW to the tailnet. Design
+> reversed to out-of-band code/link delivery (see 146-CONTEXT.md D-02/D-04/D-09..D-12,
+> 146-RESEARCH.md, superseded-broadcast/). Awaiting /gsd:plan-phase 146.
 
 ### Phase 147: In-App Help Page
 **Goal**: An in-app Help page provides documentation, an FAQ, search, and external links, reachable from the app navigation
