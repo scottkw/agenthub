@@ -580,11 +580,15 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Clicking "Open Session" (Hub card / re-attach) opens the live session, not a "capability required" error page
   2. The capability is issued or reused correctly for the open-in-browser flow
   3. Behaves correctly across GUI + web per cross-surface parity
-**Plans**: re-planning (out-of-band redesign 2026-06-22)
+**Plans**: 4 plans (out-of-band redesign 2026-06-22)
+- [ ] 146-01-PLAN.md — Wave 0 TDD RED: inverted RB-03 cap-free meta test + out-of-band open behavior test
+- [ ] 146-02-PLAN.md — Go backend: remove broadcast (mint/issuer/fields), restore RB-03, reconcile Go tests
+- [ ] 146-03-PLAN.md — Frontend: remove broadcast threading + wire out-of-band open (modal intent, handler, card)
+- [ ] 146-04-PLAN.md — TESTING.md regression-convention compliance + full-suite/build-gate verification
 > First execution (broadcast "Mechanism B", plans 146-00..03) was superseded after the
 > code-review/verify gates found it dead-on-arrival + broadcasting RW to the tailnet. Design
 > reversed to out-of-band code/link delivery (see 146-CONTEXT.md D-02/D-04/D-09..D-12,
-> 146-RESEARCH.md, superseded-broadcast/). Awaiting /gsd:plan-phase 146.
+> 146-RESEARCH.md, superseded-broadcast/). Re-planned 2026-06-22.
 
 ### Phase 147: In-App Help Page
 **Goal**: An in-app Help page provides documentation, an FAQ, search, and external links, reachable from the app navigation
