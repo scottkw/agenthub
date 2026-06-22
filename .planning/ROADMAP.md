@@ -472,7 +472,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Automated coverage gaps for the Hub and for cross-surface GUI/CLI/web flows are closed — the suite tests the v4.0 surface, not just pre-v4.0 code paths
   3. A single maintained manual regression checklist document exists covering all current release-critical behaviors, replacing the scattered per-phase UAT logs
   4. A standing convention is documented requiring every future phase to add its regression tests to the appropriate group (automated vs manual-intervention)
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 143-01-PLAN.md — Close v4.0 coverage gaps GAP-01..04 (hubGroupCounts, agentBadge, sidebar 3-item-with-groups, Phase 142 CSS tokens) [TEST-03]
+- [ ] 143-02-PLAN.md — Path-existence CI check + build.yml step [TEST-01, TEST-02]
+- [ ] 143-03-PLAN.md — TESTING.md (manifest + traceability map + gh api command + 11-item manual checklist + convention) + repo CLAUDE.md pointer [TEST-01, TEST-04, TEST-05]
+- [ ] 143-04-PLAN.md — Apply branch protection on main via gh api (checkpoint-gated) [TEST-02]
 
 ## Progress
 
@@ -532,7 +536,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 140. UI-Spec Gate | v4.0 | 2/2 | Complete    | 2026-06-21 |
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
 | 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
-| 143. Regression Test Program | v4.0 | 0/TBD | Not started | - |
+| 143. Regression Test Program | v4.0 | 0/4 | Planned | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
