@@ -26,12 +26,12 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
 | Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **108** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| vitest (frontend) | **109** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **462** | — | — | — |
+| **Total** | **463** | — | — | — |
 
-> Note: CONTEXT.md references "459 test files" and "115 vitest files". The authoritative counts above come from a live filesystem scan on 2026-06-21. The correct vitest count is 108 (7 vitest files were removed during Phase 136 TUI deletion).
+> Note: CONTEXT.md references "459 test files" and "115 vitest files". The authoritative counts above come from a live filesystem scan on 2026-06-21 (updated Phase 146: +1 vitest). The correct vitest count is 109 (7 vitest files were removed during Phase 136 TUI deletion; 1 added in Phase 146 — App.open-remote.test.tsx).
 
 ### CI Workflow Mapping
 
@@ -149,6 +149,7 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FIX-02 | internal/files/concurrent_read_unix_test.go | Go | Non-Windows build-tagged `readFilePlatformSafe` delegating to `os.ReadFile` |
 | FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_EmbedJoinCodes` — ro_join_code/rw_join_code embed in /api/sessions/meta when issuer is wired; `TestSessionsMeta_NilIssuer` — degraded mode (no issuer) returns 200 with empty codes |
 | FIX-03 | internal/daemon/mint_join_codes_test.go | Go | `TestMintSessionJoinCodes` — mintSessionJoinCodes returns non-empty distinct codes; grants registered before return; tokens verify with correct RO/RW perms |
+| FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | `handleOpenRemoteSession` exchange-then-open (D-03/D-05/D-06 selection: RW only when peer=self, else RO); no-code informative UI; expired-banner on exchange failure |
 
 ---
 
@@ -215,6 +216,12 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 - **M-12** FIX-02 (#101): `TestHandlerUpload_FilenameSanitized`, `TestDenylist_NonHomeRootedUnaffected`, and `TestWriteFileAtomic_ConcurrentReadNeverPartial` pass on Windows — verify the `build (agenthub, windows/amd64, windows-latest)` job is green in GitHub Actions after pushing (no local Windows env available).
   - _Why not automatable:_ Development is on macOS; Windows file-share semantics (FILE_SHARE_DELETE requirement for POSIX-semantics rename) cannot be observed locally. The CI Windows runner is the only ground truth.
   - _Source:_ Phase 145 windows-files-test-fixes; FIX-02 (#101)
+
+### Category G — Live Tailnet Remote Session Open (FIX-03)
+
+- **M-13** FIX-03 (#98): "Open in browser" opens the live session UI (not a 401 or "capability required" page) for a shared remote session on a real tailnet. Steps: (1) On Mac A, start a session and enable Share (both RO and RW). (2) On Mac B, open AgentHub Hub, locate Mac A's remote session card, click "Open in browser". Expect: browser opens the live session terminal, NOT "capability required". (3) Repeat for RO-only share — expect RO-mode open. (4) As session owner on Mac A itself, click "Open in browser" — expect RW open per D-06. All three scenarios must show a live session terminal with no capability error.
+  - _Why not automatable:_ Requires two real Macs on the same tailnet; the `:34115` wails-dev bridge has no real tailnet peer; web-share WebSocket blocks automated terminal input (see live-UAT-daemon-gotchas memory).
+  - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98)
 
 ---
 
