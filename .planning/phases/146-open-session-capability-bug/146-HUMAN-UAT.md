@@ -1,14 +1,14 @@
 ---
-status: partial
+status: issues_found
 phase: 146-open-session-capability-bug
 source: [146-VERIFICATION.md]
 started: 2026-06-22T17:20:02Z
-updated: 2026-06-22T17:20:02Z
+updated: 2026-06-22
 ---
 
 ## Current Test
 
-[awaiting human testing]
+[UAT halted — GAP-146-A found; routing to gap closure]
 
 ## Tests
 
@@ -16,7 +16,7 @@ updated: 2026-06-22T17:20:02Z
 On Mac A, start a session, enable Share, copy the **RO** join code from the Share modal and send it out of band (e.g. paste in chat) to Mac B. On Mac B, click "Open in browser" on Mac A's remote Hub card. Paste the join code into RemoteJoinCodeModal. Confirm.
 expected: Browser opens Mac A's live session at `baseURL/sessions/{id}?cap=TOKEN` — no "capability required" page. Session is in RO mode.
 why_human: Requires two real Macs on one tailnet. The Wails `BrowserOpenURL` call and the actual HTTP response from the remote peer's `requireCapability` middleware cannot be driven by vitest or go test. The :34115 wails-dev bridge has no real tailnet peer.
-result: [pending]
+result: ISSUE (2026-06-22) — In-app connect with the code succeeded, but reusing the SAME single-use code for "Open in browser" failed with "Code invalid." Root cause + decided fix recorded as GAP-146-A in 146-VERIFICATION.md (decision: reuse the held cap; no second code).
 
 ### 2. RW join-code open flow (M-13, two-Mac tailnet)
 Repeat test 1 with the **RW** join code from the Share modal.
@@ -34,9 +34,15 @@ result: [pending]
 
 total: 3
 passed: 0
-issues: 0
-pending: 3
+issues: 1
+pending: 2
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+### GAP-146-A — "Open in browser" forces a second single-use code instead of reusing a held cap
+status: open
+discovered: 2026-06-22 (live two-Mac tailnet UAT, test 1)
+detail: Join codes are single-use (D-11). The in-app connect consumed the code; "Open in browser" (`App.tsx:1069` `handleOpenRemoteSession`) unconditionally re-prompts and re-exchanges rather than reusing the held cap (cf. `handleBrowseFilesRemote` `App.tsx:1092`). The consumed code's re-exchange returns `ErrCodeNotFound`, mislabeled "Code invalid" (WR-03).
+decided_fix: Reuse the held cap — open the cap-bearing URL directly via a new daemon/App.go method when a cap is held; modal only when none held. Also fix WR-03 messaging and add the behavior-level exchange→URL test (WR-02). Full scope in 146-VERIFICATION.md Gaps Summary.
