@@ -579,18 +579,18 @@ func TestDenylist_HomeRooted(t *testing.T) {
 // $HOME is NOT affected by the denylist — a file literally named ".bashrc"
 // inside the sandbox must be writable.
 func TestDenylist_NonHomeRootedUnaffected(t *testing.T) {
-	// The sandbox root is in a tempdir that is NOT under $HOME.
-	// t.TempDir() on macOS returns /var/folders/... which is not $HOME.
-	// Even if $HOME is somehow set to a broad path, we pick a unique subdir.
-	root := t.TempDir()
+	// Redirect $HOME to a fake directory distinct from the sandbox root so that
+	// denylistCheck reliably treats the sandbox as non-home-rooted on every OS.
+	// On Windows, t.TempDir() lands under %USERPROFILE% (i.e. $HOME), so the
+	// old case-sensitive strings.HasPrefix skip guard was fragile and would either
+	// skip or fail depending on path capitalisation. By pointing $HOME at fakeHome
+	// (a separate t.TempDir()) we guarantee the sandbox is outside $HOME without
+	// relying on OS-specific tmpdir placement or a case-sensitive prefix check.
+	fakeHome := t.TempDir()
+	sandboxRoot := t.TempDir()
+	setHomeEnv(t, fakeHome)
 
-	// Ensure the sandbox root is definitely not under $HOME.
-	home, _ := os.UserHomeDir()
-	if home != "" && strings.HasPrefix(root, home) {
-		t.Skipf("tmpdir %q is under $HOME %q; cannot run non-home test", root, home)
-	}
-
-	sb, err := files.NewSandbox(root)
+	sb, err := files.NewSandbox(sandboxRoot)
 	if err != nil {
 		t.Fatalf("NewSandbox: %v", err)
 	}
