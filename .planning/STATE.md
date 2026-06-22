@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: executing
-stopped_at: Phase 146 context gathered
-last_updated: "2026-06-22T18:49:31.505Z"
+status: ready_to_plan
+stopped_at: Phase 146 complete (5/5) — ready to discuss Phase 147
+last_updated: 2026-06-22T20:13:27.615Z
 last_activity: 2026-06-22
 progress:
   total_phases: 15
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 146 — open-session-capability-bug
+**Current focus:** Phase 147 — in app help page
 
 ## Current Position
 
-Phase: 146 (open-session-capability-bug) — EXECUTING
-Plan: 2 of 5
-Status: Ready to execute
+Phase: 147
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-22
 
 Progress: [██████████] 100%

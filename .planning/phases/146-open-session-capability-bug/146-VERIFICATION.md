@@ -1,7 +1,7 @@
 ---
 phase: 146-open-session-capability-bug
 verified: 2026-06-22T18:55:00Z
-status: human_needed
+status: passed
 score: 3/3 must-haves verified
 overrides_applied: 0
 re_verification:
@@ -31,7 +31,7 @@ human_verification:
 
 **Phase Goal:** The "Open Session" button opens the live session instead of landing on a "capability required" web page (FIX-03, #98). Broadcast mechanism removed; out-of-band code/link delivery with held-cap reuse on subsequent opens.
 **Verified:** 2026-06-22T18:55:00Z
-**Status:** human_needed (all automated checks VERIFIED; live two-Mac M-13 UAT remains pending per project convention)
+**Status:** passed (all automated checks VERIFIED; live two-Mac M-13 UAT approved by user 2026-06-22 — see 146-HUMAN-UAT.md)
 **Re-verification:** Yes — supersedes 2026-06-22T17:20:02Z gaps_found result (GAP-146-A now closed by Plan 05)
 
 ---
