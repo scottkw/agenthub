@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
-stopped_at: Phase 143 context gathered
-last_updated: "2026-06-22T03:22:57.583Z"
-last_activity: 2026-06-22 -- Phase 143 planning complete
+stopped_at: Completed 143-01-PLAN.md
+last_updated: "2026-06-22T03:30:23.241Z"
+last_activity: 2026-06-22
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 32
-  completed_plans: 29
+  completed_plans: 30
   percent: 88
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 143 — regression test program
+**Current focus:** Phase 143 — regression-test-program
 
 ## Current Position
 
-Phase: 143
-Plan: Not started
+Phase: 143 (regression-test-program) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-22 -- Phase 143 planning complete
+Last activity: 2026-06-22
 
-Progress: [██████████] 100%
+Progress: [█████████░] 94%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -85,7 +85,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-22T02:21:12.774Z
-Stopped at: Phase 143 context gathered
-Resume file: .planning/phases/143-regression-test-program/143-CONTEXT.md
+Last session: 2026-06-22T03:30:23.233Z
+Stopped at: Completed 143-01-PLAN.md
+Resume file: None
 Next action: `/gsd:plan-phase 136`

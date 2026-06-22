@@ -49,7 +49,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 
 - [ ] **TEST-01**: An automated regression suite (Go + vitest + Playwright) is consolidated and labeled, with a requirement→test traceability map.
 - [ ] **TEST-02**: The automated regression suite runs in CI as a merge gate.
-- [ ] **TEST-03**: Automated coverage gaps are closed for the Hub and for cross-surface GUI/CLI/web flows.
+- [x] **TEST-03**: Automated coverage gaps are closed for the Hub and for cross-surface GUI/CLI/web flows.
 - [ ] **TEST-04**: A single maintained manual (human-intervention) regression checklist exists, replacing the scattered per-phase UAT logs.
 - [ ] **TEST-05**: A standing convention requires every future phase to add its regression tests to the appropriate group (automated vs. human-intervention).
 - [x] **TEST-06**: TUI tests are removed (not migrated) as part of the TUI removal.
@@ -134,7 +134,7 @@ Which phases cover which requirements. Filled during roadmap creation.
 | POL-05 | Phase 142 | Complete |
 | TEST-01 | Phase 143 | Pending |
 | TEST-02 | Phase 143 | Pending |
-| TEST-03 | Phase 143 | Pending |
+| TEST-03 | Phase 143 | Complete |
 | TEST-04 | Phase 143 | Pending |
 | TEST-05 | Phase 143 | Pending |
 
