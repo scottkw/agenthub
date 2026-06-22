@@ -26,12 +26,12 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
 | Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **112** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| vitest (frontend) | **116** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
 | **Total** | **468** | — | — | — |
 
-> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path).
+> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path). Phase 147-01: vitest +4 (HelpTab.test.tsx, HelpSearch.test.tsx, HelpSectionNav.test.tsx, HelpContent.test.tsx — RED stubs for Wave 0; turn GREEN in Plans 02/03).
 
 ### CI Workflow Mapping
 
@@ -150,6 +150,10 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_NoJoinCodesInResponse` — RB-03 restored: ro_join_code/rw_join_code must NOT appear in /api/sessions/meta (cap-free discovery; broadcast wiring removed in Plan 02) |
 | FIX-03 | internal/daemon/open_remote_session_url_test.go | Go | held-cap open-url read path — RemoteCapStore.Get → baseURL+/sessions/{id}?cap=TOKEN; absent → 404 (GAP-146-A reuse fix) |
 | FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | Out-of-band open contract: `handleOpenRemoteSession` opens modal (not direct URL); `handleModalExchange` open-session branch builds `/sessions/{id}?cap=` URL + calls `BrowserOpenURL`; dead code (broadcast symbols) gone; behavior-level: "Open in browser" not disabled on remote card with no code (D-03). Plan 05 gap closure: held-cap reuse path (`remoteCapsCached.has` → `OpenRemoteSessionURL`; no modal on hit); WR-03 error-copy: not-found → "already used or expired" (not "Code invalid"). |
+| HELP-01 | frontend/src/components/__tests__/HelpTab.test.tsx | vitest | Phase 147: HELP_TAB constant in App.tsx + --hub-search-highlight-bg CSS token source gates (RED in Plan 01; GREEN in Plans 02/03) |
+| HELP-01 | frontend/src/components/__tests__/HelpSearch.test.tsx | vitest | Phase 147: search label, clear button, empty-state, and mark highlight assertions (RED in Plan 01; GREEN in Plan 03) |
+| HELP-01 | frontend/src/components/__tests__/HelpSectionNav.test.tsx | vitest | Phase 147: section nav renders buttons per section; aria-current + active class + onSectionChange on click (RED in Plan 01; GREEN in Plan 03) |
+| HELP-01 | frontend/src/components/__tests__/HelpContent.test.tsx | vitest | Phase 147: react-markdown import gate; BrowserOpenURL called on link click; no raw `<a href` in output (RED in Plan 01; GREEN in Plan 03) |
 
 ---
 
@@ -224,6 +228,12 @@ Human-intervention items that cannot be automated. Run before each tagged releas
   - **Second open (held-cap reuse, Plan 05):** Once the viewer has already connected in-app (which deposited the cap into RemoteCapStore), clicking "Open in browser" a SECOND time on the same session must open WITHOUT prompting for a fresh join code. The app reuses the held cap directly (the single-use code is already consumed — D-11). Steps: (1) On Mac A, start a session, enable Share, deliver join code to Mac B out of band. (2) On Mac B, connect in-app (cap deposited). (3) On Mac B, click "Open in browser" — expect it opens directly WITHOUT a modal. (4) Verify browser opens at `baseURL/sessions/{id}?cap=TOKEN`. No join-code prompt on the second open.
   - _Why not automatable:_ Requires two real Macs on the same tailnet; the `:34115` wails-dev bridge has no real tailnet peer; web-share WebSocket blocks automated terminal input (see live-UAT-daemon-gotchas memory).
   - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98) — Phase 146 out-of-band redesign (D-02/D-04); GAP-146-A Plan 05 held-cap reuse
+
+### Category H — In-App Help Page (HELP-01)
+
+- **M-14** Help page opens in the live native WebView via the sidebar Help button: search input, left section-nav ("Getting Started", "FAQ"), and Markdown content all render. Clicking an FAQ answer's GitHub Issues link opens the system browser (not in-app webview). Search for "DevTools" shows at least one highlighted result with a `<mark>` span.
+  - _Why not automatable:_ Wails native webview required for the BrowserOpenURL external-browser path and IntersectionObserver scroll-spy active-section tracking.
+  - _Source:_ Phase 147 HELP-01 (#69); add when Plans 02/03 complete
 
 ---
 

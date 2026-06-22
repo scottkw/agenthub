@@ -37,11 +37,15 @@ function makeGroup(overrides: Partial<HubGroupDef> = {}): HubGroupDef {
 // Helper to render Sidebar with default no-op props
 // Phase 138 / NAV-02..05: reduced to 3-item sidebar (Home, Hub, Settings only).
 // onOpenDaemonManager, onOpenRemoteSessions, onAdd removed — those panels are deleted.
-function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
+// Phase 147: SidebarProps will gain onOpenHelp in Plan 02. Until then, use
+// an extended type so these RED-state tests compile without a prop type error.
+type SidebarTestProps = Parameters<typeof Sidebar>[0] & { onOpenHelp?: () => void }
+
+function renderSidebar(overrides: Partial<SidebarTestProps> = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
-  const defaultProps = {
+  const defaultProps: SidebarTestProps = {
     onSettings: vi.fn(),
     onHome: vi.fn(),
     onOpenHub: vi.fn(),
@@ -53,9 +57,13 @@ function renderSidebar(overrides: Partial<Parameters<typeof Sidebar>[0]> = {}) {
     onDropOnGroup: vi.fn(),
     groupCounts: {} as Record<string, { running: number; total: number; attention: number; waiting: number }>,
     globalGroupCounts: { running: 0, total: 0, attention: 0, waiting: 0 },
+    // Phase 147 — Help button prop (added to SidebarProps in Plan 02)
+    onOpenHelp: vi.fn(),
   }
   act(() => {
-    root.render(<Sidebar {...defaultProps} {...overrides} />)
+    // Cast to any to allow the pre-implementation onOpenHelp prop; Plan 02 makes
+    // it a real prop and this cast becomes redundant (removing it is a GREEN signal).
+    root.render(<Sidebar {...(defaultProps as Parameters<typeof Sidebar>[0])} {...(overrides as Parameters<typeof Sidebar>[0])} />)
   })
   return { container, root, ...defaultProps, ...(overrides as typeof defaultProps) }
 }
@@ -88,11 +96,11 @@ describe('Sidebar component (SIDE-01)', () => {
     expect(items.length).toBeGreaterThan(0)
   })
 
-  // Phase 138 / NAV-02..05: exactly 3 items (Home, Hub, Settings)
-  it('renders exactly 3 sidebar__item buttons (Home, Hub, Settings)', () => {
+  // Phase 138 / NAV-02..05: exactly 3 items (Home, Hub, Settings); Phase 147 adds Help → 4
+  it('renders exactly 4 sidebar__item buttons (Home, Hub, Settings, Help)', () => {
     ;({ container, root } = renderSidebar())
     const items = container.querySelectorAll('button.sidebar__item')
-    expect(items.length).toBe(3)
+    expect(items.length).toBe(4)
   })
 
   // Phase 138 / NAV-03: Sessions panel removed — button must be absent
@@ -234,13 +242,13 @@ describe('Sidebar icon centering precondition (SBR-01)', () => {
     })
   })
 
-  // Phase 138 / NAV-02..05: 3 items remain in DOM when collapsed (was 6)
-  it('all 3 sidebar items remain in DOM when collapsed', () => {
+  // Phase 138 / NAV-02..05: 3 items remain in DOM when collapsed (was 6); Phase 147 adds Help → 4
+  it('all 4 sidebar items remain in DOM when collapsed', () => {
     ;({ container, root } = renderSidebar())
     const toggleBtn = container.querySelector('.sidebar__toggle') as HTMLButtonElement
     act(() => { toggleBtn.click() })
     const items = container.querySelectorAll('.sidebar__item')
-    expect(items.length).toBe(3)
+    expect(items.length).toBe(4)
   })
 })
 
@@ -307,6 +315,46 @@ describe('Sidebar Hub item (HUB-01, Phase 131)', () => {
   })
 })
 
+describe('Sidebar Help item (Phase 147)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('renders a Help button with aria-label="Help"', () => {
+    ;({ container, root } = renderSidebar())
+    const helpBtn = container.querySelector('button[aria-label="Help"]')
+    expect(helpBtn).not.toBeNull()
+    expect(helpBtn!.classList.contains('sidebar__item')).toBe(true)
+  })
+
+  it('Help button fires onOpenHelp when clicked', () => {
+    const onOpenHelp = vi.fn()
+    ;({ container, root } = renderSidebar({ onOpenHelp }))
+    const helpBtn = container.querySelector('button[aria-label="Help"]') as HTMLButtonElement
+    expect(helpBtn).not.toBeNull()
+    act(() => { helpBtn.click() })
+    expect(onOpenHelp).toHaveBeenCalledTimes(1)
+  })
+
+  it('Help button does NOT have sidebar__item--active when activePanel is not __help__', () => {
+    ;({ container, root } = renderSidebar({ activePanel: '__settings__' }))
+    const helpBtn = container.querySelector('button[aria-label="Help"]')
+    expect(helpBtn).not.toBeNull()
+    expect(helpBtn!.classList.contains('sidebar__item--active')).toBe(false)
+  })
+
+  it('Help button has sidebar__item--active when activePanel === "__help__"', () => {
+    ;({ container, root } = renderSidebar({ activePanel: '__help__' }))
+    const helpBtn = container.querySelector('button[aria-label="Help"]')
+    expect(helpBtn).not.toBeNull()
+    expect(helpBtn!.classList.contains('sidebar__item--active')).toBe(true)
+  })
+})
+
 describe('Sidebar icon position stability (SBR-02)', () => {
   let container: HTMLElement
   let root: ReturnType<typeof createRoot>
@@ -322,7 +370,7 @@ describe('Sidebar icon position stability (SBR-02)', () => {
   })
 
   it('all sidebar__icon elements exist in both expanded and collapsed states', () => {
-    // Phase 138: 1 toggle + 3 nav items = 4 sidebar__icon SVGs total
+    // Phase 138: 1 toggle + 3 nav items = 4; Phase 147 adds Help → 5 sidebar__icon SVGs total
     ;({ container, root } = renderSidebar())
     const expandedIcons = container.querySelectorAll('svg.sidebar__icon')
     expect(expandedIcons.length).toBeGreaterThanOrEqual(4)
@@ -376,17 +424,17 @@ describe('NAV-05 positive render contract — 3 items with groups present (GAP-0
     localStorage.clear()
   })
 
-  it('still renders exactly 3 sidebar__item buttons when groupDefs are present (Home, Hub, Settings)', () => {
+  it('still renders exactly 4 sidebar__item buttons when groupDefs are present (Home, Hub, Settings, Help)', () => {
     // sidebar is expanded by default (no sidebar-collapsed in localStorage)
     // showGroupList = effectiveExpanded && groupDefs.length > 0 — group items render in ul.sidebar__group-list,
-    // NOT as button.sidebar__item, so the top-level nav count must stay at exactly 3.
+    // NOT as button.sidebar__item, so the top-level nav count must stay at exactly 4.
     const groupDefs = [
       makeGroup({ id: 'grp-1', name: 'Alpha' }),
       makeGroup({ id: 'grp-2', name: 'Beta' }),
     ]
     ;({ container, root } = renderSidebar({ groupDefs }))
     const items = container.querySelectorAll('button.sidebar__item')
-    expect(items.length).toBe(3)
+    expect(items.length).toBe(4)
   })
 
   it('renders group entries as .sidebar__group-item elements (not as top-level nav items)', () => {
