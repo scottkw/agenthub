@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { AdaptedRemoteSessionInfo } from '../../lib/remoteAdapter'
 import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
 import type { ITheme } from '@xterm/xterm'
 import { daemon } from '../../wailsjs/go/models'
@@ -177,8 +178,8 @@ export interface HubPanelProps {
   webServerRunning?: boolean
   /** Phase 138 — Kill handler threaded to card overflow menu */
   onKill?: (sessionId: string) => void
-  /** Phase 138 — Open remote session in system browser */
-  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 — Open remote session in system browser (Phase 146: receives session object for cap exchange) */
+  onOpenInBrowser?: (session: AdaptedRemoteSessionInfo) => void
   /** Phase 138 — Browse remote session files (join-code flow) */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
   /** Phase 138 — remotePeers raw data for unreachable-peer hints */

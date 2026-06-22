@@ -50,6 +50,7 @@ import { HubPanel } from './components/Hub/HubPanel'
 import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
 import { adaptAllRemoteSessions } from './lib/remoteAdapter'
+import type { AdaptedRemoteSessionInfo } from './lib/remoteAdapter'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
@@ -1059,9 +1060,55 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     }
   }, [])
 
-  const handleOpenRemoteSession = useCallback((url: string) => {
-    BrowserOpenURL(url)
-  }, [])
+  // Phase 146 FIX-03 — D-06 ownership check.
+  // Returns true when peerHostname (from the adapted remote session) matches
+  // the viewer's own tailnet node. Derived from tailscaleHealth.domain:
+  // e.g. "mynode.tailnet.ts.net" → short hostname "mynode".
+  // Falls back to false on any missing/ambiguous data (safe RO default, D-05).
+  function isPeerSelf(
+    peerHostname: string | undefined,
+    tsStatus: typeof tailscaleHealth,
+  ): boolean {
+    if (!peerHostname || !tsStatus?.domain) return false
+    const localShort = tsStatus.domain.split('.')[0]
+    if (!localShort) return false
+    return peerHostname.toLowerCase() === localShort.toLowerCase()
+  }
+
+  // Phase 146 FIX-03 — auto-exchange join code then open cap-bearing URL (#98).
+  // D-03: roJoinCode absent → not shared → error banner, no 401 dead-end.
+  // D-05/D-06: use rwJoinCode when isPeerSelf, else roJoinCode.
+  // Pitfall 4: catch expired/session-gone and surface informative banner.
+  const handleOpenRemoteSession = useCallback(
+    async (session: AdaptedRemoteSessionInfo): Promise<void> => {
+      // D-03: no join code → session is not shared yet.
+      if (!session.roJoinCode) {
+        setSaveBanner({ kind: 'error', text: 'This session is not shared — enable sharing from the owner\'s Share menu first.' })
+        return
+      }
+      const baseURL = remoteBaseURLFor(session)
+      if (!baseURL) {
+        setSaveBanner({ kind: 'error', text: 'Cannot open session — the remote peer URL is unavailable.' })
+        return
+      }
+      // D-06: prefer rw code for owner re-attach; D-05: ro for all other viewers.
+      const code = session.rwJoinCode && isPeerSelf(session.hostname, tailscaleHealth)
+        ? session.rwJoinCode
+        : session.roJoinCode
+      try {
+        const token = await ExchangeJoinCodeAtURL(baseURL, code)
+        BrowserOpenURL(baseURL + '/sessions/' + session.id + '?cap=' + token)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('expired') || msg.includes('session-gone')) {
+          setSaveBanner({ kind: 'error', text: 'Session join code expired — wait for the next peer refresh and try again.' })
+        } else {
+          setSaveBanner({ kind: 'error', text: 'Failed to open session in browser — ' + msg })
+        }
+      }
+    },
+    [tailscaleHealth, setSaveBanner],
+  )
 
   // Phase 122-03 — remote-session file-browse entry point. If the cap is
   // already cached (D-03), open the file-browser tab immediately. Otherwise

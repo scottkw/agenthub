@@ -1,5 +1,6 @@
 import React from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { AdaptedRemoteSessionInfo } from '../../lib/remoteAdapter'
 import type { ITheme } from '@xterm/xterm'
 import { daemon } from '../../wailsjs/go/models'
 import { SessionCard } from './SessionCard'
@@ -158,8 +159,8 @@ export interface SessionCardGridProps {
   remoteIdSet?: Set<string>
   /** Phase 138 — Kill handler (threaded from HubPanel → App.handleCloseTab) */
   onKill?: (sessionId: string) => void
-  /** Phase 138 — Open remote session in browser (threaded from HubPanel) */
-  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 — Open remote session in browser (Phase 146: receives session object for cap exchange) */
+  onOpenInBrowser?: (session: AdaptedRemoteSessionInfo) => void
   /** Phase 138 — Browse remote files (threaded from HubPanel) */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
 }

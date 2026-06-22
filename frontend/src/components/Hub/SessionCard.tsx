@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
+import type { AdaptedRemoteSessionInfo } from '../../lib/remoteAdapter'
 import type { ITheme } from '@xterm/xterm'
 import { daemon } from '../../wailsjs/go/models'
 import {
@@ -164,8 +165,8 @@ export interface SessionCardProps {
   isConnected?: boolean
   /** Phase 138 / CARD-04: Kill session — wired to handleCloseTab in App. */
   onKill?: (sessionId: string) => void
-  /** Phase 138 / CARD-04: Open remote session in system browser. */
-  onOpenInBrowser?: (url: string) => void
+  /** Phase 138 / CARD-04: Open remote session in system browser (Phase 146: receives session object for cap exchange). */
+  onOpenInBrowser?: (session: AdaptedRemoteSessionInfo) => void
   /** Phase 138 / CARD-04: Browse remote files (join-code cap flow). */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
 }
@@ -231,10 +232,11 @@ export function SessionCard({
   const isLocal = isRemote !== undefined ? !isRemote : (!hostname || hostname === '')
   const originText = isLocal ? 'Local' : hostname
 
-  // Remote-adapted sessions carry an extra `url` (see adaptRemoteSession / AdaptedRemoteSessionInfo)
-  // that the base SessionInfo type has no slot for. Read it once here for the "Open in browser"
-  // affordance; '' for local sessions (which never expose this menu item). (CR-01 / WR-03)
-  const remoteUrl = (session as { url?: string }).url ?? ''
+  // Remote-adapted sessions carry extra fields (see adaptRemoteSession / AdaptedRemoteSessionInfo)
+  // that the base SessionInfo type has no slot for. Read them once here for the "Open in browser"
+  // affordance; defaults for local sessions (which never expose this menu item). (CR-01 / WR-03)
+  // Phase 146 FIX-03: roJoinCode absent → session is not shared yet (D-03); used to gate the button.
+  const roJoinCode = (session as { roJoinCode?: string }).roJoinCode
 
   // Time display
   // IN-03: remote sessions use createdAt = new Date().toISOString() (set at poll time),
@@ -399,11 +401,15 @@ export function SessionCard({
           {isRemote && (
             <>
               <hr className="hub-card__menu-divider" />
+              {/* Phase 146 FIX-03: pass session object so handler can auto-exchange the join code.
+                  D-03: when roJoinCode is absent (not shared), show tooltip hint — no dead-end 401. */}
               <button
                 type="button"
                 className="hub-card__menu-item"
                 role="menuitem"
-                onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.(remoteUrl); setMenuOpen(false) }}
+                disabled={!roJoinCode}
+                title={roJoinCode ? undefined : 'Session is not shared — share it from the owner\'s device first'}
+                onClick={(e) => { e.stopPropagation(); onOpenInBrowser?.(session as AdaptedRemoteSessionInfo); setMenuOpen(false) }}
               >
                 <ArrowTopRightOnSquareIcon className="hub-card__conn-icon" aria-hidden="true" />
                 Open in browser

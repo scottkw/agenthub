@@ -73,7 +73,9 @@ interface RenderOpts {
   isConnected?: boolean
   // Phase 138 / CARD-04: kill and remote affordance handlers
   onKill?: (sessionId: string) => void
-  onOpenInBrowser?: (url: string) => void
+  // Phase 146: signature changed from (url: string) to (session) for cap-exchange flow
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onOpenInBrowser?: (session: any) => void
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
   // Phase 131/134 re-attach affordance — local-only after CARD-04 gating (WR-01)
   onOpenSession?: (id: string, name: string, cli: string) => void
@@ -272,11 +274,13 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
     flushSync(() => { menuBtn.click() })
     expect(c.textContent).not.toContain('Browse files')
   })
-  // CR-01: the adapted remote session carries `url`; "Open in browser" must forward the
-  // real URL, not '' (which would call BrowserOpenURL('')).
-  it('"Open in browser" forwards the session url, not an empty string (CR-01)', () => {
+  // CR-01 / Phase 146: "Open in browser" now passes the session object (not the bare URL)
+  // so handleOpenRemoteSession can auto-exchange the join code for a cap-bearing URL.
+  // The session must carry roJoinCode for the button to be enabled (D-03 gate).
+  it('"Open in browser" passes the session object (CR-01 / Phase 146 FIX-03)', () => {
     const onOpenInBrowser = vi.fn()
-    const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2' } as SessionInfo
+    // roJoinCode is required for the button to be enabled (D-03)
+    const remoteWithUrl = { ...remoteSession, url: 'https://remote.host/session/sess-2', roJoinCode: 'ro-test-code' } as SessionInfo
     const { container: c } = renderCard({ session: remoteWithUrl, isRemote: true, onOpenInBrowser })
     const menuBtn = c.querySelector('.hub-card__menu-btn') as HTMLButtonElement
     flushSync(() => { menuBtn.click() })
@@ -284,7 +288,8 @@ describe('CARD-04: Remote affordances in overflow menu', () => {
       (el) => el.textContent?.includes('Open in browser')
     ) as HTMLButtonElement
     flushSync(() => { openBtn?.click() })
-    expect(onOpenInBrowser).toHaveBeenCalledWith('https://remote.host/session/sess-2')
+    // Phase 146: called with the session object so the handler can exchange the join code
+    expect(onOpenInBrowser).toHaveBeenCalledWith(expect.objectContaining({ id: 'sess-2', url: 'https://remote.host/session/sess-2' }))
   })
 })
 
