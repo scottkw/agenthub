@@ -44,8 +44,8 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Not used in this phase |
 
 Exceptions:
-- Search input sticky bar: `padding: 10px 0` (matches `.settings-jump-bar` precedent — 10px is a known app exception for sticky bars)
-- Section headings `scroll-margin-top: 80px` (clears sticky search bar, mirrors Settings precedent)
+- Search input sticky bar: `padding: 8px 0` (nearest multiple of 4 to the `.settings-jump-bar` precedent; 10px was non-compliant and is corrected here)
+- Section headings `scroll-margin-top: 80px` (clears sticky search bar, mirrors Settings precedent; 80 = 20×4)
 - Sidebar item hit targets: `padding: 8px 0` (13px text, 20px icon — existing pattern)
 
 ---
@@ -87,19 +87,30 @@ All color values are referenced via `--hub-*` CSS tokens — no hardcoded hex in
 | Text dim | `--hub-text-dim` → `#6e7180` | `#9999b0` | Hint text, "last updated" annotations |
 | Border | `--hub-border` → `#41454f` | `#d1d1db` | Section nav separator, search input border, code block border |
 | Destructive | `--hub-destructive` → `#f7768e` (dark) / `#c0394f` (light) | same | Not used in this phase (no destructive actions) |
-| Search highlight bg | NOT a token — use `rgba(122,162,247,0.25)` (dark) / `rgba(61,111,232,0.20)` (light) with text `var(--hub-text-primary)` | Inline `<mark>` element for matched search terms |
+| Search highlight bg | `--hub-search-highlight-bg` → `rgba(122,162,247,0.25)` (dark) / `rgba(61,111,232,0.20)` (light) | Token declared in `:root` and `[data-ui-theme="light"]` | `<mark>` element background for matched search terms; text color remains `var(--hub-text-primary)` |
+
+**Token declaration (add to style.css alongside other `--hub-*` tokens):**
+```css
+:root {
+  --hub-search-highlight-bg: rgba(122, 162, 247, 0.25);
+}
+[data-ui-theme="light"] {
+  --hub-search-highlight-bg: rgba(61, 111, 232, 0.20);
+}
+```
+All `.help-*` CSS classes reference `var(--hub-search-highlight-bg)` — no inline rgba values.
 
 **Accent reserved for:**
 - Active section nav link text color
 - Search input focus border (`border-color: var(--hub-accent)`)
 - External link text color (GitHub, website)
-- Search term `<mark>` highlight background
+- Search term `<mark>` highlight border
 - Jump-anchor links in the top bar (mirrors `.settings-jump-bar__link` pattern)
 
 **Colorblind-safe requirements (D-11, inherited from v4.0 norm):**
 - Active section nav item: use `aria-current="true"` + visual highlight (bg + text color change) — not color alone
 - External links: carry `aria-label` indicating they open externally; also use an external-link icon (Heroicons `ArrowTopRightOnSquareIcon`) — not color alone
-- Search highlight: `<mark>` uses a background + the token accent color for the border; shape/contrast carries meaning, not color alone
+- Search highlight: `<mark>` uses `var(--hub-search-highlight-bg)` background + the token accent color for the border; shape/contrast carries meaning, not color alone
 
 **prefers-reduced-motion:** All hover/transition animations on `.help-*` classes must be gated with `@media (prefers-reduced-motion: no-preference)` / `@media (prefers-reduced-motion: reduce)` pairs, matching the existing pattern in `style.css`.
 
@@ -163,6 +174,7 @@ New components to build for this phase (all in `frontend/src/components/`):
 | Help tab page title (h1) | "Help" | Rendered at top of content pane, not in tab bar |
 | Search input label (visible) | "Search help…" | Must be a visible `<label>` associated via `htmlFor`/`id` pair (D-12) |
 | Search input placeholder | "Search help…" | Same as label — conventional |
+| Search clear button (`×`) aria-label | `"Clear search"` | Required on `.help-search__clear` — icon-only button with no visible text |
 | No-search-results heading | `No results for "{query}"` | Query term quoted, interpolated |
 | No-search-results body | "Try a different term, or browse the sections below. For known issues, check [GitHub Issues](link)." | Points to GitHub Issues per D-08 |
 | Section: Getting Started | "Getting Started" | h2 heading |
@@ -195,7 +207,7 @@ New components to build for this phase (all in `frontend/src/components/`):
 - Snippet format: ~1–2 lines of surrounding context with matched term wrapped in `<mark>`
 - Jump-to-section: each snippet result includes a "Go to section →" affordance that scrolls the content pane and updates the section nav active state
 - Empty state: shown when query is non-empty AND results are zero. Do NOT show empty state for an empty query (show full content instead)
-- Clear: clicking × in the search input (or pressing Escape) clears the query and restores full content view
+- Clear: clicking × in the search input (or pressing Escape) clears the query and restores full content view; the clear button (`aria-label="Clear search"`) is an icon-only `<button>`
 
 ### Section nav behavior (D-10)
 
@@ -214,6 +226,7 @@ New components to build for this phase (all in `frontend/src/components/`):
 ### Keyboard accessibility (D-12)
 
 - Search input: visible `<label>` + associated `id`; focus style uses `outline: 2px solid var(--hub-accent); outline-offset: 2px`
+- Search clear button: `aria-label="Clear search"` — no visible text, icon only
 - Section nav: keyboard navigable; `aria-current="true"` on active item
 - Content headings: correct h1 → h2 → h3 hierarchy (no skips)
 - `scroll-margin-top: 80px` on all anchor targets to clear the sticky search bar
@@ -247,7 +260,7 @@ All new CSS classes follow the project's BEM-style convention with `.help-` pref
 .help-nav__link    — <button> inside item (keyboard accessible)
 .help-nav__link--active — active state modifier
 .help-search__input     — the text input
-.help-search__clear     — × clear button
+.help-search__clear     — × clear button (aria-label="Clear search")
 .help-search__results   — results list
 .help-search__result    — single result item (snippet + jump link)
 .help-search__mark      — matched term highlight (use <mark> element)
@@ -256,7 +269,7 @@ All new CSS classes follow the project's BEM-style convention with `.help-` pref
 .help-content__external-link — external link button
 ```
 
-All classes use only `var(--hub-*)` tokens — no hardcoded hex values.
+All classes use only `var(--hub-*)` tokens — no hardcoded hex values, no inline rgba values. The `<mark>` background uses `var(--hub-search-highlight-bg)`.
 
 ---
 
@@ -280,6 +293,14 @@ All classes use only `var(--hub-*)` tokens — no hardcoded hex values.
 | All `--hub-*` token values | Codebase style.css :root | Confirmed existing |
 | Spacing scale | Codebase style.css patterns | Confirmed existing |
 | Icon library (@heroicons/react) | Codebase Sidebar.tsx | Confirmed existing |
+
+---
+
+## Checker Revision History
+
+| Revision | Date | Issues Fixed |
+|----------|------|-------------|
+| r1 | 2026-06-22 | BLOCK D5: `padding: 10px 0` corrected to `padding: 8px 0`; FLAG D2: `aria-label="Clear search"` added to copywriting contract; FLAG D3: `rgba()` inline values replaced with `--hub-search-highlight-bg` token pair |
 
 ---
 
