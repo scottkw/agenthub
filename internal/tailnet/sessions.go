@@ -114,19 +114,14 @@ func FetchAllPeerSessions(ctx context.Context, peers []Peer) []PeerSessionGroup 
 // remote session. Returned by GET /api/sessions/meta (open endpoint, no cap
 // required). Contains ONLY non-sensitive metadata — never cap tokens, grants, or
 // session content (RB-03 no-enumeration contract).
-// Phase 146 / FIX-03: ROJoinCode and RWJoinCode are fresh single-use join
-// codes embedded by GET /api/sessions/meta (Mechanism B). The viewer uses
-// the non-empty code to exchange for a cap-bearing URL without a separate
-// POST /sessions/{id}/capabilities handshake. Decoded automatically by
-// stdlib json.Decode — no decoder change required.
+// Broadcast join-code fields removed: design rejected per CONTEXT.md D-10.
+// Credentials are delivered out of band by the owner; this struct carries no creds.
 type ShareableSessionMeta struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	CLIType    string `json:"cli_type"`
-	Status     string `json:"status"`
-	URL        string `json:"url"`
-	ROJoinCode string `json:"ro_join_code,omitempty"`
-	RWJoinCode string `json:"rw_join_code,omitempty"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	CLIType string `json:"cli_type"`
+	Status  string `json:"status"`
+	URL     string `json:"url"`
 }
 
 // PeerSessionMetaGroup groups shareable-session metadata by peer hostname.

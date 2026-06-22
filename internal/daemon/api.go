@@ -453,9 +453,6 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	ws.SetFilesHandler(a.filesHandler)
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
-	// Phase 146 / FIX-03: wire join-code issuer so GET /api/sessions/meta
-	// embeds fresh per-session ro_join_code / rw_join_code (Mechanism B).
-	ws.SetJoinCodeIssuer(a.mintSessionJoinCodes)
 	if err := ws.Start(); err != nil {
 		return err
 	}
@@ -990,9 +987,6 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 	ws.SetFilesHandler(a.filesHandler)
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
-	// Phase 146 / FIX-03: wire join-code issuer so GET /api/sessions/meta
-	// embeds fresh per-session ro_join_code / rw_join_code (Mechanism B).
-	ws.SetJoinCodeIssuer(a.mintSessionJoinCodes)
 
 	if err := ws.Start(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1178,88 +1172,6 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 		return "", "", "", "", err
 	}
 	return readURL, writeURL, readCode, writeCode, nil
-}
-
-// mintSessionJoinCodes mints a fresh pair of single-use join codes (one
-// read-only, one read-write) for the given session. It is the minimal
-// extraction of the token-mint + grant-register + code-issue steps from
-// issueCapabilitiesForSession, omitting the URL-construction step that
-// handleIssueCapabilities performs for the Share modal.
-//
-// Phase 146 / FIX-03: this function is wired as the joinCodeIssuer callback
-// on the WebServer so that GET /api/sessions/meta can embed fresh codes in
-// each item, letting the viewer open a cap-bearing URL without an explicit
-// POST /sessions/{id}/capabilities handshake (Mechanism B, RESEARCH.md §3).
-//
-// Invariants (matching issueCapabilitiesForSession):
-//   - Both grants are registered on the WebServer BEFORE the join codes are
-//     issued, so any token exchanged from a returned code passes
-//     isGrantActive immediately (Pitfall 3).
-//   - Permissions mirror issueCapabilitiesForSession exactly: RO = "read"
-//     (or "read,files.read" when browse is enabled), RW = "read,write"
-//     (or "read,write,files.read,files.write"). Never cache across calls —
-//     single-use codes must be minted fresh per request (T-146-02).
-func (a *API) mintSessionJoinCodes(sessionID string) (roCode, rwCode string, err error) {
-	a.signingKeyMu.RLock()
-	key := a.signingKey
-	a.signingKeyMu.RUnlock()
-	if key == nil {
-		return "", "", errors.New("capability: signing key not bootstrapped")
-	}
-
-	a.mu.RLock()
-	ws := a.webServer
-	a.mu.RUnlock()
-	if ws == nil {
-		return "", "", errors.New("web server not running")
-	}
-	if a.joinCodes == nil {
-		return "", "", errors.New("capability: join-code manager not bootstrapped")
-	}
-
-	// Generate two 128-bit grant IDs (hex-encoded to 32 chars).
-	var rgid, wgid [16]byte
-	if _, err := rand.Read(rgid[:]); err != nil {
-		return "", "", err
-	}
-	if _, err := rand.Read(wgid[:]); err != nil {
-		return "", "", err
-	}
-
-	now := time.Now().Unix()
-	// Perm injection mirrors issueCapabilitiesForSession exactly (D-03/D-04).
-	rPerms := "read"
-	wPerms := "read,write"
-	if a.engine.browseEnabledFor(sessionID) {
-		rPerms = "read," + capability.PermFilesRead
-		wPerms = "read,write," + capability.PermFilesRead + "," + capability.PermFilesWrite
-	}
-	rClaims := capability.Claims{SID: sessionID, Perms: rPerms, IAT: now, GrantID: hex.EncodeToString(rgid[:]), V: 1}
-	wClaims := capability.Claims{SID: sessionID, Perms: wPerms, IAT: now, GrantID: hex.EncodeToString(wgid[:]), V: 1}
-
-	rTok, err := capability.Sign(rClaims, key)
-	if err != nil {
-		return "", "", err
-	}
-	wTok, err := capability.Sign(wClaims, key)
-	if err != nil {
-		return "", "", err
-	}
-
-	// Register both grants BEFORE issuing codes so any token exchanged from
-	// a returned code passes isGrantActive immediately (Pitfall 3).
-	ws.AddGrant(sessionID, rClaims.GrantID)
-	ws.AddGrant(sessionID, wClaims.GrantID)
-
-	roCode, err = a.joinCodes.Issue(rTok)
-	if err != nil {
-		return "", "", err
-	}
-	rwCode, err = a.joinCodes.Issue(wTok)
-	if err != nil {
-		return "", "", err
-	}
-	return roCode, rwCode, nil
 }
 
 // handleIssueCapabilities issues two capabilities for a web-enabled session
