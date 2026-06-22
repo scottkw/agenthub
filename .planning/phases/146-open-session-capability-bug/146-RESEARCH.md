@@ -447,7 +447,9 @@ Nyquist validation is enabled for this phase.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both questions below carry inline recommendations that are absorbed into the plans: Q1's hostname fallback-to-RO is implemented in Wave 2 Task 2 (D-05 safe default); Q2's per-poll issuance is accepted as the simplest correct design. No user input required.
 
 1. **`GetTailscaleStatus` hostname format for D-06**
    - What we know: `GetTailscaleStatus` is called at startup (App.tsx); it returns a `tailscaleStatus` object with connectivity info.
