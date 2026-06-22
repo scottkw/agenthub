@@ -2654,8 +2654,8 @@ body {
 
 /* === Phase 87: Destructive variant for Settings panel button (UI-SPEC Surface 2, D-16) === */
 .settings-panel__btn--destructive {
-  background: #f7768e;
-  color: #1a1b26;
+  background: var(--hub-destructive);
+  color: var(--hub-bg);
   font-weight: 600;
 }
 
@@ -3827,17 +3827,17 @@ body {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 16px;
-  background: #1e2030;
-  border-bottom: 1px solid #292e42;
+  background: var(--hub-surface-elevated);
+  border-bottom: 1px solid var(--hub-border);
   font-size: 12px;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   flex: 0 0 auto;
 }
 
 /* --info variant: no dismiss button — just a single-line caption */
 .file-browser__editor-notice--info {
   justify-content: flex-start;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   font-style: italic;
 }
 
@@ -3855,11 +3855,11 @@ body {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 16px;
-  background: #1e2030;
-  border-top: 1px solid #292e42;
-  border-left: 3px solid #f7768e;
+  background: var(--hub-surface-elevated);
+  border-top: 1px solid var(--hub-border);
+  border-left: 3px solid var(--hub-destructive);
   font-size: 12px;
-  color: #f7768e;
+  color: var(--hub-destructive);
   flex: 0 0 auto;
 }
 
@@ -3879,7 +3879,7 @@ body {
 /* Dirty bullet — accent color, no extra spacing (gap on the sibling handles it).
    The ● glyph + aria-label carry the signal; color is reinforcement only. */
 .file-browser__dirty-marker {
-  color: #7aa2f7;
+  color: var(--hub-accent);
   flex: 0 0 auto;
   font-size: 13px;
   line-height: 1;
@@ -3889,7 +3889,7 @@ body {
 .file-browser__preview-path {
   font-size: 11px;
   font-weight: 400;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3912,7 +3912,7 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   flex: 0 0 auto;
 }
 
@@ -3927,18 +3927,18 @@ body {
 
 /* Saving state: amber icon, spin animation */
 .file-browser__save-indicator-icon--saving {
-  color: #e0af68;
+  color: var(--hub-warning);
   animation: file-browser-spin 0.75s linear infinite;
 }
 
 /* Saved state: green icon */
 .file-browser__save-indicator-icon--saved {
-  color: #9ece6a;
+  color: var(--hub-success);
 }
 
 /* Error state: destructive red icon */
 .file-browser__save-indicator-icon--error {
-  color: #f7768e;
+  color: var(--hub-destructive);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3949,7 +3949,7 @@ body {
 
 .file-browser__save-indicator-text {
   font-size: 12px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   line-height: 1.5;
 }
 
@@ -3962,16 +3962,16 @@ body {
 .file-browser__list-row--inline-input {
   display: flex;
   align-items: center;
-  background: #1e2030;
-  border-left-color: #7aa2f7;
+  background: var(--hub-surface-elevated);
+  border-left-color: var(--hub-accent);
 }
 
 /* The text input itself */
 .file-browser__inline-name-input {
-  background: #1a1b26;
-  border: 1px solid #7aa2f7;
+  background: var(--hub-bg);
+  border: 1px solid var(--hub-accent);
   border-radius: 3px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   font-size: 13px;
   font-family: inherit;
   padding: 2px 6px;
@@ -3981,8 +3981,8 @@ body {
 }
 
 .file-browser__inline-name-input:focus {
-  border-color: #7aa2f7;
-  outline: 2px solid #7aa2f7;
+  border-color: var(--hub-accent);
+  outline: 2px solid var(--hub-accent);
   outline-offset: 1px;
 }
 
@@ -4003,10 +4003,10 @@ body {
   display: flex;
   align-items: center;
   gap: 2px;
-  /* Cover the size/mtime cells beneath on hover/selected (both are #1e2030); the
-     left fade avoids an abrupt edge over the mtime text. */
+  /* Cover the size/mtime cells beneath on hover/selected (both are
+     --hub-surface-elevated); the left fade avoids an abrupt edge over the mtime text. */
   padding-left: 28px;
-  background: linear-gradient(to right, rgba(30, 32, 48, 0) 0, #1e2030 28px);
+  background: linear-gradient(to right, transparent 0, var(--hub-surface-elevated) 28px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease;
@@ -4025,14 +4025,14 @@ body {
    btn--icon to signal a destructive action. The TrashIcon glyph carries the
    meaning; color is reinforcement only (colorblind contract preserved). */
 .file-browser__btn--destructive {
-  color: #f7768e;
+  color: var(--hub-destructive);
   border-color: transparent;
 }
 
 .file-browser__btn--destructive:hover {
-  color: #f7768e;
+  color: var(--hub-destructive);
   background: rgba(247, 118, 142, 0.1);
-  border-color: #f7768e;
+  border-color: var(--hub-destructive);
 }
 
 /* ── Move-to picker tree (MoveToPickerModal.tsx) ──────────────────────────── */
@@ -4051,21 +4051,21 @@ body {
   padding: 5px 8px;
   border-radius: 3px;
   font-size: 13px;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   cursor: pointer;
   border: 1px solid transparent;
   transition: background 0.1s ease;
 }
 
 .file-browser__move-tree-row:hover {
-  background: #1e2030;
+  background: var(--hub-surface-elevated);
 }
 
 /* Selected target directory */
 .file-browser__move-tree-row--selected {
-  background: #1e2030;
-  border-color: #7aa2f7;
-  color: #c0caf5;
+  background: var(--hub-surface-elevated);
+  border-color: var(--hub-accent);
+  color: var(--hub-text-primary);
 }
 
 /* Disabled directory (e.g. the source dir or a child of it) */
@@ -4085,7 +4085,7 @@ body {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #c0caf5;
+  color: var(--hub-text-primary);
   line-height: 1.2;
 }
 
@@ -4110,13 +4110,13 @@ body {
   justify-content: center;
   gap: 12px;
   background: rgba(26, 27, 38, 0.85);
-  border: 2px dashed #7aa2f7;
+  border: 2px dashed var(--hub-accent);
   border-radius: 4px;
   z-index: 10;
   pointer-events: none;
   font-size: 14px;
   font-weight: 600;
-  color: #7aa2f7;
+  color: var(--hub-accent);
 }
 
 /* Per-file upload row */
@@ -4126,8 +4126,8 @@ body {
   gap: 8px;
   padding: 8px 0;
   font-size: 13px;
-  color: #c0caf5;
-  border-bottom: 1px solid #292e42;
+  color: var(--hub-text-primary);
+  border-bottom: 1px solid var(--hub-border);
 }
 
 .file-browser__upload-row:last-child {
@@ -4138,7 +4138,7 @@ body {
 .file-browser__upload-progress {
   flex: 1 1 auto;
   height: 4px;
-  background: #292e42;
+  background: var(--hub-border);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -4146,7 +4146,7 @@ body {
 /* Upload progress bar fill */
 .file-browser__upload-progress-fill {
   height: 100%;
-  background: #7aa2f7;
+  background: var(--hub-accent);
   border-radius: 2px;
   transition: width 0.1s linear;
 }
@@ -4154,7 +4154,7 @@ body {
 /* Upload status text (Done / Failed / percentage) */
 .file-browser__upload-status {
   font-size: 11px;
-  color: #9aa5ce;
+  color: var(--hub-text-muted);
   flex: 0 0 auto;
   min-width: 48px;
   text-align: right;
