@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: verifying
-stopped_at: Phase 146 context gathered
+status: gaps_found
+stopped_at: Phase 146 verification — gaps found (FIX-03 dead on arrival)
 last_updated: "2026-06-22T15:04:08.108Z"
 last_activity: 2026-06-22
 progress:
   total_phases: 15
-  completed_phases: 11
+  completed_phases: 10
   total_plans: 40
   completed_plans: 41
-  percent: 73
+  percent: 67
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 146 (open-session-capability-bug) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 146 (open-session-capability-bug) — GAPS FOUND
+Plan: 4 of 4 executed; goal NOT achieved (0/3 must-haves)
+Status: Verification gaps_found — FIX-03 dead on arrival (app.go Wails boundary unwired) + RW-broadcast security decision open. See 146-VERIFICATION.md / 146-REVIEW.md
 Last activity: 2026-06-22
 
-Progress: [██████████] 100%
+Progress: [█████████░] 95% (plans ran; integration gap blocks goal)
 
 ## Operator Next Steps (pre-release, carry-forward)
 

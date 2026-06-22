@@ -76,7 +76,7 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 - [x] **FIX-01**: `GetSessionStyledTailLines` passes `go test -race` on all platforms — no data race between the styled-tail drain goroutine and the VT emulator close (#100). [Phase 144]
 - [x] **FIX-02**: `internal/files` tests pass on Windows CI — filename sanitization and denylist path-rooting respect Windows path semantics (#101). [Phase 145]
-- [x] **FIX-03**: The "Open Session" button opens the live session instead of a "capability required" web page (#98). [Phase 146]
+- [ ] **FIX-03**: The "Open Session" button opens the live session instead of a "capability required" web page (#98). [Phase 146 — gaps found: app.go Wails boundary never wired (feature dead on arrival); RW-broadcast security decision open. See 146-VERIFICATION.md]
 
 ### In-App Help (HELP)
 
