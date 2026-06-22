@@ -537,7 +537,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
 | 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
-| 144. Daemon Styled-Tail Race Fix | v4.0 | 0/0 | Not planned | — |
+| 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete   | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 0/0 | Not planned | — |
 | 146. Open Session Capability Bug | v4.0 | 0/0 | Not planned | — |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
@@ -555,7 +555,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Mini-preview and briefing-modal tails still render correctly (no #96 regression — spacing preserved, private-CSI escapes absorbed)
   3. CI "Run Go tests (all platforms, race detector)" is green for the daemon package across all four build matrix jobs
 **Plans**: 1 plan
-- [ ] 144-01-PLAN.md — Strip query sequences pre-Write + remove drain goroutine (synchronous VT drive), broadened query fixture, TESTING.md FIX-01 traceability
+- [x] 144-01-PLAN.md — Strip query sequences pre-Write + remove drain goroutine (synchronous VT drive), broadened query fixture, TESTING.md FIX-01 traceability
 
 ### Phase 145: Windows Files Test Fixes
 **Goal**: `internal/files` tests pass on Windows CI — filename sanitization, denylist path-rooting, and atomic-write concurrency behave correctly under Windows path semantics

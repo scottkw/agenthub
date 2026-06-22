@@ -74,7 +74,7 @@ Post-redesign UAT findings raised during the Phase 141 render-compare checkpoint
 
 Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` against the real v4.0 code (Phase 143 regression program), plus a Hub re-attach bug.
 
-- [ ] **FIX-01**: `GetSessionStyledTailLines` passes `go test -race` on all platforms — no data race between the styled-tail drain goroutine and the VT emulator close (#100). [Phase 144]
+- [x] **FIX-01**: `GetSessionStyledTailLines` passes `go test -race` on all platforms — no data race between the styled-tail drain goroutine and the VT emulator close (#100). [Phase 144]
 - [ ] **FIX-02**: `internal/files` tests pass on Windows CI — filename sanitization and denylist path-rooting respect Windows path semantics (#101). [Phase 145]
 - [ ] **FIX-03**: The "Open Session" button opens the live session instead of a "capability required" web page (#98). [Phase 146]
 
