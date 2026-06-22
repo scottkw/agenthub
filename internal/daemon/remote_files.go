@@ -30,6 +30,44 @@ import (
 	"time"
 )
 
+// handleRemoteSessionOpenURL serves GET /api/remote-files/caps/{sessionID}/open-url.
+// It reads the stored (baseURL, capToken) from RemoteCapStore for the given sessionID
+// and returns a cap-bearing open URL of the form baseURL+/sessions/{id}?cap=TOKEN.
+//
+// This is a read-only path — no cap is minted or modified. The cap enters the
+// returned URL by the same design as the existing handleModalExchange open path,
+// so no new exposure surface is introduced (T-146-05-01).
+//
+// Responses:
+//
+//	200 + {"url": "https://peer.../sessions/{id}?cap=TOKEN"}  — cap found
+//	400 + plain text                                          — missing sessionID path value
+//	404 + {"error": "no cap registered for session"}          — no stored cap (mirror proxyRemoteFiles)
+//	500 + plain text                                          — store not initialised
+func (a *API) handleRemoteSessionOpenURL(w http.ResponseWriter, r *http.Request) {
+	sessionID := r.PathValue("sessionID")
+	if sessionID == "" {
+		http.Error(w, "missing sessionID", http.StatusBadRequest)
+		return
+	}
+	if a.remoteCaps == nil {
+		http.Error(w, "remote cap store not initialised", http.StatusInternalServerError)
+		return
+	}
+	baseURL, capToken, ok := a.remoteCaps.Get(sessionID)
+	if !ok {
+		// Mirror the exact 404 shape used by proxyRemoteFiles at remote_files.go:191.
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "no cap registered for session"})
+		return
+	}
+	// Build the cap-bearing open URL. TrimRight removes any trailing slash so the
+	// path segment /sessions/ is not doubled. PathEscape handles session IDs that
+	// contain special characters (though in practice they are UUIDs). The cap token
+	// is URL-query-encoded to survive special characters.
+	openURL := strings.TrimRight(baseURL, "/") + "/sessions/" + url.PathEscape(sessionID) + "?cap=" + url.QueryEscape(capToken)
+	writeJSON(w, http.StatusOK, map[string]string{"url": openURL})
+}
+
 // newRemoteFilesHTTPClient constructs the outbound HTTPS client used by the
 // remote-files proxy. Mirrors internal/tailnet/sessions.go's shape:
 // TLS 1.2 minimum, 10-second timeout. InsecureSkipVerify is acceptable here

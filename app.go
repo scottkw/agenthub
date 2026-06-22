@@ -1249,6 +1249,29 @@ func (a *App) RegisterRemoteCap(sessionID, baseURL, capToken string) error {
 	return a.client.RegisterRemoteCap(sessionID, baseURL, capToken)
 }
 
+// OpenRemoteSessionURL returns the cap-bearing open URL for a remote session
+// by reading the already-stored cap from the daemon's RemoteCapStore. The
+// daemon composes baseURL+/sessions/{id}?cap=TOKEN from its own store entry
+// (keyed by sessionID) and returns the full URL as a string.
+//
+// Convention (matches ExchangeJoinCodeAtURL): the frontend receives the
+// composed URL string and opens it via BrowserOpenURL; the raw cap token never
+// enters React state — it lives only inside the returned URL string.
+//
+// Returns an error when the daemon is not connected or when no cap is stored
+// for sessionID (e.g. "status 404"). The caller treats a 404-flavoured error
+// as "no cap held; fall back to the join-code modal" so a stale/evicted entry
+// self-heals gracefully (T-146-05-02 accept).
+//
+// Do NOT call BrowserOpenURL here — the frontend opens the returned URL,
+// matching the existing exchange→open convention. Phase 146-05 / GAP-146-A.
+func (a *App) OpenRemoteSessionURL(sessionID string) (string, error) {
+	if a.client == nil {
+		return "", fmt.Errorf("daemon not connected")
+	}
+	return a.client.RemoteSessionOpenURL(sessionID)
+}
+
 // startTrayPoller starts a background goroutine that refreshes tray state
 // (icon, tooltip, session list) immediately and then every 5 seconds.
 // The goroutine exits when ctx is cancelled (Wails shutdown).

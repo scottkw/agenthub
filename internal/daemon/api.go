@@ -165,6 +165,11 @@ func (a *API) registerRoutes() {
 	// Loopback transport (Unix socket / Windows named pipe) is the trust
 	// boundary; no auth gate here.
 	a.mux.HandleFunc("POST /api/remote-files/caps", a.handleRegisterRemoteCap)
+	// Phase 146-05 / GAP-146-A: read-only open-url endpoint. Returns the cap-bearing
+	// open URL from RemoteCapStore so the frontend can open a remote session without
+	// re-prompting for a join code (held-cap reuse path). No cap is minted; the cap
+	// enters only the returned URL string (T-146-05-01 / T-146-05-04 accept).
+	a.mux.HandleFunc("GET /api/remote-files/caps/{sessionID}/open-url", a.handleRemoteSessionOpenURL)
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/list", a.handleRemoteFilesList)
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/stat", a.handleRemoteFilesStat)
 	a.mux.HandleFunc("GET /api/files/remote/{sessionID}/read", a.handleRemoteFilesRead)
