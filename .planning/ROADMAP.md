@@ -537,7 +537,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
 | 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
-| 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete   | 2026-06-22 |
+| 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 0/0 | Not planned | — |
 | 146. Open Session Capability Bug | v4.0 | 0/0 | Not planned | — |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
