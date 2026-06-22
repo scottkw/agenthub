@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: planned
-stopped_at: Phase 146 re-planned (out-of-band, 4 plans) — ready to execute
-last_updated: "2026-06-22T15:04:08.108Z"
+status: executing
+stopped_at: Phase 146 context gathered
+last_updated: "2026-06-22T16:41:08.501Z"
 last_activity: 2026-06-22
 progress:
   total_phases: 15
   completed_phases: 10
   total_plans: 40
-  completed_plans: 41
+  completed_plans: 38
   percent: 67
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 146 (open-session-capability-bug) — PLANNED
-Plan: 4 plans (3 waves), out-of-band redesign; plan-checker PASS (0 blockers)
-Status: Ready to execute (/gsd:execute-phase 146). Decision locked: no broadcast; reuse Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL for out-of-band code/link open; same-machine re-attach untouched. See 146-CONTEXT.md (D-02/D-04/D-09..D-12), 146-RESEARCH.md.
+Phase: 146 (open-session-capability-bug) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-06-22
 
-Progress: [░░░░░░░░░░] re-planning
+Progress: [██████████] 95%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -94,7 +94,7 @@ Progress: [░░░░░░░░░░] re-planning
 
 ## Session Continuity
 
-Last session: 2026-06-22T15:04:08.099Z
+Last session: 2026-06-22T16:41:08.492Z
 Stopped at: Phase 146 context gathered
 Resume file: None
 Next action: `/gsd:plan-phase 136`
