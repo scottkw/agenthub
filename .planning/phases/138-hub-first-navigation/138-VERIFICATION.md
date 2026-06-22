@@ -1,7 +1,9 @@
 ---
 phase: 138-hub-first-navigation
 verified: 2026-06-20T23:25:00Z
-status: human_needed
+status: partial
+uat_executed: 2026-06-21
+uat_result: 5/7 live checks PASS; 2 blocked (no reachable remote peer)
 score: 8/8 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -29,6 +31,29 @@ human_verification:
 ---
 
 # Phase 138: Hub-First Navigation Verification Report
+
+## Live UAT Results — 2026-06-21 (dev-browser via wails-dev :34115 bridge)
+
+Driven automatically with dev-browser against the running app (daemon PID + `wails dev`).
+A throwaway **Shell** session was created and killed to exercise creation/kill without
+touching the operator's live claude/gemini sessions.
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1 | 3-item sidebar (Home/Hub/Settings), no Sessions/Remote/New-Session | ✅ PASS | `.sidebar__item` count = 3, labels `["Home","Hub","Settings"]`; screenshot `138-01-sidebar.png` |
+| 2 | HubFilterBar is the sole New-Session entry | ✅ PASS | Exactly one "New session" button; clicking opens "New Session" modal (agent picker + Create Session); throwaway shell created successfully (3rd card appeared) |
+| 3 | Remote card "Open in browser" forwards real peer URL | ⛔ BLOCKED | No reachable remote peer connected during UAT — cannot exercise live |
+| 4 | Kill two-step confirm on a live local session | ✅ PASS | shell-1 menu → "Kill session" → "Confirm kill / This will stop the session" → 2nd click terminated it (card removed); screenshot `138-kill-confirm.png` |
+| 5 | Remote card has no Kill option | ⛔ BLOCKED (inverse verified) | No remote peer to test; **local** card correctly shows Kill + "Move to group" and omits "Open in browser"/"Browse files" (isLocal guard confirmed) |
+| 6 | Colorblind-safe indicators (icon + text, not color alone) | ✅ PASS | Cards show monitor-icon + "Local"; status icon + text ("Needs input"/"Running"); agent badges carry text labels — no color-only signals; `138-hub.png` |
+| 7 | Attention pulse + mini-preview + grid reflow preserved (CARD-04) | ✅ PASS | claude-1 has `.hub-card--attention` border; both cards render mini-preview text; 2-col grid reflow; `138-hub.png` |
+
+**Remaining (2):** checks 3 and 5 require a reachable remote peer (web-share/Tailscale peer
+session). Defer to a session where a second AgentHub peer is connected, or fold into the
+Phase 143 manual regression checklist under "remote card affordances".
+
+---
+
 
 **Phase Goal:** Remove Sessions page, Remote page, sidebar New Session item; add local/remote (origin) and connected/available indicators on Hub session cards; collapse sidebar to Home/Hub/Settings. Migrate Remote/Sessions parity affordances (Open-in-browser, Browse-files, Kill) onto the Hub card overflow menu BEFORE deleting those pages (cross-surface parity is release-blocking).
 **Verified:** 2026-06-20T23:25:00Z
