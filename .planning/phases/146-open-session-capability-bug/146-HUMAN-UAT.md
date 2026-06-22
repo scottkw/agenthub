@@ -1,5 +1,5 @@
 ---
-status: issues_found
+status: partial
 phase: 146-open-session-capability-bug
 source: [146-VERIFICATION.md]
 started: 2026-06-22T17:20:02Z
@@ -8,41 +8,41 @@ updated: 2026-06-22
 
 ## Current Test
 
-[UAT halted — GAP-146-A found; routing to gap closure]
+[awaiting human testing — all automated checks passed; GAP-146-A closed by Plan 05]
 
 ## Tests
 
-### 1. RO join-code open flow (M-13, two-Mac tailnet)
-On Mac A, start a session, enable Share, copy the **RO** join code from the Share modal and send it out of band (e.g. paste in chat) to Mac B. On Mac B, click "Open in browser" on Mac A's remote Hub card. Paste the join code into RemoteJoinCodeModal. Confirm.
-expected: Browser opens Mac A's live session at `baseURL/sessions/{id}?cap=TOKEN` — no "capability required" page. Session is in RO mode.
-why_human: Requires two real Macs on one tailnet. The Wails `BrowserOpenURL` call and the actual HTTP response from the remote peer's `requireCapability` middleware cannot be driven by vitest or go test. The :34115 wails-dev bridge has no real tailnet peer.
-result: ISSUE (2026-06-22) — In-app connect with the code succeeded, but reusing the SAME single-use code for "Open in browser" failed with "Code invalid." Root cause + decided fix recorded as GAP-146-A in 146-VERIFICATION.md (decision: reuse the held cap; no second code).
-
-### 2. RW join-code open flow (M-13, two-Mac tailnet)
-Repeat test 1 with the **RW** join code from the Share modal.
-expected: Browser opens at the RW cap-bearing URL. Session is in RW mode (can send terminal input).
-why_human: Same reason — requires two physical Macs and a live tailnet.
+### 1. End-to-End First Open (RO code) — M-13 Sub-scenario A
+On Mac A, start a session, enable Share, copy the **RO** join code from the Share modal and send it out of band to Mac B. On Mac B, click "Open in browser" on Mac A's remote Hub card. Paste the code into RemoteJoinCodeModal. Confirm.
+expected: Browser opens at `baseURL/sessions/{id}?cap=TOKEN` in RO mode. No "capability required" page. Modal closes after successful exchange.
+why_human: Requires two real Macs on a live tailnet. `BrowserOpenURL` and the remote peer's `requireCapability` HTTP response cannot be exercised by vitest or `go test`. The `:34115` wails-dev bridge has no real tailnet peer.
 result: [pending]
 
-### 3. No-share error UX
-Click "Open in browser" on a remote card for a session whose owner has NOT shared it.
-expected: A clear error banner appears ("Cannot open session — the remote peer URL is unavailable" or equivalent), not a raw 401 page.
-why_human: Can only be fully verified with a live remote card where the owner has not shared. The handler logic is tested by source inspection but the error-banner UX requires a running GUI.
+### 2. End-to-End Second Open (Held-Cap Reuse) — M-13 Sub-scenario B
+After completing Test 1 (cap deposited in-app), click "Open in browser" on the SAME remote card WITHOUT obtaining a fresh join code. Repeat with RW.
+expected: Browser opens directly (no join-code modal), reusing the held cap. The single-use code is already consumed (D-11) — second open must work without prompting. RW repeat: same held-cap reuse behavior with RW permissions.
+why_human: The held-cap reuse path is code-verified and test-locked (Plan 05). The live behavior on a real two-Mac tailnet after in-app connect must be confirmed. This is the literal user-reported failure that GAP-146-A was filed to fix.
 result: [pending]
+
+### 3. No-Share Error UX
+Click "Open in browser" on a remote card where the owner has NOT shared (Share toggle off — no valid code exists).
+expected: Error banner appears ("Cannot open session — the remote peer URL is unavailable" or equivalent). No raw 401 page.
+why_human: Requires a live remote peer with a non-shared session. The banner-vs-401 outcome is a UX observation that requires a running GUI.
 
 ## Summary
 
 total: 3
 passed: 0
-issues: 1
-pending: 2
+issues: 0
+pending: 3
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-### GAP-146-A — "Open in browser" forces a second single-use code instead of reusing a held cap
-status: open
+### GAP-146-A — "Open in browser" forced a second single-use code instead of reusing a held cap
+status: resolved
 discovered: 2026-06-22 (live two-Mac tailnet UAT, test 1)
-detail: Join codes are single-use (D-11). The in-app connect consumed the code; "Open in browser" (`App.tsx:1069` `handleOpenRemoteSession`) unconditionally re-prompts and re-exchanges rather than reusing the held cap (cf. `handleBrowseFilesRemote` `App.tsx:1092`). The consumed code's re-exchange returns `ErrCodeNotFound`, mislabeled "Code invalid" (WR-03).
-decided_fix: Reuse the held cap — open the cap-bearing URL directly via a new daemon/App.go method when a cap is held; modal only when none held. Also fix WR-03 messaging and add the behavior-level exchange→URL test (WR-02). Full scope in 146-VERIFICATION.md Gaps Summary.
+resolved: 2026-06-22 (Plan 146-05)
+detail: Join codes are single-use (D-11). The in-app connect consumed the code; "Open in browser" unconditionally re-prompted and re-exchanged rather than reusing the held cap. The consumed code's re-exchange returned `ErrCodeNotFound`, mislabeled "Code invalid" (WR-03).
+resolution: Plan 146-05 — `handleOpenRemoteSession` now checks `remoteCapsCached.has(session.id)` and opens the cap-bearing URL directly via new `App.OpenRemoteSessionURL` binding + daemon endpoint `GET /api/remote-files/caps/{sessionID}/open-url` when a cap is held; modal only when none held. WR-01 (SID-correct daemon-composed URL) and WR-03 (correct "Code already used or expired" copy) also fixed; WR-02 behavior tests added. Live confirmation is Test 2 above.

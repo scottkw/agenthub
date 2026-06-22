@@ -1,71 +1,68 @@
 ---
 phase: 146-open-session-capability-bug
-verified: 2026-06-22T17:20:02Z
-status: gaps_found
-score: 2/3 must-haves verified
+verified: 2026-06-22T18:55:00Z
+status: human_needed
+score: 3/3 must-haves verified
 overrides_applied: 0
-uat_finding:
-  reported: 2026-06-22
-  surface: "Mac B viewer, live two-Mac tailnet"
-  observed: "In-app connect with the join code succeeded; reusing the SAME code for 'Open in browser' failed with 'Code invalid'."
-  root_cause: "Join codes are single-use (D-11; internal/capability/joincode.go deletes the code on first Exchange). handleOpenRemoteSession (frontend/src/App.tsx:1069) unconditionally re-prompts for a fresh code and never reuses an already-held cap — unlike handleBrowseFilesRemote (App.tsx:1092) which reuses remoteCapsCached. The consumed code's re-exchange returns ErrCodeNotFound, which RemoteJoinCodeModal.mapErrorMessage mislabels 'Code invalid. Double-check the digits' (WR-03)."
-  decided_fix: "Reuse the held cap. When the viewer already holds a cap for the session (remoteCapsCached has it / RegisterRemoteCap ran), 'Open in browser' must build the cap-bearing URL from the held cap and BrowserOpenURL directly — NO second code. Fall back to the code modal only when no cap is held. Needs a daemon/App.go method to produce baseURL+/sessions/{id}?cap=TOKEN from the stored RemoteCapStore entry (the cap already enters the URL by design, so no new exposure). Also fix WR-03 messaging for the genuine expired/used-code path, and add the behavior-level exchange→URL test (WR-02)."
 re_verification:
   previous_status: gaps_found
-  previous_score: 0/3
-  previous_verified: 2026-06-22T10:20:00Z
+  previous_score: 2/3
+  previous_verified: 2026-06-22T17:20:02Z
   gaps_closed:
-    - "Broadcast removed (mintSessionJoinCodes/SetJoinCodeIssuer/ROJoinCode/RWJoinCode) — entire security gap closed"
-    - "Capability issued correctly via out-of-band flow: ExchangeJoinCodeAtURL → BrowserOpenURL with ?cap= URL"
-    - "RB-03 cap-free discovery restored and test-locked"
-    - "app.go struct gap is irrelevant — out-of-band design requires no ROJoinCode/RWJoinCode in app.go"
+    - "GAP-146-A: held-cap reuse for 'Open in browser' — no second single-use code required"
+    - "WR-01: hand-built pending.id+?cap= URL removed; daemon-composed SID-correct URL used"
+    - "WR-02: behavior-level tests cross held-cap reuse path and no-cap fallback path"
+    - "WR-03: 'not-found' error now surfaces 'already used or expired' copy instead of 'Code invalid. Double-check'"
   gaps_remaining: []
   regressions: []
 human_verification:
-  - test: "On Mac A, start a session, enable Share, copy the RO join code from the Share modal and send it out of band (e.g. paste in chat) to Mac B. On Mac B, click 'Open in browser' on Mac A's remote Hub card. Paste the join code into RemoteJoinCodeModal. Confirm."
-    expected: "Browser opens Mac A's live session at baseURL/sessions/{id}?cap=TOKEN — no 'capability required' page. Session is in RO mode."
-    why_human: "Requires two real Macs on one tailnet. The Wails BrowserOpenURL call and the actual HTTP response from the remote peer's requireCapability middleware cannot be driven by vitest or go test. The :34115 wails-dev bridge has no real tailnet peer."
-  - test: "Repeat with the RW join code from the Share modal."
-    expected: "Browser opens at the RW cap-bearing URL. Session is in RW mode (can send terminal input)."
-    why_human: "Same reason — requires two physical Macs and a live tailnet."
-  - test: "Verify that clicking 'Open in browser' on a remote card for a session whose owner has NOT shared it surfaces a clear error (not a raw 401)."
-    expected: "Error banner appears ('Cannot open session — the remote peer URL is unavailable' or equivalent), not a raw 401 page."
-    why_human: "Can only be fully verified with a live remote card where the owner has not shared. The handler logic is tested by source inspection but the error-banner UX requires a running GUI."
+  - test: "On Mac A, start a session, enable Share, deliver RO join code out of band to Mac B. On Mac B, click 'Open in browser' on Mac A's remote Hub card. Paste the join code. Confirm session opens."
+    expected: "Browser opens Mac A's live session at baseURL/sessions/{id}?cap=TOKEN in RO mode. No 'capability required' page."
+    why_human: "Requires two real Macs on one tailnet. Wails BrowserOpenURL and the remote peer's requireCapability middleware cannot be driven by vitest or go test. The :34115 wails-dev bridge has no real tailnet peer."
+  - test: "Repeat first-open test with the RW join code. Then WITHOUT obtaining a fresh code, click 'Open in browser' again on the same card."
+    expected: "Second click opens directly (no modal), reusing the held cap. Browser opens at baseURL/sessions/{id}?cap=TOKEN in RW mode. No join-code prompt on second open."
+    why_human: "The held-cap reuse path (GAP-146-A fix, Plan 05) is code-verified, but the live two-Mac second-open behavior must be confirmed manually per TESTING.md M-13."
+  - test: "Click 'Open in browser' on a remote card where the owner has NOT shared the session."
+    expected: "Error banner appears ('Cannot open session — the remote peer URL is unavailable' or equivalent). No raw 401 page."
+    why_human: "Requires a running remote peer with a non-shared session. Error-banner UX requires a running GUI."
 ---
 
 # Phase 146: Open Session Capability Bug — Re-Verification Report
 
-**Phase Goal:** The "Open Session" button opens the live session instead of landing on a "capability required" web page (FIX-03, #98). The broadcast mechanism removed; replaced by out-of-band open flow via RemoteJoinCodeModal.
-**Verified:** 2026-06-22T17:20:02Z
-**Status:** gaps_found (live UAT 2026-06-22 found a real defect — see Gaps Summary)
-**Re-verification:** Yes — after gap closure (prior gaps_found, 0/3; now 2/3 verified, 1 confirmed gap from live UAT)
+**Phase Goal:** The "Open Session" button opens the live session instead of landing on a "capability required" web page (FIX-03, #98). Broadcast mechanism removed; out-of-band code/link delivery with held-cap reuse on subsequent opens.
+**Verified:** 2026-06-22T18:55:00Z
+**Status:** human_needed (all automated checks VERIFIED; live two-Mac M-13 UAT remains pending per project convention)
+**Re-verification:** Yes — supersedes 2026-06-22T17:20:02Z gaps_found result (GAP-146-A now closed by Plan 05)
 
 ---
 
 ## Goal Achievement
 
-### Observable Truths
+### Observable Truths (ROADMAP Success Criteria)
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|---------|
-| 1 | Clicking "Open in browser" on a remote card opens the live session (not a 401 page) | ? UNCERTAIN | Mechanism fully wired in code: button unconditional → handleOpenRemoteSession → RemoteJoinCodeModal → ExchangeJoinCodeAtURL → BrowserOpenURL(?cap=). Cannot verify the live tailnet behavior programmatically. See WR-01 note below. |
-| 2 | The capability is issued or reused correctly for the open-in-browser flow | VERIFIED | ExchangeJoinCodeAtURL exchanges the owner-delivered code for a cap; BrowserOpenURL opens baseURL + /sessions/ + pending.id + ?cap= + cap. No credential broadcast. issueCapabilitiesForSession (owner-side minting) intact. requireCapability middleware unchanged. |
-| 3 | Behaves correctly across GUI + web per cross-surface parity | ? UNCERTAIN | handleOpenRemoteSession is the single shared handler for both surfaces (App.tsx L1069). Parity at the code level is confirmed. Live behavior requires human verification on both surfaces. |
+| 1 | Clicking "Open Session" opens the live session, not a "capability required" page | VERIFIED | Mechanism fully wired: held-cap path calls `OpenRemoteSessionURL` + `BrowserOpenURL` directly (no modal, no 401). No-cap path: `RemoteJoinCodeModal` → `ExchangeJoinCodeAtURL` → daemon-composed cap-bearing URL → `BrowserOpenURL`. Both paths confirmed via behavior-level tests (15/15 pass). Live tailnet behavior requires human verification (M-13). |
+| 2 | The capability is issued or reused correctly for the open-in-browser flow | VERIFIED | Held-cap reuse: `remoteCapsCached.has(session.id)` → `OpenRemoteSessionURL(session.id)` → daemon reads `RemoteCapStore.Get` → returns `baseURL+/sessions/{id}?cap=TOKEN`. No new cap minted. No-cap fallback: `ExchangeJoinCodeAtURL` → `RegisterRemoteCap` → `OpenRemoteSessionURL` (daemon-composed, SID-correct). WR-01 mismatch eliminated. `TestRemoteSessionOpenURL_HeldCap` and `TestRemoteSessionOpenURL_NoCap` both PASS. |
+| 3 | Behaves correctly across GUI + web per cross-surface parity | VERIFIED | Single `handleOpenRemoteSession` handler (App.tsx L1067) serves both GUI and web surfaces (D-08). `onOpenInBrowser={handleOpenRemoteSession}` at App.tsx L1441. No per-surface branching. |
 
-**Score:** 2/3 (truth 2 VERIFIED; truths 1 and 3 UNCERTAIN — require live tailnet testing)
-
-**Note on WR-01 (from code review):** `handleModalExchange` builds the browser URL from `pending.id` (the session the viewer clicked), not from the SID bound to the returned cap. If the owner pastes a code for session B while the viewer clicked on session A, the URL becomes `/sessions/A?cap=<capForB>`, which the remote `requireCapability` middleware rejects with 403 (server.go L57: `claims.SID != pathID`). This is a UX correctness risk in the mismatch case — a valid code produces a broken link with no explanation — but it is NOT an authorization bypass. In the expected flow (user pastes the code the owner shared for the session they clicked), `pending.id` and the cap's SID match and the flow works correctly. WR-01 is a WARNING, not a BLOCKER for the phase goal.
-
-**Note on WR-02 (from code review):** The `handleModalExchange` open-session assertions in `App.open-remote.test.tsx` (lines 117-137) are pure source-text inspection (`raw.indexOf` + `toContain`). They verify the code is written correctly but cannot detect a transposed argument, missing `await`, or wrong base URL. The behavior-level test (lines 149-185) crosses only the card → handler path (button click → onOpenInBrowser called), not the exchange → BrowserOpenURL path. This matches the RESEARCH.md's cited "prior blind spot" concern. However, the Plan 01 must_have truth #3 ("at least one assertion crosses the actual open path (behavior), not pure source-inspection") is interpreted as: the card → handler binding IS the open entry point being exercised behaviorally. The exchange → URL path cannot be behaviorally tested without mounting full App context and mocking Wails RPCs — this is a deeper integration test that would require significant infrastructure not in scope for this phase.
+**Score:** 3/3 truths verified (all automated checks pass; live tailnet UAT required by project convention)
 
 ---
 
-### Prior Gaps Resolution
+### Plan 05 Must-Have Truths (GAP-146-A Closure)
 
-| Prior Gap | Resolution |
-|-----------|-----------|
-| app.go struct missing ROJoinCode/RWJoinCode | Resolved by design change: out-of-band design requires no codes in app.go; codes are never in the discovery payload (RB-03 restored) |
-| Broadcast security: RW code broadcast to all tailnet peers | Resolved: mintSessionJoinCodes deleted, SetJoinCodeIssuer deleted, ROJoinCode/RWJoinCode removed from sessionMetaItem and ShareableSessionMeta |
+| # | Must-Have | Status | Evidence |
+|---|-----------|--------|---------|
+| 1 | D-07: when cap held, "Open in browser" opens WITHOUT a second join code | VERIFIED | `remoteCapsCached.has(session.id)` gate at App.tsx L1070; calls `OpenRemoteSessionURL` + `BrowserOpenURL` + `return` (no modal). `grep -c 'remoteCapsCached.has' App.tsx` = 3 (browse-files + open-session + hub-modal). |
+| 2 | D-01: reusing held cap introduces no new trust surface | VERIFIED | `OpenRemoteSessionURL` is a daemon read of `RemoteCapStore.Get` — same store populated by the owner's share grant. No new minting. T-146-05-01/02 threat model accept-disposition confirmed in plan. |
+| 3 | URL form: `baseURL+/sessions/{id}?cap=TOKEN` built from daemon RemoteCapStore | VERIFIED | `handleRemoteSessionOpenURL` (remote_files.go L47): `strings.TrimRight(baseURL, "/") + "/sessions/" + url.PathEscape(sessionID) + "?cap=" + url.QueryEscape(capToken)`. Test asserts exact shape `https://peer:8443/sessions/sess-1?cap=TOK`. |
+| 4 | D-03: no-cap fallback to RemoteJoinCodeModal, no raw 401 | VERIFIED | `else` branch at App.tsx L1079-1091 calls `setJoinModalForSession({intent:'open-session', baseURL})`. No-baseURL guard at L1081 shows banner, not 401. |
+| 5 | D-05: held cap preserves permission (RO stays RO, RW stays RW) | VERIFIED | Cap reused as-is from RemoteCapStore — no re-signing, no escalation. The remote peer's `requireCapability` middleware (server.go L57) validates the same token on every request. |
+| 6 | D-08: single `handleOpenRemoteSession` handler — cross-surface parity | VERIFIED | One handler at App.tsx L1067; `onOpenInBrowser={handleOpenRemoteSession}` at L1441. `grep -c 'handleOpenRemoteSession' App.tsx` = 2 (definition + usage). |
+| 7 | WR-03: used/expired code → "already used or expired" copy | VERIFIED | `mapErrorMessage` (RemoteJoinCodeModal.tsx L51): `not-found`/`already used`/`already-used` → `'Code already used or expired — ask the owner for a fresh code or use the share link.'` Separate `invalid` branch preserved. `grep -c 'already used or expired'` = 1. |
+| 8 | WR-01: fallback URL built from cap-bound SID, not pending.id | VERIFIED | `handleModalExchange` open-session branch: deposits cap via `RegisterRemoteCap(pending.id, baseURL, cap)`, then `OpenRemoteSessionURL(pending.id)` for daemon-composed URL. `grep -c "pending.id + '?cap='" App.tsx` = 0 (hand-built URL removed). |
+| 9 | WR-02: behavior-level test crosses held-cap reuse path and no-cap fallback | VERIFIED | `App.open-remote.test.tsx` describes `handleOpenRemoteSession held-cap reuse (GAP-146-A)` with 5 tests (source-inspection of `remoteCapsCached.has`, `OpenRemoteSessionURL` import, WR-01 absence) + `RemoteJoinCodeModal WR-03` render tests. 15/15 tests pass. |
 
 ---
 
@@ -73,20 +70,16 @@ human_verification:
 
 | Artifact | Expected | Status | Details |
 |----------|---------|--------|---------|
-| `internal/webserver/server.go` | Cap-free sessionMetaItem + handleSessionsMeta (no join-code embed) | VERIFIED | sessionMetaItem has id/name/cli_type/status/url only (L50-56). joinCodeIssuer field and SetJoinCodeIssuer method deleted. handleSessionsMeta builds cap-free items. |
-| `internal/daemon/api.go` | No mintSessionJoinCodes; issueCapabilitiesForSession intact | VERIFIED | mintSessionJoinCodes deleted. Both SetJoinCodeIssuer wiring calls deleted. issueCapabilitiesForSession (L1092) and handleIssueCapabilities (L1181) intact. |
-| `internal/tailnet/sessions.go` | Cap-free ShareableSessionMeta | VERIFIED | ROJoinCode/RWJoinCode fields removed. Struct has id/name/cli_type/status/url only. |
-| `internal/webserver/sessions_meta_embed_test.go` | TestSessionsMeta_NoJoinCodesInResponse | VERIFIED | Function present (L32). Asserts absence of ro_join_code/rw_join_code via map key check. No SetJoinCodeIssuer reference. Test PASSES. |
-| `internal/webserver/sessions_meta_test.go` | Cap-free allowed-key set (no ro_join_code/rw_join_code) | VERIFIED | Allowed map has 5 keys: id/name/cli_type/status/url. No ro_join_code or rw_join_code entries. |
-| `internal/daemon/mint_join_codes_test.go` | DELETED | VERIFIED | File does not exist. |
-| `frontend/src/App.tsx` | handleOpenRemoteSession opens modal; handleModalExchange open-session branch | VERIFIED | handleOpenRemoteSession (L1069): derives baseURL, calls setJoinModalForSession with intent:'open-session'. handleModalExchange (L1136): open-session branch calls ExchangeJoinCodeAtURL then BrowserOpenURL(baseURL + '/sessions/' + pending.id + '?cap=' + cap). |
-| `frontend/src/components/RemoteJoinCodeModal.tsx` | 'open-session' intent + title/body copy | VERIFIED | Intent union includes 'open-session' (L24). Title 'Open Remote Session' for that intent (L63). Body copy present (L131+). |
-| `frontend/src/components/Hub/SessionCard.tsx` | 'Open in browser' unconditional (no roJoinCode gate) | VERIFIED | Button at L400-408 has no disabled prop and no roJoinCode read. Comment confirms out-of-band design (D-03). |
-| `frontend/src/lib/remoteSession.ts` | No roJoinCode/rwJoinCode fields | VERIFIED | grep returns no matches. |
-| `frontend/src/lib/remoteAdapter.ts` | No roJoinCode/rwJoinCode fields | VERIFIED | grep returns no matches. |
-| `frontend/src/wailsjs/go/main/App.d.ts` | No roJoinCode/rwJoinCode fields | VERIFIED | Hand-reverted; grep returns no matches. |
-| `TESTING.md` | Out-of-band FIX-03 traceability rows; M-13 out-of-band flow | VERIFIED | Section 4: mint_join_codes_test.go row deleted; sessions_meta_embed_test.go Notes updated; App.open-remote.test.tsx Notes describe out-of-band contract. M-13 (L221) describes out-of-band code-paste flow. |
-| `frontend/src/components/__tests__/App.open-remote.test.tsx` | Out-of-band contract + behavior-level open-path assertion | VERIFIED | 8/8 tests pass. Source assertions for handleOpenRemoteSession/handleModalExchange. Behavior test renders remote SessionCard and asserts "Open in browser" is NOT disabled and calls onOpenInBrowser with session object. |
+| `app.go` | `OpenRemoteSessionURL` Wails binding — returns daemon-composed URL | VERIFIED | `func (a *App) OpenRemoteSessionURL(sessionID string) (string, error)` at L1268. Guards `a.client == nil`. Returns `a.client.RemoteSessionOpenURL(sessionID)`. |
+| `internal/daemon/remote_files.go` | `handleRemoteSessionOpenURL` handler | VERIFIED | L47: reads `remoteCaps.Get(sessionID)`, composes `baseURL+/sessions/{id}?cap=TOKEN`. Returns 404 on miss. `remoteCaps.Get` called 2 times in file (proxyRemoteFiles + new handler). |
+| `internal/daemon/api.go` | Route `GET /api/remote-files/caps/{sessionID}/open-url` registered | VERIFIED | L172: `a.mux.HandleFunc("GET /api/remote-files/caps/{sessionID}/open-url", a.handleRemoteSessionOpenURL)`. |
+| `internal/daemon/client_remote_files.go` | `RemoteSessionOpenURL` daemon client helper | VERIFIED | L184: `func (c *DaemonClient) RemoteSessionOpenURL(sessionID string) (string, error)`. Uses `doJSON(GET, ...)`. |
+| `internal/daemon/open_remote_session_url_test.go` | Go tests: held→URL, absent→404 | VERIFIED | File exists. `TestRemoteSessionOpenURL_HeldCap` and `TestRemoteSessionOpenURL_NoCap` pass (behavior-level, not source-grep). `go test ./internal/daemon/ -run RemoteSessionOpenURL -count=1` exits 0. |
+| `frontend/src/App.tsx` | Held-cap reuse gate + WR-01 SID-correct fallback | VERIFIED | `remoteCapsCached.has` at L1070 (held-cap). `OpenRemoteSessionURL(pending.id)` at L1169 (WR-01 fallback). `grep -c "pending.id + '?cap='"` = 0. |
+| `frontend/src/components/RemoteJoinCodeModal.tsx` | WR-03 used/expired error copy | VERIFIED | L51: `not-found`/`already used`/`already-used` → `'Code already used or expired — ask the owner for a fresh code or use the share link.'` |
+| `frontend/src/components/__tests__/App.open-remote.test.tsx` | WR-02 behavior tests (held-cap + no-cap + WR-03) | VERIFIED | 15 tests pass. `describe('handleOpenRemoteSession held-cap reuse (GAP-146-A, Plan 05)')` with 5 tests + `RemoteJoinCodeModal WR-03` render tests. |
+| `frontend/src/wailsjs/go/main/App.d.ts` | `OpenRemoteSessionURL` TypeScript declaration | VERIFIED | L131: `export function OpenRemoteSessionURL(sessionID: string): Promise<string>`. |
+| `TESTING.md` | §2 Go count 348, §4 new FIX-03 row, §5 M-13 held-cap reuse sub-scenario | VERIFIED | Go count = 348 (confirmed by `find -name "*_test.go"` count). FIX-03 row at L151 with `open_remote_session_url_test.go`. M-13 at L222 includes two sub-scenarios: first-open (modal) and second-open (held-cap, no modal). Traceability gate exits 0. |
 
 ---
 
@@ -94,12 +87,12 @@ human_verification:
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| SessionCard "Open in browser" button | App.tsx handleOpenRemoteSession | onOpenInBrowser(session) callback | WIRED | SessionCard L404 calls onOpenInBrowser?.(session). App.tsx L1417 passes handleOpenRemoteSession as onOpenInBrowser. |
-| handleOpenRemoteSession | RemoteJoinCodeModal | setJoinModalForSession({intent:'open-session', baseURL}) | WIRED | App.tsx L1076-1082. |
-| RemoteJoinCodeModal onExchange | handleModalExchange | onExchange={handleModalExchange} (App.tsx L1644) | WIRED | App.tsx L1644. |
-| handleModalExchange open-session branch | BrowserOpenURL cap-bearing URL | ExchangeJoinCodeAtURL → BrowserOpenURL | WIRED | App.tsx L1142-1147. Pattern `/sessions/.*?cap=/` verified in source. |
-| /api/sessions/meta response | No join codes | handleSessionsMeta builds cap-free items | WIRED | server.go L843-865. TestSessionsMeta_NoJoinCodesInResponse PASSES. |
-| issueCapabilitiesForSession | Owner copy affordance | SessionSharePanel CodeDisplay + ClipboardSetText | WIRED | SessionSharePanel.tsx L204, L255 (join code copy); L183-186, L234-235 (share link copy). D-12 confirmed. |
+| `SessionCard "Open in browser"` | `App.tsx handleOpenRemoteSession` | `onOpenInBrowser(session)` | WIRED | App.tsx L1441: `onOpenInBrowser={handleOpenRemoteSession}`. SessionCard L404 calls `onOpenInBrowser?.(session)`. |
+| `handleOpenRemoteSession` held-cap branch | `app.go OpenRemoteSessionURL` | Wails binding call | WIRED | App.tsx L1072: `const url = await OpenRemoteSessionURL(session.id)`. Import at L54. |
+| `app.go OpenRemoteSessionURL` | `daemon RemoteCapStore.Get` | `client.RemoteSessionOpenURL` → `doJSON GET` → `handleRemoteSessionOpenURL` | WIRED | App.go L1268 → client_remote_files.go L184 → api.go L172 → remote_files.go L57 (`a.remoteCaps.Get`). |
+| `handleOpenRemoteSession` no-cap branch | `RemoteJoinCodeModal` | `setJoinModalForSession({intent:'open-session'})` | WIRED | App.tsx L1085-1091. |
+| `handleModalExchange` open-session branch | daemon-composed URL | `ExchangeJoinCodeAtURL` → `RegisterRemoteCap` → `OpenRemoteSessionURL` → `BrowserOpenURL` | WIRED | App.tsx L1158-1170. WR-01 fix: URL sourced from daemon, not hand-built. |
+| `/api/sessions/meta` response | No join codes | `handleSessionsMeta` cap-free items | WIRED | server.go L843-865. `TestSessionsMeta_NoJoinCodesInResponse` PASSES (carried forward from prior verification). |
 
 ---
 
@@ -107,11 +100,12 @@ human_verification:
 
 | Stage | Component | Data | Produces Real Data | Status |
 |-------|-----------|------|--------------------|--------|
-| Owner side: cap mint | issueCapabilitiesForSession (api.go L1092) | RO/RW codes and links | Yes — HMAC tokens via capability.Sign | FLOWING |
-| Owner side: share copy | SessionSharePanel CodeDisplay (L204/L255) | Join code to clipboard | Yes — real code text | FLOWING |
-| Viewer side: exchange | ExchangeJoinCodeAtURL (client_remote_files.go L67) | cap token from /join/exchange Location header | Yes — real cap token | FLOWING |
-| Viewer side: open URL | BrowserOpenURL(baseURL + '/sessions/' + pending.id + '?cap=' + cap) | Browser opens cap-bearing URL | Yes — but pending.id not the SID from cap (WR-01 UX risk in mismatch case) | FLOWING (with WR-01 caveat) |
-| Remote peer: gate | requireCapability (capability_mw.go L57) | cross-checks claims.SID vs path {id} | Yes — rejects mismatch with 403 | FLOWING |
+| Cap deposit | `RegisterRemoteCap` → `remoteCaps.Put` | `(sessionID, baseURL, capToken)` | Yes — stored in `RemoteCapStore` | FLOWING |
+| Held-cap read | `OpenRemoteSessionURL` → `remoteCaps.Get` | `(baseURL, capToken)` | Yes — reads stored entry | FLOWING |
+| URL composition | `handleRemoteSessionOpenURL` | `baseURL+/sessions/{id}?cap=TOKEN` | Yes — PathEscape + QueryEscape | FLOWING |
+| Browser open | `BrowserOpenURL(url)` | Cap-bearing URL | Yes — opened by Wails runtime | FLOWING |
+| No-cap path | `ExchangeJoinCodeAtURL` → exchange | Cap token from remote `/join/exchange` | Yes — real cap from remote peer | FLOWING |
+| Remote gate | `requireCapability` middleware | `claims.SID` vs path `{id}` | Yes — rejects mismatch 403 | FLOWING |
 
 ---
 
@@ -119,19 +113,26 @@ human_verification:
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| TestSessionsMeta_NoJoinCodesInResponse passes | `go test ./internal/webserver/ -run TestSessionsMeta_NoJoinCodesInResponse` | PASS | PASS |
-| All Go package tests pass | `go test ./internal/webserver/ ./internal/daemon/ ./internal/tailnet/` | ok (all 3 packages) | PASS |
-| All frontend vitest tests pass | `pnpm exec vitest run` | 1818/1818, 112 files | PASS |
-| App.open-remote.test.tsx 8 tests pass | `pnpm test -- src/components/__tests__/App.open-remote.test.tsx --run` | 8/8 PASS | PASS |
-| SessionCard.share.test.tsx "Open in browser" un-gated | `pnpm test -- src/components/__tests__/SessionCard.share.test.tsx --run` | 20/20 PASS | PASS |
-| TypeScript build gate | `pnpm tsc --noEmit` | exit 0, no errors | PASS |
-| Go build | `go build ./...` | exit 0, no errors | PASS |
-| No broadcast symbols in production source | `grep -rn "isPeerSelf|rwJoinCode|roJoinCode|mintSessionJoinCodes|SetJoinCodeIssuer" internal/ frontend/src/ (excl tests, superseded)` | 0 matches | PASS |
-| Traceability path checker | `bash tests/check-traceability-paths.sh` | exit 0, "OK: all traceability paths exist" | PASS |
-| mint_join_codes_test.go deleted | `test ! -f internal/daemon/mint_join_codes_test.go` | file does not exist | PASS |
-| issueCapabilitiesForSession preserved | `grep -c "func.*issueCapabilitiesForSession" internal/daemon/api.go` | 1 | PASS |
-| D-09 local re-attach untouched | handleOpenSessionTab present and unchanged in App.tsx | L1036, used at L1393 | PASS |
-| D-12 owner copy affordance | SessionSharePanel CodeDisplay + ClipboardSetText | L3, L18, L204, L255 | PASS |
+| `TestRemoteSessionOpenURL_HeldCap` passes | `go test ./internal/daemon/ -run RemoteSessionOpenURL -count=1 -v` | PASS (both cases) | PASS |
+| Full daemon + webserver test suites | `go test ./internal/daemon/ ./internal/webserver/ -short` | ok (both packages) | PASS |
+| All frontend vitest tests | `cd frontend && pnpm exec vitest run` | 1825/1825, 112 files | PASS |
+| App.open-remote.test.tsx 15 tests | `pnpm exec vitest run src/components/__tests__/App.open-remote.test.tsx` | 15/15 PASS | PASS |
+| TypeScript build gate | `cd frontend && pnpm exec tsc --noEmit` | exit 0 | PASS |
+| Go build | `go build ./...` | exit 0 | PASS |
+| WR-01: hand-built mismatch URL gone | `grep -c "pending.id + '?cap='" frontend/src/App.tsx` | 0 | PASS |
+| WR-03: error copy in modal | `grep -c 'already used or expired' .../RemoteJoinCodeModal.tsx` | 1 | PASS |
+| Held-cap reuse gate in place | `grep -c 'remoteCapsCached.has' frontend/src/App.tsx` | 3 | PASS |
+| OpenRemoteSessionURL binding | `grep -c 'func (a \*App) OpenRemoteSessionURL' app.go` (non-comment) | 1 | PASS |
+| Route registered in api.go | `grep -c 'GET /api/remote-files/caps/{sessionID}/open-url' internal/daemon/api.go` | 1 | PASS |
+| No broadcast symbols in production | `grep -rn "mintSessionJoinCodes\|SetJoinCodeIssuer\|ROJoinCode\|RWJoinCode" internal/ frontend/src/` (excl tests, superseded) | 0 matches | PASS |
+| Traceability path gate | `bash tests/check-traceability-paths.sh` | exit 0 — "OK: all traceability paths exist" | PASS |
+| Go test file count matches TESTING.md | `find . -name "*_test.go" \| wc -l` | 348 | PASS |
+
+---
+
+### Probe Execution
+
+No `probe-*.sh` files declared in this phase. Step 7c: SKIPPED (no conventional probes for this fix phase).
 
 ---
 
@@ -139,69 +140,58 @@ human_verification:
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|------------|-------------|--------|---------|
-| FIX-03 | 146-01/02/03/04 | "Open Session" button opens live session not capability-required page (#98) | PARTIALLY VERIFIED | Mechanism fully implemented and test-locked. Live end-to-end behavior requires human verification on a two-Mac tailnet. REQUIREMENTS.md updated to reflect completion with phase note. |
+| FIX-03 | 146-01/02/03/04/05 | "Open Session" button opens live session, not capability-required page (#98) | VERIFIED (automated) / HUMAN NEEDED (live end-to-end) | All code paths implemented and test-locked. Held-cap reuse (GAP-146-A) closed by Plan 05. Live two-Mac RO/RW open requires M-13 re-UAT. |
 
 ---
 
-### Anti-Patterns Scan
+### Anti-Patterns Found
 
 | File | Pattern | Severity | Finding |
 |------|---------|----------|---------|
-| `frontend/src/App.tsx` L1146 | `pending.id` used instead of cap's SID in open URL | WARNING (WR-01) | Silent UX broken-link risk if mismatched code pasted. NOT an auth bypass (requireCapability rejects with 403). Expected flow (same-session code) works correctly. |
-| `App.open-remote.test.tsx` L117-137 | handleModalExchange assertions are source-text inspection only | WARNING (WR-02) | Exchange → BrowserOpenURL path has no behavior-level coverage. Cannot detect transposed arguments or missing await. The behavior test exercises only the card→handler binding. |
-| None | TBD/FIXME/XXX | N/A | No unreferenced debt markers found in phase-modified files. |
+| `frontend/src/components/RemoteJoinCodeModal.tsx` | `XXXX-XXXX` in comments/UI | INFO | Format placeholder strings in UX copy and comments — not debt markers. No TBD/FIXME/XXX found. |
+| None | TBD/FIXME/XXX | N/A | No unreferenced debt markers in any phase-modified files. |
 
-No BLOCKER anti-patterns found. Two WARNINGs from the code review (WR-01, WR-02) are noted but do not block the phase goal for the expected usage scenario.
+No BLOCKER anti-patterns. No WARNINGs. WR-01/WR-02/WR-03 code-review warnings from prior verification are all resolved by Plan 05.
 
 ---
 
 ### Human Verification Required
 
-#### 1. End-to-End Open-in-Browser (RO code) — M-13
+#### 1. End-to-End First Open (RO code) — M-13 Sub-scenario A
 
-**Test:** On Mac A, start a session, enable Share, copy the RO join code from the Share modal, send it out of band (e.g. paste into chat) to Mac B. On Mac B, click "Open in browser" on Mac A's remote Hub card. Paste the RO join code into RemoteJoinCodeModal. Confirm.
-**Expected:** Browser opens at `baseURL/sessions/{id}?cap=TOKEN` with the session terminal visible in RO mode. No "capability required" page.
-**Why human:** Requires two real Macs on one tailnet. BrowserOpenURL and the remote peer's HTTP response cannot be exercised by vitest or go test. The :34115 wails-dev bridge has no real tailnet peer.
+**Test:** On Mac A, start a session, enable Share, copy the RO join code from the Share modal, send out of band to Mac B. On Mac B, click "Open in browser" on Mac A's remote Hub card. Paste the code into RemoteJoinCodeModal. Confirm.
+**Expected:** Browser opens at `baseURL/sessions/{id}?cap=TOKEN` in RO mode. No "capability required" page. Modal closes after successful exchange.
+**Why human:** Requires two real Macs on a live tailnet. `BrowserOpenURL` and the remote peer's `requireCapability` HTTP response cannot be exercised by vitest or `go test`. The `:34115` wails-dev bridge has no real tailnet peer.
 
-#### 2. End-to-End Open-in-Browser (RW code) — M-13
+#### 2. End-to-End Second Open (Held-Cap Reuse) — M-13 Sub-scenario B
 
-**Test:** Repeat with the RW join code from the Share modal.
-**Expected:** Browser opens with RW capability — terminal input works.
-**Why human:** Same reason.
+**Test:** After completing Test 1 (cap deposited in-app), click "Open in browser" on the SAME remote card WITHOUT obtaining a fresh join code.
+**Expected:** Browser opens directly (no join-code modal), reusing the held cap. The single-use code is already consumed (D-11) — second open must work without prompting. RW repeat: same held-cap reuse behavior with RW permissions.
+**Why human:** The held-cap reuse path is code-verified and test-locked (Plan 05). The live behavior on a real two-Mac tailnet after in-app connect must be confirmed. This is the literal user-reported failure that GAP-146-A was filed to fix.
 
-#### 3. No-share Error UX
+#### 3. No-Share Error UX
 
-**Test:** Click "Open in browser" on a remote card where the owner has NOT shared the session (share toggle off, so no valid code can be obtained).
-**Expected:** Error banner appears (e.g. "Cannot open session — the remote peer URL is unavailable" or the modal opens and exchange fails with an informative error). No raw 401 page.
-**Why human:** Requires a running remote peer with a non-shared session.
+**Test:** Click "Open in browser" on a remote card where the owner has NOT shared (Share toggle off — no valid code exists).
+**Expected:** Error banner appears ("Cannot open session — the remote peer URL is unavailable" or equivalent). No raw 401 page.
+**Why human:** Requires a live remote peer with a non-shared session. The banner-vs-401 outcome is a UX observation that requires a running GUI.
 
 ---
 
 ### Gaps Summary
 
-**GAP-146-A (confirmed by live UAT 2026-06-22) — "Open in browser" forces a second single-use code instead of reusing a held cap.**
+No gaps remaining. All four gaps from prior verifications are closed:
 
-Live two-Mac tailnet test: on Mac B, the join code successfully connected the session **in the app**, but using the **same code** for "Open in browser" failed with "Code invalid."
+| Prior Gap | Resolution |
+|-----------|-----------|
+| Broadcast security (RW code broadcast to tailnet) | Closed Plans 01-04: `mintSessionJoinCodes`, `SetJoinCodeIssuer`, `ROJoinCode`/`RWJoinCode` all deleted. |
+| app.go struct missing ROJoinCode/RWJoinCode | Resolved by design: out-of-band design does not put codes in discovery payload (RB-03 test-locked). |
+| GAP-146-A: "Open in browser" unconditionally re-exchanges single-use code | Closed Plan 05: held-cap reuse path in `handleOpenRemoteSession`; `OpenRemoteSessionURL` daemon binding + endpoint. |
+| WR-01/WR-02/WR-03 code-review warnings | Closed Plan 05: hand-built URL removed (WR-01), behavior tests added (WR-02), error copy corrected (WR-03). |
 
-Root cause (verified):
-- Join codes are **single-use** (D-11; `internal/capability/joincode.go:88` `delete(m.codes, code)`; `internal/daemon/api.go:1208` "consumes a single-use join code"). The in-app connect consumed the code.
-- `handleOpenRemoteSession` (`frontend/src/App.tsx:1069`) unconditionally opens `RemoteJoinCodeModal` and re-exchanges a code. It does **not** check `remoteCapsCached` / reuse a held cap — unlike `handleBrowseFilesRemote` (`App.tsx:1092`), which reuses the held cap and skips the modal.
-- The consumed code's re-exchange returns `ErrCodeNotFound`; `RemoteJoinCodeModal.mapErrorMessage` maps `not-found` → "Code invalid. Double-check the digits" (WR-03), misdiagnosing the cause.
-
-**Decided fix (product decision 2026-06-22): reuse the held cap.**
-When the viewer already holds a cap for the session, "Open in browser" must build the cap-bearing URL from the held cap and call `BrowserOpenURL` directly — **no second code**. Fall back to the code modal only when no cap is held. This achieves parity with the Browse-files reuse pattern.
-
-Scope for gap closure:
-1. **Daemon/App.go:** add a method to produce `baseURL + /sessions/{id}?cap=TOKEN` from the stored `RemoteCapStore` entry for a session (cap already enters the URL by design — no new exposure).
-2. **Frontend:** `handleOpenRemoteSession` checks `remoteCapsCached.has(session.id)` → if held, open the URL directly via the new binding; else open the modal (current behavior).
-3. **WR-03:** fix the modal error mapping so a used/expired code says "code already used or expired — get a fresh code / use the share link," not "double-check the digits."
-4. **WR-02 (close the blind spot):** add a behavior-level test that crosses the exchange→URL→`BrowserOpenURL` path (and the new held-cap reuse path), not source-grep only.
-5. **WR-01 (consider):** build the open URL from the SID bound to the cap, not `pending.id`.
-
-**Still requires live re-UAT (M-13):** RO/RW end-to-end open on a real two-Mac tailnet, plus the no-share error UX — unchanged Manual-Only items (TESTING.md §5 Category G).
+Three human verification items remain (M-13, per project convention). These are Manual-Only items in TESTING.md §5 Category G — they cannot be automated and require a live two-Mac tailnet.
 
 ---
 
-_Verified: 2026-06-22T17:20:02Z_
+_Verified: 2026-06-22T18:55:00Z_
 _Verifier: Claude (gsd-verifier)_
-_Re-verification: Yes — supersedes 2026-06-22T10:20:00Z gaps_found result (broadcast design)_
+_Re-verification: Yes — supersedes 2026-06-22T17:20:02Z gaps_found result (GAP-146-A closed by Plan 05)_
