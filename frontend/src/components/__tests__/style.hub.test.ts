@@ -417,3 +417,62 @@ describe('CARD-04: Kill menu item CSS', () => {
     expect(cssRaw).toContain('--hub-destructive')
   })
 })
+
+// ============================================================
+// Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)
+// Tokens verified against frontend/src/style.css on 2026-06-21.
+// COLORBLIND-SAFE convention: hex literals are asserted at source, not by eye.
+// ============================================================
+
+describe('Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)', () => {
+  // (a) .hub-card block contains border-radius: 16px
+  it('GAP-04: .hub-card block contains border-radius: 16px (pronounced rounded corners)', () => {
+    // Find the .hub-card { rule block and assert border-radius is present
+    const hubCardIdx = cssRaw.indexOf('.hub-card {')
+    expect(hubCardIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', hubCardIdx)
+    const block = cssRaw.slice(hubCardIdx, blockEnd)
+    expect(block).toContain('border-radius: 16px')
+  })
+
+  // (b) session-type spine: .hub-card[data-agent="claude"] with border-left: 3px solid #7aa2f7
+  // Colorblind-safe: hex pinned at source (periwinkle; also visible as shape cue via left border)
+  it('GAP-04: .hub-card[data-agent="claude"] spine rule has border-left: 3px solid #7aa2f7', () => {
+    // Find the claude data-agent spine rule
+    const spineIdx = cssRaw.indexOf('.hub-card[data-agent="claude"]   { border-left: 3px solid #7aa2f7; }')
+    expect(spineIdx).toBeGreaterThan(-1)
+  })
+
+  it('GAP-04: all 8 agent spine rules are present (claude, opencode, codex, gemini, cursor, aider, shell, unknown)', () => {
+    expect(cssRaw).toContain('.hub-card[data-agent="claude"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="opencode"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="codex"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="gemini"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="cursor"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="aider"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="shell"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="unknown"]')
+  })
+
+  // (c) color-coded badge chip: .hub-card__badge and claude tint rule with color: #7aa2f7
+  it('GAP-04: .hub-card__badge base rule is present', () => {
+    expect(cssRaw).toContain('.hub-card__badge')
+  })
+
+  it('GAP-04: .hub-card[data-agent="claude"] .hub-card__badge chip tint uses color: #7aa2f7', () => {
+    // Verify the exact source rule for the claude badge chip color
+    const chipIdx = cssRaw.indexOf('.hub-card[data-agent="claude"]   .hub-card__badge { color: #7aa2f7;')
+    expect(chipIdx).toBeGreaterThan(-1)
+  })
+
+  // (d) mini-preview window: height: 150px (note: height, not min-height — per interfaces block)
+  it('GAP-04: .hub-card__preview block declares height: 150px (not min-height)', () => {
+    const previewIdx = cssRaw.indexOf('.hub-card__preview {')
+    expect(previewIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', previewIdx)
+    const block = cssRaw.slice(previewIdx, blockEnd)
+    expect(block).toContain('height: 150px')
+    // Negative: must not be min-height only (the interface block specifies `height`)
+    expect(block).not.toMatch(/min-height:\s*150px/)
+  })
+})
