@@ -29,7 +29,7 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | vitest (frontend) | **108** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **460** | — | — | — |
+| **Total** | **462** | — | — | — |
 
 > Note: CONTEXT.md references "459 test files" and "115 vitest files". The authoritative counts above come from a live filesystem scan on 2026-06-21. The correct vitest count is 108 (7 vitest files were removed during Phase 136 TUI deletion).
 
@@ -207,6 +207,12 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 - **M-11** Phase 124 home-dir warning banner on-screen in the live native WebView: the file write warning renders before the browse toggle when the session's workDir is the home directory.
   - _Why not automatable:_ Wails native webview required; the banner render path is not exercised by the headless browser.
   - _Source:_ STATE.md deferred items (pending live app)
+
+### Category F — CI-Gated Go Portability (Windows)
+
+- **M-12** FIX-02 (#101): `TestHandlerUpload_FilenameSanitized`, `TestDenylist_NonHomeRootedUnaffected`, and `TestWriteFileAtomic_ConcurrentReadNeverPartial` pass on Windows — verify the `build (agenthub, windows/amd64, windows-latest)` job is green in GitHub Actions after pushing (no local Windows env available).
+  - _Why not automatable:_ Development is on macOS; Windows file-share semantics (FILE_SHARE_DELETE requirement for POSIX-semantics rename) cannot be observed locally. The CI Windows runner is the only ground truth.
+  - _Source:_ Phase 145 windows-files-test-fixes; FIX-02 (#101)
 
 ---
 
