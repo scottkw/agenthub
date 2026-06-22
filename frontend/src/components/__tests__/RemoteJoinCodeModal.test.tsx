@@ -208,14 +208,17 @@ describe('RemoteJoinCodeModal — error mapping', () => {
     expect(container.textContent).toContain('Double-check the 8-character code (XXXX-XXXX).')
   })
 
-  it("'not-found' substring → 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'", async () => {
+  it("'not-found' substring → 'Code already used or expired' (WR-03: single-use code consumed, GAP-146-A Plan 05)", async () => {
+    // WR-03 fix: 'not-found' now maps to the used/expired message (single-use codes),
+    // NOT 'Code invalid' (typo). A 404 from the exchange endpoint means the code was
+    // already consumed by an earlier exchange (D-11 in CONTEXT.md).
     const onExchange = vi.fn(async () => {
       throw new Error('join code not-found (status 404)')
     })
     const { container } = renderModal({ onExchange })
     await submitCode(container, 'ZZZZ-ZZZZ')
-    expect(container.textContent).toContain('Code invalid')
-    expect(container.textContent).toContain('XXXX-XXXX')
+    expect(container.textContent).toContain('already used or expired')
+    expect(container.textContent).not.toContain('Double-check')
   })
 
   it("'session-gone' substring → 'Remote session is no longer web-shared.'", async () => {

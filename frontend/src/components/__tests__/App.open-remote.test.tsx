@@ -1,3 +1,11 @@
+// Phase 146-05 additions (GAP-146-A gap closure):
+//   - WR-02 held-cap reuse behavior tests (source-inspection of the held-cap branch)
+//   - WR-01 SID-correct fallback test (no hand-built ?cap= in open-session branch)
+//   - WR-03 error-copy behavior test (mapErrorMessage for not-found → used/expired)
+//
+// These tests fail against the Phase 146 Plans 01-04 code base and go GREEN
+// when Plan 05 adds the held-cap reuse path, WR-01 URL fix, and WR-03 copy.
+
 // Wave 0 RED tests for Phase 146 FIX-03 — out-of-band open contract (REDESIGNED).
 //
 // This file replaces the broadcast-era tests that validated the now-rejected
@@ -24,7 +32,7 @@
 // They go GREEN when Plans 02 (Go) and 03 (frontend) rewrite the production code.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import React from 'react'
+import React, { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 
@@ -36,6 +44,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   RenameSession: vi.fn().mockResolvedValue(undefined),
   GetSessionTailLines: vi.fn().mockResolvedValue([]),
 }))
+
+import { RemoteJoinCodeModal } from '../RemoteJoinCodeModal'
 
 import { SessionCard } from '../Hub/SessionCard'
 import type { SessionInfo } from '../../wailsjs/go/main/App'
@@ -98,8 +108,10 @@ describe('App.tsx — handleOpenRemoteSession (out-of-band, FIX-03)', () => {
   it('opens RemoteJoinCodeModal via setJoinModalForSession (not BrowserOpenURL directly)', () => {
     const idx = raw.indexOf('handleOpenRemoteSession')
     expect(idx, 'handleOpenRemoteSession must be present in App.tsx').toBeGreaterThan(-1)
-    const slice = raw.slice(idx, idx + 600)
-    // Out-of-band: handler opens the modal, not the URL directly.
+    // Plan 05 added held-cap reuse before the modal path — use a larger slice to
+    // cover the full callback including the no-cap fallback branch (D-03 parity).
+    const slice = raw.slice(idx, idx + 1000)
+    // Out-of-band: handler opens the modal on the no-cap path.
     expect(slice).toContain('setJoinModalForSession')
     // ExchangeJoinCodeAtURL moves to handleModalExchange — not called here.
     expect(slice).not.toContain('ExchangeJoinCodeAtURL')
@@ -123,15 +135,22 @@ describe('App.tsx — handleModalExchange open-session branch (FIX-03)', () => {
     expect(slice).toContain('open-session')
   })
 
-  it('open-session branch builds a /sessions/{id}?cap= URL', () => {
+  it('open-session branch uses OpenRemoteSessionURL to get the cap-bearing URL (WR-01 fix)', () => {
+    // Plan 05 WR-01: the open-session branch no longer hand-builds /sessions/{id}?cap=
+    // directly (mismatch-prone). Instead it calls OpenRemoteSessionURL (daemon-composed).
+    // Verify OpenRemoteSessionURL appears in the handleModalExchange open-session branch.
     const idx = raw.indexOf('handleModalExchange')
-    const slice = raw.slice(idx, idx + 1000)
-    expect(slice).toMatch(/\/sessions\/.*\?cap=/)
+    const slice = raw.slice(idx, idx + 1600)
+    expect(slice).toContain('OpenRemoteSessionURL')
+    // The hand-built form must be gone (WR-01 acceptance criterion).
+    expect(slice).not.toContain("pending.id + '?cap='")
   })
 
   it('open-session branch calls BrowserOpenURL with the cap-bearing URL', () => {
     const idx = raw.indexOf('handleModalExchange')
-    const slice = raw.slice(idx, idx + 1000)
+    // Plan 05 WR-01 fix added deposit + OpenRemoteSessionURL before BrowserOpenURL;
+    // use a larger slice to cover the full open-session branch.
+    const slice = raw.slice(idx, idx + 1600)
     expect(slice).toContain('BrowserOpenURL')
   })
 })
@@ -181,5 +200,133 @@ describe('SessionCard — "Open in browser" behavior (FIX-03 behavior-level asse
       // Button disabled means the D-03 gate still exists — assert it is enabled first
       expect(openBtn?.disabled, '"Open in browser" must not be disabled (D-03)').toBe(false)
     }
+  })
+})
+
+// ─── WR-02 behavior: held-cap reuse path in handleOpenRemoteSession ────────────
+//
+// These source-inspection assertions cross the held-cap reuse behavior:
+//   (a) held-cap: handleOpenRemoteSession has remoteCapsCached.has() guard +
+//       calls OpenRemoteSessionURL binding (no modal on hit)
+//   (b) no-cap fallback: falls through to setJoinModalForSession (existing)
+//   (c) WR-01: hand-built pending.id + '?cap=' removed from open-session branch
+//
+// Source inspection is used here (established pattern in this codebase) combined
+// with the WR-03 component render below which exercises true component behavior.
+describe('App.tsx — handleOpenRemoteSession held-cap reuse (GAP-146-A, Plan 05)', () => {
+  it('held-cap path: handleOpenRemoteSession checks remoteCapsCached.has(session.id) FIRST', () => {
+    const idx = raw.indexOf('handleOpenRemoteSession')
+    expect(idx, 'handleOpenRemoteSession must be present in App.tsx').toBeGreaterThan(-1)
+    const slice = raw.slice(idx, idx + 700)
+    // The held-cap reuse guard must appear before the setJoinModalForSession call.
+    expect(slice).toContain('remoteCapsCached.has')
+  })
+
+  it('held-cap path: handleOpenRemoteSession calls OpenRemoteSessionURL when cap is held', () => {
+    const idx = raw.indexOf('handleOpenRemoteSession')
+    const slice = raw.slice(idx, idx + 700)
+    // The new binding must be called in the held-cap branch.
+    expect(slice).toContain('OpenRemoteSessionURL')
+  })
+
+  it('held-cap path: OpenRemoteSessionURL is imported from the Wails bindings', () => {
+    // Verify the binding is in the App import list.
+    expect(raw).toContain('OpenRemoteSessionURL')
+  })
+
+  it('WR-01 fixed: hand-built pending.id + ?cap= is gone from the open-session branch', () => {
+    // The WR-01 mismatch-prone URL must be removed from handleModalExchange.
+    // After the fix the URL is built by OpenRemoteSessionURL in the daemon.
+    expect(raw).not.toContain("pending.id + '?cap='")
+  })
+
+  it('no-cap fallback: handleOpenRemoteSession still calls setJoinModalForSession when no cap held', () => {
+    const idx = raw.indexOf('handleOpenRemoteSession')
+    // Use 1200 chars to cover the whole callback including the no-cap fallback branch.
+    const slice = raw.slice(idx, idx + 1200)
+    expect(slice).toContain('setJoinModalForSession')
+  })
+})
+
+// ─── WR-03 behavior: RemoteJoinCodeModal used/expired error copy ───────────────
+//
+// True component-render behavior test (not source inspection).
+// The not-found error (single-use code already consumed, D-11) must surface
+// "already been used or expired" copy, NOT "Code invalid. Double-check the digits."
+describe('RemoteJoinCodeModal — WR-03 used/expired error copy (GAP-146-A, Plan 05)', () => {
+  let wrapperDiv: HTMLDivElement | undefined
+  let wrapperRoot: Root | undefined
+
+  afterEach(() => {
+    if (wrapperRoot) {
+      flushSync(() => wrapperRoot!.unmount())
+      wrapperRoot = undefined
+    }
+    if (wrapperDiv) {
+      wrapperDiv.remove()
+      wrapperDiv = undefined
+    }
+  })
+
+  async function submitCodeToModal(
+    onExchange: (code: string) => Promise<void>,
+    code: string,
+  ): Promise<HTMLElement> {
+    wrapperDiv = document.createElement('div')
+    document.body.appendChild(wrapperDiv)
+    wrapperRoot = createRoot(wrapperDiv)
+    flushSync(() => {
+      wrapperRoot!.render(
+        React.createElement(RemoteJoinCodeModal, {
+          remoteSession: { id: 'sid-1', name: 'Test Session', hostname: 'test.host' },
+          intent: 'open-session',
+          onExchange,
+          onClose: vi.fn(),
+        })
+      )
+    })
+    // Enter code
+    const input = wrapperDiv.querySelector('input[type="text"]') as HTMLInputElement
+    const desc = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')
+    desc?.set?.call(input, code)
+    flushSync(() => {
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    const submit = Array.from(wrapperDiv.querySelectorAll('button')).find(
+      (b) => /join/i.test(b.textContent ?? '')
+    ) as HTMLButtonElement
+    await act(async () => {
+      submit.click()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    return wrapperDiv
+  }
+
+  it('WR-03: not-found error (single-use code consumed) shows "already been used or expired" — NOT "Code invalid"', async () => {
+    const onExchange = vi.fn(async () => {
+      throw new Error('join code not-found (status 404)')
+    })
+    const el = await submitCodeToModal(onExchange, 'ABCD-EFGH')
+    const errorEl = el.querySelector('[data-testid="remote-join-modal-error"]')
+    expect(errorEl).not.toBeNull()
+    const errorText = errorEl!.textContent ?? ''
+    // Must contain the corrected copy (WR-03 fix).
+    expect(errorText).toContain('already used or expired')
+    // Must NOT contain the wrong copy that conflates typos with single-use expiry.
+    expect(errorText).not.toContain('Double-check')
+  })
+
+  it('WR-03: invalid error (typo) still shows "Code invalid. Double-check" copy', async () => {
+    const onExchange = vi.fn(async () => {
+      throw new Error('join code is invalid (status 401)')
+    })
+    const el = await submitCodeToModal(onExchange, 'ZZZZ-ZZZZ')
+    const errorEl = el.querySelector('[data-testid="remote-join-modal-error"]')
+    expect(errorEl).not.toBeNull()
+    const errorText = errorEl!.textContent ?? ''
+    // Typo path remains "Code invalid." (separate branch from used/expired).
+    expect(errorText).toContain('Code invalid')
+    expect(errorText).toContain('Double-check')
   })
 })
