@@ -580,11 +580,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Clicking "Open Session" (Hub card / re-attach) opens the live session, not a "capability required" error page
   2. The capability is issued or reused correctly for the open-in-browser flow
   3. Behaves correctly across GUI + web per cross-surface parity
-**Plans**: 4 plans (out-of-band redesign 2026-06-22)
+**Plans**: 5 plans (out-of-band redesign 2026-06-22; gap closure 2026-06-22)
 - [x] 146-01-PLAN.md — Wave 0 TDD RED: inverted RB-03 cap-free meta test + out-of-band open behavior test
 - [x] 146-02-PLAN.md — Go backend: remove broadcast (mint/issuer/fields), restore RB-03, reconcile Go tests
 - [x] 146-03-PLAN.md — Frontend: remove broadcast threading + wire out-of-band open (modal intent, handler, card)
 - [x] 146-04-PLAN.md — TESTING.md regression-convention compliance + full-suite/build-gate verification
+- [ ] 146-05-PLAN.md — Gap closure GAP-146-A: held-cap reuse for "Open in browser" (no second single-use code); WR-01/WR-02/WR-03 fixes
 > First execution (broadcast "Mechanism B", plans 146-00..03) was superseded after the
 > code-review/verify gates found it dead-on-arrival + broadcasting RW to the tailnet. Design
 > reversed to out-of-band code/link delivery (see 146-CONTEXT.md D-02/D-04/D-09..D-12,
