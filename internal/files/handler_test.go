@@ -693,6 +693,13 @@ func TestHandlerUpload_DenylistForbidden(t *testing.T) {
 // TestHandlerUpload_FilenameSanitized: multipart with FileHeader.Filename
 // "../../.bashrc" lands as ".bashrc" under the target dir (filepath.Base strip).
 func TestHandlerUpload_FilenameSanitized(t *testing.T) {
+	// On Windows, t.TempDir() lands under %USERPROFILE% (i.e. $HOME), which
+	// causes denylistCheck to see the sandbox root as home-rooted and return 403
+	// instead of the expected 200. Redirect $HOME to a separate fake directory so
+	// denylistCheck treats the sandbox root as genuinely outside $HOME.
+	fakeHome := t.TempDir()
+	setHomeEnv(t, fakeHome)
+
 	h, root := newHandler(t)
 	srv := httptest.NewServer(http.HandlerFunc(h.Upload))
 	defer srv.Close()
