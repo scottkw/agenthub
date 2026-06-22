@@ -31,7 +31,7 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
 | **Total** | **467** | — | — | — |
 
-> Note: Counts updated Phase 146: Go -1 (`mint_join_codes_test.go` deleted in Plan 02 — broadcast wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest).
+> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest).
 
 ### CI Workflow Mapping
 
@@ -218,9 +218,9 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 ### Category G — Live Tailnet Remote Session Open (FIX-03)
 
-- **M-13** FIX-03 (#98): "Open in browser" opens the live session UI (not a 401 or "capability required" page) for a shared remote session on a real tailnet. Steps: (1) On Mac A, start a session and enable Share (both RO and RW). (2) On Mac B, open AgentHub Hub, locate Mac A's remote session card, click "Open in browser". Expect: browser opens the live session terminal, NOT "capability required". (3) Repeat for RO-only share — expect RO-mode open. (4) As session owner on Mac A itself, click "Open in browser" — expect RW open per D-06. All three scenarios must show a live session terminal with no capability error.
+- **M-13** FIX-03 (#98, out-of-band flow): "Open in browser" on a remote session card opens `RemoteJoinCodeModal` (not a raw 401); after the owner shares the session and delivers a join code or share link OUT OF BAND (e.g. copies the RO or RW code from the Share modal and sends it via chat/email), the viewer pastes the code into `RemoteJoinCodeModal` and the session opens in the browser at `baseURL/sessions/{id}?cap=TOKEN` with the permission of the code the owner sent (RO code → RO open; RW code → RW open). Steps: (1) On Mac A, start a session and enable Share. (2) Mac A copies the RO join code from the Share modal and sends it out of band to Mac B. (3) On Mac B, click "Open in browser" on Mac A's remote card, paste the join code, confirm. Expect: browser opens live session terminal (RO). (4) Repeat with the RW join code — expect RW open. No "capability required" page should appear.
   - _Why not automatable:_ Requires two real Macs on the same tailnet; the `:34115` wails-dev bridge has no real tailnet peer; web-share WebSocket blocks automated terminal input (see live-UAT-daemon-gotchas memory).
-  - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98)
+  - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98) — Phase 146 out-of-band redesign (D-02/D-04)
 
 ---
 
