@@ -25,13 +25,13 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
-| Go unit/integration | **347** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
+| Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
 | vitest (frontend) | **112** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **467** | — | — | — |
+| **Total** | **468** | — | — | — |
 
-> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest).
+> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path).
 
 ### CI Workflow Mapping
 
@@ -148,7 +148,8 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FIX-02 | internal/files/concurrent_read_windows_test.go | Go | Windows build-tagged `readFilePlatformSafe` via `syscall.CreateFile` with FILE_SHARE_DELETE |
 | FIX-02 | internal/files/concurrent_read_unix_test.go | Go | Non-Windows build-tagged `readFilePlatformSafe` delegating to `os.ReadFile` |
 | FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_NoJoinCodesInResponse` — RB-03 restored: ro_join_code/rw_join_code must NOT appear in /api/sessions/meta (cap-free discovery; broadcast wiring removed in Plan 02) |
-| FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | Out-of-band open contract: `handleOpenRemoteSession` opens modal (not direct URL); `handleModalExchange` open-session branch builds `/sessions/{id}?cap=` URL + calls `BrowserOpenURL`; dead code (broadcast symbols) gone; behavior-level: "Open in browser" not disabled on remote card with no code (D-03) |
+| FIX-03 | internal/daemon/open_remote_session_url_test.go | Go | held-cap open-url read path — RemoteCapStore.Get → baseURL+/sessions/{id}?cap=TOKEN; absent → 404 (GAP-146-A reuse fix) |
+| FIX-03 | frontend/src/components/__tests__/App.open-remote.test.tsx | vitest | Out-of-band open contract: `handleOpenRemoteSession` opens modal (not direct URL); `handleModalExchange` open-session branch builds `/sessions/{id}?cap=` URL + calls `BrowserOpenURL`; dead code (broadcast symbols) gone; behavior-level: "Open in browser" not disabled on remote card with no code (D-03). Plan 05 gap closure: held-cap reuse path (`remoteCapsCached.has` → `OpenRemoteSessionURL`; no modal on hit); WR-03 error-copy: not-found → "already used or expired" (not "Code invalid"). |
 
 ---
 
@@ -218,9 +219,11 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 ### Category G — Live Tailnet Remote Session Open (FIX-03)
 
-- **M-13** FIX-03 (#98, out-of-band flow): "Open in browser" on a remote session card opens `RemoteJoinCodeModal` (not a raw 401); after the owner shares the session and delivers a join code or share link OUT OF BAND (e.g. copies the RO or RW code from the Share modal and sends it via chat/email), the viewer pastes the code into `RemoteJoinCodeModal` and the session opens in the browser at `baseURL/sessions/{id}?cap=TOKEN` with the permission of the code the owner sent (RO code → RO open; RW code → RW open). Steps: (1) On Mac A, start a session and enable Share. (2) Mac A copies the RO join code from the Share modal and sends it out of band to Mac B. (3) On Mac B, click "Open in browser" on Mac A's remote card, paste the join code, confirm. Expect: browser opens live session terminal (RO). (4) Repeat with the RW join code — expect RW open. No "capability required" page should appear.
+- **M-13** FIX-03 (#98, out-of-band flow + held-cap reuse, GAP-146-A): Two sub-scenarios on a live two-Mac tailnet:
+  - **First open (no held cap):** "Open in browser" on a remote session card opens `RemoteJoinCodeModal` (not a raw 401). After the owner shares and delivers a join code out of band, the viewer pastes the code; the session opens in the browser at `baseURL/sessions/{id}?cap=TOKEN`. RO code → RO open; RW code → RW open. No "capability required" page.
+  - **Second open (held-cap reuse, Plan 05):** Once the viewer has already connected in-app (which deposited the cap into RemoteCapStore), clicking "Open in browser" a SECOND time on the same session must open WITHOUT prompting for a fresh join code. The app reuses the held cap directly (the single-use code is already consumed — D-11). Steps: (1) On Mac A, start a session, enable Share, deliver join code to Mac B out of band. (2) On Mac B, connect in-app (cap deposited). (3) On Mac B, click "Open in browser" — expect it opens directly WITHOUT a modal. (4) Verify browser opens at `baseURL/sessions/{id}?cap=TOKEN`. No join-code prompt on the second open.
   - _Why not automatable:_ Requires two real Macs on the same tailnet; the `:34115` wails-dev bridge has no real tailnet peer; web-share WebSocket blocks automated terminal input (see live-UAT-daemon-gotchas memory).
-  - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98) — Phase 146 out-of-band redesign (D-02/D-04)
+  - _Source:_ 146-VALIDATION.md Manual-Only Verifications table; FIX-03 (#98) — Phase 146 out-of-band redesign (D-02/D-04); GAP-146-A Plan 05 held-cap reuse
 
 ---
 
