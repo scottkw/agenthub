@@ -76,6 +76,7 @@ Progress: [██████████] 100%
 | manual_uat | Phase 125 editor on-screen render + CodeMirror Tab/Cmd-V in WebView | pending (live app required) |
 | manual_uat | Phase 126 `$EDITOR` suspend-resume terminal restore | pending (live app required) |
 | manual_uat | Phase 124 home-dir warning banner on-screen | pending (live app required) |
+| manual_uat | Phase 138 remote-card UATs #3 (Open-in-browser URL) + #5 (no Kill on remote) | **postponed to 2026-06-22** — needs office 2nd machine as remote peer; 5/7 other checks PASS 2026-06-21 |
 | deferred_issue | #82 TUI Files upload parity | moot — TUI removed in Phase 136 |
 | deferred_issue | #82 TUI Hub parity | moot — TUI removed in Phase 136 |
 | github_issue | #93 Hub fidelity backlog | triaged in Phase 140; in-scope subset delivered in Phase 141 |

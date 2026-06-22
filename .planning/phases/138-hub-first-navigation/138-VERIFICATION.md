@@ -3,7 +3,7 @@ phase: 138-hub-first-navigation
 verified: 2026-06-20T23:25:00Z
 status: partial
 uat_executed: 2026-06-21
-uat_result: 5/7 live checks PASS; 2 blocked (no reachable remote peer)
+uat_result: 5/7 live checks PASS; 2 (remote #3/#5) postponed to 2026-06-22 (office, 2nd machine)
 score: 8/8 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -48,9 +48,14 @@ touching the operator's live claude/gemini sessions.
 | 6 | Colorblind-safe indicators (icon + text, not color alone) | ✅ PASS | Cards show monitor-icon + "Local"; status icon + text ("Needs input"/"Running"); agent badges carry text labels — no color-only signals; `138-hub.png` |
 | 7 | Attention pulse + mini-preview + grid reflow preserved (CARD-04) | ✅ PASS | claude-1 has `.hub-card--attention` border; both cards render mini-preview text; 2-col grid reflow; `138-hub.png` |
 
-**Remaining (2):** checks 3 and 5 require a reachable remote peer (web-share/Tailscale peer
-session). Defer to a session where a second AgentHub peer is connected, or fold into the
-Phase 143 manual regression checklist under "remote card affordances".
+**Remaining (2) — POSTPONED to 2026-06-22:** checks 3 and 5 require a reachable remote peer
+(web-share/Tailscale peer session). Operator will run them tomorrow (2026-06-22) from the
+office with the second machine connected as a remote peer. Re-run via dev-browser against
+a connected remote card: (3) overflow → "Open in browser" opens the real peer URL in the
+system browser; (5) remote card overflow shows "Open in browser" + "Browse files" only —
+no "Kill session". On completion, flip frontmatter `status: partial → human_needed:done`
+(or `verified`) and fold the same two into the Phase 143 manual regression checklist under
+"remote card affordances".
 
 ---
 
