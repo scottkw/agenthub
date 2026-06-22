@@ -186,17 +186,13 @@ func TestSessionsMeta_NoCapInResponse(t *testing.T) {
 	item := items[0]
 
 	// RB-03: assert the EXACT allowed key set — any extra key is a violation.
-	// Phase 146: ro_join_code and rw_join_code are intentionally allowed (they
-	// are short-lived join codes, not raw cap tokens). They are NOT on the
-	// sensitiveKeys blacklist below.
+	// Cap-free discovery restored (CONTEXT.md D-10): no join codes, no credentials.
 	allowed := map[string]bool{
-		"id":           true,
-		"name":         true,
-		"cli_type":     true,
-		"status":       true,
-		"url":          true,
-		"ro_join_code": true, // Phase 146: join-code for RO viewer access
-		"rw_join_code": true, // Phase 146: join-code for RW owner access
+		"id":       true,
+		"name":     true,
+		"cli_type": true,
+		"status":   true,
+		"url":      true,
 	}
 	for k := range item {
 		if !allowed[k] {
