@@ -143,6 +143,7 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | Cross-surface relay contract | internal/relay/oscabsorb_relay_test.go | Go | OSC absorb filter in relay path |
 | Hub group persistence | frontend/src/lib/hubGroups.test.ts | vitest | `loadGroups`/`saveGroups`/`createGroup`/`assignToGroup`/`removeFromGroup` round-trip |
 | Hub status classification | frontend/src/lib/hubStatus.test.ts | vitest | `isAttentionStatus`: all six session states |
+| FIX-01 | internal/daemon/engine_test.go | Go | Daemon styled-tail race fix (#100): `TestGetSessionStyledTailLines_*` — no data race, strip covers all query verbs + mode-2048 |
 
 ---
 
