@@ -44,6 +44,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 - [x] **TAB-01**: Open tabs shrink as their count grows (browser-style), down to a sensible minimum width.
 - [x] **TAB-02**: When tabs overflow the window width, a visible side-scroll affordance (scroll chevrons and/or a visible scrollbar) lets the user reach every tab.
 - [x] **TAB-03**: Tab close, rename, and progress-underline affordances remain functional at the minimum tab width.
+- [ ] **TAB-04**: Session tabs show a down-chevron indicator signaling the context menu is available (#68).
 
 ### Regression Testing (TEST)
 
@@ -69,6 +70,26 @@ Post-redesign UAT findings raised during the Phase 141 render-compare checkpoint
 - [x] **POL-04**: A terminal session repaints correctly with no garbling after a theme switch or a tab switch (root cause identified; any 141-08 theme-toggle regression confirmed/fixed).
 - [x] **POL-05**: Hub group navigation is restructured out of the secondary side-by-side panel — groups surface in the main sidebar under Hub (per the comp) or an agreed better pattern; no two collapsible side panels sit side by side.
 
+### Stabilization & Bug Fixes (FIX)
+
+Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` against the real v4.0 code (Phase 143 regression program), plus a Hub re-attach bug.
+
+- [ ] **FIX-01**: `GetSessionStyledTailLines` passes `go test -race` on all platforms — no data race between the styled-tail drain goroutine and the VT emulator close (#100). [Phase 144]
+- [ ] **FIX-02**: `internal/files` tests pass on Windows CI — filename sanitization and denylist path-rooting respect Windows path semantics (#101). [Phase 145]
+- [ ] **FIX-03**: The "Open Session" button opens the live session instead of a "capability required" web page (#98). [Phase 146]
+
+### In-App Help (HELP)
+
+- [ ] **HELP-01**: An in-app Help page provides documentation, an FAQ, search, and external links (#69). [Phase 147]
+
+### Supported Agents (AGENT)
+
+- [ ] **AGENT-01**: Google Antigravity CLI is selectable as a supported agent and launches correctly (#65). [Phase 149]
+
+### Settings (SET)
+
+- [ ] **SET-01**: A Settings toggle enables/disables the shell-session web-sharing warning, and can re-enable it after the first acknowledgment (#51). [Phase 150]
+
 ## Future Requirements
 
 Deferred beyond v4.0. Tracked, not in this roadmap.
@@ -84,7 +105,9 @@ Deferred beyond v4.0. Tracked, not in this roadmap.
 
 ### Existing backlog (not pulled into v4.0)
 
-- #79 Session Chat · #10 Intersession orchestration · #49 Split panes · #69 In-app Help page · #65 Antigravity CLI agent · #50 Local Gemma agent · #68 Tab down-chevron · #66 Marketing screenshot automation · #59 Contributor page · #51 Shell-sharing-warning toggle · #67 Agent Dashboard
+- #79 Session Chat · #10 Intersession orchestration · #49 Split panes · #50 Local Gemma agent · #66 Marketing screenshot automation · #59 Contributor page · #67 Agent Dashboard
+
+(Pulled into v4.0 — see phases 144-150: #100, #101, #98, #69 Help, #65 Antigravity, #68 Tab chevron, #51 Shell-sharing toggle.)
 
 ## Out of Scope
 
@@ -133,16 +156,24 @@ Which phases cover which requirements. Filled during roadmap creation.
 | POL-04 | Phase 142 | Complete |
 | POL-05 | Phase 142 | Complete |
 | TEST-01 | Phase 143 | Complete |
-| TEST-02 | Phase 143 | Complete |
+| TEST-02 | Phase 143 | Deferred (branch protection pending CI-green — see STATE operator follow-up; gated on #100/#101) |
 | TEST-03 | Phase 143 | Complete |
 | TEST-04 | Phase 143 | Complete |
 | TEST-05 | Phase 143 | Complete |
+| FIX-01 | Phase 144 | Planned |
+| FIX-02 | Phase 145 | Planned |
+| FIX-03 | Phase 146 | Planned |
+| HELP-01 | Phase 147 | Planned |
+| TAB-04 | Phase 148 | Planned |
+| AGENT-01 | Phase 149 | Planned |
+| SET-01 | Phase 150 | Planned |
 
 **Coverage:**
-- v4.0 requirements: 31 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 3, TEST 6, CARRY 2)
-- Mapped to phases: 31 (100% coverage)
+- v4.0 requirements: 43 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 4, TEST 6, CARRY 2, POL 5, FIX 3, HELP 1, AGENT 1, SET 1)
+- Mapped to phases: 43 (100% coverage)
 - Unmapped: 0 ✓
+- Note: TEST-02 (merge gate) deferred until v4.0 CI is green (#100/#101); remaining new reqs (FIX/HELP/TAB-04/AGENT/SET) planned in phases 144-150.
 
 ---
 *Requirements defined: 2026-06-19 — v4.0 Hub-First Consolidation & UI/UX Overhaul*
-*Last updated: 2026-06-19 (traceability filled by roadmapper)*
+*Last updated: 2026-06-22 (phases 144-150 added — issue burndown extending v4.0)*

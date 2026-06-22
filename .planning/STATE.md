@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
-stopped_at: Phase 143 complete; v4.0 still open — adding new issue-driven phases (144+)
+stopped_at: Phase 143 complete; phases 144-150 added to v4.0 (issue burndown) — next /gsd:plan-phase 144
 last_updated: 2026-06-22T04:02:28.274Z
 last_activity: 2026-06-22
 progress:
-  total_phases: 8
-  completed_phases: 7
+  total_phases: 15
+  completed_phases: 8
   total_plans: 32
   completed_plans: 33
-  percent: 88
+  percent: 53
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.0 still open — Phase 143 done; scoping new issue-driven phases (144+)
+**Current focus:** v4.0 issue-burndown — phases 144-150 defined; next is `/gsd:plan-phase 144`
 
 ## Current Position
 
-Phase: 143 complete; next phases pending definition (144+)
+Phase: 144 (next to plan) — phases 144-150 added, not yet planned
 Plan: Not started
-Status: v4.0 in progress — adding new phases for outstanding GitHub issues
+Status: v4.0 in progress — 8/15 phases complete; 144-150 scaffolded from GitHub issues
 Last activity: 2026-06-22
 
-Progress: 143/143 defined phases complete; more phases to be added
+Progress: [█████░░░░░] 8/15 phases complete
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -46,13 +46,21 @@ Progress: 143/143 defined phases complete; more phases to be added
 |-------|------|--------------|--------|
 | 136 | TUI Removal | NAV-01, TEST-06 | Complete |
 | 137 | Share Modal & Cap Model | SHARE-01..06 | Complete |
-| 138 | Hub-First Navigation | NAV-02..05, CARD-01..04 | Planned |
-| 139 | Card Rendering & Tab Strip | CARD-05, TAB-01..03 | Not started |
-| 140 | UI-Spec Gate | RDS-01, CARRY-02 | Not started |
-| 141 | Redesign Implementation | RDS-02..04, CARRY-01 | Not started |
-| 142 | Regression Test Program | TEST-01..05 | Not started |
+| 138 | Hub-First Navigation | NAV-02..05, CARD-01..04 | Complete |
+| 139 | Card Rendering & Tab Strip | CARD-05, TAB-01..03 | Complete |
+| 140 | UI-Spec Gate | RDS-01, CARRY-02 | Complete |
+| 141 | Redesign Implementation | RDS-02..04, CARRY-01 | Complete |
+| 142 | Hub & Settings Redesign Polish | POL-01..05 | Complete |
+| 143 | Regression Test Program | TEST-01..05 (TEST-02 deferred) | Complete |
+| 144 | Daemon Styled-Tail Race Fix | FIX-01 (#100) | Not planned |
+| 145 | Windows Files Test Fixes | FIX-02 (#101) | Not planned |
+| 146 | Open Session Capability Bug | FIX-03 (#98) | Not planned |
+| 147 | In-App Help Page | HELP-01 (#69) | Not planned |
+| 148 | Session Tab Chevron | TAB-04 (#68) | Not planned |
+| 149 | Google Antigravity Agent | AGENT-01 (#65) | Not planned |
+| 150 | Shell-Sharing Warning Toggle | SET-01 (#51) | Not planned |
 
-**Total:** 31 requirements mapped across 7 phases (100% coverage)
+**Total:** 43 requirements mapped across 15 phases (100% coverage). Phases 144-150 added 2026-06-22 (issue burndown extending v4.0).
 
 ## Key Decisions (v4.0)
 

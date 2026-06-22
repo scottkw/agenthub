@@ -28,7 +28,7 @@
 - ✅ **v3.5 File Browser — Write Operations & Editor** — Phases 123-128 (shipped 2026-06-15, closes Issues #63, #64; umbrella #24 pending two-machine UAT)
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
-- 🚧 **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-142 (in progress)
+- 🚧 **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (in progress)
 
 ## Phases
 
@@ -537,6 +537,97 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 141. Redesign Implementation | v4.0 | 9/9 | Complete   | 2026-06-21 |
 | 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
+| 144. Daemon Styled-Tail Race Fix | v4.0 | 0/0 | Not planned | — |
+| 145. Windows Files Test Fixes | v4.0 | 0/0 | Not planned | — |
+| 146. Open Session Capability Bug | v4.0 | 0/0 | Not planned | — |
+| 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
+| 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
+| 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |
+| 150. Shell-Sharing Warning Toggle | v4.0 | 0/0 | Not planned | — |
+
+### Phase 144: Daemon Styled-Tail Race Fix
+**Goal**: `GetSessionStyledTailLines` (the headless-VT styled-tail render) passes `go test -race` on all platforms — no data race between the drain goroutine's read and the emulator close
+**Depends on**: Phase 143
+**Requirements**: FIX-01
+**GitHub Issue**: #100
+**Success Criteria** (what must be TRUE):
+  1. `go test -race ./internal/daemon/` passes — styled-tail tests (TestGetSessionStyledTailLines_*, TestHandleGetSessionStyledTailLines) no longer report a data race
+  2. Mini-preview and briefing-modal tails still render correctly (no #96 regression — spacing preserved, private-CSI escapes absorbed)
+  3. CI "Run Go tests (all platforms, race detector)" is green for the daemon package across all four build matrix jobs
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 144 to break down)
+
+### Phase 145: Windows Files Test Fixes
+**Goal**: `internal/files` tests pass on Windows CI — filename sanitization, denylist path-rooting, and atomic-write concurrency behave correctly under Windows path semantics
+**Depends on**: Phase 143
+**Requirements**: FIX-02
+**GitHub Issue**: #101
+**Success Criteria** (what must be TRUE):
+  1. `TestHandlerUpload_FilenameSanitized`, `TestDenylist_NonHomeRootedUnaffected`, and `TestWriteFileAtomic_ConcurrentReadNeverPartial` pass on `windows/amd64, windows-latest`
+  2. The same tests still pass on macOS and Linux (no regression)
+  3. The Windows build matrix job is green
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 145 to break down)
+
+### Phase 146: Open Session Capability Bug
+**Goal**: The "Open Session" button opens the live session instead of landing on a "capability required" web page
+**Depends on**: Phase 143
+**Requirements**: FIX-03
+**GitHub Issue**: #98
+**Success Criteria** (what must be TRUE):
+  1. Clicking "Open Session" (Hub card / re-attach) opens the live session, not a "capability required" error page
+  2. The capability is issued or reused correctly for the open-in-browser flow
+  3. Behaves correctly across GUI + web per cross-surface parity
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 146 to break down)
+
+### Phase 147: In-App Help Page
+**Goal**: An in-app Help page provides documentation, an FAQ, search, and external links, reachable from the app navigation
+**Depends on**: Phase 143
+**Requirements**: HELP-01
+**GitHub Issue**: #69
+**Success Criteria** (what must be TRUE):
+  1. A Help page is reachable from the app navigation (sidebar/menu)
+  2. It includes documentation content, an FAQ, search over that content, and external links (docs/repo/issues)
+  3. Present on the appropriate surfaces per cross-surface parity
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 147 to break down)
+
+### Phase 148: Session Tab Chevron
+**Goal**: Session tabs show a down-chevron indicator signaling the context menu is available, improving discoverability
+**Depends on**: Phase 143
+**Requirements**: TAB-04
+**GitHub Issue**: #68
+**Success Criteria** (what must be TRUE):
+  1. Each session tab displays a down-chevron affordance indicating a menu
+  2. Activating the chevron opens the existing tab context menu
+  3. Visual treatment matches the v4.0 redesign and works in light/dark themes
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 148 to break down)
+
+### Phase 149: Google Antigravity Agent
+**Goal**: Google Antigravity CLI is selectable as a supported agent and launches correctly
+**Depends on**: Phase 143
+**Requirements**: AGENT-01
+**GitHub Issue**: #65
+**Success Criteria** (what must be TRUE):
+  1. Google Antigravity appears in the agent selection UI
+  2. Launching a session with it starts the Antigravity CLI correctly (binary detection / path handling)
+  3. Available across surfaces (GUI/CLI/web) per cross-surface parity
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 149 to break down)
+
+### Phase 150: Shell-Sharing Warning Toggle
+**Goal**: A Settings toggle enables/disables the shell-session web-sharing warning and can re-enable it after the first acknowledgment
+**Depends on**: Phase 143
+**Requirements**: SET-01
+**GitHub Issue**: #51
+**Success Criteria** (what must be TRUE):
+  1. Settings has a toggle controlling the shell web-share warning
+  2. Turning it off suppresses the warning; turning it on restores it (even after a prior one-time acknowledgment)
+  3. The setting persists across restarts (backed by daemon settings)
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 150 to break down)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
