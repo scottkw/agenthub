@@ -359,6 +359,67 @@ describe('Sidebar icon position stability (SBR-02)', () => {
 })
 
 // ============================================================
+// NAV-05 positive render contract — 3 items with groups present (GAP-03)
+// ============================================================
+
+describe('NAV-05 positive render contract — 3 items with groups present (GAP-03)', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+    localStorage.clear()
+  })
+
+  it('still renders exactly 3 sidebar__item buttons when groupDefs are present (Home, Hub, Settings)', () => {
+    // sidebar is expanded by default (no sidebar-collapsed in localStorage)
+    // showGroupList = effectiveExpanded && groupDefs.length > 0 — group items render in ul.sidebar__group-list,
+    // NOT as button.sidebar__item, so the top-level nav count must stay at exactly 3.
+    const groupDefs = [
+      makeGroup({ id: 'grp-1', name: 'Alpha' }),
+      makeGroup({ id: 'grp-2', name: 'Beta' }),
+    ]
+    ;({ container, root } = renderSidebar({ groupDefs }))
+    const items = container.querySelectorAll('button.sidebar__item')
+    expect(items.length).toBe(3)
+  })
+
+  it('renders group entries as .sidebar__group-item elements (not as top-level nav items)', () => {
+    const groupDefs = [
+      makeGroup({ id: 'grp-1', name: 'Alpha' }),
+      makeGroup({ id: 'grp-2', name: 'Beta' }),
+    ]
+    ;({ container, root } = renderSidebar({ groupDefs }))
+    // Groups appear inside ul.sidebar__group-list as li.sidebar__group-item
+    const groupItems = container.querySelectorAll('.sidebar__group-item')
+    // 2 named groups + "All" sentinel = 3 total group items
+    expect(groupItems.length).toBe(groupDefs.length + 1)
+  })
+
+  it('group item count matches groupDefs.length (named groups only, excluding "All")', () => {
+    const groupDefs = [makeGroup({ id: 'grp-1', name: 'Alpha' })]
+    ;({ container, root } = renderSidebar({ groupDefs }))
+    // Named group items: one per groupDef. "All" is also a .sidebar__group-item but its
+    // li.sidebar__group-item is also in the list; total = groupDefs.length + 1.
+    // Here we assert the list renders groupDefs.length named items by checking total = N+1.
+    const groupItems = container.querySelectorAll('.sidebar__group-item')
+    expect(groupItems.length).toBe(groupDefs.length + 1) // +1 for "All"
+  })
+
+  it('no Sessions or Remote buttons appear regardless of groupDefs', () => {
+    const groupDefs = [makeGroup({ id: 'grp-1', name: 'Alpha' })]
+    ;({ container, root } = renderSidebar({ groupDefs }))
+    expect(container.querySelector('button[aria-label="Sessions"]')).toBeNull()
+    expect(container.querySelector('button[aria-label="Remote"]')).toBeNull()
+  })
+})
+
+// ============================================================
 // POL-05: Sidebar group sub-list (RED — fails until POL-05 lands)
 // ============================================================
 
