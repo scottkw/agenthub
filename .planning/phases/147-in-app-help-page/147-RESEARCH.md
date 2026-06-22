@@ -806,7 +806,7 @@ const sanitizeSchema: Schema = {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Keyboard Shortcuts content**
    - What we know: The UI-SPEC says to omit the section if no shortcuts are documented. The codebase has no discovered keyboard shortcut documentation file.
