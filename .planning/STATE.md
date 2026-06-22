@@ -38,6 +38,7 @@ Progress: [██████████] 100%
 
 1. **`RELEASE_PUBLISH_TOKEN`** (one-time): create fine-grained PAT scoped to `Contents: read/write` on `scottkw/agenthub`, then `gh secret set RELEASE_PUBLISH_TOKEN`. Without this, `release.published` will not auto-trigger `distribute.yml`.
 2. **`WINGET_FIRST_SUBMISSION=true`** (one-time, first WinGet submission only): `gh variable set WINGET_FIRST_SUBMISSION --body "true"`. Unset after microsoft/winget-pkgs accepts the first submission.
+3. **Apply branch protection on `main` (TEST-02, Phase 143-04 deferred)**: deferred until v4.0 CI is green. v4.0 CI is currently red from #100 (daemon styled-tail data race) and #101 (internal/files Windows tests). Once both are fixed and CI passes, apply the verbatim `gh api ... --method PUT` command in TESTING.md §3, then smoke-test the gate (failing PR blocked, admin doc-push still lands).
 
 ## v4.0 Phase Plan
 
