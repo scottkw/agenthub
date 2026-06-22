@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
-stopped_at: Phase 143 complete; phases 144-150 added to v4.0 (issue burndown) — next /gsd:plan-phase 144
-last_updated: 2026-06-22T04:02:28.274Z
-last_activity: 2026-06-22
+stopped_at: Completed 143-01-PLAN.md
+last_updated: "2026-06-22T04:46:15.547Z"
+last_activity: 2026-06-22 -- Phase 144 planning complete
 progress:
   total_phases: 15
   completed_phases: 8
-  total_plans: 32
+  total_plans: 33
   completed_plans: 33
   percent: 53
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 Phase: 144 (next to plan) — phases 144-150 added, not yet planned
 Plan: Not started
-Status: v4.0 in progress — 8/15 phases complete; 144-150 scaffolded from GitHub issues
-Last activity: 2026-06-22
+Status: Ready to execute
+Last activity: 2026-06-22 -- Phase 144 planning complete
 
 Progress: [█████░░░░░] 8/15 phases complete
 
