@@ -539,7 +539,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
 | 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 3/3 | Complete    | 2026-06-22 |
-| 146. Open Session Capability Bug | v4.0 | —/— | Re-planning | 2026-06-22 |
+| 146. Open Session Capability Bug | v4.0 | 0/4 | Planned     | 2026-06-22 |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
 | 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
 | 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |

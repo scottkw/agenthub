@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: planning
-stopped_at: Phase 146 redesigned to out-of-band — ready to re-plan
+status: planned
+stopped_at: Phase 146 re-planned (out-of-band, 4 plans) — ready to execute
 last_updated: "2026-06-22T15:04:08.108Z"
 last_activity: 2026-06-22
 progress:
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 146 (open-session-capability-bug) — RE-PLANNING
-Plan: redesigned to out-of-band (broadcast approach superseded after gates failed it)
-Status: Ready to re-plan. Decision locked: no broadcast; reuse Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL for out-of-band code/link open; same-machine re-attach untouched. See 146-CONTEXT.md (D-02/D-04/D-09..D-12), 146-RESEARCH.md.
+Phase: 146 (open-session-capability-bug) — PLANNED
+Plan: 4 plans (3 waves), out-of-band redesign; plan-checker PASS (0 blockers)
+Status: Ready to execute (/gsd:execute-phase 146). Decision locked: no broadcast; reuse Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL for out-of-band code/link open; same-machine re-attach untouched. See 146-CONTEXT.md (D-02/D-04/D-09..D-12), 146-RESEARCH.md.
 Last activity: 2026-06-22
 
 Progress: [░░░░░░░░░░] re-planning
