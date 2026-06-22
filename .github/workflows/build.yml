@@ -77,6 +77,10 @@ jobs:
         if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
         run: cd frontend && pnpm install && pnpm test
 
+      - name: Verify traceability paths exist
+        if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
+        run: bash tests/check-traceability-paths.sh
+
       - name: Install Wails CLI (version from go.mod)
         shell: bash
         run: |
