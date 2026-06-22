@@ -15,10 +15,7 @@ export interface RemoteSession {
   cliType: string
   status: string
   url: string
-  /** Phase 146 FIX-03: read-only join code for auto-exchange on open; absent when session is not shared (D-03). */
-  roJoinCode?: string
-  /** Phase 146 FIX-03: read-write join code; used only when viewer is the peer owner (D-06). */
-  rwJoinCode?: string
+  // broadcast join-code fields REMOVED — D-10: discovery carries no codes (out-of-band design)
 }
 
 export interface RemotePeerSessions {

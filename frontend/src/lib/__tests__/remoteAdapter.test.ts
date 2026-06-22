@@ -1,12 +1,11 @@
-// Phase 146 FIX-03 — remoteAdapter.ts tests.
+// Phase 146 FIX-03 (revised) — remoteAdapter.ts tests.
 //
-// Tests for adaptRemoteSession and adaptAllRemoteSessions, focusing on the
-// Phase 146 contract: ro_join_code / rw_join_code pass-through.
+// Tests for adaptRemoteSession and adaptAllRemoteSessions focusing on the
+// CARD-04 contract: hostname pass-through (globe icon) and URL pass-through
+// (CR-01 "Open in browser" affordance).
 //
-// Wave 0 RED: the roJoinCode/rwJoinCode pass-through tests are RED until Wave 2
-// extends AdaptedRemoteSessionInfo + adaptRemoteSession to carry the new fields.
-// The existing structure/url tests below are GREEN from the start (they test
-// already-implemented behavior).
+// Broadcast pass-through tests REMOVED — D-10: discovery carries no join codes
+// in the out-of-band design. See CONTEXT.md D-10.
 
 import { describe, it, expect } from 'vitest'
 import { adaptRemoteSession, adaptAllRemoteSessions } from '../remoteAdapter'
@@ -23,23 +22,18 @@ function makePeer(overrides?: Partial<RemotePeerSessions>): RemotePeerSessions {
   }
 }
 
-function makeSession(overrides?: Partial<RemoteSession> & { roJoinCode?: string; rwJoinCode?: string }): RemoteSession & { roJoinCode?: string; rwJoinCode?: string } {
-  const { roJoinCode, rwJoinCode, ...rest } = overrides ?? {}
-  const base: RemoteSession = {
+function makeSession(overrides?: Partial<RemoteSession>): RemoteSession {
+  return {
     id: 'sess-x',
     name: 'Test Session',
     cliType: 'claude',
     status: 'running',
     url: 'https://peer-host.ts.net:9443/sessions/sess-x',
-    ...rest,
+    ...overrides,
   }
-  const result: RemoteSession & { roJoinCode?: string; rwJoinCode?: string } = { ...base }
-  if (roJoinCode !== undefined) result.roJoinCode = roJoinCode
-  if (rwJoinCode !== undefined) result.rwJoinCode = rwJoinCode
-  return result
 }
 
-// ─── Existing contract (GREEN from the start) ────────────────────────────────
+// ─── Existing contract (CARD-04 / CR-01) ─────────────────────────────────────
 
 describe('adaptRemoteSession — existing contract', () => {
   it('maps id, name, cli, status from the remote session', () => {
@@ -50,7 +44,7 @@ describe('adaptRemoteSession — existing contract', () => {
     expect(adapted.status).toBe('running')
   })
 
-  it('carries the peer hostname so Hub shows globe icon + hostname', () => {
+  it('carries the peer hostname so Hub shows globe icon + hostname (CARD-04)', () => {
     const adapted = adaptRemoteSession(makePeer({ hostname: 'remote-mac' }), makeSession())
     expect(adapted.hostname).toBe('remote-mac')
   })
@@ -63,31 +57,6 @@ describe('adaptRemoteSession — existing contract', () => {
   it('sets webEnabled=true for remote sessions', () => {
     const adapted = adaptRemoteSession(makePeer(), makeSession())
     expect(adapted.webEnabled).toBe(true)
-  })
-})
-
-// ─── Phase 146 pass-through (RED until Wave 2) ──────────────────────────────
-//
-// RED: adaptRemoteSession does not yet pass roJoinCode/rwJoinCode through
-// (AdaptedRemoteSessionInfo type doesn't carry those fields yet). Wave 2 will:
-//   1. Add roJoinCode?/rwJoinCode? to AdaptedRemoteSessionInfo
-//   2. Pass them through in adaptRemoteSession
-
-describe('adaptRemoteSession — Phase 146 join-code pass-through (RED)', () => {
-  it('passes roJoinCode through from session when present (Phase 146)', () => {
-    const session = makeSession({ roJoinCode: 'ro-abc', rwJoinCode: 'rw-xyz' })
-    const adapted = adaptRemoteSession(makePeer(), session)
-    // Cast to access the not-yet-typed field — Wave 2 will add it to AdaptedRemoteSessionInfo.
-    expect((adapted as unknown as { roJoinCode?: string }).roJoinCode).toBe('ro-abc')
-    expect((adapted as unknown as { rwJoinCode?: string }).rwJoinCode).toBe('rw-xyz')
-  })
-
-  it('roJoinCode is undefined when session has no join code (D-03 not-shared path)', () => {
-    const session = makeSession() // no roJoinCode / rwJoinCode fields
-    const adapted = adaptRemoteSession(makePeer(), session)
-    // When the peer hasn't enabled sharing, these fields must be absent.
-    expect((adapted as unknown as { roJoinCode?: string }).roJoinCode).toBeUndefined()
-    expect((adapted as unknown as { rwJoinCode?: string }).rwJoinCode).toBeUndefined()
   })
 })
 
