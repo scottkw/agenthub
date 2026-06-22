@@ -15,6 +15,12 @@ interface HookSnapshot {
   retry: () => void
 }
 
+// Track every mounted root so afterEach can unmount it. Without unmount the
+// hook's effect cleanups never run, so a late-settling async setState (e.g. the
+// web-share probeWrite rejection) fires after jsdom teardown → "window is not
+// defined" unhandled rejection (flaky, timing-dependent across CI runners).
+const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = []
+
 function renderHook<T>(useHook: () => T): { current: { value: T }; root: Root; container: HTMLDivElement; flush: () => Promise<void> } {
   const ref: { value: T } = { value: undefined as unknown as T }
   function Host(): React.ReactElement | null {
@@ -34,6 +40,7 @@ function renderHook<T>(useHook: () => T): { current: { value: T }; root: Root; c
     root = createRoot(container)
     root.render(<Host />)
   })
+  mountedRoots.push({ root, container })
   async function flush(): Promise<void> {
     await act(async () => {
       // Allow microtasks (Promise resolution inside the effect) to settle.
@@ -53,6 +60,11 @@ function makeMockClient(overrides: Partial<FilesApiClient> = {}): FilesApiClient
       (async () => {
         throw new Error('not stubbed')
       })) as FilesApiClient['listFiles']
+  // Stub probeWrite so the canWrite effect (web-share path, filesWriteSignal
+  // undefined) resolves deterministically instead of issuing a real network
+  // request whose late rejection would leak past test teardown.
+  ;(client as unknown as { probeWrite: FilesApiClient['probeWrite'] }).probeWrite =
+    (overrides.probeWrite ?? (async () => undefined)) as FilesApiClient['probeWrite']
   return client
 }
 
@@ -60,7 +72,14 @@ beforeEach(() => {
   vi.useRealTimers()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  // Unmount every root inside act() so the hook's effect cleanups run and the
+  // `cancelled` guards prevent any in-flight async from calling setState after
+  // teardown.
+  await act(async () => {
+    for (const { root } of mountedRoots) root.unmount()
+  })
+  mountedRoots.length = 0
   document.body.innerHTML = ''
 })
 
