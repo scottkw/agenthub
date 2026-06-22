@@ -1,10 +1,11 @@
 ---
 phase: 144
 slug: daemon-styled-tail-race-fix
-status: approved
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-21
+validated: 2026-06-22
 ---
 
 # Phase 144 — Validation Strategy
@@ -38,8 +39,8 @@ created: 2026-06-21
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-----------|--------|
-| 144-01-01 | 01 | 1 | FIX-01 | — | N/A | unit (race) | `go test -race ./internal/daemon/ -run 'TestGetSessionStyledTailLines'` | ✅ | ⬜ pending |
-| 144-01-02 | 01 | 1 | FIX-01 | — | N/A | unit (regression) | `go test ./internal/daemon/ -run 'TestGetSessionStyledTailLines'` | ✅ | ⬜ pending |
+| 144-01-01 | 01 | 1 | FIX-01 | — | N/A | unit (race) | `go test -race ./internal/daemon/ -run 'TestGetSessionStyledTailLines'` | ✅ | ✅ green |
+| 144-01-02 | 01 | 1 | FIX-01 | — | N/A | unit (regression) | `go test ./internal/daemon/ -run 'TestGetSessionStyledTailLines'` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -47,8 +48,8 @@ created: 2026-06-21
 
 ## Wave 0 Requirements
 
-- [ ] No new framework — `go test -race` already in CI ("Run Go tests (all platforms, race detector)")
-- [ ] Optional new regression fixture `TestGetSessionStyledTailLines_AllQueriesNoHang` — broadened query-sequence scrollback proving Write never blocks after the strip (per RESEARCH.md open question A2). If added, it lives in the existing daemon test file (no new file) OR if a new file is created, add a TESTING.md traceability row for FIX-01 + run `bash tests/check-traceability-paths.sh`.
+- [x] No new framework — `go test -race` already in CI ("Run Go tests (all platforms, race detector)")
+- [x] Optional new regression fixture `TestGetSessionStyledTailLines_AllQueriesNoHang` — added in the existing daemon test file (`internal/daemon/engine_test.go:1938`), broadened query-sequence scrollback proving Write never blocks after the strip (per RESEARCH.md open question A2). No new file; TESTING.md FIX-01 traceability row present (line 146); `bash tests/check-traceability-paths.sh` exits 0.
 
 *Existing infrastructure covers all phase requirements; the four issue-named tests already assert the behavior under `-race`.*
 
@@ -74,3 +75,25 @@ created: 2026-06-21
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** approved 2026-06-21
+
+---
+
+## Validation Audit 2026-06-22
+
+Post-execution audit (State A). Cross-referenced FIX-01 against the implemented tests; ran the quick (race) and full daemon suites — all green.
+
+| Metric | Count |
+|--------|-------|
+| Requirements audited | 1 (FIX-01) |
+| Tasks COVERED | 2/2 |
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Evidence:**
+- `go test -race ./internal/daemon/ -run 'TestGetSessionStyledTailLines'` → ok (race-clean)
+- `go test ./internal/daemon/ -run 'TestGetSessionStyledTailLines|TestHandleGetSessionStyledTailLines'` → ok
+- Wave 0 fixture `TestGetSessionStyledTailLines_AllQueriesNoHang` present (engine_test.go:1938)
+- TESTING.md FIX-01 row present (line 146); `tests/check-traceability-paths.sh` → OK
+
+**Result:** Phase 144 is Nyquist-compliant — FIX-01 has automated verification (race + rendering regression). One confirmatory manual-only item remains (live GUI mini-preview render), already noted as confirmatory-only.
