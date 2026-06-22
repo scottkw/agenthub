@@ -80,7 +80,7 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 ### In-App Help (HELP)
 
-- [ ] **HELP-01**: An in-app Help page provides documentation, an FAQ, search, and external links (#69). [Phase 147]
+- [x] **HELP-01**: An in-app Help page provides documentation, an FAQ, search, and external links (#69). [Phase 147]
 
 ### Supported Agents (AGENT)
 
