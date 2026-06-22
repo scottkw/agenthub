@@ -43,7 +43,15 @@ function mapErrorMessage(raw: string): string {
   if (lower.includes('expired')) {
     return 'Code expired. Ask the owner to generate a new code.'
   }
-  if (lower.includes('invalid') || lower.includes('not-found')) {
+  // WR-03 (GAP-146-A Plan 05): split the used/consumed single-use code case (D-11)
+  // from the genuinely-wrong-digits case. 'not-found' means the code was already
+  // consumed by the in-app connect (join codes are single-use — the exchange endpoint
+  // returns 404 after first use). 'already used'/'already-used' covers the explicit
+  // error text some exchange paths return. Both are distinct from a typo ('invalid').
+  if (lower.includes('not-found') || lower.includes('already used') || lower.includes('already-used')) {
+    return 'Code already used or expired — ask the owner for a fresh code or use the share link.'
+  }
+  if (lower.includes('invalid')) {
     return 'Code invalid. Double-check the 8-character code (XXXX-XXXX).'
   }
   return raw

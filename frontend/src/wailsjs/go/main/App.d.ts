@@ -127,6 +127,8 @@ export function GetRemoteSessionsWithMeta(): Promise<RemotePeerSessions[]>
 // Phase 122-03 — remote-session file-browse join-code exchange + cap deposit.
 export function ExchangeJoinCodeAtURL(remoteBaseURL: string, code: string): Promise<string>
 export function RegisterRemoteCap(sessionID: string, baseURL: string, capToken: string): Promise<void>
+// Phase 146-05 — held-cap reuse: read cap-bearing open URL from daemon RemoteCapStore.
+export function OpenRemoteSessionURL(sessionID: string): Promise<string>
 
 // Auto-install Tailscale bound method
 export function AutoInstallTailscale(): Promise<void>

@@ -51,7 +51,7 @@ import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebShar
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
 import { adaptAllRemoteSessions } from './lib/remoteAdapter'
 import type { AdaptedRemoteSessionInfo } from './lib/remoteAdapter'
-import { ExchangeJoinCodeAtURL, RegisterRemoteCap } from './wailsjs/go/main/App'
+import { ExchangeJoinCodeAtURL, RegisterRemoteCap, OpenRemoteSessionURL } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
 import { UpdateBanner } from './components/UpdateBanner'
@@ -1063,11 +1063,20 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   }, [])
 
   // Phase 146 FIX-03 (out-of-band redesign) — open remote session in browser (#98).
-  // D-03: replaces the 401 dead-end with the paste-a-code modal (RemoteJoinCodeModal).
-  // D-04/D-11: reuses the Phase 122 RemoteJoinCodeModal + ExchangeJoinCodeAtURL flow.
-  // D-09: local session re-attach is untouched (handleOpenSessionTab, see below).
+  // GAP-146-A Plan 05: held-cap reuse (remoteCapsCached) + modal fallback.
   const handleOpenRemoteSession = useCallback(
-    (session: AdaptedRemoteSessionInfo): void => {
+    async (session: AdaptedRemoteSessionInfo): Promise<void> => {
+      // Held-cap reuse: cap already held → build open URL from daemon store, no modal.
+      if (remoteCapsCached.has(session.id)) {
+        try {
+          const url = await OpenRemoteSessionURL(session.id)
+          BrowserOpenURL(url)
+          return
+        } catch {
+          // Stale/evicted cap — fall through to modal for self-heal.
+        }
+      }
+      // No cap (or stale): open join-code modal for out-of-band exchange.
       const baseURL = remoteBaseURLFor(session)
       if (!baseURL) {
         setSaveBanner({ kind: 'error', text: 'Cannot open session — the remote peer URL is unavailable.' })
@@ -1081,7 +1090,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         baseURL,
       })
     },
-    [setSaveBanner],
+    [remoteCapsCached, setSaveBanner],
   )
 
   // Phase 122-03 — remote-session file-browse entry point. If the cap is
@@ -1139,11 +1148,26 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       if (!pending) throw new Error('no session pending')
 
       // Phase 146: open-session intent — use pre-computed baseURL, open cap-bearing URL.
+      // GAP-146-A WR-01 fix (Plan 05): deposit the cap so RemoteCapStore holds the
+      // SID-correct entry, then build the open URL via OpenRemoteSessionURL (daemon-
+      // composed) — eliminating the mismatch-prone hand-built URL that could produce
+      // /sessions/A with the cap for B when the clicked-session id mismatches cap SID.
       if (pending.intent === 'open-session') {
         const baseURL = pending.baseURL ?? ''
         if (!baseURL) throw new Error('session-gone')
         const cap = await ExchangeJoinCodeAtURL(baseURL, code)
-        BrowserOpenURL(baseURL + '/sessions/' + pending.id + '?cap=' + cap)
+        // Deposit the cap so the daemon's RemoteCapStore holds the keyed entry.
+        await RegisterRemoteCap(pending.id, baseURL, cap)
+        // Mark session as cap-cached so future "Open in browser" reuses it.
+        setRemoteCapsCached((prev) => {
+          const next = new Set(prev)
+          next.add(pending.id)
+          return next
+        })
+        // Build the SID-correct cap-bearing URL from the daemon's stored entry
+        // (keyed by the cap just deposited — daemon ensures path SID = lookup key).
+        const url = await OpenRemoteSessionURL(pending.id)
+        BrowserOpenURL(url)
         return
       }
 

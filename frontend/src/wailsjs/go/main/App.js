@@ -69,6 +69,8 @@ export const GetRemoteSessionsWithMeta = ()                 => Call('main.App.Ge
 // Phase 122-03 — remote-session file-browse join-code exchange + cap deposit.
 export const ExchangeJoinCodeAtURL = (remoteBaseURL, code)  => Call('main.App.ExchangeJoinCodeAtURL', [remoteBaseURL, code])
 export const RegisterRemoteCap     = (sessionID, baseURL, capToken) => Call('main.App.RegisterRemoteCap', [sessionID, baseURL, capToken])
+// Phase 146-05 — held-cap reuse: read cap-bearing open URL from daemon RemoteCapStore.
+export const OpenRemoteSessionURL  = (sessionID)            => Call('main.App.OpenRemoteSessionURL', [sessionID])
 
 // Auto-install Tailscale bound method
 export const AutoInstallTailscale = ()                      => Call('main.App.AutoInstallTailscale', [])
