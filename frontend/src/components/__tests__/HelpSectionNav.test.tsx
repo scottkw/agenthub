@@ -12,19 +12,10 @@ import { createRoot } from 'react-dom/client'
 // Render helper
 // ============================================================
 
-let HelpSectionNav: React.ComponentType<{
-  activeSection: string
-  onSectionChange: (id: string) => void
-  contentPaneRef: React.RefObject<HTMLDivElement>
-}>
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  HelpSectionNav = require('../HelpSectionNav').HelpSectionNav
-} catch {
-  // Component doesn't exist yet (RED state)
-  HelpSectionNav = () => null as unknown as React.ReactElement
-}
+// Phase 147-02: Component now exists — use static import (GREEN state).
+// The try/catch require() pattern used in RED state is incompatible with
+// Vitest's CJS resolver (which does not try .tsx extensions).
+import { HelpSectionNav } from '../HelpSectionNav'
 
 function renderHelpSectionNav(
   overrides: Partial<{

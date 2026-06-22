@@ -14,23 +14,10 @@ import { createRoot } from 'react-dom/client'
 
 type SearchEntry = { sectionId: string; sectionLabel: string; text: string }
 
-// Dynamically import HelpSearch so compilation errors in the (not-yet-existing)
-// component surface at test time as "module not found" rather than crashing the
-// entire suite. The tests below are expected to fail at render time.
-let HelpSearch: React.ComponentType<{
-  query: string
-  results: ReadonlyArray<SearchEntry>
-  onQueryChange: (raw: string) => void
-  onJumpToSection: (id: string) => void
-}>
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  HelpSearch = require('../HelpSearch').HelpSearch
-} catch {
-  // Component doesn't exist yet (RED state) — tests will fail at render
-  HelpSearch = () => null as unknown as React.ReactElement
-}
+// Phase 147-02: Component now exists — use static import (GREEN state).
+// The try/catch require() pattern used in RED state is incompatible with
+// Vitest's CJS resolver (which does not try .tsx extensions).
+import { HelpSearch } from '../HelpSearch'
 
 function renderHelpSearch(
   overrides: Partial<{
