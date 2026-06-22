@@ -25,7 +25,7 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
-| Go unit/integration | **346** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
+| Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
 | vitest (frontend) | **108** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
@@ -147,6 +147,8 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | FIX-02 | internal/files/write_test.go | Go | Windows concurrent-read fix (#101): `TestWriteFileAtomic_ConcurrentReadNeverPartial` — reader uses `readFilePlatformSafe` (FILE_SHARE_DELETE on Windows) so POSIX-semantics rename succeeds |
 | FIX-02 | internal/files/concurrent_read_windows_test.go | Go | Windows build-tagged `readFilePlatformSafe` via `syscall.CreateFile` with FILE_SHARE_DELETE |
 | FIX-02 | internal/files/concurrent_read_unix_test.go | Go | Non-Windows build-tagged `readFilePlatformSafe` delegating to `os.ReadFile` |
+| FIX-03 | internal/webserver/sessions_meta_embed_test.go | Go | `TestSessionsMeta_EmbedJoinCodes` — ro_join_code/rw_join_code embed in /api/sessions/meta when issuer is wired; `TestSessionsMeta_NilIssuer` — degraded mode (no issuer) returns 200 with empty codes |
+| FIX-03 | internal/daemon/mint_join_codes_test.go | Go | `TestMintSessionJoinCodes` — mintSessionJoinCodes returns non-empty distinct codes; grants registered before return; tokens verify with correct RO/RW perms |
 
 ---
 

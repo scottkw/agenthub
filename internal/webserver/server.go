@@ -45,12 +45,19 @@ type Config struct {
 // webserver which is bound to the Tailscale IP — only tailnet members can reach it
 // (network-layer trust per the resolved #86 decision and RB-03). It must NEVER
 // include cap tokens, grants, content, or signing keys.
+//
+// Phase 146 / FIX-03: ROJoinCode and RWJoinCode are fresh single-use join codes
+// minted per request by the joinCodeIssuer callback. They are NOT raw cap tokens
+// (T-146-01 / RB-03 preserved). Always serialized (no omitempty) so downstream
+// tests can assert their presence; empty when no issuer is wired (degraded mode).
 type sessionMetaItem struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	CLIType string `json:"cli_type"`
-	Status  string `json:"status"`
-	URL     string `json:"url"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	CLIType    string `json:"cli_type"`
+	Status     string `json:"status"`
+	URL        string `json:"url"`
+	ROJoinCode string `json:"ro_join_code"`
+	RWJoinCode string `json:"rw_join_code"`
 }
 
 // sessionListItem is the JSON shape returned by GET /api/sessions and GET /api/sessions/{id}/info.
@@ -98,6 +105,12 @@ type WebServer struct {
 
 	// sessionResolver is set once before Start() and is not mutex-protected.
 	sessionResolver func(sessionID string) (name, cliType, status, hostname string)
+
+	// joinCodeIssuer is set once before Start() via SetJoinCodeIssuer (Phase 146
+	// FIX-03). When non-nil, handleSessionsMeta calls it per web-enabled session
+	// to obtain fresh single-use RO+RW join codes. Set-once pattern mirrors
+	// sessionResolver; not mutex-protected.
+	joinCodeIssuer func(sessionID string) (roCode, rwCode string, err error)
 
 	// pluginSettingsProvider returns pre-marshaled JSON for the daemon's
 	// current plugin settings. Set once before Start() via
@@ -152,6 +165,16 @@ func NewWebServer(cfg Config, manager *relay.HubManager) (*WebServer, error) {
 // hostname). Must be called before Start().
 func (ws *WebServer) SetSessionResolver(fn func(string) (string, string, string, string)) {
 	ws.sessionResolver = fn
+}
+
+// SetJoinCodeIssuer installs the callback used by handleSessionsMeta to mint
+// fresh per-session join codes (Phase 146 / FIX-03). The callback receives a
+// session ID and returns (roCode, rwCode, err). Must be called before Start().
+// Set-once; not mutex-protected (mirrors SetSessionResolver). When nil (the
+// default), handleSessionsMeta responds in degraded mode with empty codes —
+// no 500, no panic (D-01 / PATTERNS.md Error-Handling).
+func (ws *WebServer) SetJoinCodeIssuer(fn func(string) (string, string, error)) {
+	ws.joinCodeIssuer = fn
 }
 
 // SetPluginSettingsProvider sets the callback used by handleGetPluginConfig
@@ -846,13 +869,26 @@ func (ws *WebServer) handleSessionsMeta(w http.ResponseWriter, r *http.Request) 
 			name = id
 		}
 		sessionURL := fmt.Sprintf("%s/sessions/%s", ws.BaseURL(), id)
-		items = append(items, sessionMetaItem{
+		item := sessionMetaItem{
 			ID:      id,
 			Name:    name,
 			CLIType: cliType,
 			Status:  st,
 			URL:     sessionURL,
-		})
+		}
+		// Phase 146 / FIX-03: mint fresh single-use join codes per session so
+		// the viewer can open a cap-bearing URL without a separate POST handshake
+		// (Mechanism B). When issuer is nil, codes remain empty (degraded mode —
+		// no 500, no panic per PATTERNS.md Error-Handling; D-01 gate unchanged).
+		if ws.joinCodeIssuer != nil {
+			roCode, rwCode, err := ws.joinCodeIssuer(id)
+			if err == nil {
+				item.ROJoinCode = roCode
+				item.RWJoinCode = rwCode
+			}
+			// On error: leave codes empty and continue (degraded mode).
+		}
+		items = append(items, item)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items) //nolint:errcheck
