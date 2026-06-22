@@ -566,8 +566,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. `TestHandlerUpload_FilenameSanitized`, `TestDenylist_NonHomeRootedUnaffected`, and `TestWriteFileAtomic_ConcurrentReadNeverPartial` pass on `windows/amd64, windows-latest`
   2. The same tests still pass on macOS and Linux (no regression)
   3. The Windows build matrix job is green
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 145 to break down)
+**Plans**: 3 plans
+- [ ] 145-01-PLAN.md — Redirect $HOME in the two home-rooting tests (handler upload sanitize + non-home denylist)
+- [ ] 145-02-PLAN.md — Build-tagged readFilePlatformSafe (FILE_SHARE_DELETE) for the concurrent-read test
+- [ ] 145-03-PLAN.md — Update TESTING.md (manifest/traceability/manual) + confirm Windows CI matrix green
 
 ### Phase 146: Open Session Capability Bug
 **Goal**: The "Open Session" button opens the live session instead of landing on a "capability required" web page
