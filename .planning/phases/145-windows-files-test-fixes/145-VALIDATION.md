@@ -55,6 +55,8 @@ created: 2026-06-22
 
 *Existing test files (`handler_test.go`, `write_test.go`) are modified in place — not moved or renamed. The two helper files are the only new files.*
 
+> **Executor note:** After the two `concurrent_read_*_test.go` helper files are created and cross-vet/compile clean (end of plan 145-02), flip this file's frontmatter to `wave_0_complete: true`, and set `nyquist_compliant: true` once the full `internal/files` suite is green locally. The phase is only TRULY verified once the Windows CI matrix job is green (manual checkpoint, plan 145-03).
+
 ---
 
 ## Manual-Only Verifications

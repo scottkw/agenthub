@@ -662,21 +662,19 @@ Security enforcement is enabled (not explicitly disabled in config).
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Is the existing `writeAtomicRename` retry loop still needed after the test fix?**
    - What we know: The retry was added as a mitigation for sharing violations from production readers (antivirus, indexers). The test fix makes the TEST reader safe; production readers are outside our control.
-   - What's unclear: Whether the retry helps or hurts in practice with FILE_RENAME_POSIX_SEMANTICS.
-   - Recommendation: Keep the retry loop unchanged. It does not affect correctness; it only improves production resilience. The test fix is independent of whether we keep or remove the retry.
+   - RESOLVED: Keep the retry loop unchanged — see plan 145-02 threat model T-145-02. It does not affect correctness; it only improves production resilience, and the test fix is independent of whether we keep or remove it.
 
 2. **Should Tests 1 and 2 use `setHomeEnv` or instead find a genuinely non-home temp location?**
    - What we know: `setHomeEnv` modifies the environment for the test, which is what the existing denylist tests do. Using a fake home is the established pattern.
-   - What's unclear: Whether modifying HOME in `TestHandlerUpload_FilenameSanitized` could interfere with other tests if parallelism is enabled.
-   - Recommendation: `t.Setenv` (used by `setHomeEnv`) restores the env after the test. No interference. Use `setHomeEnv`.
+   - RESOLVED: Use `setHomeEnv` — plan 145-01 does exactly this. `t.Setenv` (used by `setHomeEnv`) restores the env after the test, so there is no cross-test interference.
 
 3. **Should `newHandler` be replaced by a `newHandlerOutsideHome` helper, or should the fix be inline?**
    - What we know: `newHandler` is used by 35+ tests; changing it globally would affect all of them.
-   - Recommendation: Add `newHandlerOutsideHome(t)` alongside `newHandler(t)`. Only `TestHandlerUpload_FilenameSanitized` uses the new helper (it needs the non-home guarantee). Other upload tests that use `newHandlerWithHomeSandbox` or `newHandler` are unaffected.
+   - RESOLVED: Inline redirect — plan 145-01 Task 1 redirects `$HOME` via `setHomeEnv` inline inside `TestHandlerUpload_FilenameSanitized` before `newHandler(t)`. This supersedes the earlier `newHandlerOutsideHome(t)` helper idea: the inline approach is equivalent, requires fewer changes, and avoids adding a second handler helper that only one test would ever use.
 
 ---
 
