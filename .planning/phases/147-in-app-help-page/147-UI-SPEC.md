@@ -1,10 +1,11 @@
 ---
 phase: 147
 slug: in-app-help-page
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-22
+reviewed_at: 2026-06-22
 ---
 
 # Phase 147 — UI Design Contract: In-App Help Page
