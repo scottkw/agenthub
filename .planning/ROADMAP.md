@@ -538,7 +538,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 142. Hub & Settings Redesign Polish | v4.0 | 4/4 | Complete    | 2026-06-21 |
 | 143. Regression Test Program | v4.0 | 4/4 | Complete    | 2026-06-22 |
 | 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
-| 145. Windows Files Test Fixes | v4.0 | 0/0 | Not planned | — |
+| 145. Windows Files Test Fixes | v4.0 | 1/3 | In Progress|  |
 | 146. Open Session Capability Bug | v4.0 | 0/0 | Not planned | — |
 | 147. In-App Help Page | v4.0 | 0/0 | Not planned | — |
 | 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
@@ -567,7 +567,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The same tests still pass on macOS and Linux (no regression)
   3. The Windows build matrix job is green
 **Plans**: 3 plans
-- [ ] 145-01-PLAN.md — Redirect $HOME in the two home-rooting tests (handler upload sanitize + non-home denylist)
+- [x] 145-01-PLAN.md — Redirect $HOME in the two home-rooting tests (handler upload sanitize + non-home denylist)
 - [ ] 145-02-PLAN.md — Build-tagged readFilePlatformSafe (FILE_SHARE_DELETE) for the concurrent-read test
 - [ ] 145-03-PLAN.md — Update TESTING.md (manifest/traceability/manual) + confirm Windows CI matrix green
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: ready_to_plan
-stopped_at: Phase 144 complete (1/1) — ready to discuss Phase 145
-last_updated: 2026-06-22T05:02:30.796Z
+status: executing
+stopped_at: Completed 143-01-PLAN.md
+last_updated: "2026-06-22T05:39:54.991Z"
 last_activity: 2026-06-22
 progress:
   total_phases: 15
   completed_phases: 9
-  total_plans: 33
-  completed_plans: 34
+  total_plans: 36
+  completed_plans: 35
   percent: 60
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 145 — windows files test fixes
+**Current focus:** Phase 145 — windows-files-test-fixes
 
 ## Current Position
 
-Phase: 145
-Plan: Not started
-Status: Ready to plan
+Phase: 145 (windows-files-test-fixes) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-06-22
 
-Progress: [██████████] 100%
+Progress: [██████████] 97%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -94,7 +94,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-22T04:52:34.167Z
+Last session: 2026-06-22T05:39:54.986Z
 Stopped at: Completed 143-01-PLAN.md
 Resume file: None
 Next action: `/gsd:plan-phase 136`
