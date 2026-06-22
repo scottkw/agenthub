@@ -600,8 +600,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. A Help page is reachable from the app navigation (sidebar/menu)
   2. It includes documentation content, an FAQ, search over that content, and external links (docs/repo/issues)
   3. Present on the appropriate surfaces per cross-surface parity
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 147 to break down)
+**Plans**: 4 plans
+- [ ] 147-01-PLAN.md — Wave 0: IntersectionObserver polyfill, rehype-sanitize install, seeded Help Markdown content, failing test stubs + Sidebar test update
+- [ ] 147-02-PLAN.md — Help components: HelpContent (react-markdown + BrowserOpenURL links), HelpSearch (debounce/highlight/empty-state), HelpSectionNav (IntersectionObserver scroll-spy), HelpTab container + .help-* CSS/token
+- [ ] 147-03-PLAN.md — Nav wiring: Tab type union, 4th sidebar item (Help), HELP_TAB + handleOpenHelp in App.tsx, build gate
+- [ ] 147-04-PLAN.md — TESTING.md registration (Suite Manifest §2, Traceability §4) + M-14 manual UAT item
 
 ### Phase 148: Session Tab Chevron
 **Goal**: Session tabs show a down-chevron indicator signaling the context menu is available, improving discoverability
