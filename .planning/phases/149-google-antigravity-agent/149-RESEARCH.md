@@ -550,22 +550,24 @@ Currently no evidence that `agy` requires a managed config shim. The clean PTY p
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Live output pattern sampling for status classifier**
+All three are resolved for planning purposes — each has a definitive recommendation the Phase 149 plans implement. None blocks execution; the residual uncertainty is bounded to post-M-15 live tuning.
+
+1. **Live output pattern sampling for status classifier** — RESOLVED
    - What we know: `agy` TUI shows `>` prompt idle, `! ` shell mode, `"▸ Thought for Xs"` during reasoning.
    - What's unclear: exact regex-safe representation after ANSI strip, whether spinner frames appear before the thought summary.
-   - Recommendation: Ship minimal `DefaultAgyPatterns` with `> \s*$` idle rule. Add TESTING.md M-15 note to tune after live access.
+   - Resolution: Ship minimal `DefaultAgyPatterns` with `> \s*$` idle rule (implemented in Plan 149-01 Task 3). Tune after live access — captured as the TESTING.md M-15 manual item.
 
-2. **Homebrew cask naming (`antigravity-cli` vs `antigravity`)**
+2. **Homebrew cask naming (`antigravity-cli` vs `antigravity`)** — RESOLVED
    - What we know: `brew install antigravity-cli` installs the CLI as `agy`; `brew install --cask antigravity` installs the desktop app (may also write an `agy` binary, causing conflict).
    - What's unclear: Whether `brew install antigravity-cli` is the formula or cask (sources disagree on formula vs cask classification).
-   - Recommendation: PATH augmentation probes for `~/.local/bin/agy`, `/opt/homebrew/bin/agy`, `/usr/local/bin/agy` by file system existence — it doesn't care which install method was used. The planner need not resolve the formula-vs-cask question.
+   - Resolution: Moot — PATH augmentation probes for `~/.local/bin/agy`, `/opt/homebrew/bin/agy`, `/usr/local/bin/agy` by filesystem existence and is install-method-agnostic. The planner correctly does not resolve formula-vs-cask.
 
-3. **Auth guidance modal scope**
+3. **Auth guidance modal scope** — RESOLVED
    - What we know: OAuth URL wrapping is a cosmetic PTY issue (issues #43, #315); auth works functionally.
    - What's unclear: Whether the first-run experience inside AgentHub is smooth enough without a modal, or whether users will be confused.
-   - Recommendation: Defer the auth modal to post-waitlist live testing. Add a README note. If post-live UAT (M-15) surfaces confusion, add the modal as a gap-closure plan.
+   - Resolution: Defer the auth modal to post-waitlist live testing (no modal task in the plans); add a README note. If post-live UAT (M-15) surfaces confusion, add the modal as a gap-closure plan.
 
 ---
 
