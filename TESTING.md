@@ -251,9 +251,9 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 ### Category I — Live Agent Launch (AGENT-01)
 
-- **M-15** Live Antigravity launch — verify when waitlist access is granted: run `agenthub new agy <dir>` and confirm (a) the GUI/web new-session picker shows "Google Antigravity"; (b) `agy` launches an interactive PTY REPL; (c) auth completes via browser-loopback OAuth or the documented SSH/OTP degradation path; (d) the status badge renders `#ff9e64`; (e) the card spine, chip, and tab dot all show the agy color in lockstep.
-  - _Why not automatable:_ `agy` is in closed-beta/waitlist (D-03) — the binary cannot be installed for live UAT this phase. Live PTY REPL interaction and browser-loopback OAuth require a real, installed binary that is not yet publicly available.
-  - _Source:_ CONTEXT D-03; 149-VALIDATION.md Manual-Only Verifications; AGENT-01 (#65)
+- **M-15** ✅ PASSED 2026-06-23 — Live Antigravity launch: ran the live UAT with `agy` (Antigravity CLI 1.0.10) in the native build and confirmed (a) the new-session picker shows "Google Antigravity"; (b) `agy` launches an interactive PTY REPL (bidirectional round-trip — typed prompt → live agent response); (c) auth complete (authenticated session, Antigravity Starter Quota); (d) `#ff9e64` badge source-validated (style.hub.test.ts) + tab dot amber in live build; (e) color lockstep source-validated. Owner is colorblind — color confirmed at source, not by eye.
+  - _Why it was deferred:_ `agy` was in closed-beta/waitlist (D-03) — the binary could not be installed for live UAT during Phase 149. Resolved once the maintainer obtained access.
+  - _Source:_ CONTEXT D-03; 149-VERIFICATION.md (M-15 resolved 2026-06-23); AGENT-01 (#65)
 
 ### Category J — Shell Web-Share Warning Toggle (SET-01)
 

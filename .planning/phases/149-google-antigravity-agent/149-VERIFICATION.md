@@ -1,21 +1,23 @@
 ---
 phase: 149-google-antigravity-agent
 verified: 2026-06-22T23:25:30Z
-status: human_needed
-score: 9/9 must-haves verified
+status: passed
+m15_resolved: 2026-06-23
+score: 9/9 must-haves verified + M-15 live UAT passed
 overrides_applied: 0
 human_verification:
   - test: "Live agy REPL launch — run `agenthub new agy <dir>` when waitlist access is granted"
     expected: "GUI/web picker shows 'Google Antigravity'; agy launches an interactive PTY REPL; auth completes via browser-loopback OAuth or SSH/OTP path; status badge renders #ff9e64; card spine, chip, and tab dot all show agy color in lockstep"
     why_human: "agy binary is closed-beta/waitlist — cannot be installed for live UAT this phase. Live PTY REPL and browser-loopback OAuth require a real installed binary. Documented in TESTING.md M-15 per D-03."
+    resolved: "2026-06-23 — maintainer obtained agy (Antigravity CLI 1.0.10) and ran live UAT in native wails build. (a) new-session picker showed Google Antigravity; (b) agy launched an interactive PTY REPL and a bidirectional round-trip succeeded (typed prompt → live agent response + summary block); (c) auth complete (session shows authenticated kscott@iprosystems.com, Antigravity Starter Quota); (d)(e) #ff9e64 color lockstep already source-validated (style.hub.test.ts 100/100), tab dot visibly amber in the live build. Colorblind owner did not eyeball color — source-gated per [[user_colorblind]]. PASS."
 ---
 
 # Phase 149: Google Antigravity Agent Verification Report
 
 **Phase Goal:** Google Antigravity CLI is selectable as a supported agent and launches correctly.
-**Verified:** 2026-06-22T23:25:30Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-06-22T23:25:30Z (source) · 2026-06-23 (M-15 live UAT)
+**Status:** passed — 9/9 source must-haves + M-15 live UAT
+**Re-verification:** No — initial verification; M-15 live launch resolved 2026-06-23
 
 ## Goal Achievement
 
@@ -87,7 +89,7 @@ No phase-declared probes. Behavioral spot-checks above serve as the equivalent p
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| AGENT-01 | 149-01, 149-02, 149-03 | Google Antigravity CLI is selectable as a supported agent and launches correctly (#65) | SATISFIED (source-level; live-launch deferred per D-03) | knownCLIs entry, badge color, TESTING.md M-15, README documented; D-03 accepted waitlist fallback — live REPL launch is TESTING.md M-15 manual item |
+| AGENT-01 | 149-01, 149-02, 149-03 | Google Antigravity CLI is selectable as a supported agent and launches correctly (#65) | SATISFIED (source + live UAT) | knownCLIs entry, badge color, TESTING.md M-15, README documented; live REPL launch confirmed 2026-06-23 (M-15 PASS — interactive bidirectional round-trip, authenticated session) |
 
 ### Anti-Patterns Found
 
@@ -101,7 +103,9 @@ D-09 compliance confirmed: the key `antigravity` (lowercase) does not appear in 
 
 ### Human Verification Required
 
-#### 1. Live Antigravity REPL Launch (M-15)
+#### 1. Live Antigravity REPL Launch (M-15) — ✅ RESOLVED 2026-06-23
+
+> **RESOLVED 2026-06-23:** Maintainer obtained `agy` (Antigravity CLI 1.0.10) and ran the live UAT in the native wails build. (a) the New Session picker listed Google Antigravity; (b) `agy` launched an interactive PTY REPL and a bidirectional round-trip succeeded — a typed prompt streamed back a live agent response plus a "Summary of work" block, then returned a fresh `>` prompt; (c) auth was complete (session header showed authenticated `kscott@iprosystems.com`, Antigravity Starter Quota); (d)(e) `#ff9e64` color lockstep was already source-validated (style.hub.test.ts 100/100) and the tab dot rendered amber in the live build (colorblind owner did not eyeball color — source-gated). **M-15 PASS.**
 
 **Test:** When waitlist access to `agy` is granted, install the binary and run:
 1. `agenthub new agy <dir>` from CLI
@@ -119,7 +123,7 @@ D-09 compliance confirmed: the key `antigravity` (lowercase) does not appear in 
 
 ### Gaps Summary
 
-No gaps. All 9 source-level must-haves are VERIFIED. The only unresolved item is the live REPL launch, which is a documented manual-UAT deferral (D-03) — not a verification failure — because the `agy` binary is waitlist-gated. TESTING.md M-15 is the formal tracking item.
+No gaps. All 9 source-level must-haves are VERIFIED, and the previously-deferred live REPL launch (M-15) was **resolved 2026-06-23** via live UAT once the maintainer obtained the waitlist-gated `agy` binary. Phase 149 is fully verified — no outstanding items.
 
 ---
 
