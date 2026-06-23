@@ -642,8 +642,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Turning it off suppresses the warning; turning it on restores it (even after a prior one-time acknowledgment)
   3. The setting persists across restarts (backed by daemon settings)
   4. The warning fires on both share surfaces — the Hub Share modal "Share the session" ON-path (currently bypasses it) and the legacy per-tab StatusBar toggle
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 150 to break down)
+**Plans**: 3 plans
+- [ ] 150-01-PLAN.md — Go daemon backend: shellWebShareWarningEnabled *bool (default ON) full chain (engine load/save + Get/Set re-arm, api, client, app.go, Wails JS/TS stubs) + Go unit tests (SET-01)
+- [ ] 150-02-PLAN.md — SettingsTab toggle in Session Behavior + confirm-on-disable dialog + SettingsSearch index + vitest (SET-01)
+- [ ] 150-03-PLAN.md — Cross-surface interception: App.tsx warningEnabled gate + re-arm re-sync + Hub Share modal/SessionShareModal banner (D-09) + HubPanel threading + vitest + TESTING.md (SET-01)
 
 ### Phase 151: Terminal Font Zoom Shortcuts
 **Goal**: The active terminal session's font size responds to the standard macOS zoom shortcuts (Cmd +, Cmd -, Cmd 0/Cmd =), matching near-universal terminal-emulator convention, and refits cleanly after each change
