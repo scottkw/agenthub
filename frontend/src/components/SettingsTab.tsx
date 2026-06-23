@@ -20,6 +20,9 @@ import {
   // Phase 107-03 SHELL-11 — shell binary path setting
   GetShellPath,
   SetShellPath,
+  // Phase 150 SET-01 — shell web-share warning enabled master switch
+  GetShellWebShareWarningEnabled,
+  SetShellWebShareWarningEnabled,
 } from '../wailsjs/go/main/App'
 import type { DetectedCLI } from '../wailsjs/go/main/App'
 import { BrowserOpenURL, ClipboardSetText } from '../wailsjs/wailsjs/runtime/runtime'
@@ -58,6 +61,8 @@ interface SettingsTabProps {
   onUiThemeChange: (t: 'dark' | 'light') => void
   // Phase 99 PUI-02: forwarded to PluginsSection for post-save banner triggers.
   onPluginToggleSideEffect?: (kinds: PluginToggleKind[]) => void
+  // Phase 150 SET-01: notifies App.tsx after warning-enabled toggle changes (D-03 re-arm sync).
+  onShellWarnEnabledChange?: (enabled: boolean) => void
 }
 
 /**
@@ -66,7 +71,7 @@ interface SettingsTabProps {
  * section for CT disclosure and server start/stop.
  * Renders as a sidebar tab — no modal shell. Single scrollable page with section headers.
  */
-export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, uiTheme, onUiThemeChange, onPluginToggleSideEffect }: SettingsTabProps): React.ReactElement {
+export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerStateChange, selectedTheme, onThemeChange, uiTheme, onUiThemeChange, onPluginToggleSideEffect, onShellWarnEnabledChange }: SettingsTabProps): React.ReactElement {
   // Track custom path overrides keyed by CLI name.
   const [customPaths, setCustomPaths] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {}
@@ -108,6 +113,13 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   const [autoCloseLoaded, setAutoCloseLoaded] = useState(false)
   const [autoCloseSaving, setAutoCloseSaving] = useState(false)
   const [autoCloseError, setAutoCloseError] = useState<string | null>(null)
+
+  // Phase 150 SET-01 — shell web-share warning enabled master switch (D-08 default ON).
+  const [shellWarnEnabled, setShellWarnEnabled] = useState(true) // default ON (D-08)
+  const [shellWarnLoaded, setShellWarnLoaded] = useState(false)
+  const [shellWarnSaving, setShellWarnSaving] = useState(false)
+  const [shellWarnError, setShellWarnError] = useState<string | null>(null)
+  const [showDisableWarnConfirm, setShowDisableWarnConfirm] = useState(false)
 
   // Security section state (Phase 87 D-16) — panic button to rotate the
   // capability signing key, invalidating every outstanding shared link.
@@ -183,6 +195,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setAutoCloseSession(val)
       setAutoCloseLoaded(true)
     }).catch(() => setAutoCloseLoaded(true))
+  }, [])
+
+  // Load shell web-share warning enabled preference on mount (Phase 150 SET-01).
+  useEffect(() => {
+    GetShellWebShareWarningEnabled().then(val => {
+      setShellWarnEnabled(val)
+      setShellWarnLoaded(true)
+    }).catch(() => setShellWarnLoaded(true))
   }, [])
 
   async function handleCopyPassword() {
@@ -337,6 +357,44 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     }
   }
 
+  // Phase 150 SET-01 — D-07: turning OFF requires confirmation; turning ON is instant.
+  async function handleToggleShellWarnEnabled() {
+    const next = !shellWarnEnabled
+    if (!next) {
+      // Turning OFF — show confirm dialog before persisting (D-07).
+      setShowDisableWarnConfirm(true)
+      return
+    }
+    // Turning ON — instant, no confirmation.
+    setShellWarnSaving(true)
+    setShellWarnError(null)
+    try {
+      await SetShellWebShareWarningEnabled(true)
+      setShellWarnEnabled(true)
+      // D-03 re-arm: notify App.tsx to re-sync shellWebShareWarned state.
+      onShellWarnEnabledChange?.(true)
+    } catch (err) {
+      setShellWarnError('Could not save preference — ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setShellWarnSaving(false)
+    }
+  }
+
+  async function handleConfirmDisableShellWarn() {
+    setShowDisableWarnConfirm(false)
+    setShellWarnSaving(true)
+    setShellWarnError(null)
+    try {
+      await SetShellWebShareWarningEnabled(false)
+      setShellWarnEnabled(false)
+      onShellWarnEnabledChange?.(false)
+    } catch (err) {
+      setShellWarnError('Could not save preference — ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setShellWarnSaving(false)
+    }
+  }
+
   async function handleRegenerateSigningKey(): Promise<void> {
     setRegenError(null)
     try {
@@ -436,6 +494,40 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           </p>
           {autoCloseError && <p className="settings-panel__error">{autoCloseError}</p>}
         </div>
+
+        {/* Phase 150 SET-01 — shell web-share warning toggle (Session Behavior, D-05/D-06) */}
+        <div className="settings-panel__field-group">
+          {shellWarnLoaded && (
+            <label
+              className={`settings-panel__toggle-row${shellWarnEnabled ? ' settings-panel__toggle-row--checked' : ''}`}
+              htmlFor="shellWebShareWarningEnabled"
+              style={shellWarnSaving ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+            >
+              <span className="settings-panel__toggle-track">
+                <span className="settings-panel__toggle-thumb" />
+              </span>
+              <span className="settings-panel__toggle-label">Warn before web-sharing a shell session.</span>
+            </label>
+          )}
+          <input
+            type="checkbox"
+            id="shellWebShareWarningEnabled"
+            className="settings-panel__toggle-input"
+            checked={shellWarnEnabled}
+            onChange={() => void handleToggleShellWarnEnabled()}
+          />
+          <p className="settings-panel__description">
+            Show a one-time security reminder before web-sharing a shell session. Disabling suppresses the reminder.
+          </p>
+          {shellWarnError && <p className="settings-panel__error">{shellWarnError}</p>}
+        </div>
+
+        {/* D-07 confirm-on-disable dialog for shell web-share warning (reuses RegenerateKeyModal .quit-modal* pattern) */}
+        <RegenerateKeyModal
+          isOpen={showDisableWarnConfirm}
+          onConfirm={handleConfirmDisableShellWarn}
+          onCancel={() => setShowDisableWarnConfirm(false)}
+        />
 
         {/* Appearance section (SETT-02) — POL-02: single role=switch toggle (D-06 colorblind-safe) */}
         <h3 id="settings-appearance">Appearance</h3>
