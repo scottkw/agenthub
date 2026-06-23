@@ -4,6 +4,7 @@ import {
   HomeIcon,
   Cog6ToothIcon,
   Squares2X2Icon,   // Phase 131 / HUB-01
+  QuestionMarkCircleIcon,  // Phase 147 / HELP-01
 } from '@heroicons/react/24/outline'
 import type { HubGroupDef } from '../lib/hubGroups'
 
@@ -25,6 +26,7 @@ interface SidebarProps {
   onDropOnGroup: (groupId: string, mKey: string) => void
   groupCounts: Record<string, { running: number; total: number; attention: number; waiting: number }>
   globalGroupCounts: { running: number; total: number; attention: number; waiting: number }
+  onOpenHelp: () => void  // Phase 147 / HELP-01
 }
 
 // ---- GroupItem — single drag-drop item in the sub-list ----
@@ -122,6 +124,7 @@ export function Sidebar({
   onDropOnGroup,
   groupCounts,
   globalGroupCounts,
+  onOpenHelp,
 }: SidebarProps): React.ReactElement {
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(STORAGE_KEY) === 'true'
@@ -291,6 +294,14 @@ export function Sidebar({
         >
           <Cog6ToothIcon className="sidebar__icon" />
           {!collapsed && <span className="sidebar__label">Settings</span>}
+        </button>
+        <button
+          className={`sidebar__item${activePanel === '__help__' ? ' sidebar__item--active' : ''}`}
+          onClick={onOpenHelp}
+          aria-label="Help"
+        >
+          <QuestionMarkCircleIcon className="sidebar__icon" />
+          {!collapsed && <span className="sidebar__label">Help</span>}
         </button>
       </div>
     </nav>
