@@ -541,7 +541,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 145. Windows Files Test Fixes | v4.0 | 3/3 | Complete    | 2026-06-22 |
 | 146. Open Session Capability Bug | v4.0 | 5/5 | Complete    | 2026-06-22 |
 | 147. In-App Help Page | v4.0 | 4/4 | Complete   | 2026-06-23 |
-| 148. Session Tab Chevron | v4.0 | 0/1 | Planned | — |
+| 148. Session Tab Chevron | v4.0 | 1/1 | Complete   | 2026-06-23 |
 | 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |
 | 150. Shell-Sharing Warning Toggle | v4.0 | 0/0 | Not planned | — |
 
@@ -616,7 +616,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. Activating the chevron opens the existing tab context menu
   3. Visual treatment matches the v4.0 redesign and works in light/dark themes
 **Plans**: 1 plan
-- [ ] 148-01-PLAN.md — tab__chevron button (session-gated, rect-anchored menu open, aria-label "Session menu") + .tab__context-menu light/dark tokenization (D-07) + TabBar vitest + TESTING.md TAB-04 registration (TAB-04)
+- [x] 148-01-PLAN.md — tab__chevron button (session-gated, rect-anchored menu open, aria-label "Session menu") + .tab__context-menu light/dark tokenization (D-07) + TabBar vitest + TESTING.md TAB-04 registration (TAB-04)
 
 ### Phase 149: Google Antigravity Agent
 **Goal**: Google Antigravity CLI is selectable as a supported agent and launches correctly

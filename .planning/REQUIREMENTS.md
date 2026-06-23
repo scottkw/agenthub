@@ -44,7 +44,7 @@ Requirements for the v4.0 milestone. Each maps to a roadmap phase (Phase 136+).
 - [x] **TAB-01**: Open tabs shrink as their count grows (browser-style), down to a sensible minimum width.
 - [x] **TAB-02**: When tabs overflow the window width, a visible side-scroll affordance (scroll chevrons and/or a visible scrollbar) lets the user reach every tab.
 - [x] **TAB-03**: Tab close, rename, and progress-underline affordances remain functional at the minimum tab width.
-- [ ] **TAB-04**: Session tabs show a down-chevron indicator signaling the context menu is available (#68).
+- [x] **TAB-04**: Session tabs show a down-chevron indicator signaling the context menu is available (#68).
 
 ### Regression Testing (TEST)
 
