@@ -540,7 +540,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 144. Daemon Styled-Tail Race Fix | v4.0 | 1/1 | Complete    | 2026-06-22 |
 | 145. Windows Files Test Fixes | v4.0 | 3/3 | Complete    | 2026-06-22 |
 | 146. Open Session Capability Bug | v4.0 | 5/5 | Complete    | 2026-06-22 |
-| 147. In-App Help Page | v4.0 | 2/4 | In Progress|  |
+| 147. In-App Help Page | v4.0 | 3/4 | In Progress|  |
 | 148. Session Tab Chevron | v4.0 | 0/0 | Not planned | — |
 | 149. Google Antigravity Agent | v4.0 | 0/0 | Not planned | — |
 | 150. Shell-Sharing Warning Toggle | v4.0 | 0/0 | Not planned | — |
@@ -603,7 +603,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 4 plans
 - [x] 147-01-PLAN.md — Wave 0: IntersectionObserver polyfill, rehype-sanitize install, seeded Help Markdown content, failing test stubs + Sidebar test update
 - [x] 147-02-PLAN.md — Help components: HelpContent (react-markdown + BrowserOpenURL links), HelpSearch (debounce/highlight/empty-state), HelpSectionNav (IntersectionObserver scroll-spy), HelpTab container + .help-* CSS/token
-- [ ] 147-03-PLAN.md — Nav wiring: Tab type union, 4th sidebar item (Help), HELP_TAB + handleOpenHelp in App.tsx, build gate
+- [x] 147-03-PLAN.md — Nav wiring: Tab type union, 4th sidebar item (Help), HELP_TAB + handleOpenHelp in App.tsx, build gate
 - [ ] 147-04-PLAN.md — TESTING.md registration (Suite Manifest §2, Traceability §4) + M-14 manual UAT item
 
 ### Phase 148: Session Tab Chevron
