@@ -121,6 +121,7 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | TAB-01 | frontend/src/components/__tests__/TabBar.test.tsx | vitest | Shrink floor: tabs do not collapse below minimum width |
 | TAB-02 | frontend/src/components/__tests__/TabBar.test.tsx | vitest | Overflow: scroll chevron affordance renders when tabs overflow |
 | TAB-03 | frontend/src/components/__tests__/TabBar.test.tsx | vitest | Tab close/rename/progress-underline functional at min width |
+| TAB-04 | frontend/src/components/__tests__/TabBar.test.tsx | vitest | Session-tab chevron: present on session tabs, absent on no-sessionId tabs, click opens context menu, right-click path preserved (D-02), getBoundingClientRect rect-anchoring at source level |
 | RDS-01 | frontend/src/components/__tests__/style.redesign.test.ts | vitest | Design direction documented; redesign token source gate |
 | RDS-02 | frontend/src/components/__tests__/style.hub.test.ts | vitest | Hub-page redesign tokens: hex/var source gates |
 | RDS-02 | frontend/src/components/__tests__/style.hub.modal.test.ts | vitest | Share modal redesign tokens |
