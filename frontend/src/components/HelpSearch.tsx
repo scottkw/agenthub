@@ -25,20 +25,66 @@ interface HelpSearchProps {
 // Snippet helpers
 // ---------------------------------------------------------------------------
 
+// Characters of context to show on each side of a match within a snippet.
+const SNIPPET_RADIUS = 60
+// Maximum length of the no-match fallback snippet (≈ a match plus both radii).
+const SNIPPET_MAX = SNIPPET_RADIUS * 2
+
+// UTF-16 surrogate ranges. slice() operates on code units, so a cut that lands
+// between a high and low surrogate splits a single code point (emoji, some CJK)
+// into a lone surrogate that renders as '�'.
+const HIGH_SURROGATE_START = 0xd800
+const HIGH_SURROGATE_END = 0xdbff
+const LOW_SURROGATE_START = 0xdc00
+const LOW_SURROGATE_END = 0xdfff
+
+function isHighSurrogate(code: number): boolean {
+  return code >= HIGH_SURROGATE_START && code <= HIGH_SURROGATE_END
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= LOW_SURROGATE_START && code <= LOW_SURROGATE_END
+}
+
 /**
- * Extract a centered ~120-char snippet around the first match of `query` in
- * `text`. Returns the raw text if no match (shouldn't happen since results are
- * pre-filtered). Adds '…' ellipsis at truncation points.
+ * Adjust a slice boundary so it never falls between the two halves of a
+ * surrogate pair. A `start` boundary is nudged forward past a leading low
+ * surrogate; an `end` boundary is nudged back before a trailing high surrogate.
+ */
+function clampToCodePoint(text: string, index: number, boundary: 'start' | 'end'): number {
+  if (index <= 0 || index >= text.length) return index
+  if (boundary === 'start') {
+    // If index points at a low surrogate, its high surrogate is at index-1, so
+    // the pair was already split before index — step forward past the low half.
+    return isLowSurrogate(text.charCodeAt(index)) ? index + 1 : index
+  }
+  // boundary === 'end': if the char just before the cut is a high surrogate, its
+  // low half would be dropped — pull the cut back before the high surrogate.
+  return isHighSurrogate(text.charCodeAt(index - 1)) ? index - 1 : index
+}
+
+/**
+ * Extract a centered snippet (~SNIPPET_MAX chars) around the first match of
+ * `query` in `text`. Returns the raw text if no match (shouldn't happen since
+ * results are pre-filtered). Adds '…' ellipsis at truncation points. Slice
+ * boundaries are clamped so they never split a Unicode surrogate pair.
  */
 function extractSnippet(text: string, query: string): string {
   const lowerText = text.toLowerCase()
   const lowerQuery = query.toLowerCase()
   const idx = lowerText.indexOf(lowerQuery)
-  if (idx === -1) return text.length > 120 ? text.slice(0, 120) + '…' : text
+  if (idx === -1) {
+    if (text.length <= SNIPPET_MAX) return text
+    const cut = clampToCodePoint(text, SNIPPET_MAX, 'end')
+    return text.slice(0, cut) + '…'
+  }
 
-  const HALF = 60
-  const start = Math.max(0, idx - HALF)
-  const end = Math.min(text.length, idx + query.length + HALF)
+  const start = clampToCodePoint(text, Math.max(0, idx - SNIPPET_RADIUS), 'start')
+  const end = clampToCodePoint(
+    text,
+    Math.min(text.length, idx + query.length + SNIPPET_RADIUS),
+    'end',
+  )
   const snippet =
     (start > 0 ? '…' : '') +
     text.slice(start, end) +
@@ -126,9 +172,9 @@ export function HelpSearch({
 
       {showResults && (
         <ul className="help-search__results" role="listbox">
-          {results.map((r, i) => (
+          {results.map((r) => (
             <li
-              key={`${r.sectionId}-${i}`}
+              key={`${r.sectionId}-${r.text.slice(0, 48)}`}
               className="help-search__result"
               role="option"
               aria-selected="false"
