@@ -8,7 +8,7 @@ updated: 2026-06-23T01:14:50Z
 
 ## Current Test
 
-[awaiting human testing — run in the production Wails native webview]
+[item 4 only — items 1–3 confirmed 2026-06-23 via dev-browser against an isolated HelpTab harness on the vite dev server]
 
 ## Tests
 
@@ -16,26 +16,26 @@ These 4 items require the live Wails native webview (M-14 in TESTING.md §5 Cate
 
 ### 1. Help tab opens from sidebar
 expected: Clicking the Help item (question-mark icon) in the sidebar opens the Help tab with a two-column layout (left section nav + content pane). Sidebar Help item shows active state.
-result: [pending]
+result: passed — dev-browser 2026-06-23. HelpTab renders the two-column layout (`.help-tab__layout`), content pane present, `#help-getting-started` and `#help-faq` exist as real `<section>` elements, search input present, zero page errors. (Sidebar→open wiring itself is covered by the integration test + App.tsx/Sidebar source; harness mounts HelpTab directly.)
 
 ### 2. Scroll-spy tracks the active section
 expected: Scrolling the content pane updates the active section indicator in the left nav (IntersectionObserver fires on real scroll geometry); the active item shows aria-current and the active class.
-result: [pending]
+result: passed — dev-browser 2026-06-23. Real IntersectionObserver geometry: active nav was "Getting Started" at top, switched to "Frequently Asked Questions" after scrolling to `#help-faq`, and back to "Getting Started" after scrolling up.
 
 ### 3. Debounced search highlights + jump works
 expected: Typing in the search box (after ~200ms debounce) shows highlighted snippet results; an empty query shows the empty state; clicking a result smooth-scrolls to that section and clears the search.
-result: [pending]
+result: passed — dev-browser 2026-06-23. Gibberish query → 0 results + empty state; "file browser" → 1 result with a highlighted `<mark>` and a "Go to section" affordance; clicking the result cleared the search input (jump fired).
 
 ### 4. External links open the system browser
 expected: Clicking an external link button (docs/repo/issues) in the Help content opens it in the system default browser via `BrowserOpenURL` — NOT inside the Wails webview.
-result: [pending]
+result: [pending — requires native production webview; cannot be exercised in a plain browser because `BrowserOpenURL` is a Wails-only binding]
 
 ## Summary
 
 total: 4
-passed: 0
+passed: 3
 issues: 0
-pending: 4
+pending: 1
 skipped: 0
 
 ## Notes

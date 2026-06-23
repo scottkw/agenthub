@@ -4,7 +4,7 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: verifying
 stopped_at: Phase 147 UI-SPEC approved
-last_updated: "2026-06-23T00:13:25.789Z"
+last_updated: "2026-06-23T01:23:55.106Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 15
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 Phase: 147 (in-app-help-page) — EXECUTING
 Plan: 4 of 4
-Status: Phase complete — ready for verification
+Status: Phase 147 complete + verified (3/3 must-haves); UAT items 1-3 passed via dev-browser, item 4 (native BrowserOpenURL) pending
 Last activity: 2026-06-23
 
 Progress: [██████████] 100%
