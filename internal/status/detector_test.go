@@ -84,6 +84,12 @@ func newClaudeDetector(sessionID string, onTransit func(string, status.SessionSt
 	return status.NewDetector(sessionID, status.DefaultClaudePatterns(), onTransit)
 }
 
+// --- helper: newAgyDetector creates a Detector with agy patterns ---
+
+func newAgyDetector(sessionID string, onTransit func(string, status.SessionStatus)) *status.Detector {
+	return status.NewDetector(sessionID, status.DefaultAgyPatterns(), onTransit)
+}
+
 // --- TestANSIStrip ---
 
 func TestANSIStrip(t *testing.T) {
@@ -373,6 +379,37 @@ func TestStripANSI_OSC(t *testing.T) {
 	got := status.StripANSI(input)
 	if string(got) != "❯ " {
 		t.Errorf("StripANSI OSC: expected %q, got %q", "❯ ", string(got))
+	}
+}
+
+// --- agy status pattern tests ---
+
+// TestDetector_AgyIdle verifies that an agy session's `> ` prompt classifies as idle.
+func TestDetector_AgyIdle(t *testing.T) {
+	var got status.SessionStatus
+	d := newAgyDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+	d.Feed([]byte("Output done\n> "))
+	if got != status.StatusIdle {
+		t.Errorf("expected StatusIdle for agy `> ` prompt, got %q", got)
+	}
+}
+
+// TestDetector_AgyWaiting verifies that an agy session's [y/n] prompt classifies as waiting.
+func TestDetector_AgyWaiting(t *testing.T) {
+	var got status.SessionStatus
+	d := newAgyDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+	d.Feed([]byte("Apply changes? [y/n]"))
+	if got != status.StatusWaiting {
+		t.Errorf("expected StatusWaiting for agy [y/n] prompt, got %q", got)
+	}
+}
+
+// TestPatternsForCLI_AgyNotFallback verifies that PatternsForCLI("agy") returns
+// DefaultAgyPatterns (non-empty Idle) rather than FallbackPatterns (empty).
+func TestPatternsForCLI_AgyNotFallback(t *testing.T) {
+	patterns := status.PatternsForCLI("agy")
+	if len(patterns.Idle) == 0 {
+		t.Error("expected PatternsForCLI(\"agy\").Idle to be non-empty (not FallbackPatterns)")
 	}
 }
 
