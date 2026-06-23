@@ -288,20 +288,20 @@ export function Sidebar({
 
       <div className="sidebar__bottom">
         <button
-          className="sidebar__item"
-          onClick={onSettings}
-          aria-label="Settings"
-        >
-          <Cog6ToothIcon className="sidebar__icon" />
-          {!collapsed && <span className="sidebar__label">Settings</span>}
-        </button>
-        <button
           className={`sidebar__item${activePanel === '__help__' ? ' sidebar__item--active' : ''}`}
           onClick={onOpenHelp}
           aria-label="Help"
         >
           <QuestionMarkCircleIcon className="sidebar__icon" />
           {!collapsed && <span className="sidebar__label">Help</span>}
+        </button>
+        <button
+          className="sidebar__item"
+          onClick={onSettings}
+          aria-label="Settings"
+        >
+          <Cog6ToothIcon className="sidebar__icon" />
+          {!collapsed && <span className="sidebar__label">Settings</span>}
         </button>
       </div>
     </nav>
