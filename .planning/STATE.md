@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: ready_to_plan
-stopped_at: Phase 149 complete (3/3) — ready to discuss Phase 150
-last_updated: 2026-06-23T12:45:16.337Z
+status: planning
+stopped_at: Phase 150 context gathered
+last_updated: "2026-06-23T13:21:39.074Z"
 last_activity: 2026-06-23
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 14
   total_plans: 49
   completed_plans: 50
-  percent: 93
+  percent: 88
 ---
 
 # Project State
@@ -59,8 +59,9 @@ Progress: [██████████] 100%
 | 148 | Session Tab Chevron | TAB-04 (#68) | Complete |
 | 149 | Google Antigravity Agent | AGENT-01 (#65) | Not planned |
 | 150 | Shell-Sharing Warning Toggle | SET-01 (#51) | Not planned |
+| 151 | Terminal Font Zoom Shortcuts | ZOOM-01 (#99) | Not planned |
 
-**Total:** 43 requirements mapped across 15 phases (100% coverage). Phases 144-150 added 2026-06-22 (issue burndown extending v4.0).
+**Total:** 44 requirements mapped across 16 phases (100% coverage). Phases 144-150 added 2026-06-22; Phase 151 added 2026-06-23 (#99 terminal zoom — issue burndown extending v4.0).
 
 ## Key Decisions (v4.0)
 
@@ -94,7 +95,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-23T04:16:36.476Z
-Stopped at: Phase 149 context gathered
-Resume file: None
+Last session: 2026-06-23T13:21:39.062Z
+Stopped at: Phase 150 context gathered
+Resume file: .planning/phases/150-shell-sharing-warning-toggle/150-CONTEXT.md
 Next action: `/gsd:plan-phase 136`
