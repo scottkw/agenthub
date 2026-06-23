@@ -41,10 +41,11 @@ type SessionEngine struct {
 	sessionWorkDirs map[string]string // sessionID -> EvalSymlinks-resolved absolute WorkDir (Phase 118 / FS-02)
 	cliPaths        map[string]string // cli name -> custom path override
 
-	startMinimized      bool            // persisted start-minimized preference
-	shellWebShareWarned bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
-	shellPath           string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
-	autoCloseSession    *bool           // nil = default (true); persisted pointer
+	startMinimized             bool            // persisted start-minimized preference
+	shellWebShareWarned        bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
+	shellWebShareWarningEnabled *bool          // Phase 150 SET-01: master warning switch; nil = default (true per D-08)
+	shellPath                  string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
+	autoCloseSession           *bool           // nil = default (true); persisted pointer
 	filesWriteDefault   bool            // Phase 124 / CAP-08: persisted default for per-session write default; retained for settings migration tests (TestSettingsMigration_FilesWriteDefaultsFalse); NOT wired to perm injection (D-07: global filesRead kill-switch removed in Phase 137)
 	sessionBrowse       map[string]bool // Phase 137 / SHARE-03: per-session browse toggle (ephemeral in-memory, default OFF per D-06/D-08); sole driver of file-perm injection (D-02)
 	pluginSettings      PluginSettings  // populated by loadSettingsFromDisk via defaults-merge
@@ -109,8 +110,9 @@ type daemonSettings struct {
 	StartMinimized      bool              `json:"startMinimized,omitempty"`
 	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath           string            `json:"shellPath,omitempty"`
-	AutoCloseSession    *bool             `json:"autoCloseSession,omitempty"`
-	FilesWrite          bool              `json:"filesWrite,omitempty"` // Phase 124: write default; retained for migration test; NOT wired to perm injection (D-07)
+	AutoCloseSession           *bool             `json:"autoCloseSession,omitempty"`
+	ShellWebShareWarningEnabled *bool             `json:"shellWebShareWarningEnabled,omitempty"` // Phase 150 SET-01: *bool so omitempty omits false; nil → default true (D-08)
+	FilesWrite                 bool              `json:"filesWrite,omitempty"` // Phase 124: write default; retained for migration test; NOT wired to perm injection (D-07)
 	Plugins             PluginSettings    `json:"plugins"`
 	SchemaVersion       int               `json:"schemaVersion"`
 }
@@ -195,6 +197,14 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
+	e.shellWebShareWarningEnabled = s.ShellWebShareWarningEnabled
+	// nil pointer = not set in settings.json = fresh install → default ON (D-08).
+	// Unlike shellWebShareWarned (plain bool, default false), this new field defaults
+	// to true, so we must use *bool and handle nil explicitly.
+	if e.shellWebShareWarningEnabled == nil {
+		t := true
+		e.shellWebShareWarningEnabled = &t
+	}
 	e.filesWriteDefault = s.FilesWrite // Phase 124 / CAP-08: zero-value false is the opt-in default; retained for migration tests
 	e.pluginSettings = s.Plugins
 	// Detect upgrade-path: the on-disk schemaVersion was below
@@ -217,14 +227,15 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 // Caller holds e.mu.Lock().
 func (e *SessionEngine) saveSettingsToDisk() {
 	s := daemonSettings{
-		CLIPaths:            e.cliPaths,
-		StartMinimized:      e.startMinimized,
-		ShellWebShareWarned: e.shellWebShareWarned,
-		ShellPath:           e.shellPath,
-		AutoCloseSession:    e.autoCloseSession,
-		FilesWrite:          e.filesWriteDefault, // Phase 124 / CAP-08: retained for migration tests (NOT wired to perm injection per D-07)
-		Plugins:             e.pluginSettings,
-		SchemaVersion:       CurrentSchemaVersion,
+		CLIPaths:                    e.cliPaths,
+		StartMinimized:              e.startMinimized,
+		ShellWebShareWarned:         e.shellWebShareWarned,
+		ShellPath:                   e.shellPath,
+		AutoCloseSession:            e.autoCloseSession,
+		ShellWebShareWarningEnabled: e.shellWebShareWarningEnabled,
+		FilesWrite:                  e.filesWriteDefault, // Phase 124 / CAP-08: retained for migration tests (NOT wired to perm injection per D-07)
+		Plugins:                     e.pluginSettings,
+		SchemaVersion:               CurrentSchemaVersion,
 	}
 	data, err := json.Marshal(s)
 	if err != nil {
@@ -1005,6 +1016,34 @@ func (e *SessionEngine) GetShellWebShareWarned() bool {
 func (e *SessionEngine) SetShellWebShareWarned(val bool) error {
 	e.mu.Lock()
 	e.shellWebShareWarned = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+	return nil
+}
+
+// GetShellWebShareWarningEnabled returns the warning-enabled master switch.
+// Returns true when not set (nil pointer = default ON per D-08). Phase 150 SET-01.
+func (e *SessionEngine) GetShellWebShareWarningEnabled() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.shellWebShareWarningEnabled == nil {
+		return true
+	}
+	return *e.shellWebShareWarningEnabled
+}
+
+// SetShellWebShareWarningEnabled persists the warning-enabled master switch.
+// D-03 re-arm: when enabling (val=true), atomically resets shellWebShareWarned
+// to false so the one-time banner shows again on the next shell web-share.
+// Both fields are written in a single saveSettingsToDisk call (atomic).
+// Phase 150 SET-01.
+func (e *SessionEngine) SetShellWebShareWarningEnabled(val bool) error {
+	e.mu.Lock()
+	e.shellWebShareWarningEnabled = &val
+	if val {
+		// Re-arm (D-03): reset the one-time acknowledged flag.
+		e.shellWebShareWarned = false
+	}
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 	return nil
