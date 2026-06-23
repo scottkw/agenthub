@@ -26,6 +26,10 @@ describe('agentBadgeModifier', () => {
     expect(agentBadgeModifier('aider')).toBe('aider')
   })
 
+  it("returns 'agy' for cli='agy'", () => {
+    expect(agentBadgeModifier('agy')).toBe('agy')
+  })
+
   it("returns 'shell' for cli='shell'", () => {
     expect(agentBadgeModifier('shell')).toBe('shell')
   })

@@ -20,6 +20,7 @@ export function agentBadgeModifier(cli: string): string | null {
     case 'gemini':
     case 'cursor':
     case 'aider':
+    case 'agy':
       return cli
     case 'shell':
     case 'bash':
