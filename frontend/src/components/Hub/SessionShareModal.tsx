@@ -301,6 +301,7 @@ export function SessionShareModal({
               synchronously) then enables share; onCancel clears the pending state. */}
           {pendingShellShare && (
             <ShellWebShareBanner
+              variant="block"
               sessionName={session.name}
               onConfirm={async () => {
                 setPendingShellShare(false)

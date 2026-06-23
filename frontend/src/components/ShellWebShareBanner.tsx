@@ -37,12 +37,20 @@ export interface ShellWebShareBannerProps {
   sessionName: string
   onConfirm: () => void
   onCancel: () => void
+  /**
+   * Layout context. 'banner' (default) is the horizontal banner-stack strip
+   * (StatusBar). 'block' stacks the body above a right-aligned actions row for
+   * the narrower Hub Share modal, where the horizontal layout collapses the
+   * text into a tall narrow column (Phase 150 SET-01 gap-closure, live UAT).
+   */
+  variant?: 'banner' | 'block'
 }
 
 export function ShellWebShareBanner({
   sessionName,
   onConfirm,
   onCancel,
+  variant = 'banner',
 }: ShellWebShareBannerProps): React.ReactElement {
   const cancelRef = useRef<HTMLButtonElement>(null)
   const [enabling, setEnabling] = useState(false)
@@ -92,7 +100,7 @@ export function ShellWebShareBanner({
   return (
     <div
       ref={bannerRef}
-      className="webgl-recovery-banner webgl-recovery-banner--shell-warning"
+      className={`webgl-recovery-banner webgl-recovery-banner--shell-warning${variant === 'block' ? ' webgl-recovery-banner--block' : ''}`}
       role="alert"
       aria-live="assertive"
       aria-busy={enabling ? 'true' : undefined}

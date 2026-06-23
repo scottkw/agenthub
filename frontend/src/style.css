@@ -2341,6 +2341,23 @@ body {
   align-items: center;
 }
 
+/* Phase 150 SET-01 gap-closure (live UAT) — block variant for the Hub Share
+   modal. The default horizontal body|actions strip is tuned for the wide
+   banner stack; inside the narrower modal the 3-button actions row squeezes
+   the text into a tall narrow column. Stack vertically: full-width body over a
+   right-aligned actions row. StatusBar (default variant) is unaffected. */
+.webgl-recovery-banner--block {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+.webgl-recovery-banner--block .webgl-recovery-banner__shell-body {
+  padding-right: 0;
+}
+.webgl-recovery-banner--block .webgl-recovery-banner__shell-actions {
+  justify-content: flex-end;
+}
+
 /* ─── Phase 124 CAP-06 — Home-directory write warning banner ────────────
    Modifier on .webgl-recovery-banner: overrides the info-blue left accent
    with warning amber (#f59e0b — already used by local-network-banner;

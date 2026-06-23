@@ -24,6 +24,7 @@ interface Props {
   sessionName: string
   onConfirm: () => void
   onCancel: () => void
+  variant?: 'banner' | 'block'
 }
 
 function render(props: Props) {
@@ -202,6 +203,32 @@ describe('ShellWebShareBanner', () => {
     }))
     const rootEl = container.firstElementChild as HTMLElement
     expect(rootEl.className).toContain('webgl-recovery-banner')
+    expect(rootEl.className).toContain('webgl-recovery-banner--shell-warning')
+  })
+
+  // Gap-closure (live UAT): in the Hub Share modal the default horizontal
+  // banner-strip layout collapsed the text into a narrow column. The modal
+  // passes variant="block" to switch to a stacked (text-over-actions) layout.
+  it('default variant does NOT apply the --block modifier (StatusBar banner-strip layout)', () => {
+    ;({ container, root } = render({
+      sessionName: 's',
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    }))
+    const rootEl = container.firstElementChild as HTMLElement
+    expect(rootEl.className).not.toContain('webgl-recovery-banner--block')
+  })
+
+  it('variant="block" applies the --block modifier for the modal stacked layout', () => {
+    ;({ container, root } = render({
+      sessionName: 's',
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+      variant: 'block',
+    }))
+    const rootEl = container.firstElementChild as HTMLElement
+    expect(rootEl.className).toContain('webgl-recovery-banner--block')
+    // Still a shell-warning banner — modifier is additive, not a replacement.
     expect(rootEl.className).toContain('webgl-recovery-banner--shell-warning')
   })
 })
