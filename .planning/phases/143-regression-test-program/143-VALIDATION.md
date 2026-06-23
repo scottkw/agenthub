@@ -1,10 +1,11 @@
 ---
 phase: 143
 slug: regression-test-program
-status: planned
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-21
+validated: 2026-06-23
 ---
 
 # Phase 143 — Validation Strategy
@@ -38,16 +39,16 @@ created: 2026-06-21
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 143-01-01 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- hubGroupCounts agentBadge` | ❌ W0 | ⬜ pending |
-| 143-01-02 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- Sidebar` | ❌ W0 | ⬜ pending |
-| 143-01-03 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- style.hub` | ❌ W0 | ⬜ pending |
-| 143-02-01 | 02 | 1 | TEST-01 | T-143-02 | path-map integrity | shell | `bash tests/check-traceability-paths.sh` | ❌ W0 | ⬜ pending |
-| 143-02-02 | 02 | 1 | TEST-02 | T-143-02 | gate hosts path-check | config grep | `grep -q 'bash tests/check-traceability-paths.sh' .github/workflows/build.yml` | ❌ W0 | ⬜ pending |
-| 143-03-01 | 03 | 2 | TEST-01, TEST-04, TEST-05 | — | N/A | doc + shell | `test -f TESTING.md && bash tests/check-traceability-paths.sh` | ❌ W0 | ⬜ pending |
-| 143-03-02 | 03 | 2 | TEST-05 | — | N/A | doc | `test -f CLAUDE.md && grep -q 'TESTING.md' CLAUDE.md` | ❌ W0 | ⬜ pending |
-| 143-04-01 | 04 | 3 | TEST-02 | T-143-01 | confirm-before-mutate | checkpoint:decision | (human gate) | n/a | ⬜ pending |
-| 143-04-02 | 04 | 3 | TEST-02 | T-143-01, T-143-02 | required-check gate | gh api GET | `gh api repos/scottkw/agenthub/branches/main/protection --jq '.required_status_checks.checks \| length'` → 5 | n/a | ⬜ pending |
-| 143-04-03 | 04 | 3 | TEST-02 | T-143-01 | gate blocks failing PR | checkpoint:human-verify | (human smoke-test) | n/a | ⬜ pending |
+| 143-01-01 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- hubGroupCounts agentBadge` | ✅ | ✅ green (24 passed) |
+| 143-01-02 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- Sidebar` | ✅ | ✅ green (53 passed) |
+| 143-01-03 | 01 | 1 | TEST-03 | — | N/A | unit (vitest) | `cd frontend && pnpm test -- style.hub` | ✅ | ✅ green (100 passed) |
+| 143-02-01 | 02 | 1 | TEST-01 | T-143-02 | path-map integrity | shell | `bash tests/check-traceability-paths.sh` | ✅ | ✅ green (exit 0, all paths exist) |
+| 143-02-02 | 02 | 1 | TEST-02 | T-143-02 | gate hosts path-check | config grep | `grep -q 'bash tests/check-traceability-paths.sh' .github/workflows/build.yml` | ✅ | ✅ green |
+| 143-03-01 | 03 | 2 | TEST-01, TEST-04, TEST-05 | — | N/A | doc + shell | `test -f TESTING.md && bash tests/check-traceability-paths.sh` | ✅ | ✅ green |
+| 143-03-02 | 03 | 2 | TEST-05 | — | N/A | doc | `test -f CLAUDE.md && grep -q 'TESTING.md' CLAUDE.md` | ✅ | ✅ green |
+| 143-04-01 | 04 | 3 | TEST-02 | T-143-01 | confirm-before-mutate | checkpoint:decision | (human gate) | n/a | ✅ done 2026-06-22 (protection applied) |
+| 143-04-02 | 04 | 3 | TEST-02 | T-143-01, T-143-02 | required-check gate | gh api GET | `gh api repos/scottkw/agenthub/branches/main/protection --jq '.required_status_checks.checks \| length'` → 5 | n/a | ✅ green (returns 5) |
+| 143-04-03 | 04 | 3 | TEST-02 | T-143-01 | gate blocks failing PR | checkpoint:human-verify | (human smoke-test) | n/a | ✅ done 2026-06-22 (admin doc-push lands; strict:false) |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -82,3 +83,18 @@ The "❌ W0" markers above mean "file does not exist yet at planning time" — e
 - [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** planned 2026-06-21
+
+---
+
+## Post-Execution Validation (2026-06-23)
+
+All Wave 1–3 tasks re-run and confirmed green after execution (the doc had remained at planning-time `status: planned`):
+
+- vitest gap-closure (143-01): `hubGroupCounts agentBadge` 24 passed · `Sidebar` 53 passed · `style.hub` 100 passed
+- traceability path-check (143-02-01 / 03-01): `bash tests/check-traceability-paths.sh` → exit 0, "all traceability paths exist"
+- gate hosting (143-02-02): `build.yml` hosts the path-check command
+- docs (143-03-02): `CLAUDE.md` references `TESTING.md`
+- branch protection (143-04-02): `gh api .../branches/main/protection` → 5 required checks
+- human gates (143-04-01 / 03): branch protection applied 2026-06-22 (4 build jobs + playwright; strict:false, enforce_admins:false so admin doc-push still lands)
+
+Frontmatter updated `status: validated`, `wave_0_complete: true`. Phase 143 validation finalized.
