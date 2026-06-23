@@ -394,6 +394,26 @@ func TestDetector_AgyIdle(t *testing.T) {
 	}
 }
 
+// TestDetector_AgyIdleNotBroadAngleBracket guards against the over-broad `>\s*$` idle
+// pattern (Phase 149 WR-01): an angle bracket that is NOT a bare prompt at the start of a
+// line (markup close tags, arrows, redirects) must NOT classify ordinary working output as
+// idle. With the anchored `(?m)^>\s*$` pattern these all fall through to the running default.
+func TestDetector_AgyIdleNotBroadAngleBracket(t *testing.T) {
+	cases := []string{
+		"rendering </div>\n", // HTML close tag ends in '>'
+		"const f = () =>\n",  // arrow ends a line
+		"<span></span>\n",    // markup ending in '>'
+	}
+	for _, in := range cases {
+		var got status.SessionStatus
+		d := newAgyDetector("s1", func(_ string, s status.SessionStatus) { got = s })
+		d.Feed([]byte(in))
+		if got == status.StatusIdle {
+			t.Errorf("input %q must NOT classify as idle (over-broad angle-bracket match)", in)
+		}
+	}
+}
+
 // TestDetector_AgyWaiting verifies that an agy session's [y/n] prompt classifies as waiting.
 func TestDetector_AgyWaiting(t *testing.T) {
 	var got status.SessionStatus

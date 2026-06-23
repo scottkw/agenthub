@@ -101,7 +101,13 @@ func FallbackPatterns() PatternSet {
 func DefaultAgyPatterns() PatternSet {
 	return PatternSet{
 		Idle: []*regexp.Regexp{
-			regexp.MustCompile(`>\s*$`),
+			// Anchored with (?m)^ so only a bare `>` prompt at the START of a line
+			// classifies as idle. A plain `>\s*$` is far too broad — markup close tags
+			// ("</div>"), arrows ("=>"), and shell redirects all end in `>` and would
+			// flip ordinary working output to Idle, suppressing the attention signal
+			// (Phase 149 WR-01). agy has no distinctive prompt glyph like Claude's `❯`,
+			// so line-start anchoring is the safest available marker until post-M-15 tuning.
+			regexp.MustCompile(`(?m)^>\s*$`),
 		},
 		Waiting: []*regexp.Regexp{
 			regexp.MustCompile(`\[y/n\]|\[Y/n\]|\[y/N\]`),
