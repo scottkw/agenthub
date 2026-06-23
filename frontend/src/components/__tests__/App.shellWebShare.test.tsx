@@ -1,5 +1,6 @@
 /**
  * Phase 101-03 SHELL-07/SHELL-08 — App.tsx web-toggle interception tests.
+ * Phase 150 SET-01 — warningEnabled gate + re-arm re-sync + HubPanel prop threading.
  *
  * Source-inspection tests (matches App.exit.test.tsx / App.test.tsx patterns
  * — full App mount is gated by extensive Wails-binding mocking that the
@@ -140,5 +141,97 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
     // The interception must be conditional, not unconditional:
     const handlerIdx = raw.indexOf('handleToggleWeb')
     expect(handlerIdx).toBeGreaterThan(-1)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 150 SET-01 — warningEnabled gate + re-arm sync + HubPanel threading
+// ---------------------------------------------------------------------------
+describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () => {
+  it('imports GetShellWebShareWarningEnabled from Wails bindings', () => {
+    expect(raw).toContain('GetShellWebShareWarningEnabled')
+  })
+
+  it('declares shellWebShareWarningEnabled React state (default true)', () => {
+    expect(raw).toContain('shellWebShareWarningEnabled')
+    expect(raw).toContain('setShellWebShareWarningEnabled')
+    // Default must be true (default-ON per D-08)
+    expect(raw).toMatch(/shellWebShareWarningEnabled[^)]*useState\(true\)/)
+  })
+
+  it('hydrates shellWebShareWarningEnabled from GetShellWebShareWarningEnabled on mount', () => {
+    expect(raw).toContain('GetShellWebShareWarningEnabled()')
+    // Must be followed by setShellWebShareWarningEnabled in a .then() chain
+    expect(raw).toMatch(
+      /GetShellWebShareWarningEnabled\(\)[\s\S]{0,300}\.then\([\s\S]{0,200}setShellWebShareWarningEnabled/
+    )
+  })
+
+  it('handleToggleWeb gate includes shellWebShareWarningEnabled && before !shellWebShareWarned', () => {
+    // The gate must now be: SHELL_CLIS.has && shellWebShareWarningEnabled && !shellWebShareWarned
+    expect(raw).toContain('shellWebShareWarningEnabled &&')
+    // Verify the order: warningEnabled check appears before !warned check in the same gate
+    const gateIdx = raw.indexOf('SHELL_CLIS.has')
+    expect(gateIdx).toBeGreaterThan(-1)
+    const gateBlock = raw.slice(gateIdx, gateIdx + 300)
+    const enabledIdx = gateBlock.indexOf('shellWebShareWarningEnabled &&')
+    const warnedIdx = gateBlock.indexOf('!shellWebShareWarned')
+    expect(enabledIdx).toBeGreaterThan(-1)
+    expect(warnedIdx).toBeGreaterThan(-1)
+    expect(enabledIdx).toBeLessThan(warnedIdx)
+  })
+
+  it('handleToggleWeb useCallback includes shellWebShareWarningEnabled in its dependency array', () => {
+    // The new state must be added to the handleToggleWeb useCallback dep array
+    const cbIdx = raw.indexOf('handleToggleWeb')
+    expect(cbIdx).toBeGreaterThan(-1)
+    // Find the closing } of the callback deps: look for the ], [... pattern after the handleToggleWeb def
+    const cbBlock = raw.slice(cbIdx, cbIdx + 2000)
+    expect(cbBlock).toContain('shellWebShareWarningEnabled')
+  })
+
+  it('SettingsTab render passes onShellWarnEnabledChange callback', () => {
+    // App.tsx must thread the re-arm callback into SettingsTab
+    expect(raw).toContain('onShellWarnEnabledChange=')
+  })
+
+  it('onShellWarnEnabledChange callback calls setShellWebShareWarningEnabled', () => {
+    const cbIdx = raw.indexOf('onShellWarnEnabledChange=')
+    expect(cbIdx).toBeGreaterThan(-1)
+    const cbBlock = raw.slice(cbIdx, cbIdx + 600)
+    expect(cbBlock).toContain('setShellWebShareWarningEnabled')
+  })
+
+  it('onShellWarnEnabledChange callback re-fetches GetShellWebShareWarned when enabled=true (re-arm re-sync D-03)', () => {
+    // When the user re-enables the warning, App.tsx must re-fetch shellWebShareWarned
+    // so the re-armed daemon state is synced back to the frontend.
+    const cbIdx = raw.indexOf('onShellWarnEnabledChange=')
+    expect(cbIdx).toBeGreaterThan(-1)
+    const cbBlock = raw.slice(cbIdx, cbIdx + 800)
+    // Must call GetShellWebShareWarned() inside this callback
+    expect(cbBlock).toContain('GetShellWebShareWarned()')
+    expect(cbBlock).toContain('setShellWebShareWarned')
+  })
+
+  it('HubPanel render receives shellWebShareWarned prop', () => {
+    const hubIdx = raw.indexOf('<HubPanel')
+    expect(hubIdx).toBeGreaterThan(-1)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    expect(hubBlock).toContain('shellWebShareWarned=')
+  })
+
+  it('HubPanel render receives shellWebShareWarningEnabled prop', () => {
+    const hubIdx = raw.indexOf('<HubPanel')
+    expect(hubIdx).toBeGreaterThan(-1)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    expect(hubBlock).toContain('shellWebShareWarningEnabled=')
+  })
+
+  it('HubPanel render receives onShellWebShareConfirm and onShellWebShareCancel callbacks', () => {
+    const hubIdx = raw.indexOf('<HubPanel')
+    expect(hubIdx).toBeGreaterThan(-1)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    expect(hubBlock).toContain('onShellWebShareConfirm=')
+    expect(hubBlock).toContain('onShellWebShareCancel=')
   })
 })
