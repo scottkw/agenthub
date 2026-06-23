@@ -20,10 +20,18 @@ findings:
   warning: 2
   info: 2
   total: 4
-status: issues_found
+status: resolved
+resolution:
+  WR-01: "Fixed in 8bfc40d1 — agy idle pattern anchored to (?m)^>$ + negative regression test"
+  WR-02: "Fixed in e6223e5c — WCAG comment corrected to actual chip surface (dark 8.16:1 / light 1.73:1) + source-gate tests updated"
+  IN-01: "Folded into WR-01 — no positive working marker remains a documented post-M-15 tuning item"
+  IN-02: "Addressed by WR-01 negative test (TestDetector_AgyIdleNotBroadAngleBracket)"
 ---
 
 # Phase 149: Code Review Report
+
+> **Resolution (2026-06-23):** Both warnings fixed and committed. WR-01 → `8bfc40d1`,
+> WR-02 → `e6223e5c`. Full suite re-verified green (go test ./..., vitest 1878/1878, tsc clean).
 
 **Reviewed:** 2026-06-22T23:25:00Z
 **Depth:** standard
