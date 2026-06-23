@@ -45,19 +45,20 @@ func TestSER03_NoAutoSavePatterns(t *testing.T) {
 
 	// Skip-list directories.
 	skipDirs := map[string]bool{
-		".git":                  true,
-		"node_modules":          true, // top-level node_modules (if any)
-		"frontend/node_modules": true, // pnpm workspace node_modules
-		"build":                 true,
-		"dist":                  true,
-		"frontend/dist":         true, // built React bundle — minified/mangled, may incidentally contain forbidden substrings (e.g. xterm-theme's auto-import scaffolding)
-		"vendor":                true,
-		"internal/release":      true, // self — regex literals would false-positive
-		".planning":             true, // research/plan docs cite the patterns by name
-		"frontend/src/wailsjs":  true, // generated bindings
-		"screenshots":           true,
-		".claude":               true, // agent worktrees + harness state (e.g. .claude/worktrees/agent-*/frontend/node_modules)
-		".claire":               true, // alternate harness state dir
+		".git":                        true,
+		"node_modules":                true, // top-level node_modules (if any)
+		"frontend/node_modules":       true, // pnpm workspace node_modules
+		"build":                       true,
+		"dist":                        true,
+		"frontend/dist":               true, // built React bundle — minified/mangled, may incidentally contain forbidden substrings (e.g. xterm-theme's auto-import scaffolding)
+		"cmd/playwright-fixture/dist": true, // built playwright fixture bundle — minified React/Vite output (untracked build artifact)
+		"vendor":                      true,
+		"internal/release":            true, // self — regex literals would false-positive
+		".planning":                   true, // research/plan docs cite the patterns by name
+		"frontend/src/wailsjs":        true, // generated bindings
+		"screenshots":                 true,
+		".claude":                     true, // agent worktrees + harness state (e.g. .claude/worktrees/agent-*/frontend/node_modules)
+		".claire":                     true, // alternate harness state dir
 	}
 
 	// Repo root is two levels up from internal/release/.
