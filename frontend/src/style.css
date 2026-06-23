@@ -1715,6 +1715,8 @@ body {
 .tab__agent-badge--cursor   { background: #e0af68; }
 .tab__agent-badge--aider    { background: #f7768e; }
 .tab__agent-badge--shell    { background: #89ddff; }
+/* agy — orange; dark: 8.72:1 AA PASS; light: 2.03:1 FAIL (same gap as all existing agents — text chip carries identity) */
+.tab__agent-badge--agy      { background: #ff9e64; }
 
 /* Phase 98 PRG-02 — per-tab progress underline.
    Uses transform: scaleX(0..1) instead of width for GPU compositor (Pitfall #4).
@@ -4808,6 +4810,7 @@ body {
 .hub-card[data-agent="aider"]    { border-left: 3px solid #f7768e; } /* aider    — red/pink */
 .hub-card[data-agent="shell"]    { border-left: 3px solid #89ddff; } /* shell    — light blue */
 .hub-card[data-agent="unknown"]  { border-left: 3px solid #9aa5ce; } /* unknown  — muted (matches tab fallback) */
+.hub-card[data-agent="agy"]      { border-left: 3px solid #ff9e64; } /* agy — orange */
 
 .hub-card:hover {
   border-color: var(--hub-border-hover);
@@ -5024,6 +5027,7 @@ body {
 .hub-card[data-agent="cursor"]   .hub-card__badge { color: #e0af68; border-color: rgba(224, 175, 104, 0.45); }
 .hub-card[data-agent="aider"]    .hub-card__badge { color: #f7768e; border-color: rgba(247, 118, 142, 0.45); }
 .hub-card[data-agent="shell"]    .hub-card__badge { color: #89ddff; border-color: rgba(137, 221, 255, 0.45); }
+.hub-card[data-agent="agy"]      .hub-card__badge { color: #ff9e64; border-color: rgba(255, 158, 100, 0.45); }
 
 /* --- Origin marker (local / remote) --- */
 .hub-card__origin {

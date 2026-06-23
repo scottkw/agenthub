@@ -443,7 +443,7 @@ describe('Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)', () => {
     expect(spineIdx).toBeGreaterThan(-1)
   })
 
-  it('GAP-04: all 8 agent spine rules are present (claude, opencode, codex, gemini, cursor, aider, shell, unknown)', () => {
+  it('GAP-04: all 9 agent spine rules are present (claude, opencode, codex, gemini, cursor, aider, shell, unknown, agy)', () => {
     expect(cssRaw).toContain('.hub-card[data-agent="claude"]')
     expect(cssRaw).toContain('.hub-card[data-agent="opencode"]')
     expect(cssRaw).toContain('.hub-card[data-agent="codex"]')
@@ -452,6 +452,7 @@ describe('Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)', () => {
     expect(cssRaw).toContain('.hub-card[data-agent="aider"]')
     expect(cssRaw).toContain('.hub-card[data-agent="shell"]')
     expect(cssRaw).toContain('.hub-card[data-agent="unknown"]')
+    expect(cssRaw).toContain('.hub-card[data-agent="agy"]')
   })
 
   // (c) color-coded badge chip: .hub-card__badge and claude tint rule with color: #7aa2f7
@@ -474,5 +475,62 @@ describe('Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)', () => {
     expect(block).toContain('height: 150px')
     // Negative: must not be min-height only (the interface block specifies `height`)
     expect(block).not.toMatch(/min-height:\s*150px/)
+  })
+})
+
+// ============================================================
+// Phase 149-02: agy (Google Antigravity) agent badge color identity
+// D-06: color #ff9e64 (TokyoNight orange) locked at source
+// D-07: WCAG numbers honest — dark 8.72:1 PASS, light 2.03:1 FAIL (same gap as all existing agents)
+// D-08: all three color sites updated in lockstep (tab dot, card spine, card chip)
+// D-09: key is 'agy' (binary name), NOT 'antigravity'
+// COLORBLIND-SAFE: hex verified at source, not by eye (user is colorblind)
+// ============================================================
+
+describe('Phase 149-02 — agy agent badge color identity', () => {
+  it('D-09: data-agent key is agy, NOT antigravity (key must match binary name)', () => {
+    expect(cssRaw).not.toContain('data-agent="antigravity"')
+  })
+
+  it('D-06/D-08 Site 1: .tab__agent-badge--agy tab dot rule with #ff9e64 is present', () => {
+    expect(cssRaw).toContain('.tab__agent-badge--agy')
+    expect(cssRaw).toContain('.tab__agent-badge--agy')
+    // The tab dot rule must use the locked agy color
+    const tabIdx = cssRaw.indexOf('.tab__agent-badge--agy')
+    expect(tabIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', tabIdx)
+    const block = cssRaw.slice(tabIdx, blockEnd)
+    expect(block).toContain('#ff9e64')
+  })
+
+  it('D-06/D-08 Site 2: .hub-card[data-agent="agy"] spine rule with border-left: 3px solid #ff9e64 is present', () => {
+    const spineIdx = cssRaw.indexOf('.hub-card[data-agent="agy"]')
+    expect(spineIdx).toBeGreaterThan(-1)
+    const blockEnd = cssRaw.indexOf('}', spineIdx)
+    const block = cssRaw.slice(spineIdx, blockEnd)
+    expect(block).toContain('border-left: 3px solid #ff9e64')
+  })
+
+  it('D-06/D-08 Site 3: .hub-card[data-agent="agy"] .hub-card__badge chip rule with color: #ff9e64 is present', () => {
+    // Use a regex to find the agy chip rule regardless of whitespace alignment
+    const match = cssRaw.match(/\.hub-card\[data-agent="agy"\]\s+\.hub-card__badge\s*\{([^}]+)\}/)
+    expect(match).not.toBeNull()
+    expect(match![1]).toContain('color: #ff9e64')
+  })
+
+  it('D-06/D-08 Site 3: agy chip rule uses rgba(255, 158, 100, 0.45) border-color', () => {
+    const match = cssRaw.match(/\.hub-card\[data-agent="agy"\]\s+\.hub-card__badge\s*\{([^}]+)\}/)
+    expect(match).not.toBeNull()
+    expect(match![1]).toContain('rgba(255, 158, 100, 0.45)')
+  })
+
+  it('D-07: WCAG comment documents dark contrast 8.72:1 (PASS) — honest source documentation', () => {
+    // The tab-dot rule carries the WCAG comment; 8.72:1 must be present at source
+    expect(cssRaw).toContain('8.72:1')
+  })
+
+  it('D-07: WCAG comment documents light contrast 2.03:1 (FAIL) — honest, no false AA pass claim', () => {
+    // Must document the actual light-mode failure honestly (D-07 honesty gate)
+    expect(cssRaw).toContain('2.03:1')
   })
 })
