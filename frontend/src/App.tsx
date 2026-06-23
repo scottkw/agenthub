@@ -31,6 +31,7 @@ import {
   GetPluginSettings,
   GetShellWebShareWarned,
   SetShellWebShareWarned,
+  GetShellWebShareWarningEnabled,
   QuitGUIOnly,
   QuitAll,
   SaveTerminalSession,
@@ -139,6 +140,10 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   const [pendingShellWebToggle, setPendingShellWebToggle] = useState<
     { sessionId: string; sessionName: string } | null
   >(null)
+  // Phase 150 SET-01 — master warning-enabled switch (default true = ON per D-08).
+  // Hydrated from daemon on mount; safe-degradation default is true (warning shows)
+  // so that a daemon disconnect never silently disables the security guardrail.
+  const [shellWebShareWarningEnabled, setShellWebShareWarningEnabled] = useState(true)
   // Track web server running state
   const [webServerRunning, setWebServerRunning] = useState(false)
   // Track web server mode: 'tailscale' | 'local' | null
@@ -540,6 +545,15 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             setShellWebShareWarned(false)
           })
 
+        // Phase 150 SET-01 — hydrate the warning-enabled master switch from daemon.
+        // On failure default to true (safe degradation: warning stays ON per D-08).
+        GetShellWebShareWarningEnabled()
+          .then((v) => setShellWebShareWarningEnabled(v))
+          .catch((err) => {
+            console.warn('[App] GetShellWebShareWarningEnabled failed:', err)
+            setShellWebShareWarningEnabled(true) // default ON (safe degradation per D-08)
+          })
+
         // Restore existing sessions as tabs (SESS-02 reattachment after window re-show).
         if (sessions.length > 0) {
           const restoredTabs: Tab[] = sessions.map((s) => ({
@@ -861,7 +875,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     // api.go:407) — the banner is the user-visible defense-in-depth.
     if (nowEnabled) {
       const tab = tabs.find((t) => t.sessionId === sessionId)
-      if (tab && SHELL_CLIS.has(tab.cli) && !shellWebShareWarned) {
+      if (tab && SHELL_CLIS.has(tab.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
         setPendingShellWebToggle({ sessionId, sessionName: tab.name })
         return
       }
@@ -873,7 +887,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     } catch (err) {
       console.warn('[App] ToggleWebServing failed:', err)
     }
-  }, [webEnabled, shellWebShareWarned, tabs])
+  }, [webEnabled, shellWebShareWarned, shellWebShareWarningEnabled, tabs])
 
   // Phase 101-03 — banner confirm: per RESEARCH §8 race mitigation, set the
   // local shellWebShareWarned flag SYNCHRONOUSLY (before awaiting either RPC).
@@ -1460,6 +1474,10 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             groupDefs={groupDefs}
             onDropOnGroup={handleDropOnGroup}
             onGroupCountsChange={handleGroupCountsChange}
+            shellWebShareWarned={shellWebShareWarned}
+            shellWebShareWarningEnabled={shellWebShareWarningEnabled}
+            onShellWebShareConfirm={handleShellWebShareConfirm}
+            onShellWebShareCancel={handleShellWebShareCancel}
           />
         )}
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
@@ -1566,6 +1584,21 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
                   setWebServerMode(mode === 'tailscale' || mode === 'local' ? mode : null)
                 }
               } catch (_) { /* ignore */ }
+            }}
+            onShellWarnEnabledChange={(enabled: boolean) => {
+              // Phase 150 SET-01 — keep App.tsx warningEnabled in sync with
+              // the SettingsTab toggle. When the user re-enables the warning
+              // (OFF→ON), also re-fetch shellWebShareWarned from the daemon
+              // because SetShellWebShareWarningEnabled(true) atomically reset
+              // shellWebShareWarned to false on the daemon side (D-03 re-arm).
+              // Without this re-sync, local state would still show warned=true
+              // and the banner would never re-appear.
+              setShellWebShareWarningEnabled(enabled)
+              if (enabled) {
+                GetShellWebShareWarned()
+                  .then(setShellWebShareWarned)
+                  .catch(() => setShellWebShareWarned(false))
+              }
             }}
           />
         </div>

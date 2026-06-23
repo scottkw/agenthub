@@ -198,7 +198,7 @@ describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () =
   it('onShellWarnEnabledChange callback calls setShellWebShareWarningEnabled', () => {
     const cbIdx = raw.indexOf('onShellWarnEnabledChange=')
     expect(cbIdx).toBeGreaterThan(-1)
-    const cbBlock = raw.slice(cbIdx, cbIdx + 600)
+    const cbBlock = raw.slice(cbIdx, cbIdx + 1200)
     expect(cbBlock).toContain('setShellWebShareWarningEnabled')
   })
 
@@ -216,21 +216,21 @@ describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () =
   it('HubPanel render receives shellWebShareWarned prop', () => {
     const hubIdx = raw.indexOf('<HubPanel')
     expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
     expect(hubBlock).toContain('shellWebShareWarned=')
   })
 
   it('HubPanel render receives shellWebShareWarningEnabled prop', () => {
     const hubIdx = raw.indexOf('<HubPanel')
     expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
     expect(hubBlock).toContain('shellWebShareWarningEnabled=')
   })
 
   it('HubPanel render receives onShellWebShareConfirm and onShellWebShareCancel callbacks', () => {
     const hubIdx = raw.indexOf('<HubPanel')
     expect(hubIdx).toBeGreaterThan(-1)
-    const hubBlock = raw.slice(hubIdx, hubIdx + 1500)
+    const hubBlock = raw.slice(hubIdx, hubIdx + 2500)
     expect(hubBlock).toContain('onShellWebShareConfirm=')
     expect(hubBlock).toContain('onShellWebShareCancel=')
   })
