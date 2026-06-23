@@ -4,13 +4,13 @@ milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
 status: executing
 stopped_at: Phase 150 context gathered
-last_updated: "2026-06-23T14:01:54.208Z"
-last_activity: 2026-06-23 -- Phase 150 planning complete
+last_updated: "2026-06-23T14:16:08.260Z"
+last_activity: 2026-06-23
 progress:
   total_phases: 16
   completed_phases: 14
   total_plans: 52
-  completed_plans: 50
+  completed_plans: 51
   percent: 88
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 150 — shell sharing warning toggle
+**Current focus:** Phase 150 — shell-sharing-warning-toggle
 
 ## Current Position
 
-Phase: 150
-Plan: Not started
+Phase: 150 (shell-sharing-warning-toggle) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-23 -- Phase 150 planning complete
+Last activity: 2026-06-23
 
-Progress: [██████████] 100%
+Progress: [██████████] 98%
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -95,7 +95,7 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-06-23T13:21:39.062Z
+Last session: 2026-06-23T14:16:08.252Z
 Stopped at: Phase 150 context gathered
-Resume file: .planning/phases/150-shell-sharing-warning-toggle/150-CONTEXT.md
+Resume file: None
 Next action: `/gsd:plan-phase 136`

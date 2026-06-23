@@ -88,7 +88,7 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 ### Settings (SET)
 
-- [ ] **SET-01**: A Settings toggle enables/disables the shell-session web-sharing warning, and can re-enable it after the first acknowledgment; the warning fires consistently across both share surfaces — the Hub Share modal and the per-tab StatusBar toggle (#51). [Phase 150]
+- [x] **SET-01**: A Settings toggle enables/disables the shell-session web-sharing warning, and can re-enable it after the first acknowledgment; the warning fires consistently across both share surfaces — the Hub Share modal and the per-tab StatusBar toggle (#51). [Phase 150]
 
 ### Terminal Zoom (ZOOM)
 
