@@ -67,6 +67,8 @@ func TestPlatformExtraBins_PreservesExistingEntries(t *testing.T) {
 // %LOCALAPPDATA% is unset:
 //   - The Microsoft\WindowsApps entry is silently skipped (no entry ending
 //     in "Microsoft\WindowsApps" appears in the result).
+//   - The agy\bin entry is silently skipped (no entry ending in "agy\bin"
+//     appears in the result).
 //   - The hardcoded C:\Program Files\PowerShell\7 entry is unaffected (it is
 //     not env-dependent and must still be returned).
 func TestPlatformExtraBins_LocalAppDataEmpty(t *testing.T) {
@@ -78,8 +80,25 @@ func TestPlatformExtraBins_LocalAppDataEmpty(t *testing.T) {
 		if strings.HasSuffix(p, `Microsoft\WindowsApps`) {
 			t.Errorf("platformExtraBins() returned WindowsApps entry %q despite empty LOCALAPPDATA; got %v", p, got)
 		}
+		if strings.HasSuffix(p, `agy\bin`) {
+			t.Errorf("platformExtraBins() returned agy\\bin entry %q despite empty LOCALAPPDATA; got %v", p, got)
+		}
 	}
 	if !containsString(got, `C:\Program Files\PowerShell\7`) {
 		t.Errorf("platformExtraBins() missing hardcoded PowerShell 7 path when LOCALAPPDATA empty; got %v", got)
+	}
+}
+
+// TestPlatformExtraBins_WindowsIncludesAgyBin verifies that the agy CLI
+// install path (%LOCALAPPDATA%\agy\bin\agy.exe) is included in platformExtraBins
+// when LOCALAPPDATA is set. Without this entry, a service-mode daemon cannot
+// discover agy.exe via exec.LookPath. See Phase 149 RESEARCH Fact 1.
+func TestPlatformExtraBins_WindowsIncludesAgyBin(t *testing.T) {
+	t.Setenv("LOCALAPPDATA", `C:\Users\test\AppData\Local`)
+
+	got := platformExtraBins()
+
+	if !containsString(got, `C:\Users\test\AppData\Local\agy\bin`) {
+		t.Errorf("platformExtraBins() missing agy\\bin path; got %v", got)
 	}
 }
