@@ -543,7 +543,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 147. In-App Help Page | v4.0 | 4/4 | Complete   | 2026-06-23 |
 | 148. Session Tab Chevron | v4.0 | 1/1 | Complete    | 2026-06-23 |
 | 149. Google Antigravity Agent | v4.0 | 3/3 | Complete    | 2026-06-23 |
-| 150. Shell-Sharing Warning Toggle | v4.0 | 1/3 | In Progress|  |
+| 150. Shell-Sharing Warning Toggle | v4.0 | 2/3 | In Progress|  |
 
 ### Phase 144: Daemon Styled-Tail Race Fix
 **Goal**: `GetSessionStyledTailLines` (the headless-VT styled-tail render) passes `go test -race` on all platforms — no data race between the drain goroutine's read and the emulator close
@@ -644,7 +644,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. The warning fires on both share surfaces — the Hub Share modal "Share the session" ON-path (currently bypasses it) and the legacy per-tab StatusBar toggle
 **Plans**: 3 plans
 - [x] 150-01-PLAN.md — Go daemon backend: shellWebShareWarningEnabled *bool (default ON) full chain (engine load/save + Get/Set re-arm, api, client, app.go, Wails JS/TS stubs) + Go unit tests (SET-01)
-- [ ] 150-02-PLAN.md — SettingsTab toggle in Session Behavior + confirm-on-disable dialog + SettingsSearch index + vitest (SET-01)
+- [x] 150-02-PLAN.md — SettingsTab toggle in Session Behavior + confirm-on-disable dialog + SettingsSearch index + vitest (SET-01)
 - [ ] 150-03-PLAN.md — Cross-surface interception: App.tsx warningEnabled gate + re-arm re-sync + Hub Share modal/SessionShareModal banner (D-09) + HubPanel threading + vitest + TESTING.md (SET-01)
 
 ### Phase 151: Terminal Font Zoom Shortcuts
