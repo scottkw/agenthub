@@ -633,7 +633,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 149-03-PLAN.md — TESTING.md (Suite Manifest §2 + AGENT-01 traceability §4 + M-15 live-launch §5) + README waitlist note + full-suite/build phase gate (AGENT-01)
 
 ### Phase 150: Shell-Sharing Warning Toggle
-**Goal**: A Settings toggle enables/disables the shell-session web-sharing warning and can re-enable it after the first acknowledgment
+**Goal**: A Settings toggle enables/disables the shell-session web-sharing warning and can re-enable it after the first acknowledgment, and the warning fires consistently across both share surfaces (Hub Share modal + per-tab StatusBar)
 **Depends on**: Phase 143
 **Requirements**: SET-01
 **GitHub Issue**: #51
@@ -641,8 +641,21 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   1. Settings has a toggle controlling the shell web-share warning
   2. Turning it off suppresses the warning; turning it on restores it (even after a prior one-time acknowledgment)
   3. The setting persists across restarts (backed by daemon settings)
+  4. The warning fires on both share surfaces — the Hub Share modal "Share the session" ON-path (currently bypasses it) and the legacy per-tab StatusBar toggle
 **Plans**: Not planned yet
 - [ ] TBD (run /gsd-plan-phase 150 to break down)
+
+### Phase 151: Terminal Font Zoom Shortcuts
+**Goal**: The active terminal session's font size responds to the standard macOS zoom shortcuts (Cmd +, Cmd -, Cmd 0/Cmd =), matching near-universal terminal-emulator convention, and refits cleanly after each change
+**Depends on**: Phase 143
+**Requirements**: ZOOM-01
+**GitHub Issue**: #99
+**Success Criteria** (what must be TRUE):
+  1. Cmd + / Cmd - change the active terminal session's font size
+  2. Cmd 0 (and Cmd =) reset the terminal font size to the default
+  3. The terminal refits cleanly after each font-size change (reuses the POL-04 `fitTerminal`-after-resize path)
+**Plans**: Not planned yet
+- [ ] TBD (run /gsd-plan-phase 151 to break down)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

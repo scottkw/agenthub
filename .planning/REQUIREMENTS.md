@@ -88,7 +88,11 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 ### Settings (SET)
 
-- [ ] **SET-01**: A Settings toggle enables/disables the shell-session web-sharing warning, and can re-enable it after the first acknowledgment (#51). [Phase 150]
+- [ ] **SET-01**: A Settings toggle enables/disables the shell-session web-sharing warning, and can re-enable it after the first acknowledgment; the warning fires consistently across both share surfaces — the Hub Share modal and the per-tab StatusBar toggle (#51). [Phase 150]
+
+### Terminal Zoom (ZOOM)
+
+- [ ] **ZOOM-01**: The active terminal session's font size responds to Cmd + / Cmd - (and Cmd 0 / Cmd = resets to default), refitting cleanly after each change (#99). [Phase 151]
 
 ## Future Requirements
 
@@ -167,13 +171,14 @@ Which phases cover which requirements. Filled during roadmap creation.
 | TAB-04 | Phase 148 | Planned |
 | AGENT-01 | Phase 149 | Planned |
 | SET-01 | Phase 150 | Planned |
+| ZOOM-01 | Phase 151 | Planned |
 
 **Coverage:**
-- v4.0 requirements: 43 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 4, TEST 6, CARRY 2, POL 5, FIX 3, HELP 1, AGENT 1, SET 1)
-- Mapped to phases: 43 (100% coverage)
+- v4.0 requirements: 44 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 4, TEST 6, CARRY 2, POL 5, FIX 3, HELP 1, AGENT 1, SET 1, ZOOM 1)
+- Mapped to phases: 44 (100% coverage)
 - Unmapped: 0 ✓
-- Note: TEST-02 (merge gate) deferred until v4.0 CI is green (#100/#101); remaining new reqs (FIX/HELP/TAB-04/AGENT/SET) planned in phases 144-150.
+- Note: TEST-02 (merge gate) deferred until v4.0 CI is green (#100/#101); remaining new reqs (FIX/HELP/TAB-04/AGENT/SET/ZOOM) planned in phases 144-151.
 
 ---
 *Requirements defined: 2026-06-19 — v4.0 Hub-First Consolidation & UI/UX Overhaul*
-*Last updated: 2026-06-22 (phases 144-150 added — issue burndown extending v4.0)*
+*Last updated: 2026-06-23 (phase 151 added — #99 terminal zoom shortcuts, extending v4.0 issue burndown)*
