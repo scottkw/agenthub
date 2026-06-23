@@ -481,7 +481,8 @@ describe('Phase 142 comp-fidelity CSS tokens (GAP-04 anti-regression)', () => {
 // ============================================================
 // Phase 149-02: agy (Google Antigravity) agent badge color identity
 // D-06: color #ff9e64 (TokyoNight orange) locked at source
-// D-07: WCAG numbers honest — dark 8.72:1 PASS, light 2.03:1 FAIL (same gap as all existing agents)
+// D-07: WCAG numbers honest — chip text on --hub-surface-elevated: dark 8.16:1 PASS, light 1.73:1 FAIL
+//       (corrected in WR-02; earlier 8.72:1/2.03:1 measured against the wrong reference)
 // D-08: all three color sites updated in lockstep (tab dot, card spine, card chip)
 // D-09: key is 'agy' (binary name), NOT 'antigravity'
 // COLORBLIND-SAFE: hex verified at source, not by eye (user is colorblind)
@@ -524,13 +525,13 @@ describe('Phase 149-02 — agy agent badge color identity', () => {
     expect(match![1]).toContain('rgba(255, 158, 100, 0.45)')
   })
 
-  it('D-07: WCAG comment documents dark contrast 8.72:1 (PASS) — honest source documentation', () => {
-    // The tab-dot rule carries the WCAG comment; 8.72:1 must be present at source
-    expect(cssRaw).toContain('8.72:1')
+  it('D-07/WR-02: WCAG comment documents dark contrast 8.16:1 (PASS) against the actual chip surface', () => {
+    // Chip text #ff9e64 on --hub-surface-elevated (#1c1e28); 8.16:1 must be present at source
+    expect(cssRaw).toContain('8.16:1')
   })
 
-  it('D-07: WCAG comment documents light contrast 2.03:1 (FAIL) — honest, no false AA pass claim', () => {
-    // Must document the actual light-mode failure honestly (D-07 honesty gate)
-    expect(cssRaw).toContain('2.03:1')
+  it('D-07/WR-02: WCAG comment documents light contrast 1.73:1 (FAIL) — honest, no false AA pass claim', () => {
+    // Must document the actual light-mode failure against the real surface (#ececf0), honestly
+    expect(cssRaw).toContain('1.73:1')
   })
 })

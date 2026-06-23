@@ -1715,7 +1715,11 @@ body {
 .tab__agent-badge--cursor   { background: #e0af68; }
 .tab__agent-badge--aider    { background: #f7768e; }
 .tab__agent-badge--shell    { background: #89ddff; }
-/* agy — orange; dark: 8.72:1 AA PASS; light: 2.03:1 FAIL (same gap as all existing agents — text chip carries identity) */
+/* agy — orange #ff9e64. Contrast of the chip TEXT against its rendered surface
+   --hub-surface-elevated (#1c1e28 dark / #ececf0 light): dark 8.16:1 AA PASS;
+   light 1.73:1 FAIL (same gap as all existing agents — the chip text is the cli
+   name; color is reinforcement only). The earlier 8.72:1/2.03:1 figures measured
+   against the wrong reference (pure black/white), corrected in Phase 149 WR-02. */
 .tab__agent-badge--agy      { background: #ff9e64; }
 
 /* Phase 98 PRG-02 — per-tab progress underline.
