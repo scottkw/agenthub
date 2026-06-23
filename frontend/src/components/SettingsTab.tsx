@@ -522,11 +522,17 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
           {shellWarnError && <p className="settings-panel__error">{shellWarnError}</p>}
         </div>
 
-        {/* D-07 confirm-on-disable dialog for shell web-share warning (reuses RegenerateKeyModal .quit-modal* pattern) */}
+        {/* D-07 confirm-on-disable dialog for shell web-share warning (reuses RegenerateKeyModal .quit-modal* pattern with action-specific copy) */}
         <RegenerateKeyModal
           isOpen={showDisableWarnConfirm}
           onConfirm={handleConfirmDisableShellWarn}
           onCancel={() => setShowDisableWarnConfirm(false)}
+          titleId="disable-shell-warn-title"
+          title="Disable shell web-share warning?"
+          body="AgentHub won't show the one-time security reminder before you web-share a shell session. You can re-enable it anytime in Settings → Session Behavior."
+          confirmLabel="Disable warning"
+          actingLabel="Disabling…"
+          cancelLabel="Keep warning"
         />
 
         {/* Appearance section (SETT-02) — POL-02: single role=switch toggle (D-06 colorblind-safe) */}

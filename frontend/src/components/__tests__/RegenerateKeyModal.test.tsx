@@ -8,19 +8,40 @@
  * would invalidate ALL shared links — a misleading, action-mismatched prompt
  * (found in live UAT). These tests pin both the default (regen-key) copy AND
  * the parameterized copy so the component can be safely reused.
+ *
+ * Uses the project's createRoot + act DOM render convention (no
+ * @testing-library/react dependency).
  */
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import React from 'react'
-import { describe, it, expect, vi } from 'vitest'
-import { render, act } from '@testing-library/react'
+import { createRoot } from 'react-dom/client'
+import { act } from 'react-dom/test-utils'
 import { RegenerateKeyModal } from '../RegenerateKeyModal'
 
 const noop = async (): Promise<void> => {}
 
+let container: HTMLElement
+let root: ReturnType<typeof createRoot>
+
+function mount(node: React.ReactElement): void {
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+  act(() => {
+    root.render(node)
+  })
+}
+
+afterEach(() => {
+  act(() => {
+    root?.unmount()
+  })
+  container?.remove()
+})
+
 describe('RegenerateKeyModal copy', () => {
   it('renders the default signing-key copy when no copy props are supplied (regression guard for the Security surface)', () => {
-    const { container } = render(
-      <RegenerateKeyModal isOpen onConfirm={noop} onCancel={() => {}} />
-    )
+    mount(<RegenerateKeyModal isOpen onConfirm={noop} onCancel={() => {}} />)
     const text = container.textContent ?? ''
     expect(text).toContain('Regenerate Signing Key?')
     expect(text).toContain('invalidates ALL shared links')
@@ -29,7 +50,7 @@ describe('RegenerateKeyModal copy', () => {
   })
 
   it('renders supplied copy props instead of the signing-key defaults', () => {
-    const { container } = render(
+    mount(
       <RegenerateKeyModal
         isOpen
         onConfirm={noop}
@@ -53,7 +74,7 @@ describe('RegenerateKeyModal copy', () => {
 
   it('confirm button invokes onConfirm regardless of label', async () => {
     const onConfirm = vi.fn().mockResolvedValue(undefined)
-    const { container } = render(
+    mount(
       <RegenerateKeyModal
         isOpen
         onConfirm={onConfirm}
@@ -64,7 +85,9 @@ describe('RegenerateKeyModal copy', () => {
     const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
     const confirmBtn = buttons.find((b) => b.textContent?.includes('Disable warning'))
     expect(confirmBtn).toBeTruthy()
-    await act(async () => { confirmBtn!.click() })
+    await act(async () => {
+      confirmBtn!.click()
+    })
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 })

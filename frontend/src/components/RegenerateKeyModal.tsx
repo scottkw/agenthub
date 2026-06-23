@@ -4,17 +4,42 @@ interface RegenerateKeyModalProps {
   isOpen: boolean
   onConfirm: () => Promise<void>
   onCancel: () => void
+  /**
+   * Optional copy overrides so this confirm modal can be reused for actions
+   * other than signing-key rotation (Phase 150: shell web-share warning
+   * disable-confirm). All default to the signing-key copy, so existing call
+   * sites that omit them are unchanged.
+   */
+  title?: string
+  body?: string
+  confirmLabel?: string
+  /** Label shown while onConfirm is in flight (defaults to "Invalidating…"). */
+  actingLabel?: string
+  cancelLabel?: string
+  titleId?: string
 }
 
 /**
- * Signing-key rotation confirmation modal (Phase 87 UI-SPEC Surface 2, D-16).
+ * Confirmation modal — originally the signing-key rotation prompt (Phase 87
+ * UI-SPEC Surface 2, D-16), generalized in Phase 150 to accept copy overrides
+ * so other destructive/guarded actions can reuse the same .quit-modal* shell.
  *
  * Structurally mirrors QuitConfirmModal: reuses the .quit-modal* CSS classes.
- * "Invalidate All Links" is the destructive confirm — rotating the signing
- * key immediately invalidates every outstanding capability across every
- * session, which is the intended blast radius of the v3.1 panic button.
+ * Defaults preserve the original copy: "Invalidate All Links" is the
+ * destructive confirm — rotating the signing key immediately invalidates every
+ * outstanding capability across every session (the v3.1 panic button).
  */
-function RegenerateKeyModal({ isOpen, onConfirm, onCancel }: RegenerateKeyModalProps): React.ReactElement | null {
+function RegenerateKeyModal({
+  isOpen,
+  onConfirm,
+  onCancel,
+  title = 'Regenerate Signing Key?',
+  body = 'This immediately invalidates ALL shared links across ALL sessions. Anyone currently using a shared terminal will be disconnected. You will need to re-share sessions to give access again.',
+  confirmLabel = 'Invalidate All Links',
+  actingLabel = 'Invalidating…',
+  cancelLabel = 'Keep Links',
+  titleId = 'regen-key-title',
+}: RegenerateKeyModalProps): React.ReactElement | null {
   const [acting, setActing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cancelBtnRef = useRef<HTMLButtonElement>(null)
@@ -63,17 +88,15 @@ function RegenerateKeyModal({ isOpen, onConfirm, onCancel }: RegenerateKeyModalP
         className="quit-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="regen-key-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="quit-modal__header">
-          <h2 className="quit-modal__title" id="regen-key-title">Regenerate Signing Key?</h2>
+          <h2 className="quit-modal__title" id={titleId}>{title}</h2>
           <button className="quit-modal__close" aria-label="Close" onClick={onCancel}>&times;</button>
         </div>
         <div className="quit-modal__body">
-          <p className="quit-modal__subtitle">
-            This immediately invalidates ALL shared links across ALL sessions. Anyone currently using a shared terminal will be disconnected. You will need to re-share sessions to give access again.
-          </p>
+          <p className="quit-modal__subtitle">{body}</p>
           {error && <p className="settings-panel__error">{error}</p>}
         </div>
         <div className="quit-modal__footer">
@@ -83,14 +106,14 @@ function RegenerateKeyModal({ isOpen, onConfirm, onCancel }: RegenerateKeyModalP
             disabled={acting}
             onClick={onCancel}
           >
-            Keep Links
+            {cancelLabel}
           </button>
           <button
             className="quit-modal__btn--quit-all"
             disabled={acting}
             onClick={() => void handleConfirm()}
           >
-            {acting ? 'Invalidating\u2026' : 'Invalidate All Links'}
+            {acting ? actingLabel : confirmLabel}
           </button>
         </div>
       </div>
