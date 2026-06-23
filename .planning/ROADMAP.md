@@ -647,17 +647,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] 150-02-PLAN.md — SettingsTab toggle in Session Behavior + confirm-on-disable dialog + SettingsSearch index + vitest (SET-01)
 - [x] 150-03-PLAN.md — Cross-surface interception: App.tsx warningEnabled gate + re-arm re-sync + Hub Share modal/SessionShareModal banner (D-09) + HubPanel threading + vitest + TESTING.md (SET-01)
 
-### Phase 151: Terminal Font Zoom Shortcuts
-**Goal**: The active terminal session's font size responds to the standard macOS zoom shortcuts (Cmd +, Cmd -, Cmd 0/Cmd =), matching near-universal terminal-emulator convention, and refits cleanly after each change
-**Depends on**: Phase 143
-**Requirements**: ZOOM-01
-**GitHub Issue**: #99
-**Success Criteria** (what must be TRUE):
-  1. Cmd + / Cmd - change the active terminal session's font size
-  2. Cmd 0 (and Cmd =) reset the terminal font size to the default
-  3. The terminal refits cleanly after each font-size change (reuses the POL-04 `fitTerminal`-after-resize path)
-**Plans**: Not planned yet
-- [ ] TBD (run /gsd-plan-phase 151 to break down)
+### Phase 151: Terminal Font Zoom Shortcuts — ❌ CANCELLED 2026-06-23
+**Status**: Cancelled before planning. Terminal font zoom already ships via the existing `Shift-Cmd-+` / `Shift-Cmd--` binding (TerminalPanel `attachCustomKeyEventHandler`, delivered in Phase 134 WR-04), which refits cleanly through the POL-04 `fitTerminal` path. Maintainer verified the shortcut works as expected, so ZOOM-01 is redundant. The bare-`Cmd`/`Cmd-0` reset variants originally specified in #99 are intentionally descoped. GitHub #99 closed not-planned.
+**Requirements**: ZOOM-01 (cancelled)
+**GitHub Issue**: #99 (closed)
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

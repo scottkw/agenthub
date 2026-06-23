@@ -92,7 +92,7 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 ### Terminal Zoom (ZOOM)
 
-- [ ] **ZOOM-01**: The active terminal session's font size responds to Cmd + / Cmd - (and Cmd 0 / Cmd = resets to default), refitting cleanly after each change (#99). [Phase 151]
+- [~] **ZOOM-01** — CANCELLED 2026-06-23: terminal font zoom already ships via the existing `Shift-Cmd-+` / `Shift-Cmd--` binding (TerminalPanel `attachCustomKeyEventHandler`, Phase 134 WR-04), which refits cleanly through the POL-04 `fitTerminal` path. Maintainer verified this meets the need; the bare-`Cmd`/`Cmd-0` reset variants from #99 are intentionally descoped. Phase 151 cancelled, #99 closed. [Phase 151 — cancelled]
 
 ## Future Requirements
 
@@ -171,13 +171,13 @@ Which phases cover which requirements. Filled during roadmap creation.
 | TAB-04 | Phase 148 | Planned |
 | AGENT-01 | Phase 149 | Planned |
 | SET-01 | Phase 150 | Planned |
-| ZOOM-01 | Phase 151 | Planned |
+| ZOOM-01 | Phase 151 | Cancelled (already shipped via Phase 134 WR-04; #99 closed) |
 
 **Coverage:**
-- v4.0 requirements: 44 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 4, TEST 6, CARRY 2, POL 5, FIX 3, HELP 1, AGENT 1, SET 1, ZOOM 1)
-- Mapped to phases: 44 (100% coverage)
+- v4.0 requirements: 44 total (NAV 5, SHARE 6, CARD 5, RDS 4, TAB 4, TEST 6, CARRY 2, POL 5, FIX 3, HELP 1, AGENT 1, SET 1, ZOOM 1) — 43 delivered, 1 cancelled (ZOOM-01)
+- Mapped to phases: 43 delivered (100% of active scope); ZOOM-01 cancelled — terminal zoom already shipped in Phase 134
 - Unmapped: 0 ✓
-- Note: TEST-02 (merge gate) deferred until v4.0 CI is green (#100/#101); remaining new reqs (FIX/HELP/TAB-04/AGENT/SET/ZOOM) planned in phases 144-151.
+- Note: TEST-02 (merge gate) deferred until v4.0 CI is green (#100/#101); ZOOM-01 (Phase 151) cancelled 2026-06-23 — zoom already works via Shift-Cmd-+/- (#99 closed). Remaining new reqs (FIX/HELP/TAB-04/AGENT/SET) delivered in phases 144-150.
 
 ---
 *Requirements defined: 2026-06-19 — v4.0 Hub-First Consolidation & UI/UX Overhaul*
