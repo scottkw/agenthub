@@ -91,13 +91,35 @@ func FallbackPatterns() PatternSet {
 	return PatternSet{}
 }
 
-// PatternsForCLI returns DefaultClaudePatterns for the "claude" CLI name and
-// FallbackPatterns for everything else.
-func PatternsForCLI(cliName string) PatternSet {
-	if cliName == "claude" {
-		return DefaultClaudePatterns()
+// DefaultAgyPatterns returns minimal status patterns for the Google Antigravity CLI (agy).
+//
+// These patterns are [ASSUMED] from TUI screenshots (Phase 149 RESEARCH) and should be
+// verified/tuned after post-M-15 live access (see CONTEXT D-13 and RESEARCH Open Question 1).
+//
+// Working is left empty: no reliable working indicator identified yet; FallbackPatterns
+// default (StatusRunning) applies during active work.
+func DefaultAgyPatterns() PatternSet {
+	return PatternSet{
+		Idle: []*regexp.Regexp{
+			regexp.MustCompile(`>\s*$`),
+		},
+		Waiting: []*regexp.Regexp{
+			regexp.MustCompile(`\[y/n\]|\[Y/n\]|\[y/N\]`),
+		},
 	}
-	return FallbackPatterns()
+}
+
+// PatternsForCLI returns the PatternSet for the named CLI.
+// "claude" → DefaultClaudePatterns; "agy" → DefaultAgyPatterns; else → FallbackPatterns.
+func PatternsForCLI(cliName string) PatternSet {
+	switch cliName {
+	case "claude":
+		return DefaultClaudePatterns()
+	case "agy":
+		return DefaultAgyPatterns()
+	default:
+		return FallbackPatterns()
+	}
 }
 
 // Detector maintains a rolling tail of stripped PTY output for a single session
