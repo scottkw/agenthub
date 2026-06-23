@@ -26,12 +26,12 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
 | Go unit/integration | **348** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
-| vitest (frontend) | **116** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
+| vitest (frontend) | **117** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **472** | — | — | — |
+| **Total** | **473** | — | — | — |
 
-> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path). Phase 147-01: vitest +4 (HelpTab.test.tsx, HelpSearch.test.tsx, HelpSectionNav.test.tsx, HelpContent.test.tsx — RED stubs for Wave 0; turn GREEN in Plans 02/03). Phase 147-02: HelpContent + HelpSearch + HelpSectionNav + HelpTab implemented — 24 tests GREEN; 4 App.tsx + 7 Sidebar gates remain RED (Wave 3 wiring in Plan 03).
+> Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path). Phase 147-01: vitest +4 (HelpTab.test.tsx, HelpSearch.test.tsx, HelpSectionNav.test.tsx, HelpContent.test.tsx — RED stubs for Wave 0; turn GREEN in Plans 02/03). Phase 147-02: HelpContent + HelpSearch + HelpSectionNav + HelpTab implemented — 24 tests GREEN; 4 App.tsx + 7 Sidebar gates remain RED (Wave 3 wiring in Plan 03). Phase 147 code-review fix: vitest +1 (HelpTab.integration.test.tsx — real render-based integration test added for CR-01 dead-navigation fix; the prior source-gate-only HelpTab.test.tsx passed green against broken nav), reaching 117 files / 473 total.
 
 ### CI Workflow Mapping
 
@@ -154,6 +154,7 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | HELP-01 | frontend/src/components/__tests__/HelpSearch.test.tsx | vitest | Phase 147: search label, clear button, empty-state, and mark highlight assertions (RED in Plan 01; GREEN in Plan 03) |
 | HELP-01 | frontend/src/components/__tests__/HelpSectionNav.test.tsx | vitest | Phase 147: section nav renders buttons per section; aria-current + active class + onSectionChange on click (RED in Plan 01; GREEN in Plan 03) |
 | HELP-01 | frontend/src/components/__tests__/HelpContent.test.tsx | vitest | Phase 147: react-markdown import gate; BrowserOpenURL called on link click; no raw `<a href` in output (RED in Plan 01; GREEN in Plan 03) |
+| HELP-01 | frontend/src/components/__tests__/HelpTab.integration.test.tsx | vitest | Phase 147 code-review fix (CR-01): real render-based test — section anchor ids (`#help-getting-started`/`#help-faq`) exist, nav click calls scrollIntoView + sets aria-current, search jump resolves a non-null section (fails against pre-fix concatenated render) |
 
 ---
 
