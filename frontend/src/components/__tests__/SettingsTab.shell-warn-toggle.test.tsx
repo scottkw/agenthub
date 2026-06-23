@@ -181,6 +181,16 @@ describe('SET-01: SettingsTab shell-warn toggle — source contract', () => {
   it('confirm dialog shows showDisableWarnConfirm state', () => {
     expect(raw).toContain('showDisableWarnConfirm')
   })
+
+  // Gap-closure (live UAT): the disable-confirm reuses RegenerateKeyModal but
+  // MUST pass disable-warning copy — not the hardcoded "Regenerate Signing
+  // Key" / "Invalidate All Links" defaults, which are about a different action.
+  it('disable-confirm passes shell-warning copy to RegenerateKeyModal (not signing-key defaults)', () => {
+    const modalCall = raw.slice(raw.indexOf('isOpen={showDisableWarnConfirm}'))
+    expect(modalCall).toContain('Disable warning')
+    expect(modalCall).toMatch(/title=/)
+    expect(modalCall).not.toContain('Invalidate All Links')
+  })
 })
 
 // --------------------------------------------------------------------------
