@@ -220,6 +220,28 @@ body {
   color: var(--hub-destructive);
 }
 
+/* Phase 148 TAB-04: down-chevron affordance for session tabs (D-03..D-06) */
+.tab__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--hub-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 2px;
+  flex-shrink: 0;
+  padding: 0;
+}
+.tab__chevron:hover {
+  background-color: var(--hub-border-hover);
+  color: var(--hub-text-primary);
+}
+
 /* D-05/D-06: hide name text at icon-only floor (32px min-width; threshold 59px total) — CSS container query */
 @container (max-width: 59px) {
   .tab__name {
@@ -257,6 +279,7 @@ body {
 @media (prefers-reduced-motion: no-preference) {
   .tab,
   .tab__close,
+  .tab__chevron,
   .tab-status-bar__btn {
     transition: background-color 0.1s, color 0.1s;
   }
@@ -264,6 +287,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tab,
   .tab__close,
+  .tab__chevron,
   .tab-status-bar__btn {
     transition: none;
   }
@@ -1621,9 +1645,10 @@ body {
 }
 
 /* ─── Tab context menu ─────────────────────────────────────────── */
+/* Phase 148 D-07: hardcoded dark hex values → --hub-* tokens for light/dark correctness */
 .tab__context-menu {
-  background: #1e2030;
-  border: 1px solid #292e42;
+  background: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-border);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   min-width: 120px;
@@ -1637,7 +1662,7 @@ body {
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 400;
-  color: #a9b1d6;
+  color: var(--hub-text-secondary);
   background: none;
   border: none;
   text-align: left;
@@ -1646,8 +1671,8 @@ body {
 }
 
 .tab__context-menu__item:hover {
-  color: #c0caf5;
-  background: #292e42;
+  color: var(--hub-text-primary);
+  background: var(--hub-border-hover);
 }
 
 /* ─── Tab status dots ────────────────────────────────────────────── */
