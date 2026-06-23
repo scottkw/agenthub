@@ -427,3 +427,77 @@ describe('Phase 139 TAB-03: TabBar title on outer .tab div — RED until Plan 02
     expect(outerTitle).toContain('claude 1')
   })
 })
+
+// ============================================================================
+// Phase 148 TAB-04 — Session tab chevron (down-chevron button for menu discoverability)
+// ============================================================================
+
+describe('Phase 148 TAB-04: TabBar session-tab chevron', () => {
+  let container: HTMLElement
+  let root: ReturnType<typeof createRoot>
+
+  afterEach(() => {
+    root.unmount()
+    container.remove()
+  })
+
+  it('tab-chevron: session tab renders button[data-testid="tab-chevron"] with aria-label="Session menu"', () => {
+    // A session tab (truthy sessionId) must render the chevron button.
+    ;({ container, root } = renderTabBarWithTabs())
+    const chevron = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    expect(chevron).not.toBeNull()
+    expect(chevron.getAttribute('aria-label')).toBe('Session menu')
+  })
+
+  it('tab-chevron: special tab (no sessionId) renders NO .tab__chevron', () => {
+    // A tab with no sessionId (Welcome/Settings/Hub/Help/File-browser) must NOT get a chevron.
+    const container2 = document.createElement('div')
+    document.body.appendChild(container2)
+    const root2 = createRoot(container2)
+    flushSync(() => {
+      root2.render(
+        React.createElement(TabBar, {
+          tabs: [{ id: 'welcome', name: 'Welcome', sessionId: '', cli: '' }],
+          activeId: 'welcome',
+          onSelect: () => {},
+          onClose: () => {},
+          onRename: () => {},
+        })
+      )
+    })
+    const chevron = container2.querySelector('.tab__chevron')
+    expect(chevron).toBeNull()
+    root2.unmount()
+    container2.remove()
+  })
+
+  it('tab-chevron: clicking the chevron opens .tab__context-menu', () => {
+    // Clicking the chevron button must open the context menu.
+    ;({ container, root } = renderTabBarWithTabs())
+    const chevron = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    expect(chevron).not.toBeNull()
+    flushSync(() => {
+      chevron.click()
+    })
+    expect(container.querySelector('.tab__context-menu')).not.toBeNull()
+  })
+
+  it('tab-chevron: right-click on .tab__name still opens .tab__context-menu (D-02 regression guard)', () => {
+    // Right-click on the tab name must still open the context menu (D-02 preserved).
+    ;({ container, root } = renderTabBarWithTabs())
+    const tabName = container.querySelector('.tab__name') as HTMLElement
+    expect(tabName).not.toBeNull()
+    flushSync(() => {
+      tabName.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+    })
+    expect(container.querySelector('.tab__context-menu')).not.toBeNull()
+  })
+
+  it('tab-chevron: source contains getBoundingClientRect on chevron path (D-01 rect-anchored)', () => {
+    // jsdom returns zeroed rects, so we assert at source level that the chevron
+    // onClick uses getBoundingClientRect (not clientX/clientY) for positioning.
+    expect(raw).toContain('getBoundingClientRect')
+    expect(raw).toContain('rect.left')
+    expect(raw).toContain('rect.bottom')
+  })
+})
