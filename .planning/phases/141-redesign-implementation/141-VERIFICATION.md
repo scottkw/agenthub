@@ -1,15 +1,19 @@
 ---
 phase: 141-redesign-implementation
 verified: 2026-06-21T18:00:00Z
-status: gaps_found
+status: passed
+gaps_resolved: 2026-06-21
 score: 4/4
 overrides_applied: 0
 reopened: 2026-06-21
 reopened_reason: "False pass — verified token migration/ARIA/reduced-motion but never compared the running app to the canonical design comp. The redesign's visual language (Plus Jakarta Sans + JetBrains Mono fonts, comp color palette, radii, type scale) was never adopted; dark mode is pixel-identical to pre-141. See 141-DESIGN-GAP.md."
+resolution: "Gaps closed by plans 141-06..09 (vendored Plus Jakarta Sans + JetBrains Mono woff2, re-valued dark --hub-* to the comp palette, applied fonts/radii/type-scale across all surfaces, persisted Light/Dark toggle). Re-verified via rendered app-vs-comp comparison per surface in 141-RENDER-COMPARE.md (all surfaces ✅ PASS), backed by a blocking human visual checkpoint approved 2026-06-21. 141-HUMAN-UAT.md status: resolved. The render-compare supersedes this report's original token-only false pass."
 ---
 
 # Phase 141: Redesign Implementation Verification Report
 
+> **✅ RESOLVED 2026-06-21 (status gaps_found → passed):** The false pass below was corrected by gap-closure plans 141-06..09 and re-verified by a rendered app-vs-comp comparison per surface (`141-RENDER-COMPARE.md`, all ✅ PASS) with a blocking human checkpoint (approved 2026-06-21; `141-HUMAN-UAT.md` status: resolved). The historical reopen note is retained below for the record.
+>
 > **REOPENED 2026-06-21 (status flipped passed → gaps_found):** This report's 4/4 was a FALSE PASS.
 > The success criteria were checked at the token/hex/ARIA level only; the canonical design comp
 > (`agenthub-v4.0-redesign/.../AgentHub Redesign (standalone).html` + `c-*.png`) was never rendered and
