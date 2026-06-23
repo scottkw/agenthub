@@ -140,8 +140,20 @@ var knownShells = map[string]bool{
 // isShellSession returns true if cli refers to a shell-type session (vs an
 // AI CLI). Used by CreateSession to (1) bypass status.Watch (SHELL-09) and
 // (2) gate the shell-specific argv / WorkDir resolution branch (SHELL-05).
+//
+// cli may be a bare key ("shell"/"zsh") OR a full binary path ("/bin/zsh",
+// `C:\...\powershell.exe`) — a shell session stores its resolved path. Normalize
+// to the basename (across both separators, minus a .exe suffix, case-insensitive)
+// before matching, mirroring the frontend lib/shellCli.isShellCli (Phase 150).
+// Separators are handled explicitly rather than via filepath.Base so a Windows
+// path is classified consistently regardless of the daemon's GOOS.
 func isShellSession(cli string) bool {
-	switch cli {
+	base := strings.ToLower(cli)
+	if i := strings.LastIndexAny(base, `/\`); i >= 0 {
+		base = base[i+1:]
+	}
+	base = strings.TrimSuffix(base, ".exe")
+	switch base {
 	case "shell", "bash", "zsh", "pwsh", "powershell":
 		return true
 	}

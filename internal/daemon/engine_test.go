@@ -792,18 +792,38 @@ func TestShell_NoStatusMapEntry(t *testing.T) {
 }
 
 // TestIsShellSession_AllShellNames (unit test for the helper).
+//
+// Phase 150 SET-01 follow-up: a shell session's cli is its resolved binary
+// PATH ('/bin/zsh'), not a bare key — so isShellSession must normalize to the
+// basename (minus .exe, case-insensitive) before matching, mirroring the
+// frontend lib/shellCli.isShellCli. Previously full-path shells returned false,
+// which mis-classified them for status.Watch (SHELL-09).
 func TestIsShellSession_AllShellNames(t *testing.T) {
 	cases := map[string]bool{
+		// Bare keys (unchanged).
 		"shell":      true,
 		"bash":       true,
 		"zsh":        true,
 		"pwsh":       true,
 		"powershell": true,
-		"claude":     false,
-		"opencode":   false,
-		"":           false,
-		"Bash":       false,
-		"/bin/bash":  false,
+		// Non-shell agent CLIs.
+		"claude":         false,
+		"opencode":       false,
+		"":               false,
+		"/usr/bin/claude": false,
+		// Full paths — the real-app case (was incorrectly false).
+		"/bin/bash":            true,
+		"/bin/zsh":             true,
+		"/usr/local/bin/bash":  true,
+		// Case-insensitive on the basename.
+		"Bash":    true,
+		"/bin/ZSH": true,
+		// Windows path + .exe strip (deterministic across platforms).
+		"powershell.exe": true,
+		`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`: true,
+		// Shells outside the warning set stay false.
+		"/bin/sh": false,
+		"fish":    false,
 	}
 	for name, want := range cases {
 		got := isShellSession(name)
