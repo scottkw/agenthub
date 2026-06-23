@@ -242,6 +242,12 @@ Human-intervention items that cannot be automated. Run before each tagged releas
   - _Why not automatable:_ Wails native webview required for the BrowserOpenURL external-browser path and IntersectionObserver scroll-spy active-section tracking.
   - _Source:_ Phase 147 HELP-01 (#69); add when Plans 02/03 complete
 
+### Category I — Live Agent Launch (AGENT-01)
+
+- **M-15** Live Antigravity launch — verify when waitlist access is granted: run `agenthub new agy <dir>` and confirm (a) the GUI/web new-session picker shows "Google Antigravity"; (b) `agy` launches an interactive PTY REPL; (c) auth completes via browser-loopback OAuth or the documented SSH/OTP degradation path; (d) the status badge renders `#ff9e64`; (e) the card spine, chip, and tab dot all show the agy color in lockstep.
+  - _Why not automatable:_ `agy` is in closed-beta/waitlist (D-03) — the binary cannot be installed for live UAT this phase. Live PTY REPL interaction and browser-loopback OAuth require a real, installed binary that is not yet publicly available.
+  - _Source:_ CONTEXT D-03; 149-VALIDATION.md Manual-Only Verifications; AGENT-01 (#65)
+
 ---
 
 ## 6. Standing Convention
