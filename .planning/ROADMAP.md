@@ -542,7 +542,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 146. Open Session Capability Bug | v4.0 | 5/5 | Complete    | 2026-06-22 |
 | 147. In-App Help Page | v4.0 | 4/4 | Complete   | 2026-06-23 |
 | 148. Session Tab Chevron | v4.0 | 1/1 | Complete    | 2026-06-23 |
-| 149. Google Antigravity Agent | v4.0 | 2/3 | In Progress|  |
+| 149. Google Antigravity Agent | v4.0 | 3/3 | Complete   | 2026-06-23 |
 | 150. Shell-Sharing Warning Toggle | v4.0 | 0/0 | Not planned | — |
 
 ### Phase 144: Daemon Styled-Tail Race Fix
@@ -630,7 +630,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 3 plans
 - [x] 149-01-PLAN.md — Go backend: knownCLIs `agy`/"Google Antigravity" + detection tests; %LOCALAPPDATA%\agy\bin Windows PATH + test; minimal DefaultAgyPatterns idle/waiting (AGENT-01)
 - [x] 149-02-PLAN.md — Frontend badge: agentBadge.ts `agy` case + three #ff9e64 CSS sites in lockstep + honest WCAG comment (dark 8.72:1 / light 2.03:1) + vitest/tsc gate (AGENT-01)
-- [ ] 149-03-PLAN.md — TESTING.md (Suite Manifest §2 + AGENT-01 traceability §4 + M-15 live-launch §5) + README waitlist note + full-suite/build phase gate (AGENT-01)
+- [x] 149-03-PLAN.md — TESTING.md (Suite Manifest §2 + AGENT-01 traceability §4 + M-15 live-launch §5) + README waitlist note + full-suite/build phase gate (AGENT-01)
 
 ### Phase 150: Shell-Sharing Warning Toggle
 **Goal**: A Settings toggle enables/disables the shell-session web-sharing warning and can re-enable it after the first acknowledgment
