@@ -199,7 +199,10 @@ body {
   font-family: inherit;
 }
 
-.tab__close {
+/* IN-02: .tab__close and .tab__chevron (Phase 148 TAB-04) share one icon-button
+   box model; only the :hover color differs (destructive close vs neutral chevron). */
+.tab__close,
+.tab__chevron {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -219,24 +222,7 @@ body {
   background-color: var(--hub-border-hover);
   color: var(--hub-destructive);
 }
-
 /* Phase 148 TAB-04: down-chevron affordance for session tabs (D-03..D-06) */
-.tab__chevron {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background: transparent;
-  color: var(--hub-text-muted);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  border-radius: 2px;
-  flex-shrink: 0;
-  padding: 0;
-}
 .tab__chevron:hover {
   background-color: var(--hub-border-hover);
   color: var(--hub-text-primary);
@@ -249,6 +235,11 @@ body {
   }
   .tab__rename-input {
     display: none; /* inline rename hidden at floor; D-06: use context menu */
+  }
+  .tab__chevron {
+    display: none; /* WR-01: two 16px non-shrink buttons overflow the 32px floor;
+                      drop the chevron so .tab__close stays clickable. Menu still
+                      reachable via right-click at floor (D-02). */
   }
 }
 

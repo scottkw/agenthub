@@ -13,8 +13,19 @@ findings:
   warning: 2
   info: 4
   total: 6
-status: issues_found
+status: resolved
+resolved: 2026-06-23
 ---
+
+> **Resolution (2026-06-23):** All 6 findings addressed in follow-up commit.
+> - **WR-01** — `.tab__chevron` now hidden in the `@container (max-width: 59px)` floor rule (`style.css`); `.tab__close` stays clickable, menu reachable via right-click at floor.
+> - **WR-02** — chevron now has `aria-haspopup="menu"` + reflected `aria-expanded`.
+> - **IN-01** — chevron click toggles the menu closed; `onMouseDown` stops propagation so the outside-click handler doesn't pre-close it.
+> - **IN-02** — `.tab__close` / `.tab__chevron` box model merged into a grouped selector; only `:hover` colors differ.
+> - **IN-03** — test override type now derives from `React.ComponentProps<typeof TabBar>` (bespoke `TabBarProps` removed).
+> - **IN-04** — added a behavioral rect-anchoring test (stubs `getBoundingClientRect`, asserts menu `left`/`top`) instead of relying only on a source-string match.
+>
+> Coverage: TabBar suite 36 → 39 tests; full frontend suite 1870 passing; `tsc + vite build` green.
 
 # Phase 148: Code Review Report
 

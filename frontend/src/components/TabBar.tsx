@@ -242,8 +242,19 @@ export function TabBar({
                 data-testid="tab-chevron"
                 title="Session menu"
                 aria-label="Session menu"
+                aria-haspopup="menu"
+                aria-expanded={contextMenu?.tabId === tab.id}
+                // WR-02 a11y: advertise the popup + reflect open state.
+                // IN-01: stop mousedown so the document outside-click handler
+                // doesn't pre-close the menu before this click can toggle it.
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation()
+                  // Toggle: a click on the already-open chevron dismisses the menu.
+                  if (contextMenu?.tabId === tab.id) {
+                    setContextMenu(null)
+                    return
+                  }
                   const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
                   setContextMenu({ tabId: tab.id, x: rect.left, y: rect.bottom })
                 }}

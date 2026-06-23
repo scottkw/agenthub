@@ -3,17 +3,11 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { TabBar } from '../TabBar'
-import type { Tab } from '../TabBar'
 import raw from '../TabBar.tsx?raw'
 
-interface TabBarProps {
-  tabs: Tab[]
-  activeId: string | null
-  onSelect: (id: string) => void
-  onClose: (id: string) => void
-  onRename: (id: string, name: string) => void
-  sessionStatuses?: Record<string, string>
-}
+// IN-03: derive the override type from the real component prop surface instead of
+// a hand-maintained subset, so it can't drift from TabBar's actual props.
+type TabBarOverrides = Partial<React.ComponentProps<typeof TabBar>>
 
 function renderTabBar() {
   const container = document.createElement('div')
@@ -33,7 +27,7 @@ function renderTabBar() {
   return { container, root }
 }
 
-function renderTabBarWithTabs(overrides: Partial<TabBarProps> = {}) {
+function renderTabBarWithTabs(overrides: TabBarOverrides = {}) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -499,5 +493,40 @@ describe('Phase 148 TAB-04: TabBar session-tab chevron', () => {
     expect(raw).toContain('getBoundingClientRect')
     expect(raw).toContain('rect.left')
     expect(raw).toContain('rect.bottom')
+  })
+
+  it('tab-chevron: exposes aria-haspopup="menu" and reflects aria-expanded (WR-02)', () => {
+    ;({ container, root } = renderTabBarWithTabs())
+    const chevron = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    expect(chevron.getAttribute('aria-haspopup')).toBe('menu')
+    expect(chevron.getAttribute('aria-expanded')).toBe('false')
+    flushSync(() => { chevron.click() })
+    const opened = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    expect(opened.getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('tab-chevron: clicking an open chevron toggles the menu closed (IN-01)', () => {
+    ;({ container, root } = renderTabBarWithTabs())
+    const chevron = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    flushSync(() => { chevron.click() })
+    expect(container.querySelector('.tab__context-menu')).not.toBeNull()
+    const reopened = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    flushSync(() => { reopened.click() })
+    expect(container.querySelector('.tab__context-menu')).toBeNull()
+  })
+
+  it('tab-chevron: opened menu is anchored at the chevron rect, not the cursor (D-01 behavioral, IN-04)', () => {
+    // jsdom zeroes getBoundingClientRect, so stub a concrete rect and assert the
+    // menu lands at {left: rect.left, top: rect.bottom} — proves rect-anchoring
+    // behaviorally, not just by source-string match.
+    ;({ container, root } = renderTabBarWithTabs())
+    const chevron = container.querySelector('button[data-testid="tab-chevron"]') as HTMLButtonElement
+    chevron.getBoundingClientRect = () =>
+      ({ left: 120, bottom: 40, right: 136, top: 24, x: 120, y: 24, width: 16, height: 16, toJSON: () => ({}) }) as DOMRect
+    flushSync(() => { chevron.click() })
+    const menu = container.querySelector('.tab__context-menu') as HTMLElement
+    expect(menu).not.toBeNull()
+    expect(menu.style.left).toBe('120px')
+    expect(menu.style.top).toBe('40px')
   })
 })
