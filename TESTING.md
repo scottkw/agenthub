@@ -29,7 +29,7 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 | vitest (frontend) | **116** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **7** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons |
 | build-script | **1** `build-script.test.sh` | `tests/` | `bash tests/build-script.test.sh` | Go build + Wails asset embedding |
-| **Total** | **468** | — | — | — |
+| **Total** | **472** | — | — | — |
 
 > Note: Counts updated Phase 146: Go -1 (broadcast-only test deleted in Plan 02 — mintSessionJoinCodes wiring removed); vitest +3 (Phase 146 added `App.open-remote.test.tsx` + `__tests__/remoteAdapter.test.ts` in 146-00, reaching 112 live files). Live scan 2026-06-22 (347 Go, 112 vitest). Plan 05 (gap closure) Go +1 (open_remote_session_url_test.go — held-cap open-url read path). Phase 147-01: vitest +4 (HelpTab.test.tsx, HelpSearch.test.tsx, HelpSectionNav.test.tsx, HelpContent.test.tsx — RED stubs for Wave 0; turn GREEN in Plans 02/03). Phase 147-02: HelpContent + HelpSearch + HelpSectionNav + HelpTab implemented — 24 tests GREEN; 4 App.tsx + 7 Sidebar gates remain RED (Wave 3 wiring in Plan 03).
 
