@@ -16,6 +16,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import raw from '../../App.tsx?raw'
+import { SHELL_CLIS } from '../../lib/shellCli'
 
 describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)', () => {
   it('imports ShellWebShareBanner from components/ShellWebShareBanner', () => {
@@ -29,15 +30,18 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
     expect(raw).toContain('SetShellWebShareWarned')
   })
 
-  it('declares SHELL_CLIS set with shell/bash/zsh/pwsh/powershell membership', () => {
-    expect(raw).toContain('SHELL_CLIS')
-    // Each of the 5 shell cli identifiers must be present in the set literal.
-    const shellSetBlock = raw.slice(raw.indexOf('SHELL_CLIS'))
-    expect(shellSetBlock).toContain("'shell'")
-    expect(shellSetBlock).toContain("'bash'")
-    expect(shellSetBlock).toContain("'zsh'")
-    expect(shellSetBlock).toContain("'pwsh'")
-    expect(shellSetBlock).toContain("'powershell'")
+  it('uses the shared path-aware isShellCli helper for the shell gate', () => {
+    // SET-01 gap-closure (live UAT): shell detection moved to lib/shellCli and
+    // made path-aware — a shell session's cli is its full path ('/bin/zsh'),
+    // which the old bare-name Set never matched. App must import and use it.
+    expect(raw).toContain("from './lib/shellCli'")
+    expect(raw).toContain('isShellCli(')
+    // The membership contract now lives in the shared module (runtime check).
+    expect(SHELL_CLIS.has('shell')).toBe(true)
+    expect(SHELL_CLIS.has('bash')).toBe(true)
+    expect(SHELL_CLIS.has('zsh')).toBe(true)
+    expect(SHELL_CLIS.has('pwsh')).toBe(true)
+    expect(SHELL_CLIS.has('powershell')).toBe(true)
   })
 
   it('declares shellWebShareWarned React state', () => {
@@ -63,11 +67,11 @@ describe('App.tsx shell web-share interception (Phase 101-03 SHELL-07/SHELL-08)'
   })
 
   it('intercepts handleToggleWeb: short-circuits when shell session + enabling + !shellWebShareWarned', () => {
-    // The interception is the load-bearing gate. Assert the literal guard structure.
-    expect(raw).toContain('SHELL_CLIS.has')
+    // The interception is the load-bearing gate. Assert the guard structure.
+    expect(raw).toContain('isShellCli(')
     expect(raw).toContain('!shellWebShareWarned')
     // The handler must call setPendingShellWebToggle inside the intercept branch.
-    const interceptBlock = raw.slice(raw.indexOf('SHELL_CLIS.has'))
+    const interceptBlock = raw.slice(raw.indexOf('isShellCli('))
     expect(interceptBlock.slice(0, 600)).toContain('setPendingShellWebToggle')
   })
 
@@ -168,10 +172,10 @@ describe('App.tsx shell web-share warning-enabled gate (Phase 150 SET-01)', () =
   })
 
   it('handleToggleWeb gate includes shellWebShareWarningEnabled && before !shellWebShareWarned', () => {
-    // The gate must now be: SHELL_CLIS.has && shellWebShareWarningEnabled && !shellWebShareWarned
+    // The gate must now be: isShellCli(...) && shellWebShareWarningEnabled && !shellWebShareWarned
     expect(raw).toContain('shellWebShareWarningEnabled &&')
     // Verify the order: warningEnabled check appears before !warned check in the same gate
-    const gateIdx = raw.indexOf('SHELL_CLIS.has')
+    const gateIdx = raw.indexOf('isShellCli(')
     expect(gateIdx).toBeGreaterThan(-1)
     const gateBlock = raw.slice(gateIdx, gateIdx + 300)
     const enabledIdx = gateBlock.indexOf('shellWebShareWarningEnabled &&')

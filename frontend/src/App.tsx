@@ -38,6 +38,7 @@ import {
   SetTrayProgress,
 } from './wailsjs/go/main/App'
 import { aggregateProgress } from './lib/aggregateProgress'
+import { isShellCli } from './lib/shellCli'
 import type { DetectedCLI, SessionInfo, RemotePeerSessions } from './wailsjs/go/main/App'
 import type { daemon } from './wailsjs/go/models'
 type PluginSettings = daemon.PluginSettings
@@ -80,14 +81,13 @@ const THEME_STORAGE_KEY = 'agenthub:terminalTheme'
 const DEFAULT_THEME_NAME = 'Tomorrow_Night'
 const UI_THEME_STORAGE_KEY = 'agenthub:uiTheme'
 
-// Phase 101-03 (SHELL-07/SHELL-08) — the set of cli identifiers that route
-// through the one-time security-warning banner when the user toggles web
-// sharing ON for the FIRST time on this machine. Must stay in sync with the
-// daemon's isShellSession check (internal/daemon/engine.go) and the TabBar
-// agentBadgeModifier shell collapse (frontend/src/components/TabBar.tsx).
-// Documented as acceptable v3.3 duplication in 101-03-SUMMARY.md; revisit
-// extracting to a shared module if a third call-site emerges in v3.4.
-const SHELL_CLIS = new Set(['shell', 'bash', 'zsh', 'pwsh', 'powershell'])
+// Phase 101-03 (SHELL-07/SHELL-08) — shell cli identifiers that route through
+// the one-time security-warning banner now live in lib/shellCli (imported at
+// top). Phase 150 SET-01 gap-closure: extracted to that shared module (the
+// predicted "third call-site" — Hub SessionShareModal — now exists) and made
+// path-aware, because a shell session's cli is its full path ('/bin/zsh'), not
+// a bare name. Must stay in sync with the daemon's isShellSession check
+// (internal/daemon/engine.go).
 
 /**
  * App is the root component — it owns all tab state and wires
@@ -875,7 +875,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     // api.go:407) — the banner is the user-visible defense-in-depth.
     if (nowEnabled) {
       const tab = tabs.find((t) => t.sessionId === sessionId)
-      if (tab && SHELL_CLIS.has(tab.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
+      if (tab && isShellCli(tab.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
         setPendingShellWebToggle({ sessionId, sessionName: tab.name })
         return
       }

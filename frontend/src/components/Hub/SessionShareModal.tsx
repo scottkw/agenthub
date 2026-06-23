@@ -9,10 +9,9 @@ import {
 import { SessionSharePanel } from '../SessionSharePanel'
 import { HomeDirWriteWarning } from '../HomeDirWriteWarning'
 import { ShellWebShareBanner } from '../ShellWebShareBanner'
-
-// Phase 150 SET-01 — must match App.tsx:89 and engine.go:isShellSession()
-// Identifies shell sessions that require the web-share security warning.
-const SHELL_CLIS = new Set(['shell', 'bash', 'zsh', 'pwsh', 'powershell'])
+// Phase 150 SET-01 — shared shell-detection authority. `cli` may be a full path
+// ('/bin/zsh'), so isShellCli() normalizes to basename before matching.
+import { isShellCli } from '../../lib/shellCli'
 
 // ---- Types ----
 
@@ -209,7 +208,7 @@ export function SessionShareModal({
     // machine. AI-CLI toggles, shell OFF-toggles, and shell ON-toggles with
     // warned=true fall through unchanged. Single warned authority from App.tsx
     // (pitfall 4 — do NOT fork into local state).
-    if (next && SHELL_CLIS.has(session.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
+    if (next && isShellCli(session.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
       setPendingShellShare(true)
       return
     }
