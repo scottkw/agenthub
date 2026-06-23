@@ -302,6 +302,25 @@ describe('SessionShareModal — SET-01: shell warning interception on Hub Share 
     expect(mockedToggleWebServing).not.toHaveBeenCalled()
   })
 
+  it('shell session whose cli is a FULL PATH (/bin/zsh) → banner shown (gap-closure: live UAT)', async () => {
+    // Regression: sessions created via "New session" carry the shell's full
+    // path as cli (e.g. "/bin/zsh"), but the gate matched a bare-name set, so
+    // the banner never fired in the real app. All prior tests used bare names.
+    const { container: c } = renderModal({
+      cli: '/bin/zsh',
+      shellWebShareWarningEnabled: true,
+      shellWebShareWarned: false,
+      onShellWebShareConfirm: vi.fn().mockResolvedValue(undefined),
+      onShellWebShareCancel: vi.fn(),
+    })
+    const shareToggle = c.querySelector('[role="switch"][aria-label*="Share"], input[type="checkbox"]') as HTMLElement | null
+    expect(shareToggle).not.toBeNull()
+    await flushSync(() => { shareToggle!.click() })
+    const text = c.textContent ?? ''
+    expect(text).toMatch(/web sharing this shell|expose.*command execution/i)
+    expect(mockedToggleWebServing).not.toHaveBeenCalled()
+  })
+
   it('shell session + warningEnabled=false → banner NOT shown; ToggleWebServing called', async () => {
     const { container: c } = renderModal({
       cli: 'zsh',
