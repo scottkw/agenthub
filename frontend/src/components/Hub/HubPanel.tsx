@@ -195,6 +195,16 @@ export interface HubPanelProps {
     counts: Record<string, GroupCounts>,
     global: GroupCounts
   ) => void
+  // Phase 150 SET-01 — shell warning cross-surface parity (D-09/D-10).
+  // Threaded from App.tsx (single warned authority) into SessionShareModal.
+  /** True when the user has acknowledged the shell web-share warning on this machine */
+  shellWebShareWarned?: boolean
+  /** True (default) when the shell web-share warning is enabled */
+  shellWebShareWarningEnabled?: boolean
+  /** Confirm callback from App.tsx race-mitigation handler */
+  onShellWebShareConfirm?: () => Promise<void>
+  /** Cancel callback from App.tsx */
+  onShellWebShareCancel?: () => void
 }
 
 // POL-05: SIDEBAR_COLLAPSED_KEY removed — hub-group-sidebar-collapsed localStorage key no longer used.
@@ -246,6 +256,10 @@ export function HubPanel({
   groupDefs: groupDefsProp = [],
   onDropOnGroup: onDropOnGroupProp,
   onGroupCountsChange,
+  shellWebShareWarned,
+  shellWebShareWarningEnabled,
+  onShellWebShareConfirm,
+  onShellWebShareCancel,
 }: HubPanelProps): React.ReactElement {
   const [activeFilter, setActiveFilter] = useState<HubFilter>('all')
   const [searchText, setSearchText] = useState('')
@@ -518,6 +532,10 @@ export function HubPanel({
           webServerMode={webServerMode}
           webServerRunning={webServerRunning}
           onClose={() => setShareModalSession(null)}
+          shellWebShareWarned={shellWebShareWarned}
+          shellWebShareWarningEnabled={shellWebShareWarningEnabled}
+          onShellWebShareConfirm={onShellWebShareConfirm}
+          onShellWebShareCancel={onShellWebShareCancel}
         />
       )}
 

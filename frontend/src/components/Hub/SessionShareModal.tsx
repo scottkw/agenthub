@@ -8,12 +8,18 @@ import {
 } from '../../wailsjs/go/main/App'
 import { SessionSharePanel } from '../SessionSharePanel'
 import { HomeDirWriteWarning } from '../HomeDirWriteWarning'
+import { ShellWebShareBanner } from '../ShellWebShareBanner'
+
+// Phase 150 SET-01 — must match App.tsx:89 and engine.go:isShellSession()
+// Identifies shell sessions that require the web-share security warning.
+const SHELL_CLIS = new Set(['shell', 'bash', 'zsh', 'pwsh', 'powershell'])
 
 // ---- Types ----
 
 interface ShareSession {
   id: string
   name: string
+  cli: string          // Phase 150 SET-01: needed to check SHELL_CLIS gate
   webEnabled: boolean
   homeDir: boolean
   browseEnabled: boolean
@@ -31,6 +37,12 @@ export interface SessionShareModalProps {
   webServerMode?: 'tailscale' | 'local' | null
   webServerRunning?: boolean
   onClose: () => void
+  // Phase 150 SET-01 — shell warning cross-surface parity (D-09/D-10).
+  // Shared authority from App.tsx — do NOT fork into local state.
+  shellWebShareWarned?: boolean
+  shellWebShareWarningEnabled?: boolean
+  onShellWebShareConfirm?: () => Promise<void>
+  onShellWebShareCancel?: () => void
 }
 
 /**
@@ -59,6 +71,10 @@ export function SessionShareModal({
   webServerMode,
   webServerRunning,
   onClose,
+  shellWebShareWarned,
+  shellWebShareWarningEnabled,
+  onShellWebShareConfirm,
+  onShellWebShareCancel,
 }: SessionShareModalProps): React.ReactElement {
   // ---- Animation phase machine (entering → open → exiting) ----
   // Same pattern as HubModal but without grow animation (no sourceRect / transformOrigin).
@@ -95,6 +111,9 @@ export function SessionShareModal({
   // ---- Share state ----
   // Seeds from server truth (session.webEnabled); overridden by user toggle.
   const [shareEnabled, setShareEnabled] = useState(session.webEnabled)
+  // Phase 150 SET-01 (D-09): true when the shell-warning banner is shown
+  // and awaiting user confirm/cancel. Pending = ToggleWebServing intercepted.
+  const [pendingShellShare, setPendingShellShare] = useState(false)
   // Seeds from session.browseEnabled (Plan 02 SessionInfo field).
   const [browseEnabled, setBrowseEnabled] = useState(session.browseEnabled)
   // Cached capability URLs + codes (cleared on server restart, re-issued on seeding).
@@ -185,6 +204,15 @@ export function SessionShareModal({
   // "Share the session" toggle handler.
   async function handleShareToggle(): Promise<void> {
     const next = !shareEnabled
+    // Phase 150 SET-01 (D-09): intercept ON-toggles for shell sessions when
+    // the warning is enabled and the user hasn't yet acknowledged it on this
+    // machine. AI-CLI toggles, shell OFF-toggles, and shell ON-toggles with
+    // warned=true fall through unchanged. Single warned authority from App.tsx
+    // (pitfall 4 — do NOT fork into local state).
+    if (next && SHELL_CLIS.has(session.cli) && shellWebShareWarningEnabled && !shellWebShareWarned) {
+      setPendingShellShare(true)
+      return
+    }
     try {
       await ToggleWebServing(session.id, next)
       setShareEnabled(next)
@@ -267,6 +295,26 @@ export function SessionShareModal({
 
         {/* ---- Body ---- */}
         <div className="hub-share-modal__body">
+          {/* Phase 150 SET-01 (D-09): shell web-share warning banner — shown when
+              the user toggles share ON for a shell session and warningEnabled + !warned.
+              Reuses ShellWebShareBanner (D-10 cross-surface parity).
+              onConfirm calls the App.tsx race-mitigation confirm handler (sets warned
+              synchronously) then enables share; onCancel clears the pending state. */}
+          {pendingShellShare && (
+            <ShellWebShareBanner
+              sessionName={session.name}
+              onConfirm={async () => {
+                setPendingShellShare(false)
+                await onShellWebShareConfirm?.()
+                setShareEnabled(true)
+                // seeding effect will issue caps on next render
+              }}
+              onCancel={() => {
+                setPendingShellShare(false)
+                onShellWebShareCancel?.()
+              }}
+            />
+          )}
           {/* SHARE-01: "Share the session" toggle */}
           <label
             className={`settings-panel__toggle-row${shareEnabled ? ' settings-panel__toggle-row--checked' : ''}`}
