@@ -25,6 +25,31 @@ const sanitizeSchema: Schema = {
   },
 }
 
+// Allow-listed URL schemes for external links. rehype-sanitize already strips
+// dangerous hrefs (javascript:, data:, etc.) before this renderer sees them, but
+// we validate again as defense-in-depth before handing anything to BrowserOpenURL.
+const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
+
+function isSafeExternalHref(href: string | undefined): href is string {
+  return typeof href === 'string' && SAFE_LINK_SCHEME.test(href)
+}
+
+/**
+ * Derive a plain-text accessible label from a React node. react-markdown passes
+ * `children` as a React node (string, array, or element). Template-stringifying a
+ * non-string node yields "[object Object]", so we recursively extract text; if no
+ * text is recoverable we fall back to the href.
+ */
+function nodeToText(node: React.ReactNode): string {
+  if (typeof node === 'string') return node
+  if (typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeToText).join('')
+  if (React.isValidElement(node)) {
+    return nodeToText((node.props as { children?: React.ReactNode }).children)
+  }
+  return ''
+}
+
 export function HelpContent({ markdown }: { markdown: string }): React.ReactElement {
   return (
     <Markdown
@@ -39,20 +64,25 @@ export function HelpContent({ markdown }: { markdown: string }): React.ReactElem
         ),
         // All Markdown link elements become BrowserOpenURL buttons so they open
         // in the system browser and never navigate the Wails webview.
-        a: ({ href, children }) => (
-          <button
-            type="button"
-            className="help-content__external-link"
-            onClick={() => href && BrowserOpenURL(href)}
-            aria-label={`${children} (opens in browser)`}
-          >
-            {children}
-            <ArrowTopRightOnSquareIcon
-              style={{ width: 14, height: 14 }}
-              aria-hidden="true"
-            />
-          </button>
-        ),
+        a: ({ href, children }) => {
+          const labelText = nodeToText(children).trim() || href || 'link'
+          return (
+            <button
+              type="button"
+              className="help-content__external-link"
+              onClick={() => {
+                if (isSafeExternalHref(href)) BrowserOpenURL(href)
+              }}
+              aria-label={`${labelText} (opens in browser)`}
+            >
+              {children}
+              <ArrowTopRightOnSquareIcon
+                style={{ width: 14, height: 14 }}
+                aria-hidden="true"
+              />
+            </button>
+          )
+        },
       }}
     >
       {markdown}
