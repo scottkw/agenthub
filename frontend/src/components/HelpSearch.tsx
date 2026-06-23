@@ -1,7 +1,8 @@
 // Phase 147: In-App Help Page — Search input, snippet highlight, empty state.
 //
 // HelpSearch receives pre-filtered results from HelpTab (debounce lives there)
-// and renders: a visible label, search input, clear button, snippet results with
+// and renders: a search input (accessible name via aria-label; visible label
+// dropped as redundant with the placeholder), clear button, snippet results with
 // <mark> highlight, and a GitHub Issues empty state. External links use
 // BrowserOpenURL — never <a href>.
 
@@ -147,12 +148,12 @@ export function HelpSearch({
 
   return (
     <div className="help-search">
-      <label htmlFor="help-search-input">Search help…</label>
       <div className="help-search__row">
         <input
           id="help-search-input"
           type="search"
           className="help-search__input"
+          aria-label="Search help…"
           placeholder="Search help…"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}

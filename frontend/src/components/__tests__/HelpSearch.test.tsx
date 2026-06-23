@@ -55,21 +55,23 @@ afterEach(() => {
 })
 
 // ============================================================
-// Search input label (D-12 visible label requirement)
+// Search input accessible name (D-12)
+// The visible <label> was removed as visually redundant with the
+// placeholder; the accessible name is preserved via aria-label so
+// the input still has a programmatic label (D-12 intent).
 // ============================================================
 
-describe('HelpSearch: visible label "Search help…" (Phase 147)', () => {
-  it('renders a visible label element with text "Search help…"', () => {
-    ;({ container, root } = renderHelpSearch())
-    const label = container.querySelector('label')
-    expect(label).not.toBeNull()
-    expect(label!.textContent).toContain('Search help…')
-  })
-
-  it('renders a search input associated with the label', () => {
+describe('HelpSearch: accessible name "Search help…" (Phase 147)', () => {
+  it('input carries an accessible name via aria-label "Search help…"', () => {
     ;({ container, root } = renderHelpSearch())
     const input = container.querySelector('input[type="search"], input.help-search__input')
     expect(input).not.toBeNull()
+    expect(input!.getAttribute('aria-label')).toContain('Search help…')
+  })
+
+  it('does not render a redundant visible <label> element', () => {
+    ;({ container, root } = renderHelpSearch())
+    expect(container.querySelector('label')).toBeNull()
   })
 })
 
