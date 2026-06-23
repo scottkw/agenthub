@@ -21,13 +21,13 @@ function renderHelpSectionNav(
   overrides: Partial<{
     activeSection: string
     onSectionChange: (id: string) => void
-    contentPaneRef: React.RefObject<HTMLDivElement>
+    contentPaneRef: React.RefObject<HTMLDivElement | null>
   }> = {},
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
-  const defaultContentPane = { current: document.createElement('div') } as React.RefObject<HTMLDivElement>
+  const defaultContentPane = { current: document.createElement('div') } as React.RefObject<HTMLDivElement | null>
   const defaultProps = {
     activeSection: 'help-getting-started',
     onSectionChange: vi.fn(),
@@ -36,7 +36,7 @@ function renderHelpSectionNav(
   act(() => {
     root.render(<HelpSectionNav {...defaultProps} {...overrides} />)
   })
-  return { container, root, ...defaultProps, ...(overrides as typeof defaultProps) }
+  return { container, root, ...defaultProps, ...(overrides as Partial<typeof defaultProps>) }
 }
 
 let container: HTMLElement

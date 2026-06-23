@@ -9,7 +9,7 @@ import React from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
-import type { Schema } from 'hast-util-sanitize'
+import type { Options as Schema } from 'rehype-sanitize'
 import { BrowserOpenURL } from '../wailsjs/wailsjs/runtime/runtime'
 import { ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 

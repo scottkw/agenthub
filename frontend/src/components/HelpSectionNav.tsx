@@ -15,7 +15,8 @@ export const SECTIONS = [
 interface HelpSectionNavProps {
   activeSection: string
   onSectionChange: (id: string) => void
-  contentPaneRef: React.RefObject<HTMLDivElement>
+  // React 19 changed useRef<T>(null) to return RefObject<T | null>
+  contentPaneRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function HelpSectionNav({
