@@ -519,6 +519,30 @@ func (a *App) SetShellWebShareWarned(v bool) error {
 	return a.client.SetShellWebShareWarned(v)
 }
 
+// GetShellWebShareWarningEnabled returns the warning-enabled master switch.
+// Returns true (enabled) when the daemon is not connected — safe degradation per D-08.
+// Phase 150 SET-01.
+func (a *App) GetShellWebShareWarningEnabled() bool {
+	if a.client == nil {
+		return true // default ON (not false like GetShellWebShareWarned)
+	}
+	val, err := a.client.GetShellWebShareWarningEnabled()
+	if err != nil {
+		return true // default: enabled (safe degradation per D-08)
+	}
+	return val
+}
+
+// SetShellWebShareWarningEnabled persists the warning-enabled master switch.
+// When enabling, the daemon atomically resets shellWebShareWarned (D-03 re-arm).
+// Phase 150 SET-01.
+func (a *App) SetShellWebShareWarningEnabled(v bool) error {
+	if a.client == nil {
+		return nil
+	}
+	return a.client.SetShellWebShareWarningEnabled(v)
+}
+
 // GetShellPath returns the persisted shell binary path. When no path has been
 // set by the user, the daemon returns the platform default. Called by the
 // Settings → Paths "Shell binary" field (plan 107-03) on mount.

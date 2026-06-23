@@ -180,6 +180,24 @@ func (c *DaemonClient) SetShellWebShareWarned(val bool) error {
 		map[string]bool{"value": val}, nil)
 }
 
+// GetShellWebShareWarningEnabled returns the warning-enabled master switch.
+// Phase 150 SET-01.
+func (c *DaemonClient) GetShellWebShareWarningEnabled() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/shell-web-share-warning-enabled", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp["value"], nil
+}
+
+// SetShellWebShareWarningEnabled persists the warning-enabled master switch.
+// When val=true the engine atomically resets shellWebShareWarned (D-03 re-arm).
+// Phase 150 SET-01.
+func (c *DaemonClient) SetShellWebShareWarningEnabled(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/shell-web-share-warning-enabled",
+		map[string]bool{"value": val}, nil)
+}
+
 // GetShellPath returns the persisted shell binary path from the daemon.
 // When no path has been configured, the daemon returns the platform default.
 // Phase 107 SHELL-11.

@@ -14,6 +14,9 @@ export const ListShells              = ()    => Call('main.App.ListShells', [])
 // Phase 101-01 — persisted "user has been warned about shell web-share" flag.
 export const GetShellWebShareWarned  = ()    => Call('main.App.GetShellWebShareWarned', [])
 export const SetShellWebShareWarned  = (v)   => Call('main.App.SetShellWebShareWarned', [v])
+// Phase 150 SET-01 — warning-enabled master switch (default ON).
+export const GetShellWebShareWarningEnabled = ()  => Call('main.App.GetShellWebShareWarningEnabled', [])
+export const SetShellWebShareWarningEnabled = (v) => Call('main.App.SetShellWebShareWarningEnabled', [v])
 // Phase 107-01 SHELL-11 — persisted shell binary path setting.
 export const GetShellPath            = ()    => Call('main.App.GetShellPath', [])
 export const SetShellPath            = (v)   => Call('main.App.SetShellPath', [v])

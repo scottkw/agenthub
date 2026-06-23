@@ -42,6 +42,7 @@ func testDaemon(t *testing.T) (*API, *DaemonClient, string) {
 	engine.cliPaths = make(map[string]string)
 	engine.startMinimized = false
 	engine.shellWebShareWarned = false
+	engine.shellWebShareWarningEnabled = nil // nil → default true per D-08 (GetShellWebShareWarningEnabled returns true on nil)
 	engine.shellPath = ""
 	engine.autoCloseSession = nil
 	engine.pluginSettings = defaultPluginSettings()
