@@ -47,6 +47,7 @@ import { WelcomeTab } from './components/WelcomeTab'
 import { FileBrowserTab, fileBrowserTabId } from './components/FileBrowserTab'
 import { RemoteJoinCodeModal } from './components/RemoteJoinCodeModal'
 import { HubPanel } from './components/Hub/HubPanel'
+import { HelpTab } from './components/HelpTab'
 import { EnableWebSharingTakeover } from './components/FileBrowser/EnableWebSharingTakeover'
 import { findRemoteSession, remoteBaseURLFor } from './lib/remoteSession'
 import { adaptAllRemoteSessions } from './lib/remoteAdapter'
@@ -96,6 +97,8 @@ function App(): React.ReactElement {
 const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '', cli: '', type: 'settings' }
   // Phase 131 — Hub top-level surface tab.
   const HUB_TAB: Tab = { id: '__hub__', name: 'Hub', sessionId: '', cli: '', type: 'hub' }
+  // Phase 147 — In-app Help page tab.
+  const HELP_TAB: Tab = { id: '__help__', name: 'Help', sessionId: '', cli: '', type: 'help' }
   // Phase 120-06 — single source of truth for "is this React shell running in
   // a regular browser under /app/ vs inside the Wails desktop runtime?" Used
   // to gate the Wails RPC suite (init, retryInit, sessions polls) so the SPA
@@ -787,6 +790,17 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     setActiveId(SETTINGS_TAB.id)
   }, [tabs])
 
+  // Phase 147 — find-or-add help tab (mirrors handleOpenSettings exactly).
+  const handleOpenHelp = useCallback(() => {
+    const existing = tabs.find((t) => t.type === 'help')
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    setTabs((prev) => [...prev, HELP_TAB])
+    setActiveId(HELP_TAB.id)
+  }, [tabs])
+
   const handleCloseTab = useCallback(async (id: string) => {
     // Disable web serving for this session before closing.
     // For naturally-exited sessions (in sessionExits), skip immediate disable —
@@ -1374,6 +1388,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         onHome={handleHome}
         onSettings={handleOpenSettings}
         onOpenHub={handleOpenHub}
+        onOpenHelp={handleOpenHelp}
         activePanel={activeId ?? undefined}
         groupDefs={groupDefs}
         activeGroupId={activeGroupId}
@@ -1555,6 +1570,14 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           />
         </div>
         )}
+        {/* Phase 147 — HelpTab mounted with display-toggle (not conditional) to
+            preserve scroll position and activeSection state across tab switches.
+            Mirrors the SettingsTab display-toggle mount pattern above. */}
+        {mode !== 'web' && (
+        <div style={{ display: activeId === HELP_TAB.id ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+          <HelpTab />
+        </div>
+        )}
         {daemonError && tabs.filter((t) => t.type !== 'welcome' && t.type !== 'settings' && t.type !== 'hub').length === 0 && (
           <div style={{
             background: '#16161e',
@@ -1594,7 +1617,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub') return null
+            if (tab.type === 'welcome' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub' || tab.type === 'help') return null
             const isActive = tab.id === activeId
             return (
               <div
