@@ -27,6 +27,7 @@ var knownCLIs = []CLISpec{
 	{Name: "codex", DisplayName: "OpenAI Codex"},
 	{Name: "gemini", DisplayName: "Gemini CLI"},
 	{Name: "opencode", DisplayName: "OpenCode"},
+	{Name: "agy", DisplayName: "Google Antigravity"}, // Phase 149
 }
 
 // DetectCLIs scans PATH for every entry in knownCLIs and returns the subset
