@@ -27,6 +27,8 @@ const SEARCH_INDEX: ReadonlyArray<SearchEntry> = [
   // Top-level toggle and button labels (kept in sync with SettingsTab.tsx).
   { label: 'Start minimized to system tray', target: 'settings-behavior' },
   { label: 'Auto-close tab on exit', target: 'settings-session-behavior' },
+  // Phase 150 SET-01 — must byte-match the SettingsTab toggle label (trailing period included).
+  { label: 'Warn before web-sharing a shell session.', target: 'settings-session-behavior' },
   { label: 'Terminal Theme', target: 'settings-appearance' },
   { label: 'Tailscale Status', target: 'settings-web-server' },
   { label: 'Certificate Transparency', target: 'settings-web-server' },
