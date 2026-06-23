@@ -18,6 +18,7 @@ func platformExtraBins() []string {
 		paths = append(paths, filepath.Join(local, "pnpm"))
 		paths = append(paths, filepath.Join(local, "Programs", "nodejs"))
 		paths = append(paths, filepath.Join(local, "Microsoft", "WindowsApps"))
+		paths = append(paths, filepath.Join(local, "agy", "bin")) // agy CLI installer — %LOCALAPPDATA%\agy\bin\agy.exe (Phase 149)
 	}
 	paths = append(paths, `C:\Program Files\Tailscale`)
 	paths = append(paths, `C:\Program Files\PowerShell\7`)
