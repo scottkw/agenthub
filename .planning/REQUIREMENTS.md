@@ -84,7 +84,7 @@ Surfaced when v4.0 was first pushed to remote `main` and CI ran `go test -race` 
 
 ### Supported Agents (AGENT)
 
-- [ ] **AGENT-01**: Google Antigravity CLI is selectable as a supported agent and launches correctly (#65). [Phase 149]
+- [x] **AGENT-01**: Google Antigravity CLI is selectable as a supported agent and launches correctly (#65). [Phase 149]
 
 ### Settings (SET)
 
