@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: verifying
+status: completed
 stopped_at: Phase 147 UI-SPEC approved
-last_updated: "2026-06-23T01:23:55.106Z"
-last_activity: 2026-06-23
+last_updated: "2026-06-23T01:36:43.488Z"
+last_activity: 2026-06-23 -- Phase 147 marked complete
 progress:
   total_phases: 15
   completed_phases: 12
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
 
 ## Current Position
 
-Phase: 147 (in-app-help-page) — EXECUTING
+Phase: 147 — COMPLETE
 Plan: 4 of 4
-Status: Phase 147 complete + verified (3/3 must-haves); UAT items 1-3 passed via dev-browser, item 4 (native BrowserOpenURL) pending
-Last activity: 2026-06-23
+Status: Phase 147 complete
+Last activity: 2026-06-23 -- Phase 147 marked complete
 
 Progress: [██████████] 100%
 

@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 147-in-app-help-page
 source: [147-VERIFICATION.md]
 started: 2026-06-23T01:14:50Z
@@ -8,7 +8,7 @@ updated: 2026-06-23T01:14:50Z
 
 ## Current Test
 
-[item 4 only — items 1–3 confirmed 2026-06-23 via dev-browser against an isolated HelpTab harness on the vite dev server]
+[complete — all 4 items passed. Items 1–3 via dev-browser (isolated HelpTab harness, vite dev server); item 4 confirmed by user in the native wails dev build.]
 
 ## Tests
 
@@ -28,14 +28,14 @@ result: passed — dev-browser 2026-06-23. Gibberish query → 0 results + empty
 
 ### 4. External links open the system browser
 expected: Clicking an external link button (docs/repo/issues) in the Help content opens it in the system default browser via `BrowserOpenURL` — NOT inside the Wails webview.
-result: [pending — requires native production webview; cannot be exercised in a plain browser because `BrowserOpenURL` is a Wails-only binding]
+result: passed — confirmed by user 2026-06-23 in the native `wails dev` build. The FAQ "GitHub issue" link (https://github.com/scottkw/agenthub/issues) opened in the system default browser, not inside the app webview.
 
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 
 ## Notes

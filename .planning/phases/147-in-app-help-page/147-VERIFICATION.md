@@ -1,8 +1,9 @@
 ---
 phase: 147-in-app-help-page
 verified: 2026-06-22T20:15:00Z
-status: human_needed
+status: passed
 score: 3/3 must-haves verified
+human_uat: passed 2026-06-23 (see 147-HUMAN-UAT.md — items 1-3 via dev-browser, item 4 confirmed by user in native wails dev build)
 overrides_applied: 0
 human_verification:
   - test: "Open the live Wails app and click the Help button in the sidebar. Verify the Help tab opens, Markdown content renders (headings, paragraphs, inline code spans), and the left section nav shows 'Getting Started' and 'Frequently Asked Questions'."
