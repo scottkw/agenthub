@@ -71,7 +71,7 @@ func TestDetectCLIs_AllMissing(t *testing.T) {
 // TestKnownCLIs_HasExpectedEntries verifies the package-level knownCLIs list
 // contains exactly the expected CLI names.
 func TestKnownCLIs_HasExpectedEntries(t *testing.T) {
-	expected := []string{"claude", "codex", "gemini", "opencode"}
+	expected := []string{"claude", "codex", "gemini", "opencode", "agy"}
 
 	if len(knownCLIs) != len(expected) {
 		t.Fatalf("expected %d known CLIs, got %d", len(expected), len(knownCLIs))
@@ -86,5 +86,53 @@ func TestKnownCLIs_HasExpectedEntries(t *testing.T) {
 		if !nameSet[name] {
 			t.Errorf("expected knownCLIs to contain %q", name)
 		}
+	}
+}
+
+// TestDetectCLIs_FindsAgy verifies that DetectCLIs returns the agy CLI when
+// its binary is present on PATH with the correct DisplayName.
+func TestDetectCLIs_FindsAgy(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stubs not executable on Windows")
+	}
+	dir := t.TempDir()
+
+	// Write a stub "agy" executable.
+	stubPath := filepath.Join(dir, "agy")
+	if err := os.WriteFile(stubPath, []byte("#!/bin/sh\necho ok\n"), 0755); err != nil {
+		t.Fatalf("writing stub: %v", err)
+	}
+
+	t.Setenv("PATH", dir)
+
+	result := DetectCLIs()
+
+	var found bool
+	for _, cli := range result {
+		if cli.Name == "agy" {
+			found = true
+			if cli.Path == "" {
+				t.Error("expected non-empty Path for agy")
+			}
+			if cli.DisplayName != "Google Antigravity" {
+				t.Errorf("expected DisplayName %q, got %q", "Google Antigravity", cli.DisplayName)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected DetectCLIs to find agy, but it was not in results")
+	}
+}
+
+// TestDetectCLI_AgyNotFound verifies that DetectCLI returns ErrCLINotFound
+// when no agy binary is on PATH.
+func TestDetectCLI_AgyNotFound(t *testing.T) {
+	dir := t.TempDir()
+	// No agy stub placed — PATH contains only an empty temp dir.
+	t.Setenv("PATH", dir)
+
+	_, err := DetectCLI("agy")
+	if err != ErrCLINotFound {
+		t.Errorf("expected ErrCLINotFound, got %v", err)
 	}
 }
