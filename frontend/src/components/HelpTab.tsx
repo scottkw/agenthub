@@ -67,9 +67,6 @@ const SECTION_META: ReadonlyArray<{ id: string; label: string; markdown: string 
 // ---------------------------------------------------------------------------
 
 export function HelpTab(): React.ReactElement {
-  // All Markdown concatenated for the content pane (single render with both sections)
-  const allMarkdown = useMemo(() => `${gettingStartedMd}\n\n${faqMd}`, [])
-
   // Search state
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -148,7 +145,18 @@ export function HelpTab(): React.ReactElement {
         />
         <div className="help-tab__content" ref={contentPaneRef}>
           <h1 className="help-tab__title">Help</h1>
-          <HelpContent markdown={allMarkdown} />
+          {/*
+            Render each section individually, wrapped in a <section> carrying the
+            explicit anchor id (help-getting-started / help-faq). This is what makes
+            document.getElementById(...) resolve for all three consumers:
+            HelpSectionNav scroll-spy + click handler, and handleJumpToSection.
+            The .help-content__section CSS rule (scroll-margin-top) targets these.
+          */}
+          {SECTION_META.map(({ id, markdown }) => (
+            <section id={id} key={id} className="help-content__section">
+              <HelpContent markdown={markdown} />
+            </section>
+          ))}
         </div>
       </div>
     </div>
