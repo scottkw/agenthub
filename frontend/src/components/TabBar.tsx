@@ -236,6 +236,21 @@ export function TabBar({
             {exitCountdowns?.[tab.sessionId] && (
               <span className="tab__countdown">{exitCountdowns[tab.sessionId]}s</span>
             )}
+            {tab.sessionId && (
+              <button
+                className="tab__chevron"
+                data-testid="tab-chevron"
+                title="Session menu"
+                aria-label="Session menu"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                  setContextMenu({ tabId: tab.id, x: rect.left, y: rect.bottom })
+                }}
+              >
+                ▾
+              </button>
+            )}
             <button
               className="tab__close"
               onClick={(e) => {
