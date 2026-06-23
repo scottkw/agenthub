@@ -1,7 +1,8 @@
 ---
 phase: 150-shell-sharing-warning-toggle
 verified: 2026-06-23T09:50:00Z
-status: human_needed
+status: verified
+human_uat: 2026-06-23 — all 4 criteria + M-16/M-17 confirmed live (wails dev). 3 bugs found & fixed during UAT (disable-confirm copy, /bin/zsh full-path gate miss, modal banner layout). Daemon isShellSession path divergence noted as separate follow-up.
 score: 4/4
 overrides_applied: 0
 human_verification:

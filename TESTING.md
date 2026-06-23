@@ -265,6 +265,7 @@ Human-intervention items that cannot be automated. Run before each tagged releas
   5. **Re-enable:** Re-enable the warning in Settings → both share surfaces must show the banner again on the next unacknowledged shell toggle.
   - _Why not automatable:_ Live PTY session requires a real daemon; the `:34115` wails-dev browser bridge has no PTY (see reference_wails_dev_browser_pty_limit memory). Web-share WebSocket blocks automated input. Real shell session required to exercise the SHELL_CLIS gate.
   - _Source:_ 150-VALIDATION.md Manual-Only Verifications; SET-01 (#51)
+  - ✅ **VERIFIED 2026-06-23 (live UAT, wails dev).** Both surfaces fire the banner; disable suppresses; re-enable re-arms. Surfaced 3 bugs (all fixed this session): wrong disable-confirm copy, `/bin/zsh` full-path gate miss (banner never fired for real shells), modal banner layout.
 
 - **M-17** Shell web-share warning restart-persistence check:
   1. Open Settings > Session Behavior → disable "Warn before web-sharing a shell session." (confirm modal). Quit the app and restart.
@@ -273,6 +274,7 @@ Human-intervention items that cannot be automated. Run before each tagged releas
   4. Open a shell session Share modal → confirm banner DOES appear again (re-arm persisted).
   - _Why not automatable:_ Requires full daemon restart + disk settings.json read-back, which cannot be simulated in headless vitest without a running daemon process.
   - _Source:_ 150-VALIDATION.md Manual-Only Verifications (restart-persistence); SET-01 (#51)
+  - ✅ **VERIFIED 2026-06-23 (live UAT).** Both directions confirmed across genuine cold daemon restarts (daemon PID changed each cycle, proving fresh settings.json read — the daemon detaches and survives `wails dev` Ctrl+C, so the daemon process itself had to be killed to force a cold start). Disabled→no banner; re-enabled→banner fires.
 
 ---
 
