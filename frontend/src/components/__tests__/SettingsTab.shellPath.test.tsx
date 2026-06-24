@@ -47,6 +47,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   // Shell path — SHELL-11 new bindings
   GetShellPath: vi.fn().mockResolvedValue('/bin/zsh'),
   SetShellPath: vi.fn().mockResolvedValue(undefined),
+  GetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(true),
+  SetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Mock sub-components that use their own imports.

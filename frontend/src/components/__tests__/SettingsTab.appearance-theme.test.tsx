@@ -52,6 +52,8 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   NotifyThemeChange: vi.fn().mockResolvedValue(undefined),
   GetShellPath: vi.fn().mockResolvedValue('/bin/zsh'),
   SetShellPath: vi.fn().mockResolvedValue(undefined),
+  GetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(true),
+  SetShellWebShareWarningEnabled: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../RegenerateKeyModal', () => ({
