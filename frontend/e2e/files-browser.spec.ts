@@ -586,8 +586,17 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
     //     /app/"). The browser logs this as a console.error which we
     //     allow; the assertion that matters (zero CSP violations) is
     //     still enforced.
+    //   - 403 Forbidden from a cap-gated files probe: with the fixture now
+    //     embedding the bundle (scenario 13, -tags playwrightfixture,wailsassets),
+    //     /app/ returns 200 and the SPA actually mounts, so on the
+    //     unknown/owner-cap path it fires an /api/files/* fetch that the cap
+    //     layer rejects with 403. Chromium + WebKit log that failed fetch as a
+    //     console.error (Firefox does not), which is expected browser-specific
+    //     noise — not a CSP violation. The zero-CSP-violations assertion above
+    //     remains the gate.
     const ALLOWED: RegExp[] = [
       /Failed to load resource: the server responded with a status of 503/,
+      /Failed to load resource: the server responded with a status of 403/,
     ]
     const offenders = errors.filter((e) => !ALLOWED.some((re) => re.test(e)))
     expect(offenders, `unallowed page errors:\n${offenders.join('\n')}`).toEqual([])
