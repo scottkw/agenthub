@@ -4,15 +4,28 @@
   <img src="docs/agenthub-title-logo.png" alt="AgentHub" width="400">
 </p>
 
-AgentHub runs AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode, Google Antigravity — and raw shell sessions (bash, zsh, PowerShell) in persistent terminal sessions managed by a background daemon. Google Antigravity (`agy`) is integrated as a selectable agent; it is currently in limited/waitlist rollout, so live launch is verified manually once access is granted (see TESTING.md M-15). Two surfaces share one set of sessions: a Wails desktop GUI and the `agenthub` CLI. Sessions survive GUI restarts and are controllable from either surface. Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, and native installers).
+AgentHub runs AI coding CLIs — Claude Code, Codex, Gemini CLI, OpenCode, Google Antigravity — and raw shell sessions (bash, zsh, PowerShell) in persistent terminal sessions managed by a background daemon. As of **v4.0** the desktop GUI is **Hub-first**: a single top-level Hub shows every local and remote session as a live, colorblind-safe card you can filter, group, share, and expand into a terminal. Google Antigravity (`agy`) is integrated as a selectable agent and was verified live (interactive REPL, authenticated session) in v4.0; it remains in limited/waitlist rollout, so it appears in the picker once `agy` is installed. Two surfaces share one set of sessions: a Wails desktop GUI and the `agenthub` CLI (the previous Bubble Tea TUI was retired in v4.0 — cross-surface parity is now GUI/CLI/web). Sessions survive GUI restarts and are controllable from either surface. Agent CLIs are discovered automatically across common install locations (nvm, Volta, Homebrew, snap, flatpak, cargo, pipx, and native installers).
 
 Sessions can be shared over the web on a per-session basis: browser-trusted TLS over Tailscale when available, with a self-signed TLS + password-auth fallback for the local network. Multiple clients can connect to the same session simultaneously with independent scrollback, optional read-only mode, and stable PTY resize arbitration. CLI `attach` displays a tmux-style status bar with session context and a live viewer count. Remote sessions on other tailnet machines are discoverable from both surfaces.
 
-The terminal core is extended by a curated, vendored xterm.js plugin suite — GPU-accelerated rendering with software-fallback detection, Cmd-F scrollback search with regex/case/word toggles, clickable web links with strict scheme allowlist and IDN/typosquat confirmation, inline sixel images, Unicode 11 width tables, "Save Terminal As…" via the serialize addon, OSC 52 system clipboard, and OSC 9;4 progress reporting (per-tab progress underlines plus a tray quartile glyph) — all user-controlled from Settings → Plugins. Sessions support 138 WCAG-audited color themes with live switching across all four AI CLIs (including OpenCode, via SIGUSR2 broadcast); all non-terminal GUI text meets WCAG AA 4.5:1 contrast.
+The terminal core is extended by a curated, vendored xterm.js plugin suite — GPU-accelerated rendering with software-fallback detection, Cmd-F scrollback search with regex/case/word toggles, clickable web links with strict scheme allowlist and IDN/typosquat confirmation, inline sixel images, Unicode 11 width tables, "Save Terminal As…" via the serialize addon, OSC 52 system clipboard, and OSC 9;4 progress reporting (per-tab progress underlines plus a tray quartile glyph) — all user-controlled from Settings → Plugins. Sessions support 138 WCAG-audited color themes with live switching across the AI CLIs (including OpenCode, via SIGUSR2 broadcast); all non-terminal GUI text meets WCAG AA 4.5:1 contrast.
 
 Sessions auto-close when the agent process exits — 5-second countdown, toast notification, and Keep Open cancel — and closing the GUI prompts a quit confirmation showing active session count. The system tray is native on each platform: NSStatusBar on macOS, D-Bus StatusNotifierItem on Linux, and Shell_NotifyIcon on Windows. Auto-update notifications keep you on the latest release. Built with Go/Wails and React.
 
 ## Latest Release
+
+**v4.0 — Hub-First Consolidation & UI/UX Overhaul** (2026-06-23) — collapses AgentHub onto a single Hub-centric surface, retires the TUI, ships the v4.0 redesign, and stands up a formal regression-test program.
+
+- **Hub-first navigation** — the top-level **Hub** is now the home for sessions: a working-directory-grouped grid of live session cards (status, agent badge, origin, throttled mini-preview) with a status filter bar, `/` search, named groups, and a card→modal interaction. The separate **Sessions** and **Remote** sidebar pages and the **+ New Session** sidebar item are gone — session creation and remote sessions both live on the Hub. The sidebar is now **Home / Hub / Help / Settings**.
+- **TUI retired** — the `agenthub tui` Bubble Tea surface and its code were removed; the cross-surface parity contract narrows to **GUI / CLI / web**.
+- **Per-card Share modal** ([#78](https://github.com/scottkw/agenthub/issues/78) follow-through) — each Hub card has a Share modal with two toggles: *Share the session* (reveals read-only + read/write capability links) and *Enable remote file browsing* (browse permission derives from the presented share code). Remote "Open in browser" reuses the held web-share capability instead of minting a second single-use code ([#98](https://github.com/scottkw/agenthub/issues/98)).
+- **v4.0 visual redesign** — Plus Jakarta Sans + JetBrains Mono typography, a refreshed color palette/radii/type-scale, and a persisted **Light / Dark** theme toggle, plus a Chrome-style shrink-then-scroll tab strip with a discoverability chevron ([#68](https://github.com/scottkw/agenthub/issues/68)) and WebGL repaint hardening.
+- **In-app Help page** ([#69](https://github.com/scottkw/agenthub/issues/69)) — a searchable Help surface in the sidebar with documentation, FAQ, and external links.
+- **Google Antigravity agent** ([#65](https://github.com/scottkw/agenthub/issues/65)) — `agy` is a selectable agent across GUI/CLI/web with auto-detection (incl. Windows `%LOCALAPPDATA%\agy\bin`), a status detector, and a distinct agent-color identity; verified live (interactive REPL) in v4.0.
+- **Shell web-share warning toggle** ([#51](https://github.com/scottkw/agenthub/issues/51)) — a Settings toggle controls the one-time shell-session web-sharing warning (re-enableable), firing consistently across both share surfaces; shell detection is path-aware.
+- **Formal regression-test program** — a consolidated automated suite (Go + vitest + Playwright) with requirement→test traceability, a path-check CI script, a maintained manual checklist, and branch protection on `main` (4 build jobs + Playwright required). Also fixes a daemon styled-tail data race ([#100](https://github.com/scottkw/agenthub/issues/100)) and Windows files test failures ([#101](https://github.com/scottkw/agenthub/issues/101)); the Hub mini-preview/briefing tail now renders through a headless VT emulator ([#96](https://github.com/scottkw/agenthub/issues/96)).
+
+Closes [#51](https://github.com/scottkw/agenthub/issues/51), [#65](https://github.com/scottkw/agenthub/issues/65), [#68](https://github.com/scottkw/agenthub/issues/68), [#69](https://github.com/scottkw/agenthub/issues/69), [#96](https://github.com/scottkw/agenthub/issues/96), [#97](https://github.com/scottkw/agenthub/issues/97), [#98](https://github.com/scottkw/agenthub/issues/98), [#100](https://github.com/scottkw/agenthub/issues/100), [#101](https://github.com/scottkw/agenthub/issues/101). [Release notes](https://github.com/scottkw/agenthub/releases/tag/v4.0).
 
 **v3.5.1 — Remote Browse Completion + Release-Gate Fix** (2026-06-16) — completes the desktop-GUI remote-browse on-ramp (discover → list → pick → browse a tailnet peer's files) and clears the flaky release gate, retiring the remote file-browser epic.
 
@@ -65,12 +78,20 @@ Closes [#62](https://github.com/scottkw/agenthub/issues/62) and the TUI-parity s
 - **CI test stability** ([#58](https://github.com/scottkw/agenthub/issues/58)) — `TestPluginConfigStream_ExpiredCap_Returns401` deflaked; root cause was a base64-padding-bit no-op in the test-side capability mutation.
 - **Plus** — pre-existing test debt repaired (`TestOpenCodeANSICapture` data race + 3 default-value tests), TUI defensive guard against zero-dimension panics, `agenthub attach` clears local terminal on entry, and a clarified bounded-lifetime contract on the `killSession` Wait goroutine.
 
-Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v3.5.1) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
+Download v4.0: [Releases page](https://github.com/scottkw/agenthub/releases/tag/v4.0) — macOS DMG (signed + notarized), Windows installer / standalone, Linux deb / tar.gz.
 
 ## Features
 
+### Hub (v4.0)
+- **Session grid** — The top-level **Hub** shows every session as a live card (name, agent badge, colorblind-safe status, origin, viewer count, uptime, throttled mini terminal preview), auto-grouped by working directory with user-defined named groups (drag-to-assign, persisted)
+- **Local + remote in one place** — Local sessions and remote tailnet-peer sessions render side by side in the same grid, with local/remote and connected/available indicators (icon + text, never color alone)
+- **Filter, search, create** — A status filter bar with live counts (All / Working / Needs input / Complete / Error / Idle), `/`-focused search, and a New Session button — the Hub is the sole session-creation entry point
+- **Attention surfacing** — Waiting/errored sessions float to the top of their group and pulse (motion + icon + position, reduced-motion aware), with the Hub mini-preview/briefing tail rendered through a headless VT emulator for accurate styled output
+- **Card → modal** — Click a card to open an interactive terminal modal (or a briefing modal driven by the real terminal tail for attention sessions), including a cap-gated relay proxy for remote-session terminals
+- **Per-card Share modal** — Two toggles per card: *Share the session* (reveals read-only + read/write capability links) and *Enable remote file browsing* (permission derives from the presented share code). A re-enableable warning fires before web-sharing a raw shell session
+
 ### Terminal & Sessions
-- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for all navigation: Home, Remote, Sessions, New Session (top); Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; icons stay in fixed horizontal position during transitions; state persists in localStorage
+- **Collapsible sidebar** — Left sidebar with Heroicons SVG icons for navigation: Home, Hub (top); Help, Settings (bottom). Toggle between collapsed (icons only, 48px) and expanded (icons + labels, 200px) via hamburger button; icons stay in fixed horizontal position during transitions; state persists in localStorage. *(v4.0: the separate Remote/Sessions pages and the New Session item were folded into the Hub.)*
 - **Tabbed terminals** — Run multiple AI coding sessions side-by-side with full xterm.js terminals (ANSI 256-color, Unicode, emoji, 10K+ line scrollback, full-width viewport fill)
 - **Background daemon** — Sessions live in a standalone daemon process; closing the GUI hides the window while sessions and the system tray remain active
 - **CLI auto-detection** — Detects Claude Code, Codex, Gemini CLI, OpenCode, and Google Antigravity (`agy`) on startup — including when launched from Finder/Dock (augments PATH with `~/.local/bin`, Homebrew, nvm, Volta, snap, flatpak, cargo, pipx, and platform-specific install locations on macOS, Linux, and Windows); supports custom CLI path overrides. Google Antigravity is currently waitlist-gated; detection is fully wired and the agent appears in the picker when `agy` is installed.
@@ -78,7 +99,7 @@ Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/ta
 - **CLI argument passing** — Pass extra arguments to CLIs with `--` separator syntax (e.g., `agenthub new claude ~/dir -- --arg1`); arguments are remembered per CLI
 - **Terminal theming** — 138 curated color themes (WCAG-audited for readability across all 4 CLIs); select in Settings > Appearance, applies live to all open sessions including OpenCode (via SIGUSR2 broadcast), persists across restarts with localStorage fallback guard for removed themes
 - **Terminal padding** — 8px inset around terminal content with dynamic background matching the active theme
-- **Per-tab font size** — Zoom in/out per terminal with `Shift+=`/`Shift+-` (range 6–32px)
+- **Per-tab font size** — Zoom the active terminal in/out with the standard macOS shortcuts `Shift-Cmd-+` / `Shift-Cmd--` (range 6–32px); the terminal refits cleanly after each change
 - **Tab management** — Rename tabs by double-clicking or right-click context menu
 - **Session auto-close** — When an agent process exits, its tab shows a 5-second countdown with an inline banner and fixed-position toast notification; tab auto-closes after countdown unless "Keep Open" is clicked; non-zero exits skip auto-close and show error state; toggle auto-close behavior in Settings > Session Behavior
 - **Live status indicators** — Colored dots per tab: running (green), waiting (yellow), idle (gray), errored (red)
@@ -109,10 +130,10 @@ Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/ta
 
 ### Remote Sessions
 - **Tailscale peer discovery** — Automatically discovers AgentHub instances running on other machines in your tailnet
-- **Remote Sessions panel** — GUI tab showing sessions grouped by peer hostname with loading states and 30-second auto-refresh
+- **Unified in the Hub (v4.0)** — Remote tailnet-peer sessions appear as cards in the Hub alongside local sessions (the separate Remote Sessions panel was removed in v4.0), with connected/available indicators
 - **CLI remote list** — `agenthub list` shows local and remote sessions grouped by HOST column
 - **CLI remote attach** — `agenthub attach hostname:session-id` connects to remote sessions via WSS relay over Tailscale HTTPS
-- **One-click open** — Click any remote session to open it in your browser
+- **Open in browser** — A remote Hub card's "Open in browser" opens the real peer URL, reusing the held web-share capability (no second join code)
 
 ### Auto-Update
 - **Update checker** — Polls GitHub releases on startup and hourly for new versions
@@ -128,12 +149,6 @@ Download v3.5.1: [Releases page](https://github.com/scottkw/agenthub/releases/ta
 - **Quit confirmation** — Closing the window or selecting Quit from the tray menu presents a modal showing active session count with colored status dots and three options: Keep Running (dismiss), Quit GUI Only (hide window, send macOS notification, daemon stays running), or Quit Everything (stop daemon and exit)
 - **Start minimized** — Optional "Start minimized to system tray" toggle in Settings > Behavior; when enabled, the app launches hidden with only the tray icon visible — preference persists across restarts
 - **Dock hiding** — App hides from Dock and Cmd+Tab via LSUIElement (macOS)
-
-### Daemon Management Panel
-- **In-GUI session control** — "Sessions" tab showing all active sessions with status dots, CLI type, and hostname badges
-- **Per-session actions** — Kill sessions and toggle web serving directly from the panel
-- **Live polling** — Session list refreshes automatically every 3 seconds
-- **Hostname identification** — Each session displays the machine hostname for multi-machine visibility
 
 ### CLI
 - **Full CLI** — `agenthub new`, `list`, `kill`, `rename`, `attach`, `web`, `health`, `qr`, `settings`
@@ -174,13 +189,13 @@ AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code,
 - **Reproducibility** — `release.yml` and `distribute.yml` produce SHA256 checksums alongside artifacts; every published release includes a `checksums.txt`. Dependabot is configured for both `gomod` and `github-actions` ecosystems with no auto-merge — every dependency change goes through manual review.
 
 ### Settings
-- **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with Home/Remote/Sessions panels
+- **Settings as sidebar tab** — Persistent Settings tab accessible from the sidebar (not a modal), consistent with the Home / Hub / Help surfaces
 - **Single scrollable page** — All settings on one page organized by section headers (Plugins, Appearance, Web Server, Paths, Behavior, Session Behavior) with visual dividers — no sub-tabs
 - **Plugins section** — 8 enable/disable toggles for the v3.2 plugin suite (WebGL, Unicode 11, Search, Web Links, Inline Images, Serialize, Clipboard, Progress) with per-plugin descriptions, "Applies to new sessions you create" inline captions for non-hot-swappable plugins, one-shot toast after Save, and inline `<details>` disclosures exposing per-plugin sub-config for Search (regex/case/word defaults), Web Links (modifier-key + risk-confirmation policy), and Inline Images (storage limit). Sub-key RPCs persist disclosure changes immediately — no "Save Plugins" required for sub-config
-- **Appearance section** — Theme selector with 138 curated color schemes; selected theme applies live to all terminals and persists in localStorage
+- **Appearance section** — A persisted **Light / Dark** UI theme toggle (v4.0 redesign) plus a terminal theme selector with 138 curated color schemes; the selected terminal theme applies live to all terminals and persists in localStorage
 - **Web Server section** — Start/stop web server with mode-aware status display; URL actions (open in browser, copy to clipboard, inline QR code); local network password with click-to-copy
 - **Behavior section** — "Start minimized to system tray" toggle with non-optimistic save, loading state, and error feedback
-- **Session Behavior section** — "Auto-close tab on exit" toggle controls whether session tabs auto-close when the agent process exits; preference persists via daemon settings
+- **Session Behavior section** — "Auto-close tab on exit" toggle controls whether session tabs auto-close when the agent process exits; and a re-enableable "Shell web-share warning" toggle (v4.0) controls the one-time warning shown before web-sharing a raw shell session, firing consistently across both share surfaces; preferences persist via daemon settings
 - **Paths section** — Override auto-detected CLI paths per agent; each path has a native browse button that opens a file picker; save confirmation shows a green "Saved!" indicator for 1.5 seconds
 - **Tailscale status indicator** — 4-state color-coded dot (Connected / Not Connected / Daemon Stopped / Not Installed) with collapsible diagnostics checklist showing binary detection, daemon status, connection state, and TLS readiness; platform-specific troubleshooting instructions for macOS, Linux, and Windows
 - **Certificate Transparency disclosure** — Acknowledgment flow for CT log requirements
@@ -247,18 +262,19 @@ AgentHub supports raw PTY shell sessions alongside AI CLI sessions (Claude Code,
 | Component | Purpose |
 |-----------|---------|
 | `App.tsx` | Root layout, daemon client, session management, sidebar + content flex layout |
-| `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Remote, Sessions, New Session, Settings |
-| `TabBar.tsx` | Tab strip with status dots, rename, close (session tabs only — no action buttons) |
+| `Sidebar.tsx` | Collapsible navigation sidebar with Heroicons: Home, Hub, Help, Settings |
+| `Hub/HubPanel.tsx` | Hub session grid — cards, working-directory + named groups, status filter bar, search, attention surfacing, card→modal, per-card Share modal |
+| `Hub/SessionShareModal.tsx` | Per-card Share modal: session-share toggle (RO/RW capability links) + remote file-browse toggle |
+| `TabBar.tsx` | Tab strip with status dots, rename, close, overflow chevron (session tabs only — no action buttons) |
 | `TerminalPanel.tsx` | xterm.js terminal with WebSocket relay, per-tab font size, theme support |
 | `NewSessionModal.tsx` | CLI selector, working directory picker, argument input |
-| `DaemonManagerPanel.tsx` | Session list with kill, web toggle, hostname badges |
-| `RemoteSessionsPanel.tsx` | Tailscale peer sessions with auto-refresh and browser open |
+| `HelpTab.tsx` | In-app Help page — searchable docs/FAQ, section nav, external links |
 | `WelcomeTab.tsx` | Branded welcome screen with installation instructions |
 | `StatusBar.tsx` | Per-tab web-serving controls |
 | `ExitToast.tsx` | Fixed-position toast notification for session exits — clean/error variants, countdown display, Keep Open and dismiss buttons |
 | `ExitCountdownBanner.tsx` | Inline countdown banner in terminal area — "Agent exited cleanly. Tab closes in Ns." with Keep Open button |
 | `QuitConfirmModal.tsx` | Quit confirmation modal — session list with colored status dots, three exit options (Keep Running, Quit GUI Only, Quit Everything) |
-| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Behavior, Session Behavior, Appearance, Web Server, Paths); start-minimized toggle, auto-close toggle, theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides with native browse buttons, local network password |
+| `SettingsTab.tsx` | Settings as sidebar tab: single scrollable page with section headers (Plugins, Behavior, Session Behavior, Appearance, Web Server, Paths); start-minimized toggle, auto-close toggle, shell web-share warning toggle, Light/Dark theme toggle + terminal theme selector, web server controls with URL actions (open/copy/QR), CLI path overrides with native browse buttons, local network password |
 | `LocalNetworkBanner.tsx` | 4-state context-aware nudge banner with independent dismiss: not-installed, daemon-stopped, not-connected, and upgrade-in-progress states with platform-specific instructions |
 | `UpdateBanner.tsx` | Standalone update notification banner with version info, download button, and dismiss control |
 | `QRModal.tsx` | QR code display for web-served sessions |
@@ -422,12 +438,12 @@ GitHub Actions automates building, releasing, and distributing AgentHub:
 ### Desktop (GUI)
 
 1. **Launch AgentHub** — run `agenthub` with no arguments to open the GUI
-2. **Navigate via sidebar** — use the collapsible left sidebar for all navigation; toggle collapsed/expanded with the hamburger icon
-3. **Create a session** — click New Session in the sidebar to open the new session modal; select a CLI, working directory, and optional arguments
-4. **Use the terminal** — full interactive terminal with the selected CLI; new sessions are automatically web-served
-5. **Manage sessions** — click Sessions in the sidebar to view all sessions, kill them, or toggle web access
-6. **Remote sessions** — click Remote in the sidebar to discover and open sessions on other tailnet machines
-7. **Web serve** — web server starts automatically; toggle web access per session as needed
+2. **Navigate via sidebar** — Home / Hub / Help / Settings; toggle collapsed/expanded with the hamburger icon
+3. **Open the Hub** — the Hub shows every local and remote session as a live card, grouped by working directory; filter by status, search with `/`, and organize into named groups
+4. **Create a session** — click New Session on the Hub to open the new session modal; select a CLI, working directory, and optional arguments
+5. **Use the terminal** — click a card to open the interactive terminal modal (or a briefing modal for sessions needing input); new sessions are automatically web-served
+6. **Manage & share** — from a Hub card, kill the session or open its Share modal to reveal read-only / read-write links and enable remote file browsing
+7. **Remote sessions** — sessions on other tailnet machines appear as Hub cards; "Open in browser" opens the real peer URL
 8. **System tray** — close the window to hide; use the tray menu to switch sessions or quit
 
 ### CLI
@@ -476,7 +492,7 @@ Each tab shows a colored status dot:
 | Gray | Idle | No recent output activity |
 | Red | Errored | CLI process has exited with a non-zero code |
 
-Status detection uses heuristic output patterns for **Claude Code**. Other CLIs show "running" until their patterns are catalogued.
+Status detection uses heuristic output patterns for **Claude Code** and **Google Antigravity** (`agy`). Other CLIs show "running" until their patterns are catalogued.
 
 ## Tech Stack
 
