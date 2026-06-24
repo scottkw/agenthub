@@ -1,10 +1,11 @@
 ---
 phase: 147
 slug: in-app-help-page
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-22
+validated: 2026-06-23
 ---
 
 # Phase 147 — Validation Strategy
@@ -84,12 +85,24 @@ created: 2026-06-22
 
 ## Validation Sign-Off
 
-- [ ] All tasks have automated verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (polyfill, test stubs, content dir, rehype-sanitize)
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] New test files registered in TESTING.md (Suite Manifest §2, Traceability §4) + `bash tests/check-traceability-paths.sh` passes
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have automated verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (polyfill, test stubs, content dir, rehype-sanitize)
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] New test files registered in TESTING.md (Suite Manifest §2, Traceability §4) + `bash tests/check-traceability-paths.sh` passes
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-06-23
+
+---
+
+## Post-Execution Validation (2026-06-23)
+
+The doc remained at planning-time `status: draft` / `nyquist_compliant: false` / `wave_0_complete: false`. Wave 0 was completed during execution and all referenced tests now exist and pass:
+
+- Help test suite green: `pnpm test -- Help Sidebar` → **6 files, 86 tests passed**, including the render-based `HelpTab.integration.test.tsx` added after code-review caught the dead-nav blocker (section anchors never rendered — the original source-only HelpTab.test gave a false green).
+- Build gate clean: `npx tsc --noEmit` → exit 0.
+- Phase 147 VERIFICATION passed; all 4 human UAT items passed (live native + isolated-HelpTab harness). #69 closed.
+
+Wave 0 deliverables confirmed present: IntersectionObserver polyfill, the four Help test files + Sidebar 4-item update, `frontend/src/content/help/` content, `rehype-sanitize` dependency. Frontmatter updated `status: validated`, `nyquist_compliant: true`, `wave_0_complete: true`.

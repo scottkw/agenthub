@@ -1,10 +1,11 @@
 ---
 phase: 150
 slug: shell-sharing-warning-toggle
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-23
+validated: 2026-06-23
 ---
 
 # Phase 150 — Validation Strategy
@@ -82,4 +83,17 @@ created: 2026-06-23
 - [x] Feedback latency < 60s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** ready for execution
+**Approval:** validated 2026-06-23
+
+---
+
+## Post-Execution Validation (2026-06-23)
+
+The doc remained at planning-time `status: draft` / `wave_0_complete: false`. All Wave 0 test files were created during execution and the suites pass:
+
+- Daemon: `go test -race -short ./internal/daemon/...` (shell-warn + isShellSession) → **ok** (race-clean).
+- Frontend: `pnpm test -- SettingsTab.shell-warn SessionShareModal App.shellWebShare shellCli` → **4 files, 70 tests passed**.
+- Build gate: `npx tsc --noEmit` → exit 0.
+- Phase 150 VERIFICATION verified; live wails-dev UAT passed including M-16 (warning fires on both share surfaces) and M-17 (cold daemon-restart persistence). Path-aware `isShellCli`/`isShellSession` fix landed (the bare-name gate bug found in UAT). #51 closed.
+
+Frontmatter updated `status: validated`, `wave_0_complete: true` (`nyquist_compliant` was already true).
