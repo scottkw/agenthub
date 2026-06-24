@@ -1,5 +1,24 @@
 # Milestones
 
+## v4.0 Hub-First Consolidation & UI/UX Overhaul (Shipped: 2026-06-23)
+
+**Phases completed:** 15 phases (136–150; 151 cancelled), 52 plans, 61 tasks
+**Git tag:** v4.0 · **Timeline:** 2026-06-19 → 2026-06-23 (5 days)
+**Closes:** #51, #65, #68, #69, #96, #97, #98, #100, #101 (completed) · #99 (closed not-planned — zoom already shipped) · #82, #95 (closed at scoping)
+
+**Delivered:** AgentHub collapsed onto a single Hub-centric surface. The TUI and the Sessions/Remote sidebar pages are gone; their controls live in per-card Share modals and colorblind-safe indicators. The sidebar is now Home / Hub / Help / Settings. Ships the v4.0 visual redesign (Plus Jakarta Sans + JetBrains Mono, comp palette, persisted Light/Dark theme), a Chrome-style tab strip, an in-app Help page, a Google Antigravity agent, and a formal regression-test program with a CI branch-protection gate.
+
+**Key accomplishments:**
+
+- **Hub-first consolidation (136, 138):** removed the `agenthub tui` command + Bubble Tea infra (cross-surface parity contract narrows to GUI/CLI/web), deleted the Sessions (DaemonManagerPanel) and Remote (RemoteSessionsPanel) pages and the sidebar New-Session item; session creation now flows only through the Hub's HubFilterBar.
+- **Unified Share/capability model (137, 146):** one per-card Share modal mints RO + RW cap-tokens; "Enable remote file browsing" derives permission from the presented share code; remote "Open in browser" reuses the held web-share cap (App.OpenRemoteSessionURL + daemon open-url endpoint) instead of minting a second single-use code.
+- **v4.0 redesign + theming (139–142):** headless-VT styled-tail mini-previews (#96), browser-style shrink-then-scroll tab strip, the comp visual language (fonts/palette/radii/type-scale) adopted after catching and fixing a token-only false pass, a persisted Light/Dark toggle, and WebGL repaint hardening (no terminal garble on theme/tab switch). GroupSidebar ARIA rewritten to plain buttons (#97).
+- **Regression-test program (143):** TESTING.md suite manifest + traceability map + path-check CI script + 17-item manual checklist, plus branch protection on `main` (4 build jobs + playwright required) — applied once CI went green.
+- **Issue burndown (144–148, 150):** daemon styled-tail data race (#100), Windows files test failures (#101), the Open-Session capability bug (#98), an in-app Help page with search + external links (#69), a session-tab discoverability chevron (#68), and a Settings toggle for the shell web-share warning with path-aware shell detection (#51).
+- **Google Antigravity agent (149):** `agy` wired across all surfaces — knownCLIs detection, Windows `%LOCALAPPDATA%\agy\bin` PATH, status detector, and a `#ff9e64` badge identity on card spine/chip/tab-dot — verified by live REPL UAT (#65).
+
+---
+
 ## v3.6 Hub (Session Grid / Control Room) (Shipped: 2026-06-19)
 
 **Phases completed:** 5 phases, 26 plans, 29 tasks

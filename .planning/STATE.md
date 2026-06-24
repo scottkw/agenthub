@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Hub-First Consolidation & UI/UX Overhaul
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 150 context gathered
-last_updated: "2026-06-23T14:50:13.876Z"
-last_activity: 2026-06-23 -- Phase 150 marked complete
+last_updated: "2026-06-24T02:23:32.324Z"
+last_activity: 2026-06-24 — Milestone v4.0 completed and archived
 progress:
   total_phases: 16
   completed_phases: 15
@@ -18,19 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-19 — v4.0 milestone scoped)
+See: .planning/PROJECT.md (updated 2026-06-23 — v4.0 milestone shipped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 150 — shell-sharing-warning-toggle
+**Current focus:** Planning next milestone (`/gsd:new-milestone`) — v4.0 shipped 2026-06-23
 
 ## Current Position
 
-Phase: 150 — COMPLETE
-Plan: 3 of 3
-Status: Phase 150 complete
-Last activity: 2026-06-23 -- Phase 150 marked complete
-
-Progress: [██████████] 100%
+Phase: Milestone v4.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-24 — Milestone v4.0 completed and archived
 
 ## Operator Next Steps (pre-release, carry-forward)
 
@@ -99,3 +97,7 @@ Last session: 2026-06-23T14:41:25.796Z
 Stopped at: Phase 150 context gathered
 Resume file: None
 Next action: `/gsd:plan-phase 136`
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

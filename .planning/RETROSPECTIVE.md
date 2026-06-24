@@ -1055,6 +1055,39 @@
 ### Cost Observations
 - The bulk of the close-out cost was live-UAT environment archaeology (daemon identity, web-share auth layers), not the code. A 5-file daemon fix + 3 doc commits was the durable output.
 
+## Milestone: v4.0 — Hub-First Consolidation & UI/UX Overhaul
+
+**Shipped:** 2026-06-23 (tag v4.0)
+**Phases:** 15 (136-150; 151 cancelled) | **Plans:** 52 | **Requirements:** 43/43 active (ZOOM-01 cancelled)
+
+### What Was Built
+- Hub-first consolidation: removed the TUI surface (parity → GUI/CLI/web), the Sessions (`DaemonManagerPanel`) + Remote (`RemoteSessionsPanel`) pages, and the sidebar New-Session item; sidebar collapses to Home/Hub/Help/Settings (Phases 136, 138).
+- Unified Share/capability model: one per-card Share modal mints RO + RW cap-tokens; remote file-browse derives from the presented code; remote "Open in browser" reuses the held web-share cap (Phases 137, 146).
+- v4.0 redesign + theming: headless-VT styled-tail mini-previews (#96), Chrome-style shrink-then-scroll tab strip + chevron, the comp visual language (fonts/palette/radii) adopted after a false-pass reopen, persisted Light/Dark, WebGL repaint hardening (Phases 139-142, 148).
+- Regression-test program: TESTING.md suite manifest + requirement→test traceability + path-check CI script + 17-item manual checklist + branch protection on `main` (Phase 143).
+- Issue burndown + new surfaces: daemon race (#100), Windows files (#101), open-session bug (#98), in-app Help page (#69), Google Antigravity agent (#65), shell web-share warning toggle (#51) (Phases 144-150).
+
+### What Worked
+- **Cancelling, not building.** Phase 151 (terminal zoom) was discovered redundant during discuss-phase — the feature already shipped via a Phase 134 binding (Shift-Cmd-+/-). A quick source read + one maintainer confirmation avoided a whole build/plan/execute cycle. Discuss-phase scouting paid for itself.
+- **Audit-as-reconciliation.** The milestone audit's real value this cycle was catching stale *bookkeeping* — TEST-02 + 7 requirement statuses mislabeled Planned/Deferred, 138/141 verification statuses never flipped after their work landed, 3 unfinalized Nyquist docs — none of which were actual gaps. Cross-referencing VERIFICATION + SUMMARY + traceability surfaced every drift.
+- **Downstream coverage closes upstream deferrals.** Phase 138's deferred two-machine remote UATs were resolved for free by Phase 146's live two-Mac tailnet UAT exercising the same flow. Tracing the cross-phase dependency beat re-running it.
+
+### What Was Inefficient
+- **A token-only "redesign" certified as a false pass.** Phase 141's first verification checked tokens/hex/ARIA but never rendered the running app against the canonical comp — the comp fonts/palette were never actually adopted (every plan recolored to the same TokyoNight values). It took a reopen + gap-closure plans 141-06..09 + a rendered render-compare with a human checkpoint to actually ship the redesign.
+- **Green tests encoding the same wrong assumption.** Phase 150's shell-warning gate matched bare CLI names, the fixtures used bare names, and CI stayed green — but a real shell session's cli is its full path (`/bin/zsh`), so the warning never fired. Only live UAT with real daemon data exposed it.
+
+### Patterns Established
+- **Render-compare gate for redesign phases:** source-level token/hex/ARIA checks are necessary but not sufficient — re-verification must render the running app against the canonical comp, with a blocking human visual checkpoint.
+- **Drive UATs with real daemon data:** a behavior gated on production-shaped values (full shell paths, real agent output) must be exercised against the live daemon, not bare-name fixtures that quietly agree with the bug.
+- **Stale-status sweep at milestone close:** treat the pre-close audit's flags as bookkeeping to reconcile (re-run the check, flip the status with evidence), not as a list to acknowledge-and-defer.
+
+### Key Lessons
+- The cheapest phase is the one you don't build. Scout for already-shipped behavior during discuss-phase before planning a feature.
+- A "passed" verification that only inspected source can hide a non-functional feature. The colorblind-owner constraint forces source-level checks for *color*, but everything else still needs a rendered/live observation.
+
+### Cost Observations
+- Close-out cost was dominated by doc reconciliation and one integration-checker subagent (clean, 5/5 flows wired), not new code — the milestone's code had effectively landed across the 15 phases. The audit + archive produced ~10 doc commits.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
