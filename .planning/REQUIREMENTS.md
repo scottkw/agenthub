@@ -160,17 +160,17 @@ Which phases cover which requirements. Filled during roadmap creation.
 | POL-04 | Phase 142 | Complete |
 | POL-05 | Phase 142 | Complete |
 | TEST-01 | Phase 143 | Complete |
-| TEST-02 | Phase 143 | Deferred (branch protection pending CI-green — see STATE operator follow-up; gated on #100/#101) |
+| TEST-02 | Phase 143 | Complete (branch protection applied 2026-06-22 once #100/#101 CI green; main requires 4 build jobs + playwright) |
 | TEST-03 | Phase 143 | Complete |
 | TEST-04 | Phase 143 | Complete |
 | TEST-05 | Phase 143 | Complete |
-| FIX-01 | Phase 144 | Planned |
-| FIX-02 | Phase 145 | Planned |
-| FIX-03 | Phase 146 | Planned |
-| HELP-01 | Phase 147 | Planned |
-| TAB-04 | Phase 148 | Planned |
-| AGENT-01 | Phase 149 | Planned |
-| SET-01 | Phase 150 | Planned |
+| FIX-01 | Phase 144 | Complete |
+| FIX-02 | Phase 145 | Complete |
+| FIX-03 | Phase 146 | Complete |
+| HELP-01 | Phase 147 | Complete |
+| TAB-04 | Phase 148 | Complete |
+| AGENT-01 | Phase 149 | Complete |
+| SET-01 | Phase 150 | Complete |
 | ZOOM-01 | Phase 151 | Cancelled (already shipped via Phase 134 WR-04; #99 closed) |
 
 **Coverage:**

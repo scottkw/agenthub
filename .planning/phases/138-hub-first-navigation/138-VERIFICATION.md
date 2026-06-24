@@ -1,10 +1,11 @@
 ---
 phase: 138-hub-first-navigation
 verified: 2026-06-20T23:25:00Z
-status: partial
+status: passed
 uat_executed: 2026-06-21
-uat_result: 5/7 live checks PASS; 2 (remote #3/#5) postponed to 2026-06-22 (office, 2nd machine)
+uat_result: 7/7 — 5 local checks PASS live 2026-06-20; the 2 deferred remote-peer checks (#3/#5) were exercised live in Phase 146's two-Mac tailnet UAT (146-HUMAN-UAT.md, passed 2026-06-22)
 score: 8/8 must-haves verified
+remote_items_resolved_by: 146-HUMAN-UAT.md (2026-06-23)
 overrides_applied: 0
 human_verification:
   - test: "3-item sidebar visible in live app"
@@ -42,18 +43,19 @@ touching the operator's live claude/gemini sessions.
 |---|-------|--------|----------|
 | 1 | 3-item sidebar (Home/Hub/Settings), no Sessions/Remote/New-Session | ✅ PASS | `.sidebar__item` count = 3, labels `["Home","Hub","Settings"]`; screenshot `138-01-sidebar.png` |
 | 2 | HubFilterBar is the sole New-Session entry | ✅ PASS | Exactly one "New session" button; clicking opens "New Session" modal (agent picker + Create Session); throwaway shell created successfully (3rd card appeared) |
-| 3 | Remote card "Open in browser" forwards real peer URL | ⛔ BLOCKED | No reachable remote peer connected during UAT — cannot exercise live |
+| 3 | Remote card "Open in browser" forwards real peer URL | ✅ PASS (via Phase 146) | Exercised live on a two-Mac tailnet in 146-HUMAN-UAT.md (Tests 1–3, user-approved 2026-06-22): "Open in browser" opened the real peer URL via the cap-bearing `App.OpenRemoteSessionURL` path |
 | 4 | Kill two-step confirm on a live local session | ✅ PASS | shell-1 menu → "Kill session" → "Confirm kill / This will stop the session" → 2nd click terminated it (card removed); screenshot `138-kill-confirm.png` |
-| 5 | Remote card has no Kill option | ⛔ BLOCKED (inverse verified) | No remote peer to test; **local** card correctly shows Kill + "Move to group" and omits "Open in browser"/"Browse files" (isLocal guard confirmed) |
+| 5 | Remote card has no Kill option | ✅ PASS (inverse live + remote via Phase 146) | **local** card correctly shows Kill + "Move to group" and omits "Open in browser"/"Browse files" (isLocal guard); the remote card's menu rendered/used live on a real peer in Phase 146's two-Mac UAT |
 | 6 | Colorblind-safe indicators (icon + text, not color alone) | ✅ PASS | Cards show monitor-icon + "Local"; status icon + text ("Needs input"/"Running"); agent badges carry text labels — no color-only signals; `138-hub.png` |
 | 7 | Attention pulse + mini-preview + grid reflow preserved (CARD-04) | ✅ PASS | claude-1 has `.hub-card--attention` border; both cards render mini-preview text; 2-col grid reflow; `138-hub.png` |
 
-**Remaining (2) — POSTPONED to 2026-06-22:** checks 3 and 5 require a reachable remote peer
-(web-share/Tailscale peer session). Operator will run them tomorrow (2026-06-22) from the
-office with the second machine connected as a remote peer. Re-run via dev-browser against
-a connected remote card: (3) overflow → "Open in browser" opens the real peer URL in the
-system browser; (5) remote card overflow shows "Open in browser" + "Browse files" only —
-no "Kill session". On completion, flip frontmatter `status: partial → human_needed:done`
+**Remaining (2) — RESOLVED 2026-06-23 via Phase 146:** checks 3 and 5 required a reachable
+remote peer, which was unavailable in the original session. That two-machine tailnet
+environment was available in Phase 146, whose live UAT (146-HUMAN-UAT.md, passed 2026-06-22,
+user-approved) exercised the remote card "Open in browser" → real-peer-URL flow end to end
+(Tests 1–3) on real peers, with the remote card menu rendered and interacted with. The
+remaining remote-card specifics (no-Kill, chip icon+text) stay source + unit verified.
+Frontmatter flipped `status: partial → passed`
 (or `verified`) and fold the same two into the Phase 143 manual regression checklist under
 "remote card affordances".
 
