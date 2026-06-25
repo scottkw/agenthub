@@ -1,24 +1,32 @@
 ---
 phase: 151-message-schema-chatstore
-fixed_at: 2026-06-25T21:40:00Z
+fixed_at: 2026-06-25T22:30:00Z
 review_path: .planning/phases/151-message-schema-chatstore/151-REVIEW.md
-iteration: 1
-findings_in_scope: 3
-fixed: 3
+iteration: 2
+findings_in_scope: 7
+fixed: 7
 skipped: 0
 status: all_fixed
 ---
 
 # Phase 151: Code Review Fix Report
 
-**Fixed at:** 2026-06-25T21:40:00Z
+**Fixed at:** 2026-06-25T22:30:00Z (iteration 2: Info findings) · 2026-06-25T21:40:00Z (iteration 1: Warnings)
 **Source review:** .planning/phases/151-message-schema-chatstore/151-REVIEW.md
-**Iteration:** 1
+**Iterations:** 2
 
 **Summary:**
-- Findings in scope: 3 (0 Critical, 3 Warning — Info findings IN-01..04 are out of scope for `critical_warning`)
-- Fixed: 3
+- Findings in scope: 7 (0 Critical, 3 Warning, 4 Info — full `--fix --all` scope)
+- Fixed: 7 (3 Warning in iteration 1, 4 Info in iteration 2)
 - Skipped: 0
+
+> **Recovery note:** The iteration-2 fixer agent applied all 4 Info fixes as atomic
+> commits in an isolated worktree, then its connection dropped before completing the
+> transactional fast-forward of `main`. The orchestrator verified the worktree was
+> clean and green (`go build ./...` + affected package tests), confirmed `main` was a
+> clean ancestor, fast-forwarded `main` to the fix HEAD (`1ce7dab3`), removed the
+> worktree/branch, and cleared the recovery sentinel. Full `go test ./... -count=1`
+> passes on `main` after recovery.
 
 All fixes were verified with `gofmt`, `go build ./...`, and the affected package
 test suites (`go test ./internal/daemon/ ./internal/webserver/ -count=1`), each of
@@ -87,8 +95,61 @@ when the provider reports an error for an existing session. No import cycle is
 introduced — the callback still exchanges only `[]byte`/`string`/`bool`/`error`
 (T-151-09 preserved).
 
+## Fixed Issues — Iteration 2 (Info, `--fix --all`)
+
+### IN-01: Dead `msgs == nil` guard after `Messages()`
+
+**Files modified:** `internal/daemon/chat_routes.go`
+**Commit:** 749ac77a
+**Applied fix:** Removed the unreachable `if msgs == nil { msgs = []relay.ChatMessage{} }`
+guard. `ChatStore.Messages()` builds its result with `make([]relay.ChatMessage, len)`,
+so it never returns nil and an empty thread already serializes as `[]` (not `null`).
+Replaced the dead branch with a comment documenting the invariant. The `api.go`
+provider paths were superseded by the IN-04 split (below), so no separate guard
+removal was needed there.
+
+### IN-02: Export route interpolated an unvalidated path param into `Content-Disposition`
+
+**Files modified:** `internal/daemon/chat_routes.go`, `internal/daemon/chat_routes_test.go`
+**Commit:** 96b05227
+**Applied fix:** Defense-in-depth — the relay chat routes now reject any `id` that
+fails the `validChatSessionID` allowlist (same allowlist `NewChatStore` uses) with a
+404 before touching the store or building the `Content-Disposition` header. Added
+`TestChatRoutes_InvalidSessionID`, which asserts an invalid id returns 404 on the
+export route. Header injection was not reachable before (keys are crypto-random hex),
+but the safety is now local and explicit rather than relying on an upstream invariant.
+
+### IN-03: `NewChatStore` filesystem I/O held the engine-wide `e.mu`
+
+**Files modified:** `internal/daemon/engine.go`
+**Commit:** eb8d69fd
+**Applied fix:** `CreateSession` now snapshots `e.chatsBaseDir` under a short `e.mu`
+hold, releases the lock, constructs the `ChatStore` (`os.MkdirAll` + possible
+`loadFromDisk`) outside the lock, then re-takes `e.mu` only to insert the ready
+pointer. Concurrent `ChatStoreFor`/`ListSessions` readers no longer block on chat
+filesystem I/O. The non-fatal-on-error behavior is preserved, and reading
+`chatsBaseDir` under the lock keeps it race-free with `ChatsBaseDirForTest`.
+
+### IN-04: Provider computed both history JSON and Markdown on every call
+
+**Files modified:** `internal/daemon/api.go`, `internal/webserver/server.go`,
+`internal/webserver/chat.go`, `internal/webserver/chat_test.go`
+**Commit:** 1ce7dab3
+**Applied fix:** Split the single `SetChatProvider` closure into two narrow callbacks —
+`SetChatHistoryProvider` (`func(sessionID) (history []byte, found bool, err error)`)
+and `SetChatExportProvider` (`func(sessionID) (markdown string, found bool, err error)`).
+Each route now does only the work it serves (history route no longer runs `Export()`;
+export route no longer marshals history), and each computation takes its own single
+`store.mu` hold. WR-03's error semantics are preserved exactly: `err != nil` → 500 on
+an existing session, `err == nil && !found` → 404. Both daemon closures in `api.go`
+and the webserver test stubs were updated to the split signatures.
+
+All iteration-2 fixes verified with `gofmt`, `go build ./...`, and
+`go test ./internal/daemon/ ./internal/webserver/ ./internal/relay/ -count=1` (green),
+plus a full `go test ./... -count=1` on `main` after worktree recovery.
+
 ---
 
-_Fixed: 2026-06-25T21:40:00Z_
-_Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Fixed: 2026-06-25T22:30:00Z (iteration 2) · 2026-06-25T21:40:00Z (iteration 1)_
+_Fixer: Claude (gsd-code-fixer) + orchestrator worktree recovery_
+_Iterations: 2_
