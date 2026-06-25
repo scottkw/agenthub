@@ -71,3 +71,53 @@ func MakeMeta(p MetaPayload) []byte {
 	copy(frame[1:], b)
 	return frame
 }
+
+// ChatSchemaVersion is the current version of the ChatMessage wire format.
+// Forward-compat: readers can branch on this field when later phases add keys.
+// Go's encoding/json ignores unknown fields on Unmarshal, so schema evolution
+// is backward-compatible for free — new keys in the JSON are silently skipped
+// by older readers.
+const ChatSchemaVersion = 1
+
+// ChatMessage is the canonical wire/serialization type for a single chat
+// message. It is the stable contract that every client surface and every
+// storage layer serializes to — changes to field names or JSON tags are
+// backward-incompatible and require a schema migration.
+//
+// Stability semantics (do not change without a migration plan):
+//
+//   - AuthorID is the STABLE identity of the sender: the Tailscale node public
+//     key (string form) for remote participants, or the literal "local" for the
+//     daemon owner. It does NOT change across daemon restarts and is the ONLY
+//     authoritative author field for routing or access-control decisions.
+//
+//   - AuthorAlias is a per-message SNAPSHOT of the author's chosen display name
+//     at send time. It is display-only and is NEVER authoritative for routing
+//     or access control. Alias changes after a message is stored do not
+//     retroactively update stored messages.
+//
+//   - TimestampMs is UNIX milliseconds in UTC (time.Now().UnixMilli()).
+//
+//   - SchemaVersion is a forward-compat marker. Set to ChatSchemaVersion (1)
+//     by the writer. Readers that understand only schema version 1 may branch
+//     on this field to handle future schemas gracefully.
+//
+//   - Mentions lists AuthorIDs (not aliases) of mentioned participants. Omitted
+//     when empty.
+//
+//   - SessionInject is true when this message triggered an @session PTY write.
+//     Omitted (false) for normal chat messages.
+//
+// JSON encoding: Go's encoding/json silently ignores unknown fields on
+// Unmarshal, providing forward-compatibility as later phases add new keys.
+type ChatMessage struct {
+	SchemaVersion int      `json:"v"`
+	ID            string   `json:"id"`
+	SessionID     string   `json:"sessionID"`
+	AuthorID      string   `json:"authorID"`
+	AuthorAlias   string   `json:"alias"`
+	Content       string   `json:"content"`
+	Mentions      []string `json:"mentions,omitempty"`
+	SessionInject bool     `json:"sessionInject,omitempty"`
+	TimestampMs   int64    `json:"ts"`
+}
