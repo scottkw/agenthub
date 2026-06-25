@@ -470,30 +470,7 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	// cap-gated /api/chat/{id}/history and /api/chat/{id}/export routes can
 	// reach the session's ChatStore without importing the daemon package
 	// (T-151-09 — no webserver→daemon import cycle; provider callback only).
-	ws.SetChatProvider(func(sessionID string) (history []byte, markdown string, found bool, err error) {
-		store, storeOK := a.engine.ChatStoreFor(sessionID)
-		if !storeOK {
-			// Session has no chat store — genuine not-found (404), not an error.
-			return nil, "", false, nil
-		}
-		msgs := store.Messages()
-		if msgs == nil {
-			msgs = []relay.ChatMessage{}
-		}
-		b, mErr := json.Marshal(msgs)
-		if mErr != nil {
-			// Internal failure on an existing session — surface it (500), never
-			// mask it as 404 (WR-03 / CLAUDE.md no silent fallbacks).
-			log.Printf("chat: marshal history for session %q: %v", sessionID, mErr)
-			return nil, "", true, fmt.Errorf("chat: marshal history: %w", mErr)
-		}
-		md, eErr := store.Export()
-		if eErr != nil {
-			log.Printf("chat: export for session %q: %v", sessionID, eErr)
-			return nil, "", true, fmt.Errorf("chat: export: %w", eErr)
-		}
-		return b, md, true, nil
-	})
+	a.setChatProviders(ws)
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 	if err := ws.Start(); err != nil {
@@ -501,6 +478,47 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	}
 	a.webServer = ws
 	return nil
+}
+
+// setChatProviders wires the webserver's cap-gated chat routes to the session
+// engine's ChatStore via two narrow callbacks (IN-04): a history-only provider
+// that marshals the thread and an export-only provider that renders Markdown.
+// Splitting them means each request does only the work it serves — the history
+// route never runs Export() and the export route never marshals history. Both
+// preserve WR-03 semantics: a missing store is (false, nil) → 404, while an
+// internal failure on an existing session is (true, err) → 500 (never masked as
+// 404). Shared by AutoStartWebServer and handleWebServerStart; the closure form
+// keeps the webserver→daemon import cycle broken (T-151-09).
+func (a *API) setChatProviders(ws *webserver.WebServer) {
+	ws.SetChatHistoryProvider(func(sessionID string) (history []byte, found bool, err error) {
+		store, storeOK := a.engine.ChatStoreFor(sessionID)
+		if !storeOK {
+			// Session has no chat store — genuine not-found (404), not an error.
+			return nil, false, nil
+		}
+		// Messages() never returns nil (make([]…, len)), so an empty thread
+		// already marshals to `[]` not `null` (IN-01).
+		b, mErr := json.Marshal(store.Messages())
+		if mErr != nil {
+			// Internal failure on an existing session — surface it (500), never
+			// mask it as 404 (WR-03 / CLAUDE.md no silent fallbacks).
+			log.Printf("chat: marshal history for session %q: %v", sessionID, mErr)
+			return nil, true, fmt.Errorf("chat: marshal history: %w", mErr)
+		}
+		return b, true, nil
+	})
+	ws.SetChatExportProvider(func(sessionID string) (markdown string, found bool, err error) {
+		store, storeOK := a.engine.ChatStoreFor(sessionID)
+		if !storeOK {
+			return "", false, nil
+		}
+		md, eErr := store.Export()
+		if eErr != nil {
+			log.Printf("chat: export for session %q: %v", sessionID, eErr)
+			return "", true, fmt.Errorf("chat: export: %w", eErr)
+		}
+		return md, true, nil
+	})
 }
 
 // writeJSON writes v as a JSON response with the given status code.
@@ -1053,30 +1071,7 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 	ws.SetSigningKey(key)
 	ws.SetFilesHandler(a.filesHandler)
 	// Phase 151-03 / PERSIST-01..02: wire the chat provider (mirrors AutoStartWebServer).
-	ws.SetChatProvider(func(sessionID string) (history []byte, markdown string, found bool, err error) {
-		store, storeOK := a.engine.ChatStoreFor(sessionID)
-		if !storeOK {
-			// Session has no chat store — genuine not-found (404), not an error.
-			return nil, "", false, nil
-		}
-		msgs := store.Messages()
-		if msgs == nil {
-			msgs = []relay.ChatMessage{}
-		}
-		b, mErr := json.Marshal(msgs)
-		if mErr != nil {
-			// Internal failure on an existing session — surface it (500), never
-			// mask it as 404 (WR-03 / CLAUDE.md no silent fallbacks).
-			log.Printf("chat: marshal history for session %q: %v", sessionID, mErr)
-			return nil, "", true, fmt.Errorf("chat: marshal history: %w", mErr)
-		}
-		md, eErr := store.Export()
-		if eErr != nil {
-			log.Printf("chat: export for session %q: %v", sessionID, eErr)
-			return nil, "", true, fmt.Errorf("chat: export: %w", eErr)
-		}
-		return b, md, true, nil
-	})
+	a.setChatProviders(ws)
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 

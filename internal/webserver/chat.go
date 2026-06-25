@@ -9,30 +9,41 @@ package webserver
 // T-151-04 (a cap for session A cannot read session B's thread).
 //
 // Import-cycle avoidance (T-151-09): this file imports no package that
-// imports webserver. The caller (api.go) wires a chatProvider callback
-// (SetChatProvider) at construction time. The callback returns pre-serialized
-// bytes so this file has no knowledge of the ChatStore type.
+// imports webserver. The caller (api.go) wires the provider callbacks
+// (SetChatHistoryProvider / SetChatExportProvider) at construction time. The
+// callbacks return pre-serialized bytes/string so this file has no knowledge
+// of the ChatStore type.
 
 import (
 	"fmt"
 	"net/http"
 )
 
-// SetChatProvider installs the callback that the cap-gated chat routes use to
-// fetch a session's message thread (as pre-marshaled JSON) and its Markdown
-// export. Must be called before Start(); not mutex-protected (single setter,
-// set once — mirrors SetSessionResolver / SetFilesHandler).
+// SetChatHistoryProvider installs the callback that the cap-gated history route
+// uses to fetch a session's message thread as pre-marshaled JSON. Must be
+// called before Start(); not mutex-protected (single setter, set once —
+// mirrors SetSessionResolver / SetFilesHandler).
 //
-// The provider signature avoids a circular import: the caller passes a
-// closure; this file sees only []byte + string + bool + error (T-151-09).
+// Split from the export provider (IN-04) so the history route never runs the
+// Markdown export it does not serve.
 //
 // Provider contract (WR-03):
-//   - err != nil           → internal failure on an existing session; routes
-//     return 500 (the error is surfaced, not masked).
-//   - err == nil, !found    → session has no chat store; routes return 404.
-//   - err == nil, found     → history is valid JSON bytes; markdown is the export.
-func (ws *WebServer) SetChatProvider(fn func(sessionID string) (history []byte, markdown string, found bool, err error)) {
-	ws.chatProvider = fn
+//   - err != nil           → internal failure on an existing session; the
+//     route returns 500 (the error is surfaced, not masked).
+//   - err == nil, !found    → session has no chat store; route returns 404.
+//   - err == nil, found     → history is valid JSON bytes.
+func (ws *WebServer) SetChatHistoryProvider(fn func(sessionID string) (history []byte, found bool, err error)) {
+	ws.chatHistoryProvider = fn
+}
+
+// SetChatExportProvider installs the callback that the cap-gated export route
+// uses to fetch a session's Markdown export. Must be called before Start();
+// not mutex-protected. Split from the history provider (IN-04) so the export
+// route never marshals the history JSON it does not serve.
+//
+// Provider contract mirrors SetChatHistoryProvider (WR-03 semantics).
+func (ws *WebServer) SetChatExportProvider(fn func(sessionID string) (markdown string, found bool, err error)) {
+	ws.chatExportProvider = fn
 }
 
 // handleChatHistory serves GET /api/chat/{id}/history (capability-gated).
@@ -42,12 +53,12 @@ func (ws *WebServer) SetChatProvider(fn func(sessionID string) (history []byte, 
 // 404 if the session has no registered store.
 func (ws *WebServer) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
-	fn := ws.chatProvider
+	fn := ws.chatHistoryProvider
 	if fn == nil {
 		http.Error(w, "chat provider not configured", http.StatusServiceUnavailable)
 		return
 	}
-	history, _, found, err := fn(sessionID)
+	history, found, err := fn(sessionID)
 	if err != nil {
 		// Internal failure on a session that exists — surface it as 500 rather
 		// than masking it as 404 (WR-03). The provider logs the underlying cause.
@@ -70,12 +81,12 @@ func (ws *WebServer) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 // session has no registered store.
 func (ws *WebServer) handleChatExport(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
-	fn := ws.chatProvider
+	fn := ws.chatExportProvider
 	if fn == nil {
 		http.Error(w, "chat provider not configured", http.StatusServiceUnavailable)
 		return
 	}
-	_, markdown, found, err := fn(sessionID)
+	markdown, found, err := fn(sessionID)
 	if err != nil {
 		// Internal failure on a session that exists — surface it as 500 rather
 		// than masking it as 404 (WR-03). The provider logs the underlying cause.

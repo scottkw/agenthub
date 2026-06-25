@@ -23,17 +23,24 @@ import (
 	"testing"
 )
 
-// stubChatProvider returns a SetChatProvider closure that responds with the
-// supplied history bytes and markdown string for sessionID. Any other session
-// ID returns ok == false. Use to wire a WebServer for chat-route tests
-// without importing the daemon or relay packages.
-func stubChatProvider(sessionID string, historyJSON []byte, markdown string) func(string) ([]byte, string, bool, error) {
-	return func(id string) ([]byte, string, bool, error) {
+// wireChatProvider installs both the history and export providers (IN-04 split
+// the single callback in two) on ws so the cap-gated chat routes respond with
+// the supplied history bytes and markdown string for sessionID. Any other
+// session ID returns found == false. Use to wire a WebServer for chat-route
+// tests without importing the daemon or relay packages.
+func wireChatProvider(ws *WebServer, sessionID string, historyJSON []byte, markdown string) {
+	ws.SetChatHistoryProvider(func(id string) ([]byte, bool, error) {
 		if id != sessionID {
-			return nil, "", false, nil
+			return nil, false, nil
 		}
-		return historyJSON, markdown, true, nil
-	}
+		return historyJSON, true, nil
+	})
+	ws.SetChatExportProvider(func(id string) (string, bool, error) {
+		if id != sessionID {
+			return "", false, nil
+		}
+		return markdown, true, nil
+	})
 }
 
 // knownHistoryJSON is a small pre-marshaled JSON array used by tests that only
@@ -54,7 +61,7 @@ func TestChatWeb_ValidCap_History(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-web")
-	ws.SetChatProvider(stubChatProvider("sess-web", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-web", knownHistoryJSON, knownMarkdown)
 
 	token := issueCapFor(t, ws, "sess-web", "read,write")
 
@@ -84,7 +91,7 @@ func TestChatWeb_NoCapReturns401(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-web")
-	ws.SetChatProvider(stubChatProvider("sess-web", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-web", knownHistoryJSON, knownMarkdown)
 
 	for _, path := range []string{
 		"/api/chat/sess-web/history",
@@ -107,7 +114,7 @@ func TestChatWeb_InvalidCapReturns401(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-web")
-	ws.SetChatProvider(stubChatProvider("sess-web", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-web", knownHistoryJSON, knownMarkdown)
 
 	for _, path := range []string{
 		"/api/chat/sess-web/history?cap=not-a-valid-token",
@@ -131,7 +138,7 @@ func TestChatWeb_WrongSessionCapReturns403(t *testing.T) {
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-A")
 	ws.EnableSession("sess-B")
-	ws.SetChatProvider(stubChatProvider("sess-A", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-A", knownHistoryJSON, knownMarkdown)
 
 	// Cap issued for sess-A. Request targets sess-B → 403.
 	tokenA := issueCapFor(t, ws, "sess-A", "read,write")
@@ -158,7 +165,7 @@ func TestChatWeb_ValidCap_Export(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-web")
-	ws.SetChatProvider(stubChatProvider("sess-web", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-web", knownHistoryJSON, knownMarkdown)
 
 	token := issueCapFor(t, ws, "sess-web", "read,write")
 
@@ -194,7 +201,8 @@ func TestChatWeb_ProviderSessionNotFound(t *testing.T) {
 	// Enable and issue a valid cap for "sess-found" but provider returns
 	// ok==false for all IDs (simulates session with no chat store).
 	ws.EnableSession("sess-found")
-	ws.SetChatProvider(func(string) ([]byte, string, bool, error) { return nil, "", false, nil })
+	ws.SetChatHistoryProvider(func(string) ([]byte, bool, error) { return nil, false, nil })
+	ws.SetChatExportProvider(func(string) (string, bool, error) { return "", false, nil })
 
 	token := issueCapFor(t, ws, "sess-found", "read,write")
 
@@ -221,9 +229,12 @@ func TestChatWeb_ProviderInternalError(t *testing.T) {
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-err")
 	// found == true but err != nil: an existing session whose history/export
-	// failed internally.
-	ws.SetChatProvider(func(string) ([]byte, string, bool, error) {
-		return nil, "", true, errors.New("marshal blew up")
+	// failed internally. Both routes must surface 500, so wire both providers.
+	ws.SetChatHistoryProvider(func(string) ([]byte, bool, error) {
+		return nil, true, errors.New("marshal blew up")
+	})
+	ws.SetChatExportProvider(func(string) (string, bool, error) {
+		return "", true, errors.New("export blew up")
 	})
 
 	token := issueCapFor(t, ws, "sess-err", "read,write")
@@ -253,7 +264,7 @@ func TestChatWeb_RequireCapabilityIsWiredForBothRoutes(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(capTestKey)
 	ws.EnableSession("sess-gate")
-	ws.SetChatProvider(stubChatProvider("sess-gate", knownHistoryJSON, knownMarkdown))
+	wireChatProvider(ws, "sess-gate", knownHistoryJSON, knownMarkdown)
 
 	// Without a cap, both routes must return 401 (not 404).
 	for _, path := range []string{

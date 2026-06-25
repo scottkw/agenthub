@@ -126,22 +126,25 @@ type WebServer struct {
 	// expected dev-build state (assets stub).
 	staticAppFS fs.FS
 
-	// chatProvider returns pre-serialized chat history (JSON bytes) and the
-	// Markdown export for a session. Set once before Start() via
-	// SetChatProvider; not mutex-protected (mirrors SetSessionResolver /
-	// SetFilesHandler pattern).
+	// chatHistoryProvider returns the pre-serialized chat history (JSON bytes)
+	// for a session; chatExportProvider returns its Markdown export. They are
+	// split (IN-04) so each route does only the work it serves — the history
+	// route never runs Export() and the export route never marshals history.
+	// Set once before Start() via SetChatHistoryProvider / SetChatExportProvider;
+	// not mutex-protected (mirrors SetSessionResolver / SetFilesHandler).
 	//
 	// Return contract (WR-03 — distinguish "no store" from "internal error"):
 	//   - err != nil           → internal failure on an existing session; the
 	//                            route returns 500 (do NOT mask as 404).
 	//   - err == nil, !found    → session has no chat store; route returns 404.
-	//   - err == nil, found     → history/markdown are valid; route returns 200.
+	//   - err == nil, found     → history/markdown is valid; route returns 200.
 	//
-	// Uses func(...)([]byte, string, bool, error) — NOT a daemon.ChatStore type
-	// — to avoid the webserver→daemon→webserver import cycle (T-151-09).
-	// The daemon wires this at both webserver construction sites
-	// (AutoStartWebServer and handleWebServerStart).
-	chatProvider func(sessionID string) (history []byte, markdown string, found bool, err error)
+	// They use plain func(...) signatures — NOT a daemon.ChatStore type — to
+	// avoid the webserver→daemon→webserver import cycle (T-151-09). The daemon
+	// wires both at its webserver construction sites (AutoStartWebServer and
+	// handleWebServerStart).
+	chatHistoryProvider func(sessionID string) (history []byte, found bool, err error)
+	chatExportProvider  func(sessionID string) (markdown string, found bool, err error)
 
 	// pluginConfigSubscribers is the set of active SSE subscribers for
 	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
