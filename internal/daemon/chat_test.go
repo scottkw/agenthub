@@ -157,6 +157,83 @@ func TestChatStoreMalformedLineSkip(t *testing.T) {
 	}
 }
 
+// TestChatStoreOversizedLineSkip verifies that an over-length (>maxChatLineBytes)
+// JSONL line is skipped on load and the surrounding well-formed messages still
+// load — the over-length line must NOT abort the whole thread (WR-02). This is
+// the read-path counterpart to the AppendMessage size guard.
+func TestChatStoreOversizedLineSkip(t *testing.T) {
+	baseDir := t.TempDir()
+	sessionID := "sess-oversized"
+	filePath := filepath.Join(baseDir, sessionID+".jsonl")
+
+	good1 := relay.ChatMessage{SchemaVersion: 1, ID: "m1", Content: "before", TimestampMs: 1000}
+	good2 := relay.ChatMessage{SchemaVersion: 1, ID: "m2", Content: "after", TimestampMs: 2000}
+	b1, _ := json.Marshal(good1)
+	b2, _ := json.Marshal(good2)
+
+	// A valid JSON line whose serialized form comfortably exceeds the cap.
+	huge := relay.ChatMessage{SchemaVersion: 1, ID: "huge", Content: strings.Repeat("x", (1<<20)+4096), TimestampMs: 1500}
+	bh, _ := json.Marshal(huge)
+	if len(bh) <= (1 << 20) {
+		t.Fatalf("test setup: oversized line is only %d bytes, expected > 1 MiB", len(bh))
+	}
+
+	var content []byte
+	content = append(content, b1...)
+	content = append(content, '\n')
+	content = append(content, bh...)
+	content = append(content, '\n')
+	content = append(content, b2...)
+	content = append(content, '\n')
+	if err := os.WriteFile(filePath, content, 0600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	store, err := NewChatStore(baseDir, sessionID)
+	if err != nil {
+		t.Fatalf("NewChatStore must not fail on an over-length line, got: %v", err)
+	}
+
+	msgs := store.Messages()
+	if len(msgs) != 2 {
+		t.Fatalf("expected 2 messages (over-length line skipped, neighbors kept), got %d", len(msgs))
+	}
+	if msgs[0].ID != "m1" || msgs[1].ID != "m2" {
+		t.Errorf("unexpected messages after skipping over-length line: %+v", msgs)
+	}
+}
+
+// TestChatAppendRejectsOversized verifies that AppendMessage rejects a message
+// whose serialized line would exceed maxChatLineBytes (ErrChatMessageTooLarge),
+// writes nothing to disk, and does not grow the mirror (WR-02 write-path guard).
+func TestChatAppendRejectsOversized(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-toolarge")
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	huge := relay.ChatMessage{
+		AuthorID: "local",
+		Content:  strings.Repeat("y", (1<<20)+4096),
+	}
+	_, err = store.AppendMessage(huge)
+	if err == nil {
+		t.Fatal("expected ErrChatMessageTooLarge, got nil")
+	}
+	if err != ErrChatMessageTooLarge {
+		t.Errorf("expected ErrChatMessageTooLarge, got %v", err)
+	}
+
+	// Nothing persisted, mirror unchanged.
+	if n := len(store.Messages()); n != 0 {
+		t.Errorf("expected 0 messages after rejected append, got %d", n)
+	}
+	if _, statErr := os.Stat(store.filePath); !os.IsNotExist(statErr) {
+		t.Errorf("expected no file written for rejected oversized append, stat: %v", statErr)
+	}
+}
+
 // TestChatStoreMessagesReturnsCopy verifies that Messages() returns a copy,
 // not a reference to internal state, so callers cannot mutate the store.
 func TestChatStoreMessagesReturnsCopy(t *testing.T) {

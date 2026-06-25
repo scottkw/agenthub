@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +30,20 @@ const MaxChatMessages = 10000
 // MaxChatMessages. The caller should inform the sender that the session chat
 // thread is full.
 var ErrChatCapReached = errors.New("chat: session message cap reached")
+
+// maxChatLineBytes bounds the size of a single serialized JSONL line. The SAME
+// bound is enforced on both paths so the write path and read path agree (WR-02):
+//   - AppendMessage rejects any message whose serialized line would exceed it
+//     (ErrChatMessageTooLarge), so an unreplayable line can never be written.
+//   - loadFromDisk caps its read accumulation at this size and skips any
+//     over-length line rather than aborting the whole thread load.
+const maxChatLineBytes = 1 << 20 // 1 MiB
+
+// ErrChatMessageTooLarge is returned by AppendMessage when the serialized
+// message line would exceed maxChatLineBytes. Rejecting on write keeps the
+// on-disk invariant in sync with loadFromDisk's read buffer so every persisted
+// line is guaranteed replayable on restart.
+var ErrChatMessageTooLarge = errors.New("chat: message exceeds maximum line size")
 
 // chatsDir returns the production base directory for chat JSONL files:
 // filepath.Join(daemonConfigDir(), "chats"). This is the value that production
@@ -128,24 +144,61 @@ func (s *ChatStore) loadFromDisk() error {
 	}
 	defer f.Close()
 
-	// Use a generous buffer to handle long messages (1 MB per line).
-	const maxLineBytes = 1 << 20
-	scanner := bufio.NewScanner(f)
-	scanner.Buffer(make([]byte, 64*1024), maxLineBytes)
-
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	// Read line-by-line with a hard per-line cap (maxChatLineBytes). Unlike a
+	// bufio.Scanner — which stops entirely and returns bufio.ErrTooLong the
+	// moment a single line exceeds its buffer, dropping every subsequent
+	// message — readCappedLine fully consumes (and discards) an over-length
+	// line so loading continues with the next one. This makes an over-length
+	// line skip-and-continue, exactly like a malformed-JSON line, so one bad
+	// line never makes the whole thread unavailable on restart (WR-02).
+	reader := bufio.NewReaderSize(f, 64*1024)
+	for {
+		line, tooLong, rerr := readCappedLine(reader, maxChatLineBytes)
+		switch {
+		case tooLong:
+			// Over-length line — skip it (metadata only; never log content).
+			log.Printf("chat: skipping over-length line (>%d bytes) while loading %q", maxChatLineBytes, s.filePath)
+		case len(line) > 0:
+			var msg relay.ChatMessage
+			if err := json.Unmarshal(line, &msg); err != nil {
+				// Malformed line — skip, continue loading the rest.
+				break
+			}
+			s.messages = append(s.messages, msg)
 		}
-		var msg relay.ChatMessage
-		if err := json.Unmarshal(line, &msg); err != nil {
-			// Malformed line — skip, continue loading the rest.
-			continue
+		if rerr != nil {
+			if errors.Is(rerr, io.EOF) {
+				return nil
+			}
+			return fmt.Errorf("chat: read %q during replay: %w", s.filePath, rerr)
 		}
-		s.messages = append(s.messages, msg)
 	}
-	return scanner.Err()
+}
+
+// readCappedLine reads a single logical line (terminated by '\n') from r,
+// accumulating up to max bytes. If the line exceeds max bytes, tooLong is true
+// and the returned line is empty — the caller should skip it. The full logical
+// line is always consumed from r (even when over-length), so the next call
+// begins at the following line. The returned err is io.EOF once the underlying
+// reader is exhausted; any bytes read before EOF are returned alongside it.
+func readCappedLine(r *bufio.Reader, max int) (line []byte, tooLong bool, err error) {
+	var buf []byte
+	for {
+		chunk, isPrefix, e := r.ReadLine()
+		if !tooLong {
+			if len(buf)+len(chunk) <= max {
+				buf = append(buf, chunk...)
+			} else {
+				// Exceeded the cap: reject the whole line but keep draining the
+				// remaining prefix chunks below so r advances past it.
+				tooLong = true
+				buf = nil
+			}
+		}
+		if !isPrefix || e != nil {
+			return buf, tooLong, e
+		}
+	}
 }
 
 // Messages returns a copy of the full in-order message thread. The copy
@@ -218,6 +271,15 @@ func (s *ChatStore) AppendMessage(msg relay.ChatMessage) (relay.ChatMessage, err
 	line, err := json.Marshal(msg)
 	if err != nil {
 		return relay.ChatMessage{}, fmt.Errorf("chat: cannot marshal message: %w", err)
+	}
+
+	// Reject messages whose serialized line (including the trailing newline)
+	// would exceed the read buffer, so the on-disk invariant matches
+	// loadFromDisk's cap and every written line is guaranteed replayable on
+	// restart (WR-02). Without this, a >1 MiB line is writable but would be
+	// skipped on the next load.
+	if len(line)+1 > maxChatLineBytes {
+		return relay.ChatMessage{}, ErrChatMessageTooLarge
 	}
 
 	// Append the line to the JSONL file.  We open+close per call for simplicity
