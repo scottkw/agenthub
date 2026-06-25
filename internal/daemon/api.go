@@ -250,10 +250,12 @@ func (a *API) JoinCodes() *capability.JoinCodeManager {
 // RelayHandler returns the http.Handler served on the relay loopback TCP port
 // — the surface the Wails desktop GUI reaches over 127.0.0.1:<relayPort> (it
 // cannot reach the daemon Unix socket). This is the relay server (sessions WS +
-// local /api/files/*) wrapped with the remote-files proxy routes
-// (/api/files/remote/{sid}/...), which are *API methods and therefore cannot
-// live in the relay package without an import cycle. Exposed so external tests
-// can drive the relay surface exactly as the webview does (mirrors Handler()).
+// local /api/files/*) wrapped first with the remote-files proxy routes
+// (/api/files/remote/{sid}/...) and then with the chat history/export routes
+// (/api/chat/{id}/history, /api/chat/{id}/export). Both wrap layers use *API
+// methods that cannot live in the relay package without an import cycle. Exposed
+// so external tests can drive the relay surface exactly as the webview does
+// (mirrors Handler()).
 func (a *API) RelayHandler() http.Handler {
 	// Phase 120 CR-01: mount /api/files/* on the relay HTTP server so the Wails
 	// desktop GUI can reach the read-only file API. The Wails webview hits
@@ -261,7 +263,12 @@ func (a *API) RelayHandler() http.Handler {
 	// where /api/files/* is also registered. Both surfaces share the same
 	// *files.Handler instance, so sandbox + 5 MiB cap behaviour is identical.
 	server := relay.NewServer(a.engine.Manager(), a.engine.Backend(), a.filesHandler)
-	return a.wrapRelayWithRemoteFiles(server)
+	withFiles := a.wrapRelayWithRemoteFiles(server)
+	// Phase 151-03 / PERSIST-01..02: chat history + export routes mounted
+	// in the outer wrap layer (most-specific wins in Go 1.22+ mux). Like the
+	// remote-files layer, these are *API methods that need a.engine and cannot
+	// live in relay.NewServer without an import cycle.
+	return a.wrapRelayWithChat(withFiles)
 }
 
 // StartRelay creates the relay HTTP server and starts it on a random TCP port.
@@ -458,6 +465,29 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	a.signingKeyMu.RUnlock()
 	ws.SetSigningKey(key)
 	ws.SetFilesHandler(a.filesHandler)
+	// Phase 151-03 / PERSIST-01..02: wire the chat provider so the webserver's
+	// cap-gated /api/chat/{id}/history and /api/chat/{id}/export routes can
+	// reach the session's ChatStore without importing the daemon package
+	// (T-151-09 — no webserver→daemon import cycle; provider callback only).
+	ws.SetChatProvider(func(sessionID string) (history []byte, markdown string, ok bool) {
+		store, storeOK := a.engine.ChatStoreFor(sessionID)
+		if !storeOK {
+			return nil, "", false
+		}
+		msgs := store.Messages()
+		if msgs == nil {
+			msgs = []relay.ChatMessage{}
+		}
+		b, err := json.Marshal(msgs)
+		if err != nil {
+			return nil, "", false
+		}
+		md, err := store.Export()
+		if err != nil {
+			return nil, "", false
+		}
+		return b, md, true
+	})
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 	if err := ws.Start(); err != nil {
@@ -1016,6 +1046,26 @@ func (a *API) handleWebServerStart(w http.ResponseWriter, r *http.Request) {
 	a.signingKeyMu.RUnlock()
 	ws.SetSigningKey(key)
 	ws.SetFilesHandler(a.filesHandler)
+	// Phase 151-03 / PERSIST-01..02: wire the chat provider (mirrors AutoStartWebServer).
+	ws.SetChatProvider(func(sessionID string) (history []byte, markdown string, ok bool) {
+		store, storeOK := a.engine.ChatStoreFor(sessionID)
+		if !storeOK {
+			return nil, "", false
+		}
+		msgs := store.Messages()
+		if msgs == nil {
+			msgs = []relay.ChatMessage{}
+		}
+		b, err := json.Marshal(msgs)
+		if err != nil {
+			return nil, "", false
+		}
+		md, err := store.Export()
+		if err != nil {
+			return nil, "", false
+		}
+		return b, md, true
+	})
 	ws.SetStaticAppFS(getStaticAppFS())
 	ws.SetJoinCodes(a.joinCodes)
 
