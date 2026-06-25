@@ -36,19 +36,21 @@ type SessionEngine struct {
 	manager  *relay.HubManager
 
 	mu              sync.RWMutex
-	tabNames        map[string]string // sessionID -> display name
-	sessionCLIs     map[string]string // sessionID -> raw CLI name (e.g. "opencode")
-	sessionWorkDirs map[string]string // sessionID -> EvalSymlinks-resolved absolute WorkDir (Phase 118 / FS-02)
-	cliPaths        map[string]string // cli name -> custom path override
+	tabNames        map[string]string     // sessionID -> display name
+	sessionCLIs     map[string]string     // sessionID -> raw CLI name (e.g. "opencode")
+	sessionWorkDirs map[string]string     // sessionID -> EvalSymlinks-resolved absolute WorkDir (Phase 118 / FS-02)
+	cliPaths        map[string]string     // cli name -> custom path override
+	chatStores      map[string]*ChatStore // Phase 151 / PERSIST-01,PERSIST-03: per-session chat store (guarded by e.mu)
+	chatsBaseDir    string                // Phase 151: base directory for chat JSONL files; init from chatsDir() in NewSessionEngine, overrideable via ChatsBaseDirForTest
 
-	startMinimized             bool            // persisted start-minimized preference
-	shellWebShareWarned        bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
-	shellWebShareWarningEnabled *bool          // Phase 150 SET-01: master warning switch; nil = default (true per D-08)
-	shellPath                  string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
-	autoCloseSession           *bool           // nil = default (true); persisted pointer
-	filesWriteDefault   bool            // Phase 124 / CAP-08: persisted default for per-session write default; retained for settings migration tests (TestSettingsMigration_FilesWriteDefaultsFalse); NOT wired to perm injection (D-07: global filesRead kill-switch removed in Phase 137)
-	sessionBrowse       map[string]bool // Phase 137 / SHARE-03: per-session browse toggle (ephemeral in-memory, default OFF per D-06/D-08); sole driver of file-perm injection (D-02)
-	pluginSettings      PluginSettings  // populated by loadSettingsFromDisk via defaults-merge
+	startMinimized              bool            // persisted start-minimized preference
+	shellWebShareWarned         bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
+	shellWebShareWarningEnabled *bool           // Phase 150 SET-01: master warning switch; nil = default (true per D-08)
+	shellPath                   string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
+	autoCloseSession            *bool           // nil = default (true); persisted pointer
+	filesWriteDefault           bool            // Phase 124 / CAP-08: persisted default for per-session write default; retained for settings migration tests (TestSettingsMigration_FilesWriteDefaultsFalse); NOT wired to perm injection (D-07: global filesRead kill-switch removed in Phase 137)
+	sessionBrowse               map[string]bool // Phase 137 / SHARE-03: per-session browse toggle (ephemeral in-memory, default OFF per D-06/D-08); sole driver of file-perm injection (D-02)
+	pluginSettings              PluginSettings  // populated by loadSettingsFromDisk via defaults-merge
 
 	// pluginSettingsListener (if non-nil) is invoked synchronously by
 	// SetPluginSettings AFTER the new value is persisted, while the engine
@@ -106,15 +108,15 @@ func ensureOpenCodeTUIConfig(dir string) string {
 // Do NOT pre-populate a true default in the defaults-merge literal; zero-value
 // IS the correct opt-in default (T-124-06 mitigation).
 type daemonSettings struct {
-	CLIPaths            map[string]string `json:"cliPaths,omitempty"`
-	StartMinimized      bool              `json:"startMinimized,omitempty"`
-	ShellWebShareWarned bool              `json:"shellWebShareWarned,omitempty"`
-	ShellPath           string            `json:"shellPath,omitempty"`
-	AutoCloseSession           *bool             `json:"autoCloseSession,omitempty"`
+	CLIPaths                    map[string]string `json:"cliPaths,omitempty"`
+	StartMinimized              bool              `json:"startMinimized,omitempty"`
+	ShellWebShareWarned         bool              `json:"shellWebShareWarned,omitempty"`
+	ShellPath                   string            `json:"shellPath,omitempty"`
+	AutoCloseSession            *bool             `json:"autoCloseSession,omitempty"`
 	ShellWebShareWarningEnabled *bool             `json:"shellWebShareWarningEnabled,omitempty"` // Phase 150 SET-01: *bool so omitempty omits false; nil → default true (D-08)
-	FilesWrite                 bool              `json:"filesWrite,omitempty"` // Phase 124: write default; retained for migration test; NOT wired to perm injection (D-07)
-	Plugins             PluginSettings    `json:"plugins"`
-	SchemaVersion       int               `json:"schemaVersion"`
+	FilesWrite                  bool              `json:"filesWrite,omitempty"`                  // Phase 124: write default; retained for migration test; NOT wired to perm injection (D-07)
+	Plugins                     PluginSettings    `json:"plugins"`
+	SchemaVersion               int               `json:"schemaVersion"`
 }
 
 // settingsPath returns the path to settings.json inside the config dir.
@@ -266,6 +268,29 @@ func (e *SessionEngine) ConfigDirForTest(dir string) {
 	e.configDir = dir
 }
 
+// ChatsBaseDirForTest overrides the engine's chatsBaseDir so that chat JSONL
+// files created during tests land under a t.TempDir() instead of the real
+// daemonConfigDir()/chats path. This mirrors ConfigDirForTest (which only
+// affects settings persistence and does NOT affect chatsDir()). Test-only;
+// production code must never call this.
+func (e *SessionEngine) ChatsBaseDirForTest(dir string) {
+	e.mu.Lock()
+	e.chatsBaseDir = dir
+	e.mu.Unlock()
+}
+
+// ChatStoreFor returns the ChatStore for the given session ID. It is safe to
+// call concurrently with CreateSession and KillSession. Returns ok==false if
+// no store exists for the session (either the session does not exist, or
+// NewChatStore failed non-fatally during CreateSession).
+// Used by the Plan 03 REST endpoints to read/append/export chat messages.
+func (e *SessionEngine) ChatStoreFor(sessionID string) (*ChatStore, bool) {
+	e.mu.RLock()
+	store, ok := e.chatStores[sessionID]
+	e.mu.RUnlock()
+	return store, ok
+}
+
 // NewSessionEngine creates a SessionEngine with all subsystems initialised.
 func NewSessionEngine() *SessionEngine {
 	hostname, _ := os.Hostname()
@@ -284,6 +309,8 @@ func NewSessionEngine() *SessionEngine {
 		sessionBrowse:     make(map[string]bool), // Phase 137 / SHARE-03: per-session browse toggle (default OFF, D-06/D-08)
 		cliPaths:          make(map[string]string),
 		sessionStatuses:   make(map[string]status.SessionStatus),
+		chatStores:        make(map[string]*ChatStore), // Phase 151 / PERSIST-01
+		chatsBaseDir:      chatsDir(),                  // Phase 151: production path = daemonConfigDir()/chats
 	}
 	e.loadSettingsFromDisk(cfgDir)
 	return e
@@ -381,6 +408,14 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	e.tabNames[id] = name
 	e.sessionCLIs[id] = cli // raw CLI name, NOT cliPath
 	e.sessionWorkDirs[id] = resolvedWD
+	// Phase 151 / PERSIST-01: create a ChatStore for this session. Failure is
+	// non-fatal — the session still starts; chat is a side channel. Log only
+	// metadata (sessionID + error), never message content (T-151-05 mitigation).
+	if store, storeErr := NewChatStore(e.chatsBaseDir, id); storeErr != nil {
+		log.Printf("chat: NewChatStore for session %q: %v (chat unavailable for this session)", id, storeErr)
+	} else {
+		e.chatStores[id] = store
+	}
 	e.mu.Unlock()
 
 	// SHELL-09: shell sessions have no AI-agent state model. Skip status.Watch
@@ -531,6 +566,15 @@ func (e *SessionEngine) KillSession(id string) error {
 	delete(e.sessionCLIs, id)
 	delete(e.sessionWorkDirs, id) // Phase 118 / FS-02
 	delete(e.sessionBrowse, id)   // Phase 137 / CR-01: clear stale browse entry so a recycled session ID defaults OFF (D-06 stale-cap mitigation)
+	// Phase 151 / PERSIST-03: delete the ChatStore under e.mu so a recycled
+	// session ID never inherits a stale thread (T-151-07 mitigation) and no
+	// orphaned JSONL file remains (T-151-06 mitigation).
+	if store, ok := e.chatStores[id]; ok {
+		if delErr := store.Delete(); delErr != nil {
+			log.Printf("chat: Delete for session %q: %v", id, delErr)
+		}
+		delete(e.chatStores, id)
+	}
 	e.mu.Unlock()
 
 	e.statusMu.Lock()

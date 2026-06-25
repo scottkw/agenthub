@@ -2018,3 +2018,153 @@ func TestGetSessionStyledTailLines_AllQueriesNoHang(t *testing.T) {
 		t.Fatal("GetSessionStyledTailLines hung on terminal query escape sequences — queryStripPattern did not cover all blocking sequences (FIX-01 regression)")
 	}
 }
+
+// --------------------------------------------------------------------------
+// Plan 02 Task 2: chatStores lifecycle wiring in SessionEngine
+// --------------------------------------------------------------------------
+
+// TestEngineNewSessionEngine_ChatStoresInit verifies that NewSessionEngine
+// initialises chatStores to a non-nil map and sets chatsBaseDir to a non-empty
+// path (derived from chatsDir() / daemonConfigDir()).
+func TestEngineNewSessionEngine_ChatStoresInit(t *testing.T) {
+	e := NewSessionEngine()
+	e.ChatsBaseDirForTest(t.TempDir()) // redirect away from real data dir
+	if e.chatStores == nil {
+		t.Error("chatStores map is nil after NewSessionEngine")
+	}
+	if e.chatsBaseDir == "" {
+		t.Error("chatsBaseDir is empty after NewSessionEngine")
+	}
+}
+
+// TestEngineChatStoreFor_AfterCreate verifies that after CreateSession returns,
+// ChatStoreFor(id) reports ok==true.
+func TestEngineChatStoreFor_AfterCreate(t *testing.T) {
+	e := NewSessionEngine()
+	e.ChatsBaseDirForTest(t.TempDir())
+
+	id, err := e.CreateSession(context.Background(), "cat", "chat-create", "", nil, 0, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	_, ok := e.ChatStoreFor(id)
+	if !ok {
+		t.Errorf("ChatStoreFor(%q) ok=false after CreateSession; expected ok=true", id)
+	}
+}
+
+// TestEngineChatStoreFor_AfterKill verifies the no-orphan guarantee:
+// after KillSession, ChatStoreFor returns ok==false AND the JSONL file
+// is absent from the temp chatsBaseDir.
+func TestEngineChatStoreFor_AfterKill(t *testing.T) {
+	tempDir := t.TempDir()
+	e := NewSessionEngine()
+	e.ChatsBaseDirForTest(tempDir)
+
+	id, err := e.CreateSession(context.Background(), "cat", "chat-kill", "", nil, 0, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Append a message so the file is created on disk.
+	store, ok := e.ChatStoreFor(id)
+	if !ok {
+		t.Fatalf("ChatStoreFor(%q) ok=false immediately after CreateSession", id)
+	}
+	if _, err := store.AppendMessage(relay.ChatMessage{
+		AuthorID:    "local",
+		AuthorAlias: "alice",
+		Content:     "pre-kill message",
+	}); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+
+	// File must exist before kill.
+	jsonlPath := filepath.Join(tempDir, id+".jsonl")
+	if _, err := os.Stat(jsonlPath); err != nil {
+		t.Fatalf("JSONL file should exist before KillSession: %v", err)
+	}
+
+	if err := e.KillSession(id); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+
+	// After kill: no store, no file.
+	if _, ok := e.ChatStoreFor(id); ok {
+		t.Errorf("ChatStoreFor(%q) ok=true after KillSession; expected ok=false", id)
+	}
+	if _, err := os.Stat(jsonlPath); !os.IsNotExist(err) {
+		t.Errorf("JSONL file still exists after KillSession (orphan!): %v", err)
+	}
+}
+
+// TestEngineChatStoreFor_FailedNewChatStore verifies that when NewChatStore
+// fails (chatsBaseDir points at an uncreatable location), CreateSession still
+// returns a usable session ID and ChatStoreFor returns ok==false.
+func TestEngineChatStoreFor_FailedNewChatStore(t *testing.T) {
+	e := NewSessionEngine()
+
+	// Point chatsBaseDir at a path whose parent is a regular file so MkdirAll
+	// fails — the directory can never be created.
+	tmpFile, err := os.CreateTemp(t.TempDir(), "not-a-dir")
+	if err != nil {
+		t.Fatalf("creating temp file: %v", err)
+	}
+	tmpFile.Close()
+	// filepath.Join(tmpFile.Name(), "chats") has a file as its parent component.
+	e.ChatsBaseDirForTest(filepath.Join(tmpFile.Name(), "chats"))
+
+	id, err := e.CreateSession(context.Background(), "cat", "chat-fail", "", nil, 0, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession must succeed even when ChatStore fails: %v", err)
+	}
+	t.Cleanup(func() { _ = e.KillSession(id) })
+
+	if id == "" {
+		t.Fatal("CreateSession returned empty id")
+	}
+
+	// ChatStoreFor must return ok=false when store creation failed.
+	if _, ok := e.ChatStoreFor(id); ok {
+		t.Errorf("ChatStoreFor(%q) ok=true despite NewChatStore failure; expected ok=false", id)
+	}
+}
+
+// TestEngineNoRealDirChatFiles verifies that with ChatsBaseDirForTest applied,
+// no chat file is ever created under the real daemonConfigDir()/chats path.
+// It creates a session, appends a message, kills it — then checks that the
+// real chats dir has not gained any .jsonl file for the test session.
+func TestEngineNoRealDirChatFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	e := NewSessionEngine()
+	e.ChatsBaseDirForTest(tempDir)
+
+	id, err := e.CreateSession(context.Background(), "cat", "isolation-test", "", nil, 0, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	store, ok := e.ChatStoreFor(id)
+	if !ok {
+		t.Fatalf("ChatStoreFor(%q): ok=false", id)
+	}
+	if _, err := store.AppendMessage(relay.ChatMessage{
+		AuthorID: "local",
+		Content:  "isolation message",
+	}); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+
+	if err := e.KillSession(id); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+
+	// Confirm NO .jsonl file for this id under the real chats dir.
+	realChatsDir := chatsDir()
+	realPath := filepath.Join(realChatsDir, id+".jsonl")
+	if _, err := os.Stat(realPath); !os.IsNotExist(err) {
+		t.Errorf("chat file found in real data dir %q (isolation failure): %v", realPath, err)
+	}
+}
