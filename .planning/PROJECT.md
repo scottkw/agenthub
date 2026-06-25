@@ -20,6 +20,11 @@ One app to launch, manage, and share AI coding terminal sessions across local an
 - A thread is **downloadable as Markdown**.
 - Real **presence + typing indicators** via the existing web-share relay.
 
+**Also in v4.1 (orthogonal — install/distribution fixes, `docs/install-links-fix.md`):**
+- Fix the broken **Linux `curl` install** command (add `scripts/install.sh`, point the Welcome screen at a working raw GitHub URL).
+- Fix the Welcome screen's **winget** command id (`scottkw.agenthub`) and the wrong repo link.
+- Complete the one-time **winget catalog first submission** to `microsoft/winget-pkgs` so `winget install scottkw.agenthub` works (clears the `WINGET_FIRST_SUBMISSION` carry-forward; gated on Microsoft PR merge).
+
 **Key context:** Builds on existing infrastructure — the web-share WebSocket relay (message fan-out + presence), PTY stdin injection (the `@session` bridge already exists as terminal input), and known tailnet peer identity. New work = a daemon-side message store, a chat UI on both surfaces, and the alias/mention layer. **Out of scope:** agent-as-chat-author / round-trip replies, agent tool-output cards in chat, and a chat archive that outlives the session. Full discovery/design record: `.planning/notes/session-chat-discovery.md`. Reframed from the #79 prototype (`agenthub-v4.0-redesign/AgentHub.Chat.Session.standalone.html`), which modeled the agent as a chat author — discovery designed that out.
 
 ## Shipped Milestone: v4.0 Hub-First Consolidation & UI/UX Overhaul — SHIPPED 2026-06-23
