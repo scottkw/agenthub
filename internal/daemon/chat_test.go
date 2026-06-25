@@ -188,6 +188,47 @@ func TestChatStoreMessagesReturnsCopy(t *testing.T) {
 	}
 }
 
+// TestChatStoreMessagesDeepCopiesMentions verifies that Messages() deep-copies
+// the Mentions slice inside each returned ChatMessage, so a caller mutating a
+// returned message's Mentions element cannot corrupt the store's in-memory
+// thread (WR-01). A shallow struct copy would leave Mentions aliasing the
+// mirror's backing array.
+func TestChatStoreMessagesDeepCopiesMentions(t *testing.T) {
+	baseDir := t.TempDir()
+	sessionID := "sess-mentions"
+	filePath := filepath.Join(baseDir, sessionID+".jsonl")
+
+	msg := relay.ChatMessage{
+		SchemaVersion: 1,
+		ID:            "m1",
+		Content:       "hello @bob",
+		Mentions:      []string{"bob"},
+		TimestampMs:   1000,
+	}
+	b, _ := json.Marshal(msg)
+	if err := os.WriteFile(filePath, append(b, '\n'), 0600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	store, err := NewChatStore(baseDir, sessionID)
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	// Mutate the Mentions element of the returned message.
+	msgs := store.Messages()
+	if len(msgs) == 0 || len(msgs[0].Mentions) == 0 {
+		t.Fatal("expected at least 1 message with a Mention")
+	}
+	msgs[0].Mentions[0] = "mallory"
+
+	// A second read must not observe the mutation.
+	msgs2 := store.Messages()
+	if msgs2[0].Mentions[0] == "mallory" {
+		t.Error("Messages() aliased the Mentions backing array; mutation leaked into the store")
+	}
+}
+
 // TestChatStoreDaemonConfigDirNotUsed verifies that the production chats-dir
 // helper (chatsDir) derives its path from daemonConfigDir, and that tests
 // using t.TempDir() as baseDir never touch the real config dir.

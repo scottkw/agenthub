@@ -155,9 +155,18 @@ func (s *ChatStore) Messages() []relay.ChatMessage {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Return a copy so callers cannot mutate s.messages.
+	// Return a copy so callers cannot mutate s.messages. copy() is a shallow
+	// struct copy: it duplicates each ChatMessage's fields but the Mentions
+	// []string still aliases the mirror's backing array. Deep-copy Mentions so
+	// a caller doing msgs[i].Mentions[j] = ... cannot corrupt internal state
+	// (WR-01).
 	result := make([]relay.ChatMessage, len(s.messages))
 	copy(result, s.messages)
+	for i := range result {
+		if src := s.messages[i].Mentions; src != nil {
+			result[i].Mentions = append([]string(nil), src...)
+		}
+	}
 	return result
 }
 
