@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/scottkw/agenthub/internal/relay"
 )
@@ -357,6 +359,172 @@ func TestChatCapEnforcement(t *testing.T) {
 	// File must have exactly MaxChatMessages lines (no extra line written).
 	if n := countFileLines(t, store.filePath); n != MaxChatMessages {
 		t.Errorf("file line count after cap: expected %d, got %d", MaxChatMessages, n)
+	}
+}
+
+// --------------------------------------------------------------------------
+// Task 2 (Plan 02) tests: Export() and Delete()
+// --------------------------------------------------------------------------
+
+// TestChatExportFields verifies that Export() renders every ChatMessage field:
+// AuthorAlias, AuthorID, an RFC3339 timestamp derived from TimestampMs, Content,
+// and — when SessionInject == true — an explicit inject marker.
+func TestChatExportFields(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-export")
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+
+	msgs := []relay.ChatMessage{
+		{
+			AuthorAlias:   "alice",
+			AuthorID:      "node-aaa",
+			Content:       "first message",
+			TimestampMs:   1000000000000, // 2001-09-09T01:46:40Z
+			SessionInject: false,
+		},
+		{
+			AuthorAlias:   "bob",
+			AuthorID:      "node-bbb",
+			Content:       "second message",
+			TimestampMs:   1000000060000, // 2001-09-09T01:47:40Z
+			SessionInject: true,
+		},
+		{
+			AuthorAlias:   "alice",
+			AuthorID:      "node-aaa",
+			Content:       "third message",
+			TimestampMs:   1000000120000,
+			SessionInject: false,
+		},
+	}
+	for _, m := range msgs {
+		if _, err := store.AppendMessage(m); err != nil {
+			t.Fatalf("AppendMessage: %v", err)
+		}
+	}
+
+	out, err := store.Export()
+	if err != nil {
+		t.Fatalf("Export() error: %v", err)
+	}
+	if out == "" {
+		t.Fatal("Export() returned empty string")
+	}
+
+	// Every AuthorAlias must appear.
+	for _, m := range msgs {
+		if !strings.Contains(out, m.AuthorAlias) {
+			t.Errorf("Export() missing AuthorAlias %q", m.AuthorAlias)
+		}
+		if !strings.Contains(out, m.AuthorID) {
+			t.Errorf("Export() missing AuthorID %q", m.AuthorID)
+		}
+		if !strings.Contains(out, m.Content) {
+			t.Errorf("Export() missing Content %q", m.Content)
+		}
+		// TimestampMs rendered as RFC3339 UTC substring.
+		ts := time.UnixMilli(m.TimestampMs).UTC().Format(time.RFC3339)
+		if !strings.Contains(out, ts) {
+			t.Errorf("Export() missing RFC3339 timestamp %q", ts)
+		}
+	}
+
+	// The inject marker must appear exactly once (for the second message).
+	if !strings.Contains(out, "injected into terminal") {
+		t.Error("Export() missing inject marker for SessionInject=true message")
+	}
+}
+
+// TestChatExportEmpty verifies that Export() on an empty thread returns a
+// non-empty header-only document and no error.
+func TestChatExportEmpty(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-export-empty")
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+
+	out, err := store.Export()
+	if err != nil {
+		t.Fatalf("Export() on empty thread returned error: %v", err)
+	}
+	if out == "" {
+		t.Error("Export() returned empty string for header-only document")
+	}
+}
+
+// TestChatDeleteRemovesFile verifies that Delete() removes the JSONL file from
+// disk (os.Stat reports IsNotExist afterward) and empties the in-memory mirror.
+func TestChatDeleteRemovesFile(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-delete")
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+
+	// Write a message so the file is created on disk.
+	if _, err := store.AppendMessage(relay.ChatMessage{
+		AuthorID:    "local",
+		AuthorAlias: "alice",
+		Content:     "hello",
+	}); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+
+	// Confirm file exists before Delete.
+	if _, err := os.Stat(store.filePath); err != nil {
+		t.Fatalf("file should exist before Delete: %v", err)
+	}
+
+	if err := store.Delete(); err != nil {
+		t.Fatalf("Delete() returned error: %v", err)
+	}
+
+	// File must be gone.
+	if _, err := os.Stat(store.filePath); !os.IsNotExist(err) {
+		t.Errorf("expected file to be removed after Delete(), os.Stat returned: %v", err)
+	}
+	// Mirror must be empty.
+	if n := len(store.Messages()); n != 0 {
+		t.Errorf("expected Messages() length 0 after Delete(), got %d", n)
+	}
+}
+
+// TestChatDeleteIdempotent verifies that a second Delete() on an already-
+// deleted store returns nil (no error).
+func TestChatDeleteIdempotent(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-delete-idem")
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+	if _, err := store.AppendMessage(relay.ChatMessage{
+		AuthorID: "local",
+		Content:  "hello",
+	}); err != nil {
+		t.Fatalf("AppendMessage: %v", err)
+	}
+
+	if err := store.Delete(); err != nil {
+		t.Fatalf("first Delete() error: %v", err)
+	}
+	if err := store.Delete(); err != nil {
+		t.Errorf("second Delete() (idempotent) returned error: %v", err)
+	}
+}
+
+// TestChatDeleteOnNeverWrittenStore verifies that Delete() on a store that was
+// constructed but had no messages appended (no file on disk) is also idempotent.
+func TestChatDeleteOnNeverWrittenStore(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-delete-nofile")
+	if err != nil {
+		t.Fatalf("NewChatStore: %v", err)
+	}
+	if err := store.Delete(); err != nil {
+		t.Errorf("Delete() on store with no file returned error: %v", err)
 	}
 }
 
