@@ -126,6 +126,17 @@ type WebServer struct {
 	// expected dev-build state (assets stub).
 	staticAppFS fs.FS
 
+	// chatProvider returns pre-serialized chat history (JSON bytes) and the
+	// Markdown export for a session, or (nil, "", false) when the session has
+	// no chat store. Set once before Start() via SetChatProvider; not
+	// mutex-protected (mirrors SetSessionResolver / SetFilesHandler pattern).
+	//
+	// Uses func(...)([]byte, string, bool) — NOT a daemon.ChatStore type —
+	// to avoid the webserver→daemon→webserver import cycle (T-151-09).
+	// The daemon wires this at both webserver construction sites
+	// (AutoStartWebServer and handleWebServerStart).
+	chatProvider func(sessionID string) (history []byte, markdown string, ok bool)
+
 	// pluginConfigSubscribers is the set of active SSE subscribers for
 	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
 	// BroadcastPluginConfig non-blocking-sends to each. Drop-on-slow-consumer.
@@ -596,6 +607,16 @@ func (ws *WebServer) setupRoutes() {
 	mux.HandleFunc("DELETE /api/files/delete", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Delete })))
 	mux.HandleFunc("POST /api/files/rename", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Rename })))
 	mux.HandleFunc("POST /api/files/mkdir", ws.requireFilesWrite(filesDispatch(func(h *files.Handler) http.HandlerFunc { return h.Mkdir })))
+
+	// Phase 151-03 / PERSIST-01..02: capability-gated chat history and export.
+	// The {id} path wildcard causes requireCapability's path-ID check
+	// (capability_mw.go:57) to enforce claims.SID == {id}, so a cap for
+	// session A cannot read session B's thread (T-151-04 mitigation).
+	// Both routes accept any valid cap (read-only or read-write) — chat
+	// read/export is allowed for any cap holder of that session;
+	// write-posting enforcement is deferred to Phase 153.
+	mux.HandleFunc("GET /api/chat/{id}/history", ws.requireCapability(ws.handleChatHistory))
+	mux.HandleFunc("GET /api/chat/{id}/export", ws.requireCapability(ws.handleChatExport))
 
 	// GET /sessions/{id} — capability-gated terminal HTML page. The old
 	// webEnabled-only pre-check is removed — requireCapability's grant-list
