@@ -372,7 +372,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 151. Message Schema + ChatStore | 0/? | Not started | - |
+| 151. Message Schema + ChatStore | 0/3 | Not started | - |
 | 152. Relay Protocol + Identity + Presence | 0/? | Not started | - |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
@@ -422,7 +422,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. Calling `KillSession` on a session removes its JSONL file; no orphaned chat files remain after deletion.
   4. After 10,000 messages the hard cap is enforced and `AppendMessage` rejects further writes — the store does not grow unbounded.
   5. The REST export endpoint returns a Markdown document that round-trips every `ChatMessage` field (author, alias, timestamp, body) without data loss.
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 151-01-PLAN.md — ChatMessage schema (protocol.go) + ChatStore core: JSONL persistence, restart-load, Messages() replay, 10k cap, sessionID path-traversal hardening, concurrent-write -race safety
+- [ ] 151-02-PLAN.md — ChatStore Export (Markdown) + Delete (teardown); SessionEngine chatStores map wired into CreateSession + KillSession (no orphans)
+- [ ] 151-03-PLAN.md — REST history + export endpoints (relay loopback for desktop; capability-gated on webserver for web); TESTING.md regression registration
 
 ### Phase 152: Relay Protocol + Identity + Presence
 **Goal**: Every participant is identified and their live presence and typing status propagate in real time across the relay.
