@@ -4,17 +4,17 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 151
 current_phase_name: message-schema-chatstore
-status: executing
+status: verifying
 stopped_at: Roadmap created for v4.1 Session Chat
-last_updated: "2026-06-25T20:43:34.691Z"
+last_updated: "2026-06-25T21:03:34.438Z"
 last_activity: 2026-06-25
 last_activity_desc: Phase 151 execution started
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 151 (message-schema-chatstore) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-25 — Phase 151 execution started
 
 ```
@@ -90,7 +90,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 
 
 ## Session Continuity
 
-Last session: 2026-06-25T20:43:34.686Z
+Last session: 2026-06-25T21:02:21.453Z
 Stopped at: Roadmap created for v4.1 Session Chat
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -99,6 +99,8 @@ Next action: `/gsd:plan-phase 151`
 
 - [Phase ?]: Reject-not-trim at cap: ErrChatCapReached returned instead of trimming oldest message
 - [Phase ?]: Injected baseDir: NewChatStore accepts baseDir parameter enabling constructor-level test isolation with t.TempDir()
+- [Phase ?]: Relay chat routes in wrapRelayWithChat outer wrap — avoids daemon↔relay import cycle
+- [Phase ?]: Webserver chat uses provider callback not daemon import — T-151-09 circular import prevention
 
 ## Performance Metrics
 
@@ -106,3 +108,4 @@ Next action: `/gsd:plan-phase 151`
 |-------|------|----------|-------|
 | Phase 151 P01 | 352 | 3 tasks | 4 files |
 | Phase 151 P02 | 8 minutes | 2 tasks | 4 files |
+| Phase 151 P03 | 15m | 3 tasks | 7 files |

@@ -361,7 +361,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 ### v4.1 Session Chat (Phases 151-156) — ACTIVE
 
-- [ ] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints
+- [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [ ] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators
 - [ ] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step
 - [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
@@ -372,7 +372,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 151. Message Schema + ChatStore | 2/3 | In Progress|  |
+| 151. Message Schema + ChatStore | 3/3 | Complete   | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 0/? | Not started | - |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
@@ -425,7 +425,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. After 10,000 messages the hard cap is enforced and `AppendMessage` rejects further writes — the store does not grow unbounded.
   5. The REST export endpoint returns a Markdown document that round-trips every `ChatMessage` field (author, alias, timestamp, body) without data loss.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 **Wave 1**
 
 - [x] 151-01-PLAN.md — ChatMessage schema (protocol.go) + ChatStore core: JSONL persistence, restart-load, Messages() replay, 10k cap, sessionID path-traversal hardening, concurrent-write -race safety
@@ -436,7 +436,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 151-03-PLAN.md — REST history + export endpoints (relay loopback for desktop; capability-gated on webserver for web); TESTING.md regression registration
+- [x] 151-03-PLAN.md — REST history + export endpoints (relay loopback for desktop; capability-gated on webserver for web); TESTING.md regression registration
 
 ### Phase 152: Relay Protocol + Identity + Presence
 
