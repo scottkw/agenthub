@@ -8,6 +8,20 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
+## Current Milestone: v4.1 Session Chat
+
+**Goal:** Give the humans connected to a session a side-channel chat thread inside AgentHub — so collaborators talk to each other (and pipe prompts to the agent) without leaving for Slack/Discord. Closes Issue #79.
+
+**Target features:**
+- Per-session chat thread, scoped to one session, working on **both** the desktop GUI and the web-share browser surface (cross-surface parity is release-blocking).
+- Participant identity = **tailnet ID + a self-chosen alias**, both visible to all participants (no login screen — preserves the passwordless/zero-config ethos).
+- `@alias` mentions a teammate; **`@session` injects the message into the agent's PTY as a prompt** — a **one-way bridge** (the agent's reply appears in the terminal, not the chat; no PTY→message parsing).
+- Thread **persisted for the session's life**, stored by the daemon — survives app/daemon restarts and gives late joiners full scrollback; thread dies when the session is deleted.
+- A thread is **downloadable as Markdown**.
+- Real **presence + typing indicators** via the existing web-share relay.
+
+**Key context:** Builds on existing infrastructure — the web-share WebSocket relay (message fan-out + presence), PTY stdin injection (the `@session` bridge already exists as terminal input), and known tailnet peer identity. New work = a daemon-side message store, a chat UI on both surfaces, and the alias/mention layer. **Out of scope:** agent-as-chat-author / round-trip replies, agent tool-output cards in chat, and a chat archive that outlives the session. Full discovery/design record: `.planning/notes/session-chat-discovery.md`. Reframed from the #79 prototype (`agenthub-v4.0-redesign/AgentHub.Chat.Session.standalone.html`), which modeled the agent as a chat author — discovery designed that out.
+
 ## Shipped Milestone: v4.0 Hub-First Consolidation & UI/UX Overhaul — SHIPPED 2026-06-23
 
 > ✅ Shipped 2026-06-23 (tag `v4.0`). 15 phases (136–150; 151 cancelled), 52 plans, 43/43 active requirements satisfied (ZOOM-01 cancelled — already shipped via Phase 134). Milestone audit PASSED (43/43 reqs, 5/5 E2E flows wired, all phases Nyquist-compliant). Closes #51, #65, #68, #69, #96, #97, #98, #100, #101 (completed); #99 closed not-planned; #82/#95 closed at scoping. No active milestone — next is set via `/gsd:new-milestone`. The scope below is retained as the milestone's design record.
@@ -272,7 +286,7 @@ Raw shell sessions (bash/zsh/pwsh/system-default) as a first-class agent type ac
 
 ### Active
 
-No active milestone. v4.0 shipped 2026-06-23 and its requirements are archived to `.planning/milestones/v4.0-REQUIREMENTS.md`. Start the next milestone via `/gsd:new-milestone` (creates a fresh `.planning/REQUIREMENTS.md`). Known next-milestone candidates (all open GitHub issues): #93 (deferred #78 Hub fidelity), #79 (session chat), #49 (split panes), #10 (intersession orchestration).
+**v4.1 Session Chat** (started 2026-06-25, closes #79). Requirements being defined in `.planning/REQUIREMENTS.md`. A per-session human-to-human chat side channel (tailnet identity + alias, `@session`→PTY-prompt one-way bridge, daemon-persisted for the session's life, Markdown export) across desktop GUI + web-share surfaces. Other open next-milestone candidates remain deferred: #93 (deferred #78 Hub fidelity), #49 (split panes), #10 (intersession orchestration).
 
 ## Shipped Milestone: v3.6 Hub (Session Grid / Control Room) — SHIPPED 2026-06-19
 
@@ -582,7 +596,14 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
+*Last updated: 2026-06-25 — v4.1 Session Chat milestone STARTED (closes #79). Adds a per-session human-to-human chat side channel inside AgentHub. Reframed from the #79 prototype during `/gsd:explore` discovery: the agent is NOT a chat author (no PTY→message parsing); the only chat↔agent bridge is a one-way `@session`→PTY-prompt injection. Identity = tailnet ID + self-chosen alias (both visible); thread persisted by the daemon for the session's life (late-join scrollback, survives restarts, dies with the session); Markdown export; presence/typing via the existing relay. Must work on BOTH desktop GUI + web-share surfaces (parity release-blocking). Builds on existing infra: web-share WS relay, PTY stdin injection, tailnet identity. Out of scope: agent-in-chat replies, tool-output cards, archive outliving the session. Design record: `.planning/notes/session-chat-discovery.md`. Phase numbering continues from 150. Next: requirements + roadmap.*
+
+<details>
+<summary>Prior footer — v4.0 milestone SHIPPED (2026-06-23)</summary>
+
 *Last updated: 2026-06-23 — v4.0 Hub-First Consolidation & UI/UX Overhaul milestone SHIPPED (tag `v4.0`; 15 phases 136–150, 151 cancelled, 52 plans, 43/43 active reqs). Delivered the Hub-first consolidation: removed the TUI surface (parity → GUI/CLI/web), the Sessions + Remote pages, and the sidebar New-Session item (sidebar → Home/Hub/Help/Settings); unified Share/capability model (per-card RO+RW cap tokens, file-browse derives from code, held-cap reuse for remote open); adopted the v4.0 redesign (fonts/palette/radii + persisted Light/Dark) after correcting a token-only false pass; Chrome-style tab strip + chevron; headless-VT mini-previews (#96); in-app Help page (#69); Google Antigravity agent (#65, live UAT); and a formal regression-test program with CI branch protection. Milestone audit PASSED (43/43 reqs, 5/5 E2E flows wired, all phases Nyquist-compliant). Closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; #82/#95 at scoping. Carry-forward operator tokens (RELEASE_PUBLISH_TOKEN, WINGET_FIRST_SUBMISSION) still required before the next tagged binary release. No active milestone — next is set via `/gsd:new-milestone`.*
+
+</details>
 
 <details>
 <summary>Prior footer — v4.0 milestone STARTED (2026-06-19)</summary>
