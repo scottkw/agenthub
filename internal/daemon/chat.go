@@ -2,12 +2,15 @@ package daemon
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/scottkw/agenthub/internal/relay"
 )
@@ -155,4 +158,89 @@ func (s *ChatStore) Messages() []relay.ChatMessage {
 	result := make([]relay.ChatMessage, len(s.messages))
 	copy(result, s.messages)
 	return result
+}
+
+// AppendMessage persists msg to the JSONL file and adds it to the in-memory
+// mirror. The entire operation (cap check + file write + slice append) is
+// serialized under the mutex so the mirror and disk state never diverge.
+//
+// Defaults filled when the caller leaves them zero:
+//   - msg.ID is set to a crypto/rand hex string (16 bytes = 32 hex chars).
+//   - msg.TimestampMs is set to time.Now().UnixMilli().
+//   - msg.SchemaVersion is set to relay.ChatSchemaVersion.
+//   - msg.SessionID is set to the store's session ID.
+//
+// AppendMessage rejects further writes when len(mirror) >= MaxChatMessages,
+// returning (zero, ErrChatCapReached) without writing to the file. REJECT
+// (not trim) is chosen because the file is append-only: trimming would require
+// rewriting the entire JSONL under concurrent load, destroying the
+// append-only invariant and introducing a rewrite race.
+//
+// Logging: only metadata (sessionID, count, byte length) is logged, never
+// message content.
+func (s *ChatStore) AppendMessage(msg relay.ChatMessage) (relay.ChatMessage, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Enforce the hard cap BEFORE writing so the file never exceeds MaxChatMessages.
+	// We REJECT (not trim) because the file is append-only: trimming requires a
+	// full file rewrite under load, which breaks the append-only invariant and
+	// introduces a rewrite race (ROADMAP SC#4 specifies reject semantics).
+	if len(s.messages) >= MaxChatMessages {
+		return relay.ChatMessage{}, ErrChatCapReached
+	}
+
+	// Fill defaults for fields the caller left zero.
+	if msg.ID == "" {
+		id, err := randomHexID()
+		if err != nil {
+			return relay.ChatMessage{}, fmt.Errorf("chat: cannot generate message ID: %w", err)
+		}
+		msg.ID = id
+	}
+	if msg.TimestampMs == 0 {
+		msg.TimestampMs = time.Now().UnixMilli()
+	}
+	msg.SchemaVersion = relay.ChatSchemaVersion
+	msg.SessionID = s.sessionID
+
+	// Marshal to a single JSON line.
+	line, err := json.Marshal(msg)
+	if err != nil {
+		return relay.ChatMessage{}, fmt.Errorf("chat: cannot marshal message: %w", err)
+	}
+
+	// Append the line to the JSONL file.  We open+close per call for simplicity
+	// and durability: O_APPEND semantics are atomic at the kernel level for
+	// writes smaller than PIPE_BUF on most platforms, and the mutex already
+	// serializes concurrent callers so ordering is guaranteed.
+	f, err := os.OpenFile(s.filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return relay.ChatMessage{}, fmt.Errorf("chat: cannot open %q for append: %w", s.filePath, err)
+	}
+	lineWithNL := append(line, '\n')
+	_, werr := f.Write(lineWithNL)
+	cerr := f.Close()
+	if werr != nil {
+		return relay.ChatMessage{}, fmt.Errorf("chat: write failed: %w", werr)
+	}
+	if cerr != nil {
+		return relay.ChatMessage{}, fmt.Errorf("chat: close failed: %w", cerr)
+	}
+
+	// Mirror must be updated AFTER the file write succeeds so the two never
+	// diverge (if the write fails the message is not in the mirror).
+	s.messages = append(s.messages, msg)
+
+	return msg, nil
+}
+
+// randomHexID returns a 32-character lowercase hex string generated from
+// 16 bytes of crypto/rand. Uses only stdlib — no new dependency.
+func randomHexID() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

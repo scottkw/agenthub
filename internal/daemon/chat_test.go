@@ -1,9 +1,11 @@
 package daemon
 
 import (
+	"bufio"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/scottkw/agenthub/internal/relay"
@@ -199,5 +201,196 @@ func TestChatStoreDaemonConfigDirNotUsed(t *testing.T) {
 	dir := chatsDir()
 	if dir == "" {
 		t.Error("chatsDir() returned empty string")
+	}
+}
+
+// --------------------------------------------------------------------------
+// Task 3 tests: AppendMessage, 10k cap, and concurrency (-race)
+// --------------------------------------------------------------------------
+
+// countFileLines counts the number of non-empty lines in a file.
+func countFileLines(t *testing.T, path string) int {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("countFileLines: cannot open %q: %v", path, err)
+	}
+	defer f.Close()
+	n := 0
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 64*1024), 1<<20)
+	for scanner.Scan() {
+		if len(scanner.Bytes()) > 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// TestChatAppendBasic verifies that AppendMessage persists a message and
+// assigns ID, TimestampMs, and SchemaVersion when the caller leaves them zero.
+func TestChatAppendBasic(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-append")
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	in := relay.ChatMessage{
+		AuthorID:    "local",
+		AuthorAlias: "alice",
+		Content:     "hello",
+	}
+	got, err := store.AppendMessage(in)
+	if err != nil {
+		t.Fatalf("AppendMessage failed: %v", err)
+	}
+
+	// Defaults must be filled.
+	if got.ID == "" {
+		t.Error("expected non-empty ID to be assigned")
+	}
+	if got.TimestampMs == 0 {
+		t.Error("expected non-zero TimestampMs to be assigned")
+	}
+	if got.SchemaVersion != relay.ChatSchemaVersion {
+		t.Errorf("expected SchemaVersion=%d, got %d", relay.ChatSchemaVersion, got.SchemaVersion)
+	}
+	if got.SessionID != "sess-append" {
+		t.Errorf("expected SessionID=sess-append, got %q", got.SessionID)
+	}
+
+	// In-memory mirror should hold 1 message.
+	msgs := store.Messages()
+	if len(msgs) != 1 {
+		t.Fatalf("expected 1 message in mirror, got %d", len(msgs))
+	}
+
+	// On-disk file should hold 1 line.
+	if n := countFileLines(t, store.filePath); n != 1 {
+		t.Errorf("expected 1 line on disk, got %d", n)
+	}
+}
+
+// TestChatAppendRoundTrip verifies that each persisted JSONL line round-trips
+// back to an equal ChatMessage.
+func TestChatAppendRoundTrip(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-roundtrip")
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	in := relay.ChatMessage{
+		AuthorID:    "node-abc",
+		AuthorAlias: "bob",
+		Content:     "round-trip test",
+		Mentions:    []string{"alice"},
+	}
+	canonical, err := store.AppendMessage(in)
+	if err != nil {
+		t.Fatalf("AppendMessage failed: %v", err)
+	}
+
+	// Read the JSONL file and decode the line.
+	f, err := os.Open(store.filePath)
+	if err != nil {
+		t.Fatalf("cannot open JSONL file: %v", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	if !scanner.Scan() {
+		t.Fatal("expected at least one line in JSONL file")
+	}
+
+	var decoded relay.ChatMessage
+	if err := json.Unmarshal(scanner.Bytes(), &decoded); err != nil {
+		t.Fatalf("failed to unmarshal JSONL line: %v", err)
+	}
+
+	// The decoded message must equal the canonical return value.
+	if decoded.ID != canonical.ID || decoded.Content != canonical.Content ||
+		decoded.TimestampMs != canonical.TimestampMs || decoded.SchemaVersion != canonical.SchemaVersion {
+		t.Errorf("round-trip mismatch:\n  canonical: %+v\n  decoded:   %+v", canonical, decoded)
+	}
+}
+
+// TestChatCapEnforcement verifies that after MaxChatMessages successful
+// appends, the next AppendMessage returns ErrChatCapReached, writes nothing
+// to the file, and does not grow the mirror beyond MaxChatMessages.
+func TestChatCapEnforcement(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-cap")
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	// Append exactly MaxChatMessages messages.
+	for i := 0; i < MaxChatMessages; i++ {
+		_, err := store.AppendMessage(relay.ChatMessage{
+			AuthorID: "local",
+			Content:  "msg",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error at append %d: %v", i, err)
+		}
+	}
+
+	// The (MaxChatMessages+1)th append must return ErrChatCapReached.
+	_, err = store.AppendMessage(relay.ChatMessage{
+		AuthorID: "local",
+		Content:  "overflow",
+	})
+	if err == nil {
+		t.Fatal("expected ErrChatCapReached, got nil")
+	}
+	if err != ErrChatCapReached {
+		t.Errorf("expected ErrChatCapReached, got %v", err)
+	}
+
+	// Mirror must stay at MaxChatMessages.
+	if n := len(store.Messages()); n != MaxChatMessages {
+		t.Errorf("mirror length after cap: expected %d, got %d", MaxChatMessages, n)
+	}
+
+	// File must have exactly MaxChatMessages lines (no extra line written).
+	if n := countFileLines(t, store.filePath); n != MaxChatMessages {
+		t.Errorf("file line count after cap: expected %d, got %d", MaxChatMessages, n)
+	}
+}
+
+// TestChatConcurrentAppend runs 200 goroutines each calling AppendMessage once
+// and verifies all messages are persisted exactly once. This is the -race gate
+// for Pitfall 11 (concurrent write race).
+func TestChatConcurrentAppend(t *testing.T) {
+	baseDir := t.TempDir()
+	store, err := NewChatStore(baseDir, "sess-concurrent")
+	if err != nil {
+		t.Fatalf("NewChatStore failed: %v", err)
+	}
+
+	const numGoroutines = 200
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, _ = store.AppendMessage(relay.ChatMessage{
+				AuthorID: "local",
+				Content:  "concurrent",
+			})
+		}()
+	}
+	wg.Wait()
+
+	// All 200 messages must be in the mirror.
+	if n := len(store.Messages()); n != numGoroutines {
+		t.Errorf("mirror length: expected %d, got %d", numGoroutines, n)
+	}
+
+	// File must have exactly 200 lines.
+	if n := countFileLines(t, store.filePath); n != numGoroutines {
+		t.Errorf("file line count: expected %d, got %d", numGoroutines, n)
 	}
 }
