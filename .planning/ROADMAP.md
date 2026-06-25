@@ -372,7 +372,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 151. Message Schema + ChatStore | 3/3 | Complete   | 2026-06-25 |
+| 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 0/? | Not started | - |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
