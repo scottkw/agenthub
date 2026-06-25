@@ -372,7 +372,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 151. Message Schema + ChatStore | 1/3 | In Progress|  |
+| 151. Message Schema + ChatStore | 2/3 | In Progress|  |
 | 152. Relay Protocol + Identity + Presence | 0/? | Not started | - |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
@@ -425,14 +425,14 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. After 10,000 messages the hard cap is enforced and `AppendMessage` rejects further writes — the store does not grow unbounded.
   5. The REST export endpoint returns a Markdown document that round-trips every `ChatMessage` field (author, alias, timestamp, body) without data loss.
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 **Wave 1**
 
 - [x] 151-01-PLAN.md — ChatMessage schema (protocol.go) + ChatStore core: JSONL persistence, restart-load, Messages() replay, 10k cap, sessionID path-traversal hardening, concurrent-write -race safety
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 151-02-PLAN.md — ChatStore Export (Markdown) + Delete (teardown); SessionEngine chatStores map wired into CreateSession + KillSession (no orphans)
+- [x] 151-02-PLAN.md — ChatStore Export (Markdown) + Delete (teardown); SessionEngine chatStores map wired into CreateSession + KillSession (no orphans)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
