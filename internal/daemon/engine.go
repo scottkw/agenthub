@@ -404,17 +404,27 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 		}
 	}
 
+	// Phase 151 / PERSIST-01: construct the ChatStore BEFORE taking e.mu. The
+	// constructor does os.MkdirAll plus, on a pre-existing file, a full
+	// loadFromDisk scan — holding the engine-wide lock across that filesystem I/O
+	// would block every concurrent ChatStoreFor/ListSessions reader (IN-03).
+	// Snapshot chatsBaseDir under the lock first so the read stays race-free with
+	// ChatsBaseDirForTest (which writes it under e.mu).
+	e.mu.Lock()
+	chatsBaseDir := e.chatsBaseDir
+	e.mu.Unlock()
+	// Failure is non-fatal — the session still starts; chat is a side channel.
+	// Log only metadata (sessionID + error), never message content (T-151-05).
+	chatStore, chatStoreErr := NewChatStore(chatsBaseDir, id)
+
 	e.mu.Lock()
 	e.tabNames[id] = name
 	e.sessionCLIs[id] = cli // raw CLI name, NOT cliPath
 	e.sessionWorkDirs[id] = resolvedWD
-	// Phase 151 / PERSIST-01: create a ChatStore for this session. Failure is
-	// non-fatal — the session still starts; chat is a side channel. Log only
-	// metadata (sessionID + error), never message content (T-151-05 mitigation).
-	if store, storeErr := NewChatStore(e.chatsBaseDir, id); storeErr != nil {
-		log.Printf("chat: NewChatStore for session %q: %v (chat unavailable for this session)", id, storeErr)
+	if chatStoreErr != nil {
+		log.Printf("chat: NewChatStore for session %q: %v (chat unavailable for this session)", id, chatStoreErr)
 	} else {
-		e.chatStores[id] = store
+		e.chatStores[id] = chatStore
 	}
 	e.mu.Unlock()
 
