@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 status: planning
-last_updated: "2026-06-25T00:00:00.000Z"
+last_updated: "2026-06-25T18:45:00.000Z"
 last_activity: 2026-06-25
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 Session Chat — per-session human-to-human chat side channel. Roadmap defined; ready to plan Phase 151.
+**Current focus:** v4.1 Session Chat — per-session human-to-human chat side channel. Phase 151 planned (3 plans); ready to execute.
 
 ## Current Position
 
-Phase: 151 (not started — roadmap complete, planning next)
-Plan: —
-Status: Roadmap created; ready for `/gsd:plan-phase 151`
-Last activity: 2026-06-25 — Roadmap written for v4.1 Session Chat (6 phases, 24/24 reqs mapped)
+Phase: 151 — Message Schema + ChatStore (PLANNED)
+Plan: 3 plans (151-01/02/03), plan-checker PASSED
+Status: Ready to execute — `/gsd:execute-phase 151`
+Last activity: 2026-06-25 — Phase 151 planned + verified (3 plans, baseDir test-isolation fix baked in)
 
 ```
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 0/6 phases complete
