@@ -24,18 +24,21 @@ import (
 // set once — mirrors SetSessionResolver / SetFilesHandler).
 //
 // The provider signature avoids a circular import: the caller passes a
-// closure; this file sees only []byte + string + bool (T-151-09).
+// closure; this file sees only []byte + string + bool + error (T-151-09).
 //
-// Provider contract:
-//   - ok == false  → session has no chat store (routes return 404).
-//   - ok == true   → history is valid JSON bytes; markdown is the export.
-func (ws *WebServer) SetChatProvider(fn func(sessionID string) (history []byte, markdown string, ok bool)) {
+// Provider contract (WR-03):
+//   - err != nil           → internal failure on an existing session; routes
+//     return 500 (the error is surfaced, not masked).
+//   - err == nil, !found    → session has no chat store; routes return 404.
+//   - err == nil, found     → history is valid JSON bytes; markdown is the export.
+func (ws *WebServer) SetChatProvider(fn func(sessionID string) (history []byte, markdown string, found bool, err error)) {
 	ws.chatProvider = fn
 }
 
 // handleChatHistory serves GET /api/chat/{id}/history (capability-gated).
 // Writes the pre-marshaled JSON bytes from the provider with
 // Content-Type: application/json. Returns 503 if the provider is not wired,
+// 500 if the provider reports an internal error on an existing session, and
 // 404 if the session has no registered store.
 func (ws *WebServer) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
@@ -44,8 +47,14 @@ func (ws *WebServer) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "chat provider not configured", http.StatusServiceUnavailable)
 		return
 	}
-	history, _, ok := fn(sessionID)
-	if !ok {
+	history, _, found, err := fn(sessionID)
+	if err != nil {
+		// Internal failure on a session that exists — surface it as 500 rather
+		// than masking it as 404 (WR-03). The provider logs the underlying cause.
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !found {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
@@ -56,7 +65,8 @@ func (ws *WebServer) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 // handleChatExport serves GET /api/chat/{id}/export (capability-gated).
 // Writes the Markdown export from the provider with
 // Content-Type: text/markdown; charset=utf-8 and a Content-Disposition
-// attachment header. Returns 503 if the provider is not wired, 404 if the
+// attachment header. Returns 503 if the provider is not wired, 500 if the
+// provider reports an internal error on an existing session, and 404 if the
 // session has no registered store.
 func (ws *WebServer) handleChatExport(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
@@ -65,8 +75,14 @@ func (ws *WebServer) handleChatExport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "chat provider not configured", http.StatusServiceUnavailable)
 		return
 	}
-	_, markdown, ok := fn(sessionID)
-	if !ok {
+	_, markdown, found, err := fn(sessionID)
+	if err != nil {
+		// Internal failure on a session that exists — surface it as 500 rather
+		// than masking it as 404 (WR-03). The provider logs the underlying cause.
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !found {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}

@@ -16,6 +16,7 @@ package webserver
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -26,12 +27,12 @@ import (
 // supplied history bytes and markdown string for sessionID. Any other session
 // ID returns ok == false. Use to wire a WebServer for chat-route tests
 // without importing the daemon or relay packages.
-func stubChatProvider(sessionID string, historyJSON []byte, markdown string) func(string) ([]byte, string, bool) {
-	return func(id string) ([]byte, string, bool) {
+func stubChatProvider(sessionID string, historyJSON []byte, markdown string) func(string) ([]byte, string, bool, error) {
+	return func(id string) ([]byte, string, bool, error) {
 		if id != sessionID {
-			return nil, "", false
+			return nil, "", false, nil
 		}
-		return historyJSON, markdown, true
+		return historyJSON, markdown, true, nil
 	}
 }
 
@@ -193,7 +194,7 @@ func TestChatWeb_ProviderSessionNotFound(t *testing.T) {
 	// Enable and issue a valid cap for "sess-found" but provider returns
 	// ok==false for all IDs (simulates session with no chat store).
 	ws.EnableSession("sess-found")
-	ws.SetChatProvider(func(string) ([]byte, string, bool) { return nil, "", false })
+	ws.SetChatProvider(func(string) ([]byte, string, bool, error) { return nil, "", false, nil })
 
 	token := issueCapFor(t, ws, "sess-found", "read,write")
 
@@ -208,6 +209,36 @@ func TestChatWeb_ProviderSessionNotFound(t *testing.T) {
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("GET %s (no store): expected 404, got %d", path, resp.StatusCode)
+		}
+	}
+}
+
+// TestChatWeb_ProviderInternalError returns 500 (not 404) when the provider
+// reports an internal error on a session that exists (WR-03 — an internal
+// serialization/export failure must not be masked as "session not found").
+func TestChatWeb_ProviderInternalError(t *testing.T) {
+	ws, client := testServer(t)
+	ws.SetSigningKey(capTestKey)
+	ws.EnableSession("sess-err")
+	// found == true but err != nil: an existing session whose history/export
+	// failed internally.
+	ws.SetChatProvider(func(string) ([]byte, string, bool, error) {
+		return nil, "", true, errors.New("marshal blew up")
+	})
+
+	token := issueCapFor(t, ws, "sess-err", "read,write")
+
+	for _, path := range []string{
+		"/api/chat/sess-err/history?cap=" + token,
+		"/api/chat/sess-err/export?cap=" + token,
+	} {
+		resp, err := client.Get(ws.BaseURL() + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Errorf("GET %s (provider error): expected 500, got %d", path, resp.StatusCode)
 		}
 	}
 }
