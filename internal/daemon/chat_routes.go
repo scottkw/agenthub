@@ -36,10 +36,9 @@ func (a *API) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "session not found", http.StatusNotFound)
 		return
 	}
+	// Messages() always returns a non-nil slice (make([]…, len)), so an empty
+	// thread already serializes as `[]` not `null` — no nil guard needed (IN-01).
 	msgs := store.Messages()
-	if msgs == nil {
-		msgs = []relay.ChatMessage{}
-	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(msgs); err != nil {
 		_ = err // header already committed; log nothing (content-only body)
