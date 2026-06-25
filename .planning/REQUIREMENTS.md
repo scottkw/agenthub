@@ -99,36 +99,36 @@ Which phase covers each requirement. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHAT-01 | TBD | Pending |
-| CHAT-02 | TBD | Pending |
-| CHAT-03 | TBD | Pending |
-| CHAT-04 | TBD | Pending |
-| IDENT-01 | TBD | Pending |
-| IDENT-02 | TBD | Pending |
-| MENTION-01 | TBD | Pending |
-| MENTION-02 | TBD | Pending |
-| MENTION-03 | TBD | Pending |
-| PRESENCE-01 | TBD | Pending |
-| PRESENCE-02 | TBD | Pending |
-| PERSIST-01 | TBD | Pending |
-| PERSIST-02 | TBD | Pending |
-| PERSIST-03 | TBD | Pending |
-| EXPORT-01 | TBD | Pending |
-| NOTIF-01 | TBD | Pending |
-| NOTIF-02 | TBD | Pending |
-| PARITY-01 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| INSTALL-01 | TBD | Pending |
-| INSTALL-02 | TBD | Pending |
-| INSTALL-03 | TBD | Pending |
+| CHAT-01 | Phase 154 | Pending |
+| CHAT-02 | Phase 154 | Pending |
+| CHAT-03 | Phase 154 | Pending |
+| CHAT-04 | Phase 154 | Pending |
+| IDENT-01 | Phase 152 | Pending |
+| IDENT-02 | Phase 152 | Pending |
+| MENTION-01 | Phase 154 | Pending |
+| MENTION-02 | Phase 153 | Pending |
+| MENTION-03 | Phase 153 | Pending |
+| PRESENCE-01 | Phase 152 | Pending |
+| PRESENCE-02 | Phase 152 | Pending |
+| PERSIST-01 | Phase 151 | Pending |
+| PERSIST-02 | Phase 151 | Pending |
+| PERSIST-03 | Phase 151 | Pending |
+| EXPORT-01 | Phase 155 | Pending |
+| NOTIF-01 | Phase 154 | Pending |
+| NOTIF-02 | Phase 154 | Pending |
+| PARITY-01 | Phase 155 | Pending |
+| SEC-01 | Phase 153 | Pending |
+| SEC-02 | Phase 153 | Pending |
+| SEC-03 | Phase 154 | Pending |
+| INSTALL-01 | Phase 156 | Pending |
+| INSTALL-02 | Phase 156 | Pending |
+| INSTALL-03 | Phase 156 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 24 ⚠️ (filled by roadmapper)
+- Mapped to phases: 24 (100% ✓)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-25*
-*Last updated: 2026-06-25 after initial definition (v4.1 Session Chat)*
+*Last updated: 2026-06-25 — traceability filled by roadmapper (v4.1 Session Chat)*

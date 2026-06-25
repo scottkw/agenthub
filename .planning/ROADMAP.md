@@ -29,6 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
+- 🚧 **v4.1 Session Chat** — Phases 151-156 (active, started 2026-06-25, closes #79)
 
 ## Phases
 
@@ -358,6 +359,26 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.0 phase details archived to milestones/v4.0-ROADMAP.md -->
 
+### v4.1 Session Chat (Phases 151-156) — ACTIVE
+
+- [ ] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints
+- [ ] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators
+- [ ] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step
+- [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
+- [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
+- [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
+
+### Progress: v4.1 Session Chat
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 151. Message Schema + ChatStore | 0/? | Not started | - |
+| 152. Relay Protocol + Identity + Presence | 0/? | Not started | - |
+| 153. @session PTY Bridge | 0/? | Not started | - |
+| 154. Desktop Chat UI | 0/? | Not started | - |
+| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
+| 156. Install Links & Distribution | 0/? | Not started | - |
+
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
 *Full v1.1 details: .planning/milestones/v1.1-ROADMAP.md*
@@ -386,3 +407,78 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 *Full v3.5.1 details: .planning/milestones/v3.5.1-ROADMAP.md*
 *Full v3.6 details: .planning/milestones/v3.6-ROADMAP.md*
 *Full v4.0 details: .planning/milestones/v4.0-ROADMAP.md*
+
+---
+
+## Phase Details: v4.1 Session Chat
+
+### Phase 151: Message Schema + ChatStore
+**Goal**: The daemon can durably persist, replay, and clean up a session's chat thread.
+**Depends on**: Nothing (no existing chat infrastructure; Phase 150 complete)
+**Requirements**: PERSIST-01, PERSIST-02, PERSIST-03
+**Success Criteria** (what must be TRUE):
+  1. The daemon writes each chat message to a JSONL file at `~/.config/agenthub/chats/<sessionID>.jsonl`; after a daemon restart the file is intact and `GET /api/chat/:id/history` returns the full message history.
+  2. A participant joining the chat after a restart or late connection receives the complete message history in a single response — no messages are missing.
+  3. Calling `KillSession` on a session removes its JSONL file; no orphaned chat files remain after deletion.
+  4. After 10,000 messages the hard cap is enforced and `AppendMessage` rejects further writes — the store does not grow unbounded.
+  5. The REST export endpoint returns a Markdown document that round-trips every `ChatMessage` field (author, alias, timestamp, body) without data loss.
+**Plans**: TBD
+
+### Phase 152: Relay Protocol + Identity + Presence
+**Goal**: Every participant is identified and their live presence and typing status propagate in real time across the relay.
+**Depends on**: Phase 151
+**Requirements**: IDENT-01, IDENT-02, PRESENCE-01, PRESENCE-02
+**Success Criteria** (what must be TRUE):
+  1. Each incoming WebSocket connection is stamped with a `TailnetID` (from `lc.WhoIs` for web clients; `"local"` for the Wails desktop owner) and an alias before any message is stored; both values are visible to all other participants.
+  2. A participant can set or change their alias; the updated name propagates to all connected clients within one relay round-trip.
+  3. All currently-connected participants see each other's presence (connected / disconnected) update in real time when someone joins or leaves.
+  4. A typing indicator appears for a participant within 500 ms of them starting to compose and auto-clears if they stop typing for 5 seconds or disconnect abruptly — the indicator is never stored in the JSONL log.
+  5. The desktop Wails owner and a same-machine browser client appear as two distinct, correctly-labelled presence entries — no silent identity merge.
+**Plans**: TBD
+
+### Phase 153: @session PTY Bridge
+**Goal**: RW-capable participants can inject a prompt into the agent PTY via `@session`; the injection is sanitized and requires deliberate confirmation.
+**Depends on**: Phase 152
+**Requirements**: MENTION-02, MENTION-03, SEC-01, SEC-02
+**Success Criteria** (what must be TRUE):
+  1. Sending `@session <text>` as a RW-cap holder causes exactly that text to appear in the session PTY stdin; the chat thread shows a "→ injected into terminal" indicator for all participants.
+  2. A RO-cap holder who attempts a `@session` send receives a server-side rejection; no PTY write occurs regardless of any client-side suppression or direct WS frame injection.
+  3. A message containing C0 control characters, embedded newlines, or terminal escape sequences (CSI, OSC) is sanitized at the daemon handler — only printable text plus exactly one trailing newline reaches PTY stdin; a unit test corpus covers newline injection, null bytes, and CSI sequences.
+  4. The `@session` injection path requires a deliberate confirm step; a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write.
+**Plans**: TBD
+
+### Phase 154: Desktop Chat UI
+**Goal**: The desktop GUI shows a fully functional chat panel inside the session modal with safe Markdown rendering and unread notifications.
+**Depends on**: Phase 153
+**Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, MENTION-01, NOTIF-01, NOTIF-02, SEC-03
+**Success Criteria** (what must be TRUE):
+  1. A user types a message, presses Enter to send, and sees it appear in the thread with their alias, tailnet ID, and a HH:MM timestamp; hovering the timestamp reveals the full ISO-8601 datetime; Shift+Enter inserts a newline without sending.
+  2. Typing `@` opens an autocomplete popover listing current session participants plus the pinned `@session` entry; the user can navigate with arrow keys and confirm with Enter.
+  3. Messages that `@mention` the current user are visually distinct from regular messages; both the chat-toggle button and the Hub session card display an unread badge count when new messages arrive while the panel is not in focus.
+  4. Pasting `<script>alert(1)</script>` or `<img src=x onerror=alert(1)>` into a message renders completely inert — no script executes and no `onerror` attribute is present in the DOM on either surface.
+  5. Day separators appear between messages from different calendar days and remain anchored to the top of the visible viewport as the user scrolls through history.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate
+**Goal**: The web-share surface delivers the identical chat experience and Markdown export is available on both surfaces.
+**Depends on**: Phase 154
+**Requirements**: EXPORT-01, PARITY-01
+**Success Criteria** (what must be TRUE):
+  1. A participant on the web-share browser sees the same thread, presence indicators, typing indicators, unread badge, and `@mention` highlights as the desktop GUI owner — no feature drift between surfaces verified by Playwright e2e.
+  2. Clicking "Export" on either the desktop or web-share surface downloads a `.md` file with YAML frontmatter and the full message thread in GitHub-compatible Markdown.
+  3. A RO-cap web-share viewer cannot post messages or trigger `@session` injection — the server rejects both actions regardless of client behavior; a RW-cap web-share viewer can do both.
+  4. The `@session` injection path works identically from both surfaces: same relay frame type, same daemon handler, same "→ injected into terminal" indicator in the thread.
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 156: Install Links & Distribution
+**Goal**: The Welcome screen install instructions are accurate and the Linux curl + Windows winget distribution paths work end-to-end.
+**Depends on**: Nothing (orthogonal to chat phases; can run in parallel or after)
+**Requirements**: INSTALL-01, INSTALL-02, INSTALL-03
+**Success Criteria** (what must be TRUE):
+  1. Following the Linux curl command on the Welcome screen executes `scripts/install.sh`, detects the correct architecture, verifies the SHA256 checksum from `checksums.txt`, and installs the `agenthub` binary to a standard path — verified on a clean Linux box and documented in the TESTING.md manual checklist.
+  2. The Welcome screen shows `winget install scottkw.agenthub` (correct package ID) and links to `github.com/scottkw/agenthub` — no placeholder URLs or wrong IDs visible anywhere on the screen.
+  3. The `distribute.yml` workflow executes the first-submission code path correctly when `WINGET_FIRST_SUBMISSION=true` and `WINGET_TOKEN` are provisioned; the repo-side automation is complete and verifiable by a dry-run — the phase ships even while Microsoft's catalog PR review is externally pending.
+**Plans**: TBD
+**UI hint**: yes
