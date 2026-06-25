@@ -2,14 +2,18 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-status: planning
-last_updated: "2026-06-25T18:45:00.000Z"
+current_phase: 151
+current_phase_name: message-schema-chatstore
+status: executing
+stopped_at: Roadmap created for v4.1 Session Chat
+last_updated: "2026-06-25T20:35:14.775Z"
 last_activity: 2026-06-25
+last_activity_desc: Phase 151 execution started
 progress:
-  total_phases: 6
+  total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 Session Chat — per-session human-to-human chat side channel. Phase 151 planned (3 plans); ready to execute.
+**Current focus:** Phase 151 — message-schema-chatstore
 
 ## Current Position
 
-Phase: 151 — Message Schema + ChatStore (PLANNED)
-Plan: 3 plans (151-01/02/03), plan-checker PASSED
-Status: Ready to execute — `/gsd:execute-phase 151`
-Last activity: 2026-06-25 — Phase 151 planned + verified (3 plans, baseDir test-isolation fix baked in)
+Phase: 151 (message-schema-chatstore) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-25 — Phase 151 execution started
 
 ```
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 0/6 phases complete
@@ -86,7 +90,18 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 
 
 ## Session Continuity
 
-Last session: 2026-06-25
+Last session: 2026-06-25T20:34:57.257Z
 Stopped at: Roadmap created for v4.1 Session Chat
 Resume file: None
 Next action: `/gsd:plan-phase 151`
+
+## Decisions
+
+- [Phase ?]: Reject-not-trim at cap: ErrChatCapReached returned instead of trimming oldest message
+- [Phase ?]: Injected baseDir: NewChatStore accepts baseDir parameter enabling constructor-level test isolation with t.TempDir()
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 151 P01 | 352 | 3 tasks | 4 files |

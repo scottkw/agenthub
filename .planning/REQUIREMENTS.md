@@ -35,9 +35,9 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### PERSIST — Durability
 
-- [ ] **PERSIST-01**: The chat thread is persisted by the daemon for the session's life and survives daemon/app restart.
-- [ ] **PERSIST-02**: A participant joining late loads the full thread scrollback.
-- [ ] **PERSIST-03**: The thread is deleted when its session is deleted; a hard per-session message cap bounds store growth.
+- [x] **PERSIST-01**: The chat thread is persisted by the daemon for the session's life and survives daemon/app restart.
+- [x] **PERSIST-02**: A participant joining late loads the full thread scrollback.
+- [x] **PERSIST-03**: The thread is deleted when its session is deleted; a hard per-session message cap bounds store growth.
 
 ### EXPORT — Export
 
@@ -110,9 +110,9 @@ Which phase covers each requirement. Populated during roadmap creation.
 | MENTION-03 | Phase 153 | Pending |
 | PRESENCE-01 | Phase 152 | Pending |
 | PRESENCE-02 | Phase 152 | Pending |
-| PERSIST-01 | Phase 151 | Pending |
-| PERSIST-02 | Phase 151 | Pending |
-| PERSIST-03 | Phase 151 | Pending |
+| PERSIST-01 | Phase 151 | Complete |
+| PERSIST-02 | Phase 151 | Complete |
+| PERSIST-03 | Phase 151 | Complete |
 | EXPORT-01 | Phase 155 | Pending |
 | NOTIF-01 | Phase 154 | Pending |
 | NOTIF-02 | Phase 154 | Pending |
@@ -125,6 +125,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | INSTALL-03 | Phase 156 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 24 total
 - Mapped to phases: 24 (100% ✓)
 - Unmapped: 0
