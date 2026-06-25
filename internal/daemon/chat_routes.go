@@ -31,6 +31,14 @@ import (
 // Empty thread returns `[]` (not null). Unknown session returns 404.
 func (a *API) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	// Defense-in-depth: reject ids outside the strict allowlist before doing
+	// anything with the value, mirroring NewChatStore (IN-02). A valid session
+	// id is crypto-random hex, so this can only reject a malformed/forged id —
+	// which can never have a registered store anyway (404).
+	if !validChatSessionID(id) {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
 	store, ok := a.engine.ChatStoreFor(id)
 	if !ok {
 		http.Error(w, "session not found", http.StatusNotFound)
@@ -52,6 +60,14 @@ func (a *API) handleChatHistory(w http.ResponseWriter, r *http.Request) {
 // Unknown session returns 404.
 func (a *API) handleChatExport(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	// Defense-in-depth: reject ids outside the strict allowlist before building
+	// the Content-Disposition filename from the value, mirroring NewChatStore
+	// (IN-02). This makes header-injection unreachable locally rather than only
+	// via the upstream "ids are crypto-random hex" invariant.
+	if !validChatSessionID(id) {
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
 	store, ok := a.engine.ChatStoreFor(id)
 	if !ok {
 		http.Error(w, "session not found", http.StatusNotFound)

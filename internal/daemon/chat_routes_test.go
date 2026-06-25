@@ -176,6 +176,36 @@ func TestChatRoutes_UnknownSession(t *testing.T) {
 	}
 }
 
+// TestChatRoutes_InvalidSessionID verifies that an id failing the
+// validChatSessionID allowlist is rejected with 404 before the export handler
+// interpolates it into the Content-Disposition filename (IN-02 defense-in-depth).
+// The crafted id carries a double-quote + CRLF — the exact shape a
+// header-injection attempt against the filename would use.
+func TestChatRoutes_InvalidSessionID(t *testing.T) {
+	e := newChatRouteEngine(t, t.TempDir())
+	srv := newChatRelayServer(t, e)
+
+	// URL-encoded so the quote/CRLF survives as a single path segment and
+	// reaches the handler as PathValue("id").
+	const encodedID = "sess%22%0d%0aX-Injected:%201"
+	for _, path := range []string{
+		"/api/chat/" + encodedID + "/history",
+		"/api/chat/" + encodedID + "/export",
+	} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		if got := resp.Header.Get("X-Injected"); got != "" {
+			t.Errorf("GET %s: response carries injected header X-Injected=%q", path, got)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("GET %s (invalid id): expected 404, got %d", path, resp.StatusCode)
+		}
+	}
+}
+
 // TestChatRoutes_Export verifies that GET /api/chat/{id}/export returns 200,
 // Content-Type text/markdown, and a body that contains the appended message's
 // content.
