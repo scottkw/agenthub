@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   lastSessionId: '',
   lastCallbacks: null as Record<string, unknown> | null,
   mockClose: vi.fn(),
+  mockSendChat: vi.fn(),
+  mockSendSessionInject: vi.fn(),
 }))
 
 // ── Mock RelayClient ───────────────────────────────────────────────────────
@@ -49,6 +51,8 @@ vi.mock('../../lib/relayClient', async (importActual) => {
         mocks.lastCallbacks = cbs as Record<string, unknown>
       }
       close() { mocks.mockClose() }
+      sendChat(content: string) { mocks.mockSendChat(content) }
+      sendSessionInject(text: string) { mocks.mockSendSessionInject(text) }
     } as unknown as (typeof actual)['RelayClient'],
   }
 })
@@ -119,6 +123,8 @@ beforeEach(() => {
   mocks.lastSessionId = ''
   mocks.lastCallbacks = null
   mocks.mockClose.mockClear()
+  mocks.mockSendChat.mockClear()
+  mocks.mockSendSessionInject.mockClear()
   mockFetch.mockReset()
   // Default: history endpoint returns empty list
   mockFetch.mockResolvedValue({
@@ -464,5 +470,207 @@ describe('unread accrual — clear on open+focused (D-09, component level)', () 
 
     act(() => { root.unmount() })
     container.remove()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TASK 1 (154-06) — inject gesture, composer keyboard, sec-03 integration
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Helper: set the value of a textarea via the native setter (React picks it up)
+function setTextareaValue(el: HTMLTextAreaElement | null, value: string) {
+  if (!el) return
+  const nativeSetter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    'value',
+  )?.set
+  if (nativeSetter) {
+    nativeSetter.call(el, value)
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(el as any).value = value
+  }
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+// ── inject button — press-and-hold gesture (D-08, Pitfall 7) ──────────────
+
+describe('inject button — press-and-hold gesture (D-08, Pitfall 7)', () => {
+  it('-t inject: tap < 600ms fires nothing (pointerup before threshold)', () => {
+    vi.useFakeTimers()
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@session hello') })
+
+    const injectBtn = container.querySelector('.chat-composer__inject-btn')
+    act(() => {
+      injectBtn?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }))
+    })
+    // Release before 600ms
+    act(() => { vi.advanceTimersByTime(400) })
+    act(() => {
+      injectBtn?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1 }))
+    })
+
+    expect(mocks.mockSendSessionInject).not.toHaveBeenCalled()
+
+    vi.useRealTimers()
+    unmount()
+  })
+
+  it('-t inject: hold >= 600ms fires exactly one inject frame', () => {
+    vi.useFakeTimers()
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@session hello') })
+
+    const injectBtn = container.querySelector('.chat-composer__inject-btn')
+    act(() => {
+      injectBtn?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }))
+    })
+    // Advance to threshold
+    act(() => { vi.advanceTimersByTime(600) })
+
+    expect(mocks.mockSendSessionInject).toHaveBeenCalledOnce()
+    expect(mocks.mockSendChat).not.toHaveBeenCalled()
+
+    vi.useRealTimers()
+    unmount()
+  })
+
+  it('-t inject: Enter with @session fires chat-send, NOT inject (Pitfall 7)', () => {
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@session hello') })
+
+    // Press Enter — must always route to chat-send, never inject
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      )
+    })
+
+    expect(mocks.mockSendChat).toHaveBeenCalledOnce()
+    expect(mocks.mockSendSessionInject).not.toHaveBeenCalled()
+
+    unmount()
+  })
+})
+
+// ── composer — Enter send, Shift+Enter newline, @ mention popover ──────────
+
+describe('composer — Enter send, Shift+Enter newline, @-mention popover', () => {
+  it('-t composer: Enter sends via sendChat and clears the textarea', () => {
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, 'Hello world') })
+
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      )
+    })
+
+    expect(mocks.mockSendChat).toHaveBeenCalledOnce()
+    expect(mocks.mockSendChat).toHaveBeenCalledWith('Hello world')
+    // Textarea should be cleared after send
+    expect(container.querySelector('textarea')?.value ?? '').toBe('')
+
+    unmount()
+  })
+
+  it('-t composer: Shift+Enter inserts newline and does NOT send', () => {
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, 'Line one') })
+
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true, cancelable: true }),
+      )
+    })
+
+    // Chat send must NOT have fired
+    expect(mocks.mockSendChat).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('-t composer: typing @ opens MentionPopover', () => {
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@ali') })
+
+    // MentionPopover should be visible
+    const popover = container.querySelector('.mention-popover')
+    expect(popover).not.toBeNull()
+
+    unmount()
+  })
+
+  it('-t composer: Enter in popover selects @session (index 0) and closes popover', () => {
+    const { container, unmount } = mountPanel()
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@') })
+
+    // Popover should be open with @session as first item
+    expect(container.querySelector('.mention-popover')).not.toBeNull()
+
+    // Press Enter to select active item (index 0 = @session)
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      )
+    })
+
+    // Popover should be closed after selection
+    expect(container.querySelector('.mention-popover')).toBeNull()
+    // Draft should contain @session
+    expect(container.querySelector('textarea')?.value ?? '').toContain('@session')
+
+    unmount()
+  })
+})
+
+// ── sec-03 integration — echoed script payload renders inert ───────────────
+
+describe('sec-03 integration — echoed script payload renders inert', () => {
+  it('-t sec-03: onChat message with <script> payload — no <script> element in DOM', async () => {
+    const { container, unmount } = mountPanel({ open: true })
+
+    // Open WS and empty history
+    await act(async () => {
+      ;(mocks.lastCallbacks?.onOpen as (() => void) | undefined)?.()
+    })
+
+    // Deliver message with script content via onChat callback (simulates server echo)
+    act(() => {
+      const onChat = mocks.lastCallbacks?.onChat as ((m: ChatMessage) => void) | undefined
+      onChat?.({
+        v: 1,
+        id: 'xss-1',
+        sessionID: 'sess-001',
+        authorID: 'attacker',
+        alias: 'attacker',
+        content: '<script>alert("xss")</script>',
+        ts: Date.now(),
+      })
+    })
+
+    // Message was received — empty state should be gone
+    expect(container.querySelector('.chat-panel__empty')).toBeNull()
+    // No <script> element should appear anywhere in the DOM
+    expect(container.querySelector('script')).toBeNull()
+    // No onerror attributes
+    expect(container.innerHTML).not.toContain('onerror')
+
+    unmount()
   })
 })
