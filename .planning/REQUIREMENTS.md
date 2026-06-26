@@ -13,9 +13,9 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### CHAT — Messaging core
 
 - [x] **CHAT-01**: A user can send and receive messages in a per-session chat thread; Enter sends, Shift+Enter inserts a newline.
-- [ ] **CHAT-02**: The message stream shows each message's author (alias + tailnet ID), a timestamp (HH:MM, full ISO-8601 on hover), and day separators between calendar days.
+- [x] **CHAT-02**: The message stream shows each message's author (alias + tailnet ID), a timestamp (HH:MM, full ISO-8601 on hover), and day separators between calendar days.
 - [ ] **CHAT-03**: The composer auto-grows with input (capped), and message bodies render Markdown safely (`remark-gfm` only, sanitized — no raw HTML).
-- [ ] **CHAT-04**: Day separators stick to the top of the stream while scrolling.
+- [x] **CHAT-04**: Day separators stick to the top of the stream while scrolling.
 
 ### IDENT — Identity
 
@@ -46,7 +46,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### NOTIF — In-app notifications
 
 - [ ] **NOTIF-01**: An in-app unread badge appears on the chat toggle and the Hub session card when there are unread messages; an `@mention` of the current user is visually distinct.
-- [ ] **NOTIF-02**: Messages that mention the current user's alias are highlighted in the stream.
+- [x] **NOTIF-02**: Messages that mention the current user's alias are highlighted in the stream.
 
 ### PARITY — Cross-surface
 
@@ -56,7 +56,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 - [x] **SEC-01**: Read-only capability holders cannot post chat messages or trigger `@session` injection (enforced server-side, not by UI suppression).
 - [x] **SEC-02**: Text injected via `@session` into the PTY is sanitized — C0 control characters and terminal escape sequences stripped, newlines collapsed, exactly one trailing newline appended.
-- [ ] **SEC-03**: Markdown message rendering cannot execute injected scripts/HTML (no `rehype-raw`; XSS payloads render inert) on either surface.
+- [x] **SEC-03**: Markdown message rendering cannot execute injected scripts/HTML (no `rehype-raw`; XSS payloads render inert) on either surface.
 
 ### INSTALL — Install links & distribution (orthogonal; `docs/install-links-fix.md`)
 
@@ -108,9 +108,9 @@ Which phase covers each requirement. Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CHAT-01 | Phase 154 | Complete |
-| CHAT-02 | Phase 154 | Pending |
+| CHAT-02 | Phase 154 | Complete |
 | CHAT-03 | Phase 154 | Pending |
-| CHAT-04 | Phase 154 | Pending |
+| CHAT-04 | Phase 154 | Complete |
 | IDENT-01 | Phase 152 | Complete |
 | IDENT-02 | Phase 152 | Complete |
 | MENTION-01 | Phase 154 | Pending |
@@ -123,11 +123,11 @@ Which phase covers each requirement. Populated during roadmap creation.
 | PERSIST-03 | Phase 151 | Complete |
 | EXPORT-01 | Phase 155 | Pending |
 | NOTIF-01 | Phase 154 | Pending |
-| NOTIF-02 | Phase 154 | Pending |
+| NOTIF-02 | Phase 154 | Complete |
 | PARITY-01 | Phase 155 | Pending |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
-| SEC-03 | Phase 154 | Pending |
+| SEC-03 | Phase 154 | Complete |
 | INSTALL-01 | Phase 156 | Pending |
 | INSTALL-02 | Phase 156 | Pending |
 | INSTALL-03 | Phase 156 | Pending |
