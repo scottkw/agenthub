@@ -2,6 +2,7 @@ package relay
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -10,6 +11,14 @@ import (
 // ErrReadOnly is returned by HandleInject when the subscriber has the read-only
 // cap and is therefore not permitted to write to PTY stdin (SEC-01, D-04).
 var ErrReadOnly = errors.New("relay: inject rejected: read-only capability")
+
+// ErrInjectNotRecorded is returned by HandleInject when the PTY write succeeded
+// but persisting/broadcasting the chat record failed (e.g. the chat cap was
+// reached or the line was too large). It signals a deliberate divergence: the
+// inject reached the live terminal but no chat record exists. The read pump
+// turns this into a NAK so the originating client is informed rather than the
+// failure being silently swallowed (WR-02 — "let it crash", not silent fallback).
+var ErrInjectNotRecorded = errors.New("relay: inject delivered to terminal but not recorded in chat")
 
 // Subscriber represents a single WebSocket connection subscribed to a session's output.
 type Subscriber struct {
@@ -495,10 +504,18 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 			Content:       SanitizeChatContent(text), // display-safe, not raw keystrokes
 			SessionInject: true,
 		})
-		if err == nil {
-			// BroadcastChat acquires its own lock — must not hold hub.mu here.
-			h.BroadcastChat(MakeChatFrame(msg))
+		if err != nil {
+			// WR-02: the PTY write above ALREADY succeeded, but the chat record
+			// failed (ErrChatCapReached / ErrChatMessageTooLarge under normal
+			// operation). Do NOT swallow it — surface a NAK so the originating
+			// client learns the terminal and chat thread diverged. The PTY write
+			// is deliberately NOT rolled back: the inject's primary job (reach the
+			// terminal) succeeded; only the chat mirror failed. Returning the
+			// error lets the read pump emit MakeInjectErrorFrame to the sender.
+			return fmt.Errorf("%w: %v", ErrInjectNotRecorded, err)
 		}
+		// BroadcastChat acquires its own lock — must not hold hub.mu here.
+		h.BroadcastChat(MakeChatFrame(msg))
 	}
 
 	return nil
