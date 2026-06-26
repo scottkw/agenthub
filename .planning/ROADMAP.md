@@ -376,7 +376,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
-| 154. Desktop Chat UI | 4/6 | In Progress|  |
+| 154. Desktop Chat UI | 5/6 | In Progress|  |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
@@ -500,7 +500,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. Pasting `<script>alert(1)</script>` or `<img src=x onerror=alert(1)>` into a message renders completely inert — no script executes and no `onerror` attribute is present in the DOM on either surface.
   5. Day separators appear between messages from different calendar days and remain anchored to the top of the visible viewport as the user scrolls through history.
 
-**Plans**: 4/6 plans executed
+**Plans**: 5/6 plans executed
 
 **Wave 1** *(parallel — disjoint subsystems)*
 
@@ -517,7 +517,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 4** *(blocked on 154-03/154-04)*
 
-- [ ] 154-05-PLAN.md — ChatPanel.tsx drawer: own RelayClient subscription, virtualizer + sticky day separators (CHAT-04), late-join scrollback, empty/loading states, unread accrual (D-09)
+- [x] 154-05-PLAN.md — ChatPanel.tsx drawer: own RelayClient subscription, virtualizer + sticky day separators (CHAT-04), late-join scrollback, empty/loading states, unread accrual (D-09)
 
 **Wave 5** *(blocked on 154-05)*
 
