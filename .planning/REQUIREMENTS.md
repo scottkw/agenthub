@@ -30,8 +30,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### PRESENCE — Liveness
 
-- [ ] **PRESENCE-01**: Each participant's presence (connected / disconnected) is shown to all participants.
-- [ ] **PRESENCE-02**: Typing indicators show when another participant is composing (debounced, volatile, never stored, with a server-side TTL so they clear on abrupt disconnect).
+- [x] **PRESENCE-01**: Each participant's presence (connected / disconnected) is shown to all participants.
+- [x] **PRESENCE-02**: Typing indicators show when another participant is composing (debounced, volatile, never stored, with a server-side TTL so they clear on abrupt disconnect).
 
 ### PERSIST — Durability
 
@@ -108,8 +108,8 @@ Which phase covers each requirement. Populated during roadmap creation.
 | MENTION-01 | Phase 154 | Pending |
 | MENTION-02 | Phase 153 | Pending |
 | MENTION-03 | Phase 153 | Pending |
-| PRESENCE-01 | Phase 152 | Pending |
-| PRESENCE-02 | Phase 152 | Pending |
+| PRESENCE-01 | Phase 152 | Complete |
+| PRESENCE-02 | Phase 152 | Complete |
 | PERSIST-01 | Phase 151 | Complete |
 | PERSIST-02 | Phase 151 | Complete |
 | PERSIST-03 | Phase 151 | Complete |
