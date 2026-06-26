@@ -744,22 +744,22 @@ defer func() {
 | A2 | `Node.ComputedName` is the MagicDNS base name (e.g., "ken-macbook") and is always populated for same-tailnet nodes | Code Examples | If ComputedName is empty for connected nodes, the LoginName fallback fires; alias quality degrades but correctness is preserved |
 | A3 | `time.AfterFunc` timers are safely stopped by `Timer.Stop()` without the callback having already started, when Stop() is called concurrently | Pitfall 2 | If Stop() loses the race (callback already started), the typing=false broadcast fires twice — idempotent for the client, just redundant |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **AliasStore import cycle scope**
    - What we know: relay.Hub must not import daemon (existing invariant preserved across all prior phases)
    - What's unclear: whether to put AliasStore in relay (breaking if relay needs daemon types) or pass it as callbacks on Subscriber
-   - Recommendation: Pass alias operations as callbacks on Subscriber (same pattern as resizeFn on Hub, chatHandler in Phase 151 ARCHITECTURE.md). AliasStore lives in daemon.
+   - RESOLVED: Pass alias operations as callbacks on Subscriber (same pattern as resizeFn on Hub, chatHandler in Phase 151 ARCHITECTURE.md). AliasStore lives in daemon. Implemented in Plans 02/05.
 
 2. **Unsubscribe return value API change**
    - What we know: `hub.Unsubscribe(sub)` currently returns nothing; changing it to `(bool)` breaks all callers
    - What's unclear: whether to change the signature or add a new `UnsubscribeWithIdentity` method
-   - Recommendation: Change the existing signature — there are exactly two callers (`relay/server.go` and `webserver/server.go`), both updated in this phase. Simpler than a parallel method.
+   - RESOLVED: Change the existing signature — there are exactly two callers (`relay/server.go` and `webserver/server.go`), both updated in this phase. Simpler than a parallel method. Implemented in Plan 03, callers updated in Plans 05/06.
 
 3. **BroadcastExcept for MsgTyping**
    - What we know: typing broadcasts should skip the sender (avoid self-echoing)
    - What's unclear: whether to add a general `BroadcastExcept` or a specific `BroadcastTyping(frame, sender)` method
-   - Recommendation: Add `BroadcastExcept(frame, *Subscriber)` — it's general enough to reuse and tests can verify the exclusion.
+   - RESOLVED: Add `BroadcastExcept(frame, *Subscriber)` — it's general enough to reuse and tests can verify the exclusion. Implemented in Plan 03.
 
 ## Environment Availability
 
