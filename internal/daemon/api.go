@@ -264,6 +264,19 @@ func (a *API) RelayHandler() http.Handler {
 	// where /api/files/* is also registered. Both surfaces share the same
 	// *files.Handler instance, so sandbox + 5 MiB cap behaviour is identical.
 	server := relay.NewServer(a.engine.Manager(), a.engine.Backend(), a.filesHandler)
+	// Phase 152 / IDENT-01: wire identity providers so handleSession stamps the
+	// owner's alias from the global AliasStore. Callback pattern breaks the
+	// relay→daemon import cycle (mirrors setChatProviders). Guard on nil so a
+	// failed AliasStore construction at startup doesn't prevent relay operation.
+	if aliases := a.engine.Aliases(); aliases != nil {
+		server.SetIdentityProviders(
+			a.engine.hostname,
+			aliases.GetOrDefault,
+			func(key, alias string) { _ = aliases.Set(key, alias) },
+		)
+	} else {
+		server.SetIdentityProviders(a.engine.hostname, nil, nil)
+	}
 	withFiles := a.wrapRelayWithRemoteFiles(server)
 	// Phase 151-03 / PERSIST-01..02: chat history + export routes mounted
 	// in the outer wrap layer (most-specific wins in Go 1.22+ mux). Like the
