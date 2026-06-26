@@ -42,6 +42,7 @@ type SessionEngine struct {
 	cliPaths        map[string]string     // cli name -> custom path override
 	chatStores      map[string]*ChatStore // Phase 151 / PERSIST-01,PERSIST-03: per-session chat store (guarded by e.mu)
 	chatsBaseDir    string                // Phase 151: base directory for chat JSONL files; init from chatsDir() in NewSessionEngine, overrideable via ChatsBaseDirForTest
+	aliasStore      *AliasStore           // Phase 152 / IDENT-01,IDENT-02: global alias store (per-person, not per-session); constructed over daemonConfigDir in NewSessionEngine
 
 	startMinimized              bool            // persisted start-minimized preference
 	shellWebShareWarned         bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
@@ -264,8 +265,17 @@ func (e *SessionEngine) saveSettingsToDisk() {
 // packages (e.g. the Phase 122-05 parity test in package daemon_test) need
 // a public setter. Production code must never call this; configDir is
 // derived from daemonConfigDir() during NewSessionEngine.
+//
+// Phase 152: also reconstructs aliasStore over the new dir so tests that
+// call ConfigDirForTest get isolated alias persistence (analogous to how
+// ChatsBaseDirForTest isolates chat JSONL storage). A failed NewAliasStore
+// in the test dir leaves aliasStore nil — test isolation takes precedence
+// over the alias feature.
 func (e *SessionEngine) ConfigDirForTest(dir string) {
 	e.configDir = dir
+	if store, err := NewAliasStore(dir); err == nil {
+		e.aliasStore = store
+	}
 }
 
 // ChatsBaseDirForTest overrides the engine's chatsBaseDir so that chat JSONL
@@ -296,6 +306,12 @@ func NewSessionEngine() *SessionEngine {
 	hostname, _ := os.Hostname()
 	cfgDir := daemonConfigDir()
 	tuiConfig := ensureOpenCodeTUIConfig(cfgDir)
+	// Phase 152 / IDENT-01: construct the global AliasStore. A failed load
+	// (e.g. corrupt aliases.json) must not crash daemon startup — tolerate
+	// the error here and leave aliasStore nil; identity stamping falls back
+	// to the engine hostname as the default alias. Mirror loadSettingsFromDisk:
+	// OS failures are non-fatal (first-run scenario).
+	aliasStore, _ := NewAliasStore(cfgDir)
 	e := &SessionEngine{
 		hostname:          hostname,
 		configDir:         cfgDir,
@@ -311,9 +327,17 @@ func NewSessionEngine() *SessionEngine {
 		sessionStatuses:   make(map[string]status.SessionStatus),
 		chatStores:        make(map[string]*ChatStore), // Phase 151 / PERSIST-01
 		chatsBaseDir:      chatsDir(),                  // Phase 151: production path = daemonConfigDir()/chats
+		aliasStore:        aliasStore,                  // Phase 152 / IDENT-01: global per-person alias persistence
 	}
 	e.loadSettingsFromDisk(cfgDir)
 	return e
+}
+
+// Aliases returns the engine's global AliasStore. May be nil if AliasStore
+// construction failed at startup (disk error). Callers must nil-guard.
+// Phase 152 / IDENT-01.
+func (e *SessionEngine) Aliases() *AliasStore {
+	return e.aliasStore
 }
 
 // CreateSession spawns a new CLI session and returns its ID.
