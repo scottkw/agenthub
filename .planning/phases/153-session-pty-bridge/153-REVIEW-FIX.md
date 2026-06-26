@@ -3,8 +3,8 @@ phase: 153-session-pty-bridge
 fixed_at: 2026-06-26T00:00:00Z
 review_path: .planning/phases/153-session-pty-bridge/153-REVIEW.md
 iteration: 1
-findings_in_scope: 2
-fixed: 2
+findings_in_scope: 4
+fixed: 4
 skipped: 0
 status: all_fixed
 ---
@@ -16,61 +16,92 @@ status: all_fixed
 **Iteration:** 1
 
 **Summary:**
-- Findings in scope: 2 (WR-01, WR-02)
-- Fixed: 2
+- Findings in scope (this run): 4 (IN-01, IN-02, IN-03, IN-04)
+- Fixed: 4
 - Skipped: 0
 
-> CR-01 and WR-03 were already resolved in commit `fcdfd03a` (per REVIEW.md
-> frontmatter `resolution` block) and were intentionally not re-touched. The four
-> Info findings (IN-01..IN-04) are out of scope for this run (no `--all` flag).
+The four Info findings were the only OPEN items remaining for this `--fix` run.
+The Critical (CR-01) and all three Warnings (WR-01, WR-02, WR-03) were already
+resolved in prior commits before this run started; they are recorded under
+"Out-of-this-run context" below for traceability and were intentionally NOT
+touched.
 
 ## Fixed Issues
 
-### WR-01: Raw, un-sanitized inject text is persisted and broadcast to all chat clients
+### IN-01: Inject NAK leaks raw internal error strings to the remote client
 
-**Files modified:** `internal/relay/sanitize.go`, `internal/relay/hub.go`
-**Commit:** 0efcb772
-**Applied fix:** Added a `SanitizeChatContent` helper (the content-surface
-analogue of `SanitizePTYText`) that strips bidi-override characters
-(CVE-2021-42574), C0 controls (including ESC, so CSI/OSC introducers cannot be
-reconstructed by a renderer), DEL, and C1 controls — while otherwise preserving
-the text the user typed (no newline collapse, no appended terminator).
-`HandleInject` now stores `SanitizeChatContent(text)` in `ChatMessage.Content`
-instead of the raw pre-sanitize string, so the dangerous bytes never reach
-`chat.jsonl`, `BroadcastChat`, or `Export()`. Updated the `HandleInject` doc
-comment to explicitly document that stored content is now "display-safe text",
-not "raw keystrokes" (reversing the prior A1/A3 raw-store note, as the review
-required). PTY fidelity is unchanged — the PTY still receives the full
-`SanitizePTYText` output.
+**Files modified:** `internal/relay/hub.go`, `internal/relay/server.go`, `internal/webserver/server.go`
+**Commit:** 2a64d943
+**Applied fix:** Added the exported `InjectErrorReason(err error) string` helper
+in `internal/relay/hub.go` that maps each `HandleInject` error to a stable,
+client-safe reason: `ErrReadOnly` → "inject rejected: read-only access",
+`ErrInjectTooLarge` → "inject rejected: text too large", `ErrInjectNotRecorded`
+→ "inject delivered to terminal but not recorded in chat", and any other
+(write) error → generic "inject failed". Both read pumps now NAK with
+`MakeInjectErrorFrame(InjectErrorReason(err))` instead of `err.Error()`, and log
+the detailed error server-side (`log.Printf` on the relay path, `slog.Warn` on
+the web path). Internal plumbing detail such as `io: read/write on closed pipe`
+can no longer reach a remote viewer.
 
-### WR-02: Persist/broadcast failure is silently swallowed after the PTY write already happened
+### IN-02: Control-only inject text reduces to a bare newline and still presses Enter at the PTY
 
 **Files modified:** `internal/relay/hub.go`
-**Commit:** 41005dfd
-**Applied fix:** Added an exported `ErrInjectNotRecorded` sentinel and changed
-`HandleInject` to return `fmt.Errorf("%w: %v", ErrInjectNotRecorded, err)` when
-the chat append fails, instead of discarding the error. Both read pumps
-(`relay/server.go:373`, `webserver/server.go:1176`) already convert a non-nil
-`HandleInject` return into a `MakeInjectErrorFrame` NAK to the originating
-subscriber, so the failure is now surfaced rather than silently swallowed.
-Deliberate design choice (documented inline): the PTY write is NOT rolled back —
-the inject's primary job (reach the live terminal) succeeded; only the chat
-mirror failed, and the client is informed of the divergence via the NAK. This
-follows the CLAUDE.md "let it crash / no silent fallback" principle.
+**Commit:** 978de6b6
+**Applied fix:** In `HandleInject`, after `SanitizePTYText`, added a
+`strings.TrimSpace(sanitized) == ""` guard that returns `nil` (no-op, no NAK)
+before the PTY write. Control-only input (e.g. `"\x1b[2J"`, `"\x00"`) passes the
+read-pump `ip.Text != ""` guard but collapses to a bare `"\n"`; this is now
+treated as empty, skipping both the spurious Enter keystroke at the PTY and the
+chat persist/broadcast. Applied in the shared `HandleInject` so both relay and
+web read pumps are covered. Added the `strings` import.
 
-**Note — requires human verification:** WR-02 encodes a deliberate semantic
-decision (NAK-after-successful-PTY-write rather than write-after-persist
-gating). Syntax checks and the existing relay test suite pass, but a developer
-should confirm this divergence-signalling behavior is the intended contract
-before the phase proceeds to verification — particularly whether a client
-should treat an inject NAK as "rejected" vs "delivered-but-not-recorded".
+### IN-03: No explicit size cap on inject text before the PTY write
+
+**Files modified:** `internal/relay/hub.go`
+**Commit:** dbb84afd
+**Applied fix:** Added the `MaxInjectTextBytes = 64 * 1024` constant and the
+`ErrInjectTooLarge` sentinel. `HandleInject` now rejects raw inject text larger
+than the cap (`len(text) > MaxInjectTextBytes`) before any PTY write, returning
+`ErrInjectTooLarge` which the read pump turns into a NAK (and which IN-01's
+`InjectErrorReason` maps to "inject rejected: text too large"). The bound is now
+intentional and independent of the `coder/websocket` default read limit. 64 KiB
+is generous for a pasted command line yet well under the chat-layer
+`maxChatLineBytes` (1 MiB).
+
+### IN-04: Sanitizer doc overstates coverage; DCS/APC/PM/SOS string payloads pass through as plaintext
+
+**Files modified:** `internal/relay/sanitize.go`
+**Commit:** 981c0e1f
+**Applied fix:** Chose the "fix code" option (not just the comment). Extended the
+`SanitizePTYText` state machine with `stateString` and `stateStringEsc` states
+and added `'P'` (DCS), `'_'` (APC), `'^'` (PM), `'X'` (SOS) cases to the escape
+state. These string-introducer bodies are now consumed up to the ST terminator
+(`ESC \`) — terminated only by ST, not BEL — so the body never leaks as
+plaintext. Updated the doc comment to accurately describe the new coverage.
+
+## Out-of-this-run context (already resolved before this run)
+
+These findings were resolved in prior commits and were not modified by this run:
+
+- **CR-01** (SEC-01 bypass: read-only web viewer inject when browse enabled) —
+  RESOLVED in commit `fcdfd03a`. The web-share inject gate now uses
+  `!capability.HasPerm(claims.Perms, "write")`.
+- **WR-01** (raw un-sanitized inject text persisted/broadcast) — RESOLVED in
+  commit `0efcb772`. `SanitizeChatContent` added in
+  `internal/relay/sanitize.go`; `HandleInject` persists the sanitized content.
+- **WR-02** (persist/broadcast failure silently swallowed after PTY write) —
+  RESOLVED in commit `41005dfd`. `ErrInjectNotRecorded` added; `HandleInject`
+  returns the wrapped append error so the read pump emits a NAK.
+- **WR-03** (SEC-01 web-path test never exercised the broken gate) — RESOLVED in
+  commit `fcdfd03a`. `TestInjectRO_WebPath` is now table-driven over `"read"`
+  and `"read,files.read"`.
 
 ## Verification
 
-- `gofmt -l` clean on all modified files.
-- `go build ./internal/relay/` succeeds.
-- `go test ./internal/relay/` passes (includes `sanitize_test.go` and
-  `server_inject_test.go`).
+Each fix was verified before commit:
+- `go build ./internal/relay/ ./internal/webserver/` — passed after every fix
+- `gofmt -l` on every modified file — clean (no formatting drift)
+- `go test ./internal/relay/ ./internal/webserver/` — passed after every fix
 
 ---
 
