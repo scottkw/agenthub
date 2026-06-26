@@ -1,10 +1,15 @@
 package relay
 
 import (
+	"errors"
 	"io"
 	"sync"
 	"time"
 )
+
+// ErrReadOnly is returned by HandleInject when the subscriber has the read-only
+// cap and is therefore not permitted to write to PTY stdin (SEC-01, D-04).
+var ErrReadOnly = errors.New("relay: inject rejected: read-only capability")
 
 // Subscriber represents a single WebSocket connection subscribed to a session's output.
 type Subscriber struct {
@@ -66,6 +71,11 @@ type Hub struct {
 	typingRoster   map[string]*time.Timer    // personKey → 5s TTL timer
 	lastTypingBcast map[string]time.Time     // personKey → last typing-start broadcast time (rate limit)
 	typingTTL      time.Duration             // injectable for tests; default 5s
+
+	// Phase 153: persist+broadcast callback. Wired by engine.go after Hub+ChatStore
+	// are both constructed. Nil-safe: HandleInject skips persist+broadcast when nil.
+	// Guarded by mu.
+	chatAppendFn func(ChatMessage) (ChatMessage, error)
 }
 
 // NewHub constructs a Hub for the given session.
@@ -410,6 +420,80 @@ func NotifyTyping(hub *Hub, personKey, alias string, typing bool) {
 func (h *Hub) WriteInput(data []byte) error {
 	_, err := h.writer.Write(data)
 	return err
+}
+
+// ---------------------------------------------------------------------------
+// Phase 153: inject machinery
+// ---------------------------------------------------------------------------
+
+// SetChatAppendFn wires the persist+broadcast callback for SessionInject messages.
+// Must be called before the first WebSocket connection is accepted for this session
+// (i.e. from engine.go CreateSession). Safe to call concurrently with hub.mu.
+// Mirrors the Subscriber.AliasSetFn assignment pattern.
+func (h *Hub) SetChatAppendFn(fn func(ChatMessage) (ChatMessage, error)) {
+	h.mu.Lock()
+	h.chatAppendFn = fn
+	h.mu.Unlock()
+}
+
+// BroadcastChat sends a MsgChat frame to all subscribers using a non-blocking
+// send. Slow subscribers have CloseSlow called. Identical fan-out to BroadcastMeta
+// — separated for clarity (MsgChat is a different frame type than MsgMeta).
+func (h *Hub) BroadcastChat(frame []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for sub := range h.subscribers {
+		select {
+		case sub.Msgs <- frame:
+		default:
+			go sub.CloseSlow()
+		}
+	}
+}
+
+// HandleInject is called by the read pump when a MsgSessionInject frame arrives.
+// It: (1) gates on !sub.ReadOnly (SEC-01, D-04), returning ErrReadOnly for RO clients;
+// (2) sanitizes the text via SanitizePTYText (SEC-02, D-03); (3) writes the sanitized
+// bytes to PTY stdin via WriteInput; (4) if chatAppendFn is non-nil, persists the
+// ORIGINAL (pre-sanitize) text as a ChatMessage{SessionInject:true} (A1/A3 — store
+// what the user typed, not the wire form) and broadcasts a MsgChat frame to all subs.
+//
+// CRITICAL: HandleInject does NOT hold hub.mu during WriteInput, chatAppendFn, or
+// BroadcastChat — follows the ResizeClient unlock-before-IO discipline (Pitfall 4).
+// sub.ReadOnly is read without a lock: it is set once at subscribe time and never mutated.
+func (h *Hub) HandleInject(sub *Subscriber, text string) error {
+	// Gate: RO clients may never write to PTY stdin (SEC-01).
+	// sub.ReadOnly is set once at subscribe time; no lock required.
+	if sub.ReadOnly {
+		return ErrReadOnly
+	}
+
+	sanitized := SanitizePTYText(text)
+	if err := h.WriteInput([]byte(sanitized)); err != nil {
+		return err
+	}
+
+	// Persist and broadcast — read chatAppendFn under mu, then release before calling.
+	h.mu.Lock()
+	fn := h.chatAppendFn
+	h.mu.Unlock()
+
+	if fn != nil {
+		// Persist the ORIGINAL text, not the sanitized form (Pitfall 6 / A1/A3).
+		msg, err := fn(ChatMessage{
+			AuthorID:      sub.TailnetID,
+			AuthorAlias:   sub.Alias,
+			Content:       text, // original pre-sanitize text
+			SessionInject: true,
+		})
+		if err == nil {
+			// BroadcastChat acquires its own lock — must not hold hub.mu here.
+			h.BroadcastChat(MakeChatFrame(msg))
+		}
+	}
+
+	return nil
 }
 
 // ScrollbackSnapshot returns a copy of the current scrollback buffer contents.
