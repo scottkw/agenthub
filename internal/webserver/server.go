@@ -1153,6 +1153,25 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 						relay.NotifyPresence(hub)
 					}
 				}
+			case relay.MsgSessionInject:
+				// Phase 153 / SEC-01: RW cap required to inject text into PTY stdin.
+				// The gate is server-side in hub.HandleInject — must hold against a
+				// hand-crafted WS frame regardless of any client-side suppression (D-04).
+				// sub.ReadOnly here is derived from the signed JWT (claims.Perms == "read",
+				// set at line ~1008) and cannot be bypassed by URL params (D-24/SEC-04).
+				// NOTE: MsgChatSend (0x31) is chat-only and NEVER writes to PTY (D-02).
+				var ip relay.InjectPayload
+				if json.Unmarshal(payload, &ip) != nil || ip.Text == "" {
+					continue // malformed or empty frame: ignore silently (same as MsgTyping/MsgAliasSet)
+				}
+				if err := hub.HandleInject(sub, ip.Text); err != nil {
+					// Send NAK frame to originating subscriber only (ErrReadOnly or write error).
+					select {
+					case sub.Msgs <- relay.MakeInjectErrorFrame(err.Error()):
+					default:
+						go sub.CloseSlow()
+					}
+				}
 			}
 		}
 	}()
