@@ -1,10 +1,11 @@
 ---
 phase: 154
 slug: desktop-chat-ui
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-26
+note: Plans implement all tests inline via TDD tasks (each task creates its own test file); there is no separate Wave-0 test-stub plan. Plan-checker verified Dimension 8 compliance 2026-06-26. wave_0_complete stays false until execution installs the two npm packages (154-02).
 ---
 
 # Phase 154 — Validation Strategy
@@ -38,16 +39,16 @@ created: 2026-06-26
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists |
 |--------|----------|-----------|-------------------|-------------|
-| CHAT-01 | Enter sends MsgChatSend frame; Shift+Enter inserts newline | unit | `pnpm --filter frontend test run src/lib/relayClient.test.ts` | ❌ W0 |
-| CHAT-02 | ChatMessage fields displayed (alias, tailnetID, HH:MM timestamp; ISO-8601 on hover) | unit | `pnpm --filter frontend test run src/components/Hub/ChatMessage.test.tsx` | ❌ W0 |
-| CHAT-03 | Composer auto-grows to maxRows=6; Markdown renders | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx` | ❌ W0 |
-| CHAT-04 | Day separator sticky: correct CSS applied to active separator | unit | `pnpm --filter frontend test run src/components/Hub/ChatDaySeparator.test.tsx` | ❌ W0 |
-| MENTION-01 | @-mention popover opens on `@`, @session pinned first, keyboard nav works | unit | `pnpm --filter frontend test run src/components/Hub/MentionPopover.test.tsx` | ❌ W0 |
-| NOTIF-01 | Unread badge shows count; @mention badge shows `@` glyph | unit | `pnpm --filter frontend test run src/components/Hub/ChatBadge.test.tsx` | ❌ W0 |
-| NOTIF-02 | @mention row has accent bar + tint + @you chip | unit | `pnpm --filter frontend test run src/components/Hub/ChatMessage.test.tsx` | ❌ W0 |
-| SEC-03 | `<script>alert(1)</script>` renders as text; `<img onerror=...>` strips onerror | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx -t "sec-03"` | ❌ W0 |
-| D-08 | Press-and-hold < 600ms fires nothing; ≥ 600ms fires inject; Enter never injects | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx -t "inject"` | ❌ W0 |
-| CHAT-01 (server) | `MsgChatSend` dispatch case wired in relay + webserver read pumps | unit | `go test ./internal/relay/... ./internal/webserver/...` | ❌ W0 |
+| CHAT-01 | Enter sends MsgChatSend frame; Shift+Enter inserts newline | unit | `pnpm --filter frontend test run src/lib/relayClient.test.ts` | ⬜ in-task |
+| CHAT-02 | ChatMessage fields displayed (alias, tailnetID, HH:MM timestamp; ISO-8601 on hover) | unit | `pnpm --filter frontend test run src/components/Hub/ChatMessage.test.tsx` | ⬜ in-task |
+| CHAT-03 | Composer auto-grows to maxRows=6; Markdown renders | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx` | ⬜ in-task |
+| CHAT-04 | Day separator sticky: correct CSS applied to active separator | unit | `pnpm --filter frontend test run src/components/Hub/ChatDaySeparator.test.tsx` | ⬜ in-task |
+| MENTION-01 | @-mention popover opens on `@`, @session pinned first, keyboard nav works | unit | `pnpm --filter frontend test run src/components/Hub/MentionPopover.test.tsx` | ⬜ in-task |
+| NOTIF-01 | Unread badge shows count; @mention badge shows `@` glyph | unit | `pnpm --filter frontend test run src/components/Hub/ChatBadge.test.tsx` | ⬜ in-task |
+| NOTIF-02 | @mention row has accent bar + tint + @you chip | unit | `pnpm --filter frontend test run src/components/Hub/ChatMessage.test.tsx` | ⬜ in-task |
+| SEC-03 | `<script>alert(1)</script>` renders as text; `<img onerror=...>` strips onerror | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx -t "sec-03"` | ⬜ in-task |
+| D-08 | Press-and-hold < 600ms fires nothing; ≥ 600ms fires inject; Enter never injects | unit | `pnpm --filter frontend test run src/components/Hub/ChatPanel.test.tsx -t "inject"` | ⬜ in-task |
+| CHAT-01 (server) | `MsgChatSend` dispatch case wired in relay + webserver read pumps | unit | `go test ./internal/relay/... ./internal/webserver/...` | ⬜ in-task |
 | D-08 (UAT defer) | Inject indicator "→ injected into terminal" visible for `SessionInject:true` messages | manual | Phase 154 UAT checklist | — |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -84,6 +85,6 @@ created: 2026-06-26
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
 - [ ] Feedback latency < 45s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-26 (plan-checker, all 12 dimensions PASS)
