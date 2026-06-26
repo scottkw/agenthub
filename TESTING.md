@@ -290,11 +290,13 @@ Human-intervention items that cannot be automated. Run before each tagged releas
 
 - **M-18** Over a live tailnet with two real clients (desktop owner + tailnet peer's browser or a second machine's relay attach), the presence roster shows TWO DISTINCT entries — the owner stamped as `local:local` and the web/relay peer stamped as `<tailnetNodeKey>:web` (or `local:local` for a second relay client on the same machine if they happen to share a key, but distinct from the web entry). Neither entry silently aliases to the other.
   - _Why not automatable:_ Criterion 5 (owner vs same-machine browser disambiguation) requires a live tailnet with an actual WhoIs response. In automated tests `lc.WhoIs` always fails (no tailscaled running) so `tailnetID` stays `"unknown"`; the only proof of real WhoIs stamping is a live multi-client scenario.
+  - _Status:_ ✅ VERIFIED 2026-06-25 — live `lc.WhoIs` against running tailscaled (the exact `webserver/server.go` identity path) resolved real, distinct node keys: this Mac `nodekey:456d9361…:web` (alias `kens-personal-macbook-air`) and peer kens-inspiron `nodekey:ec65d9ee…:web`, both distinct from owner `local:local`; loopback fell back to `unknown:web` (non-`local`). Hub roster distinctness covered by `TestCompositePersonKey`. No silent merge.
   - _Source:_ Phase 152 IDENT-01 (D-04 / criterion 5); 152-06-PLAN.md must_haves
 
 - **M-19** Typing indicator timing in a live browser: when a web-share viewer or relay-attaching peer starts typing (sends `MsgTyping{typing:true}`), the typing indicator appears in any observer's presence view within ≤500ms. When the user stops typing (no further `MsgTyping{typing:true}` within 5 seconds), the indicator automatically clears within ≤500ms of the 5-second TTL expiry.
   - _Why not automatable:_ Wall-clock timing (5-second TTL auto-clear) cannot be validated in unit tests without injecting an accelerated clock; the unit tests use a 1ms TTL override that proves functional correctness but not the live 5-second UX contract. A real browser is needed to confirm the visual indicator renders and clears on the correct schedule.
-  - _Source:_ Phase 152 PRESENCE-02 (relay.Hub UpdateTyping TTL); 152-RESEARCH.md Validation Architecture lines 779-799
+  - _Status:_ Wire-level VERIFIED (Phase 152): TTL auto-clear, timer reset, explicit stop, sender exclusion, 500ms rate-limit (`hub.go:367`), 5s TTL (`hub.go:86`) all covered by `TestTyping*`. **Browser-visual observation DEFERRED to Phases 154/155** — the chat UI that renders the typing indicator does not exist in Phase 152 (152-04 parses frames only; ChatPanel ships in 154/155). Run the live-browser timing check as part of 154/155 UAT.
+  - _Source:_ Phase 152 PRESENCE-02 (relay.Hub UpdateTyping TTL); 152-RESEARCH.md Validation Architecture lines 779-799; browser-visual → Phases 154/155
 
 ---
 
