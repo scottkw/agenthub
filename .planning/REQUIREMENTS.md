@@ -12,7 +12,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### CHAT — Messaging core
 
-- [ ] **CHAT-01**: A user can send and receive messages in a per-session chat thread; Enter sends, Shift+Enter inserts a newline.
+- [x] **CHAT-01**: A user can send and receive messages in a per-session chat thread; Enter sends, Shift+Enter inserts a newline.
 - [ ] **CHAT-02**: The message stream shows each message's author (alias + tailnet ID), a timestamp (HH:MM, full ISO-8601 on hover), and day separators between calendar days.
 - [ ] **CHAT-03**: The composer auto-grows with input (capped), and message bodies render Markdown safely (`remark-gfm` only, sanitized — no raw HTML).
 - [ ] **CHAT-04**: Day separators stick to the top of the stream while scrolling.
@@ -107,7 +107,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHAT-01 | Phase 154 | Pending |
+| CHAT-01 | Phase 154 | Complete |
 | CHAT-02 | Phase 154 | Pending |
 | CHAT-03 | Phase 154 | Pending |
 | CHAT-04 | Phase 154 | Pending |
