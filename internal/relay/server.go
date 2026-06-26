@@ -2,6 +2,7 @@ package relay
 
 import (
 	"encoding/json"
+	"log"
 	"net"
 	"net/http"
 
@@ -371,9 +372,13 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 					continue // malformed or empty frame: ignore silently (same as MsgTyping/MsgAliasSet)
 				}
 				if err := hub.HandleInject(sub, ip.Text); err != nil {
-					// Send NAK frame to originating subscriber only (ErrReadOnly or write error).
+					// IN-01: never forward the raw internal error to the client —
+					// a PTY write failure would leak plumbing detail (e.g.
+					// "io: read/write on closed pipe"). Log the detail server-side
+					// and NAK with a stable, user-facing reason.
+					log.Printf("relay: inject rejected: %v", err)
 					select {
-					case sub.Msgs <- MakeInjectErrorFrame(err.Error()):
+					case sub.Msgs <- MakeInjectErrorFrame(InjectErrorReason(err)):
 					default:
 						go sub.CloseSlow()
 					}

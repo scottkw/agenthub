@@ -550,6 +550,26 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 	return nil
 }
 
+// InjectErrorReason maps a HandleInject error to a stable, client-safe reason
+// string for MakeInjectErrorFrame. Internal plumbing detail — e.g. a PTY
+// "io: read/write on closed pipe" surfaced by WriteInput — must never reach a
+// remote client, so unrecognized (write) errors collapse to a generic
+// "inject failed" string. Callers log the detailed error server-side (IN-01).
+func InjectErrorReason(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, ErrReadOnly):
+		return "inject rejected: read-only access"
+	case errors.Is(err, ErrInjectTooLarge):
+		return "inject rejected: text too large"
+	case errors.Is(err, ErrInjectNotRecorded):
+		return "inject delivered to terminal but not recorded in chat"
+	default:
+		return "inject failed"
+	}
+}
+
 // ScrollbackSnapshot returns a copy of the current scrollback buffer contents.
 // Callers should Subscribe before calling ScrollbackSnapshot to avoid missing
 // frames written between the snapshot and the first message in Msgs.

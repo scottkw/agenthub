@@ -1174,9 +1174,13 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 					continue // malformed or empty frame: ignore silently (same as MsgTyping/MsgAliasSet)
 				}
 				if err := hub.HandleInject(sub, ip.Text); err != nil {
-					// Send NAK frame to originating subscriber only (ErrReadOnly or write error).
+					// IN-01: never forward the raw internal error to the remote
+					// web client — a PTY write failure would leak plumbing detail
+					// (e.g. "io: read/write on closed pipe"). Log the detail
+					// server-side and NAK with a stable, user-facing reason.
+					slog.Warn("webserver: inject rejected", "err", err)
 					select {
-					case sub.Msgs <- relay.MakeInjectErrorFrame(err.Error()):
+					case sub.Msgs <- relay.MakeInjectErrorFrame(relay.InjectErrorReason(err)):
 					default:
 						go sub.CloseSlow()
 					}
