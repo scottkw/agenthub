@@ -374,7 +374,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 |-------|----------------|--------|-----------|
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
-| 153. @session PTY Bridge | 3/3 | Complete   | 2026-06-26 |
+| 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 0/? | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |

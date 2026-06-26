@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 153
-current_phase_name: session-pty-bridge
-status: verifying
-stopped_at: Completed 153-03-PLAN.md
-last_updated: "2026-06-26T14:20:23.430Z"
+current_phase: 154
+status: ready to plan
+stopped_at: Phase 153 complete — ready to plan Phase 154
+last_updated: "2026-06-26T16:01:30.651Z"
 last_activity: 2026-06-26
-last_activity_desc: Phase 153 execution started
+last_activity_desc: Phase 153 complete (2 UAT items deferred to Phase 154)
 progress:
-  total_phases: 3
+  total_phases: 6
   completed_phases: 3
   total_plans: 12
   completed_plans: 12
-  percent: 100
+  percent: 50
+current_phase_name: desktop-chat-ui
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 153 — session-pty-bridge
+**Current focus:** Phase 154 — desktop-chat-ui
 
 ## Current Position
 
-Phase: 153 (session-pty-bridge) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-26 — Phase 153 execution started
+Phase: 154 (desktop-chat-ui) — READY TO PLAN
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-26 — Phase 153 complete (2 UAT items deferred to Phase 154)
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 0/6 phases complete
+Progress: [██████████░░░░░░░░░░] 50% — 3/6 phases complete
 ```
 
 ## Operator Next Steps (carry-forward from v4.0)
