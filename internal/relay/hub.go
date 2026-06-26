@@ -21,6 +21,18 @@ var ErrReadOnly = errors.New("relay: inject rejected: read-only capability")
 // failure being silently swallowed (WR-02 — "let it crash", not silent fallback).
 var ErrInjectNotRecorded = errors.New("relay: inject delivered to terminal but not recorded in chat")
 
+// MaxInjectTextBytes is the explicit upper bound on the raw text of a single
+// MsgSessionInject frame, enforced in HandleInject before any PTY write. It
+// makes the inject bound intentional rather than implicitly relying on the
+// coder/websocket default read limit (IN-03). 64 KiB is generous for a pasted
+// command line yet well under the chat-layer maxChatLineBytes (1 MiB).
+const MaxInjectTextBytes = 64 * 1024
+
+// ErrInjectTooLarge is returned by HandleInject when the raw inject text exceeds
+// MaxInjectTextBytes. The read pump turns it into a NAK, so the bound is enforced
+// before the PTY write and independent of the WS library default (IN-03).
+var ErrInjectTooLarge = errors.New("relay: inject rejected: text exceeds maximum size")
+
 // Subscriber represents a single WebSocket connection subscribed to a session's output.
 type Subscriber struct {
 	// Msgs is the outbound channel for framed messages. Buffered to 256 frames.
@@ -482,6 +494,13 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 	// sub.ReadOnly is set once at subscribe time; no lock required.
 	if sub.ReadOnly {
 		return ErrReadOnly
+	}
+
+	// IN-03: enforce an explicit, intentional size cap on the raw inject text
+	// before any PTY write, so the bound does not silently depend on the
+	// coder/websocket default read limit. Oversize frames are NAK'd, not written.
+	if len(text) > MaxInjectTextBytes {
+		return ErrInjectTooLarge
 	}
 
 	sanitized := SanitizePTYText(text)
