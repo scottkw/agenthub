@@ -452,6 +452,15 @@ func (e *SessionEngine) CreateSession(ctx context.Context, cli, name, workDir st
 	}
 	e.mu.Unlock()
 
+	// Phase 153: wire the inject persist callback so the relay read pump can
+	// append SessionInject messages without importing daemon (import-cycle break).
+	// Nil-guard: chatStore is nil when NewChatStore failed (non-fatal; PTY write still occurs).
+	if chatStore != nil {
+		hub.SetChatAppendFn(func(msg relay.ChatMessage) (relay.ChatMessage, error) {
+			return chatStore.AppendMessage(msg)
+		})
+	}
+
 	// SHELL-09: shell sessions have no AI-agent state model. Skip status.Watch
 	// so sessionStatuses[id] stays empty and ListSessions falls through to its
 	// conservative "running" default (see engine.go ListSessions branch). The
