@@ -41,7 +41,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### EXPORT — Export
 
-- [ ] **EXPORT-01**: A user can download a chat thread as a Markdown file, from both the desktop GUI and the web-share surface.
+- [x] **EXPORT-01**: A user can download a chat thread as a Markdown file, from both the desktop GUI and the web-share surface.
 
 ### NOTIF — In-app notifications
 
@@ -121,7 +121,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | PERSIST-01 | Phase 151 | Complete |
 | PERSIST-02 | Phase 151 | Complete |
 | PERSIST-03 | Phase 151 | Complete |
-| EXPORT-01 | Phase 155 | Pending |
+| EXPORT-01 | Phase 155 | Complete |
 | NOTIF-01 | Phase 154 | Complete |
 | NOTIF-02 | Phase 154 | Complete |
 | PARITY-01 | Phase 155 | Pending |
