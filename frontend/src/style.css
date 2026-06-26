@@ -6219,12 +6219,15 @@ body {
   }
 }
 
-/* Reduced-motion: share modal appears/disappears instantly */
+/* Reduced-motion: share modal + chat-panel: appear/disappear instantly */
 @media (prefers-reduced-motion: reduce) {
   .hub-share-modal {
     animation: none;
     transition: none;
     opacity: 1;
+  }
+  .chat-panel {
+    transition: none;
   }
 }
 
@@ -6727,13 +6730,4 @@ body {
   background: var(--hub-surface);
   /* Minimum height so the slot is visible even before the composer is wired */
   min-height: 4px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Reduced-motion: guard any chat-panel animation (ChatPanel, plan 154-05)
-   ══════════════════════════════════════════════════════════════════════════ */
-@media (prefers-reduced-motion: reduce) {
-  .chat-panel {
-    transition: none;
-  }
 }
