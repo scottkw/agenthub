@@ -297,6 +297,12 @@ export function ChatPanel({
   const [activeIndex, setActiveIndex] = useState(0)
   const [isHolding, setIsHolding] = useState(false)
 
+  // ── Phase 155 PARITY-01 SC-3: read-only cap suppression (defense-in-depth) ─
+  // Fail-safe default: true. Resolved from server's /info perms on web-share.
+  // Desktop (no capToken) is always writable — set to false immediately.
+  // Server gating is authoritative (HandleChatSend/HandleInject); this is UX only.
+  const [isReadOnly, setIsReadOnly] = useState(true)
+
   // ── Refs ────────────────────────────────────────────────────────────────
   /** Stable Set of seen message IDs — prevents WS+history duplicates. */
   const seenIdsRef = useRef(new Set<string>())
@@ -329,6 +335,30 @@ export function ChatPanel({
       window.removeEventListener('blur', onBlur)
     }
   }, [])
+
+  // ── Phase 155 PARITY-01 SC-3: resolve RO status from server /info ────────
+  // Precedent: web/assets/terminal.js:73-105 — same endpoint/perms logic.
+  // Desktop (no capToken): always RW. Web-share: fetch once on mount.
+  // NEVER JWT-decode client-side — server's /info response is the authority.
+  useEffect(() => {
+    if (!capToken) {
+      // Desktop owner: always writable
+      setIsReadOnly(false)
+      return
+    }
+    // Web-share: resolve from server's /info perms, fail-safe is read-only (default state)
+    const base = apiBaseURL ?? `http://127.0.0.1:${relayPort}`
+    fetch(`${base}/api/sessions/${encodeURIComponent(sessionId)}/info?cap=${encodeURIComponent(capToken)}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((info: { perms?: string }) => {
+        // Whole-token membership — matches capability.HasPerm semantics (no substring match)
+        const perms = (info?.perms ?? '').split(',').map((s: string) => s.trim())
+        setIsReadOnly(!perms.includes('write'))
+      })
+      .catch(() => {
+        // Any fetch error → leave isReadOnly=true (fail-safe)
+      })
+  }, [sessionId, capToken, apiBaseURL, relayPort])
 
   // ── Clear unread when drawer is open AND window is focused (D-09) ───────
   useEffect(() => {
@@ -521,10 +551,11 @@ export function ChatPanel({
 
     // CRITICAL (Pitfall 7 / D-08): Enter ALWAYS routes to chat-send, NEVER to inject.
     // The inject path is ONLY reachable through the completed 600ms press-and-hold.
+    // Phase 155 PARITY-01 SC-3: skip send when read-only (defense-in-depth).
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       const text = draftRef.current
-      if (text.trim()) {
+      if (text.trim() && !isReadOnly) {
         clientRef.current?.sendChat(text)
         setDraft('')
         draftRef.current = ''
@@ -535,6 +566,7 @@ export function ChatPanel({
   }
 
   function handleSend() {
+    if (isReadOnly) return // Phase 155 PARITY-01 SC-3 defense-in-depth
     const text = draftRef.current
     if (text.trim()) {
       clientRef.current?.sendChat(text)
@@ -544,6 +576,8 @@ export function ChatPanel({
   }
 
   function handleInjectPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    // Phase 155 PARITY-01 SC-3: short-circuit inject gesture when read-only
+    if (isReadOnly) return
     // setPointerCapture keeps tracking the pointer even after it leaves the button
     try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* jsdom fallback */ }
     setIsHolding(true)
@@ -823,15 +857,29 @@ export function ChatPanel({
             <button
               type="button"
               className="chat-composer__send-btn"
-              aria-label="Send message"
+              // Phase 155 PARITY-01 SC-3: data-chat-send present in BOTH enabled and
+              // disabled states so Playwright can query it regardless of RO status.
+              data-chat-send
+              aria-label={isReadOnly ? 'Send message (read-only access)' : 'Send message'}
+              aria-disabled={isReadOnly}
               onClick={handleSend}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || isReadOnly}
+              style={isReadOnly ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
             >
               <PaperAirplaneIcon className="chat-composer__send-icon" aria-hidden="true" />
               <span>Send</span>
             </button>
           )}
         </div>
+        {/* Phase 155 PARITY-01 SC-3: Read-only label shown when cap has no write perm */}
+        {isReadOnly && (
+          <div
+            className="chat-composer__readonly-label"
+            style={{ fontSize: 11, color: 'var(--hub-text-dim)', textAlign: 'left', paddingTop: 4 }}
+          >
+            Read only
+          </div>
+        )}
       </div>
     </div>
   )
