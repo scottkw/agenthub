@@ -1,9 +1,11 @@
 ---
 phase: 154-desktop-chat-ui
 verified: 2026-06-26T23:20:00Z
-status: human_needed
+status: passed
+human_verification_discharged: 2026-06-26T20:40:00Z
+human_verification_method: "Automated browser UAT via isolated dev-browser component harness (real Chromium). All 4 human-verification items resolved in 154-UAT.md: T1/T2/T3 pass; T4 found a prefers-reduced-motion cascade defect that was fixed in style.css (commit df2c9959) and re-verified. tput cols / live-PTY echo not literally read (no PTY in dev bridge) but the producing UI mechanisms were proven live."
 score: 5/5 must-haves verified
-behavior_unverified: 4
+behavior_unverified: 0
 overrides_applied: 0
 behavior_unverified_items:
   - truth: "Day separators remain anchored to the top of the visible viewport while scrolling (CHAT-04)"
@@ -43,7 +45,7 @@ deferred: []
 
 **Phase Goal:** The desktop GUI shows a fully functional chat panel inside the session modal with safe Markdown rendering and unread notifications.
 **Verified:** 2026-06-26T23:20:00Z
-**Status:** human_needed
+**Status:** passed (human verification discharged 2026-06-26 via automated dev-browser UAT — see 154-UAT.md)
 **Re-verification:** No — initial verification
 
 ---
