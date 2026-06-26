@@ -502,6 +502,11 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 // internal failure on an existing session is (true, err) → 500 (never masked as
 // 404). Shared by AutoStartWebServer and handleWebServerStart; the closure form
 // keeps the webserver→daemon import cycle broken (T-151-09).
+//
+// Also wires SetAliasProviders (Phase 152 / IDENT-01) so the web read pump can
+// look up and persist per-person aliases from the same global AliasStore as the
+// relay path. Guarded for nil store so early-startup or test scenarios where
+// aliasStore failed to construct do not crash.
 func (a *API) setChatProviders(ws *webserver.WebServer) {
 	ws.SetChatHistoryProvider(func(sessionID string) (history []byte, found bool, err error) {
 		store, storeOK := a.engine.ChatStoreFor(sessionID)
@@ -532,6 +537,26 @@ func (a *API) setChatProviders(ws *webserver.WebServer) {
 		}
 		return md, true, nil
 	})
+	// Phase 152 / IDENT-01: wire alias persistence callbacks.
+	// Plain func closures avoid the webserver→daemon import cycle (T-151-09).
+	// aliasStore may be nil when AliasStore construction failed at startup;
+	// SetAliasProviders accepts nil-guarded callbacks — handleWSSRelay will
+	// operate with no alias persistence (empty alias fallback) rather than panic.
+	aliasStore := a.engine.Aliases()
+	ws.SetAliasProviders(
+		func(personKey, def string) string {
+			if aliasStore == nil {
+				return def
+			}
+			return aliasStore.GetOrDefault(personKey, def)
+		},
+		func(personKey, alias string) {
+			if aliasStore == nil {
+				return
+			}
+			_ = aliasStore.Set(personKey, alias) // error intentionally discarded
+		},
+	)
 }
 
 // writeJSON writes v as a JSON response with the given status code.

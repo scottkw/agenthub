@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strings"
 	"sync"
 
 	"github.com/coder/websocket"
@@ -146,6 +147,13 @@ type WebServer struct {
 	chatHistoryProvider func(sessionID string) (history []byte, found bool, err error)
 	chatExportProvider  func(sessionID string) (markdown string, found bool, err error)
 
+	// Phase 152 / IDENT-01: alias provider callbacks, wired by the daemon via
+	// SetAliasProviders at both web-start sites. Plain func signatures avoid the
+	// webserver→daemon import cycle (mirrors setChatProviders in api.go / T-151-09).
+	// Both may be nil — handleWSSRelay guards defensively before calling.
+	aliasGet func(personKey, def string) string // AliasStore.GetOrDefault
+	aliasSet func(personKey, alias string)      // wraps AliasStore.Set (error discarded)
+
 	// pluginConfigSubscribers is the set of active SSE subscribers for
 	// /api/plugin-config/stream. Each subscriber gets a buffered channel;
 	// BroadcastPluginConfig non-blocking-sends to each. Drop-on-slow-consumer.
@@ -198,6 +206,25 @@ func (ws *WebServer) SetPluginSettingsProvider(fn func() []byte) {
 // set once.
 func (ws *WebServer) SetFilesHandler(h *files.Handler) {
 	ws.filesHandler = h
+}
+
+// SetAliasProviders wires the global AliasStore read/write callbacks into the
+// webserver so handleWSSRelay can look up and persist per-person aliases without
+// importing the daemon package (T-151-09 circular-import prevention). Must be
+// called before the first WebSocket connection is accepted. Both parameters may
+// be nil — handleWSSRelay guards before calling. Phase 152 / IDENT-01.
+//
+//   - getAlias: looks up the persisted alias for a personKey, returning def when
+//     absent. Mirrors AliasStore.GetOrDefault.
+//   - setAlias: persists a new alias for a personKey. The error from AliasStore.Set
+//     is intentionally discarded in the wrapper the daemon supplies — alias
+//     persistence failure must not close the connection.
+func (ws *WebServer) SetAliasProviders(
+	getAlias func(personKey, def string) string,
+	setAlias func(personKey, alias string),
+) {
+	ws.aliasGet = getAlias
+	ws.aliasSet = setAlias
 }
 
 // SetStaticAppFS installs the React frontend bundle fs.FS used to serve the
@@ -1010,23 +1037,57 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Phase 152 / IDENT-01: resolve the peer's Tailscale identity via WhoIs.
+	// Must be called AFTER websocket.Accept (Pitfall: WhoIs on the wrong
+	// pre-upgrade address). On failure (no live tailnet, loopback test, dev
+	// path) we fall back to a non-"local" sentinel so a web client is never
+	// silently merged with the desktop owner's "local:local" entry (D-04).
 	ctx := r.Context()
+	var lc local.Client
+	tailnetID := "unknown"
+	defaultAlias := ""
+	if who, err := lc.WhoIs(ctx, r.RemoteAddr); err == nil && who != nil && who.Node != nil {
+		tailnetID = who.Node.Key.String()
+		if who.Node.ComputedName != "" {
+			defaultAlias = who.Node.ComputedName
+		} else if who.UserProfile != nil && who.UserProfile.LoginName != "" {
+			defaultAlias = strings.SplitN(who.UserProfile.LoginName, "@", 2)[0]
+		}
+	}
+	personKey := tailnetID + ":web"
+	alias := defaultAlias
+	if ws.aliasGet != nil {
+		alias = ws.aliasGet(personKey, defaultAlias)
+	}
 
 	sub := &relay.Subscriber{
-		Msgs:     make(chan []byte, 256),
-		ReadOnly: readonly,
-		Name:     clientName,
+		Msgs:      make(chan []byte, 256),
+		ReadOnly:  readonly,
+		Name:      clientName,
+		TailnetID: tailnetID,
+		Origin:    "web",
+		PersonKey: personKey,
+		Alias:     alias,
 	}
 	sub.CloseSlow = func() {
 		conn.Close(websocket.StatusPolicyViolation, "too slow")
+	}
+	sub.AliasSetFn = func(key, a string) {
+		if ws.aliasSet != nil {
+			ws.aliasSet(key, a)
+		}
 	}
 
 	// Subscribe FIRST — anti-race pattern.
 	hub.Subscribe(sub)
 	relay.NotifyViewerCount(hub) // push updated viewer count to all clients
+	relay.NotifyPresence(hub)    // Phase 152 / PRESENCE-01: broadcast join event
 	defer func() {
-		hub.Unsubscribe(sub)
+		presenceChanged := hub.Unsubscribe(sub) // Phase 152: Unsubscribe returns bool
 		relay.NotifyViewerCount(hub)
+		if presenceChanged {
+			relay.NotifyPresence(hub) // Phase 152 / PRESENCE-01: broadcast leave event
+		}
 	}()
 	defer conn.CloseNow()
 
@@ -1067,6 +1128,31 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 				}
 			case relay.MsgPing:
 				// Keep-alive — no-op.
+			case relay.MsgTyping:
+				// Phase 152 / PRESENCE-02: typing-start/stop indicator.
+				// NOT gated on sub.ReadOnly — D-06: RO clients are full chat
+				// participants; only MsgInput remains ReadOnly-gated.
+				var tp relay.TypingPayload
+				if json.Unmarshal(payload, &tp) == nil {
+					hub.UpdateTyping(sub, tp.Typing)
+				}
+			case relay.MsgAliasSet:
+				// Phase 152 / IDENT-02: alias update — validate, persist, and
+				// broadcast a fresh presence roster to all clients.
+				// NOT gated on sub.ReadOnly (D-06 — same reasoning as MsgTyping).
+				// T-152-01 mitigation: ValidateAlias rejects control chars and
+				// over-length input identically to the relay surface.
+				var ap relay.AliasPayload
+				if json.Unmarshal(payload, &ap) == nil {
+					if newAlias := relay.ValidateAlias(ap.Alias); newAlias != "" {
+						sub.Alias = newAlias
+						if sub.AliasSetFn != nil {
+							sub.AliasSetFn(sub.PersonKey, newAlias)
+						}
+						hub.UpdateAlias(sub.PersonKey, newAlias)
+						relay.NotifyPresence(hub)
+					}
+				}
 			}
 		}
 	}()
