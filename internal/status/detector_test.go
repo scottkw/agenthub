@@ -32,10 +32,11 @@ func (m *mockHub) Subscribe(sub *relay.Subscriber) {
 	m.sub = sub
 }
 
-func (m *mockHub) Unsubscribe(_ *relay.Subscriber) {
+func (m *mockHub) Unsubscribe(_ *relay.Subscriber) (presenceChanged bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sub = nil
+	return false
 }
 
 func (m *mockHub) Done() <-chan struct{} {

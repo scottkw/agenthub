@@ -218,7 +218,7 @@ func (d *Detector) classify() SessionStatus {
 // HubLike is the interface required by Watch. *relay.Hub satisfies this interface.
 type HubLike interface {
 	Subscribe(sub *relay.Subscriber)
-	Unsubscribe(sub *relay.Subscriber)
+	Unsubscribe(sub *relay.Subscriber) (presenceChanged bool)
 	Done() <-chan struct{}
 	ScrollbackSnapshot() []byte
 }
