@@ -109,6 +109,45 @@ func SanitizePTYText(input string) string {
 	return result + "\n"
 }
 
+// SanitizeChatContent strips display-dangerous bytes from chat message content
+// before it is persisted to chat.jsonl, broadcast to chat clients, and emitted
+// into the Markdown Export(). It is the content-surface analogue of
+// SanitizePTYText: where SanitizePTYText targets PTY stdin (collapsing newlines
+// and appending a single terminator), this transform preserves the text the
+// user typed while removing the renderer-level spoofing vectors that the chat
+// display/export surfaces are subject to (WR-01 / SEC-02).
+//
+// Transformation rules:
+//   - C0 control characters (U+0000–U+001F, including ESC, CR, LF, TAB) are
+//     stripped. Stripping ESC neutralizes CSI/OSC/DCS introducers so escape
+//     sequences cannot be reconstructed by a renderer.
+//   - DEL (U+007F) is stripped.
+//   - C1 controls (U+0080–U+009F) are stripped.
+//   - Unicode bidi-override characters (see isBidiOverride) are stripped to
+//     mitigate Trojan-Source class attacks (CVE-2021-42574).
+//
+// Stored content is therefore "display-safe text", not "raw keystrokes": the
+// dangerous bytes never reach chat.jsonl, BroadcastChat, or Export().
+func SanitizeChatContent(input string) string {
+	var b strings.Builder
+	b.Grow(len(input))
+	for _, r := range input {
+		switch {
+		case r >= 0x00 && r <= 0x1F:
+			// C0 control (includes ESC, CR, LF, TAB): strip
+		case r == 0x7F:
+			// DEL: strip
+		case r >= 0x80 && r <= 0x9F:
+			// C1 control (Unicode U+0080–U+009F): strip
+		case isBidiOverride(r):
+			// Bidi override (Trojan-Source class): strip
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // isBidiOverride returns true for Unicode bidi-override and directional
 // formatting characters that can be exploited to spoof terminal output
 // (Trojan-Source class, CVE-2021-42574).

@@ -455,9 +455,14 @@ func (h *Hub) BroadcastChat(frame []byte) {
 // HandleInject is called by the read pump when a MsgSessionInject frame arrives.
 // It: (1) gates on !sub.ReadOnly (SEC-01, D-04), returning ErrReadOnly for RO clients;
 // (2) sanitizes the text via SanitizePTYText (SEC-02, D-03); (3) writes the sanitized
-// bytes to PTY stdin via WriteInput; (4) if chatAppendFn is non-nil, persists the
-// ORIGINAL (pre-sanitize) text as a ChatMessage{SessionInject:true} (A1/A3 — store
-// what the user typed, not the wire form) and broadcasts a MsgChat frame to all subs.
+// bytes to PTY stdin via WriteInput; (4) if chatAppendFn is non-nil, persists a
+// DISPLAY-SAFE form of the text (SanitizeChatContent — bidi/C0/C1 stripped) as a
+// ChatMessage{SessionInject:true} and broadcasts a MsgChat frame to all subs.
+//
+// WR-01: stored/broadcast content is display-safe text, NOT raw keystrokes. The
+// PTY sanitizer protects stdin, but chat.jsonl / BroadcastChat / Export() are
+// renderer-level surfaces subject to the same Trojan-Source (CVE-2021-42574)
+// spoofing, so the dangerous bytes must be stripped before persistence too.
 //
 // CRITICAL: HandleInject does NOT hold hub.mu during WriteInput, chatAppendFn, or
 // BroadcastChat — follows the ResizeClient unlock-before-IO discipline (Pitfall 4).
@@ -480,11 +485,14 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 	h.mu.Unlock()
 
 	if fn != nil {
-		// Persist the ORIGINAL text, not the sanitized form (Pitfall 6 / A1/A3).
+		// Persist a DISPLAY-SAFE form of the text (WR-01): the PTY already
+		// received the SanitizePTYText output above, but chat.jsonl /
+		// BroadcastChat / Export() render content, so strip the bidi/C0/C1
+		// spoofing vectors here too (CVE-2021-42574, SEC-02).
 		msg, err := fn(ChatMessage{
 			AuthorID:      sub.TailnetID,
 			AuthorAlias:   sub.Alias,
-			Content:       text, // original pre-sanitize text
+			Content:       SanitizeChatContent(text), // display-safe, not raw keystrokes
 			SessionInject: true,
 		})
 		if err == nil {
