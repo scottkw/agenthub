@@ -18,7 +18,7 @@ type Server struct {
 
 	// Phase 152: identity provider fields — set once via SetIdentityProviders.
 	// All three may be nil (safe: handleSession uses them defensively).
-	ownerDefaultAlias string                      // fallback alias when no persisted alias exists for "local:local"
+	ownerDefaultAlias string                             // fallback alias when no persisted alias exists for "local:local"
 	getAlias          func(personKey, def string) string // AliasStore.GetOrDefault or in-memory equivalent
 	setAlias          func(personKey, alias string)      // wraps AliasStore.Set (error discarded by caller)
 }

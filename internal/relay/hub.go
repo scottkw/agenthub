@@ -31,10 +31,10 @@ type Subscriber struct {
 	Rows int
 
 	// Phase 152: identity fields — set once at subscribe time, read by read pump.
-	TailnetID  string                     // "local" or Tailscale node public key string
-	Origin     string                     // "local" (relay loopback) or "web" (webserver Tailscale)
-	PersonKey  string                     // TailnetID + ":" + Origin — the collapse key (D-04)
-	Alias      string                     // current display name (mutable via MsgAliasSet)
+	TailnetID  string                        // "local" or Tailscale node public key string
+	Origin     string                        // "local" (relay loopback) or "web" (webserver Tailscale)
+	PersonKey  string                        // TailnetID + ":" + Origin — the collapse key (D-04)
+	Alias      string                        // current display name (mutable via MsgAliasSet)
 	AliasSetFn func(personKey, alias string) // persistence callback; avoids import cycle with daemon
 }
 
@@ -67,10 +67,10 @@ type Hub struct {
 	ptyRows int
 
 	// Phase 152: presence/typing state — guarded by mu.
-	presenceRoster map[string]*presenceState // personKey → collapsed presence state
-	typingRoster   map[string]*time.Timer    // personKey → 5s TTL timer
-	lastTypingBcast map[string]time.Time     // personKey → last typing-start broadcast time (rate limit)
-	typingTTL      time.Duration             // injectable for tests; default 5s
+	presenceRoster  map[string]*presenceState // personKey → collapsed presence state
+	typingRoster    map[string]*time.Timer    // personKey → 5s TTL timer
+	lastTypingBcast map[string]time.Time      // personKey → last typing-start broadcast time (rate limit)
+	typingTTL       time.Duration             // injectable for tests; default 5s
 
 	// Phase 153: persist+broadcast callback. Wired by engine.go after Hub+ChatStore
 	// are both constructed. Nil-safe: HandleInject skips persist+broadcast when nil.
@@ -90,7 +90,7 @@ func NewHub(sessionID string, reader io.Reader, writer io.Writer, scrollbackByte
 		resizeFn:        resizeFn,
 		subscribers:     make(map[*Subscriber]struct{}),
 		done:            make(chan struct{}),
-		presenceRoster:  make(map[string]*presenceState),  // Pitfall 4 — must init to avoid nil map panic
+		presenceRoster:  make(map[string]*presenceState), // Pitfall 4 — must init to avoid nil map panic
 		typingRoster:    make(map[string]*time.Timer),
 		lastTypingBcast: make(map[string]time.Time),
 		typingTTL:       5 * time.Second,
