@@ -57,6 +57,7 @@ import (
 	"path/filepath"
 
 	"github.com/scottkw/agenthub/internal/capability"
+	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/files"
 	"github.com/scottkw/agenthub/internal/relay"
 	"github.com/scottkw/agenthub/internal/webserver"
@@ -165,6 +166,73 @@ func main() {
 		return sandbox, nil
 	})
 	ws.SetFilesHandler(filesHandler)
+
+	// 4b. Phase 155-04 — seed a ChatStore with test messages and wire the
+	// chat history + export providers. Without these the e2e shows an empty
+	// thread (Pitfall 7 in 155-RESEARCH.md).
+	chatBaseDir, err := os.MkdirTemp("", "playwright-fixture-chat-*")
+	if err != nil {
+		log.Fatalf("MkdirTemp chatBaseDir: %v", err)
+	}
+	chatStore, err := daemon.NewChatStore(chatBaseDir, sessionID)
+	if err != nil {
+		log.Fatalf("NewChatStore: %v", err)
+	}
+	// Seed 3 messages: two normal + one SessionInject so export and inject-
+	// indicator assertions have data. Use distinct AuthorIDs so participant
+	// deduplication in Export() can be exercised.
+	seedMessages := []relay.ChatMessage{
+		{
+			SchemaVersion: relay.ChatSchemaVersion,
+			ID:            "fixture-msg-1",
+			SessionID:     sessionID,
+			AuthorID:      "fixture-author-rw",
+			AuthorAlias:   "playwright-rw",
+			Content:       "Hello from the fixture (RW).",
+			TimestampMs:   1000000000000,
+		},
+		{
+			SchemaVersion: relay.ChatSchemaVersion,
+			ID:            "fixture-msg-2",
+			SessionID:     sessionID,
+			AuthorID:      "fixture-author-viewer",
+			AuthorAlias:   "playwright-viewer",
+			Content:       "Hello from the fixture (viewer).",
+			TimestampMs:   1000000001000,
+		},
+		{
+			SchemaVersion: relay.ChatSchemaVersion,
+			ID:            "fixture-msg-3",
+			SessionID:     sessionID,
+			AuthorID:      "fixture-author-rw",
+			AuthorAlias:   "playwright-rw",
+			Content:       "@session inject message fixture.",
+			TimestampMs:   1000000002000,
+			SessionInject: true,
+		},
+	}
+	for _, msg := range seedMessages {
+		if _, err := chatStore.AppendMessage(msg); err != nil {
+			log.Fatalf("chatStore.AppendMessage: %v", err)
+		}
+	}
+	ws.SetChatHistoryProvider(func(sid string) ([]byte, bool, error) {
+		if sid != sessionID {
+			return nil, false, nil
+		}
+		b, err := json.Marshal(chatStore.Messages())
+		if err != nil {
+			return nil, true, err
+		}
+		return b, true, nil
+	})
+	ws.SetChatExportProvider(func(sid string) (string, bool, error) {
+		if sid != sessionID {
+			return "", false, nil
+		}
+		md, err := chatStore.Export()
+		return md, true, err
+	})
 
 	// 5. Start the WebServer's HTTPS listener.
 	if err := ws.Start(); err != nil {
