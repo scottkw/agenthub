@@ -108,26 +108,6 @@ func waitForFrameType(t *testing.T, conn *websocket.Conn, msgType byte, label st
 	}
 }
 
-// assertNoWriteToFrameType reads frames from conn within the deadline and fails
-// if a frame of the specified type is received. Returns without error if the
-// deadline expires without seeing the frame type.
-func assertNoFrameType(t *testing.T, conn *websocket.Conn, msgType byte, within time.Duration, label string) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), within)
-	defer cancel()
-	for {
-		_, rawMsg, err := conn.Read(ctx)
-		if err != nil {
-			// Deadline or connection close — target frame not received; pass.
-			return
-		}
-		if len(rawMsg) > 0 && rawMsg[0] == msgType {
-			t.Errorf("assertNoFrameType(%s): received unexpected frame type 0x%02x", label, msgType)
-			return
-		}
-	}
-}
-
 // TestInject_RWCap_WritesToPTY verifies MENTION-02: a RW client sending a
 // MsgSessionInject frame causes the sanitized text to be written to PTY stdin
 // (ptyWriteCount > 0) and a MsgChat broadcast with SessionInject:true is
