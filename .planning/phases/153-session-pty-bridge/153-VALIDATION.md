@@ -1,10 +1,11 @@
 ---
 phase: 153
 slug: session-pty-bridge
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-26
+validated: 2026-06-26
 ---
 
 # Phase 153 — Validation Strategy
@@ -38,11 +39,11 @@ created: 2026-06-26
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 153-01-* | 01 | 1 | SEC-02 | V5 / T-bidi,T-csi,T-osc,T-c1,T-newline | Only printable text + exactly one trailing `\n` reaches WriteInput | unit | `go test -race -short -run TestSanitizePTYText ./internal/relay/...` | ❌ W0 | ⬜ pending |
-| 153-02-* | 02 | 1 | MENTION-02 | — | RW-cap MsgSessionInject writes sanitized text to PTY stdin + broadcasts SessionInject msg | integration | `go test -race -short -run TestInject_RWCap ./internal/relay/...` | ❌ W0 | ⬜ pending |
-| 153-02-* | 02 | 1 | MENTION-03 | — | MsgChatSend / stray frame does NOT write to PTY; only MsgSessionInject does | unit | `go test -race -short -run TestInject_OnlyDedicatedFrame ./internal/relay/...` | ❌ W0 | ⬜ pending |
-| 153-03-* | 03 | 2 | SEC-01 (relay) | V4 / T-eop | RO client MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInject_ROCap_RelayPath ./internal/relay/...` | ❌ W0 | ⬜ pending |
-| 153-03-* | 03 | 2 | SEC-01 (web) | V4 / T-eop | RO JWT client hand-crafted MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInjectRO_WebPath ./internal/webserver/...` | ❌ W0 | ⬜ pending |
+| 153-01-* | 01 | 1 | SEC-02 | V5 / T-bidi,T-csi,T-osc,T-c1,T-newline | Only printable text + exactly one trailing `\n` reaches WriteInput | unit | `go test -race -short -run TestSanitizePTYText ./internal/relay/...` | ✅ | ✅ green |
+| 153-02-* | 02 | 1 | MENTION-02 | — | RW-cap MsgSessionInject writes sanitized text to PTY stdin + broadcasts SessionInject msg | integration | `go test -race -short -run TestInject_RWCap_WritesToPTY ./internal/relay/...` | ✅ | ✅ green |
+| 153-02-* | 02 | 1 | MENTION-03 | — | MsgChatSend / stray frame does NOT write to PTY; only MsgSessionInject does | unit | `go test -race -short -run TestInject_OnlyDedicatedFrame ./internal/relay/...` | ✅ | ✅ green |
+| 153-03-* | 03 | 2 | SEC-01 (relay) | V4 / T-eop | RO client MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInject_ROCap_RelayPath ./internal/relay/...` | ✅ | ✅ green |
+| 153-03-* | 03 | 2 | SEC-01 (web) | V4 / T-eop | RO JWT client hand-crafted MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInjectRO_WebPath ./internal/webserver/...` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · ❌ W0 = file created in Wave 0*
 
@@ -50,10 +51,10 @@ created: 2026-06-26
 
 ## Wave 0 Requirements
 
-- [ ] `internal/relay/sanitize_test.go` — SEC-02 sanitizer corpus (LF/CR/CRLF, null bytes, CSI, OSC, C1 controls, bidi overrides)
-- [ ] `internal/relay/server_inject_test.go` — MENTION-02, MENTION-03, SEC-01 (relay path, incl. adversarial RO frame)
-- [ ] `internal/webserver/inject_test.go` — SEC-01 web path (adversarial RO JWT frame)
-- [ ] TESTING.md registration — Suite Manifest §2 (Go count +3) + Traceability §4 rows for MENTION-02/03, SEC-01, SEC-02
+- [x] `internal/relay/sanitize_test.go` — SEC-02 sanitizer corpus (LF/CR/CRLF, null bytes, CSI, OSC, C1 controls, bidi overrides)
+- [x] `internal/relay/server_inject_test.go` — MENTION-02, MENTION-03, SEC-01 (relay path, incl. adversarial RO frame)
+- [x] `internal/webserver/inject_test.go` — SEC-01 web path (adversarial RO JWT frame)
+- [x] TESTING.md registration — Suite Manifest §2 (Go count +3) + Traceability §4 rows for MENTION-02/03, SEC-01, SEC-02
 
 *Existing `go test` infrastructure covers execution; only the new test files above are missing.*
 
@@ -71,11 +72,29 @@ created: 2026-06-26
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-06-26 — all 5 requirement tests green
+
+---
+
+## Validation Audit 2026-06-26
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**State:** A (existing VALIDATION.md audited). All 5 mapped requirement tests
+(`TestSanitizePTYText`, `TestInject_RWCap_WritesToPTY`, `TestInject_OnlyDedicatedFrame`,
+`TestInject_ROCap_RelayPath`, `TestInjectRO_WebPath`) exist and pass under `-race`.
+Verified via `go test -race -short -run 'TestSanitizePTYText|TestInject' ./internal/relay/... ./internal/webserver/...`
+→ both packages `ok`. No auditor spawn required — phase was already Nyquist-compliant on execution.
+The sole manual-only item (visual chat indicator + UI confirm affordance) is correctly
+deferred to Phase 154 (out of Phase 153 UI scope).
