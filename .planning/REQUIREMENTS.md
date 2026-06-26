@@ -55,7 +55,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### SEC — Security
 
 - [ ] **SEC-01**: Read-only capability holders cannot post chat messages or trigger `@session` injection (enforced server-side, not by UI suppression).
-- [ ] **SEC-02**: Text injected via `@session` into the PTY is sanitized — C0 control characters and terminal escape sequences stripped, newlines collapsed, exactly one trailing newline appended.
+- [x] **SEC-02**: Text injected via `@session` into the PTY is sanitized — C0 control characters and terminal escape sequences stripped, newlines collapsed, exactly one trailing newline appended.
 - [ ] **SEC-03**: Markdown message rendering cannot execute injected scripts/HTML (no `rehype-raw`; XSS payloads render inert) on either surface.
 
 ### INSTALL — Install links & distribution (orthogonal; `docs/install-links-fix.md`)
@@ -118,7 +118,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | NOTIF-02 | Phase 154 | Pending |
 | PARITY-01 | Phase 155 | Pending |
 | SEC-01 | Phase 153 | Pending |
-| SEC-02 | Phase 153 | Pending |
+| SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Pending |
 | INSTALL-01 | Phase 156 | Pending |
 | INSTALL-02 | Phase 156 | Pending |

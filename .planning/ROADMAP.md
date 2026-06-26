@@ -374,7 +374,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 |-------|----------------|--------|-----------|
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
-| 153. @session PTY Bridge | 0/? | Not started | - |
+| 153. @session PTY Bridge | 1/3 | In Progress|  |
 | 154. Desktop Chat UI | 0/? | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |
@@ -472,10 +472,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A message containing C0 control characters, embedded newlines, or terminal escape sequences (CSI, OSC) is sanitized at the daemon handler — only printable text plus exactly one trailing newline reaches PTY stdin; a unit test corpus covers newline injection, null bytes, and CSI sequences.
   4. The `@session` injection path requires a deliberate confirm step; a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write.
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 **Wave 1**
 
-- [ ] 153-01-PLAN.md — Protocol verbs + SanitizePTYText sanitizer + SEC-02 corpus (SEC-02)
+- [x] 153-01-PLAN.md — Protocol verbs + SanitizePTYText sanitizer + SEC-02 corpus (SEC-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
