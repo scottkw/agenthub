@@ -6,12 +6,20 @@ import {
   MSG_PRESENCE,
   MSG_TYPING,
   MSG_ALIAS_SET,
+  MSG_CHAT,
+  MSG_CHAT_SEND,
+  MSG_SESSION_INJECT,
+  MSG_INJECT_ERROR,
   encodeInputFrame,
   encodeResizeFrame,
   encodeTypingFrame,
   encodeAliasSetFrame,
+  encodeChatSendFrame,
+  encodeSessionInjectFrame,
   parseServerFrame,
   RelayClient,
+  type ChatMessage,
+  type RelayClientCallbacks,
 } from './relayClient'
 
 describe('encodeInputFrame', () => {
@@ -149,15 +157,23 @@ describe('parseServerFrame — presence/typing/alias frame decoding', () => {
     }
   })
 
-  it('returns unknown for MsgChat (0x30) — Phase 154 stub not yet handled', () => {
-    const body = JSON.stringify({ content: 'hello' })
+  it('decodes a MsgChat (0x30) frame into a chat variant (Phase 154 wired)', () => {
+    const msg: ChatMessage = {
+      v: 1, id: 'id1', sessionID: 'sess', authorID: 'local',
+      alias: 'ken', content: 'hello', ts: 1_700_000_000_000,
+    }
+    const body = JSON.stringify(msg)
     const encoded = new TextEncoder().encode(body)
     const data = new Uint8Array([0x30, ...encoded])
     const result = parseServerFrame(data)
-    expect(result.type).toBe('unknown')
+    expect(result.type).toBe('chat')
+    if (result.type === 'chat') {
+      expect(result.message.alias).toBe('ken')
+      expect(result.message.content).toBe('hello')
+    }
   })
 
-  it('returns unknown for MsgChatSend (0x31) — Phase 154 stub not yet handled', () => {
+  it('returns unknown for MsgChatSend (0x31) — client-to-server frame; not parsed', () => {
     const body = JSON.stringify({ content: 'hello' })
     const encoded = new TextEncoder().encode(body)
     const data = new Uint8Array([0x31, ...encoded])
@@ -277,5 +293,152 @@ describe('RelayClient URL construction', () => {
     const sid = 'local-session-def'
     new RelayClient(port, sid, { onOutput: () => {} }, { remote: false })
     expect(capturedUrl).toBe(`ws://127.0.0.1:${port}/sessions/${sid}/ws`)
+  })
+})
+
+// ─── Phase 154: new constants, encoders, parse cases, dispatch ────────────────
+
+describe('Phase 154 constants', () => {
+  it('MSG_CHAT is 0x30', () => { expect(MSG_CHAT).toBe(0x30) })
+  it('MSG_CHAT_SEND is 0x31', () => { expect(MSG_CHAT_SEND).toBe(0x31) })
+  it('MSG_SESSION_INJECT is 0x35', () => { expect(MSG_SESSION_INJECT).toBe(0x35) })
+  it('MSG_INJECT_ERROR is 0x36', () => { expect(MSG_INJECT_ERROR).toBe(0x36) })
+})
+
+describe('encodeChatSendFrame (Phase 154 behavior)', () => {
+  it('byte[0] === MSG_CHAT_SEND (0x31)', () => {
+    const frame = encodeChatSendFrame('hi')
+    expect(frame[0]).toBe(0x31)
+  })
+
+  it('remaining bytes JSON-decode to { content: "hi" }', () => {
+    const frame = encodeChatSendFrame('hi')
+    const body = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(body)).toEqual({ content: 'hi' })
+  })
+})
+
+describe('encodeSessionInjectFrame (Phase 154 behavior)', () => {
+  it('byte[0] === MSG_SESSION_INJECT (0x35)', () => {
+    const frame = encodeSessionInjectFrame('run')
+    expect(frame[0]).toBe(0x35)
+  })
+
+  it('remaining bytes JSON-decode to { text: "run" }', () => {
+    const frame = encodeSessionInjectFrame('run')
+    const body = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(body)).toEqual({ text: 'run' })
+  })
+})
+
+// Helper: build a binary MSG_CHAT frame from a partial ChatMessage
+function buildChatFrame(msg: Partial<ChatMessage>): Uint8Array {
+  const defaults: ChatMessage = {
+    v: 1,
+    id: 'test-id',
+    sessionID: 'sess-1',
+    authorID: 'local',
+    alias: 'Alice',   // mirrors Go json:"alias" tag — NOT authorAlias
+    content: 'Hello',
+    ts: 1_700_000_000_000,
+  }
+  const json = JSON.stringify({ ...defaults, ...msg })
+  const encoded = new TextEncoder().encode(json)
+  const frame = new Uint8Array(1 + encoded.length)
+  frame[0] = MSG_CHAT
+  frame.set(encoded, 1)
+  return frame
+}
+
+describe('parseServerFrame — Phase 154 chat/inject_error behaviors', () => {
+  // Behavior 3: MSG_CHAT (0x30) decodes and exposes message.alias (proves alias not authorAlias)
+  it('decodes 0x30 frame → { type:"chat", message } with message.alias populated', () => {
+    const frame = buildChatFrame({ alias: 'Bob', content: 'hey there' })
+    const result = parseServerFrame(frame)
+    expect(result.type).toBe('chat')
+    if (result.type === 'chat') {
+      expect(result.message.alias).toBe('Bob')
+      expect(result.message.content).toBe('hey there')
+      // Explicitly confirm the field name — alias (not authorAlias)
+      expect('alias' in result.message).toBe(true)
+    }
+  })
+
+  // Behavior 4: malformed 0x30 body → { type:'unknown' } (try/catch guard — T-154-05)
+  it('returns { type:"unknown" } when 0x30 body is malformed JSON', () => {
+    const garbage = new Uint8Array(5)
+    garbage[0] = MSG_CHAT
+    // bytes 1-4 are 0x00 — not valid JSON
+    const result = parseServerFrame(garbage)
+    expect(result.type).toBe('unknown')
+  })
+
+  // Behavior 5: MSG_INJECT_ERROR (0x36) → { type:'inject_error', reason }
+  it('decodes 0x36 frame → { type:"inject_error", reason }', () => {
+    const json = JSON.stringify({ reason: 'read only' })
+    const encoded = new TextEncoder().encode(json)
+    const frame = new Uint8Array(1 + encoded.length)
+    frame[0] = MSG_INJECT_ERROR
+    frame.set(encoded, 1)
+
+    const result = parseServerFrame(frame)
+    expect(result.type).toBe('inject_error')
+    if (result.type === 'inject_error') {
+      expect(result.reason).toBe('read only')
+    }
+  })
+})
+
+// Behavior 6: backward compat — RelayClient with only onOutput does not throw when a chat frame arrives
+describe('RelayClient Phase 154 backward compatibility', () => {
+  // Track the most recently constructed mock WS instance so we can fire onmessage
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastMockWS: any
+
+  beforeEach(() => {
+    lastMockWS = null
+    // Use a regular function (not arrow) so `new MockWS(url)` works as a constructor
+    const MockWS = vi.fn(function (this: Record<string, unknown>) {
+      this.binaryType = 'arraybuffer'
+      this.readyState = 1 // OPEN
+      this.onopen = null
+      this.onmessage = null
+      this.onclose = null
+      this.onerror = null
+      this.send = vi.fn()
+      this.close = vi.fn()
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      lastMockWS = this
+    }) as unknown as typeof WebSocket
+    vi.stubGlobal('WebSocket', MockWS)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('constructs successfully when only onOutput provided (TerminalPanel pattern)', () => {
+    // All chat callbacks are intentionally omitted — this is TerminalPanel's usage pattern
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn() }
+    expect(() => new RelayClient(34115, 'sess-1', callbacks)).not.toThrow()
+  })
+
+  it('does not throw when a chat frame arrives and onChat is not provided', () => {
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn() }
+    const client = new RelayClient(34115, 'sess-1', callbacks)
+
+    const chatFrame = buildChatFrame({ content: 'test backward compat' })
+    const buf = chatFrame.buffer.slice(
+      chatFrame.byteOffset,
+      chatFrame.byteOffset + chatFrame.byteLength,
+    ) as ArrayBuffer
+
+    // onmessage is set by RelayClient constructor; simulate incoming chat frame
+    expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      lastMockWS.onmessage?.({ data: buf })
+    }).not.toThrow()
+
+    client.close()
   })
 })
