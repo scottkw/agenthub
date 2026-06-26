@@ -75,13 +75,15 @@ func MakeMeta(p MetaPayload) []byte {
 
 // Chat and presence frame types — 0x30-0x3F reserved for chat/presence.
 // MsgChat (0x30) and MsgChatSend (0x31) are Phase 154 dispatch stubs; only
-// 0x32-0x34 are dispatched in Phase 152.
+// 0x32-0x34 are dispatched in Phase 152. Phase 153 adds 0x35-0x36.
 const (
-	MsgChat     byte = 0x30 // server → client: deliver chat message (JSON ChatMessage)     [Phase 154 dispatch]
-	MsgChatSend byte = 0x31 // client → server: send chat message (JSON content)            [Phase 154 dispatch]
-	MsgPresence byte = 0x32 // server → client: full presence roster (JSON PresencePayload) [Phase 152]
-	MsgTyping   byte = 0x33 // bidirectional: typing-start/stop (JSON TypingPayload)        [Phase 152]
-	MsgAliasSet byte = 0x34 // client → server: set/update alias (JSON AliasPayload)        [Phase 152]
+	MsgChat          byte = 0x30 // server → client: deliver chat message (JSON ChatMessage)     [Phase 154 dispatch]
+	MsgChatSend      byte = 0x31 // client → server: send chat message (JSON content)            [Phase 154 dispatch]
+	MsgPresence      byte = 0x32 // server → client: full presence roster (JSON PresencePayload) [Phase 152]
+	MsgTyping        byte = 0x33 // bidirectional: typing-start/stop (JSON TypingPayload)        [Phase 152]
+	MsgAliasSet      byte = 0x34 // client → server: set/update alias (JSON AliasPayload)        [Phase 152]
+	MsgSessionInject byte = 0x35 // client → server: inject text into session PTY (RW only)      [Phase 153]
+	MsgInjectError   byte = 0x36 // server → client: inject rejected (RO cap or error)           [Phase 153]
 )
 
 // PresenceEntry describes one participant in the presence roster.
@@ -137,6 +139,39 @@ func MakeAliasSetFrame(p AliasPayload) []byte {
 	b, _ := json.Marshal(p) // AliasPayload is always serialisable
 	frame := make([]byte, 1+len(b))
 	frame[0] = MsgAliasSet
+	copy(frame[1:], b)
+	return frame
+}
+
+// InjectPayload is the JSON body of a MsgSessionInject frame (client → server).
+// Text is the raw user-supplied string; callers must pass it through
+// SanitizePTYText before writing to PTY stdin.
+type InjectPayload struct {
+	Text string `json:"text"`
+}
+
+// InjectErrorPayload is the JSON body of a MsgInjectError frame (server → client).
+// Reason describes why the inject was rejected (e.g. read-only capability).
+type InjectErrorPayload struct {
+	Reason string `json:"reason"`
+}
+
+// MakeChatFrame encodes a ChatMessage as a MsgChat frame (server → client).
+func MakeChatFrame(msg ChatMessage) []byte {
+	b, _ := json.Marshal(msg) // ChatMessage is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgChat
+	copy(frame[1:], b)
+	return frame
+}
+
+// MakeInjectErrorFrame encodes a reason string as a MsgInjectError frame
+// (server → client). Sent when an inject is rejected due to insufficient
+// capability or a malformed payload.
+func MakeInjectErrorFrame(reason string) []byte {
+	b, _ := json.Marshal(InjectErrorPayload{Reason: reason}) // always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgInjectError
 	copy(frame[1:], b)
 	return frame
 }
