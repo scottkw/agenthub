@@ -362,6 +362,22 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 						NotifyPresence(hub)
 					}
 				}
+			case MsgChatSend:
+				// Phase 154 / CHAT-01: wire the MsgChatSend (0x31) dispatch stub.
+				// chat send NEVER writes to PTY stdin — only MsgSessionInject (0x35)
+				// does. The SEC-01 RO gate and content sanitization live inside
+				// hub.HandleChatSend (T-154-02 / T-154-03 / D-02).
+				// Malformed or empty-content frames are silently ignored (continue),
+				// matching MsgTyping/MsgAliasSet behavior. On HandleChatSend error,
+				// log server-side and drop silently — chat send has no client error
+				// display path in Phase 154, per RESEARCH Open Question 1.
+				var cp ChatSendPayload
+				if json.Unmarshal(payload, &cp) != nil || cp.Content == "" {
+					continue
+				}
+				if err := hub.HandleChatSend(sub, cp.Content); err != nil {
+					log.Printf("relay: chat send rejected: %v", err)
+				}
 			case MsgSessionInject:
 				// Phase 153 / SEC-01: RW cap required to inject text into PTY stdin.
 				// The gate is server-side in hub.HandleInject — must hold against a
