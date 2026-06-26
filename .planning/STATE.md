@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 154
-current_phase_name: desktop-chat-ui
-status: verifying
-stopped_at: Phase 154 UI-SPEC approved
-last_updated: "2026-06-26T20:10:13.802Z"
+current_phase: 155
+current_phase_name: "Web-Share Chat UI + Cross-Surface Parity Gate"
+status: planning
+stopped_at: Phase 154 verified (UAT 4/4 pass)
+last_updated: "2026-06-26T20:45:00Z"
 last_activity: 2026-06-26
-last_activity_desc: Phase 154 execution started
+last_activity_desc: Phase 154 verified complete (UAT 4/4 pass); next Phase 155
 progress:
-  total_phases: 5
+  total_phases: 7
   completed_phases: 4
   total_plans: 18
   completed_plans: 18
-  percent: 80
+  percent: 57
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 154 — desktop-chat-ui
+**Current focus:** Phase 155 — Web-Share Chat UI + Cross-Surface Parity Gate
 
 ## Current Position
 
-Phase: 154 (desktop-chat-ui) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-06-26 — Phase 154 execution started
+Phase: 155 — Web-Share Chat UI + Cross-Surface Parity Gate
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-26 — Phase 154 verified complete (UAT 4/4 pass)
 
 ```
-Progress: [██████████░░░░░░░░░░] 50% — 3/6 phases complete
+Progress: [███████████░░░░░░░░░] 57% — 4/7 phases complete
 ```
 
 ## Operator Next Steps (carry-forward from v4.0)
