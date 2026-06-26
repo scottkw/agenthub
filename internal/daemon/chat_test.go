@@ -646,6 +646,146 @@ func TestChatDeleteOnNeverWrittenStore(t *testing.T) {
 	}
 }
 
+// TestChatStore_Export verifies the YAML-frontmatter export format (EXPORT-01,
+// SC-2). Five behaviors are exercised:
+//  1. Empty thread → frontmatter-only document with zero participants.
+//  2. Single message → one participant entry; correct message header.
+//  3. Two messages from the same AuthorID → participants deduplicated to one.
+//  4. SessionInject==true → `_injected into terminal_` marker present.
+//  5. Alias containing `:` → participant value is double-quoted in YAML.
+func TestChatStore_Export(t *testing.T) {
+	t.Run("EmptyThread", func(t *testing.T) {
+		baseDir := t.TempDir()
+		store, err := NewChatStore(baseDir, "sess-export-empty")
+		if err != nil {
+			t.Fatalf("NewChatStore: %v", err)
+		}
+		out, err := store.Export()
+		if err != nil {
+			t.Fatalf("Export() on empty thread returned error: %v", err)
+		}
+		if !strings.HasPrefix(out, "---\n") {
+			t.Errorf("Export() must start with ---; got: %.100q", out)
+		}
+		for _, want := range []string{"session: sess-export-empty", "exported_at: ", "participants:"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("Export() missing %q in empty-thread output; got: %.300q", want, out)
+			}
+		}
+		if !strings.Contains(out, "# Chat: sess-export-empty") {
+			t.Errorf("Export() missing heading '# Chat: sess-export-empty'")
+		}
+	})
+
+	t.Run("SingleMessage", func(t *testing.T) {
+		baseDir := t.TempDir()
+		store, err := NewChatStore(baseDir, "sess-single")
+		if err != nil {
+			t.Fatalf("NewChatStore: %v", err)
+		}
+		_, err = store.AppendMessage(relay.ChatMessage{
+			AuthorAlias: "alice",
+			AuthorID:    "local",
+			Content:     "hello single",
+			TimestampMs: 1000,
+		})
+		if err != nil {
+			t.Fatalf("AppendMessage: %v", err)
+		}
+		out, err := store.Export()
+		if err != nil {
+			t.Fatalf("Export(): %v", err)
+		}
+		// Participants must have exactly one entry.
+		if !strings.Contains(out, `"alice (local)"`) {
+			t.Errorf("Export() missing participant entry; got: %.400q", out)
+		}
+		// Message header must include alias, authorID, and RFC3339 timestamp.
+		wantTS := time.UnixMilli(1000).UTC().Format(time.RFC3339)
+		wantHeader := "## alice (local) — " + wantTS
+		if !strings.Contains(out, wantHeader) {
+			t.Errorf("Export() missing message header %q; got: %.400q", wantHeader, out)
+		}
+		if !strings.Contains(out, "hello single") {
+			t.Errorf("Export() missing message content")
+		}
+	})
+
+	t.Run("DeduplicatedParticipants", func(t *testing.T) {
+		baseDir := t.TempDir()
+		store, err := NewChatStore(baseDir, "sess-dedup")
+		if err != nil {
+			t.Fatalf("NewChatStore: %v", err)
+		}
+		for _, m := range []relay.ChatMessage{
+			{AuthorAlias: "alice", AuthorID: "local", Content: "msg1", TimestampMs: 1000},
+			{AuthorAlias: "bob", AuthorID: "node-xyz", Content: "msg2", TimestampMs: 2000},
+			{AuthorAlias: "alice", AuthorID: "local", Content: "msg3", TimestampMs: 3000},
+		} {
+			if _, err := store.AppendMessage(m); err != nil {
+				t.Fatalf("AppendMessage: %v", err)
+			}
+		}
+		out, err := store.Export()
+		if err != nil {
+			t.Fatalf("Export(): %v", err)
+		}
+		// alice appears once in participants (deduplicated).
+		if strings.Count(out, `"alice (local)"`) != 1 {
+			t.Errorf("alice (local) deduplicated incorrectly; count = %d; got: %.400q",
+				strings.Count(out, `"alice (local)"`), out)
+		}
+	})
+
+	t.Run("SessionInjectMarker", func(t *testing.T) {
+		baseDir := t.TempDir()
+		store, err := NewChatStore(baseDir, "sess-inject")
+		if err != nil {
+			t.Fatalf("NewChatStore: %v", err)
+		}
+		if _, err := store.AppendMessage(relay.ChatMessage{
+			AuthorAlias:   "alice",
+			AuthorID:      "local",
+			Content:       "run the thing",
+			TimestampMs:   1000,
+			SessionInject: true,
+		}); err != nil {
+			t.Fatalf("AppendMessage: %v", err)
+		}
+		out, err := store.Export()
+		if err != nil {
+			t.Fatalf("Export(): %v", err)
+		}
+		if !strings.Contains(out, "_injected into terminal_") {
+			t.Errorf("Export() missing '_injected into terminal_' marker; got: %.400q", out)
+		}
+	})
+
+	t.Run("YAMLSpecialCharInAlias", func(t *testing.T) {
+		baseDir := t.TempDir()
+		store, err := NewChatStore(baseDir, "sess-alias")
+		if err != nil {
+			t.Fatalf("NewChatStore: %v", err)
+		}
+		if _, err := store.AppendMessage(relay.ChatMessage{
+			AuthorAlias: "ops:lead",
+			AuthorID:    "node-abc",
+			Content:     "special",
+			TimestampMs: 1000,
+		}); err != nil {
+			t.Fatalf("AppendMessage: %v", err)
+		}
+		out, err := store.Export()
+		if err != nil {
+			t.Fatalf("Export(): %v", err)
+		}
+		// ops:lead must be double-quoted so the YAML is valid.
+		if !strings.Contains(out, `"ops:lead (node-abc)"`) {
+			t.Errorf("Export() alias with ':' must be double-quoted; got: %.400q", out)
+		}
+	})
+}
+
 // TestChatConcurrentAppend runs 200 goroutines each calling AppendMessage once
 // and verifies all messages are persisted exactly once. This is the -race gate
 // for Pitfall 11 (concurrent write race).
