@@ -19,7 +19,19 @@ findings:
   info: 4
   total: 8
 status: issues_found
+resolution:
+  resolved: [CR-01, WR-03]
+  resolved_in: fcdfd03a
+  open: [WR-01, WR-02, IN-01, IN-02, IN-03, IN-04]
 ---
+
+> **Orchestrator resolution (2026-06-26, commit `fcdfd03a`):** CR-01 (blocker)
+> and WR-03 fixed during /gsd-execute-phase per user decision — the web-share
+> inject gate now uses `!capability.HasPerm(claims.Perms, "write")`, and
+> `TestInjectRO_WebPath` is table-driven over `"read"` and `"read,files.read"`
+> (the `browse_on` case injected 1 PTY write against the old gate, now NAK'd).
+> WR-01, WR-02, and the four info findings remain OPEN — triage via
+> `/gsd-code-review 153 --fix` or a follow-up.
 
 # Phase 153: Code Review Report
 
