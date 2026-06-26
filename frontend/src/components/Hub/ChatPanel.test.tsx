@@ -33,21 +33,23 @@ const mocks = vi.hoisted(() => ({
 
 // ── Mock RelayClient ───────────────────────────────────────────────────────
 // ChatPanel opens its OWN RelayClient (Pattern 2 — separate subscription).
-// The mock lets tests capture callbacks and simulate WS events.
+// The mock uses a class (not vi.fn().mockImplementation(arrow)) so it is
+// constructable with `new` and doesn't hit "is not a constructor" in vitest.
 
 vi.mock('../../lib/relayClient', async (importActual) => {
   const actual = await importActual<typeof import('../../lib/relayClient')>()
   return {
     ...actual,
-    RelayClient: vi.fn().mockImplementation(
-      (port: number, sessionId: string, cbs: unknown) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    RelayClient: class MockRelayClient {
+      constructor(port: number, sessionId: string, cbs: unknown) {
         mocks.ctorCount++
         mocks.lastPort = port
         mocks.lastSessionId = sessionId
         mocks.lastCallbacks = cbs as Record<string, unknown>
-        return { close: mocks.mockClose }
-      },
-    ),
+      }
+      close() { mocks.mockClose() }
+    } as unknown as (typeof actual)['RelayClient'],
   }
 })
 
