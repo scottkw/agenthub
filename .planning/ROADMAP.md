@@ -29,7 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
-- 🚧 **v4.1 Session Chat** — Phases 151-156 (active, started 2026-06-25, closes #79)
+- 🚧 **v4.1 Session Chat** — Phases 151-157 (active, started 2026-06-25, closes #79, #109)
 
 ## Phases
 
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.0 phase details archived to milestones/v4.0-ROADMAP.md -->
 
-### v4.1 Session Chat (Phases 151-156) — ACTIVE
+### v4.1 Session Chat (Phases 151-157) — ACTIVE
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
@@ -367,6 +367,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
 - [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
 - [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
+- [ ] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble
 
 ### Progress: v4.1 Session Chat
 
@@ -378,6 +379,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 154. Desktop Chat UI | 0/6 | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |
+| 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -501,20 +503,25 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Plans**: 6 plans
 
 **Wave 1** *(parallel — disjoint subsystems)*
+
 - [ ] 154-01-PLAN.md — Server-side MsgChatSend (0x31) dispatch wiring: ChatSendPayload + Hub.HandleChatSend (SEC-01 RO gate, no PTY write) + relay & webserver read-pump cases + Go tests
 - [ ] 154-02-PLAN.md — npm packages (@tanstack/react-virtual, react-textarea-autosize) + relayClient.ts chat/inject frame constants, ChatMessage type, encoders, dispatching callbacks
 
 **Wave 2** *(blocked on 154-02)*
+
 - [ ] 154-03-PLAN.md — ChatMessage.tsx (avatar rows, @mention 3-signal, inject indicator, safe Markdown SEC-03) + ChatDaySeparator.tsx
 
 **Wave 3** *(blocked on 154-03 — shared style.css)*
+
 - [ ] 154-04-PLAN.md — ChatBadge.tsx (unread + @mention glyph) + MentionPopover.tsx (@session pinned, filterable, keyboard-nav)
 
 **Wave 4** *(blocked on 154-03/154-04)*
+
 - [ ] 154-05-PLAN.md — ChatPanel.tsx drawer: own RelayClient subscription, virtualizer + sticky day separators (CHAT-04), late-join scrollback, empty/loading states, unread accrual (D-09)
 
 **Wave 5** *(blocked on 154-05)*
-- [ ] 154-06-PLAN.md — Composer (CHAT-03 auto-grow, Enter/Shift+Enter, mention popover, press-and-hold inject D-08) + HubInteractiveModal push-mode integration + SessionCard badge + TESTING.md registration
+
+- [ ] 154-06-PLAN.md — Composer (CHAT-03 auto-grow, Enter/Shift+Enter, mention popover, press-and-hold inject D-08) + HubInteractiveModal overlay integration (drawer floats over the terminal, no resize — D-02 revised for Issue #109) + SessionCard badge + TESTING.md registration
 
 **UI hint**: yes
 
@@ -546,3 +553,21 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Plans**: TBD
 **UI hint**: yes
+
+### Phase 157: Terminal Screen-Share Semantics (Issue #109)
+
+**Goal**: Eliminate the cross-viewer PTY grid-size garble (overlapping/doubled characters when viewers have different window sizes) by adopting "screen-share semantics" (Option B, decision locked in Issue #109): the host's terminal is the single source of truth for the PTY grid; guests render at the host's grid size and CSS-scale to fit their viewport, never driving the PTY. Full Option B scope (all six change-layers).
+**Depends on**: Nothing hard — orthogonal to the chat phases (Phase 154's chat drawer is overlay mode and no longer resizes the PTY). Touches relay/webserver PTY arbitration + the web and desktop terminal viewers.
+**Requirements**: VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05
+**Success Criteria** (what must be TRUE):
+
+  1. With a host (local origin) and a smaller-windowed guest connected, the guest renders the host's exact grid with no garble (no overlapping/doubled characters) — verified against the Issue #109 screenshot scenario.
+  2. A guest's window resize never changes the PTY size; only the host's resize does (host-authority) — verified by asserting the arbiter ignores web-origin `MsgResize` (replaces the MC-06 max-wins behavior).
+  3. A freshly-joined guest receives the host's grid size (`MsgResize` pushed before scrollback replay), so static (non-repainting) screens render correctly on join.
+  4. Guests honor server-pushed `MsgResize` (0x02) → `term.resize(cols,rows)` and CSS-scale the host grid to fit their viewport, capped at scale ≤ 1.0 (downscale-only, never upscale); the host view is never disturbed.
+  5. The desktop `TerminalPanel` achieves cross-surface parity for the guest path, or the gap is explicitly documented if hosts are always desktop / guests always web (cross-surface parity is a release-blocking project rule).
+  6. The existing MC-06 max-wins hub tests are replaced with host-authority tests; the TESTING.md suite manifest + traceability map are updated for every new/changed test file.
+
+**Open decisions** (resolve at discuss/plan time — from the Issue #109 thread): host-not-connected behavior (freeze last host size vs. a fixed default like 120×32); multiple local subscribers (max-among-local vs. latest-wins); read-write guest model (types into the host-sized grid via `MsgInput`/inject but cannot resize it).
+**Plans**: TBD
+**UI hint**: yes (terminal viewer rendering)

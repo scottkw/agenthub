@@ -6,15 +6,15 @@ current_phase: 154
 current_phase_name: desktop-chat-ui
 status: executing
 stopped_at: Phase 154 UI-SPEC approved
-last_updated: "2026-06-26T17:30:40.825Z"
+last_updated: "2026-06-26T18:08:10.007Z"
 last_activity: 2026-06-26
-last_activity_desc: Phase 153 complete (2 UAT items deferred to Phase 154)
+last_activity_desc: Phase 154 execution started
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 12
+  total_plans: 18
   completed_plans: 12
-  percent: 75
+  percent: 67
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 154 (desktop-chat-ui) — READY TO PLAN
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-26 — Phase 153 complete (2 UAT items deferred to Phase 154)
+Phase: 154 (desktop-chat-ui) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 154
+Last activity: 2026-06-26 — Phase 154 execution started
 
 ```
 Progress: [██████████░░░░░░░░░░] 50% — 3/6 phases complete
@@ -55,8 +55,9 @@ Progress: [██████████░░░░░░░░░░] 50% —
 | 154 | Desktop Chat UI | CHAT-01, CHAT-02, CHAT-03, CHAT-04, MENTION-01, NOTIF-01, NOTIF-02, SEC-03 | Not started |
 | 155 | Web-Share Chat UI + Cross-Surface Parity Gate | EXPORT-01, PARITY-01 | Not started |
 | 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Not started |
+| 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Not started |
 
-**Total:** 24 requirements mapped across 6 phases (100% coverage).
+**Total:** 29 requirements mapped across 7 phases (100% coverage).
 
 ## Key Decisions (v4.1)
 
@@ -70,6 +71,8 @@ Progress: [██████████░░░░░░░░░░] 50% —
 | Web UI last (Phase 155) | Shares ChatPanel.tsx built in Phase 154; parity gate belongs here as a wholistic cross-surface pass |
 | INSTALL as Phase 156, independent | No dependency on chat phases; orthogonal; can be planned/executed in parallel with any chat phase |
 | PARITY-01 is release-blocking | Per standing rule: GUI/CLI/web cross-surface parity is never deferrable; Phase 155 is the release gate |
+| Phase 154 chat drawer: push → overlay (2026-06-26) | D-02 revised from push mode (terminal shrinks → PTY resize) to overlay (drawer floats over terminal, no resize). Push mode fights the host-authority PTY model adopted for Issue #109. Tradeoff: drawer covers ~360px of terminal while open |
+| Phase 157 added for Issue #109 (2026-06-26) | Terminal screen-share semantics (Option B): host is single source of truth for PTY grid, guests conform + CSS scale-to-fit. Appended to v4.1; orthogonal to chat. Full Option B scope |
 
 ## Architecture Notes (v4.1)
 
