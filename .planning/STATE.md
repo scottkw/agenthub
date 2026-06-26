@@ -4,9 +4,9 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 154
 current_phase_name: desktop-chat-ui
-status: ready to plan
-stopped_at: Phase 154 context gathered
-last_updated: "2026-06-26T16:29:55.132Z"
+status: executing
+stopped_at: Phase 154 UI-SPEC approved
+last_updated: "2026-06-26T17:30:40.825Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 153 complete (2 UAT items deferred to Phase 154)
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 154 (desktop-chat-ui) — READY TO PLAN
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-06-26 — Phase 153 complete (2 UAT items deferred to Phase 154)
 
 ```
@@ -90,9 +90,9 @@ Progress: [██████████░░░░░░░░░░] 50% —
 
 ## Session Continuity
 
-Last session: 2026-06-26T16:29:55.115Z
-Stopped at: Phase 154 context gathered
-Resume file: .planning/phases/154-desktop-chat-ui/154-CONTEXT.md
+Last session: 2026-06-26T16:42:30.465Z
+Stopped at: Phase 154 UI-SPEC approved
+Resume file: .planning/phases/154-desktop-chat-ui/154-UI-SPEC.md
 Next action: `/gsd:plan-phase 151`
 
 ## Decisions
