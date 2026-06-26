@@ -143,6 +143,14 @@ func MakeAliasSetFrame(p AliasPayload) []byte {
 	return frame
 }
 
+// ChatSendPayload is the JSON body of a MsgChatSend frame (client → server).
+// Content is the raw user-supplied chat message text; callers must pass it
+// through SanitizeChatContent before persist/broadcast (T-154-01). A chat
+// message must NEVER write to PTY stdin — only MsgSessionInject (0x35) does.
+type ChatSendPayload struct {
+	Content string `json:"content"`
+}
+
 // InjectPayload is the JSON body of a MsgSessionInject frame (client → server).
 // Text is the raw user-supplied string; callers must pass it through
 // SanitizePTYText before writing to PTY stdin.
