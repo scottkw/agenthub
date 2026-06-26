@@ -116,11 +116,13 @@ func TestSanitizePTYText(t *testing.T) {
 			input: "\n\n\n",
 			want:  "\n",
 		},
-		// Mixed attack vector: CSI + null + CRLF — only safe text survives.
+		// Mixed attack vector: CSI + null + CRLF — only control chars stripped.
+		// ';' (0x3B) is printable and must pass through unchanged; the
+		// plan's expected value "cmd evil\n" dropped it incorrectly (Rule 1 fix).
 		{
 			name:  "mixed attack vector",
 			input: "cmd\x1b[A\x00\r\n;evil",
-			want:  "cmd evil\n",
+			want:  "cmd ;evil\n",
 		},
 	}
 
