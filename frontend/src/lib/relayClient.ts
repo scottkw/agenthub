@@ -1,14 +1,32 @@
 // Binary framing constants matching internal/relay/protocol.go
-export const MSG_OUTPUT  = 0x01  // server -> client: PTY output
-export const MSG_RESIZE  = 0x02  // server -> client: resize notification
-export const MSG_INPUT   = 0x10  // client -> server: keyboard input
-export const MSG_RESIZE2 = 0x11  // client -> server: resize request
-export const MSG_PING    = 0x12  // client -> server: keep-alive
+export const MSG_OUTPUT  = 0x01  // server → client: PTY output
+export const MSG_RESIZE  = 0x02  // server → client: resize notification
+export const MSG_INPUT   = 0x10  // client → server: keyboard input
+export const MSG_RESIZE2 = 0x11  // client → server: resize request
+export const MSG_PING    = 0x12  // client → server: keep-alive
+
+// Chat/presence frame types — 0x30–0x3F range (Phase 152)
+// MsgChat (0x30) and MsgChatSend (0x31) are Phase 154 dispatch stubs.
+export const MSG_PRESENCE  = 0x32  // server → client: full presence roster (JSON PresencePayload)
+export const MSG_TYPING    = 0x33  // bidirectional: typing-start/stop (JSON TypingPayload)
+export const MSG_ALIAS_SET = 0x34  // client → server: set/update alias (JSON AliasPayload)
+
+// PresenceEntry describes one participant in the presence roster.
+// Field names match the Go json tags in internal/relay/protocol.go exactly.
+export interface PresenceEntry {
+  personKey: string  // TailnetID + ":" + origin — stable collapse key
+  tailnetID: string  // "local" for desktop owner, node pubkey for web
+  origin: string     // "local" (relay loopback) or "web" (webserver Tailscale)
+  alias: string
+  connCount: number  // active connections for this person key
+}
 
 // ServerFrame union type for parsed server messages
 export type ServerFrame =
   | { type: 'output'; payload: Uint8Array }
   | { type: 'resize'; cols: number; rows: number }
+  | { type: 'presence'; participants: PresenceEntry[] }
+  | { type: 'typing'; personKey: string; alias: string; typing: boolean }
   | { type: 'unknown' }
 
 /**
@@ -38,6 +56,31 @@ export function encodeResizeFrame(cols: number, rows: number): Uint8Array {
 }
 
 /**
+ * Encode a typing-start or typing-stop notification for the server.
+ * Format: [MSG_TYPING, ...UTF-8 bytes of JSON {typing}]
+ * Server fills personKey and alias from the Subscriber before broadcast.
+ */
+export function encodeTypingFrame(typing: boolean): Uint8Array {
+  const encoded = new TextEncoder().encode(JSON.stringify({ typing }))
+  const frame = new Uint8Array(1 + encoded.length)
+  frame[0] = MSG_TYPING
+  frame.set(encoded, 1)
+  return frame
+}
+
+/**
+ * Encode an alias-set request for the server.
+ * Format: [MSG_ALIAS_SET, ...UTF-8 bytes of JSON {alias}]
+ */
+export function encodeAliasSetFrame(alias: string): Uint8Array {
+  const encoded = new TextEncoder().encode(JSON.stringify({ alias }))
+  const frame = new Uint8Array(1 + encoded.length)
+  frame[0] = MSG_ALIAS_SET
+  frame.set(encoded, 1)
+  return frame
+}
+
+/**
  * Parse a server-sent binary frame into a typed union.
  */
 export function parseServerFrame(data: Uint8Array): ServerFrame {
@@ -56,6 +99,26 @@ export function parseServerFrame(data: Uint8Array): ServerFrame {
       const cols = (data[1] << 8) | data[2]
       const rows = (data[3] << 8) | data[4]
       return { type: 'resize', cols, rows }
+    }
+
+    case MSG_PRESENCE: {
+      try {
+        const json = new TextDecoder().decode(data.slice(1))
+        const parsed = JSON.parse(json) as { participants?: PresenceEntry[] }
+        return { type: 'presence', participants: parsed.participants ?? [] }
+      } catch {
+        return { type: 'unknown' }
+      }
+    }
+
+    case MSG_TYPING: {
+      try {
+        const json = new TextDecoder().decode(data.slice(1))
+        const parsed = JSON.parse(json) as { personKey: string; alias: string; typing: boolean }
+        return { type: 'typing', personKey: parsed.personKey, alias: parsed.alias, typing: parsed.typing }
+      } catch {
+        return { type: 'unknown' }
+      }
     }
 
     default:
