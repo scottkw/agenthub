@@ -128,7 +128,7 @@ Modified files this phase:
 
 | File | Change |
 |------|--------|
-| `frontend/src/components/Hub/HubInteractiveModal.tsx` | Add drawer + toggle; terminal column shrinks on open (D-02) |
+| `frontend/src/components/Hub/HubInteractiveModal.tsx` | Add drawer + toggle; drawer overlays the terminal on open, terminal is NOT resized (D-02) |
 | `frontend/src/components/Hub/SessionCard.tsx` | Add unread badge channel (D-10) |
 | `frontend/src/lib/relayClient.ts` | Wire MsgChat (0x30) / MsgChatSend (0x31) stubs; add MsgSessionInject encoder |
 
@@ -138,7 +138,7 @@ Modified files this phase:
 
 ### 1. Chat Drawer Layout (D-01, D-02, D-03)
 
-- **Width:** 360px fixed. The terminal column shrinks by exactly 360px when the drawer opens; PTY resize fires immediately after the CSS transition completes.
+- **Width:** 360px fixed. The drawer is absolutely positioned over the right edge of the terminal (overlay mode, D-02) — the terminal column keeps its full width and the PTY is NOT resized. The drawer covers ~360px of the terminal while open.
 - **Animation:** `translateX(360px) → translateX(0)`, 220ms ease-out. Respects `prefers-reduced-motion: reduce` (instant, no transition). Use the same 220ms timing as the existing `HubModal` open animation to maintain system-wide motion coherence.
 - **Default state:** Closed. Opens on toggle button click only (D-03).
 - **Structure (top-to-bottom):**

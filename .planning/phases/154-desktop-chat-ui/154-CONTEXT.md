@@ -54,11 +54,16 @@ placeholders in `relayClient.ts`) and **renders** everything the backend already
   permanently costs terminal width for what is usually a solo session; tab-toggle swap — you
   can't watch the terminal while chatting, which weakens the `@session` "inject then watch the
   reply" flow.)
-- **D-02: Push mode — the terminal column shrinks when the drawer opens.** Opening/closing the
-  drawer resizes the `TerminalPanel`, triggering a PTY resize/reflow (nothing is covered). The
-  planner must route this through `TerminalPanel`'s existing resize handling and the
-  max-wins resize arbitration. (Rejected: overlay mode — simpler/no reflow, but covers part of
-  the terminal while chatting, which the user did not want.)
+- **D-02: Overlay mode — the drawer floats over the terminal; the terminal is NOT resized.**
+  Opening/closing the drawer slides a fixed 360px panel in over the right edge of the terminal
+  (covering it) without changing the `TerminalPanel` width — so no PTY resize/reflow is triggered.
+  The drawer is absolutely positioned against the modal body; the terminal column stays full-bleed.
+  (**Changed from push mode on 2026-06-26.** Push mode resized the host PTY on every drawer toggle,
+  which fights the host-authority "screen-share semantics" model adopted for GitHub Issue #109 — the
+  host's terminal must be the single source of truth for the PTY grid size, with guests conforming.
+  A drawer that resizes the host PTY would force every guest to re-conform on each toggle. Tradeoff
+  accepted: the drawer covers ~360px of the terminal while chatting, which the user previously did
+  not want but now prefers over disturbing the shared PTY.)
 - **D-03: Closed by default.** The drawer starts closed when a session modal opens; the user
   opens it via the badged toggle. (Rejected: remember-last-state — adds a persistence layer for
   marginal benefit; auto-open-on-unread — prematurely couples drawer state to notification
@@ -203,8 +208,8 @@ placeholders in `relayClient.ts`) and **renders** everything the backend already
 ### Established Patterns
 - Frame constants + `encode*Frame` builder convention in `relayClient.ts` (mirror for chat-send
   and inject frames).
-- Hub modal + `TerminalPanel` resize handling (D-02 push mode rides this; max-wins PTY resize
-  arbitration already exists).
+- Hub modal + `TerminalPanel` full-bleed layout (D-02 is now overlay mode — the drawer floats over
+  the terminal and does NOT use `TerminalPanel`'s resize path; the PTY is left untouched on toggle).
 - Colorblind-safe signaling is a standing project rule — every status/notification cue carries a
   non-color channel (shape/glyph/text). D-05, D-06, D-10 all follow it.
 

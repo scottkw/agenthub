@@ -11,7 +11,7 @@
 
 ### Locked Decisions
 - **D-01:** ChatPanel is a right slide-over drawer, 360px fixed width, inside the session modal. Chat toggle button carries the unread badge.
-- **D-02:** Push mode — terminal column shrinks by 360px when the drawer opens; PTY resize fires through TerminalPanel's existing resize handling and max-wins arbitration.
+- **D-02:** Overlay mode — the drawer is absolutely positioned over the right edge of the terminal; the terminal column keeps full width and NO PTY resize is triggered. (Changed from push mode 2026-06-26 to avoid disturbing the host-authority PTY model adopted for Issue #109. See Pattern 7 / Pitfall 6 — both superseded.)
 - **D-03:** Drawer starts closed; user opens via badged toggle.
 - **D-04:** Slack-style avatar rows; consecutive-sender collapse. No own-right bubbles (colorblind user).
 - **D-05:** @mention-of-me = three simultaneous signals: solid left accent bar (3px) + background tint + `@you` chip. Color is never the sole signal.
@@ -462,37 +462,43 @@ function handlePointerUp() {
 
 **Trigger:** `@` typed in textarea → parse text from last `@` to caret position for filter string → open popover. On selection, replace `@filter` with `@alias` in the textarea and close.
 
-### Pattern 7: D-02 Push Mode — TerminalPanel Resize
+### Pattern 7: D-02 Overlay Mode — Drawer Floats Over the Terminal (no resize)
 
-**How the existing resize handling connects to D-02:** [VERIFIED: source code read — TerminalPanel.tsx lines 692-700]
+> **SUPERSEDED 2026-06-26.** This pattern originally described *push mode* (the terminal column
+> shrinking by 360px, driving a PTY resize through `TerminalPanel`'s ResizeObserver). D-02 changed
+> to **overlay mode** to keep the host PTY grid stable for the Issue #109 host-authority screen-share
+> model. The resize machinery below is no longer used by the drawer; it is retained only as the
+> reference for how `TerminalPanel` resize works in general (still relevant to Issue #109's own phase).
 
-The `TerminalPanel` uses a `ResizeObserver` on its container div (line 692). When the chat drawer opens and the terminal column narrows by 360px, the ResizeObserver fires `fitTerminal(termRef.current)`, which calls `term.resize(cols, rows)`, which fires the `term.onResize` disposable (line 298), which calls `client.sendResize(cols, rows)`.
-
-**Implementation in HubInteractiveModal:** Change the layout from single full-bleed column to `display: flex; flex-direction: row`:
+**Overlay implementation in HubInteractiveModal:** Keep the body as a single full-bleed terminal and
+absolutely position the drawer over its right edge. The terminal width never changes, so the
+ResizeObserver does NOT fire on drawer toggle and no PTY resize is sent:
 
 ```tsx
-// HubInteractiveModal changes for D-02
+// HubInteractiveModal changes for D-02 (overlay)
 return (
-  <div className={`hub-modal__body hub-modal__body--interactive ${chatOpen ? 'hub-modal__body--chat-open' : ''}`}>
-    <div className="hub-modal__terminal-col">
-      <TerminalPanel ... isActive={open} />
-    </div>
-    {chatOpen && (
-      <ChatPanel sessionId={session.id} relayPort={relayPort} ... />
-    )}
+  <div className="hub-modal__body hub-modal__body--interactive">  {/* position: relative */}
+    <TerminalPanel ... isActive={open} />   {/* full width, unchanged by the drawer */}
+    <ChatPanel sessionId={session.id} relayPort={relayPort} open={chatOpen} ... />
   </div>
 )
 ```
 
 ```css
-.hub-modal__body--chat-open .hub-modal__terminal-col {
-  flex: 1;  /* shrinks automatically */
-}
+.hub-modal__body--interactive { position: relative; }       /* containing block */
+.chat-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 360px; z-index: 5; }
+/* slide: translateX(100%) → translateX(0), 220ms ease-out; prefers-reduced-motion: reduce → instant */
 ```
 
-**Timing note:** The ResizeObserver fires during the 220ms CSS transition as the column width changes. This is correct — `fitTerminal` handles partial-width states gracefully (it floor()s cols/rows). The PTY resize through the max-wins arbitration in `hub.ResizeClient` handles concurrent resize events.
+**Why this is correct for #109:** push mode would call `client.sendResize(cols, rows)` on every drawer
+toggle, changing the host PTY grid. Under Issue #109's host-authority model the host is the single
+source of truth for PTY size and guests conform to it — a drawer-driven resize would ripple a re-conform
+to every connected guest. Overlay mode leaves the PTY untouched. Tradeoff: the drawer covers ~360px of
+the terminal while open.
 
-**`isActive` prop:** Must remain `true` throughout the drawer open/close animation to keep the ResizeObserver active.
+**`isActive` prop:** Stays `true` while the session modal is open (the modal-open prop, unchanged by the
+drawer). Since the overlay never resizes the terminal, there is no resize-timing concern — see Pitfall 6
+(also superseded).
 
 ### Pattern 8: Unread Badge State Lift
 
@@ -587,10 +593,15 @@ useEffect(() => {
 **Warning signs:** Intermittent missed messages on first load, more noticeable on slow connections.
 
 ### Pitfall 6: `isActive=false` During Drawer Animation Breaks PTY Resize
-**What goes wrong:** If `isActive` is set to `false` during the 220ms drawer open animation, the ResizeObserver in TerminalPanel disconnects and `fitTerminal` never fires when the column width stabilizes.
-**Why it happens:** The `isActive` effect in TerminalPanel returns early when `isActive === false`, disconnecting the ResizeObserver.
-**How to avoid:** Keep `isActive === true` at all times while the session modal is open, including during the chat drawer animation. The `isActive` prop gates the terminal on whether the session modal IS open, not whether the drawer is in its final position.
-**Warning signs:** Terminal column width wrong after opening/closing chat drawer.
+> **SUPERSEDED 2026-06-26 (D-02 → overlay mode).** This pitfall only existed under *push mode*, where
+> the drawer resized the terminal column and relied on the ResizeObserver firing mid-animation. In
+> overlay mode the drawer never changes the terminal width, so there is no resize to break. Keeping
+> `isActive=true` while the modal is open is still correct for the terminal lifecycle, but it is no
+> longer load-bearing for the drawer. Retained for history.
+
+**What went wrong (push mode):** If `isActive` was set to `false` during the 220ms drawer open animation, the ResizeObserver in TerminalPanel disconnected and `fitTerminal` never fired when the column width stabilized.
+**Why it happened:** The `isActive` effect in TerminalPanel returns early when `isActive === false`, disconnecting the ResizeObserver.
+**How it was avoided:** Keep `isActive === true` at all times while the session modal is open. The `isActive` prop gates the terminal on whether the session modal IS open. (In overlay mode this is automatic — the drawer does not touch the terminal.)
 
 ### Pitfall 7: Enter Key Injects Instead of Sends
 **What goes wrong:** User presses Enter to send a message while `@session` is in the composer; the message is injected into the PTY.

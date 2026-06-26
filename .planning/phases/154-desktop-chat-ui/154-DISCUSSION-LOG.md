@@ -25,12 +25,16 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Overlay (terminal unchanged) | Drawer floats over the right edge; no PTY resize; part of terminal covered | |
-| Push (terminal shrinks) | Terminal column shrinks → PTY resize/reflow; nothing covered | ✓ |
+| Overlay (terminal unchanged) | Drawer floats over the right edge; no PTY resize; part of terminal covered | ✓ (revised) |
+| Push (terminal shrinks) | Terminal column shrinks → PTY resize/reflow; nothing covered | ~~original~~ |
 | You decide | Defer to research/planning | |
 
-**User's choice:** Push (terminal shrinks)
-**Notes:** Accepts the per-open/close PTY reflow cost; planner must route through TerminalPanel's resize + max-wins arbitration.
+**User's choice:** ~~Push (terminal shrinks)~~ → **REVISED 2026-06-26 to Overlay (terminal unchanged).**
+**Notes:** Originally chose push (accepting the per-open/close PTY reflow cost). Revised to overlay
+because push mode resizes the host PTY on every drawer toggle, which conflicts with the host-authority
+"screen-share semantics" model adopted for **GitHub Issue #109** (host is the single source of truth for
+the PTY grid; guests conform). Overlay leaves the PTY untouched. Tradeoff now accepted: the drawer
+covers ~360px of the terminal while open. See CONTEXT D-02.
 
 ### Q3 — Default drawer state on modal open
 
