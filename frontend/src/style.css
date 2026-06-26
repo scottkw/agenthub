@@ -6270,19 +6270,17 @@ body {
   }
 }
 
-/* Reduced-motion: share modal + chat-panel: appear/disappear instantly;
-   inject button fill animation also disabled (hold threshold still 600ms) */
+/* Reduced-motion: share modal appears/disappears instantly.
+   NOTE: the chat-panel slide + inject fill reduced-motion overrides live in a
+   SECOND @media block placed AFTER the chat base rules (below) — placing them
+   here is ineffective because the later, equal/higher-specificity base rules
+   (.hub-modal__body--interactive .chat-panel, .chat-composer__inject-btn::before)
+   would win the cascade. */
 @media (prefers-reduced-motion: reduce) {
   .hub-share-modal {
     animation: none;
     transition: none;
     opacity: 1;
-  }
-  .chat-panel {
-    transition: none;
-  }
-  .chat-composer__inject-btn::before {
-    transition: none;
   }
 }
 
@@ -6908,4 +6906,20 @@ body {
 .chat-composer__inject-icon {
   width: 16px;
   height: 16px;
+}
+
+/* Reduced-motion suppression for the Phase 154 chat UI — placed AFTER the base
+   rules so it wins the cascade. The earlier @media block (~line 6275) cannot
+   suppress these because the base rules below it (.hub-modal__body--interactive
+   .chat-panel at 200ms, .chat-composer__inject-btn::before at 600ms) are later
+   and of equal-or-higher specificity. Selectors here match that specificity and
+   come last, so transition:none applies. The 600ms inject hold threshold is
+   JS-driven (setTimeout) and is unaffected — the inject still fires. */
+@media (prefers-reduced-motion: reduce) {
+  .hub-modal__body--interactive .chat-panel {
+    transition: none;
+  }
+  .chat-composer__inject-btn::before {
+    transition: none;
+  }
 }
