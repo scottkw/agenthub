@@ -207,8 +207,9 @@ func TestChatRoutes_InvalidSessionID(t *testing.T) {
 }
 
 // TestChatRoutes_Export verifies that GET /api/chat/{id}/export returns 200,
-// Content-Type text/markdown, and a body that contains the appended message's
-// content.
+// Content-Type text/markdown, Content-Disposition attachment filename, and a
+// body that starts with the YAML frontmatter fence and contains the appended
+// message's content (EXPORT-01 relay loopback contract).
 func TestChatRoutes_Export(t *testing.T) {
 	chatsDir := t.TempDir()
 	e := newChatRouteEngine(t, chatsDir)
@@ -239,14 +240,29 @@ func TestChatRoutes_Export(t *testing.T) {
 	if !strings.Contains(ct, "text/markdown") {
 		t.Errorf("Content-Type = %q; want to contain text/markdown", ct)
 	}
+	// Content-Disposition must carry the exact attachment filename (EXPORT-01).
 	cd := resp.Header.Get("Content-Disposition")
-	if !strings.Contains(cd, "attachment") {
-		t.Errorf("Content-Disposition = %q; want to contain attachment", cd)
+	wantCD := `attachment; filename="chat-sess-export.md"`
+	if cd != wantCD {
+		t.Errorf("Content-Disposition = %q; want %q", cd, wantCD)
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), wantContent) {
-		t.Errorf("export body does not contain %q; body=%s", wantContent, body)
+	bodyStr := string(body)
+
+	// Body must start with the YAML frontmatter fence (EXPORT-01 format).
+	if !strings.HasPrefix(bodyStr, "---\n") {
+		t.Errorf("export body must start with ---; got: %.100q", bodyStr)
+	}
+	// Frontmatter must contain required keys.
+	for _, want := range []string{"session: sess-export", "exported_at: ", "participants:"} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("export body missing %q; body=%.400q", want, bodyStr)
+		}
+	}
+	// Original message content must still be in the body.
+	if !strings.Contains(bodyStr, wantContent) {
+		t.Errorf("export body does not contain %q; body=%.400q", wantContent, bodyStr)
 	}
 }
 

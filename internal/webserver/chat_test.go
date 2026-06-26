@@ -254,6 +254,70 @@ func TestChatWeb_ProviderInternalError(t *testing.T) {
 	}
 }
 
+// TestChatExport verifies the cap-gated webserver export route against the
+// YAML-frontmatter contract (EXPORT-01 / T-155-03):
+//
+//   - GET /api/chat/{id}/export?cap={valid} → 200, body contains YAML
+//     frontmatter (session: / exported_at:), Content-Disposition attachment.
+//   - GET /api/chat/{id}/export (no cap) → 401, response body contains no
+//     thread content (T-155-03: no bytes served before HMAC verification).
+func TestChatExport(t *testing.T) {
+	const sessionID = "sess-export-yt"
+	const frontmatterMD = "---\nsession: " + sessionID + "\nexported_at: 2026-06-26T00:00:00Z\nparticipants:\n  - \"alice (local)\"\n---\n\n# Chat: " + sessionID + "\n\n## alice (local) — 2026-06-26T00:00:00Z\n\nhello export\n\n---\n\n"
+
+	ws, client := testServer(t)
+	ws.SetSigningKey(capTestKey)
+	ws.EnableSession(sessionID)
+	wireChatProvider(ws, sessionID, knownHistoryJSON, frontmatterMD)
+
+	token := issueCapFor(t, ws, sessionID, "read,write")
+
+	// (a) Valid cap — 200, YAML frontmatter body, attachment Content-Disposition.
+	resp, err := client.Get(ws.BaseURL() + "/api/chat/" + sessionID + "/export?cap=" + token)
+	if err != nil {
+		t.Fatalf("GET export with valid cap: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d; body=%s", resp.StatusCode, body)
+	}
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/markdown") {
+		t.Errorf("Content-Type = %q; want to contain text/markdown", ct)
+	}
+	wantCD := `attachment; filename="chat-` + sessionID + `.md"`
+	if cd := resp.Header.Get("Content-Disposition"); cd != wantCD {
+		t.Errorf("Content-Disposition = %q; want %q", cd, wantCD)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{"session: " + sessionID, "exported_at: "} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("export body missing %q; body=%.400q", want, bodyStr)
+		}
+	}
+
+	// (b) Missing cap — 401, body must contain no thread bytes (T-155-03).
+	resp2, err := client.Get(ws.BaseURL() + "/api/chat/" + sessionID + "/export")
+	if err != nil {
+		t.Fatalf("GET export without cap: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode == http.StatusOK {
+		t.Errorf("expected non-200 (401/403) without cap, got %d", resp2.StatusCode)
+	}
+	body2, _ := io.ReadAll(resp2.Body)
+	// The response body must not contain any thread content.
+	for _, forbidden := range []string{"session: " + sessionID, "participants:", "---\n"} {
+		if strings.Contains(string(body2), forbidden) {
+			t.Errorf("unauthorized export response leaks thread content %q; body=%s", forbidden, body2)
+		}
+	}
+}
+
 // TestChatWeb_RequireCapabilityIsWiredForBothRoutes confirms that
 // requireCapability is registered for both routes by checking that the
 // routes are listed in the mux (via the 401 without-cap response).
