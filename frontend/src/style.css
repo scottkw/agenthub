@@ -6219,7 +6219,8 @@ body {
   }
 }
 
-/* Reduced-motion: share modal + chat-panel: appear/disappear instantly */
+/* Reduced-motion: share modal + chat-panel: appear/disappear instantly;
+   inject button fill animation also disabled (hold threshold still 600ms) */
 @media (prefers-reduced-motion: reduce) {
   .hub-share-modal {
     animation: none;
@@ -6227,6 +6228,9 @@ body {
     opacity: 1;
   }
   .chat-panel {
+    transition: none;
+  }
+  .chat-composer__inject-btn::before {
     transition: none;
   }
 }
@@ -6723,11 +6727,134 @@ body {
   line-height: 20px;
 }
 
-/* Composer slot: border + surface background; content added in plan 154-06 */
-.chat-panel__composer-slot {
+/* Composer outer: border + surface background */
+.chat-panel__composer {
   flex-shrink: 0;
   border-top: 1px solid var(--hub-border);
   background: var(--hub-surface);
-  /* Minimum height so the slot is visible even before the composer is wired */
-  min-height: 4px;
+  padding: 8px;
+}
+
+/* Inner wrapper: position:relative is the containing block for MentionPopover */
+.chat-panel__composer-inner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Auto-growing textarea (react-textarea-autosize) */
+.chat-composer__textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  background: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
+  font-family: var(--hub-font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  outline: none;
+  min-height: 0;
+}
+
+.chat-composer__textarea:focus {
+  border-color: var(--hub-accent);
+}
+
+.chat-composer__textarea::placeholder {
+  color: var(--hub-text-dim);
+}
+
+/* Send button */
+.chat-composer__send-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: 36px;
+  border: none;
+  border-radius: var(--hub-radius-sm);
+  background: var(--hub-accent);
+  color: var(--hub-bg);
+  font-family: var(--hub-font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-composer__send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chat-composer__send-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Inject button — press-and-hold gesture (D-08)
+   COLORBLIND-SAFE: CommandLineIcon (shape) + "Inject" text are primary signals;
+   --hub-accent fill is reinforcement only. */
+.chat-composer__inject-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: 36px;
+  border: 1px solid var(--hub-accent);
+  border-radius: var(--hub-radius-sm);
+  background: transparent;
+  color: var(--hub-accent);
+  font-family: var(--hub-font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  /* Prevent text selection on long-press and block default touch actions */
+  user-select: none;
+  touch-action: none;
+}
+
+/* Fill animation: scaleX(0→1) over 600ms (GPU-composited via transform)
+   Mirrors the .tab__progress fill pattern.
+   The ::before fills behind the button content via z-index layering. */
+.chat-composer__inject-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--hub-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 600ms linear;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.chat-composer__inject-btn--holding::before {
+  transform: scaleX(1);
+}
+
+/* Flip label color when the fill covers the button */
+.chat-composer__inject-btn--holding {
+  color: var(--hub-bg);
+}
+
+/* Button content above fill layer */
+.chat-composer__inject-btn > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chat-composer__inject-icon {
+  width: 16px;
+  height: 16px;
 }

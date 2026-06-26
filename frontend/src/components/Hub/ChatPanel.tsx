@@ -28,14 +28,18 @@ import React, {
   useMemo,
   useCallback,
 } from 'react'
+import TextareaAutosize from 'react-textarea-autosize'
 import { useVirtualizer, defaultRangeExtractor } from '@tanstack/react-virtual'
 import { RelayClient } from '../../lib/relayClient'
 import type { ChatMessage, PresenceEntry } from '../../lib/relayClient'
 import { ChatMessage as ChatMessageComponent } from './ChatMessage'
 import { ChatDaySeparator, formatDaySeparator } from './ChatDaySeparator'
+import { MentionPopover } from './MentionPopover'
 import {
   ChatBubbleLeftIcon,
   ExclamationCircleIcon,
+  PaperAirplaneIcon,
+  CommandLineIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -254,11 +258,27 @@ export function ChatPanel({
   const [unread, setUnread] = useState<UnreadState>({ count: 0, hasMention: false })
   const [windowFocused, setWindowFocused] = useState(document.hasFocus())
 
+  // ── Composer state (plan 154-06) ────────────────────────────────────────
+  const [draft, setDraft] = useState('')
+  const [mentionOpen, setMentionOpen] = useState(false)
+  const [mentionFilter, setMentionFilter] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isHolding, setIsHolding] = useState(false)
+
   // ── Refs ────────────────────────────────────────────────────────────────
   /** Stable Set of seen message IDs — prevents WS+history duplicates. */
   const seenIdsRef = useRef(new Set<string>())
   /** Scroll container for the virtualizer. */
   const parentRef = useRef<HTMLDivElement>(null)
+  /** Composer textarea element. */
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  /** Relay client ref — lets composer handlers send frames (plan 154-06). */
+  const clientRef = useRef<RelayClient | null>(null)
+  /** Stable draft ref for the inject timer closure (D-08). */
+  const draftRef = useRef('')
+  draftRef.current = draft  // inline sync on every render (liveRef pattern)
+  /** Press-and-hold timer ref (D-08). */
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /**
    * Current open/focus/tailnetID captured in a ref so the onChat callback
    * (in the long-lived RelayClient useEffect) reads non-stale values.
@@ -292,6 +312,15 @@ export function ChatPanel({
     onUnreadChangeRef.current?.(unread.count, unread.hasMention)
   }, [unread])
 
+  // ── Hold timer cleanup on unmount ───────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current)
+      }
+    }
+  }, [])
+
   // ── RelayClient subscription (Pattern 2 — separate from TerminalPanel) ─
   const handleChat = useCallback((message: ChatMessage) => {
     setMessages(prev => mergeWithDedup(prev, [message], seenIdsRef.current))
@@ -309,6 +338,9 @@ export function ChatPanel({
     setTypingEntries([])
     setUnread({ count: 0, hasMention: false })
     seenIdsRef.current = new Set()
+    setDraft('')
+    setMentionOpen(false)
+    clientRef.current = null
 
     const client = new RelayClient(relayPort, sessionId, {
       onOutput: () => {}, // ChatPanel discards PTY output — only onChat matters
@@ -343,10 +375,157 @@ export function ChatPanel({
         setPhase('error')
       },
     })
+    clientRef.current = client
 
-    return () => { client.close() }
+    return () => {
+      client.close()
+      clientRef.current = null
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, relayPort]) // handleChat is stable (useCallback with no deps)
+
+  // ── Composer derived values ─────────────────────────────────────────────
+  /** True when the draft contains "@session" — switches Send → Inject button. */
+  const hasAtSession = draft.includes('@session')
+
+  /** Participants filtered by the mention filter string. */
+  const filteredParticipants = useMemo(
+    () =>
+      mentionFilter
+        ? participants.filter(p =>
+            p.alias.toLowerCase().includes(mentionFilter.toLowerCase()),
+          )
+        : participants,
+    [participants, mentionFilter],
+  )
+  const totalOptions = 1 + filteredParticipants.length
+
+  // ── Composer handlers ───────────────────────────────────────────────────
+
+  function handleDraftChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const text = e.target.value
+    setDraft(text)
+    draftRef.current = text
+
+    // Detect @ mention trigger: scan from last @ to caret for filter string
+    const pos = e.target.selectionStart ?? text.length
+    const textBefore = text.slice(0, pos)
+    const atIdx = textBefore.lastIndexOf('@')
+
+    if (atIdx >= 0) {
+      const fragment = textBefore.slice(atIdx + 1)
+      // No whitespace between @ and cursor = valid trigger
+      if (!/\s/.test(fragment)) {
+        setMentionOpen(true)
+        setMentionFilter(fragment)
+        setActiveIndex(0)
+        return
+      }
+    }
+
+    if (mentionOpen) {
+      setMentionOpen(false)
+      setMentionFilter('')
+    }
+  }
+
+  function handleMentionSelect(alias: string) {
+    const pos = textareaRef.current?.selectionStart ?? draft.length
+    const textBefore = draft.slice(0, pos)
+    const atIdx = textBefore.lastIndexOf('@')
+    const beforeAt = draft.slice(0, atIdx)
+    const afterCursor = draft.slice(pos)
+    const newDraft = `${beforeAt}${alias} ${afterCursor}`
+    setDraft(newDraft)
+    draftRef.current = newDraft
+    setMentionOpen(false)
+    setMentionFilter('')
+    setActiveIndex(0)
+    textareaRef.current?.focus()
+  }
+
+  function handleMentionClose() {
+    setMentionOpen(false)
+    setMentionFilter('')
+  }
+
+  function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActiveIndex(i => (i + 1) % totalOptions)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActiveIndex(i => (i - 1 + totalOptions) % totalOptions)
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        if (activeIndex === 0) {
+          handleMentionSelect('@session')
+        } else {
+          const p = filteredParticipants[activeIndex - 1]
+          if (p) handleMentionSelect(`@${p.alias}`)
+        }
+        return
+      }
+      if (e.key === 'Escape' || e.key === 'Tab') {
+        if (e.key === 'Escape') e.preventDefault()
+        setMentionOpen(false)
+        setMentionFilter('')
+        return
+      }
+    }
+
+    // CRITICAL (Pitfall 7 / D-08): Enter ALWAYS routes to chat-send, NEVER to inject.
+    // The inject path is ONLY reachable through the completed 600ms press-and-hold.
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      const text = draftRef.current
+      if (text.trim()) {
+        clientRef.current?.sendChat(text)
+        setDraft('')
+        draftRef.current = ''
+        setMentionOpen(false)
+      }
+    }
+    // Shift+Enter: no preventDefault — default textarea behavior inserts newline
+  }
+
+  function handleSend() {
+    const text = draftRef.current
+    if (text.trim()) {
+      clientRef.current?.sendChat(text)
+      setDraft('')
+      draftRef.current = ''
+    }
+  }
+
+  function handleInjectPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
+    // setPointerCapture keeps tracking the pointer even after it leaves the button
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* jsdom fallback */ }
+    setIsHolding(true)
+    holdTimerRef.current = setTimeout(() => {
+      holdTimerRef.current = null
+      setIsHolding(false)
+      const text = draftRef.current
+      if (text.trim()) {
+        clientRef.current?.sendSessionInject(text)
+        setDraft('')
+        draftRef.current = ''
+      }
+    }, 600)
+  }
+
+  function resetInjectHold() {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current)
+      holdTimerRef.current = null
+    }
+    setIsHolding(false)
+  }
 
   // ── Virtualizer setup ───────────────────────────────────────────────────
   const items = useMemo(() => buildItems(messages), [messages])
@@ -528,8 +707,69 @@ export function ChatPanel({
         )}
       </div>
 
-      {/* ── Composer slot — filled in plan 154-06 ────────────────────── */}
-      <div className="chat-panel__composer-slot" />
+      {/* ── Composer (plan 154-06) ───────────────────────────────────── */}
+      <div className="chat-panel__composer">
+        {/* Relative wrapper: containing block for MentionPopover (Pattern 6) */}
+        <div className="chat-panel__composer-inner">
+          {/* MentionPopover — bottom-anchored above the textarea wrapper */}
+          {mentionOpen && (
+            <MentionPopover
+              participants={participants}
+              filter={mentionFilter}
+              activeIndex={activeIndex}
+              onSelect={handleMentionSelect}
+              onClose={handleMentionClose}
+            />
+          )}
+
+          {/* Composer textarea */}
+          <TextareaAutosize
+            ref={textareaRef}
+            className="chat-composer__textarea"
+            value={draft}
+            onChange={handleDraftChange}
+            onKeyDown={handleTextareaKeyDown}
+            minRows={1}
+            maxRows={6}
+            placeholder={
+              hasAtSession
+                ? '@session — hold Send to inject'
+                : 'Message…'
+            }
+            aria-label="Type a message"
+          />
+
+          {/* Send button (normal) / Inject button (@session in draft) */}
+          {hasAtSession ? (
+            /* CRITICAL (D-08 / Pitfall 7): inject button has NO form association
+               and NO keyboard shortcut. The only path to inject is the completed
+               600ms press-and-hold. Enter always routes to handleTextareaKeyDown
+               → sendChat on a strictly separate code path. */
+            <button
+              type="button"
+              className={`chat-composer__inject-btn${isHolding ? ' chat-composer__inject-btn--holding' : ''}`}
+              aria-label="Hold to inject into terminal"
+              onPointerDown={handleInjectPointerDown}
+              onPointerUp={resetInjectHold}
+              onPointerCancel={resetInjectHold}
+            >
+              <CommandLineIcon className="chat-composer__inject-icon" aria-hidden="true" />
+              <span>Inject</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="chat-composer__send-btn"
+              aria-label="Send message"
+              onClick={handleSend}
+              disabled={!draft.trim()}
+            >
+              <PaperAirplaneIcon className="chat-composer__send-icon" aria-hidden="true" />
+              <span>Send</span>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
