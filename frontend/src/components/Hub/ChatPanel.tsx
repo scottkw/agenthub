@@ -40,6 +40,7 @@ import {
   ExclamationCircleIcon,
   PaperAirplaneIcon,
   CommandLineIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -75,6 +76,16 @@ export interface ChatPanelProps {
   currentUserTailnetID?: string
   /** Called whenever the unread count or mention flag changes. */
   onUnreadChange?: (count: number, hasMention: boolean) => void
+  // ── Phase 155 additions (all optional → non-breaking for desktop) ──────────
+  /** WS URL override for web-share (wss://host/sessions/{id}/ws?cap=…). When
+   *  absent, RelayClient builds ws://127.0.0.1:{relayPort}/… (desktop). */
+  wsURL?: string
+  /** HTTP base URL for history/export API calls (web-share: window.location.origin;
+   *  desktop: falls back to http://127.0.0.1:{relayPort}). */
+  apiBaseURL?: string
+  /** Cap token forwarded opaquely as ?cap= on all web-surface API calls. Never
+   *  decoded client-side (signing key is server-only). */
+  capToken?: string
 }
 
 // ── Pure helpers (exported for unit tests) ─────────────────────────────────
@@ -212,23 +223,41 @@ export function getRowStyle(
 }
 
 /**
- * Fetch late-join chat history from the local relay.
+ * Fetch late-join chat history from the local relay or webserver.
  * Called AFTER the WebSocket is opened (Pitfall 5: WS-first to avoid gap).
  * Returns empty array on any failure — live WS messages continue regardless.
+ *
+ * Phase 155: opts.apiBaseURL / opts.capToken enable web-share surface.
+ * Without ?cap= on web-share, the webserver returns 401 → error state fires
+ * (Pitfall 2 — cap param is mandatory on web-share).
  */
 export async function loadChatHistory(
   relayPort: number,
   sessionId: string,
+  opts?: { apiBaseURL?: string; capToken?: string },
 ): Promise<ChatMessage[]> {
   try {
-    const resp = await fetch(
-      `http://127.0.0.1:${relayPort}/api/chat/${sessionId}/history`,
-    )
+    const base = opts?.apiBaseURL ?? `http://127.0.0.1:${relayPort}`
+    const capParam = opts?.capToken ? `?cap=${encodeURIComponent(opts.capToken)}` : ''
+    const resp = await fetch(`${base}/api/chat/${sessionId}/history${capParam}`)
     if (!resp.ok) return []
     return resp.json() as Promise<ChatMessage[]>
   } catch {
     return []
   }
+}
+
+/**
+ * Download a URL via a hidden anchor element (Content-Disposition download).
+ * The server sets `Content-Disposition: attachment; filename="chat-{id}.md"`.
+ */
+function triggerExport(url: string): void {
+  const a = document.createElement('a')
+  a.href = url
+  a.download = ''
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -249,6 +278,9 @@ export function ChatPanel({
   open,
   currentUserTailnetID = 'local',
   onUnreadChange,
+  wsURL,
+  apiBaseURL,
+  capToken,
 }: ChatPanelProps): React.ReactElement {
   // ── Core state ─────────────────────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -321,6 +353,13 @@ export function ChatPanel({
     }
   }, [])
 
+  // ── Phase 155: Export URL builder (component-scoped — captures props) ───
+  function buildExportURL(): string {
+    const base = apiBaseURL ?? `http://127.0.0.1:${relayPort}`
+    const capParam = capToken ? `?cap=${encodeURIComponent(capToken)}` : ''
+    return `${base}/api/chat/${sessionId}/export${capParam}`
+  }
+
   // ── RelayClient subscription (Pattern 2 — separate from TerminalPanel) ─
   const handleChat = useCallback((message: ChatMessage) => {
     setMessages(prev => mergeWithDedup(prev, [message], seenIdsRef.current))
@@ -360,8 +399,9 @@ export function ChatPanel({
       },
       onOpen: () => {
         // WS connected — fetch history AFTER WS opens to avoid gap (Pitfall 5)
+        // Phase 155: pass apiBaseURL+capToken so web-share appends ?cap= (Pitfall 2)
         setPhase('loading-history')
-        loadChatHistory(relayPort, sessionId)
+        loadChatHistory(relayPort, sessionId, { apiBaseURL, capToken })
           .then(history => {
             setMessages(prev => mergeWithDedup(prev, history, seenIdsRef.current))
             setPhase('ready')
@@ -374,7 +414,7 @@ export function ChatPanel({
       onClose: () => {
         setPhase('error')
       },
-    })
+    }, { wsURL }) // Phase 155: wsURL override for web-share surface
     clientRef.current = client
 
     return () => {
@@ -382,7 +422,7 @@ export function ChatPanel({
       clientRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, relayPort]) // handleChat is stable (useCallback with no deps)
+  }, [sessionId, relayPort, wsURL, apiBaseURL, capToken]) // handleChat is stable (useCallback with no deps)
 
   // ── Composer derived values ─────────────────────────────────────────────
   /** True when the draft contains "@session" — switches Send → Inject button. */
@@ -583,7 +623,7 @@ export function ChatPanel({
       aria-hidden={!open}
       data-testid="chat-panel"
     >
-      {/* ── Header: title + presence roster ──────────────────────────── */}
+      {/* ── Header: title + presence roster + export ────────────────── */}
       <div className="chat-panel__header">
         <span className="chat-panel__title">Chat</span>
         {/* Presence roster: up to 3 avatars + overflow count */}
@@ -608,6 +648,29 @@ export function ChatPanel({
             </span>
           )}
         </div>
+        {/* Phase 155 EXPORT-01: Export chat as Markdown (available in both RO and RW modes) */}
+        <button
+          type="button"
+          className="chat-panel__export-btn"
+          data-chat-export
+          aria-label="Export chat as Markdown"
+          title="Export chat as Markdown"
+          onClick={() => triggerExport(buildExportURL())}
+          style={{
+            width: 36,
+            height: 36,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            color: 'var(--hub-text-muted)',
+            borderRadius: 'var(--hub-radius-sm)',
+          }}
+        >
+          <ArrowDownTrayIcon style={{ width: 18, height: 18 }} aria-hidden="true" />
+        </button>
       </div>
 
       {/* ── Thread: scroll container for the virtualizer ─────────────── */}
