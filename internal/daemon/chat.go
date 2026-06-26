@@ -307,17 +307,33 @@ func (s *ChatStore) AppendMessage(msg relay.ChatMessage) (relay.ChatMessage, err
 	return msg, nil
 }
 
-// Export renders the full message thread to Markdown and returns the document
-// as a string. The document contains a header naming the session followed by
-// one block per message in chronological order. Each block includes:
-//   - AuthorAlias and AuthorID (stable identity preserved for round-trip)
-//   - TimestampMs formatted as an ISO-8601 / RFC3339 UTC string
-//   - Content body
-//   - An explicit "injected into terminal" marker when SessionInject == true
+// Export renders the full message thread to GitHub-compatible Markdown with a
+// YAML frontmatter block (EXPORT-01, Phase 155).
 //
-// Export() on an empty thread returns a header-only document and nil error.
-// The richer YAML-frontmatter format is Phase 155 / EXPORT-01; the contract
-// here is field-completeness, not presentation polish.
+// Format:
+//
+//	---
+//	session: {sessionID}
+//	exported_at: {RFC3339 UTC}
+//	participants:
+//	  - "{alias} ({authorID})"
+//	---
+//
+//	# Chat: {sessionID}
+//
+//	## {alias} ({authorID}) — {RFC3339 UTC ts}
+//
+//	{content}
+//
+//	_injected into terminal_   (only when SessionInject==true)
+//
+//	---
+//
+// Security (T-155-02): every participant value is double-quoted so that aliases
+// containing YAML special characters (`:`, `#`) do not corrupt the frontmatter.
+// Embedded `"` in an alias is escaped as `\"`.
+//
+// Export() on an empty thread returns a frontmatter-only document and nil error.
 func (s *ChatStore) Export() (string, error) {
 	s.mu.Lock()
 	msgs := make([]relay.ChatMessage, len(s.messages))
@@ -325,12 +341,32 @@ func (s *ChatStore) Export() (string, error) {
 	sessionID := s.sessionID
 	s.mu.Unlock()
 
+	// Deduplicate participants by AuthorID (order of first appearance).
+	seen := make(map[string]bool)
+	var participants []string
+	for _, msg := range msgs {
+		if !seen[msg.AuthorID] {
+			seen[msg.AuthorID] = true
+			safeAlias := strings.ReplaceAll(msg.AuthorAlias, `"`, `\"`)
+			participants = append(participants, fmt.Sprintf(`"%s (%s)"`, safeAlias, msg.AuthorID))
+		}
+	}
+
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Chat Thread: %s\n\n", sessionID)
+	exportedAt := time.Now().UTC().Format(time.RFC3339)
+	fmt.Fprintf(&b, "---\n")
+	fmt.Fprintf(&b, "session: %s\n", sessionID)
+	fmt.Fprintf(&b, "exported_at: %s\n", exportedAt)
+	fmt.Fprintf(&b, "participants:\n")
+	for _, p := range participants {
+		fmt.Fprintf(&b, "  - %s\n", p)
+	}
+	fmt.Fprintf(&b, "---\n\n")
+	fmt.Fprintf(&b, "# Chat: %s\n\n", sessionID)
+
 	for _, msg := range msgs {
 		ts := time.UnixMilli(msg.TimestampMs).UTC().Format(time.RFC3339)
-		fmt.Fprintf(&b, "## %s (%s)\n\n", msg.AuthorAlias, ts)
-		fmt.Fprintf(&b, "**Author ID:** %s\n\n", msg.AuthorID)
+		fmt.Fprintf(&b, "## %s (%s) — %s\n\n", msg.AuthorAlias, msg.AuthorID, ts)
 		fmt.Fprintf(&b, "%s\n\n", msg.Content)
 		if msg.SessionInject {
 			fmt.Fprintf(&b, "_injected into terminal_\n\n")
