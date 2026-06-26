@@ -72,15 +72,18 @@ func readFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	return msgType, payload
 }
 
-// readDataFrame reads frames from conn, skipping any MsgMeta frames, and returns
-// the first non-meta frame. This is used in tests that predate MsgMeta and only
-// care about PTY output frames.
+// readDataFrame reads frames from conn, skipping any MsgMeta and MsgPresence
+// frames, and returns the first PTY-data frame. This is used in tests that
+// predate Phase 152 and only care about PTY output frames; the new
+// MsgPresence roster pushes emitted by NotifyPresence on subscribe/unsubscribe
+// are treated identically to MsgMeta viewer-count pushes — they are
+// server-push housekeeping frames, not PTY data.
 func readDataFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	t.Helper()
 	for {
 		msgType, payload := readFrame(t, conn)
-		if msgType == MsgMeta {
-			continue // skip viewer-count push frames
+		if msgType == MsgMeta || msgType == MsgPresence {
+			continue // skip server-push housekeeping frames
 		}
 		return msgType, payload
 	}
