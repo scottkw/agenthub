@@ -362,7 +362,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 ### v4.1 Session Chat (Phases 151-156) — ACTIVE
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
-- [ ] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators
+- [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
 - [ ] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step
 - [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
 - [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
@@ -373,7 +373,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
-| 152. Relay Protocol + Identity + Presence | 5/6 | In Progress|  |
+| 152. Relay Protocol + Identity + Presence | 6/6 | Complete   | 2026-06-26 |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
@@ -451,14 +451,14 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. A typing indicator appears for a participant within 500 ms of them starting to compose and auto-clears if they stop typing for 5 seconds or disconnect abruptly — the indicator is never stored in the JSONL log.
   5. The desktop Wails owner and a same-machine browser client appear as two distinct, correctly-labelled presence entries — no silent identity merge.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 - [x] 152-01-PLAN.md — Wire-protocol foundation: frame constants 0x30-0x34, presence/typing/alias payload structs + encoders, ValidateAlias (Wave 1)
 - [x] 152-02-PLAN.md — Daemon AliasStore: composite-key JSON persistence surviving restart (Wave 1)
 - [x] 152-03-PLAN.md — Hub presence roster (refcount collapse) + typing TTL via time.AfterFunc (Wave 2)
 - [x] 152-04-PLAN.md — relayClient.ts presence/typing parse + typing/alias encoders (Wave 2)
 - [x] 152-05-PLAN.md — Relay path: engine AliasStore wiring + owner identity stamping + alias/typing dispatch (Wave 3)
-- [ ] 152-06-PLAN.md — Web path: WhoIs identity stamping + cross-surface parity + TESTING.md update (Wave 4)
+- [x] 152-06-PLAN.md — Web path: WhoIs identity stamping + cross-surface parity + TESTING.md update (Wave 4)
 
 ### Phase 153: @session PTY Bridge
 
