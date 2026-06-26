@@ -373,7 +373,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
-| 152. Relay Protocol + Identity + Presence | 0/6 | Not started | - |
+| 152. Relay Protocol + Identity + Presence | 2/6 | In Progress|  |
 | 153. @session PTY Bridge | 0/? | Not started | - |
 | 154. Desktop Chat UI | 0/? | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
@@ -451,9 +451,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. A typing indicator appears for a participant within 500 ms of them starting to compose and auto-clears if they stop typing for 5 seconds or disconnect abruptly — the indicator is never stored in the JSONL log.
   5. The desktop Wails owner and a same-machine browser client appear as two distinct, correctly-labelled presence entries — no silent identity merge.
 
-**Plans**: 6 plans
-- [ ] 152-01-PLAN.md — Wire-protocol foundation: frame constants 0x30-0x34, presence/typing/alias payload structs + encoders, ValidateAlias (Wave 1)
-- [ ] 152-02-PLAN.md — Daemon AliasStore: composite-key JSON persistence surviving restart (Wave 1)
+**Plans**: 2/6 plans executed
+
+- [x] 152-01-PLAN.md — Wire-protocol foundation: frame constants 0x30-0x34, presence/typing/alias payload structs + encoders, ValidateAlias (Wave 1)
+- [x] 152-02-PLAN.md — Daemon AliasStore: composite-key JSON persistence surviving restart (Wave 1)
 - [ ] 152-03-PLAN.md — Hub presence roster (refcount collapse) + typing TTL via time.AfterFunc (Wave 2)
 - [ ] 152-04-PLAN.md — relayClient.ts presence/typing parse + typing/alias encoders (Wave 2)
 - [ ] 152-05-PLAN.md — Relay path: engine AliasStore wiring + owner identity stamping + alias/typing dispatch (Wave 3)

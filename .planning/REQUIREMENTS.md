@@ -20,7 +20,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### IDENT — Identity
 
 - [ ] **IDENT-01**: Each participant is identified by their tailnet ID and a self-chosen alias, both visible to all participants.
-- [ ] **IDENT-02**: A user can set and change their alias; the local owner and a same-machine web client resolve to a single, correctly-disambiguated participant.
+- [x] **IDENT-02**: A user can set and change their alias; the local owner and a same-machine web client resolve to a single, correctly-disambiguated participant.
 
 ### MENTION — Mentions & the agent bridge
 
@@ -104,7 +104,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | CHAT-03 | Phase 154 | Pending |
 | CHAT-04 | Phase 154 | Pending |
 | IDENT-01 | Phase 152 | Pending |
-| IDENT-02 | Phase 152 | Pending |
+| IDENT-02 | Phase 152 | Complete |
 | MENTION-01 | Phase 154 | Pending |
 | MENTION-02 | Phase 153 | Pending |
 | MENTION-03 | Phase 153 | Pending |

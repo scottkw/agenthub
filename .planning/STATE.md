@@ -6,15 +6,15 @@ current_phase: 152
 current_phase_name: relay-protocol-identity-presence
 status: executing
 stopped_at: Phase 152 context gathered
-last_updated: "2026-06-26T02:00:59.556Z"
+last_updated: "2026-06-26T02:10:29.310Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 152 execution started
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 9
-  completed_plans: 3
-  percent: 33
+  completed_plans: 5
+  percent: 50
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 152 (relay-protocol-identity-presence) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 152
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-06-26 — Phase 152 execution started
 
 ```
@@ -90,7 +90,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% — 
 
 ## Session Continuity
 
-Last session: 2026-06-25T23:34:53.781Z
+Last session: 2026-06-26T02:09:55.152Z
 Stopped at: Phase 152 context gathered
 Resume file: .planning/phases/152-relay-protocol-identity-presence/152-CONTEXT.md
 Next action: `/gsd:plan-phase 151`
@@ -101,6 +101,8 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Injected baseDir: NewChatStore accepts baseDir parameter enabling constructor-level test isolation with t.TempDir()
 - [Phase ?]: Relay chat routes in wrapRelayWithChat outer wrap — avoids daemon↔relay import cycle
 - [Phase ?]: Webserver chat uses provider callback not daemon import — T-151-09 circular import prevention
+- [Phase ?]: RWMutex over Mutex
+- [Phase ?]: AliasStore rolls back in-memory map on persist failure to keep store consistent with disk
 
 ## Performance Metrics
 
