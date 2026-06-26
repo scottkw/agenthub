@@ -25,8 +25,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### MENTION — Mentions & the agent bridge
 
 - [ ] **MENTION-01**: Typing `@` opens an autocomplete popover over the session's participants (plus the pinned `@session` target), filterable and keyboard-navigable.
-- [ ] **MENTION-02**: `@session <text>` injects the message into the agent's PTY as a prompt — one-way only (the agent's reply appears in the terminal, not the chat); gated to read/write-capability holders; sanitized before injection; the chat shows a "→ injected into terminal" indicator.
-- [ ] **MENTION-03**: `@session` injection requires a deliberate confirm step (e.g. a short press-and-hold) to prevent accidental prompts into the agent.
+- [x] **MENTION-02**: `@session <text>` injects the message into the agent's PTY as a prompt — one-way only (the agent's reply appears in the terminal, not the chat); gated to read/write-capability holders; sanitized before injection; the chat shows a "→ injected into terminal" indicator.
+- [x] **MENTION-03**: `@session` injection requires a deliberate confirm step (e.g. a short press-and-hold) to prevent accidental prompts into the agent.
 
 ### PRESENCE — Liveness
 
@@ -54,7 +54,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### SEC — Security
 
-- [ ] **SEC-01**: Read-only capability holders cannot post chat messages or trigger `@session` injection (enforced server-side, not by UI suppression).
+- [x] **SEC-01**: Read-only capability holders cannot post chat messages or trigger `@session` injection (enforced server-side, not by UI suppression).
 - [x] **SEC-02**: Text injected via `@session` into the PTY is sanitized — C0 control characters and terminal escape sequences stripped, newlines collapsed, exactly one trailing newline appended.
 - [ ] **SEC-03**: Markdown message rendering cannot execute injected scripts/HTML (no `rehype-raw`; XSS payloads render inert) on either surface.
 
@@ -106,8 +106,8 @@ Which phase covers each requirement. Populated during roadmap creation.
 | IDENT-01 | Phase 152 | Complete |
 | IDENT-02 | Phase 152 | Complete |
 | MENTION-01 | Phase 154 | Pending |
-| MENTION-02 | Phase 153 | Pending |
-| MENTION-03 | Phase 153 | Pending |
+| MENTION-02 | Phase 153 | Complete |
+| MENTION-03 | Phase 153 | Complete |
 | PRESENCE-01 | Phase 152 | Complete |
 | PRESENCE-02 | Phase 152 | Complete |
 | PERSIST-01 | Phase 151 | Complete |
@@ -117,7 +117,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | NOTIF-01 | Phase 154 | Pending |
 | NOTIF-02 | Phase 154 | Pending |
 | PARITY-01 | Phase 155 | Pending |
-| SEC-01 | Phase 153 | Pending |
+| SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Pending |
 | INSTALL-01 | Phase 156 | Pending |
