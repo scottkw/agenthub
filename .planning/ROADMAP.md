@@ -363,7 +363,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
-- [ ] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step
+- [x] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step (completed 2026-06-26)
 - [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
 - [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
 - [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
@@ -374,7 +374,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 |-------|----------------|--------|-----------|
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
-| 153. @session PTY Bridge | 2/3 | In Progress|  |
+| 153. @session PTY Bridge | 3/3 | Complete   | 2026-06-26 |
 | 154. Desktop Chat UI | 0/? | Not started | - |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |
@@ -472,7 +472,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A message containing C0 control characters, embedded newlines, or terminal escape sequences (CSI, OSC) is sanitized at the daemon handler — only printable text plus exactly one trailing newline reaches PTY stdin; a unit test corpus covers newline injection, null bytes, and CSI sequences.
   4. The `@session` injection path requires a deliberate confirm step; a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 **Wave 1**
 
 - [x] 153-01-PLAN.md — Protocol verbs + SanitizePTYText sanitizer + SEC-02 corpus (SEC-02)
@@ -483,7 +483,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 153-03-PLAN.md — Web-share read-pump + adversarial RO-JWT test + TESTING.md (SEC-01)
+- [x] 153-03-PLAN.md — Web-share read-pump + adversarial RO-JWT test + TESTING.md (SEC-01)
 
 ### Phase 154: Desktop Chat UI
 
