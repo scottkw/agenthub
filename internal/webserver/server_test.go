@@ -300,8 +300,8 @@ func TestWebServerWSS(t *testing.T) {
 			t.Errorf("expected binary message, got %v", msgType)
 			break
 		}
-		if len(m) > 0 && m[0] == relay.MsgMeta {
-			continue // skip server-push metadata frames
+		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence) {
+			continue // skip server-push metadata + subscribe-time presence frames (Phase 152)
 		}
 		msg = m
 		break
