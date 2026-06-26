@@ -42,7 +42,7 @@ created: 2026-06-26
 | 153-02-* | 02 | 1 | MENTION-02 | — | RW-cap MsgSessionInject writes sanitized text to PTY stdin + broadcasts SessionInject msg | integration | `go test -race -short -run TestInject_RWCap ./internal/relay/...` | ❌ W0 | ⬜ pending |
 | 153-02-* | 02 | 1 | MENTION-03 | — | MsgChatSend / stray frame does NOT write to PTY; only MsgSessionInject does | unit | `go test -race -short -run TestInject_OnlyDedicatedFrame ./internal/relay/...` | ❌ W0 | ⬜ pending |
 | 153-03-* | 03 | 2 | SEC-01 (relay) | V4 / T-eop | RO client MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInject_ROCap_RelayPath ./internal/relay/...` | ❌ W0 | ⬜ pending |
-| 153-03-* | 03 | 2 | SEC-01 (web) | V4 / T-eop | RO JWT client hand-crafted MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInject_ROCap_WebPath ./internal/webserver/...` | ❌ W0 | ⬜ pending |
+| 153-03-* | 03 | 2 | SEC-01 (web) | V4 / T-eop | RO JWT client hand-crafted MsgSessionInject → NAK frame; WriteInput never called | integration | `go test -race -short -run TestInjectRO_WebPath ./internal/webserver/...` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · ❌ W0 = file created in Wave 0*
 

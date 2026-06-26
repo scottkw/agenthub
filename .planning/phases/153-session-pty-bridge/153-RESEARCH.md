@@ -725,17 +725,17 @@ Nyquist validation is **ENABLED** (key absent from config → treat as enabled).
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `MsgChatSend (0x31)` be dispatched in this phase or remain a stub?**
    - What we know: The comment in protocol.go marks MsgChatSend as "Phase 154 dispatch stub"; the read-pump switches currently have no `case MsgChatSend:` in their switch statements.
    - What's unclear: Phase 153's scope is inject only. Adding MsgChatSend dispatch here would pull in CHAT-01 scope.
-   - Recommendation: Leave MsgChatSend as a stub in Phase 153. The new `case MsgSessionInject:` is sufficient for this phase's requirements.
+   - RESOLVED: Leave MsgChatSend as a stub in Phase 153. The new `case MsgSessionInject:` is sufficient for this phase's requirements. (Plans follow this — no MsgChatSend dispatch case is added.)
 
 2. **Does the relay loopback path need its inject verb at all for Phase 153 to meet all 4 success criteria?**
    - What we know: Success criterion 1 says "Sending `@session <text>` as a RW-cap holder causes exactly that text to appear in the session PTY stdin." Phase 154 (where the composer lives) will emit frames from the Wails webview, which goes through the relay loopback path.
    - What's unclear: The adversarial test (success criterion 2) focuses on RO WS frame injection, which is primarily the web path concern. The loopback path's `sub.ReadOnly` is always false for the desktop owner.
-   - Recommendation: Implement both paths in Phase 153. The loopback path is where the desktop owner will inject from Phase 154 onward; the gate still needs to be present and tested.
+   - RESOLVED: Implement both paths in Phase 153. The loopback path is where the desktop owner will inject from Phase 154 onward; the gate still needs to be present and tested. (Plans 02 + 03 implement both WS paths.)
 
 ---
 

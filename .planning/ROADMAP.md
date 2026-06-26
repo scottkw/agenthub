@@ -473,8 +473,16 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. The `@session` injection path requires a deliberate confirm step; a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write.
 
 **Plans**: 3 plans
+**Wave 1**
+
 - [ ] 153-01-PLAN.md — Protocol verbs + SanitizePTYText sanitizer + SEC-02 corpus (SEC-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 153-02-PLAN.md — Hub.HandleInject + relay read-pump + engine wiring + relay tests (MENTION-02, MENTION-03, SEC-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 153-03-PLAN.md — Web-share read-pump + adversarial RO-JWT test + TESTING.md (SEC-01)
 
 ### Phase 154: Desktop Chat UI
