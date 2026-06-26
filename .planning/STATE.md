@@ -4,17 +4,17 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 154
 current_phase_name: desktop-chat-ui
-status: executing
+status: verifying
 stopped_at: Phase 154 UI-SPEC approved
-last_updated: "2026-06-26T19:39:21.389Z"
+last_updated: "2026-06-26T20:10:13.802Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 154 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 18
-  completed_plans: 17
-  percent: 60
+  completed_plans: 18
+  percent: 80
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 154 (desktop-chat-ui) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-26 — Phase 154 execution started
 
 ```
@@ -93,7 +93,7 @@ Progress: [██████████░░░░░░░░░░] 50% —
 
 ## Session Continuity
 
-Last session: 2026-06-26T19:39:21.383Z
+Last session: 2026-06-26T20:08:52.072Z
 Stopped at: Phase 154 UI-SPEC approved
 Resume file: .planning/phases/154-desktop-chat-ui/154-UI-SPEC.md
 Next action: `/gsd:plan-phase 151`
@@ -115,6 +115,9 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Phase 154-01: HandleChatSend uses SanitizeChatContent not SanitizePTYText; silent-drop on error (no NAK)
 - [Phase ?]: alias field in ChatMessage mirrors Go json:"alias" tag — not authorAlias (RESEARCH Pitfall 4)
 - [Phase ?]: all new RelayClientCallbacks members optional (?) for TerminalPanel backward compat (RESEARCH Pitfall 2)
+- [Phase ?]: Pitfall 7: Enter always routes to sendChat, never to inject — strictly separate code paths
+- [Phase ?]: draftRef liveRef pattern: draft mirrored to ref inline during render so 600ms inject timer reads non-stale draft
+- [Phase ?]: D-02 overlay mode: ChatPanel position:absolute over terminal, isActive unchanged by chatOpen, no PTY resize on toggle
 
 ## Performance Metrics
 
@@ -134,3 +137,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 154 P02 | 4 minutes | 2 tasks | 4 files |
 | Phase 154 P03 | 9 minutes | 2 tasks | 5 files |
 | Phase 154 P05 | 40 minutes | 2 tasks | 3 files |
+| Phase 154 P06 | 70 minutes | 3 tasks | 8 files |

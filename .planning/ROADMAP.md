@@ -364,7 +364,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
 - [x] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step (completed 2026-06-26)
-- [ ] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering
+- [x] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering (completed 2026-06-26)
 - [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
 - [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
 - [ ] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble
@@ -376,7 +376,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 151. Message Schema + ChatStore | 3/3 | Complete    | 2026-06-25 |
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
-| 154. Desktop Chat UI | 5/6 | In Progress|  |
+| 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 0/? | Not started | - |
 | 156. Install Links & Distribution | 0/? | Not started | - |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
@@ -500,7 +500,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. Pasting `<script>alert(1)</script>` or `<img src=x onerror=alert(1)>` into a message renders completely inert — no script executes and no `onerror` attribute is present in the DOM on either surface.
   5. Day separators appear between messages from different calendar days and remain anchored to the top of the visible viewport as the user scrolls through history.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 **Wave 1** *(parallel — disjoint subsystems)*
 
@@ -521,7 +521,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 5** *(blocked on 154-05)*
 
-- [ ] 154-06-PLAN.md — Composer (CHAT-03 auto-grow, Enter/Shift+Enter, mention popover, press-and-hold inject D-08) + HubInteractiveModal overlay integration (drawer floats over the terminal, no resize — D-02 revised for Issue #109) + SessionCard badge + TESTING.md registration
+- [x] 154-06-PLAN.md — Composer (CHAT-03 auto-grow, Enter/Shift+Enter, mention popover, press-and-hold inject D-08) + HubInteractiveModal overlay integration (drawer floats over the terminal, no resize — D-02 revised for Issue #109) + SessionCard badge + TESTING.md registration
 
 **UI hint**: yes
 
