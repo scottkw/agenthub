@@ -24,7 +24,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### MENTION — Mentions & the agent bridge
 
-- [ ] **MENTION-01**: Typing `@` opens an autocomplete popover over the session's participants (plus the pinned `@session` target), filterable and keyboard-navigable.
+- [x] **MENTION-01**: Typing `@` opens an autocomplete popover over the session's participants (plus the pinned `@session` target), filterable and keyboard-navigable.
 - [x] **MENTION-02**: `@session <text>` injects the message into the agent's PTY as a prompt — one-way only (the agent's reply appears in the terminal, not the chat); gated to read/write-capability holders; sanitized before injection; the chat shows a "→ injected into terminal" indicator.
 - [x] **MENTION-03**: `@session` injection requires a deliberate confirm step (e.g. a short press-and-hold) to prevent accidental prompts into the agent.
 
@@ -45,7 +45,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### NOTIF — In-app notifications
 
-- [ ] **NOTIF-01**: An in-app unread badge appears on the chat toggle and the Hub session card when there are unread messages; an `@mention` of the current user is visually distinct.
+- [x] **NOTIF-01**: An in-app unread badge appears on the chat toggle and the Hub session card when there are unread messages; an `@mention` of the current user is visually distinct.
 - [x] **NOTIF-02**: Messages that mention the current user's alias are highlighted in the stream.
 
 ### PARITY — Cross-surface
@@ -113,7 +113,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | CHAT-04 | Phase 154 | Complete |
 | IDENT-01 | Phase 152 | Complete |
 | IDENT-02 | Phase 152 | Complete |
-| MENTION-01 | Phase 154 | Pending |
+| MENTION-01 | Phase 154 | Complete |
 | MENTION-02 | Phase 153 | Complete |
 | MENTION-03 | Phase 153 | Complete |
 | PRESENCE-01 | Phase 152 | Complete |
@@ -122,7 +122,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | PERSIST-02 | Phase 151 | Complete |
 | PERSIST-03 | Phase 151 | Complete |
 | EXPORT-01 | Phase 155 | Pending |
-| NOTIF-01 | Phase 154 | Pending |
+| NOTIF-01 | Phase 154 | Complete |
 | NOTIF-02 | Phase 154 | Complete |
 | PARITY-01 | Phase 155 | Pending |
 | SEC-01 | Phase 153 | Complete |
