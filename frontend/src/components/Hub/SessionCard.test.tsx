@@ -751,4 +751,41 @@ describe('SessionCard attention (ATTN-01)', () => {
     // Open button preserved for live session
     expect(container.querySelector('.hub-card__open')).not.toBeNull()
   })
+
+  // ---- NOTIF-01 / D-10: ChatBadge on SessionCard ----
+
+  it('NOTIF-01: unreadCount=0 renders no chat badge (count-0 = no DOM node)', () => {
+    const { container } = renderCard(makeSession())
+    // Default: no unreadCount prop → badge absent
+    const badge = container.querySelector('.chat-badge')
+    expect(badge).toBeNull()
+  })
+
+  it('NOTIF-01: unreadCount=3 renders chat badge with count text', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={makeSession()} unreadCount={3} hasChatMention={false} />
+      )
+    })
+    const badge = container.querySelector('.chat-badge')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toBe('3')
+  })
+
+  it('D-10: hasChatMention=true renders chat-badge--mention with @ glyph (COLORBLIND-SAFE: shape signal)', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        <SessionCard session={makeSession()} unreadCount={2} hasChatMention={true} />
+      )
+    })
+    const badge = container.querySelector('.chat-badge--mention')
+    expect(badge).not.toBeNull()
+    expect(badge!.textContent).toBe('@')
+  })
 })

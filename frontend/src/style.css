@@ -5972,6 +5972,57 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* D-02: containing block for the absolutely-positioned ChatPanel overlay and chat-toggle button */
+  position: relative;
+}
+
+/* D-02: ChatPanel overlay — floats over the terminal's right edge; does NOT push the terminal.
+   The terminal grid is never resized when the drawer opens/closes (no sendResize). */
+.hub-modal__body--interactive .chat-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  z-index: 5;
+  transform: translateX(100%);
+  transition: transform 200ms ease;
+}
+
+.hub-modal__body--interactive .chat-panel--open {
+  transform: translateX(0);
+}
+
+/* Chat toggle button — floats at the bottom-right of the terminal body.
+   COLORBLIND-SAFE: ChatBubbleLeftRightIcon shape + aria-label are primary signals. */
+.hub-modal__chat-toggle {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--hub-border);
+  border-radius: 22px;
+  background: var(--hub-surface-elevated);
+  color: var(--hub-text-primary);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.hub-modal__chat-toggle:hover {
+  background: var(--hub-surface-hover, var(--hub-surface-elevated));
+  border-color: var(--hub-accent);
+}
+
+.hub-modal__chat-toggle-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .hub-modal__body--briefing {

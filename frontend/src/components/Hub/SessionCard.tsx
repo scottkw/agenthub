@@ -28,6 +28,7 @@ import type { HubStatus } from '../../lib/hubStatus'
 import { agentBadgeModifier } from '../../lib/agentBadge'
 import { memberKey, type HubGroupDef } from '../../lib/hubGroups'
 import { MiniPreview } from './MiniPreview'
+import { ChatBadge } from './ChatBadge'
 
 // ---- STATUS_CONFIG ----
 // COLORBLIND-SAFE: every status has unique icon shape + text label; color is reinforcement only.
@@ -169,6 +170,11 @@ export interface SessionCardProps {
   onOpenInBrowser?: (session: AdaptedRemoteSessionInfo) => void
   /** Phase 138 / CARD-04: Browse remote files (join-code cap flow). */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
+  /** NOTIF-01 / D-10: unread chat message count for this session.
+   *  Rendered as a ChatBadge on the card header. 0 = no badge. */
+  unreadCount?: number
+  /** D-10: true when any unread message contains an @mention for this user. */
+  hasChatMention?: boolean
 }
 
 // ---- Component ----
@@ -205,6 +211,8 @@ export function SessionCard({
   onKill,
   onOpenInBrowser,
   onBrowseFiles,
+  unreadCount,
+  hasChatMention,
 }: SessionCardProps): React.ReactElement {
   const {
     id,
@@ -431,13 +439,15 @@ export function SessionCard({
       )}
 
       {/* HEADER: session name centered on the top line, flanked by the absolute
-          drag-handle (left) and overflow menu (right). */}
+          drag-handle (left) and overflow menu (right).
+          NOTIF-01 / D-10: ChatBadge appears right of the session name when unreadCount > 0. */}
       <div className="hub-card__header">
         <InlineSessionName
           id={id}
           name={name}
           onRenamed={(newName) => onRename?.(id, newName)}
         />
+        <ChatBadge count={unreadCount ?? 0} hasMention={hasChatMention ?? false} />
       </div>
 
       {/* ROW 1: status indicator (left) · colored session-type chip (right) */}
