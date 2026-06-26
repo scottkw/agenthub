@@ -5,6 +5,7 @@ package relay
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 // Message type bytes — single-byte prefix for every framed message.
@@ -70,6 +71,104 @@ func MakeMeta(p MetaPayload) []byte {
 	frame[0] = MsgMeta
 	copy(frame[1:], b)
 	return frame
+}
+
+// Chat and presence frame types — 0x30-0x3F reserved for chat/presence.
+// MsgChat (0x30) and MsgChatSend (0x31) are Phase 154 dispatch stubs; only
+// 0x32-0x34 are dispatched in Phase 152.
+const (
+	MsgChat     byte = 0x30 // server → client: deliver chat message (JSON ChatMessage)     [Phase 154 dispatch]
+	MsgChatSend byte = 0x31 // client → server: send chat message (JSON content)            [Phase 154 dispatch]
+	MsgPresence byte = 0x32 // server → client: full presence roster (JSON PresencePayload) [Phase 152]
+	MsgTyping   byte = 0x33 // bidirectional: typing-start/stop (JSON TypingPayload)        [Phase 152]
+	MsgAliasSet byte = 0x34 // client → server: set/update alias (JSON AliasPayload)        [Phase 152]
+)
+
+// PresenceEntry describes one participant in the presence roster.
+// PersonKey = TailnetID + ":" + origin — the stable collapse key (D-04).
+type PresenceEntry struct {
+	PersonKey string `json:"personKey"`
+	TailnetID string `json:"tailnetID"` // "local" for desktop owner, node pubkey for web
+	Origin    string `json:"origin"`    // "local" (relay loopback) or "web" (webserver Tailscale)
+	Alias     string `json:"alias"`
+	ConnCount int    `json:"connCount"` // active connections for this person key
+}
+
+// PresencePayload is the JSON body of MsgPresence frames (server → client).
+// Full roster on every change — clients replace, not patch.
+type PresencePayload struct {
+	Participants []PresenceEntry `json:"participants"`
+}
+
+// TypingPayload is the JSON body of MsgTyping frames (bidirectional).
+// Client → server: PersonKey and Alias are left empty (server fills them from Subscriber).
+// Server → client: PersonKey and Alias are populated before broadcast.
+type TypingPayload struct {
+	PersonKey string `json:"personKey,omitempty"`
+	Alias     string `json:"alias,omitempty"`
+	Typing    bool   `json:"typing"`
+}
+
+// AliasPayload is the JSON body of MsgAliasSet frames (client → server).
+type AliasPayload struct {
+	Alias string `json:"alias"`
+}
+
+// MakePresenceFrame encodes a PresencePayload as a MsgPresence frame.
+func MakePresenceFrame(p PresencePayload) []byte {
+	b, _ := json.Marshal(p) // PresencePayload is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgPresence
+	copy(frame[1:], b)
+	return frame
+}
+
+// MakeTypingFrame encodes a TypingPayload as a MsgTyping frame.
+func MakeTypingFrame(p TypingPayload) []byte {
+	b, _ := json.Marshal(p) // TypingPayload is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgTyping
+	copy(frame[1:], b)
+	return frame
+}
+
+// MakeAliasSetFrame encodes an AliasPayload as a MsgAliasSet frame.
+func MakeAliasSetFrame(p AliasPayload) []byte {
+	b, _ := json.Marshal(p) // AliasPayload is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgAliasSet
+	copy(frame[1:], b)
+	return frame
+}
+
+// ValidateAlias returns the alias if valid and non-empty after trimming,
+// or "" if the alias should be rejected. It is exported so both the relay
+// and webserver read pumps validate alias input identically (single source
+// of truth — Pitfall 3). Mitigates T-152-01 (control-char/injection).
+//
+// Rules:
+//   - Leading/trailing whitespace is stripped with strings.TrimSpace.
+//   - Empty result after trim is rejected (returns "").
+//   - Input longer than 32 runes is rejected — not truncated; the caller
+//     should inform the sender so they can choose a shorter alias.
+//   - Any rune in the C0 range (U+0000–U+001F) or C1 range
+//     (U+007F–U+009F) is rejected; these could interfere with terminal
+//     rendering on the web-share surface.
+func ValidateAlias(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	runes := []rune(trimmed)
+	if len(runes) > 32 {
+		return "" // reject — do not truncate silently
+	}
+	for _, r := range runes {
+		if r < 0x0020 || (r >= 0x007F && r <= 0x009F) {
+			return "" // C0 or C1 control character
+		}
+	}
+	return trimmed
 }
 
 // ChatSchemaVersion is the current version of the ChatMessage wire format.
