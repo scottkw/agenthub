@@ -212,12 +212,19 @@ export class RelayClient {
     port: number,
     sessionId: string,
     private callbacks: RelayClientCallbacks,
-    opts?: { remote?: boolean },
+    opts?: { remote?: boolean; wsURL?: string },
   ) {
-    const path = opts?.remote
-      ? `/api/relay/remote/${sessionId}/ws`  // daemon proxy → peer (cap looked up server-side; T-134-07-01)
-      : `/sessions/${sessionId}/ws`          // local relay direct
-    const url = `ws://127.0.0.1:${port}${path}`
+    // Phase 155: wsURL override short-circuits BEFORE port is used — port is 0
+    // on web-share so it must never appear in the URL (Pitfall 1).
+    let url: string
+    if (opts?.wsURL) {
+      url = opts.wsURL                          // web-share override (wss://host/...?cap=)
+    } else {
+      const path = opts?.remote
+        ? `/api/relay/remote/${sessionId}/ws`   // daemon proxy → peer (cap looked up server-side; T-134-07-01)
+        : `/sessions/${sessionId}/ws`           // local relay direct
+      url = `ws://127.0.0.1:${port}${path}`
+    }
     this.ws = new WebSocket(url)
     this.ws.binaryType = 'arraybuffer'
 

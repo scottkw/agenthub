@@ -64,6 +64,12 @@ interface TerminalPanelProps {
    *  local-direct path. The cap is looked up server-side by sessionID —
    *  it is never passed through React state (T-134-07-01 invariant). */
   remote?: boolean
+  /**
+   * Phase 155: explicit WebSocket URL override. When set, RelayClient uses this
+   * verbatim (e.g. wss://host/sessions/{id}/ws?cap=…) instead of building
+   * ws://127.0.0.1:{port}/… — required for web-share where port is 0.
+   */
+  wsURL?: string
   // Phase 93 PLUG-03/WGL-01/CLIP-01: pluginConfig is consumed in the hot-swap
   // useEffect to live-attach/dispose WebGL and Clipboard addons. Unicode 11
   // is honored at session init only (next-session semantics — UI-SPEC).
@@ -102,6 +108,7 @@ export function TerminalPanel({
   onFontSizeChange,
   theme,
   remote,
+  wsURL,
   pluginConfig,
   onWebGLContextLost,
   onRegisterSaver,
@@ -288,7 +295,7 @@ export function TerminalPanel({
         client.sendResize(term.cols, term.rows)
       },
       onClose: () => console.debug(`[RelayClient] disconnected session=${sessionId}`),
-    }, { remote })
+    }, { remote, wsURL })
     clientRef.current = client
 
     // Wire terminal input to relay (TERM-05: paste support via terminal.onData).
@@ -376,8 +383,9 @@ export function TerminalPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   // onFontSizeChange + pluginConfig?.unicode11 intentionally omitted: mount
   // effect runs once per session; unicode11 is read at init (next-session
-  // semantics, UI-SPEC § Interaction Contract).
-  }, [sessionId])
+  // semantics, UI-SPEC § Interaction Contract). wsURL added (Phase 155) so
+  // a web-share remount reconnects with the correct override URL.
+  }, [sessionId, wsURL])
 
   // Phase 113 UI-03 / UI-04 — iPad single-finger scrollback.
   // Lives AFTER the mount useEffect so termRef.current is populated before
