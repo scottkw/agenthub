@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 154
+current_phase_name: desktop-chat-ui
 status: ready to plan
-stopped_at: Phase 153 complete — ready to plan Phase 154
-last_updated: "2026-06-26T16:01:30.651Z"
+stopped_at: Phase 154 context gathered
+last_updated: "2026-06-26T16:29:55.132Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 153 complete (2 UAT items deferred to Phase 154)
 progress:
-  total_phases: 6
+  total_phases: 4
   completed_phases: 3
   total_plans: 12
   completed_plans: 12
-  percent: 50
-current_phase_name: desktop-chat-ui
+  percent: 75
 ---
 
 # Project State
@@ -90,9 +90,9 @@ Progress: [██████████░░░░░░░░░░] 50% —
 
 ## Session Continuity
 
-Last session: 2026-06-26T14:20:23.422Z
-Stopped at: Completed 153-03-PLAN.md
-Resume file: None
+Last session: 2026-06-26T16:29:55.115Z
+Stopped at: Phase 154 context gathered
+Resume file: .planning/phases/154-desktop-chat-ui/154-CONTEXT.md
 Next action: `/gsd:plan-phase 151`
 
 ## Decisions
