@@ -472,7 +472,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A message containing C0 control characters, embedded newlines, or terminal escape sequences (CSI, OSC) is sanitized at the daemon handler — only printable text plus exactly one trailing newline reaches PTY stdin; a unit test corpus covers newline injection, null bytes, and CSI sequences.
   4. The `@session` injection path requires a deliberate confirm step; a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write.
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 153-01-PLAN.md — Protocol verbs + SanitizePTYText sanitizer + SEC-02 corpus (SEC-02)
+- [ ] 153-02-PLAN.md — Hub.HandleInject + relay read-pump + engine wiring + relay tests (MENTION-02, MENTION-03, SEC-01)
+- [ ] 153-03-PLAN.md — Web-share read-pump + adversarial RO-JWT test + TESTING.md (SEC-01)
 
 ### Phase 154: Desktop Chat UI
 
