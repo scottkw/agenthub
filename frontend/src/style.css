@@ -6408,6 +6408,148 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Phase 154 — Chat UI: ChatBadge (chat-badge, chat-badge--mention) BEM classes
+   NOTIF-01 / D-10: The "@" glyph (not color) is the primary mention signal.
+   Color (--hub-accent background) is reinforcement only — colorblind-safe.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Base badge: 18px filled circle, --hub-accent bg, --hub-bg foreground */
+.chat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--hub-accent);
+  color: var(--hub-bg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Mention modifier: same shape, @ glyph is the signal (not this color change).
+   The modifier exists for future visual differentiation (e.g. outline) but
+   must NOT be the sole distinguishing channel — the glyph in the text content
+   already carries the meaning for colorblind users. */
+.chat-badge--mention {
+  /* Color is reinforcement only; shape (.chat-badge circle) + glyph (@) are primary signals */
+  background-color: var(--hub-accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phase 154 — Chat UI: MentionPopover (mention-popover__*) BEM classes
+   MENTION-01 / D-07: @session is ALWAYS pinned first, never filtered away.
+   Keyboard nav: Arrow/Enter/Escape. role=listbox + role=option for a11y.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Popover container: elevated surface, bordered, shadow matches .settings-search__results */
+.mention-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--hub-surface-elevated);
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+/* Section label: micro text, all-caps, de-emphasized */
+.mention-popover__section-label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--hub-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 12px 4px;
+}
+
+/* Each option row */
+.mention-popover__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--hub-text-primary);
+  font-size: var(--hub-font-size-base);
+}
+
+.mention-popover__item:hover,
+.mention-popover__item--active {
+  /* Focus/hover: background tint (shape-based — not color-only) — the highlight
+     region itself communicates selection state independently of color */
+  background: var(--hub-sidebar-item-hover-bg);
+}
+
+/* @session row: slightly taller, pinned in its own section */
+.mention-popover__item--session {
+  min-height: 44px;
+}
+
+/* CommandLineIcon in @session row: --hub-accent color, 16×16px */
+.mention-popover__session-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--hub-accent);
+  flex-shrink: 0;
+}
+
+/* Alias text */
+.mention-popover__alias {
+  font-size: var(--hub-font-size-base);
+  font-weight: 600;
+  color: var(--hub-text-primary);
+  flex-shrink: 0;
+}
+
+/* Description text (e.g. "Inject into terminal") */
+.mention-popover__desc {
+  font-size: 11px;
+  color: var(--hub-text-muted);
+  margin-left: auto;
+}
+
+/* Divider between sections */
+.mention-popover__divider {
+  border: none;
+  border-top: 1px solid var(--hub-border);
+  margin: 0;
+}
+
+/* Participant rows: 40px minimum height */
+.mention-popover__item--participant {
+  min-height: 40px;
+}
+
+/* Avatar in participant rows: 20×20px circle */
+.mention-popover__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Tailnet ID (secondary text in participant rows) */
+.mention-popover__tailnet-id {
+  font-size: 11px;
+  color: var(--hub-text-muted);
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Reduced-motion: guard any chat-panel animation (ChatPanel, plan 154-05)
    ══════════════════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
