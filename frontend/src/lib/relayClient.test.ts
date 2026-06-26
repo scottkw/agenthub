@@ -3,8 +3,13 @@ import {
   MSG_INPUT,
   MSG_OUTPUT,
   MSG_RESIZE2,
+  MSG_PRESENCE,
+  MSG_TYPING,
+  MSG_ALIAS_SET,
   encodeInputFrame,
   encodeResizeFrame,
+  encodeTypingFrame,
+  encodeAliasSetFrame,
   parseServerFrame,
   RelayClient,
 } from './relayClient'
@@ -94,6 +99,125 @@ describe('parseServerFrame', () => {
     if (result.type === 'output') {
       expect(result.payload.length).toBe(0)
     }
+  })
+})
+
+// Phase 152 presence/typing/alias wire protocol tests
+describe('MSG_PRESENCE / MSG_TYPING / MSG_ALIAS_SET constants', () => {
+  it('MSG_PRESENCE is 0x32', () => {
+    expect(MSG_PRESENCE).toBe(0x32)
+  })
+  it('MSG_TYPING is 0x33', () => {
+    expect(MSG_TYPING).toBe(0x33)
+  })
+  it('MSG_ALIAS_SET is 0x34', () => {
+    expect(MSG_ALIAS_SET).toBe(0x34)
+  })
+})
+
+describe('parseServerFrame — presence/typing/alias frame decoding', () => {
+  it('decodes a MsgPresence (0x32) frame into a presence variant with participants', () => {
+    const body = JSON.stringify({
+      participants: [
+        { personKey: 'local:local', tailnetID: 'local', origin: 'local', alias: 'ken', connCount: 1 },
+      ],
+    })
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x32, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('presence')
+    if (result.type === 'presence') {
+      expect(result.participants).toHaveLength(1)
+      expect(result.participants[0].personKey).toBe('local:local')
+      expect(result.participants[0].tailnetID).toBe('local')
+      expect(result.participants[0].origin).toBe('local')
+      expect(result.participants[0].alias).toBe('ken')
+      expect(result.participants[0].connCount).toBe(1)
+    }
+  })
+
+  it('decodes a MsgTyping (0x33) frame into a typing variant', () => {
+    const body = JSON.stringify({ personKey: 'k:web', alias: 'sam', typing: true })
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x33, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('typing')
+    if (result.type === 'typing') {
+      expect(result.personKey).toBe('k:web')
+      expect(result.alias).toBe('sam')
+      expect(result.typing).toBe(true)
+    }
+  })
+
+  it('returns unknown for MsgChat (0x30) — Phase 154 stub not yet handled', () => {
+    const body = JSON.stringify({ content: 'hello' })
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x30, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('unknown')
+  })
+
+  it('returns unknown for MsgChatSend (0x31) — Phase 154 stub not yet handled', () => {
+    const body = JSON.stringify({ content: 'hello' })
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x31, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('unknown')
+  })
+
+  it('returns unknown for a malformed presence body (invalid JSON after 0x32)', () => {
+    const data = new Uint8Array([0x32, ...new TextEncoder().encode('not-json{')])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('unknown')
+  })
+
+  it('presence frame with missing participants field returns empty array', () => {
+    const body = JSON.stringify({})
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x32, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('presence')
+    if (result.type === 'presence') {
+      expect(result.participants).toEqual([])
+    }
+  })
+})
+
+describe('encodeTypingFrame', () => {
+  it('produces frame with leading byte 0x33', () => {
+    const frame = encodeTypingFrame(true)
+    expect(frame[0]).toBe(0x33)
+  })
+
+  it('JSON body parses to {typing:true}', () => {
+    const frame = encodeTypingFrame(true)
+    const json = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(json)).toEqual({ typing: true })
+  })
+
+  it('JSON body parses to {typing:false} for typing stop', () => {
+    const frame = encodeTypingFrame(false)
+    const json = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(json)).toEqual({ typing: false })
+  })
+})
+
+describe('encodeAliasSetFrame', () => {
+  it('produces frame with leading byte 0x34', () => {
+    const frame = encodeAliasSetFrame('ken')
+    expect(frame[0]).toBe(0x34)
+  })
+
+  it('JSON body parses to {alias:"ken"}', () => {
+    const frame = encodeAliasSetFrame('ken')
+    const json = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(json)).toEqual({ alias: 'ken' })
+  })
+
+  it('handles alias with unicode characters', () => {
+    const frame = encodeAliasSetFrame('café')
+    const json = new TextDecoder().decode(frame.slice(1))
+    expect(JSON.parse(json)).toEqual({ alias: 'café' })
   })
 })
 
