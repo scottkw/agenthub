@@ -5,15 +5,15 @@ milestone_name: Session Chat
 current_phase: 155
 current_phase_name: web-share-chat-ui-cross-surface-parity-gate
 status: executing
-stopped_at: Phase 155 Plan 02 complete — frontend primitive extensions (wsURL, export, RO)
-last_updated: "2026-06-26T22:56:21.917Z"
+stopped_at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
+last_updated: "2026-06-26T23:15:35.703Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 155 execution started
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 67
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 155 (web-share-chat-ui-cross-surface-parity-gate) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-26 — Phase 155 execution started
 
@@ -93,8 +93,8 @@ Progress: [█████████░] 86% — 19/22 plans complete (4/7 pha
 
 ## Session Continuity
 
-Last session: 2026-06-26T22:56:21.913Z
-Stopped at: Phase 155 Plan 02 complete — frontend primitive extensions (wsURL, export, RO)
+Last session: 2026-06-26T23:15:35.698Z
+Stopped at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
 Resume file: None
 Next action: `/gsd:plan-phase 151`
 
@@ -120,6 +120,8 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: D-02 overlay mode: ChatPanel position:absolute over terminal, isActive unchanged by chatOpen, no PTY resize on toggle
 - [Phase 155-01]: Export() always double-quotes participant values — simpler YAML safety invariant, no conditional logic needed for special-char detection
 - [Phase ?]: Phase 155-02: isReadOnly defaults to true (fail-safe); RO resolved from /info ?cap= perms; wsURL short-circuits before port=0 loopback
+- [Phase ?]: Phase 155-03: isActive=true constant on WebShareSessionView (no grow animation, unlike modal)
+- [Phase ?]: Phase 155-03: openWebSessionTab called after handleOpenFileBrowser so session tab wins active focus
 
 ## Performance Metrics
 
@@ -142,3 +144,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 154 P06 | 70 minutes | 3 tasks | 8 files |
 | Phase 155 P01 | 4 minutes | 3 tasks | 5 files |
 | Phase 155 P02 | 6 minutes | 3 tasks | 3 files |
+| Phase 155 P03 | 5 minutes | 3 tasks | 5 files |

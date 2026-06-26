@@ -377,7 +377,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
-| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 2/4 | In Progress|  |
+| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 3/4 | In Progress|  |
 | 156. Install Links & Distribution | 0/? | Not started | - |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
@@ -537,7 +537,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A RO-cap web-share viewer cannot post messages or trigger `@session` injection — the server rejects both actions regardless of client behavior; a RW-cap web-share viewer can do both.
   4. The `@session` injection path works identically from both surfaces: same relay frame type, same daemon handler, same "→ injected into terminal" indicator in the thread.
 
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint Go vs frontend subsystems)*
@@ -547,7 +547,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 2** *(blocked on 155-02)*
 
-- [ ] 155-03-PLAN.md — WebShareSessionView wrapper + App.tsx web-mode session tab + vitest (PARITY-01)
+- [x] 155-03-PLAN.md — WebShareSessionView wrapper + App.tsx web-mode session tab + vitest (PARITY-01)
 
 **Wave 3** *(blocked on 155-01 + 155-03)*
 
