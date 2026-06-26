@@ -13,8 +13,6 @@
  * Date formatting: formatDaySeparator returns "Today" / "Yesterday" /
  * locale-short (e.g. "Mon, Jun 23") — see helper below.
  */
-import React from 'react'
-
 // ── Date formatting helper ─────────────────────────────────────────────────
 
 /**

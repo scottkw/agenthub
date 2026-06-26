@@ -14,7 +14,6 @@
  * the component describes mitigations by concept only.
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import {

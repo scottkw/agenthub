@@ -9,7 +9,6 @@
  *   - Component does NOT set position:sticky (parent virtualizer owns stickiness)
  */
 import { describe, it, expect, afterEach } from 'vitest'
-import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { ChatDaySeparator, formatDaySeparator } from './ChatDaySeparator'

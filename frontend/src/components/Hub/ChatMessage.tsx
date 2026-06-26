@@ -20,7 +20,6 @@
  * Comment-text discipline (SEC-03): unsafe inline payload strings are
  * confined to the test file. This file describes mitigations conceptually.
  */
-import React from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
