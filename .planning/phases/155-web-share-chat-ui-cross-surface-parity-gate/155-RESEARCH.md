@@ -751,22 +751,25 @@ Pattern matches `web/assets/terminal.js:41-45`. [VERIFIED: file:web/assets/termi
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should WebShareSessionView replace or supplement the FileBrowserTab?**
    - What we know: Current web mode opens only FileBrowserTab; PARITY-01 requires chat on web-share
    - What's unclear: Whether existing web-share users rely on the file-browser-first UX
    - Recommendation: Open BOTH tabs by default; session view as the active (primary) tab, file browser as a secondary tab. This is backward-compatible and adds chat without removing files.
+   - **RESOLVED:** Plan 155-03 Task 2 opens `WebShareSessionView` as the primary/active web-mode tab and keeps `handleOpenFileBrowser` as the background secondary tab (RESEARCH Pattern 5 option a). `PermissionDeniedTakeover` handles a missing `files.read` cap.
 
 2. **Who is `currentUserTailnetID` on the web-share surface?**
    - What we know: `ChatPanel` defaults `currentUserTailnetID` to `"local"`. On web-share, the real TailnetID is the Tailscale node pubkey (resolved by `lc.WhoIs` server-side at WS upgrade) and broadcast in the first `MsgPresence` frame.
    - What's unclear: How the client knows its OWN TailnetID before the first `MsgPresence` arrives (which includes all participants, not "self").
    - Recommendation: The presence frame includes `personKey = tailnetID + ":web"`. The client's own `personKey` can be inferred from the first presence roster entry that matches the `origin: "web"` entry with a connection count > 0 AND that just joined. Or: the server could send a dedicated "your identity" frame on WS connect. For Phase 155, derive self-identity from the presence roster's first entry with `origin: "web"` and `connCount >= 1` that wasn't present before this client joined. This is the same approach Phase 154 used for the desktop (defaulting to `"local"`).
+   - **RESOLVED:** Self-identity for the chat thread is NOT required for the only behavior Phase 155 adds that depends on the current user's cap — read-only suppression. The relay `MsgPresence` wire format has no per-entry `ReadOnly` field (verified `internal/relay/protocol.go:91-97`), so Plan 155-02 Task 3 derives the current user's RO status from `GET /api/sessions/{id}/info?cap=` perms (the same mechanism `web/assets/terminal.js:73-105` uses to suppress the input caret), NOT from the presence roster. `currentUserTailnetID` continues to default per the Phase 154 behavior; no new self-identity inference is introduced.
 
 3. **Does the Playwright fixture need a real PTY for the @session inject e2e test?**
    - What we know: The fixture uses `io.Pipe` stubs (not a real PTY). `Hub.WriteInput` calls `inputCaptureW.Write` which goes to the pipe.
    - What's unclear: Whether the chat broadcast and inject indicator appear without a real terminal process responding.
    - Recommendation: The inject indicator is a chat broadcast (`SessionInject: true` flag in the `ChatMessage`) — it does NOT require PTY output. The e2e test can assert the inject indicator renders in the chat thread without any PTY being active. The PTY write itself goes to `inputCaptureW` (the pipe) silently.
+   - **RESOLVED:** Plan 155-04 Task 2 asserts the `.chat-msg--inject` indicator renders in the thread after a RW inject with no real PTY active — the indicator is a chat broadcast (`SessionInject: true`), independent of PTY output.
 
 ---
 
