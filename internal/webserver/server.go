@@ -1004,8 +1004,16 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	// write by omitting or fabricating ?readonly=; a caller with
 	// perms="read,write" always has write even if someone appends
 	// ?readonly=1 to the URL.
+	//
+	// SEC-01: gate on the whole "write" token, NOT an exact-string match.
+	// When per-session file browsing is ON (D-04) the daemon mints the RO
+	// token as "read,files.read" — an exact `== "read"` check would treat
+	// that read-only viewer as read-write and let them inject to the PTY
+	// (and send raw MsgInput keystrokes). HasPerm uses whole-token semantics,
+	// so both "read" and "read,files.read" are read-only while "read,write"
+	// (and "read,write,files.read,files.write") are not.
 	claims, _ := capability.ClaimsFromContext(r.Context())
-	readonly := claims.Perms == "read"
+	readonly := !capability.HasPerm(claims.Perms, "write")
 
 	// MC-05: client name is still a benign view hint from the query string.
 	clientName := r.URL.Query().Get("client")
@@ -1157,8 +1165,9 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 				// Phase 153 / SEC-01: RW cap required to inject text into PTY stdin.
 				// The gate is server-side in hub.HandleInject — must hold against a
 				// hand-crafted WS frame regardless of any client-side suppression (D-04).
-				// sub.ReadOnly here is derived from the signed JWT (claims.Perms == "read",
-				// set at line ~1008) and cannot be bypassed by URL params (D-24/SEC-04).
+				// sub.ReadOnly here is derived from the signed JWT via the whole-token
+				// HasPerm "write" check (set at line ~1008) and cannot be bypassed by
+				// URL params (D-24/SEC-04) or by a "read,files.read" RO token (SEC-01).
 				// NOTE: MsgChatSend (0x31) is chat-only and NEVER writes to PTY (D-02).
 				var ip relay.InjectPayload
 				if json.Unmarshal(payload, &ip) != nil || ip.Text == "" {

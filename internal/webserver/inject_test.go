@@ -61,8 +61,8 @@ func waitForMsgInjectError(t *testing.T, conn *websocket.Conn, timeout time.Dura
 }
 
 // TestInjectRO_WebPath verifies SEC-01 (web path): a client holding a RO JWT
-// (claims.Perms == "read") that sends a hand-crafted relay.MsgSessionInject
-// frame directly over the WebSocket:
+// that sends a hand-crafted relay.MsgSessionInject frame directly over the
+// WebSocket:
 //  1. receives a relay.MsgInjectError NAK frame within a short timeout, AND
 //  2. causes exactly zero PTY writes.
 //
@@ -70,86 +70,110 @@ func waitForMsgInjectError(t *testing.T, conn *websocket.Conn, timeout time.Dura
 // any client-side suppression. The RO status originates from claims.Perms in
 // the signed JWT (not a URL param — D-24/SEC-04), making this test distinct
 // from TestInject_ROCap_RelayPath which uses ?readonly=1 (Pitfall 5).
+//
+// Table-driven over BOTH read-only perm shapes the daemon mints:
+//   - "read"            — browse OFF (D-03)
+//   - "read,files.read" — browse ON  (D-04)
+//
+// The "read,files.read" case is the regression guard for the SEC-01 web-path
+// bypass: an exact `claims.Perms == "read"` gate treats a browse-ON RO viewer
+// as read-write and lets their inject reach the PTY. Only a whole-token
+// HasPerm("write") gate holds for both shapes. A bare-"read"-only test would
+// pass against the broken gate and silently mask the hole.
 func TestInjectRO_WebPath(t *testing.T) {
-	const sessionID = "inject-ro-web"
-
-	// --- Set up hub manager with a counting PTY writer ---
-	var ptyWriteCount atomic.Int32
-	countingWriter := writerFuncInj(func(p []byte) (int, error) {
-		ptyWriteCount.Add(1)
-		return len(p), nil
-	})
-
-	manager := relay.NewHubManager()
-	ptyOutputR, ptyOutputW := io.Pipe()
-	manager.Create(sessionID, ptyOutputR, countingWriter, nil)
-
-	// --- Build a WebServer backed by the manager ---
-	tlsCfg, client := selfSignedTLSForTest(t)
-	cfg := Config{
-		BindIP:    "127.0.0.1",
-		Port:      0,
-		FQDN:      "127.0.0.1",
-		Mode:      "tailscale",
-		TLSConfig: tlsCfg,
-	}
-	ws, err := NewWebServer(cfg, manager)
-	if err != nil {
-		t.Fatalf("NewWebServer: %v", err)
-	}
-	if err := ws.Start(); err != nil {
-		t.Fatalf("ws.Start: %v", err)
-	}
-	ws.SetSigningKey(capTestKey)
-	ws.EnableSession(sessionID)
-
-	t.Cleanup(func() {
-		_ = ws.Stop()
-		manager.Shutdown()
-		_ = ptyOutputW.Close()
-	})
-
-	// --- Mint a read-only capability JWT (claims.Perms == "read") ---
-	// issueCapFor is the standard test helper from capability_test_helpers.go.
-	// Passing "read" yields claims.Perms == "read", which handleWSSRelay maps
-	// to sub.ReadOnly == true (server.go: readonly := claims.Perms == "read").
-	token := issueCapFor(t, ws, sessionID, "read")
-
-	// --- Dial the WebSocket with the RO cap (Origin required by middleware) ---
-	headers := http.Header{}
-	headers.Set("Origin", ws.BaseURL())
-	conn := dialWebServerWS(t, client, ws.BaseURL(),
-		"/sessions/"+sessionID+"/ws?cap="+token, headers)
-
-	// Allow the server time to process the WS upgrade, Subscribe, and send
-	// the initial MsgMeta + MsgPresence frames.
-	time.Sleep(50 * time.Millisecond)
-
-	// --- Hand-craft a relay.MsgSessionInject frame and send it directly ---
-	// This bypasses any client-side suppression, proving server-side enforcement.
-	injectPayload, _ := json.Marshal(relay.InjectPayload{Text: "evil command"})
-	frame := append([]byte{relay.MsgSessionInject}, injectPayload...)
-
-	ctx := context.Background()
-	if err := conn.Write(ctx, websocket.MessageBinary, frame); err != nil {
-		t.Fatalf("write inject frame: %v", err)
+	roPerms := []struct {
+		name  string
+		perms string
+	}{
+		{"browse_off", "read"},
+		{"browse_on", "read,files.read"},
 	}
 
-	// --- Assert (1): relay.MsgInjectError NAK received within timeout ---
-	// hub.HandleInject returns ErrReadOnly for a RO subscriber; the web read
-	// pump sends MakeInjectErrorFrame(err.Error()) to the subscriber's Msgs
-	// channel and the write pump forwards it to the WS client.
-	if !waitForMsgInjectError(t, conn, 3*time.Second) {
-		t.Error("expected relay.MsgInjectError NAK from RO-JWT inject attempt; " +
-			"none received within timeout (SEC-01 web path not enforced)")
-	}
+	for _, tc := range roPerms {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			sessionID := "inject-ro-web-" + tc.name
 
-	// --- Assert (2): PTY write counter is exactly 0 ---
-	// hub.HandleInject returns ErrReadOnly before reaching WriteInput, so the
-	// counting PTY writer must record zero calls.
-	if count := ptyWriteCount.Load(); count != 0 {
-		t.Errorf("PTY write count = %d after RO-JWT inject attempt, want 0 "+
-			"(SEC-01 gate failed on web path; HandleInject must return ErrReadOnly "+
-			"before WriteInput)", count)
+			// --- Set up hub manager with a counting PTY writer ---
+			var ptyWriteCount atomic.Int32
+			countingWriter := writerFuncInj(func(p []byte) (int, error) {
+				ptyWriteCount.Add(1)
+				return len(p), nil
+			})
+
+			manager := relay.NewHubManager()
+			ptyOutputR, ptyOutputW := io.Pipe()
+			manager.Create(sessionID, ptyOutputR, countingWriter, nil)
+
+			// --- Build a WebServer backed by the manager ---
+			tlsCfg, client := selfSignedTLSForTest(t)
+			cfg := Config{
+				BindIP:    "127.0.0.1",
+				Port:      0,
+				FQDN:      "127.0.0.1",
+				Mode:      "tailscale",
+				TLSConfig: tlsCfg,
+			}
+			ws, err := NewWebServer(cfg, manager)
+			if err != nil {
+				t.Fatalf("NewWebServer: %v", err)
+			}
+			if err := ws.Start(); err != nil {
+				t.Fatalf("ws.Start: %v", err)
+			}
+			ws.SetSigningKey(capTestKey)
+			ws.EnableSession(sessionID)
+
+			t.Cleanup(func() {
+				_ = ws.Stop()
+				manager.Shutdown()
+				_ = ptyOutputW.Close()
+			})
+
+			// --- Mint a read-only capability JWT (claims.Perms == tc.perms) ---
+			// issueCapFor is the standard helper from capability_test_helpers.go.
+			// handleWSSRelay maps any token lacking the whole "write" token to
+			// sub.ReadOnly == true (server.go: readonly := !HasPerm(perms,"write")).
+			token := issueCapFor(t, ws, sessionID, tc.perms)
+
+			// --- Dial the WebSocket with the RO cap (Origin required by mw) ---
+			headers := http.Header{}
+			headers.Set("Origin", ws.BaseURL())
+			conn := dialWebServerWS(t, client, ws.BaseURL(),
+				"/sessions/"+sessionID+"/ws?cap="+token, headers)
+
+			// Allow the server time to process the WS upgrade, Subscribe, and
+			// send the initial MsgMeta + MsgPresence frames.
+			time.Sleep(50 * time.Millisecond)
+
+			// --- Hand-craft a relay.MsgSessionInject frame and send it ---
+			// Bypasses any client-side suppression, proving server-side gating.
+			injectPayload, _ := json.Marshal(relay.InjectPayload{Text: "evil command"})
+			frame := append([]byte{relay.MsgSessionInject}, injectPayload...)
+
+			ctx := context.Background()
+			if err := conn.Write(ctx, websocket.MessageBinary, frame); err != nil {
+				t.Fatalf("write inject frame: %v", err)
+			}
+
+			// --- Assert (1): relay.MsgInjectError NAK received within timeout ---
+			// hub.HandleInject returns ErrReadOnly for a RO subscriber; the web
+			// read pump sends MakeInjectErrorFrame(err.Error()) to the
+			// subscriber's Msgs channel and the write pump forwards it.
+			if !waitForMsgInjectError(t, conn, 3*time.Second) {
+				t.Errorf("perms=%q: expected relay.MsgInjectError NAK from RO-JWT "+
+					"inject attempt; none received within timeout (SEC-01 web path "+
+					"not enforced)", tc.perms)
+			}
+
+			// --- Assert (2): PTY write counter is exactly 0 ---
+			// hub.HandleInject returns ErrReadOnly before reaching WriteInput, so
+			// the counting PTY writer must record zero calls.
+			if count := ptyWriteCount.Load(); count != 0 {
+				t.Errorf("perms=%q: PTY write count = %d after RO-JWT inject attempt, "+
+					"want 0 (SEC-01 gate failed on web path; HandleInject must return "+
+					"ErrReadOnly before WriteInput)", tc.perms, count)
+			}
+		})
 	}
 }
