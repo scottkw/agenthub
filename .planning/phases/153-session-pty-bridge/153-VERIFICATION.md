@@ -1,21 +1,25 @@
 ---
 phase: 153-session-pty-bridge
 verified: 2026-06-26T12:00:00Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified (2 with portions deferred to Phase 154)
 behavior_unverified: 0
 overrides_applied: 0
 deferred:
+
   - truth: "The chat thread shows a '→ injected into terminal' indicator for all participants (SC-1 visual half)"
     addressed_in: "Phase 154"
     evidence: "Phase 154 goal: 'fully functional chat panel'; the SessionInject:true flag is broadcast by Phase 153 and Phase 154 renders it. Phase 153-02 PLAN explicitly: 'The visual RENDERING is Phase 154.'"
+
   - truth: "The @session injection path requires a deliberate confirm step — a single accidental keypress or Enter-on-autocomplete does not trigger a PTY write (SC-4 UI half)"
     addressed_in: "Phase 154"
     evidence: "Phase 154 requirements include MENTION-01 (the @session autocomplete/trigger UX). Phase 153 delivers the structural guarantee (dedicated verb); Phase 154 delivers the press-and-hold or equivalent confirm affordance."
 human_verification:
+
   - test: "Verify the chat thread renders a '→ injected into terminal' indicator for messages with SessionInject:true"
     expected: "When a RW participant uses @session, all chat clients see a visually distinct inject-confirmation indicator (not a plain chat bubble)"
     why_human: "Indicator rendering is Phase 154 chat UI work; SessionInject:true data is wired in Phase 153 but the visual treatment requires Phase 154's component to be implemented and inspected"
+
   - test: "Verify the @session injection UX requires a deliberate confirm step — not just selecting @session + pressing Enter in the composer"
     expected: "A user cannot accidentally inject into the PTY with a single casual keypress or Enter-on-autocomplete; the client-side affordance must force an explicit additional confirmation before sending MsgSessionInject"
     why_human: "Phase 153 proves only MsgSessionInject writes to PTY (structural guarantee), but whether Phase 154 accidentally sends MsgSessionInject on a normal Enter keypress depends entirely on Phase 154's UX implementation — no backend check can verify this"
