@@ -6227,3 +6227,191 @@ body {
     opacity: 1;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phase 154 — Chat UI: ChatMessage (chat-msg__*) BEM classes
+   TOKEN RULE: no hardcoded hex — only var(--hub-*) tokens (except the
+   @mention row tint which mirrors --hub-sidebar-item-hover-bg at 0.08 alpha)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Root message row — positioned so the ::before accent bar can be absolute */
+.chat-msg {
+  position: relative;
+  padding: 8px 12px 4px;
+  overflow: hidden; /* clip ::before bar to row height */
+}
+
+/* @mention row signals (D-05, NOTIF-02):
+   Signal 1 (shape): 3px left accent bar via ::before
+   Signal 2 (tint): background tint
+   Signal 3 (chip): .chat-msg__you-chip element (rendered inline) */
+.chat-msg--mention {
+  /* Background tint mirrors --hub-sidebar-item-hover-bg value (0.08 alpha per UI-SPEC §4) */
+  background: rgba(122, 162, 247, 0.08);
+}
+.chat-msg--mention::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--hub-accent);
+}
+
+/* Header row: avatar + alias + tailnet ID + timestamp */
+.chat-msg__header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+/* Avatar: 28×28px circle, supplementary color identity from tailnet ID hue */
+.chat-msg__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff; /* white on hsl avatar color — hardcoded: always readable on mid-sat hues */
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* Alias: semibold, primary text */
+.chat-msg__alias {
+  font-size: var(--hub-font-size-sm);
+  font-weight: 600;
+  color: var(--hub-text-primary);
+}
+
+/* Tailnet ID: muted micro text in parens */
+.chat-msg__tailnet-id {
+  font-size: 11px;
+  color: var(--hub-text-muted);
+}
+
+/* Timestamp: right-aligned, muted */
+.chat-msg__time {
+  font-size: var(--hub-font-size-sm);
+  color: var(--hub-text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* @you chip (D-05 signal 3): inline pill after alias, @ glyph is the signal */
+.chat-msg__you-chip {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--hub-surface-elevated);
+  color: var(--hub-accent);
+  border: 1px solid var(--hub-accent);
+  border-radius: var(--hub-radius-pill);
+  padding: 0 4px;
+  line-height: 1.5;
+}
+
+/* Message body: 14px readable prose */
+.chat-msg__body {
+  font-size: var(--hub-font-size-base);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--hub-text-primary);
+}
+.chat-msg__body p {
+  margin: 0;
+}
+.chat-msg__body p + p {
+  margin-top: 4px;
+}
+.chat-msg__body code {
+  font-family: var(--hub-font-mono);
+  font-size: var(--hub-font-size-base);
+  background: var(--hub-surface-elevated);
+  padding: 0 2px;
+  border-radius: var(--hub-radius-sm);
+}
+
+/* Consecutive (collapsed) body: 36px indent = 28px avatar + 8px gap */
+.chat-msg__body--consecutive {
+  padding-left: 36px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* Session-inject indicator (D-06): system row below the body */
+.chat-msg__inject-indicator {
+  background: var(--hub-surface);
+  padding: 4px 0 2px;
+  margin-top: 4px;
+}
+
+.chat-msg__inject-rule {
+  border: none;
+  border-top: 1px solid var(--hub-border);
+  margin: 0 0 4px;
+}
+
+.chat-msg__inject-caption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--hub-font-size-sm);
+  color: var(--hub-text-muted);
+}
+
+/* CommandLineIcon at 14×14px — shape is the primary signal for inject state (D-06) */
+.chat-msg__inject-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phase 154 — Chat UI: ChatDaySeparator (chat-day-sep__*) BEM classes
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Day separator row: flex row with centered label between two hr rules.
+   NOTE: position:sticky is NOT set here — the parent virtualizer wrapper
+   applies sticky positioning to avoid transform vs. sticky conflict (Pitfall 1). */
+.chat-day-sep {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  gap: 8px;
+  /* Opaque background: separator occludes message content beneath when sticky */
+  background: var(--hub-surface);
+}
+
+/* Horizontal rules flanking the date label */
+.chat-day-sep__rule {
+  flex: 1;
+  border: none;
+  border-top: 1px solid var(--hub-border);
+  margin: 0;
+}
+
+/* Date label: micro text, intentionally de-emphasized */
+.chat-day-sep__label {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--hub-text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 4px;
+  background: var(--hub-surface); /* matches row bg to occlude content beneath the text */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reduced-motion: guard any chat-panel animation (ChatPanel, plan 154-05)
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel {
+    transition: none;
+  }
+}
