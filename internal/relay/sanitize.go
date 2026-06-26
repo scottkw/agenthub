@@ -17,8 +17,11 @@ import "strings"
 //     state) are stripped.
 //   - DEL (U+007F) is stripped.
 //   - C1 controls (U+0080–U+009F) are stripped.
-//   - Terminal escape sequences are stripped via a five-state machine:
-//     CSI (ESC '[' … final-byte) and OSC (ESC ']' … BEL or ESC '\').
+//   - Terminal escape sequences are stripped via a state machine:
+//     CSI (ESC '[' … final-byte), OSC (ESC ']' … BEL or ESC '\'), and the
+//     string-introducer escapes DCS (ESC 'P'), APC (ESC '_'), PM (ESC '^'),
+//     and SOS (ESC 'X'), whose string BODIES are consumed up to the ST
+//     terminator (ESC '\') — the body never leaks as text (IN-04).
 //     All other ESC-prefixed pairs are silently discarded.
 //   - Unicode bidi-override characters (see isBidiOverride) are stripped to
 //     mitigate Trojan-Source class attacks (CVE-2021-42574).
@@ -35,6 +38,8 @@ func SanitizePTYText(input string) string {
 		stateCSI       // inside ESC [ … ; skip until final byte 0x40–0x7E
 		stateOSC       // inside ESC ] … ; skip until BEL (0x07) or ESC
 		stateOSCEscape // inside OSC, saw ESC; next '\' ends it (ST = ESC \)
+		stateString    // inside DCS/APC/PM/SOS string body; skip until ST (ESC \)
+		stateStringEsc // inside a string body, saw ESC; next '\' ends it (ST)
 	)
 
 	state := stateNormal
@@ -79,6 +84,11 @@ func SanitizePTYText(input string) string {
 				state = stateCSI
 			case ']':
 				state = stateOSC
+			case 'P', '_', '^', 'X':
+				// DCS (ESC P), APC (ESC _), PM (ESC ^), SOS (ESC X):
+				// string-introducer escapes whose bodies run until ST (ESC \).
+				// Consume the body so it cannot leak as plaintext (IN-04).
+				state = stateString
 			default:
 				state = stateNormal // discard ESC + this rune
 			}
@@ -101,6 +111,18 @@ func SanitizePTYText(input string) string {
 				state = stateNormal // ESC \ = String Terminator (ST)
 			} else {
 				state = stateOSC // not ST; continue skipping OSC content
+			}
+		case stateString:
+			// DCS/APC/PM/SOS body: terminated only by ST (ESC \), not BEL.
+			if r == 0x1B {
+				state = stateStringEsc
+			}
+			// All other bytes remain in the string body (skip)
+		case stateStringEsc:
+			if r == '\\' {
+				state = stateNormal // ESC \ = String Terminator (ST)
+			} else {
+				state = stateString // not ST; continue skipping string body
 			}
 		}
 	}
