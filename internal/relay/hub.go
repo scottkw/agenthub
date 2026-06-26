@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 )
@@ -484,6 +485,15 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 	}
 
 	sanitized := SanitizePTYText(text)
+	// IN-02: control-only input (e.g. "\x1b[2J" or "\x00") is non-empty and so
+	// survives the read-pump ip.Text != "" guard, but SanitizePTYText collapses
+	// it to a bare "\n". Treat a whitespace-only post-sanitize result as empty:
+	// skip BOTH the PTY write (no spurious Enter keystroke) and the chat
+	// persist/broadcast. Returning nil yields no NAK — there is no error, the
+	// inject was simply a no-op.
+	if strings.TrimSpace(sanitized) == "" {
+		return nil
+	}
 	if err := h.WriteInput([]byte(sanitized)); err != nil {
 		return err
 	}
