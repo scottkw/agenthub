@@ -56,6 +56,7 @@ import { adaptAllRemoteSessions } from './lib/remoteAdapter'
 import type { AdaptedRemoteSessionInfo } from './lib/remoteAdapter'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap, OpenRemoteSessionURL } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
+import { WebShareSessionView } from './components/Hub/WebShareSessionView'
 import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
@@ -1032,6 +1033,32 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     }
   }, [webServerMode])
 
+  // Phase 155-03 — stable tab id for the web-session view. One view per
+  // session (find-or-focus semantics, same pattern as fileBrowserTabId).
+  const webSessionTabId = (sessionId: string) => `__websession__${sessionId}`
+
+  // Phase 155-03 — open (or focus) the WebShareSessionView tab for a web-share
+  // session. Mirrors handleOpenFileBrowser in structure. The capToken is
+  // consumed from webParams.capToken at render time (mount-stable), so we
+  // do not need to store it per-tab in React state.
+  const openWebSessionTab = useCallback((sessionId: string) => {
+    const tabId = webSessionTabId(sessionId)
+    const existing = tabs.find((t) => t.id === tabId)
+    if (existing) {
+      setActiveId(existing.id)
+      return
+    }
+    const newTab: Tab = {
+      id: tabId,
+      name: 'Session',
+      sessionId,
+      cli: '',
+      type: 'web-session',
+    }
+    setTabs((prev) => [...prev, newTab])
+    setActiveId(newTab.id)
+  }, [tabs])
+
   // Phase 120-04 UI-01 — per-session FileBrowserTab find-or-add. Opens the
   // file browser for a session, either focusing the existing tab if one is
   // open or creating a new one keyed by fileBrowserTabId(sessionId).
@@ -1077,16 +1104,22 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
     setActiveId(newTab.id)
   }, [tabs])
 
-  // Phase 120-06 — web-mode bootstrap: when the SPA loads under /app/ with a
-  // ?session=<id> param, auto-open the file-browser tab for that session on
-  // first mount. The cap token is consumed inside the FileBrowserTab gate at
-  // render time. Effect runs exactly once because mode + webParams are
-  // mount-stable (mode is read once from window.location.pathname; webParams
-  // is captured via useMemo with [] deps).
+  // Phase 120-06 / 155-03 — web-mode bootstrap: when the SPA loads under /app/
+  // with a ?session=<id> param, open both the session view and the file-browser
+  // tab. The session view (WebShareSessionView) is the active/primary tab.
+  // The file-browser tab is opened first (background) so the session tab ends
+  // up as the last setActiveId call and is therefore active on mount.
+  // The cap cannot be decoded client-side, so the file tab is always opened and
+  // PermissionDeniedTakeover handles a missing files.read perm (RESEARCH Pattern 5a).
+  // Effect runs exactly once because mode + webParams are mount-stable.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode === 'web' && webParams.sessionId) {
+      // Open file browser first (background — will NOT be the active tab).
       handleOpenFileBrowser(webParams.sessionId, webParams.sessionId)
+      // Open web-session tab last so its setActiveId runs after the file tab's,
+      // making the session view the active (foreground) tab on mount.
+      openWebSessionTab(webParams.sessionId)
     }
   }, [])
 
@@ -1480,6 +1513,23 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             onShellWebShareCancel={handleShellWebShareCancel}
           />
         )}
+        {/* Phase 155-03 — WebShareSessionView render branch. Activated when
+            the active tab id starts with __websession__. This is the primary
+            surface for web-share viewers: TerminalPanel + ChatPanel overlay
+            connected to the webserver WS (not the loopback relay). relayPort
+            is 0 on web-share; wsURL inside WebShareSessionView overrides the
+            loopback construction so the sentinel 0 is never used for socket
+            connects. The cap token comes from webParams.capToken (mount-stable). */}
+        {activeId !== null && activeId.startsWith('__websession__') && (
+          <WebShareSessionView
+            sessionId={webParams.sessionId ?? activeId.slice('__websession__'.length)}
+            capToken={webParams.capToken ?? ''}
+            relayPort={relayPort ?? 0}
+            theme={terminalTheme}
+            pluginConfig={pluginConfig ?? undefined}
+          />
+        )}
+
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
             begins with the __files__ prefix; the tab id encodes the sessionId
             after the prefix so we can resolve which session to browse.
@@ -1650,7 +1700,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         )}
         {relayPort != null && relayPort > 0 &&
           tabs.map((tab) => {
-            if (tab.type === 'welcome' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub' || tab.type === 'help') return null
+            if (tab.type === 'welcome' || tab.type === 'settings' || tab.type === 'file-browser' || tab.type === 'hub' || tab.type === 'help' || tab.type === 'web-session') return null
             const isActive = tab.id === activeId
             return (
               <div

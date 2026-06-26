@@ -9,7 +9,7 @@ export interface Tab {
   name: string
   sessionId: string
   cli: string
-  type?: 'terminal' | 'welcome' | 'settings' | 'file-browser' | 'hub' | 'help'
+  type?: 'terminal' | 'welcome' | 'settings' | 'file-browser' | 'hub' | 'help' | 'web-session'
 }
 // Phase 101-02 — human-readable agent label for the tab tooltip suffix.
 // Locked copy: shells use "Shell — DISPLAYNAME" (em-dash U+2014); AI CLIs
