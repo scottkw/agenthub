@@ -50,7 +50,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### PARITY — Cross-surface
 
-- [ ] **PARITY-01**: Every Session Chat feature behaves identically on the desktop GUI and the web-share browser surface (release-blocking).
+- [x] **PARITY-01**: Every Session Chat feature behaves identically on the desktop GUI and the web-share browser surface (release-blocking).
 
 ### SEC — Security
 
@@ -124,7 +124,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | EXPORT-01 | Phase 155 | Complete |
 | NOTIF-01 | Phase 154 | Complete |
 | NOTIF-02 | Phase 154 | Complete |
-| PARITY-01 | Phase 155 | Pending |
+| PARITY-01 | Phase 155 | Complete |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |

@@ -5,16 +5,16 @@ milestone_name: Session Chat
 current_phase: 155
 current_phase_name: web-share-chat-ui-cross-surface-parity-gate
 status: executing
-stopped_at: Phase 155 Plan 01 complete
-last_updated: "2026-06-26T22:50:00Z"
+stopped_at: Phase 155 Plan 02 complete — frontend primitive extensions (wsURL, export, RO)
+last_updated: "2026-06-26T22:56:21.917Z"
 last_activity: 2026-06-26
-last_activity_desc: Phase 155 Plan 01 complete — ChatStore.Export() YAML frontmatter
+last_activity_desc: Phase 155 execution started
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 22
-  completed_plans: 19
-  percent: 86
+  completed_plans: 20
+  percent: 67
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 155 (web-share-chat-ui-cross-surface-parity-gate) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-26 — Phase 155 execution started
 
@@ -93,9 +93,9 @@ Progress: [█████████░] 86% — 19/22 plans complete (4/7 pha
 
 ## Session Continuity
 
-Last session: 2026-06-26T22:45:29.042Z
-Stopped at: Phase 155 UI-SPEC approved
-Resume file: .planning/phases/155-web-share-chat-ui-cross-surface-parity-gate/155-UI-SPEC.md
+Last session: 2026-06-26T22:56:21.913Z
+Stopped at: Phase 155 Plan 02 complete — frontend primitive extensions (wsURL, export, RO)
+Resume file: None
 Next action: `/gsd:plan-phase 151`
 
 ## Decisions
@@ -119,6 +119,7 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: draftRef liveRef pattern: draft mirrored to ref inline during render so 600ms inject timer reads non-stale draft
 - [Phase ?]: D-02 overlay mode: ChatPanel position:absolute over terminal, isActive unchanged by chatOpen, no PTY resize on toggle
 - [Phase 155-01]: Export() always double-quotes participant values — simpler YAML safety invariant, no conditional logic needed for special-char detection
+- [Phase ?]: Phase 155-02: isReadOnly defaults to true (fail-safe); RO resolved from /info ?cap= perms; wsURL short-circuits before port=0 loopback
 
 ## Performance Metrics
 
@@ -140,3 +141,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 154 P05 | 40 minutes | 2 tasks | 3 files |
 | Phase 154 P06 | 70 minutes | 3 tasks | 8 files |
 | Phase 155 P01 | 4 minutes | 3 tasks | 5 files |
+| Phase 155 P02 | 6 minutes | 3 tasks | 3 files |
