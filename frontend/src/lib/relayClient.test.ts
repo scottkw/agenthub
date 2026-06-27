@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   MSG_INPUT,
   MSG_OUTPUT,
+  MSG_RESIZE,
   MSG_RESIZE2,
   MSG_PRESENCE,
   MSG_TYPING,
@@ -437,6 +438,95 @@ describe('RelayClient Phase 154 backward compatibility', () => {
     expect(() => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       lastMockWS.onmessage?.({ data: buf })
+    }).not.toThrow()
+
+    client.close()
+  })
+})
+
+// ─── Phase 157 VIEW-04: 0x02 MsgResize dispatch → onResize callback ───────────
+
+describe('RelayClient Phase 157 — 0x02 MsgResize dispatch', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastMockWS: any
+
+  beforeEach(() => {
+    lastMockWS = null
+    const MockWS = vi.fn(function (this: Record<string, unknown>) {
+      this.binaryType = 'arraybuffer'
+      this.readyState = 1 // OPEN
+      this.onopen = null
+      this.onmessage = null
+      this.onclose = null
+      this.onerror = null
+      this.send = vi.fn()
+      this.close = vi.fn()
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      lastMockWS = this
+    }) as unknown as typeof WebSocket
+    vi.stubGlobal('WebSocket', MockWS)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('MSG_RESIZE constant is 0x02', () => {
+    expect(MSG_RESIZE).toBe(0x02)
+  })
+
+  it('fires onResize(cols, rows) when a 5-byte 0x02 frame arrives', () => {
+    const onResizeFn = vi.fn()
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn(), onResize: onResizeFn }
+    const client = new RelayClient(34115, 'sess-resize', callbacks)
+
+    // Build a 0x02 frame: [0x02, 0, 80, 0, 24] → cols=80, rows=24
+    const frame = new Uint8Array([0x02, 0, 80, 0, 24])
+    const buf = frame.buffer as ArrayBuffer
+    lastMockWS.onmessage?.({ data: buf })
+
+    expect(onResizeFn).toHaveBeenCalledTimes(1)
+    expect(onResizeFn).toHaveBeenCalledWith(80, 24)
+
+    client.close()
+  })
+
+  it('fires onResize with large col/row values (big-endian decode)', () => {
+    const onResizeFn = vi.fn()
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn(), onResize: onResizeFn }
+    const client = new RelayClient(34115, 'sess-big', callbacks)
+
+    // cols=256 (0x01, 0x00), rows=128 (0x00, 0x80)
+    const frame = new Uint8Array([0x02, 0x01, 0x00, 0x00, 0x80])
+    lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
+
+    expect(onResizeFn).toHaveBeenCalledWith(256, 128)
+
+    client.close()
+  })
+
+  it('does not fire onResize when a short (< 5 byte) 0x02 frame arrives', () => {
+    const onResizeFn = vi.fn()
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn(), onResize: onResizeFn }
+    const client = new RelayClient(34115, 'sess-short', callbacks)
+
+    // Truncated frame — parseServerFrame returns { type: 'unknown' }
+    const frame = new Uint8Array([0x02, 0, 80, 0]) // only 4 bytes
+    lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
+
+    expect(onResizeFn).not.toHaveBeenCalled()
+
+    client.close()
+  })
+
+  it('does not throw when onResize is omitted (host-path backward compat)', () => {
+    // Host path: only onOutput provided — no onResize
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn() }
+    const client = new RelayClient(34115, 'sess-host', callbacks)
+
+    const frame = new Uint8Array([0x02, 0, 80, 0, 24])
+    expect(() => {
+      lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
     }).not.toThrow()
 
     client.close()

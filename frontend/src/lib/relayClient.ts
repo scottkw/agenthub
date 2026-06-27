@@ -198,6 +198,12 @@ export interface RelayClientCallbacks {
   onTyping?: (personKey: string, alias: string, typing: boolean) => void
   onChat?: (message: ChatMessage) => void
   onInjectError?: (reason: string) => void
+  /**
+   * Phase 157 VIEW-04: called when the server pushes a 0x02 MsgResize frame.
+   * Guest viewers (remote || wsURL) use this to honor the host-authority grid.
+   * Optional so host-path callers (no remote, no wsURL) can omit it without change.
+   */
+  onResize?: (cols: number, rows: number) => void
 }
 
 /**
@@ -256,7 +262,12 @@ export class RelayClient {
         case 'inject_error':
           this.callbacks.onInjectError?.(frame.reason)
           break
-        // resize frames from server are informational; terminal resize is driven client-side
+        case 'resize':
+          // VIEW-04 (Phase 157): the server is the host-authority for the PTY grid.
+          // Guest viewers (remote || wsURL) pass onResize to honor the server-pushed
+          // grid; host-path callers omit it so 0x02 is a no-op for local sessions.
+          this.callbacks.onResize?.(frame.cols, frame.rows)
+          break
         // 'unknown' frames are silently dropped
       }
     }
