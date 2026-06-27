@@ -366,6 +366,19 @@ Human-intervention items that cannot be automated. Run before each tagged releas
   - _Why not automatable:_ Requires a real Linux amd64 machine or container; the download step needs a live GitHub release asset present at the tagged URL.
   - _Source:_ Phase 156 INSTALL-01; 156-02-PLAN.md
 
+### Category O — WinGet First Submission Dry-Run (INSTALL-03)
+
+- **M-26** winget first-submission dry-run + operator runbook (INSTALL-03):
+  1. (**Phase gate**) Run: `bash packaging/winget/dry-run-first-submission.sh` — confirm output ends with `PASS: winget first-submission dry-run complete` and all 3 manifests parsed.
+  2. (**Phase gate**) Verify generated `packaging/winget/output/<VERSION>/scottkw.agenthub.installer.yaml` contains `PackageIdentifier: scottkw.agenthub` and a `windows-amd64-installer.exe` URL.
+  3. (**Phase gate**) Confirm `WINGET_TOKEN` secret is provisioned: `gh secret list | grep WINGET_TOKEN` (see `packaging/winget/FIRST-SUBMISSION-RUNBOOK.md` Step 2 for token scope requirements).
+  4. (_Not a phase blocker_) When ready for live submission: confirm `WINGET_FIRST_SUBMISSION=true` repo variable is set (`gh variable set WINGET_FIRST_SUBMISSION --body "true"`), then trigger `distribute.yml` with a real (non-rc) release tag.
+  5. (_Not a phase blocker_) After the `microsoft/winget-pkgs` PR is merged: remove `continue-on-error: true` from the `submit-winget` job in `distribute.yml` and reset `WINGET_FIRST_SUBMISSION` to false or delete the variable.
+  6. (_Not a phase blocker_) Verify `winget install scottkw.agenthub` on Windows succeeds.
+  - _Note:_ INSTALL-03 has no automated test file — verified by this manual checklist only. Steps 1–3 are the phase-completion gate; steps 4–6 are post-phase operator follow-ups gated on Microsoft's external PR review.
+  - _Why steps 4–6 are not automatable:_ Requires Windows machine for `wingetcreate` execution; requires Microsoft's external PR review and catalog ingestion to complete.
+  - _Source:_ Phase 156 INSTALL-03; 156-03-PLAN.md; `packaging/winget/FIRST-SUBMISSION-RUNBOOK.md`
+
 ---
 
 ## 6. Standing Convention
