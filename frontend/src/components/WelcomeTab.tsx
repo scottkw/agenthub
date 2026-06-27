@@ -39,11 +39,11 @@ export function WelcomeTab(): React.ReactElement {
             </div>
             <div className="welcome-tab__install-item">
               <span className="welcome-tab__install-label">Linux</span>
-              <code className="welcome-tab__code">curl -fsSL https://agenthub.dev/install.sh | sh</code>
+              <code className="welcome-tab__code">curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh</code>
             </div>
             <div className="welcome-tab__install-item">
               <span className="welcome-tab__install-label">Windows</span>
-              <code className="welcome-tab__code">winget install agenthub</code>
+              <code className="welcome-tab__code">winget install scottkw.agenthub</code>
             </div>
           </div>
         </div>
@@ -51,7 +51,7 @@ export function WelcomeTab(): React.ReactElement {
         <div className="welcome-tab__section">
           <h3 className="welcome-tab__heading">Links</h3>
           <div className="welcome-tab__links">
-            <span className="welcome-tab__link">github.com/agenthub-dev/agenthub</span>
+            <span className="welcome-tab__link">github.com/scottkw/agenthub</span>
           </div>
         </div>
       </div>
