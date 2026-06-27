@@ -51,7 +51,14 @@
        iOS Safari/Chrome do not race their native page-pan animation against
        attachTouchScroll's scrollLines() updates in terminal.js. Mirrors
        frontend/src/style.css:31 for the React surface. */
-    #terminal { flex: 1; min-height: 0; width: 100%; position: relative; touch-action: pan-y; }
+    /* Phase 157 VIEW-05: overflow:hidden clips sub-pixel overhang from the CSS scale transform.
+       All other layout properties preserved (flex:1 / min-height:0 / position:relative / touch-action). */
+    #terminal { flex: 1; min-height: 0; width: 100%; position: relative; touch-action: pan-y; overflow: hidden; }
+
+    /* Phase 157 VIEW-05: pin the scaled xterm grid to the top-left corner.
+       The scale value is applied imperatively from recomputeScale() in terminal.js —
+       no hardcoded transform here. */
+    #terminal .xterm { transform-origin: top left; }
 
     /* Phase 93 WGL-02 / WGL-04 — web parity with desktop .webgl-recovery-banner. */
     #webgl-recovery-banner {
