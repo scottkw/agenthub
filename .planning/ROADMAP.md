@@ -29,7 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
-- 🚧 **v4.1 Session Chat** — Phases 151-157 (active, started 2026-06-25, closes #79, #109)
+- 🚧 **v4.1 Session Chat** — Phases 151-158 (active, started 2026-06-25, closes #79, #109)
 
 ## Phases
 
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.0 phase details archived to milestones/v4.0-ROADMAP.md -->
 
-### v4.1 Session Chat (Phases 151-157) — ACTIVE
+### v4.1 Session Chat (Phases 151-158) — ACTIVE
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
@@ -368,6 +368,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification (completed 2026-06-27)
 - [x] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation (completed 2026-06-27)
 - [x] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble (completed 2026-06-27)
+- [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
 
 ### Progress: v4.1 Session Chat
 
@@ -380,6 +381,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 6/6 | Complete    | 2026-06-27 |
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
+| 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

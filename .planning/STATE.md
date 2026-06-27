@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 158
-current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
-status: verifying
-stopped_at: Phase 158 added (chat affordance polish — toggle/Send overlap fix + chat on terminal tab); found during v4.1 UAT. Milestone reopened 7/8; needs planning before re-running /gsd-complete-milestone
-last_updated: "2026-06-27T15:59:06.212Z"
+status: complete
+stopped_at: Phase 158 complete — all 8 v4.1 phases (151-158) done; UAT 2/2 passed (M-29 toggle/Send non-overlap, M-30 terminal-tab chat parity, both verified via dev-browser geometry). Milestone v4.1 100% — ready for /gsd-complete-milestone v4.1 (release gate: push main→origin, then re-run verify-work 156 Test 1)
+last_updated: "2026-06-27T17:03:58.996Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 158 execution started
+last_activity_desc: Phase 158 complete
 progress:
   total_phases: 8
   completed_phases: 8
   total_plans: 34
   completed_plans: 34
   percent: 100
+current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 158 — chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
+**Current focus:** v4.1 Session Chat complete (all 8 phases) — ready to archive milestone
 
 ## Current Position
 
-Phase: 158 (chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-06-27 — Phase 158 execution started
+Phase: 158 (final v4.1 phase) — COMPLETE
+Plan: Not started
+Status: Milestone v4.1 100% complete — ready for /gsd-complete-milestone v4.1
+Last activity: 2026-06-27 — Phase 158 complete (UAT 2/2 passed)
 
 ```
-Progress: [████████████████████] 32/32 plans (100%) — 7/7 phases complete
+Progress: [████████████████████] 34/34 plans (100%) — 8/8 phases complete
 ```
 
 ### Quick Tasks Completed
