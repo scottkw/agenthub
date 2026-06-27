@@ -136,13 +136,17 @@ Which phase covers each requirement. Populated during roadmap creation.
 | VIEW-03 | Phase 157 | Complete |
 | VIEW-04 | Phase 157 | Complete |
 | VIEW-05 | Phase 157 | Complete |
+| CHAT-FIX-01 | Phase 158 | Complete (UAT pending — M-29) |
+| CHAT-PARITY-01 | Phase 158 | Complete (UAT pending — M-30); downstream of PARITY-01 |
 
 **Coverage:**
 
 - v1 requirements: 29 total
 - Mapped to phases: 29 (100% ✓)
 - Unmapped: 0
+- Post-v1 UAT gap-closure requirements: 2 (CHAT-FIX-01, CHAT-PARITY-01 — Phase 158), automated work complete, live UAT (M-29/M-30) pending
 
 ---
 *Requirements defined: 2026-06-25*
-*Last updated: 2026-06-26 — added VIEW-01..05 (Phase 157, Issue #109 screen-share semantics); D-02 chat drawer revised push→overlay*
+*Last updated: 2026-06-27 — added CHAT-FIX-01 + CHAT-PARITY-01 (Phase 158 chat-affordance polish, gap-closure from v4.1 UAT); CHAT-PARITY-01 downstream of PARITY-01 (Phase 155)*
+*Previous: 2026-06-26 — added VIEW-01..05 (Phase 157, Issue #109 screen-share semantics); D-02 chat drawer revised push→overlay*
