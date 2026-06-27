@@ -689,17 +689,17 @@ writeURL = base + "/sessions/" + sessionID + "?cap=" + wTok
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `handleIssueCapabilities` URL output be updated to mint `/app/` URLs directly?**
    - What we know: `api.go:1288-1289` still mints `/sessions/{id}?cap=` URLs for the GUI share modal. After Phase 159, these redirect correctly.
    - What's unclear: Is it cleaner to update the URL minting in this phase?
-   - Recommendation: Do NOT update in Phase 159. The redirect approach works for all paths without touching URL-minting sites. Update URL minting in Phase 160 as tech-debt closeout if desired — but only after Phase 159 is proven stable.
+   - **RESOLVED:** Do NOT update in Phase 159. The redirect approach works for all paths without touching URL-minting sites. Update URL minting in Phase 160 as tech-debt closeout if desired — but only after Phase 159 is proven stable.
 
 2. **Should the Playwright chat-parity.spec.ts be extended to navigate via the share URL rather than directly to `/app/`?**
    - What we know: The existing spec opens `/app/?session=...&cap=...` directly (already past the redirect). Adding a test that starts from `/sessions/{id}?cap=` and asserts a redirect would improve WEBCHAT-02 automated coverage.
    - What's unclear: The Playwright fixture uses a stub server, not the real webserver. The redirect test belongs in Go (integration test), not Playwright.
-   - Recommendation: The Go `TestTerminalPageRedirect` unit test (Wave 0 gap) is sufficient for automated WEBCHAT-02 redirect coverage. Playwright already proves chat works at `/app/`. Manual M-31 covers the end-to-end live-daemon path.
+   - **RESOLVED:** The Go `TestTerminalPageRedirect` unit test (Wave 0 gap) is sufficient for automated WEBCHAT-02 redirect coverage. Playwright already proves chat works at `/app/`. Manual M-31 covers the end-to-end live-daemon path.
 
 ---
 
