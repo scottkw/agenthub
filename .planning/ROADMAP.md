@@ -410,6 +410,28 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 *Full v3.6 details: .planning/milestones/v3.6-ROADMAP.md*
 *Full v4.0 details: .planning/milestones/v4.0-ROADMAP.md*
 
+### Phase 158: Chat affordance polish: fix toggle/Send overlap + add chat to terminal tab
+
+**Goal:** Two chat-affordance defects found during v4.1 UAT are resolved: (1) the chat toggle no longer covers the composer's Send button when the drawer is open, and (2) the chat affordance (toggle + ChatPanel) is reachable from the raw session terminal tab, not only the Hub interactive modal and web-share view — closing a cross-surface parity gap.
+**Requirements**: CHAT-FIX-01 (toggle/Send overlap), CHAT-PARITY-01 (terminal-tab chat affordance; upstream PARITY-01, D-02)
+**Depends on:** Phase 157
+**Plans:** 2 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. With the chat drawer open in the Hub interactive modal, the chat toggle button does not overlap or obscure the composer's Send/Inject button — the toggle relocates clear of the 360px drawer (e.g. left of the drawer edge) while `chat-panel--open`, and remains the affordance that closes the drawer. Verified visually against the UAT screenshot scenario.
+  2. From a live session opened in a direct terminal **tab** (not via the Hub card modal), the user can open the same chat drawer — a chat toggle is present on the tab and toggles a working `ChatPanel` (overlay mode, no PTY resize, consistent with D-02). Cross-surface parity: GUI tab now matches the Hub modal and web-share surfaces.
+  3. The existing Hub-modal and web-share chat paths are unchanged (no regression); the bug fix is CSS-scoped and the tab integration reuses `ChatPanel` without forking it.
+
+**Context (root cause, confirmed during UAT):**
+- BUG: `.hub-modal__chat-toggle` is `position:absolute; bottom:12px; right:12px; z-index:6` (style.css:6012). The drawer `.chat-panel` is `width:360px; right:0; z-index:5`. Toggle (higher z-index) floats over the composer's Send button at the drawer's bottom-right when open. Likely fix: `right:372px` (or equivalent) under `.chat-panel--open`.
+- PARITY: chat toggle + `ChatPanel` are mounted only in `HubInteractiveModal.tsx:83-101` and `WebShareSessionView.tsx`. The raw terminal tab (`App.tsx:1701-1737`: `TerminalPanel` + `StatusBar`) has neither. Add the affordance there using the same overlay pattern.
+
+Plans:
+
+- [ ] 158-01-PLAN.md — CSS bug fix: relocate chat toggle clear of the open drawer so it no longer covers Send (CHAT-FIX-01) [wave 1]
+- [ ] 158-02-PLAN.md — Terminal-tab chat parity: extract TerminalChatHost (TerminalPanel + overlay ChatPanel + toggle), wire into App.tsx tab (CHAT-PARITY-01) [wave 2, depends 158-01]
+
 ---
 
 ## Phase Details: v4.1 Session Chat
