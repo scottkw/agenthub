@@ -451,11 +451,11 @@ Plans:
 
 **Requirements**: WEBCHAT-01 (remote guest reaches a chat-capable surface via redirect), WEBCHAT-02 (cross-surface parity verified on the ACTUALLY-SHARED link, not `/app/` directly), PARITY-01 (upstream — finally honored on the shared surface)
 **Depends on:** Phase 158
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 159 to break down)
+- [ ] 159-01-PLAN.md — Redirect handleTerminalPage (/sessions/{id}?cap= → /app/ SPA, 302) + Go tests + TESTING.md regression registration (M-31)
 
 **Root-cause evidence (Explore, 2026-06-27):** share URL built at `internal/daemon/api.go:755-760` (`/sessions/{id}?cap=`); `web/assets/terminal.js:1-26` defines only 0x01/0x02/0x10/0x11/0x12 — no chat; the `/app/` route at `internal/webserver/server.go:568-580` is open and reachable but never linked from the share flow; `handleWSSRelay` (`server.go:1047-1065`) already relays MsgChatSend/Typing/Presence to web guests — only the raw viewer's missing UI drops them.
 
