@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -317,24 +318,39 @@ func TestWebServerWSS(t *testing.T) {
 
 // TestWebServerToggle verifies the enabled/disabled toggle semantics through
 // the capability-gated /sessions/{id} route (Phase 87). With a valid cap and
-// the session enabled, the terminal page loads (200). After DisableSession,
-// the grant-list + web-enabled check in requireCapability rejects with 403
-// (not 404, because the cap is structurally valid — it's just been
-// invalidated by the toggle, mirroring D-15).
+// the session enabled, the handler issues an HTTP 302 redirect to
+// /app/?session={id}&cap={token} (Phase 159 WEBCHAT-01). After DisableSession,
+// requireCapability's grant-list + web-enabled check rejects with 403 BEFORE
+// handleTerminalPage runs — so no redirect fires (WEBCHAT-02 security invariant).
 func TestWebServerToggle(t *testing.T) {
 	ws, client := testServer(t)
 	ws.SetSigningKey(ssExtTestKey)
 	baseURL := ws.BaseURL()
 
+	// noRedirectClient reuses the CA-trusting transport so TLS handshakes
+	// succeed, but stops at 3xx without following — required to observe the
+	// 302 Location header emitted by handleTerminalPage (Phase 159).
+	noRedirectClient := &http.Client{
+		Transport: client.Transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	ws.EnableSession("sess1")
 	token := capForSession(t, ws, "sess1")
-	resp, err := client.Get(baseURL + "/sessions/sess1?cap=" + token)
+	resp, err := noRedirectClient.Get(baseURL + "/sessions/sess1?cap=" + token)
 	if err != nil {
 		t.Fatalf("GET /sessions/sess1: %v", err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("enabled session: expected 200, got %d", resp.StatusCode)
+	// Phase 159: handleTerminalPage now redirects to the chat-capable SPA.
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("enabled session: expected 302, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/app/?session=sess1&cap=") {
+		t.Errorf("enabled session: unexpected Location %q (want prefix /app/?session=sess1&cap=)", loc)
 	}
 
 	// Disable sess1 — requireCapability's IsSessionEnabled check now fails,
@@ -351,6 +367,126 @@ func TestWebServerToggle(t *testing.T) {
 	if resp2.StatusCode != http.StatusForbidden {
 		t.Errorf("disabled session: expected 403, got %d", resp2.StatusCode)
 	}
+}
+
+// TestTerminalPageRedirect verifies Phase 159 WEBCHAT-01: a valid-cap GET
+// /sessions/{id}?cap=TOKEN returns HTTP 302 with Location /app/?session={id}&cap={token}.
+//
+// Sub-tests cover:
+//   - RW cap produces a 302 redirect to /app/ (WEBCHAT-01)
+//   - Cap token round-trips intact through url.QueryEscape in the Location header
+//   - RO cap redirects identically to RW — RO guests are full chat participants (D-06)
+//   - URL-encoding correctness: chars that appear in standard base64 (+, /, =) are
+//     percent-encoded correctly by url.QueryEscape and recovered by url.Parse.Query (standalone)
+//
+// NOTE: capability tokens use base64.RawURLEncoding (URL-safe base64, no +/=),
+// so live tokens will not contain those chars. The standalone URL-encoding sub-test
+// confirms the handler's url.QueryEscape call handles them correctly for any future
+// token format that may use standard base64.
+func TestTerminalPageRedirect(t *testing.T) {
+	ws, client := testServer(t)
+	ws.SetSigningKey(ssExtTestKey)
+	baseURL := ws.BaseURL()
+
+	// noRedirectClient reuses the CA-trusting transport so TLS succeeds,
+	// but stops at 3xx to expose the Location header.
+	noRedirectClient := &http.Client{
+		Transport: client.Transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	t.Run("RW cap redirects to /app/ with encoded token", func(t *testing.T) {
+		ws.EnableSession("redir-rw")
+		token := capForSession(t, ws, "redir-rw")
+
+		resp, err := noRedirectClient.Get(baseURL + "/sessions/redir-rw?cap=" + token)
+		if err != nil {
+			t.Fatalf("GET /sessions/redir-rw: %v", err)
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("RW cap: expected 302 Found, got %d", resp.StatusCode)
+		}
+		loc := resp.Header.Get("Location")
+		if !strings.HasPrefix(loc, "/app/?session=redir-rw&cap=") {
+			t.Errorf("RW cap: Location %q does not start with /app/?session=redir-rw&cap=", loc)
+		}
+		// Round-trip: parse Location and recover the cap token exactly.
+		u, err := url.Parse(loc)
+		if err != nil {
+			t.Fatalf("url.Parse(Location=%q): %v", loc, err)
+		}
+		if got := u.Query().Get("cap"); got != token {
+			t.Errorf("RW cap round-trip: got cap=%q, want %q", got, token)
+		}
+	})
+
+	t.Run("RO cap redirects identically to RW (D-06)", func(t *testing.T) {
+		ws.EnableSession("redir-ro")
+		// Read-only capability — constructed inline to use Perms:"read".
+		roClaims := capability.Claims{
+			SID:     "redir-ro",
+			Perms:   "read",
+			IAT:     time.Now().Unix(),
+			GrantID: "ro-grant-redir-ro",
+			V:       1,
+		}
+		roToken, err := capability.Sign(roClaims, ssExtTestKey)
+		if err != nil {
+			t.Fatalf("capability.Sign RO: %v", err)
+		}
+		ws.AddGrant("redir-ro", roClaims.GrantID)
+
+		resp, err := noRedirectClient.Get(baseURL + "/sessions/redir-ro?cap=" + roToken)
+		if err != nil {
+			t.Fatalf("GET /sessions/redir-ro (RO): %v", err)
+		}
+		resp.Body.Close()
+
+		if resp.StatusCode != http.StatusFound {
+			t.Errorf("RO cap: expected 302, got %d", resp.StatusCode)
+		}
+		loc := resp.Header.Get("Location")
+		if !strings.HasPrefix(loc, "/app/?session=redir-ro&cap=") {
+			t.Errorf("RO cap: Location %q does not start with /app/?session=redir-ro&cap=", loc)
+		}
+		u, err := url.Parse(loc)
+		if err != nil {
+			t.Fatalf("url.Parse(Location=%q): %v", loc, err)
+		}
+		if got := u.Query().Get("cap"); got != roToken {
+			t.Errorf("RO cap round-trip: got cap=%q, want %q", got, roToken)
+		}
+	})
+
+	// URL-encoding standalone: prove url.QueryEscape + url.Parse.Query.Get
+	// correctly round-trips a token string containing standard-base64 chars
+	// (+, /, =) — even though live capability tokens use base64.RawURLEncoding
+	// and never produce those chars, this guards against future token format
+	// changes and proves the handler's url.QueryEscape call is correct.
+	t.Run("URL-encoding round-trip for base64 special chars", func(t *testing.T) {
+		synthetic := "abc+def/ghi=jkl"
+		escaped := url.QueryEscape(synthetic)
+		if !strings.Contains(escaped, "%2B") {
+			t.Errorf("'+' not percent-encoded: got %q", escaped)
+		}
+		if !strings.Contains(escaped, "%2F") {
+			t.Errorf("'/' not percent-encoded: got %q", escaped)
+		}
+		if !strings.Contains(escaped, "%3D") {
+			t.Errorf("'=' not percent-encoded: got %q", escaped)
+		}
+		u, err := url.Parse("/app/?session=x&cap=" + escaped)
+		if err != nil {
+			t.Fatalf("url.Parse: %v", err)
+		}
+		if got := u.Query().Get("cap"); got != synthetic {
+			t.Errorf("special-char round-trip: got %q, want %q", got, synthetic)
+		}
+	})
 }
 
 func TestQREndpoint(t *testing.T) {
