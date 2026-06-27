@@ -6033,6 +6033,19 @@ body {
   border-color: var(--hub-accent);
 }
 
+/* CHAT-FIX-01: relocate the toggle clear of the open chat drawer so it no longer
+   overlaps the composer Send/Inject button (z-index:6 toggle was obscuring z-index:5
+   drawer bottom-right corner). Uses the general-sibling combinator: ChatPanel
+   (which carries .chat-panel--open when open) renders BEFORE the toggle button as
+   a same-parent sibling in HubInteractiveModal.tsx and WebShareSessionView.tsx, so
+   the selector matches when the drawer is open. Intentionally unscoped so it also
+   corrects the identical latent overlap on the web-share surface (both surfaces use
+   the same .hub-modal__chat-toggle + .chat-panel--open classes). right: 372px =
+   360px drawer width + 12px gutter, placing the toggle 12px left of the drawer edge. */
+.chat-panel--open ~ .hub-modal__chat-toggle {
+  right: 372px;
+}
+
 .hub-modal__chat-toggle-icon {
   width: 18px;
   height: 18px;
