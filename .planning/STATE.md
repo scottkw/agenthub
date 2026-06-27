@@ -6,15 +6,15 @@ current_phase: 155
 current_phase_name: web-share-chat-ui-cross-surface-parity-gate
 status: verifying
 stopped_at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
-last_updated: "2026-06-27T03:10:00.093Z"
+last_updated: "2026-06-27T03:32:33.014Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 155 execution started
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 24
-  completed_plans: 23
-  percent: 67
+  completed_plans: 24
+  percent: 83
 ---
 
 # Project State
@@ -93,7 +93,7 @@ Progress: [█████████░] 86% — 19/22 plans complete (4/7 pha
 
 ## Session Continuity
 
-Last session: 2026-06-27T03:10:00.085Z
+Last session: 2026-06-27T03:32:01.919Z
 Stopped at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -122,6 +122,7 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Phase 155-02: isReadOnly defaults to true (fail-safe); RO resolved from /info ?cap= perms; wsURL short-circuits before port=0 loopback
 - [Phase ?]: Phase 155-03: isActive=true constant on WebShareSessionView (no grow animation, unlike modal)
 - [Phase ?]: Phase 155-03: openWebSessionTab called after handleOpenFileBrowser so session tab wins active focus
+- [Phase ?]: Phase 155-06: SC-3 WS-ready gate uses .first() not text-filter — virtualizer scrolls seeded message out of DOM after broadcast tests
 
 ## Performance Metrics
 
