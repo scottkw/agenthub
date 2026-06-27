@@ -658,21 +658,21 @@ No new authn/crypto surface; the change is net-positive for access control.
 | A3 | Pointer/selection offset under CSS transform is acceptable for a guest viewer | Change-Layer 4 | If exact mouse-select on a scaled guest is required, needs a coordinate-mapping shim (out of current scope) |
 | A4 | Desktop guest container CSS lives in `frontend/src/style.css` (TerminalPanel referenced there) | Change-Layer 6 | If rules are elsewhere, the scale CSS lands in the wrong file — confirm during planning |
 
-## Open Questions
+## Open Questions (RESOLVED 2026-06-27)
 
-1. **Should the host path also broadcast 0x02 to *other local hosts* (multi-local-host D-02)?**
-   - Known: D-02 says local hosts render natively (never scaled); the grid = `min` of them. The
-     larger local host gets padding, not scaling.
-   - Unclear: does the larger local host need a 0x02 to `term.resize` down to the min (so its
-     xterm grid matches the PTY), or does it keep its native larger grid and just see padding?
-   - Recommendation: broadcast 0x02 to all subscribers including local hosts; a local host honoring
-     `term.resize(min)` keeps byte-for-byte parity without scaling (no disturbance to pixels, only
-     grid). Confirm with the planner against "host view never disturbed" — likely fine since
-     resizing the grid to min is not *scaling* and the common case is a single host (moot).
+1. **Multi-local-host D-02 — does the larger local host `term.resize` down to the min, or keep its native grid with padding?**
+   - **RESOLVED → keep native grid, padding (no resize-down).** Host-origin viewers are
+     authoritative and IGNORE inbound server 0x02 (gated by `isGuest = remote || wsURL`). The
+     larger local host renders the min-grid bytes within its native grid as harmless padding — no
+     garble, host pixels undisturbed. This is exactly D-02's "the larger one simply gets padding,"
+     and P01's `needResize` change-guard prevents any resize feedback loop. (Common case: a single
+     local host — moot.) The earlier "broadcast to all + local hosts honor it" idea is rejected
+     because honoring would disturb the host view.
 
-2. **Web `FitAddon` removal vs keep-but-don't-fit.** Recommendation: keep loaded, stop calling
-   `fit()`. Confirm no other `terminal.js` code calls `fitAddon.fit()` beyond lines 171/1041
-   (grep shows only those two).
+2. **Web `FitAddon` removal vs keep-but-don't-fit.**
+   - **RESOLVED → keep loaded, stop calling `fit()` on guests** (adopted verbatim by Plan 03).
+     Confirmed no other `terminal.js` code calls `fitAddon.fit()` beyond the two known sites
+     (171/1041); the Plan 03 verify asserts zero remaining `fitAddon.fit()` calls.
 
 ## Environment Availability
 
