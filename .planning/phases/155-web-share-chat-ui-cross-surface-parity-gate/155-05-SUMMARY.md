@@ -175,3 +175,32 @@ The 10-second `toBeVisible` window and the `.chat-badge` visibility assertion we
 - BLOCKER 1 closed: confirmed (6/6 live Playwright tests pass)
 - RO gate unchanged: confirmed (hub.go not modified, grep for ErrChatReadOnly shows line 585 unmodified)
 - No new packages: confirmed (go.mod and package.json unmodified)
+
+---
+
+## Server-side broadcast race fix (post-sign-off)
+
+The Playwright-side fix above closed the *test flake* by gating the SC-1 send on a hub subscriber count, but the underlying SERVER race remained. With explicit user sign-off, the real server-side fix landed.
+
+**Root cause (WhoIs window).** `handleWSSRelay` (`internal/webserver/server.go`) called `websocket.Accept` (sends the 101 → client `onOpen` fires) and only THEN performed `lc.WhoIs(ctx, r.RemoteAddr)` — a Tailscale identity IPC with real production latency — before building `sub` and calling `hub.Subscribe`. Chat history is served by a SEPARATE HTTP endpoint (`GET /api/chat/{id}/history`), so a joining viewer B could render history (proving its socket open client-side) while the server was still blocked inside `WhoIs` and had NOT yet added B to the broadcast fan-out set. If user A sent a chat message in that window, `BroadcastChat` fanned out to current subscribers only — B was not one yet, B's history fetch had already returned, so B never saw the message until reload. The old `// Subscribe FIRST — anti-race pattern` comment was inaccurate: `WhoIs` preceded `Subscribe`.
+
+**Fix (two-phase subscribe).** Register the subscriber in the broadcast set IMMEDIATELY after `Accept`, BEFORE `WhoIs`:
+
+1. Build `sub` with WhoIs-independent fields only (`Msgs`, `ReadOnly`, `Name`, `Origin:"web"`, `CloseSlow`, `AliasSetFn`); leave `TailnetID`/`PersonKey`/`Alias` empty.
+2. `hub.Subscribe(sub)` at once — delivery is live; empty `PersonKey` ⇒ no presence-roster entry yet.
+3. Register `defer hub.Unsubscribe(sub)` + `defer conn.CloseNow()` (Unsubscribe is symmetric: empty PersonKey on a drop inside the window cleanly removes from subscribers, skips the roster).
+4. THEN do `WhoIs`, compute `tailnetID`/`personKey`/`alias`, assign them to `sub`.
+5. THEN call the new `hub.RegisterPresence(sub)` (presence-roster registration only — the former `Subscribe` `if PersonKey != ""` block, ref-counting `ConnCount`), followed by `NotifyViewerCount` + `NotifyPresence`.
+
+**Why race-free.** `BroadcastChat` fan-out reads only `sub.Msgs` (immutable). The presence snapshot `CurrentPresence` reads roster entries — a `presenceState` COPY made under lock at `RegisterPresence` — not the live `sub`. The read pump that reads `sub`'s identity fields starts only AFTER identity is set. So no concurrent reader observes the identity fields while they transition empty → resolved. The relay loopback path (`internal/relay/server.go`) is UNTOUCHED: it sets identity before `Subscribe` and registers presence in one shot. The read-only capability gate (signed-cap–derived `readonly`) is unchanged.
+
+**New hub method.** `Hub.RegisterPresence(sub *Subscriber)` (`internal/relay/hub.go`) — performs only the presence-roster registration `Subscribe` used to do inline, for the two-phase web path (subscribe-early, identity-later). No-op when `PersonKey` is empty.
+
+**Tests.** `internal/relay/hub_subscribe_race_test.go` (3 tests, run under `-race`): `TestBroadcastDeliversBeforeIdentity` (subscriber added before identity still receives a broadcast frame; roster empty during the window, correct entry after `RegisterPresence`), `TestRegisterPresenceRefCounts` (ConnCount increments for a second conn sharing PersonKey), `TestUnsubscribeEmptyPersonKeyIsClean` (drop inside the WhoIs window is clean).
+
+**Verification.** `go test -race ./internal/relay/... ./internal/webserver/...` PASS; `go build ./...` PASS; `go vet ./internal/relay/... ./internal/webserver/...` clean. The Playwright `waitForHubSubscribers` deterministic backstop is retained.
+
+| Hash | Description |
+|------|-------------|
+| 90bbbcab | test(155-05): add failing two-phase subscribe race test |
+| 84a49c66 | fix(155-05): close WhoIs-window broadcast race with two-phase subscribe |
