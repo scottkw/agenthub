@@ -365,7 +365,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
 - [x] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step (completed 2026-06-26)
 - [x] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering (completed 2026-06-26)
-- [ ] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification
+- [x] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification (completed 2026-06-27)
 - [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
 - [ ] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble
 
@@ -377,7 +377,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
-| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 3/4 | In Progress|  |
+| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 4/4 | Complete   | 2026-06-27 |
 | 156. Install Links & Distribution | 0/? | Not started | - |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
@@ -537,7 +537,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A RO-cap web-share viewer cannot post messages or trigger `@session` injection — the server rejects both actions regardless of client behavior; a RW-cap web-share viewer can do both.
   4. The `@session` injection path works identically from both surfaces: same relay frame type, same daemon handler, same "→ injected into terminal" indicator in the thread.
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint Go vs frontend subsystems)*
@@ -551,7 +551,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 3** *(blocked on 155-01 + 155-03)*
 
-- [ ] 155-04-PLAN.md — Playwright fixture chat wiring + chat-parity.spec.ts gate + TESTING.md finalize (PARITY-01, EXPORT-01)
+- [x] 155-04-PLAN.md — Playwright fixture chat wiring + chat-parity.spec.ts gate + TESTING.md finalize (PARITY-01, EXPORT-01)
 
 ### Phase 156: Install Links & Distribution
 
