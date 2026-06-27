@@ -504,6 +504,20 @@ body {
   height: 100%;
 }
 
+/* Phase 158 — CHAT-PARITY-01: containing block for the terminal-tab chat overlay.
+   position:relative makes the absolutely-positioned .chat-panel (unscoped base rule
+   from Phase 154/158-01) and .hub-modal__chat-toggle position against the host,
+   covering the terminal area but NOT the StatusBar (which is a sibling below in
+   .terminal-wrapper). flex:1 1 auto + min-height:0 ensures the host fills available
+   vertical space inside the flex-column .terminal-wrapper without overflowing. */
+.terminal-chat-host {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* --- Per-tab status bar (Phase 8) ---------------------------------- */
 .tab-status-bar {
   flex-shrink: 0;
@@ -6944,6 +6958,11 @@ body {
    JS-driven (setTimeout) and is unaffected — the inject still fires. */
 @media (prefers-reduced-motion: reduce) {
   .hub-modal__body--interactive .chat-panel {
+    transition: none;
+  }
+  /* Phase 158 — CHAT-PARITY-01: honor reduced-motion for the tab drawer, mirroring
+     the modal rule above. Specificity matches the unscoped base .chat-panel rule. */
+  .terminal-chat-host .chat-panel {
     transition: none;
   }
   .chat-composer__inject-btn::before {

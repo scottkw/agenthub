@@ -4,7 +4,6 @@ import * as xtermThemes from 'xterm-theme'
 import type { ITheme } from '@xterm/xterm'
 import { TabBar, type Tab } from './components/TabBar'
 import { Sidebar } from './components/Sidebar'
-import { TerminalPanel } from './components/TerminalPanel'
 import { SettingsTab } from './components/SettingsTab'
 import { stripAnsi } from './lib/stripAnsi'
 import { sanitizeFilename } from './lib/sanitizeFilename'
@@ -57,6 +56,7 @@ import type { AdaptedRemoteSessionInfo } from './lib/remoteAdapter'
 import { ExchangeJoinCodeAtURL, RegisterRemoteCap, OpenRemoteSessionURL } from './wailsjs/go/main/App'
 import { LocalNetworkBanner } from './components/LocalNetworkBanner'
 import { WebShareSessionView } from './components/Hub/WebShareSessionView'
+import { TerminalChatHost } from './components/Hub/TerminalChatHost'
 import { RemoteBrowseDNSWarning } from './components/RemoteBrowseDNSWarning'
 import { UpdateBanner } from './components/UpdateBanner'
 import type { UpdateInfo } from './components/UpdateBanner'
@@ -1708,7 +1708,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
                 className="terminal-wrapper"
                 style={{ display: isActive ? 'flex' : 'none' }}
               >
-                <TerminalPanel
+                <TerminalChatHost
                   sessionId={tab.sessionId}
                   isActive={isActive}
                   relayPort={relayPort}
