@@ -4,7 +4,7 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 158
 status: complete
-stopped_at: Phase 158 complete — all 8 v4.1 phases (151-158) done; UAT 2/2 passed (M-29 toggle/Send non-overlap, M-30 terminal-tab chat parity, both verified via dev-browser geometry). Milestone v4.1 100% — ready for /gsd-complete-milestone v4.1 (release gate: push main→origin, then re-run verify-work 156 Test 1)
+stopped_at: Phase 158 complete — UAT 2/2 passed (M-29 toggle/Send non-overlap, M-30 terminal-tab chat parity, both verified via dev-browser geometry against real style.css). All 8 v4.1 phase dirs (151-158) executed/verified. NOT yet ready for /gsd-complete-milestone — 3 milestone blockers remain: (1) NOTIF-01 Hub-card unread-badge dead-wiring (audit BLOCKER, NOT addressed by 158 — see .planning/v4.1-MILESTONE-AUDIT.md), (2) push main→origin, (3) re-run verify-work 156 Test 1 after push
 last_updated: "2026-06-27T17:03:58.996Z"
 last_activity: 2026-06-27
 last_activity_desc: Phase 158 complete
@@ -24,13 +24,13 @@ current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 Session Chat complete (all 8 phases) — ready to archive milestone
+**Current focus:** v4.1 phase 158 complete — milestone close-out still gated on NOTIF-01 audit blocker + push + verify-156
 
 ## Current Position
 
 Phase: 158 (final v4.1 phase) — COMPLETE
 Plan: Not started
-Status: Milestone v4.1 100% complete — ready for /gsd-complete-milestone v4.1
+Status: Phase 158 complete (UAT 2/2). Milestone NOT ready to archive — NOTIF-01 blocker + push main→origin + re-run verify-156 Test 1 outstanding
 Last activity: 2026-06-27 — Phase 158 complete (UAT 2/2 passed)
 
 ```
