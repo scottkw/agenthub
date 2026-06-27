@@ -91,19 +91,19 @@ test.describe('Phase 155 — chat parity gate', () => {
       await page1.goto(url)
       await page2.goto(url)
 
-      // Open chat on both pages.
+      // Open chat on Page1 first and wait for any history message before opening Page2.
+      // Sequential open reduces concurrent TLS pressure on WebKit (Phase 155-05 Rule-1
+      // fix: simultaneous ctx1+ctx2 WSS handshakes exceed WebKit's budget).
+      // Using .first() (any message) mirrors the unread-badge test pattern that passes
+      // on all 3 browsers; the subscriber gate below provides the definitive WS-ready signal.
       await page1.locator('.hub-modal__chat-toggle').click()
+      await expect(page1.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 10_000 })
+      await expect(page1.locator('.chat-msg').first()).toBeVisible({ timeout: 10_000 })
+
+      // Now open chat on Page2 — Page1's TLS session already established.
       await page2.locator('.hub-modal__chat-toggle').click()
-
-      // Wait for both chat panels to be open (look for the composer).
-      await expect(page1.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 8_000 })
-      await expect(page2.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 8_000 })
-
-      // Wait for history to load on BOTH pages before sending the test message.
-      // This confirms both WS connections are up and history is fetched.
-      // The fixture pre-seeds "Hello from the fixture (RW)" — wait for it on both pages.
-      await expect(page1.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 8_000 })
-      await expect(page2.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 8_000 })
+      await expect(page2.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 10_000 })
+      await expect(page2.locator('.chat-msg').first()).toBeVisible({ timeout: 10_000 })
 
       // Subscriber-registration readiness gate (PARITY-01 SC-1 fix — Phase 155-05):
       // hub.Subscribe is called inside the Go handleWS goroutine which races with
