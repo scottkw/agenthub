@@ -424,12 +424,17 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. The existing Hub-modal and web-share chat paths are unchanged (no regression); the bug fix is CSS-scoped and the tab integration reuses `ChatPanel` without forking it.
 
 **Context (root cause, confirmed during UAT):**
+
 - BUG: `.hub-modal__chat-toggle` is `position:absolute; bottom:12px; right:12px; z-index:6` (style.css:6012). The drawer `.chat-panel` is `width:360px; right:0; z-index:5`. Toggle (higher z-index) floats over the composer's Send button at the drawer's bottom-right when open. Likely fix: `right:372px` (or equivalent) under `.chat-panel--open`.
 - PARITY: chat toggle + `ChatPanel` are mounted only in `HubInteractiveModal.tsx:83-101` and `WebShareSessionView.tsx`. The raw terminal tab (`App.tsx:1701-1737`: `TerminalPanel` + `StatusBar`) has neither. Add the affordance there using the same overlay pattern.
 
 Plans:
+**Wave 1**
 
 - [ ] 158-01-PLAN.md — CSS bug fix: relocate chat toggle clear of the open drawer so it no longer covers Send (CHAT-FIX-01) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 158-02-PLAN.md — Terminal-tab chat parity: extract TerminalChatHost (TerminalPanel + overlay ChatPanel + toggle), wire into App.tsx tab (CHAT-PARITY-01) [wave 2, depends 158-01]
 
 ---

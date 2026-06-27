@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 157
-status: complete
-stopped_at: Phase 157 complete — v4.1 (151-157) at 100%; M-27 + M-28 live-verified via dev-browser harness/web-share; milestone ready for /gsd-complete-milestone
+current_phase: 158
+status: in_progress
+stopped_at: Phase 158 added (chat affordance polish — toggle/Send overlap fix + chat on terminal tab); found during v4.1 UAT. Milestone reopened 7/8; needs planning before re-running /gsd-complete-milestone
 last_updated: "2026-06-27T14:21:18.621Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 157 complete
+last_activity_desc: Phase 158 added (chat affordance polish)
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
   total_plans: 32
   completed_plans: 32
-  percent: 100
-current_phase_name: terminal-screen-share-semantics-issue-109
+  percent: 88
+current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 ---
 
 # Project State
@@ -62,8 +62,13 @@ Progress: [████████████████████] 32/32 p
 | 155 | Web-Share Chat UI + Cross-Surface Parity Gate | EXPORT-01, PARITY-01 | Complete |
 | 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Complete |
 | 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Complete |
+| 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | TBD (set at plan time) | Not planned |
 
-**Total:** 29 requirements mapped across 7 phases (100% coverage).
+**Total:** 29 requirements mapped across phases 151–157 (100% coverage); Phase 158 (UAT follow-up) requirements TBD at plan time.
+
+### Roadmap Evolution
+
+- Phase 158 added (2026-06-27): chat affordance polish — found during v4.1 UAT. (1) BUG: `.hub-modal__chat-toggle` (bottom-right, z-index 6) covers the chat composer Send button when the drawer is open (drawer z-index 5, 360px, right:0) — fix: shift toggle left of the drawer (e.g. `right:372px`) while `chat-panel--open`. (2) PARITY: chat toggle + ChatPanel exist only in `HubInteractiveModal` and web-share, not the raw session terminal tab (`App.tsx` ~1701) — add the chat affordance there. Appended to v4.1; reopens milestone 7/8.
 
 ## Key Decisions (v4.1)
 
