@@ -1045,12 +1045,63 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx := r.Context()
+
+	// Phase 155-05 (PARITY-01) — TWO-PHASE SUBSCRIBE (anti-race ordering).
+	//
+	// The WhoIs IPC below has real production latency. Chat history is served
+	// by a SEPARATE HTTP endpoint, so a joining viewer can render history (and
+	// believe its socket is live) while the server is still blocked inside
+	// WhoIs and has NOT yet added this connection to the broadcast set. A chat
+	// message sent in that window would fan out to current subscribers only —
+	// missing this viewer until reload. That is the PARITY-01 broadcast race.
+	//
+	// Fix: register in the broadcast fan-out set IMMEDIATELY (empty PersonKey ⇒
+	// delivery only, no roster entry yet), BEFORE WhoIs. Then resolve identity,
+	// set the immutable identity fields, and register the presence roster entry
+	// via hub.RegisterPresence. This is race-free because: (1) BroadcastChat
+	// fan-out reads only sub.Msgs (immutable); (2) the presence snapshot reads
+	// roster entries (a copy made under lock at RegisterPresence), not the live
+	// sub; (3) the read pump that reads sub's identity fields starts only AFTER
+	// identity is set. So no concurrent reader observes the identity fields
+	// during the window in which they transition from empty to resolved.
+	sub := &relay.Subscriber{
+		Msgs:     make(chan []byte, 256),
+		ReadOnly: readonly,
+		Name:     clientName,
+		Origin:   "web",
+		// TailnetID / PersonKey / Alias are set AFTER WhoIs (below).
+	}
+	sub.CloseSlow = func() {
+		conn.Close(websocket.StatusPolicyViolation, "too slow")
+	}
+	sub.AliasSetFn = func(key, a string) {
+		if ws.aliasSet != nil {
+			ws.aliasSet(key, a)
+		}
+	}
+
+	// Phase 1: subscribe NOW — delivery is live from this point. Empty
+	// PersonKey ⇒ no presence-roster entry yet (registered in Phase 2).
+	hub.Subscribe(sub)
+	defer func() {
+		// Unsubscribe reads sub.PersonKey at close time: set by Phase 2 below
+		// for normal connections, still empty if the conn drops inside the
+		// WhoIs window (symmetric — cleanly removes from subscribers, skips
+		// roster, returns presenceChanged=false).
+		presenceChanged := hub.Unsubscribe(sub) // Phase 152: Unsubscribe returns bool
+		relay.NotifyViewerCount(hub)
+		if presenceChanged {
+			relay.NotifyPresence(hub) // Phase 152 / PRESENCE-01: broadcast leave event
+		}
+	}()
+	defer conn.CloseNow()
+
 	// Phase 152 / IDENT-01: resolve the peer's Tailscale identity via WhoIs.
 	// Must be called AFTER websocket.Accept (Pitfall: WhoIs on the wrong
 	// pre-upgrade address). On failure (no live tailnet, loopback test, dev
 	// path) we fall back to a non-"local" sentinel so a web client is never
 	// silently merged with the desktop owner's "local:local" entry (D-04).
-	ctx := r.Context()
 	var lc local.Client
 	tailnetID := "unknown"
 	defaultAlias := ""
@@ -1068,36 +1119,16 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 		alias = ws.aliasGet(personKey, defaultAlias)
 	}
 
-	sub := &relay.Subscriber{
-		Msgs:      make(chan []byte, 256),
-		ReadOnly:  readonly,
-		Name:      clientName,
-		TailnetID: tailnetID,
-		Origin:    "web",
-		PersonKey: personKey,
-		Alias:     alias,
-	}
-	sub.CloseSlow = func() {
-		conn.Close(websocket.StatusPolicyViolation, "too slow")
-	}
-	sub.AliasSetFn = func(key, a string) {
-		if ws.aliasSet != nil {
-			ws.aliasSet(key, a)
-		}
-	}
-
-	// Subscribe FIRST — anti-race pattern.
-	hub.Subscribe(sub)
+	// Phase 2: identity resolved — set the immutable identity fields, THEN
+	// register the presence roster entry. The read pump (which reads these
+	// fields) is not started until below, so this assignment has no concurrent
+	// reader. Presence/viewer-count notifications move here, after identity.
+	sub.TailnetID = tailnetID
+	sub.PersonKey = personKey
+	sub.Alias = alias
+	hub.RegisterPresence(sub)    // Phase 155-05: two-phase presence registration
 	relay.NotifyViewerCount(hub) // push updated viewer count to all clients
 	relay.NotifyPresence(hub)    // Phase 152 / PRESENCE-01: broadcast join event
-	defer func() {
-		presenceChanged := hub.Unsubscribe(sub) // Phase 152: Unsubscribe returns bool
-		relay.NotifyViewerCount(hub)
-		if presenceChanged {
-			relay.NotifyPresence(hub) // Phase 152 / PRESENCE-01: broadcast leave event
-		}
-	}()
-	defer conn.CloseNow()
 
 	// Replay scrollback snapshot to bring the client up to date.
 	if snapshot := hub.ScrollbackSnapshot(); len(snapshot) > 0 {

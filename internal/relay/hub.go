@@ -156,6 +156,40 @@ func (h *Hub) Subscribe(sub *Subscriber) {
 	}
 }
 
+// RegisterPresence performs ONLY the presence-roster registration that
+// Subscribe's `if sub.PersonKey != ""` block does, decoupled from adding the
+// subscriber to the broadcast set.
+//
+// Phase 155-05 (PARITY-01) two-phase web path: the WSS handler calls Subscribe
+// immediately after the WebSocket Accept (so delivery starts at once, before
+// the latency-bearing WhoIs identity lookup) with an empty PersonKey, then —
+// once WhoIs resolves and sub.TailnetID/PersonKey/Alias are set — calls
+// RegisterPresence to add the roster entry. It MUST be called only after the
+// sub's identity fields are set, and only once per connection.
+//
+// The relay loopback path (server.go) sets identity before Subscribe and keeps
+// registering presence in one shot via Subscribe; it does NOT call this.
+//
+// Callers should call NotifyPresence after RegisterPresence returns to push the
+// updated roster. No-op when sub.PersonKey is empty.
+func (h *Hub) RegisterPresence(sub *Subscriber) {
+	if sub.PersonKey == "" {
+		return
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if s, ok := h.presenceRoster[sub.PersonKey]; ok {
+		s.ConnCount++
+	} else {
+		h.presenceRoster[sub.PersonKey] = &presenceState{
+			TailnetID: sub.TailnetID,
+			Origin:    sub.Origin,
+			Alias:     sub.Alias,
+			ConnCount: 1,
+		}
+	}
+}
+
 // Unsubscribe removes a subscriber and returns true when a presence broadcast
 // is warranted (i.e. the last connection for sub.PersonKey has dropped).
 // Callers should call NotifyPresence when presenceChanged is true.
