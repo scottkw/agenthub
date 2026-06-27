@@ -31,11 +31,17 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 Phase: 157 (terminal-screen-share-semantics-issue-109) — COMPLETE
 Plan: 5/5 complete
 Status: Milestone v4.1 complete — ready for /gsd-complete-milestone
-Last activity: 2026-06-27 — Phase 157 complete (M-27 + M-28 live-verified)
+Last activity: 2026-06-27 — Completed quick task 260627-d81: fix Welcome screen install-list layout
 
 ```
 Progress: [████████████████████] 32/32 plans (100%) — 7/7 phases complete
 ```
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260627-d81 | Fix Welcome screen layout — long Linux install URL broke alignment (flexbox min-width:auto); install boxes off-center / mismatched sizes | 2026-06-27 | a89cf26a | [260627-d81-fix-welcome-screen-layout-linux-install-](./quick/260627-d81-fix-welcome-screen-layout-linux-install-/) |
 
 ## Operator Next Steps (carry-forward from v4.0)
 
