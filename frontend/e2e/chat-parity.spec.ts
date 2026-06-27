@@ -295,13 +295,22 @@ test.describe('Phase 155 — chat parity gate', () => {
       await page.locator('.hub-modal__chat-toggle').click()
       await expect(page.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 8_000 })
 
+      // WS connection warm-up: wait for any history message before the text-filtered
+      // wait. On Firefox/WebKit the WSS handshake over the self-signed cert can
+      // exhaust the 8s budget before the history fetch + React render completes.
+      // Using .first() (any message) resolves quickly once the WS is up — mirrors
+      // the sequential-open pattern that fixed the broadcast test on WebKit in
+      // Phase 155-05. (PARITY-01 SC-3 timing fix, Phase 155-06)
+      await expect(page.locator('.chat-msg').first()).toBeVisible({ timeout: 15_000 })
+
       // SC-3 client-side gate: Send button must be disabled.
       const sendBtn = page.locator('[data-chat-send]')
       await expect(sendBtn).toBeDisabled({ timeout: 5_000 })
 
       // Wait for history to load before counting so beforeCount reflects the
-      // seeded messages (not the pre-load empty state).
-      await expect(page.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 8_000 })
+      // seeded messages (not the pre-load empty state). Timeout extended to 15_000
+      // as belt-and-suspenders after the .first() warm-up above.
+      await expect(page.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 15_000 })
 
       // SC-3 server-side gate: count messages before the adversarial attempt.
       const beforeCount = await page.locator('.chat-msg').count()
