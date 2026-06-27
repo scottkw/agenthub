@@ -599,5 +599,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   6. The existing MC-06 max-wins hub tests are replaced with host-authority tests; the TESTING.md suite manifest + traceability map are updated for every new/changed test file.
 
 **Open decisions** (resolve at discuss/plan time — from the Issue #109 thread): host-not-connected behavior (freeze last host size vs. a fixed default like 120×32); multiple local subscribers (max-among-local vs. latest-wins); read-write guest model (types into the host-sized grid via `MsgInput`/inject but cannot resize it).
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 157-01-PLAN.md — Hub arbiter rewrite (host-authority + min-among-local + freeze + web-origin gate + broadcastResize + Rows()) + hub-test replacement (VIEW-01, VIEW-02)
+- [ ] 157-02-PLAN.md — Server call sites: join-time 0x02 push before scrollback (both surfaces) + drop web-origin resize + server tests (VIEW-02, VIEW-03)
+- [ ] 157-03-PLAN.md — Web guest viewer: honor 0x02 → term.resize + CSS downscale-to-fit (VIEW-04, VIEW-05)
+- [ ] 157-04-PLAN.md — Desktop guest parity: RelayClient onResize + isGuest-gated honor/scale + vitest (VIEW-04, VIEW-05)
+- [ ] 157-05-PLAN.md — TESTING.md regression-convention update (manifest §2 + traceability §4 + manual §5) + path-check (VIEW-01..05)
 **UI hint**: yes (terminal viewer rendering)

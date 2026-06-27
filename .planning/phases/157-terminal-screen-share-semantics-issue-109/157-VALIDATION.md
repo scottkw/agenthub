@@ -39,14 +39,21 @@ created: 2026-06-27
 > Populated by the planner. Anchor rows below reflect the six VIEW change-layers; the planner
 > maps concrete task IDs to these requirements.
 
+> Task IDs map to `{phase}-{plan}-{task}`. Plan split (standard granularity): 01 = hub arbiter,
+> 02 = server call sites + join push, 03 = web viewer, 04 = desktop viewer parity, 05 = TESTING.md.
+
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 157-01-01 | 01 | 1 | VIEW-01 | — | Host-authority: PTY grid tracks local-origin subscriber; min-among-local | unit | `go test ./internal/relay/ -run Resize` | ❌ W0 (replaces MC-06 tests) | ⬜ pending |
-| 157-01-02 | 01 | 1 | VIEW-01/D-01 | — | Freeze last host size when no local subscriber (no shrink-to-guest) | unit | `go test ./internal/relay/ -run Resize` | ❌ W0 | ⬜ pending |
-| 157-01-03 | 01 | 1 | VIEW-02 | — | Web-origin MsgResize ignored by arbiter; loopback host is sole driver | unit | `go test ./internal/relay/ -run Origin` | ❌ W0 | ⬜ pending |
-| 157-01-04 | 01 | 1 | VIEW-03 | — | Join pushes MakeResizeFrame(Cols,Rows) before scrollback replay | unit | `go test ./internal/relay/ -run Join` | ❌ W0 | ⬜ pending |
-| 157-02-01 | 02 | 2 | VIEW-04 | — | Guest viewer honors server 0x02 → term.resize; host viewer ignores inbound resize | unit | `(cd frontend && pnpm test)` | ❌ W0 | ⬜ pending |
-| 157-02-02 | 02 | 2 | VIEW-05 | — | CSS scale s=min(cW/gW,cH/gH), cap s≤1.0, recompute on resize + 0x02 | unit | `(cd frontend && pnpm test)` | ❌ W0 | ⬜ pending |
+| 157-01-01 | 01 | 1 | VIEW-01/VIEW-02/D-01/D-02 | T-157-01,T-157-04 | Host-authority ResizeClient: min-among-local, freeze-last-host-size, web-origin gate, broadcastResize + Rows() | unit | `go build ./internal/relay/` | ❌ W0 (rewrite hub.go) | ⬜ pending |
+| 157-01-02 | 01 | 1 | VIEW-01/VIEW-02/D-01/D-02 | T-157-01 | Replace MC-06 trio → min/freeze/web-ignore/broadcast/Rows tests | unit | `go test -race -run 'TestHub_Resize\|TestHub_Rows' ./internal/relay/` | ❌ W0 (replaces hub_test.go:354/403/439) | ⬜ pending |
+| 157-02-01 | 02 | 2 | VIEW-03 | — | Relay-path join pushes 0x02 before scrollback; local host stays sole driver | unit | `go build ./internal/relay/` | ❌ W0 | ⬜ pending |
+| 157-02-02 | 02 | 2 | VIEW-02/VIEW-03 | T-157-02 | Web-path join push before scrollback + drop guest resize at read-pump | unit | `go build ./internal/webserver/` | ❌ W0 | ⬜ pending |
+| 157-02-03 | 02 | 2 | VIEW-02/VIEW-03 | T-157-02 | Join-order + web-origin-drop integration tests (both surfaces) | integration | `go test -race -run 'Join\|DropsGuestResize' ./internal/relay/ ./internal/webserver/` | ❌ W0 | ⬜ pending |
+| 157-03-01 | 03 | 2 | VIEW-04/VIEW-05 | T-157-03 | Web guest honors 0x02 → term.resize + recomputeScale; no fitAddon.fit / no 0x11 send | structural+manual | `node --check web/assets/terminal.js` | ❌ W0 | ⬜ pending |
+| 157-03-02 | 03 | 2 | VIEW-05 | T-157-03 | terminal.css transform container (overflow:hidden + transform-origin) | structural | `grep -c transform-origin web/assets/terminal.css` | ❌ W0 | ⬜ pending |
+| 157-04-01 | 04 | 2 | VIEW-04/VIEW-05 | T-157-03 | RelayClient onResize (un-drop 0x02) + pure computeGuestScale cap math | unit | `(cd frontend && pnpm test -- --run relayClient terminalScale)` | ❌ W0 | ⬜ pending |
+| 157-04-02 | 04 | 2 | VIEW-04/VIEW-05 | T-157-03,T-157-07 | isGuest-gated honor + capped scale; host path invariant (no transform, sendResize preserved) | unit | `(cd frontend && pnpm test -- --run TerminalPanel.scale)` + `tsc --noEmit` | ❌ W0 | ⬜ pending |
+| 157-05-01 | 05 | 3 | VIEW-01..05 | T-157-08 | TESTING.md manifest §2 + traceability §4 + manual §5 (Category P); path-check green | doc gate | `bash tests/check-traceability-paths.sh` | ⚠️ extend TESTING.md | ⬜ pending |
 
 ---
 
