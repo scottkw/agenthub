@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 155
-current_phase_name: web-share-chat-ui-cross-surface-parity-gate
-status: verifying
-stopped_at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
-last_updated: "2026-06-27T03:32:33.014Z"
-last_activity: 2026-06-26
-last_activity_desc: Phase 155 execution started
+current_phase: 156
+current_phase_name: "Install Links & Distribution"
+status: planning
+stopped_at: Phase 155 complete + verified (PARITY-01 cross-surface gate green 3/3 runs, EXPORT-01 verified)
+last_updated: "2026-06-27T03:54:50.501Z"
+last_activity: 2026-06-27
+last_activity_desc: "Phase 155 complete + verified; next: Phase 156 (corrected from bogus 157 skip — v4.1 roadmap.analyze defect)"
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
-  total_plans: 24
-  completed_plans: 24
-  percent: 83
+  total_plans: 26
+  completed_plans: 26
+  percent: 71
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 155 — web-share-chat-ui-cross-surface-parity-gate
+**Current focus:** Phase 156 — Install Links & Distribution (Phase 155 complete + verified)
 
 ## Current Position
 
-Phase: 155 (web-share-chat-ui-cross-surface-parity-gate) — EXECUTING
-Plan: 4 of 4
+Phase: 157 — Terminal Screen-Share Semantics (Issue #109)
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-06-26 — Phase 155 execution started
+Last activity: 2026-06-27 — Phase 155 complete, transitioned to Phase 157
 
 ```
 Progress: [█████████░] 86% — 19/22 plans complete (4/7 phases)
