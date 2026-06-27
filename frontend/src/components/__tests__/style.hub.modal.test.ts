@@ -87,11 +87,17 @@ describe('Hub modal animation guard (MODAL-01: reduced-motion compliance)', () =
   })
 
   it('prefers-reduced-motion: reduce block sets animation: none on .hub-modal', () => {
-    const reduceIdx = cssRaw.lastIndexOf('prefers-reduced-motion: reduce')
-    expect(reduceIdx).toBeGreaterThan(-1)
-    // Grab enough text to cover the full block (nested rules may span multiple }s)
-    const block = cssRaw.slice(reduceIdx, reduceIdx + 300)
-    expect(block).toContain('animation: none')
+    // Locate the `.hub-modal { ... }` rule directly (the bare modal, not
+    // `.hub-modal__*` or `.hub-modal--*`) and assert it neutralizes the entering
+    // animation. Targeting the rule by its selector is robust against unrelated
+    // reduced-motion blocks appearing later in the stylesheet — a brittle
+    // `lastIndexOf('prefers-reduced-motion: reduce')` scan matched a trailing
+    // chat-panel `transition: none` block instead (pre-existing; surfaced when
+    // Phase 158 added the `.terminal-chat-host .chat-panel` reduced-motion entry).
+    const ruleMatch = cssRaw.match(/\.hub-modal\s*\{[^}]*\}/g) || []
+    const reducedMotionRule = ruleMatch.find((r) => r.includes('animation: none'))
+    expect(reducedMotionRule, '.hub-modal rule with animation: none not found').toBeTruthy()
+    expect(reducedMotionRule).toContain('animation: none')
   })
 })
 
