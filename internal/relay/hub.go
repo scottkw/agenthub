@@ -89,7 +89,9 @@ type Hub struct {
 	closed      bool
 	closeOnce   sync.Once
 
-	// ptyCols, ptyRows: current PTY dimensions as set by the max-wins arbiter. (MC-06)
+	// ptyCols, ptyRows: current PTY dimensions as set by the host-authority arbiter.
+	// Only local-origin subscribers drive these fields; the last host grid is frozen
+	// when no local host is connected (D-01). (VIEW-01, VIEW-02)
 	ptyCols int
 	ptyRows int
 
@@ -225,38 +227,84 @@ func (h *Hub) SubscriberCount() int {
 	return len(h.subscribers)
 }
 
-// ResizeClient stores the subscriber's reported dimensions and calls resizeFn
-// only when the new maximum across all subscribers differs from the current PTY size.
-// Implements max-wins policy: PTY dimensions track the max of all active subscribers. (MC-06)
+// ResizeClient stores the subscriber's reported dimensions and applies the
+// host-authority PTY-size policy (VIEW-01, VIEW-02):
 //
-// resizeFn is called AFTER releasing hub.mu to avoid contending the broadcast
-// drain loop with a potentially blocking PTY resize syscall.
+//   - VIEW-02 origin gate: non-local (web/remote) subscribers return immediately;
+//     their reported size never enters the arbiter and cannot drive or DoS the PTY
+//     grid (T-157-01 mitigation).
+//   - D-02 min-among-local: the PTY grid tracks the smallest terminal among all
+//     connected local-origin subscribers so every host viewer sees the full output.
+//   - D-01 freeze: when no local subscriber currently reports a positive size the
+//     last host grid is preserved — the PTY is never reset to zero or to a guest size.
+//   - VIEW-01 broadcast: each grid change is broadcast to all subscribers via a
+//     MsgResize (0x02) frame before resizeFn is called, so guests learn the new
+//     authoritative grid immediately.
+//
+// broadcastResize and resizeFn are called AFTER releasing hub.mu (unlock-before-IO
+// discipline) to avoid self-deadlock and PTY-syscall contention.
 func (h *Hub) ResizeClient(sub *Subscriber, cols, rows int) error {
+	// VIEW-02: non-local origin is a read-only guest — it may not drive the PTY grid.
+	// Return immediately; the guest's reported size is not recorded anywhere.
+	if sub.Origin != "local" {
+		return nil
+	}
+
 	h.mu.Lock()
 	sub.Cols = cols
 	sub.Rows = rows
 
-	maxCols, maxRows := 0, 0
+	// D-02 min-among-local: iterate only local-origin subscribers with a positive size.
+	minCols, minRows := 0, 0
 	for s := range h.subscribers {
-		if s.Cols > maxCols {
-			maxCols = s.Cols
+		if s.Origin != "local" || s.Cols <= 0 || s.Rows <= 0 {
+			continue
 		}
-		if s.Rows > maxRows {
-			maxRows = s.Rows
+		if minCols == 0 || s.Cols < minCols {
+			minCols = s.Cols
+		}
+		if minRows == 0 || s.Rows < minRows {
+			minRows = s.Rows
 		}
 	}
 
-	needResize := (maxCols > 0 || maxRows > 0) && (maxCols != h.ptyCols || maxRows != h.ptyRows)
+	// D-01 freeze: if no local subscriber reports a positive size, leave ptyCols/ptyRows
+	// unchanged (last host grid persists). Only update when we have a valid min.
+	needResize := (minCols > 0 && minRows > 0) && (minCols != h.ptyCols || minRows != h.ptyRows)
 	if needResize {
-		h.ptyCols = maxCols
-		h.ptyRows = maxRows
+		h.ptyCols = minCols
+		h.ptyRows = minRows
 	}
-	h.mu.Unlock() // release BEFORE calling resizeFn
+	pc, pr := h.ptyCols, h.ptyRows
+	h.mu.Unlock() // unlock-before-IO: broadcastResize and resizeFn must not run under mu
 
-	if needResize && h.resizeFn != nil {
-		return h.resizeFn(maxCols, maxRows)
+	if needResize {
+		// VIEW-01: broadcast the new authoritative grid to all subscribers.
+		h.broadcastResize(uint16(pc), uint16(pr))
+		if h.resizeFn != nil {
+			return h.resizeFn(minCols, minRows)
+		}
 	}
 	return nil
+}
+
+// broadcastResize sends a MsgResize (0x02) frame encoding cols and rows to all
+// subscribers using a non-blocking send. Slow subscribers (full channel) have
+// CloseSlow called in a new goroutine. Mirrors BroadcastMeta (hub.go:306).
+//
+// MUST be called after hub.mu is released (self-acquires mu internally; calling
+// while holding mu causes a self-deadlock — T-157-04 mitigation).
+func (h *Hub) broadcastResize(cols, rows uint16) {
+	frame := MakeResizeFrame(cols, rows)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for sub := range h.subscribers {
+		select {
+		case sub.Msgs <- frame:
+		default:
+			go sub.CloseSlow()
+		}
+	}
 }
 
 // Run is the drain goroutine. It reads from the PTY reader in 32 KiB chunks,
@@ -677,7 +725,7 @@ func (h *Hub) ScrollbackSnapshot() []byte {
 	return h.scrollback.Snapshot()
 }
 
-// Cols returns the current PTY column width as set by the max-wins resize
+// Cols returns the current PTY column width as set by the host-authority resize
 // arbiter. Returns 220 when no resize has been applied (fallback for
 // scrollback VT extraction — wide enough to avoid spurious line wrapping).
 // Phase 139 / CARD-05.
@@ -688,6 +736,18 @@ func (h *Hub) Cols() int {
 		return 220
 	}
 	return h.ptyCols
+}
+
+// Rows returns the current PTY row height as set by the host-authority resize
+// arbiter. Returns 50 when no resize has been applied (fallback mirrors
+// engine.go emuRows default; needed by VIEW-03 join-push in Plan 02).
+func (h *Hub) Rows() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.ptyRows <= 0 {
+		return 50
+	}
+	return h.ptyRows
 }
 
 // Done returns a channel that is closed when the hub shuts down.
