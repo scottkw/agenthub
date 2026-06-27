@@ -1130,6 +1130,15 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 	relay.NotifyViewerCount(hub) // push updated viewer count to all clients
 	relay.NotifyPresence(hub)    // Phase 152 / PRESENCE-01: broadcast join event
 
+	// VIEW-03: push authoritative host grid BEFORE scrollback replay so that
+	// replayed raw bytes land in a correctly-sized terminal grid. Direct conn.Write
+	// (not sub.Msgs) guarantees ordering before any queued live output.
+	if c, r := hub.Cols(), hub.Rows(); c > 0 && r > 0 {
+		if err := conn.Write(ctx, websocket.MessageBinary, relay.MakeResizeFrame(uint16(c), uint16(r))); err != nil {
+			return
+		}
+	}
+
 	// Replay scrollback snapshot to bring the client up to date.
 	if snapshot := hub.ScrollbackSnapshot(); len(snapshot) > 0 {
 		if err := conn.Write(ctx, websocket.MessageBinary, snapshot); err != nil {
@@ -1160,11 +1169,10 @@ func (ws *WebServer) handleWSSRelay(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			case relay.MsgResize2:
-				if len(payload) >= 4 {
-					cols := uint16(payload[0])<<8 | uint16(payload[1])
-					rows := uint16(payload[2])<<8 | uint16(payload[3])
-					_ = hub.ResizeClient(sub, int(cols), int(rows)) // MC-06: max-wins arbiter
-				}
+				// VIEW-02 / T-157-02: a web guest is a read-only viewer of the host PTY grid.
+				// The host-authority arbiter also rejects non-local origin, but dropping the
+				// call here avoids a needless lock acquisition per guest resize and makes the
+				// intent explicit: a remote web client never drives the shared PTY size.
 			case relay.MsgPing:
 				// Keep-alive — no-op.
 			case relay.MsgTyping:
