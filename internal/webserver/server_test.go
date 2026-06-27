@@ -300,8 +300,8 @@ func TestWebServerWSS(t *testing.T) {
 			t.Errorf("expected binary message, got %v", msgType)
 			break
 		}
-		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence) {
-			continue // skip server-push metadata + subscribe-time presence frames (Phase 152)
+		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence || m[0] == relay.MsgResize) {
+			continue // skip server-push housekeeping frames (meta, presence, Phase 157 join-push resize)
 		}
 		msg = m
 		break
@@ -767,5 +767,186 @@ func TestMode_Accessor(t *testing.T) {
 		if got := ws.Mode(); got != mode {
 			t.Errorf("Mode() = %q, want %q", got, mode)
 		}
+	}
+}
+
+// dialWebWS is a shared helper for the VIEW-03/VIEW-02 webserver tests that
+// dials a capability-gated WebSocket session, sets the required Origin header
+// so requireAllowedOrigin passes, and returns the open connection.
+func dialWebWS(t *testing.T, httpClient *http.Client, ws *webserver.WebServer, sessionID, token string) *websocket.Conn {
+	t.Helper()
+	baseURL := ws.BaseURL()
+	wsURL := strings.Replace(baseURL, "https://", "wss://", 1) + "/sessions/" + sessionID + "/ws?cap=" + token
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	wsHeaders := http.Header{}
+	wsHeaders.Set("Origin", baseURL)
+	conn, _, err := websocket.Dial(ctx, wsURL, &websocket.DialOptions{
+		HTTPClient: httpClient,
+		HTTPHeader: wsHeaders,
+	})
+	if err != nil {
+		t.Fatalf("dialWebWS: %v", err)
+	}
+	t.Cleanup(func() { conn.CloseNow() })
+	return conn
+}
+
+// readWebFrame reads the next WebSocket binary frame from conn with a 5-second
+// timeout. It skips MsgMeta and MsgPresence housekeeping frames.
+func readWebFrame(t *testing.T, conn *websocket.Conn) []byte {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for {
+		_, m, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("readWebFrame: %v", err)
+		}
+		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence) {
+			continue
+		}
+		return m
+	}
+}
+
+// newWebTestHub sets up a WebServer + HubManager, creates a session hub with a
+// PTY pipe, subscribes a synthetic local subscriber, and applies the given
+// cols×rows host grid via ResizeClient. Returns the server, HTTP client, hub,
+// and PTY write-end for test-driven output.
+func newWebTestHub(t *testing.T, sessionID string, cols, rows int) (*webserver.WebServer, *http.Client, *relay.Hub, *io.PipeWriter) {
+	t.Helper()
+	mgr := relay.NewHubManager()
+	tlsCfg, httpClient := selfSignedTLSForTest(t)
+	cfg := webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: tlsCfg,
+	}
+	ws, err := webserver.NewWebServer(cfg, mgr)
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	ws.SetSigningKey(ssExtTestKey)
+	t.Cleanup(func() { _ = ws.Stop() })
+
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { pw.Close() })
+
+	hub := mgr.Create(sessionID, pr, io.Discard, nil)
+	ws.EnableSession(sessionID)
+
+	// Stamp the hub's PTY grid via a synthetic local subscriber.
+	localSub := &relay.Subscriber{
+		Origin: "local",
+		Msgs:   make(chan []byte, 64),
+	}
+	localSub.CloseSlow = func() {}
+	hub.Subscribe(localSub)
+	if err := hub.ResizeClient(localSub, cols, rows); err != nil {
+		t.Fatalf("ResizeClient: %v", err)
+	}
+
+	return ws, httpClient, hub, pw
+}
+
+// TestWebJoin_PushesResizeBeforeScrollback asserts VIEW-03 on the web path:
+// the first non-meta binary frame the web client receives is a 0x02 MsgResize
+// carrying the hub's authoritative grid (80×24) and it arrives BEFORE the
+// scrollback snapshot.
+func TestWebJoin_PushesResizeBeforeScrollback(t *testing.T) {
+	const sessionID = "web-join-resize-test"
+	ws, httpClient, hub, pw := newWebTestHub(t, sessionID, 80, 24)
+
+	// Write PTY data so the guest gets a non-empty scrollback to follow the resize.
+	if _, err := pw.Write([]byte("scroll-data")); err != nil {
+		t.Fatalf("ptyWrite: %v", err)
+	}
+	// Poll until the hub's scrollback is non-empty (hub drains the pipe asynchronously).
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(hub.ScrollbackSnapshot()) > 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if len(hub.ScrollbackSnapshot()) == 0 {
+		t.Fatal("scrollback never populated")
+	}
+
+	token := capForSession(t, ws, sessionID)
+	conn := dialWebWS(t, httpClient, ws, sessionID, token)
+
+	// First non-meta frame must be the VIEW-03 resize push: 0x02 with cols=80, rows=24.
+	first := readWebFrame(t, conn)
+	if len(first) != 5 {
+		t.Fatalf("first non-meta frame: got %d bytes, want 5 (MsgResize)", len(first))
+	}
+	if first[0] != relay.MsgResize {
+		t.Fatalf("first non-meta frame type: got 0x%02x, want MsgResize (0x%02x)", first[0], relay.MsgResize)
+	}
+	gotCols := int(uint16(first[1])<<8 | uint16(first[2]))
+	gotRows := int(uint16(first[3])<<8 | uint16(first[4]))
+	if gotCols != hub.Cols() || gotRows != hub.Rows() {
+		t.Errorf("resize frame dims %dx%d don't match hub.Cols()/hub.Rows() %dx%d",
+			gotCols, gotRows, hub.Cols(), hub.Rows())
+	}
+	if gotCols != 80 || gotRows != 24 {
+		t.Errorf("resize frame: got %dx%d, want 80x24", gotCols, gotRows)
+	}
+
+	// The next non-meta frame must be the scrollback snapshot, proving the resize
+	// arrived BEFORE the replayed bytes.
+	second := readWebFrame(t, conn)
+	if len(second) == 0 || second[0] != relay.MsgOutput {
+		t.Errorf("second non-meta frame type: got 0x%02x, want MsgOutput (0x%02x)", second[0], relay.MsgOutput)
+	}
+}
+
+// TestWebReadPump_DropsGuestResize asserts VIEW-02 / T-157-02 on the web path:
+// a MsgResize2 (0x11) frame sent by a web guest must NOT change the hub's
+// authoritative PTY grid.
+func TestWebReadPump_DropsGuestResize(t *testing.T) {
+	const sessionID = "web-drop-resize-test"
+	ws, httpClient, hub, _ := newWebTestHub(t, sessionID, 100, 40)
+
+	token := capForSession(t, ws, sessionID)
+	conn := dialWebWS(t, httpClient, ws, sessionID, token)
+
+	// Drain join-time frames (meta, presence, resize push) so the connection
+	// remains unblocked and the server's read pump stays live.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer drainCancel()
+	go func() {
+		for {
+			_, _, err := conn.Read(drainCtx)
+			if err != nil {
+				return
+			}
+		}
+	}()
+	time.Sleep(150 * time.Millisecond) // let join-time frames arrive and be drained
+
+	// Send a MsgResize2 (0x11) from the web client requesting a much larger grid.
+	// Big-endian uint16: cols=200 → [0x00, 0xC8]; rows=60 → [0x00, 0x3C].
+	resize2Frame := []byte{relay.MsgResize2, 0x00, 0xC8, 0x00, 0x3C}
+	sendCtx, sendCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer sendCancel()
+	if err := conn.Write(sendCtx, websocket.MessageBinary, resize2Frame); err != nil {
+		t.Fatalf("send MsgResize2: %v", err)
+	}
+
+	// Give the server's read pump time to process the frame.
+	time.Sleep(50 * time.Millisecond)
+
+	// Hub grid must be unchanged — web guest resize is dropped at the call site
+	// (VIEW-02 / T-157-02) in addition to the hub origin gate.
+	if hub.Cols() != 100 || hub.Rows() != 40 {
+		t.Errorf("hub grid changed after guest MsgResize2: got %dx%d, want 100x40",
+			hub.Cols(), hub.Rows())
 	}
 }

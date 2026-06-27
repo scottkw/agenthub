@@ -72,17 +72,17 @@ func readFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	return msgType, payload
 }
 
-// readDataFrame reads frames from conn, skipping any MsgMeta and MsgPresence
-// frames, and returns the first PTY-data frame. This is used in tests that
-// predate Phase 152 and only care about PTY output frames; the new
-// MsgPresence roster pushes emitted by NotifyPresence on subscribe/unsubscribe
-// are treated identically to MsgMeta viewer-count pushes — they are
-// server-push housekeeping frames, not PTY data.
+// readDataFrame reads frames from conn, skipping any MsgMeta, MsgPresence,
+// and MsgResize frames, and returns the first PTY-data frame. Used in tests
+// that predate Phase 157 and only care about PTY output: meta, presence, and
+// join-push resize frames are all server-push housekeeping, not PTY data.
+// Tests that must assert the ordering of the join-push resize should use
+// readFrame directly instead.
 func readDataFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	t.Helper()
 	for {
 		msgType, payload := readFrame(t, conn)
-		if msgType == MsgMeta || msgType == MsgPresence {
+		if msgType == MsgMeta || msgType == MsgPresence || msgType == MsgResize {
 			continue // skip server-push housekeeping frames
 		}
 		return msgType, payload
@@ -399,4 +399,79 @@ func TestHub_SlowClientDisconnected(t *testing.T) {
 		}
 	}
 	t.Error("slowClient: expected connection to be closed within 5s, but it remained open")
+}
+
+// TestRelayJoin_PushesResizeBeforeScrollback asserts VIEW-03 on the relay path:
+// a guest's first non-meta frame is a 0x02 MsgResize with the hub's authoritative
+// grid (cols=120, rows=30) and it arrives BEFORE the scrollback snapshot.
+func TestRelayJoin_PushesResizeBeforeScrollback(t *testing.T) {
+	srv, manager, ptyWrite, _, sessionID := setupTestServer(t)
+
+	hub, ok := manager.Get(sessionID)
+	if !ok {
+		t.Fatal("hub not found in manager")
+	}
+
+	// Create a synthetic local subscriber so ResizeClient accepts the call and
+	// stamps the hub's ptyCols/ptyRows to 120×30.
+	localSub := &Subscriber{
+		Origin: "local",
+		Msgs:   make(chan []byte, 64),
+	}
+	localSub.CloseSlow = func() {}
+	hub.Subscribe(localSub)
+	if err := hub.ResizeClient(localSub, 120, 30); err != nil {
+		t.Fatalf("ResizeClient: %v", err)
+	}
+
+	// Write PTY data so scrollback is non-empty — the ordering assertion only
+	// makes sense if there is scrollback for the resize to precede.
+	if _, err := ptyWrite.Write([]byte("terminal-output")); err != nil {
+		t.Fatalf("ptyWrite: %v", err)
+	}
+	// Let the hub drain the PTY pipe into the scrollback buffer before the guest joins.
+	testutil.WaitFor(t, 2*time.Second, func() bool {
+		snap := hub.ScrollbackSnapshot()
+		return len(snap) > 0
+	}, "scrollback never populated")
+
+	// Connect the guest.
+	conn := dialWS(t, srv.URL, sessionID)
+
+	// Read non-housekeeping frames in order, skipping MsgMeta/MsgPresence but
+	// NOT MsgResize so we can verify the ordering (resize arrives before scrollback).
+	readOrdered := func() (byte, []byte) {
+		for {
+			typ, payload := readFrame(t, conn)
+			if typ == MsgMeta || typ == MsgPresence {
+				continue
+			}
+			return typ, payload
+		}
+	}
+
+	// The first non-meta/non-presence frame must be the VIEW-03 resize push.
+	firstType, firstPayload := readOrdered()
+	if firstType != MsgResize {
+		t.Fatalf("first non-meta frame: got type 0x%02x, want MsgResize (0x%02x)", firstType, MsgResize)
+	}
+	if len(firstPayload) != 4 {
+		t.Fatalf("MsgResize payload length: got %d, want 4", len(firstPayload))
+	}
+	gotCols := int(uint16(firstPayload[0])<<8 | uint16(firstPayload[1]))
+	gotRows := int(uint16(firstPayload[2])<<8 | uint16(firstPayload[3]))
+	if gotCols != hub.Cols() || gotRows != hub.Rows() {
+		t.Errorf("resize frame dims %dx%d don't match hub.Cols()/hub.Rows() %dx%d",
+			gotCols, gotRows, hub.Cols(), hub.Rows())
+	}
+	if gotCols != 120 || gotRows != 30 {
+		t.Errorf("resize frame: got %dx%d, want 120x30", gotCols, gotRows)
+	}
+
+	// The next non-meta frame must be the scrollback snapshot (MsgOutput),
+	// proving the resize arrived BEFORE the replayed bytes.
+	secondType, _ := readOrdered()
+	if secondType != MsgOutput {
+		t.Errorf("second non-meta frame: got type 0x%02x, want MsgOutput (0x%02x)", secondType, MsgOutput)
+	}
 }
