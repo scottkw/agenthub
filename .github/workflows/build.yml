@@ -61,6 +61,10 @@ jobs:
         if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
         run: bash tests/build-script.test.sh
 
+      - name: Run install.sh shellcheck gate
+        if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
+        run: bash tests/install-sh.test.sh
+
       - name: Setup pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
         with:
