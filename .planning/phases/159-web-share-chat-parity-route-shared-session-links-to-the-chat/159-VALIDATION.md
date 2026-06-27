@@ -58,7 +58,7 @@ created: 2026-06-27
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Remote guest opening the ACTUALLY-SHARED `/sessions/{id}?cap=` link lands on a chat-capable surface and can send/receive chat | WEBCHAT-02, PARITY-01 | web-share WS blocks automated input (per `reference_live_uat_daemon_gotchas`); must drive a real shared link in a live daemon | Produce a real share link via the daemon (issue cap for a live session), open the `/sessions/{id}?cap=` URL in a browser, confirm redirect to `/app/`, confirm ChatPanel + toggle + unread/mention badge + presence render and a chat round-trips. Register as M-31 in TESTING.md. |
+| Remote guest opening the ACTUALLY-SHARED `/sessions/{id}?cap=` link lands on a chat-capable surface, can send/receive chat, AND keeps Phase 157-04 host-authority scaling through the redirect | WEBCHAT-02, PARITY-01 (+ Phase 157-04 regression guard) | web-share WS blocks automated input (per `reference_live_uat_daemon_gotchas`); must drive a real shared link in a live daemon; the scale check needs a real rendered xterm with live host-authority resize frames | Produce a real share link via the daemon (issue cap for a live session), open the `/sessions/{id}?cap=` URL in a browser, confirm redirect to `/app/`, confirm ChatPanel + toggle + unread/mention badge + presence render and a chat round-trips. Then resize the host PTY and confirm the redirected SPA guest re-scales to honor the new host-authority grid (downscale-to-fit, cap at 1.0, no clipping — guest does not drive its own grid). Register as M-31 in TESTING.md. |
 
 ---
 
