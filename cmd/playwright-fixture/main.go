@@ -178,9 +178,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("NewChatStore: %v", err)
 	}
-	// Seed 3 messages: two normal + one SessionInject so export and inject-
-	// indicator assertions have data. Use distinct AuthorIDs so participant
-	// deduplication in Export() can be exercised.
+	// Seed 4 messages so e2e assertions have data in the loaded history:
+	//   1. Normal RW message (broadcast test baseline)
+	//   2. Normal viewer message (participant deduplication in Export)
+	//   3. SessionInject=true (SC-4 inject indicator test)
+	//   4. Mentions=["local"] (PARITY-01 @mention test; "local" is the
+	//      default currentUserTailnetID in ChatPanel for web-share clients
+	//      whose self-identity is not set by the WebShareSessionView).
 	seedMessages := []relay.ChatMessage{
 		{
 			SchemaVersion: relay.ChatSchemaVersion,
@@ -210,6 +214,16 @@ func main() {
 			TimestampMs:   1000000002000,
 			SessionInject: true,
 		},
+		{
+			SchemaVersion: relay.ChatSchemaVersion,
+			ID:            "fixture-msg-4",
+			SessionID:     sessionID,
+			AuthorID:      "fixture-author-rw",
+			AuthorAlias:   "playwright-rw",
+			Content:       "Hey @local, this mentions you.",
+			TimestampMs:   1000000003000,
+			Mentions:      []string{"local"},
+		},
 	}
 	for _, msg := range seedMessages {
 		if _, err := chatStore.AppendMessage(msg); err != nil {
@@ -233,6 +247,16 @@ func main() {
 		md, err := chatStore.Export()
 		return md, true, err
 	})
+	// Wire chatAppendFn on the hub so HandleChatSend can persist + broadcast.
+	// Without this, sending a chat message returns "chatAppendFn not wired"
+	// and BroadcastChat never fires — the parity test would see empty page2.
+	if hub, ok := manager.Get(sessionID); ok {
+		hub.SetChatAppendFn(func(msg relay.ChatMessage) (relay.ChatMessage, error) {
+			return chatStore.AppendMessage(msg)
+		})
+	} else {
+		log.Fatalf("manager.Get(%q) not found after Create", sessionID)
+	}
 
 	// 5. Start the WebServer's HTTPS listener.
 	if err := ws.Start(); err != nil {

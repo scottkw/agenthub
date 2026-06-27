@@ -660,9 +660,10 @@ export function ChatPanel({
       {/* ── Header: title + presence roster + export ────────────────── */}
       <div className="chat-panel__header">
         <span className="chat-panel__title">Chat</span>
-        {/* Presence roster: up to 3 avatars + overflow count */}
+        {/* Presence roster: up to 3 avatars + overflow count.
+            chat-presence is the frozen Playwright selector (UI-SPEC §5). */}
         <div
-          className="chat-panel__roster"
+          className="chat-panel__roster chat-presence"
           aria-label={`${participants.length} participants connected`}
         >
           {participants.slice(0, 3).map(p => (
@@ -790,8 +791,9 @@ export function ChatPanel({
       </div>
 
       {/* ── Typing indicator slot (collapsible) ──────────────────────── */}
+      {/* chat-typing is the frozen Playwright selector (UI-SPEC §5). */}
       <div
-        className="chat-panel__typing"
+        className="chat-panel__typing chat-typing"
         aria-live="polite"
         style={{
           maxHeight: typingText ? '24px' : '0',

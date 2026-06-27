@@ -76,7 +76,7 @@ export function ChatMessage({ message, isFirstInGroup, isMentionOfMe }: ChatMess
 
   return (
     <div
-      className={`chat-msg${isMentionOfMe ? ' chat-msg--mention' : ''}`}
+      className={`chat-msg${isMentionOfMe ? ' chat-msg--mention' : ''}${sessionInject ? ' chat-msg--inject' : ''}`}
       role="listitem"
       aria-label={isMentionOfMe ? `${alias} mentioned you: ${content}` : undefined}
     >
