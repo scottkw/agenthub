@@ -771,10 +771,12 @@ export function TerminalPanel({
       if (rafId !== undefined) cancelAnimationFrame(rafId)
       ro.disconnect()
     }
-  // recomputeScale is a stable useCallback([]) — adding it does not cause extra runs.
-  // isGuestRef is a ref whose .current is always current — no need in dep array.
+  // recomputeScale is a stable useCallback([]) and isGuestRef is a ref — both are
+  // safely closure-captured, so neither belongs in the dep array. Keeping [isActive]
+  // as the sole dependency preserves the Phase 35 FILL-01..06 rAF retry-loop invariant
+  // (the fit/activation effect must re-run only when the panel becomes active).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, recomputeScale])
+  }, [isActive])
 
   // Apply font size changes from the controlled prop.
   useEffect(() => {
