@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -959,15 +960,30 @@ func (ws *WebServer) handleSessionInfo(w http.ResponseWriter, r *http.Request) {
 	}) //nolint:errcheck
 }
 
-// handleTerminalPage serves the embedded terminal.html.
+// handleTerminalPage redirects remote guests to the chat-capable React SPA.
+//
+// Phase 159 (WEBCHAT-01): The share link that the daemon mints is
+// /sessions/{id}?cap=TOKEN, which previously served the vanilla-JS
+// terminal.html viewer — a surface with no chat UI that silently discards
+// chat frames 0x30–0x34. This handler now issues an HTTP 302 to
+// /app/?session={id}&cap={token} so guests land on WebShareSessionView
+// (the chat-capable SPA built in Phase 155).
+//
+// Security invariants (WEBCHAT-02, T-159-01, T-159-02):
+//   - The redirect target is a server-controlled RELATIVE path (/app/?…).
+//     sessionID and token are forwarded as query params, never as the host
+//     or scheme — this is NOT an open redirect.
+//   - requireCapability always runs BEFORE this handler (route registration
+//     is unchanged). A missing or invalid cap returns 401/403 before any
+//     redirect fires.
 func (ws *WebServer) handleTerminalPage(w http.ResponseWriter, r *http.Request) {
-	data, err := webfs.WebFS.ReadFile("terminal.html")
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data) //nolint:errcheck
+	sessionID := r.PathValue("id")
+	token := r.URL.Query().Get("cap")
+	target := fmt.Sprintf("/app/?session=%s&cap=%s",
+		url.QueryEscape(sessionID),
+		url.QueryEscape(token),
+	)
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 // handleSessionQR handles GET /api/sessions/{id}/qr.

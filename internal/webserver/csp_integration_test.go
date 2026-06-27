@@ -70,17 +70,32 @@ func assertCSPHeaderStrict(t *testing.T, resp *http.Response, wsBaseURL string, 
 
 // TestCSPHeaderStrict_TerminalPage asserts D-18's five assertions on
 // GET /sessions/{id} with a valid capability token.
+//
+// Phase 159: handleTerminalPage now issues an HTTP 302 redirect to /app/.
+// The cspHeaders middleware wraps the whole handler chain, so CSP and
+// Cache-Control headers are still set on the 302 response. This test uses
+// a no-redirect client to observe those headers directly on the redirect.
 func TestCSPHeaderStrict_TerminalPage(t *testing.T) {
 	ws, client, _, _ := testServerWithHub(t, "sess-89-csp-terminal")
 	ws.SetSigningKey(capTestKey)
 	token := issueCapFor(t, ws, "sess-89-csp-terminal", "read,write")
-	resp, err := client.Get(ws.BaseURL() + "/sessions/sess-89-csp-terminal?cap=" + token)
+
+	// No-redirect client: reuse CA-trusting transport; stop at 3xx to
+	// observe CSP/Cache-Control headers on the redirect response itself.
+	noRedirect := &http.Client{
+		Transport: client.Transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := noRedirect.Get(ws.BaseURL() + "/sessions/sess-89-csp-terminal?cap=" + token)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 for /sessions/{id} with valid cap, got %d", resp.StatusCode)
+	// Phase 159: route now redirects (302) to /app/.
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("expected 302 for /sessions/{id} with valid cap (Phase 159), got %d", resp.StatusCode)
 	}
 	assertCSPHeaderStrict(t, resp, ws.BaseURL(), "/sessions/{id}")
 }
@@ -116,17 +131,27 @@ func TestCSPHeaderStrict_Join(t *testing.T) {
 // TestCSPHeaderStrict_CacheControl confirms Cache-Control: no-store flows
 // through on all three HTML routes (Plan 03's cspHeaders sets it; this
 // integration test confirms it reaches real HTTP responses — Phase 89 D-16).
+//
+// Phase 159: /sessions/{id} now redirects (302). cspHeaders is the outermost
+// middleware and sets Cache-Control: no-store before requireCapability or
+// handleTerminalPage run, so the header is still present on the 302 response.
+// A no-redirect client is used for the /sessions/ path to observe that header.
 func TestCSPHeaderStrict_CacheControl(t *testing.T) {
 	ws, client, _, _ := testServerWithHub(t, "sess-89-csp-cc")
 	ws.SetSigningKey(capTestKey)
 	token := issueCapFor(t, ws, "sess-89-csp-cc", "read,write")
 
-	paths := []string{
-		"/dashboard",
-		"/join",
-		"/sessions/sess-89-csp-cc?cap=" + token,
+	// No-redirect client: stops at 3xx so we observe the redirect response
+	// headers (Cache-Control: no-store) set by the cspHeaders middleware.
+	noRedirect := &http.Client{
+		Transport: client.Transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
-	for _, p := range paths {
+
+	// /dashboard and /join still return 200; use the default client.
+	for _, p := range []string{"/dashboard", "/join"} {
 		resp, err := client.Get(ws.BaseURL() + p)
 		if err != nil {
 			t.Fatalf("Get %s: %v", p, err)
@@ -136,6 +161,18 @@ func TestCSPHeaderStrict_CacheControl(t *testing.T) {
 		if cc != "no-store" {
 			t.Errorf("%s: expected Cache-Control no-store (Phase 89 D-16), got %q", p, cc)
 		}
+	}
+
+	// /sessions/{id} returns 302 (Phase 159); use no-redirect client.
+	sessPath := "/sessions/sess-89-csp-cc?cap=" + token
+	resp, err := noRedirect.Get(ws.BaseURL() + sessPath)
+	if err != nil {
+		t.Fatalf("Get %s: %v", sessPath, err)
+	}
+	cc := resp.Header.Get("Cache-Control")
+	resp.Body.Close()
+	if cc != "no-store" {
+		t.Errorf("%s: expected Cache-Control no-store (Phase 89 D-16), got %q", sessPath, cc)
 	}
 }
 
