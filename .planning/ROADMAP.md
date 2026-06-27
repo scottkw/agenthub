@@ -366,7 +366,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 153: @session PTY Bridge** - Sanitized one-way PTY injection with RW-cap gate and confirm step (completed 2026-06-26)
 - [x] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering (completed 2026-06-26)
 - [x] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification (completed 2026-06-27)
-- [ ] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation
+- [x] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation (completed 2026-06-27)
 - [ ] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble
 
 ### Progress: v4.1 Session Chat
@@ -378,7 +378,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 6/6 | Complete    | 2026-06-27 |
-| 156. Install Links & Distribution | 2/3 | In Progress|  |
+| 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
 ---
@@ -569,7 +569,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The Welcome screen shows `winget install scottkw.agenthub` (correct package ID) and links to `github.com/scottkw/agenthub` — no placeholder URLs or wrong IDs visible anywhere on the screen.
   3. The `distribute.yml` workflow executes the first-submission code path correctly when `WINGET_FIRST_SUBMISSION=true` and `WINGET_TOKEN` are provisioned; the repo-side automation is complete and verifiable by a dry-run — the phase ships even while Microsoft's catalog PR review is externally pending.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 **Wave 1**
 
 - [x] 156-01-PLAN.md — Fix the three Welcome screen install strings + vitest source-gate (INSTALL-01/02)
@@ -580,7 +580,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 156-03-PLAN.md — winget first-submission dry-run + operator runbook + M-26 (INSTALL-03)
+- [x] 156-03-PLAN.md — winget first-submission dry-run + operator runbook + M-26 (INSTALL-03)
 
 **UI hint**: yes
 
