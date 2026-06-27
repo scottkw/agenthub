@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 158
-status: in_progress
+current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
+status: executing
 stopped_at: Phase 158 added (chat affordance polish — toggle/Send overlap fix + chat on terminal tab); found during v4.1 UAT. Milestone reopened 7/8; needs planning before re-running /gsd-complete-milestone
-last_updated: "2026-06-27T14:21:18.621Z"
+last_updated: "2026-06-27T15:48:10.032Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 158 added (chat affordance polish)
+last_activity_desc: Phase 158 execution started
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 32
-  completed_plans: 32
+  total_plans: 34
+  completed_plans: 33
   percent: 88
-current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 ---
 
 # Project State
@@ -24,14 +24,14 @@ current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 Session Chat — COMPLETE (all 7 phases 151-157); ready to archive milestone
+**Current focus:** Phase 158 — chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 
 ## Current Position
 
-Phase: 157 (terminal-screen-share-semantics-issue-109) — COMPLETE
-Plan: 5/5 complete
-Status: Milestone v4.1 complete — ready for /gsd-complete-milestone
-Last activity: 2026-06-27 — Completed quick task 260627-d81: fix Welcome screen install-list layout
+Phase: 158 (chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-06-27 — Phase 158 execution started
 
 ```
 Progress: [████████████████████] 32/32 plans (100%) — 7/7 phases complete
@@ -104,7 +104,7 @@ Progress: [████████████████████] 32/32 p
 
 ## Session Continuity
 
-Last session: 2026-06-27T13:46:29.790Z
+Last session: 2026-06-27T15:48:10.023Z
 Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -170,3 +170,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 157 P02 | 8min | 3 tasks | 4 files |
 | Phase 157 P04 | 9 minutes | 2 tasks | 8 files |
 | Phase 157 P05 | 3min | 1 tasks | 1 files |
+| Phase 158 P01 | 10 | 2 tasks | 3 files |
