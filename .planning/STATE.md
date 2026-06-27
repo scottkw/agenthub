@@ -6,14 +6,14 @@ current_phase: 156
 current_phase_name: "Install Links & Distribution"
 status: planning
 stopped_at: Phase 155 complete + verified (PARITY-01 cross-surface gate green 3/3 runs, EXPORT-01 verified)
-last_updated: "2026-06-27T03:54:50.501Z"
+last_updated: "2026-06-27T04:02:00Z"
 last_activity: 2026-06-27
-last_activity_desc: "Phase 155 complete + verified; next: Phase 156 (corrected from bogus 157 skip — v4.1 roadmap.analyze defect)"
+last_activity_desc: "Phase 155 UAT complete (4/4 auto-verified live: parity gate 24/24 + Go export/race tests); next: Phase 156 (corrected from bogus 157 skip — v4.1 roadmap.analyze defect)"
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 24
+  completed_plans: 24
   percent: 71
 ---
 
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 157 — Terminal Screen-Share Semantics (Issue #109)
+Phase: 156 — Install Links & Distribution
 Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-27 — Phase 155 complete, transitioned to Phase 157
+Status: Ready to plan
+Last activity: 2026-06-27 — Phase 155 UAT complete + verified, transitioned to Phase 156
 
 ```
-Progress: [█████████░] 86% — 19/22 plans complete (4/7 phases)
+Progress: [████████████████████] 24/24 plans (100%) — 5/7 phases complete
 ```
 
 ## Operator Next Steps (carry-forward from v4.0)
