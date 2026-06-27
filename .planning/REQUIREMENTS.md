@@ -51,6 +51,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 ### PARITY — Cross-surface
 
 - [x] **PARITY-01**: Every Session Chat feature behaves identically on the desktop GUI and the web-share browser surface (release-blocking).
+- [x] **WEBCHAT-01**: A remote guest who opens the actually-shared web-share link (`/sessions/{id}?cap=`) reaches a chat-capable surface — `handleTerminalPage` 302-redirects (after `requireCapability`) to the React SPA at `/app/?session={id}&cap={token}` (WebShareSessionView, Phase 155), which carries the ChatPanel/toggle/badge/presence.
+- [x] **WEBCHAT-02**: Cross-surface chat parity is verified on the actually-shared link, not on `/app/` directly — closing the false-parity gap where Phase 155 verified PARITY-01 only against `/app/` while the share flow handed out the chat-less vanilla-JS `terminal.js` viewer.
 
 ### SEC — Security
 
@@ -124,7 +126,9 @@ Which phase covers each requirement. Populated during roadmap creation.
 | EXPORT-01 | Phase 155 | Complete |
 | NOTIF-01 | Phase 154 | Complete |
 | NOTIF-02 | Phase 154 | Complete |
-| PARITY-01 | Phase 155 | Complete |
+| PARITY-01 | Phase 155, Phase 159 | Complete (honored on the shared link by Phase 159 redirect) |
+| WEBCHAT-01 | Phase 159 | Complete (UAT pending — M-31) |
+| WEBCHAT-02 | Phase 159 | Complete (UAT pending — M-31) |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |
@@ -145,8 +149,10 @@ Which phase covers each requirement. Populated during roadmap creation.
 - Mapped to phases: 29 (100% ✓)
 - Unmapped: 0
 - Post-v1 UAT gap-closure requirements: 2 (CHAT-FIX-01, CHAT-PARITY-01 — Phase 158), automated work complete, live UAT (M-29/M-30) pending
+- Cross-surface parity-completion requirements: 2 (WEBCHAT-01, WEBCHAT-02 — Phase 159), automated work complete, live UAT (M-31) pending
 
 ---
 *Requirements defined: 2026-06-25*
-*Last updated: 2026-06-27 — added CHAT-FIX-01 + CHAT-PARITY-01 (Phase 158 chat-affordance polish, gap-closure from v4.1 UAT); CHAT-PARITY-01 downstream of PARITY-01 (Phase 155)*
+*Last updated: 2026-06-27 — added WEBCHAT-01 + WEBCHAT-02 (Phase 159 web-share chat parity redirect); PARITY-01 traceability now credits Phase 159 (honored on the actually-shared link)*
+*Previous: 2026-06-27 — added CHAT-FIX-01 + CHAT-PARITY-01 (Phase 158 chat-affordance polish, gap-closure from v4.1 UAT); CHAT-PARITY-01 downstream of PARITY-01 (Phase 155)*
 *Previous: 2026-06-26 — added VIEW-01..05 (Phase 157, Issue #109 screen-share semantics); D-02 chat drawer revised push→overlay*
