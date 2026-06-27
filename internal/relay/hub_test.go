@@ -351,126 +351,43 @@ func TestHub_ClientNameStored(t *testing.T) {
 	}
 }
 
-func TestHub_ResizeMaxWinsPolicy(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Host-authority PTY-size arbiter tests (VIEW-01, VIEW-02, D-01, D-02)
+// Replaces the three MC-06 max-wins tests (TestHub_ResizeMaxWinsPolicy,
+// TestHub_ResizeClientNoOpWhenDimensionsUnchanged,
+// TestHub_ResizeClientUnsubscribeDoesNotShrink).
+// ---------------------------------------------------------------------------
+
+// TestHub_ResizeHostAuthority_MinAmongLocal verifies D-02: with two local-origin
+// subscribers reporting different sizes the PTY grid tracks the smaller (min),
+// not the larger (max). Each time the min changes resizeFn is called once.
+func TestHub_ResizeHostAuthority_MinAmongLocal(t *testing.T) {
 	r, w := io.Pipe()
+	defer w.Close()
 
 	var mu sync.Mutex
 	var resizeCalls [][]int
 
-	hub := NewHub("test-resize-max", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+	hub := NewHub("test-resize-min", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
 		mu.Lock()
 		resizeCalls = append(resizeCalls, []int{cols, rows})
 		mu.Unlock()
 		return nil
 	})
 
-	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
-	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
+	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
 	hub.Subscribe(sub1)
 	hub.Subscribe(sub2)
 
-	// sub1 claims 220x50 — triggers resize to 220x50
+	// sub1 claims 220x50 — only local subscriber so far; grid becomes 220x50.
 	if err := hub.ResizeClient(sub1, 220, 50); err != nil {
 		t.Fatalf("ResizeClient(sub1, 220, 50) error: %v", err)
 	}
 
-	// sub2 claims 80x24 — max is still 220x50, no resize
+	// sub2 claims 80x24 — min across local subscribers is now 80x24; grid shrinks.
 	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
 		t.Fatalf("ResizeClient(sub2, 80, 24) error: %v", err)
-	}
-
-	// sub1 claims 240x60 — triggers resize to 240x60
-	if err := hub.ResizeClient(sub1, 240, 60); err != nil {
-		t.Fatalf("ResizeClient(sub1, 240, 60) error: %v", err)
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	if len(resizeCalls) != 2 {
-		t.Fatalf("expected 2 resizeFn calls, got %d: %v", len(resizeCalls), resizeCalls)
-	}
-	if resizeCalls[0][0] != 220 || resizeCalls[0][1] != 50 {
-		t.Errorf("resizeCalls[0] = %v, want [220, 50]", resizeCalls[0])
-	}
-	if resizeCalls[1][0] != 240 || resizeCalls[1][1] != 60 {
-		t.Errorf("resizeCalls[1] = %v, want [240, 60]", resizeCalls[1])
-	}
-
-	w.Close()
-}
-
-func TestHub_ResizeClientNoOpWhenDimensionsUnchanged(t *testing.T) {
-	r, w := io.Pipe()
-
-	var mu sync.Mutex
-	var resizeCalls int
-
-	hub := NewHub("test-resize-noop", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
-		mu.Lock()
-		resizeCalls++
-		mu.Unlock()
-		return nil
-	})
-
-	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
-	hub.Subscribe(sub)
-
-	// First call — triggers resize
-	if err := hub.ResizeClient(sub, 80, 24); err != nil {
-		t.Fatalf("first ResizeClient error: %v", err)
-	}
-
-	// Second call with same dimensions — no resize
-	if err := hub.ResizeClient(sub, 80, 24); err != nil {
-		t.Fatalf("second ResizeClient error: %v", err)
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	if resizeCalls != 1 {
-		t.Errorf("expected 1 resizeFn call, got %d", resizeCalls)
-	}
-
-	w.Close()
-}
-
-func TestHub_ResizeClientUnsubscribeDoesNotShrink(t *testing.T) {
-	r, w := io.Pipe()
-
-	var mu sync.Mutex
-	var resizeCalls [][]int
-
-	hub := NewHub("test-resize-unsub", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
-		mu.Lock()
-		resizeCalls = append(resizeCalls, []int{cols, rows})
-		mu.Unlock()
-		return nil
-	})
-
-	sub1 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
-	sub2 := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}}
-	hub.Subscribe(sub1)
-	hub.Subscribe(sub2)
-
-	// sub1 claims 220x50 — triggers resize
-	if err := hub.ResizeClient(sub1, 220, 50); err != nil {
-		t.Fatalf("ResizeClient(sub1, 220, 50) error: %v", err)
-	}
-
-	// sub2 claims 80x24 — no resize (max still 220x50)
-	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
-		t.Fatalf("ResizeClient(sub2, 80, 24) error: %v", err)
-	}
-
-	// Unsubscribe sub1 — removes the 220x50 contributor
-	hub.Unsubscribe(sub1)
-
-	// sub2 claims 80x24 again — now max is 80x24 which differs from ptyCols=220/ptyRows=50
-	// so resize IS called with (80, 24)
-	if err := hub.ResizeClient(sub2, 80, 24); err != nil {
-		t.Fatalf("ResizeClient(sub2, 80, 24) after unsub error: %v", err)
 	}
 
 	mu.Lock()
@@ -486,7 +403,200 @@ func TestHub_ResizeClientUnsubscribeDoesNotShrink(t *testing.T) {
 		t.Errorf("resizeCalls[1] = %v, want [80, 24]", resizeCalls[1])
 	}
 
-	w.Close()
+	// PTY grid must reflect min-among-local (80x24), not max (220x50).
+	hub.mu.Lock()
+	gotCols, gotRows := hub.ptyCols, hub.ptyRows
+	hub.mu.Unlock()
+	if gotCols != 80 || gotRows != 24 {
+		t.Errorf("ptyCols/ptyRows = %d/%d, want 80/24 (min-among-local)", gotCols, gotRows)
+	}
+}
+
+// TestHub_ResizeClientNoOpWhenDimensionsUnchanged verifies that resizeFn is not
+// called when a local-origin subscriber reports the same dimensions twice.
+func TestHub_ResizeClientNoOpWhenDimensionsUnchanged(t *testing.T) {
+	r, w := io.Pipe()
+	defer w.Close()
+
+	var mu sync.Mutex
+	var resizeCalls int
+
+	hub := NewHub("test-resize-noop", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		mu.Lock()
+		resizeCalls++
+		mu.Unlock()
+		return nil
+	})
+
+	// Stamp Origin:"local" so the subscriber passes the host-authority origin gate.
+	sub := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	hub.Subscribe(sub)
+
+	// First call — triggers resize.
+	if err := hub.ResizeClient(sub, 80, 24); err != nil {
+		t.Fatalf("first ResizeClient error: %v", err)
+	}
+
+	// Second call with identical dimensions — no-op.
+	if err := hub.ResizeClient(sub, 80, 24); err != nil {
+		t.Fatalf("second ResizeClient error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if resizeCalls != 1 {
+		t.Errorf("expected 1 resizeFn call, got %d", resizeCalls)
+	}
+}
+
+// TestHub_ResizeFreezeLastHostSize verifies D-01: when the last local-origin host
+// disconnects the PTY grid is frozen at the last host size. A subsequent web-origin
+// guest resize MUST NOT change the PTY grid or trigger resizeFn (VIEW-02).
+func TestHub_ResizeFreezeLastHostSize(t *testing.T) {
+	r, w := io.Pipe()
+	defer w.Close()
+
+	var mu sync.Mutex
+	var resizeCalls [][]int
+
+	hub := NewHub("test-resize-freeze", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		mu.Lock()
+		resizeCalls = append(resizeCalls, []int{cols, rows})
+		mu.Unlock()
+		return nil
+	})
+
+	host := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	guest := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(host)
+	hub.Subscribe(guest)
+
+	// Host sets 200x50 — triggers resize.
+	if err := hub.ResizeClient(host, 200, 50); err != nil {
+		t.Fatalf("ResizeClient(host, 200, 50) error: %v", err)
+	}
+
+	// Host disconnects — no local subscribers remain.
+	hub.Unsubscribe(host)
+
+	// Guest reports 80x24 — origin gate must reject; resizeFn must NOT be called again.
+	if err := hub.ResizeClient(guest, 80, 24); err != nil {
+		t.Fatalf("ResizeClient(guest, 80, 24) error: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Only the initial host resize should have triggered resizeFn.
+	if len(resizeCalls) != 1 {
+		t.Fatalf("expected 1 resizeFn call, got %d: %v", len(resizeCalls), resizeCalls)
+	}
+	if resizeCalls[0][0] != 200 || resizeCalls[0][1] != 50 {
+		t.Errorf("resizeCalls[0] = %v, want [200, 50]", resizeCalls[0])
+	}
+
+	// PTY grid must be frozen at host's last size (200x50), not the guest's 80x24.
+	hub.mu.Lock()
+	gotCols, gotRows := hub.ptyCols, hub.ptyRows
+	hub.mu.Unlock()
+	if gotCols != 200 || gotRows != 50 {
+		t.Errorf("ptyCols/ptyRows = %d/%d after host disconnect, want 200/50 (frozen)", gotCols, gotRows)
+	}
+}
+
+// TestHub_ResizeIgnoresWebOrigin verifies VIEW-02 (T-157-01): a web-origin
+// subscriber can never drive the PTY grid regardless of the dimensions it reports.
+// resizeFn must not be called and ptyCols/ptyRows must remain at zero (no resize
+// has occurred from an authoritative local-origin host).
+func TestHub_ResizeIgnoresWebOrigin(t *testing.T) {
+	r, w := io.Pipe()
+	defer w.Close()
+
+	var resizeCalled bool
+	hub := NewHub("test-resize-web", r, w, DefaultScrollbackBytes, func(cols, rows int) error {
+		resizeCalled = true
+		return nil
+	})
+
+	guest := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(guest)
+
+	if err := hub.ResizeClient(guest, 1920, 1080); err != nil {
+		t.Fatalf("ResizeClient(guest) unexpected error: %v", err)
+	}
+
+	if resizeCalled {
+		t.Error("resizeFn was called for a web-origin subscriber; want no-op (VIEW-02)")
+	}
+
+	hub.mu.Lock()
+	gotCols, gotRows := hub.ptyCols, hub.ptyRows
+	hub.mu.Unlock()
+	if gotCols != 0 || gotRows != 0 {
+		t.Errorf("ptyCols/ptyRows = %d/%d, want 0/0 — web guest must not mutate PTY grid", gotCols, gotRows)
+	}
+}
+
+// TestHub_ResizeBroadcastsToSubscribers verifies VIEW-01: a local-host resize
+// causes a MsgResize (0x02) frame with the correct cols/rows to be delivered to
+// all subscribers (including a web guest) via broadcastResize.
+func TestHub_ResizeBroadcastsToSubscribers(t *testing.T) {
+	r, w := io.Pipe()
+	defer w.Close()
+
+	hub := NewHub("test-resize-bcast", r, w, DefaultScrollbackBytes, nil)
+
+	host := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	guest := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "web"}
+	hub.Subscribe(host)
+	hub.Subscribe(guest)
+
+	// Host triggers resize to 132x40.
+	if err := hub.ResizeClient(host, 132, 40); err != nil {
+		t.Fatalf("ResizeClient(host, 132, 40) error: %v", err)
+	}
+
+	// Drain the guest's channel — it should receive a 5-byte MsgResize frame.
+	select {
+	case frame := <-guest.Msgs:
+		if len(frame) != 5 {
+			t.Fatalf("expected 5-byte resize frame, got %d bytes: %v", len(frame), frame)
+		}
+		if frame[0] != MsgResize {
+			t.Errorf("frame[0] = 0x%02x, want MsgResize (0x02)", frame[0])
+		}
+		cols := uint16(frame[1])<<8 | uint16(frame[2])
+		rows := uint16(frame[3])<<8 | uint16(frame[4])
+		if cols != 132 || rows != 40 {
+			t.Errorf("decoded (cols, rows) = (%d, %d), want (132, 40)", cols, rows)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for MsgResize broadcast to guest")
+	}
+}
+
+// TestHub_RowsFallback verifies that Rows() returns the 50 fallback before any
+// resize, and returns the authoritative ptyRows after a local-host resize.
+func TestHub_RowsFallback(t *testing.T) {
+	hub, w := makeTestHub(t)
+	defer w.Close()
+
+	// Before any resize: fallback must be 50 (mirrors engine.go emuRows default).
+	if got := hub.Rows(); got != 50 {
+		t.Errorf("Rows() before resize = %d, want 50 (fallback)", got)
+	}
+
+	// Wire a local-origin host and trigger a resize.
+	host := &Subscriber{Msgs: make(chan []byte, 256), CloseSlow: func() {}, Origin: "local"}
+	hub.Subscribe(host)
+	if err := hub.ResizeClient(host, 132, 40); err != nil {
+		t.Fatalf("ResizeClient error: %v", err)
+	}
+
+	if got := hub.Rows(); got != 40 {
+		t.Errorf("Rows() after resize = %d, want 40", got)
+	}
 }
 
 func TestBroadcastMeta_NonBlocking(t *testing.T) {
