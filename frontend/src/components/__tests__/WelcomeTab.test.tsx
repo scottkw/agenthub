@@ -38,11 +38,11 @@ describe('WelcomeTab (BRND-02)', () => {
   })
 
   it('includes installation instructions for Windows', () => {
-    expect(raw).toContain('winget install agenthub')
+    expect(raw).toContain('winget install scottkw.agenthub')
   })
 
   it('includes a GitHub link', () => {
-    expect(raw).toContain('github.com/agenthub-dev/agenthub')
+    expect(raw).toContain('github.com/scottkw/agenthub')
   })
 
   it('uses BEM-style class names', () => {
