@@ -60,8 +60,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### INSTALL — Install links & distribution (orthogonal; `docs/install-links-fix.md`)
 
-- [ ] **INSTALL-01**: The Linux install command on the Welcome screen works end-to-end — add `scripts/install.sh` (arch detect → fetch the latest GitHub-release tarball → verify SHA256 against `checksums.txt` → install the binary), point `WelcomeTab.tsx` at the working raw GitHub URL, add a `TESTING.md` manual item, and verify on a clean Linux box.
-- [ ] **INSTALL-02**: The Welcome screen shows correct distribution strings — the winget command uses the real package id (`winget install scottkw.agenthub`) and the repo link reads `github.com/scottkw/agenthub`.
+- [x] **INSTALL-01**: The Linux install command on the Welcome screen works end-to-end — add `scripts/install.sh` (arch detect → fetch the latest GitHub-release tarball → verify SHA256 against `checksums.txt` → install the binary), point `WelcomeTab.tsx` at the working raw GitHub URL, add a `TESTING.md` manual item, and verify on a clean Linux box.
+- [x] **INSTALL-02**: The Welcome screen shows correct distribution strings — the winget command uses the real package id (`winget install scottkw.agenthub`) and the repo link reads `github.com/scottkw/agenthub`.
 - [ ] **INSTALL-03**: The winget package is published in the catalog — complete the one-time `microsoft/winget-pkgs` first submission (provision `WINGET_TOKEN`, set `WINGET_FIRST_SUBMISSION=true`, trigger `distribute.yml`, shepherd the PR to merge, then reset the flag and remove `continue-on-error` from `submit-winget`) so `winget install scottkw.agenthub` installs on Windows. *(External dependency: Microsoft's `winget-pkgs` review/merge — completion is gated on PR acceptance.)*
 
 ### VIEW — Terminal viewer fidelity (orthogonal; Issue #109 "screen-share semantics", Option B)
@@ -128,8 +128,8 @@ Which phase covers each requirement. Populated during roadmap creation.
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |
-| INSTALL-01 | Phase 156 | Pending |
-| INSTALL-02 | Phase 156 | Pending |
+| INSTALL-01 | Phase 156 | Complete |
+| INSTALL-02 | Phase 156 | Complete |
 | INSTALL-03 | Phase 156 | Pending |
 | VIEW-01 | Phase 157 | Pending |
 | VIEW-02 | Phase 157 | Pending |

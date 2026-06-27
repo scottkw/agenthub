@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 156
-current_phase_name: Install Links & Distribution
+current_phase_name: install-links-distribution
 status: executing
 stopped_at: Phase 155 complete + verified (PARITY-01 cross-surface gate green 3/3 runs, EXPORT-01 verified)
-last_updated: "2026-06-27T04:35:11.359Z"
+last_updated: "2026-06-27T11:25:09.975Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 155 UAT complete + verified, transitioned to Phase 156
+last_activity_desc: Phase 156 execution started
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 27
+  completed_plans: 25
   percent: 71
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 156 — Install Links & Distribution (Phase 155 complete + verified)
+**Current focus:** Phase 156 — install-links-distribution
 
 ## Current Position
 
-Phase: 156 — Install Links & Distribution
-Plan: Not started
+Phase: 156 (install-links-distribution) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-27 — Phase 155 UAT complete + verified, transitioned to Phase 156
+Last activity: 2026-06-27 — Phase 156 execution started
 
 ```
 Progress: [████████████████████] 24/24 plans (100%) — 5/7 phases complete
@@ -93,7 +93,7 @@ Progress: [████████████████████] 24/24 p
 
 ## Session Continuity
 
-Last session: 2026-06-27T03:32:01.919Z
+Last session: 2026-06-27T11:25:09.966Z
 Stopped at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -147,3 +147,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 155 P02 | 6 minutes | 3 tasks | 3 files |
 | Phase 155 P03 | 5 minutes | 3 tasks | 5 files |
 | Phase 155 P05 | 22 minutes | 3 tasks | 1 files |
+| Phase 156 P01 | 2 minutes | 3 tasks | 3 files |
