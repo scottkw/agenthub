@@ -367,7 +367,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 154: Desktop Chat UI** - ChatPanel.tsx inside session modal with mentions, badges, safe Markdown rendering (completed 2026-06-26)
 - [x] **Phase 155: Web-Share Chat UI + Cross-Surface Parity Gate** - Web SPA chat wiring, Markdown export, Playwright parity verification (completed 2026-06-27)
 - [x] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation (completed 2026-06-27)
-- [ ] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble
+- [x] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble (completed 2026-06-27)
 
 ### Progress: v4.1 Session Chat
 
@@ -379,7 +379,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 6/6 | Complete    | 2026-06-27 |
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
-| 157. Terminal Screen-Share Semantics (Issue #109) | 4/5 | In Progress|  |
+| 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete   | 2026-06-27 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -599,12 +599,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   6. The existing MC-06 max-wins hub tests are replaced with host-authority tests; the TESTING.md suite manifest + traceability map are updated for every new/changed test file.
 
 **Open decisions** (resolve at discuss/plan time — from the Issue #109 thread): host-not-connected behavior (freeze last host size vs. a fixed default like 120×32); multiple local subscribers (max-among-local vs. latest-wins); read-write guest model (types into the host-sized grid via `MsgInput`/inject but cannot resize it).
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 
 - [x] 157-01-PLAN.md — Hub arbiter rewrite (host-authority + min-among-local + freeze + web-origin gate + broadcastResize + Rows()) + hub-test replacement (VIEW-01, VIEW-02)
 - [x] 157-02-PLAN.md — Server call sites: join-time 0x02 push before scrollback (both surfaces) + drop web-origin resize + server tests (VIEW-02, VIEW-03)
 - [x] 157-03-PLAN.md — Web guest viewer: honor 0x02 → term.resize + CSS downscale-to-fit (VIEW-04, VIEW-05)
 - [x] 157-04-PLAN.md — Desktop guest parity: RelayClient onResize + isGuest-gated honor/scale + vitest (VIEW-04, VIEW-05)
-- [ ] 157-05-PLAN.md — TESTING.md regression-convention update (manifest §2 + traceability §4 + manual §5) + path-check (VIEW-01..05)
+- [x] 157-05-PLAN.md — TESTING.md regression-convention update (manifest §2 + traceability §4 + manual §5) + path-check (VIEW-01..05)
 
 **UI hint**: yes (terminal viewer rendering)
