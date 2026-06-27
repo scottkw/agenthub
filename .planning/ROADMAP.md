@@ -378,7 +378,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 6/6 | Complete    | 2026-06-27 |
-| 156. Install Links & Distribution | 1/3 | In Progress|  |
+| 156. Install Links & Distribution | 2/3 | In Progress|  |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
 ---
@@ -569,14 +569,14 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The Welcome screen shows `winget install scottkw.agenthub` (correct package ID) and links to `github.com/scottkw/agenthub` — no placeholder URLs or wrong IDs visible anywhere on the screen.
   3. The `distribute.yml` workflow executes the first-submission code path correctly when `WINGET_FIRST_SUBMISSION=true` and `WINGET_TOKEN` are provisioned; the repo-side automation is complete and verifiable by a dry-run — the phase ships even while Microsoft's catalog PR review is externally pending.
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 **Wave 1**
 
 - [x] 156-01-PLAN.md — Fix the three Welcome screen install strings + vitest source-gate (INSTALL-01/02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 156-02-PLAN.md — POSIX scripts/install.sh (arch detect → SHA256-verify → install) + shellcheck CI gate (INSTALL-01)
+- [x] 156-02-PLAN.md — POSIX scripts/install.sh (arch detect → SHA256-verify → install) + shellcheck CI gate (INSTALL-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
