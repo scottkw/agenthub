@@ -569,7 +569,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   2. The Welcome screen shows `winget install scottkw.agenthub` (correct package ID) and links to `github.com/scottkw/agenthub` — no placeholder URLs or wrong IDs visible anywhere on the screen.
   3. The `distribute.yml` workflow executes the first-submission code path correctly when `WINGET_FIRST_SUBMISSION=true` and `WINGET_TOKEN` are provisioned; the repo-side automation is complete and verifiable by a dry-run — the phase ships even while Microsoft's catalog PR review is externally pending.
 
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 156-01-PLAN.md — Fix the three Welcome screen install strings + vitest source-gate (INSTALL-01/02)
+- [ ] 156-02-PLAN.md — POSIX scripts/install.sh (arch detect → SHA256-verify → install) + shellcheck CI gate (INSTALL-01)
+- [ ] 156-03-PLAN.md — winget first-submission dry-run + operator runbook + M-26 (INSTALL-03)
 **UI hint**: yes
 
 ### Phase 157: Terminal Screen-Share Semantics (Issue #109)
