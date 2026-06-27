@@ -291,6 +291,15 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 	}()
 	defer conn.CloseNow()
 
+	// VIEW-03: push authoritative host grid BEFORE scrollback replay so that
+	// replayed raw bytes land in a correctly-sized terminal grid. Direct conn.Write
+	// (not sub.Msgs) guarantees ordering before any queued live output.
+	if c, r := hub.Cols(), hub.Rows(); c > 0 && r > 0 {
+		if err := conn.Write(ctx, websocket.MessageBinary, MakeResizeFrame(uint16(c), uint16(r))); err != nil {
+			return
+		}
+	}
+
 	// Replay scrollback snapshot to bring the client up to date.
 	if snapshot := hub.ScrollbackSnapshot(); len(snapshot) > 0 {
 		if err := conn.Write(ctx, websocket.MessageBinary, snapshot); err != nil {
@@ -333,7 +342,7 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 				if len(payload) >= 4 {
 					cols := uint16(payload[0])<<8 | uint16(payload[1])
 					rows := uint16(payload[2])<<8 | uint16(payload[3])
-					_ = hub.ResizeClient(sub, int(cols), int(rows)) // MC-06: max-wins arbiter
+					_ = hub.ResizeClient(sub, int(cols), int(rows)) // host-authority arbiter (VIEW-01/VIEW-02)
 				}
 			case MsgPing:
 				// Keep-alive — no-op.
