@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 156
-current_phase_name: "Install Links & Distribution"
-status: planning
+current_phase_name: Install Links & Distribution
+status: executing
 stopped_at: Phase 155 complete + verified (PARITY-01 cross-surface gate green 3/3 runs, EXPORT-01 verified)
-last_updated: "2026-06-27T04:02:00Z"
+last_updated: "2026-06-27T04:35:11.359Z"
 last_activity: 2026-06-27
-last_activity_desc: "Phase 155 UAT complete (4/4 auto-verified live: parity gate 24/24 + Go export/race tests); next: Phase 156 (corrected from bogus 157 skip — v4.1 roadmap.analyze defect)"
+last_activity_desc: Phase 155 UAT complete + verified, transitioned to Phase 156
 progress:
   total_phases: 7
   completed_phases: 5
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 156 — Install Links & Distribution
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-06-27 — Phase 155 UAT complete + verified, transitioned to Phase 156
 
 ```

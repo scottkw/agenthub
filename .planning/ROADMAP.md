@@ -570,9 +570,18 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. The `distribute.yml` workflow executes the first-submission code path correctly when `WINGET_FIRST_SUBMISSION=true` and `WINGET_TOKEN` are provisioned; the repo-side automation is complete and verifiable by a dry-run — the phase ships even while Microsoft's catalog PR review is externally pending.
 
 **Plans**: 3 plans
+**Wave 1**
+
 - [ ] 156-01-PLAN.md — Fix the three Welcome screen install strings + vitest source-gate (INSTALL-01/02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 156-02-PLAN.md — POSIX scripts/install.sh (arch detect → SHA256-verify → install) + shellcheck CI gate (INSTALL-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 156-03-PLAN.md — winget first-submission dry-run + operator runbook + M-26 (INSTALL-03)
+
 **UI hint**: yes
 
 ### Phase 157: Terminal Screen-Share Semantics (Issue #109)
