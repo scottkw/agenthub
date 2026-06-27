@@ -415,7 +415,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 **Goal:** Two chat-affordance defects found during v4.1 UAT are resolved: (1) the chat toggle no longer covers the composer's Send button when the drawer is open, and (2) the chat affordance (toggle + ChatPanel) is reachable from the raw session terminal tab, not only the Hub interactive modal and web-share view — closing a cross-surface parity gap.
 **Requirements**: CHAT-FIX-01 (toggle/Send overlap), CHAT-PARITY-01 (terminal-tab chat affordance; upstream PARITY-01, D-02)
 **Depends on:** Phase 157
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 **Success Criteria** (what must be TRUE):
 
@@ -435,7 +435,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 158-02-PLAN.md — Terminal-tab chat parity: extract TerminalChatHost (TerminalPanel + overlay ChatPanel + toggle), wire into App.tsx tab (CHAT-PARITY-01) [wave 2, depends 158-01]
+- [x] 158-02-PLAN.md — Terminal-tab chat parity: extract TerminalChatHost (TerminalPanel + overlay ChatPanel + toggle), wire into App.tsx tab (CHAT-PARITY-01) [wave 2, depends 158-01]
 
 ---
 

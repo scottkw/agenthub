@@ -4,17 +4,17 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 158
 current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
-status: executing
+status: verifying
 stopped_at: Phase 158 added (chat affordance polish — toggle/Send overlap fix + chat on terminal tab); found during v4.1 UAT. Milestone reopened 7/8; needs planning before re-running /gsd-complete-milestone
-last_updated: "2026-06-27T15:48:10.032Z"
+last_updated: "2026-06-27T15:59:06.212Z"
 last_activity: 2026-06-27
 last_activity_desc: Phase 158 execution started
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 34
-  completed_plans: 33
-  percent: 88
+  completed_plans: 34
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 158 (chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-27 — Phase 158 execution started
 
 ```
@@ -104,7 +104,7 @@ Progress: [████████████████████] 32/32 p
 
 ## Session Continuity
 
-Last session: 2026-06-27T15:48:10.023Z
+Last session: 2026-06-27T15:58:25.813Z
 Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -140,6 +140,8 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Phase 157-01: broadcastResize self-acquires mu, called only after hub.mu.Unlock() — prevents T-157-04 self-deadlock
 - [Phase ?]: Phase 157-01: Hub.Rows() fallback is 50 (engine.go emuRows), mirrors Cols() 220 fallback
 - [Phase ?]: Added VIEW-01..03 rows to TESTING.md Section 4; extended Section 2 Phase 157 delta note; added M-27/M-28 to Section 5 Category P
+- [Phase ?]: TerminalChatHost wraps only TerminalPanel so StatusBar is not covered
+- [Phase ?]: D-02 invariant: overlay toggle never triggers PTY sendResize
 
 ## Performance Metrics
 
@@ -171,3 +173,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 157 P04 | 9 minutes | 2 tasks | 8 files |
 | Phase 157 P05 | 3min | 1 tasks | 1 files |
 | Phase 158 P01 | 10 | 2 tasks | 3 files |
+| Phase 158 P02 | 15 | 3 tasks | 5 files |
