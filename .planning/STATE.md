@@ -4,17 +4,17 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 159
 current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
-status: verifying
-stopped_at: "Phase 159 PLANNED (1 plan, plan-checker PASSED). Milestone reopened 8/10 then expanded to 12 phases — added 159 (Web-Share Chat Parity), 160 (v4.1 Chat Closeout: NOTIF-01 + 153/154/156 tech debt), 161 (Chat-Sidebar Alias Control — surface the Phase 152 alias backend in the shared ChatPanel; chosen over a Settings Profile section so web-share guests get it via the 159 redirect = cross-surface parity), 162 (Settings Polish #108 — Terminal Plugins jump link). Next: /gsd-execute-phase 159. Milestone close-out still owes (beyond 159–162): push main→origin + re-run verify-work 156 Test 1"
+status: needs-uat
+stopped_at: "Phase 159 EXECUTED + automated-verified (5/5 must-haves, gsd-verifier status human_needed). 159-01 redirect: handleTerminalPage now 302-redirects /sessions/{id}?cap= → /app/?session=&cap= after requireCapability; RO/RW identical; CSP/Cache-Control invariants preserved; webserver tests green. REQUIREMENTS.md: added WEBCHAT-01/02, credited Phase 159 in PARITY-01 traceability. AWAITING live-daemon UAT M-31 (4 tests: redirect→SPA, chat round-trip, RO participation, scale parity). Pre-existing flake TestRelay_MixedReplyAndKeystrokes fails identically on base — NOT a 159 regression. Next: run M-31 live UAT, then /gsd-execute-phase 160. Milestone close-out still owes: push main→origin + re-run verify-work 156 Test 1"
 last_updated: "2026-06-27T18:40:45.454Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 159 execution started
+last_activity_desc: Phase 159 executed + automated-verified; awaiting live UAT M-31
 progress:
-  total_phases: 10
-  completed_phases: 9
-  total_plans: 35
-  completed_plans: 35
-  percent: 90
+  total_phases: 12
+  completed_phases: 8
+  total_plans: 36
+  completed_plans: 36
+  percent: 67
 ---
 
 # Project State
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-06-27 — Phase 159 execution started
+Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — AWAITING UAT
+Plan: 1 of 1 complete
+Status: Automated verification PASSED (5/5 must-haves); awaiting live-daemon UAT M-31
+Last activity: 2026-06-27 — Phase 159 executed + automated-verified; awaiting live UAT M-31
 
 ```
-Progress: [█████████████░░░░░░░] 8/12 phases complete (67%); Phase 159 planned
+Progress: [█████████████░░░░░░░] 8/12 phases complete (67%); Phase 159 code done, UAT pending
 ```
 
 ### Quick Tasks Completed
@@ -63,7 +63,7 @@ Progress: [█████████████░░░░░░░] 8/12 ph
 | 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Complete |
 | 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Complete |
 | 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | CHAT-FIX-01, CHAT-PARITY-01 | Complete |
-| 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Planned |
+| 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Complete (UAT pending — M-31) |
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Not planned |
 | 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Not planned |
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
