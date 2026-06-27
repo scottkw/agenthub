@@ -463,6 +463,14 @@ func (h *Hub) SetChatAppendFn(fn func(ChatMessage) (ChatMessage, error)) {
 	h.mu.Unlock()
 }
 
+// ChatAppendFnWired reports whether a chatAppendFn has been set.
+// Used by the playwright-fixture admin server for diagnostic assertions only.
+func (h *Hub) ChatAppendFnWired() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.chatAppendFn != nil
+}
+
 // BroadcastChat sends a MsgChat frame to all subscribers using a non-blocking
 // send. Slow subscribers have CloseSlow called. Identical fan-out to BroadcastMeta
 // — separated for clarity (MsgChat is a different frame type than MsgMeta).

@@ -354,6 +354,24 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	// /__test__/hub-status — diagnostic: reports current subscriber count and
+	// chatAppendFn wired status. Used by broadcast e2e tests to confirm hub state.
+	adminMux.HandleFunc("/__test__/hub-status", func(w http.ResponseWriter, _ *http.Request) {
+		h, ok := manager.Get(sessionID)
+		var subCount int
+		var fnWired bool
+		if ok {
+			subCount = h.SubscriberCount()
+			fnWired = h.ChatAppendFnWired()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		_ = enc.Encode(map[string]any{
+			"subscriberCount": subCount,
+			"chatAppendFnWired": fnWired,
+			"hubFound": ok,
+		})
+	})
 	adminSrv := &http.Server{
 		Handler:           adminMux,
 		ReadHeaderTimeout: 5 * time.Second,

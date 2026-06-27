@@ -317,6 +317,8 @@ export function ChatPanel({
   draftRef.current = draft  // inline sync on every render (liveRef pattern)
   /** Press-and-hold timer ref (D-08). */
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Previous items.length — used to detect new-message arrivals for auto-scroll. */
+  const prevItemCountRef = useRef(0)
   /**
    * Current open/focus/tailnetID captured in a ref so the onChat callback
    * (in the long-lived RelayClient useEffect) reads non-stale values.
@@ -639,6 +641,32 @@ export function ChatPanel({
       separatorIndices[0]
     )
   }, [separatorIndices, virtualizer.range])
+
+  // ── Auto-scroll to bottom when new messages arrive ───────────────────────
+  // Standard chat UX: pin to newest message on initial history load and on
+  // each inbound message when the user is already near the bottom.
+  // Uses prevItemCountRef to distinguish first load (0 → N) from incremental
+  // updates (N → N+1). The virtualizer is intentionally omitted from deps —
+  // it is a fresh object on every render; including it would cause an
+  // infinite loop. scrollToIndex is stable across renders (internal useCallback).
+  useEffect(() => {
+    const newCount = items.length
+    if (newCount === 0) {
+      prevItemCountRef.current = 0
+      return
+    }
+    const el = parentRef.current
+    const isFirstLoad = prevItemCountRef.current === 0
+    const isNearBottom =
+      !el || el.scrollHeight - el.scrollTop - el.clientHeight < 150
+    if (isFirstLoad || isNearBottom) {
+      // scrollToIndex with align:'end' scrolls the BOTTOM of the last item
+      // into view (not the top), ensuring the newest message is fully visible.
+      virtualizer.scrollToIndex(newCount - 1, { align: 'end' })
+    }
+    prevItemCountRef.current = newCount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]) // virtualizer intentionally omitted — see comment above
 
   // ── Typing indicator text ───────────────────────────────────────────────
   const typingText = useMemo(() => {
