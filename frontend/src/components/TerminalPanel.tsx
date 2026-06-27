@@ -11,6 +11,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SerializeAddon } from '@xterm/addon-serialize'
 import { ProgressAddon, type IProgressState } from '@xterm/addon-progress'
 import { RelayClient } from '../lib/relayClient'
+import { computeGuestScale } from '../lib/terminalScale'
 import { isSoftwareWebGL } from '../lib/webglProbe'
 import { isXtermFocused } from '../lib/isXtermFocused'
 import { FindBar, type FindBarSearchOptions } from './FindBar/FindBar'
@@ -154,6 +155,40 @@ export function TerminalPanel({
   const progressAddonRef = useRef<ProgressAddon | null>(null)
   const progressOnChangeDisposable = useRef<{ dispose(): void } | null>(null)
 
+  // Phase 157 VIEW-04/05: isGuest = true when this panel is a guest viewer
+  // (remote peer or web-share). Stored as a ref so effects read it at call-
+  // time without capturing it in dep arrays (it's derived from mount-time
+  // props that never change while the panel is mounted — same rationale as
+  // remote in the mount useEffect below).
+  const isGuestRef = useRef<boolean>(false)
+  isGuestRef.current = remote || !!wsURL
+
+  // Phase 157 VIEW-05: scale helper for the guest path. Reads cell metrics
+  // from xterm's private renderService (same source as fitTerminal) to avoid
+  // transform-feedback oscillation (Pitfall 6). Called from both the
+  // RelayClient onResize callback and the container ResizeObserver.
+  // useCallback([]) is correct: the function only reads from refs whose .current
+  // is always up-to-date.
+  const recomputeScale = useCallback(() => {
+    const term = termRef.current
+    const container = containerRef.current
+    if (!term || !container || !term.element) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const core = (term as any)._core
+    const dims = core?._renderService?.dimensions
+    if (!dims?.css?.cell) return
+    const cellW: number = dims.css.cell.width
+    const cellH: number = dims.css.cell.height
+    if (cellW === 0 || cellH === 0) return
+    const s = computeGuestScale(
+      container.clientWidth,
+      container.clientHeight,
+      term.cols * cellW,
+      term.rows * cellH,
+    )
+    term.element.style.transform = `scale(${s})`
+  }, [])
+
   // Phase 94 SRC-01/02: FindBar UI state. Owned at TerminalPanel level so
   // SearchAddon (also at this level) and FindBar share a single source of
   // truth. searchOptions are seeded from pluginConfig?.searchConfig at
@@ -284,27 +319,41 @@ export function TerminalPanel({
     termRef.current = term
     fitAddonRef.current = fitAddon
 
+    // Phase 157 VIEW-04: compute isGuest from props captured in this effect
+    // closure (same lifetime as the relay connection — one RelayClient per session).
+    const isGuest = remote || !!wsURL
+
     // Connect relay client — one per terminal (TERM-01 independent sessions).
-    // onOpen sends the current terminal dimensions to the PTY. This is critical:
-    // fitTerminal() runs before the WS connects, so the onResize event from fit()
-    // is silently dropped (WS not yet open). Without this, the CLI process never
-    // learns the correct terminal size and renders to the wrong width.
+    // HOST path: onOpen sends current terminal dims to the PTY (critical —
+    // fitTerminal runs before WS connects so the fit resize event is dropped).
+    // GUEST path: server pushes 0x02 on join (VIEW-03); guest never drives the
+    // grid, so onOpen does not send dims. onResize honors the server-pushed grid.
     const client = new RelayClient(relayPort, sessionId, {
       onOutput: (data) => term.write(data),
-      onOpen: () => {
-        client.sendResize(term.cols, term.rows)
-      },
+      onOpen: isGuest
+        ? undefined
+        : () => { client.sendResize(term.cols, term.rows) },
       onClose: () => console.debug(`[RelayClient] disconnected session=${sessionId}`),
+      // VIEW-04/05 (Phase 157): guest honors server-pushed 0x02 → term.resize +
+      // scale recompute. Pitfall 5: term.resize BEFORE recomputeScale so scale
+      // math reads the new term.cols/rows. Clamp to ≥1 (T-157-03 / xterm guard).
+      onResize: isGuest
+        ? (cols, rows) => {
+            term.resize(Math.max(1, cols), Math.max(1, rows))
+            recomputeScale()
+          }
+        : undefined,
     }, { remote, wsURL })
     clientRef.current = client
 
     // Wire terminal input to relay (TERM-05: paste support via terminal.onData).
     const disposeData = term.onData((data) => client.sendInput(data))
 
-    // Wire terminal resize to relay.
-    const disposeResize = term.onResize(({ cols, rows }) => {
-      client.sendResize(cols, rows)
-    })
+    // Wire terminal resize to relay — HOST only.
+    // GUEST must NOT send 0x11 (D-03: guests never drive PTY resize).
+    const disposeResize = isGuest
+      ? { dispose: () => {} }
+      : term.onResize(({ cols, rows }) => { client.sendResize(cols, rows) })
 
     return () => {
       disposeData.dispose()
@@ -654,14 +703,15 @@ export function TerminalPanel({
     }
   }, [pluginConfig?.webgl, pluginConfig?.clipboard, pluginConfig?.search, pluginConfig?.webLinks, pluginConfig?.serialize, pluginConfig?.progress, onWebGLContextLost, onRegisterSaver, onProgressChange, sessionId])
 
-  // Fit when this panel becomes active, and track container size changes.
+  // Fit (host) or scale-recompute (guest) when this panel becomes active,
+  // and track container size changes via ResizeObserver.
   useEffect(() => {
     if (!isActive || !containerRef.current) return
 
     // POL-04: drain any theme that arrived while this panel was hidden.
     // Must happen synchronously before the rAF loop so the first fit uses the
     // correct theme. No extra fitTerminal call needed here — the rAF loop below
-    // calls it.
+    // calls it (host) or the initial rAF calls recomputeScale (guest).
     if (pendingThemeRef.current && termRef.current) {
       termRef.current.options.theme = pendingThemeRef.current
       termRef.current.clearTextureAtlas()
@@ -669,8 +719,24 @@ export function TerminalPanel({
     }
 
     const container = containerRef.current
-    let cancelled = false
     let rafId: number | undefined
+
+    if (isGuestRef.current) {
+      // GUEST path (VIEW-04/05): observe container for scale recompute only.
+      // No fitTerminal — the host PTY grid is authoritative; guests receive the
+      // correct size via 0x02 push (VIEW-03) and honor it in the onResize callback.
+      // A single rAF ensures the layout is committed before we measure clientWidth.
+      rafId = requestAnimationFrame(() => { recomputeScale() })
+      const ro = new ResizeObserver(() => { recomputeScale() })
+      ro.observe(container)
+      return () => {
+        if (rafId !== undefined) cancelAnimationFrame(rafId)
+        ro.disconnect()
+      }
+    }
+
+    // HOST path: fit terminal and track container size changes.
+    let cancelled = false
     const MAX_ATTEMPTS = 20  // ~333ms at 60fps; covers slow CLI startup delays
 
     const tryFit = (attempt: number) => {
@@ -705,7 +771,10 @@ export function TerminalPanel({
       if (rafId !== undefined) cancelAnimationFrame(rafId)
       ro.disconnect()
     }
-  }, [isActive])
+  // recomputeScale is a stable useCallback([]) — adding it does not cause extra runs.
+  // isGuestRef is a ref whose .current is always current — no need in dep array.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, recomputeScale])
 
   // Apply font size changes from the controlled prop.
   useEffect(() => {

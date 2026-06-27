@@ -49,6 +49,17 @@
   display: none;                   /* WebKit (Wails, Chrome, Safari) */
 }
 
+/* Phase 157 VIEW-05: guest scale transform anchor.
+   transform-origin: top left so the scaled grid pins to the top-left corner
+   and scales toward bottom-right — no negative offset or clipping.
+   The scale value itself is applied imperatively by TerminalPanel.recomputeScale()
+   as term.element.style.transform = 'scale(s)'. The host path never receives
+   a transform, so this rule is inert on host panels (the default is top left
+   anyway, but it's explicit here for clarity and parity with terminal.css). */
+.xterm {
+  transform-origin: top left;
+}
+
 /* Inset terminal text from the container edges (PAD-01).
    Padding lives on the container, not .xterm, because .xterm-viewport
    is position:absolute and would cover .xterm padding.  fitTerminal()
