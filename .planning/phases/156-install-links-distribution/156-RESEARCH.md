@@ -1,0 +1,743 @@
+# Phase 156: Install Links & Distribution — Research
+
+**Researched:** 2026-06-26
+**Domain:** Shell installer scripting, GitHub Releases distribution, winget catalog automation, React string-constant fixes
+**Confidence:** HIGH (all findings derived from reading actual repo files, no assumptions needed)
+
+---
+
+<phase_requirements>
+## Phase Requirements
+
+| ID | Description | Research Support |
+|----|-------------|------------------|
+| INSTALL-01 | Add `scripts/install.sh` (arch detect → fetch latest GitHub-release tarball → verify SHA256 → install binary), update `WelcomeTab.tsx:42` to raw GitHub URL, add `TESTING.md` manual item, verify on clean Linux box | Section "Linux Release Artifacts", "install.sh Design", "CI Gate" |
+| INSTALL-02 | Fix `WelcomeTab.tsx` winget command to `scottkw.agenthub` and repo link to `github.com/scottkw/agenthub` | Section "WelcomeTab.tsx Exact Strings" |
+| INSTALL-03 | Complete repo-side automation for winget first-submission, verifiable by dry-run; live submission is an operator runbook, not a phase blocker | Section "distribute.yml Structure", "INSTALL-03 Dry-Run" |
+</phase_requirements>
+
+---
+
+## Summary
+
+Phase 156 has three tightly-scoped deliverables: fix three wrong strings in `WelcomeTab.tsx`, write `scripts/install.sh` (the missing Linux installer entrypoint), and verify that `distribute.yml`'s winget first-submission path is correct. No new Go or React architecture is introduced. All work is file-and-script creation plus string correction.
+
+The Linux artifact infrastructure already exists in `release.yml`: every tagged release produces `agenthub-v<TAG>-linux-amd64.tar.gz` containing a single binary named `agenthub`, and `checksums.txt` with `sha256sum` two-space format. The installer script downloads from GitHub Releases at runtime so no per-release maintenance is needed.
+
+The `distribute.yml` `submit-winget` job is already correctly structured with the `WINGET_FIRST_SUBMISSION` branch. The repo-side automation is complete. INSTALL-03 is delivered as (1) a dry-run confirmation using `packaging/winget/populate-manifests.sh` with a real release's checksums.txt and (2) a documented operator runbook — not a live Microsoft PR merge.
+
+**Primary recommendation:** Three plans in dependency order — INSTALL-02 first (simple string fixes, unblocks screenshot verification), INSTALL-01 second (installer script + test), INSTALL-03 third (dry-run confirmation + runbook + TESTING.md M-26 item).
+
+---
+
+## Architectural Responsibility Map
+
+| Capability | Primary Tier | Secondary Tier | Rationale |
+|------------|-------------|----------------|-----------|
+| Linux binary distribution | GitHub Releases (CDN) | scripts/install.sh | Release artifacts already hosted; installer script fetches at runtime |
+| Install script hosting | raw.githubusercontent.com | — | Serves from repo main branch; no per-release upkeep; fixed URL |
+| Welcome screen strings | Frontend (React) | — | Static text in WelcomeTab.tsx; no runtime logic |
+| Winget catalog submission | GitHub Actions (distribute.yml) | microsoft/winget-pkgs | wingetcreate automation; external PR review is out-of-repo |
+| SHA256 integrity verification | install.sh (client side) | release.yml (server side) | Script downloads checksums.txt from same release, verifies before extract |
+
+---
+
+## WelcomeTab.tsx Exact Strings
+
+**File:** `frontend/src/components/WelcomeTab.tsx`
+
+All current strings and their exact replacement values (verified by reading the file):
+
+| Line | Current (WRONG) | Correct | Requirement |
+|------|----------------|---------|-------------|
+| 42 | `curl -fsSL https://agenthub.dev/install.sh \| sh` | `curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh \| sh` | INSTALL-01 |
+| 46 | `winget install agenthub` | `winget install scottkw.agenthub` | INSTALL-02 |
+| 54 | `github.com/agenthub-dev/agenthub` | `github.com/scottkw/agenthub` | INSTALL-02 |
+
+Line 38 (macOS brew command) is CORRECT — do not touch it.
+
+Line 54 is a `<span>` not an `<a href>` tag — it is display text only. No href to update.
+
+[VERIFIED: read frontend/src/components/WelcomeTab.tsx directly]
+
+---
+
+## Linux Release Artifacts
+
+**Source:** `.github/workflows/release.yml`, `build-linux` job (lines 196–299) and `publish` job (lines 409–454).
+
+### Tarball name pattern
+```
+agenthub-v<TAG>-linux-amd64.tar.gz
+```
+Example: `agenthub-v1.9.0-linux-amd64.tar.gz`
+
+Evidence from release.yml line 250–252:
+```bash
+TAR_NAME="agenthub-${VERSION}-linux-amd64.tar.gz"
+mv build/bin/AgentHub build/bin/agenthub          # renamed to lowercase
+tar -czf "${TAR_NAME}" -C build/bin agenthub       # single file at tar root
+```
+
+### Binary name inside the tarball
+`agenthub` — a single file at the root of the archive (no subdirectory). Extract with:
+```bash
+tar xzf "agenthub-${VERSION}-linux-amd64.tar.gz"
+# Produces: ./agenthub
+```
+
+### checksums.txt format
+Generated by (release.yml publish job, line 429):
+```bash
+sha256sum *.dmg *.exe agenthub-*.tar.gz *.deb > checksums.txt
+```
+Format is GNU sha256sum two-space style:
+```
+<64-char-hex>  agenthub-v1.9.0-linux-amd64.tar.gz
+```
+(two spaces between hash and filename — `sha256sum` standard output)
+
+To extract the expected hash for `agenthub-${VERSION}-linux-amd64.tar.gz`:
+```sh
+EXPECTED=$(grep "agenthub-${VERSION}-linux-amd64.tar.gz" checksums.txt | awk '{print $1}')
+```
+
+[VERIFIED: read .github/workflows/release.yml lines 247-254, 423-430]
+
+---
+
+## install.sh Design
+
+All decisions are locked (from the canonical design doc + task constraints). The following is the implementation blueprint.
+
+### Script location and hosting URL
+- **File:** `scripts/install.sh`
+- **Hosted at:** `https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh`
+- **Invoked via:** `curl -fsSL <url> | sh`
+
+### Shebang and portability
+Use `#!/usr/bin/env sh` (not bash). When piped via `| sh` the shebang is not executed; the calling shell runs the script. POSIX sh syntax is mandatory:
+- `set -eu` (POSIX) — NOT `set -euo pipefail` (bash-only)
+- Avoid `[[`, arrays, `local`, `${var,,}` syntax
+- `command -v` for tool checks (POSIX)
+
+### Preflight checks (fail fast before any download)
+```sh
+need_cmd() { command -v "$1" >/dev/null 2>&1 || { printf 'Error: required command not found: %s\n' "$1" >&2; exit 1; }; }
+need_cmd curl
+need_cmd tar
+```
+
+SHA256 check — `sha256sum` on Linux (GNU coreutils), `shasum -a 256` as fallback:
+```sh
+if command -v sha256sum >/dev/null 2>&1; then
+    SHA_CMD="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then
+    SHA_CMD="shasum -a 256"
+else
+    printf 'Error: neither sha256sum nor shasum found\n' >&2; exit 1
+fi
+```
+
+### Architecture detection
+```sh
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64) ARCH="amd64" ;;
+    *)
+        printf 'Error: unsupported architecture: %s\n' "$ARCH" >&2
+        printf 'Only linux/amd64 is available. See https://github.com/scottkw/agenthub/releases\n' >&2
+        exit 1 ;;
+esac
+```
+
+### Latest version resolution
+Via GitHub releases API (returns JSON with `tag_name`):
+```sh
+VERSION=$(curl -fsSL "https://api.github.com/repos/scottkw/agenthub/releases/latest" \
+    | grep '"tag_name"' \
+    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+[ -n "$VERSION" ] || { printf 'Error: could not resolve latest release version\n' >&2; exit 1; }
+```
+`jq` is NOT assumed to be present; grep+sed is more portable.
+
+Alternative (redirect-based — no JSON parsing, but depends on GitHub's redirect behavior):
+```sh
+VERSION=$(curl -fsSIL "https://github.com/scottkw/agenthub/releases/latest" \
+    | grep -i '^location:' | sed 's|.*/tag/||' | tr -d '\r\n')
+```
+Prefer the API approach (more robust, explicit JSON key).
+
+### Download + verify + install sequence
+```sh
+TARBALL="agenthub-${VERSION}-linux-${ARCH}.tar.gz"
+BASE_URL="https://github.com/scottkw/agenthub/releases/download/${VERSION}"
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+curl -fsSL "${BASE_URL}/${TARBALL}"      -o "${TMPDIR}/${TARBALL}"
+curl -fsSL "${BASE_URL}/checksums.txt"   -o "${TMPDIR}/checksums.txt"
+
+# Verify
+EXPECTED=$(grep "${TARBALL}" "${TMPDIR}/checksums.txt" | awk '{print $1}')
+[ -n "$EXPECTED" ] || { printf 'Error: %s not found in checksums.txt\n' "$TARBALL" >&2; exit 1; }
+ACTUAL=$($SHA_CMD "${TMPDIR}/${TARBALL}" | awk '{print $1}')
+[ "$ACTUAL" = "$EXPECTED" ] || {
+    printf 'Error: SHA256 mismatch — download may be corrupt\n' >&2
+    printf '  Expected: %s\n' "$EXPECTED" >&2
+    printf '  Actual:   %s\n' "$ACTUAL"   >&2
+    exit 1
+}
+
+# Extract (single binary at archive root)
+tar xzf "${TMPDIR}/${TARBALL}" -C "$TMPDIR" agenthub
+```
+
+### Install directory selection (locked decision)
+```sh
+if [ "$(id -u)" -eq 0 ]; then
+    INSTALL_DIR="/usr/local/bin"
+else
+    INSTALL_DIR="${HOME}/.local/bin"
+    mkdir -p "$INSTALL_DIR"
+fi
+
+# Overwrite existing binary (idempotent)
+cp "${TMPDIR}/agenthub" "${INSTALL_DIR}/agenthub"
+chmod 755 "${INSTALL_DIR}/agenthub"
+```
+
+### PATH warning for non-root installs
+```sh
+case ":${PATH}:" in
+    *":${INSTALL_DIR}:"*) ;;
+    *)
+        printf '\nNote: %s is not in your PATH.\n' "$INSTALL_DIR"
+        printf 'Add this line to ~/.bashrc or ~/.zshrc:\n'
+        printf '  export PATH="$HOME/.local/bin:$PATH"\n'
+        ;;
+esac
+```
+
+### Common pitfall: `sha256sum` within a subshell
+The verification step must run `sha256sum` against the file in the tempdir, not the current working directory. Always use full paths from TMPDIR to avoid "file not found" errors.
+
+[VERIFIED: derived from release.yml artifact structure, locked design decisions in task prompt]
+
+---
+
+## CI Gate for install.sh
+
+### New test file: `tests/install-sh.test.sh`
+This file joins the existing `build-script` suite group (currently 1 file: `tests/build-script.test.sh`).
+
+Pattern from `scripts/verify-icons.sh` and `tests/build-script.test.sh`:
+```sh
+#!/usr/bin/env bash
+# tests/install-sh.test.sh
+# Shellcheck gate for scripts/install.sh
+# Run: bash tests/install-sh.test.sh (from project root)
+set -uo pipefail
+
+PASS=0
+FAIL=0
+SCRIPT="scripts/install.sh"
+
+pass() { echo "  PASS: $1"; PASS=$((PASS+1)); }
+fail() { echo "  FAIL: $1"; FAIL=$((FAIL+1)); }
+
+echo "=== install.sh checks ==="
+
+# SC-1: file exists and is non-empty
+if [ -s "$SCRIPT" ]; then pass "install.sh exists and is non-empty"
+else fail "install.sh exists and is non-empty"; fi
+
+# SC-2: shellcheck (POSIX sh mode)
+if command -v shellcheck >/dev/null 2>&1; then
+    if shellcheck -S warning --shell=sh "$SCRIPT"; then
+        pass "shellcheck clean (--shell=sh)"
+    else
+        fail "shellcheck reported warnings/errors"
+    fi
+else
+    echo "  SKIP: shellcheck not installed (skipping SC-2)"
+fi
+
+# SC-3: bash -n syntax check as fallback
+if bash -n "$SCRIPT" 2>/dev/null; then pass "bash -n syntax check passes"
+else fail "bash -n syntax check failed"; fi
+
+# SC-4: contains required patterns
+assert_literal() {
+    local desc="$1" pattern="$2"
+    if grep -qF -- "$pattern" "$SCRIPT"; then pass "$desc"
+    else fail "$desc"; fi
+}
+assert_regex() {
+    local desc="$1" pattern="$2"
+    if grep -qE "$pattern" "$SCRIPT"; then pass "$desc"
+    else fail "$desc"; fi
+}
+
+assert_literal "contains uname -m" "uname -m"
+assert_literal "contains x86_64 arch check" "x86_64"
+assert_literal "contains SHA256 verify step" "sha256sum"
+assert_literal "contains /usr/local/bin install path" "/usr/local/bin"
+assert_literal "contains .local/bin user-mode path" ".local/bin"
+assert_literal "contains trap for cleanup" "trap"
+assert_regex  "contains GitHub Releases API URL" "api.github.com/repos/scottkw/agenthub"
+assert_regex  "contains sha256 mismatch error message" "[Mm]ismatch"
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] || exit 1
+exit 0
+```
+
+### CI integration
+Add a new step to `build.yml` under the ubuntu-latest condition (same condition as the existing `Run build script tests` step):
+```yaml
+- name: Run install.sh shellcheck gate
+  if: runner.os == 'Linux' && matrix.build.os == 'ubuntu-latest'
+  run: bash tests/install-sh.test.sh
+```
+`shellcheck` is pre-installed on `ubuntu-latest` GitHub Actions runners.
+
+[VERIFIED: read .github/workflows/build.yml — existing `Run build script tests` step as pattern]
+
+---
+
+## distribute.yml Structure (INSTALL-03)
+
+**File:** `.github/workflows/distribute.yml`
+
+The `submit-winget` job is already correctly structured. No code changes are needed to distribute.yml for this phase. The following is the exact current state for the planner's reference.
+
+### Key lines (all line numbers verified by reading the file)
+| Line | Content | Significance |
+|------|---------|--------------|
+| 75 | `runs-on: windows-latest` | wingetcreate is .NET/Windows-only (cannot run on macOS/Linux) |
+| 76 | `continue-on-error: true  # WinGet first submission pending — remove after accepted` | Must be removed after microsoft/winget-pkgs PR is merged |
+| 77 | `if: ${{ !contains(github.ref, '-rc') }}` | Skips on `-rc` tags — first submission must use a real release tag |
+| 79 | `WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}` | PAT secret that authenticates the wingetcreate PR fork |
+| 81–82 | `WINGETCREATE_VERSION: v1.12.8.0` / `WINGETCREATE_SHA256: 8BD738…` | Pinned wingetcreate binary with SHA256 gate |
+| 108 | `WINGET_FIRST_SUBMISSION: ${{ vars.WINGET_FIRST_SUBMISSION \|\| 'false' }}` | Repo variable controls new vs update path |
+| 118–124 | `wingetcreate new --urls ... --package-identifier scottkw.agenthub --submit` | First-submission path (creates package entry) |
+| 125–131 | `wingetcreate update scottkw.agenthub --version ... --urls ... --submit` | Steady-state path (fails if package doesn't exist yet) |
+
+[VERIFIED: read .github/workflows/distribute.yml directly]
+
+### INSTALL-03 Dry-Run Verification
+
+The "verifiable dry-run" is achieved without a Windows machine or a live Microsoft PR:
+
+**Step 1 — Populate manifest templates (macOS-compatible)**
+```bash
+# Download checksums.txt from the latest real release
+VERSION=$(curl -fsSL https://api.github.com/repos/scottkw/agenthub/releases/latest \
+    | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+curl -fsSL "https://github.com/scottkw/agenthub/releases/download/${VERSION}/checksums.txt" \
+    -o /tmp/checksums.txt
+
+# Run populate-manifests.sh with real checksums
+bash packaging/winget/populate-manifests.sh "${VERSION#v}" /tmp/checksums.txt
+# Output: packaging/winget/output/<VERSION>/*.yaml
+```
+This confirms the manifest template-filling logic works end-to-end with real release data.
+
+**Step 2 — Validate generated YAML**
+```bash
+# If yamllint is installed
+yamllint packaging/winget/output/<VERSION>/*.yaml
+```
+Or use Python for portability:
+```bash
+python3 -c "import yaml; [yaml.safe_load(open(f)) for f in __import__('glob').glob('packaging/winget/output/*/*.yaml')]"
+echo "YAML valid"
+```
+
+**Step 3 — Lint distribute.yml**
+```bash
+# yamllint (if available)
+yamllint .github/workflows/distribute.yml
+```
+
+**What this proves:** The manifest templates produce valid YAML with the correct Windows installer URL (`agenthub-v<VERSION>-windows-amd64-installer.exe`), correct PackageIdentifier (`scottkw.agenthub`), and correct ManifestVersion. The `wingetcreate new` step in distribute.yml would use these same manifest values when `WINGET_FIRST_SUBMISSION=true`.
+
+**What this cannot prove (Windows-only):**
+- `wingetcreate new` executes without error
+- The generated manifests pass `winget validate`
+- The PR to microsoft/winget-pkgs actually opens
+
+These are documented in the operator runbook (M-26).
+
+---
+
+## INSTALL-03 Operator Runbook
+
+These steps are **not** phase completion blockers. They are the operator actions needed after the phase ships.
+
+1. **Confirm release has the Windows installer asset**
+   - Verify `agenthub-v<VERSION>-windows-amd64-installer.exe` exists in the latest GitHub Release.
+   - The distribute.yml line 116 constructs: `https://github.com/scottkw/agenthub/releases/download/$tag/agenthub-$tag-windows-amd64-installer.exe`
+
+2. **Provision `WINGET_TOKEN`** (if not already done — see STATE.md operator follow-ups)
+   - Create a GitHub PAT (classic, `public_repo` scope) on an account that can fork `microsoft/winget-pkgs`.
+   - `gh secret set WINGET_TOKEN --body "<PAT>"`
+
+3. **Set `WINGET_FIRST_SUBMISSION=true`**
+   - `gh variable set WINGET_FIRST_SUBMISSION --body "true"`
+
+4. **Trigger distribute.yml**
+   - Either push a real (non-rc) release tag, or:
+   - `gh workflow run distribute.yml -f tag=v<VERSION>`
+
+5. **Monitor the PR**
+   - The workflow opens a PR to `microsoft/winget-pkgs` from the PAT account's fork.
+   - Monitor Microsoft's automated validation pipeline.
+   - Address any manifest feedback.
+   - PR URL appears in the Actions job log.
+
+6. **After PR is merged — reset to steady state**
+   - `gh variable set WINGET_FIRST_SUBMISSION --body "false"` (or delete the variable)
+   - Remove `continue-on-error: true` from `distribute.yml` line 76 (with the comment)
+   - Commit and push
+
+7. **Verify on Windows**
+   - `winget install scottkw.agenthub`
+
+---
+
+## TESTING.md Updates Required
+
+**Current last manual item:** M-24 (Phase 155, @session inject via web-share)
+**Current suite counts:** 366 Go / 126 vitest / 8 Playwright / 1 build-script (501 total)
+
+### New automated test files
+
+| File | Suite Group | What it tests | Req |
+|------|-------------|---------------|-----|
+| `tests/install-sh.test.sh` | build-script | shellcheck + static pattern gates on scripts/install.sh | INSTALL-01 |
+| `frontend/src/components/__tests__/WelcomeTab.install.test.tsx` | vitest | Source-gate: correct raw GitHub URL, correct winget id, correct repo link | INSTALL-02 |
+
+Suite manifest count after Phase 156: 366 Go / 127 vitest / 8 Playwright / 2 build-script = **503 total**
+
+### New manual checklist items
+
+**M-25 — Linux install end-to-end (INSTALL-01)**
+On a clean Linux amd64 box (Ubuntu 22.04 or later):
+1. Run: `curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh`
+2. Verify: binary installed to `/usr/local/bin/agenthub` (root) or `~/.local/bin/agenthub` (non-root)
+3. Verify: `agenthub --help` exits 0 and prints usage
+4. Verify: SHA256 step printed "SHA256 verified."
+5. Run again (idempotent test): confirm no error on overwrite
+6. Run as non-root without `~/.local/bin` in PATH: confirm PATH warning is printed
+- _Why not automatable:_ Requires a real Linux machine or container; the download step needs a live GitHub release.
+
+**M-26 — winget first-submission dry-run + operator runbook (INSTALL-03)**
+1. Run populate-manifests.sh dry-run and confirm output manifests contain correct values (VERSION, scottkw.agenthub, installer URL)
+2. Confirm distribute.yml passes yamllint
+3. Confirm `WINGET_TOKEN` secret is provisioned (check in repo Settings → Secrets)
+4. Confirm `WINGET_FIRST_SUBMISSION=true` repo variable is set when ready for live submission
+5. After live submission: confirm `continue-on-error: true` is removed from submit-winget job
+6. After PR merge: confirm `winget install scottkw.agenthub` installs on Windows
+- _Why not automatable:_ Requires Windows machine for wingetcreate execution; requires Microsoft's external PR review to complete.
+- _Note:_ Steps 4–6 are not phase completion blockers. Phase ships when steps 1–3 are verified.
+
+### New traceability rows
+
+| Requirement | Test File | Suite Group | Notes |
+|-------------|-----------|-------------|-------|
+| INSTALL-01 | `tests/install-sh.test.sh` | build-script | shellcheck + static pattern gates for scripts/install.sh |
+| INSTALL-02 | `frontend/src/components/__tests__/WelcomeTab.install.test.tsx` | vitest | Source-gate: raw GitHub URL, `scottkw.agenthub`, `github.com/scottkw/agenthub` present in WelcomeTab.tsx |
+
+INSTALL-03 has no automated test file — verified by M-26 manual checklist only.
+
+Run `bash tests/check-traceability-paths.sh` after adding new files to confirm paths exist on disk.
+
+[VERIFIED: read TESTING.md sections 2, 4, 5, 6 — next item after M-24, suite count 501, traceability format requirements]
+
+---
+
+## WelcomeTab.install.test.tsx — Vitest Source Gate
+
+The test asserts the three correct string constants appear in the WelcomeTab.tsx source. Pattern from `style.hub.test.ts` (CSS token source gate):
+
+```tsx
+// frontend/src/components/__tests__/WelcomeTab.install.test.tsx
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, it, expect } from 'vitest'
+
+const SOURCE = readFileSync(
+  join(__dirname, '../../components/WelcomeTab.tsx'),
+  'utf-8'
+)
+
+describe('WelcomeTab — install string source gates (INSTALL-01, INSTALL-02)', () => {
+  it('INSTALL-01: Linux curl URL points to raw.githubusercontent.com install.sh', () => {
+    expect(SOURCE).toContain(
+      'https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh'
+    )
+  })
+
+  it('INSTALL-01: Linux curl URL does NOT contain the broken agenthub.dev domain', () => {
+    expect(SOURCE).not.toContain('agenthub.dev')
+  })
+
+  it('INSTALL-02: winget command uses correct package id scottkw.agenthub', () => {
+    expect(SOURCE).toContain('winget install scottkw.agenthub')
+  })
+
+  it('INSTALL-02: winget command does NOT use bare agenthub id', () => {
+    // "winget install agenthub" without the scottkw. prefix must be absent
+    expect(SOURCE).not.toMatch(/winget install agenthub(?!\.)/u)
+  })
+
+  it('INSTALL-02: repo link points to scottkw/agenthub', () => {
+    expect(SOURCE).toContain('github.com/scottkw/agenthub')
+  })
+
+  it('INSTALL-02: repo link does NOT contain the wrong agenthub-dev org', () => {
+    expect(SOURCE).not.toContain('agenthub-dev/agenthub')
+  })
+})
+```
+
+Note: This is a source-gate test, not a render test — it reads the .tsx file as a string. This is the established pattern in this codebase (see `style.hub.test.ts`, `style.redesign.test.ts`).
+
+---
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| Manifest template filling | Custom template engine | `packaging/winget/populate-manifests.sh` (already exists) | Already written, handles VERSION/SHA256 substitution |
+| winget catalog submission | Manual PR workflow | `wingetcreate` via distribute.yml (already written) | CLI handles fork, commit, PR creation |
+| Tarball SHA256 verification | Custom hash comparison | POSIX `sha256sum` + `awk` | Standard on all Linux distros; no dependencies |
+| Version resolution | Parsing release HTML | GitHub releases API (`/releases/latest`, returns JSON `tag_name`) | Stable API, no HTML scraping |
+
+---
+
+## Common Pitfalls
+
+### Pitfall 1: Shebang vs pipe execution
+**What goes wrong:** Writing `#!/usr/bin/env bash` in install.sh and using bash-only features (`set -o pipefail`, `[[`, arrays), then piping via `| sh` on a system where `/bin/sh` is dash (Debian/Ubuntu default). The script runs under dash and fails on bash-isms.
+**How to avoid:** Use `#!/usr/bin/env sh` and POSIX-only constructs. `set -eu` is POSIX. Test by running `dash scripts/install.sh` locally.
+**Warning signs:** `Syntax error: "[[" unexpected` or `set: Illegal option -o pipefail` during installation.
+
+### Pitfall 2: Verifying the tarball from the wrong directory
+**What goes wrong:** Running `sha256sum "${TARBALL}"` instead of `sha256sum "${TMPDIR}/${TARBALL}"` — if the current working directory is not TMPDIR, the command fails with "No such file or directory".
+**How to avoid:** Always use full paths from TMPDIR in the verification step, or `cd "$TMPDIR"` before the sha256sum call. The `cd "$TMPDIR"` approach avoids constructing paths but makes subsequent references relative — be explicit about which approach is used throughout.
+
+### Pitfall 3: checksums.txt two-space format in awk
+**What goes wrong:** `grep "...tarball..." checksums.txt | cut -d' ' -f1` fails because `sha256sum` uses TWO spaces as the separator (`hash  filename`), not one. `cut -d' ' -f1` returns the full line if you expect single-space.
+**How to avoid:** Use `awk '{print $1}'` which splits on any whitespace — handles both one-space and two-space formats.
+
+### Pitfall 4: winget package id case sensitivity
+**What goes wrong:** `winget install scottkw.Agenthub` or other case variants fail — winget package IDs are case-sensitive.
+**Correct id:** `scottkw.agenthub` (all lowercase, exactly matching `packaging/winget/manifests/scottkw.agenthub.yaml` `PackageIdentifier` field).
+[VERIFIED: read packaging/winget/manifests/scottkw.agenthub.yaml]
+
+### Pitfall 5: First-submission triggered on `-rc` tag
+**What goes wrong:** Triggering distribute.yml with a `-rc` release tag skips the submit-winget job (`if: !contains(github.ref, '-rc')`), so the wingetcreate command never runs.
+**How to avoid:** First submission must use a real (non-rc) release tag. See distribute.yml line 77.
+
+### Pitfall 6: `continue-on-error: true` left on submit-winget after acceptance
+**What goes wrong:** After the first-submission PR is merged, steady-state releases silently swallow submit failures because `continue-on-error: true` is still in place.
+**How to avoid:** Remove `continue-on-error: true` from distribute.yml line 76 as part of the post-acceptance operator runbook. This is documented in M-26.
+
+### Pitfall 7: populate-manifests.sh `VERSION` format
+**What goes wrong:** `populate-manifests.sh` requires VERSION without the `v` prefix (e.g., `1.9.0` not `v1.9.0`). It validates this and exits with an error if the `v` prefix is present.
+**How to avoid:** Always strip the `v` with `VERSION="${TAG#v}"` before passing to the script. The dry-run test should strip the prefix.
+
+---
+
+## Architecture Patterns
+
+### System Architecture Diagram
+
+```
+User invokes:
+  curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh
+            |
+            v
+   scripts/install.sh (POSIX sh, served from repo main branch)
+            |
+            |-- preflight: check curl, tar, sha256sum
+            |-- arch detect: uname -m → amd64 or ERROR
+            |-- version resolve: GitHub API /releases/latest → v<TAG>
+            |
+            |-- download: GitHub Releases CDN
+            |     ├── agenthub-v<TAG>-linux-amd64.tar.gz
+            |     └── checksums.txt
+            |
+            |-- verify: sha256sum compare → MATCH or ABORT
+            |
+            |-- extract: tar xzf → ./agenthub (single binary)
+            |
+            |-- install:
+            |     root user  → /usr/local/bin/agenthub
+            |     non-root   → ~/.local/bin/agenthub + PATH warning
+            |
+            v
+   agenthub binary ready to run
+```
+
+### Recommended Project Structure (additions only)
+```
+scripts/
+└── install.sh          # new — POSIX sh installer script
+tests/
+└── install-sh.test.sh  # new — shellcheck + static pattern gate
+frontend/src/components/__tests__/
+└── WelcomeTab.install.test.tsx  # new — source-gate for install strings
+```
+
+### Anti-Patterns to Avoid
+- **Separate install.sh per release:** Don't produce a versioned install.sh in release artifacts — a single `main`-branch script that resolves the latest version at runtime requires zero per-release maintenance.
+- **`curl | sh` without SHA256 gate inside the script:** Even though the transport is HTTPS, the downloaded tarball must be SHA256-verified before extraction. The script must hard-abort on mismatch.
+- **`jq` in install.sh:** `jq` is not universally installed on Linux. Use `grep + sed` or `awk` for JSON field extraction.
+
+---
+
+## Validation Architecture
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework (Go) | `go test` with `-race -short` |
+| Framework (vitest) | vitest (pnpm test in frontend/) |
+| Framework (build-script) | bash — `bash tests/<file>.sh` |
+| Config file | `frontend/vite.config.ts` (vitest), `build.yml` CI |
+| Quick run command | `bash tests/install-sh.test.sh` |
+| Full suite command | `go test -race -short ./... && cd frontend && pnpm test` |
+
+### Phase Requirements → Test Map
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|-------------|
+| INSTALL-01 | install.sh shellcheck + static patterns | build-script | `bash tests/install-sh.test.sh` | ❌ Wave 0 |
+| INSTALL-01 | End-to-end install on clean Linux box | manual | M-25 checklist | n/a |
+| INSTALL-02 | WelcomeTab.tsx correct strings present | vitest source-gate | `cd frontend && pnpm test WelcomeTab.install` | ❌ Wave 0 |
+| INSTALL-03 | populate-manifests.sh dry-run | manual / shell | `bash packaging/winget/populate-manifests.sh <VER> <checksums.txt>` | ✅ (script exists) |
+| INSTALL-03 | Live winget submission + catalog acceptance | manual | M-26 checklist | n/a |
+
+### Sampling Rate
+- **Per task commit:** `bash tests/install-sh.test.sh`
+- **Per wave merge:** `go test -race -short ./... && cd frontend && pnpm test`
+- **Phase gate:** Full suite green before `/gsd-verify-work`
+
+### Wave 0 Gaps
+- [ ] `tests/install-sh.test.sh` — covers INSTALL-01 shellcheck gate
+- [ ] `frontend/src/components/__tests__/WelcomeTab.install.test.tsx` — covers INSTALL-02 source gate
+- [ ] `scripts/install.sh` — the deliverable being tested (created in same plan as the test)
+
+---
+
+## Security Domain
+
+### Applicable ASVS Categories
+
+| ASVS Category | Applies | Standard Control |
+|---------------|---------|-----------------|
+| V2 Authentication | No | install.sh fetches from public release; no auth |
+| V3 Session Management | No | Installer is one-shot; no sessions |
+| V4 Access Control | No | Installation to /usr/local/bin (root) or ~/.local/bin is standard |
+| V5 Input Validation | Yes | SHA256 checksum verification of downloaded tarball before extraction |
+| V6 Cryptography | Partial | SHA256 for integrity (not authenticity); no code signing of Linux binary in this phase |
+
+### Known Threat Patterns
+
+| Pattern | STRIDE | Standard Mitigation |
+|---------|--------|---------------------|
+| Tarball tampering in transit | Tampering | SHA256 verify against checksums.txt (fetched separately from the same release) |
+| DNS hijack / CDN compromise | Spoofing | HTTPS transport; SHA256 hard-abort on mismatch |
+| MitM during install pipe | Spoofing | curl `-fsSL` (HTTPS only; `-f` fails on HTTP error); SHA256 gate |
+| PATH injection via `~/.local/bin` | Elevation of Privilege | Only writing known binary name; chmod 755 (not 777); no SUID |
+
+Note: The Linux binary itself is not code-signed in this phase (macOS DMG is signed by release.yml). SHA256 provides integrity but not code-origin authenticity. This is a documented limitation, consistent with other curl-install scripts in the ecosystem.
+
+---
+
+## Environment Availability
+
+| Dependency | Required By | Available | Version | Fallback |
+|------------|------------|-----------|---------|----------|
+| shellcheck | tests/install-sh.test.sh in CI | ✓ (ubuntu-latest runners) | pre-installed | Skip SC-2 check, proceed with bash -n |
+| curl | install.sh runtime | ✓ (all modern Linux distros) | standard | Preflight fails with clear message |
+| tar | install.sh runtime | ✓ (all modern Linux distros) | standard | Preflight fails with clear message |
+| sha256sum | install.sh runtime | ✓ (GNU coreutils, all Linux distros) | standard | Falls back to shasum -a 256 |
+| wingetcreate | INSTALL-03 dry-run | ✗ (macOS dev machine) | Windows-only | Use populate-manifests.sh for dry-run instead |
+| Windows machine | winget validation | ✗ (development on macOS) | — | Operator-only step; documented in M-26 |
+| yamllint | distribute.yml lint | Conditional | May need `pip install yamllint` | Python `yaml.safe_load` as fallback |
+
+**Missing dependencies with no fallback:**
+- `wingetcreate` (Windows-only) — blocks true winget dry-run; mitigated by using `populate-manifests.sh` as the dry-run proxy on macOS.
+
+**Missing dependencies with fallback:**
+- `shellcheck` — if not installed locally, `bash -n` syntax check still runs; full shellcheck runs in CI.
+- `yamllint` — Python `yaml.safe_load` loop is a portable fallback for YAML validity checking.
+
+---
+
+## Assumptions Log
+
+All claims in this research were derived from reading actual repo files. No training-data assumptions were used for file paths, line numbers, artifact names, or workflow structure.
+
+| # | Claim | Section | Risk if Wrong |
+|---|-------|---------|---------------|
+| A1 | `shellcheck` is pre-installed on `ubuntu-latest` GitHub Actions runners | CI Gate | If not present, install step needed; bash -n fallback still catches syntax errors |
+| A2 | GitHub releases API `tag_name` field format is stable | install.sh Design | If API changes, version resolution fails — fallback to redirect approach |
+| A3 | `sha256sum` is available on all target Linux distros (standard coreutils) | install.sh Design | Covered by POSIX fallback to `shasum -a 256`; minimal risk |
+
+**All other claims are VERIFIED from repo source files.**
+
+---
+
+## Open Questions
+
+1. **Who runs M-25 (Linux clean-box verification)?**
+   - The TESTING.md manual checklist item will be added, but the phase requires actual execution. Needs a clean Ubuntu 22.04 box or Docker container. If the developer doesn't have one, a Docker-based simulation (`docker run --rm ubuntu:22.04 bash -c "apt-get install -y curl && curl -fsSL ... | sh"`) is acceptable for the verification step.
+   - Recommendation: Document the Docker-based verification approach in M-25 as an alternative.
+
+2. **Should `scripts/install.sh` be executable in the repo (`chmod +x`)?**
+   - When served via `curl ... | sh`, execute permission is irrelevant. For direct `./scripts/install.sh` use, it needs `+x`.
+   - Recommendation: Set it executable in the repo (`chmod +x scripts/install.sh`) so both usage patterns work. The CI shellcheck test should also check for executable bit.
+
+3. **Does WelcomeTab.tsx line 54 need to be a clickable link (`<a href>`) instead of a `<span>`?**
+   - Currently a `<span>` with display text only. The design doc says "the repo link reads `github.com/scottkw/agenthub`" — it mentions text, not a hyperlink.
+   - Recommendation: Fix the text as-is (INSTALL-02 scope); leave the link-vs-span decision out of Phase 156 unless explicitly requested.
+
+---
+
+## Sources
+
+### Primary (HIGH confidence — read directly from repo files)
+- `frontend/src/components/WelcomeTab.tsx` — exact line numbers and strings (lines 38–54)
+- `.github/workflows/release.yml` — Linux tarball naming (lines 247–254), checksums.txt generation (line 429)
+- `.github/workflows/distribute.yml` — submit-winget job structure (lines 74–132)
+- `.github/workflows/build.yml` — CI step structure for build-script tests
+- `packaging/winget/manifests/*.yaml` — package identifier, manifest format
+- `packaging/winget/populate-manifests.sh` — template-filling logic and VERSION format requirement
+- `scripts/grep-gate.sh`, `scripts/verify-icons.sh`, `tests/build-script.test.sh` — style conventions for new scripts
+- `TESTING.md` — suite manifest counts, manual item numbering (M-24 is last), standing conventions
+- `.planning/REQUIREMENTS.md` — INSTALL-01/02/03 requirement descriptions
+- `docs/install-links-fix.md` — canonical design document (locked decisions)
+
+### No secondary/tertiary sources used
+All findings are from direct file reads in this repository session.
+
+---
+
+## Metadata
+
+**Confidence breakdown:**
+- WelcomeTab.tsx strings and line numbers: HIGH — read directly from file
+- Linux artifact names and tarball structure: HIGH — read from release.yml
+- checksums.txt format: HIGH — derived from `sha256sum` CLI in release.yml
+- distribute.yml structure and line numbers: HIGH — read directly from file
+- install.sh design: HIGH — derived from locked decisions + artifact facts
+- TESTING.md update requirements: HIGH — read TESTING.md standing convention + current item numbering
+
+**Research date:** 2026-06-26
+**Valid until:** 2026-07-26 (stable workflow files; release artifact naming is version-stable)
