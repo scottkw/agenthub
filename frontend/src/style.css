@@ -2016,6 +2016,9 @@ body {
 
 .welcome-tab__code {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-family: var(--hub-font-mono);
   font-size: var(--hub-font-size-sm);
   color: var(--hub-text-secondary);
