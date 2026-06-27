@@ -377,7 +377,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 152. Relay Protocol + Identity + Presence | 6/6 | Complete    | 2026-06-26 |
 | 153. @session PTY Bridge | 3/3 | Complete    | 2026-06-26 |
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
-| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 4/4 | Complete   | 2026-06-27 |
+| 155. Web-Share Chat UI + Cross-Surface Parity Gate | 5/6 | In Progress|  |
 | 156. Install Links & Distribution | 0/? | Not started | - |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 0/? | Not started | - |
 
@@ -537,7 +537,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. A RO-cap web-share viewer cannot post messages or trigger `@session` injection — the server rejects both actions regardless of client behavior; a RW-cap web-share viewer can do both.
   4. The `@session` injection path works identically from both surfaces: same relay frame type, same daemon handler, same "→ injected into terminal" indicator in the thread.
 
-**Plans**: 4/4 plans complete + 2 gap-closure plans (155-05, 155-06) — verification returned gaps_found (PARITY-01 live e2e RED)
+**Plans**: 5/6 plans executed
 **UI hint**: yes
 
 **Wave 1** *(parallel — disjoint Go vs frontend subsystems)*
@@ -555,7 +555,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **Gap closure** *(verification gaps_found — PARITY-01 broadcast + SC-3 history-load)*
 
-- [ ] 155-05-PLAN.md — BLOCKER 1: diagnose→fix→prove broadcast non-delivery; SC-1 broadcast + unread badge green on 3 browsers (PARITY-01) [wave 1]
+- [x] 155-05-PLAN.md — BLOCKER 1: diagnose→fix→prove broadcast non-delivery; SC-1 broadcast + unread badge green on 3 browsers (PARITY-01) [wave 1]
 - [ ] 155-06-PLAN.md — BLOCKER 2: SC-3 WS warm-up fix + full chat-parity suite green on chromium/firefox/webkit (PARITY-01) [wave 2, depends 155-05]
 
 ### Phase 156: Install Links & Distribution
