@@ -369,7 +369,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation (completed 2026-06-27)
 - [x] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble (completed 2026-06-27)
 - [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
-- [ ] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27)
+- [x] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27) (completed 2026-06-27)
 - [ ] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit (added 2026-06-27)
 - [ ] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27)
 - [ ] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27)
@@ -388,7 +388,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
-| 159. Web-Share Chat Parity (WEBCHAT-01/02) | 0/1 | Planned | — |
+| 159. Web-Share Chat Parity (WEBCHAT-01/02) | 1/1 | Complete   | 2026-06-27 |
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 0/0 | Not planned | — |
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 0/0 | Not planned | — |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |
@@ -457,11 +457,11 @@ Plans:
 
 **Requirements**: WEBCHAT-01 (remote guest reaches a chat-capable surface via redirect), WEBCHAT-02 (cross-surface parity verified on the ACTUALLY-SHARED link, not `/app/` directly), PARITY-01 (upstream — finally honored on the shared surface)
 **Depends on:** Phase 158
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 
-- [ ] 159-01-PLAN.md — Redirect handleTerminalPage (/sessions/{id}?cap= → /app/ SPA, 302) + Go tests + TESTING.md regression registration (M-31)
+- [x] 159-01-PLAN.md — Redirect handleTerminalPage (/sessions/{id}?cap= → /app/ SPA, 302) + Go tests + TESTING.md regression registration (M-31)
 
 **Root-cause evidence (Explore, 2026-06-27):** share URL built at `internal/daemon/api.go:755-760` (`/sessions/{id}?cap=`); `web/assets/terminal.js:1-26` defines only 0x01/0x02/0x10/0x11/0x12 — no chat; the `/app/` route at `internal/webserver/server.go:568-580` is open and reachable but never linked from the share flow; `handleWSSRelay` (`server.go:1047-1065`) already relays MsgChatSend/Typing/Presence to web guests — only the raw viewer's missing UI drops them.
 

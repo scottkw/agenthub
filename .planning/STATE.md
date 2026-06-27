@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 159
-status: in_progress
-stopped_at: Phase 159 PLANNED (1 plan, plan-checker PASSED). Milestone reopened 8/10 then expanded to 12 phases — added 159 (Web-Share Chat Parity), 160 (v4.1 Chat Closeout: NOTIF-01 + 153/154/156 tech debt), 161 (Chat-Sidebar Alias Control — surface the Phase 152 alias backend in the shared ChatPanel; chosen over a Settings Profile section so web-share guests get it via the 159 redirect = cross-surface parity), 162 (Settings Polish #108 — Terminal Plugins jump link). Next: /gsd-execute-phase 159. Milestone close-out still owes (beyond 159–162): push main→origin + re-run verify-work 156 Test 1
-last_updated: "2026-06-27T20:30:00.000Z"
-last_activity: 2026-06-27
-last_activity_desc: Phase 159 planned; Phases 161 + 162 added (v4.1 now 12 phases)
-progress:
-  total_phases: 12
-  completed_phases: 8
-  total_plans: 34
-  completed_plans: 34
-  percent: 67
 current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
+status: verifying
+stopped_at: "Phase 159 PLANNED (1 plan, plan-checker PASSED). Milestone reopened 8/10 then expanded to 12 phases — added 159 (Web-Share Chat Parity), 160 (v4.1 Chat Closeout: NOTIF-01 + 153/154/156 tech debt), 161 (Chat-Sidebar Alias Control — surface the Phase 152 alias backend in the shared ChatPanel; chosen over a Settings Profile section so web-share guests get it via the 159 redirect = cross-surface parity), 162 (Settings Polish #108 — Terminal Plugins jump link). Next: /gsd-execute-phase 159. Milestone close-out still owes (beyond 159–162): push main→origin + re-run verify-work 156 Test 1"
+last_updated: "2026-06-27T18:40:45.454Z"
+last_activity: 2026-06-27
+last_activity_desc: Phase 159 execution started
+progress:
+  total_phases: 10
+  completed_phases: 9
+  total_plans: 35
+  completed_plans: 35
+  percent: 90
 ---
 
 # Project State
@@ -24,14 +24,14 @@ current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 159 — Web-Share Chat Parity (redirect /sessions → /app SPA so remote web guests get chat)
+**Current focus:** Phase 159 — web-share-chat-parity-route-shared-session-links-to-the-chat
 
 ## Current Position
 
-Phase: 159 (Web-Share Chat Parity) — PLANNED, ready to execute
-Plan: 159-01-PLAN.md (1 plan, plan-checker PASSED)
-Status: v4.1 expanded to 12 phases — 159 planned; 160 (closeout), 161 (chat-sidebar alias UI), 162 (#108 Settings polish) await planning. Next: /gsd-execute-phase 159
-Last activity: 2026-06-27 — Phase 159 planned; Phases 161 + 162 added
+Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-27 — Phase 159 execution started
 
 ```
 Progress: [█████████████░░░░░░░] 8/12 phases complete (67%); Phase 159 planned
@@ -110,7 +110,7 @@ Progress: [█████████████░░░░░░░] 8/12 ph
 
 ## Session Continuity
 
-Last session: 2026-06-27T15:58:25.813Z
+Last session: 2026-06-27T18:40:45.445Z
 Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -148,6 +148,8 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Added VIEW-01..03 rows to TESTING.md Section 4; extended Section 2 Phase 157 delta note; added M-27/M-28 to Section 5 Category P
 - [Phase ?]: TerminalChatHost wraps only TerminalPanel so StatusBar is not covered
 - [Phase ?]: D-02 invariant: overlay toggle never triggers PTY sendResize
+- [Phase ?]: WEBCHAT-01 redirect to /app/
+- [Phase ?]: url.QueryEscape for cap token round-trip; terminal.html preserved
 
 ## Performance Metrics
 
@@ -180,3 +182,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 157 P05 | 3min | 1 tasks | 1 files |
 | Phase 158 P01 | 10 | 2 tasks | 3 files |
 | Phase 158 P02 | 15 | 3 tasks | 5 files |
+| Phase 159 P01 | 10 minutes | 2 tasks | 4 files |
