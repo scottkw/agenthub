@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 156
-current_phase_name: install-links-distribution
-status: verifying
-stopped_at: Phase 155 complete + verified (PARITY-01 cross-surface gate green 3/3 runs, EXPORT-01 verified)
-last_updated: "2026-06-27T11:40:27.214Z"
+current_phase: 157
+current_phase_name: terminal-screen-share-semantics-issue-109
+status: executing
+stopped_at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
+last_updated: "2026-06-27T12:57:55.452Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 156 execution started
+last_activity_desc: Phase 157 execution started
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 27
-  completed_plans: 27
+  total_plans: 32
+  completed_plans: 28
   percent: 86
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 156 — install-links-distribution
+**Current focus:** Phase 157 — terminal-screen-share-semantics-issue-109
 
 ## Current Position
 
-Phase: 156 (install-links-distribution) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-27 — Phase 156 execution started
+Phase: 157 (terminal-screen-share-semantics-issue-109) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-06-27 — Phase 157 execution started
 
 ```
 Progress: [████████████████████] 24/24 plans (100%) — 5/7 phases complete
@@ -93,8 +93,8 @@ Progress: [████████████████████] 24/24 p
 
 ## Session Continuity
 
-Last session: 2026-06-27T11:40:27.205Z
-Stopped at: Phase 155 Plan 03 complete — WebShareSessionView + App.tsx web-mode bootstrap
+Last session: 2026-06-27T12:57:55.444Z
+Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
 Resume file: None
 Next action: `/gsd:plan-phase 151`
 
@@ -125,6 +125,9 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: Phase 155-06: SC-3 WS-ready gate uses .first() not text-filter — virtualizer scrolls seeded message out of DOM after broadcast tests
 - [Phase ?]: python3 yaml.safe_load for portable YAML validation in winget dry-run
 - [Phase ?]: WINGET_TOKEN public_repo scope only (T-156-07 least-privilege, distribute.yml line 79)
+- [Phase ?]: Phase 157-01: VIEW-02 origin gate is FIRST check in ResizeClient — non-local returns immediately before lock (T-157-01 single enforcement point)
+- [Phase ?]: Phase 157-01: broadcastResize self-acquires mu, called only after hub.mu.Unlock() — prevents T-157-04 self-deadlock
+- [Phase ?]: Phase 157-01: Hub.Rows() fallback is 50 (engine.go emuRows), mirrors Cols() 220 fallback
 
 ## Performance Metrics
 
@@ -151,3 +154,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 155 P05 | 22 minutes | 3 tasks | 1 files |
 | Phase 156 P01 | 2 minutes | 3 tasks | 3 files |
 | Phase 156 P03 | ~3 minutes | - tasks | - files |
+| Phase 157 P01 | 3 minutes | 2 tasks | 2 files |

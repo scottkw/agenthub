@@ -66,8 +66,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 
 ### VIEW — Terminal viewer fidelity (orthogonal; Issue #109 "screen-share semantics", Option B)
 
-- [ ] **VIEW-01**: The PTY grid tracks the host (local-origin) subscriber's reported size — host-authority — replacing the current max-wins arbitration (MC-06). On host resize the server broadcasts `MakeResizeFrame(ptyCols,ptyRows)` to web guests so they conform to a single real `(cols,rows)` pair (`internal/relay/hub.go` `ResizeClient`).
-- [ ] **VIEW-02**: Web/remote guests no longer drive the PTY — a web-origin `MsgResize` is ignored by the arbiter; the loopback host path remains the only driver (`internal/webserver/server.go`, `internal/relay/server.go`).
+- [x] **VIEW-01**: The PTY grid tracks the host (local-origin) subscriber's reported size — host-authority — replacing the current max-wins arbitration (MC-06). On host resize the server broadcasts `MakeResizeFrame(ptyCols,ptyRows)` to web guests so they conform to a single real `(cols,rows)` pair (`internal/relay/hub.go` `ResizeClient`).
+- [x] **VIEW-02**: Web/remote guests no longer drive the PTY — a web-origin `MsgResize` is ignored by the arbiter; the loopback host path remains the only driver (`internal/webserver/server.go`, `internal/relay/server.go`).
 - [ ] **VIEW-03**: On guest join, the server pushes the host's current grid (`MakeResizeFrame(hub.Cols(),hub.Rows())`) before scrollback replay, so replayed raw bytes land in a correctly-sized grid (fixes the static-screen garble case).
 - [ ] **VIEW-04**: Guests honor the server-pushed `MsgResize` (0x02) → `term.resize(cols,rows)` and stop self-sizing — on both the web viewer (`web/assets/terminal.js`) and the desktop viewer (`frontend/src/components/TerminalPanel.tsx`, cross-surface parity).
 - [ ] **VIEW-05**: Guests CSS-scale the host grid to fit their viewport — `transform: scale(s)`, `s = min(containerW/gridW, containerH/gridH)` recomputed on window resize and every `MsgResize`, capped at `s ≤ 1.0` (downscale-only, never upscale). `web/assets/terminal.css` + desktop parity.
@@ -131,8 +131,8 @@ Which phase covers each requirement. Populated during roadmap creation.
 | INSTALL-01 | Phase 156 | Complete |
 | INSTALL-02 | Phase 156 | Complete |
 | INSTALL-03 | Phase 156 | Complete |
-| VIEW-01 | Phase 157 | Pending |
-| VIEW-02 | Phase 157 | Pending |
+| VIEW-01 | Phase 157 | Complete |
+| VIEW-02 | Phase 157 | Complete |
 | VIEW-03 | Phase 157 | Pending |
 | VIEW-04 | Phase 157 | Pending |
 | VIEW-05 | Phase 157 | Pending |
