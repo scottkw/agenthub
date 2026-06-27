@@ -1,5 +1,6 @@
     // Binary framing protocol constants (must match relay/protocol.go)
     const MsgOutput  = 0x01;
+    const MsgResize  = 0x02;  // Phase 157 VIEW-04: server-pushed host grid (guest honor)
     const MsgInput   = 0x10;
     const MsgResize2 = 0x11;
     const MsgPing    = 0x12;
@@ -168,7 +169,9 @@
       var fitAddon = new FitAddon.FitAddon();
       term.loadAddon(fitAddon);
       term.open(document.getElementById('terminal'));
-      fitAddon.fit();
+      // Phase 157 VIEW-04: grid size is set by server-pushed 0x02 (MsgResize) only.
+      // FitAddon is kept loaded (cell-metric reads use its internals) but fit() is
+      // never called — we are always a guest; the host PTY owns the grid dimensions.
 
       // Phase 113 / Issue #56 — iPad terminal touch-scroll.
       // xterm.js v6 ships no touch handlers; on iPad Safari/Chrome a
@@ -977,6 +980,34 @@
       }
       wireFindBarHandlers();
 
+      // Phase 157 VIEW-05 — CSS downscale the host grid to fit the viewport.
+      // Called after term.resize() on every 0x02 frame and on every window resize.
+      // scale s = min(containerW/gridW, containerH/gridH), capped at 1.0 (never upscale).
+      // Reads layout cell size from xterm's private render-service — the same private API
+      // already used by attachTouchScroll above. getBoundingClientRect is intentionally
+      // avoided: the container rect oscillates after a transform is applied.
+      function recomputeScale() {
+        if (!term || !term.element) return;
+        var core = term._core;
+        if (!core || !core._renderService || !core._renderService.dimensions ||
+            !core._renderService.dimensions.css || !core._renderService.dimensions.css.cell) return;
+        var cell = core._renderService.dimensions.css.cell;
+        var cellW = cell.width;
+        var cellH = cell.height;
+        if (!cellW || !cellH) return;
+        var gridW = term.cols * cellW;
+        var gridH = term.rows * cellH;
+        if (!gridW || !gridH) return;
+        var container = document.getElementById('terminal');
+        if (!container) return;
+        var cw = container.clientWidth;
+        var ch = container.clientHeight;
+        if (!cw || !ch) return;
+        var s = Math.min(cw / gridW, ch / gridH);
+        if (s > 1) s = 1;  // VIEW-05: downscale only, never upscale
+        term.element.style.transform = 'scale(' + s + ')';
+      }
+
       // Open WebSocket connection
       var ws = null;
 
@@ -987,9 +1018,8 @@
         ws.onopen = function() {
           connected = true;
           updateStatusBar(sessionMeta, true);
-          if (term.cols && term.rows) {
-            ws.send(makeResizeFrame(term.cols, term.rows));
-          }
+          // Phase 157 VIEW-04: web is always a guest — never send a client-driven
+          // 0x11 resize on open. Grid is set by the server's 0x02 push (MsgResize).
         };
 
         ws.onmessage = function(evt) {
@@ -1002,6 +1032,14 @@
           if (msgType === MsgOutput) {
             var text = new TextDecoder().decode(payload);
             term.write(text);
+          } else if (msgType === MsgResize && payload.length >= 4) {
+            // Phase 157 VIEW-04: honor server-pushed host grid.
+            // Decode big-endian cols/rows; clamp to >= 1 (xterm rejects resize(0,0)).
+            // Call term.resize BEFORE recomputeScale — scale reads the new dimensions.
+            var cols = ((payload[0] << 8) | payload[1]) || 1;
+            var rows = ((payload[2] << 8) | payload[3]) || 1;
+            term.resize(cols, rows);
+            recomputeScale();
           }
           // Other message types from server are ignored in browser client
         };
@@ -1029,17 +1067,12 @@
         }
       });
 
-      // Terminal resize -> send MsgResize2 frame
-      term.onResize(function(size) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(makeResizeFrame(size.cols, size.rows));
-        }
-      });
+      // Phase 157 VIEW-04: web is always a guest — term.onResize must NOT send a
+      // client-driven 0x11 resize frame. The host PTY owns the grid; we only observe.
 
-      // Window resize -> fit terminal
-      window.addEventListener('resize', function() {
-        fitAddon.fit();
-      });
+      // Window resize -> recompute CSS scale to fit the (fixed host) grid.
+      // Phase 157 VIEW-05: never send a resize frame; only recalculate the scale.
+      window.addEventListener('resize', recomputeScale);
 
       // Phase 93 PLUG-04 push channel — subscribe to live plugin-config
       // updates so toggle changes apply WITHOUT a page reload (closes
