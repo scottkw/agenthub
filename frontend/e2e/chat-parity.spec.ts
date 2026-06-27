@@ -23,6 +23,30 @@ import * as fs from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { appUrl, viewerAppUrl, loadFixtureEnv } from './fixture-env'
 
+/**
+ * waitForHubSubscribers polls /__test__/hub-status until the hub has at least
+ * `minCount` subscribers or the deadline is reached.
+ *
+ * This gates the send step against a subscriber-registration race (PARITY-01 SC-1
+ * fix / Phase 155-05): hub.Subscribe is called inside the Go handleWS goroutine
+ * which races with the HTTP history response. The test's history-visible gate
+ * proves the WS onOpen fired and loadChatHistory completed, but does NOT guarantee
+ * hub.Subscribe has been called. Without this gate, BroadcastChat fires before
+ * page2's WS is subscribed, causing non-deterministic delivery failure.
+ *
+ * Expected minimum for 2 browser contexts: 4 (each page mounts TerminalPanel +
+ * ChatPanel, each with their own RelayClient WS connection — D-09).
+ */
+async function waitForHubSubscribers(adminURL: string, minCount: number, timeoutMs = 5_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const status = await fetch(`${adminURL}/__test__/hub-status`).then(r => r.json()).catch(() => null)
+    if ((status?.subscriberCount ?? 0) >= minCount) return
+    await new Promise<void>(r => setTimeout(r, 100))
+  }
+  throw new Error(`hub subscribers did not reach ${minCount} within ${timeoutMs}ms`)
+}
+
 test.describe('Phase 155 — chat parity gate', () => {
   // ─────────────────────────────────────────────────────────────────────────
   // PARITY-01 SC-1: RW → RW broadcast
@@ -80,6 +104,13 @@ test.describe('Phase 155 — chat parity gate', () => {
       // The fixture pre-seeds "Hello from the fixture (RW)" — wait for it on both pages.
       await expect(page1.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 8_000 })
       await expect(page2.locator('.chat-msg').filter({ hasText: 'Hello from the fixture (RW)' })).toBeVisible({ timeout: 8_000 })
+
+      // Subscriber-registration readiness gate (PARITY-01 SC-1 fix — Phase 155-05):
+      // hub.Subscribe is called inside the Go handleWS goroutine which races with
+      // the HTTP history response. A history-visible check alone does NOT guarantee
+      // hub.Subscribe has been called. Gate on subscriberCount >= 4 (2 pages ×
+      // TerminalPanel + ChatPanel each) so BroadcastChat delivers to all subscribers.
+      await waitForHubSubscribers(env.adminURL, 4)
 
       // Unique message to avoid Pitfall 5 (state leak from prior fixture messages).
       const testMsg = `parity-broadcast-${Date.now()}`
@@ -191,6 +222,10 @@ test.describe('Phase 155 — chat parity gate', () => {
       await expect(page2.locator('.chat-msg').first()).toBeVisible({ timeout: 8_000 })
       // Close chat — unread badge should now appear for new messages.
       await page2.locator('.hub-modal__chat-toggle').click()
+
+      // Subscriber-registration readiness gate (same race as broadcast test —
+      // Phase 155-05): ensure all 4 hub subscribers are registered before send.
+      await waitForHubSubscribers(env.adminURL, 4)
 
       // Page1 sends a message.
       const testMsg = `parity-unread-${Date.now()}`
