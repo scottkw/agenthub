@@ -43,16 +43,22 @@ test.describe('Phase 155 — chat parity gate', () => {
       // Capture WebSocket frame events on page2 so we can diagnose broadcast delivery.
       const page2WsFrames: string[] = []
       const page2WsClosed: string[] = []
+      // TEMP DIAG (Task 1 / 155-05): index WS connections so we can distinguish
+      // TerminalPanel WS (conn=1) from ChatPanel WS (conn=2) in the frame log.
+      let page2ConnIdx = 0
+      const page2ConnCount = { total: 0 }
       page2.on('websocket', ws => {
+        const myConn = ++page2ConnIdx
+        page2ConnCount.total = myConn
         const wsUrl = ws.url()
         ws.on('framereceived', event => {
           // Only log chat-related frames (MSG_CHAT = 0x30 first byte in binary data).
           // Log a short prefix so we can confirm frames arrive without filling stdout.
           const data = event.payload
           const firstByte = typeof data === 'string' ? data.charCodeAt(0) : (data as Buffer)[0]
-          page2WsFrames.push(`url=${wsUrl} byte=${firstByte} len=${typeof data === 'string' ? data.length : (data as Buffer).length}`)
+          page2WsFrames.push(`conn=${myConn} byte=${firstByte} len=${typeof data === 'string' ? data.length : (data as Buffer).length}`)
         })
-        ws.on('close', () => page2WsClosed.push(`closed: ${wsUrl}`))
+        ws.on('close', () => page2WsClosed.push(`conn=${myConn} closed: ${wsUrl}`))
       })
       page2.on('console', msg => {
         if (msg.type() === 'error') console.error(`[page2 console.error] ${msg.text()}`)
@@ -103,6 +109,7 @@ test.describe('Phase 155 — chat parity gate', () => {
         ).toBeVisible({ timeout: 10_000 })
       } catch (err) {
         // Emit diagnostic info before re-throwing the failure.
+        console.error(`[broadcast-diag] page2 total WS connections opened: ${page2ConnCount.total}`)
         console.error(`[broadcast-diag] page2 WS frames (${page2WsFrames.length} total): ${JSON.stringify(page2WsFrames.slice(-20))}`)
         console.error(`[broadcast-diag] page2 WS closed events: ${JSON.stringify(page2WsClosed)}`)
         console.error(`[broadcast-diag] page2 chat panel phase:`, await page2.locator('[data-testid="chat-panel"]').getAttribute('aria-hidden'))
