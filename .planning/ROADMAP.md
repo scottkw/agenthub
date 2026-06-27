@@ -379,7 +379,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 154. Desktop Chat UI | 6/6 | Complete   | 2026-06-26 |
 | 155. Web-Share Chat UI + Cross-Surface Parity Gate | 6/6 | Complete    | 2026-06-27 |
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
-| 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete   | 2026-06-27 |
+| 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*

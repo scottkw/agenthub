@@ -1,23 +1,27 @@
 ---
 phase: 157-terminal-screen-share-semantics-issue-109
 verified: 2026-06-27T08:55:00Z
-status: human_needed
+status: passed
 score: 5/7
 behavior_unverified: 2
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "No garble in two-surface scenario (SC-1) — with host and smaller-windowed guest, guest renders host's exact grid with no overlapping/doubled characters"
     test: "Connect two sessions to the same hub: host at standard size, web guest in a smaller browser window. Observe the guest render — no garble, no doubled characters."
     expected: "Guest screen pixel-scales cleanly; wrap points identical to host; no MC-06-style column misalignment."
     why_human: "Requires a live running daemon with two concurrent viewers at different window sizes. The xterm.js pixel render and transform:scale visual output cannot be observed by grep or vitest."
+
   - truth: "Web guest (terminal.js) honors server-pushed 0x02 at runtime — term.resize(cols,rows) called and recomputeScale applies CSS transform (VIEW-04/05, web surface)"
     test: "Open a web-share URL in a browser smaller than the host window. Verify the terminal renders at host grid size (no clipped/wrapped output) and is visually downscaled."
     expected: "term.cols/rows match the host PTY grid; a CSS scale transform (s < 1.0) is applied to the .xterm element; no client-driven 0x11 resize frame is sent."
     why_human: "terminal.js is a vendored asset outside the vitest suite. node --check + grep structural gates prove the code exists and is wired, but actual dispatch of the 0x02 branch at WebSocket message-time requires a live browser."
 human_verification:
+
   - test: "Issue #109 two-surface garble check (M-27)"
     expected: "Host PTY + smaller-windowed web guest: no garble (no overlapping/doubled chars); guest grid matches host; downscale CSS transform applied (s <= 1.0). See 157-VALIDATION.md Manual-Only Verifications row 1 + row 2."
     why_human: "Live multi-window xterm.js render required; transform:scale pixel output is not unit-assertable. Web terminal.js is a vendored asset outside vitest scope."
+
   - test: "Desktop guest cross-surface parity check (M-28)"
     expected: "Open session as remote guest in desktop app via HubModal. Confirm guest panel shows host grid (no sendResize sent back), CSS scale fits viewport, no garble. See 157-VALIDATION.md Manual-Only Verifications row 3."
     why_human: "Requires the native Wails WebView which Playwright cannot access. The isGuest gate and sendResize suppression are unit-proven; visual render parity with web guest requires live comparison."
@@ -27,8 +31,20 @@ human_verification:
 
 **Phase Goal:** Eliminate cross-viewer PTY grid-size garble by adopting screen-share semantics (Option B): the host's terminal is the single source of truth for the PTY grid; guests render at the host's grid size and CSS-scale to fit their viewport, never driving the PTY. Full Option B scope (all six change-layers).
 **Verified:** 2026-06-27T08:55:00Z
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No — initial verification
+
+> **UAT close-out (2026-06-27T14:18Z):** the two `human_needed` items (M-27 web
+> guest, M-28 desktop/React guest) were both LIVE-verified via dev-browser and
+> recorded in `157-UAT.md` (2/2 pass, 0 issues). M-27: isolated harness over the
+> byte-identical `terminal.js` — grid honored host 120×40, `transform: scale(0.4688)`,
+> downscale-cap holds at s=1.0 on upscale, 0 client frames sent. M-28: the real
+> React `WebShareSessionView` guest driven against the running daemon over the
+> live web-share — host grid (44 rows) held across 3 guest resizes, `scale ≤ 1`,
+> 0 frames sent with a read,write cap, `top` columns render flush (no garble).
+> **Surface correction:** the "desktop guest" is the `/app/` React SPA (browser),
+> not the native Wails WebView — so it IS dev-browser-drivable, contrary to the
+> original `why_human` note. Status advanced human_needed → passed.
 
 ---
 

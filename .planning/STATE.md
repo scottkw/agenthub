@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 157
-current_phase_name: terminal-screen-share-semantics-issue-109
-status: executing
-stopped_at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
-last_updated: "2026-06-27T13:46:36.551Z"
+status: complete
+stopped_at: Phase 157 complete — v4.1 (151-157) at 100%; M-27 + M-28 live-verified via dev-browser harness/web-share; milestone ready for /gsd-complete-milestone
+last_updated: "2026-06-27T14:21:18.621Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 157 execution started
+last_activity_desc: Phase 157 complete
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 32
   completed_plans: 32
   percent: 100
+current_phase_name: terminal-screen-share-semantics-issue-109
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 157 — terminal-screen-share-semantics-issue-109
+**Current focus:** v4.1 Session Chat — COMPLETE (all 7 phases 151-157); ready to archive milestone
 
 ## Current Position
 
-Phase: 157 (terminal-screen-share-semantics-issue-109) — EXECUTING
-Plan: 5 of 5
-Status: Ready to execute
-Last activity: 2026-06-27 — Phase 157 execution started
+Phase: 157 (terminal-screen-share-semantics-issue-109) — COMPLETE
+Plan: 5/5 complete
+Status: Milestone v4.1 complete — ready for /gsd-complete-milestone
+Last activity: 2026-06-27 — Phase 157 complete (M-27 + M-28 live-verified)
 
 ```
-Progress: [████████████████████] 24/24 plans (100%) — 5/7 phases complete
+Progress: [████████████████████] 32/32 plans (100%) — 7/7 phases complete
 ```
 
 ## Operator Next Steps (carry-forward from v4.0)
@@ -49,13 +49,13 @@ Progress: [████████████████████] 24/24 p
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 151 | Message Schema + ChatStore | PERSIST-01, PERSIST-02, PERSIST-03 | Not started |
-| 152 | Relay Protocol + Identity + Presence | IDENT-01, IDENT-02, PRESENCE-01, PRESENCE-02 | Not started |
-| 153 | @session PTY Bridge | MENTION-02, MENTION-03, SEC-01, SEC-02 | Not started |
-| 154 | Desktop Chat UI | CHAT-01, CHAT-02, CHAT-03, CHAT-04, MENTION-01, NOTIF-01, NOTIF-02, SEC-03 | Not started |
-| 155 | Web-Share Chat UI + Cross-Surface Parity Gate | EXPORT-01, PARITY-01 | Not started |
-| 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Not started |
-| 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Not started |
+| 151 | Message Schema + ChatStore | PERSIST-01, PERSIST-02, PERSIST-03 | Complete |
+| 152 | Relay Protocol + Identity + Presence | IDENT-01, IDENT-02, PRESENCE-01, PRESENCE-02 | Complete |
+| 153 | @session PTY Bridge | MENTION-02, MENTION-03, SEC-01, SEC-02 | Complete |
+| 154 | Desktop Chat UI | CHAT-01, CHAT-02, CHAT-03, CHAT-04, MENTION-01, NOTIF-01, NOTIF-02, SEC-03 | Complete |
+| 155 | Web-Share Chat UI + Cross-Surface Parity Gate | EXPORT-01, PARITY-01 | Complete |
+| 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Complete |
+| 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Complete |
 
 **Total:** 29 requirements mapped across 7 phases (100% coverage).
 
