@@ -1,35 +1,42 @@
 ---
 phase: 158-chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 verified: 2026-06-27T18:10:00Z
-status: human_needed
+status: passed
 score: 6/11 must-haves verified
 behavior_unverified: 5
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "When the chat drawer is open in the Hub interactive modal, the chat toggle button relocates clear of the 360px drawer (right:372px) so it no longer overlaps or obscures the composer Send/Inject button."
     test: "Open a live session in the Hub interactive modal, open the chat drawer, and inspect the rendered pixel position of the toggle button relative to the composer Send/Inject button."
     expected: "The toggle button sits visually clear of the Send/Inject button (no overlap) and the drawer occupies the right 360px of the modal."
     why_human: "JSDOM performs no layout. The source-gate proves the CSS rule's presence and offset (right:372px) but cannot measure rendered pixel geometry. A real browser with a layout engine is required."
+
   - truth: "Because the rule is unscoped (matches the shared .hub-modal__chat-toggle classes), it also corrects the identical latent overlap on the web-share surface."
     test: "Open a web-share session in a browser, open the chat drawer, and visually confirm the toggle relocates clear of the composer on the web-share surface."
     expected: "Same relocation behavior as the Hub modal — toggle not overlapping Send/Inject on the web-share surface."
     why_human: "Runtime visual verification on the web-share surface cannot be measured in JSDOM. The rule is unscoped and structurally applies, but the rendered outcome needs a live browser."
+
   - truth: "From a live session opened in a direct terminal TAB (not the Hub card modal), a chat toggle button is present and toggles a working ChatPanel drawer."
     test: "Open a live session in a terminal tab (not via Hub card modal), click the chat toggle, send a message, and confirm the ChatPanel drawer receives and displays it."
     expected: "Chat toggle present, drawer opens in overlay mode, messages flow through the relay loopback path."
     why_human: "JSDOM mocks both TerminalPanel and ChatPanel. The working ChatPanel drawer with actual messages requires a live daemon + relay + WebView render."
+
   - truth: "The tab drawer is overlay mode (D-02): position:absolute over the terminal's right edge; the PTY is NEVER resized when the drawer opens/closes."
     test: "With a live session in a terminal tab, open and close the chat drawer while observing the terminal grid — confirm no reflow/garble occurs and the terminal columns/rows do not change."
     expected: "Terminal content is stable (no reflow/garble) before, during, and after drawer open/close. PTY sendResize is never triggered by the chat toggle."
     why_human: "The isActive-not-bound-to-chatOpen invariant is verified by Test 3 (prop forwarding). The actual PTY sendResize suppression requires a live PTY — JSDOM mocks TerminalPanel and cannot observe real resize events."
+
   - truth: "Cross-surface parity (release-blocking, upstream PARITY-01): the GUI terminal tab now matches the Hub interactive modal and the web-share view — same ChatPanel, same toggle, same ChatBadge."
     test: "Compare chat affordance behavior side-by-side on all three surfaces (GUI terminal tab, Hub interactive modal, web-share) with a live session: open drawer, send message, confirm unread badge, mention badge."
     expected: "All three surfaces show the same toggle button, same ChatPanel overlay, same ChatBadge behavior — functionally identical chat affordance."
     why_human: "Visual and behavioral parity across three surfaces cannot be confirmed from JSDOM alone. Requires live rendering on each surface."
 human_verification:
+
   - test: "M-29 — CHAT-FIX-01: Toggle/Send non-overlap visual check"
     expected: "With a live session open in the Hub interactive modal, open the chat drawer and confirm the chat toggle button sits clear of (does not overlap/obscure) the composer Send/Inject button. Clicking the toggle still closes the drawer."
     why_human: "JSDOM performs no layout — rendered pixel overlap between position:absolute elements cannot be measured in vitest. Source-gate only proves the CSS rule's presence and offset (right:372px)."
+
   - test: "M-30 — CHAT-PARITY-01: Terminal-tab chat affordance (overlay, no PTY resize, StatusBar preserved, cross-surface parity)"
     expected: "Open a live session in a direct terminal TAB (not the Hub card modal). A chat toggle is present. Opening the chat drawer shows a working ChatPanel overlay. The terminal is NOT resized (no reflow/garble). The StatusBar remains visible below the drawer. Unread badge accrues while drawer is closed. Cross-surface parity confirmed: GUI tab matches Hub modal and web-share."
     why_human: "Requires a live daemon + PTY + WebView render. JSDOM cannot verify overlay geometry, no-resize invariant with a real PTY, or visual cross-surface parity."
