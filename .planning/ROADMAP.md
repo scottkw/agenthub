@@ -29,7 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
-- 🚧 **v4.1 Session Chat** — Phases 151-160 (active, started 2026-06-25, closes #79, #109)
+- 🚧 **v4.1 Session Chat** — Phases 151-162 (active, started 2026-06-25, closes #79, #108, #109)
 
 ## Phases
 
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.0 phase details archived to milestones/v4.0-ROADMAP.md -->
 
-### v4.1 Session Chat (Phases 151-158) — ACTIVE
+### v4.1 Session Chat (Phases 151-162) — ACTIVE
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
@@ -371,6 +371,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
 - [ ] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27)
 - [ ] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit (added 2026-06-27)
+- [ ] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27)
+- [ ] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27)
+
+> **Closeout ordering note (2026-06-27):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI) and 162 (#108) are scope added 2026-06-27 and run after 160; the milestone-close audit (`/gsd-audit-milestone`) runs after **162**, not 160. 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
 
 ### Progress: v4.1 Session Chat
 
@@ -384,8 +388,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
-| 159. Web-Share Chat Parity (WEBCHAT-01/02) | 0/0 | Not planned | — |
+| 159. Web-Share Chat Parity (WEBCHAT-01/02) | 0/1 | Planned | — |
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 0/0 | Not planned | — |
+| 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 0/0 | Not planned | — |
+| 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -472,6 +478,38 @@ Plans:
 - [ ] TBD (run /gsd-plan-phase 160 to break down)
 
 **Audit reference:** `.planning/v4.1-MILESTONE-AUDIT.md` (NOTIF-01 = the dead-wiring BLOCKER; Phase 154 VERIFICATION falsely claimed it was wired "via existing session callback" — that callback does not exist).
+
+### Phase 161: Chat-Sidebar Alias Control — user can set their display name
+
+**Goal:** A user can set their own chat display name (alias) from within the chat experience, and it immediately becomes their author name in chat messages and their name in the presence roster, across every chat surface. The control lives in the **shared `ChatPanel` sidebar** (e.g. inline-editable "you" entry in the presence roster, or a "chatting as: <name> ✏️" affordance), NOT in Settings — so the desktop terminal tab, the Hub interactive modal, AND the web-share guest (which reaches `ChatPanel` via the Phase 159 redirect) all get the control from one implementation. Closes the long-standing gap where the Phase 152 alias backend shipped with no way for a user to set their alias.
+
+**Approach (decided 2026-06-27):** Surface the **already-built Phase 152 backend** — do NOT rebuild it. `MsgAliasSet` (0x34), `AliasStore` (`~/.config/agenthub/aliases.json`), `ValidateAlias` (≤32 runes, no control chars), and the `alias` field on `ChatMessage`/`PresenceEntry` already exist; both the relay (desktop owner, `local:local`) and webserver (web guest, `tailnetID:web`) server paths already accept `MsgAliasSet`, persist via `AliasSetFn`, and re-broadcast presence. `encodeAliasSetFrame()` already exists in `relayClient.ts` but is only called in tests. Planning MUST: (a) decide whether the desktop-owner path sends `MsgAliasSet` over the existing relay client (preferred — reuses the wire path, no new Wails bindings) or needs a `GetAlias`/`SetAlias` Wails binding (`app.go` + engine) — confirm against live client wiring; (b) make the control clearly communicate the alias is a **global** display name (per `personKey`), not per-session; (c) keep the shared `ChatPanel` un-forked so all surfaces inherit it (cross-surface parity by construction); (d) show the user's current/default alias (Tailnet computed name for guests, owner default for desktop) as the pre-filled value.
+
+**Requirements**: ALIAS-UI-01 (user sets their alias from the shared chat sidebar; available on GUI tab, Hub modal, and web-share guest — cross-surface parity via shared `ChatPanel`), ALIAS-UI-02 (the set alias persists via the Phase 152 `AliasStore`/`MsgAliasSet` path and immediately updates the user's chat author name + presence-roster name for all participants; respects `ValidateAlias`)
+**Depends on:** Phase 159 (web-share guests reach `ChatPanel` only via the 159 redirect; also Phase 155 `ChatPanel` + Phase 152 alias backend)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 161 to break down)
+
+**Backend-ready evidence (Explore, 2026-06-27):** `internal/daemon/alias_store.go` (AliasStore, aliases.json), `internal/relay/protocol.go:84` (`MsgAliasSet` 0x34) + `:95/:260` (`PresenceEntry.alias`/`ChatMessage.alias`), relay dispatch `internal/relay/server.go:357-372`, webserver dispatch `internal/webserver/server.go:1186-1201`, `frontend/src/lib/relayClient.ts:94-99` (`encodeAliasSetFrame`, currently test-only). GAP: no Wails `GetAlias`/`SetAlias` binding, no UI calls `encodeAliasSetFrame`, no Settings/sidebar control. Web surface has no Settings page — which is exactly why the chat sidebar (shared component) is the right home over a Settings Profile section.
+
+### Phase 162: Settings Polish — Terminal Plugins jump link (#108)
+
+**Goal:** Resolve GitHub issue #108. The Settings "Plugins" jump link currently sits *first* in the sticky jump bar while its section renders *last* — clicking the first link jumps to the bottom. And the label "Plugins" misleads (these are terminal/shell plugins). Fix both: move the jump link to the **last** position (matching render order) and rename it to **"Terminal Plugins"** (jump-bar label + section header), keeping the `settings-plugins` anchor id stable so scroll-spy/jump behavior keeps working. Shared React frontend, so the fix applies to both GUI and web surfaces (cross-surface parity).
+
+**Approach:** Per #108: in `frontend/src/components/SettingsJumpBar.tsx:21-29` move `{ label: 'Plugins', id: 'settings-plugins' }` from first to last in `SETTINGS_JUMP_LINKS` and rename label to `Terminal Plugins` (update/remove the lines 11-14 block comment documenting the intentional first-position placement); in `frontend/src/components/PluginsSection.tsx:289` rename the `<h3 id="settings-plugins">` text to `Terminal Plugins` (keep the id). `SettingsTab.tsx` already renders `PluginsSection` last — no reorder there. Update affected tests (SettingsTab/SettingsSearch/jump-bar specs) that assert label text or link order.
+
+**Requirements**: SETTINGS-UI-01 (Plugins jump link moved to last + renamed "Terminal Plugins" on label and section header; `settings-plugins` anchor unchanged; jump/scroll-spy still works; affected tests updated) — closes #108
+**Depends on:** Nothing (independent of chat work; pure Settings-page change)
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 162 to break down)
+
+**Source:** GitHub issue #108 (label: bug). Affected: `SettingsJumpBar.tsx:21-29` (+ comment 11-14), `PluginsSection.tsx:289`, `SettingsTab.tsx:904-905` (no change needed), plus label/order assertions in Settings specs.
 
 ---
 

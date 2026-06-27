@@ -4,16 +4,16 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 159
 status: in_progress
-stopped_at: Phase 158 complete (UAT 2/2). Milestone reopened 8/10 — added Phase 159 (Web-Share Chat Parity, redirect /sessions→/app SPA so remote web guests get chat; closes the REAL PARITY-01 gap Phase 155 missed) + Phase 160 (v4.1 Chat Closeout: NOTIF-01 unread badge + 153/154/156 tech debt). Next: /gsd-plan-phase 159. Milestone close-out still owes (beyond 159/160): push main→origin + re-run verify-work 156 Test 1
-last_updated: "2026-06-27T19:10:00.000Z"
+stopped_at: Phase 159 PLANNED (1 plan, plan-checker PASSED). Milestone reopened 8/10 then expanded to 12 phases — added 159 (Web-Share Chat Parity), 160 (v4.1 Chat Closeout: NOTIF-01 + 153/154/156 tech debt), 161 (Chat-Sidebar Alias Control — surface the Phase 152 alias backend in the shared ChatPanel; chosen over a Settings Profile section so web-share guests get it via the 159 redirect = cross-surface parity), 162 (Settings Polish #108 — Terminal Plugins jump link). Next: /gsd-execute-phase 159. Milestone close-out still owes (beyond 159–162): push main→origin + re-run verify-work 156 Test 1
+last_updated: "2026-06-27T20:30:00.000Z"
 last_activity: 2026-06-27
-last_activity_desc: Phases 159 + 160 added (milestone reopened 8/10)
+last_activity_desc: Phase 159 planned; Phases 161 + 162 added (v4.1 now 12 phases)
 progress:
-  total_phases: 10
+  total_phases: 12
   completed_phases: 8
   total_plans: 34
   completed_plans: 34
-  percent: 80
+  percent: 67
 current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
 ---
 
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 159 (Web-Share Chat Parity) — ready to plan
-Plan: Not started
-Status: Milestone reopened 8/10 — Phases 159 (web chat parity) + 160 (NOTIF-01 + tech-debt closeout) added. Next: /gsd-plan-phase 159
-Last activity: 2026-06-27 — Phases 159 + 160 added
+Phase: 159 (Web-Share Chat Parity) — PLANNED, ready to execute
+Plan: 159-01-PLAN.md (1 plan, plan-checker PASSED)
+Status: v4.1 expanded to 12 phases — 159 planned; 160 (closeout), 161 (chat-sidebar alias UI), 162 (#108 Settings polish) await planning. Next: /gsd-execute-phase 159
+Last activity: 2026-06-27 — Phase 159 planned; Phases 161 + 162 added
 
 ```
-Progress: [████████████████░░░░] 34/34 plans — 8/10 phases complete (80%)
+Progress: [█████████████░░░░░░░] 8/12 phases complete (67%); Phase 159 planned
 ```
 
 ### Quick Tasks Completed
@@ -63,13 +63,16 @@ Progress: [████████████████░░░░] 34/34 p
 | 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Complete |
 | 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Complete |
 | 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | CHAT-FIX-01, CHAT-PARITY-01 | Complete |
-| 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Not planned |
+| 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Planned |
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Not planned |
+| 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Not planned |
+| 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
 
-**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159/160 requirements set at plan time.
+**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159–162 requirements set at plan time. v4.1 = 12 phases (closeout audit runs after 162; see ROADMAP closeout-ordering note).
 
 ### Roadmap Evolution
 
+- Phases 161 + 162 added (2026-06-27): v4.1 expanded to 12 phases. **161 Chat-Sidebar Alias Control** — the Phase 152 alias backend (`MsgAliasSet` 0x34, `AliasStore`/aliases.json, `ValidateAlias`, `ChatMessage.alias`/`PresenceEntry.alias`) shipped with NO UI; the desktop owner gets a default alias (host/computed name) but can't change it, and `encodeAliasSetFrame()` is called only in tests. User first suggested a Settings → Profile section, then (correctly) moved it to the **shared `ChatPanel` sidebar** — because the web-share surface has no Settings page, so a sidebar control gives GUI tab + Hub modal + web-share guest (via the 159 redirect) the control from ONE shared component = cross-surface parity by construction ([[feedback_cross_surface_parity]]). Reuses the existing wire path; may avoid new Wails bindings. **162 Settings Polish (#108)** — move the "Plugins" Settings jump link to last + rename to "Terminal Plugins" (anchor id stable); independent of chat. Decoupled from 161 once the alias work left the Settings page. Closeout (160) keeps its number to avoid breaking committed Phase-160 refs in the 159 plan/research; milestone-close audit runs after 162.
 - Phases 159 + 160 added (2026-06-27): milestone reopened 8/10. **159 Web-Share Chat Parity** — remote web guests can't chat: the share flow hands out `/sessions/{id}?cap=` (raw `terminal.js` viewer, no chat, discards frames 0x30–0x34), while the chat-capable `/app/` React SPA is never linked. Phase 155 verified PARITY-01 on `/app/` — a surface no remote guest is ever sent to (false-parity, [[feedback_tests_encoding_same_wrong_assumption]]). DECIDED approach (user, 2026-06-27): redirect `/sessions/{id}?cap=` → `/app/?session=&cap=` (server-side, `internal/webserver/server.go`); also unblocks the upcoming Tailscale Funnel session-sharing milestone. **160 v4.1 Chat Closeout** — NOTIF-01 Hub-card unread-badge dead-wiring (audit BLOCKER) + minor 153/154/156 tech debt. Split from web-chat per user (159 = feature/parity, 160 = cleanup).
 - Phase 158 added (2026-06-27): chat affordance polish — found during v4.1 UAT. (1) BUG: `.hub-modal__chat-toggle` (bottom-right, z-index 6) covers the chat composer Send button when the drawer is open (drawer z-index 5, 360px, right:0) — fix: shift toggle left of the drawer (`right:372px`) while `chat-panel--open` (CHAT-FIX-01). (2) PARITY: chat toggle + ChatPanel existed only in `HubInteractiveModal` and web-share, not the raw session terminal tab — added via TerminalChatHost (CHAT-PARITY-01). COMPLETE 2026-06-27, UAT 2/2.
 
