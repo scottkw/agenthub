@@ -309,18 +309,22 @@ test.describe('Phase 155 — chat parity gate', () => {
       const sendBtn = page.locator('[data-chat-send]')
       await expect(sendBtn).toBeDisabled({ timeout: 5_000 })
 
-      // SC-3 server-side gate: count messages before the adversarial attempt.
-      const beforeCount = await page.locator('.chat-msg').count()
+      // SC-3 server-side gate: the RO client's OWN adversarial send must never land.
+      // Assert on the unique message TEXT rather than a raw .chat-msg count delta:
+      // the fixture session is shared, so broadcast frames from earlier SC-1 tests can
+      // replay late (esp. on WebKit) and bump the count by +2 — unrelated to this RO
+      // client's send (which would be +1). A content-scoped assertion tests exactly the
+      // RO-rejection semantics and is immune to those stray frames (Phase 155-06 flake fix).
+      const roSendText = 'adversarial-ro-send'
 
       // Adversarial: fill and press Enter (the client-side guard short-circuits,
-      // but if it were bypassed, the server would reject the frame too).
-      // Since the UI blocks the send, we just confirm no new messages appear.
-      await page.locator('.chat-panel__composer textarea').fill('adversarial-ro-send')
+      // but if it were bypassed, the server ErrChatReadOnly gate would reject the frame).
+      await page.locator('.chat-panel__composer textarea').fill(roSendText)
       await page.keyboard.press('Enter')
       await page.waitForTimeout(500)
 
-      const afterCount = await page.locator('.chat-msg').count()
-      expect(afterCount).toBe(beforeCount) // no new message from RO client
+      // The RO client's own message must never appear in the thread.
+      await expect(page.locator('.chat-msg').filter({ hasText: roSendText })).toHaveCount(0)
     } finally {
       await ctx.close()
     }
