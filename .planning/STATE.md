@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 158
-status: complete
-stopped_at: Phase 158 complete — UAT 2/2 passed (M-29 toggle/Send non-overlap, M-30 terminal-tab chat parity, both verified via dev-browser geometry against real style.css). All 8 v4.1 phase dirs (151-158) executed/verified. NOT yet ready for /gsd-complete-milestone — 3 milestone blockers remain: (1) NOTIF-01 Hub-card unread-badge dead-wiring (audit BLOCKER, NOT addressed by 158 — see .planning/v4.1-MILESTONE-AUDIT.md), (2) push main→origin, (3) re-run verify-work 156 Test 1 after push
-last_updated: "2026-06-27T17:03:58.996Z"
+current_phase: 159
+status: in_progress
+stopped_at: Phase 158 complete (UAT 2/2). Milestone reopened 8/10 — added Phase 159 (Web-Share Chat Parity, redirect /sessions→/app SPA so remote web guests get chat; closes the REAL PARITY-01 gap Phase 155 missed) + Phase 160 (v4.1 Chat Closeout: NOTIF-01 unread badge + 153/154/156 tech debt). Next: /gsd-plan-phase 159. Milestone close-out still owes (beyond 159/160): push main→origin + re-run verify-work 156 Test 1
+last_updated: "2026-06-27T19:10:00.000Z"
 last_activity: 2026-06-27
-last_activity_desc: Phase 158 complete
+last_activity_desc: Phases 159 + 160 added (milestone reopened 8/10)
 progress:
-  total_phases: 8
+  total_phases: 10
   completed_phases: 8
   total_plans: 34
   completed_plans: 34
-  percent: 100
-current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
+  percent: 80
+current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
 ---
 
 # Project State
@@ -24,17 +24,17 @@ current_phase_name: chat-affordance-polish-fix-toggle-send-overlap-add-chat-to-t
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 phase 158 complete — milestone close-out still gated on NOTIF-01 audit blocker + push + verify-156
+**Current focus:** Phase 159 — Web-Share Chat Parity (redirect /sessions → /app SPA so remote web guests get chat)
 
 ## Current Position
 
-Phase: 158 (final v4.1 phase) — COMPLETE
+Phase: 159 (Web-Share Chat Parity) — ready to plan
 Plan: Not started
-Status: Phase 158 complete (UAT 2/2). Milestone NOT ready to archive — NOTIF-01 blocker + push main→origin + re-run verify-156 Test 1 outstanding
-Last activity: 2026-06-27 — Phase 158 complete (UAT 2/2 passed)
+Status: Milestone reopened 8/10 — Phases 159 (web chat parity) + 160 (NOTIF-01 + tech-debt closeout) added. Next: /gsd-plan-phase 159
+Last activity: 2026-06-27 — Phases 159 + 160 added
 
 ```
-Progress: [████████████████████] 34/34 plans (100%) — 8/8 phases complete
+Progress: [████████████████░░░░] 34/34 plans — 8/10 phases complete (80%)
 ```
 
 ### Quick Tasks Completed
@@ -62,13 +62,16 @@ Progress: [████████████████████] 34/34 p
 | 155 | Web-Share Chat UI + Cross-Surface Parity Gate | EXPORT-01, PARITY-01 | Complete |
 | 156 | Install Links & Distribution | INSTALL-01, INSTALL-02, INSTALL-03 | Complete |
 | 157 | Terminal Screen-Share Semantics (Issue #109) | VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05 | Complete |
-| 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | TBD (set at plan time) | Not planned |
+| 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | CHAT-FIX-01, CHAT-PARITY-01 | Complete |
+| 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Not planned |
+| 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Not planned |
 
-**Total:** 29 requirements mapped across phases 151–157 (100% coverage); Phase 158 (UAT follow-up) requirements TBD at plan time.
+**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159/160 requirements set at plan time.
 
 ### Roadmap Evolution
 
-- Phase 158 added (2026-06-27): chat affordance polish — found during v4.1 UAT. (1) BUG: `.hub-modal__chat-toggle` (bottom-right, z-index 6) covers the chat composer Send button when the drawer is open (drawer z-index 5, 360px, right:0) — fix: shift toggle left of the drawer (e.g. `right:372px`) while `chat-panel--open`. (2) PARITY: chat toggle + ChatPanel exist only in `HubInteractiveModal` and web-share, not the raw session terminal tab (`App.tsx` ~1701) — add the chat affordance there. Appended to v4.1; reopens milestone 7/8.
+- Phases 159 + 160 added (2026-06-27): milestone reopened 8/10. **159 Web-Share Chat Parity** — remote web guests can't chat: the share flow hands out `/sessions/{id}?cap=` (raw `terminal.js` viewer, no chat, discards frames 0x30–0x34), while the chat-capable `/app/` React SPA is never linked. Phase 155 verified PARITY-01 on `/app/` — a surface no remote guest is ever sent to (false-parity, [[feedback_tests_encoding_same_wrong_assumption]]). DECIDED approach (user, 2026-06-27): redirect `/sessions/{id}?cap=` → `/app/?session=&cap=` (server-side, `internal/webserver/server.go`); also unblocks the upcoming Tailscale Funnel session-sharing milestone. **160 v4.1 Chat Closeout** — NOTIF-01 Hub-card unread-badge dead-wiring (audit BLOCKER) + minor 153/154/156 tech debt. Split from web-chat per user (159 = feature/parity, 160 = cleanup).
+- Phase 158 added (2026-06-27): chat affordance polish — found during v4.1 UAT. (1) BUG: `.hub-modal__chat-toggle` (bottom-right, z-index 6) covers the chat composer Send button when the drawer is open (drawer z-index 5, 360px, right:0) — fix: shift toggle left of the drawer (`right:372px`) while `chat-panel--open` (CHAT-FIX-01). (2) PARITY: chat toggle + ChatPanel existed only in `HubInteractiveModal` and web-share, not the raw session terminal tab — added via TerminalChatHost (CHAT-PARITY-01). COMPLETE 2026-06-27, UAT 2/2.
 
 ## Key Decisions (v4.1)
 

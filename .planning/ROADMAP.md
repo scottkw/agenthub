@@ -29,7 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
-- 🚧 **v4.1 Session Chat** — Phases 151-158 (active, started 2026-06-25, closes #79, #109)
+- 🚧 **v4.1 Session Chat** — Phases 151-160 (active, started 2026-06-25, closes #79, #109)
 
 ## Phases
 
@@ -369,6 +369,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 156: Install Links & Distribution** - Linux install.sh, correct winget ID, winget catalog first-submission automation (completed 2026-06-27)
 - [x] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble (completed 2026-06-27)
 - [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
+- [ ] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27)
+- [ ] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit (added 2026-06-27)
 
 ### Progress: v4.1 Session Chat
 
@@ -382,6 +384,8 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
+| 159. Web-Share Chat Parity (WEBCHAT-01/02) | 0/0 | Not planned | — |
+| 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 0/0 | Not planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -438,6 +442,36 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 158-02-PLAN.md — Terminal-tab chat parity: extract TerminalChatHost (TerminalPanel + overlay ChatPanel + toggle), wire into App.tsx tab (CHAT-PARITY-01) [wave 2, depends 158-01]
+
+### Phase 159: Web-Share Chat Parity — remote web guests get chat
+
+**Goal:** A remote collaborator who opens a web-share link can use session chat — the same ChatPanel, toggle, unread/mention badge, and presence as the desktop tab and Hub modal. Closes the REAL cross-surface parity gap: Phase 155 verified PARITY-01 only on the `/app/` React SPA, but the share flow hands out `/sessions/{id}?cap=` (the raw vanilla-JS `terminal.js` viewer, which has no chat UI and silently discards chat frames 0x30–0x34). Release-blocking parity; also a prerequisite for the upcoming Tailscale Funnel session-sharing milestone (web chat must work for funnel-shared sessions).
+
+**Approach (decided 2026-06-27):** Redirect the shared `/sessions/{id}?cap=TOKEN` link to the chat-capable `/app/?session={id}&cap={token}` React SPA (WebShareSessionView), rather than re-building chat in vanilla JS. The SPA already carries ChatPanel (Phase 155) + the Phase 157 host-authority resize/scale semantics (157-04). Server change in `internal/webserver/server.go` (the `/sessions/{id}` route / `handleTerminalPage`). Planning MUST: (a) honor Chesterton's Fence — establish why the lightweight raw viewer exists before retiring it for shared sessions, and decide whether any non-chat path still needs it; (b) preserve cap-token + session-id through the redirect (URL-encoded), for both read and write caps; (c) keep RO caps as full chat participants (D-06).
+
+**Requirements**: WEBCHAT-01 (remote guest reaches a chat-capable surface via redirect), WEBCHAT-02 (cross-surface parity verified on the ACTUALLY-SHARED link, not `/app/` directly), PARITY-01 (upstream — finally honored on the shared surface)
+**Depends on:** Phase 158
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 159 to break down)
+
+**Root-cause evidence (Explore, 2026-06-27):** share URL built at `internal/daemon/api.go:755-760` (`/sessions/{id}?cap=`); `web/assets/terminal.js:1-26` defines only 0x01/0x02/0x10/0x11/0x12 — no chat; the `/app/` route at `internal/webserver/server.go:568-580` is open and reachable but never linked from the share flow; `handleWSSRelay` (`server.go:1047-1065`) already relays MsgChatSend/Typing/Presence to web guests — only the raw viewer's missing UI drops them.
+
+### Phase 160: v4.1 Chat Closeout — NOTIF-01 unread badge + 153/154/156 tech debt
+
+**Goal:** Close the remaining v4.1 chat gaps so the milestone can ship. (1) **NOTIF-01** — the Hub session-card unread badge is dead-wired: `SessionCard` renders `<ChatBadge>` but `SessionCardGrid` never threads `unreadCount`/`hasChatMention`, and unread accrual lives in `ChatPanel`, which only mounts while the modal is open — so a backgrounded session has no unread source and the card badge can never light. Thread the prop AND provide a session-scoped unread signal for closed-modal sessions. (2) Clear the minor tech debt flagged in the v4.1 milestone audit: 153 IN-02/IN-04, 154 NOTIF-02 traceability row, 156 WR-01/02/03.
+
+**Requirements**: NOTIF-01 (Hub-card unread badge — finally wired), plus tech-debt closeout (153 IN-02/IN-04, 154 NOTIF-02, 156 WR-01/02/03)
+**Depends on:** Phase 159
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 160 to break down)
+
+**Audit reference:** `.planning/v4.1-MILESTONE-AUDIT.md` (NOTIF-01 = the dead-wiring BLOCKER; Phase 154 VERIFICATION falsely claimed it was wired "via existing session callback" — that callback does not exist).
 
 ---
 
