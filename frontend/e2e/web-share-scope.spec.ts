@@ -81,4 +81,30 @@ test.describe('Phase 159-02 — web-share guest scope (WEBCHAT-03)', () => {
       await ctx.close()
     }
   })
+
+  // WEBCHAT-05: a web-share guest cannot rename the session tab. RenameSession is
+  // a Wails RPC with no bridge in a browser (it would fail silently and only
+  // relabel the local tab), so the desktop-only tab menu + double-click rename
+  // are suppressed in web mode.
+  test('web-share guest cannot rename the tab (no session menu, no rename-on-double-click)', async ({ browser }) => {
+    const env = loadFixtureEnv()
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    try {
+      const page = await ctx.newPage()
+      await page.goto(appUrl(env), { waitUntil: 'domcontentloaded' })
+      await expect(page.locator('.hub-modal__chat-toggle')).toBeVisible({ timeout: 15_000 })
+
+      // No session-menu chevron in web mode.
+      await expect(page.locator('[data-testid="tab-chevron"]')).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'Session menu' })).toHaveCount(0)
+
+      // Double-clicking the active tab name must NOT open the rename input.
+      const sessionTab = page.locator('.tab__name', { hasText: 'Session' }).first()
+      await sessionTab.dblclick()
+      await page.waitForTimeout(300)
+      await expect(page.locator('.tab__rename-input')).toHaveCount(0)
+    } finally {
+      await ctx.close()
+    }
+  })
 })

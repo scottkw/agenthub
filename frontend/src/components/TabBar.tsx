@@ -65,6 +65,14 @@ interface TabBarProps {
    * with a truthy sessionId).
    */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
+  /**
+   * Phase 159-04 (WEBCHAT-05) — web-share guest mode. When true, the desktop-only
+   * tab affordances are suppressed: no double-click/right-click/chevron session
+   * menu (Rename + Save Terminal As are Wails RPCs with no bridge in a browser —
+   * they fail silently and only relabel the local tab; Browse files is already
+   * auto-opened per files.read in App's web bootstrap). The × close button stays.
+   */
+  webMode?: boolean
 }
 
 /**
@@ -82,6 +90,7 @@ export function TabBar({
   exitCountdowns,
   tabProgress,
   onBrowseFiles,
+  webMode = false,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -222,8 +231,8 @@ export function TabBar({
             ) : (
               <span
                 className="tab__name"
-                onDoubleClick={(e) => startEdit(tab, e)}
-                onContextMenu={(e) => {
+                onDoubleClick={webMode ? undefined : (e) => startEdit(tab, e)}
+                onContextMenu={webMode ? undefined : (e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   setContextMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
@@ -236,7 +245,7 @@ export function TabBar({
             {exitCountdowns?.[tab.sessionId] && (
               <span className="tab__countdown">{exitCountdowns[tab.sessionId]}s</span>
             )}
-            {tab.sessionId && (
+            {tab.sessionId && !webMode && (
               <button
                 className="tab__chevron"
                 data-testid="tab-chevron"

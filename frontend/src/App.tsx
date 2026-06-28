@@ -1497,6 +1497,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           onRequestSave={handleRequestSave}
           tabProgress={tabProgress}
           onBrowseFiles={handleOpenFileBrowser}
+          webMode={mode === 'web'}
         />
 
         <div className="terminal-container">
