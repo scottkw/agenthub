@@ -560,13 +560,17 @@ Plans:
 
 **Requirements**: CHAT-LAYOUT-01 (header-overflow truncation / friendly tailnet label), CHAT-LAYOUT-02 (resizable chat width) — finalize during /gsd-plan-phase
 **Depends on:** Phase 163
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Source: discovered during Phase 161 UAT (alias-control live verification); deferred here by user decision 2026-06-28. CHAT-LAYOUT-01 is pre-existing (`ChatMessage.tsx` was untouched by Phase 161).
 
-Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 164 to break down)
+- [ ] 164-01-PLAN.md — CHAT-LAYOUT-01: header-overflow fix — constrain getRowStyle virtualizer row width (root cause) + render last-6-char authorID fingerprint as the secondary label (shared ChatMessage/ChatPanel)
+
+**Wave 2** *(blocked on Wave 1 — shared ChatPanel.tsx/test files)*
+
+- [ ] 164-02-PLAN.md — CHAT-LAYOUT-02: resizable chat width — left-edge drag handle, localStorage persistence + clamp (~280–640px), single --chat-panel-width custom property across all three surfaces, toggle offset tracks live width, D-02 overlay preserved
 
 ---
 
