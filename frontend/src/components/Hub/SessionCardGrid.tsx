@@ -163,6 +163,10 @@ export interface SessionCardGridProps {
   onOpenInBrowser?: (session: AdaptedRemoteSessionInfo) => void
   /** Phase 138 — Browse remote files (threaded from HubPanel) */
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
+  /** NOTIF-01: unread badge data keyed by session ID.
+   *  Threaded from HubPanel's unreadMap to both SessionCard render sites.
+   *  Optional — absence is equivalent to an empty map (no badges shown). */
+  unreadBySessionId?: Map<string, { count: number; hasMention: boolean }>
 }
 
 // ---- Component ----
@@ -203,6 +207,7 @@ export function SessionCardGrid({
   onKill,
   onOpenInBrowser,
   onBrowseFiles,
+  unreadBySessionId,
 }: SessionCardGridProps): React.ReactElement {
   /* ATTN-02: reorder animation FLIP 300ms ease; suppressed under prefers-reduced-motion */
   const { registerNode, capturePositions, playFLIP } = useFLIPAnimation(true)
@@ -279,6 +284,8 @@ export function SessionCardGrid({
                     onKill={onKill}
                     onOpenInBrowser={onOpenInBrowser}
                     onBrowseFiles={onBrowseFiles}
+                    unreadCount={unreadBySessionId?.get(s.id)?.count}
+                    hasChatMention={unreadBySessionId?.get(s.id)?.hasMention}
                   />
                 </div>
               ))}
@@ -329,6 +336,8 @@ export function SessionCardGrid({
                     onKill={onKill}
                     onOpenInBrowser={onOpenInBrowser}
                     onBrowseFiles={onBrowseFiles}
+                    unreadCount={unreadBySessionId?.get(s.id)?.count}
+                    hasChatMention={unreadBySessionId?.get(s.id)?.hasMention}
                   />
                 </div>
               ))}
