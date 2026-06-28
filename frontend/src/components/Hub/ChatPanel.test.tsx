@@ -1156,3 +1156,98 @@ describe('ChatPanel — localStorage width persistence on mount (CHAT-LAYOUT-02 
     unmount()
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 164-02 — CHAT-LAYOUT-02: resize drag handle + D-02 no-sendResize
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('ChatPanel — resize drag handle (CHAT-LAYOUT-02)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    document.documentElement.style.removeProperty('--chat-panel-width')
+    mocks.mockSendChat.mockClear()
+    mocks.mockSendSessionInject.mockClear()
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.style.removeProperty('--chat-panel-width')
+  })
+
+  it('renders a .chat-panel__resize-handle element', () => {
+    const { container, unmount } = mountPanel()
+    expect(container.querySelector('.chat-panel__resize-handle')).not.toBeNull()
+    unmount()
+  })
+
+  it('dragging handle left increases the drawer width via --chat-panel-width', () => {
+    const { container, unmount } = mountPanel()
+    const handle = container.querySelector('.chat-panel__resize-handle') as HTMLElement
+
+    // Start drag at x=100; move 20px to the left → width grows by 20
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, pointerId: 1 }))
+    })
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 80, pointerId: 1 }))
+    })
+
+    const expectedWidth = CHAT_WIDTH_DEFAULT + 20  // 380
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${expectedWidth}px`)
+    unmount()
+  })
+
+  it('drag clamps at CHAT_WIDTH_MAX — cannot drag wider than max', () => {
+    const { container, unmount } = mountPanel()  // starts at DEFAULT = 360
+    const handle = container.querySelector('.chat-panel__resize-handle') as HTMLElement
+
+    // Drag far left (startX=100, currentX=-900 → delta = 100-(-900) = 1000 → 360+1000 = 1360 → clamped to MAX)
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, pointerId: 1 }))
+    })
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: -900, pointerId: 1 }))
+    })
+
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${CHAT_WIDTH_MAX}px`)
+    unmount()
+  })
+
+  it('drag clamps at CHAT_WIDTH_MIN — cannot drag narrower than min', () => {
+    // Start just above MIN so a small right-drag puts us below MIN
+    localStorage.setItem('agenthub.chatPanelWidth', String(CHAT_WIDTH_MIN + 10))
+    const { container, unmount } = mountPanel()
+    const handle = container.querySelector('.chat-panel__resize-handle') as HTMLElement
+
+    // startX=100, currentX=200 → delta = 100-200 = -100 → (MIN+10) + (-100) = MIN-90 → clamped to MIN
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, pointerId: 1 }))
+    })
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 200, pointerId: 1 }))
+    })
+
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${CHAT_WIDTH_MIN}px`)
+    unmount()
+  })
+
+  it('resize drag does NOT call sendChat or sendSessionInject (D-02 overlay preserved)', () => {
+    const { container, unmount } = mountPanel()
+    const handle = container.querySelector('.chat-panel__resize-handle') as HTMLElement
+
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, pointerId: 1 }))
+    })
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 80, pointerId: 1 }))
+    })
+    act(() => {
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 80, pointerId: 1 }))
+    })
+
+    // D-02: resizing the drawer must NOT send any relay frames
+    expect(mocks.mockSendChat).not.toHaveBeenCalled()
+    expect(mocks.mockSendSessionInject).not.toHaveBeenCalled()
+    unmount()
+  })
+})
