@@ -444,6 +444,66 @@ describe('RelayClient Phase 154 backward compatibility', () => {
   })
 })
 
+// ─── Phase 161 Plan 02: RelayClient.sendAliasSet ─────────────────────────────
+
+describe('RelayClient.sendAliasSet (Phase 161-02)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastMockWS: any
+
+  beforeEach(() => {
+    lastMockWS = null
+    const MockWS = vi.fn(function (this: Record<string, unknown>) {
+      this.binaryType = 'arraybuffer'
+      this.readyState = 1 // OPEN
+      this.onopen = null
+      this.onmessage = null
+      this.onclose = null
+      this.onerror = null
+      this.send = vi.fn()
+      this.close = vi.fn()
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      lastMockWS = this
+    }) as unknown as typeof WebSocket
+    // WebSocket.OPEN === 1 — set on the mock so the readyState guard resolves correctly
+    ;(MockWS as any).OPEN = 1
+    vi.stubGlobal('WebSocket', MockWS)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('calls ws.send once with a Uint8Array [0x34, ...JSON] where body parses to {alias:"ken"}', () => {
+    const client = new RelayClient(34115, 'sess-1', { onOutput: vi.fn() })
+    client.sendAliasSet('ken')
+    expect(lastMockWS.send).toHaveBeenCalledTimes(1)
+    const arg = lastMockWS.send.mock.calls[0][0] as Uint8Array
+    expect(arg).toBeInstanceOf(Uint8Array)
+    expect(arg[0]).toBe(0x34)
+    const body = new TextDecoder().decode(arg.slice(1))
+    expect(JSON.parse(body)).toEqual({ alias: 'ken' })
+    client.close()
+  })
+
+  it('does not call ws.send when readyState is not OPEN (CONNECTING = 0)', () => {
+    const client = new RelayClient(34115, 'sess-1', { onOutput: vi.fn() })
+    lastMockWS.readyState = 0 // CONNECTING
+    client.sendAliasSet('ken')
+    expect(lastMockWS.send).not.toHaveBeenCalled()
+    client.close()
+  })
+
+  it('sends unicode aliases through encodeAliasSetFrame unchanged', () => {
+    const client = new RelayClient(34115, 'sess-1', { onOutput: vi.fn() })
+    client.sendAliasSet('café 🦊')
+    expect(lastMockWS.send).toHaveBeenCalledTimes(1)
+    const arg = lastMockWS.send.mock.calls[0][0] as Uint8Array
+    const body = new TextDecoder().decode(arg.slice(1))
+    expect(JSON.parse(body)).toEqual({ alias: 'café 🦊' })
+    client.close()
+  })
+})
+
 // ─── Phase 157 VIEW-04: 0x02 MsgResize dispatch → onResize callback ───────────
 
 describe('RelayClient Phase 157 — 0x02 MsgResize dispatch', () => {
