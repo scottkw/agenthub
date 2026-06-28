@@ -11,6 +11,9 @@ import {
   MSG_CHAT_SEND,
   MSG_SESSION_INJECT,
   MSG_INJECT_ERROR,
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-expect-error MSG_SELF added in Phase 161-02 GREEN
+  MSG_SELF,
   encodeInputFrame,
   encodeResizeFrame,
   encodeTypingFrame,
@@ -585,6 +588,93 @@ describe('RelayClient Phase 157 — 0x02 MsgResize dispatch', () => {
     const client = new RelayClient(34115, 'sess-host', callbacks)
 
     const frame = new Uint8Array([0x02, 0, 80, 0, 24])
+    expect(() => {
+      lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
+    }).not.toThrow()
+
+    client.close()
+  })
+})
+
+// ─── Phase 161 Plan 02: MSG_SELF (0x37) / onSelf callback ─────────────────────
+
+describe('MSG_SELF constant (Phase 161-02)', () => {
+  it('MSG_SELF is 0x37', () => {
+    expect(MSG_SELF).toBe(0x37)
+  })
+})
+
+describe('parseServerFrame — MsgSelf (0x37) (Phase 161-02)', () => {
+  it('decodes a MsgSelf (0x37) frame into a self variant with personKey and alias', () => {
+    const body = JSON.stringify({ personKey: 'tn:web', alias: 'guest' })
+    const encoded = new TextEncoder().encode(body)
+    const data = new Uint8Array([0x37, ...encoded])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('self')
+    if (result.type === 'self') {
+      expect(result.personKey).toBe('tn:web')
+      expect(result.alias).toBe('guest')
+    }
+  })
+
+  it('returns unknown for a malformed/short 0x37 body (invalid JSON)', () => {
+    const data = new Uint8Array([0x37, ...new TextEncoder().encode('bad{')])
+    const result = parseServerFrame(data)
+    expect(result.type).toBe('unknown')
+  })
+})
+
+describe('RelayClient onSelf callback dispatch (Phase 161-02)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastMockWS: any
+
+  beforeEach(() => {
+    lastMockWS = null
+    const MockWS = vi.fn(function (this: Record<string, unknown>) {
+      this.binaryType = 'arraybuffer'
+      this.readyState = 1 // OPEN
+      this.onopen = null
+      this.onmessage = null
+      this.onclose = null
+      this.onerror = null
+      this.send = vi.fn()
+      this.close = vi.fn()
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      lastMockWS = this
+    }) as unknown as typeof WebSocket
+    ;(MockWS as any).OPEN = 1
+    vi.stubGlobal('WebSocket', MockWS)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('fires onSelf(personKey, alias) exactly once when a 0x37 frame arrives', () => {
+    const onSelfFn = vi.fn()
+    // Pass onSelf via spread — TS strict-excess check bypassed while export is absent
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = new RelayClient(34115, 'sess-self', { onOutput: vi.fn(), onSelf: onSelfFn } as any)
+
+    const body = JSON.stringify({ personKey: 'tn:web', alias: 'guest' })
+    const encoded = new TextEncoder().encode(body)
+    const frame = new Uint8Array([0x37, ...encoded])
+    lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
+
+    expect(onSelfFn).toHaveBeenCalledTimes(1)
+    expect(onSelfFn).toHaveBeenCalledWith('tn:web', 'guest')
+
+    client.close()
+  })
+
+  it('does not throw when onSelf is omitted and a 0x37 frame arrives', () => {
+    const callbacks: RelayClientCallbacks = { onOutput: vi.fn() }
+    const client = new RelayClient(34115, 'sess-noself', callbacks)
+
+    const body = JSON.stringify({ personKey: 'tn:web', alias: 'guest' })
+    const encoded = new TextEncoder().encode(body)
+    const frame = new Uint8Array([0x37, ...encoded])
+
     expect(() => {
       lastMockWS.onmessage?.({ data: frame.buffer as ArrayBuffer })
     }).not.toThrow()
