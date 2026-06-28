@@ -42,6 +42,30 @@ export function tailnetIdToHue(tailnetID: string): number {
 }
 
 /**
+ * Format a short disambiguating fingerprint from a raw authorID.
+ *
+ * Returns the last 6 characters of `authorID`, giving a compact stable
+ * token that avoids displaying the full `nodekey:…` string in the chat
+ * header (CHAT-LAYOUT-01, Decision 2).
+ *
+ * Degrades gracefully:
+ *   - Input shorter than 6 chars (e.g. `"local"` desktop sentinel): returned
+ *     unchanged so the label is still readable and never empty.
+ *   - Empty string: returns empty string (no throw).
+ *
+ * CRITICAL: this helper is display-only. Identity dedup, avatar hue
+ * (tailnetIdToHue), and @mention matching all continue to receive the FULL,
+ * unchanged authorID — only the secondary label string displayed in
+ * .chat-msg__tailnet-id changes.
+ *
+ * Exported for unit tests — pure, no side effects.
+ */
+export function formatAuthorFingerprint(authorID: string): string {
+  if (authorID.length <= 6) return authorID
+  return authorID.slice(-6)
+}
+
+/**
  * Format a UNIX millisecond timestamp as HH:MM (24-hour clock, local time).
  * Exported for unit tests.
  */
@@ -70,6 +94,8 @@ export interface ChatMessageProps {
  */
 export function ChatMessage({ message, isFirstInGroup, isMentionOfMe }: ChatMessageProps) {
   const { authorID, alias, ts, content, sessionInject } = message
+  // CRITICAL: hue and mention matching use the FULL, unchanged authorID (CHAT-LAYOUT-01).
+  // Only the displayed secondary label uses the short fingerprint.
   const hue = tailnetIdToHue(authorID)
   const isoTime = new Date(ts).toISOString()
   const hhmm = formatHHMM(ts)
@@ -91,7 +117,10 @@ export function ChatMessage({ message, isFirstInGroup, isMentionOfMe }: ChatMess
             {alias[0]?.toUpperCase() ?? '?'}
           </div>
           <span className="chat-msg__alias">{alias}</span>
-          <span className="chat-msg__tailnet-id">({authorID})</span>
+          {/* CHAT-LAYOUT-01 Decision 2: show a short 6-char fingerprint, not the
+              full raw nodekey, so the header fits within the constrained row width.
+              tailnetIdToHue above still receives the FULL authorID — display only. */}
+          <span className="chat-msg__tailnet-id">({formatAuthorFingerprint(authorID)})</span>
           {/* @you chip: glyph channel — visible even when color is indistinguishable (D-05) */}
           {isMentionOfMe && (
             <span className="chat-msg__you-chip" aria-hidden="true">@</span>
