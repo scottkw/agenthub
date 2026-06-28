@@ -471,11 +471,15 @@ Plans:
 
 **Requirements**: NOTIF-01 (Hub-card unread badge — finally wired), plus tech-debt closeout (153 IN-02/IN-04, 154 NOTIF-02, 156 WR-01/02/03)
 **Depends on:** Phase 159
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 160 to break down)
+- [ ] 160-01-PLAN.md — NOTIF-01 background unread source: `useChatUnreadListeners` hook (read-only relay WS per backgrounded session) + test [NOTIF-01]
+- [ ] 160-02-PLAN.md — NOTIF-01 prop threading: lift unread out of modal, thread `unreadBySessionId` through SessionCardGrid to both card sites, wire HubPanel `unreadMap` + reset-on-open + hook [NOTIF-01]
+- [ ] 160-03-PLAN.md — IN-02 regression test: control-only inject → zero PTY writes (`TestInject_ControlOnlyInput`) [IN-02]
+- [ ] 160-04-PLAN.md — install.sh hardening: WR-01 `grep -F`, WR-03 root `mkdir -p`, + install-sh.test.sh assertions [WR-01, WR-03]
+- [ ] 160-05-PLAN.md — docs/traceability closeout: IN-04 doc comment, WR-02 Run Command, TESTING.md §2/§4 registration [IN-04, NOTIF-02, WR-02]
 
 **Audit reference:** `.planning/v4.1-MILESTONE-AUDIT.md` (NOTIF-01 = the dead-wiring BLOCKER; Phase 154 VERIFICATION falsely claimed it was wired "via existing session callback" — that callback does not exist).
 
