@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — AWAITING UAT
-Plan: 1 of 1 complete
-Status: Automated verification PASSED (5/5 must-haves); awaiting live-daemon UAT M-31
+Plan: 2 of 2 complete (159-01 redirect + 159-02 WEBCHAT-03 guest-scope gap-closure)
+Status: Automated verification PASSED; 159-02 (web-share guest scope) added + verified after live UAT found /app/ exposed the full desktop shell. Awaiting live-daemon UAT M-31 on fresh build.
 Last activity: 2026-06-27 — Phase 159 executed + automated-verified; awaiting live UAT M-31
 
 ```
