@@ -893,6 +893,58 @@ describe('alias control — Phase 161 ALIAS-UI-01/02 (render + RO-enable + commi
     unmount()
   })
 
+  it('-t alias: header reflects the LIVE roster alias for self after an alias change (desktop)', () => {
+    // Phase 161 ALIAS-UI-02 regression: MsgSelf (0x37) is emitted once on connect, so
+    // selfIdentity.alias is a frozen connect-time snapshot. After the user changes their
+    // alias, only the presence roster re-broadcasts — the header must track the live roster
+    // entry for the self personKey, NOT the stale connect-time selfIdentity.alias.
+    const { container, unmount } = mountPanel()
+
+    // Connect-time identity (hostname default) arrives via MsgSelf.
+    act(() => {
+      const onSelf = mocks.lastCallbacks?.onSelf as ((personKey: string, alias: string) => void) | undefined
+      onSelf?.('local:local', 'Mac.attlocal.net')
+    })
+    // Initial roster also carries the hostname default.
+    act(() => {
+      const onPresence = mocks.lastCallbacks?.onPresence as ((p: PresenceEntry[]) => void) | undefined
+      onPresence?.([{ personKey: 'local:local', tailnetID: 'local', origin: 'local', alias: 'Mac.attlocal.net', connCount: 1 }])
+    })
+    expect(container.querySelector('.chat-panel__alias-label')?.textContent).toContain('Mac.attlocal.net')
+
+    // User changes alias → server re-broadcasts presence (NO new MsgSelf).
+    act(() => {
+      const onPresence = mocks.lastCallbacks?.onPresence as ((p: PresenceEntry[]) => void) | undefined
+      onPresence?.([{ personKey: 'local:local', tailnetID: 'local', origin: 'local', alias: 'Ken (Desktop)', connCount: 1 }])
+    })
+
+    // Header must now show the NEW alias, not the frozen connect-time value.
+    expect(container.querySelector('.chat-panel__alias-label')?.textContent).toContain('Ken (Desktop)')
+    expect(container.querySelector('.chat-panel__alias-label')?.textContent).not.toContain('Mac.attlocal.net')
+
+    unmount()
+  })
+
+  it('-t alias: header reflects the LIVE roster alias for self after an alias change (web personKey)', () => {
+    const { container, unmount } = mountPanel()
+
+    // Web guest learns its own identity via MsgSelf on connect.
+    act(() => {
+      const onSelf = mocks.lastCallbacks?.onSelf as ((personKey: string, alias: string) => void) | undefined
+      onSelf?.('node:abc123', 'WebOld')
+    })
+    // Roster re-broadcast after the guest sets a new alias (same personKey).
+    act(() => {
+      const onPresence = mocks.lastCallbacks?.onPresence as ((p: PresenceEntry[]) => void) | undefined
+      onPresence?.([{ personKey: 'node:abc123', tailnetID: 'node', origin: 'remote', alias: 'WebNew', connCount: 1 }])
+    })
+
+    expect(container.querySelector('.chat-panel__alias-label')?.textContent).toContain('WebNew')
+    expect(container.querySelector('.chat-panel__alias-label')?.textContent).not.toContain('WebOld')
+
+    unmount()
+  })
+
   it('-t alias: global scope communicated via title or aria-label', () => {
     const { container, unmount } = mountPanel()
 

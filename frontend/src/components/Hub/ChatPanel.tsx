@@ -624,15 +624,24 @@ export function ChatPanel({
   // ── Phase 161 ALIAS-UI-01: alias control helpers ─────────────────────────
 
   /**
-   * Current alias for pre-fill.
+   * Current alias for the header + edit pre-fill.
+   *
+   * MsgSelf (0x37) is emitted only ONCE on WS connect, so selfIdentity.alias is a frozen
+   * connect-time snapshot. After the user changes their alias, the server re-broadcasts the
+   * presence roster but does NOT re-emit MsgSelf (ALIAS-UI-02). The header must therefore
+   * track the LIVE roster entry for the self person — keyed by selfIdentity.personKey, which
+   * matches the roster key the server assigns (`local:local` desktop / `tailnetID:web`) —
+   * not the stale selfIdentity.alias.
+   *
    * Priority:
-   *   1. onSelf identity (web-share; arrives via MsgSelf on WS connect; also works for desktop)
-   *   2. local:local presence entry (desktop fallback before MsgSelf arrives)
-   *   3. Empty string (no alias set yet — neutral placeholder)
+   *   1. Live presence entry for the self personKey (updates immediately on alias change)
+   *   2. selfIdentity.alias — connect-time seed, used before the roster includes self (web pre-fill)
+   *   3. Empty string (no identity yet — neutral placeholder)
    */
+  const selfPersonKey = selfIdentity?.personKey ?? 'local:local'
   const currentAlias =
+    participants.find(p => p.personKey === selfPersonKey)?.alias ??
     selfIdentity?.alias ??
-    participants.find(p => p.personKey === 'local:local')?.alias ??
     ''
 
   /**
