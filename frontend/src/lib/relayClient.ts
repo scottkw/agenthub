@@ -13,6 +13,7 @@ export const MSG_TYPING          = 0x33  // bidirectional: typing-start/stop (JS
 export const MSG_ALIAS_SET       = 0x34  // client → server: set/update alias (JSON AliasPayload)
 export const MSG_SESSION_INJECT  = 0x35  // client → server: inject text into PTY
 export const MSG_INJECT_ERROR    = 0x36  // server → client: inject rejected (SEC-01 or oversize)
+export const MSG_SELF            = 0x37  // server → client: own identity on WS connect (Phase 161)
 
 // PresenceEntry describes one participant in the presence roster.
 // Field names match the Go json tags in internal/relay/protocol.go exactly.
@@ -46,6 +47,7 @@ export type ServerFrame =
   | { type: 'typing'; personKey: string; alias: string; typing: boolean }
   | { type: 'chat'; message: ChatMessage }
   | { type: 'inject_error'; reason: string }
+  | { type: 'self'; personKey: string; alias: string }
   | { type: 'unknown' }
 
 /**
@@ -184,6 +186,16 @@ export function parseServerFrame(data: Uint8Array): ServerFrame {
       }
     }
 
+    case MSG_SELF: {
+      try {
+        const json = new TextDecoder().decode(data.slice(1))
+        const parsed = JSON.parse(json) as { personKey: string; alias: string }
+        return { type: 'self', personKey: parsed.personKey, alias: parsed.alias }
+      } catch {
+        return { type: 'unknown' }
+      }
+    }
+
     default:
       return { type: 'unknown' }
   }
@@ -204,6 +216,12 @@ export interface RelayClientCallbacks {
    * Optional so host-path callers (no remote, no wsURL) can omit it without change.
    */
   onResize?: (cols: number, rows: number) => void
+  /**
+   * Phase 161: called once on WS connect when the server sends a 0x37 MsgSelf frame
+   * carrying the client's own personKey and server-resolved alias.
+   * Optional — TerminalPanel hosts that omit chat callbacks are unaffected.
+   */
+  onSelf?: (personKey: string, alias: string) => void
 }
 
 /**
@@ -267,6 +285,10 @@ export class RelayClient {
           // Guest viewers (remote || wsURL) pass onResize to honor the server-pushed
           // grid; host-path callers omit it so 0x02 is a no-op for local sessions.
           this.callbacks.onResize?.(frame.cols, frame.rows)
+          break
+        case 'self':
+          // Phase 161: server sends the client's own personKey+alias once on connect.
+          this.callbacks.onSelf?.(frame.personKey, frame.alias)
           break
         // 'unknown' frames are silently dropped
       }

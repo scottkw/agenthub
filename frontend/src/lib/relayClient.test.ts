@@ -11,8 +11,6 @@ import {
   MSG_CHAT_SEND,
   MSG_SESSION_INJECT,
   MSG_INJECT_ERROR,
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error MSG_SELF added in Phase 161-02 GREEN
   MSG_SELF,
   encodeInputFrame,
   encodeResizeFrame,
@@ -652,9 +650,7 @@ describe('RelayClient onSelf callback dispatch (Phase 161-02)', () => {
 
   it('fires onSelf(personKey, alias) exactly once when a 0x37 frame arrives', () => {
     const onSelfFn = vi.fn()
-    // Pass onSelf via spread — TS strict-excess check bypassed while export is absent
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const client = new RelayClient(34115, 'sess-self', { onOutput: vi.fn(), onSelf: onSelfFn } as any)
+    const client = new RelayClient(34115, 'sess-self', { onOutput: vi.fn(), onSelf: onSelfFn })
 
     const body = JSON.stringify({ personKey: 'tn:web', alias: 'guest' })
     const encoded = new TextEncoder().encode(body)
