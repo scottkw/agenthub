@@ -303,6 +303,13 @@ export class RelayClient {
     }
   }
 
+  /** Set or update the client's display alias via the relay (Phase 161). */
+  sendAliasSet(alias: string): void {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(encodeAliasSetFrame(alias))
+    }
+  }
+
   /** Inject text into the PTY via the relay. */
   sendSessionInject(text: string): void {
     if (this.ws.readyState === WebSocket.OPEN) {
