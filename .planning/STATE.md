@@ -4,16 +4,16 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 164
 current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
-status: ready_to_plan
-stopped_at: Phase 163 complete — UAT 2/2 pass (ROCHAT-01/02 live e2e chromium-green + SEC-RO-01 via 163-SECURITY.md, threats_open: 0); ready to plan Phase 164
-last_updated: "2026-06-29T00:40:00.000Z"
-last_activity: 2026-06-29
-last_activity_desc: Phase 163 complete — UAT 2/2 pass; 163-SECURITY.md added (6 STRIDE threats CLOSED)
+status: executing
+stopped_at: Completed 164-01-PLAN.md — CHAT-LAYOUT-01 overflow fix and fingerprint secondary label
+last_updated: "2026-06-28T23:04:12.820Z"
+last_activity: 2026-06-28
+last_activity_desc: Phase 164 execution started
 progress:
   total_phases: 14
   completed_phases: 13
-  total_plans: 52
-  completed_plans: 52
+  total_plans: 54
+  completed_plans: 53
   percent: 93
 ---
 
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 164 (web-share-chat-layout-polish-message-header-overflow-fix-res) — READY TO PLAN
-Plan: Not started
-Status: Phase 163 complete (UAT 2/2 pass + 163-SECURITY.md); ready to plan Phase 164 (last phase before /gsd-audit-milestone)
-Last activity: 2026-06-29 — Phase 163 complete — UAT 2/2 pass; 163-SECURITY.md added (threats_open: 0)
+Phase: 164 (web-share-chat-layout-polish-message-header-overflow-fix-res) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-06-28 — Phase 164 execution started
 
 ```
 Progress: [██████████████████░░] 13/14 phases complete (93%); Phase 163 complete (RO guest chat posting — ROCHAT-01/02 live e2e + SEC-RO-01), Phase 164 next (last before milestone audit)
@@ -114,8 +114,8 @@ Progress: [██████████████████░░] 13/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T20:35:10.297Z
-Stopped at: Completed 163-01-PLAN.md — RO chat-send gate removed, tests flipped, SEC-RO-01 guard added
+Last session: 2026-06-28T23:04:12.811Z
+Stopped at: Completed 164-01-PLAN.md — CHAT-LAYOUT-01 overflow fix and fingerprint secondary label
 Resume file: None
 Next action: `/gsd-plan-phase 163`
 
@@ -165,6 +165,8 @@ Next action: `/gsd-plan-phase 163`
 - [Phase ?]: Phase 163-02: isReadOnly retained for inject gate only — chat-send paths no longer check it
 - [Phase ?]: Phase 163-02: chat-composer__readonly-label JSX block removed — label used inline styles only (no CSS change)
 - [Phase ?]: Phase 163-02: Playwright inject-gate assertion deferred — proven at vitest + Go level to avoid flaky PTY-write browser assertion
+- [Phase ?]: Phase 164-01: getRowStyle non-separator width:'100%'
+- [Phase ?]: Phase 164-01: formatAuthorFingerprint returns last 6 chars; tailnetIdToHue uses full authorID
 
 ## Performance Metrics
 
@@ -206,3 +208,4 @@ Next action: `/gsd-plan-phase 163`
 | Phase 163 P01 | 6min | 2 tasks | 6 files |
 | Phase 163 P02 | 4min | - tasks | - files |
 | Phase 163 P03 | 3min | 2 tasks | 2 files |
+| Phase 164 P01 | 6 minutes | 3 tasks | 5 files |

@@ -395,7 +395,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 1/1 | Complete   | 2026-06-28 |
 | 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 3/3 | Complete — verified 10/10; human UAT 2/2 pass (ROCHAT live e2e + SEC-RO-01 163-SECURITY.md) | 2026-06-29 |
-| 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 0/0 | Not planned | — |
+| 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 1/2 | In Progress|  |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -560,13 +560,13 @@ Plans:
 
 **Requirements**: CHAT-LAYOUT-01 (header-overflow truncation / friendly tailnet label), CHAT-LAYOUT-02 (resizable chat width) — finalize during /gsd-plan-phase
 **Depends on:** Phase 163
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Source: discovered during Phase 161 UAT (alias-control live verification); deferred here by user decision 2026-06-28. CHAT-LAYOUT-01 is pre-existing (`ChatMessage.tsx` was untouched by Phase 161).
 
 **Wave 1**
 
-- [ ] 164-01-PLAN.md — CHAT-LAYOUT-01: header-overflow fix — constrain getRowStyle virtualizer row width (root cause) + render last-6-char authorID fingerprint as the secondary label (shared ChatMessage/ChatPanel)
+- [x] 164-01-PLAN.md — CHAT-LAYOUT-01: header-overflow fix — constrain getRowStyle virtualizer row width (root cause) + render last-6-char authorID fingerprint as the secondary label (shared ChatMessage/ChatPanel)
 
 **Wave 2** *(blocked on Wave 1 — shared ChatPanel.tsx/test files)*
 
