@@ -300,6 +300,14 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Phase 161 / ALIAS-UI-01: emit self-identity hint so the client learns its
+	// own personKey + resolved alias (approach d — web-guest pre-fill). Direct
+	// conn.Write (not sub.Msgs) guarantees ordering before scrollback replay.
+	// sub.PersonKey ("local:local") and sub.Alias are resolved at lines 263-270.
+	if err := conn.Write(ctx, websocket.MessageBinary, MakeSelfFrame(SelfPayload{PersonKey: sub.PersonKey, Alias: sub.Alias})); err != nil {
+		return
+	}
+
 	// Replay scrollback snapshot to bring the client up to date.
 	if snapshot := hub.ScrollbackSnapshot(); len(snapshot) > 0 {
 		if err := conn.Write(ctx, websocket.MessageBinary, snapshot); err != nil {

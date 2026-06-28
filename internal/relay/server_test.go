@@ -82,8 +82,8 @@ func readDataFrame(t *testing.T, conn *websocket.Conn) (byte, []byte) {
 	t.Helper()
 	for {
 		msgType, payload := readFrame(t, conn)
-		if msgType == MsgMeta || msgType == MsgPresence || msgType == MsgResize {
-			continue // skip server-push housekeeping frames
+		if msgType == MsgMeta || msgType == MsgPresence || msgType == MsgResize || msgType == MsgSelf {
+			continue // skip server-push housekeeping frames (Phase 161: MsgSelf added)
 		}
 		return msgType, payload
 	}
@@ -438,13 +438,13 @@ func TestRelayJoin_PushesResizeBeforeScrollback(t *testing.T) {
 	// Connect the guest.
 	conn := dialWS(t, srv.URL, sessionID)
 
-	// Read non-housekeeping frames in order, skipping MsgMeta/MsgPresence but
-	// NOT MsgResize so we can verify the ordering (resize arrives before scrollback).
+	// Read non-housekeeping frames in order, skipping MsgMeta/MsgPresence/MsgSelf
+	// but NOT MsgResize so we can verify the ordering (resize arrives before scrollback).
 	readOrdered := func() (byte, []byte) {
 		for {
 			typ, payload := readFrame(t, conn)
-			if typ == MsgMeta || typ == MsgPresence {
-				continue
+			if typ == MsgMeta || typ == MsgPresence || typ == MsgSelf {
+				continue // skip server-push housekeeping frames (Phase 161: MsgSelf added)
 			}
 			return typ, payload
 		}

@@ -301,8 +301,8 @@ func TestWebServerWSS(t *testing.T) {
 			t.Errorf("expected binary message, got %v", msgType)
 			break
 		}
-		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence || m[0] == relay.MsgResize) {
-			continue // skip server-push housekeeping frames (meta, presence, Phase 157 join-push resize)
+		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence || m[0] == relay.MsgResize || m[0] == relay.MsgSelf) {
+			continue // skip server-push housekeeping frames (meta, presence, Phase 157 join-push resize, Phase 161 MsgSelf)
 		}
 		msg = m
 		break
@@ -929,7 +929,7 @@ func dialWebWS(t *testing.T, httpClient *http.Client, ws *webserver.WebServer, s
 }
 
 // readWebFrame reads the next WebSocket binary frame from conn with a 5-second
-// timeout. It skips MsgMeta and MsgPresence housekeeping frames.
+// timeout. It skips MsgMeta, MsgPresence, and MsgSelf housekeeping frames.
 func readWebFrame(t *testing.T, conn *websocket.Conn) []byte {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -939,8 +939,8 @@ func readWebFrame(t *testing.T, conn *websocket.Conn) []byte {
 		if err != nil {
 			t.Fatalf("readWebFrame: %v", err)
 		}
-		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence) {
-			continue
+		if len(m) > 0 && (m[0] == relay.MsgMeta || m[0] == relay.MsgPresence || m[0] == relay.MsgSelf) {
+			continue // skip server-push housekeeping frames (Phase 161: MsgSelf added)
 		}
 		return m
 	}

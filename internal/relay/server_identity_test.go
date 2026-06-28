@@ -164,6 +164,51 @@ func presenceAliasFor(pp PresencePayload, personKey string) string {
 	return ""
 }
 
+// waitForSelfFrame reads frames from conn (skipping MsgMeta, MsgPresence, and
+// other non-self frames) and returns the decoded SelfPayload of the first
+// MsgSelf frame seen. Fails the test on timeout or decode error.
+func waitForSelfFrame(t *testing.T, conn *websocket.Conn, label string) SelfPayload {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	for {
+		_, rawMsg, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("waitForSelfFrame(%s): %v", label, err)
+		}
+		msgType, payload, pErr := ParseFrame(rawMsg)
+		if pErr != nil {
+			continue
+		}
+		if msgType != MsgSelf {
+			continue
+		}
+		var sp SelfPayload
+		if uErr := json.Unmarshal(payload, &sp); uErr != nil {
+			t.Fatalf("waitForSelfFrame(%s): unmarshal: %v", label, uErr)
+		}
+		return sp
+	}
+}
+
+// TestRelayIdentity_SelfFrameOnConnect verifies that the relay (desktop) path
+// emits a MsgSelf (0x37) frame on connect carrying personKey "local:local" and
+// the resolved owner alias. The self frame must arrive before or alongside the
+// presence frame — the test drains until it sees a MsgSelf frame.
+func TestRelayIdentity_SelfFrameOnConnect(t *testing.T) {
+	ts, _, sessionID := setupIdentityTestServer(t)
+
+	conn := dialIdentityWS(t, ts, sessionID, "")
+	sp := waitForSelfFrame(t, conn, "relay self frame on connect")
+
+	if sp.PersonKey != "local:local" {
+		t.Errorf("relay self frame: PersonKey = %q, want 'local:local'", sp.PersonKey)
+	}
+	if sp.Alias != "host" {
+		t.Errorf("relay self frame: Alias = %q, want 'host' (ownerDefaultAlias)", sp.Alias)
+	}
+}
+
 // TestRelayIdentity_AliasPropagation verifies IDENT-02: a MsgAliasSet frame
 // from one client propagates to all relay clients as a MsgPresence roster
 // update within one round-trip.

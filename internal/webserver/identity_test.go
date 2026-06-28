@@ -113,6 +113,68 @@ func dialIdentityWS(
 	return ws, conn
 }
 
+// drainUntilSelf reads from conn until a MsgSelf frame arrives or the context
+// is cancelled. Non-MsgSelf frames are silently skipped. Fails the test if the
+// context expires first.
+func drainUntilSelf(t *testing.T, conn *websocket.Conn, timeout time.Duration) relay.SelfPayload {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	for {
+		_, msg, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatalf("drainUntilSelf: conn.Read: %v", err)
+		}
+		msgType, payload, err := relay.ParseFrame(msg)
+		if err != nil {
+			continue
+		}
+		if msgType != relay.MsgSelf {
+			continue
+		}
+		var sp relay.SelfPayload
+		if err := json.Unmarshal(payload, &sp); err != nil {
+			t.Fatalf("drainUntilSelf: json.Unmarshal: %v", err)
+		}
+		return sp
+	}
+}
+
+// TestWebIdentity_SelfFrameOnConnect verifies that the web path emits a
+// MsgSelf (0x37) frame on connect carrying a personKey ending in ":web" and
+// the resolved alias (ComputedName or fallback) for the connecting client.
+func TestWebIdentity_SelfFrameOnConnect(t *testing.T) {
+	aliasMap := newInMemAliasMap()
+	_, conn := dialIdentityWS(t, "sess-self-01", "read,write", aliasMap)
+
+	sp := drainUntilSelf(t, conn, 5*time.Second)
+
+	if !strings.HasSuffix(sp.PersonKey, ":web") {
+		t.Errorf("web self frame: PersonKey = %q, want suffix ':web'", sp.PersonKey)
+	}
+	if sp.PersonKey == "local:local" {
+		t.Errorf("web self frame: PersonKey must not be 'local:local' (D-04 / owner disambiguation)")
+	}
+	// Alias may be empty on WhoIs failure path (no live tailnet in tests); just
+	// verify the field is present (not a required non-empty value in this path).
+	t.Logf("web self frame: personKey=%q alias=%q", sp.PersonKey, sp.Alias)
+}
+
+// TestWebIdentity_ReadOnlySelfFrame verifies that a read-only (perms="read")
+// web client also receives the MsgSelf frame on connect — the frame must NOT
+// be gated on write permissions.
+func TestWebIdentity_ReadOnlySelfFrame(t *testing.T) {
+	aliasMap := newInMemAliasMap()
+	_, conn := dialIdentityWS(t, "sess-self-ro-01", "read", aliasMap)
+
+	sp := drainUntilSelf(t, conn, 5*time.Second)
+
+	if !strings.HasSuffix(sp.PersonKey, ":web") {
+		t.Errorf("RO web self frame: PersonKey = %q, want suffix ':web'", sp.PersonKey)
+	}
+	t.Logf("RO web self frame: personKey=%q alias=%q", sp.PersonKey, sp.Alias)
+}
+
 // TestWebIdentity_WhoIsFailureFallback verifies that in the absence of a live
 // tailnet (WhoIs failure path, as in all automated tests), handleWSSRelay
 // stamps the subscriber with a personKey that:
