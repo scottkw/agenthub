@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 161
-status: completed
-stopped_at: Completed 161-04-PLAN.md — cross-surface e2e, TESTING.md consolidation, live UAT approved
-last_updated: "2026-06-28T17:06:16.904Z"
+current_phase: 162
+status: phase_complete
+stopped_at: Phase 161 complete — UAT verified (4/4 pass), ready to plan Phase 162
+last_updated: "2026-06-28T17:38:05Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 161 marked complete
+last_activity_desc: Phase 161 complete (UAT verified), transitioned to Phase 162
 progress:
-  total_phases: 12
+  total_phases: 14
   completed_phases: 11
   total_plans: 48
   completed_plans: 48
-  percent: 92
-current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
+  percent: 79
+current_phase_name: settings-polish-terminal-plugins-jump-link
 ---
 
 # Project State
@@ -24,17 +24,17 @@ current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 161 — chat-sidebar-alias-control-user-can-set-their-display-name
+**Current focus:** Phase 162 — Settings Polish — Terminal Plugins jump link (#108)
 
 ## Current Position
 
-Phase: 161 — COMPLETE
-Plan: 4 of 4
-Status: Phase 161 complete
-Last activity: 2026-06-28 — Phase 161 marked complete
+Phase: 162 — Settings Polish — Terminal Plugins jump link (#108)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-28 — Phase 161 complete (UAT verified), ready to plan Phase 162
 
 ```
-Progress: [████████████████░░░░] 11/14 phases complete (79%); Phase 161 complete (alias control, live-UAT verified), Phase 162 next
+Progress: [███████████████░░░░░] 11/14 phases complete (79%); Phase 161 complete (alias control, live-UAT verified 4/4), Phase 162 next
 ```
 
 ### Quick Tasks Completed
@@ -65,7 +65,7 @@ Progress: [████████████████░░░░] 11/14 p
 | 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | CHAT-FIX-01, CHAT-PARITY-01 | Complete |
 | 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Complete (UAT pending — M-31) |
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Planned (5 plans) |
-| 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Planned (4 plans) |
+| 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Complete |
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
 | 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
 
@@ -114,10 +114,10 @@ Progress: [████████████████░░░░] 11/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T16:58:14.618Z
-Stopped at: Completed 161-04-PLAN.md — cross-surface e2e, TESTING.md consolidation, live UAT approved
+Last session: 2026-06-28T17:38:05Z
+Stopped at: Phase 161 complete — UAT verified (4/4 pass), ready to plan Phase 162
 Resume file: None
-Next action: `/gsd:plan-phase 151`
+Next action: `/gsd-plan-phase 162`
 
 ## Decisions
 
