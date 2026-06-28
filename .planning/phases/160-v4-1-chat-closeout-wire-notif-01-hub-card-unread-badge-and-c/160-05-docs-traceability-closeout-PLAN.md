@@ -82,7 +82,7 @@ Output: sanitize.go doc-comment fix (IN-04); TESTING.md updates — WR-02 Run Co
   </read_first>
   <action>
     WR-02: update the build-script Suite Manifest Run Command cell (~line 31) to run both scripts: `bash tests/build-script.test.sh && bash tests/install-sh.test.sh`.
-    §2 counts: increment the vitest file count and the manifest Total by exactly 1 (the single NEW test file added this phase: frontend/src/components/Hub/useChatUnreadListeners.test.tsx). Extending existing files (SessionCardGrid/HubPanel/HubInteractiveModal/server_inject_test/install-sh) does NOT change counts.
+    §2 counts: the manifest vitest count is STALE at HEAD (shows 130; true HEAD count is 131 — Phase 158-02 added a file without bumping the header). FIRST re-measure live with `find frontend/src -name '*.test.ts' -o -name '*.test.tsx' | wc -l`, then set the vitest file count and manifest Total to the measured value + 1 (the single NEW test file added this phase: frontend/src/components/Hub/useChatUnreadListeners.test.tsx) — i.e. 132 if HEAD measures 131. Do NOT blindly +1 the stale printed number. Extending existing files (SessionCardGrid/HubPanel/HubInteractiveModal/server_inject_test/install-sh) does NOT change counts.
     §4 traceability: add a NOTIF-01 row whose path column is `frontend/src/components/Hub/useChatUnreadListeners.test.tsx` (describe: Phase 160-01 background unread WS listener accrues per-session unread for backgrounded sessions). Add an IN-02 row whose path column is `internal/relay/server_inject_test.go` (describe: Phase 160-03 control-only inject -> zero PTY writes). Verify the existing NOTIF-02 row (~203) is present; add it only if absent. Path columns must be repo-relative file paths only (no test names).
     Then run the traceability path check.
   </action>
@@ -90,7 +90,7 @@ Output: sanitize.go doc-comment fix (IN-04); TESTING.md updates — WR-02 Run Co
     <automated>bash tests/check-traceability-paths.sh && grep -q 'install-sh.test.sh' TESTING.md && grep -q 'useChatUnreadListeners.test.tsx' TESTING.md && grep -q 'NOTIF-02' TESTING.md && echo OK</automated>
   </verify>
   <acceptance_criteria>
-    build-script Run Command runs both test scripts; vitest count + Total bumped by 1; §4 has NOTIF-01 (useChatUnreadListeners.test.tsx) + IN-02 (server_inject_test.go) rows with repo-relative paths; NOTIF-02 row confirmed present; `bash tests/check-traceability-paths.sh` passes.
+    build-script Run Command runs both test scripts; vitest count + Total set to the live-measured HEAD value + 1 (132 if HEAD measures 131), not a blind +1 on the stale printed number; §4 has NOTIF-01 (useChatUnreadListeners.test.tsx) + IN-02 (server_inject_test.go) rows with repo-relative paths; NOTIF-02 row confirmed present; `bash tests/check-traceability-paths.sh` passes.
   </acceptance_criteria>
 </task>
 
