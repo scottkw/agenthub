@@ -388,7 +388,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
-| 159. Web-Share Chat Parity (WEBCHAT-01/02/03) | 2/2 | Complete (UAT pending — M-31) | 2026-06-27 |
+| 159. Web-Share Chat Parity (WEBCHAT-01/02/03/04) | 3/3 | Complete (UAT pending — M-31) | 2026-06-27 |
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 0/0 | Not planned | — |
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 0/0 | Not planned | — |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |

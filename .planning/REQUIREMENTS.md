@@ -54,6 +54,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 - [x] **WEBCHAT-01**: A remote guest who opens the actually-shared web-share link (`/sessions/{id}?cap=`) reaches a chat-capable surface — `handleTerminalPage` 302-redirects (after `requireCapability`) to the React SPA at `/app/?session={id}&cap={token}` (WebShareSessionView, Phase 155), which carries the ChatPanel/toggle/badge/presence.
 - [x] **WEBCHAT-02**: Cross-surface chat parity is verified on the actually-shared link, not on `/app/` directly — closing the false-parity gap where Phase 155 verified PARITY-01 only against `/app/` while the share flow handed out the chat-less vanilla-JS `terminal.js` viewer.
 - [x] **WEBCHAT-03**: A remote web-share guest reaching `/app/?session=&cap=` (via the WEBCHAT-01 redirect) sees ONLY the scoped session surface — the terminal, chat, and file-browser tab — and NOT the desktop app navigation chrome (Home / Hub / Settings / session-group sidebar). Prevents a one-session guest from navigating away from the scoped session and reaching the open `/api/sessions/meta` enumeration surface. (Gap-closure from 159 live UAT.)
+- [x] **WEBCHAT-04**: The web-share bootstrap auto-opens the file-browser tab ONLY when the cap grants `files.read` (resolved from the server-verified `GET /api/sessions/{id}/info` perms). A guest whose share lacks file access sees just the terminal + chat — never a dead "files.read permission required" tab. Fail-safe: on any probe error or missing perm, no file tab opens. (Gap-closure from 159 live UAT.)
 
 ### SEC — Security
 
@@ -131,6 +132,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | WEBCHAT-01 | Phase 159 | Complete (UAT pending — M-31) |
 | WEBCHAT-02 | Phase 159 | Complete (UAT pending — M-31) |
 | WEBCHAT-03 | Phase 159 (159-02) | Complete (e2e: web-share-scope.spec.ts) |
+| WEBCHAT-04 | Phase 159 (159-03) | Complete (e2e: web-share-scope.spec.ts) |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |
