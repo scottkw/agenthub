@@ -240,10 +240,17 @@ export function getRowStyle(
     // NO transform — Pitfall 1: transform overrides position:sticky
     return { position: 'sticky', top: 0, zIndex: 2 }
   }
+  // CHAT-LAYOUT-01: width:'100%' + right:0 bounds the absolutely-positioned row to
+  // the thread container width so the existing WEBCHAT-06 ellipsis on
+  // .chat-msg__alias / .chat-msg__tailnet-id has a constrained ancestor to
+  // shrink within (without this, the row shrinks-to-fit its content width and
+  // the ellipsis never engages).
   return {
     position: 'absolute',
     top: 0,
     left: 0,
+    right: 0,
+    width: '100%',
     transform: `translateY(${start}px)`,
   }
 }
