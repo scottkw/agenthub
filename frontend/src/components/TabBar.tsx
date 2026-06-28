@@ -67,12 +67,19 @@ interface TabBarProps {
   onBrowseFiles?: (sessionId: string, sessionName: string) => void
   /**
    * Phase 159-04 (WEBCHAT-05) — web-share guest mode. When true, the desktop-only
-   * tab affordances are suppressed: no double-click/right-click/chevron session
-   * menu (Rename + Save Terminal As are Wails RPCs with no bridge in a browser —
-   * they fail silently and only relabel the local tab; Browse files is already
-   * auto-opened per files.read in App's web bootstrap). The × close button stays.
+   * tab affordances are suppressed: no double-click/right-click rename and no
+   * Rename / Save Terminal As menu items (both are Wails RPCs with no bridge in a
+   * browser — they fail silently and only relabel the local tab). The × close
+   * button stays.
    */
   webMode?: boolean
+  /**
+   * Phase 159-04 (WEBCHAT-05) — when in webMode, whether the guest's cap grants
+   * files.read. Only then is the session-menu chevron shown (its sole web-mode
+   * item is "Browse files", letting a file-enabled guest re-open the file
+   * browser if they closed it). A guest without file access gets no chevron.
+   */
+  webFilesEnabled?: boolean
 }
 
 /**
@@ -91,6 +98,7 @@ export function TabBar({
   tabProgress,
   onBrowseFiles,
   webMode = false,
+  webFilesEnabled = false,
 }: TabBarProps): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -245,7 +253,7 @@ export function TabBar({
             {exitCountdowns?.[tab.sessionId] && (
               <span className="tab__countdown">{exitCountdowns[tab.sessionId]}s</span>
             )}
-            {tab.sessionId && !webMode && (
+            {tab.sessionId && (!webMode || webFilesEnabled) && (
               <button
                 className="tab__chevron"
                 data-testid="tab-chevron"
@@ -312,6 +320,9 @@ export function TabBar({
           style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x }}
           onMouseDown={(e) => e.stopPropagation()}
         >
+          {/* Rename + Save Terminal As are Wails RPCs with no browser bridge —
+              hidden for web-share guests (WEBCHAT-05). */}
+          {!webMode && (
           <button
             role="menuitem"
             className="tab__context-menu__item"
@@ -322,6 +333,8 @@ export function TabBar({
           >
             Rename
           </button>
+          )}
+          {!webMode && (
           <button
             role="menuitem"
             className="tab__context-menu__item"
@@ -332,6 +345,7 @@ export function TabBar({
           >
             Save Terminal As…
           </button>
+          )}
           {/* Phase 120-04 UI-01 — Browse files menu item, gated on terminal
               tabs (those with a truthy sessionId). Welcome / Settings /
               file-browser tabs do not get this item. */}

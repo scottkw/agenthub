@@ -111,6 +111,11 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // the lifetime of the SPA. useMemo keeps the reference stable so dependency
   // arrays of downstream effects never see false re-evaluations.
   const webParams = useMemo(() => readWebModeParams(), [])
+  // Phase 159-04 (WEBCHAT-05) — in web mode, whether the guest's cap grants
+  // files.read (resolved from the /api/sessions/{id}/info probe in the web
+  // bootstrap). Gates the TabBar session-menu chevron so a file-enabled guest
+  // can re-open the file browser, while a no-files guest gets no menu at all.
+  const [webFilesEnabled, setWebFilesEnabled] = useState(false)
   // Phase 120-06 — web-mode initial state: no Welcome tab, no Sidebar focus.
   // The auto-open effect below will populate the file-browser tab from the
   // ?session= URL param. Starting empty keeps WelcomeTab (which calls
@@ -1139,6 +1144,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         .then((info: { perms?: string } | null) => {
           const perms = (info?.perms ?? '').split(',').map((s) => s.trim())
           if (perms.includes('files.read')) {
+            setWebFilesEnabled(true)
             handleOpenFileBrowser(sid, sid, false)
           }
         })
@@ -1498,6 +1504,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
           tabProgress={tabProgress}
           onBrowseFiles={handleOpenFileBrowser}
           webMode={mode === 'web'}
+          webFilesEnabled={webFilesEnabled}
         />
 
         <div className="terminal-container">

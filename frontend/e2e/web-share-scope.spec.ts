@@ -82,27 +82,45 @@ test.describe('Phase 159-02 — web-share guest scope (WEBCHAT-03)', () => {
     }
   })
 
-  // WEBCHAT-05: a web-share guest cannot rename the session tab. RenameSession is
-  // a Wails RPC with no bridge in a browser (it would fail silently and only
-  // relabel the local tab), so the desktop-only tab menu + double-click rename
-  // are suppressed in web mode.
-  test('web-share guest cannot rename the tab (no session menu, no rename-on-double-click)', async ({ browser }) => {
+  // WEBCHAT-05: a web-share guest cannot rename the session tab. Rename / Save
+  // Terminal As are Wails RPCs with no bridge in a browser (they fail silently and
+  // only relabel the local tab), so they are hidden in web mode and double-click
+  // rename is disabled. A file-enabled guest still gets a chevron whose only item
+  // is "Browse files" (so they can re-open the file browser).
+  test('files.read guest: tab menu offers only Browse files — no Rename/Save, no double-click rename', async ({ browser }) => {
     const env = loadFixtureEnv()
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     try {
       const page = await ctx.newPage()
       await page.goto(appUrl(env), { waitUntil: 'domcontentloaded' })
       await expect(page.locator('.hub-modal__chat-toggle')).toBeVisible({ timeout: 15_000 })
+      // Owner cap has files.read → the chevron is present for re-opening files.
+      const chevron = page.locator('[data-testid="tab-chevron"]').first()
+      await expect(chevron).toBeVisible({ timeout: 15_000 })
+      await chevron.click()
+      // The menu offers Browse files but NOT Rename / Save Terminal As.
+      await expect(page.getByRole('menuitem', { name: 'Browse files' })).toBeVisible()
+      await expect(page.getByRole('menuitem', { name: 'Rename' })).toHaveCount(0)
+      await expect(page.getByRole('menuitem', { name: 'Save Terminal As…' })).toHaveCount(0)
 
-      // No session-menu chevron in web mode.
-      await expect(page.locator('[data-testid="tab-chevron"]')).toHaveCount(0)
-      await expect(page.getByRole('button', { name: 'Session menu' })).toHaveCount(0)
-
-      // Double-clicking the active tab name must NOT open the rename input.
-      const sessionTab = page.locator('.tab__name', { hasText: 'Session' }).first()
-      await sessionTab.dblclick()
+      // Double-clicking the tab name must NOT open the rename input.
+      await page.locator('.tab__name', { hasText: 'Session' }).first().dblclick()
       await page.waitForTimeout(300)
       await expect(page.locator('.tab__rename-input')).toHaveCount(0)
+    } finally {
+      await ctx.close()
+    }
+  })
+
+  test('viewer cap (no files.read): no session-menu chevron at all', async ({ browser }) => {
+    const env = loadFixtureEnv()
+    const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
+    try {
+      const page = await ctx.newPage()
+      await page.goto(viewerAppUrl(env), { waitUntil: 'domcontentloaded' })
+      await expect(page.locator('.hub-modal__chat-toggle')).toBeVisible({ timeout: 15_000 })
+      await page.waitForTimeout(2_000) // let the /info probe resolve
+      await expect(page.locator('[data-testid="tab-chevron"]')).toHaveCount(0)
     } finally {
       await ctx.close()
     }

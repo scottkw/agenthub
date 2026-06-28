@@ -26,13 +26,21 @@ is nonetheless removed for clarity.
 
 ## Change
 
-- `frontend/src/components/TabBar.tsx`: new `webMode` prop. When true, gates off the
-  double-click rename, the right-click `onContextMenu`, and the chevron "Session menu"
-  button — removing all access to Rename / Save Terminal As / Browse files for guests. The
-  × close button stays.
-- `frontend/src/App.tsx`: passes `webMode={mode === 'web'}` to TabBar.
-- `frontend/e2e/web-share-scope.spec.ts`: +1 test (no chevron/menu; double-click does not
-  open the rename input).
+- `frontend/src/components/TabBar.tsx`: new `webMode` + `webFilesEnabled` props.
+  `webMode` hides the Rename + Save-Terminal-As items and disables double-click/right-click
+  rename. The chevron is shown in web mode only when `webFilesEnabled` is true, and its sole
+  web-mode item is "Browse files" — so a file-enabled guest can re-open the file browser if
+  they close it, while a no-files guest gets no chevron. The × close button always stays.
+- `frontend/src/App.tsx`: tracks `webFilesEnabled` (set true in the /info perms probe when
+  the cap grants files.read) and passes `webMode={mode === 'web'}` + `webFilesEnabled` to TabBar.
+- `frontend/e2e/web-share-scope.spec.ts`: +2 tests (files.read guest → menu offers only
+  Browse files, no Rename/Save, no double-click rename; viewer guest → no chevron).
+
+## Correction (post-initial-fix, same plan)
+
+The first pass removed the entire chevron menu in web mode, which left a file-enabled guest
+unable to re-open the file browser after closing it. Corrected: keep the chevron for
+files.read guests with "Browse files" as its only item.
 
 ## Verification
 
