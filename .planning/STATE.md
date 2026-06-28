@@ -6,14 +6,14 @@ current_phase: 163
 current_phase_name: read-only-guest-chat-posting-d-06-reconciliation
 status: executing
 stopped_at: Completed 163-01-PLAN.md — RO chat-send gate removed, tests flipped, SEC-RO-01 guard added
-last_updated: "2026-06-28T20:16:29.985Z"
+last_updated: "2026-06-28T20:25:19.616Z"
 last_activity: 2026-06-28
 last_activity_desc: Phase 163 execution started
 progress:
   total_phases: 14
   completed_phases: 12
   total_plans: 52
-  completed_plans: 50
+  completed_plans: 51
   percent: 86
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 163 (read-only-guest-chat-posting-d-06-reconciliation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-28 — Phase 163 execution started
 
@@ -114,7 +114,7 @@ Progress: [█████████████████░░░] 12/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T20:16:29.976Z
+Last session: 2026-06-28T20:24:23.455Z
 Stopped at: Completed 163-01-PLAN.md — RO chat-send gate removed, tests flipped, SEC-RO-01 guard added
 Resume file: None
 Next action: `/gsd-plan-phase 163`
@@ -162,6 +162,9 @@ Next action: `/gsd-plan-phase 163`
 - [Phase ?]: D-06 reconciliation: loosened ONLY HandleChatSend; HandleInject (ErrReadOnly) and MsgInput discard unchanged (Phase 163-01)
 - [Phase ?]: ErrChatReadOnly deleted; ErrReadOnly retained for inject gate only (Phase 163-01)
 - [Phase ?]: SEC-RO-01 regression guard: TestHandleChatSend_ROCanPostInjectStillGated proves RO-chat-ok + inject-gated + PTY=0 in single pass (Phase 163-01)
+- [Phase ?]: Phase 163-02: isReadOnly retained for inject gate only — chat-send paths no longer check it
+- [Phase ?]: Phase 163-02: chat-composer__readonly-label JSX block removed — label used inline styles only (no CSS change)
+- [Phase ?]: Phase 163-02: Playwright inject-gate assertion deferred — proven at vitest + Go level to avoid flaky PTY-write browser assertion
 
 ## Performance Metrics
 
@@ -201,3 +204,4 @@ Next action: `/gsd-plan-phase 163`
 | Phase phase-161 P161-04 | 25min | 3 tasks | 4 files |
 | Phase 162 P01 | 3 minutes | 3 tasks | 3 files |
 | Phase 163 P01 | 6min | 2 tasks | 6 files |
+| Phase 163 P02 | 4min | - tasks | - files |

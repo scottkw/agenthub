@@ -394,7 +394,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 5/5 | Complete    | 2026-06-28 |
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 1/1 | Complete   | 2026-06-28 |
-| 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 1/3 | In Progress|  |
+| 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 2/3 | In Progress|  |
 | 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 0/0 | Not planned | — |
 
 ---
@@ -536,7 +536,7 @@ Plans:
 
 **Requirements**: ROCHAT-01 (RO can post chat across all surfaces via the shared `ChatPanel`), ROCHAT-02 (RO `@session` inject + PTY input remain gated — regression guard), SEC-RO-01 (security re-review confirms only `MsgChatSend` was loosened)
 **Depends on:** Phase 159 (redirect lands RO web guests on the chat surface) + Phases 154/155 (code being changed)
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 **UI hint:** yes (ChatPanel composer)
 
@@ -545,7 +545,7 @@ Plans:
 **Wave 1** *(server + frontend in parallel — no shared files)*
 
 - [x] 163-01-PLAN.md — Server: remove RO chat-send gate in hub.HandleChatSend (single source for relay + webserver paths) + delete ErrChatReadOnly + flip Go RO tests + dual-invariant regression guard (RO chats, inject still ErrReadOnly/zero PTY) [ROCHAT-01, ROCHAT-02, SEC-RO-01] [wave 1]
-- [ ] 163-02-PLAN.md — Frontend: enable RO Send + remove "Read only" label in shared ChatPanel (GUI tab / Hub modal / web-share guest) while keeping @session inject gesture RO-gated; flip vitest + Playwright SC-3 assertions [ROCHAT-01, ROCHAT-02] [wave 1]
+- [x] 163-02-PLAN.md — Frontend: enable RO Send + remove "Read only" label in shared ChatPanel (GUI tab / Hub modal / web-share guest) while keeping @session inject gesture RO-gated; flip vitest + Playwright SC-3 assertions [ROCHAT-01, ROCHAT-02] [wave 1]
 
 **Wave 2** *(blocked on Wave 1 — cites final test names + counts)*
 
