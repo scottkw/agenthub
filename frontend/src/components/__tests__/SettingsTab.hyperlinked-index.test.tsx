@@ -12,7 +12,7 @@ const cssRaw = readFileSync(resolve(__dirname, '../../style.css'), 'utf-8')
 
 describe('Phase 104 SETUI-01: section header anchor IDs', () => {
   const sections = [
-    { label: 'Plugins', id: 'settings-plugins', file: 'PluginsSection.tsx', raw: pluginsRaw },
+    { label: 'Terminal Plugins', id: 'settings-plugins', file: 'PluginsSection.tsx', raw: pluginsRaw },
     { label: 'Behavior', id: 'settings-behavior', file: 'SettingsTab.tsx', raw: settingsRaw },
     { label: 'Session Behavior', id: 'settings-session-behavior', file: 'SettingsTab.tsx', raw: settingsRaw },
     { label: 'Appearance', id: 'settings-appearance', file: 'SettingsTab.tsx', raw: settingsRaw },
