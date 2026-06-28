@@ -25,6 +25,11 @@ export interface HubInteractiveModalProps {
    *  /api/relay/remote/{id}/ws (fixes CR-01 for remote sessions).
    *  The cap token is NOT passed here — the daemon looks it up by sessionID. */
   remote?: boolean
+  /** NOTIF-01: lift unread state to HubPanel's unreadMap.
+   *  Called with (session.id, count, hasMention) each time ChatPanel reports
+   *  a change. Injecting session.id here because ChatPanel's own callback
+   *  signature is (count, hasMention) without a session identifier. */
+  onUnreadChange?: (sessionId: string, count: number, hasMention: boolean) => void
 }
 
 /**
@@ -50,6 +55,7 @@ export function HubInteractiveModal({
   pluginConfig,
   onFontSizeChange,
   remote,
+  onUnreadChange,
 }: HubInteractiveModalProps): React.ReactElement {
   // D-02 overlay drawer state
   const [chatOpen, setChatOpen] = useState(false)
@@ -60,6 +66,10 @@ export function HubInteractiveModal({
   function handleUnreadChange(count: number, mention: boolean) {
     setUnreadCount(count)
     setHasMention(mention)
+    // NOTIF-01: inject session.id and forward to HubPanel's unreadMap handler.
+    // ChatPanel's callback signature is (count, hasMention) — no sessionId.
+    // This is the injection point that adds the session identifier.
+    onUnreadChange?.(session.id, count, mention)
   }
 
   return (

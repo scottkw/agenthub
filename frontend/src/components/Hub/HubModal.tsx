@@ -47,6 +47,9 @@ export interface HubModalProps {
   /** Plan 07 seam: when true, routes through the daemon WS proxy for remote sessions (CR-01 fix). */
   remote?: boolean
   onClose: () => void
+  /** NOTIF-01: threaded to HubInteractiveModal so ChatPanel unread state lifts to HubPanel.
+   *  Optional — HubBriefingModal has no chat panel and must not be affected. */
+  onUnreadChange?: (sessionId: string, count: number, hasMention: boolean) => void
 }
 
 /**
@@ -78,6 +81,7 @@ export function HubModal({
   onFontSizeChange,
   remote,
   onClose,
+  onUnreadChange,
 }: HubModalProps): React.ReactElement {
   const hubStatus = deriveHubStatus(session)
   const isBriefing = isAttentionStatus(hubStatus)
@@ -244,6 +248,7 @@ export function HubModal({
             pluginConfig={pluginConfig}
             remote={remote}
             onFontSizeChange={onFontSizeChange}
+            onUnreadChange={onUnreadChange}
           />
         )}
       </div>
