@@ -1062,11 +1062,14 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // Phase 120-04 UI-01 — per-session FileBrowserTab find-or-add. Opens the
   // file browser for a session, either focusing the existing tab if one is
   // open or creating a new one keyed by fileBrowserTabId(sessionId).
-  const handleOpenFileBrowser = useCallback((sessionId: string, sessionName: string) => {
+  // `activate` defaults true (focus the tab). Phase 159-03 (WEBCHAT-04) passes
+  // false so the web-share bootstrap can open the file-browser tab in the
+  // BACKGROUND — the WebShareSessionView (terminal + chat) stays the active tab.
+  const handleOpenFileBrowser = useCallback((sessionId: string, sessionName: string, activate = true) => {
     const tabId = fileBrowserTabId(sessionId)
     const existing = tabs.find((t) => t.id === tabId)
     if (existing) {
-      setActiveId(existing.id)
+      if (activate) setActiveId(existing.id)
       return
     }
     const newTab: Tab = {
@@ -1077,7 +1080,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       type: 'file-browser',
     }
     setTabs((prev) => [...prev, newTab])
-    setActiveId(newTab.id)
+    if (activate) setActiveId(newTab.id)
   }, [tabs])
 
   // Phase 131 UAT follow-up — re-attach to an already-running session.
@@ -1115,11 +1118,34 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode === 'web' && webParams.sessionId) {
-      // Open file browser first (background — will NOT be the active tab).
-      handleOpenFileBrowser(webParams.sessionId, webParams.sessionId)
-      // Open web-session tab last so its setActiveId runs after the file tab's,
-      // making the session view the active (foreground) tab on mount.
-      openWebSessionTab(webParams.sessionId)
+      const sid = webParams.sessionId
+      // The WebShareSessionView (terminal + chat) is the primary surface —
+      // open it immediately as the active tab.
+      openWebSessionTab(sid)
+      // Phase 159-03 (WEBCHAT-04) — the file-browser tab is opened in the
+      // BACKGROUND only when the cap actually grants files.read. The cap is
+      // opaque client-side, but GET /api/sessions/{id}/info returns the
+      // server-verified perms (same endpoint ChatPanel uses for read-only
+      // state). Previously the tab was always opened, leaving a guest whose
+      // share lacks file access staring at a dead "files.read permission
+      // required" takeover. Fail-safe: on any error or missing perm, no file tab.
+      const cap = webParams.capToken ?? ''
+      const base = window.location.origin
+      const ctrl = new AbortController()
+      fetch(`${base}/api/sessions/${encodeURIComponent(sid)}/info?cap=${encodeURIComponent(cap)}`, {
+        signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((info: { perms?: string } | null) => {
+          const perms = (info?.perms ?? '').split(',').map((s) => s.trim())
+          if (perms.includes('files.read')) {
+            handleOpenFileBrowser(sid, sid, false)
+          }
+        })
+        .catch(() => {
+          /* fail-safe: do not open a file-browser tab the guest can't use */
+        })
+      return () => ctrl.abort()
     }
   }, [])
 
