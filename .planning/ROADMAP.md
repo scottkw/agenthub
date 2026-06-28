@@ -514,11 +514,11 @@ Plans:
 
 **Requirements**: SETTINGS-UI-01 (Plugins jump link moved to last + renamed "Terminal Plugins" on label and section header; `settings-plugins` anchor unchanged; jump/scroll-spy still works; affected tests updated) — closes #108
 **Depends on:** Nothing (independent of chat work; pure Settings-page change)
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 162 to break down)
+- [ ] 162-01-PLAN.md — Move plugins jump link to last + rename "Terminal Plugins" (label + h3), keep `settings-plugins` anchor, update hyperlinked-index test, run frontend gate
 
 **Source:** GitHub issue #108 (label: bug). Affected: `SettingsJumpBar.tsx:21-29` (+ comment 11-14), `PluginsSection.tsx:289`, `SettingsTab.tsx:904-905` (no change needed), plus label/order assertions in Settings specs.
 
