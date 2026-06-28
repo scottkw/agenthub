@@ -374,7 +374,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27) (completed 2026-06-28)
 - [x] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27) (completed 2026-06-28)
 - [x] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Code+tests done & verified (10/10 must-haves); human UAT 2/2 pass (ROCHAT-01/02 live e2e chromium-green + SEC-RO-01 via 163-SECURITY.md, threats_open: 0) (execution 2026-06-28) (completed 2026-06-29)
-- [ ] **Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width** - CHAT-LAYOUT-01: web peer's raw `authorID` (nodekey:…) renders un-truncated in the `.chat-msg__tailnet-id` header label → horizontal scroll on web-share `/app/`; designed WEBCHAT-06 ellipsis doesn't engage on that surface. CHAT-LAYOUT-02: resizable chat width. Both in shared ChatPanel/ChatMessage. Discovered during Phase 161 UAT (added 2026-06-28)
+- [x] **Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width** - CHAT-LAYOUT-01: web peer's raw `authorID` (nodekey:…) renders un-truncated in the `.chat-msg__tailnet-id` header label → horizontal scroll on web-share `/app/`; designed WEBCHAT-06 ellipsis doesn't engage on that surface. CHAT-LAYOUT-02: resizable chat width. Both in shared ChatPanel/ChatMessage. Discovered during Phase 161 UAT (added 2026-06-28) (completed 2026-06-28)
 
 > **Closeout ordering note (2026-06-27, updated 2026-06-28):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI), 162 (#108), 163 (RO-can-chat), and 164 (web-share chat layout polish) are scope added after 160; the milestone-close audit (`/gsd-audit-milestone`) now runs after **164** (was 163; 164 added 2026-06-28 from Phase 161 UAT). 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
 
@@ -395,7 +395,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 1/1 | Complete   | 2026-06-28 |
 | 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 3/3 | Complete — verified 10/10; human UAT 2/2 pass (ROCHAT live e2e + SEC-RO-01 163-SECURITY.md) | 2026-06-29 |
-| 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 1/2 | In Progress|  |
+| 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 2/2 | Complete   | 2026-06-28 |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -560,7 +560,7 @@ Plans:
 
 **Requirements**: CHAT-LAYOUT-01 (header-overflow truncation / friendly tailnet label), CHAT-LAYOUT-02 (resizable chat width) — finalize during /gsd-plan-phase
 **Depends on:** Phase 163
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Source: discovered during Phase 161 UAT (alias-control live verification); deferred here by user decision 2026-06-28. CHAT-LAYOUT-01 is pre-existing (`ChatMessage.tsx` was untouched by Phase 161).
 
@@ -570,7 +570,7 @@ Source: discovered during Phase 161 UAT (alias-control live verification); defer
 
 **Wave 2** *(blocked on Wave 1 — shared ChatPanel.tsx/test files)*
 
-- [ ] 164-02-PLAN.md — CHAT-LAYOUT-02: resizable chat width — left-edge drag handle, localStorage persistence + clamp (~280–640px), single --chat-panel-width custom property across all three surfaces, toggle offset tracks live width, D-02 overlay preserved
+- [x] 164-02-PLAN.md — CHAT-LAYOUT-02: resizable chat width — left-edge drag handle, localStorage persistence + clamp (~280–640px), single --chat-panel-width custom property across all three surfaces, toggle offset tracks live width, D-02 overlay preserved
 
 ---
 
