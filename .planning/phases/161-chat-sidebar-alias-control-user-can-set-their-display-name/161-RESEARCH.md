@@ -238,9 +238,11 @@ func ValidateAlias(raw string) string {
 | A1 | A small one-way server→client self-identity frame is the cleanest way to give the web client its own `personKey`/alias for pre-fill. | Open Q1 | If the planner prefers an `/info` extension or optimistic-only pre-fill, the wire change is avoided but web pre-fill fidelity changes. This is a *design recommendation*, not a verified fact — planner decides. |
 | A2 | No new npm/Go packages are required. | Standard Stack | Only wrong if the chosen pre-fill mechanism needs something exotic (it doesn't). |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **How does the web-share client learn its own current alias for pre-fill (decided approach d)?** *(The main design decision for the planner. Desktop is already solved by the constant `personKey "local:local"` roster lookup — no wire change.)*
+> **RESOLVED at planning (2026-06-28).** Both questions were adopted into executable plan content. Q1 → option 1 (self-identity frame `MsgSelf 0x37`): implemented by **161-01** (Go emit on both server paths) + parsed in **161-02** (`onSelf`), wire contract (`0x37` + JSON `{personKey, alias}`) pinned identically in both Wave-1 plans. Q2 → the "chatting as: «name» ✏️" header control: implemented by **161-03**. Plan-checker confirmed no parallel-executor divergence.
+
+1. **RESOLVED → option 1 (plans 161-01 + 161-02).** **How does the web-share client learn its own current alias for pre-fill (decided approach d)?** *(The main design decision for the planner. Desktop is already solved by the constant `personKey "local:local"` roster lookup — no wire change.)*
    - **What we know:** The presence roster (`MsgPresence`) has no "self" marker; the same broadcast bytes go to every client. The web client never learns its own `tailnetID`/`personKey`. `WebShareSessionView` doesn't even pass `currentUserTailnetID`. The web default alias (`ComputedName`) is known only server-side at WS-upgrade (`WhoIs`), not at the `/info` HTTP request.
    - **What's unclear:** Which self-identity mechanism to adopt.
    - **Recommendation (ranked):**
@@ -248,7 +250,7 @@ func ValidateAlias(raw string) string {
      2. **Extend `GET /api/sessions/{id}/info`** (already fetched by `ChatPanel` on web mount, ChatPanel.tsx:353) to also return the caller's resolved alias. Lower-footprint on the wire, but `handleSessionInfo` (webserver/server.go:931-961) currently only has `claims.Perms` — it would need to run `WhoIs(r.RemoteAddr)` to resolve the alias/personKey, adding an IPC call to that handler. Desktop has no `/info` fetch, so this still needs the desktop roster-lookup path → two divergent code paths.
      3. **Optimistic / desktop-only pre-fill.** Desktop pre-fills from the `"local:local"` roster entry; web leaves the field empty with a placeholder ("e.g. your name") and just sends. Lowest cost, but partially misses (d) for web.
 
-2. **Affordance shape:** inline-editable "you" entry in the roster vs. a "chatting as: «name» ✏️" header control. Claude's discretion — recommend the header "chatting as:" control because the roster currently renders avatar initials only (no name labels), so an inline-edit there is a larger render change. Either way it lives in `.chat-panel__header`.
+2. **RESOLVED → header control (plan 161-03).** **Affordance shape:** inline-editable "you" entry in the roster vs. a "chatting as: «name» ✏️" header control. Claude's discretion — recommend the header "chatting as:" control because the roster currently renders avatar initials only (no name labels), so an inline-edit there is a larger render change. Either way it lives in `.chat-panel__header`.
 
 ## Environment Availability
 
