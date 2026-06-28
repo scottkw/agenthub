@@ -331,6 +331,78 @@ test.describe('Phase 155 — chat parity gate', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
+  // ALIAS-UI-01 / ALIAS-UI-02: Cross-surface alias propagation
+  //
+  // Client A sets a new alias via the .chat-panel__alias-label control. Client
+  // B's .chat-presence roster must reflect the new alias within a generous
+  // timeout, proving end-to-end propagation:
+  //   client A → sendAliasSet (0x34) → relay hub UpdateAlias+BroadcastPresence
+  //   → client B onPresence → participants state update → avatar title
+  //
+  // NOTE: Does NOT assert past-message relabeling (per-message snapshot,
+  // RESEARCH Pitfall 3). Asserts roster propagation only, scoped to the frozen
+  // .chat-presence selector (UI-SPEC §5).
+  // ─────────────────────────────────────────────────────────────────────────
+  test('ALIAS-UI-01 — alias set on client A propagates to client B presence roster', async ({ browser }) => {
+    const env = loadFixtureEnv()
+    const url = appUrl(env)
+
+    const ctx1 = await browser.newContext({ ignoreHTTPSErrors: true })
+    const ctx2 = await browser.newContext({ ignoreHTTPSErrors: true })
+    try {
+      const page1 = await ctx1.newPage()
+      const page2 = await ctx2.newPage()
+
+      await page1.goto(url)
+      await page2.goto(url)
+
+      // Open chat on page1 first, then page2 (sequential TLS pattern: simultaneous
+      // ctx1+ctx2 WSS handshakes can exceed WebKit's budget — Phase 155-05 fix).
+      await page1.locator('.hub-modal__chat-toggle').click()
+      await expect(page1.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 10_000 })
+      await expect(page1.locator('.chat-msg').first()).toBeVisible({ timeout: 10_000 })
+
+      await page2.locator('.hub-modal__chat-toggle').click()
+      await expect(page2.locator('.chat-panel__composer textarea')).toBeVisible({ timeout: 10_000 })
+      await expect(page2.locator('.chat-msg').first()).toBeVisible({ timeout: 10_000 })
+
+      // Subscriber-registration gate (same race as broadcast test — Phase 155-05):
+      // wait for all 4 hub subscribers (2 pages × TerminalPanel + ChatPanel) before
+      // sending the alias-set frame so the MsgPresence broadcast reaches page2.
+      await waitForHubSubscribers(env.adminURL, 4)
+
+      // Unique alias to avoid state leakage from prior fixture presence entries (Pitfall 5).
+      const testAlias = `alias-${Date.now()}`
+
+      // Client A (page1): open alias edit control, fill new alias, commit.
+      // The alias label button (chat-panel__alias-label) sets aliasEditing=true on click,
+      // revealing the input (chat-panel__alias-input) and save button (chat-panel__alias-save).
+      await page1.locator('.chat-panel__alias-label').click()
+      await expect(page1.locator('.chat-panel__alias-input')).toBeVisible({ timeout: 5_000 })
+      await page1.locator('.chat-panel__alias-input').fill(testAlias)
+      await page1.locator('.chat-panel__alias-save').click()
+
+      // Client B (page2): the presence roster must contain an avatar entry with the new
+      // alias as the title attribute. Roster avatar renders as:
+      //   <div class="chat-panel__roster-avatar" title="{alias}">...</div>
+      // Scoped to .chat-presence (frozen Playwright selector, UI-SPEC §5).
+      // aria-hidden="true" on the avatar does not affect layout visibility.
+      try {
+        await expect(
+          page2.locator(`.chat-presence .chat-panel__roster-avatar[title="${testAlias}"]`),
+        ).toBeVisible({ timeout: 10_000 })
+      } catch (err) {
+        const hubStatus = await fetch(`${env.adminURL}/__test__/hub-status`).then(r => r.json()).catch(() => null)
+        console.error(`[alias-propagation-diag] hub status: ${JSON.stringify(hubStatus)}`)
+        throw err
+      }
+    } finally {
+      await ctx1.close()
+      await ctx2.close()
+    }
+  })
+
+  // ─────────────────────────────────────────────────────────────────────────
   // EXPORT-01 SC-2: Export button downloads .md with YAML frontmatter
   // ─────────────────────────────────────────────────────────────────────────
   test('EXPORT-01 SC-2 — export downloads .md with YAML frontmatter', async ({ page }) => {
