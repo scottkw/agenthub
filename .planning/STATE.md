@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — AWAITING UAT
 Plan: 5 of 5 complete (159-01 redirect + 159-02 hide-sidebar + 159-03 file-tab-gating + 159-04 tab-rename-suppression + 159-05 chat-name-truncation)
-Status: Automated verification PASSED; three live-UAT gap-closures landed (159-02 hid the desktop sidebar; 159-03 stops the dead files.read tab; 159-04 removes the desktop-only tab menu/rename from web guests — rename never reached the host, verified, but affordance removed). Fresh app rebuilt (20:09). Awaiting remaining two-peer live checks (bidirectional chat, RO chat, resize scale).
+Status: Phase 159 WRAPPED (5/5 plans) after live UAT. Gap-closures: 159-02 hid the desktop sidebar; 159-03 stops the dead files.read tab; 159-04 removed desktop-only tab menu/rename from web guests (rename never reached the host — verified — but affordance removed; file-enabled guests keep a "Browse files"-only chevron); 159-05 truncates long chat author name/nodekey on one line. Fresh app rebuilt. DEFERRED to Phase 160: terminal bottom empty-space (xterm row-quantization, pre-existing/global). STILL OWED before milestone close: (1) remaining two-peer live checks M-31 (bidirectional chat, RO live chat, resize scale); (2) push main→origin (NOT pushed — many local commits); (3) re-run verify-work 156 Test 1. Next: Phase 160.
 Last activity: 2026-06-27 — Phase 159 executed + automated-verified; awaiting live UAT M-31
 
 ```
