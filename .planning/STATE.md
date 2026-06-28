@@ -4,16 +4,16 @@ milestone: v4.1
 milestone_name: Session Chat
 current_phase: 163
 current_phase_name: read-only-guest-chat-posting-d-06-reconciliation
-status: planning
-stopped_at: Phase 162 complete — ready to plan Phase 163
-last_updated: "2026-06-28T18:40:00.000Z"
+status: executing
+stopped_at: Completed 163-01-PLAN.md — RO chat-send gate removed, tests flipped, SEC-RO-01 guard added
+last_updated: "2026-06-28T20:16:29.985Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 162 UAT complete (3/3 pass) — phase verified
+last_activity_desc: Phase 163 execution started
 progress:
   total_phases: 14
   completed_phases: 12
-  total_plans: 49
-  completed_plans: 49
+  total_plans: 52
+  completed_plans: 50
   percent: 86
 ---
 
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 163 (read-only-guest-chat-posting-d-06-reconciliation) — READY TO PLAN
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-28 — Phase 162 UAT complete (3/3 pass), phase verified
+Phase: 163 (read-only-guest-chat-posting-d-06-reconciliation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-28 — Phase 163 execution started
 
 ```
 Progress: [█████████████████░░░] 12/14 phases complete (86%); Phase 162 complete (Terminal Plugins jump link #108, UAT 3/3 via harness), Phase 163 next
@@ -114,8 +114,8 @@ Progress: [█████████████████░░░] 12/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T18:40:00.000Z
-Stopped at: Phase 162 complete (UAT 3/3 pass), ready to plan Phase 163
+Last session: 2026-06-28T20:16:29.976Z
+Stopped at: Completed 163-01-PLAN.md — RO chat-send gate removed, tests flipped, SEC-RO-01 guard added
 Resume file: None
 Next action: `/gsd-plan-phase 163`
 
@@ -159,6 +159,9 @@ Next action: `/gsd-plan-phase 163`
 - [Phase ?]: Phase 161-03: currentAlias priority chain: onSelf.alias > local:local roster entry > empty
 - [Phase ?]: Phase 161-04: currentAlias derives from live presence roster entry for self.personKey, not frozen MsgSelf snapshot (fallback to selfIdentity.alias only as pre-roster seed)
 - [Phase ?]: SETTINGS_JUMP_LINKS reordered so Terminal Plugins is last, matching render order (resolves #108)
+- [Phase ?]: D-06 reconciliation: loosened ONLY HandleChatSend; HandleInject (ErrReadOnly) and MsgInput discard unchanged (Phase 163-01)
+- [Phase ?]: ErrChatReadOnly deleted; ErrReadOnly retained for inject gate only (Phase 163-01)
+- [Phase ?]: SEC-RO-01 regression guard: TestHandleChatSend_ROCanPostInjectStillGated proves RO-chat-ok + inject-gated + PTY=0 in single pass (Phase 163-01)
 
 ## Performance Metrics
 
@@ -197,3 +200,4 @@ Next action: `/gsd-plan-phase 163`
 | Phase 161 P03 | 6m | - tasks | - files |
 | Phase phase-161 P161-04 | 25min | 3 tasks | 4 files |
 | Phase 162 P01 | 3 minutes | 3 tasks | 3 files |
+| Phase 163 P01 | 6min | 2 tasks | 6 files |
