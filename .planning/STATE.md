@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 159
-current_phase_name: web-share-chat-parity-route-shared-session-links-to-the-chat
-status: needs-uat
-stopped_at: "Phase 159 EXECUTED + automated-verified (5/5 must-haves, gsd-verifier status human_needed). 159-01 redirect: handleTerminalPage now 302-redirects /sessions/{id}?cap= → /app/?session=&cap= after requireCapability; RO/RW identical; CSP/Cache-Control invariants preserved; webserver tests green. REQUIREMENTS.md: added WEBCHAT-01/02, credited Phase 159 in PARITY-01 traceability. AWAITING live-daemon UAT M-31 (4 tests: redirect→SPA, chat round-trip, RO participation, scale parity). Pre-existing flake TestRelay_MixedReplyAndKeystrokes fails identically on base — NOT a 159 regression. Next: run M-31 live UAT, then /gsd-execute-phase 160. Milestone close-out still owes: push main→origin + re-run verify-work 156 Test 1"
-last_updated: "2026-06-27T18:40:45.454Z"
-last_activity: 2026-06-27
-last_activity_desc: Phase 159 executed + automated-verified; awaiting live UAT M-31
+current_phase: 161
+current_phase_name: Chat-Sidebar Alias Control
+status: phase_complete
+stopped_at: Phase 160 complete — NOTIF-01 unread badge wired + 153/154/156 tech debt closed; verifier PASSED 15/15
+last_updated: "2026-06-28T03:52:35.185Z"
+last_activity: 2026-06-28
+last_activity_desc: Phase 160 complete, next is Phase 161 (alias UI) — roadmap.analyze mis-routed to 163; hand-corrected to 161
 progress:
-  total_phases: 12
-  completed_phases: 8
-  total_plans: 36
-  completed_plans: 36
-  percent: 67
+  total_phases: 13
+  completed_phases: 10
+  total_plans: 49
+  completed_plans: 49
+  percent: 77
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 159 — web-share-chat-parity-route-shared-session-links-to-the-chat
+**Current focus:** Phase 161 — Chat-Sidebar Alias Control (next; not yet planned)
 
 ## Current Position
 
-Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — AWAITING UAT
-Plan: 5 of 5 complete (159-01 redirect + 159-02 hide-sidebar + 159-03 file-tab-gating + 159-04 tab-rename-suppression + 159-05 chat-name-truncation)
-Status: Phase 159 WRAPPED (5/5 plans) after live UAT. Gap-closures: 159-02 hid the desktop sidebar; 159-03 stops the dead files.read tab; 159-04 removed desktop-only tab menu/rename from web guests (rename never reached the host — verified — but affordance removed; file-enabled guests keep a "Browse files"-only chevron); 159-05 truncates long chat author name/nodekey on one line. Fresh app rebuilt. DEFERRED to Phase 160: terminal bottom empty-space (xterm row-quantization, pre-existing/global). STILL OWED before milestone close: (1) remaining two-peer live checks M-31 (bidirectional chat, RO live chat, resize scale); (2) push main→origin (NOT pushed — many local commits); (3) re-run verify-work 156 Test 1. Next: Phase 160.
-Last activity: 2026-06-27 — Phase 159 executed + automated-verified; awaiting live UAT M-31
+Phase: 161 — Chat-Sidebar Alias Control (ALIAS-UI-01/02)
+Plan: Not started
+Status: Phase 160 complete — ready to plan Phase 161
+Last activity: 2026-06-28 — Phase 160 complete (verifier PASSED 15/15); next is Phase 161 (roadmap.analyze mis-routed to 163, hand-corrected)
 
 ```
-Progress: [█████████████░░░░░░░] 8/12 phases complete (67%); Phase 159 code done, UAT pending
+Progress: [███████████████░░░░░] 10/13 phases complete (77%); Phase 160 shipped, Phase 161 next
 ```
 
 ### Quick Tasks Completed
@@ -67,11 +67,13 @@ Progress: [█████████████░░░░░░░] 8/12 ph
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Planned (5 plans) |
 | 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Not planned |
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
+| 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
 
-**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159–162 requirements set at plan time. v4.1 = 12 phases (closeout audit runs after 162; see ROADMAP closeout-ordering note).
+**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159–163 requirements set at plan time. v4.1 = 13 phases (closeout audit runs after 163; see ROADMAP closeout-ordering note).
 
 ### Roadmap Evolution
 
+- Phase 163 added (2026-06-27): **Read-Only Guest Chat Posting (D-06 reconciliation)** — surfaced by Phase 159 LIVE UAT (M-31 Test 3). RO web guests reach the chat surface via the 159 redirect, but the daemon (`relay/hub.go` `HandleChatSend`→`ErrChatReadOnly`, SEC-01/T-154-03) + frontend (`ChatPanel.tsx` `isReadOnly` suppression) **block RO from posting chat**. That contradicts **D-06** ("RO clients are full chat participants", Phase 152) — which SEC-01/PITFALLS overrode in Phase 154/155. User decided 2026-06-27: *"RO users can participate in chat but cannot @ the session to inject a prompt."* → loosen the `MsgChatSend` RO gate ONLY; keep `HandleInject` (`@session`) + `MsgInput` (PTY) RO-gated. Reverses a security-reviewed decision → requires `/gsd-secure-phase 163`. Spans Phase 154 (server gate, relay + webserver paths) + Phase 155 (frontend SC-3 suppression + tests). Milestone-close audit now runs after **163**. v4.1 = 13 phases.
 - Phases 161 + 162 added (2026-06-27): v4.1 expanded to 12 phases. **161 Chat-Sidebar Alias Control** — the Phase 152 alias backend (`MsgAliasSet` 0x34, `AliasStore`/aliases.json, `ValidateAlias`, `ChatMessage.alias`/`PresenceEntry.alias`) shipped with NO UI; the desktop owner gets a default alias (host/computed name) but can't change it, and `encodeAliasSetFrame()` is called only in tests. User first suggested a Settings → Profile section, then (correctly) moved it to the **shared `ChatPanel` sidebar** — because the web-share surface has no Settings page, so a sidebar control gives GUI tab + Hub modal + web-share guest (via the 159 redirect) the control from ONE shared component = cross-surface parity by construction ([[feedback_cross_surface_parity]]). Reuses the existing wire path; may avoid new Wails bindings. **162 Settings Polish (#108)** — move the "Plugins" Settings jump link to last + rename to "Terminal Plugins" (anchor id stable); independent of chat. Decoupled from 161 once the alias work left the Settings page. Closeout (160) keeps its number to avoid breaking committed Phase-160 refs in the 159 plan/research; milestone-close audit runs after 162.
 - Phases 159 + 160 added (2026-06-27): milestone reopened 8/10. **159 Web-Share Chat Parity** — remote web guests can't chat: the share flow hands out `/sessions/{id}?cap=` (raw `terminal.js` viewer, no chat, discards frames 0x30–0x34), while the chat-capable `/app/` React SPA is never linked. Phase 155 verified PARITY-01 on `/app/` — a surface no remote guest is ever sent to (false-parity, [[feedback_tests_encoding_same_wrong_assumption]]). DECIDED approach (user, 2026-06-27): redirect `/sessions/{id}?cap=` → `/app/?session=&cap=` (server-side, `internal/webserver/server.go`); also unblocks the upcoming Tailscale Funnel session-sharing milestone. **160 v4.1 Chat Closeout** — NOTIF-01 Hub-card unread-badge dead-wiring (audit BLOCKER) + minor 153/154/156 tech debt. Split from web-chat per user (159 = feature/parity, 160 = cleanup).
 - Phase 158 added (2026-06-27): chat affordance polish — found during v4.1 UAT. (1) BUG: `.hub-modal__chat-toggle` (bottom-right, z-index 6) covers the chat composer Send button when the drawer is open (drawer z-index 5, 360px, right:0) — fix: shift toggle left of the drawer (`right:372px`) while `chat-panel--open` (CHAT-FIX-01). (2) PARITY: chat toggle + ChatPanel existed only in `HubInteractiveModal` and web-share, not the raw session terminal tab — added via TerminalChatHost (CHAT-PARITY-01). COMPLETE 2026-06-27, UAT 2/2.

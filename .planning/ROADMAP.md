@@ -29,7 +29,7 @@
 - ✅ **v3.5.1 Remote Browse Completion + Release-Gate Fix** — Phases 129-130 (shipped 2026-06-16, closes Issues #86, #83, #87; retired umbrella #24)
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
-- 🚧 **v4.1 Session Chat** — Phases 151-162 (active, started 2026-06-25, closes #79, #108, #109)
+- 🚧 **v4.1 Session Chat** — Phases 151-163 (active, started 2026-06-25, closes #79, #108, #109)
 
 ## Phases
 
@@ -359,7 +359,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.0 phase details archived to milestones/v4.0-ROADMAP.md -->
 
-### v4.1 Session Chat (Phases 151-162) — ACTIVE
+### v4.1 Session Chat (Phases 151-163) — ACTIVE
 
 - [x] **Phase 151: Message Schema + ChatStore** - Daemon-side JSONL chat store with history replay and Markdown export endpoints (completed 2026-06-25)
 - [x] **Phase 152: Relay Protocol + Identity + Presence** - Frame-type extension, TailnetID/alias attribution, presence and typing indicators (completed 2026-06-26)
@@ -370,11 +370,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 157: Terminal Screen-Share Semantics (Issue #109)** - Host-authority PTY arbiter, guests honor server resize + CSS scale-to-fit, fixes cross-viewer terminal garble (completed 2026-06-27)
 - [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
 - [x] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27) (completed 2026-06-27)
-- [ ] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit; **+ terminal bottom empty-space (xterm row-quantization, pre-existing/global — deferred from 159 UAT 2026-06-27)** (added 2026-06-27)
+- [x] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit; **+ terminal bottom empty-space (xterm row-quantization, pre-existing/global — deferred from 159 UAT 2026-06-27)** (added 2026-06-27) (completed 2026-06-28)
 - [ ] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27)
 - [ ] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27)
+- [ ] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Needs `/gsd-secure-phase 163` after execution (added 2026-06-27)
 
-> **Closeout ordering note (2026-06-27):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI) and 162 (#108) are scope added 2026-06-27 and run after 160; the milestone-close audit (`/gsd-audit-milestone`) runs after **162**, not 160. 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
+> **Closeout ordering note (2026-06-27):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI), 162 (#108), and 163 (RO-can-chat) are scope added 2026-06-27 and run after 160; the milestone-close audit (`/gsd-audit-milestone`) runs after **163**, not 162. 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
 
 ### Progress: v4.1 Session Chat
 
@@ -388,10 +389,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 156. Install Links & Distribution | 3/3 | Complete   | 2026-06-27 |
 | 157. Terminal Screen-Share Semantics (Issue #109) | 5/5 | Complete    | 2026-06-27 |
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
-| 159. Web-Share Chat Parity (WEBCHAT-01..06) | 5/5 | Complete (UAT pending — M-31) | 2026-06-27 |
-| 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 0/0 | Not planned | — |
+| 159. Web-Share Chat Parity (WEBCHAT-01..06) | 5/5 | Complete — live UAT M-31 done 2026-06-27 (3/4 pass; Test 3 RO-chat gap → Phase 163) | 2026-06-27 |
+| 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 5/5 | Complete    | 2026-06-28 |
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 0/0 | Not planned | — |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |
+| 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 0/0 | Not planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -471,15 +473,15 @@ Plans:
 
 **Requirements**: NOTIF-01 (Hub-card unread badge — finally wired), plus tech-debt closeout (153 IN-02/IN-04, 154 NOTIF-02, 156 WR-01/02/03)
 **Depends on:** Phase 159
-**Plans:** 5 plans
+**Plans:** 5/5 plans complete
 
 Plans:
 
-- [ ] 160-01-PLAN.md — NOTIF-01 background unread source: `useChatUnreadListeners` hook (read-only relay WS per backgrounded session) + test [NOTIF-01]
-- [ ] 160-02-PLAN.md — NOTIF-01 prop threading: lift unread out of modal, thread `unreadBySessionId` through SessionCardGrid to both card sites, wire HubPanel `unreadMap` + reset-on-open + hook [NOTIF-01]
-- [ ] 160-03-PLAN.md — IN-02 regression test: control-only inject → zero PTY writes (`TestInject_ControlOnlyInput`) [IN-02]
-- [ ] 160-04-PLAN.md — install.sh hardening: WR-01 `grep -F`, WR-03 root `mkdir -p`, + install-sh.test.sh assertions [WR-01, WR-03]
-- [ ] 160-05-PLAN.md — docs/traceability closeout: IN-04 doc comment, WR-02 Run Command, TESTING.md §2/§4 registration [IN-04, NOTIF-02, WR-02]
+- [x] 160-01-PLAN.md — NOTIF-01 background unread source: `useChatUnreadListeners` hook (read-only relay WS per backgrounded session) + test [NOTIF-01]
+- [x] 160-02-PLAN.md — NOTIF-01 prop threading: lift unread out of modal, thread `unreadBySessionId` through SessionCardGrid to both card sites, wire HubPanel `unreadMap` + reset-on-open + hook [NOTIF-01]
+- [x] 160-03-PLAN.md — IN-02 regression test: control-only inject → zero PTY writes (`TestInject_ControlOnlyInput`) [IN-02]
+- [x] 160-04-PLAN.md — install.sh hardening: WR-01 `grep -F`, WR-03 root `mkdir -p`, + install-sh.test.sh assertions [WR-01, WR-03]
+- [x] 160-05-PLAN.md — docs/traceability closeout: IN-04 doc comment, WR-02 Run Command, TESTING.md §2/§4 registration [IN-04, NOTIF-02, WR-02]
 
 **Audit reference:** `.planning/v4.1-MILESTONE-AUDIT.md` (NOTIF-01 = the dead-wiring BLOCKER; Phase 154 VERIFICATION falsely claimed it was wired "via existing session callback" — that callback does not exist).
 
@@ -514,6 +516,28 @@ Plans:
 - [ ] TBD (run /gsd-plan-phase 162 to break down)
 
 **Source:** GitHub issue #108 (label: bug). Affected: `SettingsJumpBar.tsx:21-29` (+ comment 11-14), `PluginsSection.tsx:289`, `SettingsTab.tsx:904-905` (no change needed), plus label/order assertions in Settings specs.
+
+### Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)
+
+**Goal:** RO-cap guests (web-share, Hub modal, desktop tab) can **post chat messages** and appear in presence/typing, while `@session` inject and PTY/terminal input remain RO-gated. Reverses the SEC-01 RO chat-send gate (Phase 154) and reconciles the conflict between **D-06** ("RO clients are full chat participants", Phase 152) and **SEC-01/PITFALLS** ("RO read chat, cannot post", Phase 154/155). Surfaced by Phase 159 live UAT (`159-UAT.md` Test 3 / Gaps); user-decided 2026-06-27: *"RO users can participate in chat but cannot @ the session to inject a prompt."*
+
+**Approach (decided 2026-06-27):**
+
+- **Server:** remove the RO gate in `internal/relay/hub.go` `HandleChatSend` (`ErrChatReadOnly`) + the webserver `MsgChatSend` read-pump path. **KEEP** `HandleInject` (`ErrReadOnly`) and the `MsgInput` PTY gate untouched — `@session` inject and terminal input stay RO-blocked.
+- **Frontend:** `frontend/src/components/Hub/ChatPanel.tsx` — enable the chat composer Send when `isReadOnly`; **KEEP** the `@session` press-and-hold inject gesture gated for RO; remove/reword the `chat-composer__readonly-label` "Read only".
+- **Tests:** flip the Phase 155 PARITY-01 SC-3 assertions that assert RO-cannot-post; add coverage asserting RO **can** post chat but an RO `@session` attempt yields **zero PTY writes** (regression guard).
+- **Docs:** reconcile D-06 vs SEC-01; update `.planning/research/PITFALLS.md` (l.21).
+- **Security:** run `/gsd-secure-phase 163` after execution to confirm only `MsgChatSend` was loosened (inject + PTY still gated).
+
+**Requirements**: ROCHAT-01 (RO can post chat across all surfaces via the shared `ChatPanel`), ROCHAT-02 (RO `@session` inject + PTY input remain gated — regression guard), SEC-RO-01 (security re-review confirms only `MsgChatSend` was loosened)
+**Depends on:** Phase 159 (redirect lands RO web guests on the chat surface) + Phases 154/155 (code being changed)
+**Plans:** 0 plans
+
+**UI hint:** yes (ChatPanel composer)
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 163 to break down)
 
 ---
 
