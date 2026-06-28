@@ -493,11 +493,14 @@ Plans:
 
 **Requirements**: ALIAS-UI-01 (user sets their alias from the shared chat sidebar; available on GUI tab, Hub modal, and web-share guest — cross-surface parity via shared `ChatPanel`), ALIAS-UI-02 (the set alias persists via the Phase 152 `AliasStore`/`MsgAliasSet` path and immediately updates the user's chat author name + presence-roster name for all participants; respects `ValidateAlias`)
 **Depends on:** Phase 159 (web-share guests reach `ChatPanel` only via the 159 redirect; also Phase 155 `ChatPanel` + Phase 152 alias backend)
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 161 to break down)
+- [ ] 161-01-PLAN.md — Backend self-identity frame (MsgSelf 0x37 on both server paths for web pre-fill) [Wave 1]
+- [ ] 161-02-PLAN.md — relayClient wire layer (sendAliasSet + MsgSelf parse/onSelf) [Wave 1]
+- [ ] 161-03-PLAN.md — Shared ChatPanel alias header control (validateAlias mirror, RO-enabled, pre-fill) [Wave 2]
+- [ ] 161-04-PLAN.md — Cross-surface alias-propagation e2e + TESTING.md consolidation + live human-verify [Wave 3]
 
 **Backend-ready evidence (Explore, 2026-06-27):** `internal/daemon/alias_store.go` (AliasStore, aliases.json), `internal/relay/protocol.go:84` (`MsgAliasSet` 0x34) + `:95/:260` (`PresenceEntry.alias`/`ChatMessage.alias`), relay dispatch `internal/relay/server.go:357-372`, webserver dispatch `internal/webserver/server.go:1186-1201`, `frontend/src/lib/relayClient.ts:94-99` (`encodeAliasSetFrame`, currently test-only). GAP: no Wails `GetAlias`/`SetAlias` binding, no UI calls `encodeAliasSetFrame`, no Settings/sidebar control. Web surface has no Settings page — which is exactly why the chat sidebar (shared component) is the right home over a Settings Profile section.
 
