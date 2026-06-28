@@ -391,6 +391,13 @@ export function ChatPanel({
   // ── Refs ────────────────────────────────────────────────────────────────
   /** Stable Set of seen message IDs — prevents WS+history duplicates. */
   const seenIdsRef = useRef(new Set<string>())
+  /**
+   * Active resize drag state. Set on pointerdown on the left-edge handle;
+   * cleared on pointerup/cancel. Stored in a ref (not state) so pointer
+   * callbacks read the current value without triggering re-renders.
+   * CHAT-LAYOUT-02: drag handle resize; D-02: no PTY sendResize on width change.
+   */
+  const resizeDragRef = useRef<{ startX: number; startWidth: number } | null>(null)
   /** Scroll container for the virtualizer. */
   const parentRef = useRef<HTMLDivElement>(null)
   /** Composer textarea element. */
@@ -724,6 +731,29 @@ export function ChatPanel({
     setAliasEditing(false)
   }
 
+  // ── CHAT-LAYOUT-02: resize drag handle ────────────────────────────────────
+  // setPointerCapture routes all subsequent pointer events to the handle even
+  // after the pointer leaves the element (mirrors handleInjectPointerDown pattern).
+  // CRITICAL (D-02): these handlers ONLY update drawer width / --chat-panel-width.
+  // They NEVER call sendResize and NEVER alter the terminal grid.
+
+  function handleResizePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    resizeDragRef.current = { startX: e.clientX, startWidth: width }
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* jsdom fallback */ }
+  }
+
+  function handleResizePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizeDragRef.current) return
+    const { startX, startWidth } = resizeDragRef.current
+    // Left edge handle: dragging LEFT (negative delta) = startX > clientX → wider
+    const newWidth = clampChatWidth(startWidth + (startX - e.clientX))
+    setWidth(newWidth)
+  }
+
+  function handleResizePointerUp() {
+    resizeDragRef.current = null
+  }
+
   function handleInjectPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     // Phase 155 PARITY-01 SC-3: short-circuit inject gesture when read-only
     if (isReadOnly) return
@@ -832,6 +862,18 @@ export function ChatPanel({
       aria-hidden={!open}
       data-testid="chat-panel"
     >
+      {/* CHAT-LAYOUT-02: left-edge drag handle for width resize.
+          aria-hidden: the handle is a visual affordance only; no ARIA role needed.
+          D-02: pointer handlers only update width state / --chat-panel-width;
+          they never call sendResize and never change the terminal grid. */}
+      <div
+        className="chat-panel__resize-handle"
+        onPointerDown={handleResizePointerDown}
+        onPointerMove={handleResizePointerMove}
+        onPointerUp={handleResizePointerUp}
+        onPointerCancel={handleResizePointerUp}
+        aria-hidden="true"
+      />
       {/* ── Header: title + alias control + presence roster + export ──── */}
       <div className="chat-panel__header">
         <span className="chat-panel__title">Chat</span>

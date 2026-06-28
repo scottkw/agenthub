@@ -6005,13 +6005,15 @@ body {
 }
 
 /* D-02: ChatPanel overlay — floats over the terminal's right edge; does NOT push the terminal.
-   The terminal grid is never resized when the drawer opens/closes (no sendResize). */
+   The terminal grid is never resized when the drawer opens/closes (no sendResize).
+   CHAT-LAYOUT-02: width driven by --chat-panel-width set by ChatPanel on :root;
+   fallback 360px matches CHAT_WIDTH_DEFAULT. */
 .hub-modal__body--interactive .chat-panel {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 360px;
+  width: var(--chat-panel-width, 360px);
   z-index: 5;
   transform: translateX(100%);
   transition: transform 200ms ease;
@@ -6047,17 +6049,16 @@ body {
   border-color: var(--hub-accent);
 }
 
-/* CHAT-FIX-01: relocate the toggle clear of the open chat drawer so it no longer
-   overlaps the composer Send/Inject button (z-index:6 toggle was obscuring z-index:5
-   drawer bottom-right corner). Uses the general-sibling combinator: ChatPanel
-   (which carries .chat-panel--open when open) renders BEFORE the toggle button as
-   a same-parent sibling in HubInteractiveModal.tsx and WebShareSessionView.tsx, so
-   the selector matches when the drawer is open. Intentionally unscoped so it also
-   corrects the identical latent overlap on the web-share surface (both surfaces use
-   the same .hub-modal__chat-toggle + .chat-panel--open classes). right: 372px =
-   360px drawer width + 12px gutter, placing the toggle 12px left of the drawer edge. */
+/* CHAT-FIX-01 + CHAT-LAYOUT-02: relocate the toggle clear of the open chat drawer.
+   CHAT-FIX-01: prevents the z-index:6 toggle from obscuring the z-index:5 drawer
+   bottom-right corner (Send/Inject button). Uses the general-sibling combinator:
+   ChatPanel (.chat-panel--open) renders BEFORE the toggle as a same-parent sibling in
+   HubInteractiveModal.tsx, WebShareSessionView.tsx, and TerminalChatHost.tsx.
+   CHAT-LAYOUT-02: offset now tracks the live drawer width via --chat-panel-width
+   instead of being hard-coded to 372px (360px + 12px). The calc fallback 360px ensures
+   the toggle is correctly positioned even before ChatPanel mounts and sets the property. */
 .chat-panel--open ~ .hub-modal__chat-toggle {
-  right: 372px;
+  right: calc(var(--chat-panel-width, 360px) + 12px);
 }
 
 .hub-modal__chat-toggle-icon {
@@ -6672,13 +6673,15 @@ body {
 
 /* Drawer: absolutely positioned over the right edge of the terminal.
    The terminal column keeps its full width — the drawer is an overlay (D-02).
-   Contains: header (48px) + thread (flex-1) + typing (0–24px) + composer-slot. */
+   Contains: header (48px) + thread (flex-1) + typing (0–24px) + composer-slot.
+   CHAT-LAYOUT-02: width driven by --chat-panel-width set by ChatPanel on :root;
+   fallback 360px matches CHAT_WIDTH_DEFAULT and the CSS initial value before React mounts. */
 .chat-panel {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 360px;
+  width: var(--chat-panel-width, 360px);
   z-index: 5;
   background: var(--hub-surface);
   border-left: 1px solid var(--hub-border);
@@ -6687,6 +6690,29 @@ body {
   /* Slide: closed by default (off-screen to the right) */
   transform: translateX(100%);
   transition: transform 220ms ease-out;
+}
+
+/* CHAT-LAYOUT-02: left-edge drag handle for width resize.
+   position:absolute inside .chat-panel (which has no overflow:hidden) so the handle
+   straddles the left border. left:-2px gives a 6px grabbable strip that overlaps the
+   border for easier mouse/touch targeting. cursor:col-resize signals the resize intent.
+   z-index:10 ensures the handle is above the chat thread content. D-02: the handle
+   only changes the drawer width — it never alters the terminal grid. */
+.chat-panel__resize-handle {
+  position: absolute;
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+  user-select: none;
+}
+
+.chat-panel__resize-handle:hover,
+.chat-panel__resize-handle:active {
+  background: var(--hub-accent, rgba(255, 255, 255, 0.15));
+  opacity: 0.6;
 }
 
 /* Open state: slide in */
