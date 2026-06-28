@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 163
-current_phase_name: read-only-guest-chat-posting-d-06-reconciliation
-status: verifying
-stopped_at: Phase 163 all 3 plans executed + verified (10/10 must-haves); status human_needed — pending Playwright E2E UAT + /gsd-secure-phase 163 (SEC-RO-01)
-last_updated: "2026-06-28T23:55:00.000Z"
-last_activity: 2026-06-28
-last_activity_desc: Phase 163 executed + verified (human_needed)
+current_phase: 164
+current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
+status: ready_to_plan
+stopped_at: Phase 163 complete — UAT 2/2 pass (ROCHAT-01/02 live e2e chromium-green + SEC-RO-01 via 163-SECURITY.md, threats_open: 0); ready to plan Phase 164
+last_updated: "2026-06-29T00:40:00.000Z"
+last_activity: 2026-06-29
+last_activity_desc: Phase 163 complete — UAT 2/2 pass; 163-SECURITY.md added (6 STRIDE threats CLOSED)
 progress:
   total_phases: 14
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 52
   completed_plans: 52
-  percent: 86
+  percent: 93
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 163 — read-only-guest-chat-posting-d-06-reconciliation
+**Current focus:** Phase 164 — web-share-chat-layout-polish-message-header-overflow-fix-res
 
 ## Current Position
 
-Phase: 163 (read-only-guest-chat-posting-d-06-reconciliation) — VERIFYING (human_needed)
-Plan: 3 of 3 executed
-Status: Verified 10/10 must-haves; pending human UAT (Playwright E2E) + /gsd-secure-phase 163 (SEC-RO-01) before completion
-Last activity: 2026-06-28 — Phase 163 executed + verified (human_needed)
+Phase: 164 (web-share-chat-layout-polish-message-header-overflow-fix-res) — READY TO PLAN
+Plan: Not started
+Status: Phase 163 complete (UAT 2/2 pass + 163-SECURITY.md); ready to plan Phase 164 (last phase before /gsd-audit-milestone)
+Last activity: 2026-06-29 — Phase 163 complete — UAT 2/2 pass; 163-SECURITY.md added (threats_open: 0)
 
 ```
-Progress: [█████████████████░░░] 12/14 phases complete (86%); Phase 162 complete (Terminal Plugins jump link #108, UAT 3/3 via harness), Phase 163 next
+Progress: [██████████████████░░] 13/14 phases complete (93%); Phase 163 complete (RO guest chat posting — ROCHAT-01/02 live e2e + SEC-RO-01), Phase 164 next (last before milestone audit)
 ```
 
 ### Quick Tasks Completed
@@ -67,7 +67,7 @@ Progress: [█████████████████░░░] 12/14 p
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Planned (5 plans) |
 | 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Complete |
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Complete |
-| 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
+| 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Complete |
 
 **Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 161 complete (ALIAS-UI-01/02, live-UAT verified); 159–164 requirements set at plan time. v4.1 = 14 phases (closeout audit runs after 164; see ROADMAP closeout-ordering note).
 
