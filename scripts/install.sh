@@ -74,7 +74,7 @@ curl -fsSL "${BASE_URL}/${TARBALL}"    -o "${TMPDIR}/${TARBALL}"
 curl -fsSL "${BASE_URL}/checksums.txt" -o "${TMPDIR}/checksums.txt"
 
 # Require a non-empty checksum entry for this tarball
-EXPECTED=$(grep "${TARBALL}" "${TMPDIR}/checksums.txt" | awk '{print $1}')
+EXPECTED=$(grep -F "${TARBALL}" "${TMPDIR}/checksums.txt" | awk '{print $1}')
 [ -n "$EXPECTED" ] || {
     printf 'Error: %s not found in checksums.txt\n' "$TARBALL" >&2
     exit 1
@@ -101,6 +101,7 @@ tar xzf "${TMPDIR}/${TARBALL}" -C "$TMPDIR" agenthub
 
 if [ "$(id -u)" -eq 0 ]; then
     INSTALL_DIR="/usr/local/bin"
+    mkdir -p "$INSTALL_DIR"
 else
     INSTALL_DIR="${HOME}/.local/bin"
     mkdir -p "$INSTALL_DIR"
