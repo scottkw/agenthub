@@ -329,6 +329,16 @@ export function ChatPanel({
   // Server gating is authoritative (HandleChatSend/HandleInject); this is UX only.
   const [isReadOnly, setIsReadOnly] = useState(true)
 
+  // ── Phase 161 ALIAS-UI-01: alias control state ───────────────────────────
+  /** Self-identity set from MsgSelf (0x37) frame on WS connect. Used for web pre-fill. */
+  const [selfIdentity, setSelfIdentity] = useState<{ personKey: string; alias: string } | null>(null)
+  /** Whether the alias edit input is currently active. */
+  const [aliasEditing, setAliasEditing] = useState(false)
+  /** Alias draft value while editing. */
+  const [aliasDraft, setAliasDraft] = useState('')
+  /** Client-side validation error (shown instead of calling sendAliasSet). */
+  const [aliasError, setAliasError] = useState('')
+
   // ── Refs ────────────────────────────────────────────────────────────────
   /** Stable Set of seen message IDs — prevents WS+history duplicates. */
   const seenIdsRef = useRef(new Set<string>())
@@ -437,6 +447,10 @@ export function ChatPanel({
     seenIdsRef.current = new Set()
     setDraft('')
     setMentionOpen(false)
+    // Phase 161: reset alias control state on session change
+    setSelfIdentity(null)
+    setAliasEditing(false)
+    setAliasError('')
     clientRef.current = null
 
     const client = new RelayClient(relayPort, sessionId, {
@@ -451,6 +465,10 @@ export function ChatPanel({
               : [...prev, { key: personKey, alias }]
             : prev.filter(e => e.key !== personKey),
         )
+      },
+      onSelf: (personKey, alias) => {
+        // Phase 161: store self-identity for alias pre-fill on both surfaces
+        setSelfIdentity({ personKey, alias })
       },
       onInjectError: (reason) => {
         console.debug('[ChatPanel] inject error:', reason)
@@ -603,6 +621,38 @@ export function ChatPanel({
     }
   }
 
+  // ── Phase 161 ALIAS-UI-01: alias control helpers ─────────────────────────
+
+  /**
+   * Current alias for pre-fill.
+   * Priority:
+   *   1. onSelf identity (web-share; arrives via MsgSelf on WS connect; also works for desktop)
+   *   2. local:local presence entry (desktop fallback before MsgSelf arrives)
+   *   3. Empty string (no alias set yet — neutral placeholder)
+   */
+  const currentAlias =
+    selfIdentity?.alias ??
+    participants.find(p => p.personKey === 'local:local')?.alias ??
+    ''
+
+  /**
+   * Commit the alias edit: validate via validateAlias (client mirror of Go ValidateAlias),
+   * show a client-side error on null, or call sendAliasSet on success.
+   *
+   * CRITICAL: NO isReadOnly early-return — the alias control is the D-06 RO exception.
+   * Only handleSend/handleInjectPointerDown remain RO-gated. (RESEARCH Pitfall 1)
+   */
+  function handleAliasCommit() {
+    const validated = validateAlias(aliasDraft)
+    if (validated === null) {
+      setAliasError('Alias must be 1–32 characters with no control characters.')
+      return
+    }
+    setAliasError('')
+    clientRef.current?.sendAliasSet(validated)
+    setAliasEditing(false)
+  }
+
   function handleInjectPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     // Phase 155 PARITY-01 SC-3: short-circuit inject gesture when read-only
     if (isReadOnly) return
@@ -711,9 +761,66 @@ export function ChatPanel({
       aria-hidden={!open}
       data-testid="chat-panel"
     >
-      {/* ── Header: title + presence roster + export ────────────────── */}
+      {/* ── Header: title + alias control + presence roster + export ──── */}
       <div className="chat-panel__header">
         <span className="chat-panel__title">Chat</span>
+        {/* Phase 161 ALIAS-UI-01: global display-name control.
+            Enabled on ALL surfaces (GUI tab, Hub modal, web-share guest).
+            NOT disabled when isReadOnly — D-06 exception: alias set ≠ chat send.
+            title conveys global scope: "Your global display name across all sessions". */}
+        <div
+          className="chat-panel__alias"
+          title="Your global display name — shown to all chat participants across all sessions"
+        >
+          {aliasEditing ? (
+            <div className="chat-panel__alias-edit">
+              <input
+                type="text"
+                className="chat-panel__alias-input"
+                value={aliasDraft}
+                onChange={e => setAliasDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleAliasCommit() }
+                  if (e.key === 'Escape') { setAliasEditing(false); setAliasError('') }
+                }}
+                aria-label="Your global display name"
+                // NOT disabled — alias control is the D-06 RO exception
+                autoFocus
+              />
+              <button
+                type="button"
+                className="chat-panel__alias-save"
+                onClick={handleAliasCommit}
+                aria-label="Save display name"
+              >
+                ✓
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="chat-panel__alias-label"
+              onClick={() => {
+                setAliasDraft(currentAlias)
+                setAliasError('')
+                setAliasEditing(true)
+              }}
+              aria-label={`Chatting as ${currentAlias || '(no name set)'}. Click to edit your global display name.`}
+            >
+              <span className="chat-panel__alias-name">{currentAlias || '(set name)'}</span>
+              {' ✏️'}
+            </button>
+          )}
+          {aliasError && (
+            <div
+              className="chat-panel__alias-error"
+              role="alert"
+              style={{ fontSize: 11, color: 'var(--hub-text-dim)' }}
+            >
+              {aliasError}
+            </div>
+          )}
+        </div>
         {/* Presence roster: up to 3 avatars + overflow count.
             chat-presence is the frozen Playwright selector (UI-SPEC §5). */}
         <div

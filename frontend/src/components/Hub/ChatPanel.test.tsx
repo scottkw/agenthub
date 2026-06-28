@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   mockClose: vi.fn(),
   mockSendChat: vi.fn(),
   mockSendSessionInject: vi.fn(),
+  mockSendAliasSet: vi.fn(),
 }))
 
 // ── Mock RelayClient ───────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ vi.mock('../../lib/relayClient', async (importActual) => {
       close() { mocks.mockClose() }
       sendChat(content: string) { mocks.mockSendChat(content) }
       sendSessionInject(text: string) { mocks.mockSendSessionInject(text) }
+      sendAliasSet(alias: string) { mocks.mockSendAliasSet(alias) }
     } as unknown as (typeof actual)['RelayClient'],
   }
 })
@@ -126,6 +128,7 @@ beforeEach(() => {
   mocks.mockClose.mockClear()
   mocks.mockSendChat.mockClear()
   mocks.mockSendSessionInject.mockClear()
+  mocks.mockSendAliasSet.mockClear()
   mockFetch.mockReset()
   // Default: history endpoint returns empty list
   mockFetch.mockResolvedValue({
@@ -732,6 +735,174 @@ describe('sec-03 integration — echoed script payload renders inert', () => {
     expect(container.querySelector('script')).toBeNull()
     // No onerror attributes
     expect(container.innerHTML).not.toContain('onerror')
+
+    unmount()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 161 TASK 2 — alias control render + RO-enable + commit + pre-fill
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Set the value of an <input> via the native setter (React synthetic onChange picks it up). */
+function setInputValue(el: HTMLInputElement | null, value: string) {
+  if (!el) return
+  const nativeSetter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set
+  if (nativeSetter) {
+    nativeSetter.call(el, value)
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(el as any).value = value
+  }
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+describe('alias control — Phase 161 ALIAS-UI-01/02 (render + RO-enable + commit + pre-fill)', () => {
+  it('-t alias: renders the alias control element in the header', () => {
+    const { container, unmount } = mountPanel()
+    expect(container.querySelector('.chat-panel__alias')).not.toBeNull()
+    unmount()
+  })
+
+  it('-t alias: alias label button is NOT disabled when isReadOnly (D-06 exception)', async () => {
+    // Mount with capToken; default mockFetch returns [] → /info perms="" → isReadOnly=true
+    const { container, unmount } = mountPanel({ capToken: 'test-cap' })
+
+    // Flush all pending effects including the /info fetch
+    await act(async () => { /* flush */ })
+
+    const aliasBtn = container.querySelector('.chat-panel__alias-label') as HTMLButtonElement | null
+    expect(aliasBtn).not.toBeNull()
+    // The alias control must NOT be disabled even though isReadOnly is true (D-06 exception)
+    expect(aliasBtn?.disabled).toBe(false)
+
+    unmount()
+  })
+
+  it('-t alias: valid commit calls sendAliasSet exactly once with the validated alias', () => {
+    const { container, unmount } = mountPanel() // no capToken → isReadOnly=false
+
+    // Open the alias edit input
+    const aliasBtn = container.querySelector('.chat-panel__alias-label') as HTMLButtonElement | null
+    act(() => { aliasBtn?.click() })
+
+    const input = container.querySelector('.chat-panel__alias-input') as HTMLInputElement | null
+    expect(input).not.toBeNull()
+
+    // Set a valid alias
+    act(() => { setInputValue(input, 'Alice') })
+
+    // Click the save button (type="button", onClick=handleAliasCommit)
+    const saveBtn = container.querySelector('.chat-panel__alias-save') as HTMLButtonElement | null
+    act(() => { saveBtn?.click() })
+
+    expect(mocks.mockSendAliasSet).toHaveBeenCalledOnce()
+    expect(mocks.mockSendAliasSet).toHaveBeenCalledWith('Alice')
+
+    unmount()
+  })
+
+  it('-t alias: invalid alias (33 code points) does NOT call sendAliasSet and shows .chat-panel__alias-error', () => {
+    const { container, unmount } = mountPanel()
+
+    // Open the alias edit input
+    const aliasBtn = container.querySelector('.chat-panel__alias-label') as HTMLButtonElement | null
+    act(() => { aliasBtn?.click() })
+
+    const input = container.querySelector('.chat-panel__alias-input') as HTMLInputElement | null
+    // Set an alias that is too long (33 code points)
+    act(() => { setInputValue(input, 'a'.repeat(33)) })
+
+    const saveBtn = container.querySelector('.chat-panel__alias-save') as HTMLButtonElement | null
+    act(() => { saveBtn?.click() })
+
+    // Should NOT call sendAliasSet
+    expect(mocks.mockSendAliasSet).not.toHaveBeenCalled()
+    // Should show a visible error element
+    expect(container.querySelector('.chat-panel__alias-error')).not.toBeNull()
+
+    unmount()
+  })
+
+  it('-t alias: invalid alias with C0 control char does NOT call sendAliasSet', () => {
+    const { container, unmount } = mountPanel()
+
+    const aliasBtn = container.querySelector('.chat-panel__alias-label') as HTMLButtonElement | null
+    act(() => { aliasBtn?.click() })
+
+    const input = container.querySelector('.chat-panel__alias-input') as HTMLInputElement | null
+    act(() => { setInputValue(input, 'bad\x01alias') })
+
+    const saveBtn = container.querySelector('.chat-panel__alias-save') as HTMLButtonElement | null
+    act(() => { saveBtn?.click() })
+
+    expect(mocks.mockSendAliasSet).not.toHaveBeenCalled()
+    expect(container.querySelector('.chat-panel__alias-error')).not.toBeNull()
+
+    unmount()
+  })
+
+  it('-t alias: desktop pre-fill from local:local roster entry', () => {
+    const { container, unmount } = mountPanel()
+
+    // Deliver presence with a local:local entry (desktop owner constant)
+    act(() => {
+      const onPresence = mocks.lastCallbacks?.onPresence as ((p: PresenceEntry[]) => void) | undefined
+      onPresence?.([{
+        personKey: 'local:local',
+        tailnetID: 'local',
+        origin: 'local',
+        alias: 'DesktopAlias',
+        connCount: 1,
+      }])
+    })
+
+    // The alias label should display the alias from the roster
+    const aliasLabel = container.querySelector('.chat-panel__alias-label')
+    expect(aliasLabel?.textContent).toContain('DesktopAlias')
+
+    // Click to open edit — input should be pre-filled with the roster alias
+    act(() => { (aliasLabel as HTMLButtonElement)?.click() })
+    const input = container.querySelector('.chat-panel__alias-input') as HTMLInputElement | null
+    expect(input?.value).toBe('DesktopAlias')
+
+    unmount()
+  })
+
+  it('-t alias: web pre-fill from onSelf identity (MsgSelf 0x37)', () => {
+    const { container, unmount } = mountPanel()
+
+    // Deliver onSelf callback (simulates MsgSelf frame arriving on WS connect)
+    act(() => {
+      const onSelf = mocks.lastCallbacks?.onSelf as ((personKey: string, alias: string) => void) | undefined
+      onSelf?.('node:abc123', 'WebAlias')
+    })
+
+    // The alias label should display the onSelf alias
+    const aliasLabel = container.querySelector('.chat-panel__alias-label')
+    expect(aliasLabel?.textContent).toContain('WebAlias')
+
+    // Click to open edit — input should be pre-filled
+    act(() => { (aliasLabel as HTMLButtonElement)?.click() })
+    const input = container.querySelector('.chat-panel__alias-input') as HTMLInputElement | null
+    expect(input?.value).toBe('WebAlias')
+
+    unmount()
+  })
+
+  it('-t alias: global scope communicated via title or aria-label', () => {
+    const { container, unmount } = mountPanel()
+
+    const aliasEl = container.querySelector('.chat-panel__alias')
+    expect(aliasEl).not.toBeNull()
+    // title or aria-label must convey that this is a global (not per-session) display name
+    const titleText = aliasEl?.getAttribute('title') ?? ''
+    const ariaLabel = aliasEl?.getAttribute('aria-label') ?? ''
+    const combined = (titleText + ' ' + ariaLabel).toLowerCase()
+    expect(combined).toMatch(/global|all session/i)
 
     unmount()
   })

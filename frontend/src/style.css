@@ -6748,6 +6748,100 @@ body {
   margin-left: 4px;
 }
 
+/* ── Phase 161: Alias control in the chat header ────────────────────────── */
+/* Override title flex — alias control now absorbs remaining space in header */
+.chat-panel__title {
+  flex: 0 0 auto;
+}
+
+/* Alias control wrapper: takes remaining header space; column for error msg */
+.chat-panel__alias {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* "chatting as: «name» ✏️" label button (display state) */
+.chat-panel__alias-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--hub-radius-sm);
+  cursor: pointer;
+  color: var(--hub-text-muted);
+  font-size: 11px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-panel__alias-label:hover {
+  background: var(--hub-border);
+}
+
+/* Alias name span — truncates when too wide */
+.chat-panel__alias-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 120px;
+}
+
+/* Edit row: input + save button (edit state) */
+.chat-panel__alias-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Alias text input */
+.chat-panel__alias-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  background: var(--hub-surface);
+  color: var(--hub-text-primary);
+  outline: none;
+}
+
+.chat-panel__alias-input:focus {
+  border-color: var(--hub-text-muted);
+}
+
+/* Save (✓) button */
+.chat-panel__alias-save {
+  background: none;
+  border: 1px solid var(--hub-border);
+  border-radius: var(--hub-radius-sm);
+  cursor: pointer;
+  color: var(--hub-text-muted);
+  padding: 1px 5px;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.chat-panel__alias-save:hover {
+  background: var(--hub-border);
+}
+
+/* Client-side validation error (server sends no NAK — RESEARCH Pitfall 4) */
+.chat-panel__alias-error {
+  font-size: 11px;
+  color: var(--hub-text-dim);
+  padding-top: 2px;
+  white-space: normal;
+}
+
 /* Thread: scroll container for the tanstack virtualizer.
    position:relative is required so that absolute virtualizer rows
    are positioned relative to this container, not the viewport. */
