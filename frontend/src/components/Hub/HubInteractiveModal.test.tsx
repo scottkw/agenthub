@@ -269,3 +269,74 @@ describe('HubInteractiveModal — D-02 overlay drawer + chat toggle', () => {
     expect(badge?.textContent).toBe('@')
   })
 })
+
+// ── NOTIF-01: sessionId injection via onUnreadChange prop ─────────────────────
+// HubInteractiveModal must forward ChatPanel's (count, hasMention) to
+// onUnreadChange(sessionId, count, hasMention), injecting session.id.
+// This lifts unread state from the modal-local scope to HubPanel's unreadMap.
+
+describe('HubInteractiveModal (NOTIF-01: sessionId injection via onUnreadChange)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    capturedTerminalProps = null
+    capturedChatPanelProps = null
+    vi.clearAllMocks()
+  })
+
+  it('NOTIF-01: onUnreadChange prop receives (sessionId, count, hasMention) when ChatPanel reports unread', () => {
+    const onUnreadChange = vi.fn()
+    const session = makeSession({ id: 'sess-notif-01' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    act(() => {
+      root.render(
+        // Cast needed: onUnreadChange is not yet in HubInteractiveModalProps (RED phase).
+        React.createElement(HubInteractiveModal as React.ComponentType<Record<string, unknown>>, {
+          session,
+          isOpen: true,
+          relayPort: 51234,
+          fontSize: 14,
+          theme: { background: '#000', foreground: '#fff' },
+          onUnreadChange,
+        }),
+      )
+    })
+
+    // Simulate ChatPanel reporting (count, hasMention) — no sessionId in ChatPanel's callback
+    act(() => {
+      capturedChatPanelProps?.onUnreadChange?.(3, true)
+    })
+
+    // HubInteractiveModal must inject session.id before calling the parent callback
+    expect(onUnreadChange).toHaveBeenCalledWith('sess-notif-01', 3, true)
+  })
+
+  it('NOTIF-01: hasMention=false is forwarded accurately to the parent callback', () => {
+    const onUnreadChange = vi.fn()
+    const session = makeSession({ id: 'sess-no-mention' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    act(() => {
+      root.render(
+        React.createElement(HubInteractiveModal as React.ComponentType<Record<string, unknown>>, {
+          session,
+          isOpen: true,
+          relayPort: 51234,
+          fontSize: 14,
+          theme: { background: '#000', foreground: '#fff' },
+          onUnreadChange,
+        }),
+      )
+    })
+
+    act(() => {
+      capturedChatPanelProps?.onUnreadChange?.(2, false)
+    })
+
+    expect(onUnreadChange).toHaveBeenCalledWith('sess-no-mention', 2, false)
+  })
+})
