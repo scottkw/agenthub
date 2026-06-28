@@ -359,12 +359,30 @@ describe('sticky separator row style (CHAT-04)', () => {
     expect(Object.keys(style)).not.toContain('transform')
   })
 
+  it('active separator: NO width property (must not break sticky separator layout)', () => {
+    // Adding width to the separator branch would regress CHAT-04 sticky behaviour (Pitfall 1)
+    const style = getRowStyle(true, 100)
+    expect(Object.keys(style)).not.toContain('width')
+  })
+
   it('non-active row: position:absolute with translateY transform', () => {
     const style = getRowStyle(false, 100)
     expect(style.position).toBe('absolute')
     expect(style.top).toBe(0)
     expect(style.left).toBe(0)
     expect(style.transform).toBe('translateY(100px)')
+  })
+
+  it('non-active row: width is "100%" (CHAT-LAYOUT-01 root-cause fix — bounds row to thread width so WEBCHAT-06 ellipsis engages)', () => {
+    // Without width:'100%', the absolutely-positioned row shrinks to its content width,
+    // so the existing ellipsis on .chat-msg__tailnet-id has no bounded container to truncate within.
+    const style = getRowStyle(false, 120)
+    expect(style.width).toBe('100%')
+  })
+
+  it('non-active row: right is 0 (prevents overflow beyond right edge)', () => {
+    const style = getRowStyle(false, 120)
+    expect(style.right).toBe(0)
   })
 
   it('non-active row translateY uses exact start value', () => {
