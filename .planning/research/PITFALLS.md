@@ -17,10 +17,10 @@ The relay already enforces `if !sub.ReadOnly` before forwarding keyboard input f
 Developers add a `POST /api/chat` or a new WS message type and gate it on "is this a valid cap token for this session," assuming that's sufficient — matching how the relay's read-only viewer check works. But the relay's RO flag is set per-connection at upgrade time based on the `readonly=1` URL param; the new chat endpoint is a fresh request with its own access path, and it won't inherit that flag automatically.
 
 **How to avoid:**
-Define the capability requirement for chat posts up front and enforce it server-side on every path, not client-side:
-- RO cap holders: read chat, cannot post. Enforce by checking `!sub.ReadOnly` (or an equivalent `chat.write` perm) before the daemon processes any incoming chat message, not just `@session` ones.
-- `@session` injection: enforce a second, explicit check that the posting client's cap token carries write permission (not just read) before the daemon calls `session.Write()`. Do this in the daemon handler, not in the relay fan-out.
-- Never rely on the frontend to suppress the "Send" button for RO viewers as the only guard.
+Define the capability requirement for chat posts and injection up front and enforce it server-side on every path, not client-side:
+- **Phase 163 reconciliation (D-06, user decision 2026-06-27):** RO cap holders ARE full chat participants — they may post chat messages and emit presence/typing events. The original "cannot post" gate was intentionally removed in Phase 163 (`HandleChatSend` no longer checks `sub.ReadOnly`; `ErrChatReadOnly` deleted). Cross-reference: as of Phase 163 the chat-post gate was removed per D-06; only the `@session` inject / PTY write gate remains and MUST hold.
+- `@session` injection (MUST remain gated): RO clients MUST NOT inject to PTY. Enforce `sub.ReadOnly` in `HandleInject` (returns `ErrReadOnly`) and in the MsgInput frame discard — both are byte-for-byte unchanged from Phase 153. This is regression-proven by `TestHandleChatSend_ROCanPostInjectStillGated` (SEC-RO-01): RO chat post succeeds AND `HandleInject` returns `ErrReadOnly` AND PTY write count = 0 in a single test.
+- Never rely on the frontend to suppress the "Send" button for RO viewers as the sole `@session` guard — the server-side `HandleInject` gate is the authoritative enforcement point for PTY writes.
 
 **Warning signs:**
 Any code path that calls `session.Write()` from chat processing without first consulting the cap token's perms. Grep for `session.Write` and `pty.Write` call sites added during the chat phase.
@@ -270,7 +270,7 @@ A `ChatStore` or similar struct with `[]ChatMessage` or `map[string][]ChatMessag
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Checking only token validity (not perms) before allowing chat post | RO viewer can post; RO viewer can inject via @session | Check `!sub.ReadOnly` and require write perm before any chat POST or @session injection |
+| Checking only token validity (not perms) before allowing `@session` inject or MsgInput PTY write | RO viewer can inject via @session; RO viewer can write PTY stdin | Check `sub.ReadOnly` in `HandleInject` (returns `ErrReadOnly`) and in the MsgInput frame discard before any `session.Write()` call. As of Phase 163 (D-06), RO chat post is intentionally allowed — only `@session` inject and PTY input (MsgInput) remain RO-gated. |
 | Storing raw alias as the author identity field | Alias changes mid-session; historical messages mis-attributed | Store `{peer_id, alias_at_send_time}` — peer ID is immutable; alias is a snapshot label |
 | Reflecting alias to all clients without server-side length/character check | Long alias or HTML in alias corrupts UI layout; XSS vector in alias column | Validate alias at join: max 32 chars, printable text, no HTML special chars; reject at handshake |
 | Logging message body at INFO level | Chat content (potentially sensitive) leaks to log files visible to any process with file access | Log metadata only (peer_id, session_id, seq, timestamp, byte length); never log the body |
@@ -291,7 +291,7 @@ A `ChatStore` or similar struct with `[]ChatMessage` or `map[string][]ChatMessag
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **RO enforcement:** RO cap token holder cannot send a chat message — verify by crafting a WebSocket frame from an RO-capped connection and confirming the daemon rejects it (non-2xx or WS error frame).
+- [ ] **RO enforcement (D-06 reconciled, Phase 163):** RO cap holder CAN post chat — verify that a chat message from an RO-capped connection is persisted and broadcast (no rejection). Separately, an RO `@session` inject yields zero PTY writes — verify the daemon returns `MsgInjectError` and PTY write count = 0 (the inject/PTY guard is unchanged from Phase 153; proven by `TestHandleChatSend_ROCanPostInjectStillGated`).
 - [ ] **`@session` sanitization:** A message body containing `\nhello\nworld` via @session results in exactly one PTY write terminated by one `\n` — verify by inspecting raw PTY stdin bytes received.
 - [ ] **Daemon restart survival:** Post 5 messages, kill and restart the daemon, reconnect — verify all 5 messages appear in the history replay.
 - [ ] **Session delete teardown:** Delete a session that has an active chat thread — verify no chat data remains in the store (no orphaned thread).
@@ -321,7 +321,7 @@ A `ChatStore` or similar struct with `[]ChatMessage` or `map[string][]ChatMessag
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| RO cap bypass via chat / @session | Daemon message store + chat protocol | Automated: RO-capped WS tries to POST chat → reject; tries @session → no PTY write |
+| RO cap bypass via @session / PTY (D-06 Phase 163: chat post now allowed by design) | Daemon message store + chat protocol (Phase 163 reconciled D-06) | Automated: RO-capped WS CAN post chat (D-06, Phase 163 — `TestHandleChatSend_ROCanPost` passes, chat persists + broadcasts); @session inject → `MsgInjectError` + no PTY write (`TestHandleChatSend_ROCanPostInjectStillGated` SEC-RO-01 regression guard) |
 | PTY control-char injection | @session bridge | Automated: sanitizer unit tests with newline/ctrl-char corpus; integration test confirms single terminated line |
 | Alias spoofing | Identity + alias layer | Automated: two clients attempt same alias → second rejected; message payload always carries peer_id |
 | XSS via Markdown | Chat UI implementation | Cross-browser Playwright: render `<img onerror=...>` → DOM has no onerror attr; CSP violations = 0 |
