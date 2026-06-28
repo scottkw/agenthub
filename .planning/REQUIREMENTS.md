@@ -53,6 +53,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 - [x] **PARITY-01**: Every Session Chat feature behaves identically on the desktop GUI and the web-share browser surface (release-blocking).
 - [x] **WEBCHAT-01**: A remote guest who opens the actually-shared web-share link (`/sessions/{id}?cap=`) reaches a chat-capable surface — `handleTerminalPage` 302-redirects (after `requireCapability`) to the React SPA at `/app/?session={id}&cap={token}` (WebShareSessionView, Phase 155), which carries the ChatPanel/toggle/badge/presence.
 - [x] **WEBCHAT-02**: Cross-surface chat parity is verified on the actually-shared link, not on `/app/` directly — closing the false-parity gap where Phase 155 verified PARITY-01 only against `/app/` while the share flow handed out the chat-less vanilla-JS `terminal.js` viewer.
+- [x] **WEBCHAT-03**: A remote web-share guest reaching `/app/?session=&cap=` (via the WEBCHAT-01 redirect) sees ONLY the scoped session surface — the terminal, chat, and file-browser tab — and NOT the desktop app navigation chrome (Home / Hub / Settings / session-group sidebar). Prevents a one-session guest from navigating away from the scoped session and reaching the open `/api/sessions/meta` enumeration surface. (Gap-closure from 159 live UAT.)
 
 ### SEC — Security
 
@@ -129,6 +130,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | PARITY-01 | Phase 155, Phase 159 | Complete (honored on the shared link by Phase 159 redirect) |
 | WEBCHAT-01 | Phase 159 | Complete (UAT pending — M-31) |
 | WEBCHAT-02 | Phase 159 | Complete (UAT pending — M-31) |
+| WEBCHAT-03 | Phase 159 (159-02) | Complete (e2e: web-share-scope.spec.ts) |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |
