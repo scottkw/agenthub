@@ -1431,6 +1431,13 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         </div>
       )}
       <div className="app__row">
+      {/* Phase 159-02 (WEBCHAT-03) — web-share guest scope. In web mode the SPA
+          is served to a remote guest holding a capability for ONE session; the
+          desktop navigation chrome (Home / Hub / Settings / session groups) must
+          NOT be rendered, or the guest could navigate away from the scoped
+          session and reach the open /api/sessions/meta enumeration surface.
+          Mirrors the existing `mode !== 'web'` gates on the Settings surface. */}
+      {mode !== 'web' && (
       <Sidebar
         onHome={handleHome}
         onSettings={handleOpenSettings}
@@ -1445,6 +1452,7 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
         groupCounts={groupCounts}
         globalGroupCounts={globalGroupCounts}
       />
+      )}
       <div className="app__content">
         <TabBar
           tabs={tabs}
