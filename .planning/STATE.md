@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 159 (web-share-chat-parity-route-shared-session-links-to-the-chat) — AWAITING UAT
-Plan: 3 of 3 complete (159-01 redirect + 159-02 WEBCHAT-03 hide-sidebar + 159-03 WEBCHAT-04 file-tab-gating)
-Status: Automated verification PASSED; two live-UAT gap-closures landed (159-02 hid the desktop sidebar from web guests; 159-03 stops the dead "files.read permission required" tab when the cap lacks file access). Fresh app rebuilt. Awaiting remaining two-peer live checks (bidirectional chat, RO chat, resize scale).
+Plan: 4 of 4 complete (159-01 redirect + 159-02 hide-sidebar + 159-03 file-tab-gating + 159-04 tab-rename-suppression)
+Status: Automated verification PASSED; three live-UAT gap-closures landed (159-02 hid the desktop sidebar; 159-03 stops the dead files.read tab; 159-04 removes the desktop-only tab menu/rename from web guests — rename never reached the host, verified, but affordance removed). Fresh app rebuilt (20:09). Awaiting remaining two-peer live checks (bidirectional chat, RO chat, resize scale).
 Last activity: 2026-06-27 — Phase 159 executed + automated-verified; awaiting live UAT M-31
 
 ```
