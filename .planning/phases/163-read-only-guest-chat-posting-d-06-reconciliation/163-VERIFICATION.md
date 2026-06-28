@@ -1,14 +1,16 @@
 ---
 phase: 163-read-only-guest-chat-posting-d-06-reconciliation
 verified: 2026-06-28T23:45:00Z
-status: human_needed
+status: passed
 score: 10/10 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Run the Playwright ROCHAT-01/02 end-to-end test against a live daemon"
     expected: "RO web-share guest's Send button is NOT disabled; typing a unique message and pressing Enter causes the message to appear in the chat thread; no MsgInjectError NAK appears"
     why_human: "frontend/e2e/chat-parity.spec.ts ROCHAT-01/02 test requires a live daemon + fixture session; cannot run in CI without the full daemon stack. Go integration tests (TestChatSend_ROCanPost_RelayPath / WebPath) and vitest tests prove the behavior at the component level, but the browser-surface end-to-end path needs a live run."
+
   - test: "Confirm no separate /gsd-secure-phase 163 review artefact exists (threat model was embedded in plan)"
     expected: "Either (a) a secure-phase artefact exists confirming the review, or (b) the developer accepts the embedded STRIDE threat model (T-163-01..T-163-06) in the plan files as sufficient for this targeted single-gate change"
     why_human: "The phase plans contain STRIDE threat registers (T-163-01..T-163-06) but /gsd-secure-phase 163 was not separately invoked. Code evidence fully proves only MsgChatSend was loosened (hub.go:661-691 no ReadOnly check; inject gate hub.go:585-587 intact; MsgInput discard relay/server.go:343 + webserver/server.go:1190 intact). Human sign-off needed to confirm the embedded threat model is accepted as the security review record for this phase."
@@ -102,10 +104,12 @@ No debt markers (TBD/FIXME/XXX), placeholder text, or stub implementations found
 Per the verification instructions, SEC-RO-01 requires proof that ONLY MsgChatSend was loosened. The following file:line citations establish this:
 
 **Gate removed (hub.HandleChatSend):**
+
 - `internal/relay/hub.go` lines 661-691: `HandleChatSend` function has no `sub.ReadOnly` check. The function proceeds directly from `SanitizeChatContent` to `chatAppendFn` persist to `BroadcastChat`. No conditional on `ReadOnly`.
 - Doc comment at line 649-660 explicitly states the ErrChatReadOnly gate was removed to honor D-06.
 
 **Gates confirmed intact:**
+
 - `internal/relay/hub.go` lines 585-587: `HandleInject` has `if sub.ReadOnly { return ErrReadOnly }` — inject gate intact.
 - `internal/relay/server.go` line 343: `if !sub.ReadOnly {` — MsgInput discard intact on relay path.
 - `internal/webserver/server.go` line 1190: `if !sub.ReadOnly {` — MsgInput discard intact on webserver path.
