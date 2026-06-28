@@ -39,4 +39,16 @@ describe('CHAT-FIX-01 / CHAT-LAYOUT-02: chat toggle relocation rule (chatToggleO
     const baseBody = baseMatch![1]
     expect(baseBody).toMatch(/right\s*:\s*12px/)
   })
+
+  it('(d) base .hub-modal__chat-toggle rule declares a transition on right (slide sync with drawer)', () => {
+    // The toggle must animate its right offset so it glides in lockstep with the
+    // opening/closing drawer (transition: right 220ms ease-out) instead of teleporting.
+    // Reuses the base-rule capture from test (c).
+    const baseMatch = css.match(
+      /(?<!~\s*)\.hub-modal__chat-toggle\s*\{([^}]*)\}/
+    )
+    expect(baseMatch).not.toBeNull()
+    const baseBody = baseMatch![1]
+    expect(baseBody).toMatch(/transition\s*:\s*right\b/)
+  })
 })

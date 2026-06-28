@@ -6042,6 +6042,7 @@ body {
   color: var(--hub-text-primary);
   cursor: pointer;
   font-size: 13px;
+  transition: right 220ms ease-out;
 }
 
 .hub-modal__chat-toggle:hover {
