@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 162
-current_phase_name: "#108"
-status: executing
-stopped_at: Phase 161 complete — UAT verified (4/4 pass), ready to plan Phase 162
-last_updated: "2026-06-28T17:52:25.527Z"
+current_phase_name: settings-polish-terminal-plugins-jump-link-108
+status: verifying
+stopped_at: Phase 162 Plan 01 complete — ready for verification
+last_updated: "2026-06-28T18:01:18.518Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 161 complete (UAT verified), ready to plan Phase 162
+last_activity_desc: Phase 162 execution started
 progress:
   total_phases: 14
-  completed_phases: 11
-  total_plans: 48
-  completed_plans: 48
-  percent: 79
+  completed_phases: 12
+  total_plans: 49
+  completed_plans: 49
+  percent: 86
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 162 — Settings Polish — Terminal Plugins jump link (#108)
+**Current focus:** Phase 162 — settings-polish-terminal-plugins-jump-link-108
 
 ## Current Position
 
-Phase: 162 — Settings Polish — Terminal Plugins jump link (#108)
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-28 — Phase 161 complete (UAT verified), ready to plan Phase 162
+Phase: 162 (settings-polish-terminal-plugins-jump-link-108) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-28 — Phase 162 execution started
 
 ```
 Progress: [███████████████░░░░░] 11/14 phases complete (79%); Phase 161 complete (alias control, live-UAT verified 4/4), Phase 162 next
@@ -114,8 +114,8 @@ Progress: [███████████████░░░░░] 11/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T17:38:05Z
-Stopped at: Phase 161 complete — UAT verified (4/4 pass), ready to plan Phase 162
+Last session: 2026-06-28T18:01:18.509Z
+Stopped at: Phase 162 Plan 01 complete — ready for verification
 Resume file: None
 Next action: `/gsd-plan-phase 162`
 
@@ -158,6 +158,7 @@ Next action: `/gsd-plan-phase 162`
 - [Phase ?]: Phase 161-03: handleAliasCommit has NO isReadOnly guard - D-06 alias-set is the explicit RO exception
 - [Phase ?]: Phase 161-03: currentAlias priority chain: onSelf.alias > local:local roster entry > empty
 - [Phase ?]: Phase 161-04: currentAlias derives from live presence roster entry for self.personKey, not frozen MsgSelf snapshot (fallback to selfIdentity.alias only as pre-roster seed)
+- [Phase ?]: SETTINGS_JUMP_LINKS reordered so Terminal Plugins is last, matching render order (resolves #108)
 
 ## Performance Metrics
 
@@ -195,3 +196,4 @@ Next action: `/gsd-plan-phase 162`
 | Phase 161 P02 | 5 minutes | 2 tasks | 2 files |
 | Phase 161 P03 | 6m | - tasks | - files |
 | Phase phase-161 P161-04 | 25min | 3 tasks | 4 files |
+| Phase 162 P01 | 3 minutes | 3 tasks | 3 files |
