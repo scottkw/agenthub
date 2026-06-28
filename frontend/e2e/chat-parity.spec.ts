@@ -309,16 +309,19 @@ test.describe('Phase 155 — chat parity gate', () => {
       // in Phase 155-05. (ROCHAT-01 timing fix)
       await expect(page.locator('.chat-msg').first()).toBeVisible({ timeout: 15_000 })
 
-      // ROCHAT-01 client-side: Send button must NOT be disabled for RO viewers.
-      const sendBtn = page.locator('[data-chat-send]')
-      await expect(sendBtn).not.toBeDisabled({ timeout: 5_000 })
-
       // ROCHAT-01 end-to-end: RO viewer fills a unique message and presses Enter;
       // the message must appear in the thread (server MsgChatSend gate no longer
       // rejects RO after Phase 163-01; message is broadcast back to all subscribers).
       // Assert on unique text to be immune to stray broadcast frames from earlier tests.
       const roSendText = `ro-chat-${Date.now()}`
       await page.locator('.chat-panel__composer textarea').fill(roSendText)
+
+      // ROCHAT-01 client-side: with a non-empty draft the Send button must be ENABLED
+      // for RO viewers (the only disable condition is an empty composer:
+      // `disabled={!draft.trim()}`). Assert after filling, before sending.
+      const sendBtn = page.locator('[data-chat-send]')
+      await expect(sendBtn).not.toBeDisabled({ timeout: 5_000 })
+
       await page.keyboard.press('Enter')
 
       // Wait for the RO client's own message to appear in the thread.
