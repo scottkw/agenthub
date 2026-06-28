@@ -292,8 +292,7 @@ describe('HubInteractiveModal (NOTIF-01: sessionId injection via onUnreadChange)
 
     act(() => {
       root.render(
-        // Cast needed: onUnreadChange is not yet in HubInteractiveModalProps (RED phase).
-        React.createElement(HubInteractiveModal as React.ComponentType<Record<string, unknown>>, {
+        React.createElement(HubInteractiveModal, {
           session,
           isOpen: true,
           relayPort: 51234,
@@ -322,7 +321,7 @@ describe('HubInteractiveModal (NOTIF-01: sessionId injection via onUnreadChange)
 
     act(() => {
       root.render(
-        React.createElement(HubInteractiveModal as React.ComponentType<Record<string, unknown>>, {
+        React.createElement(HubInteractiveModal, {
           session,
           isOpen: true,
           relayPort: 51234,

@@ -639,11 +639,10 @@ describe('SessionCardGrid', () => {
       const root = createRoot(container)
       act(() => {
         root.render(
-          // Cast: unreadBySessionId not yet in SessionCardGridProps (RED phase)
           <SessionCardGrid
             sessions={sessions}
             onRename={vi.fn()}
-            {...({ unreadBySessionId } as Record<string, unknown>)}
+            unreadBySessionId={unreadBySessionId}
           />
         )
       })
@@ -665,7 +664,7 @@ describe('SessionCardGrid', () => {
           <SessionCardGrid
             sessions={sessions}
             onRename={vi.fn()}
-            {...({ unreadBySessionId } as Record<string, unknown>)}
+            unreadBySessionId={unreadBySessionId}
           />
         )
       })
@@ -688,7 +687,7 @@ describe('SessionCardGrid', () => {
           <SessionCardGrid
             sessions={sessions}
             onRename={vi.fn()}
-            {...({ unreadBySessionId } as Record<string, unknown>)}
+            unreadBySessionId={unreadBySessionId}
           />
         )
       })
@@ -714,7 +713,7 @@ describe('SessionCardGrid', () => {
             sessions={sessions}
             onRename={vi.fn()}
             groupDefs={groupDefs}
-            {...({ unreadBySessionId } as Record<string, unknown>)}
+            unreadBySessionId={unreadBySessionId}
           />
         )
       })
