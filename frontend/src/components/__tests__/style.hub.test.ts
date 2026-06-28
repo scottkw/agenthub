@@ -535,3 +535,36 @@ describe('Phase 149-02 — agy agent badge color identity', () => {
     expect(cssRaw).toContain('1.73:1')
   })
 })
+
+// Phase 159 (WEBCHAT-06) — chat author header layout. A long author name (e.g. a
+// tailnet hostname used as the fallback identity before an alias is set) plus the
+// raw nodekey must truncate with an ellipsis on one line, not wrap char-by-char in
+// the narrow chat panel. Source-gate: assert the truncation properties on the
+// alias + tailnet-id rules.
+describe('Chat author header truncation (WEBCHAT-06)', () => {
+  function ruleBody(selector: string): string {
+    const re = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]+)\\}')
+    const m = cssRaw.match(re)
+    expect(m, `rule ${selector} must exist`).not.toBeNull()
+    return m![1]
+  }
+
+  it('.chat-msg__alias truncates with ellipsis on one line', () => {
+    const body = ruleBody('.chat-msg__alias')
+    expect(body).toContain('text-overflow: ellipsis')
+    expect(body).toContain('white-space: nowrap')
+    expect(body).toContain('overflow: hidden')
+    expect(body).toContain('min-width: 0')
+  })
+
+  it('.chat-msg__tailnet-id truncates and gives up space first (high flex-shrink)', () => {
+    const body = ruleBody('.chat-msg__tailnet-id')
+    expect(body).toContain('text-overflow: ellipsis')
+    expect(body).toContain('white-space: nowrap')
+    expect(body).toContain('flex-shrink: 1000')
+  })
+
+  it('.chat-msg__header allows children to shrink (min-width: 0)', () => {
+    expect(ruleBody('.chat-msg__header')).toContain('min-width: 0')
+  })
+})

@@ -55,6 +55,7 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 - [x] **WEBCHAT-02**: Cross-surface chat parity is verified on the actually-shared link, not on `/app/` directly — closing the false-parity gap where Phase 155 verified PARITY-01 only against `/app/` while the share flow handed out the chat-less vanilla-JS `terminal.js` viewer.
 - [x] **WEBCHAT-03**: A remote web-share guest reaching `/app/?session=&cap=` (via the WEBCHAT-01 redirect) sees ONLY the scoped session surface — the terminal, chat, and file-browser tab — and NOT the desktop app navigation chrome (Home / Hub / Settings / session-group sidebar). Prevents a one-session guest from navigating away from the scoped session and reaching the open `/api/sessions/meta` enumeration surface. (Gap-closure from 159 live UAT.)
 - [x] **WEBCHAT-04**: The web-share bootstrap auto-opens the file-browser tab ONLY when the cap grants `files.read` (resolved from the server-verified `GET /api/sessions/{id}/info` perms). A guest whose share lacks file access sees just the terminal + chat — never a dead "files.read permission required" tab. Fail-safe: on any probe error or missing perm, no file tab opens. (Gap-closure from 159 live UAT.)
+- [x] **WEBCHAT-06**: A long chat author name (e.g. a tailnet hostname used as the fallback identity before an alias is set) and the raw nodekey truncate with an ellipsis on one line in the chat author header, instead of wrapping character-by-character in the narrow chat panel. (Cross-surface chat-rendering polish; surfaced by the narrow web-share panel during 159 live UAT.)
 - [x] **WEBCHAT-05**: A web-share guest cannot rename the session tab. The Rename and Save-Terminal-As items (both Wails RPCs with no browser bridge) and double-click/right-click rename are suppressed in web mode. A guest WITH file access keeps the tab chevron showing only "Browse files" (so they can re-open the file browser if closed); a guest without file access gets no chevron. The × close button always remains. (Rename never reached the host — the RPC fails silently and relabels only the local browser tab — but the affordance is removed for clarity. Gap-closure from 159 live UAT.)
 
 ### SEC — Security
@@ -135,6 +136,7 @@ Which phase covers each requirement. Populated during roadmap creation.
 | WEBCHAT-03 | Phase 159 (159-02) | Complete (e2e: web-share-scope.spec.ts) |
 | WEBCHAT-04 | Phase 159 (159-03) | Complete (e2e: web-share-scope.spec.ts) |
 | WEBCHAT-05 | Phase 159 (159-04) | Complete (e2e: web-share-scope.spec.ts) |
+| WEBCHAT-06 | Phase 159 (159-05) | Complete (css source-gate: style.hub.test.ts) |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |

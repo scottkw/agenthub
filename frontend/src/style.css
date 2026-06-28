@@ -6362,6 +6362,7 @@ body {
   align-items: center;
   gap: 4px;
   margin-bottom: 4px;
+  min-width: 0; /* allow flex children (alias/tailnet-id) to shrink + ellipsis */
 }
 
 /* Avatar: 28×28px circle, supplementary color identity from tailnet ID hue */
@@ -6379,17 +6380,31 @@ body {
   user-select: none;
 }
 
-/* Alias: semibold, primary text */
+/* Alias: semibold, primary text. Long names (e.g. a tailnet hostname used as the
+   fallback identity before an alias is set) truncate with an ellipsis on one line
+   instead of wrapping char-by-char in the narrow chat panel (WEBCHAT-06). */
 .chat-msg__alias {
   font-size: var(--hub-font-size-sm);
   font-weight: 600;
   color: var(--hub-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
-/* Tailnet ID: muted micro text in parens */
+/* Tailnet ID: muted micro text in parens. The raw nodekey can be very long, so it
+   gives up space first (high flex-shrink) and truncates with an ellipsis — the
+   alias stays readable (WEBCHAT-06). */
 .chat-msg__tailnet-id {
   font-size: 11px;
   color: var(--hub-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1000;
 }
 
 /* Timestamp: right-aligned, muted */
