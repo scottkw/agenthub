@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 161
-current_phase_name: Chat-Sidebar Alias Control
-status: phase_complete
+current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
+status: executing
 stopped_at: Phase 160 complete — NOTIF-01 unread badge wired + 153/154/156 tech debt closed; verifier PASSED 15/15
-last_updated: "2026-06-28T03:52:35.185Z"
+last_updated: "2026-06-28T15:16:32.534Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 160 complete, next is Phase 161 (alias UI) — roadmap.analyze mis-routed to 163; hand-corrected to 161
+last_activity_desc: Phase 161 execution started
 progress:
-  total_phases: 13
+  total_phases: 12
   completed_phases: 10
-  total_plans: 49
-  completed_plans: 49
-  percent: 77
+  total_plans: 48
+  completed_plans: 45
+  percent: 83
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 161 — Chat-Sidebar Alias Control (next; not yet planned)
+**Current focus:** Phase 161 — chat-sidebar-alias-control-user-can-set-their-display-name
 
 ## Current Position
 
-Phase: 161 — Chat-Sidebar Alias Control (ALIAS-UI-01/02)
-Plan: Planned (4 plans, 3 waves) — ready to execute
-Status: Phase 161 planned (plan-checker PASSED, 0 blockers) — ready for /gsd-execute-phase 161
-Last activity: 2026-06-28 — Phase 161 planned: 4 plans/3 waves, RESEARCH+PATTERNS+VALIDATION written, plan-checker PASSED (commit d4a12264; hygiene fixes 6727d585)
+Phase: 161 (chat-sidebar-alias-control-user-can-set-their-display-name) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-06-28 — Phase 161 execution started
 
 ```
 Progress: [███████████████░░░░░] 10/13 phases complete (77%); Phase 160 shipped, Phase 161 next
@@ -112,7 +112,7 @@ Progress: [███████████████░░░░░] 10/13 p
 
 ## Session Continuity
 
-Last session: 2026-06-27T18:40:45.445Z
+Last session: 2026-06-28T15:16:26.572Z
 Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
 Resume file: None
 Next action: `/gsd:plan-phase 151`
@@ -185,3 +185,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 158 P01 | 10 | 2 tasks | 3 files |
 | Phase 158 P02 | 15 | 3 tasks | 5 files |
 | Phase 159 P01 | 10 minutes | 2 tasks | 4 files |
+| Phase 161 P01 | 4 minutes | 2 tasks | 8 files |
