@@ -597,11 +597,11 @@ export function ChatPanel({
 
     // CRITICAL (Pitfall 7 / D-08): Enter ALWAYS routes to chat-send, NEVER to inject.
     // The inject path is ONLY reachable through the completed 600ms press-and-hold.
-    // Phase 155 PARITY-01 SC-3: skip send when read-only (defense-in-depth).
+    // Phase 163-02 ROCHAT-01: RO clients can post chat; isReadOnly guard removed here.
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       const text = draftRef.current
-      if (text.trim() && !isReadOnly) {
+      if (text.trim()) {
         clientRef.current?.sendChat(text)
         setDraft('')
         draftRef.current = ''
@@ -612,7 +612,7 @@ export function ChatPanel({
   }
 
   function handleSend() {
-    if (isReadOnly) return // Phase 155 PARITY-01 SC-3 defense-in-depth
+    // Phase 163-02 ROCHAT-01: RO clients can post chat; isReadOnly guard removed.
     const text = draftRef.current
     if (text.trim()) {
       clientRef.current?.sendChat(text)
@@ -1029,29 +1029,20 @@ export function ChatPanel({
             <button
               type="button"
               className="chat-composer__send-btn"
-              // Phase 155 PARITY-01 SC-3: data-chat-send present in BOTH enabled and
-              // disabled states so Playwright can query it regardless of RO status.
+              // Phase 163-02 ROCHAT-01: data-chat-send present so Playwright can query it.
+              // RO clients can now post chat; only inject remains RO-gated.
               data-chat-send
-              aria-label={isReadOnly ? 'Send message (read-only access)' : 'Send message'}
-              aria-disabled={isReadOnly}
+              aria-label="Send message"
               onClick={handleSend}
-              disabled={!draft.trim() || isReadOnly}
-              style={isReadOnly ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+              disabled={!draft.trim()}
             >
               <PaperAirplaneIcon className="chat-composer__send-icon" aria-hidden="true" />
               <span>Send</span>
             </button>
           )}
         </div>
-        {/* Phase 155 PARITY-01 SC-3: Read-only label shown when cap has no write perm */}
-        {isReadOnly && (
-          <div
-            className="chat-composer__readonly-label"
-            style={{ fontSize: 11, color: 'var(--hub-text-dim)', textAlign: 'left', paddingTop: 4 }}
-          >
-            Read only
-          </div>
-        )}
+        {/* Phase 163-02 ROCHAT-01: Read-only label removed — RO clients are chat participants.
+            isReadOnly is retained to gate the inject gesture (handleInjectPointerDown). */}
       </div>
     </div>
   )
