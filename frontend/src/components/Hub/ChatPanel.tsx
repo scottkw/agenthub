@@ -194,6 +194,32 @@ export function accrueUnread(
 }
 
 /**
+ * Client mirror of Go ValidateAlias (internal/relay/protocol.go:ValidateAlias).
+ *
+ * Rules — must match exactly:
+ *   1. Trim leading/trailing whitespace.
+ *   2. Reject empty result.
+ *   3. Count code points with Array.from (NOT String.length) — mirrors Go []rune cast.
+ *   4. Reject (not truncate) if code-point count exceeds 32.
+ *   5. Reject any code point < 0x20 (C0) or 0x7F..0x9F (C1).
+ *
+ * Defense-in-depth: server ValidateAlias is authoritative; server sends NO NAK on
+ * rejection, so this is the ONLY user feedback path for invalid input (RESEARCH Pitfall 4).
+ * Exported for unit tests — pure, no side effects.
+ */
+export function validateAlias(raw: string): string | null {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const runes = Array.from(trimmed) // code points, mirrors Go []rune — NOT .length
+  if (runes.length > 32) return null // reject — do NOT truncate
+  for (const ch of runes) {
+    const cp = ch.codePointAt(0)!
+    if (cp < 0x20 || (cp >= 0x7f && cp <= 0x9f)) return null // C0 / C1
+  }
+  return trimmed
+}
+
+/**
  * Return the CSS style object for a virtualizer row.
  *
  * Active sticky separator (CHAT-04):

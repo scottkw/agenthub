@@ -70,10 +70,11 @@ import {
   mergeWithDedup,
   accrueUnread,
   getRowStyle,
+  validateAlias,
   ChatPanel,
 } from './ChatPanel'
 import type { UnreadState } from './ChatPanel'
-import type { ChatMessage } from '../../lib/relayClient'
+import type { ChatMessage, PresenceEntry } from '../../lib/relayClient'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -470,6 +471,67 @@ describe('unread accrual — clear on open+focused (D-09, component level)', () 
 
     act(() => { root.unmount() })
     container.remove()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 161 TASK 1 — validateAlias client mirror of Go ValidateAlias
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('validateAlias — client mirror of Go ValidateAlias (Array.from code-point parity)', () => {
+  it('trims surrounding whitespace and returns trimmed string', () => {
+    expect(validateAlias('  ken  ')).toBe('ken')
+  })
+
+  it('returns null for empty string', () => {
+    expect(validateAlias('')).toBeNull()
+  })
+
+  it('returns null for whitespace-only string', () => {
+    expect(validateAlias('   ')).toBeNull()
+  })
+
+  it('accepts exactly 32 code points', () => {
+    const s = 'a'.repeat(32)
+    expect(validateAlias(s)).toBe(s)
+  })
+
+  it('rejects 33 code points (reject, not truncate)', () => {
+    expect(validateAlias('a'.repeat(33))).toBeNull()
+  })
+
+  it('rejects a C0 control char (tab 0x09)', () => {
+    expect(validateAlias('hello\tthere')).toBeNull()
+  })
+
+  it('rejects a C0 control char (newline 0x0A)', () => {
+    expect(validateAlias('hello\nthere')).toBeNull()
+  })
+
+  it('rejects a C1 control char (0x80)', () => {
+    expect(validateAlias('hellothere')).toBeNull()
+  })
+
+  it('rejects a C1 control char at boundary (0x9F)', () => {
+    expect(validateAlias('hellothere')).toBeNull()
+  })
+
+  it('accepts DEL (0x7E) — boundary just below the C1 block', () => {
+    // 0x7E is '~', which is below 0x7F; 0x7F is DEL itself
+    // Go rejects 0x7F..0x9F; 0x7E is valid
+    expect(validateAlias('hello~there')).toBe('hello~there')
+  })
+
+  it('accepts a 32-emoji string (Array.from vs .length guard)', () => {
+    // Each emoji is 2 UTF-16 code units (String.length = 64) but 1 code point.
+    // Proves code-point counting via Array.from, not .length.
+    const emoji32 = '😀'.repeat(32) // '😀' × 32; String.length = 64
+    expect(validateAlias(emoji32)).toBe(emoji32)
+  })
+
+  it('rejects a 33-emoji string (code-point limit)', () => {
+    const emoji33 = '😀'.repeat(33) // String.length = 66
+    expect(validateAlias(emoji33)).toBeNull()
   })
 })
 
