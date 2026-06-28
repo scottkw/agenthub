@@ -959,3 +959,100 @@ describe('alias control — Phase 161 ALIAS-UI-01/02 (render + RO-enable + commi
     unmount()
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 163-02 — ROCHAT-01 / ROCHAT-02: RO can post chat; inject still gated
+//
+// Default mockFetch returns [] for history; capToken triggers /info fetch which
+// also resolves to [] → info.perms undefined → isReadOnly stays true (fail-safe).
+// await act(async () => {}) flushes all pending microtasks + useEffect chains.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('ROCHAT-01/02 — RO chat-send enabled; inject gesture stays gated', () => {
+  it('-t rochat-01: RO viewer Send button is NOT disabled (ROCHAT-01)', async () => {
+    // capToken → /info returns [] → isReadOnly=true (fail-safe path)
+    const { container, unmount } = mountPanel({ capToken: 'test-ro-cap' })
+    // Flush /info fetch promise
+    await act(async () => { /* flush */ })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, 'hello from ro') })
+
+    const sendBtn = container.querySelector('[data-chat-send]') as HTMLButtonElement | null
+    expect(sendBtn).not.toBeNull()
+    // ROCHAT-01: Send button must NOT be disabled for RO clients
+    expect(sendBtn?.disabled).toBe(false)
+
+    unmount()
+  })
+
+  it('-t rochat-01: RO viewer clicking Send calls sendChat with the draft (ROCHAT-01)', async () => {
+    const { container, unmount } = mountPanel({ capToken: 'test-ro-cap' })
+    await act(async () => { /* flush */ })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, 'ro click send') })
+
+    const sendBtn = container.querySelector('[data-chat-send]') as HTMLButtonElement | null
+    act(() => { sendBtn?.click() })
+
+    expect(mocks.mockSendChat).toHaveBeenCalledOnce()
+    expect(mocks.mockSendChat).toHaveBeenCalledWith('ro click send')
+
+    unmount()
+  })
+
+  it('-t rochat-01: RO viewer pressing Enter calls sendChat and clears textarea (ROCHAT-01)', async () => {
+    const { container, unmount } = mountPanel({ capToken: 'test-ro-cap' })
+    await act(async () => { /* flush */ })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, 'ro enter send') })
+
+    act(() => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+      )
+    })
+
+    expect(mocks.mockSendChat).toHaveBeenCalledOnce()
+    expect(mocks.mockSendChat).toHaveBeenCalledWith('ro enter send')
+    // Textarea must be cleared after send
+    expect(container.querySelector('textarea')?.value ?? '').toBe('')
+
+    unmount()
+  })
+
+  it('-t rochat-01: no "Read only" label renders when isReadOnly (ROCHAT-01)', async () => {
+    const { container, unmount } = mountPanel({ capToken: 'test-ro-cap' })
+    await act(async () => { /* flush */ })
+
+    // The blanket "Read only" label was removed in Phase 163-02
+    expect(container.textContent).not.toContain('Read only')
+
+    unmount()
+  })
+
+  it('-t rochat-02: RO viewer press-and-hold does NOT call sendSessionInject (ROCHAT-02 inject gate)', async () => {
+    vi.useFakeTimers()
+    const { container, unmount } = mountPanel({ capToken: 'test-ro-cap' })
+    // Flush /info fetch → isReadOnly=true
+    await act(async () => { /* flush */ })
+
+    const textarea = container.querySelector('textarea') as HTMLTextAreaElement | null
+    act(() => { setTextareaValue(textarea, '@session inject attempt') })
+
+    // Drive the press-and-hold to completion (>= 600ms)
+    const injectBtn = container.querySelector('.chat-composer__inject-btn')
+    act(() => {
+      injectBtn?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1 }))
+    })
+    act(() => { vi.advanceTimersByTime(600) })
+
+    // RO inject must NOT fire — handleInjectPointerDown returns early when isReadOnly
+    expect(mocks.mockSendSessionInject).not.toHaveBeenCalled()
+
+    vi.useRealTimers()
+    unmount()
+  })
+})

@@ -12,7 +12,7 @@
 //   .chat-panel__composer textarea — composer input
 //   .chat-msg                 — any message row
 //   .chat-msg--mention        — @mention-of-me row
-//   [data-chat-send]          — send button (disabled on RO)
+//   [data-chat-send]          — send button (enabled for RO — ROCHAT-01)
 //   [data-chat-export]        — export button
 //   .chat-presence            — presence roster
 //   .chat-msg--inject         — inject indicator row
@@ -281,12 +281,16 @@ test.describe('Phase 155 — chat parity gate', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // PARITY-01 SC-3: Read-only viewer cannot send
+  // ROCHAT-01 / ROCHAT-02: RO viewer CAN post chat; @session inject stays gated
   //
-  // The viewer cap has Perms="read" (no write). The Send button must be
-  // disabled in the UI AND the server must reject a direct WS send attempt.
+  // Phase 163-02 reconciles D-06: RO clients are full chat participants.
+  // The viewer cap has Perms="read" (no write). The Send button must now be
+  // ENABLED in the UI, and the server MsgChatSend gate no longer rejects RO
+  // (removed ErrChatReadOnly in Phase 163-01). The @session inject gesture
+  // remains RO-gated client-side (handleInjectPointerDown early-return) and
+  // server-side (HandleInject ErrReadOnly unchanged).
   // ─────────────────────────────────────────────────────────────────────────
-  test('PARITY-01 SC-3 — RO viewer Send button is disabled and server gate holds', async ({ browser }) => {
+  test('ROCHAT-01 — RO viewer CAN post chat; ROCHAT-02 — @session inject stays gated', async ({ browser }) => {
     const env = loadFixtureEnv()
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true })
     try {
@@ -302,29 +306,25 @@ test.describe('Phase 155 — chat parity gate', () => {
       // reliable in the full suite (text-filtered waits fail when the virtualizer
       // scrolls older messages out of the DOM after broadcast tests add new ones).
       // Mirrors the sequential-open pattern that fixed the broadcast test on WebKit
-      // in Phase 155-05. (PARITY-01 SC-3 timing fix, Phase 155-06)
+      // in Phase 155-05. (ROCHAT-01 timing fix)
       await expect(page.locator('.chat-msg').first()).toBeVisible({ timeout: 15_000 })
 
-      // SC-3 client-side gate: Send button must be disabled.
+      // ROCHAT-01 client-side: Send button must NOT be disabled for RO viewers.
       const sendBtn = page.locator('[data-chat-send]')
-      await expect(sendBtn).toBeDisabled({ timeout: 5_000 })
+      await expect(sendBtn).not.toBeDisabled({ timeout: 5_000 })
 
-      // SC-3 server-side gate: the RO client's OWN adversarial send must never land.
-      // Assert on the unique message TEXT rather than a raw .chat-msg count delta:
-      // the fixture session is shared, so broadcast frames from earlier SC-1 tests can
-      // replay late (esp. on WebKit) and bump the count by +2 — unrelated to this RO
-      // client's send (which would be +1). A content-scoped assertion tests exactly the
-      // RO-rejection semantics and is immune to those stray frames (Phase 155-06 flake fix).
-      const roSendText = 'adversarial-ro-send'
-
-      // Adversarial: fill and press Enter (the client-side guard short-circuits,
-      // but if it were bypassed, the server ErrChatReadOnly gate would reject the frame).
+      // ROCHAT-01 end-to-end: RO viewer fills a unique message and presses Enter;
+      // the message must appear in the thread (server MsgChatSend gate no longer
+      // rejects RO after Phase 163-01; message is broadcast back to all subscribers).
+      // Assert on unique text to be immune to stray broadcast frames from earlier tests.
+      const roSendText = `ro-chat-${Date.now()}`
       await page.locator('.chat-panel__composer textarea').fill(roSendText)
       await page.keyboard.press('Enter')
-      await page.waitForTimeout(500)
 
-      // The RO client's own message must never appear in the thread.
-      await expect(page.locator('.chat-msg').filter({ hasText: roSendText })).toHaveCount(0)
+      // Wait for the RO client's own message to appear in the thread.
+      await expect(
+        page.locator('.chat-msg').filter({ hasText: roSendText }),
+      ).toHaveCount(1, { timeout: 8_000 })
     } finally {
       await ctx.close()
     }
