@@ -371,7 +371,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 158: Chat Affordance Polish** - Toggle/Send overlap fix (CHAT-FIX-01) + terminal-tab chat parity via TerminalChatHost (CHAT-PARITY-01); UAT-discovered during v4.1 (completed 2026-06-27)
 - [x] **Phase 159: Web-Share Chat Parity** - Redirect shared `/sessions/{id}?cap=` → chat-capable `/app/` SPA so remote web guests get chat; closes the real PARITY-01 gap (155 verified only `/app/`); pre-unblocks Tailscale Funnel milestone (added 2026-06-27) (completed 2026-06-27)
 - [x] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit; **+ terminal bottom empty-space (xterm row-quantization, pre-existing/global — deferred from 159 UAT 2026-06-27)** (added 2026-06-27) (completed 2026-06-28)
-- [ ] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27)
+- [x] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27) (completed 2026-06-28)
 - [ ] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27)
 - [ ] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Needs `/gsd-secure-phase 163` after execution (added 2026-06-27)
 
@@ -391,7 +391,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 158. Chat Affordance Polish (CHAT-FIX-01, CHAT-PARITY-01) | 2/2 | Complete    | 2026-06-27 |
 | 159. Web-Share Chat Parity (WEBCHAT-01..06) | 5/5 | Complete — live UAT M-31 done 2026-06-27 (3/4 pass; Test 3 RO-chat gap → Phase 163) | 2026-06-27 |
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 5/5 | Complete    | 2026-06-28 |
-| 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 3/4 | In Progress|  |
+| 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |
 | 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 0/0 | Not planned | — |
 
@@ -493,14 +493,14 @@ Plans:
 
 **Requirements**: ALIAS-UI-01 (user sets their alias from the shared chat sidebar; available on GUI tab, Hub modal, and web-share guest — cross-surface parity via shared `ChatPanel`), ALIAS-UI-02 (the set alias persists via the Phase 152 `AliasStore`/`MsgAliasSet` path and immediately updates the user's chat author name + presence-roster name for all participants; respects `ValidateAlias`)
 **Depends on:** Phase 159 (web-share guests reach `ChatPanel` only via the 159 redirect; also Phase 155 `ChatPanel` + Phase 152 alias backend)
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 
 - [x] 161-01-PLAN.md — Backend self-identity frame (MsgSelf 0x37 on both server paths for web pre-fill) [Wave 1]
 - [x] 161-02-PLAN.md — relayClient wire layer (sendAliasSet + MsgSelf parse/onSelf) [Wave 1]
 - [x] 161-03-PLAN.md — Shared ChatPanel alias header control (validateAlias mirror, RO-enabled, pre-fill) [Wave 2]
-- [ ] 161-04-PLAN.md — Cross-surface alias-propagation e2e + TESTING.md consolidation + live human-verify [Wave 3]
+- [x] 161-04-PLAN.md — Cross-surface alias-propagation e2e + TESTING.md consolidation + live human-verify [Wave 3]
 
 **Backend-ready evidence (Explore, 2026-06-27):** `internal/daemon/alias_store.go` (AliasStore, aliases.json), `internal/relay/protocol.go:84` (`MsgAliasSet` 0x34) + `:95/:260` (`PresenceEntry.alias`/`ChatMessage.alias`), relay dispatch `internal/relay/server.go:357-372`, webserver dispatch `internal/webserver/server.go:1186-1201`, `frontend/src/lib/relayClient.ts:94-99` (`encodeAliasSetFrame`, currently test-only). GAP: no Wails `GetAlias`/`SetAlias` binding, no UI calls `encodeAliasSetFrame`, no Settings/sidebar control. Web surface has no Settings page — which is exactly why the chat sidebar (shared component) is the right home over a Settings Profile section.
 
