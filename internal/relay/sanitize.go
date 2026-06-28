@@ -141,8 +141,10 @@ func SanitizePTYText(input string) string {
 //
 // Transformation rules:
 //   - C0 control characters (U+0000–U+001F, including ESC, CR, LF, TAB) are
-//     stripped. Stripping ESC neutralizes CSI/OSC/DCS introducers so escape
-//     sequences cannot be reconstructed by a renderer.
+//     stripped. Stripping ESC removes the 2-byte introducer of CSI/OSC/DCS/APC/PM/SOS
+//     sequences, but body bytes (which are above U+001F) survive as printable
+//     plaintext in the output. DCS body content in chat is cosmetically confusing
+//     but is neutralized by react-markdown + rehype-sanitize before rendering.
 //   - DEL (U+007F) is stripped.
 //   - C1 controls (U+0080–U+009F) are stripped.
 //   - Unicode bidi-override characters (see isBidiOverride) are stripped to
