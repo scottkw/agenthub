@@ -73,6 +73,10 @@ import {
   accrueUnread,
   getRowStyle,
   validateAlias,
+  clampChatWidth,
+  CHAT_WIDTH_MIN,
+  CHAT_WIDTH_MAX,
+  CHAT_WIDTH_DEFAULT,
   ChatPanel,
 } from './ChatPanel'
 import type { UnreadState } from './ChatPanel'
@@ -1071,6 +1075,84 @@ describe('ROCHAT-01/02 — RO chat-send enabled; inject gesture stays gated', ()
     expect(mocks.mockSendSessionInject).not.toHaveBeenCalled()
 
     vi.useRealTimers()
+    unmount()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 164-02 — CHAT-LAYOUT-02: clampChatWidth helper + localStorage persistence
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('clampChatWidth — width clamp helper (CHAT-LAYOUT-02)', () => {
+  it('clamps below-min input up to CHAT_WIDTH_MIN', () => {
+    expect(clampChatWidth(100)).toBe(CHAT_WIDTH_MIN)
+  })
+
+  it('clamps above-max input down to CHAT_WIDTH_MAX', () => {
+    expect(clampChatWidth(9999)).toBe(CHAT_WIDTH_MAX)
+  })
+
+  it('passes through an in-range value as integer (coercion)', () => {
+    expect(clampChatWidth(420)).toBe(420)
+  })
+
+  it('returns CHAT_WIDTH_DEFAULT for NaN input (non-finite fallback)', () => {
+    expect(clampChatWidth(NaN)).toBe(CHAT_WIDTH_DEFAULT)
+  })
+
+  it('returns CHAT_WIDTH_DEFAULT for Infinity input (non-finite fallback)', () => {
+    expect(clampChatWidth(Infinity)).toBe(CHAT_WIDTH_DEFAULT)
+  })
+
+  it('returns CHAT_WIDTH_DEFAULT for -Infinity input (non-finite fallback)', () => {
+    expect(clampChatWidth(-Infinity)).toBe(CHAT_WIDTH_DEFAULT)
+  })
+
+  it('CHAT_WIDTH_MIN < CHAT_WIDTH_MAX (bounds are finite and ordered)', () => {
+    expect(CHAT_WIDTH_MIN).toBeGreaterThan(0)
+    expect(CHAT_WIDTH_MAX).toBeGreaterThan(CHAT_WIDTH_MIN)
+  })
+})
+
+// ── ChatPanel localStorage width persistence on mount ─────────────────────
+
+describe('ChatPanel — localStorage width persistence on mount (CHAT-LAYOUT-02 D-04)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    // Reset any --chat-panel-width set by previous test
+    document.documentElement.style.removeProperty('--chat-panel-width')
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.style.removeProperty('--chat-panel-width')
+  })
+
+  it('initializes to stored valid value on mount (D-04)', () => {
+    localStorage.setItem('agenthub.chatPanelWidth', '500')
+    const { unmount } = mountPanel()
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe('500px')
+    unmount()
+  })
+
+  it('clamps an out-of-range stored value on mount (tampered localStorage — T-164-11)', () => {
+    localStorage.setItem('agenthub.chatPanelWidth', '5000')
+    const { unmount } = mountPanel()
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${CHAT_WIDTH_MAX}px`)
+    unmount()
+  })
+
+  it('falls back to CHAT_WIDTH_DEFAULT when no stored value exists', () => {
+    // localStorage has no 'agenthub.chatPanelWidth' entry
+    const { unmount } = mountPanel()
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${CHAT_WIDTH_DEFAULT}px`)
+    unmount()
+  })
+
+  it('falls back to CHAT_WIDTH_DEFAULT for a non-numeric stored value (NaN path)', () => {
+    localStorage.setItem('agenthub.chatPanelWidth', 'not-a-number')
+    const { unmount } = mountPanel()
+    expect(document.documentElement.style.getPropertyValue('--chat-panel-width')).toBe(`${CHAT_WIDTH_DEFAULT}px`)
     unmount()
   })
 })

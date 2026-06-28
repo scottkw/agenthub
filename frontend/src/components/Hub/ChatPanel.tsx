@@ -193,6 +193,33 @@ export function accrueUnread(
   return { count: prev.count + 1, hasMention }
 }
 
+// ── CHAT-LAYOUT-02: Chat drawer width constants and clamp helper ──────────────
+
+/** Minimum chat drawer width in px (CHAT-LAYOUT-02). */
+export const CHAT_WIDTH_MIN = 280
+/** Maximum chat drawer width in px (CHAT-LAYOUT-02). */
+export const CHAT_WIDTH_MAX = 640
+/** Default chat drawer width in px — matches the CSS fallback 360px (CHAT-LAYOUT-02). */
+export const CHAT_WIDTH_DEFAULT = 360
+
+/**
+ * Clamp a raw px value into the bounded chat-drawer width range.
+ *
+ * - Non-finite input (NaN, ±Infinity) → CHAT_WIDTH_DEFAULT (safe fallback for
+ *   tampered/absent localStorage entries).
+ * - Values below CHAT_WIDTH_MIN → CHAT_WIDTH_MIN.
+ * - Values above CHAT_WIDTH_MAX → CHAT_WIDTH_MAX.
+ * - In-range values → coerced to integer via Math.round.
+ *
+ * Applied on BOTH live drag values and values read from localStorage so a
+ * tampered entry never produces an out-of-range width (T-164-11).
+ * Exported for unit tests — pure, no side effects.
+ */
+export function clampChatWidth(px: number): number {
+  if (!Number.isFinite(px)) return CHAT_WIDTH_DEFAULT
+  return Math.round(Math.max(CHAT_WIDTH_MIN, Math.min(CHAT_WIDTH_MAX, px)))
+}
+
 /**
  * Client mirror of Go ValidateAlias (internal/relay/protocol.go:ValidateAlias).
  *
