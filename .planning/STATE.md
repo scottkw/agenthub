@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 162
-current_phase_name: settings-polish-terminal-plugins-jump-link-108
-status: verifying
-stopped_at: Phase 162 Plan 01 complete — ready for verification
-last_updated: "2026-06-28T18:01:18.518Z"
+current_phase: 163
+current_phase_name: read-only-guest-chat-posting-d-06-reconciliation
+status: planning
+stopped_at: Phase 162 complete — ready to plan Phase 163
+last_updated: "2026-06-28T18:40:00.000Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 162 execution started
+last_activity_desc: Phase 162 UAT complete (3/3 pass) — phase verified
 progress:
   total_phases: 14
   completed_phases: 12
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 162 — settings-polish-terminal-plugins-jump-link-108
+**Current focus:** Phase 163 — read-only-guest-chat-posting-d-06-reconciliation
 
 ## Current Position
 
-Phase: 162 (settings-polish-terminal-plugins-jump-link-108) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-06-28 — Phase 162 execution started
+Phase: 163 (read-only-guest-chat-posting-d-06-reconciliation) — READY TO PLAN
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-28 — Phase 162 UAT complete (3/3 pass), phase verified
 
 ```
-Progress: [███████████████░░░░░] 11/14 phases complete (79%); Phase 161 complete (alias control, live-UAT verified 4/4), Phase 162 next
+Progress: [█████████████████░░░] 12/14 phases complete (86%); Phase 162 complete (Terminal Plugins jump link #108, UAT 3/3 via harness), Phase 163 next
 ```
 
 ### Quick Tasks Completed
@@ -66,7 +66,7 @@ Progress: [███████████████░░░░░] 11/14 p
 | 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Complete (UAT pending — M-31) |
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Planned (5 plans) |
 | 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Complete |
-| 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
+| 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Complete |
 | 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
 
 **Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 161 complete (ALIAS-UI-01/02, live-UAT verified); 159–164 requirements set at plan time. v4.1 = 14 phases (closeout audit runs after 164; see ROADMAP closeout-ordering note).
@@ -114,10 +114,10 @@ Progress: [███████████████░░░░░] 11/14 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T18:01:18.509Z
-Stopped at: Phase 162 Plan 01 complete — ready for verification
+Last session: 2026-06-28T18:40:00.000Z
+Stopped at: Phase 162 complete (UAT 3/3 pass), ready to plan Phase 163
 Resume file: None
-Next action: `/gsd-plan-phase 162`
+Next action: `/gsd-plan-phase 163`
 
 ## Decisions
 

@@ -1,23 +1,27 @@
 ---
 phase: 162-settings-polish-terminal-plugins-jump-link-108
 verified: 2026-06-28T13:10:00Z
-status: human_needed
+status: passed
 score: 5/6 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
 re_verification: false
 behavior_unverified_items:
+
   - truth: "Clicking the 'Terminal Plugins' jump link scrolls to the plugins section because its href anchor still resolves to id='settings-plugins'."
     test: "Open Settings in the live app (GUI or web-share surface), click the 'Terminal Plugins' jump link in the sticky bar, observe scroll destination."
     expected: "The viewport scrolls to (and stops at) the 'Terminal Plugins' section header, with the header visible below the sticky jump bar (not hidden behind it)."
     why_human: "Anchor/id integrity is statically verified (href='#settings-plugins' targets id='settings-plugins'). The actual scroll transition — that the browser navigates to the correct section and scroll-margin-top clears the sticky bar — is a runtime state change that grep/presence checks cannot observe."
 human_verification:
+
   - test: "Click 'Terminal Plugins' jump link in running app (GUI and web-share surface)"
     expected: "Viewport scrolls to the 'Terminal Plugins' section header; header appears below the sticky jump bar, not behind it; the section is the last visible section (renders last)."
     why_human: "Live browser scroll behavior from hash navigation — statically verifiable anchor wiring is confirmed, but the runtime scroll outcome requires a live surface."
+
   - test: "Search for 'terminal plugins' in the Settings search box"
     expected: "A result labeled 'Terminal Plugins' appears, pointing to the settings-plugins anchor; clicking it scrolls to the section correctly."
     why_human: "SettingsSearch derives from SETTINGS_JUMP_LINKS (statically verified), but the search UI rendering and result navigation are runtime behaviors."
+
   - test: "Verify cross-surface parity — open Settings in web-share view and confirm the jump bar shows 'Terminal Plugins' last"
     expected: "Jump bar on the web-share surface shows the same 7 links in the same order, 'Terminal Plugins' last. Clicking it scrolls to the section on the web surface."
     why_human: "Shared React component ensures code-level parity, but the web-share rendering path (Wails webview vs browser) can differ at runtime."
@@ -136,6 +140,7 @@ No probes declared in PLAN.md or SUMMARY.md. No `scripts/*/tests/probe-*.sh` fil
 ### Gaps Summary
 
 No gaps. All static must-haves are VERIFIED:
+
 - SETTINGS_JUMP_LINKS reordered with "Terminal Plugins" last (index 6 of 7)
 - PluginsSection h3 renamed to "Terminal Plugins" with `id="settings-plugins"` preserved
 - Anchor `href="#settings-plugins"` in jump bar targets `id="settings-plugins"` on the h3
