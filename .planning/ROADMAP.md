@@ -374,8 +374,9 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27) (completed 2026-06-28)
 - [ ] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27)
 - [ ] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Needs `/gsd-secure-phase 163` after execution (added 2026-06-27)
+- [ ] **Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width** - CHAT-LAYOUT-01: web peer's raw `authorID` (nodekey:…) renders un-truncated in the `.chat-msg__tailnet-id` header label → horizontal scroll on web-share `/app/`; designed WEBCHAT-06 ellipsis doesn't engage on that surface. CHAT-LAYOUT-02: resizable chat width. Both in shared ChatPanel/ChatMessage. Discovered during Phase 161 UAT (added 2026-06-28)
 
-> **Closeout ordering note (2026-06-27):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI), 162 (#108), and 163 (RO-can-chat) are scope added 2026-06-27 and run after 160; the milestone-close audit (`/gsd-audit-milestone`) runs after **163**, not 162. 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
+> **Closeout ordering note (2026-06-27, updated 2026-06-28):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI), 162 (#108), 163 (RO-can-chat), and 164 (web-share chat layout polish) are scope added after 160; the milestone-close audit (`/gsd-audit-milestone`) now runs after **164** (was 163; 164 added 2026-06-28 from Phase 161 UAT). 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
 
 ### Progress: v4.1 Session Chat
 
@@ -394,6 +395,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 0/0 | Not planned | — |
 | 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 0/0 | Not planned | — |
+| 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 0/0 | Not planned | — |
 
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
@@ -541,6 +543,23 @@ Plans:
 Plans:
 
 - [ ] TBD (run /gsd-plan-phase 163 to break down)
+
+### Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width
+
+**Goal:** Fix two web-share chat layout issues discovered during Phase 161 live UAT, both in the shared `ChatPanel`/`ChatMessage` so all surfaces (GUI tab, Hub modal, web-share guest) benefit:
+
+1. **CHAT-LAYOUT-01 (bug — message-header overflow):** A web peer's raw `authorID` (e.g. `nodekey:456d9361bab4eb7…`) renders un-truncated as the `.chat-msg__tailnet-id` secondary label, forcing horizontal scroll on the web-share `/app/` surface. The designed WEBCHAT-06 ellipsis (`text-overflow: ellipsis; flex-shrink: 1000` on `.chat-msg__tailnet-id`, `min-width: 0` on `.chat-msg__header`) does NOT engage on that surface — root-cause the unconstrained-width ancestor in the web-share layout and make the header truncate. Ideally a web peer's secondary label should show a friendly Tailscale name rather than the raw node public key (server-side `authorID` concern — scope during planning).
+2. **CHAT-LAYOUT-02 (feature — resizable chat width):** Make the chat window resizable width-wise.
+
+**Requirements**: CHAT-LAYOUT-01 (header-overflow truncation / friendly tailnet label), CHAT-LAYOUT-02 (resizable chat width) — finalize during /gsd-plan-phase
+**Depends on:** Phase 163
+**Plans:** 0 plans
+
+Source: discovered during Phase 161 UAT (alias-control live verification); deferred here by user decision 2026-06-28. CHAT-LAYOUT-01 is pre-existing (`ChatMessage.tsx` was untouched by Phase 161).
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 164 to break down)
 
 ---
 

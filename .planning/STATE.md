@@ -34,7 +34,7 @@ Status: Phase 161 complete
 Last activity: 2026-06-28 — Phase 161 marked complete
 
 ```
-Progress: [███████████████░░░░░] 10/13 phases complete (77%); Phase 160 shipped, Phase 161 next
+Progress: [████████████████░░░░] 11/14 phases complete (79%); Phase 161 complete (alias control, live-UAT verified), Phase 162 next
 ```
 
 ### Quick Tasks Completed
@@ -69,9 +69,11 @@ Progress: [███████████████░░░░░] 10/13 p
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
 | 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
 
-**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 159–163 requirements set at plan time. v4.1 = 13 phases (closeout audit runs after 163; see ROADMAP closeout-ordering note).
+**Total:** 29 requirements mapped across phases 151–157 (100% coverage); 158 complete (CHAT-FIX-01, CHAT-PARITY-01); 161 complete (ALIAS-UI-01/02, live-UAT verified); 159–164 requirements set at plan time. v4.1 = 14 phases (closeout audit runs after 164; see ROADMAP closeout-ordering note).
 
 ### Roadmap Evolution
+
+- Phase 164 added (2026-06-28): **Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width** — discovered during Phase 161 alias-control LIVE UAT. CHAT-LAYOUT-01 (bug, pre-existing): a web peer's raw `authorID` (`nodekey:…`) renders un-truncated as the `.chat-msg__tailnet-id` secondary label in the shared `ChatMessage`, forcing horizontal scroll on the web-share `/app/` surface; the designed WEBCHAT-06 ellipsis does not engage there (unconstrained-width ancestor in the web-share layout) — and ideally a web peer should show a friendly Tailscale name, not the raw node key (server-side `authorID` concern). CHAT-LAYOUT-02 (feature): make the chat window resizable width-wise. Both live in the shared `ChatPanel`/`ChatMessage` (parity by construction). Deferred here by user decision rather than expanding Phase 161 scope. Milestone-close audit now runs after **164**. v4.1 = 14 phases.
 
 - Phase 163 added (2026-06-27): **Read-Only Guest Chat Posting (D-06 reconciliation)** — surfaced by Phase 159 LIVE UAT (M-31 Test 3). RO web guests reach the chat surface via the 159 redirect, but the daemon (`relay/hub.go` `HandleChatSend`→`ErrChatReadOnly`, SEC-01/T-154-03) + frontend (`ChatPanel.tsx` `isReadOnly` suppression) **block RO from posting chat**. That contradicts **D-06** ("RO clients are full chat participants", Phase 152) — which SEC-01/PITFALLS overrode in Phase 154/155. User decided 2026-06-27: *"RO users can participate in chat but cannot @ the session to inject a prompt."* → loosen the `MsgChatSend` RO gate ONLY; keep `HandleInject` (`@session`) + `MsgInput` (PTY) RO-gated. Reverses a security-reviewed decision → requires `/gsd-secure-phase 163`. Spans Phase 154 (server gate, relay + webserver paths) + Phase 155 (frontend SC-3 suppression + tests). Milestone-close audit now runs after **163**. v4.1 = 13 phases.
 - Phases 161 + 162 added (2026-06-27): v4.1 expanded to 12 phases. **161 Chat-Sidebar Alias Control** — the Phase 152 alias backend (`MsgAliasSet` 0x34, `AliasStore`/aliases.json, `ValidateAlias`, `ChatMessage.alias`/`PresenceEntry.alias`) shipped with NO UI; the desktop owner gets a default alias (host/computed name) but can't change it, and `encodeAliasSetFrame()` is called only in tests. User first suggested a Settings → Profile section, then (correctly) moved it to the **shared `ChatPanel` sidebar** — because the web-share surface has no Settings page, so a sidebar control gives GUI tab + Hub modal + web-share guest (via the 159 redirect) the control from ONE shared component = cross-surface parity by construction ([[feedback_cross_surface_parity]]). Reuses the existing wire path; may avoid new Wails bindings. **162 Settings Polish (#108)** — move the "Plugins" Settings jump link to last + rename to "Terminal Plugins" (anchor id stable); independent of chat. Decoupled from 161 once the alias work left the Settings page. Closeout (160) keeps its number to avoid breaking committed Phase-160 refs in the 159 plan/research; milestone-close audit runs after 162.
