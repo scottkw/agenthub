@@ -20,6 +20,7 @@ import {
   ChatMessage as ChatMessageComponent,
   tailnetIdToHue,
   formatHHMM,
+  formatAuthorFingerprint,
 } from './ChatMessage'
 import type { ChatMessage } from '../../lib/relayClient'
 
@@ -96,6 +97,40 @@ describe('formatHHMM', () => {
   })
 })
 
+// ── formatAuthorFingerprint (Phase 164-01 CHAT-LAYOUT-01, Decision 2) ────
+
+describe('formatAuthorFingerprint', () => {
+  it('returns the last 6 characters of a long nodekey authorID', () => {
+    // 'nodekey:456d9361bab4eb7' → last 6 chars
+    const full = 'nodekey:456d9361bab4eb7'
+    const expected = full.slice(-6)
+    expect(formatAuthorFingerprint(full)).toBe(expected)
+  })
+
+  it('returns the last 6 characters of the standard node: prefix format', () => {
+    // 'node:abc123' length=11, last 6 = 'abc123'
+    expect(formatAuthorFingerprint('node:abc123')).toBe('abc123')
+  })
+
+  it('returns the input unchanged when shorter than 6 chars (graceful degradation)', () => {
+    // 'local' (5 chars) — the desktop owner sentinel
+    expect(formatAuthorFingerprint('local')).toBe('local')
+  })
+
+  it('returns "" for empty string (no throw)', () => {
+    expect(formatAuthorFingerprint('')).toBe('')
+  })
+
+  it('is deterministic — same input returns same fingerprint', () => {
+    const id = 'nodekey:abc123def456'
+    expect(formatAuthorFingerprint(id)).toBe(formatAuthorFingerprint(id))
+  })
+
+  it('returns exactly 6 characters when input is exactly 6 chars', () => {
+    expect(formatAuthorFingerprint('abc123')).toBe('abc123')
+  })
+})
+
 // ── First-in-group render ─────────────────────────────────────────────────
 
 describe('ChatMessage — first-in-group', () => {
@@ -131,11 +166,31 @@ describe('ChatMessage — first-in-group', () => {
     expect(alias?.textContent).toBe('Alice')
   })
 
-  it('renders the tailnet ID in parens', () => {
+  it('renders the short fingerprint (last 6 chars) in .chat-msg__tailnet-id, NOT the full nodekey (CHAT-LAYOUT-01)', () => {
+    // The full authorID is 'node:abc123'; last 6 chars = 'abc123'
     ;({ container, root } = renderMessage(makeMessage({ authorID: 'node:abc123' })))
     const tidEl = container.querySelector('.chat-msg__tailnet-id')
     expect(tidEl).not.toBeNull()
-    expect(tidEl?.textContent).toContain('node:abc123')
+    // Must contain the fingerprint
+    expect(tidEl?.textContent).toContain('abc123')
+    // Must NOT contain the full raw nodekey — that was the overflow root cause
+    expect(tidEl?.textContent).not.toContain('node:abc123')
+  })
+
+  it('avatar hue still derives from the FULL authorID (tailnetIdToHue unchanged)', () => {
+    // The fingerprint change must NOT affect the avatar color channel.
+    // avatar background style must use the full-authorID hue, not a 6-char-hash.
+    // jsdom normalizes hsl(H, S%, L%) → rgb(r, g, b); use a reference element to
+    // obtain the canonical normalized value for comparison (avoids brittle color math).
+    const authorID = 'nodekey:456d9361bab4eb7' // long nodekey — fingerprint 'ab4eb7' has a different hue
+    ;({ container, root } = renderMessage(makeMessage({ authorID })))
+    const avatar = container.querySelector('.chat-msg__avatar') as HTMLElement | null
+    expect(avatar).not.toBeNull()
+    const fullHue = tailnetIdToHue(authorID)
+    const refFull = document.createElement('div')
+    refFull.style.background = `hsl(${fullHue}, 55%, 45%)`
+    // Avatar background must match the FULL authorID hue
+    expect(avatar!.style.background).toBe(refFull.style.background)
   })
 
   it('renders a <time> element with the ISO-8601 datetime in the title attribute', () => {
