@@ -28,6 +28,32 @@ vi.mock('../TerminalPanel', () => ({
   TerminalPanel: () => React.createElement('div', { 'data-testid': 'mock-terminal-panel' }),
 }))
 
+// NOTIF-01: Mock HubModal to capture onUnreadChange without full modal mount.
+// The mock renders .hub-modal-overlay (preserves FE-ROUTE-01 assertions) and
+// .hub-modal__close (preserves GAP-134-D close assertion). vi.mock is hoisted
+// and applies file-wide; existing tests that check .hub-modal-overlay still pass.
+let capturedHubModalOnUnreadChange:
+  | ((sessionId: string, count: number, hasMention: boolean) => void)
+  | undefined = undefined
+
+vi.mock('./HubModal', () => ({
+  HubModal: (props: Record<string, unknown>) => {
+    capturedHubModalOnUnreadChange = props.onUnreadChange as
+      | ((sessionId: string, count: number, hasMention: boolean) => void)
+      | undefined
+    return React.createElement(
+      'div',
+      { className: 'hub-modal-overlay hub-modal-overlay--open' },
+      React.createElement('button', {
+        className: 'hub-modal__close',
+        type: 'button',
+        'aria-label': 'Close modal',
+        onClick: props.onClose,
+      }),
+    )
+  },
+}))
+
 import { HubPanel } from './HubPanel'
 import { GetSessionStyledTailLines } from '../../wailsjs/go/main/App'
 
@@ -943,5 +969,119 @@ describe('HubPanel FE-ROUTE-01: remote routing gate (behavioral)', () => {
     } finally {
       window.matchMedia = originalMatchMedia
     }
+  })
+})
+
+// ---- NOTIF-01: HubPanel unreadMap wiring, reset-on-open, and source-inspection ----
+
+describe('HubPanel NOTIF-01: unreadMap wiring and reset-on-open', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    vi.clearAllMocks()
+    capturedHubModalOnUnreadChange = undefined
+  })
+
+  // Source-inspection: structural guarantees without mounting
+  it('NOTIF-01-src: HubPanel source declares unreadMap state', () => {
+    expect(hubPanelRaw).toContain('unreadMap')
+  })
+
+  it('NOTIF-01-src: HubPanel source declares handleUnreadChange callback', () => {
+    expect(hubPanelRaw).toContain('handleUnreadChange')
+  })
+
+  it('NOTIF-01-src: HubPanel source calls useChatUnreadListeners', () => {
+    expect(hubPanelRaw).toContain('useChatUnreadListeners')
+  })
+
+  it('NOTIF-01-src: HubPanel passes onUnreadChange={handleUnreadChange} to HubModal', () => {
+    expect(hubPanelRaw).toContain('onUnreadChange={handleUnreadChange}')
+  })
+
+  it('NOTIF-01-src: HubPanel passes unreadBySessionId={unreadMap} to SessionCardGrid', () => {
+    expect(hubPanelRaw).toContain('unreadBySessionId={unreadMap}')
+  })
+
+  // Behavioral: badge appears when handleUnreadChange is called for a session
+  it('NOTIF-01a: badge appears on card when unread is reported for a backgrounded session', () => {
+    const session = makeSession({ id: 'sess-badge', name: 'Badge Session', workDir: '/proj' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        React.createElement(HubPanel, {
+          sessions: [session],
+          error: false,
+          onNewSession: vi.fn(),
+          onRename: vi.fn(),
+          isActive: false,
+          terminalTheme: STUB_THEME,
+          relayPort: 51234,
+          remoteCapsCached: new Set<string>(),
+          onRequestRemoteCap: vi.fn(),
+        }),
+      )
+    })
+
+    // Open the modal to capture the onUnreadChange reference from HubPanel
+    const card = container.querySelector('article.hub-card') as HTMLElement
+    act(() => { card.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    const onUnreadChange = capturedHubModalOnUnreadChange
+
+    // Close the modal (simulate backgrounded session scenario)
+    const closeBtn = container.querySelector('.hub-modal__close') as HTMLElement
+    act(() => { closeBtn.click() })
+
+    // No badge initially
+    expect(container.querySelector('.chat-badge')).toBeNull()
+
+    // Simulate unread messages arriving in the background
+    act(() => { onUnreadChange?.('sess-badge', 3, false) })
+
+    // Badge must now appear on the session card
+    const badge = container.querySelector('.chat-badge')
+    expect(badge).not.toBeNull()
+    expect(badge?.textContent).toBe('3')
+  })
+
+  // Behavioral: badge resets when card modal is opened
+  it('NOTIF-01b: opening a session modal resets that session badge to 0', () => {
+    const session = makeSession({ id: 'sess-reset', name: 'Reset Session', workDir: '/proj' })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => {
+      root.render(
+        React.createElement(HubPanel, {
+          sessions: [session],
+          error: false,
+          onNewSession: vi.fn(),
+          onRename: vi.fn(),
+          isActive: false,
+          terminalTheme: STUB_THEME,
+          relayPort: 51234,
+          remoteCapsCached: new Set<string>(),
+          onRequestRemoteCap: vi.fn(),
+        }),
+      )
+    })
+
+    // Open modal once to capture the callback
+    const card = container.querySelector('article.hub-card') as HTMLElement
+    act(() => { card.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+    const onUnreadChange = capturedHubModalOnUnreadChange
+    const closeBtn = container.querySelector('.hub-modal__close') as HTMLElement
+    act(() => { closeBtn.click() })
+
+    // Set unread count to 3
+    act(() => { onUnreadChange?.('sess-reset', 3, false) })
+    expect(container.querySelector('.chat-badge')).not.toBeNull()
+
+    // Re-open the modal — handleCardClick must reset the unread entry before opening
+    act(() => { card.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
+
+    // Badge must be cleared (modal is now open for that session)
+    expect(container.querySelector('.chat-badge')).toBeNull()
   })
 })
