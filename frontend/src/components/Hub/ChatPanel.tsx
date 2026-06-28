@@ -350,6 +350,21 @@ export function ChatPanel({
   const [unread, setUnread] = useState<UnreadState>({ count: 0, hasMention: false })
   const [windowFocused, setWindowFocused] = useState(document.hasFocus())
 
+  // ── CHAT-LAYOUT-02: resizable drawer width ─────────────────────────────
+  // Initialized from localStorage (clamped) so the user's preferred width is
+  // restored on reload. Falls back to CHAT_WIDTH_DEFAULT when absent or invalid.
+  // Applied as --chat-panel-width on :root so both the drawer width rules AND the
+  // sibling toggle offset (calc(var(--chat-panel-width, 360px) + 12px)) stay in sync.
+  const [width, setWidth] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('agenthub.chatPanelWidth')
+      if (stored === null) return CHAT_WIDTH_DEFAULT
+      return clampChatWidth(Number(stored))
+    } catch {
+      return CHAT_WIDTH_DEFAULT
+    }
+  })
+
   // ── Composer state (plan 154-06) ────────────────────────────────────────
   const [draft, setDraft] = useState('')
   const [mentionOpen, setMentionOpen] = useState(false)
@@ -407,6 +422,19 @@ export function ChatPanel({
       window.removeEventListener('blur', onBlur)
     }
   }, [])
+
+  // ── CHAT-LAYOUT-02: apply width → --chat-panel-width + persist ───────────
+  // Set on :root (document.documentElement) so the CSS custom property reaches
+  // both the drawer (.chat-panel width rule) AND the sibling toggle button
+  // (.chat-panel--open ~ .hub-modal__chat-toggle calc offset), which are rendered
+  // as siblings — not children — of .chat-panel in all three host components.
+  // localStorage.setItem is wrapped defensively (storage can be full/unavailable).
+  useEffect(() => {
+    document.documentElement.style.setProperty('--chat-panel-width', `${width}px`)
+    try {
+      localStorage.setItem('agenthub.chatPanelWidth', String(width))
+    } catch { /* storage full or unavailable — silent degradation */ }
+  }, [width])
 
   // ── Phase 155 PARITY-01 SC-3: resolve RO status from server /info ────────
   // Precedent: web/assets/terminal.js:73-105 — same endpoint/perms logic.
