@@ -13,6 +13,7 @@ import { computeCounts, computeGlobalCounts } from '../../lib/hubGroupCounts'
 import type { GroupCounts } from '../../lib/hubGroupCounts'
 import { HubModal } from './HubModal'
 import { SessionShareModal } from './SessionShareModal'
+import { useChatUnreadListeners } from './useChatUnreadListeners'
 // WR-01: deriveHubStatus extracted to shared util (was triplicated across SessionCard/HubFilterBar/HubPanel)
 // ATTN-01/04: isAttentionStatus is the single canonical attention predicate; used for live set + debounced sort key
 import { deriveHubStatus, isAttentionStatus } from '../../lib/hubStatus'
@@ -279,6 +280,23 @@ export function HubPanel({
     setShareModalSession(session)
   }, [])
 
+  // NOTIF-01: per-session unread counts lifted from HubInteractiveModal's local state.
+  // Two sources feed this map: (a) open-modal ChatPanel via onUnreadChange prop threading,
+  // and (b) backgrounded sessions via useChatUnreadListeners hook (Plan 160-01).
+  // Pitfall 5: always use functional setState with new Map(prev) — mutating in place
+  // does NOT trigger re-render since Map identity is unchanged.
+  const [unreadMap, setUnreadMap] = useState<Map<string, { count: number; hasMention: boolean }>>(
+    new Map(),
+  )
+
+  function handleUnreadChange(sessionId: string, count: number, hasMention: boolean) {
+    setUnreadMap((prev) => {
+      const m = new Map(prev)
+      m.set(sessionId, { count, hasMention })
+      return m
+    })
+  }
+
   // Phase 134 — MODAL-06: pending remote session awaiting cap acquisition
   const [pendingModalSessionId, setPendingModalSessionId] = useState<string | null>(null)
   // Capture the sourceRect at the time of card click so it's available for auto-open
@@ -332,6 +350,16 @@ export function HubPanel({
   // prop). Local sessions carry the machine hostname, so we must NOT use hostname to
   // decide local-vs-remote — provenance (this prop vs remoteSessions) is the discriminator.
   const localPreviewTails = usePreviewPoller(sessions, isActive ?? false)
+  // NOTIF-01 Part B: lightweight WS listeners for sessions whose modal is currently closed.
+  // modalState?.session.id is the exclusion id — prevents double-counting with the open modal's
+  // ChatPanel subscription (ChatPanel's onUnreadChange already calls handleUnreadChange above).
+  useChatUnreadListeners(
+    sessions,
+    relayPort ?? 0,
+    modalState?.session.id ?? null,
+    isActive ?? false,
+    handleUnreadChange,
+  )
   // Remote sessions have no tail API: seed them as empty ([] → "No output yet", not a
   // perpetual "Loading…" placeholder).
   const previewTails = React.useMemo(() => {
@@ -409,6 +437,14 @@ export function HubPanel({
       onRequestRemoteCap?.({ id: session.id, name: session.name, hostname: session.hostname })
       return
     }
+    // NOTIF-01: reset unread badge to 0 when the user opens the modal for this session.
+    // The user is now actively engaged with the session — badge must clear immediately.
+    // Pitfall 5: new Map(prev) prevents stale-closure re-renders (mutating in place is a no-op).
+    setUnreadMap((prev) => {
+      const m = new Map(prev)
+      m.delete(session.id)
+      return m
+    })
     setModalState({ session, sourceRect: rect })
   }, [remoteIdSet, remoteCapsCached, onRequestRemoteCap])
 
@@ -483,6 +519,7 @@ export function HubPanel({
         onKill={onKill}
         onOpenInBrowser={onOpenInBrowser}
         onBrowseFiles={onBrowseFiles}
+        unreadBySessionId={unreadMap}
       />
     )
   }
@@ -556,6 +593,7 @@ export function HubPanel({
             remote={isRemote}
             onFontSizeChange={onFontSizeChange ? (delta) => onFontSizeChange(modalState.session.id, delta) : undefined}
             onClose={() => setModalState(null)}
+            onUnreadChange={handleUnreadChange}
           />
         )
       })()}
