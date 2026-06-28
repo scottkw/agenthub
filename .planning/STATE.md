@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 161
-current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
-status: verifying
+status: completed
 stopped_at: Completed 161-04-PLAN.md — cross-surface e2e, TESTING.md consolidation, live UAT approved
-last_updated: "2026-06-28T16:58:14.628Z"
+last_updated: "2026-06-28T17:06:16.904Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 161 execution started
+last_activity_desc: Phase 161 marked complete
 progress:
   total_phases: 12
   completed_phases: 11
   total_plans: 48
   completed_plans: 48
   percent: 92
+current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 161 (chat-sidebar-alias-control-user-can-set-their-display-name) — EXECUTING
+Phase: 161 — COMPLETE
 Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-28 — Phase 161 execution started
+Status: Phase 161 complete
+Last activity: 2026-06-28 — Phase 161 marked complete
 
 ```
 Progress: [███████████████░░░░░] 10/13 phases complete (77%); Phase 160 shipped, Phase 161 next
