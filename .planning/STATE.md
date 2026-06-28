@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
 current_phase: 164
-current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
-status: verifying
-stopped_at: Completed 164-01-PLAN.md — CHAT-LAYOUT-01 overflow fix and fingerprint secondary label
-last_updated: "2026-06-28T23:19:09.395Z"
+status: ready
+stopped_at: Phase 164 complete + verified (9/9) — CHAT-LAYOUT-01 overflow fix + CHAT-LAYOUT-02 resizable chat; milestone audit next
+last_updated: "2026-06-28T23:26:08.696Z"
 last_activity: 2026-06-28
-last_activity_desc: Phase 164 execution started
+last_activity_desc: Phase 164 complete
 progress:
   total_phases: 14
   completed_phases: 14
   total_plans: 54
   completed_plans: 54
   percent: 100
+current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
 ---
 
 # Project State
@@ -24,17 +24,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** Phase 164 — web-share-chat-layout-polish-message-header-overflow-fix-res
+**Current focus:** v4.1 all phases complete — milestone-close audit (`/gsd-audit-milestone`) next
 
 ## Current Position
 
-Phase: 164 (web-share-chat-layout-polish-message-header-overflow-fix-res) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-06-28 — Phase 164 execution started
+Phase: 164 (last phase of v4.1)
+Plan: 2/2 complete
+Status: Phase 164 complete + verified (9/9 must-haves) — milestone audit next
+Last activity: 2026-06-28 — Phase 164 complete + verified (CHAT-LAYOUT-01/02)
 
 ```
-Progress: [██████████████████░░] 13/14 phases complete (93%); Phase 163 complete (RO guest chat posting — ROCHAT-01/02 live e2e + SEC-RO-01), Phase 164 next (last before milestone audit)
+Progress: [████████████████████] 14/14 phases complete (100%); Phase 164 complete + verified (CHAT-LAYOUT-01 header-overflow fix + CHAT-LAYOUT-02 resizable chat width). Milestone-close audit (/gsd-audit-milestone) is the next step.
 ```
 
 ### Quick Tasks Completed

@@ -57,6 +57,8 @@ Requirements for the v4.1 release. Each maps to a roadmap phase.
 - [x] **WEBCHAT-04**: The web-share bootstrap auto-opens the file-browser tab ONLY when the cap grants `files.read` (resolved from the server-verified `GET /api/sessions/{id}/info` perms). A guest whose share lacks file access sees just the terminal + chat — never a dead "files.read permission required" tab. Fail-safe: on any probe error or missing perm, no file tab opens. (Gap-closure from 159 live UAT.)
 - [x] **WEBCHAT-06**: A long chat author name (e.g. a tailnet hostname used as the fallback identity before an alias is set) and the raw nodekey truncate with an ellipsis on one line in the chat author header, instead of wrapping character-by-character in the narrow chat panel. (Cross-surface chat-rendering polish; surfaced by the narrow web-share panel during 159 live UAT.)
 - [x] **WEBCHAT-05**: A web-share guest cannot rename the session tab. The Rename and Save-Terminal-As items (both Wails RPCs with no browser bridge) and double-click/right-click rename are suppressed in web mode. A guest WITH file access keeps the tab chevron showing only "Browse files" (so they can re-open the file browser if closed); a guest without file access gets no chevron. The × close button always remains. (Rename never reached the host — the RPC fails silently and relabels only the local browser tab — but the affordance is removed for clarity. Gap-closure from 159 live UAT.)
+- [x] **CHAT-LAYOUT-01**: A web peer's raw `authorID` (e.g. `nodekey:456d9361bab4eb7…`) no longer forces horizontal scroll in the chat header on the web-share `/app/` surface. Root cause: the virtualizer row in `getRowStyle()` was unconstrained, so the designed WEBCHAT-06 ellipsis had no bounded container to shrink within — the non-separator branch now sets `width:'100%'`. The `.chat-msg__tailnet-id` secondary label renders a short last-6-char fingerprint of `authorID` (via the pure `formatAuthorFingerprint` helper) instead of the full raw nodekey; the avatar hue and `@mention` matching still use the full unchanged `authorID`. Shared `ChatPanel`/`ChatMessage`, so all three surfaces benefit. (Surfaced during Phase 161 live UAT.)
+- [x] **CHAT-LAYOUT-02**: The chat drawer is resizable width-wise via a left-edge drag handle on all three surfaces (GUI session tab, Hub interactive modal, web-share guest) from one shared `ChatPanel`/`style.css` change. The chosen width persists to localStorage and is restored (clamped) on reload, bounded both ways within ~280–640px (a tampered/out-of-range stored value is clamped on read via `clampChatWidth`). A single `--chat-panel-width` CSS custom property is the source of truth consumed by both `.chat-panel` width rules and the toggle offset. Resizing never resizes the terminal or triggers a PTY `sendResize` — D-02 overlay mode is preserved. (Feature from Phase 161 live UAT.)
 
 ### SEC — Security
 
@@ -137,6 +139,8 @@ Which phase covers each requirement. Populated during roadmap creation.
 | WEBCHAT-04 | Phase 159 (159-03) | Complete (e2e: web-share-scope.spec.ts) |
 | WEBCHAT-05 | Phase 159 (159-04) | Complete (e2e: web-share-scope.spec.ts) |
 | WEBCHAT-06 | Phase 159 (159-05) | Complete (css source-gate: style.hub.test.ts) |
+| CHAT-LAYOUT-01 | Phase 164 (164-01) | Complete (vitest: ChatMessage.test.tsx, ChatPanel.test.tsx) |
+| CHAT-LAYOUT-02 | Phase 164 (164-02) | Complete (vitest: ChatPanel.test.tsx, chatToggleOverlap.test.ts) |
 | SEC-01 | Phase 153 | Complete |
 | SEC-02 | Phase 153 | Complete |
 | SEC-03 | Phase 154 | Complete |
@@ -158,9 +162,11 @@ Which phase covers each requirement. Populated during roadmap creation.
 - Unmapped: 0
 - Post-v1 UAT gap-closure requirements: 2 (CHAT-FIX-01, CHAT-PARITY-01 — Phase 158), automated work complete, live UAT (M-29/M-30) pending
 - Cross-surface parity-completion requirements: 2 (WEBCHAT-01, WEBCHAT-02 — Phase 159), automated work complete, live UAT (M-31) pending
+- Web-share chat layout-polish requirements: 2 (CHAT-LAYOUT-01, CHAT-LAYOUT-02 — Phase 164), automated work complete
 
 ---
 *Requirements defined: 2026-06-25*
-*Last updated: 2026-06-27 — added WEBCHAT-01 + WEBCHAT-02 (Phase 159 web-share chat parity redirect); PARITY-01 traceability now credits Phase 159 (honored on the actually-shared link)*
+*Last updated: 2026-06-28 — added CHAT-LAYOUT-01 + CHAT-LAYOUT-02 (Phase 164 web-share chat layout polish: message-header overflow fix + resizable chat width; surfaced during Phase 161 live UAT)*
+*Previous: 2026-06-27 — added WEBCHAT-01 + WEBCHAT-02 (Phase 159 web-share chat parity redirect); PARITY-01 traceability now credits Phase 159 (honored on the actually-shared link)*
 *Previous: 2026-06-27 — added CHAT-FIX-01 + CHAT-PARITY-01 (Phase 158 chat-affordance polish, gap-closure from v4.1 UAT); CHAT-PARITY-01 downstream of PARITY-01 (Phase 155)*
 *Previous: 2026-06-26 — added VIEW-01..05 (Phase 157, Issue #109 screen-share semantics); D-02 chat drawer revised push→overlay*
