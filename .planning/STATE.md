@@ -5,15 +5,15 @@ milestone_name: Session Chat
 current_phase: 161
 current_phase_name: chat-sidebar-alias-control-user-can-set-their-display-name
 status: executing
-stopped_at: Phase 160 complete — NOTIF-01 unread badge wired + 153/154/156 tech debt closed; verifier PASSED 15/15
-last_updated: "2026-06-28T15:25:15.685Z"
+stopped_at: Completed 161-03-PLAN.md — alias control in shared ChatPanel header
+last_updated: "2026-06-28T15:43:22.370Z"
 last_activity: 2026-06-28
 last_activity_desc: Phase 161 execution started
 progress:
   total_phases: 12
   completed_phases: 10
   total_plans: 48
-  completed_plans: 46
+  completed_plans: 47
   percent: 83
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 161 (chat-sidebar-alias-control-user-can-set-their-display-name) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-06-28 — Phase 161 execution started
 
@@ -112,8 +112,8 @@ Progress: [███████████████░░░░░] 10/13 p
 
 ## Session Continuity
 
-Last session: 2026-06-28T15:25:15.662Z
-Stopped at: Phase 157 Plan 01 complete — host-authority ResizeClient + broadcastResize + Rows() in hub.go, MC-06 tests replaced
+Last session: 2026-06-28T15:43:22.361Z
+Stopped at: Completed 161-03-PLAN.md — alias control in shared ChatPanel header
 Resume file: None
 Next action: `/gsd:plan-phase 151`
 
@@ -152,6 +152,9 @@ Next action: `/gsd:plan-phase 151`
 - [Phase ?]: D-02 invariant: overlay toggle never triggers PTY sendResize
 - [Phase ?]: WEBCHAT-01 redirect to /app/
 - [Phase ?]: url.QueryEscape for cap token round-trip; terminal.html preserved
+- [Phase ?]: Phase 161-03: validateAlias uses Array.from code points not String.length, mirrors Go ValidateAlias exactly
+- [Phase ?]: Phase 161-03: handleAliasCommit has NO isReadOnly guard - D-06 alias-set is the explicit RO exception
+- [Phase ?]: Phase 161-03: currentAlias priority chain: onSelf.alias > local:local roster entry > empty
 
 ## Performance Metrics
 
@@ -187,3 +190,4 @@ Next action: `/gsd:plan-phase 151`
 | Phase 159 P01 | 10 minutes | 2 tasks | 4 files |
 | Phase 161 P01 | 4 minutes | 2 tasks | 8 files |
 | Phase 161 P02 | 5 minutes | 2 tasks | 2 files |
+| Phase 161 P03 | 6m | - tasks | - files |
