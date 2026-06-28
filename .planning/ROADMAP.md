@@ -373,7 +373,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 - [x] **Phase 160: v4.1 Chat Closeout** - NOTIF-01 Hub-card unread-badge wiring + 153/154/156 tech-debt closeout per milestone audit; **+ terminal bottom empty-space (xterm row-quantization, pre-existing/global — deferred from 159 UAT 2026-06-27)** (added 2026-06-27) (completed 2026-06-28)
 - [x] **Phase 161: Chat-Sidebar Alias Control** - User can set their chat display name from the shared ChatPanel sidebar (GUI tab, Hub modal, AND web-share guest via the 159 redirect) — surfaces the already-built Phase 152 alias backend (`MsgAliasSet`/AliasStore) that never got a UI; cross-surface parity by shared component (added 2026-06-27) (completed 2026-06-28)
 - [x] **Phase 162: Settings Polish — Terminal Plugins jump link (#108)** - Move the "Plugins" Settings jump link to last position and rename to "Terminal Plugins" (label + section header), anchor id stable; independent of chat work (added 2026-06-27) (completed 2026-06-28)
-- [ ] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Needs `/gsd-secure-phase 163` after execution (added 2026-06-27)
+- [x] **Phase 163: Read-Only Guest Chat Posting (D-06 reconciliation)** - RO-cap guests can POST chat (all surfaces via shared ChatPanel) while `@session` inject + PTY input stay RO-gated; reverses the SEC-01 RO chat-send gate (Phase 154) per user decision 2026-06-27. Surfaced by Phase 159 live UAT (Test 3). Needs `/gsd-secure-phase 163` after execution (added 2026-06-27) (completed 2026-06-28)
 - [ ] **Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width** - CHAT-LAYOUT-01: web peer's raw `authorID` (nodekey:…) renders un-truncated in the `.chat-msg__tailnet-id` header label → horizontal scroll on web-share `/app/`; designed WEBCHAT-06 ellipsis doesn't engage on that surface. CHAT-LAYOUT-02: resizable chat width. Both in shared ChatPanel/ChatMessage. Discovered during Phase 161 UAT (added 2026-06-28)
 
 > **Closeout ordering note (2026-06-27, updated 2026-06-28):** Phase 160 ("Chat Closeout") closes the *originally-scoped* v4.1 chat gaps (NOTIF-01 + 153/154/156 tech debt). Phases 161 (alias UI), 162 (#108), 163 (RO-can-chat), and 164 (web-share chat layout polish) are scope added after 160; the milestone-close audit (`/gsd-audit-milestone`) now runs after **164** (was 163; 164 added 2026-06-28 from Phase 161 UAT). 160 keeps its number to avoid breaking committed Phase-160 references in the 159 plan/research.
@@ -394,7 +394,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 | 160. v4.1 Chat Closeout (NOTIF-01 + tech debt) | 5/5 | Complete    | 2026-06-28 |
 | 161. Chat-Sidebar Alias Control (ALIAS-UI-01/02) | 4/4 | Complete   | 2026-06-28 |
 | 162. Settings Polish — Terminal Plugins jump link (#108) | 1/1 | Complete   | 2026-06-28 |
-| 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 2/3 | In Progress|  |
+| 163. Read-Only Guest Chat Posting (ROCHAT-01/02, SEC-RO-01) | 3/3 | Complete   | 2026-06-28 |
 | 164. Web-Share Chat Layout Polish (CHAT-LAYOUT-01/02) | 0/0 | Not planned | — |
 
 ---
@@ -536,7 +536,7 @@ Plans:
 
 **Requirements**: ROCHAT-01 (RO can post chat across all surfaces via the shared `ChatPanel`), ROCHAT-02 (RO `@session` inject + PTY input remain gated — regression guard), SEC-RO-01 (security re-review confirms only `MsgChatSend` was loosened)
 **Depends on:** Phase 159 (redirect lands RO web guests on the chat surface) + Phases 154/155 (code being changed)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 **UI hint:** yes (ChatPanel composer)
 
@@ -549,7 +549,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — cites final test names + counts)*
 
-- [ ] 163-03-PLAN.md — Docs: reconcile PITFALLS.md D-06 vs SEC-01 + register flips in TESTING.md Section 2/4 (repo-relative paths; run check-traceability-paths.sh) [ROCHAT-01, ROCHAT-02, SEC-RO-01] [wave 2, depends 163-01 + 163-02]
+- [x] 163-03-PLAN.md — Docs: reconcile PITFALLS.md D-06 vs SEC-01 + register flips in TESTING.md Section 2/4 (repo-relative paths; run check-traceability-paths.sh) [ROCHAT-01, ROCHAT-02, SEC-RO-01] [wave 2, depends 163-01 + 163-02]
 
 ### Phase 164: Web-Share Chat Layout Polish — message-header overflow fix + resizable chat width
 
