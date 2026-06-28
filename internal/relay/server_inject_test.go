@@ -223,3 +223,29 @@ func TestInject_ROCap_RelayPath(t *testing.T) {
 		t.Errorf("PTY write count = %d after RO inject attempt, want 0 (SEC-01 gate failed)", count)
 	}
 }
+
+// TestInject_ControlOnlyInput verifies IN-02: a MsgSessionInject frame carrying
+// control-only text (e.g. "\x1b[2J") results in zero PTY writes.
+// SanitizePTYText collapses the escape sequence to "\n"; strings.TrimSpace
+// then returns "" triggering the early-return guard at hub.go:608.
+func TestInject_ControlOnlyInput(t *testing.T) {
+	ts, _, sessionID, ptyWriteCount := setupInjectTestServer(t)
+
+	conn := dialInjectWS(t, ts, sessionID, "")
+	time.Sleep(50 * time.Millisecond)
+
+	// Control-only text: ESC + CSI clear-screen — SanitizePTYText collapses to "\n",
+	// TrimSpace produces "" triggering the IN-02 guard in hub.go:608.
+	injectPayload, _ := json.Marshal(InjectPayload{Text: "\x1b[2J"})
+	frame := append([]byte{MsgSessionInject}, injectPayload...)
+	ctx := context.Background()
+	if err := conn.Write(ctx, websocket.MessageBinary, frame); err != nil {
+		t.Fatalf("write control-only inject frame: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	if count := ptyWriteCount.Load(); count != 0 {
+		t.Errorf("PTY write count = %d after control-only inject, want 0 (IN-02 guard failed)", count)
+	}
+}
