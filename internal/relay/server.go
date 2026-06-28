@@ -380,14 +380,15 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			case MsgChatSend:
-				// Phase 154 / CHAT-01: wire the MsgChatSend (0x31) dispatch stub.
-				// chat send NEVER writes to PTY stdin — only MsgSessionInject (0x35)
-				// does. The SEC-01 RO gate and content sanitization live inside
-				// hub.HandleChatSend (T-154-02 / T-154-03 / D-02).
+				// Phase 154 / CHAT-01 / D-06 (Phase 163): wire the MsgChatSend (0x31) dispatch.
+				// Per D-06, RO clients are full chat participants and may post chat messages;
+				// only MsgInput (PTY keystrokes) and MsgSessionInject (@session) remain RO-gated.
+				// Chat send NEVER writes to PTY stdin — only MsgSessionInject (0x35) does.
+				// Content sanitization lives inside hub.HandleChatSend (T-154-02 / D-02).
 				// Malformed or empty-content frames are silently ignored (continue),
 				// matching MsgTyping/MsgAliasSet behavior. On HandleChatSend error,
 				// log server-side and drop silently — chat send has no client error
-				// display path in Phase 154, per RESEARCH Open Question 1.
+				// display path, per RESEARCH Open Question 1.
 				var cp ChatSendPayload
 				if json.Unmarshal(payload, &cp) != nil || cp.Content == "" {
 					continue

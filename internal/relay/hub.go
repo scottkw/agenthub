@@ -13,11 +13,6 @@ import (
 // cap and is therefore not permitted to write to PTY stdin (SEC-01, D-04).
 var ErrReadOnly = errors.New("relay: inject rejected: read-only capability")
 
-// ErrChatReadOnly is returned by HandleChatSend when the subscriber has the
-// read-only cap and is therefore not permitted to post chat messages (SEC-01,
-// T-154-03). RO clients are full chat *receive* participants but may not send.
-var ErrChatReadOnly = errors.New("relay: chat rejected: read-only capability")
-
 // ErrInjectNotRecorded is returned by HandleInject when the PTY write succeeded
 // but persisting/broadcasting the chat record failed (e.g. the chat cap was
 // reached or the line was too large). It signals a deliberate divergence: the
@@ -646,11 +641,15 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 }
 
 // HandleChatSend is called by the read pump when a MsgChatSend frame arrives.
-// It: (1) gates on !sub.ReadOnly (SEC-01, T-154-03) — RO clients may receive
-// and type-indicate but may NOT post messages; (2) sanitizes the content via
-// SanitizeChatContent (T-154-01); (3) if the sanitized result is empty, returns
-// nil silently (no-op, matching MsgTyping behavior); (4) persists the message
-// via chatAppendFn and broadcasts a MsgChat frame to all subscribers.
+// It: (1) sanitizes the content via SanitizeChatContent (T-154-01); (2) if the
+// sanitized result is empty, returns nil silently (no-op, matching MsgTyping
+// behavior); (3) persists the message via chatAppendFn and broadcasts a MsgChat
+// frame to all subscribers.
+//
+// D-06 reconciliation (Phase 163): RO clients are full chat participants — they
+// may post chat, set typing indicators, and set their alias. ONLY MsgInput (PTY
+// keystrokes) and MsgSessionInject (@session) remain RO-gated. The SEC-01
+// ErrChatReadOnly gate (T-154-03) has been removed to honor D-06.
 //
 // CRITICAL: HandleChatSend NEVER calls WriteInput — chat send must not touch
 // PTY stdin. Only MsgSessionInject (0x35) writes to PTY (T-154-02, D-02).
@@ -660,13 +659,6 @@ func (h *Hub) HandleInject(sub *Subscriber, text string) error {
 // sub.ReadOnly is read without a lock: it is set once at subscribe time and
 // never mutated.
 func (h *Hub) HandleChatSend(sub *Subscriber, content string) error {
-	// SEC-01 / T-154-03: gate on RW capability. RO clients receive chat and
-	// may send typing indicators, but posting a message requires write cap.
-	// sub.ReadOnly is set once at subscribe time; no lock required.
-	if sub.ReadOnly {
-		return ErrChatReadOnly
-	}
-
 	// T-154-01: sanitize for display-safety (bidi/C0/C1 stripping). Do NOT
 	// use SanitizePTYText — that function is for PTY stdin, not chat content.
 	sanitized := SanitizeChatContent(content)
