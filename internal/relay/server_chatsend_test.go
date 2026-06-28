@@ -1,13 +1,13 @@
 package relay
 
-// Phase 154 Plan 01 — relay read-pump MsgChatSend dispatch tests.
+// Phase 154 Plan 01 / Phase 163 Plan 01 — relay read-pump MsgChatSend dispatch tests.
 //
 // Tests drive a real relay.Server WebSocket subscriber through the read pump
 // and assert:
 //   1. A MsgChatSend frame from a RW subscriber causes a MsgChat broadcast to
 //      all subscribers.
-//   2. A MsgChatSend frame from a RO subscriber is silently dropped (no broadcast,
-//      no NAK frame) per RESEARCH Open Question 1 recommendation.
+//   2. A MsgChatSend frame from a RO subscriber ALSO causes a MsgChat broadcast
+//      (D-06 reconciliation, Phase 163: RO clients are full chat participants).
 //   3. A MsgChatSend frame with malformed / empty-content JSON is silently ignored.
 //
 // Harness reuses setupInjectTestServer (server_inject_test.go) which wires a
@@ -74,10 +74,10 @@ func TestChatSend_RWBroadcasts_RelayPath(t *testing.T) {
 	}
 }
 
-// TestChatSend_RODropped_RelayPath verifies SEC-01 relay path for chat:
-// a RO client sending a hand-crafted MsgChatSend frame receives no broadcast
-// and no NAK frame (silent drop per RESEARCH Open Question 1).
-func TestChatSend_RODropped_RelayPath(t *testing.T) {
+// TestChatSend_ROCanPost_RelayPath verifies D-06 (Phase 163) on the relay path:
+// a RO client sending a MsgChatSend frame DOES receive a MsgChat broadcast
+// and the RW witness also sees it. PTY write count must remain zero.
+func TestChatSend_ROCanPost_RelayPath(t *testing.T) {
 	ts, manager, sessionID, ptyWriteCount := setupInjectTestServer(t)
 
 	// Dial a RO client.
@@ -89,17 +89,15 @@ func TestChatSend_RODropped_RelayPath(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	// Send a hand-crafted MsgChatSend from the RO client.
-	payload, _ := json.Marshal(ChatSendPayload{Content: "evil chat from RO"})
+	// Send a MsgChatSend from the RO client.
+	payload, _ := json.Marshal(ChatSendPayload{Content: "chat from RO client"})
 	frame := append([]byte{MsgChatSend}, payload...)
 	ctx := context.Background()
 	if err := roConn.Write(ctx, websocket.MessageBinary, frame); err != nil {
 		t.Fatalf("roConn write MsgChatSend: %v", err)
 	}
 
-	// The RW witness must NOT receive a MsgChat broadcast within timeout.
-	// We also check that the RO client doesn't receive one.
-	// We wait 200ms to be confident no frame arrives.
+	// Both the RO sender and the RW witness MUST receive a MsgChat broadcast.
 	type result struct {
 		frame []byte
 		who   string
@@ -107,7 +105,7 @@ func TestChatSend_RODropped_RelayPath(t *testing.T) {
 	done := make(chan result, 2)
 	checkConn := func(conn *websocket.Conn, who string) {
 		go func() {
-			deadlineCtx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+			deadlineCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 			for {
 				_, rawMsg, err := conn.Read(deadlineCtx)
@@ -128,14 +126,14 @@ func TestChatSend_RODropped_RelayPath(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		r := <-done
-		if r.frame != nil {
-			t.Errorf("%s client received unexpected MsgChat broadcast after RO chat send (SEC-01 relay path)", r.who)
+		if r.frame == nil {
+			t.Errorf("%s client: expected MsgChat broadcast after RO chat send (D-06 relay path), got none", r.who)
 		}
 	}
 
-	// PTY write count must also be zero.
+	// PTY write count must still be zero — chat-send never writes to PTY.
 	if count := ptyWriteCount.Load(); count != 0 {
-		t.Errorf("PTY write count = %d after RO MsgChatSend, want 0", count)
+		t.Errorf("PTY write count = %d after RO MsgChatSend, want 0 (T-154-02)", count)
 	}
 }
 

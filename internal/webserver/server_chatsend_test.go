@@ -1,18 +1,17 @@
 package webserver
 
-// Phase 154 Plan 01 — webserver read-pump MsgChatSend dispatch tests.
+// Phase 154 Plan 01 / Phase 163 Plan 01 — webserver read-pump MsgChatSend dispatch tests.
 //
 // Tests drive a real webserver WebSocket subscriber through the read pump
 // and assert:
 //   1. A MsgChatSend frame from a RW JWT client causes a MsgChat broadcast.
-//   2. A MsgChatSend frame from a RO JWT client is silently dropped (SEC-01
-//      web path for chat).
+//   2. A MsgChatSend frame from a RO JWT client ALSO causes a MsgChat broadcast
+//      (D-06 reconciliation, Phase 163: RO clients are full chat participants).
 //   3. A MsgChatSend frame with malformed/empty-content JSON is silently ignored.
 //
 // The RO status derives from claims.Perms in the signed JWT (same as
-// TestInjectRO_WebPath) — proving server-side gating independent of client
-// suppression (T-154-03 / SEC-01 web path). The SEC-01 gate lives inside
-// hub.HandleChatSend, not in the webserver read pump directly.
+// TestInjectRO_WebPath). The SEC-01 inject gate remains in hub.HandleInject;
+// only the chat-send gate was loosened per D-06.
 //
 // TESTING.md registration is deferred to plan 154-06.
 
@@ -171,10 +170,11 @@ func TestChatSend_RWBroadcasts_WebPath(t *testing.T) {
 	}
 }
 
-// TestChatSend_RODropped_WebPath verifies SEC-01 on the webserver path: a RO
-// JWT client sending MsgChatSend receives no MsgChat broadcast and no NAK.
-// Both "read" and "read,files.read" perms are exercised (mirrors TestInjectRO_WebPath).
-func TestChatSend_RODropped_WebPath(t *testing.T) {
+// TestChatSend_ROCanPost_WebPath verifies D-06 (Phase 163) on the webserver path:
+// a RO JWT client sending MsgChatSend DOES receive a MsgChat broadcast and must
+// NOT receive a MsgInjectError NAK. PTY write count must remain zero.
+// Both "read" and "read,files.read" perm shapes are exercised (mirrors TestInjectRO_WebPath).
+func TestChatSend_ROCanPost_WebPath(t *testing.T) {
 	roPerms := []struct {
 		name  string
 		perms string
@@ -198,25 +198,29 @@ func TestChatSend_RODropped_WebPath(t *testing.T) {
 
 			time.Sleep(50 * time.Millisecond)
 
-			// Send a hand-crafted MsgChatSend from the RO client.
-			payload, _ := json.Marshal(relay.ChatSendPayload{Content: "evil chat from RO"})
+			// Send a MsgChatSend from the RO client.
+			payload, _ := json.Marshal(relay.ChatSendPayload{Content: "chat from RO web client"})
 			frame := append([]byte{relay.MsgChatSend}, payload...)
 			ctx := context.Background()
 			if err := conn.Write(ctx, websocket.MessageBinary, frame); err != nil {
 				t.Fatalf("perms=%q: write MsgChatSend: %v", tc.perms, err)
 			}
 
-			// No MsgChat or MsgInjectError should arrive within 300ms.
-			drainCtx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			// A MsgChat broadcast MUST arrive within timeout; no MsgInjectError NAK.
+			chatFrame := waitForMsgChatWebServer(t, conn, 3*time.Second)
+			if chatFrame == nil {
+				t.Errorf("perms=%q: expected MsgChat broadcast after RO chat send (D-06 web path), got none", tc.perms)
+			} else if chatFrame[0] != relay.MsgChat {
+				t.Errorf("perms=%q: frame type = 0x%02x, want 0x%02x (MsgChat)", tc.perms, chatFrame[0], relay.MsgChat)
+			}
+
+			// Drain for NAK check — no MsgInjectError should arrive.
+			drainCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 			for {
 				_, rawMsg, err := conn.Read(drainCtx)
 				if err != nil {
-					break // deadline expired — no unexpected frame
-				}
-				if len(rawMsg) > 0 && rawMsg[0] == relay.MsgChat {
-					t.Errorf("perms=%q: received unexpected MsgChat broadcast after RO chat send (SEC-01 web path)", tc.perms)
-					break
+					break // deadline
 				}
 				if len(rawMsg) > 0 && rawMsg[0] == relay.MsgInjectError {
 					t.Errorf("perms=%q: received unexpected MsgInjectError NAK after MsgChatSend (chat send must not NAK)", tc.perms)
@@ -225,7 +229,7 @@ func TestChatSend_RODropped_WebPath(t *testing.T) {
 			}
 
 			if count := ptyWriteCount.Load(); count != 0 {
-				t.Errorf("perms=%q: PTY write count = %d after RO chat send, want 0", tc.perms, count)
+				t.Errorf("perms=%q: PTY write count = %d after RO chat send, want 0 (T-154-02)", tc.perms, count)
 			}
 		})
 	}

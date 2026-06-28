@@ -1,9 +1,11 @@
 package relay
 
-// Phase 154 Plan 01 — Hub.HandleChatSend unit tests.
+// Phase 154 Plan 01 / Phase 163 Plan 01 — Hub.HandleChatSend unit tests.
 //
-// These tests cover the four required behaviors:
-//   1. RO subscriber → ErrChatReadOnly, no persist, no broadcast.
+// These tests cover the required behaviors:
+//   1. RO subscriber CAN post chat (D-06 reconciliation, Phase 163): err is nil,
+//      appendCount == 1, MsgChat broadcast arrives. HandleInject still returns
+//      ErrReadOnly for RO (SEC-RO-01 regression guard: TestHandleChatSend_ROCanPostInjectStillGated).
 //   2. Empty-after-sanitize content → nil return, no persist, no broadcast (silent no-op).
 //   3. RW subscriber + non-empty content → chatAppendFn called once + BroadcastChat once.
 //   4. HandleChatSend NEVER calls WriteInput (no PTY write).
@@ -103,9 +105,10 @@ func makePTYCountingHub(t *testing.T) (*Hub, *Subscriber, *atomic.Int32) {
 	return hub, sub, &ptyWriteCount
 }
 
-// TestHandleChatSend_ROReturnsError verifies SEC-01 / T-154-03: a read-only subscriber
-// calling HandleChatSend receives ErrChatReadOnly with no persist and no broadcast.
-func TestHandleChatSend_ROReturnsError(t *testing.T) {
+// TestHandleChatSend_ROCanPost verifies D-06 reconciliation (Phase 163): a read-only
+// subscriber calling HandleChatSend SUCCEEDS — err is nil, chatAppendFn is called once,
+// and a MsgChat broadcast frame arrives. This is the inverse of the old SEC-01 gate.
+func TestHandleChatSend_ROCanPost(t *testing.T) {
 	hub, sub, appendCount, rxCh := makeChatSendTestHub(t)
 
 	// Mark subscriber as read-only (set once at subscribe time, never mutated).
@@ -113,18 +116,55 @@ func TestHandleChatSend_ROReturnsError(t *testing.T) {
 
 	err := hub.HandleChatSend(sub, "hello from read-only client")
 
-	if !errors.Is(err, ErrChatReadOnly) {
-		t.Errorf("HandleChatSend RO: got err = %v, want ErrChatReadOnly", err)
+	if err != nil {
+		t.Errorf("HandleChatSend RO: got err = %v, want nil (D-06: RO can post chat)", err)
 	}
-	if appendCount.Load() != 0 {
-		t.Errorf("HandleChatSend RO: chatAppendFn called %d times, want 0", appendCount.Load())
+	if appendCount.Load() != 1 {
+		t.Errorf("HandleChatSend RO: chatAppendFn called %d times, want 1", appendCount.Load())
 	}
-	// No broadcast frame should arrive on the receive channel.
+	// A MsgChat broadcast frame MUST arrive on the receive channel.
 	select {
 	case frame := <-rxCh:
-		t.Errorf("HandleChatSend RO: unexpected broadcast frame received: type=0x%02x", frame[0])
-	case <-time.After(50 * time.Millisecond):
-		// correct: no broadcast
+		if len(frame) == 0 || frame[0] != MsgChat {
+			t.Errorf("HandleChatSend RO: broadcast frame type=0x%02x, want 0x%02x (MsgChat)", frame[0], MsgChat)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("HandleChatSend RO: timeout waiting for MsgChat broadcast (D-06: RO can post chat)")
+	}
+}
+
+// TestHandleChatSend_ROCanPostInjectStillGated is the SEC-RO-01 regression guard.
+// With a RO subscriber it proves in a single test that:
+//   (a) HandleChatSend succeeds (D-06: RO may post chat), and
+//   (b) HandleInject returns ErrReadOnly (SEC-01: @session inject stays gated), and
+//   (c) the PTY write counter remains exactly 0 (neither chat-send nor inject reached the terminal).
+func TestHandleChatSend_ROCanPostInjectStillGated(t *testing.T) {
+	hub, sub, ptyWriteCount := makePTYCountingHub(t)
+
+	// Wire chatAppendFn on the counting hub so HandleChatSend can persist.
+	hub.SetChatAppendFn(func(msg ChatMessage) (ChatMessage, error) {
+		msg.ID = "test-id"
+		msg.SchemaVersion = ChatSchemaVersion
+		return msg, nil
+	})
+
+	sub.ReadOnly = true
+
+	// (a) RO HandleChatSend must succeed.
+	if err := hub.HandleChatSend(sub, "chat message from RO"); err != nil {
+		t.Errorf("HandleChatSend RO: got err = %v, want nil (D-06)", err)
+	}
+
+	// (b) RO HandleInject must return ErrReadOnly.
+	if err := hub.HandleInject(sub, "inject text from RO"); !errors.Is(err, ErrReadOnly) {
+		t.Errorf("HandleInject RO: got err = %v, want ErrReadOnly (SEC-01 inject gate must stay)", err)
+	}
+
+	// (c) Give any async path time to fire — none should touch the PTY.
+	time.Sleep(50 * time.Millisecond)
+
+	if count := ptyWriteCount.Load(); count != 0 {
+		t.Errorf("PTY write count = %d after RO chat-send + inject attempt, want 0 (SEC-RO-01)", count)
 	}
 }
 
