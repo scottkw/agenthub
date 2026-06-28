@@ -1,24 +1,28 @@
 ---
 phase: 161-chat-sidebar-alias-control-user-can-set-their-display-name
 verified: 2026-06-28T12:10:00Z
-status: human_needed
+status: passed
 score: 5/6 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
 re_verification: false
 behavior_unverified_items:
+
   - truth: "Web-share guest alias input is pre-filled with the Tailscale WhoIs computed name via MsgSelf (0x37)"
     test: "Open a shared /sessions/{id} link as a Tailnet guest; open the chat drawer; observe the 'chatting as' label"
     expected: "Label shows the guest's Tailscale-resolved display name, not 'local' or empty"
     why_human: "Go test TestWebIdentity_SelfFrameOnConnect passes but uses a mock WhoIs that returns empty alias; real computed-name pre-fill requires a live Tailnet WhoIs lookup — cannot be proven by code inspection or unit tests. Already human-approved in Phase 161-04 live UAT."
 human_verification:
+
   - test: "Web-share guest pre-fill shows Tailscale computed name (M-33)"
     expected: "Opening a shared /sessions/{id} link as a Tailnet guest and opening the chat sidebar shows 'chatting as: <Tailscale computed name>' — not empty or 'local'."
     why_human: "Depends on live Tailnet WhoIs resolution at WS-upgrade time; mock in automated tests returns empty alias. NOTE: User-approved in Phase 161-04 live UAT checkpoint — this item is already satisfied; listed here for traceability."
 deferred:
+
   - truth: "Long authorID (nodekey:…) truncates with ellipsis on web-share surface"
     addressed_in: "Future polish phase (user-deferred per 161-04 Plan Summary)"
     evidence: "Explicitly deferred by user in 161-04 SUMMARY: 'Pre-existing cosmetic issue' — not part of ALIAS-UI-01/02 scope"
+
   - truth: "Chat panel is resizable by width"
     addressed_in: "Future feature phase (user-deferred per 161-04 Plan Summary)"
     evidence: "Feature request surfaced during UAT; out of scope for Phase 161"
