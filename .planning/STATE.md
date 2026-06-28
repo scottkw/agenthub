@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 ## Current Position
 
 Phase: 161 — Chat-Sidebar Alias Control (ALIAS-UI-01/02)
-Plan: Not started
-Status: Phase 160 complete — ready to plan Phase 161
-Last activity: 2026-06-28 — Phase 160 complete (verifier PASSED 15/15); next is Phase 161 (roadmap.analyze mis-routed to 163, hand-corrected)
+Plan: Planned (4 plans, 3 waves) — ready to execute
+Status: Phase 161 planned (plan-checker PASSED, 0 blockers) — ready for /gsd-execute-phase 161
+Last activity: 2026-06-28 — Phase 161 planned: 4 plans/3 waves, RESEARCH+PATTERNS+VALIDATION written, plan-checker PASSED (commit d4a12264; hygiene fixes 6727d585)
 
 ```
 Progress: [███████████████░░░░░] 10/13 phases complete (77%); Phase 160 shipped, Phase 161 next
@@ -65,7 +65,7 @@ Progress: [███████████████░░░░░] 10/13 p
 | 158 | Chat affordance polish (toggle/Send overlap + chat on terminal tab) | CHAT-FIX-01, CHAT-PARITY-01 | Complete |
 | 159 | Web-Share Chat Parity (remote web guests get chat) | WEBCHAT-01, WEBCHAT-02, PARITY-01 (upstream) | Complete (UAT pending — M-31) |
 | 160 | v4.1 Chat Closeout (NOTIF-01 + 153/154/156 tech debt) | NOTIF-01, tech-debt closeout | Planned (5 plans) |
-| 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Not planned |
+| 161 | Chat-Sidebar Alias Control (set display name from shared ChatPanel) | ALIAS-UI-01, ALIAS-UI-02 | Planned (4 plans) |
 | 162 | Settings Polish — Terminal Plugins jump link (#108) | SETTINGS-UI-01 | Not planned |
 | 163 | Read-Only Guest Chat Posting (D-06 reconciliation) | ROCHAT-01, ROCHAT-02, SEC-RO-01 | Not planned |
 
