@@ -53,6 +53,15 @@ assert_literal "contains trap for cleanup" "trap"
 assert_regex  "contains GitHub Releases API URL" "api.github.com/repos/scottkw/agenthub"
 assert_regex  "contains sha256 mismatch error message" "[Mm]ismatch"
 
+# WR-01: checksum-line grep must use -F (tarball dots are literal, not regex wildcards)
+assert_literal "WR-01: checksum grep uses -F for exact tarball match" 'grep -F "${TARBALL}" "${TMPDIR}/checksums.txt"'
+
+# WR-03: both the root and non-root install-dir branches must have mkdir -p
+# Verify by counting occurrences — expect 2 (root + non-root)
+WR03_COUNT=$(grep -cF 'mkdir -p "$INSTALL_DIR"' "$SCRIPT" || true)
+if [ "$WR03_COUNT" -ge 2 ]; then pass "WR-03: both install-dir branches contain mkdir -p"
+else fail "WR-03: both install-dir branches contain mkdir -p (found $WR03_COUNT, need 2)"; fi
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] || exit 1
