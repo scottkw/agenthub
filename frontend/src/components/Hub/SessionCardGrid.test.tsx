@@ -619,6 +619,111 @@ describe('SessionCardGrid', () => {
     })
   })
 
+  // ---- NOTIF-01: unreadBySessionId badge threading ----
+
+  describe('SessionCardGrid (NOTIF-01: unreadBySessionId badge threading)', () => {
+    afterEach(() => {
+      document.body.innerHTML = ''
+      vi.clearAllMocks()
+    })
+
+    it('NOTIF-01: session present in unreadBySessionId map shows ChatBadge with count > 0', () => {
+      const sessions = [
+        makeSession({ id: 'sess-unread', name: 'Unread Session', workDir: '/proj' }),
+      ]
+      const unreadBySessionId = new Map([
+        ['sess-unread', { count: 3, hasMention: false }],
+      ])
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+      act(() => {
+        root.render(
+          // Cast: unreadBySessionId not yet in SessionCardGridProps (RED phase)
+          <SessionCardGrid
+            sessions={sessions}
+            onRename={vi.fn()}
+            {...({ unreadBySessionId } as Record<string, unknown>)}
+          />
+        )
+      })
+      const badge = container.querySelector('.chat-badge')
+      expect(badge).not.toBeNull()
+      expect(badge?.textContent).toBe('3')
+    })
+
+    it('NOTIF-01: session absent from unreadBySessionId map shows no ChatBadge (count defaults to 0)', () => {
+      const sessions = [
+        makeSession({ id: 'sess-no-unread', name: 'No Unread', workDir: '/proj' }),
+      ]
+      const unreadBySessionId = new Map<string, { count: number; hasMention: boolean }>()
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessions}
+            onRename={vi.fn()}
+            {...({ unreadBySessionId } as Record<string, unknown>)}
+          />
+        )
+      })
+      const badge = container.querySelector('.chat-badge')
+      expect(badge).toBeNull()
+    })
+
+    it('NOTIF-01: hasMention=true renders mention-style badge with @ glyph', () => {
+      const sessions = [
+        makeSession({ id: 'sess-mention', name: 'Mention Session', workDir: '/proj' }),
+      ]
+      const unreadBySessionId = new Map([
+        ['sess-mention', { count: 1, hasMention: true }],
+      ])
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessions}
+            onRename={vi.fn()}
+            {...({ unreadBySessionId } as Record<string, unknown>)}
+          />
+        )
+      })
+      const badge = container.querySelector('.chat-badge--mention')
+      expect(badge).not.toBeNull()
+      expect(badge?.textContent).toBe('@')
+    })
+
+    it('NOTIF-01: named-group render path also threads unread to SessionCard (both render sites)', () => {
+      const sessions = [
+        makeSession({ id: 'sess-ng', name: 'NGSession', workDir: '/home/user/alpha' }),
+      ]
+      const groupDefs = [{ id: 'grp-a', name: 'Alpha', memberKeys: ['NGSession:::/home/user/alpha'] }]
+      const unreadBySessionId = new Map([
+        ['sess-ng', { count: 5, hasMention: false }],
+      ])
+      const container = document.createElement('div')
+      document.body.appendChild(container)
+      const root = createRoot(container)
+      act(() => {
+        root.render(
+          <SessionCardGrid
+            sessions={sessions}
+            onRename={vi.fn()}
+            groupDefs={groupDefs}
+            {...({ unreadBySessionId } as Record<string, unknown>)}
+          />
+        )
+      })
+      const badge = container.querySelector('.chat-badge')
+      expect(badge).not.toBeNull()
+      expect(badge?.textContent).toBe('5')
+    })
+  })
+
   // ---- Phase 133: sortSessionsForDisplay unit tests ----
 
   describe('sortSessionsForDisplay', () => {
