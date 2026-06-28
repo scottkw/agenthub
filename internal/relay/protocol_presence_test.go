@@ -98,6 +98,45 @@ func TestAliasPayloadRoundTrip(t *testing.T) {
 	}
 }
 
+// TestMakeSelfFrame verifies that MakeSelfFrame encodes a SelfPayload with the
+// correct type byte (0x37 / MsgSelf) and that the JSON body round-trips back
+// to an equal value with the expected lowerCamel JSON tags.
+func TestMakeSelfFrame(t *testing.T) {
+	p := SelfPayload{PersonKey: "local:local", Alias: "ken"}
+	frame := MakeSelfFrame(p)
+
+	if len(frame) == 0 {
+		t.Fatal("MakeSelfFrame returned empty frame")
+	}
+	if frame[0] != MsgSelf {
+		t.Fatalf("wrong type byte: got 0x%02x, want 0x%02x (MsgSelf)", frame[0], MsgSelf)
+	}
+
+	var decoded SelfPayload
+	if err := json.Unmarshal(frame[1:], &decoded); err != nil {
+		t.Fatalf("failed to unmarshal SelfPayload: %v", err)
+	}
+	if decoded.PersonKey != p.PersonKey {
+		t.Errorf("PersonKey: got %q, want %q", decoded.PersonKey, p.PersonKey)
+	}
+	if decoded.Alias != p.Alias {
+		t.Errorf("Alias: got %q, want %q", decoded.Alias, p.Alias)
+	}
+
+	// Verify the JSON tags are lowerCamel (personKey, alias) — not PascalCase.
+	// This is the wire contract Plan 161-02 TS parser must match.
+	var raw map[string]interface{}
+	if err := json.Unmarshal(frame[1:], &raw); err != nil {
+		t.Fatalf("json.Unmarshal to map: %v", err)
+	}
+	if _, ok := raw["personKey"]; !ok {
+		t.Errorf("JSON body missing 'personKey' key (got keys: %v)", raw)
+	}
+	if _, ok := raw["alias"]; !ok {
+		t.Errorf("JSON body missing 'alias' key (got keys: %v)", raw)
+	}
+}
+
 // TestTypingPayload_TypingFalse verifies that Typing=false is preserved
 // (it is non-omitempty in the wire format).
 func TestTypingPayload_TypingFalse(t *testing.T) {

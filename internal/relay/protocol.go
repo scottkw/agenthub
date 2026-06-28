@@ -84,6 +84,7 @@ const (
 	MsgAliasSet      byte = 0x34 // client → server: set/update alias (JSON AliasPayload)        [Phase 152]
 	MsgSessionInject byte = 0x35 // client → server: inject text into session PTY (RW only)      [Phase 153]
 	MsgInjectError   byte = 0x36 // server → client: inject rejected (RO cap or error)           [Phase 153]
+	MsgSelf          byte = 0x37 // server → client: self-identity hint on connect (JSON SelfPayload) [Phase 161]
 )
 
 // PresenceEntry describes one participant in the presence roster.
@@ -139,6 +140,26 @@ func MakeAliasSetFrame(p AliasPayload) []byte {
 	b, _ := json.Marshal(p) // AliasPayload is always serialisable
 	frame := make([]byte, 1+len(b))
 	frame[0] = MsgAliasSet
+	copy(frame[1:], b)
+	return frame
+}
+
+// SelfPayload is the JSON body of MsgSelf frames (server → client only).
+// Carries the connecting client's own personKey and resolved alias so that
+// web-share guests can learn their own identity for alias pre-fill (approach d)
+// — the presence roster broadcasts identical bytes to every client and carries
+// no "self" marker. The server never reads this frame; it is emitted once per
+// connection immediately after the resize frame.
+type SelfPayload struct {
+	PersonKey string `json:"personKey"`
+	Alias     string `json:"alias"`
+}
+
+// MakeSelfFrame encodes a SelfPayload as a MsgSelf frame (server → client).
+func MakeSelfFrame(p SelfPayload) []byte {
+	b, _ := json.Marshal(p) // SelfPayload is always serialisable
+	frame := make([]byte, 1+len(b))
+	frame[0] = MsgSelf
 	copy(frame[1:], b)
 	return frame
 }
