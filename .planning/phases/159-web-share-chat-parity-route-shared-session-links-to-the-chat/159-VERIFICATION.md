@@ -1,20 +1,24 @@
 ---
 phase: 159-web-share-chat-parity-route-shared-session-links-to-the-chat
 verified: 2026-06-27T00:00:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Open the ACTUALLY-SHARED /sessions/{id}?cap=TOKEN link in a browser (from a real live daemon share URL, not /app/ directly) and confirm the browser is redirected to /app/?session=...&cap=..."
     expected: "Browser lands on WebShareSessionView (WebShare SPA) with ChatPanel, the chat toggle (hub-modal__chat-toggle), unread/mention badge, and presence roster rendered; NOT the vanilla-JS terminal.html viewer"
     why_human: "web-share WebSocket blocks automated input (per project memory); requires a live daemon + real browser; cross-surface parity is release-blocking (MEMORY: cross-surface parity)"
+
   - test: "Send a chat message from the desktop/Hub side while the redirected SPA guest is open; then send a reply from the browser guest back to the desktop"
     expected: "Chat round-trips in both directions (desktop→web and web→desktop)"
     why_human: "Requires a live daemon session with an active WebSocket relay; cannot be exercised without a real PTY and real peer"
+
   - test: "Repeat chat round-trip with a RO share URL (/sessions/{id}?cap=RO_TOKEN)"
     expected: "RO guest receives and participates in chat (D-06 — RO guests remain full chat participants); PTY input from RO guest is gated but chat is not"
     why_human: "Live daemon required; RO cap behavior requires end-to-end relay verification"
+
   - test: "With the redirected SPA guest open, resize the host PTY (e.g. resize the desktop session pane). Observe the browser terminal."
     expected: "Browser terminal re-scales to honor the new host-authority grid (Phase 157-04 scale parity); downscales to fit, never upscales past 1.0, stays readable and not clipped"
     why_human: "Requires a real rendered xterm with live host-authority resize frames; structural checks only prove code is wired, not that the resize frames propagate through the redirect path"
@@ -122,6 +126,7 @@ No stub indicators, no empty returns, no hardcoded empty data in any modified fi
 No functional gaps. All 5 must-have truths are verified by code inspection and passing tests.
 
 **Documentation warnings (non-blocking):**
+
 1. **WEBCHAT-01 and WEBCHAT-02 not in REQUIREMENTS.md** — these requirement IDs appear in the PLAN frontmatter and TESTING.md Section 4 but have no formal definition row in `.planning/REQUIREMENTS.md`. The implementation is correct; the requirements document should be updated to add these IDs with descriptions.
 2. **PARITY-01 traceability not updated for Phase 159** — the REQUIREMENTS.md traceability table still shows `PARITY-01 | Phase 155 | Complete` without a Phase 159 contribution. Since Phase 159 is the phase that makes PARITY-01 actually hold on the shared link, the traceability should be updated.
 
