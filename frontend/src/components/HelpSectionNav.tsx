@@ -9,6 +9,7 @@ import React, { useEffect } from 'react'
 
 export const SECTIONS = [
   { id: 'help-getting-started', label: 'Getting Started' },
+  { id: 'help-chat', label: 'Chat' },
   { id: 'help-faq', label: 'Frequently Asked Questions' },
 ] as const
 

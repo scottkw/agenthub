@@ -76,7 +76,14 @@ describe('HelpTab integration: section anchors render with expected ids (Phase 1
 
   it('section wrappers carry the help-content__section class (live CSS selector)', () => {
     const sections = container.querySelectorAll('section.help-content__section')
-    expect(sections.length).toBe(2)
+    expect(sections.length).toBe(3)
+  })
+
+  it('renders a #help-chat section element', () => {
+    const el = document.getElementById('help-chat')
+    expect(el).not.toBeNull()
+    expect(el!.tagName.toLowerCase()).toBe('section')
+    expect(el!.textContent).toContain('Chat')
   })
 
   it('rendered section actually contains its markdown heading text', () => {
