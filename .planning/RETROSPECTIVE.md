@@ -1088,6 +1088,42 @@
 ### Cost Observations
 - Close-out cost was dominated by doc reconciliation and one integration-checker subagent (clean, 5/5 flows wired), not new code — the milestone's code had effectively landed across the 15 phases. The audit + archive produced ~10 doc commits.
 
+## Milestone: v4.1 — Session Chat
+
+**Shipped:** 2026-06-29 (tag v4.1, local-unpushed until release)
+**Phases:** 14 (151-164) | **Plans:** 54 | **Requirements:** 45/45 (INSTALL-01 live install deferred to release-time)
+
+### What Was Built
+- Daemon chat store + wire contract: JSONL `ChatStore` (10k cap, restart-survival replay, path-traversal-hardened sessionID, Markdown export, dies-with-session) anchored by a stable `ChatMessage`/frame contract (0x30–0x37) (Phases 151-152).
+- Identity, presence & the one-way `@session` bridge: tailnet-ID + settable alias (`AliasStore`/`MsgAliasSet`, surfaced from the shared sidebar in Phase 161), connected/typing presence, sanitized write-cap-gated PTY injection with confirm gesture (Phases 152-153, 161).
+- Cross-surface chat UI from one shared `ChatPanel`: virtualized drawer, sticky day separators, mentions, unread/mention badges, XSS-inert `remark-gfm` Markdown — GUI tab + Hub modal + web-share guest (Phases 154-155, 158).
+- Real web-share parity via a `/sessions/{id}?cap=` → `/app/` redirect (Phase 159) + the NOTIF-01 Hub-card unread wiring closeout (Phase 160) + the RO-can-post D-06 reversal (Phase 163) + header-overflow/resizable-width polish (Phase 164).
+- Orthogonal: #109 host-authority screen-share (VIEW-01..05, Phase 157), Linux `install.sh` + winget id/repo fixes (Phase 156), #108 Terminal-Plugins jump link (Phase 162).
+
+### What Worked
+- **Store-before-transport-before-UI phasing held.** Landing the JSONL schema + `ChatMessage` contract first (151) meant the relay frames (152) and the shared UI (154/155) serialized to a fixed target — no late schema cascade through three layers.
+- **One shared, un-forked `ChatPanel` = parity by construction.** Each later capability (alias control, RO-can-post, layout polish) was built once and applied to all three surfaces simultaneously. The cross-surface contract stopped being a per-feature checklist.
+- **Live UAT caught what green gates missed.** The audit + live M-31 UAT surfaced the false-parity gap and the NOTIF-01 dead-wire — both feature-killing, both green in their original phase verification.
+
+### What Was Inefficient
+- **False parity, again (the v4.0 lesson repeated).** Phase 155 verified PARITY-01 on `/app/` — but the share flow hands out `/sessions/{id}?cap=`, the raw `terminal.js` viewer that silently drops chat frames 0x30–0x34. A green parity gate on a surface no remote guest is ever sent to. Only live UAT (159 M-31) exposed it → Phase 159 redirect. Same failure class as Phase 150's bare-name shell gate.
+- **A VERIFICATION asserted a wire that didn't exist.** Phase 154's pass claimed the Hub-card unread badge was wired "via existing session callback" — the callback didn't exist, so a backgrounded session's card could never light. The audit caught it as a BLOCKER; it took Phase 160 to actually thread `unreadBySessionId` and add a closed-modal unread source.
+- **The milestone "completed" several times before it closed.** It grew 10 → 14 phases (159-164) as live UAT surfaced real gaps — RO-can-post (D-06), the alias backend that shipped with no UI, the web-share header overflow. Each addition was legitimate, but each also reset the close.
+- **GSD state transitions stayed unreliable.** Phase transitions left ROADMAP/STATE stale and one executor prematurely flipped a ROADMAP `[x]`; close required hand-reconciliation (backup → diff → restore → hand-edit), consistent with the standing note on this repo's GSD fragility.
+
+### Patterns Established
+- **Verify parity on the actually-shared artifact, not a convenient equivalent.** Before declaring a cross-surface gate green, trace the real on-ramp — *what link does the share flow hand out?* — and test that surface. A parity pass on the wrong surface is false confidence.
+- **Build the control once in the shared component.** When a feature must reach every surface, implementing it in the shared component (here `ChatPanel`) is cheaper and safer than per-surface wiring + a parity checklist.
+- **Reversing a security-reviewed decision requires a re-run security pass.** D-06's RO-can-post reversal went through `/gsd-secure-phase 163` to prove *only* `MsgChatSend` loosened while inject/PTY stayed gated (`threats_open: 0`) — the reversal didn't get to ride on the original review.
+
+### Key Lessons
+- "Parity verified" must name the surface the user is actually sent to. A green gate on `/app/` meant nothing while the share link pointed at the chat-less raw viewer.
+- A VERIFICATION that claims a wire exists must point at the code. "Wired via existing callback" with no such callback is exactly how a dead feature ships green — the audit, not the phase verification, caught both NOTIF-01 and the parity gap.
+
+### Cost Observations
+- Model mix: executor on Sonnet (per config), planning/review on Opus; heavy reliance on live UAT + the full-scope integration-checker subagent for the parity and NOTIF-01 closures.
+- Close-out was reconciliation-heavy, not code: 6 implemented-but-unregistered requirement IDs backfilled into REQUIREMENTS.md, an override closeout for the release-time-deferred M-25 install, and hand-fixing GSD-transition staleness. The code had effectively landed across the 14 phases before the audit ran.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -1115,6 +1151,7 @@
 | v3.1 | ~50 | 4 | Capability tokens, byte-for-byte WS Origin allowlist, vendored xterm + strict CSP (D-09 style-src carve-out), SHA-pinned release pipeline + SLSA L2 |
 | v3.2 | 269 | 8 | Foundation phase (zero feature loading), two-useEffect TerminalPanel hot-swap, `seededRef` one-shot pattern, generalized vendor_drift_test, cross-browser Playwright as release gate, sub-key RPCs for disclosure persistence |
 | v3.5 | 238 | 6 | Relay-surface regression gate (integration scores blind to untested transport surfaces), security foundation before exposure, double opt-in for web-share writes, atomic temp+fsync+rename write contract, `If-Match`/412 editor saves, CodeMirror-over-Monaco for zero-CSP-amendment *(v3.3/v3.3.1/v3.4 rows pending backfill)* |
+| v4.1 | 381 | 14 | Chat as JSONL wire-contract-first (store→transport→UI); one shared `ChatPanel` = cross-surface parity by construction; verify parity on the *actually-shared* artifact (159 `/sessions→/app/` redirect closed a false `/app/` parity); RO-can-post D-06 reversal proven by a re-run `/gsd-secure-phase`; override closeout for a release-time-deferred install *(v3.3/v3.3.1/v3.4/v3.6/v4.0 rows pending backfill)* |
 
 ### Cumulative Quality
 
@@ -1141,6 +1178,7 @@
 | v3.1 | 300+ (race-clean) | 524+ | ~30,000 | 3 (0 blockers; distribution 91-A/B/C deferred, D-09 CSP carve-out documented, Wails dev-mode origin pattern noted) |
 | v3.2 | 300+ (race-clean) | 600+ | ~52,700 | 15 (0 blockers; 6 polish items, 9 UAT scenarios deferred to v3.3 — all blocked on shell-session feature, plus 7 quick-task ghosts) |
 | v3.5 | 300+ (race-clean) + `FuzzSandboxWrite` | 600+ (51/51 cross-browser write e2e) | ~67,600 | 1 critical (remote-browse GUI — found by deferred UAT, partly fixed `58af6d6`/`3508bd7`, #86/#83 deferred v3.5.1) + operator UATs + Nyquist frontmatter (123/125/126/127) *(v3.3/v3.3.1/v3.4 rows pending backfill)* |
+| v4.1 | 300+ (race-clean, go build green) | 600+ (vitest; Playwright chat-parity 24/24 ×3 browsers + ROCHAT e2e) | +51,309/−2,306 (532 files) | 2 (0 blockers; `useChatUnreadListeners` effect-deps warning; INSTALL-01/M-25 clean-box Linux install release-time-deferred) + 158/162/163/164 VALIDATION.md absent (orthogonal UI/CSS, behavior covered by live UAT) *(v3.3/v3.3.1/v3.4/v3.6/v4.0 rows pending backfill)* |
 
 ### Top Lessons (Verified Across Milestones)
 
