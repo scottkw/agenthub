@@ -1,5 +1,25 @@
 # Milestones
 
+## v4.1 Session Chat (Shipped: 2026-06-29)
+
+**Delivered:** A per-session human-to-human chat side-channel inside AgentHub — tailnet identity + self-chosen alias, one-way `@session`→PTY-prompt bridge, daemon-persisted thread, Markdown export — working identically on the desktop GUI and the web-share browser surface. Closes Issues #79, #108, #109.
+
+**Phases completed:** 14 phases (151–164), 54 plans, 57 tasks
+**Stats:** 381 commits, 532 files changed, +51,309 / −2,306 LOC over 2026-06-25 → 2026-06-28 (4 days); git range `440aafef..fa99782b`
+**Closeout type:** override_closeout — 1 accepted deferral (INSTALL-01 / M-25 clean-box Linux install runs as a release-time step after `main` is pushed to origin). Audit `passed` (45/45 reqs, 14/14 phases, 14/14 integration, 6/6 flows).
+
+**Key accomplishments:**
+
+- **Daemon chat store + wire contract** — JSONL-backed `ChatStore` (`~/.config/agenthub/chats/<id>.jsonl`) with 10k-cap append, restart-survival replay, path-traversal-hardened sessionID validation, Markdown export, and session-lifecycle teardown (zero orphaned files); a stable `ChatMessage`/frame contract (0x30–0x37) in `relay/protocol.go` that all surfaces serialize to.
+- **Identity, presence & the `@session` bridge** — tailnet-ID + self-chosen alias attribution (`AliasStore`/`MsgAliasSet`, set live from the shared `ChatPanel` sidebar across all three surfaces), connected/typing presence, and a sanitized one-way `@session` PTY injection gated to write-capability holders with a deliberate confirm gesture.
+- **Cross-surface chat UI (GUI + web, parity by construction)** — a virtualized slide-over `ChatPanel` (own relay WS, HTTP scrollback, sticky day separators, mentions, unread/mention badges on toggle + Hub card, safe `remark-gfm` Markdown — no raw HTML/XSS) shared verbatim by the GUI session tab, the Hub interactive modal, and the web-share guest.
+- **Real web-share chat parity** — the actually-shared `/sessions/{id}?cap=` link now 302-redirects (after capability check) to the chat-capable `/app/` SPA, closing the false-parity gap where Phase 155 verified parity only on a surface no remote guest was ever sent to; scoped web guests get terminal + chat + cap-gated file tab and nothing else.
+- **Read-only guests as full chat participants (D-06)** — reversed the SEC-01 RO chat-send gate so RO guests can post chat on every surface, while `@session` inject and raw PTY input stay byte-for-byte RO-gated (security re-reviewed, `threats_open: 0`).
+- **Issue #109 screen-share semantics** — host-authority PTY arbiter replacing max-wins: guests honor a single server-pushed grid size and CSS scale-to-fit (web + desktop parity), fixing cross-viewer terminal garble.
+- **Install/distribution + Settings fixes** — working Linux `scripts/install.sh` (arch-detect → release tarball → SHA256 verify), corrected winget id (`scottkw.agenthub`) and repo link, winget catalog first-submission automation (#108 Terminal-Plugins jump-link fix folded in).
+
+---
+
 ## v4.0 Hub-First Consolidation & UI/UX Overhaul (Shipped: 2026-06-23)
 
 **Phases completed:** 15 phases (136–150; 151 cancelled), 52 plans, 61 tasks

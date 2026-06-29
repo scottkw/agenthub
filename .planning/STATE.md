@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Session Chat
-current_phase: 164
-status: ready
-stopped_at: Phase 164 complete + verified (9/9) — CHAT-LAYOUT-01 overflow fix + CHAT-LAYOUT-02 resizable chat; milestone audit next
-last_updated: "2026-06-28T23:26:08.696Z"
-last_activity: 2026-06-28
-last_activity_desc: Phase 164 complete
+current_phase: 1
+status: Awaiting next milestone
+stopped_at: Completed 164-01-PLAN.md — CHAT-LAYOUT-01 overflow fix and fingerprint secondary label
+last_updated: "2026-06-29T01:37:06.125Z"
+last_activity: 2026-06-29
+last_activity_desc: Milestone v4.1 completed and archived
 progress:
   total_phases: 14
   completed_phases: 14
@@ -28,14 +28,10 @@ See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
 
 ## Current Position
 
-Phase: 164 (last phase of v4.1)
-Plan: 2/2 complete
-Status: Phase 164 complete + verified (9/9 must-haves) — milestone audit next
-Last activity: 2026-06-28 — Phase 164 complete + verified (CHAT-LAYOUT-01/02)
-
-```
-Progress: [████████████████████] 14/14 phases complete (100%); Phase 164 complete + verified (CHAT-LAYOUT-01 header-overflow fix + CHAT-LAYOUT-02 resizable chat width). Milestone-close audit (/gsd-audit-milestone) is the next step.
-```
+Phase: Milestone v4.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-29 — Milestone v4.1 completed and archived
 
 ### Quick Tasks Completed
 
@@ -104,7 +100,16 @@ Progress: [████████████████████] 14/14 p
 - **New npm packages:** `@tanstack/react-virtual` v3.14.3, `react-textarea-autosize` v8.5.9
 - **No new Go modules** — all server-side capabilities use existing `go.mod` entries
 
-## Deferred Items (carry-forward from v4.0)
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-06-28 (override closeout — see v4.1 MILESTONE-AUDIT accepted_deferrals). Both phases carry `passed` UAT.md with 0 open scenarios; the audit-open flag is the deferred live-UAT note, not a code gap:
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat_gap | Phase 156 (156-UAT.md) — INSTALL-01 / M-25 clean-box Linux install | accepted-deferral — runs as a release-time checklist step after `main` is pushed to origin (raw-GitHub install.sh URL 404s on ~381 unpushed commits); install.sh passes all static gates |
+| uat_gap | Phase 159 (159-UAT.md) — M-31 Test 3 (RO guest can post chat) | discharged — resolved by Phase 163 (RO chat-send gate loosened; inject/PTY still RO-gated) |
+
+### Deferred Items (carry-forward from v4.0)
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -212,3 +217,7 @@ Next action: `/gsd-plan-phase 163`
 | Phase 163 P03 | 3min | 2 tasks | 2 files |
 | Phase 164 P01 | 6 minutes | 3 tasks | 5 files |
 | Phase 164 P02 | 5 | 3 tasks | 5 files |
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
