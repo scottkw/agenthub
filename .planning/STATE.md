@@ -21,10 +21,10 @@ current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-25 — v4.1 milestone started)
+See: .planning/PROJECT.md (updated 2026-06-29 — v4.1 milestone shipped)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.1 all phases complete — milestone-close audit (`/gsd-audit-milestone`) next
+**Current focus:** v4.1 Session Chat SHIPPED 2026-06-29 (tag `v4.1`, local-unpushed). No active milestone — start the next via `/gsd-new-milestone`. Release follow-up: push `main` to origin, then run M-25 clean-box Linux install (the deferred INSTALL-01 step).
 
 ## Current Position
 
