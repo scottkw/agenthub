@@ -295,9 +295,9 @@ func TestCheckHealth_AcceptDNS(t *testing.T) {
 	stub := stubBinary(t)
 
 	tests := []struct {
-		name        string
-		corpDNS     bool
-		prefsErr    error
+		name          string
+		corpDNS       bool
+		prefsErr      error
 		wantAcceptDNS bool
 	}{
 		{
