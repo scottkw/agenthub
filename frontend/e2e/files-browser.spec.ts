@@ -371,6 +371,14 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
   test('scenario 13: web mode owner cap → file-browser tab mounts and lists seeded entries', async ({ page }) => {
     const resp = await page.goto(appUrl())
     expect(resp?.status(), '/app/ must serve the bundle (200) — fixture now embeds frontend/dist').toBe(200)
+    // Phase 159-03 (WEBCHAT-04): the file-browser tab now auto-opens in the
+    // BACKGROUND (activate=false) so the chat/session surface stays active.
+    // Wait for the tab to appear (gated on the server-verified files.read probe),
+    // then activate it before asserting its content.
+    await page
+      .getByRole('button', { name: 'Close playwright-test-session — Files' })
+      .waitFor({ timeout: 15_000 })
+    await page.locator('.tab__name').filter({ hasText: 'playwright-test-session — Files' }).click()
     await expect(
       page.getByTestId('file-browser-tab'),
       'file-browser-tab must mount under web mode',
@@ -387,22 +395,30 @@ test.describe('Phase 120 UI-14 file browser merge-gate (cross-browser API + bund
   })
 
   // ───────────────────────────────────────────────────────────────────
-  // Scenario 14 — Phase 120-06: web-mode viewer cap (no files.read)
-  // triggers the PermissionDeniedTakeover via the DOM. The viewer cap
-  // grants `read` but NOT `files.read`, so useFilesCapability resolves
-  // to 'denied' and FileBrowserTab dispatches to the takeover. The
-  // heading text is verbatim from PermissionDeniedTakeover.tsx:28.
+  // Scenario 14 — Phase 159-03 (WEBCHAT-04): a web-mode viewer cap (no
+  // files.read) must NOT open a file-browser tab at all. The prior behavior —
+  // opening a dead tab that rendered the PermissionDeniedTakeover — was exactly
+  // the bug WEBCHAT-04 fixed ("leaving a guest whose share lacks file access on
+  // a dead 'files.read permission required' tab"). The /app/ bootstrap probes
+  // GET /api/sessions/{id}/info for server-verified perms and opens the Files
+  // tab only when files.read is present; a viewer cap gets no tab and no
+  // takeover. (Mirrors web-share-scope.spec.ts WEBCHAT-04.)
   // ───────────────────────────────────────────────────────────────────
-  test('scenario 14: web mode viewer cap (no files.read) → permission-denied takeover renders verbatim copy', async ({ page }) => {
+  test('scenario 14: web mode viewer cap (no files.read) → no file-browser tab, no permission-denied takeover', async ({ page }) => {
     const resp = await page.goto(viewerAppUrl())
     expect(resp?.status()).toBe(200)
+    // Boot completes — the chat surface renders, proving the bootstrap ran.
+    await expect(page.locator('.hub-modal__chat-toggle')).toBeVisible({ timeout: 15_000 })
+    // Give the /info perms probe time to resolve; it must NOT open a Files tab.
+    await page.waitForTimeout(2_000)
+    await expect(
+      page.getByRole('button', { name: 'Close playwright-test-session — Files' }),
+      'no file-browser tab opens for a viewer cap without files.read',
+    ).toHaveCount(0)
     await expect(
       page.getByTestId('file-browser-permission-denied'),
-      'permission-denied takeover must mount under viewer cap',
-    ).toBeVisible({ timeout: 15_000 })
-    await expect(
-      page.getByRole('heading', { name: /^files\.read permission required$/ }),
-    ).toBeVisible()
+      'no dead permission-denied takeover renders for a viewer cap',
+    ).toHaveCount(0)
   })
 
   // ───────────────────────────────────────────────────────────────────

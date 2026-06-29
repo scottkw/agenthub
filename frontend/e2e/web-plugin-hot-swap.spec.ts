@@ -1,5 +1,19 @@
 // Phase 93 Plan 05 Task 1 — web-plugin-hot-swap.spec.ts
 //
+// SKIPPED (v4.1, Phase 159 WEBCHAT-01): this suite tests the raw /sessions/{id}
+// terminal.js viewer, which fetched /api/plugin-config + subscribed to the SSE
+// stream for live plugin hot-swap (PLUG-04). Phase 159 retired that viewer —
+// every share link now redirects to the /app/ React SPA, which acquires plugin
+// settings via the Wails RPC GetPluginSettings() + EventsOn('settings:plugins')
+// (desktop-only). In web mode (/app/ in a browser) there is no Wails bridge, so
+// the SPA does NOT consume /api/plugin-config or the SSE stream at all — web
+// guests no longer get live plugin-config hot-swap. The instrumentation here
+// (hooking the UMD `window.WebglAddon` global) also cannot fire against the
+// Vite-bundled SPA. This is a known, chat-orthogonal cross-surface gap tracked
+// for a follow-up that wires /api/plugin-config + SSE into the /app/ web mode.
+// Re-enable after that work lands. See: scottkw/agenthub#112 (web-guest
+// plugin-config parity).
+//
 // Asserts the web terminal page honors plugin-config:
 //   1. Initial /api/plugin-config webgl=true → WebGL addon is fetched from
 //      /assets/xterm/addons/addon-webgl.js.
@@ -77,7 +91,7 @@ async function installWebglAddonHook(page: Page): Promise<void> {
   })
 }
 
-test.describe('Phase 93 WEB-03 + PLUG-04 push web-plugin-hot-swap', () => {
+test.describe.skip('Phase 93 WEB-03 + PLUG-04 push web-plugin-hot-swap', () => {
   test('initial /api/plugin-config webgl=false → no WebglAddon construction on web', async ({ page }) => {
     // Hook the WebglAddon constructor to count calls, AND override the page's
     // WebGL context to look hardware-accelerated so isSoftwareWebGL() returns

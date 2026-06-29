@@ -111,6 +111,13 @@ test.describe('Phase 125 EDIT-13 write surface merge-gate (cross-browser)', () =
     const resp = await page.goto(writeAppUrl())
     // The React bundle must load (200) — fixture embeds frontend/dist.
     expect(resp?.status(), 'writeAppUrl must serve bundle (200)').toBe(200)
+    // Phase 159-03 (WEBCHAT-04): the file-browser tab auto-opens in the
+    // BACKGROUND while the session/chat surface stays active. Activate it
+    // before asserting its content (a write cap includes files.read).
+    await page
+      .getByRole('button', { name: 'Close playwright-test-session — Files' })
+      .waitFor({ timeout: 15_000 })
+    await page.locator('.tab__name').filter({ hasText: 'playwright-test-session — Files' }).click()
     await expect(
       page.getByTestId('file-browser-tab'),
       'file-browser-tab must mount under write cap',
@@ -499,6 +506,12 @@ test.describe('Phase 125 EDIT-13 write surface merge-gate (cross-browser)', () =
     // does NOT have an Edit (pencil) button affordance.
     const resp = await page.goto(writeAppUrl())
     expect(resp?.status()).toBe(200)
+    // Phase 159-03 (WEBCHAT-04): the file-browser tab auto-opens in the
+    // background; activate it before asserting its content.
+    await page
+      .getByRole('button', { name: 'Close playwright-test-session — Files' })
+      .waitFor({ timeout: 15_000 })
+    await page.locator('.tab__name').filter({ hasText: 'playwright-test-session — Files' }).click()
     await expect(page.getByTestId('file-browser-tab')).toBeVisible({ timeout: 15_000 })
 
     // Wait for the file list to render.

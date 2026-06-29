@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -163,6 +164,9 @@ func TestAliasStoreRejectInvalidAlias(t *testing.T) {
 // TestAliasStoreFilePerms verifies that aliases.json is written with 0600
 // permissions (no world/group read).
 func TestAliasStoreFilePerms(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not enforce Unix file-mode bits; aliases.json reports 0666 regardless of the 0600 requested at write time. The 0600 write intent is exercised on macOS/Linux.")
+	}
 	dir := t.TempDir()
 	store, err := NewAliasStore(dir)
 	if err != nil {
