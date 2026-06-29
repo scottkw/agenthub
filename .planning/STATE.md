@@ -43,6 +43,7 @@ Progress: [████████████████████] 14/14 p
 |---|-------------|------|--------|-----------|
 | 260627-d81 | Fix Welcome screen layout — long Linux install URL broke alignment (flexbox min-width:auto); install boxes off-center / mismatched sizes | 2026-06-27 | a89cf26a | [260627-d81-fix-welcome-screen-layout-linux-install-](./quick/260627-d81-fix-welcome-screen-layout-linux-install-/) |
 | 260628-pt8 | Chat toggle button slides with sidebar (transition: right 220ms ease-out added to .hub-modal__chat-toggle base rule; test (d) regression gate in chatToggleOverlap.test.ts) | 2026-06-28 | d2053f7b | [260628-pt8-when-the-chat-sidebar-slides-in-and-out-](./quick/260628-pt8-when-the-chat-sidebar-slides-in-and-out-/) |
+| 260628-qs5 | Add Chat help section — v4.1 session-chat docs (opening, aliases, @session, RO vs RW guests, presence/history/markdown); SECTION_META + SECTIONS + integration test count 2→3 + #help-chat | 2026-06-29 | 71890dfd | [260628-qs5-add-details-on-the-new-chat-interface-to](./quick/260628-qs5-add-details-on-the-new-chat-interface-to/) |
 
 ## Operator Next Steps (carry-forward from v4.0)
 
