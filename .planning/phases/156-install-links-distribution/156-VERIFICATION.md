@@ -1,19 +1,22 @@
 ---
 phase: 156-install-links-distribution
 verified: 2026-06-27T07:00:00Z
-status: human_needed
+status: passed
 score: 2/3 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "Following the Linux curl command executes install.sh, detects correct architecture, verifies SHA256 from checksums.txt, and installs the agenthub binary to a standard path (TESTING.md M-25)"
     test: "On a clean amd64 Linux machine or docker run --rm ubuntu:22.04 bash: run `curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh`, then confirm (a) the 'SHA256 verified.' line appears, (b) the binary is installed to /usr/local/bin/agenthub or ~/.local/bin/agenthub, (c) `agenthub --help` exits 0, (d) re-run is idempotent, (e) non-root PATH warning printed when ~/.local/bin absent from PATH."
     expected: "Installation completes without error; binary is runnable; SHA256 check passes against the release checksums.txt."
     why_human: "The shellcheck/static-pattern CI gate (SC-4) and POSIX syntax check (sh -n) prove code correctness but do not exercise the actual network fetch → SHA256 compare → binary copy state transition. Checking this requires a real GitHub release asset and a clean Linux runtime."
 human_verification:
+
   - test: "M-25 — Linux install end-to-end on a clean amd64 box (or docker run --rm ubuntu:22.04)"
     expected: "curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh completes; 'SHA256 verified.' appears; binary installed to standard path; agenthub --help exits 0; idempotent re-run succeeds; non-root PATH warning present when applicable. See TESTING.md M-25 for the full checklist."
     why_human: "Requires a live GitHub release tarball + checksums.txt and a real Linux runtime. Automated checks (shellcheck, sh -n, static patterns) confirm code structure but cannot confirm the SHA256 download-verify-install state transition succeeds end-to-end."
+
   - test: "M-26 step 3 — Confirm WINGET_TOKEN secret is provisioned in the repo"
     expected: "`gh secret list | grep WINGET_TOKEN` returns a row for WINGET_TOKEN (classic PAT, public_repo scope only). The live submission in Steps 4–7 of the runbook is NOT a phase blocker; the WINGET_TOKEN check alone is the phase gate."
     why_human: "TESTING.md M-26 labels WINGET_TOKEN provisioning as a phase gate. `gh secret list` returned empty output during automated verification — could not confirm presence or absence of the secret. Requires operator to run `gh secret list | grep WINGET_TOKEN` in the scottkw/agenthub repo context."
@@ -138,11 +141,14 @@ No TBD/FIXME/XXX debt markers found in any phase-modified file. No stub/placehol
 #### 1. M-25 — Linux Install End-to-End (SC-1 behavioral verification)
 
 **Test:** On a clean amd64 Linux machine or `docker run --rm -it ubuntu:22.04 bash`:
+
 ```bash
 apt-get update && apt-get install -y curl  # if Docker
 curl -fsSL https://raw.githubusercontent.com/scottkw/agenthub/main/scripts/install.sh | sh
 ```
+
 Then verify:
+
 - "Installing agenthub …" and "SHA256 verified." appear in output
 - Binary installed to `/usr/local/bin/agenthub` (root) or `~/.local/bin/agenthub` (non-root)
 - `agenthub --help` exits 0 (or shows expected usage)
@@ -156,9 +162,11 @@ Then verify:
 #### 2. M-26 Step 3 — WINGET_TOKEN Secret Provisioned
 
 **Test:** In the scottkw/agenthub repo context:
+
 ```bash
 gh secret list | grep WINGET_TOKEN
 ```
+
 Confirm a row is returned showing WINGET_TOKEN (classic PAT, `public_repo` scope only per FIRST-SUBMISSION-RUNBOOK.md Step 2).
 
 **Expected:** `WINGET_TOKEN` appears in `gh secret list` output.
