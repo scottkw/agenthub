@@ -30,6 +30,7 @@
 - ✅ **v3.6 Hub (Session Grid / Control Room)** — Phases 131-135 (shipped 2026-06-19, closes Issue #78)
 - ✅ **v4.0 Hub-First Consolidation & UI/UX Overhaul** — Phases 136-150 (shipped 2026-06-23, closes #51, #65, #68, #69, #96, #97, #98, #100, #101; #99 not-planned; 151 cancelled)
 - ✅ **v4.1 Session Chat** — Phases 151-164 (shipped 2026-06-29, closes #79, #108, #109)
+- **v4.2 Funnel Sharing & Polish** — Phases 165-168 (closes #107, #110, #112, #115, #116, #117, #118)
 
 ## Phases
 
@@ -381,6 +382,74 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 <!-- v4.1 phase details archived to milestones/v4.1-ROADMAP.md -->
 
+**v4.2 Funnel Sharing & Polish (Phases 165-168)**
+
+- [ ] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement
+- [ ] **Phase 166: Funnel Frontend + Help Guide** - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
+- [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off)
+- [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
+
+## Phase Details
+
+### Phase 165: Funnel Backend
+**Goal**: The daemon can activate and fully tear down Tailscale Funnel with correct Origin/BaseURL awareness, so an internet-external guest can reach a Funnel-enabled session.
+**Depends on**: Nothing (first v4.2 phase)
+**Requirements**: FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07
+**Success Criteria** (what must be TRUE):
+  1. A Funnel share URL emitted by the daemon has no port suffix (`https://hostname.ts.net/sessions/id?cap=TOKEN`, not `:7443`)
+  2. An HTTP request from a machine outside the tailnet carrying `Origin: https://hostname.ts.net` receives 200, not 403
+  3. `tailscale serve status` shows an empty config after each of the four teardown triggers: user disables Funnel toggle, user disables web-share, session ends naturally, daemon stops cleanly
+  4. When Funnel prerequisites are not met, `EnableFunnel` returns a human-readable error string matching `ipn.CheckFunnelAccess` output and never calls `SetServeConfig`
+  5. Web-share in local-network fallback mode (Tailscale not running) continues unaffected and `funnelActive` remains false
+**Plans**: TBD
+
+### Phase 166: Funnel Frontend + Help Guide
+**Goal**: Users can enable internet-sharing through a risk-aware UI flow, see a persistent non-color exposure indicator, and access an in-app guide covering both sharing paths.
+**Depends on**: Phase 165
+**Requirements**: FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02
+**Success Criteria** (what must be TRUE):
+  1. Clicking the Funnel toggle shows a risk-acknowledgment dialog on every enable (no "don't show again") — containing risk statement, auto-expiry duration selector, and a cross-link to the Help guide
+  2. While a session is internet-exposed, the Hub card and session tab display a persistent text-label indicator (e.g. "INTERNET ACTIVE" + globe icon) that conveys state without relying on color alone; verified at hex/source level
+  3. The Share modal shows the Funnel URL with copy-to-clipboard and QR code; a "starting up..." UX state is shown immediately after enable while the TLS connection warms up
+  4. One-click Funnel disable from the Share modal removes the Funnel exposure and clears the indicator immediately
+  5. The Help tab includes a "Sharing Guide" article covering both the Funnel path and the device-share + ACL alternative, with a copy-pasteable ACL grant block and the wildcard-default (`*→*`) gotcha called out explicitly
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 167: Native Notifications
+**Goal**: Users who opt in receive a single native OS notification the moment a session transitions to awaiting-input state, on macOS, Windows, and Linux.
+**Depends on**: Nothing (independent of Funnel)
+**Requirements**: NTF-01, NTF-02, NTF-03, NTF-04
+**Success Criteria** (what must be TRUE):
+  1. When a session transitions from any non-waiting state to `waiting`, a native OS notification fires on macOS, Windows, and Linux — including when the app window is hidden in the system tray
+  2. A session held in `waiting` state for 5 minutes triggers no additional notifications (fires exactly once per `running → waiting` transition)
+  3. The notification text includes the session name and agent type so the user knows which session needs attention
+  4. A Settings → Session Behavior toggle enables/disables notifications; the toggle defaults to off and suppresses all notifications when off
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 168: Bug Fix & Settings Polish
+**Goal**: Four v4.1 web-share/Hub bugs are repaired and two UX friction points eliminated, clearing Issues #112, #115, #116, #117, and #118.
+**Depends on**: Phase 165 (Phase 165's dual-origin fix may resolve the Funnel multi-viewer kick component of #117 — verify in Phase 165 UAT before scoping #117 relay buffer + disconnect work here)
+**Requirements**: FIX-01, FIX-02, FIX-03, UX-01, UX-02
+**Success Criteria** (what must be TRUE):
+  1. A web-share guest opening a session URL in a real browser (not the Wails WebView) sees live plugin-config changes without page reload, with no CSP errors visible in DevTools Console
+  2. Multiple simultaneous viewers can connect to one shared session; a stuck viewer can be disconnected via the Share modal Disconnect button, and the Hub viewer count updates within the next poll cycle
+  3. Opening a remote tailnet session from the Hub opens an in-app terminal tab (not an external browser window) that streams the terminal relay correctly
+  4. The footer "Share Session" button opens the Share modal for the currently-active session with no independent state drift
+  5. A "Stay on Hub after creating session" toggle in Settings → Session Behavior prevents auto-switching to a newly Hub-created session when enabled
+**Plans**: TBD
+**UI hint**: yes
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 165. Funnel Backend | 0/? | Not started | - |
+| 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
+| 167. Native Notifications | 0/? | Not started | - |
+| 168. Bug Fix & Settings Polish | 0/? | Not started | - |
+
 ---
 *Full v1.0 details: .planning/milestones/v1.0-ROADMAP.md*
 *Full v1.1 details: .planning/milestones/v1.1-ROADMAP.md*
@@ -410,4 +479,3 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 *Full v3.6 details: .planning/milestones/v3.6-ROADMAP.md*
 *Full v4.0 details: .planning/milestones/v4.0-ROADMAP.md*
 *Full v4.1 details: .planning/milestones/v4.1-ROADMAP.md*
-

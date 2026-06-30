@@ -76,36 +76,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNL-01 | TBD | Pending |
-| FNL-02 | TBD | Pending |
-| FNL-03 | TBD | Pending |
-| FNL-04 | TBD | Pending |
-| FNL-05 | TBD | Pending |
-| FNL-06 | TBD | Pending |
-| FNL-07 | TBD | Pending |
-| FUI-01 | TBD | Pending |
-| FUI-02 | TBD | Pending |
-| FUI-03 | TBD | Pending |
-| FUI-04 | TBD | Pending |
-| FUI-05 | TBD | Pending |
-| FUI-06 | TBD | Pending |
-| HLP-01 | TBD | Pending |
-| HLP-02 | TBD | Pending |
-| NTF-01 | TBD | Pending |
-| NTF-02 | TBD | Pending |
-| NTF-03 | TBD | Pending |
-| NTF-04 | TBD | Pending |
-| UX-01 | TBD | Pending |
-| UX-02 | TBD | Pending |
-| FIX-01 | TBD | Pending |
-| FIX-02 | TBD | Pending |
-| FIX-03 | TBD | Pending |
+| FNL-01 | Phase 165 | Pending |
+| FNL-02 | Phase 165 | Pending |
+| FNL-03 | Phase 165 | Pending |
+| FNL-04 | Phase 165 | Pending |
+| FNL-05 | Phase 165 | Pending |
+| FNL-06 | Phase 165 | Pending |
+| FNL-07 | Phase 165 | Pending |
+| FUI-01 | Phase 166 | Pending |
+| FUI-02 | Phase 166 | Pending |
+| FUI-03 | Phase 166 | Pending |
+| FUI-04 | Phase 166 | Pending |
+| FUI-05 | Phase 166 | Pending |
+| FUI-06 | Phase 166 | Pending |
+| HLP-01 | Phase 166 | Pending |
+| HLP-02 | Phase 166 | Pending |
+| NTF-01 | Phase 167 | Pending |
+| NTF-02 | Phase 167 | Pending |
+| NTF-03 | Phase 167 | Pending |
+| NTF-04 | Phase 167 | Pending |
+| UX-01 | Phase 168 | Pending |
+| UX-02 | Phase 168 | Pending |
+| FIX-01 | Phase 168 | Pending |
+| FIX-02 | Phase 168 | Pending |
+| FIX-03 | Phase 168 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0 (set during roadmap creation)
-- Unmapped: 24 ⚠️ (resolved by roadmapper)
+- Mapped to phases: 24 (100% coverage)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-30*
-*Last updated: 2026-06-30 — v4.2 milestone requirements defined*
+*Last updated: 2026-06-30 — traceability filled by roadmapper (Phases 165-168)*
