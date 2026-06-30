@@ -648,36 +648,38 @@ func (ws *WebServer) EnableFunnel(ctx context.Context, funnelPort uint16) error 
 	}
 	sc.TCP[funnelPort] = &ipn.TCPPortHandler{HTTPS: true}
 
-	// Step 5: Web handler — reverse-proxy to AgentHub's local listener.
-	// Access ws.listener directly (we hold Lock; calling ws.Addr() would RLock
+	// Step 5: Web handler — reverse-proxy to the plain-HTTP loopback listener.
+	// Access ws.loopbackListener directly (we hold Lock; calling ws.Addr() would RLock
 	// which would deadlock with an RWMutex write-lock held).
-	ln := ws.listener
-	if ln == nil {
-		return fmt.Errorf("funnel: web server not started (listener nil)")
+	//
+	// LOOPBACK-HTTP TARGET RATIONALE (165-05, replacing the dead 165-04 Option A):
+	//   - tailscaled terminates the ONLY public TLS on hop 1 (guest→ingress, real verified
+	//     Tailscale cert); hop 2 (tailscaled→AgentHub) uses this proxy target.
+	//   - The 165-04 https+insecure://<bindIP>:<tlsPort> target is DEAD: tailscaled dials
+	//     the raw IP and sends SNI=IP-literal; ws.lc.GetCertificate has no cert for an IP
+	//     literal → TLS internal_error → HTTP 502 for every external guest. https+insecure
+	//     only disables the CLIENT's cert-hostname verification, not the SERVER's SNI-driven
+	//     cert selection — the server still fails cert selection.
+	//   - FIX: proxy to a PLAIN-HTTP loopback listener (127.0.0.1, ephemeral port). No TLS
+	//     negotiation, no SNI, no cert-selection failure. The traffic never leaves the host
+	//     (kernel loopback, not on any wire) so no plaintext escapes to the network.
+	//   - The public internet-facing posture is UNCHANGED: cap token + dual-origin allowlist
+	//     + public Tailscale cert on hop 1 are all intact.
+	//   - CO-LOCATION GUARD (MUST NOT be removed silently): this design is safe ONLY because
+	//     tailscaled and the AgentHub listener are CO-LOCATED on the same host. If they are
+	//     ever split across tailnet nodes, this target MUST become a WireGuard-tunneled
+	//     tailnet-IP target — a future split must not silently re-expose plaintext traffic.
+	if ws.loopbackListener == nil {
+		return fmt.Errorf("funnel: loopback listener not started")
 	}
-	_, localPort, _ := net.SplitHostPort(ln.Addr().String())
+	_, loopbackPort, _ := net.SplitHostPort(ws.loopbackListener.Addr().String())
 	hp := ipn.HostPort(net.JoinHostPort(hostname, strconv.Itoa(int(funnelPort))))
 	if sc.Web == nil {
 		sc.Web = make(map[ipn.HostPort]*ipn.WebServerConfig)
 	}
-	// Option A (165-UAT gap 1 locked decision): proxy target uses the real bind address
-	// (ws.config.BindIP — the tailnet/loopback IP assertTailnetBindIP enforced) and the
-	// https+insecure scheme. WHY:
-	//   - The listener binds to ws.config.BindIP (a tailnet 100.x IP in prod, loopback in
-	//     tests), NOT to localhost. A localhost target is unreachable → tailscaled returns
-	//     HTTP 502 to every external Funnel guest (FNL-03 root cause).
-	//   - The listener already serves TLS via the real Tailscale cert (ws.lc.GetCertificate
-	//     in Funnel mode), so the internal same-host hop stays TLS-encrypted.
-	//   - https+insecure keeps TLS but skips cert-hostname verification because the proxy
-	//     dials the raw IP while the cert is issued for the DNS name. This hop never leaves
-	//     the host; the public guest↔tailscaled hop keeps full verified TLS with the public
-	//     cert, so the internet-facing posture (cap token + Origin allowlist + public cert)
-	//     is unchanged (T-165-14 / threat model).
-	//   - Rejected B (https://<hostname>.ts.net:<port>): depends on unverified MagicDNS
-	//     hairpin. Rejected C (loopback listener): extra cert surface.
 	sc.Web[hp] = &ipn.WebServerConfig{
 		Handlers: map[string]*ipn.HTTPHandler{
-			"/": {Proxy: "https+insecure://" + net.JoinHostPort(ws.config.BindIP, localPort)},
+			"/": {Proxy: "http://" + net.JoinHostPort("127.0.0.1", loopbackPort)},
 		},
 	}
 
