@@ -4,11 +4,11 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
-status: verified
-stopped_at: Completed 165-04-PLAN.md (gap closure)
+status: live-uat-failed
+stopped_at: 165-04 code-verified but M-34 live UAT FAILED (Funnel still 502 — SNI root cause)
 last_updated: "2026-06-30T19:22:44.650Z"
 last_activity: 2026-06-30
-last_activity_desc: Phase 165 executed + verified (9/9 must-haves; M-34/M-35/M-36 live-UAT pending)
+last_activity_desc: Live UAT — M-34 FAIL (502 via SNI mismatch on IP target); M-35 a/b/c PASS (teardown + kill-path); needs gap-closure 165-05 (FQDN target)
 progress:
   total_phases: 4
   completed_phases: 1
@@ -28,14 +28,19 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 165 (funnel-backend) — VERIFIED (code-complete; live-UAT M-34/M-35/M-36 pending)
-Plan: 4 of 4
-Status: All 4 plans complete + verified (9/9 must-haves, all 7 FNL reqs code-verified, suites green)
-Last activity: 2026-06-30 — Phase 165 gap closure (165-04) executed + verified
+Phase: 165 (funnel-backend) — LIVE UAT FAILED (M-34 Funnel still 502; needs gap-closure 165-05)
+Plan: 4 of 4 (code-complete; 165-04 fix proven insufficient live)
+Status: M-34 FAIL — Option A (https+insecure://<bindIP>:443) breaks TLS SNI; correct fix = FQDN target (proven). M-35 a/b/c PASS (teardown + GAP 2 kill-path validated live).
+Last activity: 2026-06-30 — live UAT on real Funnel tailnet
 
 ```
-v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases)
+v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases — 165 blocked on M-34)
 ```
+
+## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
+
+- **M-34 FAIL (BLOCKER, FNL-03):** Funnel URL still returns **502** end-to-end. Root cause = TLS **SNI mismatch**, NOT the localhost-vs-bindIP issue 165-04 thought it fixed. The 165-04 Option A target `https+insecure://100.86.210.104:7443` makes tailscaled dial the raw IP, sending **SNI=100.86.210.104**. The listener's cert comes from `lc.GetCertificate`, which only issues a cert for the `.ts.net` **hostname** — no cert for the IP literal → TLS `internal_error` alert → 502. `https+insecure` disables the *client's verification* but does NOT change the SNI the *server* needs to select a cert. Proven empirically: connect-to IP with SNI=hostname → **302 served**; SNI=IP → TLS internal error; `https://<fqdn>:7443/` (MagicDNS resolves to the tailnet IP) → **302**, cert verifies. **Correct fix = proxy target `https+insecure://<ws.config.FQDN>:<port>` (the FQDN, effectively the rejected "Option B" — now PROVEN, MagicDNS hairpin works).** The 165-04 test `TestEnableFunnel_ProxyTargetReachable` was FALSE-GREEN: it used a loopback self-signed cert that answers for any SNI, so the SNI mismatch never surfaced (same trap as [[feedback_tests_encoding_same_wrong_assumption]]).
+- **M-35 (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE) → all PASS live:** serve config empties immediately; the GAP 2 / FNL-05 kill-path fix (synchronous runSessionExitCleanup, no D-12 grace) is validated end-to-end on real tailscaled. (d) daemon-stop + M-36 fallback not re-run (moot while M-34 blocks; both already unit-tested).
 
 ### Quick Tasks Completed
 
@@ -59,7 +64,7 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ Verified (live-UAT M-34/35/36 pending) |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ⛔ Live-UAT FAILED — M-34 502 (SNI); needs gap-closure 165-05 (FQDN target) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
@@ -123,9 +128,9 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 ## Session Continuity
 
 Last session: 2026-06-30T19:22:36.178Z
-Stopped at: Completed 165-04-PLAN.md (gap closure) + phase verified
+Stopped at: Live UAT — M-34 FAILED (Funnel 502, SNI root cause); M-35 a/b/c PASS
 Resume file: None
-Next action: Live-UAT M-34/M-35/M-36 on a real Funnel-granted tailnet, then `/gsd-new-milestone`-style advance to Phase 166 (Funnel Frontend + Help Guide)
+Next action: Gap-closure plan 165-05 — change proxy target to `https+insecure://<FQDN>:<port>` (proven fix) + a real-SNI regression test (Tailscale-style cert keyed to a hostname, dial with mismatched-IP SNI must reproduce the 502). Then re-run M-34 live.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
