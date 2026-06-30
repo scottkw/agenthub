@@ -404,10 +404,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. When Funnel prerequisites are not met, `EnableFunnel` returns a human-readable error string matching `ipn.CheckFunnelAccess` output and never calls `SetServeConfig`
   5. Web-share in local-network fallback mode (Tailscale not running) continues unaffected and `funnelActive` remains false
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 - [x] 165-01-PLAN.md — webserver Funnel primitives: LocalClient promotion, funnelClient seam, EnableFunnel/DisableFunnel/FunnelBaseURL/ClearLingeringFunnel, dual-origin allowlist (FNL-02/04/06 + Stop teardown)
-- [ ] 165-02-PLAN.md — daemon half: funnelSessions/funnelExpiry maps, handleSetSessionFunnel endpoint, five-trigger teardown helper, Funnel-aware URL builders, auto-expiry, startup clear, SessionInfo.funnelActive (FNL-01/03/05/07)
+- [x] 165-02-PLAN.md — daemon half: funnelSessions/funnelExpiry maps, handleSetSessionFunnel endpoint, five-trigger teardown helper, Funnel-aware URL builders, auto-expiry, startup clear, SessionInfo.funnelActive (FNL-01/03/05/07)
 - [ ] 165-03-PLAN.md — Wails on-ramp: App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive mirror (FNL-01)
 
 ### Phase 166: Funnel Frontend + Help Guide
@@ -461,7 +461,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 165. Funnel Backend | 1/3 | In Progress|  |
+| 165. Funnel Backend | 2/3 | In Progress|  |
 | 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
 | 167. Native Notifications | 0/? | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |

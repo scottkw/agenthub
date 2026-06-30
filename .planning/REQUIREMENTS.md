@@ -11,13 +11,13 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Funnel Backend (FNL)
 
-- [ ] **FNL-01**: A session owner can enable Tailscale Funnel on a shared session to expose it to the public internet; Funnel is off by default.
+- [x] **FNL-01**: A session owner can enable Tailscale Funnel on a shared session to expose it to the public internet; Funnel is off by default.
 - [x] **FNL-02**: Enabling Funnel is configured node-locally through the embedded Tailscale LocalClient (`SetServeConfig`/`AllowFunnel`) and requires no Tailscale admin API token or ACL edit.
-- [ ] **FNL-03**: A recipient who is not on the host's tailnet and has no Tailscale account can open the Funnel share URL and join the session, still gated by the single-use join code + capability token.
+- [x] **FNL-03**: A recipient who is not on the host's tailnet and has no Tailscale account can open the Funnel share URL and join the session, still gated by the single-use join code + capability token.
 - [x] **FNL-04**: When Funnel is active, the Origin allowlist, `BaseURL()`, and generated share URLs use the Funnel hostname, so the external join-code / capability-token exchange succeeds without a 403-before-auth.
 - [x] **FNL-05**: Funnel exposure is fully torn down when the user disables it, when web-share is turned off, when the session ends, and on daemon shutdown — no session remains publicly exposed afterward.
 - [x] **FNL-06**: When the tailnet has not enabled Funnel (prerequisite unmet), enabling fails with a clear, explanatory error that links to the in-app Help guide, rather than failing opaquely.
-- [ ] **FNL-07**: A Funnel share automatically expires after a user-chosen duration; the daemon tears the Funnel exposure down at expiry (enforced server-side, independent of any connected UI).
+- [x] **FNL-07**: A Funnel share automatically expires after a user-chosen duration; the daemon tears the Funnel exposure down at expiry (enforced server-side, independent of any connected UI).
 
 ### Funnel UI / UX (FUI)
 
@@ -76,13 +76,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNL-01 | Phase 165 | Pending |
+| FNL-01 | Phase 165 | Complete |
 | FNL-02 | Phase 165 | Complete |
-| FNL-03 | Phase 165 | Pending |
+| FNL-03 | Phase 165 | Complete |
 | FNL-04 | Phase 165 | Complete |
 | FNL-05 | Phase 165 | Complete |
 | FNL-06 | Phase 165 | Complete |
-| FNL-07 | Phase 165 | Pending |
+| FNL-07 | Phase 165 | Complete |
 | FUI-01 | Phase 166 | Pending |
 | FUI-02 | Phase 166 | Pending |
 | FUI-03 | Phase 166 | Pending |

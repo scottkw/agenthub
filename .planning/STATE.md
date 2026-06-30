@@ -6,14 +6,14 @@ current_phase: 165
 current_phase_name: funnel-backend
 status: executing
 stopped_at: Completed 165-01-PLAN.md
-last_updated: "2026-06-30T14:58:57.971Z"
+last_updated: "2026-06-30T15:35:48.285Z"
 last_activity: 2026-06-30
 last_activity_desc: Phase 165 execution started
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 165 (funnel-backend) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-30 — Phase 165 execution started
 
@@ -122,7 +122,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-30T14:58:57.963Z
+Last session: 2026-06-30T15:33:21.043Z
 Stopped at: Completed 165-01-PLAN.md
 Resume file: None
 Next action: `/gsd-execute-phase 165`
@@ -189,9 +189,14 @@ Next action: `/gsd-execute-phase 165`
 | Phase 164 P01 | 6 minutes | 3 tasks | 5 files |
 | Phase 164 P02 | 5 | 3 tasks | 5 files |
 | Phase 165 P01 | ~6m | 3 tasks | 6 files |
+| Phase 165 P02 | 20 | 3 tasks | 5 files |
 
 ## Decisions
 
 - [Phase ?]: Injectable funnelClient interface seam mirrors statusFunc/prefsFunc pattern; production ws.lc field, test fakeFunnelClient
 - [Phase ?]: CheckFunnelAccess + StatusWithoutPeers before ws.mu.Lock() (blocking Unix-socket calls must not hold mutex); ws.listener accessed directly to prevent RWMutex deadlock
 - [Phase ?]: requireAllowedOrigin dual-origin: tailnet URL primary, Funnel URL secondary; secondary inert when FunnelBaseURL()==empty (fail-closed, FNL-04)
+- [Phase ?]: Port is always 443; CheckFunnelAccess error surfaced verbatim as 400
+- [Phase ?]: Ref-count gate: ws.DisableFunnel called ONLY when len(funnelSessions)==0 to protect sibling sessions from premature teardown
+- [Phase ?]: Site 4 (daemon stop / handleWebServerStop) NOT double-wired — 165-01 ws.Stop() already calls DisableFunnel
+- [Phase ?]: FunnelClientForTest exported type alias enables cross-package fake injection without leaking unexported interface
