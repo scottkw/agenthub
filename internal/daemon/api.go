@@ -724,6 +724,22 @@ func (a *API) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// 165-04 / FNL-05 (GAP 2 kill-path fix): synchronously run the shared teardown
+	// after KillSession so Funnel is disabled and funnelSessions[id] is removed on
+	// the explicit-kill path, without the 10s D-12 grace period.
+	//
+	// WHY this is safe (no double-cleanup race with the natural-exit goroutine):
+	//   - KillSession sets sess.IsKilled() = true.
+	//   - The natural-exit goroutine in engine.go returns early when sess.IsKilled(),
+	//     so onExit is never called → the 10s time.AfterFunc timer is never armed.
+	//   - disableFunnelForSession is idempotent and ref-counted: if this session was
+	//     not Funnel-enabled, the delete(funnelSessions, id) is a no-op; if a sibling
+	//     Funnel session exists, len(funnelSessions) > 0 after deletion so DisableFunnel
+	//     is not called, and the sibling's Funnel stays up (T-165-09 anti-pattern guard).
+	//
+	// WHY no second ws.DisableFunnel call: disableFunnelForSession is the single
+	// authority on the ref-count gate; do NOT call ws.DisableFunnel directly here.
+	a.runSessionExitCleanup(id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
