@@ -184,15 +184,27 @@ func (ws *WebServer) requireFilesWrite(next http.HandlerFunc) http.HandlerFunc {
 //   - Present Origin → strict byte-for-byte match against ws.BaseURL().
 //   - Present Origin with empty BaseURL (listener not ready) → return false
 //     (fail closed; CLAUDE.md "Silent Fallbacks Forbidden").
+// originAllowedForWrite checks whether the request's Origin is permitted to
+// submit write operations (MsgInput, MsgSessionInject, MsgChatSend). Dual-origin
+// aware: allows both the tailnet URL and the Funnel URL (when active), mirroring
+// requireAllowedOrigin's fail-closed secondary branch (Phase 165, FNL-04 / T-165-01).
 func (ws *WebServer) originAllowedForWrite(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		// Desktop Wails fetch() sends no Origin — pass vacuously (CAP-03).
 		return true
 	}
-	// Present Origin: strict byte-for-byte match required (D-03).
+	// Primary: tailnet URL — exact byte-for-byte match (D-03).
 	// Fail closed when BaseURL() is empty (listener not ready with a present
 	// Origin — never silently allow).
 	allowed := ws.BaseURL()
-	return allowed != "" && origin == allowed
+	if allowed != "" && origin == allowed {
+		return true
+	}
+	// Secondary: Funnel origin — exact match; fail-closed when FunnelBaseURL()==""
+	// (T-165-01 / T-165-07 no prefix/substring widen).
+	if funnelURL := ws.FunnelBaseURL(); funnelURL != "" && origin == funnelURL {
+		return true
+	}
+	return false
 }
