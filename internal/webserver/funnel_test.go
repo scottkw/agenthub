@@ -10,11 +10,11 @@ package webserver
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -272,29 +272,59 @@ func TestWebServerStop_DisablesFunnel(t *testing.T) {
 	}
 }
 
-// TestEnableFunnel_ProxyTargetReachable is the FNL-03 502 regression guard (165-04 GAP 1):
-//   - EnableFunnel's serve-config Proxy equals https+insecure://<bindIP>:<port> — NOT
-//     https://localhost:<port>. The host must be the web server's actual bind address
-//     (ws.config.BindIP), because the AgentHub listener binds to the tailnet IP, not
-//     localhost. The scheme must be https+insecure (TLS-encrypted internal hop, cert-hostname
-//     verification skipped because the proxy dials the raw IP while the cert is for the DNS name;
-//     this hop never leaves the host so the public guest↔tailscaled hop keeps full verified TLS).
-//   - The proxy target is actually reachable: an InsecureSkipVerify HTTPS client connects
-//     and receives a real HTTP response — NOT connection-refused (the exact 502 condition).
+// TestEnableFunnel_ProxyTargetReachable is the FNL-03 502 regression guard (165-05 loopback-HTTP fix):
+//
+// Asserts the loopback-HTTP proxy target SHAPE and real loopback reachability:
+//   - EnableFunnel's serve-config Proxy equals http://127.0.0.1:<loopbackPort> — scheme
+//     is plain "http" (NOT "https", NOT "https+insecure"), host is "127.0.0.1" (NOT
+//     ws.config.BindIP/FQDN), and the port is the plain-HTTP loopback listener's port
+//     (NOT the TLS listener's port). The 165-04 Option A target
+//     https+insecure://<bindIP>:<tlsPort> is dead: tailscaled sends SNI=IP-literal on
+//     hop 2, the SNI-driven cert (ws.lc.GetCertificate) has no cert for an IP literal →
+//     TLS internal_error → 502. https+insecure only disables the CLIENT's cert verification,
+//     not the SERVER's SNI-based cert selection.
+//   - The proxy target is actually reachable: a PLAIN http.Client (no TLS transport)
+//     GETs http://127.0.0.1:<loopbackPort> and receives a real HTTP response — NOT
+//     connection-refused (the exact 502 condition this tests against).
+//   - Anti-regression guard: scheme=="https" or scheme=="https+insecure" or
+//     port==TLS-listener-port fails the test explicitly with a 165-04-regression message.
+//
+// NOTE: this unit test guards target SHAPE + loopback reachability only.
+// The SNI/ingress failure (FNL-03 root cause) is only reproducible on a live tailnet.
+// Live M-34 (off-tailnet device, no Tailscale client) is the real end-to-end gate.
+// Given the 165-04 false-green precedent (loopback self-signed cert answered any SNI),
+// the automated test alone is NOT sufficient to certify FNL-03 closed.
 //
 // State is driven through ws.EnableFunnel (Pitfall 5 guard; never set ws.funnelActive directly).
 func TestEnableFunnel_ProxyTargetReachable(t *testing.T) {
 	if testing.Short() {
-		t.Skip("requires TLS listener and network dial")
+		t.Skip("requires listeners and network dial")
 	}
 	ws, _ := testServer(t)
 
 	const funnelHostname = "mynode.ts.net"
 
-	// Get listener port before EnableFunnel — the listener is already started by testServer.
-	_, listenerPort, err := net.SplitHostPort(ws.Addr())
+	// Get the TLS listener port — the loopback port MUST differ from this.
+	_, tlsPort, err := net.SplitHostPort(ws.Addr())
 	if err != nil {
 		t.Fatalf("ws.Addr() %q: SplitHostPort: %v", ws.Addr(), err)
+	}
+
+	// Get the loopback listener port directly (package-internal access — funnel_test.go
+	// is package webserver). The loopback listener is started by startTailscale (invoked
+	// by testServer's ws.Start call) and is already live.
+	ws.mu.RLock()
+	loopbackLn := ws.loopbackListener
+	ws.mu.RUnlock()
+	if loopbackLn == nil {
+		t.Fatal("loopbackListener is nil — Task 1 must set it in startTailscale")
+	}
+	_, loopbackPort, err := net.SplitHostPort(loopbackLn.Addr().String())
+	if err != nil {
+		t.Fatalf("loopbackListener.Addr() %q: SplitHostPort: %v", loopbackLn.Addr(), err)
+	}
+	if loopbackPort == tlsPort {
+		t.Fatalf("loopback port %q == TLS port %q — they must be different ephemeral ports", loopbackPort, tlsPort)
 	}
 
 	// Stateful fake: SetServeConfig stores the last-written config so GetServeConfig
@@ -334,42 +364,67 @@ func TestEnableFunnel_ProxyTargetReachable(t *testing.T) {
 		t.Fatal("no '/' Web handler in serve config")
 	}
 
-	// Proxy must equal https+insecure://<bindIP>:<port>.
-	// The old value "https://localhost:<port>" fails this assertion: nothing listens on
-	// localhost when the AgentHub listener binds to the tailnet IP (ws.config.BindIP).
-	// That mismatch made tailscaled's Funnel proxy return HTTP 502 to every external guest.
-	// https+insecure keeps TLS encryption on the internal same-host hop but skips
-	// cert-hostname verification (Option A, 165-UAT gap 1 locked decision).
-	wantProxy := "https+insecure://" + net.JoinHostPort("127.0.0.1", listenerPort)
-	if handler.Proxy != wantProxy {
-		t.Errorf("EnableFunnel Proxy = %q, want %q\n"+
-			"  Old \"localhost\" host fails this: the listener binds to BindIP (127.0.0.1 in tests,\n"+
-			"  tailnet IP in prod), so localhost is unreachable → 502 for external guests.\n"+
-			"  This is the FNL-03 502 regression guard (165-04 GAP 1).",
-			handler.Proxy, wantProxy)
+	// Parse the proxy URL for fine-grained assertions.
+	proxyURL, err := url.Parse(handler.Proxy)
+	if err != nil {
+		t.Fatalf("url.Parse(handler.Proxy=%q): %v", handler.Proxy, err)
 	}
 
-	// Reachability leg: an InsecureSkipVerify HTTPS client must connect to the proxy
-	// target host:port and receive a real HTTP response from the running mux.
-	// Connection-refused or timeout is the exact 502 condition — must fail the test.
-	//
-	// Dial as https:// (strip the https+insecure scheme — Go's http.Client handles HTTPS;
-	// InsecureSkipVerify simulates what tailscaled does with the https+insecure target).
-	dialURL := "https://" + net.JoinHostPort("127.0.0.1", listenerPort)
-	insecure := &http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		},
+	// Scheme must be plain "http" — NOT "https" or "https+insecure".
+	// https+insecure is the dead 165-04 Option A target (SNI-IP 502 root cause unchanged).
+	if proxyURL.Scheme != "http" {
+		t.Errorf("EnableFunnel Proxy scheme = %q, want \"http\"\n"+
+			"  \"https\" or \"https+insecure\" is the DEAD 165-04 target: tailscaled sends SNI=IP\n"+
+			"  on hop 2; the SNI-driven cert has no cert for an IP literal → TLS internal_error\n"+
+			"  → HTTP 502 for every external Funnel guest (FNL-03 165-05 anti-regression guard).",
+			proxyURL.Scheme)
 	}
-	resp, err := insecure.Get(dialURL)
+
+	// Host must be 127.0.0.1 — NOT ws.config.BindIP/FQDN.
+	proxyHost, proxyPort, err := net.SplitHostPort(proxyURL.Host)
 	if err != nil {
-		t.Fatalf("reachability: GET %q failed — connection-refused is the 502 condition: %v", dialURL, err)
+		t.Fatalf("net.SplitHostPort(proxyURL.Host=%q): %v", proxyURL.Host, err)
+	}
+	if proxyHost != "127.0.0.1" {
+		t.Errorf("EnableFunnel Proxy host = %q, want \"127.0.0.1\"\n"+
+			"  A non-loopback host would expose plaintext traffic on a real network interface.",
+			proxyHost)
+	}
+
+	// Port must equal the loopback HTTP listener's port — NOT the TLS listener's port.
+	if proxyPort != loopbackPort {
+		t.Errorf("EnableFunnel Proxy port = %q, want loopback port %q (not TLS port %q)\n"+
+			"  If the port equals the TLS port, hop 2 targets the HTTPS listener (SNI-IP → 502).",
+			proxyPort, loopbackPort, tlsPort)
+	}
+	if proxyPort == tlsPort {
+		t.Errorf("EnableFunnel Proxy port = TLS port %q — must target the loopback HTTP listener, not the TLS listener",
+			tlsPort)
+	}
+
+	// Full canonical form check (belt-and-suspenders).
+	wantProxy := "http://" + net.JoinHostPort("127.0.0.1", loopbackPort)
+	if handler.Proxy != wantProxy {
+		t.Errorf("EnableFunnel Proxy = %q, want %q", handler.Proxy, wantProxy)
+	}
+
+	// Reachability leg: a PLAIN http.Client (no TLS transport) must connect to the
+	// loopback HTTP target and receive a real HTTP response.
+	// Connection-refused or timeout is the exact dead-target condition and must fail.
+	//
+	// DO NOT use an InsecureSkipVerify HTTPS client here — that was the 165-04
+	// false-green: a loopback self-signed cert answered any SNI, so the SNI/cert
+	// mismatch never surfaced. This test must use plain HTTP to match the target scheme.
+	dialURL := "http://" + net.JoinHostPort("127.0.0.1", loopbackPort)
+	plain := &http.Client{Timeout: 2 * time.Second}
+	resp, dialErr := plain.Get(dialURL)
+	if dialErr != nil {
+		t.Fatalf("reachability: GET %q failed (connection-refused = dead target, the 502 condition): %v",
+			dialURL, dialErr)
 	}
 	defer resp.Body.Close()
-	// Any HTTP status is acceptable — the point is the connection was accepted and served,
-	// not connection-refused. This proves tailscaled's Funnel proxy would succeed.
-	t.Logf("reachability: GET %q → %d (proxy target reachable, FNL-03 closed)", dialURL, resp.StatusCode)
+	// Any HTTP status is acceptable — the point is the connection was accepted and served.
+	t.Logf("reachability: GET %q → %d (loopback HTTP target live, FNL-03 proxy-target layer closed)", dialURL, resp.StatusCode)
 }
 
 // ---------------------------------------------------------------------------
