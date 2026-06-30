@@ -256,6 +256,74 @@ func TestListSessions_PropagatesHomeDirAndBrowseEnabled(t *testing.T) {
 	}
 }
 
+// TestApp_SetSessionFunnel_NilClient asserts that App.SetSessionFunnel returns
+// the "daemon not connected" error when a.client is nil (mirrors ToggleWebServing /
+// SetSessionBrowse nil-guard). Phase 165 / T-165-14.
+func TestApp_SetSessionFunnel_NilClient(t *testing.T) {
+	app := &App{} // no client wired
+	err := app.SetSessionFunnel("sess-1", true, 3600)
+	if err == nil {
+		t.Fatal("SetSessionFunnel with nil client: expected error, got nil")
+	}
+	if err.Error() != "daemon not connected" {
+		t.Errorf("SetSessionFunnel nil-client error = %q; want %q", err.Error(), "daemon not connected")
+	}
+}
+
+// TestListSessions_PropagatesFunnelActive is the regression guard for
+// Phase 165 / T-165-15: App.ListSessions must propagate SessionInfo.FunnelActive
+// from the daemon source of truth so the frontend can poll funnel state.
+// false must stay false (NOT dropped by omitempty); true must stay true.
+func TestListSessions_PropagatesFunnelActive(t *testing.T) {
+	if goruntime.GOOS == "windows" {
+		t.Skip("TestListSessions_PropagatesFunnelActive uses Unix domain sockets")
+	}
+	app := testApp(t)
+
+	// Create a session to work with.
+	id, err := app.CreateSession("cat", "funnel-propagation-session", "", nil, 0, 0)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	// Initially FunnelActive must be false (not yet enabled) and must propagate
+	// as false — not silently dropped as a zero value.
+	sessions := app.ListSessions()
+	var got *SessionInfo
+	for i := range sessions {
+		if sessions[i].ID == id {
+			got = &sessions[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("session %q not found in App.ListSessions (initial)", id)
+	}
+	if got.FunnelActive {
+		t.Error("ListSessions: FunnelActive should be false before SetSessionFunnel (not dropped by omitempty)")
+	}
+
+	// Enable Funnel; FunnelActive should propagate as true.
+	if err := app.SetSessionFunnel(id, true, 0); err != nil {
+		t.Fatalf("SetSessionFunnel enable: %v", err)
+	}
+
+	sessions = app.ListSessions()
+	got = nil
+	for i := range sessions {
+		if sessions[i].ID == id {
+			got = &sessions[i]
+			break
+		}
+	}
+	if got == nil {
+		t.Fatalf("session %q not found in App.ListSessions (after enable)", id)
+	}
+	if !got.FunnelActive {
+		t.Error("App.ListSessions dropped FunnelActive=true after SetSessionFunnel(enable) (frontend poll would never see active funnel)")
+	}
+}
+
 func TestRenameSession(t *testing.T) {
 	app := testApp(t)
 	id, err := app.CreateSession("cat", "original", "", nil, 0, 0)

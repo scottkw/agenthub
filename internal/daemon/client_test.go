@@ -749,3 +749,63 @@ func TestDaemonClientWrite_ContextCancel(t *testing.T) {
 		t.Fatal("WriteFile with cancelled ctx returned nil err; want non-nil")
 	}
 }
+
+// TestDaemonClient_SetSessionFunnel verifies that DaemonClient.SetSessionFunnel
+// POSTs to /sessions/{id}/funnel with the correct JSON body {enabled, expiresIn}.
+// Phase 165 / FNL-01.
+func TestDaemonClient_SetSessionFunnel(t *testing.T) {
+	var (
+		gotMethod  string
+		gotPath    string
+		gotBody    []byte
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		var buf bytes.Buffer
+		_, _ = buf.ReadFrom(r.Body)
+		gotBody = buf.Bytes()
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{
+		http: srv.Client(),
+		base: srv.URL,
+	}
+
+	if err := c.SetSessionFunnel("sess-abc", true, 3600); err != nil {
+		t.Fatalf("SetSessionFunnel: unexpected error: %v", err)
+	}
+
+	if gotMethod != http.MethodPost {
+		t.Errorf("method = %q; want POST", gotMethod)
+	}
+	if gotPath != "/sessions/sess-abc/funnel" {
+		t.Errorf("path = %q; want /sessions/sess-abc/funnel", gotPath)
+	}
+	wantBody := `{"enabled":true,"expiresIn":3600}`
+	if strings.TrimSpace(string(gotBody)) != wantBody {
+		t.Errorf("body = %q; want %q", strings.TrimSpace(string(gotBody)), wantBody)
+	}
+}
+
+// TestDaemonClient_SetSessionFunnel_ErrorStatus verifies that a non-2xx response
+// from the daemon surfaces as a non-nil error (mirrors ToggleWebServing behaviour).
+// Phase 165 / FNL-01.
+func TestDaemonClient_SetSessionFunnel_ErrorStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	c := &DaemonClient{
+		http: srv.Client(),
+		base: srv.URL,
+	}
+
+	err := c.SetSessionFunnel("sess-abc", true, 0)
+	if err == nil {
+		t.Fatal("SetSessionFunnel with 500 response: expected error, got nil")
+	}
+}
