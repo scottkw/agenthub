@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 165 (funnel-backend) — M-34 PASS LIVE ✅ (loopback-HTTP fix; FNL-03 closed end-to-end)
 Plan: 5 of 5 (165-05 loopback-HTTP fix verified live from an off-tailnet device)
-Status: M-34 PASS — off-tailnet device gets HTTP 200 on /app/ via Funnel (production build, -tags wailsassets). 502/hang gone. M-35 a/b/c PASS live (teardown + GAP 2 kill-path). Remaining: M-35(d) daemon-stop + M-36 fallback (unit-tested; optional live confirm).
+Status: M-34 PASS — off-tailnet device gets HTTP 200 on /app/ via Funnel (production build, -tags wailsassets). 502/hang gone. M-35 a/b/c/d ALL PASS live (every teardown trigger incl. GAP 2 kill-path + daemon-stop). Only M-36 (fallback mode, needs sudo to stop tailscaled; already unit-tested) remains for a fully-green manual checklist.
 Last activity: 2026-06-30 — live M-34 PASS on real Funnel tailnet (loopback-HTTP)
 
 ```
@@ -69,7 +69,7 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ M-34 PASS live (loopback-HTTP, off-tailnet 200); M-35 a/b/c PASS; M-35(d)/M-36 optional |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ M-34 PASS live (off-tailnet 200); M-35 a/b/c/d PASS live; only M-36 fallback (sudo) left |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |

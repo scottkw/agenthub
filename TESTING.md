@@ -543,7 +543,7 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   - _Why not fully automatable:_ Requires an external-tailnet machine with no Tailscale installed; automated test environments are either on the tailnet or have no live tailscaled. The FNL-04 dual-origin allowlist is unit-tested in `TestRequireAllowedOrigin_FunnelOrigin` (server side) but the end-to-end external HTTP leg requires live Tailscale Funnel infrastructure.
   - _Source:_ Phase 165 FNL-04 / T-165-07 (origin-expansion threat); Phase 165-05 FNL-03 loopback-HTTP fix (T-165-17/T-165-18).
 
-- **M-35** Serve config empty after each teardown trigger (FNL-05):
+- **M-35** Serve config empty after each teardown trigger (FNL-05) — **✅ a/b/c/d PASS LIVE 2026-06-30**:
   1. Enable Funnel via the GUI and confirm `tailscale serve status` shows an active Funnel entry for port 443.
   2. For each of the four user-visible teardown triggers, verify that `tailscale serve status` shows an empty / no-active-funnel state immediately after:
      a. Toggle Funnel OFF in the Share modal.
@@ -551,6 +551,7 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
      c. Kill the session (natural exit or stop).
      d. Stop the AgentHub daemon (`pkill -f agenthub`).
   - _Why not automatable:_ Requires a live `tailscaled` daemon and the real `tailscale` CLI; the automated test suite uses a `fakeFunnelClient` that stubs out `SetServeConfig` without touching the real Tailscale serve config.
+  - _2026-06-30 live result:_ All four triggers verified on a real Funnel-granted tailnet — (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE /sessions/{id}, the 165-04 GAP 2 kill-path), (d) daemon stop — each emptied `tailscale serve status` immediately. PASS.
   - _Source:_ Phase 165 FNL-05 / T-165-08 (incomplete teardown threat); automated coverage in `TestFunnelTeardown_AllTriggers` (5 triggers, fake-verified).
 
 - **M-36** Fallback-mode web-share unaffected with Tailscale stopped (FNL boundary):
