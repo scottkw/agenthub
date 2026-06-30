@@ -1,10 +1,11 @@
 ---
 phase: 166
 slug: funnel-frontend-help-guide
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-30
+reviewed_at: 2026-06-30
 ---
 
 # Phase 166 — UI Design Contract
