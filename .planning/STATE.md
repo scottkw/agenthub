@@ -5,15 +5,15 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
 status: live-uat-failed
-stopped_at: 165-04 code-verified but M-34 live UAT FAILED (Funnel still 502 — SNI root cause)
-last_updated: "2026-06-30T19:22:44.650Z"
+stopped_at: Completed 165-funnel-backend-05-PLAN.md
+last_updated: "2026-06-30T21:05:02.552Z"
 last_activity: 2026-06-30
-last_activity_desc: Live UAT — M-34 FAIL (502 via SNI mismatch on IP target); M-35 a/b/c PASS (teardown + kill-path); needs gap-closure 165-05 (FQDN target)
+last_activity_desc: live UAT on real Funnel tailnet
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
   percent: 25
 ---
 
@@ -131,8 +131,8 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-30T19:22:36.178Z
-Stopped at: Live UAT — M-34 FAILED (Funnel 502, SNI root cause); M-35 a/b/c PASS
+Last session: 2026-06-30T21:05:02.547Z
+Stopped at: Completed 165-funnel-backend-05-PLAN.md
 Resume file: None
 Next action: Gap-closure plan 165-05 — SERVER-SIDE SNI-agnostic cert fix (keep IP target; wrap listener GetCertificate to return the node's hostname cert for empty/IP SNI). NOT a proxy-target change — both Option A (IP→502) and Option B (FQDN→ingress loop/hang) are proven dead live. Plus a real-SNI regression test (hostname-keyed cert, dial SNI=IP must succeed). Then re-run M-34 live.
 
@@ -201,6 +201,7 @@ Next action: Gap-closure plan 165-05 — SERVER-SIDE SNI-agnostic cert fix (keep
 | Phase 165 P02 | 20 | 3 tasks | 5 files |
 | Phase 165 P03 | 490 | 1 tasks | 5 files |
 | Phase 165 P04 | 25 | 3 tasks | 5 files |
+| Phase 165-funnel-backend P05 | 7min | 3 tasks | 3 files |
 
 ## Decisions
 
