@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
-status: executing
+status: verifying
 stopped_at: Completed 165-01-PLAN.md
-last_updated: "2026-06-30T15:35:48.285Z"
+last_updated: "2026-06-30T15:50:09.509Z"
 last_activity: 2026-06-30
 last_activity_desc: Phase 165 execution started
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_plans: 3
+  percent: 25
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 Phase: 165 (funnel-backend) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-30 — Phase 165 execution started
 
 ```
@@ -122,7 +122,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-30T15:33:21.043Z
+Last session: 2026-06-30T15:49:20.757Z
 Stopped at: Completed 165-01-PLAN.md
 Resume file: None
 Next action: `/gsd-execute-phase 165`
@@ -190,6 +190,7 @@ Next action: `/gsd-execute-phase 165`
 | Phase 164 P02 | 5 | 3 tasks | 5 files |
 | Phase 165 P01 | ~6m | 3 tasks | 6 files |
 | Phase 165 P02 | 20 | 3 tasks | 5 files |
+| Phase 165 P03 | 490 | 1 tasks | 5 files |
 
 ## Decisions
 
@@ -200,3 +201,5 @@ Next action: `/gsd-execute-phase 165`
 - [Phase ?]: Ref-count gate: ws.DisableFunnel called ONLY when len(funnelSessions)==0 to protect sibling sessions from premature teardown
 - [Phase ?]: Site 4 (daemon stop / handleWebServerStop) NOT double-wired — 165-01 ws.Stop() already calls DisableFunnel
 - [Phase ?]: FunnelClientForTest exported type alias enables cross-package fake injection without leaking unexported interface
+- [Phase ?]: App.SetSessionFunnel mirrors ToggleWebServing/SetSessionBrowse shape exactly — nil-guard then delegate; no Funnel logic in app.go
+- [Phase ?]: SessionInfo.FunnelActive json:"funnelActive" without omitempty — false must serialize so frontend poll detects expiry (mirrors BrowseEnabled rule)

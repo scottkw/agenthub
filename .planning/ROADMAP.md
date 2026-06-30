@@ -384,7 +384,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 **v4.2 Funnel Sharing & Polish (Phases 165-168)**
 
-- [ ] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement
+- [x] **Phase 165: Funnel Backend** - Atomic Funnel lifecycle: LocalClient promotion, EnableFunnel/DisableFunnel, Funnel-aware Origin allowlist + BaseURL + share-URL builders, four-path teardown, CheckFunnelAccess preflight, auto-expiry enforcement (completed 2026-06-30)
 - [ ] **Phase 166: Funnel Frontend + Help Guide** - Risk-acknowledgment dialog, auto-expiry selector, colorblind-safe internet-exposure indicator, Funnel URL display, one-click disable, in-app Sharing Guide Help article
 - [ ] **Phase 167: Native Notifications** - beeep cross-platform notification on waiting-state transition, de-dup guard, Settings toggle (default off)
 - [ ] **Phase 168: Bug Fix & Settings Polish** - Fix #112 (web-guest plugin-config SSE), #117 (multi-viewer kick + disconnect UI), #118 (remote-open in-app tab), #115 (Footer Share modal), #116 (Hub auto-switch setting)
@@ -404,11 +404,11 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. When Funnel prerequisites are not met, `EnableFunnel` returns a human-readable error string matching `ipn.CheckFunnelAccess` output and never calls `SetServeConfig`
   5. Web-share in local-network fallback mode (Tailscale not running) continues unaffected and `funnelActive` remains false
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 - [x] 165-01-PLAN.md — webserver Funnel primitives: LocalClient promotion, funnelClient seam, EnableFunnel/DisableFunnel/FunnelBaseURL/ClearLingeringFunnel, dual-origin allowlist (FNL-02/04/06 + Stop teardown)
 - [x] 165-02-PLAN.md — daemon half: funnelSessions/funnelExpiry maps, handleSetSessionFunnel endpoint, five-trigger teardown helper, Funnel-aware URL builders, auto-expiry, startup clear, SessionInfo.funnelActive (FNL-01/03/05/07)
-- [ ] 165-03-PLAN.md — Wails on-ramp: App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive mirror (FNL-01)
+- [x] 165-03-PLAN.md — Wails on-ramp: App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive mirror (FNL-01)
 
 ### Phase 166: Funnel Frontend + Help Guide
 
@@ -461,7 +461,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 165. Funnel Backend | 2/3 | In Progress|  |
+| 165. Funnel Backend | 3/3 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
 | 167. Native Notifications | 0/? | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
