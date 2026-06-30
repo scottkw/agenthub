@@ -6,14 +6,14 @@ current_phase: 165
 current_phase_name: funnel-backend
 status: verifying
 stopped_at: Completed 165-01-PLAN.md
-last_updated: "2026-06-30T15:50:09.509Z"
+last_updated: "2026-06-30T19:22:44.650Z"
 last_activity: 2026-06-30
 last_activity_desc: Phase 165 execution started
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 25
 ---
 
@@ -122,7 +122,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-30T15:49:20.757Z
+Last session: 2026-06-30T19:22:36.178Z
 Stopped at: Completed 165-01-PLAN.md
 Resume file: None
 Next action: `/gsd-execute-phase 165`
@@ -191,6 +191,7 @@ Next action: `/gsd-execute-phase 165`
 | Phase 165 P01 | ~6m | 3 tasks | 6 files |
 | Phase 165 P02 | 20 | 3 tasks | 5 files |
 | Phase 165 P03 | 490 | 1 tasks | 5 files |
+| Phase 165 P04 | 25 | 3 tasks | 5 files |
 
 ## Decisions
 
@@ -203,3 +204,5 @@ Next action: `/gsd-execute-phase 165`
 - [Phase ?]: FunnelClientForTest exported type alias enables cross-package fake injection without leaking unexported interface
 - [Phase ?]: App.SetSessionFunnel mirrors ToggleWebServing/SetSessionBrowse shape exactly — nil-guard then delegate; no Funnel logic in app.go
 - [Phase ?]: SessionInfo.FunnelActive json:"funnelActive" without omitempty — false must serialize so frontend poll detects expiry (mirrors BrowseEnabled rule)
+- [Phase ?]: GAP 1 Option A: EnableFunnel proxy target https://localhost → https+insecure://<bindIP>:<port> (FNL-03 502 closed)
+- [Phase ?]: GAP 2 kill path: handleDeleteSession calls runSessionExitCleanup synchronously — no grace period, no double-cleanup race (FNL-05 kill path closed)

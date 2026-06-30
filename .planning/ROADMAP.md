@@ -404,12 +404,12 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   4. When Funnel prerequisites are not met, `EnableFunnel` returns a human-readable error string matching `ipn.CheckFunnelAccess` output and never calls `SetServeConfig`
   5. Web-share in local-network fallback mode (Tailscale not running) continues unaffected and `funnelActive` remains false
 
-**Plans**: 3/3 complete + 1 gap-closure plan (165-04) pending
+**Plans**: 4/4 plans complete
 
 - [x] 165-01-PLAN.md — webserver Funnel primitives: LocalClient promotion, funnelClient seam, EnableFunnel/DisableFunnel/FunnelBaseURL/ClearLingeringFunnel, dual-origin allowlist (FNL-02/04/06 + Stop teardown)
 - [x] 165-02-PLAN.md — daemon half: funnelSessions/funnelExpiry maps, handleSetSessionFunnel endpoint, five-trigger teardown helper, Funnel-aware URL builders, auto-expiry, startup clear, SessionInfo.funnelActive (FNL-01/03/05/07)
 - [x] 165-03-PLAN.md — Wails on-ramp: App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive mirror (FNL-01)
-- [ ] 165-04-PLAN.md — gap closure (live UAT): fix Funnel 502 (proxy target localhost→bindIP, https+insecure) + tear down Funnel on explicit kill path; real-reachability + kill-path regression tests (FNL-03/FNL-05)
+- [x] 165-04-PLAN.md — gap closure (live UAT): fix Funnel 502 (proxy target localhost→bindIP, https+insecure) + tear down Funnel on explicit kill path; real-reachability + kill-path regression tests (FNL-03/FNL-05)
 
 ### Phase 166: Funnel Frontend + Help Guide
 
@@ -462,7 +462,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 165. Funnel Backend | 3/3 | Complete   | 2026-06-30 |
+| 165. Funnel Backend | 4/4 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
 | 167. Native Notifications | 0/? | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
