@@ -4,7 +4,7 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
-status: awaiting-live-uat
+status: verified
 stopped_at: Completed 165-funnel-backend-05-PLAN.md
 last_updated: "2026-06-30T21:05:02.552Z"
 last_activity: 2026-06-30
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 165 (funnel-backend) — M-34 PASS LIVE ✅ (loopback-HTTP fix; FNL-03 closed end-to-end)
-Plan: 5 of 5 (165-05 loopback-HTTP fix verified live from an off-tailnet device)
-Status: M-34 PASS — off-tailnet device gets HTTP 200 on /app/ via Funnel (production build, -tags wailsassets). 502/hang gone. M-35 a/b/c/d ALL PASS live (every teardown trigger incl. GAP 2 kill-path + daemon-stop). Only M-36 (fallback mode, needs sudo to stop tailscaled; already unit-tested) remains for a fully-green manual checklist.
-Last activity: 2026-06-30 — live M-34 PASS on real Funnel tailnet (loopback-HTTP)
+Phase: 165 (funnel-backend) — ✅ FULLY VERIFIED LIVE (all manual UAT M-34/M-35/M-36 PASS)
+Plan: 5 of 5 complete; 165-05 loopback-HTTP fix proven end-to-end on a real Funnel tailnet
+Status: ALL manual UAT GREEN — M-34 off-tailnet 200 (loopback-HTTP, prod build); M-35 a/b/c/d every teardown trigger; M-36 fallback (local web-share works, Funnel fail-closed). FNL-01..07 code-verified + the live-only items now all pass. Phase 165 done.
+Last activity: 2026-06-30 — completed live UAT (M-34/M-35/M-36 all PASS)
 
 ```
-v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases — 165 Funnel reaches external guests ✅)
+v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases — 165 ✅ DONE, verified live)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -45,7 +45,8 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
   - **CHOSEN FIX (165-05, EXECUTED) = loopback-HTTP target — NOT a server-side cert hack, NOT FQDN.** Discussion with the user clarified the cleaner architecture: tailscaled already terminates the ONLY public TLS on hop 1 (guest→ingress, real verified cert); since AgentHub and tailscaled are CO-LOCATED, hop 2 doesn't need TLS at all. Fix: AgentHub adds a plain-HTTP listener on `127.0.0.1:0` (ephemeral) serving the same mux (bound in startTailscale, closed in Stop); EnableFunnel proxy target becomes `http://127.0.0.1:<loopbackPort>`. tailscaled proxies hop 2 to a live loopback endpoint — no TLS handshake, no SNI, no cert selection. Hop 2 plaintext is safe because loopback never leaves the host (co-location assumption recorded in code + threat model; must become a WireGuard-tunneled tailnet-IP target if ever split across nodes). Commits 628cc94f→3380202f. (Earlier interim ideas — FQDN target [Option B, DNS-loop dead] and a server-side SNI-agnostic GetCertificate wrap — were superseded by this simpler approach.)
   - The 165-04 test `TestEnableFunnel_ProxyTargetReachable` was FALSE-GREEN (loopback self-signed cert answered ANY SNI — same trap as [[feedback_tests_encoding_same_wrong_assumption]]). 165-05 REWROTE it to assert the loopback-HTTP target SHAPE (scheme http, host 127.0.0.1, port==loopback listener port AND != TLS port) + dial it with a plain http.Client. NOTE: the unit test guards target shape + loopback reachability only; it CANNOT reproduce the live SNI/ingress failure — live off-tailnet M-34 is the real acceptance gate.
   - **M-34 PASS LIVE 2026-06-30 (loopback-HTTP fix verified end-to-end):** off-tailnet device `curl` to the Funnel URL → **HTTP 200** on `/app/` (followed the /sessions→/app redirect), time ~0.44s. tailscaled proxied hop 2 to `http://127.0.0.1:<loopbackPort>` and the guest reached the session. Under the dev (`wails dev`) build the same path returned 503 "app bundle not configured" — that is the DOCUMENTED `go build`/no-`wailsassets` state (server.go:252-257; daemon has no embedded SPA), NOT a Funnel bug; reproduced identically on a direct (non-Funnel) loopback + TLS-listener hit. A production build (`wails build -tags wailsassets`) embeds the SPA → 200. So the live gate REQUIRES a production build, not `wails dev`. FNL-03 is CLOSED end-to-end.
-- **M-35 (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE) → all PASS live:** serve config empties immediately; the GAP 2 / FNL-05 kill-path fix (synchronous runSessionExitCleanup, no D-12 grace) is validated end-to-end on real tailscaled. (d) daemon-stop + M-36 fallback not re-run (moot while M-34 blocks; both already unit-tested).
+- **M-35 (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE), (d) daemon-stop → ALL PASS live:** serve config empties immediately on every trigger; the GAP 2 / FNL-05 kill-path fix (synchronous runSessionExitCleanup, no D-12 grace) and graceful daemon-stop teardown both validated end-to-end on real tailscaled.
+- **M-36 fallback (Tailscale stopped) → PASS live:** AgentHub auto-fell-back to local-mode web-share (`https://<LAN-IP>:7443`, Basic Auth); enabling Funnel failed CLOSED (HTTP 400 `funnel: loopback listener not started` — startLocal makes no loopback listener; CheckFunnelAccess passes on cached node capability so the loopback nil-guard is what fail-closes), no serve config written, local web-share unaffected. User-facing error wording + disabling the Funnel toggle in fallback is Phase 166 (Share modal) work.
 
 ### Quick Tasks Completed
 
@@ -69,7 +70,7 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ M-34 PASS live (off-tailnet 200); M-35 a/b/c/d PASS live; only M-36 fallback (sudo) left |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ DONE — code-verified + all live UAT pass (M-34 off-tailnet 200, M-35 a/b/c/d, M-36 fallback) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
@@ -135,7 +136,7 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 Last session: 2026-06-30T21:05:02.547Z
 Stopped at: Completed 165-funnel-backend-05-PLAN.md
 Resume file: None
-Next action: M-34 PASSED live ✅. Optionally run M-35(d) daemon-stop teardown + M-36 fallback (needs sudo to stop tailscaled; both already unit-tested) to fully close the manual checklist, then mark Phase 165 verified and advance to Phase 166 (Funnel Frontend + Help Guide). NOTE for future live UATs: the Funnel /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), which is expected, not a bug.
+Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 

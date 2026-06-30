@@ -554,12 +554,13 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   - _2026-06-30 live result:_ All four triggers verified on a real Funnel-granted tailnet — (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE /sessions/{id}, the 165-04 GAP 2 kill-path), (d) daemon stop — each emptied `tailscale serve status` immediately. PASS.
   - _Source:_ Phase 165 FNL-05 / T-165-08 (incomplete teardown threat); automated coverage in `TestFunnelTeardown_AllTriggers` (5 triggers, fake-verified).
 
-- **M-36** Fallback-mode web-share unaffected with Tailscale stopped (FNL boundary):
+- **M-36** Fallback-mode web-share unaffected with Tailscale stopped (FNL boundary) — **✅ PASS LIVE 2026-06-30**:
   1. Stop tailscaled (`sudo tailscale logout` or kill tailscaled) so the AgentHub daemon runs in fallback-mode (local-mode web server, non-Tailscale bind IP).
   2. Enable web-share via the GUI. Confirm the session is accessible on the local-mode HTTPS URL (with self-signed cert).
   3. Attempt to enable Funnel in the Share modal. Confirm a human-readable error appears (e.g. "Funnel not available; HTTPS must be enabled. See ...") and the web-share session remains accessible on the local URL (fallback mode unaffected).
   4. Restart tailscaled and confirm Funnel can be enabled once prerequisites are met.
   - _Why not automatable:_ Requires stopping the real system tailscaled; test environments cannot simulate the CheckFunnelAccess failure + fallback-mode coexistence scenario without a real tailscaled binary.
+  - _2026-06-30 live result:_ With Tailscale disconnected, AgentHub auto-started the web server in **local mode** (`https://10.200.3.106:7443`, LAN IP — not the tailnet). Local web-share served correctly behind Basic Auth (correct password → 302; wrong password → 401). Enabling Funnel **failed closed**: HTTP 400, no serve config written, local web-share unaffected afterward. PASS. NOTE: the 400 body is `funnel: loopback listener not started` (the 165-05 loopback nil-guard — `startLocal` creates no loopback listener) rather than a CheckFunnelAccess "Funnel not available" message, because `CheckFunnelAccess` validates cached node capabilities (HTTPS+Funnel attr+port policy), which persist while tailscaled is stopped. Behavior is correct + fail-closed; the user-facing wording + disabling the Funnel toggle in fallback mode is Phase 166 (Share-modal / FUI) work.
   - _Source:_ Phase 165 FNL-06 / T-165-03 (fallback-mode safety); automated coverage in `TestEnableFunnel_FallbackModeSafe` (webserver) + FNL-06 in `TestEnableFunnel_PrereqCheckPreventsSetServeConfig`.
 
 ---

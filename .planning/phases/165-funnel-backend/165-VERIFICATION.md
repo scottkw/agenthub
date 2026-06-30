@@ -1,7 +1,8 @@
 ---
 phase: 165-funnel-backend
 verified: 2026-06-30T20:15:00Z
-status: human_needed
+status: passed
+status_note: "Code-verified 9/9; all live-only UAT (M-34/M-35/M-36) PASSED on a real Funnel tailnet after the 165-05 loopback-HTTP fix. See Live UAT Addendum at EOF. NOTE: the human_verification block below was written for the 165-04 https+insecure target, which live UAT then proved insufficient (502 via TLS SNI) — superseded by 165-05; the addendum is authoritative."
 score: 9/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
@@ -176,3 +177,17 @@ Phase 165 gap-closure (165-04) is fully verified in the codebase.
 _Verified: 2026-06-30T20:15:00Z_
 _Verifier: Claude (gsd-verifier)_
 _Re-verification after: 165-04 gap-closure (FNL-03 502 + FNL-05 kill-path teardown)_
+
+---
+
+## Live UAT Addendum — 2026-06-30 (post-165-05, authoritative for the human-verification items)
+
+Live UAT on a real Funnel-granted tailnet (`kens-personal-macbook-air.tail46d69a.ts.net`) found that the 165-04 `https+insecure://<bindIP>:443` proxy target was itself insufficient end-to-end, and a follow-on gap-closure (**165-05**) closed it for real. All live-only items now PASS:
+
+- **M-34 — external-tailnet 200: ✅ PASS.** Off-tailnet device (no Tailscale) `curl -L` to the Funnel URL → **HTTP 200** on `/app/` (followed the /sessions→/app redirect), ~0.44s, against a production build (`wails build -tags wailsassets`). 502/hang gone.
+  - Root cause the unit tests missed (twice): hop 2 (tailscaled→AgentHub) needs a TLS handshake because the listener is HTTPS-only with an SNI-driven cert. `https+insecure://<bindIP>` (165-04) → tailscaled sends SNI=IP → no cert for an IP literal → TLS internal_error → 502. `https+insecure://<FQDN>` → public DNS resolves the FQDN to the Funnel ingress → Funnel→ingress→Funnel loop → hang. **165-05 fix:** AgentHub adds a plain-HTTP loopback listener (127.0.0.1, ephemeral) in startTailscale serving the same mux; `EnableFunnel` proxies hop 2 to `http://127.0.0.1:<loopbackPort>` — no TLS/SNI/cert on hop 2 (tailscaled owns the only public TLS on hop 1). Loopback plaintext is safe because it never leaves the host (co-location; documented in code + threat model T-165-18).
+  - BUILD NOTE: `/app/` serves only from a production build's embedded SPA; `wails dev`/`go build` (no `wailsassets` tag) returns 503 "app bundle not configured" (server.go:252-257) — expected, not a Funnel bug.
+- **M-35 — serve config empty after every teardown trigger: ✅ PASS (a/b/c/d).** Funnel-off, web-share-off, explicit-kill (DELETE — the 165-04 GAP 2 kill-path), and daemon-stop each emptied `tailscale serve status` immediately.
+- **M-36 — fallback mode (Tailscale stopped): ✅ PASS.** AgentHub auto-fell-back to local-mode web-share (`https://<LAN-IP>:7443`, Basic Auth: correct pw → 302, wrong pw → 401). Enabling Funnel failed CLOSED (HTTP 400, no serve config written, local web-share unaffected). The 400 body is `funnel: loopback listener not started` (the 165-05 loopback nil-guard; `startLocal` makes no loopback listener; `CheckFunnelAccess` passes on cached node capability while tailscaled is stopped). Behavior is correct/fail-closed; user-facing wording + disabling the toggle in fallback is Phase 166 (Share modal) work.
+
+**Verdict: Phase 165 (funnel-backend) goal achieved and verified live — Funnel reaches an external internet guest end-to-end, tears down on every trigger, and fails closed in fallback. FNL-01..07 closed.**
