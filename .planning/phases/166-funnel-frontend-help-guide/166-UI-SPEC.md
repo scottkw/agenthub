@@ -70,7 +70,7 @@ All sizes from the established `--hub-*` token set. No new sizes introduced.
 - Expiry selector: 14px / 400 (inherits from `--hub-font-size-base`)
 - Help cross-link: 12.5px / 400 (`--hub-font-size-sm`)
 - "Enable internet share" button: 14px / 600 (`--hub-font-weight-emphasis`)
-- "Cancel" button: 14px / 400
+- "Keep local only" button: 14px / 400
 - "INTERNET" badge text: 11px / 600 (`--hub-font-weight-emphasis` + uppercase)
 - Warm-up message: 12.5px / 400 / italic
 - Internet section heading "Internet (public)": 12.5px / 600 / uppercase / letter-spacing 0.08em (matches existing `settings-panel__body h3` pattern)
@@ -159,10 +159,12 @@ New CSS classes and the components that own them. All classes follow the existin
 .hub-funnel-risk-panel__text      — warning body text (14px / 400 / 1.5 / --hub-text-secondary)
 .hub-funnel-risk-panel__expiry    — row: "Auto-expire:" label + <select>
 .hub-funnel-risk-panel__help-link — "Want tighter containment? See the Sharing Guide →" (button, --hub-text-muted → --hub-accent on hover)
-.hub-funnel-risk-panel__actions   — button row: [Cancel] [Enable internet share]
+.hub-funnel-risk-panel__actions   — button row: [Keep local only] [Enable internet share]
 ```
 
-**Expand animation:** `max-height: 0 → 400px` with `overflow: hidden` and `transition: max-height 200ms ease-out`. Collapses on Cancel or after successful enable. Respects `prefers-reduced-motion: reduce` (skip animation, instant reveal/collapse).
+**Focal point:** The `hub-funnel-risk-panel__warning` block (left-bordered `⚠` stripe) is the primary visual anchor; the "Enable internet share" CTA is the secondary anchor. "Keep local only" is tertiary — ghost/outlined, visually subordinate.
+
+**Expand animation:** `max-height: 0 → 400px` with `overflow: hidden` and `transition: max-height 200ms ease-out`. Collapses on "Keep local only" or after successful enable. Respects `prefers-reduced-motion: reduce` (skip animation, instant reveal/collapse).
 
 **Background:** `--hub-surface-elevated`; border: `1px solid var(--hub-border)`; border-radius: `var(--hub-radius-sm)` (8px); padding: 16px.
 
@@ -224,7 +226,7 @@ New entry in `SECTION_META` array:
 
 ```
 State machine:
-  off → [toggle ON] → panel-visible → [Cancel] → off
+  off → [toggle ON] → panel-visible → [Keep local only] → off
                                      → [Enable internet share] → warming-up → active
                                                                              → warm-up-failed (30s timeout)
   active → [Disable internet share] → off (immediate, SetSessionFunnel(id, false, 0))
@@ -233,7 +235,7 @@ State machine:
 1. **Funnel toggle is OFF:** normal toggle appearance, `aria-checked="false"`, no risk panel.
 2. **User flips toggle to ON:** toggle does NOT call `SetSessionFunnel` directly. Instead, reveal the risk panel inline with expand animation. Toggle visually remains in the "pending" / partially-checked state (opacity 0.7) while panel is open to signal that it is not yet committed.
 3. **User selects expiry and clicks "Enable internet share":** call `SetSessionFunnel(sessionId, true, expirySeconds)`. Collapse panel. Show warm-up state in the Internet URL section immediately.
-4. **User clicks "Cancel":** collapse panel. Toggle reverts to OFF visually. No API call.
+4. **User clicks "Keep local only":** collapse panel. Toggle reverts to OFF visually. No API call.
 5. **Warm-up:** poll `funnelActive` from session-info (2s interval). Reveal URL/QR when active. Timeout at 30s.
 6. **Active state:** toggle is checked, risk panel hidden, Internet (public) section shows URL + copy + QR + disable button.
 7. **Disable:** single click on "Disable internet share" → `SetSessionFunnel(id, false, 0)` → toggle → OFF, Internet section hides, badge clears on next poll.
@@ -262,8 +264,8 @@ Default selected: "1 hour". Maps `expirySeconds=0` to the "no auto-expiry" senti
 ### Focus management
 
 - Risk panel receives focus when expanded (focus the Cancel button or the expiry selector as the first focusable element).
-- On Cancel or successful enable, return focus to the Funnel toggle.
-- All interactive elements in the risk panel are keyboard-navigable (Tab order: expiry select → help link → Cancel → Enable internet share).
+- On "Keep local only" or successful enable, return focus to the Funnel toggle.
+- All interactive elements in the risk panel are keyboard-navigable (Tab order: expiry select → help link → Keep local only → Enable internet share).
 - Disable button in the Internet section follows the existing `.tab-status-bar__btn` focus pattern: `outline: 2px solid var(--hub-accent)` on `:focus-visible`.
 
 ### Motion
@@ -290,12 +292,12 @@ All new animations respect the existing motion guard pattern:
 | Expiry options | "30 minutes" / "1 hour" / "4 hours" / "8 hours" / "Until I disable" |
 | Help cross-link | "Want tighter containment? See the Sharing Guide →" |
 | Primary CTA | "Enable internet share" |
-| Cancel button | "Cancel" |
+| Cancel button | "Keep local only" |
 | Internet section heading | "Internet (public)" |
 | Warm-up state | "Starting up… (TLS warming up)" |
 | Warm-up timeout error | "Connection timed out. Try disabling and re-enabling." |
 | Active URL label | "Public URL (read-only):" |
-| Copy button label | "Copy" (matches existing pattern) |
+| Copy button label | "Copy URL" |
 | Disable button | "Disable internet share" |
 | Funnel toggle label | "Enable internet sharing" |
 | Local-fallback disabled note | "Internet sharing requires Tailscale" |
