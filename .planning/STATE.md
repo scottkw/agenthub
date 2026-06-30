@@ -4,11 +4,11 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
-status: verifying
-stopped_at: Completed 165-01-PLAN.md
+status: verified
+stopped_at: Completed 165-04-PLAN.md (gap closure)
 last_updated: "2026-06-30T19:22:44.650Z"
 last_activity: 2026-06-30
-last_activity_desc: Phase 165 execution started
+last_activity_desc: Phase 165 executed + verified (9/9 must-haves; M-34/M-35/M-36 live-UAT pending)
 progress:
   total_phases: 4
   completed_phases: 1
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 165 (funnel-backend) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-30 — Phase 165 execution started
+Phase: 165 (funnel-backend) — VERIFIED (code-complete; live-UAT M-34/M-35/M-36 pending)
+Plan: 4 of 4
+Status: All 4 plans complete + verified (9/9 must-haves, all 7 FNL reqs code-verified, suites green)
+Last activity: 2026-06-30 — Phase 165 gap closure (165-04) executed + verified
 
 ```
-v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
+v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases)
 ```
 
 ### Quick Tasks Completed
@@ -59,7 +59,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | Planned |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ✅ Verified (live-UAT M-34/35/36 pending) |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
@@ -123,9 +123,9 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-06-30T19:22:36.178Z
-Stopped at: Completed 165-01-PLAN.md
+Stopped at: Completed 165-04-PLAN.md (gap closure) + phase verified
 Resume file: None
-Next action: `/gsd-execute-phase 165`
+Next action: Live-UAT M-34/M-35/M-36 on a real Funnel-granted tailnet, then `/gsd-new-milestone`-style advance to Phase 166 (Funnel Frontend + Help Guide)
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
