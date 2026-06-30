@@ -401,7 +401,10 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
   3. `tailscale serve status` shows an empty config after each of the four teardown triggers: user disables Funnel toggle, user disables web-share, session ends naturally, daemon stops cleanly
   4. When Funnel prerequisites are not met, `EnableFunnel` returns a human-readable error string matching `ipn.CheckFunnelAccess` output and never calls `SetServeConfig`
   5. Web-share in local-network fallback mode (Tailscale not running) continues unaffected and `funnelActive` remains false
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 165-01-PLAN.md — webserver Funnel primitives: LocalClient promotion, funnelClient seam, EnableFunnel/DisableFunnel/FunnelBaseURL/ClearLingeringFunnel, dual-origin allowlist (FNL-02/04/06 + Stop teardown)
+- [ ] 165-02-PLAN.md — daemon half: funnelSessions/funnelExpiry maps, handleSetSessionFunnel endpoint, five-trigger teardown helper, Funnel-aware URL builders, auto-expiry, startup clear, SessionInfo.funnelActive (FNL-01/03/05/07)
+- [ ] 165-03-PLAN.md — Wails on-ramp: App.SetSessionFunnel + DaemonClient.SetSessionFunnel + SessionInfo.FunnelActive mirror (FNL-01)
 
 ### Phase 166: Funnel Frontend + Help Guide
 **Goal**: Users can enable internet-sharing through a risk-aware UI flow, see a persistent non-color exposure indicator, and access an in-app guide covering both sharing paths.
@@ -445,7 +448,7 @@ Distribution follow-ups deferred to a future milestone (see `.planning/deferred/
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 165. Funnel Backend | 0/? | Not started | - |
+| 165. Funnel Backend | 0/3 | Not started | - |
 | 166. Funnel Frontend + Help Guide | 0/? | Not started | - |
 | 167. Native Notifications | 0/? | Not started | - |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
