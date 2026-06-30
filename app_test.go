@@ -15,12 +15,16 @@ import (
 	"net"
 	"os"
 	goruntime "runtime"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/scottkw/agenthub/internal/daemon"
 	"github.com/scottkw/agenthub/internal/webserver"
+	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
 )
 
 var testSockSeq atomic.Int64
@@ -144,6 +148,82 @@ func testAppWithDirectWebServer(t *testing.T, tlsCfg *tls.Config) (*App, func(se
 	})
 	return app, setup
 }
+
+// testAppWithAPI creates an App + daemon API pair (like testApp) and returns
+// the daemon API and SessionEngine so callers can inject test doubles
+// (e.g. SetWebServerForTest). Phase 165 / T-165-15.
+func testAppWithAPI(t *testing.T) (*App, *daemon.API, *daemon.SessionEngine) {
+	t.Helper()
+	if goruntime.GOOS == "windows" {
+		t.Skip("testAppWithAPI uses Unix domain sockets")
+	}
+	if goruntime.GOOS == "darwin" {
+		t.Setenv("HOME", t.TempDir())
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	}
+	engine := daemon.NewSessionEngine()
+	api := daemon.NewAPI(engine)
+	seq := testSockSeq.Add(1)
+	socketPath := fmt.Sprintf("/tmp/aht%d_%d.sock", os.Getpid(), seq)
+	_ = os.Remove(socketPath)
+	if err := api.Start(socketPath); err != nil {
+		t.Fatalf("testAppWithAPI: api.Start: %v", err)
+	}
+	if _, err := api.StartRelay(); err != nil {
+		t.Fatalf("testAppWithAPI: StartRelay: %v", err)
+	}
+	client := daemon.NewDaemonClient(socketPath)
+	time.Sleep(10 * time.Millisecond)
+	app := &App{
+		ctx:    context.Background(),
+		client: client,
+	}
+	t.Cleanup(func() {
+		engine.Manager().Shutdown()
+		api.Stop()
+		_ = os.Remove(socketPath)
+	})
+	return app, api, engine
+}
+
+// appTestFakeFunnelClient is a minimal webserver.FunnelClientForTest double for
+// app_test.go — mirrors daemonFakeFunnelClient in internal/daemon/funnel_test.go.
+// It stores the last SetServeConfig value so EnableFunnel / DisableFunnel can do
+// the full ETag read-modify-write without a live tailscaled daemon. Thread-safe.
+type appTestFakeFunnelClient struct {
+	mu           sync.Mutex
+	storedConfig *ipn.ServeConfig
+}
+
+func (f *appTestFakeFunnelClient) GetServeConfig(_ context.Context) (*ipn.ServeConfig, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.storedConfig, nil
+}
+
+func (f *appTestFakeFunnelClient) SetServeConfig(_ context.Context, cfg *ipn.ServeConfig) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.storedConfig = cfg
+	return nil
+}
+
+func (f *appTestFakeFunnelClient) StatusWithoutPeers(_ context.Context) (*ipnstate.Status, error) {
+	return &ipnstate.Status{
+		Self: &ipnstate.PeerStatus{
+			DNSName: "apptest.ts.net.",
+			CapMap: tailcfg.NodeCapMap{
+				tailcfg.CapabilityHTTPS: nil,
+				tailcfg.NodeAttrFunnel:  nil,
+				tailcfg.NodeCapability("https://tailscale.com/cap/funnel-ports?ports=443,8443,10000"): nil,
+			},
+		},
+	}, nil
+}
+
+// Compile-time assertion: appTestFakeFunnelClient implements the exported seam.
+var _ webserver.FunnelClientForTest = (*appTestFakeFunnelClient)(nil)
 
 func TestListSessionsEmpty(t *testing.T) {
 	app := testApp(t)
@@ -274,11 +354,36 @@ func TestApp_SetSessionFunnel_NilClient(t *testing.T) {
 // Phase 165 / T-165-15: App.ListSessions must propagate SessionInfo.FunnelActive
 // from the daemon source of truth so the frontend can poll funnel state.
 // false must stay false (NOT dropped by omitempty); true must stay true.
+//
+// Uses a real daemon + WebServer with an injected fake funnelClient so
+// App.SetSessionFunnel can succeed without a live tailscaled daemon.
 func TestListSessions_PropagatesFunnelActive(t *testing.T) {
 	if goruntime.GOOS == "windows" {
 		t.Skip("TestListSessions_PropagatesFunnelActive uses Unix domain sockets")
 	}
-	app := testApp(t)
+	app, api, engine := testAppWithAPI(t)
+
+	// Wire a WebServer with a fake funnel client so EnableFunnel can succeed.
+	tlsCfg, err := webserver.GenerateSelfSignedCert("127.0.0.1")
+	if err != nil {
+		t.Fatalf("GenerateSelfSignedCert: %v", err)
+	}
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "apptest.ts.net",
+		TLSConfig: tlsCfg,
+	}, engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	fake := &appTestFakeFunnelClient{}
+	ws.SetFunnelClientForTest(fake)
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
 
 	// Create a session to work with.
 	id, err := app.CreateSession("cat", "funnel-propagation-session", "", nil, 0, 0)

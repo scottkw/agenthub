@@ -358,6 +358,16 @@ func (c *DaemonClient) SetSessionBrowse(sessionID string, enabled bool) error {
 		SessionBrowseRequest{Enabled: enabled}, nil)
 }
 
+// SetSessionFunnel enables or disables Tailscale Funnel for a session.
+// Phase 165 / FNL-01. Mirrors ToggleWebServing / SetSessionBrowse — thin
+// delegation, no Funnel logic here. expiresIn is the auto-expiry duration in
+// seconds; 0 = no auto-expiry (FNL-07). The response body (FunnelURL) is
+// discarded here; the GUI retrieves it from IssueCapabilities.
+func (c *DaemonClient) SetSessionFunnel(sessionID string, enabled bool, expiresIn int) error {
+	return c.doJSON(http.MethodPost, "/sessions/"+sessionID+"/funnel",
+		SetSessionFunnelRequest{Enabled: enabled, ExpiresIn: expiresIn}, nil)
+}
+
 // IssueCapabilities mints the read + read,write capability pair for a
 // web-enabled session (D-07). Returns the URLs and single-use join codes
 // (D-09) for each. Called by the GUI/CLI/TUI after toggle-on.
