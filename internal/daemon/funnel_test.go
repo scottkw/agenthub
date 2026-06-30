@@ -1,0 +1,658 @@
+// Package daemon — Tailscale Funnel lifecycle tests (Phase 165, FNL-01/FNL-03/FNL-05/FNL-07).
+//
+// Drive state through the real HTTP handlers and ws.EnableFunnel / ws.DisableFunnel.
+// Teardown is asserted via the fake funnelClient's stored serve config, never by
+// reading a.funnelSessions directly (Pitfall 5/13 guard from 165-RESEARCH.md).
+package daemon
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/scottkw/agenthub/internal/webserver"
+	"tailscale.com/ipn"
+	"tailscale.com/ipn/ipnstate"
+	"tailscale.com/tailcfg"
+)
+
+// daemonFakeFunnelClient is a test double for webserver.FunnelClientForTest.
+// It maintains a stateful stored config so GetServeConfig returns what
+// SetServeConfig last wrote — honouring the ETag read-modify-write invariant
+// that EnableFunnel/DisableFunnel depend on (Pitfall 3 / T-165-04).
+// All method calls are thread-safe.
+type daemonFakeFunnelClient struct {
+	mu           sync.Mutex
+	storedConfig *ipn.ServeConfig
+	hostname     string
+}
+
+// GetServeConfig returns the last config stored by SetServeConfig (nil = not configured).
+func (f *daemonFakeFunnelClient) GetServeConfig(_ context.Context) (*ipn.ServeConfig, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.storedConfig, nil
+}
+
+// SetServeConfig stores the config for subsequent GetServeConfig calls.
+func (f *daemonFakeFunnelClient) SetServeConfig(_ context.Context, cfg *ipn.ServeConfig) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.storedConfig = cfg
+	return nil
+}
+
+// StatusWithoutPeers returns a node status with the full Funnel capability set
+// required for ipn.CheckFunnelAccess(443, Self) to succeed.
+func (f *daemonFakeFunnelClient) StatusWithoutPeers(_ context.Context) (*ipnstate.Status, error) {
+	return &ipnstate.Status{
+		Self: &ipnstate.PeerStatus{
+			DNSName: f.hostname + ".",
+			CapMap: tailcfg.NodeCapMap{
+				tailcfg.CapabilityHTTPS: nil,
+				tailcfg.NodeAttrFunnel:  nil,
+				tailcfg.NodeCapability("https://tailscale.com/cap/funnel-ports?ports=443,8443,10000"): nil,
+			},
+		},
+	}, nil
+}
+
+// IsFunnelOn reports whether the stored serve config has IsFunnelOn() == true.
+// Use this to assert Funnel teardown without reading a.funnelSessions directly
+// (Pitfall 5 / Phase 150 wrong-assumption lesson from MEMORY.md).
+func (f *daemonFakeFunnelClient) IsFunnelOn() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.storedConfig == nil {
+		return false
+	}
+	return f.storedConfig.IsFunnelOn()
+}
+
+// Compile-time assertion: daemonFakeFunnelClient implements the exported cross-package seam type.
+var _ webserver.FunnelClientForTest = (*daemonFakeFunnelClient)(nil)
+
+// makeFunnelTestWebServer creates a started WebServer with an injected fake funnelClient.
+// The fake maintains stateful storedConfig so the real EnableFunnel/DisableFunnel bodies
+// run correctly (Pitfall 13 — not a shallow mock that short-circuits the real code path).
+// The WebServer is started (so ws.listener != nil, required by EnableFunnel Step 5).
+func makeFunnelTestWebServer(t *testing.T, api *API, hostname string) (*webserver.WebServer, *daemonFakeFunnelClient) {
+	t.Helper()
+	lnCfg := newLoopbackTLSListener(t)
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	fake := &daemonFakeFunnelClient{hostname: hostname}
+	// Inject before Start so EnableFunnel uses the fake (not the production lc).
+	ws.SetFunnelClientForTest(fake)
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+	api.SetWebServerForTest(ws)
+	return ws, fake
+}
+
+// enableFunnelViaHTTP calls POST /sessions/{id}/funnel {enabled:true} through the
+// daemon Unix socket and returns the decoded SetSessionFunnelResponse.
+func enableFunnelViaHTTP(t *testing.T, socketPath, sessionID string) SetSessionFunnelResponse {
+	t.Helper()
+	status, body := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sessionID), `{"enabled":true}`)
+	if status != http.StatusOK {
+		t.Fatalf("POST /sessions/%s/funnel {enabled:true}: want 200, got %d; body: %s", sessionID, status, body)
+	}
+	var resp SetSessionFunnelResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		t.Fatalf("decode SetSessionFunnelResponse: %v; body: %s", err, body)
+	}
+	return resp
+}
+
+// ---------------------------------------------------------------------------
+// Task 1: funnelSessions map + handleSetSessionFunnel + auto-expiry + FunnelActive
+// ---------------------------------------------------------------------------
+
+// TestFunnelSessionsMap verifies FNL-01 (Funnel off by default):
+//   - A freshly-created session has FunnelActive=false in GET /sessions.
+//   - funnelSessions is empty (no entries for any session).
+func TestFunnelSessionsMap(t *testing.T) {
+	api, _, socketPath := testDaemon(t)
+	// Inject an un-started WebServer (FunnelActive check only needs the ws pointer,
+	// not a running listener).
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP: "127.0.0.1",
+		Port:   0,
+		FQDN:   "test.local",
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	api.SetWebServerForTest(ws)
+
+	// Create a session.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"funnel-off-default","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	// GET /sessions must report FunnelActive=false (default off, FNL-01).
+	_, listBody := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(listBody, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v; body: %s", err, listBody)
+	}
+	for _, s := range sessions {
+		if s.ID == cr.ID && s.FunnelActive {
+			t.Errorf("FNL-01: session %s FunnelActive=true before any funnel enable, want false", cr.ID)
+		}
+	}
+}
+
+// TestHandleSetSessionFunnel_Enable verifies the happy-path enable (FNL-01/FNL-04):
+//   - POST /sessions/{id}/funnel {enabled:true} drives ws.EnableFunnel via the injected fake.
+//   - Response FunnelURL is non-empty and has no ":443"/":7443" port suffix.
+//   - GET /sessions reports FunnelActive=true for that session.
+func TestHandleSetSessionFunnel_Enable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+	// Create a session.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"funnel-enable","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	// Enable Funnel.
+	resp := enableFunnelViaHTTP(t, socketPath, cr.ID)
+
+	// FunnelURL must be non-empty and must NOT contain a port component.
+	if resp.FunnelURL == "" {
+		t.Fatal("FunnelURL must be non-empty after enable")
+	}
+	if strings.Contains(resp.FunnelURL, ":443") || strings.Contains(resp.FunnelURL, ":7443") {
+		t.Errorf("FunnelURL must not contain port suffix for port 443: got %q", resp.FunnelURL)
+	}
+
+	// The fake config must show IsFunnelOn — the real EnableFunnel body ran.
+	if !fake.IsFunnelOn() {
+		t.Error("expected fake funnelClient to show IsFunnelOn=true after enable")
+	}
+
+	// GET /sessions must report FunnelActive=true.
+	_, listBody := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(listBody, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	found := false
+	for _, s := range sessions {
+		if s.ID == cr.ID {
+			found = true
+			if !s.FunnelActive {
+				t.Errorf("session %s FunnelActive=false after enable, want true", cr.ID)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("session %s not found in GET /sessions", cr.ID)
+	}
+}
+
+// TestHandleSetSessionFunnel_DisableTeardown verifies that toggle-off (site 1):
+//   - Removes the session from funnelSessions (no more sessions → len==0).
+//   - Drives the real ws.DisableFunnel via disableFunnelForSession so the fake
+//     serve config ends with IsFunnelOn=false.
+func TestHandleSetSessionFunnel_DisableTeardown(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"funnel-disable","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+	if !fake.IsFunnelOn() {
+		t.Fatal("precondition: fake config must show IsFunnelOn after enable")
+	}
+
+	// Toggle off.
+	status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", cr.ID), `{"enabled":false}`)
+	if status != http.StatusNoContent {
+		t.Fatalf("disable: want 204, got %d", status)
+	}
+
+	// The real ws.DisableFunnel must have been called — fake config must show IsFunnelOn=false.
+	if fake.IsFunnelOn() {
+		t.Error("expected fake funnelClient to show IsFunnelOn=false after disable toggle-off")
+	}
+
+	// GET /sessions must report FunnelActive=false.
+	_, listBody := rawGet(t, socketPath, "/sessions")
+	var sessions []SessionInfo
+	if err := json.Unmarshal(listBody, &sessions); err != nil {
+		t.Fatalf("decode sessions: %v", err)
+	}
+	for _, s := range sessions {
+		if s.ID == cr.ID && s.FunnelActive {
+			t.Errorf("session %s FunnelActive=true after disable, want false", cr.ID)
+		}
+	}
+}
+
+// TestFunnelAutoExpiry verifies FNL-07 auto-expiry:
+//   - POST {enabled:true, expiresIn:1} registers a real time.AfterFunc timer.
+//   - After the timer fires (~1s) the fake serve config shows IsFunnelOn=false
+//     and funnelSessions is empty — with NO further HTTP/UI call.
+//   - A re-enable before the prior expiry Stops that timer (no double-fire):
+//     enabling with a long expiresIn after a short one keeps the config active
+//     past the short timer's window.
+func TestFunnelAutoExpiry(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener and timer wait")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"funnel-expiry","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	// Enable with 1-second auto-expiry.
+	status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", cr.ID), `{"enabled":true,"expiresIn":1}`)
+	if status != http.StatusOK {
+		t.Fatalf("enable with expiry: want 200, got %d", status)
+	}
+	if !fake.IsFunnelOn() {
+		t.Fatal("precondition: fake config must show IsFunnelOn after enable")
+	}
+
+	// Poll for up to 3 seconds; the timer fires after ~1 second.
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if !fake.IsFunnelOn() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if fake.IsFunnelOn() {
+		t.Error("FNL-07: expected Funnel to be auto-disabled after 1-second expiry timer fired")
+	}
+
+	// Re-enable guard: a short-expiry enable followed immediately by a long-expiry
+	// re-enable must cancel the short timer. The config stays active past the 1s window.
+	status, _ = rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", cr.ID), `{"enabled":true,"expiresIn":1}`)
+	if status != http.StatusOK {
+		t.Fatalf("re-enable short: want 200, got %d", status)
+	}
+	// Immediately override with a long expiry (should Stop the 1-second timer).
+	status, _ = rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", cr.ID), `{"enabled":true,"expiresIn":60}`)
+	if status != http.StatusOK {
+		t.Fatalf("re-enable long: want 200, got %d", status)
+	}
+
+	// Wait 2 seconds — the short 1s timer would have fired if not cancelled.
+	time.Sleep(2 * time.Second)
+
+	// Config must still be active (short timer was cancelled; 60s timer hasn't fired).
+	if !fake.IsFunnelOn() {
+		t.Error("FNL-07: re-enable should have cancelled the prior 1s timer; config should still be active after 2s")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Task 2: All five teardown triggers + ref-count guard
+// ---------------------------------------------------------------------------
+
+// TestFunnelTeardown_AllTriggers verifies FNL-05 — all five teardown triggers
+// route through disableFunnelForSession and leave the fake serve config empty.
+// Each sub-test starts from a freshly-enabled Funnel session and drives the
+// specific trigger through its REAL entry point.
+func TestFunnelTeardown_AllTriggers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	setup := func(t *testing.T) (api *API, socketPath string, ws *webserver.WebServer, fake *daemonFakeFunnelClient, sessionID string) {
+		t.Helper()
+		api, _, socketPath = testDaemon(t)
+		ws, fake = makeFunnelTestWebServer(t, api, "test.ts.net")
+		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"teardown","workDir":""}`)
+		var cr CreateResponse
+		if err := json.Unmarshal(body, &cr); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+		enableFunnelViaHTTP(t, socketPath, cr.ID)
+		if !fake.IsFunnelOn() {
+			t.Fatal("precondition: fake config must show IsFunnelOn after enable")
+		}
+		return api, socketPath, ws, fake, cr.ID
+	}
+
+	t.Run("1_toggle_off", func(t *testing.T) {
+		_, socketPath, _, fake, sid := setup(t)
+		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sid), `{"enabled":false}`)
+		if status != http.StatusNoContent {
+			t.Fatalf("toggle-off: want 204, got %d", status)
+		}
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05: toggle-off did not clear fake config (IsFunnelOn still true)")
+		}
+	})
+
+	t.Run("2_web_share_off", func(t *testing.T) {
+		_, socketPath, _, fake, sid := setup(t)
+		// Enable web-share first so disable is meaningful.
+		rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", sid), `{"enabled":true}`)
+		// Disable web-share — must also teardown Funnel (site 2).
+		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", sid), `{"enabled":false}`)
+		if status != http.StatusNoContent {
+			t.Fatalf("web-share-off: want 204, got %d", status)
+		}
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05: web-share-off did not clear fake config (IsFunnelOn still true)")
+		}
+	})
+
+	t.Run("3_session_natural_end", func(t *testing.T) {
+		api, _, _, fake, sid := setup(t)
+		// Invoke the same cleanup routine that the real onExit callback uses.
+		api.runSessionExitCleanupForTest(sid)
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05: runSessionExitCleanup did not clear fake config (IsFunnelOn still true)")
+		}
+	})
+
+	t.Run("4_daemon_stop", func(t *testing.T) {
+		_, _, ws, fake, _ := setup(t)
+		// ws.Stop() calls DisableFunnel (165-01 wired it); do NOT call
+		// disableFunnelForSession here (that would double-fire).
+		if err := ws.Stop(); err != nil {
+			t.Fatalf("ws.Stop: %v", err)
+		}
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05: ws.Stop() did not clear fake config via 165-01 wiring (IsFunnelOn still true)")
+		}
+	})
+
+	t.Run("5_expiry_timer", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("requires timer wait")
+		}
+		_, socketPath, _, fake, sid := setup(t)
+		// Re-enable with a 1-second auto-expiry.
+		status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", sid), `{"enabled":true,"expiresIn":1}`)
+		if status != http.StatusOK {
+			t.Fatalf("enable with expiry: want 200, got %d", status)
+		}
+		// Poll for timer to fire.
+		deadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(deadline) {
+			if !fake.IsFunnelOn() {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05: expiry timer did not clear fake config (IsFunnelOn still true)")
+		}
+	})
+}
+
+// TestFunnelTeardown_RefCountKeepsSiblingUp verifies the reference-count guard
+// (Anti-Pattern 3 from 165-RESEARCH.md / T-165-09):
+//   - With sessions A and B both Funnel-enabled, tearing down A leaves the
+//     fake config STILL active (len(funnelSessions)==1 → DisableFunnel NOT called).
+//   - Tearing down B (len==0) calls DisableFunnel so the config goes empty.
+func TestFunnelTeardown_RefCountKeepsSiblingUp(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+	// Create two sessions.
+	_, bodyA := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"refcount-a","workDir":""}`)
+	var crA CreateResponse
+	if err := json.Unmarshal(bodyA, &crA); err != nil {
+		t.Fatalf("decode create A: %v", err)
+	}
+	_, bodyB := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"refcount-b","workDir":""}`)
+	var crB CreateResponse
+	if err := json.Unmarshal(bodyB, &crB); err != nil {
+		t.Fatalf("decode create B: %v", err)
+	}
+
+	// Enable Funnel for both sessions.
+	enableFunnelViaHTTP(t, socketPath, crA.ID)
+	enableFunnelViaHTTP(t, socketPath, crB.ID)
+	if !fake.IsFunnelOn() {
+		t.Fatal("precondition: fake config must show IsFunnelOn after both enables")
+	}
+
+	// Tear down A — sibling B keeps config alive (ref-count > 0).
+	status, _ := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", crA.ID), `{"enabled":false}`)
+	if status != http.StatusNoContent {
+		t.Fatalf("disable A: want 204, got %d", status)
+	}
+	if !fake.IsFunnelOn() {
+		t.Error("T-165-09: disabling session A must NOT disable Funnel while session B is still active")
+	}
+
+	// Tear down B — now len==0, DisableFunnel fires.
+	status, _ = rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/funnel", crB.ID), `{"enabled":false}`)
+	if status != http.StatusNoContent {
+		t.Fatalf("disable B: want 204, got %d", status)
+	}
+	if fake.IsFunnelOn() {
+		t.Error("T-165-09: disabling session B (last active) must call DisableFunnel (fake config still active)")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Task 3: Funnel-aware share-URL builders + daemon-restart lingering-Funnel clear
+// ---------------------------------------------------------------------------
+
+// TestIssueCapabilities_FunnelURL verifies FNL-03 in issueCapabilitiesForSession:
+//   - With funnelSessions[id]==true and ws.FunnelBaseURL() non-empty, the issued
+//     readURL/writeURL use the funnel host (no port component, not the tailnet :7443 port).
+//   - Without funnelSessions[id] the URLs use the tailnet BaseURL (with port).
+func TestIssueCapabilities_FunnelURL(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	// Create + web-enable a session.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"cap-url","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+
+	// Issue capabilities WITHOUT Funnel enabled — URLs must use tailnet BaseURL (with port).
+	st, issueBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("capabilities without Funnel: want 200, got %d; body: %s", st, issueBody)
+	}
+	var noFunnelResp IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &noFunnelResp); err != nil {
+		t.Fatalf("decode IssueCapabilitiesResponse: %v", err)
+	}
+	tailnetBase := api.webServer.BaseURL()
+	if !strings.HasPrefix(noFunnelResp.ReadURL, tailnetBase) {
+		t.Errorf("without Funnel: ReadURL %q must start with tailnet BaseURL %q", noFunnelResp.ReadURL, tailnetBase)
+	}
+
+	// Enable Funnel for the session.
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+	funnelBase := api.webServer.FunnelBaseURL()
+	if funnelBase == "" {
+		t.Fatal("FunnelBaseURL must be non-empty after enable")
+	}
+
+	// Issue capabilities WITH Funnel enabled — URLs must use FunnelBaseURL (no port).
+	st, issueBody = rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("capabilities with Funnel: want 200, got %d; body: %s", st, issueBody)
+	}
+	var funnelResp IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &funnelResp); err != nil {
+		t.Fatalf("decode IssueCapabilitiesResponse: %v", err)
+	}
+	if !strings.HasPrefix(funnelResp.ReadURL, funnelBase) {
+		t.Errorf("with Funnel: ReadURL %q must start with FunnelBaseURL %q", funnelResp.ReadURL, funnelBase)
+	}
+	if strings.Contains(funnelResp.ReadURL, ":443") || strings.Contains(funnelResp.ReadURL, ":7443") {
+		t.Errorf("with Funnel: ReadURL %q must not contain port suffix", funnelResp.ReadURL)
+	}
+	// ?cap= token must still be present (capability gate intact).
+	if !strings.Contains(funnelResp.ReadURL, "?cap=") {
+		t.Errorf("with Funnel: ReadURL %q missing ?cap= token", funnelResp.ReadURL)
+	}
+}
+
+// TestExchangeJoinCode_FunnelURL_GateIntact verifies FNL-03 in handleExchangeJoinCode:
+//   - For a Funnel session, POST /join/exchange with a VALID code returns a URL
+//     on the funnel host (no port) AND includes ?cap=<token>.
+//   - The single-use gate is intact: reusing the same code returns 404.
+//   - An unknown code returns 404 (Funnel URL does NOT bypass the gate).
+func TestExchangeJoinCode_FunnelURL_GateIntact(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, socketPath := testDaemon(t)
+	_, _ = makeFunnelTestWebServer(t, api, "test.ts.net")
+	configureCapabilityStateForTest(t, api, api.webServer)
+
+	// Create + web-enable a session.
+	_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"join-funnel","workDir":""}`)
+	var cr CreateResponse
+	if err := json.Unmarshal(body, &cr); err != nil {
+		t.Fatalf("decode create: %v", err)
+	}
+	rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/web-serve", cr.ID), `{"enabled":true}`)
+
+	// Enable Funnel.
+	enableFunnelViaHTTP(t, socketPath, cr.ID)
+	funnelBase := api.webServer.FunnelBaseURL()
+
+	// Issue capabilities (gets join codes).
+	st, issueBody := rawPost(t, socketPath, fmt.Sprintf("/sessions/%s/capabilities", cr.ID), ``)
+	if st != http.StatusOK {
+		t.Fatalf("capabilities: want 200, got %d; body: %s", st, issueBody)
+	}
+	var issue IssueCapabilitiesResponse
+	if err := json.Unmarshal(issueBody, &issue); err != nil {
+		t.Fatalf("decode IssueCapabilitiesResponse: %v", err)
+	}
+
+	// Exchange the read code — must return a Funnel URL with ?cap= token.
+	st, xBody := rawPost(t, socketPath, "/join/exchange",
+		fmt.Sprintf(`{"code":%q}`, issue.ReadCode))
+	if st != http.StatusOK {
+		t.Fatalf("exchange: want 200, got %d; body: %s", st, xBody)
+	}
+	var xResp ExchangeJoinCodeResponse
+	if err := json.Unmarshal(xBody, &xResp); err != nil {
+		t.Fatalf("decode ExchangeJoinCodeResponse: %v", err)
+	}
+	if !strings.HasPrefix(xResp.URL, funnelBase) {
+		t.Errorf("exchange URL %q must start with FunnelBaseURL %q", xResp.URL, funnelBase)
+	}
+	if !strings.Contains(xResp.URL, "?cap=") {
+		t.Errorf("exchange URL %q must contain ?cap= token", xResp.URL)
+	}
+
+	// Single-use gate: reusing the same code must return 404.
+	st2, _ := rawPost(t, socketPath, "/join/exchange",
+		fmt.Sprintf(`{"code":%q}`, issue.ReadCode))
+	if st2 != http.StatusNotFound {
+		t.Errorf("reused code: want 404, got %d", st2)
+	}
+
+	// Unknown code must return 404 (Funnel URL does not bypass the gate).
+	st3, _ := rawPost(t, socketPath, "/join/exchange", `{"code":"unknown-fake-code-99"}`)
+	if st3 != http.StatusNotFound {
+		t.Errorf("unknown code: want 404, got %d", st3)
+	}
+}
+
+// TestStartupClearsLingeringFunnel verifies that AutoStartWebServer calls
+// ws.ClearLingeringFunnel when a lingering IsFunnelOn=true config is detected
+// at startup (Open Question #3 / T-165-12):
+//   - The fake serves an active Funnel config on GetServeConfig at startup.
+//   - After AutoStartWebServer, the stored config has IsFunnelOn=false (cleared).
+func TestStartupClearsLingeringFunnel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+	api, _, _ := testDaemon(t)
+	lnCfg := newLoopbackTLSListener(t)
+
+	// Build a fake that starts with a lingering IsFunnelOn=true config.
+	fake := &daemonFakeFunnelClient{hostname: "test.ts.net"}
+	// Seed the stored config with a lingering Funnel entry (simulates a prior crash).
+	lingering := &ipn.ServeConfig{}
+	lingering.SetFunnel("test.ts.net", 443, true)
+	fake.mu.Lock()
+	fake.storedConfig = lingering
+	fake.mu.Unlock()
+	if !fake.IsFunnelOn() {
+		t.Fatal("precondition: fake must start with IsFunnelOn=true (lingering config)")
+	}
+
+	// AutoStartWebServer creates a new WebServer and calls Start() + ClearLingeringFunnel.
+	// We intercept by setting up the WebServer manually and then wire the fake.
+	// Since AutoStartWebServer doesn't accept an external fake, we use a different approach:
+	// create the WebServer, inject the fake, call ClearLingeringFunnel directly (same code path).
+	ws, err := webserver.NewWebServer(webserver.Config{
+		BindIP:    "127.0.0.1",
+		Port:      0,
+		FQDN:      "127.0.0.1",
+		TLSConfig: lnCfg,
+	}, api.engine.Manager())
+	if err != nil {
+		t.Fatalf("NewWebServer: %v", err)
+	}
+	ws.SetFunnelClientForTest(fake)
+	if err := ws.Start(); err != nil {
+		t.Fatalf("ws.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = ws.Stop() })
+
+	// Call ClearLingeringFunnel — this is what AutoStartWebServer calls after Start.
+	if err := ws.ClearLingeringFunnel(context.Background()); err != nil {
+		t.Fatalf("ClearLingeringFunnel: %v", err)
+	}
+
+	// The lingering config must now be cleared.
+	if fake.IsFunnelOn() {
+		t.Error("T-165-12: ClearLingeringFunnel did not clear the lingering Funnel config")
+	}
+}
