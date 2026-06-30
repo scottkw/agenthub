@@ -2,14 +2,18 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Funnel Sharing & Polish
-status: planning
-last_updated: "2026-06-30"
+current_phase: 165
+current_phase_name: funnel-backend
+status: executing
+stopped_at: Completed 165-01-PLAN.md
+last_updated: "2026-06-30T14:58:57.971Z"
 last_activity: 2026-06-30
+last_activity_desc: Phase 165 execution started
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.2 Funnel Sharing & Polish — Phase 165 planned 2026-06-30. Next: `/gsd-execute-phase 165`.
+**Current focus:** Phase 165 — funnel-backend
 
 ## Current Position
 
-Phase: 165 (Funnel Backend) — Planned (3 plans, plan-check PASSED)
-Plan: 165-01 (webserver), 165-02 (daemon), 165-03 (Wails bridge)
-Status: Planned — ready to execute. Plan-check passed (0 blockers, 2 doc-level warnings: VALIDATION.md flips to nyquist_compliant at closeout)
-Last activity: 2026-06-30 — Planned Phase 165 (research + pattern-map + 3 plans + plan-check)
+Phase: 165 (funnel-backend) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-30 — Phase 165 execution started
 
 ```
 v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
@@ -86,6 +90,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 **New Go dependency:** `github.com/gen2brain/beeep v0.11.2` (cross-platform notifications, no CGO)
 
 **Key files modified:**
+
 - `internal/webserver/server.go` — promote `lc local.Client` to struct field; add `EnableFunnel`/`DisableFunnel`/`FunnelBaseURL`
 - `internal/webserver/origin_mw.go` — dual-URL allowlist (tailnet + Funnel origins)
 - `internal/webserver/capability_mw.go` — `originAllowedForWrite` dual check
@@ -117,8 +122,8 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-06-30
-Stopped at: Phase 165 planned (3 plans, plan-check PASSED)
+Last session: 2026-06-30T14:58:57.963Z
+Stopped at: Completed 165-01-PLAN.md
 Resume file: None
 Next action: `/gsd-execute-phase 165`
 
@@ -183,3 +188,10 @@ Next action: `/gsd-execute-phase 165`
 | Phase 163 P03 | 3min | 2 tasks | 2 files |
 | Phase 164 P01 | 6 minutes | 3 tasks | 5 files |
 | Phase 164 P02 | 5 | 3 tasks | 5 files |
+| Phase 165 P01 | ~6m | 3 tasks | 6 files |
+
+## Decisions
+
+- [Phase ?]: Injectable funnelClient interface seam mirrors statusFunc/prefsFunc pattern; production ws.lc field, test fakeFunnelClient
+- [Phase ?]: CheckFunnelAccess + StatusWithoutPeers before ws.mu.Lock() (blocking Unix-socket calls must not hold mutex); ws.listener accessed directly to prevent RWMutex deadlock
+- [Phase ?]: requireAllowedOrigin dual-origin: tailnet URL primary, Funnel URL secondary; secondary inert when FunnelBaseURL()==empty (fail-closed, FNL-04)
