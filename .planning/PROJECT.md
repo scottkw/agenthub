@@ -8,6 +8,27 @@ A cross-platform desktop app (macOS, Linux, Windows) for running AI coding CLIs 
 
 One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
 
+## Current Milestone: v4.2 Funnel Sharing & Polish
+
+**Goal:** Let a user hand a live session link to someone *outside* their tailnet via one-click Tailscale Funnel (public HTTPS, gated behind an explicit risk acknowledgment and reversible teardown), document the more-contained device-share + ACL alternative as an in-app Help guide, add awaiting-input native desktop notifications, and clear the v4.1 web-share/Hub bug backlog.
+
+**Target features:**
+
+*Funnel sharing (Issue #107 — centerpiece):*
+- **Part 1 (in-app feature):** Per-session "Share over the internet (Funnel)" option alongside the existing web-share toggle. Off by default; enabling it passes a **risk-acknowledgment dialog** (public-internet exposure, join-code is the only gate for its TTL, recommend short-lived + read-only). Configured node-locally via the embedded Tailscale `LocalClient` `SetServeConfig`/`AllowFunnel` — **no admin API token, no ACL edits**, recipient needs no Tailscale account. Fully **reversible**: tears down Funnel config on disable, web-share-off, and session end. **Persistent visual indicator** while internet-exposed. Graceful, explanatory error when the tailnet hasn't enabled Funnel (prerequisite: `nodeAttrs`→`funnel` + HTTPS/MagicDNS).
+- **The integration landmine (must handle):** Origin allowlist + `BaseURL()` are not Funnel-aware. When Funnel is active, `BaseURL()` and the Origin check must use the Funnel hostname (cache from `Status()` / validate against `r.Host`), and share URLs (`issueCapabilitiesForSession`, `handleExchangeJoinCode`) must emit the Funnel hostname — else the share 403s before the capability token is ever checked. Capability tokens are already host-agnostic (session ID + perms only).
+- **Part 2 (in-app Help guide):** New "Sharing a session with someone outside your tailnet" Help article covering both the Funnel path and the **contained alternative** — device-share + `tag:agenthub` + an `autogroup:shared`→`tcp:7443` grant — including the copy-pasteable ACL grant and the wildcard-default (`*→*`) gotcha. Cross-linked from the Funnel risk dialog ("want tighter containment instead?").
+
+*Polish & fixes:*
+- **#110** — Native OS notification when a session is awaiting input (macOS / Windows / Linux).
+- **#116** — Settings → Session Behavior: option to NOT auto-switch to a new session created from the Hub (stay on the Hub tab).
+- **#112 (bug)** — Web-share guests lost live plugin-config + SSE hot-swap after the Phase 159 `/app/` redirect (known v4.1 deferral).
+- **#115 (bug)** — Footer "Enable Web" button is redundant with the Hub Share modal and its state can drift → rename to "Share Session" and open the share modal.
+- **#117 (bug)** — Shared session allows only one remote viewer; a second connection kicks the first, who stays "connected" in the Hub with no way to disconnect.
+- **#118 (bug)** — Opening a remote session from the Hub launches an external browser window instead of an in-app tab.
+
+**Key context:** Builds directly on existing infrastructure — the embedded Tailscale `LocalClient` is already constructed (then discarded) at `internal/webserver/server.go:364`, the TLS `GetCertificate` hook already covers Funnel hostnames (no cert work), and the perimeter (join code + HMAC capability token + RO/RW + `files.read`/`files.write`) carries over unchanged. New work = persisting the `LocalClient` on `WebServer`, the `SetServeConfig`/Funnel teardown lifecycle, making `BaseURL()`/Origin Funnel-aware, a Funnel toggle + risk dialog in `SessionShareModal.tsx` (+ sibling bound `App` method), the Help markdown article, and the notification/UX/bug fixes. **Out of scope:** automating device-share / ACL edits via the Tailscale admin API (would require an OAuth client with `policy_file` scope — separate heavier feature). Phase numbering continues from v4.1 (last = Phase 164) → v4.2 starts at **Phase 165**. Closes Issues #107, #110, #112, #115, #116, #117, #118.
+
 ## Shipped Milestone: v4.1 Session Chat — SHIPPED 2026-06-29
 
 > ✅ Shipped 2026-06-29 (tag `v4.1`, local-unpushed until release per the v3.6/v4.0 pattern). 14 phases (151–164), 54 plans, 45/45 requirements satisfied. Milestone audit PASSED; **override closeout** — 1 accepted deferral (INSTALL-01 / M-25 clean-box Linux install runs as a release-time step after `main` is pushed to origin). Closes Issues #79, #108, #109. The scope below is retained as the milestone's design record.
@@ -617,7 +638,14 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
+*Last updated: 2026-06-30 — v4.2 Funnel Sharing & Polish milestone STARTED (closes #107, #110, #112, #115, #116, #117, #118). Centerpiece is Issue #107 Tailscale Funnel: a one-click "Share over the internet (Funnel)" option per session — risk-acknowledged, off by default, reversible teardown, persistent internet-exposed indicator — configured node-locally via the embedded Tailscale `LocalClient` (`SetServeConfig`/`AllowFunnel`; no admin API token, recipient needs no Tailscale account), plus an in-app Help guide for the contained device-share + `autogroup:shared`→`tcp:7443` ACL alternative (with the wildcard-default gotcha). Key integration landmine: make `BaseURL()` + the Origin allowlist Funnel-aware (cache Funnel hostname from `Status()`) and emit it in share URLs, or shares 403 before the cap token is checked. Also: #110 native awaiting-input desktop notifications (macOS/Windows/Linux), #116 Settings toggle to not auto-switch to Hub-created sessions, and four v4.1 web-share/Hub bugs (#112 plugin hot-swap regression after the /app/ redirect, #115 redundant Footer Enable-Web button, #117 single-viewer kick, #118 remote-open external browser). Out of scope: automating device-share/ACL via the Tailscale admin API (separate OAuth `policy_file` feature). Phase numbering continues from 164 → v4.2 starts at Phase 165. Next: requirements + roadmap.*
+
+<details>
+<summary>Prior footer — v4.1 Session Chat milestone SHIPPED (2026-06-29)</summary>
+
 *Last updated: 2026-06-29 — v4.1 Session Chat milestone SHIPPED (tag `v4.1`, local-unpushed until release). 14 phases (151–164), 54 plans, 45/45 reqs, 381 commits (+51,309/−2,306 LOC over 4 days). Delivered a per-session human-to-human chat side-channel across the desktop GUI tab, Hub modal, and web-share guest from one shared `ChatPanel` (parity by construction): daemon-persisted JSONL thread (late-join scrollback, 10k cap, dies with the session), Markdown export, tailnet-ID + settable alias, `@alias` autocomplete, one-way sanitized `@session`→PTY inject (write-cap-gated, confirm-gestured), connected/typing presence, unread/mention badges, XSS-inert Markdown. Closed the real web-share parity gap by redirecting the actually-shared `/sessions/{id}?cap=` link → the chat-capable `/app/` SPA (Phase 155 had verified parity on a surface no guest reached). RO guests are full chat participants (D-06) while `@session`/PTY stay RO-gated (security re-reviewed). Orthogonal: #109 host-authority screen-share (VIEW-01..05), Linux `install.sh` + winget id/repo fixes, #108 Terminal-Plugins jump link. Milestone audit PASSED; **override closeout** — INSTALL-01/M-25 clean-box Linux install deferred to release-time (run after pushing `main` to origin). Closes #79, #108, #109. No active milestone — next is set via `/gsd-new-milestone`.*
+
+</details>
 
 <details>
 <summary>Prior footer — v4.1 milestone STARTED (2026-06-25)</summary>

@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.1
-milestone_name: Session Chat
-current_phase: 1
-status: Awaiting next milestone
-stopped_at: Completed 164-01-PLAN.md — CHAT-LAYOUT-01 overflow fix and fingerprint secondary label
-last_updated: "2026-06-29T01:37:06.125Z"
-last_activity: 2026-06-29
-last_activity_desc: Milestone v4.1 completed and archived
+milestone: v4.2
+milestone_name: Funnel Sharing & Polish
+status: planning
+last_updated: "2026-06-30T12:31:59.014Z"
+last_activity: 2026-06-30
 progress:
-  total_phases: 14
-  completed_phases: 14
-  total_plans: 54
-  completed_plans: 54
-  percent: 100
-current_phase_name: web-share-chat-layout-polish-message-header-overflow-fix-res
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v4.1 milestone shipped)
 
 ## Current Position
 
-Phase: Milestone v4.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-29 — Milestone v4.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-30 — Milestone v4.2 started
 
 ### Quick Tasks Completed
 
