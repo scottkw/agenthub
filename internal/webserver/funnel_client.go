@@ -32,3 +32,19 @@ type funnelClient interface {
 	// (blocking Unix-socket call — Anti-Pattern 5 / T-165-03).
 	StatusWithoutPeers(ctx context.Context) (*ipnstate.Status, error)
 }
+
+// FunnelClientForTest is an exported type alias for the funnelClient interface
+// so the daemon test package (internal/daemon/funnel_test.go) can create fake
+// implementations without importing unexported types (Pitfall 13 — cross-package seam).
+// Mirrors the SetWebServerForTest pattern in daemon/api.go:366.
+type FunnelClientForTest = funnelClient
+
+// SetFunnelClientForTest injects a test double for the funnelClient seam.
+// Must be called before EnableFunnel/DisableFunnel so tests use the fake
+// instead of the production local.Client. The ForTest suffix matches
+// SetWebServerForTest in daemon/api.go.
+func (ws *WebServer) SetFunnelClientForTest(fc FunnelClientForTest) {
+	ws.mu.Lock()
+	ws.funnelClient = fc
+	ws.mu.Unlock()
+}

@@ -31,6 +31,7 @@ type SessionInfo struct {
 	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
 	HomeDir       bool   `json:"homeDir"`         // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
 	BrowseEnabled bool   `json:"browseEnabled"`   // Phase 137 / SHARE-05: true when per-session browse toggle is ON; NOT omitempty (false must serialize so modal can seed on open)
+	FunnelActive  bool   `json:"funnelActive"`    // Phase 165 / FNL-01: true when Tailscale Funnel is active for this session; NOT omitempty (false must serialize so frontend poll detects expiry)
 	WorkDir       string `json:"workDir"`         // Phase 131 / GRID-02: EvalSymlinks-resolved session working directory; populated from engine.sessionWorkDirs map; enables Hub card grouping by directory
 }
 
@@ -148,6 +149,20 @@ type WebServeRequest struct {
 // POST /sessions/{id}/browse (Phase 137 / SHARE-03).
 type SessionBrowseRequest struct {
 	Enabled bool `json:"enabled"`
+}
+
+// SetSessionFunnelRequest is the request body for POST /sessions/{id}/funnel.
+// Phase 165 / FNL-01/FNL-07.
+type SetSessionFunnelRequest struct {
+	Enabled   bool `json:"enabled"`
+	ExpiresIn int  `json:"expiresIn"` // auto-expiry in seconds; 0 = no auto-expiry (FNL-07)
+}
+
+// SetSessionFunnelResponse is the response body for POST /sessions/{id}/funnel
+// when enabled=true. FunnelURL is the public share URL with no port component
+// (port 443 = default HTTPS, so ":443" is omitted). Phase 165 / FNL-01/FNL-03.
+type SetSessionFunnelResponse struct {
+	FunnelURL string `json:"funnelUrl"` // "https://<hostname>" — no :443 suffix
 }
 
 // --- Phase 87 capability types (D-06, D-07, D-09, D-11) ------------------

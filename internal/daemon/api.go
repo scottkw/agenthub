@@ -66,6 +66,18 @@ type API struct {
 	// trusted-cert chain. Production code leaves this nil and the proxy
 	// builds a fresh client per request via newRemoteFilesHTTPClient().
 	remoteFilesClientForTest *http.Client
+
+	// --- Phase 165 Funnel state (FNL-01/FNL-05/FNL-07) ----------------------
+	// funnelSessions tracks which sessions have Tailscale Funnel active.
+	// DisableFunnel is called on the WebServer ONLY when len(funnelSessions)==0
+	// (ref-count gate — Anti-Pattern 3 from 165-RESEARCH.md: never tear down a
+	// still-active sibling session). Lazy-initialised on first enable. Guarded by a.mu.
+	funnelSessions map[string]bool
+	// funnelExpiry holds per-session auto-expiry timers (FNL-07).
+	// A timer fires a.disableFunnelForSession asynchronously via time.AfterFunc.
+	// Early teardown calls t.Stop() + delete to prevent double-fire (T-165-13).
+	// Lazy-initialised on first timer registration. Guarded by a.mu.
+	funnelExpiry map[string]*time.Timer
 }
 
 // NewAPI creates an API wired to the given SessionEngine and registers all routes.
@@ -142,6 +154,10 @@ func (a *API) registerRoutes() {
 	// Loopback-trust (daemon socket): no auth gate — the owner's GUI is the only caller.
 	// Toggle-off clears grants (ClearGrants) — stale-cap threat mitigation (SHARE-05).
 	a.mux.HandleFunc("POST /sessions/{id}/browse", a.handleSetSessionBrowse)
+	// Phase 165 / FNL-01: per-session Tailscale Funnel toggle.
+	// Loopback-trust (daemon socket): no auth gate — only the owner's GUI calls this.
+	// Disable path routes through disableFunnelForSession (ref-count gate, T-165-09).
+	a.mux.HandleFunc("POST /sessions/{id}/funnel", a.handleSetSessionFunnel)
 	a.mux.HandleFunc("POST /join/exchange", a.handleExchangeJoinCode)
 	a.mux.HandleFunc("POST /capability/regenerate-key", a.handleRegenerateSigningKey)
 	// Phase 118 / FS-03..FS-07: read-only file API on the daemon-local socket.
@@ -598,11 +614,22 @@ func (a *API) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	// Enrich with web-enabled state from the running web server (SERVE-02).
 	a.mu.RLock()
 	ws := a.webServer
+	// Snapshot funnelSessions under the same read lock to avoid a separate lock
+	// acquisition — both reads are already serialised by a.mu.RLock.
+	funnelSnap := make(map[string]bool, len(a.funnelSessions))
+	for k, v := range a.funnelSessions {
+		funnelSnap[k] = v
+	}
 	a.mu.RUnlock()
 	if ws != nil {
 		for i := range sessions {
 			sessions[i].WebEnabled = ws.IsSessionEnabled(sessions[i].ID)
 		}
+	}
+	// Populate FunnelActive from the snapshot (FNL-01).
+	// NOT omitempty: false must serialise so frontend polling detects expiry.
+	for i := range sessions {
+		sessions[i].FunnelActive = funnelSnap[sessions[i].ID]
 	}
 
 	writeJSON(w, http.StatusOK, sessions)
@@ -1422,6 +1449,101 @@ func (a *API) handleTailnetPeers(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	peers := a.tailnetCache.getOrRefresh(ctx, tailnet.DiscoverAndProbe)
 	writeJSON(w, http.StatusOK, peers)
+}
+
+// handleSetSessionFunnel handles POST /sessions/{id}/funnel.
+// It enables or disables Tailscale Funnel per-session (FNL-01/FNL-07).
+// Phase 165.
+//
+// Enable path (req.Enabled==true): calls ws.EnableFunnel(ctx, 443) and, if
+// it succeeds, records funnelSessions[id]=true and optionally registers a
+// time.AfterFunc expiry timer (FNL-07). Returns 200 with SetSessionFunnelResponse.
+//
+// Disable path (req.Enabled==false): calls disableFunnelForSession and returns 204.
+//
+// CheckFunnelAccess errors (FNL-06) are surfaced verbatim as 400 so the user
+// sees the human-readable "Funnel not available; ..." text.
+func (a *API) handleSetSessionFunnel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req SetSessionFunnelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	a.mu.RLock()
+	ws := a.webServer
+	a.mu.RUnlock()
+	if ws == nil {
+		http.Error(w, "web server not running", http.StatusBadRequest)
+		return
+	}
+
+	if !req.Enabled {
+		a.disableFunnelForSession(r.Context(), id)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Enable path: call the real WebServer.EnableFunnel — CheckFunnelAccess runs inside.
+	if err := ws.EnableFunnel(r.Context(), 443); err != nil {
+		// Surface CheckFunnelAccess error verbatim (FNL-06).
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	a.mu.Lock()
+	if a.funnelSessions == nil {
+		a.funnelSessions = make(map[string]bool)
+	}
+	a.funnelSessions[id] = true
+
+	// FNL-07: register auto-expiry timer if expiresIn > 0.
+	if req.ExpiresIn > 0 {
+		if a.funnelExpiry == nil {
+			a.funnelExpiry = make(map[string]*time.Timer)
+		}
+		// Cancel any existing timer for this session before registering a new one
+		// (re-enable before expiry must not double-fire — T-165-13).
+		if t, ok := a.funnelExpiry[id]; ok {
+			t.Stop()
+		}
+		dur := time.Duration(req.ExpiresIn) * time.Second
+		a.funnelExpiry[id] = time.AfterFunc(dur, func() {
+			a.disableFunnelForSession(context.Background(), id)
+		})
+	}
+	a.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, SetSessionFunnelResponse{FunnelURL: ws.FunnelBaseURL()})
+}
+
+// disableFunnelForSession clears the per-session Funnel state and calls
+// ws.DisableFunnel when no other Funnel sessions remain (ref-count gate).
+// Invoked by: handleSetSessionFunnel toggle-off (site 1), handleWebServe
+// disable path (site 2), runSessionExitCleanup (site 3), and the funnelExpiry
+// timer (site 5). Site 4 (daemon stop) is covered by ws.Stop()→DisableFunnel
+// in Phase 165-01 — do NOT add a second call there (would double-fire).
+//
+// Locking contract: acquires a.mu.Lock, then releases before calling ws.DisableFunnel
+// (blocking call must not hold the mutex — mirrors the pattern in runSessionExitCleanup).
+func (a *API) disableFunnelForSession(ctx context.Context, sessionID string) {
+	a.mu.Lock()
+	// Stop and remove the expiry timer if present (T-165-13 double-fire prevention).
+	if t, ok := a.funnelExpiry[sessionID]; ok {
+		t.Stop()
+		delete(a.funnelExpiry, sessionID)
+	}
+	delete(a.funnelSessions, sessionID)
+	remaining := len(a.funnelSessions)
+	ws := a.webServer
+	a.mu.Unlock()
+
+	// Ref-count gate (Anti-Pattern 3 / T-165-09): only call DisableFunnel when
+	// the last Funnel session is torn down so a still-active sibling is never cut off.
+	if ws != nil && remaining == 0 {
+		_ = ws.DisableFunnel(ctx)
+	}
 }
 
 // handleSetSessionBrowse handles POST /sessions/{id}/browse.
