@@ -612,9 +612,24 @@ func (ws *WebServer) EnableFunnel(ctx context.Context, funnelPort uint16) error 
 	if sc.Web == nil {
 		sc.Web = make(map[ipn.HostPort]*ipn.WebServerConfig)
 	}
+	// Option A (165-UAT gap 1 locked decision): proxy target uses the real bind address
+	// (ws.config.BindIP — the tailnet/loopback IP assertTailnetBindIP enforced) and the
+	// https+insecure scheme. WHY:
+	//   - The listener binds to ws.config.BindIP (a tailnet 100.x IP in prod, loopback in
+	//     tests), NOT to localhost. A localhost target is unreachable → tailscaled returns
+	//     HTTP 502 to every external Funnel guest (FNL-03 root cause).
+	//   - The listener already serves TLS via the real Tailscale cert (ws.lc.GetCertificate
+	//     in Funnel mode), so the internal same-host hop stays TLS-encrypted.
+	//   - https+insecure keeps TLS but skips cert-hostname verification because the proxy
+	//     dials the raw IP while the cert is issued for the DNS name. This hop never leaves
+	//     the host; the public guest↔tailscaled hop keeps full verified TLS with the public
+	//     cert, so the internet-facing posture (cap token + Origin allowlist + public cert)
+	//     is unchanged (T-165-14 / threat model).
+	//   - Rejected B (https://<hostname>.ts.net:<port>): depends on unverified MagicDNS
+	//     hairpin. Rejected C (loopback listener): extra cert surface.
 	sc.Web[hp] = &ipn.WebServerConfig{
 		Handlers: map[string]*ipn.HTTPHandler{
-			"/": {Proxy: "https://localhost:" + localPort},
+			"/": {Proxy: "https+insecure://" + net.JoinHostPort(ws.config.BindIP, localPort)},
 		},
 	}
 
