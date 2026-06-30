@@ -96,10 +96,11 @@ type WebServer struct {
 	funnelBaseURL string       // "https://<hostname>" (no port) when active on port 443
 	funnelPort    uint16       // the port passed to EnableFunnel; 0 when inactive
 
-	mu         sync.RWMutex
-	webEnabled map[string]bool // sessionID -> enabled (WEB-01 toggle)
-	listener   net.Listener
-	mux        *http.ServeMux
+	mu               sync.RWMutex
+	webEnabled       map[string]bool // sessionID -> enabled (WEB-01 toggle)
+	listener         net.Listener    // guarded by ws.mu; the TLS listener (tailscale cert or self-signed)
+	loopbackListener net.Listener    // guarded by ws.mu; plain-HTTP loopback listener for Funnel hop-2 target (startTailscale only)
+	mux              *http.ServeMux
 
 	// grants tracks the set of active grant_ids per session (D-14). Populated
 	// on toggle-on by Plan 04, cleared on toggle-off or session exit. Guarded
@@ -460,6 +461,43 @@ func (ws *WebServer) startTailscale() error {
 	ws.mu.Unlock()
 
 	go http.Serve(ln, ws.mux) //nolint:errcheck
+
+	// Bind the plain-HTTP loopback listener — the Funnel hop-2 proxy target.
+	//
+	// WHY THIS EXISTS (co-location assumption + SNI-502 rationale):
+	// tailscaled terminates the ONLY public TLS on hop 1 (guest→ingress, real verified
+	// Tailscale cert). On hop 2 (tailscaled→AgentHub) it dials the configured proxy target.
+	// The AgentHub HTTPS listener uses an SNI-driven cert (ws.lc.GetCertificate mints a cert
+	// ONLY for the <hostname>.ts.net DNS name). When tailscaled dials a raw IP, the TLS
+	// ClientHello sends SNI=IP-literal; the server has no cert for an IP → TLS internal_error
+	// → HTTP 502 for every external Funnel guest (FNL-03 root cause). https+insecure (165-04)
+	// does NOT fix this: it disables the CLIENT's cert-hostname verification, not the SERVER's
+	// SNI-driven cert selection — the server still fails cert selection and returns no cert.
+	//
+	// FIX: add a PLAIN-HTTP listener on loopback. tailscaled proxies hop 2 to
+	// http://127.0.0.1:<loopbackPort> — no TLS negotiation, no SNI, no cert-selection failure.
+	// The traffic never leaves the machine (kernel loopback, not on any wire), so no
+	// plaintext escapes to the network. The public posture is unchanged: cap token +
+	// dual-origin allowlist + public Tailscale cert on hop 1 are all intact.
+	//
+	// CO-LOCATION GUARD (MUST NOT be removed silently): this design is safe ONLY because
+	// tailscaled and the AgentHub listener run on the SAME host. If they are ever split
+	// across tailnet nodes, the Funnel proxy target MUST become a WireGuard-tunneled
+	// tailnet-IP target (never plaintext across a real network interface).
+	loopbackLn, loopbackErr := net.Listen("tcp", "127.0.0.1:0")
+	if loopbackErr != nil {
+		// Close the already-opened TLS listener so Start() fails cleanly without leaking it.
+		_ = ln.Close()
+		ws.mu.Lock()
+		ws.listener = nil
+		ws.mu.Unlock()
+		return fmt.Errorf("webserver: loopback listen: %w", loopbackErr)
+	}
+	ws.mu.Lock()
+	ws.loopbackListener = loopbackLn
+	ws.mu.Unlock()
+	go http.Serve(loopbackLn, ws.mux) //nolint:errcheck
+
 	return nil
 }
 
@@ -502,7 +540,7 @@ func (ws *WebServer) startLocal() error {
 	return nil
 }
 
-// Stop tears down the Funnel serve config (if active) then closes the listener,
+// Stop tears down the Funnel serve config (if active) then closes the listeners,
 // stopping the HTTP server. Teardown site 4 of 4 (FNL-05).
 func (ws *WebServer) Stop() error {
 	// DisableFunnel before closing the listener so the Tailscale serve config
@@ -510,13 +548,23 @@ func (ws *WebServer) Stop() error {
 	// Errors are discarded — we always proceed to close the listener.
 	_ = ws.DisableFunnel(context.Background())
 
+	// Snapshot both listeners under one RLock so we close them after releasing the
+	// lock (Close() may block or call back into the server).
 	ws.mu.RLock()
 	ln := ws.listener
+	loopbackLn := ws.loopbackListener
 	ws.mu.RUnlock()
+
+	var err error
 	if ln != nil {
-		return ln.Close()
+		err = ln.Close()
 	}
-	return nil
+	if loopbackLn != nil {
+		// Loopback close error is intentionally discarded — return only the TLS
+		// listener's close error to preserve existing Stop() semantics.
+		_ = loopbackLn.Close()
+	}
+	return err
 }
 
 // Addr returns the listener's network address (host:port).
