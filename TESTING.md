@@ -25,11 +25,13 @@ The entire CI suite IS the regression suite. No build tags, no relocated files �
 
 | Group | Count | Location | Run Command | Guards |
 |-------|-------|----------|-------------|--------|
-| Go unit/integration | **367** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
+| Go unit/integration | **368** `*_test.go` files | `internal/`, repo root | `go test -race -short ./...` | Daemon API, relay wire framing, capability model, PTY, webserver, files, status, tailnet |
 | vitest (frontend) | **132** `*.test.ts/tsx` files | `frontend/src/` | `cd frontend && pnpm test` | React component render contracts, UI state, CSS token source gates, lib adapters (relay, remote, hub, status) |
 | Playwright e2e | **9** `*.spec.ts` files | `frontend/e2e/` | `cd frontend && pnpm exec playwright test` | Web surface: file browser cap gate, file write/upload/delete, CSP, web-links toggle, plugin hot-swap, vendored xterm addons, cross-surface chat parity gate (PARITY-01/EXPORT-01), web-share guest scope (WEBCHAT-03) |
 | build-script | **2** `build-script.test.sh, install-sh.test.sh` | `tests/` | `bash tests/build-script.test.sh && bash tests/install-sh.test.sh` | Go build + Wails asset embedding |
-| **Total** | **510** | — | — | — |
+| **Total** | **511** | — | — | — |
+
+> Note: Phase 165-02 (FNL-01/FNL-03/FNL-05/FNL-07, Tailscale Funnel lifecycle — daemon half): Go +1 (`internal/daemon/funnel_test.go` — daemonFakeFunnelClient stateful test double, TestFunnelSessionsMap FNL-01 off-by-default, TestHandleSetSessionFunnel_Enable/DisableTeardown enable/disable lifecycle, TestFunnelAutoExpiry FNL-07 timer-based teardown, TestFunnelTeardown_AllTriggers 5-trigger table test, TestFunnelTeardown_RefCountKeepsSiblingUp sibling-session ref-count guard, TestIssueCapabilities_FunnelURL FNL-03 URL builder, TestExchangeJoinCode_FunnelURL_GateIntact FNL-03 join-code gate intact, TestStartupClearsLingeringFunnel T-165-12). Implementation: `internal/daemon/api.go` (funnelSessions/funnelExpiry maps, POST /sessions/{id}/funnel route, handleSetSessionFunnel, disableFunnelForSession ref-counted helper, handleWebServe site-2 wiring, runSessionExitCleanup site-3 wiring, Funnel-aware issueCapabilitiesForSession + handleExchangeJoinCode, AutoStartWebServer ClearLingeringFunnel), `internal/daemon/types.go` (SetSessionFunnelRequest/Response, SessionInfo.FunnelActive), `internal/webserver/funnel_client.go` (FunnelClientForTest alias + SetFunnelClientForTest seam). Counts updated 367→368 Go / 510→511 total. Added M-34..M-36 manual checklist items.
 
 > Note: Phase 165-01 (FNL-02/04/05/06, Tailscale Funnel lifecycle — webserver half): Go +1 (`internal/webserver/funnel_test.go` — funnelClient interface compile-smoke, EnableFunnel calls SetServeConfig + caches funnelBaseURL, CheckFunnelAccess prereq gate prevents SetServeConfig on missing cap, fallback mode safe when funnelClient is nil, WebServerStop triggers DisableFunnel, requireAllowedOrigin dual-origin 4 subtests, originAllowedForWrite Funnel origin). Implementation: `internal/webserver/funnel_client.go` (funnelClient interface seam), `internal/webserver/server.go` (lc field promotion, EnableFunnel/DisableFunnel/FunnelBaseURL/ClearLingeringFunnel methods, Stop call), `internal/webserver/origin_mw.go` (dual-origin requireAllowedOrigin + allowedOrigins), `internal/webserver/capability_mw.go` (dual-origin originAllowedForWrite). Counts updated 366→367 Go / 509→510 total.
 
@@ -262,10 +264,14 @@ The path column must contain a repo-relative file path ending in `.go`, `.ts`, `
 | CHAT-LAYOUT-01 | frontend/src/components/Hub/ChatPanel.test.tsx | vitest | Phase 164-01: getRowStyle non-separator returns width:'100%' (bounds row to thread width so existing WEBCHAT-06 ellipsis engages — CHAT-LAYOUT-01 root-cause fix, Decision 1); non-separator right:0 (prevents row overflow beyond right edge); active-separator has NO width property (CHAT-04 Pitfall 1 regression guard). |
 | CHAT-LAYOUT-02 | frontend/src/components/Hub/ChatPanel.test.tsx | vitest | Phase 164-02: clampChatWidth unit tests (below-min→MIN, above-max→MAX, in-range passthrough, NaN/±Infinity→DEFAULT, bounds ordered); localStorage persistence mount tests (valid restored, tampered 5000→MAX clamped, absent→DEFAULT, non-numeric→DEFAULT); resize drag handle tests (.chat-panel__resize-handle renders, drag left grows --chat-panel-width, drag clamps at MAX/MIN, D-02 resize does NOT call sendChat/sendSessionInject). |
 | CHAT-LAYOUT-02 | frontend/src/components/Hub/chatToggleOverlap.test.ts | vitest | Phase 164-02 (CHAT-FIX-01 update): test (b) updated — relocation offset asserts --chat-panel-width referenced in calc() instead of hard-coded 372px (tracks live resizable drawer width per CHAT-LAYOUT-02); tests (a) selector-present and (c) base right:12px unchanged. |
+| FNL-01 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestFunnelSessionsMap — freshly-created session FunnelActive=false (funnelSessions empty by default). TestHandleSetSessionFunnel_Enable — POST {enabled:true} drives real EnableFunnel; GET /sessions reports FunnelActive=true. TestHandleSetSessionFunnel_DisableTeardown — POST {enabled:false} calls real DisableFunnel via ref-counted helper; GET /sessions reports FunnelActive=false. |
 | FNL-02 | internal/webserver/funnel_test.go | Go | Phase 165-01: TestFunnelClient_CompileSmoke — compile-time assertion `var _ funnelClient = (*fakeFunnelClient)(nil)` proves the injectable funnelClient interface seam is satisfied by the fake; mirrors the statusFunc/prefsFunc injection idiom. |
+| FNL-03 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestIssueCapabilities_FunnelURL — with funnelSessions[id]=true, issueCapabilitiesForSession emits FunnelBaseURL (no port); without Funnel the tailnet BaseURL (with port) is used. TestExchangeJoinCode_FunnelURL_GateIntact — handleExchangeJoinCode emits FunnelBaseURL for Funnel sessions; joinCodes.Exchange single-use gate intact (reused code 404, unknown code 404). |
 | FNL-04 | internal/webserver/funnel_test.go | Go | Phase 165-01: TestRequireAllowedOrigin_FunnelOrigin (4 subtests) — Funnel origin passes; tailnet origin still passes; absent origin fails; mismatched origin fails. TestOriginAllowedForWrite_FunnelOrigin — Funnel origin returns true from originAllowedForWrite (dual-origin CSRF guard). |
 | FNL-05 | internal/webserver/funnel_test.go | Go | Phase 165-01: TestEnableFunnelCallsSetServeConfig — EnableFunnel calls GetServeConfig then SetServeConfig and caches funnelBaseURL; TestWebServerStop_DisablesFunnel — ws.Stop() calls DisableFunnel: SetServeConfig called once with nil (teardown site FNL-05); TestEnableFunnel_FallbackModeSafe — no panic when funnelClient is nil (fallback-mode guard). |
+| FNL-05 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestFunnelTeardown_AllTriggers — 5-trigger table test: (1) toggle-off, (2) web-share-off, (3) runSessionExitCleanup, (4) ws.Stop(), (5) expiry timer — each leaves fake IsFunnelOn=false, each driven through its real entry point. TestFunnelTeardown_RefCountKeepsSiblingUp — disabling session A (of 2) leaves config active; disabling B (len==0) calls DisableFunnel. |
 | FNL-06 | internal/webserver/funnel_test.go | Go | Phase 165-01: TestEnableFunnel_PrereqCheckPreventsSetServeConfig — CheckFunnelAccess returns error when CapabilityHTTPS / NodeAttrFunnel absent; SetServeConfig never called; error propagated verbatim (FNL-06 human-readable error passthrough). |
+| FNL-07 | internal/daemon/funnel_test.go | Go | Phase 165-02: TestFunnelAutoExpiry — POST {enabled:true, expiresIn:1} registers real time.AfterFunc; after timer fires (~1s) fake IsFunnelOn=false with no HTTP call. Re-enable before expiry cancels prior timer: long-expiry re-enable keeps config active 2s past the 1s window. TestFunnelTeardown_AllTriggers/5_expiry_timer — same assertion in trigger 5 sub-test. |
 
 ---
 
@@ -515,6 +521,33 @@ The alias-set wire contract, client-side validateAlias, alias-control component 
   4. Repeat from a non-Tailscale browser (e.g. LAN-only or with tailscaled stopped) to confirm the control still renders (gracefully shows empty or hostname fallback) without crashing.
   - _Why not automatable:_ The Playwright fixture uses a stub server with no live tailscaled; `lc.WhoIs` always fails in the fixture, so the computed-name pre-fill always falls back to an empty alias rather than a real Tailscale display name. Proving the real-WhoIs pre-fill path requires a live tailscaled daemon on the host machine and a real Tailscale peer accessing the web-share URL.
   - _Source:_ Phase 161 ALIAS-UI-01 (web pre-fill via MsgSelf 0x37); 161-VALIDATION.md Manual-Only Verifications; Phase 161-01 TestWebIdentity_SelfFrameOnConnect (server side — automated); Phase 161-02 onSelf callback (client side — automated); the live-browser pre-fill display is the remaining manual step.
+
+### Category I — Tailscale Funnel (FNL)
+
+- **M-34** External-tailnet 200 on the no-port Funnel URL (FNL-04):
+  1. Enable Funnel via the AgentHub GUI for a shared session.
+  2. From a machine NOT on the Tailscale tailnet (i.e. using a regular internet connection with no Tailscale client), open the Funnel URL displayed in the Share modal (format `https://<hostname>.ts.net/sessions/<id>?cap=<token>`). Confirm the page loads with HTTP 200 and the terminal is accessible — NOT a 403 or connection refused.
+  3. Confirm the URL in the browser contains NO port suffix (`:443` must be absent — Funnel port 443 = default HTTPS).
+  - _Why not automatable:_ Requires an external-tailnet machine with no Tailscale installed; automated test environments are either on the tailnet or have no live tailscaled. The FNL-04 dual-origin allowlist is unit-tested in `TestRequireAllowedOrigin_FunnelOrigin` (server side) but the end-to-end external HTTP leg requires live Tailscale Funnel infrastructure.
+  - _Source:_ Phase 165 FNL-04 / T-165-07 (origin-expansion threat).
+
+- **M-35** Serve config empty after each teardown trigger (FNL-05):
+  1. Enable Funnel via the GUI and confirm `tailscale serve status` shows an active Funnel entry for port 443.
+  2. For each of the four user-visible teardown triggers, verify that `tailscale serve status` shows an empty / no-active-funnel state immediately after:
+     a. Toggle Funnel OFF in the Share modal.
+     b. Toggle web-share OFF in the Share modal (with Funnel active).
+     c. Kill the session (natural exit or stop).
+     d. Stop the AgentHub daemon (`pkill -f agenthub`).
+  - _Why not automatable:_ Requires a live `tailscaled` daemon and the real `tailscale` CLI; the automated test suite uses a `fakeFunnelClient` that stubs out `SetServeConfig` without touching the real Tailscale serve config.
+  - _Source:_ Phase 165 FNL-05 / T-165-08 (incomplete teardown threat); automated coverage in `TestFunnelTeardown_AllTriggers` (5 triggers, fake-verified).
+
+- **M-36** Fallback-mode web-share unaffected with Tailscale stopped (FNL boundary):
+  1. Stop tailscaled (`sudo tailscale logout` or kill tailscaled) so the AgentHub daemon runs in fallback-mode (local-mode web server, non-Tailscale bind IP).
+  2. Enable web-share via the GUI. Confirm the session is accessible on the local-mode HTTPS URL (with self-signed cert).
+  3. Attempt to enable Funnel in the Share modal. Confirm a human-readable error appears (e.g. "Funnel not available; HTTPS must be enabled. See ...") and the web-share session remains accessible on the local URL (fallback mode unaffected).
+  4. Restart tailscaled and confirm Funnel can be enabled once prerequisites are met.
+  - _Why not automatable:_ Requires stopping the real system tailscaled; test environments cannot simulate the CheckFunnelAccess failure + fallback-mode coexistence scenario without a real tailscaled binary.
+  - _Source:_ Phase 165 FNL-06 / T-165-03 (fallback-mode safety); automated coverage in `TestEnableFunnel_FallbackModeSafe` (webserver) + FNL-06 in `TestEnableFunnel_PrereqCheckPreventsSetServeConfig`.
 
 ---
 

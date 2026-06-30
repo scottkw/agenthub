@@ -505,6 +505,12 @@ func (a *API) AutoStartWebServer(ip string, port int, fqdn, mode, password strin
 	if err := ws.Start(); err != nil {
 		return err
 	}
+	// Phase 165 / FNL-05 (Open Question #3): clear any Funnel serve config
+	// left over from a previous daemon run (Tailscale serve configs survive
+	// process restarts). This is analogous to grants not surviving restart.
+	// Errors are discarded — a stale config is suboptimal but not fatal;
+	// the next EnableFunnel will overwrite it anyway.
+	_ = ws.ClearLingeringFunnel(context.Background())
 	a.webServer = ws
 	return nil
 }
@@ -1319,7 +1325,18 @@ func (a *API) issueCapabilitiesForSession(sessionID string) (readURL, writeURL, 
 	ws.AddGrant(sessionID, rClaims.GrantID)
 	ws.AddGrant(sessionID, wClaims.GrantID)
 
+	// Phase 165 / FNL-03: use FunnelBaseURL (no-port public URL) for Funnel sessions;
+	// fall back to the tailnet BaseURL when Funnel is not active for this session.
+	// Fail-safe: if FunnelBaseURL is "" (not yet cached or race), keep the tailnet base.
 	base := ws.BaseURL()
+	a.mu.RLock()
+	isFunnelSession := a.funnelSessions[sessionID]
+	a.mu.RUnlock()
+	if isFunnelSession {
+		if fb := ws.FunnelBaseURL(); fb != "" {
+			base = fb
+		}
+	}
 	readURL = base + "/sessions/" + sessionID + "?cap=" + rTok
 	writeURL = base + "/sessions/" + sessionID + "?cap=" + wTok
 
@@ -1417,7 +1434,19 @@ func (a *API) handleExchangeJoinCode(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "web server not running", http.StatusBadRequest)
 		return
 	}
-	url := ws.BaseURL() + "/sessions/" + claims.SID + "?cap=" + token
+	// Phase 165 / FNL-03: use FunnelBaseURL for Funnel sessions (same swap logic
+	// as issueCapabilitiesForSession). The joinCodes.Exchange single-use consumption
+	// and the cap token are unaffected — only the host changes (T-165-11).
+	base := ws.BaseURL()
+	a.mu.RLock()
+	isFunnelSession := a.funnelSessions[claims.SID]
+	a.mu.RUnlock()
+	if isFunnelSession {
+		if fb := ws.FunnelBaseURL(); fb != "" {
+			base = fb
+		}
+	}
+	url := base + "/sessions/" + claims.SID + "?cap=" + token
 	writeJSON(w, http.StatusOK, ExchangeJoinCodeResponse{URL: url})
 }
 
