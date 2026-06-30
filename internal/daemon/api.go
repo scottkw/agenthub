@@ -686,6 +686,10 @@ func (a *API) runSessionExitCleanup(sessionID string) {
 		ws.DisableSession(sessionID)
 		ws.ClearGrants(sessionID) // D-15 also applies on natural exit (Pitfall 1)
 	}
+	// Phase 165 / FNL-05: natural session end also tears down Funnel (site 3).
+	// Routes through the ref-counted helper so a sibling Funnel session is not
+	// prematurely cut off (Anti-Pattern 3 / T-165-09).
+	a.disableFunnelForSession(context.Background(), sessionID)
 }
 
 // runSessionExitCleanupForTest is a test-only alias for runSessionExitCleanup.
@@ -1229,6 +1233,10 @@ func (a *API) handleWebServe(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.DisableSession(id)
 	ws.ClearGrants(id) // D-15: permanent grant clear on toggle-off
+	// Phase 165 / FNL-05: web-share-off also tears down Funnel for this session
+	// (site 2). Routes through the ref-counted disableFunnelForSession helper so
+	// a sibling Funnel session is never cut off prematurely (Anti-Pattern 3).
+	a.disableFunnelForSession(r.Context(), id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
