@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 **Core value:** One app to launch, manage, and share AI coding terminal sessions across local and remote access — with zero manual setup for web serving, TLS, or session persistence.
-**Current focus:** v4.2 Funnel Sharing & Polish — roadmap created 2026-06-30. Start with `/gsd-plan-phase 165`.
+**Current focus:** v4.2 Funnel Sharing & Polish — Phase 165 planned 2026-06-30. Next: `/gsd-execute-phase 165`.
 
 ## Current Position
 
-Phase: 165 (Funnel Backend) — Not started
-Plan: —
-Status: Roadmap complete, ready to plan Phase 165
-Last activity: 2026-06-30 — Roadmap created for v4.2 milestone
+Phase: 165 (Funnel Backend) — Planned (3 plans, plan-check PASSED)
+Plan: 165-01 (webserver), 165-02 (daemon), 165-03 (Wails bridge)
+Status: Planned — ready to execute. Plan-check passed (0 blockers, 2 doc-level warnings: VALIDATION.md flips to nyquist_compliant at closeout)
+Last activity: 2026-06-30 — Planned Phase 165 (research + pattern-map + 3 plans + plan-check)
 
 ```
 v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
@@ -55,7 +55,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | Not started |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | Planned |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
@@ -118,9 +118,9 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 ## Session Continuity
 
 Last session: 2026-06-30
-Stopped at: Roadmap created for v4.2 (Phases 165-168)
+Stopped at: Phase 165 planned (3 plans, plan-check PASSED)
 Resume file: None
-Next action: `/gsd-plan-phase 165`
+Next action: `/gsd-execute-phase 165`
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
