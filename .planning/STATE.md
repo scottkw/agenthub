@@ -5,10 +5,10 @@ milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
 status: verified
-stopped_at: Completed 165-funnel-backend-05-PLAN.md
-last_updated: "2026-06-30T21:05:02.552Z"
+stopped_at: Phase 166 context gathered
+last_updated: "2026-06-30T23:09:07.373Z"
 last_activity: 2026-06-30
-last_activity_desc: executed gap-closure 165-05 (loopback-HTTP Funnel target); awaiting live M-34
+last_activity_desc: completed live UAT (M-34/M-35/M-36 all PASS)
 progress:
   total_phases: 4
   completed_phases: 1
@@ -133,9 +133,9 @@ v4.2 Progress: [█████░░░░░░░░░░░░░░░░]
 
 ## Session Continuity
 
-Last session: 2026-06-30T21:05:02.547Z
-Stopped at: Completed 165-funnel-backend-05-PLAN.md
-Resume file: None
+Last session: 2026-06-30T23:09:07.362Z
+Stopped at: Phase 166 context gathered
+Resume file: .planning/phases/166-funnel-frontend-help-guide/166-CONTEXT.md
 Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
