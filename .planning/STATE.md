@@ -4,11 +4,11 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 165
 current_phase_name: funnel-backend
-status: live-uat-failed
+status: awaiting-live-uat
 stopped_at: Completed 165-funnel-backend-05-PLAN.md
 last_updated: "2026-06-30T21:05:02.552Z"
 last_activity: 2026-06-30
-last_activity_desc: live UAT on real Funnel tailnet
+last_activity_desc: executed gap-closure 165-05 (loopback-HTTP Funnel target); awaiting live M-34
 progress:
   total_phases: 4
   completed_phases: 1
@@ -28,13 +28,13 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 
 ## Current Position
 
-Phase: 165 (funnel-backend) — LIVE UAT FAILED (M-34 Funnel still 502; needs gap-closure 165-05)
-Plan: 4 of 4 (code-complete; 165-04 fix proven insufficient live)
-Status: M-34 FAIL — Option A (https+insecure://<bindIP>:443) breaks TLS SNI; correct fix = FQDN target (proven). M-35 a/b/c PASS (teardown + GAP 2 kill-path validated live).
-Last activity: 2026-06-30 — live UAT on real Funnel tailnet
+Phase: 165 (funnel-backend) — 165-05 EXECUTED (loopback-HTTP fix); AWAITING live M-34 re-test
+Plan: 5 of 5 (165-05 loopback-HTTP fix landed, suites green; live off-tailnet M-34 is the real gate)
+Status: 165-05 done — Funnel hop-2 target flipped to plain-HTTP loopback (Tailscale owns all public TLS). Tests green. Pending: live M-34 from an off-tailnet device to certify FNL-03 closed. M-35 a/b/c already PASS live (teardown + GAP 2 kill-path).
+Last activity: 2026-06-30 — executed gap-closure 165-05 (loopback-HTTP Funnel target)
 
 ```
-v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases — 165 blocked on M-34)
+v4.2 Progress: [█████░░░░░░░░░░░░░░░░] 25% (1/4 phases — 165 pending live M-34 gate)
 ```
 
 ## Live UAT Findings (2026-06-30, real Funnel-granted tailnet)
@@ -42,8 +42,8 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 - **M-34 FAIL (BLOCKER, FNL-03):** Funnel URL still fails end-to-end. The bug is at the **listener's TLS cert selection (SNI)**, not the proxy-target host string — and BOTH naive target fixes are dead ends (verified live, off-tailnet device + same-host):
   - **Option A `https+insecure://<bindIP>:443` (what 165-04 shipped) → 502.** tailscaled dials the raw IP → sends **SNI=100.86.210.104** → the listener's `lc.GetCertificate` only mints a cert for the `.ts.net` hostname, none for an IP literal → TLS `internal_error` → 502. `https+insecure` disables the client's *verification*, not the SNI the *server* needs to *select* a cert. Proven: connect-to-IP + SNI=hostname → **302 served**; SNI=IP → TLS internal error; openssl SNI=hostname → real Let's-Encrypt cert, verify OK.
   - **Option B `https+insecure://<FQDN>:443` (the experiment this session) → HANG/timeout (off-tailnet too).** Root cause = **DNS resolution loop**: MagicDNS resolves the FQDN → 100.86.210.104 (local listener), but **public DNS (8.8.8.8 / 1.1.1.1) resolves it → 209.177.145.137 / 199.38.181.54 = Tailscale's Funnel INGRESS servers**. tailscaled's proxy dialer resolves the FQDN to the public ingress → Funnel→ingress→Funnel loop → hang. (The original "unproven MagicDNS hairpin" rejection of B was right, sharper reason.)
-  - **Real fix (165-05) = SERVER-SIDE, SNI-agnostic cert.** Keep Option A's IP target; wrap the listener's `tls.Config.GetCertificate` so an empty/IP/non-`.ts.net` SNI still returns the node's hostname cert (substitute the FQDN as ServerName before calling `lc.GetCertificate`). Then tailscaled dials the IP, sends SNI=IP, the listener presents the hostname cert anyway, TLS completes (client skips verify via insecure), proxy reaches the listener. Locate where the Funnel/Tailscale-mode listener sets GetCertificate in internal/webserver.
-  - The 165-04 test `TestEnableFunnel_ProxyTargetReachable` was FALSE-GREEN: loopback self-signed cert answers ANY SNI, so the SNI-vs-cert mismatch could never occur (same trap as [[feedback_tests_encoding_same_wrong_assumption]]). The 165-05 test MUST build a listener whose cert is keyed to a hostname and dial with SNI=IP/empty, asserting the handshake succeeds + serves.
+  - **CHOSEN FIX (165-05, EXECUTED) = loopback-HTTP target — NOT a server-side cert hack, NOT FQDN.** Discussion with the user clarified the cleaner architecture: tailscaled already terminates the ONLY public TLS on hop 1 (guest→ingress, real verified cert); since AgentHub and tailscaled are CO-LOCATED, hop 2 doesn't need TLS at all. Fix: AgentHub adds a plain-HTTP listener on `127.0.0.1:0` (ephemeral) serving the same mux (bound in startTailscale, closed in Stop); EnableFunnel proxy target becomes `http://127.0.0.1:<loopbackPort>`. tailscaled proxies hop 2 to a live loopback endpoint — no TLS handshake, no SNI, no cert selection. Hop 2 plaintext is safe because loopback never leaves the host (co-location assumption recorded in code + threat model; must become a WireGuard-tunneled tailnet-IP target if ever split across nodes). Commits 628cc94f→3380202f. (Earlier interim ideas — FQDN target [Option B, DNS-loop dead] and a server-side SNI-agnostic GetCertificate wrap — were superseded by this simpler approach.)
+  - The 165-04 test `TestEnableFunnel_ProxyTargetReachable` was FALSE-GREEN (loopback self-signed cert answered ANY SNI — same trap as [[feedback_tests_encoding_same_wrong_assumption]]). 165-05 REWROTE it to assert the loopback-HTTP target SHAPE (scheme http, host 127.0.0.1, port==loopback listener port AND != TLS port) + dial it with a plain http.Client. NOTE: the unit test guards target shape + loopback reachability only; it CANNOT reproduce the live SNI/ingress failure — **live off-tailnet M-34 remains the real acceptance gate** (do not certify FNL-03 on the green unit test alone).
 - **M-35 (a) Funnel-off, (b) web-share-off, (c) explicit-kill (DELETE) → all PASS live:** serve config empties immediately; the GAP 2 / FNL-05 kill-path fix (synchronous runSessionExitCleanup, no D-12 grace) is validated end-to-end on real tailscaled. (d) daemon-stop + M-36 fallback not re-run (moot while M-34 blocks; both already unit-tested).
 
 ### Quick Tasks Completed
@@ -68,7 +68,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | ⛔ Live-UAT FAILED — M-34 502 (SNI); needs gap-closure 165-05 (FQDN target) |
+| 165 | Funnel Backend | FNL-01, FNL-02, FNL-03, FNL-04, FNL-05, FNL-06, FNL-07 | 🟡 165-05 loopback-HTTP fix EXECUTED (suites green); awaiting live M-34 off-tailnet re-test |
 | 166 | Funnel Frontend + Help Guide | FUI-01, FUI-02, FUI-03, FUI-04, FUI-05, FUI-06, HLP-01, HLP-02 | Not started |
 | 167 | Native Notifications | NTF-01, NTF-02, NTF-03, NTF-04 | Not started |
 | 168 | Bug Fix & Settings Polish | FIX-01, FIX-02, FIX-03, UX-01, UX-02 | Not started |
@@ -134,7 +134,7 @@ v4.2 Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 Last session: 2026-06-30T21:05:02.547Z
 Stopped at: Completed 165-funnel-backend-05-PLAN.md
 Resume file: None
-Next action: Gap-closure plan 165-05 — SERVER-SIDE SNI-agnostic cert fix (keep IP target; wrap listener GetCertificate to return the node's hostname cert for empty/IP SNI). NOT a proxy-target change — both Option A (IP→502) and Option B (FQDN→ingress loop/hang) are proven dead live. Plus a real-SNI regression test (hostname-keyed cert, dial SNI=IP must succeed). Then re-run M-34 live.
+Next action: Re-run M-34 LIVE from an off-tailnet device against the 165-05 loopback-HTTP build (rebuild via `wails dev`, enable Funnel, hit the cap'd URL — expect 200/302, not 502/hang). If M-34 passes → mark 165 verified, advance to Phase 166. The unit test (green) is NOT sufficient on its own (165-04 false-green precedent).
 
 ## Decisions (carry-forward from v4.1 — architecture reference)
 
