@@ -656,3 +656,126 @@ func TestStartupClearsLingeringFunnel(t *testing.T) {
 		t.Error("T-165-12: ClearLingeringFunnel did not clear the lingering Funnel config")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Task 4 (165-04 gap-closure): Kill-path Funnel teardown (GAP 2 / FNL-05)
+// ---------------------------------------------------------------------------
+
+// TestFunnelTeardown_KillPath is the FNL-05 kill-path regression guard (165-04 GAP 2):
+// An explicit kill (DELETE /sessions/{id} → handleDeleteSession) must tear down Funnel
+// and remove the funnelSessions[id] ref-count entry synchronously — no 10s grace period.
+//
+// Two sub-cases:
+//  1. Single Funnel session: after DELETE, fake config is empty (IsFunnelOn false) and
+//     GET /sessions reports FunnelActive=false.
+//  2. Two Funnel sessions A+B (ref-count guard): killing A leaves B's Funnel up
+//     (IsFunnelOn still true); B's subsequent natural-exit cleanup then clears the config.
+//     This proves the stale-ref-count regression (A's leftover entry blocking B's later
+//     teardown) is gone — which is the precise root cause of GAP 2.
+//
+// Teardown is asserted via the fake funnelClient's stored serve config (Pitfall 5/13 guard —
+// never assert via a.funnelSessions directly).
+func TestFunnelTeardown_KillPath(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener")
+	}
+
+	// --- Sub-case 1: single session ---
+	t.Run("single_session_killed", func(t *testing.T) {
+		api, _, socketPath := testDaemon(t)
+		_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+		// Create a session.
+		_, body := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"kill-single","workDir":""}`)
+		var cr CreateResponse
+		if err := json.Unmarshal(body, &cr); err != nil {
+			t.Fatalf("decode create: %v", err)
+		}
+
+		// Enable Funnel via the real HTTP handler (Pitfall 5 guard).
+		enableFunnelViaHTTP(t, socketPath, cr.ID)
+		if !fake.IsFunnelOn() {
+			t.Fatal("precondition: fake config must show IsFunnelOn=true after enable")
+		}
+
+		// Kill the session via DELETE /sessions/{id} — the real kill-path entry point.
+		status, _ := rawDelete(t, socketPath, fmt.Sprintf("/sessions/%s", cr.ID))
+		if status != http.StatusNoContent {
+			t.Fatalf("DELETE /sessions/%s: want 204, got %d", cr.ID, status)
+		}
+
+		// Fake config must show IsFunnelOn=false: the kill path must synchronously
+		// call runSessionExitCleanup → disableFunnelForSession → ws.DisableFunnel.
+		// Before the 165-04 fix, handleDeleteSession returned 204 without any cleanup,
+		// leaving Funnel exposed after kill (the GAP 2 defect).
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05 kill path: DELETE session did not clear fake config (IsFunnelOn still true after kill)")
+		}
+
+		// GET /sessions must report FunnelActive=false (or the session absent).
+		_, listBody := rawGet(t, socketPath, "/sessions")
+		var sessions []SessionInfo
+		if err := json.Unmarshal(listBody, &sessions); err != nil {
+			t.Fatalf("decode sessions: %v; body: %s", err, listBody)
+		}
+		for _, s := range sessions {
+			if s.ID == cr.ID && s.FunnelActive {
+				t.Errorf("FNL-05: session %s FunnelActive=true after kill, want false", cr.ID)
+			}
+		}
+	})
+
+	// --- Sub-case 2: two Funnel sessions — ref-count guard ---
+	t.Run("refcount_killing_a_keeps_b_up", func(t *testing.T) {
+		api, _, socketPath := testDaemon(t)
+		_, fake := makeFunnelTestWebServer(t, api, "test.ts.net")
+
+		// Create sessions A and B.
+		_, bodyA := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"kill-refcount-a","workDir":""}`)
+		var crA CreateResponse
+		if err := json.Unmarshal(bodyA, &crA); err != nil {
+			t.Fatalf("decode create A: %v", err)
+		}
+		_, bodyB := rawPost(t, socketPath, "/sessions", `{"cli":"cat","name":"kill-refcount-b","workDir":""}`)
+		var crB CreateResponse
+		if err := json.Unmarshal(bodyB, &crB); err != nil {
+			t.Fatalf("decode create B: %v", err)
+		}
+
+		// Enable Funnel for both sessions.
+		enableFunnelViaHTTP(t, socketPath, crA.ID)
+		enableFunnelViaHTTP(t, socketPath, crB.ID)
+		if !fake.IsFunnelOn() {
+			t.Fatal("precondition: fake config must show IsFunnelOn=true after both enables")
+		}
+
+		// Kill session A via DELETE. With the 165-04 fix, A is removed from
+		// funnelSessions synchronously. B's entry remains → len == 1 → DisableFunnel
+		// must NOT be called yet (ref-count gate — sibling B is still active).
+		status, _ := rawDelete(t, socketPath, fmt.Sprintf("/sessions/%s", crA.ID))
+		if status != http.StatusNoContent {
+			t.Fatalf("DELETE session A: want 204, got %d", status)
+		}
+
+		// Config must still be ACTIVE after killing A — B's Funnel must not be cut off.
+		// (This also guards against an over-eager teardown where the kill path
+		// calls DisableFunnel unconditionally instead of routing through the ref-counted
+		// disableFunnelForSession helper.)
+		if !fake.IsFunnelOn() {
+			t.Error("T-165-09 / kill ref-count: killing A must NOT disable Funnel while B is still active")
+		}
+
+		// Tear down B via the natural-exit cleanup path. With the 165-04 fix A's
+		// funnelSessions entry was already removed at kill time, so B's cleanup sees
+		// len == 0 and calls DisableFunnel. Without the fix, A's stale entry leaves
+		// len == 1 → DisableFunnel is never called → config stays active (the GAP 2
+		// stale-ref-count regression that blocked sibling teardown).
+		api.runSessionExitCleanupForTest(crB.ID)
+
+		// Config must be EMPTY now — the stale-ref-count regression is gone.
+		if fake.IsFunnelOn() {
+			t.Error("FNL-05 kill ref-count: B's natural-exit cleanup did not clear fake config — " +
+				"stale funnelSessions[A] entry from the kill path is blocking DisableFunnel (GAP 2)")
+		}
+	})
+}
