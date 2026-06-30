@@ -10,11 +10,14 @@ package webserver
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"tailscale.com/ipn"
 	"tailscale.com/ipn/ipnstate"
@@ -267,6 +270,106 @@ func TestWebServerStop_DisablesFunnel(t *testing.T) {
 	if got := ws.FunnelBaseURL(); got != "" {
 		t.Errorf("expected FunnelBaseURL=\"\" after Stop(), got %q", got)
 	}
+}
+
+// TestEnableFunnel_ProxyTargetReachable is the FNL-03 502 regression guard (165-04 GAP 1):
+//   - EnableFunnel's serve-config Proxy equals https+insecure://<bindIP>:<port> — NOT
+//     https://localhost:<port>. The host must be the web server's actual bind address
+//     (ws.config.BindIP), because the AgentHub listener binds to the tailnet IP, not
+//     localhost. The scheme must be https+insecure (TLS-encrypted internal hop, cert-hostname
+//     verification skipped because the proxy dials the raw IP while the cert is for the DNS name;
+//     this hop never leaves the host so the public guest↔tailscaled hop keeps full verified TLS).
+//   - The proxy target is actually reachable: an InsecureSkipVerify HTTPS client connects
+//     and receives a real HTTP response — NOT connection-refused (the exact 502 condition).
+//
+// State is driven through ws.EnableFunnel (Pitfall 5 guard; never set ws.funnelActive directly).
+func TestEnableFunnel_ProxyTargetReachable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("requires TLS listener and network dial")
+	}
+	ws, _ := testServer(t)
+
+	const funnelHostname = "mynode.ts.net"
+
+	// Get listener port before EnableFunnel — the listener is already started by testServer.
+	_, listenerPort, err := net.SplitHostPort(ws.Addr())
+	if err != nil {
+		t.Fatalf("ws.Addr() %q: SplitHostPort: %v", ws.Addr(), err)
+	}
+
+	// Stateful fake: SetServeConfig stores the last-written config so GetServeConfig
+	// returns it on the next call (ETag read-modify-write invariant — Pitfall 3 / T-165-04,
+	// mirrors TestWebServerStop_DisablesFunnel pattern).
+	var storedConfig *ipn.ServeConfig
+	fake := &fakeFunnelClient{
+		statusWithoutPeers: func(_ context.Context) (*ipnstate.Status, error) {
+			return validFunnelStatus(funnelHostname), nil
+		},
+		getServeConfig: func(_ context.Context) (*ipn.ServeConfig, error) {
+			return storedConfig, nil
+		},
+		setServeConfig: func(_ context.Context, cfg *ipn.ServeConfig) error {
+			storedConfig = cfg
+			return nil
+		},
+	}
+	ws.funnelClient = fake
+
+	if err := ws.EnableFunnel(context.Background(), 443); err != nil {
+		t.Fatalf("EnableFunnel: %v", err)
+	}
+
+	if storedConfig == nil {
+		t.Fatal("expected SetServeConfig to be called with a non-nil config")
+	}
+
+	// Extract the Proxy value from the Web handler.
+	hp := ipn.HostPort(net.JoinHostPort(funnelHostname, "443"))
+	web, ok := storedConfig.Web[hp]
+	if !ok {
+		t.Fatalf("no Web entry for HostPort %q in serve config", hp)
+	}
+	handler, ok := web.Handlers["/"]
+	if !ok {
+		t.Fatal("no '/' Web handler in serve config")
+	}
+
+	// Proxy must equal https+insecure://<bindIP>:<port>.
+	// The old value "https://localhost:<port>" fails this assertion: nothing listens on
+	// localhost when the AgentHub listener binds to the tailnet IP (ws.config.BindIP).
+	// That mismatch made tailscaled's Funnel proxy return HTTP 502 to every external guest.
+	// https+insecure keeps TLS encryption on the internal same-host hop but skips
+	// cert-hostname verification (Option A, 165-UAT gap 1 locked decision).
+	wantProxy := "https+insecure://" + net.JoinHostPort("127.0.0.1", listenerPort)
+	if handler.Proxy != wantProxy {
+		t.Errorf("EnableFunnel Proxy = %q, want %q\n"+
+			"  Old \"localhost\" host fails this: the listener binds to BindIP (127.0.0.1 in tests,\n"+
+			"  tailnet IP in prod), so localhost is unreachable → 502 for external guests.\n"+
+			"  This is the FNL-03 502 regression guard (165-04 GAP 1).",
+			handler.Proxy, wantProxy)
+	}
+
+	// Reachability leg: an InsecureSkipVerify HTTPS client must connect to the proxy
+	// target host:port and receive a real HTTP response from the running mux.
+	// Connection-refused or timeout is the exact 502 condition — must fail the test.
+	//
+	// Dial as https:// (strip the https+insecure scheme — Go's http.Client handles HTTPS;
+	// InsecureSkipVerify simulates what tailscaled does with the https+insecure target).
+	dialURL := "https://" + net.JoinHostPort("127.0.0.1", listenerPort)
+	insecure := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		},
+	}
+	resp, err := insecure.Get(dialURL)
+	if err != nil {
+		t.Fatalf("reachability: GET %q failed — connection-refused is the 502 condition: %v", dialURL, err)
+	}
+	defer resp.Body.Close()
+	// Any HTTP status is acceptable — the point is the connection was accepted and served,
+	// not connection-refused. This proves tailscaled's Funnel proxy would succeed.
+	t.Logf("reachability: GET %q → %d (proxy target reachable, FNL-03 closed)", dialURL, resp.StatusCode)
 }
 
 // ---------------------------------------------------------------------------
