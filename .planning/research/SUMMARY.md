@@ -1,171 +1,280 @@
 # Project Research Summary
 
-**Project:** AgentHub v4.1 — Session Chat
-**Domain:** Per-session human-to-human chat side channel (Go daemon + React 19 frontend)
-**Researched:** 2026-06-25
-**Confidence:** HIGH (architecture from direct codebase inspection; stack from confirmed go.mod / package.json; features/pitfalls from design record + cross-checked patterns)
+**Project:** AgentHub v4.2 "Funnel Sharing & Polish"
+**Domain:** Go/Wails v2 desktop app — Tailscale Funnel public internet sharing + cross-platform native notifications + Hub/web-share UX bug fixes
+**Researched:** 2026-06-30
+**Confidence:** HIGH (Funnel API verified against pinned v1.98.3 source on disk; architecture verified via direct code inspection of all named files; pitfalls grounded in project post-mortems)
+
+---
 
 ## Executive Summary
 
-AgentHub v4.1 adds a real-time human-to-human chat thread to each session so participants connected via Tailscale can coordinate without leaving the tool. The scope was deliberately reframed away from the original prototype, which assumed the agent would participate as a chat author. That premise fails against the real PTY: agent output is a TUI paint stream with no discrete turns, not a message API. The agreed design is a one-way bridge — humans chat with each other; `@session` injects a message into the agent's PTY stdin; the agent's reply appears in the terminal only. This constraint makes the feature buildable in a single milestone without importing a hard AI-segmentation problem.
+AgentHub v4.2 adds Tailscale Funnel (one-click public-internet session sharing), awaiting-input native notifications, a Settings auto-switch toggle, and four v4.1 bug fixes to the existing Go/Wails v2 + React app. The centerpiece is Issue #107: Funnel exposes a session to anyone on the internet — not just tailnet members — gated by the existing join-code + capability-token system. Zero new Go dependencies are required for Funnel; every required API (SetServeConfig, GetServeConfig, CheckFunnelAccess, SetFunnel, IsFunnelOn) is present in the already-pinned tailscale.com v1.98.3. Only one new dependency is needed: github.com/gen2brain/beeep v0.11.2 for cross-platform native notifications.
 
-The implementation strategy is conservative and proven: zero new Go modules, two small npm additions (`@tanstack/react-virtual`, `react-textarea-autosize`), and hand-rolled `@mention` (~80 lines). Every capability the feature needs — WebSocket relay fan-out (`coder/websocket` v1.8.14), Tailscale peer identity (`tailscale.com/client/tailscale.LocalClient.WhoIs`), PTY stdin injection, and Markdown rendering (`react-markdown` + `rehype-sanitize` + `remark-gfm`) — is already in `go.mod` or `frontend/package.json`. The primary new work is a JSONL-per-session message store (stdlib), relay protocol extension (new frame-type bytes on the existing WS connection), and the React chat panel shared across both surfaces.
+The single highest-severity architectural rule for this milestone is atomicity of the Funnel backend: EnableFunnel/DisableFunnel lifecycle, the Funnel-aware FunnelBaseURL() method, the dual-origin requireAllowedOrigin fix, and the funnel-URL-emitting share-link builders must all ship in the same phase. A partial deployment where EnableFunnel() works but the Origin check is not yet updated causes every Funnel guest to 403 silently before the capability token is ever inspected — the symptom looks like a token bug but is an Origin header mismatch (Funnel arrives at port 443, Origin is https://hostname.ts.net with no port; BaseURL() returns https://hostname.ts.net:7443). Equally critical, teardown must fire on all four exit paths (user disables toggle, user disables web-share, session ends naturally, daemon shuts down cleanly); a missed teardown leaves a publicly-accessible Tailscale serve config alive with no session behind it.
 
-The dominant risks are security in nature: a read-only cap holder sending chat messages or `@session` injections via the new input path; control-character injection through `@session` into PTY stdin; and XSS from Markdown rendering on the web surface. All three are definitively preventable with targeted enforcement at the daemon layer, but each requires explicit test coverage rather than assumption. Cross-surface parity (desktop GUI and web-share browser must behave identically) is a standing release-blocking rule that must be wired into every phase, not addressed at the end.
+The four v4.1 bug fixes (#112 plugin hot-swap, #115 Footer redundancy, #117 single-viewer kick, #118 external browser open) are independent of Funnel and of each other, with one exception: #117 requires both the relay buffer increase AND a viewer-disconnect UI to land in the same phase — shipping only the buffer change is documented as a recurring half-fix anti-pattern for this project. Funnel UAT must be verified from a machine OUTSIDE the tailnet; testing only from a tailnet device hides the Origin 403 bug (false-parity has bitten this project before).
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack adds nothing to Go and only two small, focused npm packages. All five new server-side capabilities (message store, relay fan-out, Tailscale identity, PTY injection, Markdown export) use modules already present in `go.mod`. The JSONL append-only file store (one per session, `~/.config/agenthub/chats/<sessionID>.jsonl`) was chosen over `modernc.org/sqlite` and `bbolt` because the data is bounded in volume, needs no cross-session queries, and a mutex-guarded `os.File` append is simpler and dependency-free for a sequential list. The relay extension uses `coder/websocket`'s existing `MessageText`/`MessageBinary` frame split — chat rides the same WS connection as PTY, eliminating duplicate auth plumbing.
+No stack changes beyond one new module. tailscale.com v1.98.3 (already in go.mod) exposes the full Funnel control surface via tailscale.com/client/local — the same import already used in server.go. The local.Client is currently constructed and discarded inside startTailscale(); promoting it to a WebServer struct field (by value, zero-value usable, no constructor) is the entire infrastructure change required. All Funnel control flows through lc.SetServeConfig / lc.GetServeConfig. Wails v2.10.2 has no notification API (Wails v3-only); beeep v0.11.2 provides a no-CGO cross-platform path using osascript on macOS, COM API / PowerShell on Windows, and D-Bus / notify-send on Linux.
 
-**Core technologies:**
-- `coder/websocket` v1.8.14 (already in go.mod): relay WS — add `MessageText` branch for chat frames; no new dep
-- `tailscale.com` v1.98.3 (already in go.mod): peer identity via `LocalClient.WhoIs(ctx, remoteAddr)` at WS upgrade
-- stdlib `encoding/json` + `os` + `sync.Mutex`: JSONL message store — zero new Go dep
-- `@tanstack/react-virtual` v3.14.3 (NEW): virtualized message list with React 19 `useFlushSync: false`
-- `react-textarea-autosize` v8.5.9 (NEW): auto-growing composer; 1.3 KB gzipped, ships TS types
-- `react-markdown` v10.1.0 + `rehype-sanitize` + `remark-gfm` (already installed): message bubble rendering
-- Hand-rolled `@mention` (~80 lines TS): `react-mentions` is 3 years unmaintained; React 19 untested; bounded participant list makes a library unnecessary
+**Core technologies (additive only):**
+- tailscale.com/client/local (already present): Funnel enable/disable via SetServeConfig/GetServeConfig; Funnel prereq check via ipn.CheckFunnelAccess; hostname resolution via StatusWithoutPeers
+- tailscale.com/ipn (already present): ServeConfig struct, SetFunnel/IsFunnelOn helpers, CheckFunnelAccess/NodeCanFunnel/CheckFunnelPort prereq functions
+- github.com/gen2brain/beeep v0.11.2 (NEW — only new dep): cross-platform native OS notifications, no CGO, single function call beeep.Notify(title, message, icon)
+
+**Critical version notes:**
+- Do NOT upgrade tailscale.com — Funnel APIs confirmed present in v1.98.3; a version bump is unnecessary and risks breaking the pinned go-webview2 constraint
+- Do NOT attempt Wails v3 upgrade for notifications — v3 is alpha; beeep is the correct path
+- Default Funnel port: 443 (gives a clean https://hostname.ts.net URL with no port component); fall back to 8443/10000 only if CheckFunnelPort(443) returns an error
 
 ### Expected Features
 
-**Must have (table stakes — v1 launch):**
-- Enter = send, Shift+Enter = newline
-- `@mention` autocomplete popover (session participants + pinned `@session` entry)
-- Presence indicator (connected/disconnected per participant)
-- Typing indicators (debounced, volatile, never stored)
-- Late-join scrollback (full thread on open, scroll-to-bottom, respects user scroll)
-- Message timestamps (HH:MM, hover → full ISO-8601) + day separators
-- Identity display: alias + tailnet ID on each message
-- Unread badge on chat toggle button and Hub session card; `@mention` gets distinct color
-- Cross-surface parity: every feature works identically on desktop GUI and web-share browser
+**Must have (table stakes):**
+- Funnel toggle off-by-default — every comparable tool (ngrok, VS Code port-forwarding, Tailscale CLI) defaults to private; accidental public exposure is a showstopper
+- Per-enable risk-acknowledgment dialog — blocks enabling; appears every time; no "don't show again"; contains risk statement, join-code gate explanation, TLS assurance, auto-expiry selector, and cross-link to Help article
+- Persistent "INTERNET ACTIVE" visual indicator on Hub session card and session tab while Funnel is active — text + non-color icon, never color-only (release-blocking for colorblind owner)
+- Funnel URL display with copy-to-clipboard immediately after enable
+- One-click Funnel teardown from the Share modal
+- Graceful, human-readable error when Funnel is not enabled in the tailnet (surface CheckFunnelAccess error strings verbatim)
+- Awaiting-input notification fires once on running->waiting status transition; never re-fires during sustained waiting
+- Notification user toggle in Settings (default: OFF)
+- Footer "Share Session" button opens SessionShareModal (replaces dual Enable/Disable Web buttons, fixing #115 state drift)
+- Settings toggle: "Switch to new session when created from Hub" (#116)
+- Remote session opens in-app xterm.js tab, not external browser (#118)
 
-**Should have (differentiators — v1 launch):**
-- `@session` → PTY stdin injection (one-way, RW-cap gated, "→ injected into terminal" indicator) — unique to AgentHub
-- Markdown thread export (download `.md` with YAML frontmatter)
+**Should have (differentiators):**
+- Auto-expiry selector in risk dialog (30 min / 1 hour / 4 hours / Session end) — no comparable tunneling tool offers this
+- In-app Help article: "Sharing a Session Outside Your Tailnet" — Funnel path + device-share ACL alternative with copy-pasteable grants block and tailnet-wildcard-default gotcha callout
+- Risk dialog cross-link to Help article
+- Plugin-config / SSE hot-swap fix for web guests after Phase 159 redirect (#112)
+- Multi-viewer Funnel sessions fix: relay buffer increase + viewer-disconnect UI, both in same phase (#117)
+- Funnel cert warmup UX state ("Funnel is starting up..." for up to 30 seconds on first use)
 
-**Defer to v1.x polish:**
-- Sticky day separators (CSS `position: sticky`)
-- `@mention` highlight for current user's alias
-- Triple-backtick code-block heuristic rendering
-
-**Anti-features (explicitly out for v1):** emoji reactions, reply threading, file uploads, edit/delete, read receipts, full-text search, agent-as-chat-author, cross-session persistent archive
+**Defer to v4.3+:**
+- Branded "AgentHub" notification sender on macOS (requires UNUserNotificationCenter CGO + entitlements + permission dialog)
+- Device-share automation via Tailscale admin API (requires OAuth policy:write scope)
+- ACL automation for tag:agenthub / autogroup:shared->tcp:7443 grant
 
 ### Architecture Approach
 
-The architecture integrates with the existing daemon/relay/webserver/PTY stack through three new constructs: a `daemon.ChatStore` (JSONL file, per-session, deleted with the session), protocol extensions to `internal/relay/protocol.go` (new frame-type byte constants 0x30–0x34), and a `Hub.SetChatHandler` callback that decouples relay fan-out from daemon persistence without an import cycle. Both client surfaces use the same `ChatPanel.tsx` React component and the same relay frame types.
+The Funnel integration touches four layers atomically: (1) WebServer struct promotion of local.Client + new EnableFunnel/DisableFunnel/FunnelBaseURL methods in server.go; (2) dual-origin allowlist in origin_mw.go and capability_mw.go; (3) Funnel-URL-emitting share-link builders in api.go at issueCapabilitiesForSession and handleExchangeJoinCode; (4) a funnelSessions map[string]bool reference-count on the API struct guarding DisableFunnel() calls (tear down only when the map is empty, to support multiple concurrent Funnel-enabled sessions). Notifications are wired entirely in app.go:pollSessionStatus — never from engine.go (which must remain Wails-import-free). The four v4.1 bug fixes each have confirmed root causes from direct code inspection.
 
-**Major components:**
-1. `internal/daemon/chat.go` (NEW) — `ChatStore`: JSONL append, in-memory slice, `Messages()` for late-join replay, `Export()` for Markdown, `Delete()` on session teardown
-2. `internal/relay/protocol.go` (MODIFIED) — `MsgChat`/`MsgChatSend`/`MsgPresence`/`MsgTyping`/`MsgAliasSet`; `ChatMessage` wire struct with stable `AuthorID` + snapshot `AuthorAlias`
-3. `internal/relay/hub.go` (MODIFIED) — `BroadcastChat`, `BroadcastPresence`, `SetChatHandler` (callback pattern mirrors existing `resizeFn`)
-4. `internal/relay/server.go` + `internal/webserver/server.go` (MODIFIED) — `MsgChatSend` dispatch in read pump; `lc.WhoIs` at WS upgrade (webserver only; relay uses `"local"` for loopback)
-5. `internal/daemon/engine.go` (MODIFIED) — `chatStores map[string]*ChatStore`; `KillSession` calls `store.Delete()`
-6. `frontend/src/components/Hub/ChatPanel.tsx` (NEW) — single React component shared by desktop modal and web SPA
+**Major components modified:**
+
+| Component | Change |
+|-----------|--------|
+| internal/webserver/server.go | Promote lc local.Client to struct field; add EnableFunnel/DisableFunnel/FunnelBaseURL |
+| internal/webserver/origin_mw.go | Dual-URL allowlist: tailnet origin + Funnel origin (no port) |
+| internal/webserver/capability_mw.go | originAllowedForWrite dual check |
+| internal/daemon/api.go | funnelSessions map; handleSetSessionFunnel; funnel-aware URL builders; web-share teardown path |
+| internal/relay/hub.go | Subscriber buffer 256->1024; new KickPersonKey method (#117) |
+| app.go | SetSessionFunnel + KickSessionViewer bound methods; maybeNotifyWaiting with de-dup; notification platform dispatch |
+| notification_windows.go (NEW), notification_linux.go (NEW) | Real platform notifications via beeep |
+| frontend/src/components/Hub/SessionShareModal.tsx | Funnel toggle + risk-ack dialog; viewer list + Disconnect button (#117) |
+| frontend/src/components/Hub/WebShareSessionView.tsx | Self-contained plugin-config fetch + SSE (#112); baseURL prop for remote-open (#118) |
+| frontend/src/components/StatusBar.tsx | Replace Enable/Disable Web with single "Share Session" -> modal (#115) |
+| frontend/src/components/SettingsTab.tsx | NotifyOnWaiting toggle + auto-switch toggle (#116) |
+| frontend/src/content/help/sharing-guide.md (NEW) | Funnel + device-share help article |
 
 ### Critical Pitfalls
 
-1. **RO cap holders posting chat / triggering `@session`** — Check `!sub.ReadOnly` and explicit write-perm before any `MsgChatSend` processing and before every `session.Write()` call in the daemon handler. Never rely on frontend button suppression alone. Grep all `session.Write` callsites added during the chat phase.
+1. **Funnel teardown incomplete on non-happy-path exits** — The Tailscale serve config persists in the Tailscale daemon independent of the AgentHub process. Must wire teardown at all four sites: (a) user disables Funnel toggle, (b) user disables web-share for a Funnel-enabled session, (c) session onExit callback, (d) WebServer.Stop() / daemon shutdown. Verify via tailscale serve status after each trigger; integration tests must use real code paths, not mocked DisableFunnel stubs.
 
-2. **Control characters in `@session` PTY injection** — Strip all C0 controls (`\x00`–`\x1f` except space/tab), collapse embedded newlines to a single space, strip CSI/OSC escape sequences, append exactly one `\n`. Apply sanitizer in the daemon handler, not in relay or UI. Unit-test with a newline/ctrl-char corpus.
+2. **Origin/BaseURL 403 before auth (integration landmine)** — Funnel guests arrive at port 443 with Origin: https://hostname.ts.net (no port). requireAllowedOrigin byte-matches ws.BaseURL() which returns https://hostname.ts.net:7443. Every guest 403s before the cap token is checked. Must ship FunnelBaseURL() and the dual-origin allowlist in the SAME PHASE as EnableFunnel(). UAT verification must come from a machine OUTSIDE the tailnet — testing only from a tailnet device hides this bug.
 
-3. **XSS via Markdown rendering on the web surface** — Never add `rehype-raw`; use `remark-gfm` only (same config as Phase 120 FileBrowserTab, a prior explicit security decision). Test by rendering `<img src=x onerror=alert(1)>` and confirming no `onerror` in the DOM.
+3. **Public-exposure indicator is color-only** — The Funnel-active indicator must include a persistent text label and a non-color icon. Never color-only. Verify CSS hex values in source, not by eye. Release-blocking defect for the colorblind project owner. Also verify prefers-reduced-motion is gated on all new animations.
 
-4. **`@session` wired as Wails RPC instead of relay message** — Wails RPC silently does nothing on the web surface (cross-surface parity is release-blocking). Implement as `MsgChatSend` with `sessionInject: true`; same relay message on both surfaces; daemon receives and writes PTY.
+4. **Notification spam — firing on state rather than transition** — pollSessionStatus runs every 500ms; waiting is a sustained state. Notification must fire only on the last != s.Status && s.Status == "waiting" transition. Default NotifyOnWaiting to OFF.
 
-5. **Local owner vs same-machine web client indistinguishable** — Define disambiguation rule before identity phase: Wails webview = `TailnetID "local"`; local browser = `WhoIs` node key; UI merges by `TailnetID` into one presence entry.
+5. **#117 ships only Part A (buffer increase) without Part B (viewer-disconnect UI)** — The buffer increase reduces but does not eliminate kick-on-join. Without the Disconnect button in the Share modal there is no escape hatch. Both parts must be acceptance criteria of the same phase.
+
+6. **Tests encoding the same wrong assumption** — Green CI has certified broken features before (Phase 150 shell-warning, Phase 155 false-parity). Origin allowlist tests must call EnableFunnel() — not set ws.funnelActive = true directly. Teardown tests must verify GetServeConfig returns empty — not assert a mock was called. Drive Funnel UAT from an external machine.
+
+7. **ETag concurrency clobber on ServeConfig read-modify-write** — Always GetServeConfig first, modify the returned struct, preserve the ETag (tagged json:"-" so invisible in logs). Mutex-guard EnableFunnel/DisableFunnel. Never construct a &ipn.ServeConfig{} literal for SetServeConfig.
+
+---
 
 ## Implications for Roadmap
 
-### Phase 1: Message Schema + ChatStore
-**Rationale:** Everything is blocked without the persisted message format; schema changes here ripple into all subsequent phases.
-**Delivers:** `daemon.ChatStore` (JSONL, `Messages()`, `Export()`, `Delete()`); `ChatMessage` wire struct in `protocol.go`; `chatStores` map in `SessionEngine`; `KillSession` teardown; REST history + export endpoints on relay mux (desktop) and webserver (cap-gated web); concurrent-write test under `-race`; 10 000-message hard cap enforced in `AppendMessage`.
-**Addresses:** Late-join scrollback foundation; Markdown export foundation; daemon restart survival.
-**Avoids:** Unbounded store growth; race conditions; reconnect duplication; RO-cap bypass (cap check wired before any Append).
-**Research flag:** Standard Go stdlib patterns — skip research phase.
+Phase numbering continues from v4.1's Phase 164. Suggested phase structure:
 
-### Phase 2: Relay Protocol Extension + Hub Fan-Out + Identity
-**Rationale:** Real-time delivery and identity attribution must both be in place before any message is stored with authorship.
-**Delivers:** Frame-type constants 0x30–0x34; `BroadcastChat`/`BroadcastPresence`/`SetChatHandler` on Hub; `TailnetID`/`Alias` on Subscriber; `lc.WhoIs` at WS upgrade (webserver); `"local"` identity for loopback (relay); `MsgChatSend` + `MsgTyping` + `MsgAliasSet` dispatch in both read pumps; typing server-side TTL (5 s auto-expire + clear on WS close); 500 ms client throttle spec; 2/sec server-side rate limit on `MsgTyping`.
-**Addresses:** Presence; typing indicators; live message fan-out; identity display; alias lifecycle.
-**Avoids:** Presence flooding; stale typing after disconnect; alias spoofing; local owner vs same-machine web disambiguation.
-**Research flag:** Standard patterns — skip research phase.
+### Phase 165: Funnel Backend (Atomic)
 
-### Phase 3: `@session` PTY Bridge
-**Rationale:** Depends on Phase 2 read pump dispatch; highest-security-risk capability deserves its own phase for isolation and test focus.
-**Delivers:** Daemon `chatHandler` detects `"@session "` prefix; `extractSessionPrompt`; PTY sanitizer (C0 strip, newline collapse, CSI/OSC strip, single `\n` append); explicit write-perm check before `session.Write()`; `SessionInject: true` in broadcast; sanitizer unit tests with control-char corpus.
-**Addresses:** `@session` → PTY injection (unique differentiator).
-**Avoids:** PTY control-char injection; RO-cap `@session` bypass; Wails-RPC surface divergence (relay message path only).
-**Research flag:** No new research needed. Planning must specify sanitizer test corpus explicitly.
+**Rationale:** The Funnel backend, Origin/BaseURL fix, and share-URL builders are a single atomic unit — shipping any subset causes silent 403s for every Funnel guest. This must be Phase 1 because all Funnel UI depends on it. External guests 403 before the cap token is checked if Origin is not fixed simultaneously.
 
-### Phase 4: Desktop Chat UI
-**Rationale:** Depends on Phases 1–3 for backend; frontend can scaffold in parallel with Phase 2 but wires end-to-end only after Phase 3.
-**Delivers:** `ChatPanel.tsx` (TanStack Virtual message list; `react-textarea-autosize` composer; hand-rolled `@mention` popover; presence/typing indicators; unread badge; day separators; timestamps; `@session` "→ injected" indicator); `HubInteractiveModal.tsx` updated; `pnpm add @tanstack/react-virtual react-textarea-autosize`.
-**Addresses:** All desktop table-stakes features; Enter=send; @mention autocomplete.
-**Avoids:** XSS (`react-markdown` config — `remark-gfm` only); React 19 `useFlushSync: false`.
-**Research flag:** TanStack Virtual chat example is published — skip research phase.
+**Delivers:**
+- local.Client promoted to WebServer struct field (by value, zero-value usable)
+- EnableFunnel(ctx, port) / DisableFunnel(ctx, port) / FunnelBaseURL() on WebServer
+- Dual-origin allowlist in requireAllowedOrigin, allowedOrigins, originAllowedForWrite
+- Funnel-URL-emitting issueCapabilitiesForSession and handleExchangeJoinCode (funnelBase when funnelSessions[sessionID] is true)
+- funnelSessions reference-count map in API struct
+- handleSetSessionFunnel daemon endpoint
+- Teardown wired at all four sites: toggle-off, web-share-off, onExit, WebServer.Stop()
+- ipn.CheckFunnelAccess preflight with verbatim error surfacing
+- Fallback-mode guard: Funnel toggle disabled/hidden when Tailscale is not connected; funnelActive never set to true in fallback mode
+- App.SetSessionFunnel Wails bound method
 
-### Phase 5: Web-Share Chat UI + Cross-Surface Parity Gate
-**Rationale:** `ChatPanel.tsx` is shared; wire into web SPA; verify cap-gated paths; cross-surface parity is release-blocking.
-**Delivers:** `ChatPanel.tsx` in web SPA; cap-gated REST history + export verified on web surface; Markdown export download button; Playwright e2e for both desktop and web-share surfaces for all table-stakes features including `@session`; unread badge on Hub session card; parity checklist signed off.
-**Addresses:** Markdown export (both surfaces); web-share `@session` injection verified; all cross-surface guarantees.
-**Avoids:** `@session` silent failure on web; chat feature drift between surfaces; XSS on web-share.
-**Research flag:** Needs planning attention on Playwright web-share surface setup (see MEMORY.md: browser UAT via isolated component harness; wails dev bridge has no PTY). Use isolated component harness pattern.
+**Avoids:** Pitfalls 1 (teardown), 2 (Origin/BaseURL 403), 4 (ETag), 5 (no prereq check), 13 (wrong-assumption tests), 14 (fallback breakage)
+
+**Research flag:** No additional research needed — all APIs verified against pinned v1.98.3 source.
+
+**UAT gate (must verify from OUTSIDE tailnet):** tailscale serve status empty after all four teardown triggers; HTTP request with Origin: https://hostname.ts.net returns 200 (not 403); share URL has no :443 suffix; fallback-mode web-share unaffected with Tailscale not running.
+
+---
+
+### Phase 166: Funnel Frontend + Help Guide
+
+**Rationale:** UI can only ship after Phase 165 backend is in place. Help article is a prerequisite for the risk-dialog cross-link; shipping them together avoids a dangling link.
+
+**Delivers:**
+- Funnel toggle + risk-acknowledgment dialog in SessionShareModal.tsx (per-enable, no "don't show again", auto-expiry selector, cross-link to Help article)
+- Funnel URL display + copy-to-clipboard in Share modal
+- Cert-warmup UX state ("Funnel is starting up...")
+- Persistent "INTERNET ACTIVE" indicator on Hub session card and session tab (text + icon, colorblind-safe, prefers-reduced-motion gated)
+- New frontend/src/content/help/sharing-guide.md — Funnel + device-share Help article (with grants ACL block, wildcard-default gotcha, revocation steps)
+- HelpTab.tsx + HelpSectionNav.tsx updated with new "Sharing Guide" section
+
+**Avoids:** Pitfalls 3 (color-only indicator), 6 (cert warmup UX), 15 (prefers-reduced-motion)
+
+**Research flag:** No additional research needed.
+
+**UAT gate:** Colorblind indicator verified at source-level (hex constants, not by eye); prefers-reduced-motion covered on all new animations; risk dialog appears on every Funnel enable (not remembered); "Funnel is starting up" state shown immediately after enable; Help article accessible via Help tab nav.
+
+---
+
+### Phase 167: Native Notifications (#110)
+
+**Rationale:** Fully independent of Funnel. Can ship in any order after Phase 165; placing it here gives Funnel UAT time to stabilize before adding another moving part.
+
+**Delivers:**
+- beeep v0.11.2 added to go.mod
+- notification_windows.go (beeep COM API) and notification_linux.go (beeep D-Bus / notify-send) complement existing notification_darwin.go
+- maybeNotifyWaiting in app.go: transition-based de-dup (last != s.Status gate) + 60-second belt-and-suspenders de-dup map
+- NotifyOnWaiting bool in Settings struct + settings serialization
+- NotifyOnWaiting toggle in SettingsTab.tsx (Session Behavior section), default OFF
+- "Script Editor" attribution on macOS documented in release notes (acceptable trade-off for v4.2)
+
+**Avoids:** Pitfalls 7 (notification spam), 8 (Script Editor attribution), 9 (Linux CI failures — beeep errors non-fatal; notification logic tested with mocks, not beeep.Notify directly)
+
+**Research flag:** No additional research needed.
+
+**UAT gate:** running->waiting->sustained waiting x5 fires exactly once; 2-minute sustained-waiting verification; macOS notification appears ("Script Editor" attribution expected); Windows toast appears; Settings toggle OFF suppresses notification.
+
+---
+
+### Phase 168: Bug Fixes (#112, #115, #116, #117, #118)
+
+**Rationale:** These issues are independent of Funnel and of each other. Batching reduces context-switch overhead. #117 is the most complex; it must ship with both Part A (buffer) and Part B (viewer-disconnect UI) in the same phase.
+
+**Delivers:**
+
+#115 — Footer state drift:
+- StatusBar.tsx: replace Enable Web / Disable Web buttons with single "Share Session" button that opens SessionShareModal
+- App.tsx: wire onOpenShareModal to current session at click time (not render time)
+
+#116 — Auto-switch setting:
+- New "Switch to new session when created from Hub" toggle in SettingsTab.tsx (default ON for backward compat)
+- Hub session-creation flow respects the setting
+
+#117 — Single-viewer kick (BOTH parts in same phase):
+- internal/relay/hub.go: subscriber buffer 256->1024
+- Hub.KickPersonKey(personKey string) method
+- DELETE /sessions/{id}/viewers/{personKey} daemon endpoint
+- App.KickSessionViewer(sessionID, personKey) Wails bound method
+- Viewer list + Disconnect button in SessionShareModal.tsx
+
+#118 — Remote-open external browser:
+- WebShareSessionView.tsx: baseURL?: string prop; WS URL and all network calls use baseURL when provided (apiBaseURL = baseURL ?? window.location.origin)
+- App.tsx: handleOpenRemoteSession creates in-app __websession__ tab instead of BrowserOpenURL
+
+#112 — Plugin-config / SSE for web guests:
+- WebShareSessionView.tsx: self-contained useEffect that fetches /api/plugin-config and subscribes to /api/plugin-config/stream when pluginConfig prop is null (browser context); Wails-context guard skips EventSource path in desktop app
+- apiBaseURL for REST/EventSource is always window.location.origin — NOT the baseURL prop (different concerns)
+
+**Avoids:** Pitfalls 10 (#117 half-fix), 11 (#112 CSP / wrong apiBaseURL), 12 (#118 broken REST calls for remote sessions)
+
+**Research flag:** No additional research needed — root causes confirmed in direct code inspection.
+
+**UAT gates:**
+- #117: Two simultaneous viewers; one tabs away; Disconnect button terminates stuck viewer; viewer count updates within next poll cycle. TWO-MACHINE TAILNET UAT required.
+- #118: Remote session opens in-app tab (not browser); terminal streams correctly; plugin config loads in in-app tab. TWO-MACHINE TAILNET UAT required.
+- #112: Open web-share URL in real browser (not Wails WebView); DevTools Network shows /api/plugin-config 200 + /api/plugin-config/stream open EventSource; Console has no CSP errors.
+- #115: Footer "Share Session" opens modal for current session; no independent state in footer.
+- #116: Session created from Hub does not auto-switch when toggle is OFF.
+
+---
 
 ### Phase Ordering Rationale
 
-- Store before transport before UI: JSONL schema is the contract everything serializes to; late schema changes require coordinated migration across three layers
-- Identity in Phase 2 not Phase 4: `TailnetID` must be stamped on Subscriber before any message is stored; retrofitting after storage is wired requires a migration
-- `@session` as a dedicated phase: highest-security-risk new capability; isolation prevents the sanitizer and cap check from being rushed as part of the UI phase
-- Web UI last: shares `ChatPanel.tsx` built in Phase 4; parity gate belongs here as a wholistic cross-surface pass
+- Phase 165 before 166: backend atomicity — Funnel UI is broken without the Origin fix
+- Phase 165 before 167/168: beeep and bug fixes are independent; ordering is for focus, not correctness
+- Phase 166 and 167 are interchangeable in principle; 166 ships first because the risk-dialog cross-link needs the Help article
+- Phase 168 bug fixes are parallelizable within the phase (each touches different files); #117 is most complex and should be planned first
+- #117's Funnel multi-viewer issue (Origin check failure) may be resolved by Phase 165's dual-origin fix; verify in Phase 165 UAT before scoping Phase 168 #117 work
 
 ### Research Flags
 
-Phases with well-documented patterns (skip `--research-phase`): Phase 1, Phase 2, Phase 3, Phase 4.
+All four phases have well-documented patterns and confirmed implementation paths. No phase in v4.2 requires a --research-phase sub-agent during planning:
 
-Phases needing planning attention (not deep research, but explicit design decisions): **Phase 5** — Playwright web-share UAT harness has known gotchas documented in MEMORY.md; plan must specify exact mechanic for each parity check.
+- **Phase 165:** All Funnel APIs verified against pinned v1.98.3 source; all integration points confirmed in direct code inspection; no unknowns
+- **Phase 166:** UI patterns follow existing SessionShareModal and Hub card extension points; Help system built in v4.0
+- **Phase 167:** beeep API is a single function call; notification wiring point (pollSessionStatus) confirmed; existing notification_darwin.go provides the platform-file pattern
+- **Phase 168:** All four root causes confirmed via direct code inspection with line numbers; fixes are targeted single-component changes
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | go.mod + package.json confirmed; all capabilities already in-place; alternatives evaluated with specific version evidence |
-| Features | MEDIUM | Design record (HIGH); web-search UX conventions (MEDIUM); feature boundaries from agreed discovery, not user research |
-| Architecture | HIGH | Direct inspection of relay, hub, webserver, daemon, capability packages; component boundaries from actual code |
-| Pitfalls | HIGH | All critical pitfalls derived from actual code paths (relay MC-03 line 269, engine.go:474, Phase 120 rehype-raw decision) |
+| Stack | HIGH | All Funnel APIs verified against tailscale.com@v1.98.3 source on disk; beeep API verified from pkg.go.dev + GitHub source; Wails v2 runtime confirmed to have no notification API |
+| Features | MEDIUM | Funnel UX patterns cross-referenced against ngrok, VS Code port-forwarding, Tailscale Funnel CLI docs; notification patterns from Warp and iTerm2 official docs |
+| Architecture | HIGH | All named files inspected directly; line numbers confirmed for root causes of #112, #115, #117, #118; data flows traced end-to-end through Go backend and React frontend |
+| Pitfalls | HIGH | Grounded in direct code inspection + project post-mortems from MEMORY.md (Phase 150 wrong-assumption tests, Phase 155 false-parity, colorblind indicator rule, two-machine tailnet UAT precedent) |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH**
 
 ### Gaps to Address
 
-- **Alias uniqueness enforcement strategy:** reject vs auto-suffix — decide at Phase 2 plan time (reject is simpler)
-- **Local owner vs same-machine web client:** disambiguation rule specified but not live-tested; confirm with two-tab UAT in Phase 5
-- **`@session` UX confirmation timing:** 500 ms hold to prevent accidents — decide whether in Phase 3 or defer to v1.x
-- **Typing indicator visual design:** must be visually distinct from Hub agent status dots; Phase 4 plan must specify exact icon + label choices
+- **Funnel cert warmup timing:** The 5-30 second window for Let's Encrypt cert provisioning on first-time Funnel use is documented but not measured empirically. If a readiness probe is implemented in Phase 166, the timeout and retry interval should be calibrated during execution.
+
+- **NotifyOnWaiting default:** PITFALLS.md specifies default OFF; FEATURES.md does not state a default. Decision: **default OFF** — consistent with industry norm (Warp defaults notifications off) and avoids surprise spam on upgrade from v4.1.
+
+- **beeep Windows COM API on AgentHub's tray-resident build:** Confirmed as working for tray-resident apps without AppUserModelId, but not yet UAT'd on AgentHub's actual Windows build. Flag for Phase 167 UAT on a real Windows machine.
+
+- **#117 Funnel-origin dependency:** The likely root cause of second-viewer kick in Funnel sessions is an Origin check failure for the Funnel hostname. Phase 165's dual-origin fix may resolve the multi-viewer Funnel case without additional work in Phase 168. Verify in Phase 165 UAT; if confirmed, Phase 168 #117 scope reduces to buffer increase + viewer-disconnect UI only.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `/Users/ken/dev/agenthub/internal/relay/server.go` — ReadOnly enforcement (MC-03, line 269)
-- `/Users/ken/dev/agenthub/internal/relay/hub.go` — subscriber model; BroadcastMeta pattern
-- `/Users/ken/dev/agenthub/internal/webserver/server.go` — Tailscale bind; WhoIs pattern
-- `/Users/ken/dev/agenthub/internal/daemon/engine.go` — session registry; KillSession; PTY write warning (line 474)
-- `/Users/ken/dev/agenthub/internal/capability/capability.go` — HasPerm() whole-token split
-- `/Users/ken/dev/agenthub/go.mod` — coder/websocket v1.8.14; tailscale.com v1.98.3; Go 1.26.3
-- `/Users/ken/dev/agenthub/frontend/package.json` — react-markdown 10.1.0; rehype-sanitize; remark-gfm; React 19.2.x
-- `.planning/notes/session-chat-discovery.md` — agreed design; one-way bridge; explicit out-of-scope decisions
+- /Users/ken/go/pkg/mod/tailscale.com@v1.98.3/ipn/serve.go — ServeConfig struct, SetFunnel, CheckFunnelAccess/NodeCanFunnel/CheckFunnelPort, exact error strings, IsFunnelOn
+- /Users/ken/go/pkg/mod/tailscale.com@v1.98.3/tailcfg/tailcfg.go — CapabilityHTTPS, NodeAttrFunnel, CapabilityFunnelPorts constants
+- Direct code inspection (all files named in ARCHITECTURE.md): internal/webserver/server.go, origin_mw.go, capability_mw.go, internal/daemon/api.go, internal/relay/hub.go, app.go, notification_darwin.go, frontend/src/components/Hub/SessionShareModal.tsx, WebShareSessionView.tsx, StatusBar.tsx, App.tsx, HelpTab.tsx, HelpSectionNav.tsx
+- pkg.go.dev/github.com/wailsapp/wails/v2@v2.10.2/pkg/runtime — confirmed no notification API in Wails v2
+- Project MEMORY.md — colorblind indicator rule, wrong-assumption tests precedent (Phase 150), false-parity precedent (Phase 155), two-machine tailnet UAT precedent (Phase 122)
 
 ### Secondary (MEDIUM confidence)
-- `pkg.go.dev/tailscale.com/client/tailscale/apitype#WhoIsResponse` — Node + UserProfile fields confirmed
-- `npmjs.com/@tanstack/react-virtual` — v3.14.3; React 19 `useFlushSync: false` documented
-- `npmjs.com/react-textarea-autosize` — v8.5.9; 1.3 KB gzipped; ships TS types
-- `npmjs.com/react-mentions` — v4.4.10; last published 3 years ago (confirms staleness)
-- Web search: Enter=send conventions; @mention patterns; typing debounce; Markdown export formats
+- pkg.go.dev/tailscale.com@v1.98.3/client/local — SetServeConfig, GetServeConfig, Status, StatusWithoutPeers, QueryFeature signatures
+- pkg.go.dev/github.com/gen2brain/beeep — Notify(title, message, icon any) error, v0.11.2 (Dec 2025)
+- github.com/gen2brain/beeep/blob/master/notify_darwin.go — osascript approach, no CGO, no dock-icon dependency
+- Tailscale Funnel documentation: https://tailscale.com/docs/features/tailscale-funnel
+- Tailscale node sharing: https://tailscale.com/kb/1084/sharing
+- Tailscale policy syntax / grants: https://tailscale.com/kb/1337/policy-syntax
+- VS Code port forwarding: https://code.visualstudio.com/docs/debugtest/port-forwarding
+- Warp desktop + agent notifications: https://docs.warp.dev/terminal/more-features/notifications/
 
-### Tertiary (context only)
-- `agenthub-v4.0-redesign/AgentHub.Chat.Session.standalone.html` — original prototype; NOT the implementation model; informed what to design out
+### Tertiary (LOW confidence)
+- tap-to-tmux (community notification de-dup pattern): https://github.com/flavio87/tap-to-tmux
+- Claude Code + tmux notification pattern: https://software-dc.com/blog/4-claude-code-tmux-how-i-got-notifications-working
 
 ---
-*Research completed: 2026-06-25*
+*Research completed: 2026-06-30*
 *Ready for roadmap: yes*
