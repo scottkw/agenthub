@@ -46,6 +46,7 @@ type SessionEngine struct {
 
 	startMinimized              bool            // persisted start-minimized preference
 	notifyOnWaiting             bool            // Phase 167 NTF-04: persisted native-notification-on-waiting preference (default OFF)
+	stayOnHubAfterCreate        bool            // Phase 168 UX-01: persisted "stay on Hub after creating a session" preference (default OFF)
 	shellWebShareWarned         bool            // Phase 101 SHELL-08: user has acknowledged the shell web-share security banner
 	shellWebShareWarningEnabled *bool           // Phase 150 SET-01: master warning switch; nil = default (true per D-08)
 	shellPath                   string          // Phase 107 SHELL-11: user-configured shell binary path; empty = use platform default
@@ -113,6 +114,7 @@ type daemonSettings struct {
 	CLIPaths                    map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized              bool              `json:"startMinimized,omitempty"`
 	NotifyOnWaiting             bool              `json:"notifyOnWaiting,omitempty"` // Phase 167 NTF-04: default OFF; zero-value is the correct default (no defaults-merge needed)
+	StayOnHubAfterCreate        bool              `json:"stayOnHubAfterCreate,omitempty"` // Phase 168 UX-01: default OFF; zero-value is the correct default (no defaults-merge needed)
 	ShellWebShareWarned         bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath                   string            `json:"shellPath,omitempty"`
 	AutoCloseSession            *bool             `json:"autoCloseSession,omitempty"`
@@ -212,6 +214,7 @@ func (e *SessionEngine) loadSettingsFromDisk(dir string) {
 	}
 	e.startMinimized = s.StartMinimized
 	e.notifyOnWaiting = s.NotifyOnWaiting
+	e.stayOnHubAfterCreate = s.StayOnHubAfterCreate
 	e.shellWebShareWarned = s.ShellWebShareWarned
 	e.shellPath = s.ShellPath
 	e.autoCloseSession = s.AutoCloseSession
@@ -248,6 +251,7 @@ func (e *SessionEngine) saveSettingsToDisk() {
 		CLIPaths:                    e.cliPaths,
 		StartMinimized:              e.startMinimized,
 		NotifyOnWaiting:             e.notifyOnWaiting,
+		StayOnHubAfterCreate:        e.stayOnHubAfterCreate,
 		ShellWebShareWarned:         e.shellWebShareWarned,
 		ShellPath:                   e.shellPath,
 		AutoCloseSession:            e.autoCloseSession,
@@ -1121,6 +1125,23 @@ func (e *SessionEngine) GetNotifyOnWaiting() bool {
 func (e *SessionEngine) SetNotifyOnWaiting(val bool) {
 	e.mu.Lock()
 	e.notifyOnWaiting = val
+	e.saveSettingsToDisk()
+	e.mu.Unlock()
+}
+
+// GetStayOnHubAfterCreate returns the persisted "stay on Hub after creating
+// a session" preference. Phase 168 UX-01; default OFF (zero-value false).
+func (e *SessionEngine) GetStayOnHubAfterCreate() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.stayOnHubAfterCreate
+}
+
+// SetStayOnHubAfterCreate updates and persists the "stay on Hub after
+// creating a session" preference. Phase 168 UX-01.
+func (e *SessionEngine) SetStayOnHubAfterCreate(val bool) {
+	e.mu.Lock()
+	e.stayOnHubAfterCreate = val
 	e.saveSettingsToDisk()
 	e.mu.Unlock()
 }

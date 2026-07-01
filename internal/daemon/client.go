@@ -180,6 +180,23 @@ func (c *DaemonClient) SetNotifyOnWaiting(val bool) error {
 		map[string]bool{"notifyOnWaiting": val}, nil)
 }
 
+// GetStayOnHubAfterCreate returns the persisted "stay on Hub after creating
+// a session" preference. Phase 168 UX-01.
+func (c *DaemonClient) GetStayOnHubAfterCreate() (bool, error) {
+	var resp map[string]bool
+	if err := c.doJSON(http.MethodGet, "/settings/stay-on-hub-after-create", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp["stayOnHubAfterCreate"], nil
+}
+
+// SetStayOnHubAfterCreate persists the "stay on Hub after creating a
+// session" preference. Phase 168 UX-01.
+func (c *DaemonClient) SetStayOnHubAfterCreate(val bool) error {
+	return c.doJSON(http.MethodPatch, "/settings/stay-on-hub-after-create",
+		map[string]bool{"stayOnHubAfterCreate": val}, nil)
+}
+
 // GetShellWebShareWarned returns the persisted shell-web-share-warned flag.
 // Phase 101 SHELL-08.
 func (c *DaemonClient) GetShellWebShareWarned() (bool, error) {

@@ -124,6 +124,8 @@ func (a *API) registerRoutes() {
 	a.mux.HandleFunc("PATCH /settings/start-minimized", a.handleSetStartMinimized)
 	a.mux.HandleFunc("GET /settings/notify-on-waiting", a.handleGetNotifyOnWaiting)
 	a.mux.HandleFunc("PATCH /settings/notify-on-waiting", a.handleSetNotifyOnWaiting)
+	a.mux.HandleFunc("GET /settings/stay-on-hub-after-create", a.handleGetStayOnHubAfterCreate)
+	a.mux.HandleFunc("PATCH /settings/stay-on-hub-after-create", a.handleSetStayOnHubAfterCreate)
 	a.mux.HandleFunc("GET /settings/shell-web-share-warned", a.handleGetShellWebShareWarned)
 	a.mux.HandleFunc("PATCH /settings/shell-web-share-warned", a.handleUpdateShellWebShareWarned)
 	a.mux.HandleFunc("GET /settings/shell-web-share-warning-enabled", a.handleGetShellWebShareWarningEnabled)
@@ -884,6 +886,22 @@ func (a *API) handleSetNotifyOnWaiting(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.engine.SetNotifyOnWaiting(req.NotifyOnWaiting)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) handleGetStayOnHubAfterCreate(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"stayOnHubAfterCreate": a.engine.GetStayOnHubAfterCreate()})
+}
+
+func (a *API) handleSetStayOnHubAfterCreate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		StayOnHubAfterCreate bool `json:"stayOnHubAfterCreate"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	a.engine.SetStayOnHubAfterCreate(req.StayOnHubAfterCreate)
 	w.WriteHeader(http.StatusNoContent)
 }
 

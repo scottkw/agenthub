@@ -724,6 +724,31 @@ func (a *App) SetStartMinimized(val bool) error {
 	return a.client.SetStartMinimized(val)
 }
 
+// GetStayOnHubAfterCreate returns the persisted "stay on Hub after creating
+// a session" preference (Phase 168 / UX-01). Returns false (auto-switch,
+// today's behavior) when daemon is not connected. Plain client passthrough —
+// no atomic cache needed since there is no background reader (unlike
+// NotifyOnWaiting's tray poller).
+func (a *App) GetStayOnHubAfterCreate() bool {
+	if a.client == nil {
+		return false
+	}
+	val, err := a.client.GetStayOnHubAfterCreate()
+	if err != nil {
+		return false
+	}
+	return val
+}
+
+// SetStayOnHubAfterCreate persists the "stay on Hub after creating a
+// session" preference (Phase 168 / UX-01).
+func (a *App) SetStayOnHubAfterCreate(val bool) error {
+	if a.client == nil {
+		return fmt.Errorf("daemon not connected")
+	}
+	return a.client.SetStayOnHubAfterCreate(val)
+}
+
 // GetNotifyOnWaiting returns the cached native-notification-on-waiting
 // preference (Phase 167 / NTF-04). Reads the atomic cache rather than the
 // daemon so the tray-poller's edge detector and the Settings toggle always
