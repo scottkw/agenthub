@@ -45,6 +45,7 @@ func testDaemon(t *testing.T) (*API, *DaemonClient, string) {
 	engine.shellWebShareWarningEnabled = nil // nil → default true per D-08 (GetShellWebShareWarningEnabled returns true on nil)
 	engine.shellPath = ""
 	engine.autoCloseSession = nil
+	engine.notifyOnWaiting = false // Phase 167 NTF-04: default OFF; reset so the real on-disk settings.json cannot leak in
 	engine.pluginSettings = defaultPluginSettings()
 	api := NewAPI(engine)
 	// Use short socket path — macOS t.TempDir() paths exceed the 103-char limit.
