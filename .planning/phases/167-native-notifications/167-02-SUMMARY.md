@@ -142,3 +142,7 @@ None - no external service configuration required. Go module dependency resolved
 ---
 *Phase: 167-native-notifications*
 *Completed: 2026-07-01*
+
+## Self-Check: PASSED
+
+All created/modified files confirmed present on disk (notification_windows.go, notification_linux.go, notification_darwin.go, tray_objc_darwin.m, app.go), notification_other.go confirmed deleted, and all three commit hashes (92976c96, 58c2a638, ea912895) confirmed present in git log.
