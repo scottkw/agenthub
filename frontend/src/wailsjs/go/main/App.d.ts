@@ -160,6 +160,10 @@ export function SetAutoCloseSession(val: boolean): Promise<void>
 export function GetNotifyOnWaiting(): Promise<boolean>
 export function SetNotifyOnWaiting(val: boolean): Promise<void>
 
+// Stay-on-hub-after-create bound methods (Phase 168 / UX-01)
+export function GetStayOnHubAfterCreate(): Promise<boolean>
+export function SetStayOnHubAfterCreate(val: boolean): Promise<void>
+
 // Plugin settings bound methods (PLUG-03 / Phase 92)
 export function GetPluginSettings(): Promise<daemon.PluginSettings>
 export function SetPluginSettings(arg1: daemon.PluginSettings): Promise<void>

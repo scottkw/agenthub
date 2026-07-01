@@ -100,6 +100,10 @@ export const SetAutoCloseSession     = (val)                => Call('main.App.Se
 export const GetNotifyOnWaiting      = ()                   => Call('main.App.GetNotifyOnWaiting', [])
 export const SetNotifyOnWaiting      = (val)                => Call('main.App.SetNotifyOnWaiting', [val])
 
+// Stay-on-hub-after-create bound methods (Phase 168 / UX-01)
+export const GetStayOnHubAfterCreate = ()                   => Call('main.App.GetStayOnHubAfterCreate', [])
+export const SetStayOnHubAfterCreate = (val)                => Call('main.App.SetStayOnHubAfterCreate', [val])
+
 // Plugin settings bound methods (PLUG-03 / Phase 92)
 export const GetPluginSettings       = ()                   => Call('main.App.GetPluginSettings', [])
 export const SetPluginSettings       = (s)                  => Call('main.App.SetPluginSettings', [s])

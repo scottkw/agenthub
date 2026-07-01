@@ -19,6 +19,9 @@ import {
   // Phase 167 NTF-04 — awaiting-input native notification toggle
   GetNotifyOnWaiting,
   SetNotifyOnWaiting,
+  // Phase 168 UX-01 — stay-on-hub-after-create toggle
+  GetStayOnHubAfterCreate,
+  SetStayOnHubAfterCreate,
   RegenerateSigningKey,
   // Phase 107-03 SHELL-11 — shell binary path setting
   GetShellPath,
@@ -127,6 +130,12 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
   // emitted by 167-06's onNotificationAuthResult callback).
   const [notifyPermissionDenied, setNotifyPermissionDenied] = useState(false)
 
+  // Stay-on-hub-after-create toggle state (Phase 168 UX-01) — default OFF (D-09).
+  const [stayOnHubAfterCreate, setStayOnHubAfterCreate] = useState(false)
+  const [stayOnHubAfterCreateLoaded, setStayOnHubAfterCreateLoaded] = useState(false)
+  const [stayOnHubAfterCreateSaving, setStayOnHubAfterCreateSaving] = useState(false)
+  const [stayOnHubAfterCreateError, setStayOnHubAfterCreateError] = useState<string | null>(null)
+
   // Phase 150 SET-01 — shell web-share warning enabled master switch (D-08 default ON).
   const [shellWarnEnabled, setShellWarnEnabled] = useState(true) // default ON (D-08)
   const [shellWarnLoaded, setShellWarnLoaded] = useState(false)
@@ -216,6 +225,14 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
       setNotifyOnWaiting(val)
       setNotifyOnWaitingLoaded(true)
     }).catch(() => setNotifyOnWaitingLoaded(true))
+  }, [])
+
+  // Load stay-on-hub-after-create preference on mount (Phase 168 UX-01).
+  useEffect(() => {
+    GetStayOnHubAfterCreate().then(val => {
+      setStayOnHubAfterCreate(val)
+      setStayOnHubAfterCreateLoaded(true)
+    }).catch(() => setStayOnHubAfterCreateLoaded(true))
   }, [])
 
   // Load shell web-share warning enabled preference on mount (Phase 150 SET-01).
@@ -410,6 +427,21 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
     }
   }
 
+  // Phase 168 UX-01 — instant toggle (no confirm dialog), mirrors handleToggleNotifyOnWaiting.
+  async function handleToggleStayOnHub() {
+    const next = !stayOnHubAfterCreate
+    setStayOnHubAfterCreateSaving(true)
+    setStayOnHubAfterCreateError(null)
+    try {
+      await SetStayOnHubAfterCreate(next)
+      setStayOnHubAfterCreate(next)
+    } catch (err) {
+      setStayOnHubAfterCreateError('Could not save preference — ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setStayOnHubAfterCreateSaving(false)
+    }
+  }
+
   // Phase 150 SET-01 — D-07: turning OFF requires confirmation; turning ON is instant.
   async function handleToggleShellWarnEnabled() {
     const next = !shellWarnEnabled
@@ -579,6 +611,33 @@ export function SettingsTab({ clis, tailscaleHealth, webServerMode, onWebServerS
             Automatically close the tab 5 seconds after an agent exits with code 0.
           </p>
           {autoCloseError && <p className="settings-panel__error">{autoCloseError}</p>}
+        </div>
+
+        {/* Phase 168 UX-01 — stay-on-hub-after-create toggle (Session Behavior, D-08/D-09) */}
+        <div className="settings-panel__field-group">
+          {stayOnHubAfterCreateLoaded && (
+            <label
+              className={`settings-panel__toggle-row${stayOnHubAfterCreate ? ' settings-panel__toggle-row--checked' : ''}`}
+              htmlFor="stayOnHubAfterCreate"
+              style={stayOnHubAfterCreateSaving ? { pointerEvents: 'none', opacity: 0.6 } : undefined}
+            >
+              <span className="settings-panel__toggle-track">
+                <span className="settings-panel__toggle-thumb" />
+              </span>
+              <span className="settings-panel__toggle-label">Stay on Hub after creating a session</span>
+            </label>
+          )}
+          <input
+            type="checkbox"
+            id="stayOnHubAfterCreate"
+            className="settings-panel__toggle-input"
+            checked={stayOnHubAfterCreate}
+            onChange={() => void handleToggleStayOnHub()}
+          />
+          <p className="settings-panel__description">
+            When enabled, creating a new session from the Hub keeps you on the Hub tab instead of switching to it. The session is still created and can be opened from its card or the tab strip anytime. Off by default.
+          </p>
+          {stayOnHubAfterCreateError && <p className="settings-panel__error">{stayOnHubAfterCreateError}</p>}
         </div>
 
         {/* Phase 150 SET-01 — shell web-share warning toggle (Session Behavior, D-05/D-06) */}
