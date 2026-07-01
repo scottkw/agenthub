@@ -113,7 +113,7 @@ func ensureOpenCodeTUIConfig(dir string) string {
 type daemonSettings struct {
 	CLIPaths                    map[string]string `json:"cliPaths,omitempty"`
 	StartMinimized              bool              `json:"startMinimized,omitempty"`
-	NotifyOnWaiting             bool              `json:"notifyOnWaiting,omitempty"` // Phase 167 NTF-04: default OFF; zero-value is the correct default (no defaults-merge needed)
+	NotifyOnWaiting             bool              `json:"notifyOnWaiting,omitempty"`      // Phase 167 NTF-04: default OFF; zero-value is the correct default (no defaults-merge needed)
 	StayOnHubAfterCreate        bool              `json:"stayOnHubAfterCreate,omitempty"` // Phase 168 UX-01: default OFF; zero-value is the correct default (no defaults-merge needed)
 	ShellWebShareWarned         bool              `json:"shellWebShareWarned,omitempty"`
 	ShellPath                   string            `json:"shellPath,omitempty"`
