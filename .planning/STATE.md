@@ -4,17 +4,17 @@ milestone: v4.2
 milestone_name: Funnel Sharing & Polish
 current_phase: 167
 current_phase_name: native-notifications
-status: verifying
-stopped_at: Completed 167-03-PLAN.md
+status: testing
+stopped_at: Phase 167 executed (4/4 plans) + verified 10/11 — awaiting M-41 human UAT
 last_updated: "2026-07-01T07:02:08.625Z"
 last_activity: 2026-07-01
-last_activity_desc: Phase 167 execution started
+last_activity_desc: Phase 167 executed (4/4) + verifier PASS 10/11 — human_needed (M-41 cross-platform notification delivery)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 14
   completed_plans: 14
-  percent: 75
+  percent: 50
 ---
 
 # Project State
