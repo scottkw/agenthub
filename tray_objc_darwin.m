@@ -152,31 +152,60 @@ void setTraySessionData(const char **names, const char **ids, int count) {
     });
 }
 
+// hasValidBundleIdentifier reports whether the running process has a valid
+// app-bundle identifier. UNUserNotificationCenter requires one; an unbundled
+// process (e.g. `wails dev`, a `go test` binary) has none, and calling into
+// UNUserNotificationCenter without this guard raises an uncaught
+// NSInternalInconsistencyException ("bundleProxyForCurrentProcess is nil")
+// that aborts the whole process (Phase 167 M-41 regression).
+int hasValidBundleIdentifier(void) {
+    return [[NSBundle mainBundle] bundleIdentifier] != nil ? 1 : 0;
+}
+
 // sendNotification sends a macOS notification using UNUserNotificationCenter.
 // Requests permission lazily on first call; no-ops if the user denies.
 // The identifier is caller-supplied so concurrent notifications (e.g. two
 // sessions transitioning to waiting close together) do not collide and
 // silently replace one another (RESEARCH Pitfall 2).
+//
+// Fail-safe (Phase 167-05 gap closure, M-41): if the process has no valid
+// app-bundle identifier, UNUserNotificationCenter is unusable and calling it
+// aborts the process. Guard synchronously BEFORE dispatch so the crash-prone
+// API is never reached in that case — log-and-swallow, mirroring the beeep
+// Windows/Linux wrappers' contract. On a properly bundled/signed .app this
+// guard passes and the notification fires exactly as before.
 void sendNotification(const char *identifier, const char *title, const char *body) {
+    if (!hasValidBundleIdentifier()) {
+        NSLog(@"AgentHub: skipping native notification — no valid app-bundle identifier (unbundled/unsigned process)");
+        return;
+    }
     NSString *nsIdentifier = [NSString stringWithUTF8String:identifier];
     NSString *nsTitle = [NSString stringWithUTF8String:title];
     NSString *nsBody  = [NSString stringWithUTF8String:body];
     dispatch_async(dispatch_get_main_queue(), ^{
-        UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-        [center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
-            completionHandler:^(BOOL granted, NSError *error) {
-            if (!granted) return;
-            dispatch_async(dispatch_get_main_queue(), ^{
-                UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
-                content.title = nsTitle;
-                content.body  = nsBody;
-                UNNotificationRequest *req = [UNNotificationRequest
-                    requestWithIdentifier:nsIdentifier
-                    content:content
-                    trigger:nil];
-                [center addNotificationRequest:req withCompletionHandler:nil];
-            });
-        }];
+        @try {
+            UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+            [center requestAuthorizationWithOptions:(UNAuthorizationOptionAlert | UNAuthorizationOptionSound)
+                completionHandler:^(BOOL granted, NSError *error) {
+                if (!granted) return;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    @try {
+                        UNMutableNotificationContent *content = [[UNMutableNotificationContent alloc] init];
+                        content.title = nsTitle;
+                        content.body  = nsBody;
+                        UNNotificationRequest *req = [UNNotificationRequest
+                            requestWithIdentifier:nsIdentifier
+                            content:content
+                            trigger:nil];
+                        [center addNotificationRequest:req withCompletionHandler:nil];
+                    } @catch (NSException *e) {
+                        NSLog(@"AgentHub: swallowed exception adding notification request: %@", e);
+                    }
+                });
+            }];
+        } @catch (NSException *e) {
+            NSLog(@"AgentHub: swallowed exception requesting notification authorization: %@", e);
+        }
     });
 }
 
