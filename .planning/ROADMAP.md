@@ -456,13 +456,13 @@ Plans:
 
   *(Note: toggle placement moved to the **Behavior** section per the LOCKED user correction in 167-CONTEXT.md — success-criterion-4 "Session Behavior" wording is superseded; intent unchanged.)*
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 167-01-PLAN.md — Daemon settings persistence: `NotifyOnWaiting` through engine → api → client (mirrors StartMinimized) (NTF-04)
-- [ ] 167-02-PLAN.md — Cross-platform notification primitives: beeep v0.11.2 Windows/Linux wrappers + per-call identifier threaded through the native macOS path; delete notification_other.go (NTF-01)
+- [x] 167-02-PLAN.md — Cross-platform notification primitives: beeep v0.11.2 Windows/Linux wrappers + per-call identifier threaded through the native macOS path; delete notification_other.go (NTF-01)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -496,7 +496,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 165. Funnel Backend | 5/5 | Complete   | 2026-06-30 |
 | 166. Funnel Frontend + Help Guide | 5/5 | Complete (verified 8/8) | 2026-06-30 |
-| 167. Native Notifications | 1/4 | In Progress|  |
+| 167. Native Notifications | 2/4 | In Progress|  |
 | 168. Bug Fix & Settings Polish | 0/? | Not started | - |
 
 ---

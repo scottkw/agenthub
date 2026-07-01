@@ -6,14 +6,14 @@ current_phase: 167
 current_phase_name: native-notifications
 status: executing
 stopped_at: Phase 167 planned (4 plans/3 waves) + plan-checker PASSED
-last_updated: "2026-07-01T06:30:58.208Z"
+last_updated: "2026-07-01T06:37:07.316Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 167 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 14
-  completed_plans: 11
+  completed_plans: 12
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30 — v4.2 milestone started)
 ## Current Position
 
 Phase: 167 (native-notifications) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 167 execution started
 
@@ -133,7 +133,7 @@ v4.2 Progress: [██████████░░░░░░░░░░] 50
 
 ## Session Continuity
 
-Last session: 2026-07-01T06:25:54.273Z
+Last session: 2026-07-01T06:35:49.253Z
 Stopped at: Phase 166 UI-SPEC approved
 Resume file: .planning/phases/166-funnel-frontend-help-guide/166-UI-SPEC.md
 Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36) PASS. Next milestone step = Phase 166 (Funnel Frontend + Help Guide): the Share-modal Funnel toggle UI, which was blocked on 165's backend (now proven working end-to-end). Run `/gsd-plan-phase 166` when ready. NOTE for future live Funnel UATs: the /app/ path needs a PRODUCTION build (`wails build -tags wailsassets`) — `wails dev` daemon returns 503 "app bundle not configured" (no embedded SPA), expected not a bug.
@@ -205,6 +205,7 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 | Phase 165 P04 | 25 | 3 tasks | 5 files |
 | Phase 165-funnel-backend P05 | 7min | 3 tasks | 3 files |
 | Phase 167 P01 | 12min | 2 tasks | 5 files |
+| Phase 167 P02 | 8min | 2 tasks | 6 files |
 
 ## Decisions
 
@@ -220,3 +221,5 @@ Next action: Phase 165 is DONE — code-verified + all live UAT (M-34/M-35/M-36)
 - [Phase ?]: GAP 1 Option A: EnableFunnel proxy target https://localhost → https+insecure://<bindIP>:<port> (FNL-03 502 closed)
 - [Phase ?]: GAP 2 kill path: handleDeleteSession calls runSessionExitCleanup synchronously — no grace period, no double-cleanup race (FNL-05 kill path closed)
 - [Phase ?]: Phase 167-01: NotifyOnWaiting persisted boolean setting mirrors StartMinimized exactly — no schema bump, no defaults-merge, default OFF (NTF-04)
+- [Phase ?]: [Phase 167]: Kept native macOS UNUserNotificationCenter path instead of beeep for macOS -- real AgentHub attribution beats beeep Script Editor fallback
+- [Phase ?]: [Phase 167]: Windows/Linux beeep wrappers accept identifier param for signature parity but do not use it; AUMID/app_name branding deferred
