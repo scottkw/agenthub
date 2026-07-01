@@ -1052,10 +1052,15 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
   const webSessionTabId = (sessionId: string) => `__websession__${sessionId}`
 
   // Phase 155-03 — open (or focus) the WebShareSessionView tab for a web-share
-  // session. Mirrors handleOpenFileBrowser in structure. The capToken is
-  // consumed from webParams.capToken at render time (mount-stable), so we
-  // do not need to store it per-tab in React state.
-  const openWebSessionTab = useCallback((sessionId: string) => {
+  // session. Mirrors handleOpenFileBrowser in structure.
+  //
+  // Phase 168-03 (FIX-03) — extended to (sessionId, baseURL?, capToken?). The
+  // app's own web-share bootstrap tab (mode==='web') still omits baseURL/
+  // capToken and is resolved from the mount-stable webParams at render time
+  // (unchanged behavior). Remote-peer tabs (opened via handleOpenRemoteSession)
+  // pass a baseURL + capToken that are carried PER-TAB on the Tab object, so
+  // two different remote sessions never share params (RESEARCH Pitfall 3).
+  const openWebSessionTab = useCallback((sessionId: string, baseURL?: string, capToken?: string) => {
     const tabId = webSessionTabId(sessionId)
     const existing = tabs.find((t) => t.id === tabId)
     if (existing) {
@@ -1068,6 +1073,8 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
       sessionId,
       cli: '',
       type: 'web-session',
+      baseURL,
+      capToken,
     }
     setTabs((prev) => [...prev, newTab])
     setActiveId(newTab.id)
@@ -1577,16 +1584,37 @@ const SETTINGS_TAB: Tab = { id: '__settings__', name: 'Settings', sessionId: '',
             connected to the webserver WS (not the loopback relay). relayPort
             is 0 on web-share; wsURL inside WebShareSessionView overrides the
             loopback construction so the sentinel 0 is never used for socket
-            connects. The cap token comes from webParams.capToken (mount-stable). */}
-        {activeId !== null && activeId.startsWith('__websession__') && (
-          <WebShareSessionView
-            sessionId={webParams.sessionId ?? activeId.slice('__websession__'.length)}
-            capToken={webParams.capToken ?? ''}
-            relayPort={relayPort ?? 0}
-            theme={terminalTheme}
-            pluginConfig={pluginConfig ?? undefined}
-          />
-        )}
+            connects.
+
+            Phase 168-03 (FIX-03) — per-tab param resolution. A remote-peer
+            tab (opened via handleOpenRemoteSession) carries its OWN
+            baseURL/capToken on the Tab object; those are read here instead
+            of the single mount-stable webParams (RESEARCH Pitfall 3 — reading
+            the global webParams for a remote tab would silently reuse the
+            FIRST remote session's cap/host for a SECOND one). The app's own
+            web-share bootstrap tab (mode==='web', no per-tab baseURL) still
+            falls back to webParams, preserving prior behavior. pluginConfig
+            is likewise only meaningful for the local bootstrap tab — App's
+            own pluginConfig state describes THIS daemon's plugins, which is
+            irrelevant to a different peer's session; passing it through for
+            a remote tab would suppress WebShareSessionView's web-guest
+            self-fetch (isWebGuest) and apply the wrong peer's config. */}
+        {activeId !== null && activeId.startsWith('__websession__') && (() => {
+          const activeWebTab = tabs.find((t) => t.id === activeId)
+          const isRemoteWebTab = activeWebTab?.baseURL !== undefined
+          const wsSessionId = activeWebTab?.sessionId ?? webParams.sessionId ?? activeId.slice('__websession__'.length)
+          const wsCapToken = isRemoteWebTab ? (activeWebTab?.capToken ?? '') : (webParams.capToken ?? '')
+          return (
+            <WebShareSessionView
+              sessionId={wsSessionId}
+              capToken={wsCapToken}
+              baseURL={activeWebTab?.baseURL}
+              relayPort={relayPort ?? 0}
+              theme={terminalTheme}
+              pluginConfig={isRemoteWebTab ? undefined : (pluginConfig ?? undefined)}
+            />
+          )
+        })()}
 
         {/* Phase 120-04 — per-session FileBrowserTab. Activated when activeId
             begins with the __files__ prefix; the tab id encodes the sessionId

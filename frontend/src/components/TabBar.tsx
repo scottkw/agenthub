@@ -11,6 +11,12 @@ export interface Tab {
   sessionId: string
   cli: string
   type?: 'terminal' | 'welcome' | 'settings' | 'file-browser' | 'hub' | 'help' | 'web-session'
+  /** Phase 168-03 (FIX-03) — per-tab remote peer origin for 'web-session' tabs
+   *  opened via handleOpenRemoteSession. undefined for the app's own web-share
+   *  bootstrap tab (which falls back to the mount-stable webParams). */
+  baseURL?: string
+  /** Phase 168-03 (FIX-03) — per-tab capability token, paired with baseURL. */
+  capToken?: string
 }
 // Phase 101-02 — human-readable agent label for the tab tooltip suffix.
 // Locked copy: shells use "Shell — DISPLAYNAME" (em-dash U+2014); AI CLIs
