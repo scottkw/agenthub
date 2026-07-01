@@ -47,7 +47,7 @@ Requirements for this milestone. Each maps to a roadmap phase.
 
 ### Bug Fixes (FIX)
 
-- [ ] **FIX-01**: Web-share guests on the `/app/` surface receive live plugin-config and SSE hot-swap updates (self-fetched via the capability-gated `/api/plugin-config` + SSE endpoints), restoring the parity lost after the Phase 159 `/sessions/{id}` → `/app/` redirect. — Issue #112
+- [x] **FIX-01**: Web-share guests on the `/app/` surface receive live plugin-config and SSE hot-swap updates (self-fetched via the capability-gated `/api/plugin-config` + SSE endpoints), restoring the parity lost after the Phase 159 `/sessions/{id}` → `/app/` redirect. — Issue #112
 - [ ] **FIX-02**: A shared session supports multiple simultaneous remote viewers without a newly joining viewer kicking an existing one, and the Hub provides a way to disconnect a stuck viewer. — Issue #117
 - [ ] **FIX-03**: Opening a remote session from the Hub opens it in an in-app tab (connecting via the remote peer's host), not an external browser window. — Issue #118
 - [x] **FIX-04**: The Hub session-card viewer count reflects only real remote/shared viewers, excluding the app's own internal WebSocket subscribers (TerminalPanel, ChatPanel, status watcher) — a never-shared local session reads 0 viewers. — Issue #121
@@ -99,7 +99,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NTF-04 | Phase 167 | Complete |
 | UX-01 | Phase 168 | Pending |
 | UX-02 | Phase 168 | Pending |
-| FIX-01 | Phase 168 | Pending |
+| FIX-01 | Phase 168 | Complete |
 | FIX-02 | Phase 168 | Pending |
 | FIX-03 | Phase 168 | Pending |
 | FIX-04 | Phase 168 | Complete |
