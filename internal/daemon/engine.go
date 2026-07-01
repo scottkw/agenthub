@@ -532,12 +532,16 @@ func (e *SessionEngine) ListSessions() []SessionInfo {
 		}
 		name := e.tabNames[s.ID]
 
-		// MC-04: populate viewer count from hub subscriber count.
-		// manager.Get acquires HubManager.mu; SubscriberCount acquires hub.mu.
+		// FIX-04 (#121): populate viewer count from RemoteViewerCount, NOT
+		// SubscriberCount — the Hub card must reflect only real remote/shared
+		// viewers (Origin=="web"), excluding the app's own internal Origin=="local"
+		// subscribers (TerminalPanel, ChatPanel, status watcher, Hub-card preview),
+		// or a never-shared local session shows phantom viewers.
+		// manager.Get acquires HubManager.mu; RemoteViewerCount acquires hub.mu.
 		// Both are safe to call while holding e.mu.RLock (no lock ordering conflict).
 		viewerCount := 0
 		if hub, ok := e.manager.Get(s.ID); ok {
-			viewerCount = hub.SubscriberCount()
+			viewerCount = hub.RemoteViewerCount()
 		}
 
 		// Heuristic status from detector (running/idle/waiting/errored).

@@ -685,7 +685,9 @@ func TestClientNotifyThemeChange(t *testing.T) {
 }
 
 // TestAPI_ListSessionsViewerCount verifies that ViewerCount in the session list
-// API response reflects the actual hub subscriber count (MC-04).
+// API response reflects the hub's remote (web-origin) viewer count (MC-04;
+// updated Phase 168 / FIX-04, #121 — a subscriber must have Origin=="web" to
+// count, since local-origin subscribers no longer contribute to ViewerCount).
 func TestAPI_ListSessionsViewerCount(t *testing.T) {
 	api, _, socketPath := testDaemon(t)
 
@@ -759,10 +761,13 @@ func TestAPI_ListSessionsViewerCount(t *testing.T) {
 		}
 	}
 
-	// Subscribe a client to the session's hub; ViewerCount should rise by 1.
+	// Subscribe a web-origin client to the session's hub; ViewerCount should
+	// rise by 1. Origin must be "web" (Phase 168 / FIX-04) — local-origin
+	// subscribers (the status detector, etc.) are excluded from ViewerCount.
 	sub := &relay.Subscriber{
 		Msgs:      make(chan []byte, 256),
 		CloseSlow: func() {},
+		Origin:    "web",
 	}
 	hub.Subscribe(sub)
 	defer hub.Unsubscribe(sub)

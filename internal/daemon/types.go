@@ -26,7 +26,7 @@ type SessionInfo struct {
 	CreatedAt   string `json:"createdAt"`
 	Hostname    string `json:"hostname"`
 	WebEnabled  bool   `json:"webEnabled"`
-	ViewerCount int    `json:"viewerCount"`        // MC-04: number of active WebSocket subscribers
+	ViewerCount int    `json:"viewerCount"`        // Phase 168 / FIX-04, D-03: number of remote (web-origin) viewers only — excludes the app's own internal Origin=="local" WebSocket subscribers
 	ExitCode    *int   `json:"exitCode,omitempty"` // nil while running; set when State is "stopped"
 	Duration    *int   `json:"duration,omitempty"` // seconds since CreatedAt; set when State is "stopped"
 	HomeDir       bool   `json:"homeDir"`         // Phase 124 / CAP-06: true when the session cwd equals EvalSymlinks($HOME); drives the home-write warning on both GUI and TUI
