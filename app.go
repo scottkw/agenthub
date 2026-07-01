@@ -100,15 +100,92 @@ type App struct {
 	// Defaults to nil (production path calls a.refreshTrayState() directly).
 	// Phase 98 PRG-03 / PROJECT.md "Function injection" pattern.
 	refreshTrayStateFunc func()
+
+	// notifyOnWaiting caches the persisted NotifyOnWaiting preference (Phase
+	// 167 / NTF-04). Atomic because it's written by the Wails RPC goroutine
+	// (SetNotifyOnWaiting) and read by the tray-poller goroutine
+	// (maybeNotifyWaiting), mirroring lastTrayQuartile's concurrency pattern.
+	notifyOnWaiting atomic.Bool
+
+	// lastWaitingStatus tracks the previously-observed Status per session ID,
+	// used by maybeNotifyWaiting to edge-detect the non-waiting→waiting
+	// transition (NTF-02). Only ever read/written from refreshTrayState's
+	// single goroutine (the 5s tray-poller ticker), so it needs no separate
+	// locking. nil until the first maybeNotifyWaiting call (cold-start
+	// baseline capture).
+	lastWaitingStatus map[string]string
+
+	// sendNotificationFunc allows unit tests to mock sendNotification so no
+	// real OS notification fires. Defaults to sendNotification. Phase 167 /
+	// NTF-01..03, mirrors the saveFileDialogFunc injection pattern.
+	sendNotificationFunc func(identifier, title, body string)
 }
 
 // NewApp creates a new App without starting any subsystems.
 func NewApp() *App {
 	a := &App{
-		saveFileDialogFunc: runtime.SaveFileDialog,
+		saveFileDialogFunc:   runtime.SaveFileDialog,
+		sendNotificationFunc: sendNotification,
 	}
 	a.lastTrayQuartile.Store(-1) // Phase 98 PRG-03 — ensure first SetTrayProgress call always updates
 	return a
+}
+
+// displayNameForCLI maps a CLI identifier to its human-readable display name
+// (Phase 167 / NTF-03). Static mirror of internal/pty/detect.go's knownCLIs
+// table — deliberately does NOT call pty.DetectCLI, which performs a live
+// PATH scan unsuitable for this per-notification lookup (RESEARCH LOCKED
+// decision #5). Unknown CLIs (including shells) fall back to the raw input.
+func displayNameForCLI(cli string) string {
+	switch cli {
+	case "claude":
+		return "Claude Code"
+	case "codex":
+		return "OpenAI Codex"
+	case "gemini":
+		return "Gemini CLI"
+	case "opencode":
+		return "OpenCode"
+	case "agy":
+		return "Google Antigravity"
+	default:
+		return cli
+	}
+}
+
+// maybeNotifyWaiting fires a native notification for every session whose
+// Status transitioned from non-"waiting" to "waiting" since the previous
+// call (Phase 167 / NTF-02). Must be called from a single goroutine (the
+// tray-poller ticker) — a.lastWaitingStatus is not otherwise synchronized.
+// No-op when the NotifyOnWaiting preference is off (NTF-04). The first call
+// (lastWaitingStatus nil) only baselines current statuses without firing, so
+// sessions already waiting at cold-start don't trigger a notification burst.
+func (a *App) maybeNotifyWaiting(sessions []SessionInfo) {
+	if !a.notifyOnWaiting.Load() {
+		return
+	}
+	firstRun := a.lastWaitingStatus == nil
+	if firstRun {
+		a.lastWaitingStatus = make(map[string]string, len(sessions))
+	}
+	seen := make(map[string]bool, len(sessions))
+	for _, s := range sessions {
+		seen[s.ID] = true
+		prev, known := a.lastWaitingStatus[s.ID]
+		a.lastWaitingStatus[s.ID] = s.Status
+		if firstRun {
+			continue // baseline capture only — no notification on cold start
+		}
+		if s.Status == string(status.StatusWaiting) && known && prev != string(status.StatusWaiting) {
+			body := fmt.Sprintf("%s (%s) is waiting for your input.", s.Name, displayNameForCLI(s.CLI))
+			a.sendNotificationFunc("agenthub.session-waiting."+s.ID, "AgentHub", body)
+		}
+	}
+	for id := range a.lastWaitingStatus {
+		if !seen[id] {
+			delete(a.lastWaitingStatus, id) // prune sessions no longer present
+		}
+	}
 }
 
 // domReady is called by Wails after the WebView DOM is ready.

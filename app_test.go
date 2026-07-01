@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	goruntime "runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -948,5 +949,193 @@ func TestGetRemoteSessionsWithMeta_ReachableField(t *testing.T) {
 	for _, p := range livePeers {
 		// Accessing p.Reachable compiles only if the field exists.
 		_ = p.Reachable
+	}
+}
+
+// -----------------------------------------------------------------------
+// Phase 167 / NTF-01..04 — maybeNotifyWaiting edge-detection trigger.
+//
+// These tests drive maybeNotifyWaiting through the injected
+// sendNotificationFunc seam so no real OS notification fires (per LOCKED
+// decision #8). No daemon/client wiring is needed — maybeNotifyWaiting
+// operates purely on the []SessionInfo slice passed in.
+// -----------------------------------------------------------------------
+
+// notificationCall records a single sendNotificationFunc invocation for
+// assertions in the tests below.
+type notificationCall struct {
+	identifier string
+	title      string
+	body       string
+}
+
+// notifyTestApp returns an App with notifications enabled and a recorder
+// wired in place of the real sendNotificationFunc.
+func notifyTestApp() (*App, *[]notificationCall) {
+	var calls []notificationCall
+	a := &App{
+		sendNotificationFunc: func(identifier, title, body string) {
+			calls = append(calls, notificationCall{identifier, title, body})
+		},
+	}
+	a.notifyOnWaiting.Store(true)
+	return a, &calls
+}
+
+// TestMaybeNotifyWaiting verifies a session going running->waiting between
+// two calls fires exactly one notification, and a session held in waiting
+// across subsequent calls fires nothing more (NTF-02 transition-once).
+func TestMaybeNotifyWaiting(t *testing.T) {
+	a, calls := notifyTestApp()
+
+	// Tick 1: baseline capture (session running) — no notification yet.
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "running"}})
+	if len(*calls) != 0 {
+		t.Fatalf("tick 1 (baseline): expected 0 notifications, got %d", len(*calls))
+	}
+
+	// Tick 2: transition running -> waiting — exactly one notification.
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"}})
+	if len(*calls) != 1 {
+		t.Fatalf("tick 2 (transition): expected 1 notification, got %d", len(*calls))
+	}
+
+	// Tick 3: still waiting — no additional notification.
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"}})
+	if len(*calls) != 1 {
+		t.Fatalf("tick 3 (held waiting): expected still 1 notification, got %d", len(*calls))
+	}
+
+	// Tick 4: still waiting again — confirm no unbounded growth.
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"}})
+	if len(*calls) != 1 {
+		t.Fatalf("tick 4 (held waiting): expected still 1 notification, got %d", len(*calls))
+	}
+}
+
+// TestMaybeNotifyWaiting_FirstTickNoNotify verifies the cold-start baseline:
+// on the very first call, a session already "waiting" fires nothing; a
+// subsequent tick's new transition (a different session) does fire.
+func TestMaybeNotifyWaiting_FirstTickNoNotify(t *testing.T) {
+	a, calls := notifyTestApp()
+
+	// First call ever (lastWaitingStatus nil): s1 already waiting.
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"}})
+	if len(*calls) != 0 {
+		t.Fatalf("cold-start tick: expected 0 notifications for already-waiting session, got %d", len(*calls))
+	}
+
+	// Second call: s1 stays waiting (no fire), s2 is new and transitions
+	// running -> waiting is not observable in one tick, so introduce it
+	// running first, then waiting on a third tick.
+	a.maybeNotifyWaiting([]SessionInfo{
+		{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"},
+		{ID: "s2", CLI: "codex", Name: "sess-2", Status: "running"},
+	})
+	if len(*calls) != 0 {
+		t.Fatalf("second tick: expected 0 notifications, got %d", len(*calls))
+	}
+
+	// Third tick: s2 transitions running -> waiting — fires.
+	a.maybeNotifyWaiting([]SessionInfo{
+		{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"},
+		{ID: "s2", CLI: "codex", Name: "sess-2", Status: "waiting"},
+	})
+	if len(*calls) != 1 {
+		t.Fatalf("third tick: expected 1 notification (s2 transition), got %d", len(*calls))
+	}
+	if (*calls)[0].identifier != "agenthub.session-waiting.s2" {
+		t.Errorf("expected notification for s2, got identifier %q", (*calls)[0].identifier)
+	}
+}
+
+// TestMaybeNotifyWaiting_BodyFormat verifies the notification body contains
+// the session Name and displayNameForCLI(CLI) (NTF-03).
+func TestMaybeNotifyWaiting_BodyFormat(t *testing.T) {
+	a, calls := notifyTestApp()
+
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "My Session", Status: "running"}})
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "My Session", Status: "waiting"}})
+
+	if len(*calls) != 1 {
+		t.Fatalf("expected 1 notification, got %d", len(*calls))
+	}
+	call := (*calls)[0]
+	if call.title != "AgentHub" {
+		t.Errorf("title = %q, want %q", call.title, "AgentHub")
+	}
+	if !strings.Contains(call.body, "My Session") {
+		t.Errorf("body %q does not contain session name %q", call.body, "My Session")
+	}
+	if !strings.Contains(call.body, "Claude Code") {
+		t.Errorf("body %q does not contain agent display name %q", call.body, "Claude Code")
+	}
+	if call.identifier != "agenthub.session-waiting.s1" {
+		t.Errorf("identifier = %q, want %q", call.identifier, "agenthub.session-waiting.s1")
+	}
+}
+
+// TestMaybeNotifyWaiting_DisabledNoop verifies that with notifyOnWaiting
+// false, no call to sendNotificationFunc occurs regardless of transitions
+// (NTF-04).
+func TestMaybeNotifyWaiting_DisabledNoop(t *testing.T) {
+	a, calls := notifyTestApp()
+	a.notifyOnWaiting.Store(false)
+
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "running"}})
+	a.maybeNotifyWaiting([]SessionInfo{{ID: "s1", CLI: "claude", Name: "sess-1", Status: "waiting"}})
+
+	if len(*calls) != 0 {
+		t.Fatalf("expected 0 notifications with toggle disabled, got %d", len(*calls))
+	}
+}
+
+// TestMaybeNotifyWaiting_Pruning verifies a session absent from the latest
+// slice is dropped from lastWaitingStatus (no unbounded growth).
+func TestMaybeNotifyWaiting_Pruning(t *testing.T) {
+	a, _ := notifyTestApp()
+
+	a.maybeNotifyWaiting([]SessionInfo{
+		{ID: "s1", CLI: "claude", Name: "sess-1", Status: "running"},
+		{ID: "s2", CLI: "codex", Name: "sess-2", Status: "running"},
+	})
+	if len(a.lastWaitingStatus) != 2 {
+		t.Fatalf("after tick 1: expected 2 tracked sessions, got %d", len(a.lastWaitingStatus))
+	}
+
+	// s2 disappears (killed/exited) on tick 2.
+	a.maybeNotifyWaiting([]SessionInfo{
+		{ID: "s1", CLI: "claude", Name: "sess-1", Status: "running"},
+	})
+	if len(a.lastWaitingStatus) != 1 {
+		t.Fatalf("after tick 2: expected 1 tracked session (s2 pruned), got %d", len(a.lastWaitingStatus))
+	}
+	if _, ok := a.lastWaitingStatus["s2"]; ok {
+		t.Error("s2 should have been pruned from lastWaitingStatus")
+	}
+}
+
+// TestDisplayNameForCLI is a table test for the static CLI->display-name
+// mirror of internal/pty/detect.go's knownCLIs table (NTF-03).
+func TestDisplayNameForCLI(t *testing.T) {
+	tests := []struct {
+		cli  string
+		want string
+	}{
+		{"claude", "Claude Code"},
+		{"codex", "OpenAI Codex"},
+		{"gemini", "Gemini CLI"},
+		{"opencode", "OpenCode"},
+		{"agy", "Google Antigravity"},
+		{"bash", "bash"},
+		{"unknown-thing", "unknown-thing"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.cli, func(t *testing.T) {
+			got := displayNameForCLI(tc.cli)
+			if got != tc.want {
+				t.Errorf("displayNameForCLI(%q) = %q, want %q", tc.cli, got, tc.want)
+			}
+		})
 	}
 }
