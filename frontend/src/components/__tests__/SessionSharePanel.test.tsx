@@ -27,10 +27,19 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   GetCapabilityQRCode: vi.fn().mockResolvedValue(''),
 }))
 
+// Import mocked runtime bindings for assertion (Phase 166 FUI-05)
+import { ClipboardSetText, BrowserOpenURL } from '../../wailsjs/wailsjs/runtime/runtime'
+
 interface RenderOpts {
   browseEnabled?: boolean
   writeURL?: string
   writeCode?: string
+  // Phase 166 FUI-04/FUI-05 Internet section
+  funnelActive?: boolean
+  funnelUrl?: string | null
+  warmingUp?: boolean
+  warmupTimedOut?: boolean
+  onDisableFunnel?: () => void
 }
 
 function renderPanel(opts: RenderOpts = {}) {
@@ -46,6 +55,11 @@ function renderPanel(opts: RenderOpts = {}) {
         readCode: 'read-code',
         writeCode: opts.writeCode ?? 'write-code',
         browseEnabled: opts.browseEnabled ?? false,
+        funnelActive: opts.funnelActive,
+        funnelUrl: opts.funnelUrl,
+        warmingUp: opts.warmingUp,
+        warmupTimedOut: opts.warmupTimedOut,
+        onDisableFunnel: opts.onDisableFunnel,
       })
     )
   })
@@ -174,5 +188,113 @@ describe('SessionSharePanel — link scope clarity (v3.5 relabel)', () => {
   it('states the Full Access scope: full session control plus file browsing', () => {
     ;({ container, root } = renderPanel())
     expect(container!.textContent).toContain('Full control of the live session')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 166 — FUI-04/FUI-05 — Internet (public) section
+// ---------------------------------------------------------------------------
+const mockedClipboardSetText = ClipboardSetText as ReturnType<typeof vi.fn>
+const mockedBrowserOpenURL = BrowserOpenURL as ReturnType<typeof vi.fn>
+
+describe('SessionSharePanel — FUI-05 Internet (public) section', () => {
+  let container: HTMLElement | undefined
+  let root: Root | undefined
+
+  afterEach(() => {
+    if (root) {
+      flushSync(() => root!.unmount())
+      root = undefined
+    }
+    if (container) {
+      container.remove()
+      container = undefined
+    }
+    vi.clearAllMocks()
+  })
+
+  it('does not render the Internet section when funnel is not engaged', () => {
+    ;({ container, root } = renderPanel())
+    expect(container!.querySelector('.hub-share-internet-section')).toBeNull()
+  })
+
+  it('warmingUp renders the "Starting up… (TLS warming up)" state and no live URL actions', () => {
+    ;({ container, root } = renderPanel({ warmingUp: true }))
+    const section = container!.querySelector('.hub-share-internet-section')
+    expect(section).not.toBeNull()
+    expect(container!.textContent).toMatch(/Starting up… \(TLS warming up\)/)
+    // No live "Copy URL" action while warming up
+    const copyUrl = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Copy URL',
+    )
+    expect(copyUrl).toBeUndefined()
+  })
+
+  it('funnelActive + funnelUrl renders the read-only URL with Copy URL / Open / QR actions', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+    }))
+    expect(container!.textContent).toMatch(/Public URL \(read-only\)/)
+    expect(container!.innerHTML).toContain('https://sess.tail-scale.ts.net/')
+    const labels = Array.from(container!.querySelectorAll('button')).map((b) => b.textContent?.trim())
+    expect(labels).toContain('Copy URL')
+    expect(labels.some((l) => l === 'Open')).toBe(true)
+  })
+
+  it('Copy URL uses ClipboardSetText (not navigator.clipboard)', async () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+    }))
+    const copyBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Copy URL',
+    ) as HTMLElement
+    await flushSync(() => copyBtn.click())
+    expect(mockedClipboardSetText).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/')
+  })
+
+  it('Open uses BrowserOpenURL with the funnel URL', async () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+    }))
+    const openBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Open' && b.getAttribute('aria-label')?.includes('public'),
+    ) as HTMLElement
+    await flushSync(() => openBtn.click())
+    expect(mockedBrowserOpenURL).toHaveBeenCalledWith('https://sess.tail-scale.ts.net/')
+  })
+
+  it('does NOT render a public write link in the Internet section (D-12)', () => {
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      writeURL: 'https://example.com/w?cap=SECRET_WRITE',
+    }))
+    const section = container!.querySelector('.hub-share-internet-section')!
+    // The write cap token must never appear inside the Internet (public) section.
+    expect(section.innerHTML).not.toContain('SECRET_WRITE')
+  })
+
+  it('clicking "Disable internet share" invokes onDisableFunnel (single click, no confirm)', async () => {
+    const onDisableFunnel = vi.fn()
+    ;({ container, root } = renderPanel({
+      funnelActive: true,
+      funnelUrl: 'https://sess.tail-scale.ts.net/',
+      onDisableFunnel,
+    }))
+    const disableBtn = Array.from(container!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Disable internet share',
+    ) as HTMLElement
+    expect(disableBtn).not.toBeUndefined()
+    await flushSync(() => disableBtn.click())
+    expect(onDisableFunnel).toHaveBeenCalledTimes(1)
+  })
+
+  it('warmupTimedOut renders the timeout error copy', () => {
+    ;({ container, root } = renderPanel({ warmupTimedOut: true }))
+    expect(container!.querySelector('.hub-share-internet-section__error')).not.toBeNull()
+    expect(container!.textContent).toMatch(/Connection timed out\. Try disabling and re-enabling\./)
   })
 })
